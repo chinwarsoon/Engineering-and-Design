@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>TWRP C4B DCC Submission Explorer Pro | Analytics Edition</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+
+        :root {
+
+            --primary: #2563eb; --bg: #f8fafc; --card-bg: #ffffff;
+
+            --border: #e2e8f0; --text-main: #1e293b; --accent: #10b981;
+
+            --pivot-bg: rgba(37, 99, 235, 0.08); --td-padding: 10px; --font-size: 13px;
+
+        }
+
+        body.dark-mode {
+
+            --bg: #0f172a; --card-bg: #1e293b; --border: #334155;
+
+            --text-main: #f1f5f9; --pivot-bg: rgba(37, 99, 235, 0.15);
+
+        }
+
+        body.compact { --td-padding: 4px 8px; --font-size: 11px; }
+
+
+
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text-main); padding: 20px; transition: 0.2s; line-height: 1.5; font-size: var(--font-size); }
+
+        .card { max-width: 1600px; margin: 0 auto; background: var(--card-bg); padding: 2rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+
+        
+
+        .table-wrapper { 
+
+            overflow: auto; 
+
+            max-height: 600px; 
+
+            border: 1px solid var(--border); 
+
+            border-radius: 8px; 
+
+            position: relative; 
+
+        }
+
+
+
+        table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card-bg); table-layout: auto; }
+
+        
+
+        th { 
+
+            background: var(--bg); padding: var(--td-padding); text-align: left; 
+
+            position: sticky; top: 0; z-index: 20; 
+
+            cursor: pointer; border-bottom: 2px solid var(--border); 
+
+            white-space: nowrap; min-width: 120px;
+
+            user-select: none;
+
+        }
+
+
+
+        /* Frozen First Column */
+
+        th:first-child, td:first-child {
+
+            position: sticky;
+
+            left: 0;
+
+            z-index: 30;
+
+            background: var(--card-bg);
+
+            border-right: 2px solid var(--border);
+
+        }
+
+        th:first-child { z-index: 40; background: var(--bg); }
+
+
+
+        /* Column Resizer Handle */
+
+        .resizer {
+
+            position: absolute;
+
+            right: 0;
+
+            top: 0;
+
+            height: 100%;
+
+            width: 6px;
+
+            cursor: col-resize;
+
+            z-index: 50;
+
+        }
+
+        .resizer:hover { background: var(--primary); }
+
+        .resizing { border-right: 2px dashed var(--primary) !important; }
+
+
+
+        td { padding: var(--td-padding); border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--card-bg); }
+
+        
+
+        /* Filters and UI */
+
+        .header-section { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+
+        .controls-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+
+        .filters-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; max-height: 300px; overflow-y: auto; border: 1px solid var(--border); }
+
+        .multiselect-box { position: relative; width: 100%; }
+
+        .multiselect-display { padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 38px; }
+
+        .multiselect-options { position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; z-index: 1000; max-height: 350px; overflow-y: auto; box-shadow: 0 10px 20px rgba(0,0,0,0.15); padding: 10px; }
+
+        .hidden { display: none; }
+
+        .btn { background: var(--primary); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+
+        .btn-accent { background: var(--accent); color: white; }
+
+        select, input[type="text"], input[type="date"] { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text-main); }
+
+        #groupBySection { background: var(--pivot-bg); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed var(--primary); }
+
+        #groupCheckboxArea { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 120px; overflow-y: auto; margin: 10px 0; }
+
+        label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; opacity: 0.7; }
+
+    </style>
+
+</head>
+
+<body>
+
+
+
+<div class="card">
+
+    <div class="header-section">
+
+        <h2 style="margin:0;">📊 TWRP C4B DCC Submission Explorer Pro</h2>
+
+        <div style="display:flex; gap:10px;">
+
+            <button onclick="document.body.classList.toggle('compact')" class="btn btn-outline">📏 Compact</button>
+
+            <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🌙 Dark Mode</button>
+
+        </div>
+
+    </div>
+
+    
+
+    <div id="step1">
+
+        <label>1. Load File</label>
+
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
+
+            <input type="file" id="upload" accept=".xlsx, .xls" />
+
+            <select id="sheetSelector" class="hidden"></select>
+
+        </div>
+
+    </div>
+
+
+
+    <div id="step2" class="hidden" style="margin-top:20px;">
+
+        <label>2. Choose Filterable Columns</label>
+
+        <div id="headerList" class="filters-container" style="max-height: 150px;"></div>
+
+        <button class="btn" onclick="buildInterface()">Initialize Dashboard</button>
+
+    </div>
+
+
+
+    <div id="step3" class="hidden">
+
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border);">
+
+        
+
+        <div id="groupBySection">
+
+            <label style="color: var(--primary);">📊 Grouping & Analytics</label>
+
+            <div id="groupCheckboxArea"></div>
+
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px;">
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+
+                    <label>Aggregator:</label>
+
+                    <select id="aggColumn" onchange="runFilter()"></select>
+
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px;">
+
+                    <label>Date Binning:</label>
+
+                    <select id="dateGranularity" onchange="runFilter()">
+
+                        <option value="none">Actual Date</option>
+
+                        <option value="month">Month & Year</option>
+
+                        <option value="quarter">Quarter</option>
+
+                        <option value="year">Year Only</option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <div class="controls-row">
+
+            <div id="stats" style="font-weight: 700;"></div>
+
+            <div style="display: flex; gap: 8px; align-items: center; position: relative;">
+
+                <input type="text" id="globalSearch" placeholder="Search rows..." oninput="runFilter()">
+
+                <button class="btn btn-outline" onclick="toggleColumnMenu(event)">👁️ Columns</button>
+
+                <div id="columnToggleMenu" class="hidden" style="position: absolute; right: 280px; top: 40px; background: var(--card-bg); border: 1px solid var(--border); padding: 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 10px 20px rgba(0,0,0,0.2); min-width: 200px;">
+
+                    <div id="columnChecklist"></div>
+
+                </div>
+
+                <button class="btn btn-accent" onclick="downloadExcel()">📥 Export Excel</button>
+
+                <button class="btn btn-outline" onclick="resetFilters()">Reset All</button>
+
+            </div>
+
+        </div>
+
+
+
+        <div id="filterArea" class="filters-container"></div>
+
+
+
+        <div id="chartSection" class="hidden" style="margin-bottom: 20px; padding: 15px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px;">
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+
+                <label>📈 Data Trends</label>
+
+                <div style="display: flex; gap: 10px;">
+
+                    <select id="chartType" onchange="runFilter()">
+
+                        <option value="bar">Bar</option><option value="line">Line</option><option value="pie">Pie</option>
+
+                    </select>
+
+                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="downloadChart()">🖼️ Save Chart</button>
+
+                </div>
+
+            </div>
+
+            <div style="height: 300px;"><canvas id="dataChart"></canvas></div>
+
+        </div>
+
+
+
+        <div class="table-wrapper">
+
+            <table id="mainTable">
+
+                <thead id="tHead"></thead>
+
+                <tbody id="tBody"></tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+    let workbook = null, rawData = [], headers = [], selectedFilterCols = [], currentGroupedData = [], filteredDataGlobal = [], hiddenColumns = new Set(), myChart = null;
+
+    let activeSelections = {}, sortConfig = { column: null, direction: 'asc' };
+
+
+
+    // --- Column Resizing Engine ---
+
+    function initResizers() {
+
+        const ths = document.querySelectorAll('th');
+
+        ths.forEach(th => {
+
+            // Remove existing resizer if any to avoid duplicates
+
+            const oldResizer = th.querySelector('.resizer');
+
+            if (oldResizer) oldResizer.remove();
+
+
+
+            const resizer = document.createElement('div');
+
+            resizer.classList.add('resizer');
+
+            th.appendChild(resizer);
+
+
+
+            resizer.addEventListener('mousedown', function(e) {
+
+                e.preventDefault();
+
+                e.stopPropagation();
+
+                
+
+                const startX = e.pageX;
+
+                const startWidth = th.offsetWidth;
+
+                th.classList.add('resizing');
+
+
+
+                const onMouseMove = (e) => {
+
+                    const width = startWidth + (e.pageX - startX);
+
+                    if (width > 50) { // Minimum width constraint
+
+                        th.style.width = width + 'px';
+
+                        th.style.minWidth = width + 'px'; // Essential for table-layout: auto
+
+                    }
+
+                };
+
+
+
+                const onMouseUp = () => {
+
+                    th.classList.remove('resizing');
+
+                    document.removeEventListener('mousemove', onMouseMove);
+
+                    document.removeEventListener('mouseup', onMouseUp);
+
+                };
+
+
+
+                document.addEventListener('mousemove', onMouseMove);
+
+                document.addEventListener('mouseup', onMouseUp);
+
+            });
+
+        });
+
+    }
+
+
+
+    // Core Data Logic
+
+    function isExcelDate(val) { return typeof val === 'number' && val > 29221 && val < 60000; }
+
+    function sanitizeHeader(h) { return typeof h === 'string' ? h.replace(/[\r\n\t]+/g, ' ').trim() : h; }
+
+
+
+    document.getElementById('upload').addEventListener('change', (e) => {
+
+        const reader = new FileReader();
+
+        reader.onload = (evt) => {
+
+            workbook = XLSX.read(evt.target.result, {type: 'array', cellDates: true});
+
+            const s = document.getElementById('sheetSelector');
+
+            s.innerHTML = workbook.SheetNames.map(n => `<option value="${n}">${n}</option>`).join('');
+
+            s.classList.remove('hidden');
+
+            loadSheet(workbook.SheetNames[0]);
+
+        };
+
+        reader.readAsArrayBuffer(e.target.files[0]);
+
+    });
+
+
+
+    function loadSheet(name) {
+
+        const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[name], {defval: ""});
+
+        rawData = sheetData.map(row => {
+
+            const cleanRow = {};
+
+            Object.keys(row).forEach(k => cleanRow[sanitizeHeader(k)] = row[k]);
+
+            return cleanRow;
+
+        });
+
+        headers = rawData.length > 0 ? Object.keys(rawData[0]) : [];
+
+        document.getElementById('headerList').innerHTML = headers.map(h => `<label><input type="checkbox" value="${h}" class="col-check"> ${h}</label>`).join('');
+
+        document.getElementById('step2').classList.remove('hidden');
+
+    }
+
+
+
+    function buildInterface() {
+
+        selectedFilterCols = Array.from(document.querySelectorAll('.col-check:checked')).map(cb => cb.value);
+
+        activeSelections = {};
+
+        document.getElementById('filterArea').innerHTML = selectedFilterCols.map(col => {
+
+            const sample = rawData.find(r => r[col] !== "")?.[col];
+
+            if ((sample instanceof Date) || isExcelDate(sample)) {
+
+                return `<div class="filter-item"><label>📅 ${col}</label><div style="display: flex; gap: 5px; margin-top: 5px;"><input type="date" id="date-min-${col}" onchange="runFilter()" style="width:50%;"><input type="date" id="date-max-${col}" onchange="runFilter()" style="width:50%;"></div></div>`;
+
+            }
+
+            return `<div class="filter-item"><label>${col}</label><div class="multiselect-box" onclick="toggleDropdown(event, '${col}')"><div class="multiselect-display"><span id="label-${col}">All Items</span><span>▼</span></div><div class="multiselect-options hidden" id="options-${col}" onclick="event.stopPropagation()"><div class="selection-controls"><span class="control-btn" onclick="bulkSelect('${col}', true, event)">All</span><span class="control-btn" onclick="bulkSelect('${col}', false, event)">Clear</span></div><input type="text" placeholder="Search..." oninput="filterDrop('${col}', this.value)"><div id="list-${col}"></div></div></div></div>`;
+
+        }).join('');
+
+
+
+        document.getElementById('groupCheckboxArea').innerHTML = headers.map(h => `<label><input type="checkbox" class="group-check" value="${h}" onchange="runFilter()"> ${h}</label>`).join('');
+
+        const numericCols = headers.filter(h => rawData.some(r => typeof r[h] === 'number' && !isExcelDate(r[h])));
+
+        document.getElementById('aggColumn').innerHTML = `<option value="">-- Count --</option><optgroup label="Unique Distinct">${headers.map(h => `<option value="DISTINCT|${h}">${h}</option>`).join('')}</optgroup><optgroup label="Sum">${numericCols.map(h => `<option value="SUM|${h}">${h}</option>`).join('')}</optgroup>`;
+
+        document.getElementById('columnChecklist').innerHTML = headers.map(h => `<label><input type="checkbox" checked onchange="toggleCol('${h}')"> ${h}</label>`).join('');
+
+        document.getElementById('step3').classList.remove('hidden');
+
+        populateDropdowns(); runFilter();
+
+    }
+
+
+
+    function populateDropdowns() {
+
+        selectedFilterCols.forEach(col => {
+
+            const listEl = document.getElementById(`list-${col}`); if (!listEl) return;
+
+            const unique = [...new Set(rawData.map(r => String(formatExcelDate(r[col]) ?? '')))].filter(v => v !== "").sort();
+
+            listEl.innerHTML = unique.map(v => `<div class="option-item"><label><input type="checkbox" data-val="${v.replace(/'/g, "\\'")}" onchange="handleSelect('${col}','${v.replace(/'/g, "\\'")}', this.checked)"> ${v}</label></div>`).join('');
+
+        });
+
+    }
+
+
+
+    function toggleDropdown(e, col) { e.stopPropagation(); const menu = document.getElementById(`options-${col}`); const isOpen = !menu.classList.contains('hidden'); document.querySelectorAll('.multiselect-options').forEach(m => m.classList.add('hidden')); if (!isOpen) menu.classList.remove('hidden'); }
+
+    function filterDrop(col, term) { const listEl = document.getElementById(`list-${col}`); const items = listEl.querySelectorAll('.option-item'); const searchTerm = term.toLowerCase(); items.forEach(item => item.style.display = item.innerText.toLowerCase().includes(searchTerm) ? "flex" : "none"); }
+
+    function handleSelect(col, val, checked) { if (!activeSelections[col]) activeSelections[col] = new Set(); checked ? activeSelections[col].add(val) : activeSelections[col].delete(val); document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items"; runFilter(); }
+
+    function bulkSelect(col, s, e) { e.stopPropagation(); const items = document.getElementById(`list-${col}`).querySelectorAll('input'); if (!activeSelections[col]) activeSelections[col] = new Set(); items.forEach(i => { if (i.parentElement.parentElement.style.display !== "none") { i.checked = s; s ? activeSelections[col].add(i.dataset.val) : activeSelections[col].delete(i.dataset.val); }}); document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items"; runFilter(); }
+
+
+
+    function runFilter() {
+
+        const search = document.getElementById('globalSearch').value.toLowerCase();
+
+        filteredDataGlobal = rawData.filter(row => {
+
+            const matchesColFilters = selectedFilterCols.every(col => {
+
+                const minEl = document.getElementById(`date-min-${col}`), maxEl = document.getElementById(`date-max-${col}`);
+
+                if (minEl && maxEl) {
+
+                    let val = row[col] instanceof Date ? jsDateToExcelObj(row[col]) : row[col];
+
+                    const min = jsDateToExcelStr(minEl.value), max = jsDateToExcelStr(maxEl.value);
+
+                    return (!min || val >= min) && (!max || val <= max);
+
+                }
+
+                const strVal = String(formatExcelDate(row[col]));
+
+                return !activeSelections[col] || activeSelections[col].size === 0 || activeSelections[col].has(strVal);
+
+            });
+
+            return matchesColFilters && Object.values(row).some(v => String(v).toLowerCase().includes(search));
+
+        });
+
+        updateTable(filteredDataGlobal);
+
+        document.getElementById('stats').innerText = `${filteredDataGlobal.length} Records`;
+
+    }
+
+
+
+    function updateTable(data) {
+
+        const tHead = document.getElementById('tHead'), tBody = document.getElementById('tBody');
+
+        const groupByCols = Array.from(document.querySelectorAll('.group-check:checked')).map(cb => cb.value);
+
+        const aggValue = document.getElementById('aggColumn').value, [mode, targetCol] = aggValue.split('|');
+
+        const gran = document.getElementById('dateGranularity').value;
+
+
+
+        if (groupByCols.length > 0) {
+
+            const map = {}; let total = 0;
+
+            data.forEach(row => {
+
+                const key = groupByCols.map(c => getGranularDate(row[c], gran)).join(' | ');
+
+                if (!map[key]) map[key] = { ...Object.fromEntries(groupByCols.map(c => [c, getGranularDate(row[c], gran)])), _val: 0, _set: new Set(), _sortKey: parseDateSort(key) };
+
+                let val = mode === 'SUM' ? (Number(row[targetCol]) || 0) : (mode === 'DISTINCT' ? (map[key]._set.add(row[targetCol] ?? 'N/A'), 0) : 1);
+
+                map[key]._val += val; if (mode !== 'DISTINCT') total += val;
+
+            });
+
+            if (mode === 'DISTINCT') { const s = new Set(); data.forEach(r => s.add(r[targetCol])); total = s.size; }
+
+            currentGroupedData = Object.values(map).sort((a, b) => a._sortKey > b._sortKey ? 1 : -1).map(g => {
+
+                const f = mode === 'DISTINCT' ? g._set.size : g._val;
+
+                return { ...Object.fromEntries(groupByCols.map(c => [c, g[c]])), [mode||'Count']: f, '%': total > 0 ? (f / total) * 100 : 0 };
+
+            });
+
+            const k = Object.keys(currentGroupedData[0]);
+
+            tHead.innerHTML = `<tr>${k.map(x => `<th onclick="handleSort('${x}', true)">${x}</th>`).join('')}</tr>`;
+
+            tBody.innerHTML = currentGroupedData.map(r => `<tr>${k.map(x => x === '%' ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`).join('')}</tr>`).join('');
+
+            updateChart(currentGroupedData);
+
+        } else {
+
+            document.getElementById('chartSection').classList.add('hidden');
+
+            const vis = headers.filter(h => !hiddenColumns.has(h));
+
+            tHead.innerHTML = `<tr>${vis.map(h => `<th onclick="handleSort('${h}', false)">${h}</th>`).join('')}</tr>`;
+
+            tBody.innerHTML = data.slice(0, 300).map(r => `<tr>${vis.map(h => `<td>${formatExcelDate(r[h]) ?? ''}</td>`).join('')}</tr>`).join('');
+
+        }
+
+        initResizers();
+
+    }
+
+
+
+    function handleSort(col, isG) {
+
+        sortConfig.direction = (sortConfig.column === col && sortConfig.direction === 'asc') ? 'desc' : 'asc';
+
+        sortConfig.column = col;
+
+        const target = isG ? currentGroupedData : rawData;
+
+        target.sort((a, b) => (a[col] < b[col] ? -1 : 1) * (sortConfig.direction === 'asc' ? 1 : -1));
+
+        isG ? updateTableFromGrouped() : runFilter();
+
+    }
+
+
+
+    function updateTableFromGrouped() {
+
+        const tBody = document.getElementById('tBody'); const k = Object.keys(currentGroupedData[0]);
+
+        tBody.innerHTML = currentGroupedData.map(r => `<tr>${k.map(x => x === '%' ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`).join('')}</tr>`).join('');
+
+        updateChart(currentGroupedData);
+
+        initResizers();
+
+    }
+
+
+
+    function updateChart(gData) {
+
+        const ctx = document.getElementById('dataChart').getContext('2d');
+
+        const type = document.getElementById('chartType').value;
+
+        document.getElementById('chartSection').classList.remove('hidden');
+
+        const labels = gData.map(g => Object.values(g).slice(0, -2).join(' | '));
+
+        const vals = gData.map(g => Object.values(g)[Object.values(g).length - 2]);
+
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, { type, data: { labels, datasets: [{ label: 'Metric', data: vals, backgroundColor: '#2563eb' }]}, options: { responsive: true, maintainAspectRatio: false }});
+
+    }
+
+
+
+    function downloadExcel() {
+
+        const d = currentGroupedData.length > 0 ? currentGroupedData : filteredDataGlobal;
+
+        const ws = XLSX.utils.json_to_sheet(d); const wb = XLSX.utils.book_new();
+
+        XLSX.utils.book_append_sheet(wb, ws, "Export"); XLSX.writeFile(wb, "Data.xlsx");
+
+    }
+
+
+
+    function downloadChart() { const l = document.createElement('a'); l.download = 'Chart.png'; l.href = document.getElementById('dataChart').toDataURL('image/png'); l.click(); }
+
+    function parseDateSort(s) { const d = new Date(s); if (!isNaN(d)) return d.getTime(); return s; }
+
+    function getGranularDate(v, m) {
+
+        let d = v instanceof Date ? v : (isExcelDate(v) ? new Date((v - 25569) * 86400 * 1000) : null);
+
+        if (!d || isNaN(d)) return formatExcelDate(v);
+
+        if (m === 'month') return d.toLocaleString('default', { month: 'short', year: 'numeric' });
+
+        if (m === 'quarter') return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
+
+        if (m === 'year') return String(d.getFullYear());
+
+        return d.toLocaleDateString();
+
+    }
+
+    function jsDateToExcelStr(s) { return s ? jsDateToExcelObj(new Date(s)) : null; }
+
+    function jsDateToExcelObj(d) { return Math.round((d - new Date(1899, 11, 30)) / (24 * 60 * 60 * 1000)); }
+
+    function formatExcelDate(v) { if (v instanceof Date) return v.toLocaleDateString(); if (isExcelDate(v)) return XLSX.utils.format_cell({ v, t: 'd' }); return v; }
+
+    function toggleCol(c) { hiddenColumns.has(c) ? hiddenColumns.delete(c) : hiddenColumns.add(c); runFilter(); }
+
+    function toggleColumnMenu(e) { e.stopPropagation(); document.getElementById('columnToggleMenu').classList.toggle('hidden'); }
+
+    function resetFilters() { document.getElementById('globalSearch').value = ""; buildInterface(); }
+
+    function toggleTheme() { document.body.classList.toggle('dark-mode'); document.getElementById('themeBtn').innerText = document.body.classList.contains('dark-mode') ? "☀️ Light" : "🌙 Dark"; }
+
+</script>
+
+</body>
+
+</html>
