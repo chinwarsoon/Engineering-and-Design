@@ -43,6 +43,71 @@
         .card { max-width: 1600px; margin: 0 auto; background: var(--card-bg); padding: 2rem; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
 
         
+/* The unified style for all dashboard control modules */
+.dashboard-module {
+    background: var(--pivot-bg) !important;
+    border: 1px dashed var(--primary) !important;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Ensure the outer IDs don't add extra padding/borders */
+#step1, #step2, #filterContainerSection, #groupBySection {
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+
+        /* Ensure all filter items have the same vertical alignment */
+.filter-item {
+    background: var(--card-bg); /* White background for the filter card */
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Ensure the grid layout in the container is tight */
+#filterArea {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin-top: 5px;
+}
+        
+        /* Force specific height on all interactive elements */
+        .multiselect-display, 
+        input[type="date"], 
+        input[type="text"] {
+            height: 40px; /* Fixed height for uniformity */
+            box-sizing: border-box; /* Ensures padding doesn't add to height */
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Prevent text overflow from pushing the height out */
+        .multiselect-display span:first-child {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 85%;
+        }
+        
+        /* Ensure date inputs in the flex container match the 40px height */
+        .filter-item div[style*="display: flex"] {
+            height: 40px; 
+        }
+
+        .filter-item div[style*="display: flex"] input[type="date"] {
+            flex: 1;
+        }
+
 
         .table-wrapper { 
 
@@ -79,6 +144,138 @@
         }
 
 
+/* Add this to your :root or top of CSS to prevent layout overflow globally */
+* {
+    box-sizing: border-box;
+}
+
+#filterContainerSection {
+    display: block; /* Overrides hidden when class is removed */
+    clear: both;
+    width: 100%;
+    min-height: 50px; /* Forces it to have some height */
+}
+
+#filterArea {
+    display: grid !important; /* Forces the grid layout */
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 15px;
+}
+
+#loadFilesContainer {
+    width: 100%;
+    overflow: hidden; /* Prevents children from poking out */
+}
+
+#upload {
+    width: 100%;
+    max-width: 100%; /* Forces it to stay inside the blue box */
+    padding: 8px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+/* Specific fix for the 'Choose File' button inside the input */
+#upload::-webkit-file-upload-button {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#headerListContainer.hidden {
+    display: none;
+}
+
+
+/* Shared styling for control containers */
+#step2 > div, #groupBySection {
+    background: var(--pivot-bg) !important; /* Uses your primary theme color */
+    border: 1px dashed var(--primary) !important;
+    transition: all 0.2s ease-in-out;
+}
+
+/* Ensure the inner list stands out against the light blue background */
+.filters-container.grid-layout {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 12px;
+}
+
+
+/* Optional: Make the toggle button look distinct */
+#toggleStep2Btn {
+    border-style: dashed;
+    opacity: 0.8;
+}
+#toggleStep2Btn:hover {
+    opacity: 1;
+    background: var(--pivot-bg);
+}
+
+
+/* Universal style for both Filter Selection and Grouping */
+/* 2. Style the Chip (The Container) */
+/* The container chip */
+.toggle-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: 0.2s;
+}
+
+.toggle-chip:hover {
+    border-color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.05);
+}
+
+.toggle-chip.active {
+    background: var(--pivot-bg) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary);
+}
+
+/* Hide the native checkbox completely */
+.toggle-chip input[type="checkbox"] {
+    display: none !important;
+}
+
+/* 3. The "Circle" Icon Style */
+/* The single circle indicator */
+.status-icon {
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid currentColor;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0; /* Prevents the circle from squishing */
+    background: transparent;
+}
+
+/* Fill the circle when active */
+.toggle-chip.active .status-icon {
+    background: currentColor; /* This fills the existing circle */
+}
+
+#stats {
+    background: var(--pivot-bg);
+    color: var(--primary);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-family: monospace; /* Keeps numbers from jumping around */
+    font-size: 14px;
+    border: 1px solid var(--primary);
+}
 
         /* Frozen First Column */
 
@@ -154,10 +351,20 @@
 
         select, input[type="text"], input[type="date"] { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); color: var(--text-main); }
 
-        #groupBySection { background: var(--pivot-bg); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px dashed var(--primary); }
+/* This ensures the outer ID doesn't create a "second box" */
+#groupBySection {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-top: 20px;
+}
 
         #groupCheckboxArea { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 120px; overflow-y: auto; margin: 10px 0; }
 
+#groupCheckboxArea .toggle-chip {
+    padding: 4px 10px;
+    font-size: 11px;
+}
         label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; opacity: 0.7; }
 
     </style>
@@ -186,32 +393,46 @@
 
     
 
-    <div id="step1">
-
-        <label>1. Load File</label>
-
-        <div style="display: flex; gap: 10px; margin-top: 5px;">
-
-            <input type="file" id="upload" accept=".xlsx, .xls" />
-
-            <select id="sheetSelector" class="hidden"></select>
-
+<div id="step1" style="margin-top:10px; width: 100%;">
+    <div style="background: var(--pivot-bg); padding: 15px; border-radius: 8px; border: 1px dashed var(--primary); width: 100%;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <label style="color: var(--primary); font-weight: 700;">📂 1. Load File</label>
+            <button class="btn btn-outline" id="toggleStep1Btn" onclick="toggleStep1Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed;">
+                ▲ Hide
+            </button>
         </div>
 
+        <div id="loadFilesContainer">
+            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                <input type="file" id="upload" accept=".xlsx, .xls" />
+                <select id="sheetSelector" class="hidden" onchange="loadSheet(this.value)" style="width: 100%;"></select>
+            </div>
+        </div>
     </div>
+</div>
 
 
 
-    <div id="step2" class="hidden" style="margin-top:20px;">
+<div id="step2" class="hidden" style="margin-top:20px;">
+    <div style="background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; border: 1px solid var(--border);">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <label style="color: var(--primary); font-weight: 700;">🔍 2. Choose Filterable Columns</label>
+            <button class="btn btn-outline" id="toggleStep2Btn" onclick="toggleStep2Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed;">
+                ▲ Hide Selection
+            </button>
+        </div>
 
-        <label>2. Choose Filterable Columns</label>
-
-        <div id="headerList" class="filters-container" style="max-height: 150px;"></div>
-
-        <button class="btn" onclick="buildInterface()">Initialize Dashboard</button>
-
+        <div id="headerListContainer">
+            <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: var(--card-bg);">
+                </div>
+            <button class="btn" style="width: 100%; margin-top: 10px; justify-content: center;" onclick="buildInterface()">
+                Initialize Dashboard
+            </button>
+        </div>
     </div>
-
+</div>
 
 
     <div id="step3" class="hidden">
@@ -220,43 +441,38 @@
 
         
 
-        <div id="groupBySection">
+<div id="groupBySection">
+    <div class="dashboard-module">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <label style="color: var(--primary); font-weight: 700;">📊 4. Grouping & Analytics</label>
+            <button class="btn btn-outline" id="toggleGroupBtn" onclick="toggleGroupBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed;">
+                ▲ Hide Controls
+            </button>
+        </div>
 
-            <label style="color: var(--primary);">📊 Grouping & Analytics</label>
-
-            <div id="groupCheckboxArea"></div>
-
-            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 10px;">
-
-                <div style="display: flex; align-items: center; gap: 8px;">
-
-                    <label>Aggregator:</label>
-
-                    <select id="aggColumn" onchange="runFilter()"></select>
-
-                </div>
-
-                <div style="display: flex; align-items: center; gap: 8px;">
-
-                    <label>Date Binning:</label>
-
-                    <select id="dateGranularity" onchange="runFilter()">
-
-                        <option value="none">Actual Date</option>
-
-                        <option value="month">Month & Year</option>
-
-                        <option value="quarter">Quarter</option>
-
-                        <option value="year">Year Only</option>
-
-                    </select>
-
-                </div>
-
+        <div id="groupControlsContainer">
+            <div id="groupCheckboxArea" class="filters-container grid-layout" 
+                 style="max-height: 150px; background: var(--card-bg); margin-bottom: 15px; padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
             </div>
 
+            <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 15px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 11px; opacity: 0.8;">Aggregator:</label>
+                    <select id="aggColumn" onchange="runFilter()" style="height: 35px; min-width: 150px;"></select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <label style="font-size: 11px; opacity: 0.8;">Date Binning:</label>
+                    <select id="dateGranularity" onchange="runFilter()" style="height: 35px;">
+                        <option value="none">Actual Date</option>
+                        <option value="month">Month & Year</option>
+                        <option value="quarter">Quarter</option>
+                        <option value="year">Year Only</option>
+                    </select>
+                </div>
+            </div>
         </div>
+    </div>
+</div>
 
 
 
@@ -286,7 +502,21 @@
 
 
 
-        <div id="filterArea" class="filters-container"></div>
+<div id="filterContainerSection" class="hidden" style="margin-top:20px;">
+    <div style="background: var(--pivot-bg); padding: 15px; border-radius: 8px; border: 1px dashed var(--primary); width: 100%;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <label style="color: var(--primary); font-weight: 700;">🔍 4. Active Filters</label>
+            <button class="btn btn-outline" id="toggleFilterBtn" onclick="toggleFilterBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed;">
+                ▲ Hide Filters
+            </button>
+        </div>
+
+        <div id="filterControlsWrapper">
+            <div id="filterArea" class="filters-container" style="background: transparent; border: none; padding: 0; box-shadow: none;"></div>
+        </div>
+    </div>
+</div>
 
 
 
@@ -340,6 +570,124 @@
 
     let activeSelections = {}, sortConfig = { column: null, direction: 'asc' };
 
+function toggleFilterBox() {
+    const wrapper = document.getElementById('filterControlsWrapper');
+    const btn = document.getElementById('toggleFilterBtn');
+    
+    if (wrapper.style.display === "none") {
+        wrapper.style.display = "block";
+        btn.innerHTML = "▲ Hide Filters";
+    } else {
+        wrapper.style.display = "none";
+        btn.innerHTML = "▼ Show Filters";
+    }
+}
+
+
+function toggleStep1Box() {
+    const container = document.getElementById('loadFilesContainer');
+    const btn = document.getElementById('toggleStep1Btn');
+    
+    if (container.style.display === "none") {
+        container.style.display = "block";
+        btn.innerHTML = "▲ Hide";
+    } else {
+        container.style.display = "none";
+        btn.innerHTML = "▼ Show";
+    }
+}
+
+// Updated loadSheet to auto-collapse Step 1 once a sheet is picked
+function loadSheet(name) {
+    // ... (your existing loadSheet logic) ...
+    
+    // Auto-collapse Step 1 to make room for Step 2
+    const container = document.getElementById('loadFilesContainer');
+    const btn = document.getElementById('toggleStep1Btn');
+    container.style.display = "none";
+    btn.innerHTML = "▼ Show";
+
+// Updated Step 2 generation to match Grouping style
+    const headerList = document.getElementById('headerList');
+    headerList.className = "filters-container grid-layout";
+    headerList.innerHTML = headers.map(h => `
+    <label class="toggle-chip">
+        <input type="checkbox" value="${h}" class="col-check" onchange="syncChip(this)"> 
+        <span class="status-icon"></span> ${h}
+    </label>
+`).join('');
+
+    document.getElementById('step2').classList.remove('hidden');
+}
+
+
+function toggleGroupBox() {
+    const container = document.getElementById('groupControlsContainer');
+    const btn = document.getElementById('toggleGroupBtn');
+    
+    if (container.style.display === "none") {
+        container.style.display = "block";
+        btn.innerHTML = "▲ Hide Controls";
+    } else {
+        container.style.display = "none";
+        btn.innerHTML = "▼ Show Controls";
+    }
+}
+
+
+function toggleStep2Box() {
+    const container = document.getElementById('headerListContainer');
+    const btn = document.getElementById('toggleStep2Btn');
+    
+    // Using display: none for a clean "closed" state
+    if (container.style.display === "none") {
+        container.style.display = "block";
+        btn.innerHTML = "▲ Hide Selection";
+    } else {
+        container.style.display = "none";
+        btn.innerHTML = "▼ Show Selection";
+    }
+}
+
+
+// Auto-hide Step 2 after initializing to save space
+function buildInterface() {
+    // 1. Get the selected columns from Step 2
+    selectedFilterCols = Array.from(document.querySelectorAll('.col-check:checked')).map(cb => cb.value);
+    
+    // Check if anything was selected
+    if (selectedFilterCols.length === 0) {
+        alert("Please select at least one column to filter.");
+        return;
+    }
+
+    // 2. FORCE SHOW the container
+    const section = document.getElementById('filterContainerSection');
+    section.classList.remove('hidden'); 
+    section.style.display = "block"; // Double-check it's visible
+
+    // 3. Inject the HTML
+    const filterArea = document.getElementById('filterArea');
+    filterArea.innerHTML = selectedFilterCols.map(col => {
+        // ... (Your existing .map logic for dates and dropdowns) ...
+        // Ensure this code is exactly as before
+    }).join('');
+
+    // 4. Populate logic
+    populateDropdowns(); 
+    runFilter();
+    
+// Replace the old groupCheckboxArea line with this:
+document.getElementById('groupCheckboxArea').innerHTML = headers.map(h => `
+    <label class="toggle-chip">
+        <input type="checkbox" class="group-check" value="${h}" onchange="syncChip(this); runFilter();"> 
+        <span class="status-icon"></span> ${h} 
+    </label>
+`).join('');
+
+    // Optional: Auto-hide Step 2 to keep things clean
+    if (typeof toggleStep2Box === 'function') toggleStep2Box();
+}
 
 
     // --- Column Resizing Engine ---
@@ -454,27 +802,50 @@
 
 
 
-    function loadSheet(name) {
-
-        const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[name], {defval: ""});
-
-        rawData = sheetData.map(row => {
-
-            const cleanRow = {};
-
-            Object.keys(row).forEach(k => cleanRow[sanitizeHeader(k)] = row[k]);
-
-            return cleanRow;
-
-        });
-
-        headers = rawData.length > 0 ? Object.keys(rawData[0]) : [];
-
-        document.getElementById('headerList').innerHTML = headers.map(h => `<label><input type="checkbox" value="${h}" class="col-check"> ${h}</label>`).join('');
-
-        document.getElementById('step2').classList.remove('hidden');
-
+function loadSheet(name) {
+    console.log("Loading sheet:", name);
+    const sheetData = XLSX.utils.sheet_to_json(workbook.Sheets[name], {defval: ""});
+    
+    if (sheetData.length === 0) {
+        alert("This sheet appears to be empty.");
+        return;
     }
+
+    rawData = sheetData.map(row => {
+        const cleanRow = {};
+        Object.keys(row).forEach(k => cleanRow[sanitizeHeader(k)] = row[k]);
+        return cleanRow;
+    });
+
+    // 1. Get Headers
+    headers = Object.keys(rawData[0]);
+    console.log("Detected Headers:", headers);
+
+    // 2. Clear and Populate the Container
+    const headerContainer = document.getElementById('headerList');
+    headerContainer.className = "filters-container grid-layout";
+    
+    // 3. Generate HTML with a safer template
+headerList.innerHTML = headers.map(h => `
+    <label class="toggle-chip">
+        <input type="checkbox" value="${h}" class="col-check" onchange="syncChip(this)"> 
+        <span class="status-icon"></span> ${h}
+    </label>
+`).join('');
+
+    document.getElementById('step2').classList.remove('hidden');
+}
+
+function syncChip(input) {
+    const label = input.parentElement;
+    if (input.checked) {
+        label.classList.add('active');
+    } else {
+        label.classList.remove('active');
+    }
+}
+
+
 
 
 
@@ -500,7 +871,13 @@
 
 
 
-        document.getElementById('groupCheckboxArea').innerHTML = headers.map(h => `<label><input type="checkbox" class="group-check" value="${h}" onchange="runFilter()"> ${h}</label>`).join('');
+       document.getElementById('groupCheckboxArea').innerHTML = headers.map(h => `
+    <label class="toggle-chip">
+        <input type="checkbox" value="${h}" class="group-check" onchange="syncChip(this); runFilter();"> 
+        <span class="status-icon">○</span> ${h}
+    </label>
+`).join('');
+
 
         const numericCols = headers.filter(h => rawData.some(r => typeof r[h] === 'number' && !isExcelDate(r[h])));
 
@@ -542,41 +919,33 @@
 
 
 
-    function runFilter() {
-
-        const search = document.getElementById('globalSearch').value.toLowerCase();
-
-        filteredDataGlobal = rawData.filter(row => {
-
-            const matchesColFilters = selectedFilterCols.every(col => {
-
-                const minEl = document.getElementById(`date-min-${col}`), maxEl = document.getElementById(`date-max-${col}`);
-
-                if (minEl && maxEl) {
-
-                    let val = row[col] instanceof Date ? jsDateToExcelObj(row[col]) : row[col];
-
-                    const min = jsDateToExcelStr(minEl.value), max = jsDateToExcelStr(maxEl.value);
-
-                    return (!min || val >= min) && (!max || val <= max);
-
-                }
-
-                const strVal = String(formatExcelDate(row[col]));
-
-                return !activeSelections[col] || activeSelections[col].size === 0 || activeSelections[col].has(strVal);
-
-            });
-
-            return matchesColFilters && Object.values(row).some(v => String(v).toLowerCase().includes(search));
-
+function runFilter() {
+    const search = document.getElementById('globalSearch').value.toLowerCase();
+    
+    // 1. Filter the data based on your criteria
+    filteredDataGlobal = rawData.filter(row => {
+        const matchesColFilters = selectedFilterCols.every(col => {
+            const minEl = document.getElementById(`date-min-${col}`), maxEl = document.getElementById(`date-max-${col}`);
+            if (minEl && maxEl) {
+                let val = row[col] instanceof Date ? jsDateToExcelObj(row[col]) : row[col];
+                const min = jsDateToExcelStr(minEl.value), max = jsDateToExcelStr(maxEl.value);
+                return (!min || val >= min) && (!max || val <= max);
+            }
+            const strVal = String(formatExcelDate(row[col]));
+            return !activeSelections[col] || activeSelections[col].size === 0 || activeSelections[col].has(strVal);
         });
+        return matchesColFilters && Object.values(row).some(v => String(v).toLowerCase().includes(search));
+    });
 
-        updateTable(filteredDataGlobal);
-
-        document.getElementById('stats').innerText = `${filteredDataGlobal.length} Records`;
-
+    // 2. Update the counter UI with the "/" separator
+    const statsEl = document.getElementById('stats');
+    if (statsEl) {
+        statsEl.innerText = `${filteredDataGlobal.length} / ${rawData.length}`;
     }
+
+    // 3. Refresh the table view
+    updateTable(filteredDataGlobal);
+}
 
 
 
@@ -695,13 +1064,26 @@
 
 
     function downloadExcel() {
-
-        const d = currentGroupedData.length > 0 ? currentGroupedData : filteredDataGlobal;
-
-        const ws = XLSX.utils.json_to_sheet(d); const wb = XLSX.utils.book_new();
-
-        XLSX.utils.book_append_sheet(wb, ws, "Export"); XLSX.writeFile(wb, "Data.xlsx");
-
+        // 1. Determine if we are currently in "Grouping" mode
+        const groupByCols = Array.from(document.querySelectorAll('.group-check:checked'));
+        const isGroupingActive = groupByCols.length > 0;
+        
+        // 2. Select the correct dataset based on the active UI view
+        const dataToExport = isGroupingActive ? currentGroupedData : filteredDataGlobal;
+        
+        if (!dataToExport || dataToExport.length === 0) {
+            alert("No data available to export with current filters.");
+            return;
+        }
+    
+        // 3. Create worksheet and download
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Exported_Results");
+        
+        // Tip: Dynamic filename based on view
+        const fileName = isGroupingActive ? "Analytics_Summary.xlsx" : "Filtered_Records.xlsx";
+        XLSX.writeFile(wb, fileName);
     }
 
 
