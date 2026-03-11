@@ -13,6 +13,7 @@
 /* adjust sequence per selection for columns menu */
 /* fix non-sticky first column in data table */
 /* fix active filters to be changed per chosen columns */
+/* move compact button above data table */
 
 
 <!DOCTYPE html>
@@ -506,8 +507,6 @@ th:hover .sort-icon {
 
         <div style="display:flex; gap:10px;">
 
-            <button onclick="document.body.classList.toggle('compact')" class="btn btn-outline">📏 Compact</button>
-
             <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🌙 Dark Mode</button>
 
             <button class="btn-outline" onclick="toggleDevMode()" style="color: #ed8936; border-color: #ed8936;">
@@ -644,6 +643,7 @@ th:hover .sort-icon {
                 </div>
 
                 <button class="btn btn-accent" onclick="downloadExcel()">📥 Export Excel</button>
+                <button onclick="document.body.classList.toggle('compact')" class="btn btn-outline">📏 Compact</button>
 
                 <button class="btn btn-outline" onclick="resetFilters()">Reset All</button>
                 
