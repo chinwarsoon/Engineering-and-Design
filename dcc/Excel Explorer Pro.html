@@ -1145,6 +1145,13 @@ function moveColumn(index, direction, event) {
 
     function isExcelDate(val) { return typeof val === 'number' && val > 29221 && val < 60000; }
 
+    function excelSerialToJsDate(val) {
+        if (val instanceof Date) return val;
+        if (isExcelDate(val)) return new Date((val - 25569) * 86400 * 1000);
+        const parsed = new Date(val);
+        return !isNaN(parsed) ? parsed : null;
+    }
+
     function sanitizeHeader(h) { return typeof h === 'string' ? h.replace(/[\r\n\t]+/g, ' ').trim() : h; }
 
 
@@ -1321,24 +1328,20 @@ function runFilter() {
 
             // CASE A: Date Range Filtering
             if (minInput && maxInput) {
-                // Normalize row value to Excel Serial Number for comparison
-                let cellVal = row[col];
+                // Normalize row value into a JavaScript Date for comparison
+                const rawVal = row[col];
+                const cellDate = excelSerialToJsDate(rawVal);
 
                 // Skip rows with empty or invalid dates in this specific column
-                if (!(cellVal instanceof Date) || isNaN(cellVal.getTime())) {
+                if (!cellDate || isNaN(cellDate.getTime())) {
                     // If the cell is empty but the user set a filter, exclude it.
                     // If no filter is set (both inputs empty), include it.
                     return !minInput.value && !maxInput.value;
                 }
 
-
-                if (cellVal instanceof Date) {
-                    cellVal = jsDateToExcelObj(cellVal);
-                }
-
                 // Normalize cell time to midnight to ignore time-of-day differences
-                const cellTime = new Date(cellVal).setHours(0, 0, 0, 0);
-                
+                const cellTime = new Date(cellDate).setHours(0, 0, 0, 0);
+
                 // Convert HTML date strings (YYYY-MM-DD) to comparable timestamps
                 const minTime = minInput.value ? new Date(minInput.value).setHours(0, 0, 0, 0) : null;
                 const maxTime = maxInput.value ? new Date(maxInput.value).setHours(0, 0, 0, 0) : null;
