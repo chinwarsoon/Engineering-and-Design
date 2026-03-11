@@ -505,11 +505,35 @@ th:hover .sort-icon {
 
         .controls-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
 
-        .filters-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px; margin-bottom: 20px; max-height: 300px; overflow-y: auto; border: 1px solid var(--border); }
+        .filters-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+            background: rgba(0,0,0,0.03);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
 
-        .multiselect-box { position: relative; width: 100%; }
+        .multiselect-box {
+            position: relative;
+            width: 100%;
+        }
 
-        .multiselect-display { padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-bg); cursor: pointer; display: flex; justify-content: space-between; align-items: center; min-height: 38px; }
+        .multiselect-display {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--card-bg);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 38px;
+        }
 
         /* Fix for dropdown menus being cut off */
 .multiselect-options {
@@ -525,6 +549,19 @@ th:hover .sort-icon {
     overflow-y: auto;
     box-shadow: 0 10px 20px rgba(0,0,0,0.15);
     padding: 10px;
+}
+
+.column-toggle-menu {
+    position: absolute;
+    right: 280px;
+    top: 40px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 15px;
+    border-radius: 8px;
+    z-index: 2000;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+    min-width: 200px;
 }
 
         .hidden { display: none; }
@@ -700,7 +737,7 @@ th:hover .sort-icon {
 
                 <button class="btn btn-outline" onclick="toggleColumnMenu(event)">👁️ Columns</button>
 
-                <div id="columnToggleMenu" class="hidden" style="position: absolute; right: 280px; top: 40px; background: var(--card-bg); border: 1px solid var(--border); padding: 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 10px 20px rgba(0,0,0,0.2); min-width: 200px;">
+                <div id="columnToggleMenu" class="hidden column-toggle-menu">
 
                     <div id="columnChecklist"></div>
 
@@ -1143,7 +1180,9 @@ function moveColumn(index, direction, event) {
 
     // Core Data Logic
 
-    function isExcelDate(val) { return typeof val === 'number' && val > 29221 && val < 60000; }
+    function isExcelDate(val) {
+        return typeof val === 'number' && val > 29221 && val < 60000;
+    }
 
     function excelSerialToJsDate(val) {
         if (val instanceof Date) return val;
@@ -1152,7 +1191,9 @@ function moveColumn(index, direction, event) {
         return !isNaN(parsed) ? parsed : null;
     }
 
-    function sanitizeHeader(h) { return typeof h === 'string' ? h.replace(/[\r\n\t]+/g, ' ').trim() : h; }
+    function sanitizeHeader(h) {
+        return typeof h === 'string' ? h.replace(/[\r\n\t]+/g, ' ').trim() : h;
+    }
 
 
 
@@ -1292,7 +1333,10 @@ function syncChip(input) {
 
             const unique = [...new Set(rawData.map(r => String(formatExcelDate(r[col]) ?? '')))].filter(v => v !== "").sort();
 
-            listEl.innerHTML = unique.map(v => `<div class="option-item"><label><input type="checkbox" data-val="${v.replace(/'/g, "\\'")}" onchange="handleSelect('${col}','${v.replace(/'/g, "\\'")}', this.checked)"> ${v}</label></div>`).join('');
+            listEl.innerHTML = unique.map(v => {
+                const escaped = v.replace(/'/g, "\\'");
+                return `<div class="option-item"><label><input type="checkbox" data-val="${escaped}" onchange="handleSelect('${col}','${escaped}', this.checked)"> ${v}</label></div>`;
+            }).join('');
 
         });
 
@@ -1300,13 +1344,42 @@ function syncChip(input) {
 
 
 
-    function toggleDropdown(e, col) { e.stopPropagation(); const menu = document.getElementById(`options-${col}`); const isOpen = !menu.classList.contains('hidden'); document.querySelectorAll('.multiselect-options').forEach(m => m.classList.add('hidden')); if (!isOpen) menu.classList.remove('hidden'); }
+    function toggleDropdown(e, col) {
+        e.stopPropagation();
+        const menu = document.getElementById(`options-${col}`);
+        const isOpen = !menu.classList.contains('hidden');
+        document.querySelectorAll('.multiselect-options').forEach(m => m.classList.add('hidden'));
+        if (!isOpen) menu.classList.remove('hidden');
+    }
 
-    function filterDrop(col, term) { const listEl = document.getElementById(`list-${col}`); const items = listEl.querySelectorAll('.option-item'); const searchTerm = term.toLowerCase(); items.forEach(item => item.style.display = item.innerText.toLowerCase().includes(searchTerm) ? "flex" : "none"); }
+    function filterDrop(col, term) {
+        const listEl = document.getElementById(`list-${col}`);
+        const items = listEl.querySelectorAll('.option-item');
+        const searchTerm = term.toLowerCase();
+        items.forEach(item => item.style.display = item.innerText.toLowerCase().includes(searchTerm) ? "flex" : "none");
+    }
 
-    function handleSelect(col, val, checked) { if (!activeSelections[col]) activeSelections[col] = new Set(); checked ? activeSelections[col].add(val) : activeSelections[col].delete(val); document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items"; runFilter(); }
+    function handleSelect(col, val, checked) {
+        if (!activeSelections[col]) activeSelections[col] = new Set();
+        checked ? activeSelections[col].add(val) : activeSelections[col].delete(val);
+        document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items";
+        runFilter();
+    }
 
-    function bulkSelect(col, s, e) { e.stopPropagation(); const items = document.getElementById(`list-${col}`).querySelectorAll('input'); if (!activeSelections[col]) activeSelections[col] = new Set(); items.forEach(i => { if (i.parentElement.parentElement.style.display !== "none") { i.checked = s; s ? activeSelections[col].add(i.dataset.val) : activeSelections[col].delete(i.dataset.val); }}); document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items"; runFilter(); }
+    function bulkSelect(col, s, e) {
+        e.stopPropagation();
+        const items = document.getElementById(`list-${col}`).querySelectorAll('input');
+        if (!activeSelections[col]) activeSelections[col] = new Set();
+        items.forEach(i => {
+            if (i.parentElement.parentElement.style.display !== "none") {
+                i.checked = s;
+                s ? activeSelections[col].add(i.dataset.val) : activeSelections[col].delete(i.dataset.val);
+            }
+        });
+        document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items";
+        runFilter();
+    }
+
 
 
 
@@ -1561,48 +1634,70 @@ function handleSort(col, isG) {
 
 
 
-    function downloadChart() { const l = document.createElement('a'); l.download = 'Chart.png'; l.href = document.getElementById('dataChart').toDataURL('image/png'); l.click(); }
+    function downloadChart() {
+        const link = document.createElement('a');
+        link.download = 'Chart.png';
+        link.href = document.getElementById('dataChart').toDataURL('image/png');
+        link.click();
+    }
 
-    function parseDateSort(s) { const d = new Date(s); if (!isNaN(d)) return d.getTime(); return s; }
+    function parseDateSort(s) {
+        const d = new Date(s);
+        if (!isNaN(d)) return d.getTime();
+        return s;
+    }
 
     function getGranularDate(v, m) {
-
-        let d = v instanceof Date ? v : (isExcelDate(v) ? new Date((v - 25569) * 86400 * 1000) : null);
+        const d = excelSerialToJsDate(v);
 
         if (!d || isNaN(d)) return formatExcelDate(v);
 
         if (m === 'month') return d.toLocaleString('default', { month: 'short', year: 'numeric' });
-
         if (m === 'quarter') return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
-
         if (m === 'year') return String(d.getFullYear());
 
         return d.toLocaleDateString();
-
     }
 
-    function jsDateToExcelStr(s) { return s ? jsDateToExcelObj(new Date(s)) : null; }
+    function jsDateToExcelStr(s) {
+        return s ? jsDateToExcelObj(new Date(s)) : null;
+    }
 
-    function jsDateToExcelObj(d) { return Math.round((d - new Date(1899, 11, 30)) / (24 * 60 * 60 * 1000)); }
+    function jsDateToExcelObj(d) {
+        return Math.round((d - new Date(1899, 11, 30)) / (24 * 60 * 60 * 1000));
+    }
 
-    function formatExcelDate(v) { if (v instanceof Date) return v.toLocaleDateString(); if (isExcelDate(v)) return XLSX.utils.format_cell({ v, t: 'd' }); return v; }
+    function formatExcelDate(v) {
+        if (v instanceof Date) return v.toLocaleDateString();
+        if (isExcelDate(v)) return XLSX.utils.format_cell({ v, t: 'd' });
+        return v;
+    }
 
-    function toggleCol(c) { hiddenColumns.has(c) ? hiddenColumns.delete(c) : hiddenColumns.add(c); runFilter(); }
+    function toggleCol(c) {
+        hiddenColumns.has(c) ? hiddenColumns.delete(c) : hiddenColumns.add(c);
+        runFilter();
+    }
 
-    function toggleColumnMenu(e) { e.stopPropagation(); document.getElementById('columnToggleMenu').classList.toggle('hidden'); }
+    function toggleColumnMenu(e) {
+        e.stopPropagation();
+        document.getElementById('columnToggleMenu').classList.toggle('hidden');
+    }
 
-function resetFilters() { 
-    // 1. Clear the global search input
-    document.getElementById('globalSearch').value = ""; 
+    function resetFilters() {
+        // 1. Clear the global search input
+        document.getElementById('globalSearch').value = "";
 
-    // 2. Reset the sorting configuration to default
-    sortConfig = { column: null, direction: 'asc' }; 
+        // 2. Reset the sorting configuration to default
+        sortConfig = { column: null, direction: 'asc' };
 
-    // 3. Re-initialize the interface and data
-    buildInterface(); 
-}
+        // 3. Re-initialize the interface and data
+        buildInterface();
+    }
 
-    function toggleTheme() { document.body.classList.toggle('dark-mode'); document.getElementById('themeBtn').innerText = document.body.classList.contains('dark-mode') ? "☀️ Light" : "🌙 Dark"; }
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        document.getElementById('themeBtn').innerText = document.body.classList.contains('dark-mode') ? "☀️ Light" : "🌙 Dark";
+    }
 
 let devModeActive = false;
 
