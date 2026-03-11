@@ -14,6 +14,7 @@
 /* fix non-sticky first column in data table */
 /* fix active filters to be changed per chosen columns */
 /* move compact button above data table */
+/* show date picker */
 
 
 <!DOCTYPE html>
@@ -136,6 +137,57 @@
     padding: 0;
 }
 
+/* Ensure the date input has space for the icon */
+.date-picker-custom {
+    width: 50%;
+    padding-right: 2px; /* Prevent text from hitting the icon */
+    font-size: 11px;    /* Slightly smaller font to prevent overflow */
+    cursor: pointer;
+}
+
+.date-picker-input {
+    width: 50%;
+    min-height: 38px;
+    padding: 8px !important;
+    font-family: inherit;
+    appearance: auto !important; /* Forces browser default UI */
+    -webkit-appearance: date-field !important;
+}
+
+
+/* Ensure the native browser date picker icon is visible and clickable */
+/* Ensure the calendar icon is visible and doesn't block clicks */
+//input[type="date"]::-webkit-calendar-picker-indicator {
+//    display: block;
+//    cursor: pointer;
+//    position: absolute;
+//    right: 8px;
+//    height: 100%;
+//    width: 20px;
+//    opacity: 1;
+//}
+/* Position the native browser calendar icon correctly */
+input[type="date"]::-webkit-calendar-picker-indicator {
+    background-position: right;
+    background-size: contain;
+    cursor: pointer;
+    margin-left: 0;
+    padding: 0;
+}
+
+/* Force the date picker to be interactive */
+input[type="date"] {
+    width: 48% !important; /* Adjust this percentage to your preference */
+    min-width: 100px;      /* Prevents it from becoming too small on mobile */
+    appearance: auto !important;
+    -webkit-appearance: date-field !important;
+    cursor: pointer;
+    position: relative;
+    height: 35px;
+    padding: 5px;
+    box-sizing: border-box;
+}
+
 
         /* Ensure all filter items have the same vertical alignment */
 .filter-item {
@@ -177,6 +229,7 @@
         /* Ensure date inputs in the flex container match the 40px height */
         .filter-item div[style*="display: flex"] {
             height: 40px; 
+            justify-content: space-between;
         }
 
         .filter-item div[style*="display: flex"] input[type="date"] {
@@ -806,17 +859,28 @@ function toggleStep2Box() {
     const filterArea = document.getElementById('filterArea');
     filterArea.innerHTML = selectedFilterCols.map(col => {
         const sample = rawData.find(r => r[col] !== "" && r[col] !== null)?.[col];
-        const isDateCol = (sample instanceof Date) || isExcelDate(sample);
+        const isDateCol = (sample instanceof Date) || isExcelDate(sample)
+                 //(typeof sample === 'number' && sample > 29221 && sample < 60000) ||
+                 //(col.toLowerCase().includes('date')) || 
+                 //(col.toLowerCase().includes('time'));
 
         if (isDateCol) {
             return `
-                <div class="filter-item">
-                    <label>📅 ${col}</label>
-                    <div style="display: flex; gap: 5px; margin-top: 5px;">
-                        <input type="date" id="date-min-${col}" onchange="runFilter()" style="width:50%;">
-                        <input type="date" id="date-max-${col}" onchange="runFilter()" style="width:50%;">
-                    </div>
-                </div>`;
+                 <div class="filter-item">
+                     <label>📅 ${col}</label>
+                     <div style="display: flex; gap: 5px; margin-top: 5px;">
+                         <input type="date" 
+                            id="date-min-${col}" 
+                            onchange="runFilter()" 
+                            onclick="this.showPicker()" 
+                            //style="width:50%;">
+                         <input type="date" 
+                            id="date-max-${col}" 
+                            onchange="runFilter()" 
+                            onclick="this.showPicker()" 
+                            //style="width:50%;">
+                      </div>
+               </div>`;
         } else {
             return `
                 <div class="filter-item">
@@ -891,6 +955,11 @@ document.getElementById('columnChecklist').innerHTML = `
         // 4. Populate logic
         populateDropdowns(); 
         runFilter();
+
+setTimeout(() => {
+        console.log("Date inputs initialized:", document.querySelectorAll('input[type="date"]').length);
+    }, 100);
+
 
     }
 
