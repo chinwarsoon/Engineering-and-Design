@@ -259,7 +259,14 @@ input[type="date"] {
 
 
 
-        table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card-bg); table-layout: auto; }
+        /* Allow columns to be resized smaller than content; truncate overflowing text */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: var(--card-bg);
+            table-layout: fixed; /* enables fixed column width for resizing */
+        }
 
         
 
@@ -269,7 +276,7 @@ input[type="date"] {
             padding: var(--td-padding);
             text-align: left; 
             position: sticky; /* Sort Indicator Styling *//* Forces sticky behavior */
-            padding-right: 25px !important; /* Make room for the arrow */
+            padding-right: 35px !important; /* Make room for the arrow and resizer */
             top: 0; z-index: 20; 
             cursor: pointer; border-bottom: 2px solid var(--border); 
             white-space: nowrap; min-width: 120px;
@@ -279,7 +286,7 @@ input[type="date"] {
 
 .sort-icon {
     position: absolute;
-    right: 8px;
+    right: 16px;
     top: 50%;
     transform: translateY(-50%);
     font-size: 0.8em;
@@ -495,7 +502,14 @@ th:hover .sort-icon {
 
 
 
-        td { padding: var(--td-padding); border-bottom: 1px solid var(--border); white-space: nowrap; background: var(--card-bg); }
+        td {
+            padding: var(--td-padding);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: var(--card-bg);
+        }
 
         
 
@@ -745,7 +759,7 @@ th:hover .sort-icon {
 
                 <button class="btn btn-accent" onclick="downloadExcel()">📥 Export Excel</button>
                 <button onclick="document.body.classList.toggle('compact')" class="btn btn-outline">📏 Compact</button>
-
+                <button class="btn btn-outline" onclick="resetColumnWidths()">↔️ Reset Widths</button>
                 <button class="btn btn-outline" onclick="resetFilters()">Reset All</button>
                 
 
@@ -805,6 +819,12 @@ th:hover .sort-icon {
 <script>
 
     let workbook = null, rawData = [], headers = [], selectedFilterCols = [], currentGroupedData = [], filteredDataGlobal = [], hiddenColumns = new Set(), myChart = null;
+
+    // Persist resized column widths across re-renders
+    let columnWidths = {};
+
+    // Track whether we've auto-fitted column widths on the current dataset
+    let autoFitDone = false;
 
     let activeSelections = {}, sortConfig = { column: null, direction: 'asc' };
 
@@ -874,6 +894,9 @@ function toggleStep2Box() {
 
         // Clear previous selections to prevent logic conflicts with removed columns
         activeSelections = {};
+
+        // Reset auto-fit so columns are sized to data after a new interface build
+        autoFitDone = false;
 
         // Check if anything was selected
         // 2. Validation: If nothing is selected, hide the section and exit
@@ -1122,6 +1145,9 @@ function moveColumn(index, direction, event) {
 
 
 
+            // Prevent clicks on the resizer from also triggering sorting on the header
+            resizer.addEventListener('click', (e) => e.stopPropagation());
+
             resizer.addEventListener('mousedown', function(e) {
 
                 e.preventDefault();
@@ -1162,6 +1188,10 @@ function moveColumn(index, direction, event) {
 
                     document.removeEventListener('mouseup', onMouseUp);
 
+                    // Persist the resized width so it survives table rerenders
+                    if (th.dataset && th.dataset.col) {
+                        columnWidths[th.dataset.col] = th.offsetWidth;
+                    }
                 };
 
 
@@ -1176,6 +1206,29 @@ function moveColumn(index, direction, event) {
 
     }
 
+
+
+    function autoFitColumns() {
+        const table = document.getElementById('mainTable');
+        if (!table) return;
+
+        // Let the browser size columns based on the rendered content once
+        table.style.tableLayout = 'auto';
+
+        requestAnimationFrame(() => {
+            const ths = table.querySelectorAll('th');
+            ths.forEach(th => {
+                const col = th.dataset.col;
+                if (!col) return;
+                const w = Math.ceil(th.getBoundingClientRect().width);
+                columnWidths[col] = w;
+                th.style.width = `${w}px`;
+                th.style.minWidth = `${w}px`;
+            });
+            // Lock layout to make manual resizing behave predictably
+            table.style.tableLayout = 'fixed';
+        });
+    }
 
 
     // Core Data Logic
@@ -1248,6 +1301,10 @@ function loadSheet(name) {
 
     headers = Object.keys(rawData[0]);
     console.log("Detected Headers:", headers);
+
+    // Reset any saved widths when the dataset changes
+    columnWidths = {};
+    autoFitDone = false;
 
 // 4. UI: Populate Step 2 (Column Selection)
     const headerListEl = document.getElementById('headerList');
@@ -1384,6 +1441,9 @@ function syncChip(input) {
 
 
 function runFilter() {
+    // Reset sorting whenever filters/grouping change so the UI stays consistent.
+    sortConfig = { column: null, direction: 'asc' };
+
     // 1. Get the global search term and normalize it
     const search = document.getElementById('globalSearch').value.toLowerCase();
     
@@ -1497,7 +1557,8 @@ function runFilter() {
             const k = Object.keys(currentGroupedData[0]);
             tHead.innerHTML = `<tr>${k.map(x => {
                const icon = getSortIcon(x);
-               return `<th onclick="handleSort('${x}', true)">${x} ${icon}</th>`;
+               const widthStyle = columnWidths[x] ? `style=\"width:${columnWidths[x]}px;\"` : '';
+               return `<th data-col=\"${x}\" ${widthStyle} onclick=\"handleSort('${x}', true)\">${x} ${icon}</th>`;
             }).join('')}</tr>`;
 
  //           const k = Object.keys(currentGroupedData[0]);
@@ -1516,7 +1577,8 @@ function runFilter() {
             // FIXED: Apply sort icons to Raw Data Headers
             tHead.innerHTML = `<tr>${vis.map(h => {
                 const icon = getSortIcon(h);
-                return `<th onclick="handleSort('${h}', false)">${h} ${icon}</th>`;
+                const widthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : '';
+                return `<th data-col=\"${h}\" ${widthStyle} onclick=\"handleSort('${h}', false)\">${h} ${icon}</th>`;
             }).join('')}</tr>`;
 
 
@@ -1525,11 +1587,20 @@ function runFilter() {
 //            const vis = headers.filter(h => !hiddenColumns.has(h));
 //            tHead.innerHTML = `<tr>${vis.map(h => `<th onclick="handleSort('${h}', false)">${h}</th>`).join('')}</tr>`;
 
-            tBody.innerHTML = data.slice(0, 300).map(r => `<tr>${vis.map(h => `<td>${formatExcelDate(r[h]) ?? ''}</td>`).join('')}</tr>`).join('');
+            tBody.innerHTML = data.slice(0, 300).map(r => `<tr>${vis.map(h => {
+                const cellWidthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : '';
+                return `<td ${cellWidthStyle}>${formatExcelDate(r[h]) ?? ''}</td>`;
+            }).join('')}</tr>`).join('');
 
         }
 
         initResizers();
+
+        // Auto-fit columns on first render (then allow users to shrink columns manually)
+        if (!autoFitDone) {
+            autoFitColumns();
+            autoFitDone = true;
+        }
 
     }
 
@@ -1692,6 +1763,13 @@ function handleSort(col, isG) {
 
         // 3. Re-initialize the interface and data
         buildInterface();
+    }
+
+    function resetColumnWidths() {
+        // Clear any saved widths and allow the browser to auto-fit again
+        columnWidths = {};
+        autoFitDone = false;
+        runFilter();
     }
 
     function toggleTheme() {
