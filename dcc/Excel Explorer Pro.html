@@ -15,6 +15,8 @@
 /* fix active filters to be changed per chosen columns */
 /* move compact button above data table */
 /* show date picker */
+/* remove auto search */
+/* to ensure the sorting indicators (the triangles) stay in sync with this new filter */
 
 
 <!DOCTYPE html>
@@ -157,22 +159,29 @@
 
 /* Ensure the native browser date picker icon is visible and clickable */
 /* Ensure the calendar icon is visible and doesn't block clicks */
-//input[type="date"]::-webkit-calendar-picker-indicator {
-//    display: block;
-//    cursor: pointer;
-//    position: absolute;
-//    right: 8px;
-//    height: 100%;
-//    width: 20px;
-//    opacity: 1;
-//}
+/*input[type="date"]::-webkit-calendar-picker-indicator {
+/*    display: block;
+/*    cursor: pointer;
+/*    position: absolute;
+/*    right: 8px;
+/*    height: 100%;
+/*    width: 20px;
+/*    opacity: 1;
+/*}
 /* Position the native browser calendar icon correctly */
 input[type="date"]::-webkit-calendar-picker-indicator {
+    display: block !important;
+    position: absolute;
     background-position: right;
     background-size: contain;
     cursor: pointer;
     margin-left: 0;
     padding: 0;
+    right: 1px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 1;
+    z-index: 10;
 }
 
 /* Force the date picker to be interactive */
@@ -184,8 +193,9 @@ input[type="date"] {
     cursor: pointer;
     position: relative;
     height: 35px;
-    padding: 5px;
+    padding: 5px 35px 5px 5px; /* Added right padding to make room for icon */
     box-sizing: border-box;
+    background-color: var(--card-bg);
 }
 
 
@@ -299,7 +309,7 @@ th:hover .sort-icon {
     min-height: 50px; /* Forces it to have some height */
     margin-bottom: 20px; /* Adjust this value to increase the gap below */
 
-    // Ensure the filter container can show overflowing dropdowns
+    /* Ensure the filter container can show overflowing dropdowns */
     position: relative;
     z-index: 100; /* Higher than the table headers */
 }
@@ -455,7 +465,7 @@ th:hover .sort-icon {
 
         }
 
-//        th:first-child { z-index: 40; background: var(--bg); }
+/*        th:first-child { z-index: 40; background: var(--bg); } */
 
 
 
@@ -685,7 +695,8 @@ th:hover .sort-icon {
 
             <div style="display: flex; gap: 8px; align-items: center; position: relative;">
 
-                <input type="text" id="globalSearch" placeholder="Search rows..." oninput="runFilter()">
+   
+                <input type="text" id="globalSearch" placeholder="Return to Search..." onkeyup="if(event.key === 'Enter') runFilter()">
 
                 <button class="btn btn-outline" onclick="toggleColumnMenu(event)">👁️ Columns</button>
 
@@ -867,7 +878,7 @@ function toggleStep2Box() {
         if (isDateCol) {
             return `
                  <div class="filter-item">
-                     <label>📅 ${col}</label>
+                     <label> ${col}</label>
                      <div style="display: flex; gap: 5px; margin-top: 5px;">
                          <input type="date" 
                             id="date-min-${col}" 
@@ -1293,10 +1304,12 @@ function syncChip(input) {
 
 
 function runFilter() {
+    // 1. Get the global search term and normalize it
     const search = document.getElementById('globalSearch').value.toLowerCase();
     
-    // 1. Filter the data based on your criteria
+    // 2. Filter the data based on your criteria
     filteredDataGlobal = rawData.filter(row => {
+
         // Check Global Search first for performance
         const rowString = Object.values(row).join(' ').toLowerCase();
         if (search && !rowString.includes(search)) return false;
@@ -1310,16 +1323,28 @@ function runFilter() {
             if (minInput && maxInput) {
                 // Normalize row value to Excel Serial Number for comparison
                 let cellVal = row[col];
+
+                // Skip rows with empty or invalid dates in this specific column
+                if (!(cellVal instanceof Date) || isNaN(cellVal.getTime())) {
+                    // If the cell is empty but the user set a filter, exclude it.
+                    // If no filter is set (both inputs empty), include it.
+                    return !minInput.value && !maxInput.value;
+                }
+
+
                 if (cellVal instanceof Date) {
                     cellVal = jsDateToExcelObj(cellVal);
                 }
 
-                // Convert HTML date strings (YYYY-MM-DD) to Excel Serials
-                const minLimit = minInput.value ? jsDateToExcelStr(minInput.value) : null;
-                const maxLimit = maxInput.value ? jsDateToExcelStr(maxInput.value) : null;
+                // Normalize cell time to midnight to ignore time-of-day differences
+                const cellTime = new Date(cellVal).setHours(0, 0, 0, 0);
+                
+                // Convert HTML date strings (YYYY-MM-DD) to comparable timestamps
+                const minTime = minInput.value ? new Date(minInput.value).setHours(0, 0, 0, 0) : null;
+                const maxTime = maxInput.value ? new Date(maxInput.value).setHours(0, 0, 0, 0) : null;
 
-                if (minLimit && cellVal < minLimit) return false;
-                if (maxLimit && cellVal > maxLimit) return false;
+                if (minTime && cellTime < minTime) return false;
+                if (maxTime && cellTime > maxTime) return false;
                 return true;
             }
 
@@ -1341,6 +1366,11 @@ function runFilter() {
 
     // 3. Refresh the table and charts
     updateTable(filteredDataGlobal);
+
+    // 5. Log activity if Dev Mode is active
+    if (typeof logDebug === "function") {
+        logDebug(`Filter executed: ${filteredDataGlobal.length} results found.`);
+    }
 }
 
 
@@ -1350,12 +1380,16 @@ function runFilter() {
         const tHead = document.getElementById('tHead'), tBody = document.getElementById('tBody');
 
         const groupByCols = Array.from(document.querySelectorAll('.group-check:checked')).map(cb => cb.value);
-
         const aggValue = document.getElementById('aggColumn').value, [mode, targetCol] = aggValue.split('|');
-
         const gran = document.getElementById('dateGranularity').value;
 
-
+        // Helper to escape HTML and prevent XSS
+        const escapeHTML = (str) => {
+            if (typeof str !== 'string') return str;
+            return str.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[m]);
+        };
 
         if (groupByCols.length > 0) {
 
