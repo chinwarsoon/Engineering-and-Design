@@ -1,24 +1,3 @@
-/* debug hitory*/
-/* replace function buildInterface */
-/* remove duplicate selectedFilterCols.map */
-/* fix resetFilters */
-/* fix runfilter*/
-/* fix filter cut off by container */
-/* data table font size change */
-/* move 'active filter' container up */
-/* show triangle in data header for sort */
-/* after reset, fix sort triangle */
-/* allow rearrange data column sequence */
-/* add debug log function */
-/* adjust sequence per selection for columns menu */
-/* fix non-sticky first column in data table */
-/* fix active filters to be changed per chosen columns */
-/* move compact button above data table */
-/* show date picker */
-/* remove auto search */
-/* to ensure the sorting indicators (the triangles) stay in sync with this new filter */
-
-
 <!DOCTYPE html>
 
 <html lang="en">
@@ -875,6 +854,7 @@ function toggleGroupBox() {
 function toggleStep2Box() {
     const container = document.getElementById('headerListContainer');
     const btn = document.getElementById('toggleStep2Btn');
+
     
     // Using display: none for a clean "closed" state
     if (container.style.display === "none") {
@@ -889,6 +869,11 @@ function toggleStep2Box() {
 
     // Auto-hide Step 2 after initializing to save space
     function buildInterface() {
+        
+        
+
+
+
         // 1. Get the selected columns from Step 2
         selectedFilterCols = Array.from(document.querySelectorAll('.col-check:checked')).map(cb => cb.value);
 
@@ -939,6 +924,10 @@ function toggleStep2Box() {
             return `
                  <div class="filter-item">
                      <label> ${col}</label>
+                     <label class="toggle-chip" style="padding: 4px 8px; margin: 0; font-size: 10px; flex-shrink: 0;">
+                         <input type="checkbox" id="blank-${col}" onchange="syncChip(this); runFilter();">
+                         <span class="status-icon"></span> Blanks
+                     </label>
                      <div style="display: flex; gap: 5px; margin-top: 5px;">
                          <input type="date" 
                             id="date-min-${col}" 
@@ -950,6 +939,7 @@ function toggleStep2Box() {
                             onchange="runFilter()" 
                             onclick="this.showPicker()" 
                             //style="width:50%;">
+
                       </div>
                </div>`;
         } else {
@@ -1275,12 +1265,17 @@ function moveColumn(index, direction, event) {
 
 
 function loadSheet(name) {
+    logDebug("Loading sheet: " + name);
     console.log("Loading sheet:", name);
 
     // 1. Data Extraction
     const sheet = workbook.Sheets[name];
+
     // We use {cellDates: true} in the reader, so sheet_to_json handles the rest
-    const sheetData = XLSX.utils.sheet_to_json(sheet, {defval: ""});
+    // Convert to JSON with defval as null to easily identify truly empty cells
+    // const sheetData = XLSX.utils.sheet_to_json(sheet, {defval: ""});
+    let sheetData = XLSX.utils.sheet_to_json(sheet, { defval: null });
+
 
     // 2. Validation Check
     if (sheetData.length === 0) {
@@ -1288,23 +1283,61 @@ function loadSheet(name) {
         return;
     }
 
-
 // 3. Header and Data Sanitization
-    rawData = sheetData.map(row => {
-        const cleanRow = {};
-        Object.keys(row).forEach(k => {
-            const cleanKey = sanitizeHeader(k);
-            cleanRow[cleanKey] = row[k];
-        });
-        return cleanRow;
+//    rawData = sheetData.map(row => {
+//        const cleanRow = {};
+//        Object.keys(row).forEach(k => {
+//            const cleanKey = sanitizeHeader(k);
+//            cleanRow[cleanKey] = row[k];
+//        });
+//        return cleanRow;
+//    });
+//
+// --- STEP A: Clean Headers and Remove Blank Columns ---
+// Identify columns that have at least one non-null/non-empty value
+//    let allPossibleHeaders = Object.keys(sheetData[0]);
+//    headers = allPossibleHeaders.filter(h => {
+//        return sheetData.some(row => row[h] !== null && row[h] !== "");
+//    }).map(h => sanitizeHeader(h));
+
+rawData = sheetData.map(row => {
+    const cleanRow = {};
+    let hasData = false; // Start by assuming the box is empty
+
+    Object.keys(row).forEach(k => {
+        const cleanKey = sanitizeHeader(k);
+        const value = row[k];
+
+        // Check if the value is actually something useful (not null, undefined, or empty string)
+        if (value !== null && value !== undefined && String(value).trim() !== "") {
+            hasData = true; // We found something! This row is not blank.
+            cleanRow[cleanKey] = value;
+        } else {
+
+            //cleanRow[cleanKey] = cleanKey.toLowerCase().includes("date") ? null : "NA"; // If the header name contains "date", use null. Otherwise use "NA".
+            //cleanRow[cleanKey] = "NA"; // Fill blanks with "NA" as requested
+            cleanRow[cleanKey] = null; // Fill blanks with Null as requested
+        }
     });
 
+    // If the row has data, return the clean box. If not, return null.
+    return hasData ? cleanRow : null;
+}).filter(row => row !== null); // This final step throws away all the "null" (blank) rows.
+
+
+// Assign header
     headers = Object.keys(rawData[0]);
     console.log("Detected Headers:", headers);
 
     // Reset any saved widths when the dataset changes
     columnWidths = {};
     autoFitDone = false;
+
+    logDebug(`Cleaned Data: ${rawData.length} rows, ${headers.length} columns.`);
+
+
+
+
 
 // 4. UI: Populate Step 2 (Column Selection)
     const headerListEl = document.getElementById('headerList');
@@ -1337,32 +1370,6 @@ function loadSheet(name) {
     }
 
 
-//    // 2. Clear and Populate the Container
-//    const headerContainer = document.getElementById('headerList');
-//   headerContainer.className = "filters-container grid-layout";
-//
-//    // 3. Generate HTML with a safer template
-//    // Corrected Template for Step 2
-//    headerList.innerHTML = headers.map(h => `
-//        <label class="toggle-chip">
-//            <input type="checkbox" value="${h.replace(/"/g, '&quot;')}" class="col-check" onchange="syncChip(this)"> 
-//            <span class="status-icon"></span> ${h}
-//        </label>
-//    `).join('');
-//
-//
-//
-//
-//
-//    // Locate this inside loadSheet()
-//    document.getElementById('headerList').innerHTML = headers.map(h => `
-//        <label class="toggle-chip">
-//            <input type="checkbox" class="col-check" value="${h}" onchange="syncChip(this)"> 
-//            <span class="status-icon"></span> ${h}
-//        </label>
-//    `).join('');
-
-
 }
 
 
@@ -1379,25 +1386,53 @@ function syncChip(input) {
 }
 
 
+function populateDropdowns() {
+    selectedFilterCols.forEach(col => {
+        const listEl = document.getElementById(`list-${col}`); 
+        if (!listEl) return;
 
-
-
-    function populateDropdowns() {
-
-        selectedFilterCols.forEach(col => {
-
-            const listEl = document.getElementById(`list-${col}`); if (!listEl) return;
-
-            const unique = [...new Set(rawData.map(r => String(formatExcelDate(r[col]) ?? '')))].filter(v => v !== "").sort();
-
-            listEl.innerHTML = unique.map(v => {
-                const escaped = v.replace(/'/g, "\\'");
-                return `<div class="option-item"><label><input type="checkbox" data-val="${escaped}" onchange="handleSelect('${col}','${escaped}', this.checked)"> ${v}</label></div>`;
-            }).join('');
-
+        // Get unique values and explicitly handle the null/empty ones
+        const uniqueRaw = [...new Set(rawData.map(r => r[col]))];
+        
+        const uniqueFormatted = uniqueRaw.map(v => {
+            // Check for nulls, undefined, or empty strings from the sanitization step
+            if (v === null || v === undefined || String(v).trim() === "") return "(Blanks)";
+            return String(formatExcelDate(v));
         });
 
-    }
+        // De-duplicate (to merge null and "") and sort
+        const finalUnique = [...new Set(uniqueFormatted)].sort();
+
+        listEl.innerHTML = finalUnique.map(v => {
+            const escaped = v.replace(/'/g, "\\'");
+            return `
+                <div class="option-item">
+                    <label>
+                        <input type="checkbox" data-val="${escaped}" onchange="handleSelect('${col}','${escaped}', this.checked)"> 
+                        ${v}
+                    </label>
+                </div>`;
+        }).join('');
+    });
+}
+
+
+//    function populateDropdowns() {
+//
+//        selectedFilterCols.forEach(col => {
+//
+//            const listEl = document.getElementById(`list-${col}`); if (!listEl) return;
+//
+//            const unique = [...new Set(rawData.map(r => String(formatExcelDate(r[col]) ?? '')))].filter(v => v !== "").sort();
+//
+//            listEl.innerHTML = unique.map(v => {
+//                const escaped = v.replace(/'/g, "\\'");
+//                return `<div class="option-item"><label><input type="checkbox" data-val="${escaped}" onchange="handleSelect('${col}','${escaped}', this.checked)"> ${v}</label></div>`;
+//            }).join('');
+//
+//        });
+//
+//    }
 
 
 
@@ -1465,17 +1500,40 @@ function runFilter() {
                 const rawVal = row[col];
                 const cellDate = excelSerialToJsDate(rawVal);
 
+                // Select the checkbox
+                const showBlanks = document.getElementById(`blank-${col}`)?.checked;
+
+                const hasMin = minInput.value !== "";
+                const hasMax = maxInput.value !== "";
+
                 // Skip rows with empty or invalid dates in this specific column
-                if (!cellDate || isNaN(cellDate.getTime())) {
+                // if (!cellDate || isNaN(cellDate.getTime())) {
                     // If the cell is empty but the user set a filter, exclude it.
                     // If no filter is set (both inputs empty), include it.
-                    return !minInput.value && !maxInput.value;
+                //    return !minInput.value && !maxInput.value;
+                //}
+
+                // 1. Handle Null/Empty Cells
+                if (!cellDate || isNaN(cellDate.getTime())) {
+                        // If "Blanks" is checked, include this row.
+                        if (showBlanks) return true;
+                        
+                        // If "Blanks" is NOT checked and no date range is set, 
+                        // we show everything (standard behavior).
+                        // Otherwise, if a range IS set, hide the blank.
+                        return !hasMin && !hasMax;
                 }
+                     
+
+                // 2. Handle Actual Date Values
+                // If "Blanks" is checked but NO date range is specified, 
+                // we want ONLY blanks, so we hide actual dates.
+                if (showBlanks && !hasMin && !hasMax) return false;
+                
 
                 // Normalize cell time to midnight to ignore time-of-day differences
-                const cellTime = new Date(cellDate).setHours(0, 0, 0, 0);
-
                 // Convert HTML date strings (YYYY-MM-DD) to comparable timestamps
+                const cellTime = new Date(cellDate).setHours(0, 0, 0, 0);
                 const minTime = minInput.value ? new Date(minInput.value).setHours(0, 0, 0, 0) : null;
                 const maxTime = maxInput.value ? new Date(maxInput.value).setHours(0, 0, 0, 0) : null;
 
@@ -1487,10 +1545,18 @@ function runFilter() {
             // CASE B: Multiselect Dropdown Filtering
             const strVal = String(formatExcelDate(row[col]));
             const selections = activeSelections[col];
+            const rawVal = row[col];
+            // Determine what this cell "looks like" to the filter
+            const displayVal = (rawVal === null || rawVal === undefined || String(rawVal).trim() === "") 
+              ? "(Blanks)" 
+              : String(formatExcelDate(rawVal));
             
             // If the set is empty or doesn't exist, all items are "selected"
-            if (!selections || selections.size === 0) return true;
-            return selections.has(strVal);
+            if (!selections || selections.size === 0) return true; 
+
+            // Check if the current cell's display value is in the user's "Selected" set
+            // return selections.has(strVal);
+            return selections.has(displayVal);
         });
     });
 
@@ -1811,3 +1877,28 @@ function logDebug(message) {
 </body>
 
 </html>
+
+/* debug hitory*/
+/* replace function buildInterface */
+/* remove duplicate selectedFilterCols.map */
+/* fix resetFilters */
+/* fix runfilter*/
+/* fix filter cut off by container */
+/* data table font size change */
+/* move 'active filter' container up */
+/* show triangle in data header for sort */
+/* after reset, fix sort triangle */
+/* allow rearrange data column sequence */
+/* add debug log function */
+/* adjust sequence per selection for columns menu */
+/* fix non-sticky first column in data table */
+/* fix active filters to be changed per chosen columns */
+/* move compact button above data table */
+/* show date picker */
+/* remove auto search */
+/* to ensure the sorting indicators (the triangles) stay in sync with this new filter */
+/* optimize with Git CoPilot */
+/* when load worksheet, remove empty rows and columns, fill up "NA" for blank cells */
+/* assign null to blank date */
+/* filter to show Null valuve*/
+/* date fitler to show null valuve */
