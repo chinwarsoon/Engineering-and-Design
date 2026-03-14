@@ -899,6 +899,60 @@
         </div>
 
         <div
+          id="dateRangeChartSection"
+          class="hidden"
+          style="
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 10px;
+              gap: 10px;
+              flex-wrap: wrap;
+            "
+          >
+            <label style="font-weight: 700">📈 Date Range Chart</label>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-size: 11px; opacity: 0.8;">Date Columns:</label>
+                <select id="dateRangeColumn" onchange="runFilter()" multiple size="4" style="height: auto; min-width: 160px"></select>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-size: 11px; opacity: 0.8;">From:</label>
+                <input type="date" id="dateRangeMin" onchange="runFilter()">
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-size: 11px; opacity: 0.8;">To:</label>
+                <input type="date" id="dateRangeMax" onchange="runFilter()">
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label style="font-size: 11px; opacity: 0.8;">Y Summary:</label>
+                <select id="dateRangeAgg" onchange="runFilter()" style="height: 35px">
+                  <option value="SUM">Sum (numeric columns)</option>
+                  <option value="COUNT">Count</option>
+                </select>
+              </div>
+              <button
+                class="btn btn-outline"
+                style="padding: 4px 10px; font-size: 11px"
+                onclick="downloadDateRangeChart()"
+              >
+                🖼️ Save Chart
+              </button>
+            </div>
+          </div>
+          <div style="height: 240px"><canvas id="dateRangeChart"></canvas></div>
+        </div>
+
+        <div
           id="filterContainerSection"
           class="hidden"
           style="margin-top: 20px"
@@ -1051,7 +1105,8 @@
         currentGroupedData = [],
         filteredDataGlobal = [],
         hiddenColumns = new Set(),
-        myChart = null;
+        myChart = null,
+        dateRangeChart = null;
 
       // Persist resized column widths across re-renders
       let columnWidths = {};
@@ -1260,6 +1315,39 @@
         `,
           )
           .join("");
+
+        // Populate the Date Range Chart date column selector (date-like columns only)
+        const dateCols = headers.filter((h) =>
+          rawData.some((r) => r[h] instanceof Date || isExcelDate(r[h])),
+        );
+        const dateRangeSelect = document.getElementById("dateRangeColumn");
+        if (dateRangeSelect) {
+          dateRangeSelect.innerHTML =
+            dateCols
+              .map((h) => `<option value="${h}">${h}</option>`)
+              .join("");
+
+          // Default select all date columns and pre-fill range to dataset min/max (if available)
+          if (dateCols.length > 0) {
+            Array.from(dateRangeSelect.options).forEach((opt) => {
+              opt.selected = true;
+            });
+
+            const allDates = rawData
+              .flatMap((r) =>
+                dateCols.map((c) => excelSerialToJsDate(r[c])),
+              )
+              .filter((d) => d instanceof Date && !isNaN(d.getTime()))
+              .map((d) => d.toISOString().slice(0, 10));
+
+            if (allDates.length) {
+              const minDate = allDates.reduce((a, b) => (a < b ? a : b));
+              const maxDate = allDates.reduce((a, b) => (a > b ? a : b));
+              document.getElementById("dateRangeMin").value = minDate;
+              document.getElementById("dateRangeMax").value = maxDate;
+            }
+          }
+        }
 
         //document.getElementById('columnChecklist').innerHTML = headers.map(h => `<label><input type="checkbox" checked onchange="toggleCol('${h}')"> ${h}</label>`).join('');
         //document.getElementById('columnChecklist').innerHTML = headers.map((h, i) => `
@@ -1872,6 +1960,7 @@
 
         // 3. Refresh the table and charts
         updateTable(filteredDataGlobal);
+        updateDateRangeChart();
 
         // 5. Log activity if Dev Mode is active
         if (typeof logDebug === "function") {
@@ -2114,6 +2203,123 @@
           },
           options: { responsive: true, maintainAspectRatio: false },
         });
+      }
+
+      function updateDateRangeChart() {
+        const container = document.getElementById("dateRangeChartSection");
+        const dateSel = document.getElementById("dateRangeColumn");
+        const selectedDateCols = Array.from(
+          dateSel?.selectedOptions || [],
+        )
+          .map((o) => o.value)
+          .filter(Boolean);
+
+        if (!container || !selectedDateCols.length) {
+          container?.classList.add("hidden");
+          return;
+        }
+
+        const minVal = document.getElementById("dateRangeMin")?.value;
+        const maxVal = document.getElementById("dateRangeMax")?.value;
+        const gran = document.getElementById("dateGranularity")?.value || "none";
+        const aggMode = document.getElementById("dateRangeAgg")?.value || "SUM";
+
+        const data = filteredDataGlobal || [];
+        const numericCols = headers.filter(
+          (h) =>
+            !selectedDateCols.includes(h) &&
+            rawData.some((r) => typeof r[h] === "number" && !isExcelDate(r[h])),
+        );
+
+        const labelsSet = new Set();
+        const seriesMap = {};
+
+        selectedDateCols.forEach((dateCol) => {
+          seriesMap[dateCol] = {};
+        });
+
+        data.forEach((row) => {
+          selectedDateCols.forEach((dateCol) => {
+            const rawDate = row[dateCol];
+            const d = excelSerialToJsDate(rawDate);
+            if (!d || isNaN(d.getTime())) return;
+
+            const t = new Date(d).setHours(0, 0, 0, 0);
+            if (minVal) {
+              const minT = new Date(minVal).setHours(0, 0, 0, 0);
+              if (t < minT) return;
+            }
+            if (maxVal) {
+              const maxT = new Date(maxVal).setHours(0, 0, 0, 0);
+              if (t > maxT) return;
+            }
+
+            const label = getGranularDate(rawDate, gran);
+            labelsSet.add(label);
+
+            if (!seriesMap[dateCol][label]) seriesMap[dateCol][label] = 0;
+
+            if (aggMode === "COUNT") {
+              seriesMap[dateCol][label] += 1;
+            } else {
+              numericCols.forEach((col) => {
+                const v = Number(row[col]);
+                if (!isNaN(v)) seriesMap[dateCol][label] += v;
+              });
+            }
+          });
+        });
+
+        const labels = [...labelsSet].sort((a, b) => {
+          const va = parseDateSort(a);
+          const vb = parseDateSort(b);
+          if (typeof va === "number" && typeof vb === "number") return va - vb;
+          if (va < vb) return -1;
+          if (va > vb) return 1;
+          return 0;
+        });
+
+        if (!labels.length) {
+          container.classList.add("hidden");
+          return;
+        }
+
+        container.classList.remove("hidden");
+
+        const colors = [
+          "#10b981",
+          "#3b82f6",
+          "#f59e0b",
+          "#ef4444",
+          "#8b5cf6",
+          "#0ea5e9",
+        ];
+
+        const datasets = selectedDateCols.map((col, idx) => ({
+          label: col,
+          data: labels.map((l) => seriesMap[col][l] ?? 0),
+          borderColor: colors[idx % colors.length],
+          backgroundColor: colors[idx % colors.length],
+          fill: false,
+        }));
+
+        const ctx = document.getElementById("dateRangeChart").getContext("2d");
+        if (dateRangeChart) dateRangeChart.destroy();
+        dateRangeChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets,
+          },
+          options: { responsive: true, maintainAspectRatio: false },
+        });
+      }
+
+      function downloadDateRangeChart() {
+        const link = document.createElement("a");
+        link.download = "DateRangeChart.png";
+        link.href = document.getElementById("dateRangeChart").toDataURL("image/png");
+        link.click();
       }
 
       function downloadExcel() {
