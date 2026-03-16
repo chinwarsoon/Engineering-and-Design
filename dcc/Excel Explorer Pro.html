@@ -898,58 +898,70 @@
           </div>
         </div>
 
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 20px; margin-bottom: 6px;">
+          <div style="font-weight: 700; font-size: 14px;">📈 Date Range Chart Controls</div>
+          <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲ Hide Date Range</button>
+        </div>
+        <div id="dateRangeChartControls" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-top: 20px; margin-bottom: 8px; padding: 10px 0;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; opacity: 0.8;">X (Date) Column</label>
+            <select id="dateRangeXColumn" onchange="runFilter()" style="height: 35px; min-width: 180px;">
+              <option value="">Select date column</option>
+            </select>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; min-width: 220px;">
+            <label style="font-size: 11px; opacity: 0.8;">Y Columns (Multi)</label>
+            <div class="multiselect-box" style="position: relative;">
+              <div id="dateRangeYDisplay" class="multiselect-display" onclick="toggleDateYDropdown()" style="min-height: 40px; width: 220px; flex-wrap: wrap; gap: 4px; align-items: center;">
+                <span id="dateRangeYLabel" style="white-space: normal;">Select y columns</span>
+                <span style="margin-left:auto; font-size: 12px; opacity: 0.7;">▾</span>
+              </div>
+              <div id="dateRangeYOptions" class="multiselect-options hidden" style="padding: 8px; max-height: 200px; overflow-y: auto; width: 260px;">
+                <!-- Y options generated in JS -->
+              </div>
+            </div>
+            <select id="dateRangeYColumns" multiple onchange="syncYSelection(); runFilter()" class="hidden"></select>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; opacity: 0.8;">Chart Type</label>
+            <select id="dateRangeChartType" onchange="runFilter()" style="height: 35px; min-width: 150px;">
+              <option value="line">Curve</option>
+              <option value="bar">Column</option>
+              <option value="pie">Pie</option>
+            </select>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; opacity: 0.8;">Y Aggregator</label>
+            <select id="dateRangeAgg" onchange="runFilter(); updateDateRangeChart()" style="height: 35px; min-width: 130px;">
+              <option value="SUM">Sum</option>
+              <option value="COUNT">Count</option>
+              <option value="AVG">Average</option>
+            </select>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; opacity: 0.8;">Date Range</label>
+            <div style="display:flex; gap:4px;">
+              <input type="date" id="dateRangeMin" onchange="runFilter()" style="height: 35px;">
+              <input type="date" id="dateRangeMax" onchange="runFilter()" style="height: 35px;">
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px; justify-content: flex-end;">
+            <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; margin-top:22px;" onclick="downloadDateRangeChart()">🖼️ Save Chart</button>
+          </div>
+        </div>
+
         <div
           id="dateRangeChartSection"
           class="hidden"
           style="
-            margin-top: 20px;
+            margin-top: 0px;
             padding: 15px;
             background: var(--card-bg);
             border: 1px solid var(--border);
             border-radius: 8px;
           "
         >
-          <div
-            style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 10px;
-              gap: 10px;
-              flex-wrap: wrap;
-            "
-          >
-            <label style="font-weight: 700">📈 Date Range Chart</label>
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <label style="font-size: 11px; opacity: 0.8;">Date Columns:</label>
-                <select id="dateRangeColumn" onchange="runFilter()" multiple size="4" style="height: auto; min-width: 160px"></select>
-              </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <label style="font-size: 11px; opacity: 0.8;">From:</label>
-                <input type="date" id="dateRangeMin" onchange="runFilter()">
-              </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <label style="font-size: 11px; opacity: 0.8;">To:</label>
-                <input type="date" id="dateRangeMax" onchange="runFilter()">
-              </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <label style="font-size: 11px; opacity: 0.8;">Y Summary:</label>
-                <select id="dateRangeAgg" onchange="runFilter()" style="height: 35px">
-                  <option value="SUM">Sum (numeric columns)</option>
-                  <option value="COUNT">Count</option>
-                </select>
-              </div>
-              <button
-                class="btn btn-outline"
-                style="padding: 4px 10px; font-size: 11px"
-                onclick="downloadDateRangeChart()"
-              >
-                🖼️ Save Chart
-              </button>
-            </div>
-          </div>
-          <div style="height: 240px"><canvas id="dateRangeChart"></canvas></div>
+          <div id="dateRangeChartCanvasWrap" style="height: 240px"><canvas id="dateRangeChart"></canvas></div>
         </div>
 
         <div
@@ -1316,36 +1328,70 @@
           )
           .join("");
 
-        // Populate the Date Range Chart date column selector (date-like columns only)
+        // Populate Date Range X/Y selectors
         const dateCols = headers.filter((h) =>
           rawData.some((r) => r[h] instanceof Date || isExcelDate(r[h])),
         );
-        const dateRangeSelect = document.getElementById("dateRangeColumn");
-        if (dateRangeSelect) {
-          dateRangeSelect.innerHTML =
-            dateCols
-              .map((h) => `<option value="${h}">${h}</option>`)
-              .join("");
+        const yCols = headers.filter((h) => !dateCols.includes(h));
 
-          // Default select all date columns and pre-fill range to dataset min/max (if available)
-          if (dateCols.length > 0) {
-            Array.from(dateRangeSelect.options).forEach((opt) => {
-              opt.selected = true;
-            });
+        const xSelect = document.getElementById("dateRangeXColumn");
+        const ySelect = document.getElementById("dateRangeYColumns");
 
-            const allDates = rawData
-              .flatMap((r) =>
-                dateCols.map((c) => excelSerialToJsDate(r[c])),
-              )
-              .filter((d) => d instanceof Date && !isNaN(d.getTime()))
-              .map((d) => d.toISOString().slice(0, 10));
+        if (xSelect) {
+          xSelect.innerHTML = `<option value="">Select date column</option>`;
+          xSelect.innerHTML += dateCols
+            .map((h) => `<option value="${h}">${h}</option>`)
+            .join("");
+          if (dateCols.length > 0) xSelect.value = dateCols[0];
+        }
 
-            if (allDates.length) {
-              const minDate = allDates.reduce((a, b) => (a < b ? a : b));
-              const maxDate = allDates.reduce((a, b) => (a > b ? a : b));
-              document.getElementById("dateRangeMin").value = minDate;
-              document.getElementById("dateRangeMax").value = maxDate;
+        if (ySelect) {
+          ySelect.innerHTML = yCols
+            .map((h) => `<option value="${h}">${h}</option>`)
+            .join("");
+          if (yCols.length > 0) {
+            for (let i = 0; i < Math.min(2, yCols.length); i++) {
+              ySelect.options[i].selected = true;
             }
+          }
+        }
+
+        const yOptions = document.getElementById("dateRangeYOptions");
+        if (yOptions) {
+          yOptions.innerHTML = yCols
+            .map(
+              (h) => `
+                <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 12px;">
+                  <input type="checkbox" value="${h}" class="date-y-option" onclick="syncYSelection(); runFilter();"/>
+                  ${h}
+                </label>
+              `,
+            )
+            .join("");
+
+          const yCheckboxes = yOptions.querySelectorAll(".date-y-option");
+          yCheckboxes.forEach((box) => {
+            const isSelected = Array.from(ySelect.options).some(
+              (opt) => opt.value === box.value && opt.selected,
+            );
+            box.checked = isSelected;
+          });
+        }
+
+        updateDateYLabel();
+
+        // Pre-fill date range based on selected date column
+        const selectedDateCol = xSelect?.value;
+        if (selectedDateCol) {
+          const allDates = rawData
+            .map((r) => excelSerialToJsDate(r[selectedDateCol]))
+            .filter((d) => d instanceof Date && !isNaN(d.getTime()))
+            .map((d) => d.toISOString().slice(0, 10));
+          if (allDates.length) {
+            const minDate = allDates.reduce((a, b) => (a < b ? a : b));
+            const maxDate = allDates.reduce((a, b) => (a > b ? a : b));
+            document.getElementById("dateRangeMin").value = minDate;
+            document.getElementById("dateRangeMax").value = maxDate;
           }
         }
 
@@ -1808,6 +1854,70 @@
         if (!isOpen) menu.classList.remove("hidden");
       }
 
+      function toggleDateRangeChart() {
+        const section = document.getElementById("dateRangeChartSection");
+        const btn = document.getElementById("toggleDateRangeChartBtn");
+        const canvasWrap = document.getElementById("dateRangeChartCanvasWrap");
+
+        if (!section || !btn || !canvasWrap) return;
+        if (section.classList.contains("hidden")) {
+          section.classList.remove("hidden");
+          btn.innerText = "▼ Hide Date Range";
+          canvasWrap.style.display = "block";
+        } else {
+          section.classList.add("hidden");
+          btn.innerText = "▲ Show Date Range";
+          canvasWrap.style.display = "none";
+        }
+      }
+
+      function toggleDateYDropdown() {
+        const menu = document.getElementById("dateRangeYOptions");
+        if (!menu) return;
+        menu.classList.toggle("hidden");
+      }
+
+      function syncYSelection() {
+        const ySelect = document.getElementById("dateRangeYColumns");
+        const checkboxes = document.querySelectorAll(".date-y-option");
+        if (!ySelect) return;
+        const selected = new Set();
+
+        checkboxes.forEach((box) => {
+          const opt = Array.from(ySelect.options).find(
+            (o) => o.value === box.value,
+          );
+          if (opt) {
+            opt.selected = box.checked;
+            if (box.checked) selected.add(box.value);
+          }
+        });
+
+        updateDateYLabel();
+        // keep runFilter triggered by caller
+      }
+
+      function updateDateYLabel() {
+        const ySelect = document.getElementById("dateRangeYColumns");
+        const label = document.getElementById("dateRangeYLabel");
+        if (!ySelect || !label) return;
+
+        const selectedCount = Array.from(ySelect.selectedOptions).length;
+        label.innerText =
+          selectedCount === 0
+            ? "Select y columns"
+            : `${selectedCount} selected`;
+      }
+
+      document.addEventListener("click", (e) => {
+        const yMenu = document.getElementById("dateRangeYOptions");
+        const yDisplay = document.getElementById("dateRangeYDisplay");
+        if (!yMenu || !yDisplay) return;
+        if (!yMenu.classList.contains("hidden") && !yMenu.contains(e.target) && !yDisplay.contains(e.target)) {
+          yMenu.classList.add("hidden");
+        }
+      });
+
       function filterDrop(col, term) {
         const listEl = document.getElementById(`list-${col}`);
         const items = listEl.querySelectorAll(".option-item");
@@ -2207,14 +2317,23 @@
 
       function updateDateRangeChart() {
         const container = document.getElementById("dateRangeChartSection");
-        const dateSel = document.getElementById("dateRangeColumn");
-        const selectedDateCols = Array.from(
-          dateSel?.selectedOptions || [],
-        )
-          .map((o) => o.value)
-          .filter(Boolean);
+        const toggleBtn = document.getElementById("toggleDateRangeChartBtn");
+        const xSelect = document.getElementById("dateRangeXColumn");
+        const ySelect = document.getElementById("dateRangeYColumns");
+        const chartType = document.getElementById("dateRangeChartType")?.value || "line";
 
-        if (!container || !selectedDateCols.length) {
+        if (toggleBtn && container) {
+          toggleBtn.innerText = container.classList.contains("hidden")
+            ? "▲ Show Date Range"
+            : "▼ Hide Date Range";
+        }
+
+        const selectedX = xSelect?.value;
+        const selectedYs = Array.from(ySelect?.selectedOptions || []).map(
+          (o) => o.value,
+        );
+
+        if (!container || !selectedX || selectedYs.length === 0) {
           container?.classList.add("hidden");
           return;
         }
@@ -2223,54 +2342,67 @@
         const maxVal = document.getElementById("dateRangeMax")?.value;
         const gran = document.getElementById("dateGranularity")?.value || "none";
         const aggMode = document.getElementById("dateRangeAgg")?.value || "SUM";
+        console.log("Date range chart aggMode", aggMode, "selectedYs", selectedYs);
 
         const data = filteredDataGlobal || [];
-        const numericCols = headers.filter(
-          (h) =>
-            !selectedDateCols.includes(h) &&
-            rawData.some((r) => typeof r[h] === "number" && !isExcelDate(r[h])),
-        );
 
-        const labelsSet = new Set();
-        const seriesMap = {};
-
-        selectedDateCols.forEach((dateCol) => {
-          seriesMap[dateCol] = {};
+        const xValues = [];
+        const accumulated = {};
+        const counts = {};
+        selectedYs.forEach((y) => {
+          accumulated[y] = {};
+          counts[y] = {};
         });
 
         data.forEach((row) => {
-          selectedDateCols.forEach((dateCol) => {
-            const rawDate = row[dateCol];
-            const d = excelSerialToJsDate(rawDate);
-            if (!d || isNaN(d.getTime())) return;
+          const xRaw = row[selectedX];
+          const d = excelSerialToJsDate(xRaw);
+          if (!d || isNaN(d.getTime())) return;
 
-            const t = new Date(d).setHours(0, 0, 0, 0);
-            if (minVal) {
-              const minT = new Date(minVal).setHours(0, 0, 0, 0);
-              if (t < minT) return;
-            }
-            if (maxVal) {
-              const maxT = new Date(maxVal).setHours(0, 0, 0, 0);
-              if (t > maxT) return;
-            }
+          const dt = new Date(d).setHours(0, 0, 0, 0);
+          if (minVal) {
+            const minT = new Date(minVal).setHours(0, 0, 0, 0);
+            if (dt < minT) return;
+          }
+          if (maxVal) {
+            const maxT = new Date(maxVal).setHours(0, 0, 0, 0);
+            if (dt > maxT) return;
+          }
 
-            const label = getGranularDate(rawDate, gran);
-            labelsSet.add(label);
+          const xLabel = getGranularDate(xRaw, gran);
+          if (!xValues.includes(xLabel)) xValues.push(xLabel);
 
-            if (!seriesMap[dateCol][label]) seriesMap[dateCol][label] = 0;
+          selectedYs.forEach((y) => {
+            const value = Number(row[y]);
+            const currentSum = accumulated[y][xLabel] || 0;
+            const currentCount = counts[y][xLabel] || 0;
 
-            if (aggMode === "COUNT") {
-              seriesMap[dateCol][label] += 1;
+            counts[y][xLabel] = currentCount + 1;
+            if (!isNaN(value)) {
+              accumulated[y][xLabel] = currentSum + value;
             } else {
-              numericCols.forEach((col) => {
-                const v = Number(row[col]);
-                if (!isNaN(v)) seriesMap[dateCol][label] += v;
-              });
+              accumulated[y][xLabel] = currentSum;
             }
           });
         });
 
-        const labels = [...labelsSet].sort((a, b) => {
+        const normalized = {};
+        selectedYs.forEach((y) => {
+          normalized[y] = {};
+          xValues.forEach((xLabel) => {
+            const sum = accumulated[y][xLabel] || 0;
+            const count = counts[y][xLabel] || 0;
+            if (aggMode === "COUNT") {
+              normalized[y][xLabel] = count;
+            } else if (aggMode === "AVG") {
+              normalized[y][xLabel] = count > 0 ? sum / count : 0;
+            } else {
+              normalized[y][xLabel] = sum;
+            }
+          });
+        });
+
+        const labels = [...xValues].sort((a, b) => {
           const va = parseDateSort(a);
           const vb = parseDateSort(b);
           if (typeof va === "number" && typeof vb === "number") return va - vb;
@@ -2295,24 +2427,48 @@
           "#0ea5e9",
         ];
 
-        const datasets = selectedDateCols.map((col, idx) => ({
-          label: col,
-          data: labels.map((l) => seriesMap[col][l] ?? 0),
-          borderColor: colors[idx % colors.length],
-          backgroundColor: colors[idx % colors.length],
-          fill: false,
-        }));
+        let chartConfig;
+
+        if (chartType === "pie") {
+          const totals = selectedYs.map((y) =>
+            labels.reduce((sum, label) => sum + (normalized[y][label] || 0), 0),
+          );
+          chartConfig = {
+            type: "pie",
+            data: {
+              labels: selectedYs,
+              datasets: [
+                {
+                  label: `Y Totals (${aggMode})`,
+                  data: totals,
+                  backgroundColor: selectedYs.map(
+                    (_, i) => colors[i % colors.length],
+                  ),
+                },
+              ],
+            },
+            options: { responsive: true, maintainAspectRatio: false },
+          };
+        } else {
+          chartConfig = {
+            type: chartType === "bar" ? "bar" : "line",
+            data: {
+              labels,
+              datasets: selectedYs.map((y, idx) => ({
+                label: `${y} (${aggMode})`,
+                data: labels.map((label) => normalized[y][label] || 0),
+                borderColor: colors[idx % colors.length],
+                backgroundColor: colors[idx % colors.length],
+                fill: chartType === "line" ? false : true,
+              })),
+            },
+            options: { responsive: true, maintainAspectRatio: false },
+          };
+        }
 
         const ctx = document.getElementById("dateRangeChart").getContext("2d");
         if (dateRangeChart) dateRangeChart.destroy();
-        dateRangeChart = new Chart(ctx, {
-          type: "line",
-          data: {
-            labels,
-            datasets,
-          },
-          options: { responsive: true, maintainAspectRatio: false },
-        });
+        dateRangeChart = new Chart(ctx, chartConfig);
       }
 
       function downloadDateRangeChart() {
