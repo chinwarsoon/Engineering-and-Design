@@ -1005,9 +1005,12 @@
                 margin-bottom: 10px;
               "
             >
-              <label style="color: var(--primary); font-weight: 700"
-                >📊 3. Grouping & Analytics</label
-              >
+              <div style="display:flex; align-items:center; gap:8px;">
+                <label style="color: var(--primary); font-weight: 700"
+                  >📊 3. Grouping & Analytics</label
+                >
+                <span id="groupingBadge" style="display:none; background:#e0f2fe; color:#2563eb; border:1px solid #bfdbfe; border-radius:999px; padding:2px 8px; font-size:10px; font-weight:700;">Grouping Active</span>
+              </div>
               <div style="display: flex; gap: 6px; align-items: center">
                 <button
                   class="btn btn-outline"
@@ -1021,18 +1024,32 @@
             </div>
 
             <div id="groupControlsContainer">
-              <div
-                id="groupCheckboxArea"
-                class="filters-container grid-layout"
-                style="
-                  max-height: 200px;
-                  background: var(--card-bg);
-                  margin-bottom: 15px;
-                  padding: 10px;
-                  border-radius: 6px;
-                  border: 1px solid var(--border);
-                "
-              ></div>
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; display: block;">Group By Columns</label>
+                <div class="multiselect-box" style="position: relative;">
+                  <div
+                    id="groupByDisplay"
+                    class="multiselect-display"
+                    onclick="toggleGroupByDropdown()"
+                    style="cursor: pointer;"
+                  >
+                    <span id="groupByLabel">Select group columns</span>
+                    <span style="margin-left:auto; font-size: 12px; opacity: 0.7;">▾</span>
+                  </div>
+                  <div
+                    id="groupByOptions"
+                    class="multiselect-options hidden"
+                    style="min-width: 220px; max-height: 220px; overflow-y: auto;"
+                    onclick="event.stopPropagation()"
+                  >
+                    <div style="display:flex; gap: 4px; margin-bottom: 6px;">
+                      <button class="btn-outline" style="flex:1; padding: 4px 6px; font-size: 10px;" onclick="selectAllGroupBy();">All</button>
+                      <button class="btn-outline" style="flex:1; padding: 4px 6px; font-size: 10px;" onclick="clearAllGroupBy();">Clear</button>
+                    </div>
+                    <div id="groupByOptionItems"></div>
+                  </div>
+                </div>
+              </div>
 
               <div
                 style="
@@ -1258,10 +1275,10 @@
       }
 
       function setAllGroupBy(checked) {
-        document.querySelectorAll(".group-check").forEach((cb) => {
+        document.querySelectorAll(".group-by-option").forEach((cb) => {
           cb.checked = checked;
-          syncChip(cb);
         });
+        updateGroupBySelection();
         runFilter();
       }
 
@@ -1271,6 +1288,40 @@
 
       function clearAllGroupBy() {
         setAllGroupBy(false);
+      }
+
+      function toggleGroupByDropdown() {
+        const menu = document.getElementById("groupByOptions");
+        if (!menu) return;
+        menu.classList.toggle("hidden");
+      }
+
+      function updateGroupBySelection() {
+        const selected = Array.from(
+          document.querySelectorAll(".group-by-option:checked"),
+        ).map((cb) => cb.value);
+        const labelEl = document.getElementById("groupByLabel");
+        const badgeEl = document.getElementById("groupingBadge");
+        if (!labelEl) return;
+        if (selected.length === 0) {
+          labelEl.innerText = "Select group columns";
+          if (badgeEl) {
+            badgeEl.style.display = "none";
+            badgeEl.innerText = "Grouping Inactive";
+          }
+        } else if (selected.length === 1) {
+          labelEl.innerText = selected[0];
+          if (badgeEl) {
+            badgeEl.style.display = "inline-block";
+            badgeEl.innerText = `Grouping: ${selected.join(", ")}`;
+          }
+        } else {
+          labelEl.innerText = `${selected.length} columns selected`;
+          if (badgeEl) {
+            badgeEl.style.display = "inline-block";
+            badgeEl.innerText = `Grouping: ${selected.join(", ")}`;
+          }
+        }
       }
 
       // Auto-hide Step 2 after initializing to save space
@@ -1376,17 +1427,17 @@
         <optgroup label="Unique Distinct">${headers.map((h) => `<option value="DISTINCT|${h}">${h}</option>`).join("")}</optgroup>
         <optgroup label="Sum">${numericCols.map((h) => `<option value="SUM|${h}">${h}</option>`).join("")}</optgroup>`;
 
-        document.getElementById("groupCheckboxArea").innerHTML = headers
+        document.getElementById("groupByOptionItems").innerHTML = headers
           .map(
             (h) => `
-            <label class="toggle-chip">
-                <input type="checkbox" class="group-check" value="${h}" onchange="syncChip(this); runFilter();"> 
-                <span class="status-icon"></span>
-            ${h}
+            <label style="display:flex; align-items:center; gap: 8px; margin-bottom:4px; font-size:12px; cursor:pointer;">
+                <input type="checkbox" class="group-by-option" value="${h}" onchange="updateGroupBySelection(); runFilter();" />
+                ${h}
             </label>
         `,
           )
           .join("");
+        updateGroupBySelection();
 
         // Populate Date Range X/Y selectors
         const dateCols = headers.filter((h) =>
@@ -2145,7 +2196,7 @@
           tBody = document.getElementById("tBody");
 
         const groupByCols = Array.from(
-          document.querySelectorAll(".group-check:checked"),
+          document.querySelectorAll(".group-by-option:checked"),
         ).map((cb) => cb.value);
         const aggValue = document.getElementById("aggColumn").value,
           [mode, targetCol] = aggValue.split("|");
@@ -2541,8 +2592,8 @@
       function downloadExcel() {
         // 1. Determine if we are currently in "Grouping" mode
         const groupByCols = Array.from(
-          document.querySelectorAll(".group-check:checked"),
-        );
+          document.querySelectorAll(".group-by-option:checked"),
+        ).map((el) => el.value);
         const isGroupingActive = groupByCols.length > 0;
 
         // 2. Select the correct dataset based on the active UI view
