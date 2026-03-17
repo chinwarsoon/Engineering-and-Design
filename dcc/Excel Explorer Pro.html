@@ -1024,10 +1024,10 @@
             </div>
 
             <div id="groupControlsContainer" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-              <div style="min-width:280px;">
+              <div style="min-width:300px;display:flex; align-items:center; gap:10px;">
                 <label style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; display: block;">Group By Columns</label>
                 <div class="multiselect-box" style="position: relative; width:100%;">
-                  <div id="groupByDisplay" class="multiselect-display" onclick="toggleGroupByDropdown()" style="cursor: pointer; width: 100%;">
+                  <div id="groupByDisplay" class="multiselect-display" onclick="toggleGroupByDropdown()" style="cursor: pointer; width: 400px; min-width: 320px;">
                     <span id="groupByLabel">Select group columns</span>
                     <span style="margin-left: auto; font-size: 12px; opacity: 0.7;">▾</span>
                   </div>
@@ -1043,12 +1043,12 @@
 
               <div style="display:flex; align-items:center; gap:10px;">
                 <div style="display:flex; align-items:center; gap: 6px;">
-                  <label style="font-size: 11px; opacity: 0.8; margin:0;">Aggregator:</label>
-                  <select id="aggColumn" onchange="runFilter()" style="height: 35px; min-width: 140px"></select>
+                  <label style="font-size: 11px; opacity: 0.8; margin:0; min-width:80px; text-align:right;">Aggregator:</label>
+                  <select id="aggColumn" onchange="runFilter()" style="height: 32px; min-width: 140px; font-size: 11px;"></select>
                 </div>
                 <div style="display:flex; align-items:center; gap: 6px;">
-                  <label style="font-size: 11px; opacity: 0.8; margin:0;">Date Binning:</label>
-                  <select id="dateGranularity" onchange="runFilter()" style="height: 35px; min-width: 140px">
+                  <label style="font-size: 11px; opacity: 0.8; margin:0; min-width:80px; text-align:right;">Date Binning:</label>
+                  <select id="dateGranularity" onchange="runFilter()" style="height: 32px; min-width: 140px; font-size: 11px;">
                     <option value="none">Actual Date</option>
                     <option value="month">Month & Year</option>
                     <option value="quarter">Quarter</option>
