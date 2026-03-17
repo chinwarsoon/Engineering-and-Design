@@ -1023,25 +1023,15 @@
               </div>
             </div>
 
-            <div id="groupControlsContainer">
-              <div style="margin-bottom: 10px;">
+            <div id="groupControlsContainer" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div style="min-width:280px;">
                 <label style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; display: block;">Group By Columns</label>
-                <div class="multiselect-box" style="position: relative;">
-                  <div
-                    id="groupByDisplay"
-                    class="multiselect-display"
-                    onclick="toggleGroupByDropdown()"
-                    style="cursor: pointer;"
-                  >
+                <div class="multiselect-box" style="position: relative; width:100%;">
+                  <div id="groupByDisplay" class="multiselect-display" onclick="toggleGroupByDropdown()" style="cursor: pointer; width: 100%;">
                     <span id="groupByLabel">Select group columns</span>
-                    <span style="margin-left:auto; font-size: 12px; opacity: 0.7;">▾</span>
+                    <span style="margin-left: auto; font-size: 12px; opacity: 0.7;">▾</span>
                   </div>
-                  <div
-                    id="groupByOptions"
-                    class="multiselect-options hidden"
-                    style="min-width: 220px; max-height: 220px; overflow-y: auto;"
-                    onclick="event.stopPropagation()"
-                  >
+                  <div id="groupByOptions" class="multiselect-options hidden" style="min-width: 280px; max-height: 220px; overflow-y: auto;" onclick="event.stopPropagation()">
                     <div style="display:flex; gap: 4px; margin-bottom: 6px;">
                       <button class="btn-outline" style="flex:1; padding: 4px 6px; font-size: 10px;" onclick="selectAllGroupBy();">All</button>
                       <button class="btn-outline" style="flex:1; padding: 4px 6px; font-size: 10px;" onclick="clearAllGroupBy();">Clear</button>
@@ -1051,35 +1041,14 @@
                 </div>
               </div>
 
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 20px;
-                  flex-wrap: wrap;
-                  border-top: 1px solid rgba(0, 0, 0, 0.1);
-                  padding-top: 15px;
-                "
-              >
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <label style="font-size: 11px; opacity: 0.8"
-                    >Aggregator:</label
-                  >
-                  <select
-                    id="aggColumn"
-                    onchange="runFilter()"
-                    style="height: 35px; min-width: 150px"
-                  ></select>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="display:flex; align-items:center; gap: 6px;">
+                  <label style="font-size: 11px; opacity: 0.8; margin:0;">Aggregator:</label>
+                  <select id="aggColumn" onchange="runFilter()" style="height: 35px; min-width: 140px"></select>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <label style="font-size: 11px; opacity: 0.8"
-                    >Date Binning:</label
-                  >
-                  <select
-                    id="dateGranularity"
-                    onchange="runFilter()"
-                    style="height: 35px"
-                  >
+                <div style="display:flex; align-items:center; gap: 6px;">
+                  <label style="font-size: 11px; opacity: 0.8; margin:0;">Date Binning:</label>
+                  <select id="dateGranularity" onchange="runFilter()" style="height: 35px; min-width: 140px">
                     <option value="none">Actual Date</option>
                     <option value="month">Month & Year</option>
                     <option value="quarter">Quarter</option>
