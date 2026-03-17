@@ -898,10 +898,11 @@
           </div>
         </div>
 
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 20px; margin-bottom: 6px;">
-          <label>📈 Date Range Chart Controls</label>
-          <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲ Hide Date Range</button>
-        </div>
+        <div class="dashboard-module" style="margin-top: 20px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 0; margin-bottom: 6px;">
+            <label style="color: var(--primary); font-weight: 700;">📈 Date Range Chart Controls</label>
+            <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲ Hide Date Range</button>
+          </div>
         
         <div
           id="dateRangeChartSection"
@@ -919,47 +920,46 @@
             style="
               display: flex;
               justify-content: space-between;
-              align-items: center;
-              flex-wrap: wrap; 
-              gap: 10px; 
-              align-items: flex-start; 
-              margin-top: 0px; 
-              margin-bottom: 0px; 
+              align-items: flex-start;
+              flex-wrap: wrap;
+              gap: 10px;
+              margin-top: 0px;
+              margin-bottom: 0px;
               padding: 10px 0;
               "
           >
-                 
-                  <div style="display: flex; flex-direction: column; gap: 4px; min-width: 220px;">
-                    <label style="font-size: 11px; opacity: 0.8;">Y Columns (Multi)</label>
-                    <div class="multiselect-box" style="position: relative;">
-                      <div id="dateRangeYDisplay" class="multiselect-display" onclick="toggleDateYDropdown()" style="min-height: 40px; width: 220px; flex-wrap: wrap; gap: 4px; align-items: center;">
-                        <span id="dateRangeYLabel" style="white-space: normal;">Select y columns</span>
-                        <span style="margin-left:auto; font-size: 12px; opacity: 0.7;">▾</span>
-                      </div>
-                      <div id="dateRangeYOptions" class="multiselect-options hidden" style="padding: 8px; max-height: 200px; overflow-y: auto; width: 260px;">
-                        <!-- Y options generated in JS -->
-                      </div>
-                    </div>
-                    <select id="dateRangeYColumns" multiple onchange="syncYSelection(); runFilter()" class="hidden"></select>
+            <div style="display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;">
+              <div style="display: flex; flex-direction: column; gap: 4px; min-width: 220px;">
+                <label style="font-size: 11px; opacity: 0.8;">Y Columns (Multi)</label>
+                <div class="multiselect-box" style="position: relative;">
+                  <div id="dateRangeYDisplay" class="multiselect-display" onclick="toggleDateYDropdown()" style="min-height: 40px; width: 220px; flex-wrap: wrap; gap: 4px; align-items: center;">
+                    <span id="dateRangeYLabel" style="white-space: normal;">Select y columns</span>
+                    <span style="margin-left:auto; font-size: 12px; opacity: 0.7;">▾</span>
                   </div>
-                  <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <label style="font-size: 11px; opacity: 0.8;">Y Aggregator</label>
-                    <select id="dateRangeAgg" onchange="runFilter(); updateDateRangeChart()" style="height: 35px; min-width: 130px;">
-                      <option value="SUM">Sum</option>
-                      <option value="COUNT">Count</option>
-                      <option value="AVG">Average</option>
-                    </select>
+                  <div id="dateRangeYOptions" class="multiselect-options hidden" style="padding: 8px; max-height: 200px; overflow-y: auto; width: 260px;">
+                    <!-- Y options generated in JS -->
                   </div>
-                  <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <label style="font-size: 11px; opacity: 0.8;">Chart Type</label>
-                    <select id="dateRangeChartType" onchange="runFilter()" style="height: 35px; min-width: 150px;">
-                      <option value="line">Curve</option>
-                      <option value="bar">Column</option>
-                      <option value="pie">Pie</option>
-                    </select>
-                  </div>
-                  <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; margin-top:1px;" onclick="downloadDateRangeChart()">🖼️ Save Chart</button>
-                        
+                </div>
+                <select id="dateRangeYColumns" multiple onchange="syncYSelection(); runFilter()" class="hidden"></select>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 11px; opacity: 0.8;">Y Aggregator</label>
+                <select id="dateRangeAgg" onchange="runFilter(); updateDateRangeChart()" style="height: 35px; min-width: 130px;">
+                  <option value="SUM">Sum</option>
+                  <option value="COUNT">Count</option>
+                  <option value="AVG">Average</option>
+                </select>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 11px; opacity: 0.8;">Chart Type</label>
+                <select id="dateRangeChartType" onchange="runFilter()" style="height: 35px; min-width: 150px;">
+                  <option value="line">Curve</option>
+                  <option value="bar">Column</option>
+                  <option value="pie">Pie</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; margin-top: 1px;" onclick="downloadDateRangeChart()">🖼️ Save Chart</button>
           </div>
 
 
@@ -985,8 +985,7 @@
           </div>
 
         </div>
-        
-        
+        </div>
 
         <div
           id="filterContainerSection"
