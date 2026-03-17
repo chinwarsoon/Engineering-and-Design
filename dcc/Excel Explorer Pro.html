@@ -856,84 +856,6 @@
           style="margin: 20px 0; border: 0; border-top: 1px solid var(--border)"
         />
 
-        <div id="groupBySection">
-          <div class="dashboard-module">
-            <div
-              style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 10px;
-              "
-            >
-              <label style="color: var(--primary); font-weight: 700"
-                >📊 3. Grouping & Analytics</label
-              >
-              <div style="display: flex; gap: 6px; align-items: center">
-                <button
-                  class="btn btn-outline"
-                  id="toggleGroupBtn"
-                  onclick="toggleGroupBox()"
-                  style="padding: 2px 8px; font-size: 10px; border-style: dashed"
-                >
-                  ▲ Hide Controls
-                </button>
-              </div>
-            </div>
-
-            <div id="groupControlsContainer">
-              <div
-                id="groupCheckboxArea"
-                class="filters-container grid-layout"
-                style="
-                  max-height: 200px;
-                  background: var(--card-bg);
-                  margin-bottom: 15px;
-                  padding: 10px;
-                  border-radius: 6px;
-                  border: 1px solid var(--border);
-                "
-              ></div>
-
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 20px;
-                  flex-wrap: wrap;
-                  border-top: 1px solid rgba(0, 0, 0, 0.1);
-                  padding-top: 15px;
-                "
-              >
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <label style="font-size: 11px; opacity: 0.8"
-                    >Aggregator:</label
-                  >
-                  <select
-                    id="aggColumn"
-                    onchange="runFilter()"
-                    style="height: 35px; min-width: 150px"
-                  ></select>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px">
-                  <label style="font-size: 11px; opacity: 0.8"
-                    >Date Binning:</label
-                  >
-                  <select
-                    id="dateGranularity"
-                    onchange="runFilter()"
-                    style="height: 35px"
-                  >
-                    <option value="none">Actual Date</option>
-                    <option value="month">Month & Year</option>
-                    <option value="quarter">Quarter</option>
-                    <option value="year">Year Only</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         <div class="dashboard-module" style="margin-top: 20px;">
           <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 0; margin-bottom: 6px;">
@@ -1070,6 +992,84 @@
                   box-shadow: none;
                 "
               ></div>
+            </div>
+          </div>
+
+        <div id="groupBySection">
+          <div class="dashboard-module">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+              "
+            >
+              <label style="color: var(--primary); font-weight: 700"
+                >📊 3. Grouping & Analytics</label
+              >
+              <div style="display: flex; gap: 6px; align-items: center">
+                <button
+                  class="btn btn-outline"
+                  id="toggleGroupBtn"
+                  onclick="toggleGroupBox()"
+                  style="padding: 2px 8px; font-size: 10px; border-style: dashed"
+                >
+                  ▲ Hide Controls
+                </button>
+              </div>
+            </div>
+
+            <div id="groupControlsContainer">
+              <div
+                id="groupCheckboxArea"
+                class="filters-container grid-layout"
+                style="
+                  max-height: 200px;
+                  background: var(--card-bg);
+                  margin-bottom: 15px;
+                  padding: 10px;
+                  border-radius: 6px;
+                  border: 1px solid var(--border);
+                "
+              ></div>
+
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  gap: 20px;
+                  flex-wrap: wrap;
+                  border-top: 1px solid rgba(0, 0, 0, 0.1);
+                  padding-top: 15px;
+                "
+              >
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <label style="font-size: 11px; opacity: 0.8"
+                    >Aggregator:</label
+                  >
+                  <select
+                    id="aggColumn"
+                    onchange="runFilter()"
+                    style="height: 35px; min-width: 150px"
+                  ></select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <label style="font-size: 11px; opacity: 0.8"
+                    >Date Binning:</label
+                  >
+                  <select
+                    id="dateGranularity"
+                    onchange="runFilter()"
+                    style="height: 35px"
+                  >
+                    <option value="none">Actual Date</option>
+                    <option value="month">Month & Year</option>
+                    <option value="quarter">Quarter</option>
+                    <option value="year">Year Only</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>
