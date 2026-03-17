@@ -901,14 +901,10 @@
         <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 20px; margin-bottom: 6px;">
           <div style="font-weight: 700; font-size: 14px;">📈 Date Range Chart Controls</div>
           <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲ Hide Date Range</button>
+          <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; margin-top:22px;" onclick="downloadDateRangeChart()">🖼️ Save Chart</button>
+          
         </div>
-        <div id="dateRangeChartControls" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-top: 20px; margin-bottom: 8px; padding: 10px 0;">
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size: 11px; opacity: 0.8;">X (Date) Column</label>
-            <select id="dateRangeXColumn" onchange="runFilter()" style="height: 35px; min-width: 180px;">
-              <option value="">Select date column</option>
-            </select>
-          </div>
+        <div id="dateRangeChartTopControls" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-top: 10px; margin-bottom: 10px; padding: 10px 0;">
           <div style="display: flex; flex-direction: column; gap: 4px; min-width: 220px;">
             <label style="font-size: 11px; opacity: 0.8;">Y Columns (Multi)</label>
             <div class="multiselect-box" style="position: relative;">
@@ -923,14 +919,6 @@
             <select id="dateRangeYColumns" multiple onchange="syncYSelection(); runFilter()" class="hidden"></select>
           </div>
           <div style="display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size: 11px; opacity: 0.8;">Chart Type</label>
-            <select id="dateRangeChartType" onchange="runFilter()" style="height: 35px; min-width: 150px;">
-              <option value="line">Curve</option>
-              <option value="bar">Column</option>
-              <option value="pie">Pie</option>
-            </select>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 4px;">
             <label style="font-size: 11px; opacity: 0.8;">Y Aggregator</label>
             <select id="dateRangeAgg" onchange="runFilter(); updateDateRangeChart()" style="height: 35px; min-width: 130px;">
               <option value="SUM">Sum</option>
@@ -939,15 +927,13 @@
             </select>
           </div>
           <div style="display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size: 11px; opacity: 0.8;">Date Range</label>
-            <div style="display:flex; gap:4px;">
-              <input type="date" id="dateRangeMin" onchange="runFilter()" style="height: 35px;">
-              <input type="date" id="dateRangeMax" onchange="runFilter()" style="height: 35px;">
-            </div>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 4px; justify-content: flex-end;">
-            <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; margin-top:22px;" onclick="downloadDateRangeChart()">🖼️ Save Chart</button>
-          </div>
+            <label style="font-size: 11px; opacity: 0.8;">Chart Type</label>
+            <select id="dateRangeChartType" onchange="runFilter()" style="height: 35px; min-width: 150px;">
+              <option value="line">Curve</option>
+              <option value="bar">Column</option>
+              <option value="pie">Pie</option>
+            </select>
+          </div>         
         </div>
 
         <div
@@ -962,6 +948,23 @@
           "
         >
           <div id="dateRangeChartCanvasWrap" style="height: 240px"><canvas id="dateRangeChart"></canvas></div>
+        </div>
+        
+        <div id="dateRangeChartControls" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-top: 20px; margin-bottom: 8px; padding: 10px 0;">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; opacity: 0.8;">X (Date) Column</label>
+            <select id="dateRangeXColumn" onchange="runFilter()" style="height: 35px; min-width: 180px;">
+              <option value="">Select date column</option>
+            </select>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 11px; opacity: 0.8;">Date Range</label>
+            <div style="display:flex; gap:4px;">
+              <input type="date" id="dateRangeMin" onchange="runFilter()" style="height: 35px;">
+              <input type="date" id="dateRangeMax" onchange="runFilter()" style="height: 35px;">
+            </div>
+          </div>
         </div>
 
         <div
