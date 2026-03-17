@@ -1329,16 +1329,21 @@
         if (!item) return;
         const parent = item.parentElement;
         if (!parent) return;
-        const sibling = direction < 0 ? item.previousElementSibling : item.nextElementSibling;
-        if (!sibling) return;
 
-        if (direction < 0) {
-          parent.insertBefore(item, sibling);
+        if (direction === 'top') {
+          parent.insertBefore(item, parent.firstElementChild);
+        } else if (direction === 'bottom') {
+          parent.appendChild(item);
         } else {
-          parent.insertBefore(sibling, item);
+          const sibling = direction < 0 ? item.previousElementSibling : item.nextElementSibling;
+          if (!sibling) return;
+          if (direction < 0) {
+            parent.insertBefore(item, sibling);
+          } else {
+            parent.insertBefore(sibling, item);
+          }
         }
 
-        // Keep checkbox state if selected
         updateGroupBySelection();
         runFilter();
       }
@@ -1452,8 +1457,10 @@
             <div id="groupByItem-${idx}" style="display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:12px;">
               <input type="checkbox" class="group-by-option" value="${h}" onchange="updateGroupBySelection(); runFilter();" />
               <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${h}</span>
+              <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, 'top'); event.stopPropagation();">⇑</button>
               <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, -1); event.stopPropagation();">↑</button>
               <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, 1); event.stopPropagation();">↓</button>
+              <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, 'bottom'); event.stopPropagation();">⇓</button>
             </div>
         `,
           )
