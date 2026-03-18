@@ -1523,9 +1523,11 @@
         ${headers
           .map(
             (h, i) => `
-            <div class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+            <div id="columnItem-${i}" class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+                <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'top', event)">⇑</button>
                 <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">▲</button>
                 <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">▼</button>
+                <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'bottom', event)">⇓</button>
                 <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1; cursor: pointer;">
                     <input type="checkbox" class="col-visibility-check" data-col="${h}" ${hiddenColumns.has(h) ? "" : "checked"} onchange="toggleCol('${h}')"> ${h}
                 </label>
@@ -1605,16 +1607,32 @@
 
       function moveColumn(index, direction, event) {
         event.stopPropagation(); // Prevents menu from closing
-        const newIndex = index + direction;
+        
+        if (direction === 'top') {
+          // Move to top
+          const item = headers[index];
+          headers.splice(index, 1);
+          headers.unshift(item);
+        } else if (direction === 'bottom') {
+          // Move to bottom
+          const item = headers[index];
+          headers.splice(index, 1);
+          headers.push(item);
+        } else {
+          // Regular up/down movement
+          const newIndex = index + direction;
+          if (newIndex >= 0 && newIndex < headers.length) {
+            // 1. Swap headers in the global array
+            const temp = headers[index];
+            headers[index] = headers[newIndex];
+            headers[newIndex] = temp;
+          } else {
+            return; // Invalid move
+          }
+        }
 
-        if (newIndex >= 0 && newIndex < headers.length) {
-          // 1. Swap headers in the global array
-          const temp = headers[index];
-          headers[index] = headers[newIndex];
-          headers[newIndex] = temp;
-
-          // 2. Re-render the ENTIRE checklist content, including the top buttons
-          document.getElementById("columnChecklist").innerHTML = `
+        // 2. Re-render the ENTIRE checklist content, including the top buttons
+        document.getElementById("columnChecklist").innerHTML = `
             <div style="display: flex; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
                 <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(true, event)">Select All</button>
                 <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(false, event)">Clear All</button>
@@ -1623,9 +1641,11 @@
                 ${headers
                   .map(
                     (h, i) => `
-                    <div class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+                    <div id="columnItem-${i}" class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
+                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'top', event)">⇑</button>
                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">▲</button>
                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">▼</button>
+                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'bottom', event)">⇓</button>
                         <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1; cursor: pointer;">
                             <input type="checkbox" class="col-visibility-check" data-col="${h}" ${hiddenColumns.has(h) ? "" : "checked"} onchange="toggleCol('${h}')"> ${h}
                         </label>
@@ -1636,9 +1656,8 @@
             </div>
         `;
 
-          // 3. Refresh the table to show the new sequence
-          runFilter();
-        }
+        // 3. Refresh the table to show the new sequence
+        runFilter();
       }
 
       // --- Column Resizing Engine ---
@@ -2728,3 +2747,17 @@
     </script>
   </body>
 </html>
+
+/* debug hitory*/ /* replace function buildInterface */ /* remove duplicate
+selectedFilterCols.map */ /* fix resetFilters */ /* fix runfilter*/ /* fix
+filter cut off by container */ /* data table font size change */ /* move 'active
+filter' container up */ /* show triangle in data header for sort */ /* after
+reset, fix sort triangle */ /* allow rearrange data column sequence */ /* add
+debug log function */ /* adjust sequence per selection for columns menu */ /*
+fix non-sticky first column in data table */ /* fix active filters to be changed
+per chosen columns */ /* move compact button above data table */ /* show date
+picker */ /* remove auto search */ /* to ensure the sorting indicators (the
+triangles) stay in sync with this new filter */ /* optimize with Git CoPilot */
+/* when load worksheet, remove empty rows and columns, fill up "NA" for blank
+cells */ /* assign null to blank date */ /* filter to show Null valuve*/ /* date
+fitler to show null valuve */
