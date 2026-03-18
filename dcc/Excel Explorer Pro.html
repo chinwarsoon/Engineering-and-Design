@@ -1025,19 +1025,10 @@
 
             <div id="groupControlsContainer" style="display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap;">
               <div style="display:flex; flex-direction: column; gap:4px; min-width:300px;">
-                <label style="font-size: 11px; opacity: 0.8;">Group By Columns</label>
-                <div class="multiselect-box" style="position: relative; width:100%;">
-                  <div id="groupByDisplay" class="multiselect-display" onclick="toggleGroupByDropdown()" style="cursor: pointer; width: 400px; min-width: 320px; height: 32px !important; padding: 6px 10px !important;">
-                    <span id="groupByLabel">Select group columns</span>
-                    <span style="margin-left: auto; font-size: 12px; opacity: 0.7;">▾</span>
-                  </div>
-                  <div id="groupByOptions" class="multiselect-options hidden" style="min-width: 280px; max-height: 220px; overflow-y: auto;" onclick="event.stopPropagation()">
-                    <div style="display:flex; gap: 4px; margin-bottom: 6px;">
-                      <button class="btn-outline" style="flex:1; padding: 4px 6px; font-size: 10px;" onclick="selectAllGroupBy();">All</button>
-                      <button class="btn-outline" style="flex:1; padding: 4px 6px; font-size: 10px;" onclick="clearAllGroupBy();">Clear</button>
-                    </div>
-                    <div id="groupByOptionItems"></div>
-                  </div>
+                <label style="font-size: 11px; opacity: 0.8;">Group By Mode</label>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <input id="groupBySequenceToggle" type="checkbox" onchange="runFilter()" />
+                  <span style="font-size:12px;">Group by visible column sequence</span>
                 </div>
               </div>
 
@@ -1419,9 +1410,11 @@
         <optgroup label="Unique Distinct">${headers.map((h) => `<option value="DISTINCT|${h}">${h}</option>`).join("")}</optgroup>
         <optgroup label="Sum">${numericCols.map((h) => `<option value="SUM|${h}">${h}</option>`).join("")}</optgroup>`;
 
-        document.getElementById("groupByOptionItems").innerHTML = headers
-          .map(
-            (h, idx) => `
+        const groupByOptionItems = document.getElementById("groupByOptionItems");
+        if (groupByOptionItems) {
+          groupByOptionItems.innerHTML = headers
+            .map(
+              (h, idx) => `
             <div id="groupByItem-${idx}" style="display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:12px;">
               <input type="checkbox" class="group-by-option" value="${h}" onchange="updateGroupBySelection(); runFilter();" />
               <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${h}</span>
@@ -1431,9 +1424,10 @@
               <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, 'bottom'); event.stopPropagation();">⇓</button>
             </div>
         `,
-          )
-          .join("");
-        updateGroupBySelection();
+            )
+            .join("");
+        }
+        if (typeof updateGroupBySelection === 'function') updateGroupBySelection();
 
         // Populate Date Range X/Y selectors
         const dateCols = headers.filter((h) =>
@@ -1515,9 +1509,15 @@
 
         // Inside buildInterface() - update this section
         document.getElementById("columnChecklist").innerHTML = `
-    <div style="display: flex; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
+    <div style="display:flex; flex-direction:column; gap:6px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
+      <label style="font-size:12px; display:flex; align-items:center; gap:6px; margin:0;">
+        <input id="groupBySequenceToggle" type="checkbox" onchange="runFilter()" />
+        <span>Group by visible column sequence</span>
+      </label>
+      <div style="display: flex; gap: 10px;">
         <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(true, event)">Select All</button>
         <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(false, event)">Clear All</button>
+      </div>
     </div>
     <div id="checkListItems">
         ${headers
@@ -2210,9 +2210,14 @@
         const tHead = document.getElementById("tHead"),
           tBody = document.getElementById("tBody");
 
-        const groupByCols = Array.from(
+        let groupByCols = Array.from(
           document.querySelectorAll(".group-by-option:checked"),
         ).map((cb) => cb.value);
+        const groupBySequenceActive =
+          document.getElementById("groupBySequenceToggle")?.checked;
+        if (groupBySequenceActive) {
+          groupByCols = headers.filter((h) => !hiddenColumns.has(h));
+        }
         const aggValue = document.getElementById("aggColumn").value,
           [mode, targetCol] = aggValue.split("|");
         const gran = document.getElementById("dateGranularity").value;
