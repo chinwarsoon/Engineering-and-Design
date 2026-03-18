@@ -1023,11 +1023,11 @@
               </div>
             </div>
 
-            <div id="groupControlsContainer" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-              <div style="min-width:300px;display:flex; align-items:center; gap:10px;">
-                <label style="font-size: 11px; opacity: 0.8; margin-bottom: 4px; display: block;">Group By Columns</label>
+            <div id="groupControlsContainer" style="display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap;">
+              <div style="display:flex; flex-direction: column; gap:4px; min-width:300px;">
+                <label style="font-size: 11px; opacity: 0.8;">Group By Columns</label>
                 <div class="multiselect-box" style="position: relative; width:100%;">
-                  <div id="groupByDisplay" class="multiselect-display" onclick="toggleGroupByDropdown()" style="cursor: pointer; width: 400px; min-width: 320px;">
+                  <div id="groupByDisplay" class="multiselect-display" onclick="toggleGroupByDropdown()" style="cursor: pointer; width: 400px; min-width: 320px; height: 32px !important; padding: 6px 10px !important;">
                     <span id="groupByLabel">Select group columns</span>
                     <span style="margin-left: auto; font-size: 12px; opacity: 0.7;">▾</span>
                   </div>
@@ -1041,20 +1041,19 @@
                 </div>
               </div>
 
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div style="display:flex; align-items:center; gap: 6px;">
-                  <label style="font-size: 11px; opacity: 0.8; margin:0; min-width:80px; text-align:right;">Aggregator:</label>
-                  <select id="aggColumn" onchange="runFilter()" style="height: 32px; min-width: 140px; font-size: 11px;"></select>
-                </div>
-                <div style="display:flex; align-items:center; gap: 6px;">
-                  <label style="font-size: 11px; opacity: 0.8; margin:0; min-width:80px; text-align:right;">Date Binning:</label>
-                  <select id="dateGranularity" onchange="runFilter()" style="height: 32px; min-width: 140px; font-size: 11px;">
-                    <option value="none">Actual Date</option>
-                    <option value="month">Month & Year</option>
-                    <option value="quarter">Quarter</option>
-                    <option value="year">Year Only</option>
-                  </select>
-                </div>
+              <div style="display:flex; flex-direction: column; gap:4px;">
+                <label style="font-size: 11px; opacity: 0.8;">Aggregator</label>
+                <select id="aggColumn" onchange="runFilter()" style="height: 32px; min-width: 140px; font-size: 11px; padding: 6px 10px;"></select>
+              </div>
+              
+              <div style="display:flex; flex-direction: column; gap:4px;">
+                <label style="font-size: 11px; opacity: 0.8;">Date Binning</label>
+                <select id="dateGranularity" onchange="runFilter()" style="height: 32px; min-width: 140px; font-size: 11px; padding: 6px 10px;">
+                  <option value="none">Actual Date</option>
+                  <option value="month">Month & Year</option>
+                  <option value="quarter">Quarter</option>
+                  <option value="year">Year Only</option>
+                </select>
               </div>
             </div>
           </div>
@@ -1206,7 +1205,7 @@
         const btn = document.getElementById("toggleGroupBtn");
 
         if (container.style.display === "none") {
-          container.style.display = "block";
+          container.style.display = "flex";
           btn.innerHTML = "▲ Hide Controls";
         } else {
           container.style.display = "none";
@@ -2729,17 +2728,3 @@
     </script>
   </body>
 </html>
-
-/* debug hitory*/ /* replace function buildInterface */ /* remove duplicate
-selectedFilterCols.map */ /* fix resetFilters */ /* fix runfilter*/ /* fix
-filter cut off by container */ /* data table font size change */ /* move 'active
-filter' container up */ /* show triangle in data header for sort */ /* after
-reset, fix sort triangle */ /* allow rearrange data column sequence */ /* add
-debug log function */ /* adjust sequence per selection for columns menu */ /*
-fix non-sticky first column in data table */ /* fix active filters to be changed
-per chosen columns */ /* move compact button above data table */ /* show date
-picker */ /* remove auto search */ /* to ensure the sorting indicators (the
-triangles) stay in sync with this new filter */ /* optimize with Git CoPilot */
-/* when load worksheet, remove empty rows and columns, fill up "NA" for blank
-cells */ /* assign null to blank date */ /* filter to show Null valuve*/ /* date
-fitler to show null valuve */
