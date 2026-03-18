@@ -1509,15 +1509,9 @@
 
         // Inside buildInterface() - update this section
         document.getElementById("columnChecklist").innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:6px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
-      <label style="font-size:12px; display:flex; align-items:center; gap:6px; margin:0;">
-        <input id="groupBySequenceToggle" type="checkbox" onchange="runFilter()" />
-        <span>Group by visible column sequence</span>
-      </label>
-      <div style="display: flex; gap: 10px;">
+    <div style="display: flex; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
         <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(true, event)">Select All</button>
         <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(false, event)">Clear All</button>
-      </div>
     </div>
     <div id="checkListItems">
         ${headers
