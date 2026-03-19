@@ -2631,7 +2631,7 @@
         const isGroupingActive = groupBySequenceActive || groupByCols.length > 0;
 
         // 2. Select the correct dataset based on the active UI view
-        const dataToExport = isGroupingActive
+        let dataToExport = isGroupingActive
           ? currentGroupedData
           : filteredDataGlobal;
 
@@ -2640,7 +2640,15 @@
           return;
         }
 
-        // 3. Create worksheet and download
+        // 3. If not grouping, export only visible columns (in header order)
+        if (!isGroupingActive) {
+          const visibleCols = headers.filter((h) => !hiddenColumns.has(h));
+          dataToExport = dataToExport.map((row) =>
+            Object.fromEntries(visibleCols.map((c) => [c, row[c]])),
+          );
+        }
+
+        // 4. Create worksheet and download
         const ws = XLSX.utils.json_to_sheet(dataToExport);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Exported_Results");
