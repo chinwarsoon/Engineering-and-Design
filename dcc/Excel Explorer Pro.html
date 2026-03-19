@@ -2439,18 +2439,84 @@
 
       function updateChart(gData) {
         const ctx = document.getElementById("dataChart").getContext("2d");
-
         const type = document.getElementById("chartType").value;
-
         document.getElementById("chartSection").classList.remove("hidden");
 
-        const labels = gData.map((g) =>
-          Object.values(g).slice(0, -2).join(" | "),
-        );
+        if (!Array.isArray(gData) || gData.length === 0) {
+          if (myChart) myChart.destroy();
+          return;
+        }
 
-        const vals = gData.map(
-          (g) => Object.values(g)[Object.values(g).length - 2],
-        );
+        let groupByCols = Array.from(
+          document.querySelectorAll(".group-by-option:checked"),
+        ).map((cb) => cb.value);
+        if (document.getElementById("groupBySequenceToggle")?.checked) {
+          groupByCols = headers.filter((h) => !hiddenColumns.has(h));
+        }
+
+        const keys = Object.keys(gData[0]);
+        const metricKeys = keys.filter((k) => !groupByCols.includes(k) && k !== "%");
+        const metricKey = metricKeys[0] || keys[keys.length - 2] || keys[0];
+
+        const firstGroupKey = groupByCols.length ? groupByCols[0] : null;
+
+        let labels = [];
+        let datasets = [];
+
+        if (firstGroupKey && groupByCols.length > 1) {
+          labels = [...new Set(gData.map((r) => r[firstGroupKey]))];
+
+          const seriesByRemaining = new Map();
+          gData.forEach((row) => {
+            const seriesKey = groupByCols
+              .slice(1)
+              .map((c) => `${c}: ${row[c]}`)
+              .join(" | ");
+            if (!seriesByRemaining.has(seriesKey)) {
+              seriesByRemaining.set(seriesKey, {});
+            }
+            seriesByRemaining.get(seriesKey)[row[firstGroupKey]] = Number(
+              row[metricKey],
+            ) || 0;
+          });
+
+          const colors = [
+            "#2563eb",
+            "#10b981",
+            "#f59e0b",
+            "#ef4444",
+            "#8b5cf6",
+            "#0ea5e9",
+            "#ec4899",
+            "#14b8a6",
+          ];
+
+          datasets = [...seriesByRemaining.entries()].map(
+            ([seriesLabel, valMap], idx) => ({
+              label: seriesLabel,
+              data: labels.map((x) => valMap[x] ?? 0),
+              backgroundColor: colors[idx % colors.length],
+              borderColor: colors[idx % colors.length],
+              fill: type === "line" ? false : true,
+              tension: 0.2,
+            }),
+          );
+        } else {
+          labels = firstGroupKey
+            ? gData.map((r) => r[firstGroupKey])
+            : gData.map((r, i) => i + 1);
+
+          datasets = [
+            {
+              label: `${metricKey || "Metric"}`,
+              data: gData.map((r) => Number(r[metricKey]) || 0),
+              backgroundColor: "#2563eb",
+              borderColor: "#2563eb",
+              fill: type === "line" ? false : true,
+              tension: 0.2,
+            },
+          ];
+        }
 
         if (myChart) myChart.destroy();
 
@@ -2458,11 +2524,26 @@
           type,
           data: {
             labels,
-            datasets: [
-              { label: "Metric", data: vals, backgroundColor: "#2563eb" },
-            ],
+            datasets,
           },
-          options: { responsive: true, maintainAspectRatio: false },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                display: true,
+                position: "top",
+              },
+            },
+            scales: {
+              x: {
+                title: {
+                  display: Boolean(firstGroupKey),
+                  text: firstGroupKey || "Group",
+                },
+              },
+            },
+          },
         });
       }
 
