@@ -1767,8 +1767,16 @@
       function excelSerialToJsDate(val) {
         if (val instanceof Date) return val;
         if (isExcelDate(val)) return new Date((val - 25569) * 86400 * 1000);
-        const parsed = new Date(val);
-        return !isNaN(parsed) ? parsed : null;
+        if (typeof val === "string") {
+          const trimmed = val.trim();
+          if (trimmed === "") return null;
+          // Prevent numeric strings from being interpreted as a date (e.g. '12345').
+          if (/^\d+$/.test(trimmed)) return null;
+          // Accept common date formats and ISO-like strings.
+          const parsed = new Date(trimmed);
+          return !isNaN(parsed) ? parsed : null;
+        }
+        return null;
       }
 
       function sanitizeHeader(h) {
