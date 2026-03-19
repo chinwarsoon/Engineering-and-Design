@@ -2626,7 +2626,9 @@
         const groupByCols = Array.from(
           document.querySelectorAll(".group-by-option:checked"),
         ).map((el) => el.value);
-        const isGroupingActive = groupByCols.length > 0;
+        const groupBySequenceActive =
+          document.getElementById("groupBySequenceToggle")?.checked;
+        const isGroupingActive = groupBySequenceActive || groupByCols.length > 0;
 
         // 2. Select the correct dataset based on the active UI view
         const dataToExport = isGroupingActive
