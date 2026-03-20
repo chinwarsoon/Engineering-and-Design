@@ -864,6 +864,34 @@
                     </div>
                 </div>
             </div>
+            <div id="filterContainerSection" class="hidden" style="margin-top: 20px">
+                    <div style="
+                    background: var(--pivot-bg);
+                    padding: 15px;
+                    border-radius: 8px;
+                    border: 1px dashed var(--primary);
+                    width: 100%;
+                  ">
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 10px;
+                          ">
+                            <label style="color: var(--primary); font-weight: 700">🔍 4. Active Filters</label>
+                            <button class="btn btn-outline" id="toggleFilterBtn" onclick="toggleFilterBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲ Hide Filters
+                                </button>
+                        </div>
+                        <div id="filterControlsWrapper">
+                            <div id="filterArea" class="filters-container" style="
+                              background: transparent;
+                              border: none;
+                              padding: 0;
+                              box-shadow: none;
+                            "></div>
+                        </div>
+                    </div>
+                </div>
                 </aside>
                 <div id="mainContent">
             <div id="step3" class="hidden">
@@ -948,33 +976,6 @@
                         </div>
                     </div>
                 </div>
-                <div id="filterContainerSection" class="hidden" style="margin-top: 20px">
-                    <div style="
-                    background: var(--pivot-bg);
-                    padding: 15px;
-                    border-radius: 8px;
-                    border: 1px dashed var(--primary);
-                    width: 100%;
-                  ">
-                        <div style="
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            margin-bottom: 10px;
-                          ">
-                            <label style="color: var(--primary); font-weight: 700">🔍 4. Active Filters</label>
-                            <button class="btn btn-outline" id="toggleFilterBtn" onclick="toggleFilterBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲ Hide Filters
-                                </button>
-                        </div>
-                        <div id="filterControlsWrapper">
-                            <div id="filterArea" class="filters-container" style="
-                              background: transparent;
-                              border: none;
-                              padding: 0;
-                              box-shadow: none;
-                            "></div>
-                        </div>
-                    </div>
                     <div id="groupBySection">
                         <div class="dashboard-module">
                             <div style="
