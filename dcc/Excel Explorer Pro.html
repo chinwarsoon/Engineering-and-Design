@@ -1970,11 +1970,12 @@
                                 }
 
                                 // CASE B: Multiselect Dropdown Filtering
-                                const strVal = String(formatExcelDate(row[col]));
-                                const selections = activeSelections[col];
                                 const rawVal = row[col];
+                                const formattedValue = String(formatExcelDate(rawVal) ?? "");
+                                const strVal = formattedValue;
+                                const selections = activeSelections[col];
                                 // Determine what this cell "looks like" to the filter
-                                const displayVal = (row[col] === null || formattedValue.trim() === "") ? "(Blanks)" : String(formatExcelDate(row[col]));
+                                const displayVal = (rawVal === null || rawVal === undefined || formattedValue.trim() === "") ? "(Blanks)" : formattedValue;
                                 
                                 // If the set is empty or doesn't exist, all items are "selected"
                                 if (!selections || selections.size === 0)
@@ -2540,6 +2541,16 @@
                     }
 
                     function getGranularDate(v, m) {
+                        // Keep non-date-like strings as-is to avoid incorrect coercion.
+                        if (typeof v === "string") {
+                            const trimmed = v.trim();
+                            const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+                            const usDate = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
+                            if (!isoDate.test(trimmed) && !usDate.test(trimmed)) {
+                                return v;
+                            }
+                        }
+
                         const d = excelSerialToJsDate(v);
 
                         if (!d || isNaN(d))
