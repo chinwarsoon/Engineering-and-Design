@@ -891,16 +891,18 @@
             ">
                         <label style="color: var(--primary); font-weight: 700">🔍 2. Choose Filterable Columns</label>
                         <div style="display: flex; gap: 6px; align-items: center">
-                            <button class="btn btn-outline" style="padding: 2px 8px; font-size: 10px" onclick="selectAllColumns()">Select All
-              </button>
-                            <button class="btn btn-outline" style="padding: 2px 8px; font-size: 10px" onclick="clearAllColumns()">Clear All
-              </button>
                             <button class="btn btn-outline" id="toggleStep2Btn" onclick="toggleStep2Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲
               </button>
                         </div>
                     </div>
                     <div id="headerListContainer">
-                        <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: var(--card-bg)"></div>
+                        <div id="headerListWrapper" style="border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display:flex; gap: 6px; flex-wrap: wrap;">
+                                <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="selectAllColumns()">Select All</button>
+                                <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="clearAllColumns()">Clear All</button>
+                            </div>
+                            <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: var(--card-bg);"></div>
+                        </div>
                         <button class="btn" style="width: 100%; margin-top: 10px; justify-content: center" onclick="buildInterface()">Initialize Dashboard
             </button>
                     </div>
