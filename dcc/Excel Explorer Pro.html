@@ -995,37 +995,6 @@
                                 </select>
                             </div>
                         </div>
-                        <div id="chartSection" class="hidden" style="
-                                          flex: 1 1 100%;
-                                          min-width: 0;    
-                                          width: 100%;
-                                          box-sizing: border-box;
-                                          margin-bottom: 20px;
-                                          padding: 15px;
-                                          background: var(--card-bg);
-                                          border: 1px solid var(--border);
-                                          border-radius: 8px;
-                                        ">
-                            <div style="
-                                                  display: flex;
-                                                  justify-content: space-between;
-                                                  align-items: center;
-                                                  margin-bottom: 10px;
-                                                ">
-                                <label>📈 Data Trends</label>
-                                <div style="display: flex; gap: 10px">
-                                    <select id="chartType" onchange="runFilter()">
-                                        <option value="bar">Bar</option>
-                                        <option value="line">Line</option>
-                                        <option value="pie">Pie</option>
-                                    </select>
-                                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px" onclick="downloadChart()">🖼️ Save Chart</button>
-                                </div>
-                            </div>
-                            <div style="height: 300px">
-                                <canvas id="dataChart"></canvas>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1033,6 +1002,39 @@
                 <div id="mainContent">
             <div id="step3" class="hidden">
                 <div class="dashboard-module" style="margin-top: 20px;">
+                    <!-- Data Trends Section -->
+                    <div id="chartSection" class="hidden" style="
+                        flex: 1 1 100%;
+                        min-width: 0;    
+                        width: 100%;
+                        box-sizing: border-box;
+                        margin-bottom: 20px;
+                        padding: 15px;
+                        background: var(--card-bg);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                    ">
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            margin-bottom: 10px;
+                        ">
+                            <label>📈 Data Trends</label>
+                            <div style="display: flex; gap: 10px">
+                                <select id="chartType" onchange="runFilter()">
+                                    <option value="bar">Bar</option>
+                                    <option value="line">Line</option>
+                                    <option value="pie">Pie</option>
+                                </select>
+                                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px" onclick="downloadChart()">🖼️ Save Chart</button>
+                            </div>
+                        </div>
+                        <div style="height: 300px">
+                            <canvas id="dataChart"></canvas>
+                        </div>
+                    </div>
+                    <!-- Date Range Chart Controls -->
                     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 0; margin-bottom: 6px;">
                         <label style="color: var(--primary); font-weight: 700;">📈 3. Date Range Chart Controls</label>
                         <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲</button>
