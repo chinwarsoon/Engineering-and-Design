@@ -912,6 +912,7 @@
                             <label style="color: var(--primary); font-weight: 700">📊 5. Grouping &Analytics</label>
                             <span id="groupingBadge" style="display:none; background:#e0f2fe; color:#2563eb; border:1px solid #bfdbfe; border-radius:999px; padding:2px 8px; font-size:10px; font-weight:700;">Grouping Active</span>
                         </div>
+                        <div id="groupByLabel" style="font-size: 11px; color: #4b5563;">No grouping columns selected</div>
                         <div style="display: flex; gap: 6px; align-items: center">
                             <button class="btn btn-outline" id="toggleGroupBtn" onclick="toggleGroupBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲</button>
                         </div>
@@ -919,10 +920,13 @@
                     <div id="groupControlsContainer" style="display:flex; flex-direction: column; align-items:flex-start; gap:12px; flex-wrap:wrap;">
                         <div id="dashboardContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
                             <div style="display:flex; flex-direction: column; gap:4px; min-width:100%;">
-                                <label style="font-size: 11px; opacity: 0.8;">Group By Mode</label>
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <input id="groupBySequenceToggle" type="checkbox" onchange="runFilter()"/>
-                                    <span style="font-size:12px;">Group by visible column sequence</span>
+                                <label style="font-size: 11px; opacity: 0.8;">Group By Columns (multi-select)</label>
+                                <div id="groupByColumnsWrapper" style="display:flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y:auto; border:1px solid var(--border); border-radius: 6px; background: var(--card-bg); padding: 8px;">
+                                    <div style="display:flex; gap:6px;">
+                                        <button class="btn btn-outline" style="font-size:11px; padding:3px 6px;" onclick="selectAllGroupBy(); return false;">Select All</button>
+                                        <button class="btn btn-outline" style="font-size:11px; padding:3px 6px;" onclick="clearAllGroupBy(); return false;">Clear All</button>
+                                    </div>
+                                    <div id="groupByColumnList" class="filters-container" style="display:grid; grid-template-columns: 1fr; gap: 4px; max-height: 180px; overflow-y:auto;"></div>
                                 </div>
                             </div>
                             <div style="display:flex; flex-direction: column; gap:4px; width: 100%;">
@@ -1197,20 +1201,24 @@
                         setAllColumns(false);
                     }
 
+                    function getSelectedGroupByCols() {
+                        return Array.from(document.querySelectorAll(".group-by-col-check:checked")).map((cb)=>cb.value);
+                    }
+
                     function updateGroupBySelection() {
-                        const selected = Array.from(document.querySelectorAll(".group-by-option:checked"), ).map((cb)=>cb.value);
+                        const selected = getSelectedGroupByCols();
                         const labelEl = document.getElementById("groupByLabel");
                         const badgeEl = document.getElementById("groupingBadge");
                         if (!labelEl)
                             return;
                         if (selected.length === 0) {
-                            labelEl.innerText = "Select group columns";
+                            labelEl.innerText = "No grouping columns selected";
                             if (badgeEl) {
                                 badgeEl.style.display = "none";
                                 badgeEl.innerText = "Grouping Inactive";
                             }
                         } else if (selected.length === 1) {
-                            labelEl.innerText = selected[0];
+                            labelEl.innerText = `Grouping: ${selected[0]}`;
                             if (badgeEl) {
                                 badgeEl.style.display = "inline-block";
                                 badgeEl.innerText = `Grouping: ${selected.join(", ")}`;
@@ -1222,6 +1230,34 @@
                                 badgeEl.innerText = `Grouping: ${selected.join(", ")}`;
                             }
                         }
+                    }
+
+                    function syncGroupByChip(cb) {
+                        const chip = cb.closest('.group-by-chip');
+                        if (!chip) return;
+                        if (cb.checked) {
+                            chip.classList.add('active');
+                        } else {
+                            chip.classList.remove('active');
+                        }
+                    }
+
+                    function selectAllGroupBy() {
+                        document.querySelectorAll(".group-by-col-check").forEach((cb)=>{
+                            cb.checked = true;
+                            syncGroupByChip(cb);
+                        });
+                        updateGroupBySelection();
+                        runFilter();
+                    }
+
+                    function clearAllGroupBy() {
+                        document.querySelectorAll(".group-by-col-check").forEach((cb)=>{
+                            cb.checked = false;
+                            syncGroupByChip(cb);
+                        });
+                        updateGroupBySelection();
+                        runFilter();
                     }
 
                     function moveGroupByOption(button, direction) {
@@ -1347,21 +1383,20 @@
                     <optgroup label="Unique Distinct">${headers.map((h)=>`<option value="DISTINCT|${h}">${h}</option>`).join("")}</optgroup>
                     <optgroup label="Sum">${numericCols.map((h)=>`<option value="SUM|${h}">${h}</option>`).join("")}</optgroup>`;
 
-                        const groupByOptionItems = document.getElementById("groupByOptionItems");
-                        if (groupByOptionItems) {
-                            groupByOptionItems.innerHTML = headers.map((h,idx)=>`
-                                    <div id="groupByItem-${idx}" style="display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:12px;">
-                                      <input type="checkbox" class="group-by-option" value="${h}" onchange="updateGroupBySelection(); runFilter();" />
-                                      <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${h}</span>
-                                      <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, 'top'); event.stopPropagation();">⇑</button>
-                                      <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, -1); event.stopPropagation();">↑</button>
-                                      <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, 1); event.stopPropagation();">↓</button>
-                                      <button class="btn-outline" style="padding: 2px 6px; font-size: 10px;" onclick="moveGroupByOption(this, 'bottom'); event.stopPropagation();">⇓</button>
-                                    </div>
-                                `, ).join("");
+                        const groupByColumnList = document.getElementById("groupByColumnList");
+                        if (groupByColumnList) {
+                            groupByColumnList.innerHTML = headers.map((h)=>`
+                                <label class="toggle-chip group-by-chip" style="font-size: 11px; margin-bottom: 3px;">
+                                    <input type="checkbox" class="group-by-col-check" value="${h}" onchange="syncGroupByChip(this); updateGroupBySelection(); runFilter();">
+                                    <span class="status-icon"></span>
+                                    ${h}
+                                </label>
+                            `).join("");
                         }
                         if (typeof updateGroupBySelection === 'function')
                             updateGroupBySelection();
+                        // Sync initial chip states
+                        document.querySelectorAll('.group-by-col-check').forEach((checkbox)=>syncGroupByChip(checkbox));
 
                         // Populate Date Range X/Y selectors
                         const dateCols = headers.filter((h)=>rawData.some((r)=>r[h]instanceof Date || isExcelDate(r[h])), );
@@ -2064,11 +2099,7 @@
                         const tHead = document.getElementById("tHead")
                           , tBody = document.getElementById("tBody");
 
-                        let groupByCols = Array.from(document.querySelectorAll(".group-by-option:checked"), ).map((cb)=>cb.value);
-                        const groupBySequenceActive = document.getElementById("groupBySequenceToggle")?.checked;
-                        if (groupBySequenceActive) {
-                            groupByCols = headers.filter((h)=>!hiddenColumns.has(h));
-                        }
+                        const groupByCols = getSelectedGroupByCols();
                         const aggValue = document.getElementById("aggColumn").value
                           , [mode,targetCol] = aggValue.split("|");
                         const gran = document.getElementById("dateGranularity").value;
@@ -2241,10 +2272,7 @@
                             return;
                         }
 
-                        let groupByCols = Array.from(document.querySelectorAll(".group-by-option:checked"), ).map((cb)=>cb.value);
-                        if (document.getElementById("groupBySequenceToggle")?.checked) {
-                            groupByCols = headers.filter((h)=>!hiddenColumns.has(h));
-                        }
+                        const groupByCols = getSelectedGroupByCols();
 
                         const keys = Object.keys(gData[0]);
                         const metricKeys = keys.filter((k)=>!groupByCols.includes(k) && k !== "%");
@@ -2550,9 +2578,8 @@
 
                     function downloadExcel() {
                         // 1. Determine if we are currently in "Grouping" mode
-                        const groupByCols = Array.from(document.querySelectorAll(".group-by-option:checked"), ).map((el)=>el.value);
-                        const groupBySequenceActive = document.getElementById("groupBySequenceToggle")?.checked;
-                        const isGroupingActive = groupBySequenceActive || groupByCols.length > 0;
+                        const groupByCols = getSelectedGroupByCols();
+                        const isGroupingActive = groupByCols.length > 0;
 
                         // 2. Select the correct dataset based on the active UI view
                         let dataToExport = isGroupingActive ? currentGroupedData : filteredDataGlobal;
@@ -2724,8 +2751,7 @@
 
                         // 1. Grab values using the Manager (document)
                         const search = document.querySelector("#globalSearch").value || "All Data";
-                        const groupNodes = document.querySelectorAll(".group-by-option:checked");
-                        const groups = Array.from(groupNodes).map(el=>el.value).join(", ") || "None";
+                        const groups = getSelectedGroupByCols().join(", ") || "None";
                         const agg = document.querySelector("#aggColumn").value;
 
                         // 2. Build the "Dashboard Summary"
