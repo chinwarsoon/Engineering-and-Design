@@ -1122,30 +1122,6 @@
                         setAllColumns(false);
                     }
 
-//                    function setAllGroupBy(checked) {
-//                        document.querySelectorAll(".group-by-option").forEach((cb)=>{
-//                            cb.checked = checked;
-//                        }
-//                        );
-//                        updateGroupBySelection();
-//                        runFilter();
-//                    }
-//
-//                    function selectAllGroupBy() {
-//                        setAllGroupBy(true);
-//                    }
-//
-//                    function clearAllGroupBy() {
-//                        setAllGroupBy(false);
-//                    }
-//
-//                    function toggleGroupByDropdown() {
-//                        const menu = document.getElementById("groupByOptions");
-//                        if (!menu)
-//                            return;
-//                        menu.classList.toggle("hidden");
-//                    }
-
                     function updateGroupBySelection() {
                         const selected = Array.from(document.querySelectorAll(".group-by-option:checked"), ).map((cb)=>cb.value);
                         const labelEl = document.getElementById("groupByLabel");
@@ -1437,35 +1413,6 @@
                         // Refresh the table
                         runFilter();
                     }
-
-                    //function moveColumn(index, direction, event) {
-                    //    event.stopPropagation(); // Prevents menu from closing
-                    //    const newIndex = index + direction;
-                    //
-                    //    if (newIndex >= 0 && newIndex < headers.length) {
-                    //        // Swap headers in the global array
-                    //        const temp = headers[index];
-                    //        headers[index] = headers[newIndex];
-                    //        headers[newIndex] = temp;
-                    //
-                    //        // Refresh the checklist UI
-                    //        const groupByCols = Array.from(document.querySelectorAll('.group-check:checked')).map(cb => cb.value);
-                    //
-                    //        // Re-render the checklist
-                    //        document.getElementById('columnChecklist').innerHTML = headers.map((h, i) => `
-                    //            <div class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
-                    //                <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">▲</button>
-                    //                <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">▼</button>
-                    //                <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1;">
-                    //                    <input type="checkbox" ${hiddenColumns.has(h) ? '' : 'checked'} onchange="toggleCol('${h}')"> ${h}
-                    //                </label>
-                    //            </div>
-                    //        `).join('');
-                    //
-                    //        // Refresh the table to show the new sequence
-                    //        runFilter();
-                    //    }
-                    //}
 
                     function moveColumn(index, direction, event) {
                         event.stopPropagation();
@@ -1839,23 +1786,6 @@
                         );
                     }
 
-                    //    function populateDropdowns() {
-                    //
-                    //        selectedFilterCols.forEach(col => {
-                    //
-                    //            const listEl = document.getElementById(`list-${col}`); if (!listEl) return;
-                    //
-                    //            const unique = [...new Set(rawData.map(r => String(formatExcelDate(r[col]) ?? '')))].filter(v => v !== "").sort();
-                    //
-                    //            listEl.innerHTML = unique.map(v => {
-                    //                const escaped = v.replace(/'/g, "\\'");
-                    //                return `<div class="option-item"><label><input type="checkbox" data-val="${escaped}" onchange="handleSelect('${col}','${escaped}', this.checked)"> ${v}</label></div>`;
-                    //            }).join('');
-                    //
-                    //        });
-                    //
-                    //    }
-
                     function toggleDropdown(e, col) {
                         e.stopPropagation();
                         const menu = document.getElementById(`options-${col}`);
@@ -2044,8 +1974,7 @@
                                 const selections = activeSelections[col];
                                 const rawVal = row[col];
                                 // Determine what this cell "looks like" to the filter
-                                const formattedValue = String(formatExcelDate(row[col]));
-                                const displayVal = (row[col] === null || formattedValue.trim() === "") ? "(Blanks)" : formattedValue;
+                                const displayVal = (row[col] === null || formattedValue.trim() === "") ? "(Blanks)" : String(formatExcelDate(row[col]));
                                 
                                 // If the set is empty or doesn't exist, all items are "selected"
                                 if (!selections || selections.size === 0)
