@@ -760,8 +760,13 @@
             }
 
             #sidebarToggle {
-                margin-left: auto;
                 font-size: 12px;
+                margin-left: 0;
+            }
+            #sidebarToggleContainer {
+                display: flex;
+                justify-content: flex-start;
+                margin-bottom: 10px;
             }
         </style>
     </head>
@@ -769,37 +774,40 @@
         <div class="card">
             <div class="header-section">
                 <h2 style="margin: 0">📊 TWRP C4B DCC Submission Explorer Pro</h2>
-                <div style="display: flex; gap: 10px">
-                    <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🌙 Dark Mode
-          </button>
-                    <button class="btn-outline" onclick="toggleDevMode()" style="color: #ed8936; border-color: #ed8936">
-                        Dev Mode: <span id="devStatus">OFF</span>
-                    </button>
-                </div>
+            
             </div>
+            
+            <div id="sidebarToggleContainer">
+                <button id="sidebarToggle" class="btn btn-outline" onclick="toggleSidebar()">⬅️</button>
+            
+                <div style="display: flex; gap: 10px">
+                        <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🌙 Dark Mode
+                        </button>
+                        <button class="btn-outline" onclick="toggleDevMode()" style="color: #ed8936; border-color: #ed8936">
+                            Dev Mode: <span id="devStatus">OFF</span>
+                        </button>
+                </div>
+            </div>  
             <div id="debugPanel">
                 <div style="
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #2d3748;
-          ">
+                display: flex;
+                        justify-content: space-between;
+                        margin-bottom: 10px;
+                        border-bottom: 1px solid #2d3748;
+                    ">
                     <span style="font-weight: bold; color: #cbd5e0">SYSTEM ACTIVITY LOG</span>
                     <button onclick="document.getElementById('debugList').innerHTML = ''" style="
-              background: none;
-              border: none;
-              color: #fc8181;
-              cursor: pointer;
-              font-size: 10px;
-            ">[Clear Log]
-          </button>
+                        background: none;
+                        border: none;
+                        color: #fc8181;
+                        cursor: pointer;
+                        font-size: 10px;
+                        ">[Clear Log]
+                    </button>
                 </div>
                 <div id="debugList"></div>
             </div>
-            <div id="sidebarToggleContainer">
-                <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Dashboard</div>
-                <button id="sidebarToggle" class="btn btn-outline" onclick="toggleSidebar()">⬅️ Hide Sidebar</button>
-            </div>
+            <div style="border-bottom: 1px solid var(--border); margin-bottom: 10px; width: 100%;"></div>
             <div id="layoutWrapper">
                 <aside id="sidebar">
                     <div id="step1" style="width: 100%">
@@ -818,7 +826,7 @@
             ">
                                 <label id="step1Header" style="color: var(--primary); font-weight: 700">📂 1. Load Excel File and Select Work Sheet:
             </label>
-                                <button class="btn btn-outline" id="toggleStep1Btn" onclick="toggleStep1Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲ Hide
+                                <button class="btn btn-outline" id="toggleStep1Btn" onclick="toggleStep1Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲
             </button>
                             </div>
                             <div id="loadFilesContainer">
@@ -853,7 +861,7 @@
               </button>
                             <button class="btn btn-outline" style="padding: 2px 8px; font-size: 10px" onclick="clearAllColumns()">Clear All
               </button>
-                            <button class="btn btn-outline" id="toggleStep2Btn" onclick="toggleStep2Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲ Hide Selection
+                            <button class="btn btn-outline" id="toggleStep2Btn" onclick="toggleStep2Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲
               </button>
                         </div>
                     </div>
@@ -879,7 +887,7 @@
                             margin-bottom: 10px;
                           ">
                             <label style="color: var(--primary); font-weight: 700">🔍 4. Active Filters</label>
-                            <button class="btn btn-outline" id="toggleFilterBtn" onclick="toggleFilterBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲ Hide Filters
+                            <button class="btn btn-outline" id="toggleFilterBtn" onclick="toggleFilterBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲
                                 </button>
                         </div>
                         <div id="filterControlsWrapper">
@@ -905,7 +913,7 @@
                             <span id="groupingBadge" style="display:none; background:#e0f2fe; color:#2563eb; border:1px solid #bfdbfe; border-radius:999px; padding:2px 8px; font-size:10px; font-weight:700;">Grouping Active</span>
                         </div>
                         <div style="display: flex; gap: 6px; align-items: center">
-                            <button class="btn btn-outline" id="toggleGroupBtn" onclick="toggleGroupBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲ Hide Controls</button>
+                            <button class="btn btn-outline" id="toggleGroupBtn" onclick="toggleGroupBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲</button>
                         </div>
                     </div>
                     <div id="groupControlsContainer" style="display:flex; flex-direction: column; align-items:flex-start; gap:12px; flex-wrap:wrap;">
@@ -968,11 +976,10 @@
                 </aside>
                 <div id="mainContent">
             <div id="step3" class="hidden">
-                <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border)"/>
                 <div class="dashboard-module" style="margin-top: 20px;">
                     <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 0; margin-bottom: 6px;">
                         <label style="color: var(--primary); font-weight: 700;">📈 3. Date Range Chart Controls</label>
-                        <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲ Hide Date Range</button>
+                        <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲</button>
                     </div>
                     <div id="dateRangeChartSection" class="hidden" style="
             margin-top: 0px;
@@ -1112,10 +1119,10 @@
 
                         if (wrapper.style.display === "none") {
                             wrapper.style.display = "block";
-                            btn.innerHTML = "▲ Hide Filters";
+                            btn.innerHTML = "▲";
                         } else {
                             wrapper.style.display = "none";
-                            btn.innerHTML = "▼ Show Filters";
+                            btn.innerHTML = "▼";
                         }
                     }
 
@@ -1125,10 +1132,10 @@
 
                         if (container.style.display === "none") {
                             container.style.display = "block";
-                            btn.innerHTML = "▲ Hide";
+                            btn.innerHTML = "▲";
                         } else {
                             container.style.display = "none";
-                            btn.innerHTML = "▼ Show";
+                            btn.innerHTML = "▼";
                         }
                     }
 
@@ -1140,10 +1147,10 @@
 
                         if (sidebar.classList.contains("hidden")) {
                             sidebar.classList.remove("hidden");
-                            btn.innerText = "⬅️ Hide Sidebar";
+                            btn.innerText = "⬅️";
                         } else {
                             sidebar.classList.add("hidden");
-                            btn.innerText = "➡️ Show Sidebar";
+                            btn.innerText = "➡️";
                         }
                     }
 
@@ -1153,10 +1160,10 @@
 
                         if (container.style.display === "none") {
                             container.style.display = "flex";
-                            btn.innerHTML = "▲ Hide Controls";
+                            btn.innerHTML = "▲";
                         } else {
                             container.style.display = "none";
-                            btn.innerHTML = "▼ Show Controls";
+                            btn.innerHTML = "▼";
                         }
                     }
 
@@ -1167,10 +1174,10 @@
                         // Using display: none for a clean "closed" state
                         if (container.style.display === "none") {
                             container.style.display = "block";
-                            btn.innerHTML = "▲ Hide Selection";
+                            btn.innerHTML = "▲";
                         } else {
                             container.style.display = "none";
-                            btn.innerHTML = "▼ Show Selection";
+                            btn.innerHTML = "▼";
                         }
                     }
 
@@ -1807,7 +1814,7 @@
                         if (step1Container) {
                             step1Container.style.display = "none";
                             if (step1Btn)
-                                step1Btn.innerHTML = "▼ Show File Upload";
+                                step1Btn.innerHTML = "▼";
                         }
                     }
 
@@ -1876,11 +1883,11 @@
                             return;
                         if (section.classList.contains("hidden")) {
                             section.classList.remove("hidden");
-                            btn.innerText = "▼ Hide Date Range";
+                            btn.innerText = "▼";
                             canvasWrap.style.display = "block";
                         } else {
                             section.classList.add("hidden");
-                            btn.innerText = "▲ Show Date Range";
+                            btn.innerText = "▲";
                             canvasWrap.style.display = "none";
                         }
                     }
@@ -2322,7 +2329,7 @@
                         const chartType = document.getElementById("dateRangeChartType")?.value || "line";
 
                         if (toggleBtn && container) {
-                            toggleBtn.innerText = container.classList.contains("hidden") ? "▲ Show Date Range" : "▼ Hide Date Range";
+                            toggleBtn.innerText = container.classList.contains("hidden") ? "▲" : "▼";
                         }
 
                         const selectedX = xSelect?.value;
