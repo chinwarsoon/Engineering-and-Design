@@ -439,7 +439,27 @@
             .filters-container.grid-layout {
                 background: var(--card-bg);
                 border: 1px solid var(--border);
-                padding: 12px;
+                padding: 6px;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            #headerList, #groupByColumnList {
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            #headerList .toggle-chip, #groupByColumnList .toggle-chip {
+                width: 100%;
+                justify-content: space-between;
+                font-size: 10px;
+                line-height: 1.2;
+                white-space: normal;
+                padding: 4px 8px;
             }
 
             /* Optional: Make the toggle button look distinct */
@@ -460,13 +480,27 @@
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
-                padding: 6px 14px;
+                padding: 4px 10px;
                 background: var(--card-bg);
                 border: 1px solid var(--border);
-                border-radius: 20px;
+                border-radius: 16px;
                 cursor: pointer;
-                font-size: 12px;
+                font-size: 11px;
                 transition: 0.2s;
+            }
+
+            .filters-container.grid-layout .toggle-chip,
+            #groupByColumnList .toggle-chip,
+            #headerList .toggle-chip {
+                width: 100%;
+                justify-content: space-between;
+                font-size: 10px;
+                border-radius: 6px;
+                padding: 4px 8px;
+            }
+
+            .filters-container.grid-layout .toggle-chip {
+                margin-bottom: 4px;
             }
 
             .toggle-chip:hover {
@@ -1386,7 +1420,7 @@
                         const groupByColumnList = document.getElementById("groupByColumnList");
                         if (groupByColumnList) {
                             groupByColumnList.innerHTML = headers.map((h)=>`
-                                <label class="toggle-chip group-by-chip" style="font-size: 11px; margin-bottom: 3px;">
+                                <label class="toggle-chip group-by-chip" style="font-size: 11px; margin-bottom: 3px; width: 100%;">
                                     <input type="checkbox" class="group-by-col-check" value="${h}" onchange="syncGroupByChip(this); updateGroupBySelection(); runFilter();">
                                     <span class="status-icon"></span>
                                     ${h}
