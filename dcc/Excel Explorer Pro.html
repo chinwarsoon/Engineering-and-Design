@@ -460,6 +460,10 @@
                 line-height: 1.2;
                 white-space: normal;
                 padding: 4px 8px;
+                box-sizing: border-box;
+            }
+            #groupByColumnsWrapper {
+                width: 100%;
             }
 
             /* Optional: Make the toggle button look distinct */
@@ -957,7 +961,7 @@
                         <div id="dashboardContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
                             <div style="display:flex; flex-direction: column; gap:4px; min-width:100%;">
                                 <label style="font-size: 11px; opacity: 0.8;">Group By Columns (multi-select)</label>
-                                <div id="groupByColumnsWrapper" style="display:flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y:auto; border:1px solid var(--border); border-radius: 6px; background: var(--card-bg); padding: 8px;">
+                                <div id="groupByColumnsWrapper" style="display:flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y:auto; border:1px solid var(--border); border-radius: 6px; background: var(--card-bg); padding: 8px;">
                                     <div style="display:flex; gap:6px;">
                                         <button class="btn btn-outline" style="font-size:11px; padding:3px 6px;" onclick="selectAllGroupBy(); return false;">Select All</button>
                                         <button class="btn btn-outline" style="font-size:11px; padding:3px 6px;" onclick="clearAllGroupBy(); return false;">Clear All</button>
