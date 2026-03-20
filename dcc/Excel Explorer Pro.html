@@ -720,6 +720,49 @@
                 text-transform: uppercase;
                 opacity: 0.7;
             }
+
+            #layoutWrapper {
+                display: flex;
+                gap: 16px;
+                align-items: stretch;
+                min-height: calc(100vh - 180px);
+            }
+
+            #sidebar {
+                width: 300px;
+                min-width: 250px;
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                padding: 12px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+                max-height: calc(100vh - 100px);
+                overflow: auto;
+                position: sticky;
+                top: 80px;
+            }
+
+            #sidebar.hidden {
+                display: none;
+            }
+
+            #mainContent {
+                flex: 1;
+                min-width: 0;
+            }
+
+            #sidebarToggleContainer {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+                gap: 8px;
+            }
+
+            #sidebarToggle {
+                margin-left: auto;
+                font-size: 12px;
+            }
         </style>
     </head>
     <body>
@@ -753,39 +796,47 @@
                 </div>
                 <div id="debugList"></div>
             </div>
-            <div id="step1" style="margin-top: 10px; width: 100%">
-                <div style="
+            <div id="sidebarToggleContainer">
+                <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-main);">Dashboard</div>
+                <button id="sidebarToggle" class="btn btn-outline" onclick="toggleSidebar()">⬅️ Hide Sidebar</button>
+            </div>
+            <div id="layoutWrapper">
+                <aside id="sidebar">
+                    <div id="step1" style="width: 100%">
+                        <div style="
             background: var(--pivot-bg);
             padding: 15px;
             border-radius: 8px;
             border: 1px dashed var(--primary);
             width: 100%;
           ">
-                    <div style="
+                            <div style="
               display: flex;
               justify-content: space-between;
               align-items: center;
               margin-bottom: 10px;
             ">
-                        <label id="step1Header" style="color: var(--primary); font-weight: 700">📂 1. Load Excel File and Select Work Sheet:
+                                <label id="step1Header" style="color: var(--primary); font-weight: 700">📂 1. Load Excel File and Select Work Sheet:
             </label>
-                        <button class="btn btn-outline" id="toggleStep1Btn" onclick="toggleStep1Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲ Hide
+                                <button class="btn btn-outline" id="toggleStep1Btn" onclick="toggleStep1Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲ Hide
             </button>
-                    </div>
-                    <div id="loadFilesContainer">
-                        <div style="
+                            </div>
+                            <div id="loadFilesContainer">
+                                <div style="
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
                 width: 100%;
               ">
-                            <input type="file" id="upload" accept=".xlsx, .xls"/>
-                            <select id="sheetSelector" class="hidden" onchange="loadSheet(this.value)" style="width: 100%"></select>
+                                    <input type="file" id="upload" accept=".xlsx, .xls"/>
+                                    <select id="sheetSelector" class="hidden" onchange="loadSheet(this.value)" style="width: 100%"></select>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div id="step2" class="hidden" style="margin-top: 20px">
+                </aside>
+                <div id="mainContent">
+                    <div id="step2" class="hidden" style="margin-top: 0px">
                 <div style="
             background: rgba(0, 0, 0, 0.03);
             padding: 15px;
@@ -1030,6 +1081,8 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
                 <script>
                     let workbook = null
                       , rawData = []
@@ -1076,6 +1129,21 @@
                         } else {
                             container.style.display = "none";
                             btn.innerHTML = "▼ Show";
+                        }
+                    }
+
+                    function toggleSidebar() {
+                        const sidebar = document.getElementById("sidebar");
+                        const btn = document.getElementById("sidebarToggle");
+
+                        if (!sidebar || !btn) return;
+
+                        if (sidebar.classList.contains("hidden")) {
+                            sidebar.classList.remove("hidden");
+                            btn.innerText = "⬅️ Hide Sidebar";
+                        } else {
+                            sidebar.classList.add("hidden");
+                            btn.innerText = "➡️ Show Sidebar";
                         }
                     }
 
