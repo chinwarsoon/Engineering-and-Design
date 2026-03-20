@@ -1907,91 +1907,64 @@
                         // 1. Get the global search term and normalize it. This is the value from serach textbox
                         const search = document.getElementById("globalSearch").value.toLowerCase();
 
+                        // --- PREP THE KITCHEN: Grab DOM values ONCE before the loop ---
+                        const filterSettings = selectedFilterCols.map(col => {
+                            const minEl = document.getElementById(`date-min-${col}`);
+                            const maxEl = document.getElementById(`date-max-${col}`);
+                            const blankEl = document.getElementById(`blank-${col}`);
+                            
+                            return {
+                                col: col,
+                                minTime: minEl?.value ? new Date(minEl.value).setHours(0,0,0,0) : null,
+                                maxTime: maxEl?.value ? new Date(maxEl.value).setHours(0,0,0,0) : null,
+                                showBlanks: blankEl?.checked || false,
+                                hasFilter: minEl?.value || maxEl?.value,
+                                selections: activeSelections[col]
+                            };
+                        });
+
                         // Start the Spinner
                         //showLoading();
 
                         // 2. Filter the data based on your criteria
-                        filteredDataGlobal = rawData.filter((row)=>{
-                            // Check Global Search first for performance
-                            const rowString = Object.values(row).join(" ").toLowerCase();
-                            if (search && !rowString.includes(search))
-                                return false;
+                        // --- THE HIGH-SPEED HIGHWAY ---
+                        filteredDataGlobal = rawData.filter((row) => {
+                            // 1. Optimized Global Search (Use .some instead of joining everything)
+                            if (search) {
+                                const matches = Object.values(row).some(val => 
+                                    String(val).toLowerCase().includes(search)
+                                );
+                                if (!matches) return false;
+                            }
 
-                            // Check Column-Specific Filters
-                            return selectedFilterCols.every((col)=>{
-                                const minInput = document.getElementById(`date-min-${col}`);
-                                const maxInput = document.getElementById(`date-max-${col}`);
-
-                                // CASE A: Date Range Filtering
-                                if (minInput && maxInput) {
-                                    // Normalize row value into a JavaScript Date for comparison
-                                    const rawVal = row[col];
-                                    const isEmptyDate = rawVal === null || rawVal === undefined || String(rawVal).trim() === "";
-                                    const cellDate = isEmptyDate ? null : excelSerialToJsDate(rawVal);
-
-                                    // Select the checkbox
-                                    const showBlanks = document.getElementById(`blank-${col}`, )?.checked;
-
-                                    const hasMin = minInput.value !== "";
-                                    const hasMax = maxInput.value !== "";
-
-                                    // Skip rows with empty or invalid dates in this specific column
-                                    // if (!cellDate || isNaN(cellDate.getTime())) {
-                                    // If the cell is empty but the user set a filter, exclude it.
-                                    // If no filter is set (both inputs empty), include it.
-                                    //    return !minInput.value && !maxInput.value;
-                                    //}
-
-                                    // 1. Handle Null/Empty Cells
+                            // 2. Optimized Column Filters (Use the pre-grabbed settings)
+                            return filterSettings.every((f) => {
+                                const rawVal = row[f.col];
+                                
+                                // Date Logic using pre-calculated minTime/maxTime
+                                if (f.minTime || f.maxTime || f.showBlanks) {
+                                    const cellDate = (rawVal === null || rawVal === undefined) ? null : excelSerialToJsDate(rawVal);
+                                    
                                     if (!cellDate || isNaN(cellDate.getTime())) {
-                                        // If "Blanks" is checked, include this row.
-                                        if (showBlanks)
-                                            return true;
-
-                                        // If "Blanks" is NOT checked and no date range is set,
-                                        // we show everything (standard behavior).
-                                        // Otherwise, if a range IS set, hide the blank.
-                                        return !hasMin && !hasMax;
+                                        if (f.showBlanks) return true;
+                                        return !f.hasFilter;
                                     }
-
-                                    // 2. Handle Actual Date Values
-                                    // If "Blanks" is checked but NO date range is specified,
-                                    // we want ONLY blanks, so we hide actual dates.
-                                    if (showBlanks && !hasMin && !hasMax)
-                                        return false;
-
-                                    // Normalize cell time to midnight to ignore time-of-day differences
-                                    // Convert HTML date strings (YYYY-MM-DD) to comparable timestamps
-                                    const cellTime = new Date(cellDate).setHours(0, 0, 0, 0);
-                                    const minTime = minInput.value ? new Date(minInput.value).setHours(0, 0, 0, 0) : null;
-                                    const maxTime = maxInput.value ? new Date(maxInput.value).setHours(0, 0, 0, 0) : null;
-
-                                    if (minTime && cellTime < minTime)
-                                        return false;
-                                    if (maxTime && cellTime > maxTime)
-                                        return false;
-                                    return true;
+                                    
+                                    const cellTime = cellDate.setHours(0,0,0,0);
+                                    if (f.minTime && cellTime < f.minTime) return false;
+                                    if (f.maxTime && cellTime > f.maxTime) return false;
                                 }
 
-                                // CASE B: Multiselect Dropdown Filtering
-                                const rawVal = row[col];
-                                const formattedValue = String(formatExcelDate(rawVal) ?? "");
-                                const strVal = formattedValue;
-                                const selections = activeSelections[col];
-                                // Determine what this cell "looks like" to the filter
-                                const displayVal = (rawVal === null || rawVal === undefined || formattedValue.trim() === "") ? "(Blanks)" : formattedValue;
-                                
-                                // If the set is empty or doesn't exist, all items are "selected"
-                                if (!selections || selections.size === 0)
-                                    return true;
+                                // Multiselect Logic
+                                if (f.selections && f.selections.size > 0) {
+                                    const formatted = String(formatExcelDate(rawVal) ?? "");
+                                    const displayVal = (rawVal === null || formatted.trim() === "") ? "(Blanks)" : formatted;
+                                    if (!f.selections.has(displayVal)) return false;
+                                }
 
-                                // Check if the current cell's display value is in the user's "Selected" set
-                                // return selections.has(strVal);
-                                return selections.has(displayVal);
-                            }
-                            );
-                        }
-                        );
+                                return true;
+                            });
+                        });
 
                                 
                         showFilterStatus(filteredDataGlobal.length);
