@@ -1587,7 +1587,11 @@
                             // Prevent numeric strings from being interpreted as a date (e.g. '12345').
                             if (/^\d+$/.test(trimmed))
                                 return null;
-                            // Accept common date formats and ISO-like strings.
+                            // Only parse strict ISO or common slash date formats.
+                            const iso = /^\d{4}-\d{2}-\d{2}$/;
+                            const slash = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
+                            if (!iso.test(trimmed) && !slash.test(trimmed))
+                                return null;
                             const parsed = new Date(trimmed);
                             return !isNaN(parsed) ? parsed : null;
                         }
@@ -1904,7 +1908,7 @@
                         const search = document.getElementById("globalSearch").value.toLowerCase();
 
                         // Start the Spinner
-                        showLoading();
+                        //showLoading();
 
                         // 2. Filter the data based on your criteria
                         filteredDataGlobal = rawData.filter((row)=>{
