@@ -682,7 +682,7 @@
             }
 
             .hidden {
-                display: none;
+                display: none !important;
             }
 
             .btn {
@@ -946,7 +946,7 @@
                         </div>
                     </div>
                 </div>
-            <div id="groupBySection">
+            <div id="groupBySection" class="hidden">
                 <div class="dashboard-module">
                     <div style="
                             display: flex;
@@ -1550,6 +1550,10 @@
                                 `, ).join("")}
                             </div>
                         `;
+                        // Show the filter and group by sections now that dashboard is initialized
+                        document.getElementById("filterContainerSection").classList.remove("hidden");
+                        document.getElementById("groupBySection").classList.remove("hidden");
+
                         // Reset the Step 3 sections
                         document.getElementById("step3").classList.remove("hidden");
 
