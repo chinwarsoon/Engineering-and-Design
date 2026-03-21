@@ -2069,10 +2069,10 @@
                             column: null,
                             direction: "asc"
                         };
-
+                        //alert("Running filter with current settings...");
                         // 1. Get the global search term and normalize it. This is the value from serach textbox
                         const search = document.getElementById("globalSearch").value.toLowerCase();
-
+                        //alert("get date range values");
                         // --- PREP THE KITCHEN: Grab DOM values ONCE before the loop ---
                         // to get min and max dates, blank settings, and multiselect choices for each selected filter column
                         const filterSettings = selectedFilterCols.map(col => {
@@ -2089,7 +2089,7 @@
                                 selections: activeSelections[col]
                             };
                         });
-
+                        //alert("Filtering data with search term: " + search);
                         // Start the Spinner
                         //showLoading();
 
@@ -2133,17 +2133,19 @@
                             });
                         });
 
-                                
-                        showFilterStatus(filteredDataGlobal.length);
-
+                        //alert("Filtering complete. " + filteredDataGlobal.length + " results found.");        
+                        // showFilterStatus(filteredDataGlobal.length);
+                        //alert("updating UI with filtered data");
                         // 2. Update the counter UI (e.g., "15 / 100")
                         const statsEl = document.getElementById("stats");
                         if (statsEl) {
                             statsEl.innerText = `${filteredDataGlobal.length} / ${rawData.length}`;
                         }
-
+                        //alert("Updating table with filtered data");
                         // 3. Refresh the table and charts
                         updateTable(filteredDataGlobal);
+
+                        //alert("Updating charts with filtered data");
                         updateDateRangeChart();
 
                         // 5. Log activity if Dev Mode is active
@@ -2178,45 +2180,50 @@
                         ;
 
                         if (groupByCols.length > 0) {
-                            const map = {};
+                            const groupMap = new Map();
                             let total = 0;
 
                             data.forEach((row)=>{
-                                const key = groupByCols.map((c)=>getGranularDate(row[c], gran)).join(" | ");
+                                const groupValues = groupByCols.map((c)=>getGranularDate(row[c], gran));
+                                const key = groupValues.join(" | ");
 
-                                if (!map[key])
-                                    map[key] = {
-                                        ...Object.fromEntries(groupByCols.map((c)=>[c, getGranularDate(row[c], gran)]), ),
+                                if (!groupMap.has(key)) {
+                                    groupMap.set(key, {
+                                        values: groupValues,
                                         _val: 0,
                                         _set: new Set(),
                                         _sortKey: parseDateSort(key),
-                                    };
+                                    });
+                                }
 
-                                let val = mode === "SUM" ? Number(row[targetCol]) || 0 : mode === "DISTINCT" ? (map[key]._set.add(row[targetCol] ?? "N/A"),
-                                0) : 1;
+                                const bucket = groupMap.get(key);
+                                const rowValue = mode === "SUM" ? Number(row[targetCol]) || 0 : mode === "DISTINCT" ? 0 : 1;
 
-                                map[key]._val += val;
+                                if (mode === "DISTINCT") {
+                                    bucket._set.add(row[targetCol] ?? "N/A");
+                                }
+
+                                bucket._val += rowValue;
                                 if (mode !== "DISTINCT")
-                                    total += val;
-                            }
-                            );
+                                    total += rowValue;
+                            });
 
                             if (mode === "DISTINCT") {
-                                const s = new Set();
-                                data.forEach((r)=>s.add(r[targetCol]));
-                                total = s.size;
+                                total = new Set(data.map((r)=>r[targetCol] ?? "N/A")).size;
                             }
 
-                            currentGroupedData = Object.values(map).sort((a,b)=>(a._sortKey > b._sortKey ? 1 : -1)).map((g)=>{
-                                const f = mode === "DISTINCT" ? g._set.size : g._val;
+                            currentGroupedData = Array.from(groupMap.values())
+                                .sort((a,b)=> (a._sortKey > b._sortKey ? 1 : -1))
+                                .map((g)=>{
+                                    const f = mode === "DISTINCT" ? g._set.size : g._val;
+                                    const resultRow = Object.fromEntries(groupByCols.map((c,i)=>[c, g.values[i]]));
 
-                                return {
-                                    ...Object.fromEntries(groupByCols.map((c)=>[c, g[c]])),
-                                    [aggKey]: f,
-                                    "%": total > 0 ? (f / total) * 100 : 0,
-                                };
-                            }
-                            );
+                                    return {
+                                        ...resultRow,
+                                        [aggKey]: f,
+                                        "%": total > 0 ? (f / total) * 100 : 0,
+                                    };
+                                });
 
                             const k = Object.keys(currentGroupedData[0]);
                             tHead.innerHTML = `<tr>${k.map((x)=>{
