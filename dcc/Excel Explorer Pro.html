@@ -1354,6 +1354,61 @@
                 overflow: auto;
                 position: sticky;
                 top: 80px;
+                transition: width 0.3s ease, padding 0.3s ease, min-width 0.3s ease;
+            }
+
+            /* Collapsed sidebar state - narrow column */
+            #sidebar.collapsed {
+                width: 40px;
+                min-width: 40px;
+                padding: 16px 4px;
+                overflow: hidden;
+                cursor: pointer;
+            }
+
+            /* Hide content when collapsed */
+            #sidebar.collapsed .dashboard-module,
+            #sidebar.collapsed #step1,
+            #sidebar.collapsed #step2,
+            #sidebar.collapsed #filterContainerSection,
+            #sidebar.collapsed #groupBySection {
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease;
+            }
+
+            /* Show collapsed indicator */
+            #sidebar.collapsed::before {
+                content: "▶";
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 20px;
+                color: var(--text-secondary);
+                opacity: 1;
+            }
+
+            /* Expand on hover */
+            #sidebar.collapsed:hover {
+                width: 300px;
+                min-width: 250px;
+                padding: 16px;
+                overflow: auto;
+                cursor: default;
+            }
+
+            #sidebar.collapsed:hover .dashboard-module,
+            #sidebar.collapsed:hover #step1,
+            #sidebar.collapsed:hover #step2,
+            #sidebar.collapsed:hover #filterContainerSection,
+            #sidebar.collapsed:hover #groupBySection {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            #sidebar.collapsed:hover::before {
+                display: none;
             }
 
             #sidebar::-webkit-scrollbar {
@@ -1831,11 +1886,11 @@
 
                         if (!sidebar || !btn) return;
 
-                        if (sidebar.classList.contains("hidden")) {
-                            sidebar.classList.remove("hidden");
+                        if (sidebar.classList.contains("collapsed")) {
+                            sidebar.classList.remove("collapsed");
                             btn.innerText = "⬅️";
                         } else {
-                            sidebar.classList.add("hidden");
+                            sidebar.classList.add("collapsed");
                             btn.innerText = "➡️";
                         }
                     }
@@ -2793,6 +2848,16 @@
                         if (step2Container) {
                             step2Container.style.display = "block";
                             step2Container.classList.remove("hidden");
+                        }
+
+                        // Collapse sidebar after initializing dashboard
+                        const sidebar = document.getElementById("sidebar");
+                        const sidebarToggle = document.getElementById("sidebarToggle");
+                        if (sidebar) {
+                            sidebar.classList.add("collapsed");
+                        }
+                        if (sidebarToggle) {
+                            sidebarToggle.innerText = "➡️";
                         }
 
                         // Auto-collapse Step 1 (the file upload box) to focus the user on Step 2
