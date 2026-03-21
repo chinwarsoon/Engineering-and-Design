@@ -14,37 +14,93 @@
             #mainTable {
                 font-size: var(--font-size);
                 /* Links table to the global variable */
+                border-collapse: collapse;
+                width: 100%;
             }
 
+            /* Excel-style grid borders */
+            #mainTable th,
             #mainTable td {
-                padding: var(--td-padding);
+                border: 1px solid #d4d4d4;
+                padding: 4px 8px;
                 white-space: nowrap;
-                /* Keeps data on one line for horizontal scrolling */
                 vertical-align: middle;
             }
 
-            #mainTable th {
-                font-size: calc( var(--font-size) + 1px );
-                /* Headers slightly larger for hierarchy */
-                font-weight: 700;
-                background: var(--bg);
+            /* Excel header row styling */
+            #mainTable thead th {
+                background: #217346 !important;
+                color: white !important;
+                font-weight: 600;
+                font-size: 11px;
+                text-align: left;
+                border: 1px solid #1e663f;
             }
 
-            #mainTable th:first-child, #mainTable td:first-child {
+            /* Excel data cells */
+            #mainTable tbody td {
+                background: white;
+                color: #333;
+                font-size: 11px;
+            }
+
+            /* Excel alternating row colors */
+            #mainTable tbody tr:nth-child(even) td {
+                background: #f8f9fa;
+            }
+
+            /* Excel row hover effect */
+            #mainTable tbody tr:hover td {
+                background: #e8f4f8;
+            }
+
+            /* First column (row headers) - Excel style */
+            #mainTable th:first-child,
+            #mainTable td:first-child {
                 position: sticky;
                 left: 0;
                 z-index: 40;
-                /* Increased to stay above other headers */
-                background: var(--card-bg);
-                /* Prevents transparency while scrolling */
-                border-right: 2px solid var(--border);
+                background: #e7e6e6 !important;
+                color: #333;
+                font-weight: 600;
+                border-right: 2px solid #d4d4d4;
+                text-align: center;
+                min-width: 40px;
             }
 
-            /* Fix for the top-left corner header specifically */
-            #mainTable th:first-child {
+            /* Corner cell (top-left) */
+            #mainTable thead th:first-child {
                 z-index: 50;
-                /* Highest priority to stay above row data AND other headers */
-                background: var(--bg);
+                background: #217346 !important;
+                color: white !important;
+            }
+
+            /* Dark mode Excel styling */
+            [data-theme="dark"] #mainTable thead th {
+                background: #217346 !important;
+                color: white !important;
+                border-color: #1e663f;
+            }
+
+            [data-theme="dark"] #mainTable tbody td {
+                background: #2d3748;
+                color: #e2e8f0;
+                border-color: #4a5568;
+            }
+
+            [data-theme="dark"] #mainTable tbody tr:nth-child(even) td {
+                background: #1a202c;
+            }
+
+            [data-theme="dark"] #mainTable tbody tr:hover td {
+                background: #2c5282;
+            }
+
+            [data-theme="dark"] #mainTable th:first-child,
+            [data-theme="dark"] #mainTable td:first-child {
+                background: #4a5568 !important;
+                color: #e2e8f0;
+                border-right-color: #718096;
             }
 
             #statusToast {
