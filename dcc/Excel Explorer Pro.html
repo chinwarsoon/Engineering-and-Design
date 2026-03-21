@@ -899,6 +899,32 @@
                 white-space: nowrap;
             }
 
+            .status-value.status-idle {
+                color: var(--text-secondary);
+                font-weight: 500;
+            }
+
+            .status-value.status-loading {
+                color: var(--warning);
+                font-weight: 600;
+                animation: pulse 1.5s ease-in-out infinite;
+            }
+
+            .status-value.status-complete {
+                color: var(--accent);
+                font-weight: 600;
+            }
+
+            .status-value.status-error {
+                color: var(--danger);
+                font-weight: 600;
+            }
+
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+            }
+
             .status-box.collapsed {
                 min-width: auto;
                 padding: 8px 12px;
@@ -1109,30 +1135,61 @@
                     <button class="status-box-close" onclick="toggleStatusBox()">−</button>
                 </div>
                 <div class="status-box-content">
-                    <div class="status-item">
-                        <span class="status-label">🔍 Search:</span>
-                        <span id="statusSearch" class="status-value">None</span>
+                    <!-- Progress Section -->
+                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚡ Operations</div>
+                        <div class="status-item">
+                            <span class="status-label">📁 Load File:</span>
+                            <span id="statusLoadFile" class="status-value status-idle">Idle</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">📊 Update Charts:</span>
+                            <span id="statusUpdateCharts" class="status-value status-idle">Idle</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">📋 Update Table:</span>
+                            <span id="statusUpdateTable" class="status-value status-idle">Idle</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">🔧 Apply Filters:</span>
+                            <span id="statusApplyFilters" class="status-value status-idle">Idle</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">📂 GroupBy Summary:</span>
+                            <span id="statusGroupBy" class="status-value status-idle">Idle</span>
+                        </div>
                     </div>
-                    <div class="status-item">
-                        <span class="status-label">📂 Group By:</span>
-                        <span id="statusGroupBy" class="status-value">None</span>
+                    
+                    <!-- Configuration Section -->
+                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚙️ Configuration</div>
+                        <div class="status-item">
+                            <span class="status-label">🔍 Search:</span>
+                            <span id="statusSearch" class="status-value">None</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">📂 Group By:</span>
+                            <span id="statusGroupByCols" class="status-value">None</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">🔧 Aggregate:</span>
+                            <span id="statusAggregate" class="status-value">Count</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">🎯 Distinct By:</span>
+                            <span id="statusDistinct" class="status-value">None</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">📅 Date Binning:</span>
+                            <span id="statusDateBin" class="status-value">None</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">🎯 Filters Applied:</span>
+                            <span id="statusFilters" class="status-value">0</span>
+                        </div>
                     </div>
-                    <div class="status-item">
-                        <span class="status-label">🔧 Aggregate:</span>
-                        <span id="statusAggregate" class="status-value">Count</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">🎯 Distinct By:</span>
-                        <span id="statusDistinct" class="status-value">None</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">📅 Date Binning:</span>
-                        <span id="statusDateBin" class="status-value">None</span>
-                    </div>
-                    <div class="status-item">
-                        <span class="status-label">🎯 Filters Applied:</span>
-                        <span id="statusFilters" class="status-value">0</span>
-                    </div>
+                    
+                    <!-- Data Summary Section -->
                     <div class="status-item">
                         <span class="status-label">📊 Records:</span>
                         <span id="statusRecords" class="status-value">0 / 0</span>
@@ -1590,6 +1647,58 @@
                         const showing = filteredDataGlobal?.length || 0;
                         const total = rawData?.length || 0;
                         document.getElementById("statusRecords").innerText = `${showing} / ${total}`;
+                    }
+
+                    // Progress tracking function for status box
+                    function setProgressStatus(operation, status, message) {
+                        const box = document.getElementById("statusBox");
+                        if (box.classList.contains("hidden")) {
+                            box.classList.remove("hidden");
+                        }
+                        
+                        const statusMap = {
+                            'loadFile': 'statusLoadFile',
+                            'updateCharts': 'statusUpdateCharts',
+                            'updateTable': 'statusUpdateTable',
+                            'applyFilters': 'statusApplyFilters',
+                            'groupBy': 'statusGroupBy'
+                        };
+                        
+                        const elementId = statusMap[operation];
+                        if (!elementId) return;
+                        
+                        const element = document.getElementById(elementId);
+                        if (!element) return;
+                        
+                        // Remove all status classes
+                        element.classList.remove('status-idle', 'status-loading', 'status-complete', 'status-error');
+                        
+                        // Add appropriate class and text
+                        switch(status) {
+                            case 'loading':
+                                element.classList.add('status-loading');
+                                element.innerText = message || 'Processing...';
+                                break;
+                            case 'complete':
+                                element.classList.add('status-complete');
+                                element.innerText = message || 'Complete';
+                                // Auto-reset to idle after 2 seconds
+                                setTimeout(() => {
+                                    if (element.classList.contains('status-complete')) {
+                                        element.classList.remove('status-complete');
+                                        element.classList.add('status-idle');
+                                        element.innerText = 'Idle';
+                                    }
+                                }, 2000);
+                                break;
+                            case 'error':
+                                element.classList.add('status-error');
+                                element.innerText = message || 'Error';
+                                break;
+                            default:
+                                element.classList.add('status-idle');
+                                element.innerText = message || 'Idle';
+                        }
                     }
 
                     function setAllColumns(checked) {
@@ -2130,24 +2239,32 @@
 
                     document.getElementById("upload").addEventListener("change", (e)=>{
                         const reader = new FileReader();
+                        
+                        setProgressStatus('loadFile', 'loading', 'Reading file...');
 
                         reader.onload = (evt)=>{
-                            workbook = XLSX.read(evt.target.result, {
-                                type: "array",
-                                cellDates: true,
-                            });
+                            try {
+                                workbook = XLSX.read(evt.target.result, {
+                                    type: "array",
+                                    cellDates: true,
+                                });
 
-                            const s = document.getElementById("sheetSelector");
+                                const s = document.getElementById("sheetSelector");
 
-                            s.innerHTML = workbook.SheetNames.map((n)=>`<option value="${n}">${n}</option>`, ).join("");
+                                s.innerHTML = workbook.SheetNames.map((n)=>`<option value="${n}">${n}</option>`, ).join("");
 
-                            s.classList.remove("hidden");
+                                s.classList.remove("hidden");
 
-                            // Update Step 1 header with file + sheet
-                            const fileName = e.target.files?.[0]?.name || "Untitled";
-                            document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet: ${fileName} - ${workbook.SheetNames[0]}`;
+                                // Update Step 1 header with file + sheet
+                                const fileName = e.target.files?.[0]?.name || "Untitled";
+                                document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet: ${fileName} - ${workbook.SheetNames[0]}`;
 
-                            loadSheet(workbook.SheetNames[0]);
+                                loadSheet(workbook.SheetNames[0]);
+                                setProgressStatus('loadFile', 'complete', `${fileName} loaded`);
+                            } catch (err) {
+                                setProgressStatus('loadFile', 'error', 'Failed to load');
+                                console.error('File loading error:', err);
+                            }
                         }
                         ;
 
@@ -2156,6 +2273,8 @@
                     );
 
                     function loadSheet(name) {
+                        setProgressStatus('loadFile', 'loading', `Loading ${name}...`);
+                        
                         // Update Step 1 header when switching sheets
                         const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
                         document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet: ${fileName} - ${name}`;
@@ -2427,7 +2546,10 @@
                             column: null,
                             direction: "asc"
                         };
-                        //alert("Running filter with current settings...");
+                        
+                        // Set progress status for apply filters
+                        setProgressStatus('applyFilters', 'loading', 'Applying filters...');
+                        
                         // 1. Get the global search term and normalize it. This is the value from serach textbox
                         const search = document.getElementById("globalSearch").value.toLowerCase();
                         //alert("get date range values");
@@ -2513,9 +2635,14 @@
 
                         // Update status box with current data manipulation details
                         updateStatusBox();
+                        
+                        // Mark filters as complete
+                        setProgressStatus('applyFilters', 'complete', `${filteredDataGlobal.length} rows filtered`);
                     }
 
                     function updateTable(data) {
+                        setProgressStatus('updateTable', 'loading', 'Updating table...');
+                        
                         const tHead = document.getElementById("tHead")
                           , tBody = document.getElementById("tBody");
 
@@ -2541,6 +2668,8 @@
                         ;
 
                         if (groupByCols.length > 0) {
+                            setProgressStatus('groupBy', 'loading', `Grouping by ${groupByCols.join(', ')}...`);
+                            
                             const groupMap = new Map();
                             let total = 0;
                             const globalDistinctSet = mode === "DISTINCT" ? new Set() : null;
@@ -2596,14 +2725,15 @@
                             }
                             ).join("")}</tr>`;
 
-                            //           const k = Object.keys(currentGroupedData[0]);
-
-                            //           tHead.innerHTML = `<tr>${k.map(x => `<th onclick="handleSort('${x}', true)">${x}</th>`).join('')}</tr>`;
-
                             tBody.innerHTML = currentGroupedData.map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
-                            // alert("Table updated with grouped data. Now updating chart...");
+                            
+                            // Mark GroupBy as complete
+                            setProgressStatus('groupBy', 'complete', `${currentGroupedData.length} groups created`);
+                            
                             updateChart(currentGroupedData);
                         } else {
+                            setProgressStatus('groupBy', 'idle', 'No grouping');
+                            
                             const vis = headers.filter((h)=>!hiddenColumns.has(h));
                             document.getElementById("chartSection").classList.add("hidden");
 
@@ -2632,6 +2762,10 @@
                             autoFitColumns();
                             autoFitDone = true;
                         }
+                        
+                        // Mark table update as complete
+                        const rowCount = groupByCols.length > 0 ? currentGroupedData.length : Math.min(data.length, 300);
+                        setProgressStatus('updateTable', 'complete', `${rowCount} rows rendered`);
                     }
 
                     function getSortIcon(columnName) {
@@ -2689,6 +2823,8 @@
                     }
 
                     function updateChart(gData) {
+                        setProgressStatus('updateCharts', 'loading', 'Updating charts...');
+                        
                         const ctx = document.getElementById("dataChart").getContext("2d");
                         const type = document.getElementById("chartType").value;
                         document.getElementById("chartSection").classList.remove("hidden");
@@ -2696,6 +2832,7 @@
                         if (!Array.isArray(gData) || gData.length === 0) {
                             if (myChart)
                                 myChart.destroy();
+                            setProgressStatus('updateCharts', 'idle', 'No data');
                             return;
                         }
 
@@ -2780,9 +2917,16 @@
                                 },
                             },
                         });
+                        
+                        // Mark charts as complete
+                        const seriesCount = datasets.length;
+                        const dataPoints = labels.length;
+                        setProgressStatus('updateCharts', 'complete', `${seriesCount} series, ${dataPoints} points`);
                     }
 
                     function updateDateRangeChart() {
+                        setProgressStatus('updateCharts', 'loading', 'Updating date chart...');
+                        
                         const container = document.getElementById("dateRangeChartSection");
                         const xSelect = document.getElementById("dateRangeXColumn");
                         const ySelect = document.getElementById("dateRangeYColumns");
@@ -2991,6 +3135,9 @@
                         if (dateRangeChart)
                             dateRangeChart.destroy();
                         dateRangeChart = new Chart(ctx,chartConfig);
+                        
+                        // Mark date range chart as complete
+                        setProgressStatus('updateCharts', 'complete', `Date chart: ${labels.length} points`);
                     }
 
                     function downloadDateRangeChart() {
