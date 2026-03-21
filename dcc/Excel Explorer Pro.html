@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-        <title>Excel Explorer Pro | Analytics Edition</title>
+        <title>TWRP C4B DCC Submission Explorer Pro | Analytics Edition</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1340,7 +1340,6 @@
                 align-items: stretch;
                 min-height: calc(100vh - 180px);
             }
-            
 
             #sidebar {
                 width: 300px;
@@ -1354,61 +1353,6 @@
                 overflow: auto;
                 position: sticky;
                 top: 80px;
-                transition: width 0.3s ease, padding 0.3s ease, min-width 0.3s ease;
-            }
-
-            /* Collapsed sidebar state - narrow column */
-            #sidebar.collapsed {
-                width: 40px;
-                min-width: 40px;
-                padding: 16px 4px;
-                overflow: hidden;
-                cursor: pointer;
-            }
-
-            /* Hide content when collapsed */
-            #sidebar.collapsed .dashboard-module,
-            #sidebar.collapsed #step1,
-            #sidebar.collapsed #step2,
-            #sidebar.collapsed #filterContainerSection,
-            #sidebar.collapsed #groupBySection {
-                opacity: 0;
-                pointer-events: none;
-                transition: opacity 0.2s ease;
-            }
-
-            /* Show collapsed indicator */
-            #sidebar.collapsed::before {
-                content: "▶";
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                font-size: 20px;
-                color: var(--text-secondary);
-                opacity: 1;
-            }
-
-            /* Expand on hover */
-            #sidebar.collapsed:hover {
-                width: 300px;
-                min-width: 250px;
-                padding: 16px;
-                overflow: auto;
-                cursor: default;
-            }
-
-            #sidebar.collapsed:hover .dashboard-module,
-            #sidebar.collapsed:hover #step1,
-            #sidebar.collapsed:hover #step2,
-            #sidebar.collapsed:hover #filterContainerSection,
-            #sidebar.collapsed:hover #groupBySection {
-                opacity: 1;
-                pointer-events: auto;
-            }
-
-            #sidebar.collapsed:hover::before {
-                display: none;
             }
 
             #sidebar::-webkit-scrollbar {
@@ -1463,7 +1407,7 @@
     <body>
         <div class="card">
             <div class="header-section">
-                <h2 style="margin: 0">📊 Excel Explorer Pro</h2>
+                <h2 style="margin: 0">📊 TWRP C4B DCC Submission Explorer Pro</h2>
                 <!-- Status Box -->
                 <div id="statusBox" class="status-box hidden">
                     <div class="status-box-header">
@@ -1508,14 +1452,6 @@
                         <!-- Configuration Section -->
                         <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
                             <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚙️ Configuration</div>
-                            <div class="status-item">
-                                <span class="status-label">📁 File:</span>
-                                <span id="statusFileName" class="status-value">None</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="status-label">📄 Worksheet:</span>
-                                <span id="statusWorksheet" class="status-value">None</span>
-                            </div>
                             <div class="status-item">
                                 <span class="status-label">🔍 Search:</span>
                                 <span id="statusSearch" class="status-value">None</span>
@@ -1886,11 +1822,11 @@
 
                         if (!sidebar || !btn) return;
 
-                        if (sidebar.classList.contains("collapsed")) {
-                            sidebar.classList.remove("collapsed");
+                        if (sidebar.classList.contains("hidden")) {
+                            sidebar.classList.remove("hidden");
                             btn.innerText = "⬅️";
                         } else {
-                            sidebar.classList.add("collapsed");
+                            sidebar.classList.add("hidden");
                             btn.innerText = "➡️";
                         }
                     }
@@ -2702,10 +2638,6 @@
                         const reader = new FileReader();
                         
                         setProgressStatus('loadFile', 'loading', 'Reading file...');
-                        
-                        // Store file name for status box
-                        const fileName = e.target.files?.[0]?.name || "Untitled";
-                        document.getElementById("statusFileName").innerText = fileName;
 
                         reader.onload = (evt)=>{
                             try {
@@ -2721,11 +2653,8 @@
                                 s.classList.remove("hidden");
 
                                 // Update Step 1 header with file + sheet
+                                const fileName = e.target.files?.[0]?.name || "Untitled";
                                 document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet:`;
-                                
-                                // Set initial worksheet name in status box
-                                const firstSheet = workbook.SheetNames[0];
-                                document.getElementById("statusWorksheet").innerText = firstSheet;
 
                                 loadSheet(workbook.SheetNames[0]);
                                 setProgressStatus('loadFile', 'complete', `${fileName} loaded`);
@@ -2745,10 +2674,8 @@
                         
                         setProgressStatus('loadFile', 'loading', `Loading ${name}...`);
                         
-                        // Update worksheet name in status box
-                        document.getElementById("statusWorksheet").innerText = name;
-                        
                         // Update Step 1 header when switching sheets
+                        const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
                         document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet:`;
 
                         logDebug("Loading sheet: " + name);
@@ -2848,16 +2775,6 @@
                         if (step2Container) {
                             step2Container.style.display = "block";
                             step2Container.classList.remove("hidden");
-                        }
-
-                        // Collapse sidebar after initializing dashboard
-                        const sidebar = document.getElementById("sidebar");
-                        const sidebarToggle = document.getElementById("sidebarToggle");
-                        if (sidebar) {
-                            sidebar.classList.add("collapsed");
-                        }
-                        if (sidebarToggle) {
-                            sidebarToggle.innerText = "➡️";
                         }
 
                         // Auto-collapse Step 1 (the file upload box) to focus the user on Step 2
