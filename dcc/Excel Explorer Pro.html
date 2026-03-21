@@ -1919,11 +1919,8 @@
 
                     function handleGroupByChange(cb) {
                         console.log('[DEBUG] handleGroupByChange started');
-                        // Show status immediately
                         setFunctionCallStatus('handleGroupByChange', true);
                         
-                        // Do lightweight UI updates immediately
-                        alert('Updating UI');
                         const chip = cb.closest('.group-by-chip');
                         if (chip) {
                             if (cb.checked) {
@@ -1933,35 +1930,29 @@
                             }
                         }
                         
-                        // Defer all heavy operations to allow UI to update
                         setTimeout(() => {
-                            console.log('[DEBUG] Starting heavy operations');
-                            // Reorder the list
-                            alert('Reordering list');
-                            reorderGroupByList();
-                            
-                            // Update selection state
-                            alert('Updating selection state');
-                            updateGroupBySelection();
-                            
-                            // Check for aggregator conflict - reset aggregator if it matches a GroupBy column
-                            alert('Checking aggregator conflict');
-                            const selectedGroupCols = getSelectedGroupByCols();
-                            const aggValue = document.getElementById("aggColumn").value;
-                            if (aggValue) {
-                                const [,targetCol] = aggValue.split("|");
-                                if (targetCol && selectedGroupCols.includes(targetCol)) {
-                                    console.log('[DEBUG] Resetting aggregator - conflicts with GroupBy:', targetCol);
-                                    document.getElementById("aggColumn").value = "";
+                            try {
+                                console.log('[DEBUG] Starting heavy operations');
+                                reorderGroupByList();
+                                updateGroupBySelection();
+                                
+                                const selectedGroupCols = getSelectedGroupByCols();
+                                const aggValue = document.getElementById("aggColumn").value;
+                                if (aggValue) {
+                                    const [,targetCol] = aggValue.split("|");
+                                    if (targetCol && selectedGroupCols.includes(targetCol)) {
+                                        console.log('[DEBUG] Resetting aggregator - conflicts with GroupBy:', targetCol);
+                                        document.getElementById("aggColumn").value = "";
+                                    }
                                 }
+                                
+                                runFilter();
+                            } catch (err) {
+                                console.error('[ERROR] handleGroupByChange failed:', err);
+                            } finally {
+                                setFunctionCallStatus('handleGroupByChange', false);
+                                console.log('[DEBUG] handleGroupByChange completed');
                             }
-                            
-                            // Run filter (already deferred internally)
-                            alert('Running filter');
-                            runFilter();
-                            
-                            setFunctionCallStatus('handleGroupByChange', false);
-                            console.log('[DEBUG] handleGroupByChange completed');
                         }, 100);
                     }
 
