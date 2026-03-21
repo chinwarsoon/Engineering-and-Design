@@ -932,7 +932,7 @@
                             align-items: center;
                             margin-bottom: 10px;
                           ">
-                            <label style="color: var(--primary); font-weight: 700">🔍 4. Active Filters</label>
+                            <label style="color: var(--primary); font-weight: 700">🔍 3. Active Filters</label>
                             <button class="btn btn-outline" id="toggleFilterBtn" onclick="toggleFilterBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲
                                 </button>
                         </div>
@@ -955,10 +955,8 @@
                             margin-bottom: 10px;
                           ">
                         <div style="display:flex; align-items:center; gap:8px;">
-                            <label style="color: var(--primary); font-weight: 700">📊 5. Grouping &Analytics</label>
-                            <span id="groupingBadge" style="display:none; background:#e0f2fe; color:#2563eb; border:1px solid #bfdbfe; border-radius:999px; padding:2px 8px; font-size:10px; font-weight:700;">Grouping Active</span>
+                            <label style="color: var(--primary); font-weight: 700">📊 4. Grouping &Analytics</label>
                         </div>
-                        <div id="groupByLabel" style="font-size: 11px; color: #4b5563;">No grouping columns selected</div>
                         <div style="display: flex; gap: 6px; align-items: center">
                             <button class="btn btn-outline" id="toggleGroupBtn" onclick="toggleGroupBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲</button>
                         </div>
@@ -998,8 +996,15 @@
                 <div id="mainContent">
             <div id="step3" class="hidden">
                 <div class="dashboard-module" style="margin-top: 20px;">
-                    <!-- Data Trends Section -->
-                    <div id="chartSection" class="hidden" style="
+                    
+                    
+                    <!-- Date Range Chart Controls -->
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 0; margin-bottom: 6px;">
+                        
+                        <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲</button>
+                    </div>
+                    <div id="chartContainer" class="hidden">
+                    <div id="chartSection" class="" style="
                         flex: 1 1 100%;
                         min-width: 0;    
                         width: 100%;
@@ -1030,28 +1035,25 @@
                             <canvas id="dataChart"></canvas>
                         </div>
                     </div>
-                    <!-- Date Range Chart Controls -->
-                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 0; margin-bottom: 6px;">
-                        <label style="color: var(--primary); font-weight: 700;">📈 3. Date Range Chart Controls</label>
-                        <button id="toggleDateRangeChartBtn" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;" onclick="toggleDateRangeChart()">▲</button>
-                    </div>
-                    <div id="dateRangeChartSection" class="hidden" style="
-            margin-top: 0px;
-            padding: 15px;
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-          ">
+                    <!-- Data Trends Section -->
+                    <div id="dateRangeChartSection" class="" style="
+                        margin-top: 0px;
+                        padding: 15px;
+                        background: var(--card-bg);
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                    ">
+                        <label style="color: var(--primary); font-weight: 700;">📈 Date Range Chart Controls</label>
                         <div id="dateRangeChartTopControls" style="
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-start;
-              flex-wrap: wrap;
-              gap: 10px;
-              margin-top: 0px;
-              margin-bottom: 0px;
-              padding: 10px 0;
-              ">
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: flex-start;
+                            flex-wrap: wrap;
+                            gap: 10px;
+                            margin-top: 0px;
+                            margin-bottom: 0px;
+                            padding: 10px 0;
+                        ">
                             <div style="display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;">
                                 <div style="display: flex; flex-direction: column; gap: 4px; min-width: 220px;">
                                     <label style="font-size: 11px; opacity: 0.8;">Y Columns (Multi)</label>
@@ -1965,20 +1967,18 @@
                     }
 
                     function toggleDateRangeChart() {
-                        const section = document.getElementById("dateRangeChartSection");
+                        const container = document.getElementById("chartContainer");
                         const btn = document.getElementById("toggleDateRangeChartBtn");
-                        const canvasWrap = document.getElementById("dateRangeChartCanvasWrap");
 
-                        if (!section || !btn || !canvasWrap)
+                        if (!container || !btn)
                             return;
-                        if (section.classList.contains("hidden")) {
-                            section.classList.remove("hidden");
+
+                        if (container.classList.contains("hidden")) {
+                            container.classList.remove("hidden");
                             btn.innerText = "▼";
-                            canvasWrap.style.display = "block";
                         } else {
-                            section.classList.add("hidden");
+                            container.classList.add("hidden");
                             btn.innerText = "▲";
-                            canvasWrap.style.display = "none";
                         }
                     }
 
@@ -2421,7 +2421,7 @@
                     }
 
                     function updateDateRangeChart() {
-                        const container = document.getElementById("dateRangeChartSection");
+                        const container = document.getElementById("chartContainer");
                         const toggleBtn = document.getElementById("toggleDateRangeChartBtn");
                         const xSelect = document.getElementById("dateRangeXColumn");
                         const ySelect = document.getElementById("dateRangeYColumns");
