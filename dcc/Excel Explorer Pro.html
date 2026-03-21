@@ -29,12 +29,12 @@
 
             /* Excel header row styling */
             #mainTable thead th {
-                background: #217346 !important;
+                background: #717472 !important;
                 color: white !important;
                 font-weight: 600;
                 font-size: 11px;
                 text-align: left;
-                border: 1px solid #1e663f;
+                border: 1px solid #5d5f5e81;
             }
 
             /* Excel data cells */
@@ -71,7 +71,7 @@
             /* Corner cell (top-left) */
             #mainTable thead th:first-child {
                 z-index: 50;
-                background: #217346 !important;
+                background: #717472  !important;
                 color: white !important;
             }
 
@@ -1467,6 +1467,7 @@
                                             <option value="SUM">Sum</option>
                                             <option value="COUNT">Count</option>
                                             <option value="AVG">Average</option>
+                                            <option value="DISTINCT">Distinct Count</option>
                                         </select>
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -1875,6 +1876,7 @@
                         setFunctionCallStatus('handleGroupByChange', true);
                         
                         // Do lightweight UI updates immediately
+                        alert('Updating UI');
                         const chip = cb.closest('.group-by-chip');
                         if (chip) {
                             if (cb.checked) {
@@ -1888,12 +1890,15 @@
                         setTimeout(() => {
                             console.log('[DEBUG] Starting heavy operations');
                             // Reorder the list
+                            alert('Reordering list');
                             reorderGroupByList();
                             
                             // Update selection state
+                            alert('Updating selection state');
                             updateGroupBySelection();
                             
                             // Check for aggregator conflict - reset aggregator if it matches a GroupBy column
+                            alert('Checking aggregator conflict');
                             const selectedGroupCols = getSelectedGroupByCols();
                             const aggValue = document.getElementById("aggColumn").value;
                             if (aggValue) {
@@ -1905,6 +1910,7 @@
                             }
                             
                             // Run filter (already deferred internally)
+                            alert('Running filter');
                             runFilter();
                             
                             setFunctionCallStatus('handleGroupByChange', false);
@@ -3210,9 +3216,11 @@
                         const xCounts = {};
                         const accumulated = {};
                         const counts = {};
+                        const distinctSets = {}; // Track unique values for distinct count
                         selectedYs.forEach((y)=>{
                             accumulated[y] = {};
                             counts[y] = {};
+                            distinctSets[y] = {}; // Each Y has distinct sets per X label
                         }
                         );
 
@@ -3240,13 +3248,21 @@
                             xCounts[xLabel] = (xCounts[xLabel] || 0) + 1;
 
                             selectedYs.forEach((y)=>{
-                                const value = Number(row[y]);
+                                const value = row[y];
+                                const numValue = Number(value);
                                 const currentSum = accumulated[y][xLabel] || 0;
                                 const currentCount = counts[y][xLabel] || 0;
 
                                 counts[y][xLabel] = currentCount + 1;
-                                if (!isNaN(value)) {
-                                    accumulated[y][xLabel] = currentSum + value;
+                                
+                                // Track distinct values
+                                if (!distinctSets[y][xLabel]) {
+                                    distinctSets[y][xLabel] = new Set();
+                                }
+                                distinctSets[y][xLabel].add(value);
+                                
+                                if (!isNaN(numValue)) {
+                                    accumulated[y][xLabel] = currentSum + numValue;
                                 } else {
                                     accumulated[y][xLabel] = currentSum;
                                 }
@@ -3271,6 +3287,10 @@
                                     normalized[y][xLabel] = count;
                                 } else if (aggMode === "AVG") {
                                     normalized[y][xLabel] = count > 0 ? sum / count : 0;
+                                } else if (aggMode === "DISTINCT") {
+                                    // Count distinct values
+                                    const distinctCount = distinctSets[y][xLabel] ? distinctSets[y][xLabel].size : 0;
+                                    normalized[y][xLabel] = distinctCount;
                                 } else {
                                     normalized[y][xLabel] = sum;
                                 }
