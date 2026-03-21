@@ -188,6 +188,180 @@
                 --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
             }
 
+            /* Sky Blue Theme */
+            [data-theme="sky"] {
+                --primary: #0ea5e9;
+                --primary-dark: #0284c7;
+                --primary-light: #38bdf8;
+                --bg: #f0f9ff;
+                --card-bg: #ffffff;
+                --border: #bae6fd;
+                --text-main: #0c4a6e;
+                --text-secondary: #0284c7;
+                --accent: #06b6d4;
+                --accent-dark: #0891b2;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+                --pivot-bg: rgba(14, 165, 233, 0.08);
+            }
+
+            /* Rose Theme */
+            [data-theme="rose"] {
+                --primary: #e11d48;
+                --primary-dark: #be123c;
+                --primary-light: #fb7185;
+                --bg: #fff1f2;
+                --card-bg: #ffffff;
+                --border: #fecdd3;
+                --text-main: #881337;
+                --text-secondary: #be123c;
+                --accent: #f43f5e;
+                --accent-dark: #e11d48;
+                --warning: #f59e0b;
+                --danger: #dc2626;
+                --pivot-bg: rgba(225, 29, 72, 0.08);
+            }
+
+            /* Orange Theme */
+            [data-theme="orange"] {
+                --primary: #f97316;
+                --primary-dark: #ea580c;
+                --primary-light: #fb923c;
+                --bg: #fff7ed;
+                --card-bg: #ffffff;
+                --border: #fed7aa;
+                --text-main: #9a3412;
+                --text-secondary: #c2410c;
+                --accent: #f59e0b;
+                --accent-dark: #d97706;
+                --warning: #eab308;
+                --danger: #ef4444;
+                --pivot-bg: rgba(249, 115, 22, 0.08);
+            }
+
+            /* Grey Theme */
+            [data-theme="grey"] {
+                --primary: #6b7280;
+                --primary-dark: #4b5563;
+                --primary-light: #9ca3af;
+                --bg: #f9fafb;
+                --card-bg: #ffffff;
+                --border: #e5e7eb;
+                --text-main: #1f2937;
+                --text-secondary: #6b7280;
+                --accent: #10b981;
+                --accent-dark: #059669;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+                --pivot-bg: rgba(107, 114, 128, 0.08);
+            }
+
+            /* Dark Theme (Deep Dark) */
+            [data-theme="dark"] {
+                --primary: #6366f1;
+                --primary-dark: #4f46e5;
+                --primary-light: #818cf8;
+                --bg: #0f172a;
+                --card-bg: #1e293b;
+                --border: #334155;
+                --text-main: #f8fafc;
+                --text-secondary: #94a3b8;
+                --accent: #10b981;
+                --accent-dark: #059669;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+                --pivot-bg: rgba(99, 102, 241, 0.15);
+                --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+                --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+                --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+            }
+
+            /* Reading Theme (Sepia/Eye-care) */
+            [data-theme="reading"] {
+                --primary: #92400e;
+                --primary-dark: #78350f;
+                --primary-light: #b45309;
+                --bg: #fef3c7;
+                --card-bg: #fffbeb;
+                --border: #fde68a;
+                --text-main: #451a03;
+                --text-secondary: #92400e;
+                --accent: #059669;
+                --accent-dark: #047857;
+                --warning: #d97706;
+                --danger: #dc2626;
+                --pivot-bg: rgba(146, 64, 14, 0.08);
+            }
+
+            /* Theme-specific Excel table colors */
+            [data-theme="sky"] #mainTable thead th {
+                background: #0369a1 !important;
+            }
+            [data-theme="sky"] #mainTable th:first-child,
+            [data-theme="sky"] #mainTable td:first-child {
+                background: #e0f2fe !important;
+            }
+            [data-theme="sky"] #mainTable thead th:first-child {
+                background: #0369a1 !important;
+            }
+
+            [data-theme="rose"] #mainTable thead th {
+                background: #9f1239 !important;
+            }
+            [data-theme="rose"] #mainTable th:first-child,
+            [data-theme="rose"] #mainTable td:first-child {
+                background: #fce7f3 !important;
+            }
+            [data-theme="rose"] #mainTable thead th:first-child {
+                background: #9f1239 !important;
+            }
+
+            [data-theme="orange"] #mainTable thead th {
+                background: #c2410c !important;
+            }
+            [data-theme="orange"] #mainTable th:first-child,
+            [data-theme="orange"] #mainTable td:first-child {
+                background: #ffedd5 !important;
+            }
+            [data-theme="orange"] #mainTable thead th:first-child {
+                background: #c2410c !important;
+            }
+
+            [data-theme="grey"] #mainTable thead th {
+                background: #4b5563 !important;
+            }
+            [data-theme="grey"] #mainTable th:first-child,
+            [data-theme="grey"] #mainTable td:first-child {
+                background: #f3f4f6 !important;
+            }
+            [data-theme="grey"] #mainTable thead th:first-child {
+                background: #4b5563 !important;
+            }
+
+            [data-theme="dark"] #mainTable thead th {
+                background: #3730a3 !important;
+            }
+            [data-theme="dark"] #mainTable th:first-child,
+            [data-theme="dark"] #mainTable td:first-child {
+                background: #312e81 !important;
+                color: #e0e7ff;
+            }
+            [data-theme="dark"] #mainTable thead th:first-child {
+                background: #3730a3 !important;
+            }
+
+            [data-theme="reading"] #mainTable thead th {
+                background: #78350f !important;
+            }
+            [data-theme="reading"] #mainTable th:first-child,
+            [data-theme="reading"] #mainTable td:first-child {
+                background: #fef3c7 !important;
+            }
+            [data-theme="reading"] #mainTable thead th:first-child {
+                background: #78350f !important;
+            }
+
             body.compact {
                 --td-padding: 4px 8px;
                 --font-size: 11px;
@@ -1318,7 +1492,7 @@
                 <button id="sidebarToggle" class="btn-toggle-compact" onclick="toggleSidebar()">⬅️</button>
             
                 
-                        <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🌙 Dark Mode
+                        <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🎨 Defaul
                         </button>
                         <button class="btn-outline" onclick="toggleDevMode()" style="color: #ed8936; border-color: #ed8936">
                             Dev Mode: <span id="devStatus">OFF</span>
@@ -3562,9 +3736,44 @@
                         runFilter();
                     }
 
+                    const themes = [
+                        { id: "default", name: "Default", icon: "🎨" },
+                        { id: "sky", name: "Sky Blue", icon: "☁️" },
+                        { id: "rose", name: "Rose", icon: "🌹" },
+                        { id: "orange", name: "Orange", icon: "🍊" },
+                        { id: "grey", name: "Grey", icon: "⚙️" },
+                        { id: "dark", name: "Dark", icon: "🌙" },
+                        { id: "reading", name: "Reading", icon: "📖" }
+                    ];
+                    let currentThemeIndex = 0;
+
                     function toggleTheme() {
-                        document.body.classList.toggle("dark-mode");
-                        document.getElementById("themeBtn").innerText = document.body.classList.contains("dark-mode") ? "☀️ Light" : "🌙 Dark";
+                        // Remove current theme
+                        const currentTheme = themes[currentThemeIndex];
+                        if (currentTheme.id === "default") {
+                            document.body.classList.remove("dark-mode");
+                        } else {
+                            document.body.removeAttribute("data-theme");
+                        }
+                        
+                        // Move to next theme
+                        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+                        const nextTheme = themes[currentThemeIndex];
+                        
+                        // Apply new theme
+                        if (nextTheme.id === "default") {
+                            document.body.classList.remove("dark-mode");
+                        } else if (nextTheme.id === "dark") {
+                            document.body.setAttribute("data-theme", "dark");
+                        } else {
+                            document.body.setAttribute("data-theme", nextTheme.id);
+                        }
+                        
+                        // Update button text with current theme name
+                        const themeBtn = document.getElementById("themeBtn");
+                        themeBtn.innerText = `${nextTheme.icon} ${nextTheme.name}`;
+                        
+                        console.log(`[THEME] Switched to ${nextTheme.name} mode`);
                     }
 
                     let devModeActive = false;
