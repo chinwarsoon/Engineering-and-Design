@@ -939,8 +939,8 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 24px;
-                padding-bottom: 16px;
+                margin-bottom: 0;
+                padding-bottom: 0;
                 border-bottom: 1px solid var(--border);
             }
 
@@ -1386,13 +1386,13 @@
                 top: 0;
                 background: var(--card-bg);
                 z-index: 100;
-                padding: 20px;
+                padding: 5px;
                 border-bottom: 1px solid var(--border);
             }
 
             #sidebarToggleContainer {
                 position: sticky;
-                top: 60px;
+                top: 0;
                 background: var(--card-bg);
                 z-index: 99;
                 padding: 8px 20px;
@@ -1408,95 +1408,96 @@
         <div class="card">
             <div class="header-section">
                 <h2 style="margin: 0">📊 TWRP C4B DCC Submission Explorer Pro</h2>
+                <!-- Status Box -->
+                <div id="statusBox" class="status-box hidden">
+                    <div class="status-box-header">
+                        <span class="status-box-title">📋 Current Status</span>
+                        <button class="status-box-close btn-toggle-compact" onclick="toggleStatusBox()">−</button>
+                    </div>
+                    <div class="status-box-content">
+                        <!-- Progress Section -->
+                        <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                            <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚡ Operations</div>
+                            <div class="status-item">
+                                <span class="status-label">📁 Load File:</span>
+                                <span id="statusLoadFile" class="status-value status-idle">Idle</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">📊 Update Charts:</span>
+                                <span id="statusUpdateCharts" class="status-value status-idle">Idle</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">📋 Update Table:</span>
+                                <span id="statusUpdateTable" class="status-value status-idle">Idle</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">🔧 Apply Filters:</span>
+                                <span id="statusApplyFilters" class="status-value status-idle">Idle</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">📂 GroupBy Summary:</span>
+                                <span id="statusGroupBy" class="status-value status-idle">Idle</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Debug Section -->
+                        <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                            <div style="font-size: 10px; font-weight: 600; color: var(--warning); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">🐛 Debug</div>
+                            <div class="status-item">
+                                <span class="status-label">🔍 Function Call:</span>
+                                <span id="statusFunctionCall" class="status-value status-idle">None</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Configuration Section -->
+                        <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                            <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚙️ Configuration</div>
+                            <div class="status-item">
+                                <span class="status-label">🔍 Search:</span>
+                                <span id="statusSearch" class="status-value">None</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">📂 Group By:</span>
+                                <span id="statusGroupByCols" class="status-value">None</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">🔧 Aggregate:</span>
+                                <span id="statusAggregate" class="status-value">Count</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">🎯 Distinct By:</span>
+                                <span id="statusDistinct" class="status-value">None</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">📅 Date Binning:</span>
+                                <span id="statusDateBin" class="status-value">None</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">🎯 Filters Applied:</span>
+                                <span id="statusFilters" class="status-value">0</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Data Summary Section -->
+                        <div class="status-item">
+                            <span class="status-label">📊 Records:</span>
+                            <span id="statusRecords" class="status-value">0 / 0</span>
+                        </div>
+                    </div>
+                </div>
             </div>
             
-            <!-- Status Box -->
-            <div id="statusBox" class="status-box hidden">
-                <div class="status-box-header">
-                    <span class="status-box-title">📋 Current Status</span>
-                    <button class="status-box-close btn-toggle-compact" onclick="toggleStatusBox()">−</button>
-                </div>
-                <div class="status-box-content">
-                    <!-- Progress Section -->
-                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚡ Operations</div>
-                        <div class="status-item">
-                            <span class="status-label">📁 Load File:</span>
-                            <span id="statusLoadFile" class="status-value status-idle">Idle</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">📊 Update Charts:</span>
-                            <span id="statusUpdateCharts" class="status-value status-idle">Idle</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">📋 Update Table:</span>
-                            <span id="statusUpdateTable" class="status-value status-idle">Idle</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">🔧 Apply Filters:</span>
-                            <span id="statusApplyFilters" class="status-value status-idle">Idle</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">📂 GroupBy Summary:</span>
-                            <span id="statusGroupBy" class="status-value status-idle">Idle</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Debug Section -->
-                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 10px; font-weight: 600; color: var(--warning); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">🐛 Debug</div>
-                        <div class="status-item">
-                            <span class="status-label">🔍 Function Call:</span>
-                            <span id="statusFunctionCall" class="status-value status-idle">None</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Configuration Section -->
-                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
-                        <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚙️ Configuration</div>
-                        <div class="status-item">
-                            <span class="status-label">🔍 Search:</span>
-                            <span id="statusSearch" class="status-value">None</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">📂 Group By:</span>
-                            <span id="statusGroupByCols" class="status-value">None</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">🔧 Aggregate:</span>
-                            <span id="statusAggregate" class="status-value">Count</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">🎯 Distinct By:</span>
-                            <span id="statusDistinct" class="status-value">None</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">📅 Date Binning:</span>
-                            <span id="statusDateBin" class="status-value">None</span>
-                        </div>
-                        <div class="status-item">
-                            <span class="status-label">🎯 Filters Applied:</span>
-                            <span id="statusFilters" class="status-value">0</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Data Summary Section -->
-                    <div class="status-item">
-                        <span class="status-label">📊 Records:</span>
-                        <span id="statusRecords" class="status-value">0 / 0</span>
-                    </div>
-                </div>
-            </div>
+            
             
             <div id="sidebarToggleContainer">
                 <button id="sidebarToggle" class="btn-toggle-compact" onclick="toggleSidebar()">⬅️</button>
             
                 
-                        <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🎨 Defaul
-                        </button>
-                        <button class="btn-outline" onclick="toggleDevMode()" style="color: #ed8936; border-color: #ed8936">
-                            Dev Mode: <span id="devStatus">OFF</span>
-                        </button>
+                <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🎨 Defaul
+                </button>
+                <button class="btn-outline" onclick="toggleDevMode()" style="color: #ed8936; border-color: #ed8936">
+                    Dev Mode: <span id="devStatus">OFF</span>
+                </button>
                 
             </div>  
             <div id="debugPanel">
