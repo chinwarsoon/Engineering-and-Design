@@ -2182,6 +2182,7 @@
                         if (groupByCols.length > 0) {
                             const groupMap = new Map();
                             let total = 0;
+                            const globalDistinctSet = mode === "DISTINCT" ? new Set() : null;
 
                             data.forEach((row)=>{
                                 const groupValues = groupByCols.map((c)=>getGranularDate(row[c], gran));
@@ -2201,6 +2202,7 @@
 
                                 if (mode === "DISTINCT") {
                                     bucket._set.add(row[targetCol] ?? "N/A");
+                                    globalDistinctSet.add(row[targetCol] ?? "N/A");
                                 }
 
                                 bucket._val += rowValue;
@@ -2209,7 +2211,7 @@
                             });
 
                             if (mode === "DISTINCT") {
-                                total = new Set(data.map((r)=>r[targetCol] ?? "N/A")).size;
+                                total = globalDistinctSet.size;
                             }
 
                             currentGroupedData = Array.from(groupMap.values())
@@ -2238,7 +2240,7 @@
                             //           tHead.innerHTML = `<tr>${k.map(x => `<th onclick="handleSort('${x}', true)">${x}</th>`).join('')}</tr>`;
 
                             tBody.innerHTML = currentGroupedData.map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
-
+                            // alert("Table updated with grouped data. Now updating chart...");
                             updateChart(currentGroupedData);
                         } else {
                             const vis = headers.filter((h)=>!hiddenColumns.has(h));
@@ -2337,6 +2339,12 @@
                         }
 
                         const groupByCols = getSelectedGroupByCols();
+
+                        if (groupByCols.length > 2) {
+                            alert("Data Chart rendering limited to 2 or fewer grouping columns. Please reduce grouping columns.");
+                            document.getElementById("chartSection").classList.add("hidden");
+                            return;
+                        }
 
                         const keys = Object.keys(gData[0]);
                         const metricKeys = keys.filter((k)=>!groupByCols.includes(k) && k !== "%");
