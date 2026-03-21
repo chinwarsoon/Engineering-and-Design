@@ -4,6 +4,9 @@
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <title>TWRP C4B DCC Submission Explorer Pro | Analytics Edition</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
         <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <style>
@@ -92,24 +95,41 @@
             }
 
             :root {
-                --primary: #2563eb;
-                --bg: #f8fafc;
+                --primary: #3b82f6;
+                --primary-dark: #2563eb;
+                --primary-light: #60a5fa;
+                --bg: #f1f5f9;
                 --card-bg: #ffffff;
                 --border: #e2e8f0;
                 --text-main: #1e293b;
+                --text-secondary: #64748b;
                 --accent: #10b981;
-                --pivot-bg: rgba(37, 99, 235, 0.08);
-                --td-padding: 8px 12px;
+                --accent-dark: #059669;
+                --warning: #f59e0b;
+                --danger: #ef4444;
+                --pivot-bg: rgba(59, 130, 246, 0.06);
+                --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                --td-padding: 10px 14px;
                 --font-size: 13px;
-                /* Update the global font-size variable here for general scaling */
+                --radius-sm: 6px;
+                --radius: 10px;
+                --radius-lg: 14px;
             }
 
             body.dark-mode {
                 --bg: #0f172a;
                 --card-bg: #1e293b;
                 --border: #334155;
-                --text-main: #f1f5f9;
-                --pivot-bg: rgba(37, 99, 235, 0.15);
+                --text-main: #f8fafc;
+                --text-secondary: #94a3b8;
+                --pivot-bg: rgba(59, 130, 246, 0.12);
+                --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+                --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+                --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+                --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
             }
 
             body.compact {
@@ -119,22 +139,25 @@
 
             /* Fine-tune the Compact Mode button behavior */
             body {
-                font-family: system-ui, -apple-system, sans-serif;
+                font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                 background: var(--bg);
                 color: var(--text-main);
-                padding: 20px;
-                transition: 0.2s;
-                line-height: 1.5;
+                padding: 16px;
+                transition: all 0.3s ease;
+                line-height: 1.6;
                 font-size: var(--font-size);
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
             }
 
             .card {
                 max-width: 1600px;
                 margin: 0 auto;
                 background: var(--card-bg);
-                padding: 2rem;
-                border-radius: 12px;
-                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+                padding: 1.5rem;
+                border-radius: var(--radius-lg);
+                box-shadow: var(--shadow-xl);
+                border: 1px solid var(--border);
             }
 
             #debugPanel {
@@ -166,14 +189,21 @@
             /* The unified style for all dashboard control modules */
             .dashboard-module {
                 background: var(--pivot-bg) !important;
-                border: 1px dashed var(--primary) !important;
-                border-radius: 8px;
-                padding: 10px;
-                margin-top: 12px;
-                margin-bottom: 12px;
+                border: 1px solid var(--border) !important;
+                border-left: 3px solid var(--primary) !important;
+                border-radius: var(--radius);
+                padding: 16px;
+                margin-top: 16px;
+                margin-bottom: 16px;
                 width: 100%;
                 box-sizing: border-box;
                 font-size: 12px;
+                box-shadow: var(--shadow-sm);
+                transition: box-shadow 0.2s ease, transform 0.2s ease;
+            }
+
+            .dashboard-module:hover {
+                box-shadow: var(--shadow);
             }
 
             .dashboard-module > div, .dashboard-module > section {
@@ -265,21 +295,34 @@
             /* Ensure all filter items have the same vertical alignment */
             .filter-item {
                 background: var(--card-bg);
-                /* White background for the filter card */
-                padding: 10px;
-                border-radius: 6px;
+                padding: 14px;
+                border-radius: var(--radius-sm);
                 border: 1px solid var(--border);
                 display: flex;
                 flex-direction: column;
-                gap: 5px;
+                gap: 8px;
+                box-shadow: var(--shadow-sm);
+                transition: all 0.2s ease;
+            }
+
+            .filter-item:hover {
+                box-shadow: var(--shadow);
+                border-color: var(--primary-light);
+            }
+
+            .filter-item label {
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--text-secondary);
+                margin-bottom: 2px;
             }
 
             /* Ensure the grid layout in the container is tight */
             #filterArea {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-                gap: 12px;
-                margin-top: 5px;
+                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+                gap: 16px;
+                margin-top: 8px;
             }
 
             /* Force specific height on all interactive elements */
@@ -315,10 +358,11 @@
                 overflow: auto;
                 max-height: 600px;
                 border: 1px solid var(--border);
-                border-radius: 8px;
+                border-radius: var(--radius);
                 position: relative;
                 z-index: 10;
-                /* Lower than the filters */
+                background: var(--card-bg);
+                box-shadow: var(--shadow-sm);
             }
 
             /* Allow columns to be resized smaller than content; truncate overflowing text */
@@ -332,23 +376,28 @@
             }
 
             th {
-                background: var(--bg);
+                background: linear-gradient(to bottom, var(--bg), #e2e8f0);
                 padding: var(--td-padding);
                 text-align: left;
                 position: sticky;
-                /* Sort Indicator Styling */
-                /* Forces sticky behavior */
                 padding-right: 35px !important;
-                /* Make room for the arrow and resizer */
                 top: 0;
                 z-index: 20;
                 cursor: pointer;
-                border-bottom: 2px solid var(--border);
+                border-bottom: 2px solid var(--primary-light);
                 white-space: nowrap;
                 min-width: 120px;
                 user-select: none;
-                z-index: 20;
-                /* Maintain sticky header hierarchy */
+                font-weight: 600;
+                font-size: 12px;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.3px;
+            }
+
+            body.dark-mode th {
+                background: linear-gradient(to bottom, #1e293b, #0f172a);
+                border-bottom-color: var(--primary);
             }
 
             .sort-icon {
@@ -430,10 +479,16 @@
 
             /* Shared styling for control containers */
             #step2 > div, #groupBySection {
-                background: var( --pivot-bg ) !important;
-                /* Uses your primary theme color */
-                border: 1px dashed var(--primary) !important;
-                transition: all 0.2s ease-in-out;
+                background: var(--pivot-bg) !important;
+                border: 1px solid var(--border) !important;
+                border-left: 3px solid var(--primary) !important;
+                border-radius: var(--radius);
+                box-shadow: var(--shadow-sm);
+                transition: all 0.2s ease;
+            }
+
+            #step2 > div:hover, #groupBySection:hover {
+                box-shadow: var(--shadow);
             }
 
             /* Ensure the inner list stands out against the light blue background */
@@ -476,14 +531,16 @@
             .toggle-chip {
                 display: inline-flex;
                 align-items: center;
-                gap: 8px;
-                padding: 4px 10px;
+                gap: 10px;
+                padding: 6px 12px;
                 background: var(--card-bg);
-                border: 1px solid var(--border);
-                border-radius: 16px;
+                border: 1.5px solid var(--border);
+                border-radius: 20px;
                 cursor: pointer;
-                font-size: 11px;
-                transition: 0.2s;
+                font-size: 12px;
+                font-weight: 500;
+                transition: all 0.2s ease;
+                color: var(--text-secondary);
             }
 
 
@@ -492,12 +549,11 @@
             #headerList .toggle-chip {
                 width: 100%;
                 justify-content: space-between;
-                font-size: 10px;
-                border-radius: 6px;
-                padding: 4px 8px;
-                line-height: 1.2;
+                font-size: 11px;
+                border-radius: 8px;
+                padding: 5px 10px;
+                line-height: 1.3;
                 white-space: normal;
-                padding: 4px 8px;
                 box-sizing: border-box;
                 margin-bottom: 0;
             }
@@ -508,14 +564,16 @@
             }
 
             .toggle-chip:hover {
-                border-color: var(--primary);
-                background: rgba(var(--primary-rgb), 0.05);
+                border-color: var(--primary-light);
+                background: rgba(59, 130, 246, 0.04);
+                color: var(--text-main);
             }
 
             .toggle-chip.active {
                 background: var(--pivot-bg) !important;
                 border-color: var(--primary) !important;
                 color: var(--primary);
+                font-weight: 600;
             }
 
             /* Hide the native checkbox completely */
@@ -558,12 +616,24 @@
             #stats {
                 background: var(--pivot-bg);
                 color: var(--primary);
-                padding: 4px 12px;
+                padding: 6px 14px;
                 border-radius: 20px;
-                font-family: monospace;
-                /* Keeps numbers from jumping around */
-                font-size: 14px;
-                border: 1px solid var(--primary);
+                font-family: 'SF Mono', Monaco, monospace;
+                font-size: 13px;
+                font-weight: 600;
+                border: 1.5px solid var(--primary-light);
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            #stats::before {
+                content: "";
+                width: 8px;
+                height: 8px;
+                background: var(--accent);
+                border-radius: 50%;
+                display: inline-block;
             }
 
             /* Frozen First Column */
@@ -582,17 +652,41 @@
                 right: 0;
                 top: 0;
                 height: 100%;
-                width: 6px;
+                width: 4px;
                 cursor: col-resize;
                 z-index: 50;
+                background: transparent;
+                transition: background 0.2s ease;
             }
 
             .resizer:hover {
-                background: var(--primary);
+                background: var(--primary-light);
+            }
+
+            .resizer::after {
+                content: "";
+                position: absolute;
+                right: 1px;
+                top: 25%;
+                height: 50%;
+                width: 2px;
+                background: var(--border);
+                border-radius: 1px;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+            }
+
+            th:hover .resizer::after {
+                opacity: 1;
             }
 
             .resizing {
-                border-right: 2px dashed var(--primary) !important;
+                border-right: 2px solid var(--primary) !important;
+                background: rgba(59, 130, 246, 0.05);
+            }
+
+            .resizing .resizer {
+                background: var(--primary);
             }
 
             td {
@@ -602,6 +696,12 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 background: var(--card-bg);
+                font-size: 13px;
+                color: var(--text-main);
+            }
+
+            tr:hover td {
+                background: var(--pivot-bg);
             }
 
             /* Filters and UI */
@@ -609,7 +709,19 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 20px;
+                margin-bottom: 24px;
+                padding-bottom: 16px;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .header-section h2 {
+                font-size: 22px;
+                font-weight: 700;
+                color: var(--text-main);
+                letter-spacing: -0.5px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
             }
 
             .controls-row {
@@ -640,15 +752,26 @@
             }
 
             .multiselect-display {
-                padding: 8px;
-                border: 1px solid var(--border);
-                border-radius: 6px;
+                padding: 10px 12px;
+                border: 1.5px solid var(--border);
+                border-radius: var(--radius-sm);
                 background: var(--card-bg);
                 cursor: pointer;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                min-height: 38px;
+                min-height: 40px;
+                font-size: 12px;
+                transition: all 0.2s ease;
+            }
+
+            .multiselect-display:hover {
+                border-color: var(--primary-light);
+            }
+
+            .multiselect-display.active {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             }
 
             /* Fix for dropdown menus being cut off */
@@ -657,87 +780,123 @@
                 top: 100%;
                 left: 0;
                 right: 0;
-                background: var(--card-bg);
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(10px);
                 border: 1px solid var(--border);
-                border-radius: 6px;
+                border-radius: var(--radius-sm);
                 z-index: 2000;
-                /* Must be higher than sticky table headers (40) */
                 max-height: 350px;
                 overflow-y: auto;
-                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-                padding: 10px;
+                box-shadow: var(--shadow-lg);
+                padding: 12px;
+                margin-top: 4px;
+            }
+
+            body.dark-mode .multiselect-options {
+                background: rgba(30, 41, 59, 0.98);
             }
 
             .column-toggle-menu {
                 position: absolute;
                 right: 280px;
                 top: 40px;
-                background: var(--card-bg);
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(10px);
                 border: 1px solid var(--border);
-                padding: 15px;
-                border-radius: 8px;
+                padding: 16px;
+                border-radius: var(--radius);
                 z-index: 2000;
-                box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-                min-width: 200px;
+                box-shadow: var(--shadow-lg);
+                min-width: 220px;
+            }
+
+            body.dark-mode .column-toggle-menu {
+                background: rgba(30, 41, 59, 0.98);
             }
 
             .status-box {
                 position: fixed;
-                top: 20px;
-                right: 20px;
-                background: var(--card-bg);
-                border: 1px solid var(--primary);
-                border-radius: 8px;
-                padding: 12px 16px;
-                min-width: 220px;
-                max-width: 300px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                top: 24px;
+                right: 24px;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border: 1px solid var(--border);
+                border-left: 3px solid var(--primary);
+                border-radius: var(--radius);
+                padding: 16px 20px;
+                min-width: 240px;
+                max-width: 320px;
+                box-shadow: var(--shadow-lg);
                 z-index: 1000;
-                font-size: 11px;
+                font-size: 12px;
+            }
+
+            body.dark-mode .status-box {
+                background: rgba(30, 41, 59, 0.95);
             }
 
             .status-box-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 8px;
-                padding-bottom: 8px;
+                margin-bottom: 12px;
+                padding-bottom: 12px;
                 border-bottom: 1px solid var(--border);
             }
 
             .status-box-title {
                 font-weight: 700;
                 color: var(--primary);
-                font-size: 12px;
+                font-size: 13px;
+                letter-spacing: -0.3px;
             }
 
             .status-box-close {
-                background: none;
-                border: none;
+                background: var(--bg);
+                border: 1px solid var(--border);
                 cursor: pointer;
                 font-size: 14px;
-                color: var(--text-main);
-                padding: 0;
-                width: 20px;
-                height: 20px;
+                color: var(--text-secondary);
+                padding: 4px;
+                width: 24px;
+                height: 24px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                border-radius: var(--radius-sm);
+                transition: all 0.2s ease;
+            }
+
+            .status-box-close:hover {
+                background: var(--primary);
+                color: white;
+                border-color: var(--primary);
             }
 
             .status-item {
-                margin-bottom: 6px;
-                line-height: 1.4;
+                margin-bottom: 8px;
+                line-height: 1.5;
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
             }
 
             .status-label {
-                font-weight: 600;
-                color: var(--text-main);
+                font-weight: 500;
+                color: var(--text-secondary);
+                font-size: 11px;
             }
 
             .status-value {
                 color: var(--primary);
-                font-weight: 700;
+                font-weight: 600;
+                font-size: 11px;
+                text-align: right;
+                max-width: 140px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
             .status-box.collapsed {
@@ -757,43 +916,79 @@
                 background: var(--primary);
                 color: white;
                 border: none;
-                padding: 5px 10px;
-                border-radius: 5px;
+                padding: 8px 16px;
+                border-radius: var(--radius-sm);
                 cursor: pointer;
-                font-weight: 700;
+                font-weight: 600;
                 display: inline-flex;
                 align-items: center;
-                gap: 4px;
-                font-size: 10px;
-                line-height: 1.2;
+                gap: 6px;
+                font-size: 12px;
+                line-height: 1.4;
+                transition: all 0.2s ease;
+                box-shadow: var(--shadow-sm);
+            }
+
+            .btn:hover {
+                background: var(--primary-dark);
+                transform: translateY(-1px);
+                box-shadow: var(--shadow);
+            }
+
+            .btn:active {
+                transform: translateY(0);
+                box-shadow: var(--shadow-sm);
             }
 
             .btn-outline, .btn-accent {
-                padding: 4px 8px;
-                font-size: 10px;
+                padding: 8px 14px;
+                font-size: 12px;
+                font-weight: 500;
             }
 
             .btn-outline, .btn-accent, .btn {
-                min-height: 28px;
+                min-height: 36px;
             }
 
             .btn-outline {
                 background: transparent;
-                border: 1px solid var(--border);
-                color: var(--text-main);
+                border: 1.5px solid var(--border);
+                color: var(--text-secondary);
+                transition: all 0.2s ease;
+            }
+
+            .btn-outline:hover {
+                border-color: var(--primary);
+                color: var(--primary);
+                background: rgba(59, 130, 246, 0.05);
             }
 
             .btn-accent {
                 background: var(--accent);
                 color: white;
+                transition: all 0.2s ease;
+            }
+
+            .btn-accent:hover {
+                background: var(--accent-dark);
+                transform: translateY(-1px);
+                box-shadow: var(--shadow);
             }
 
             select, input[type="text"], input[type="date"] {
-                padding: 6px 10px;
-                border: 1px solid var(--border);
-                border-radius: 6px;
+                padding: 8px 12px;
+                border: 1.5px solid var(--border);
+                border-radius: var(--radius-sm);
                 background: var(--card-bg);
                 color: var(--text-main);
+                font-size: 12px;
+                transition: all 0.2s ease;
+                outline: none;
+            }
+
+            select:focus, input[type="text"]:focus, input[type="date"]:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             }
 
             /* This ensures the outer ID doesn't create a "second box" */
@@ -827,10 +1022,12 @@
             }
             
             label {
-                font-size: 0.7rem;
-                font-weight: 700;
+                font-size: 11px;
+                font-weight: 600;
                 text-transform: uppercase;
-                opacity: 0.7;
+                letter-spacing: 0.5px;
+                color: var(--text-secondary);
+                opacity: 1;
             }
 
             #layoutWrapper {
@@ -845,13 +1042,30 @@
                 min-width: 250px;
                 background: var(--card-bg);
                 border: 1px solid var(--border);
-                border-radius: 10px;
-                padding: 12px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+                border-radius: var(--radius);
+                padding: 16px;
+                box-shadow: var(--shadow);
                 max-height: calc(100vh - 100px);
                 overflow: auto;
                 position: sticky;
                 top: 80px;
+            }
+
+            #sidebar::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            #sidebar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            #sidebar::-webkit-scrollbar-thumb {
+                background: var(--border);
+                border-radius: 3px;
+            }
+
+            #sidebar::-webkit-scrollbar-thumb:hover {
+                background: var(--text-secondary);
             }
 
             #sidebar.hidden {
@@ -960,97 +1174,50 @@
             <div id="layoutWrapper">
                 <aside id="sidebar">
                     <div id="step1" style="width: 100%">
-                        <div style="
-            background: var(--pivot-bg);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px dashed var(--primary);
-            width: 100%;
-          ">
-                            <div style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 10px;
-            ">
-                                <label id="step1Header" style="color: var(--primary); font-weight: 700">📂 1. Load Excel File and Select Work Sheet:
-            </label>
-                                <button class="btn btn-outline" id="toggleStep1Btn" onclick="toggleStep1Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲
-            </button>
+                        <div class="dashboard-module" style="margin-top: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <label id="step1Header" style="color: var(--primary); font-weight: 700; font-size: 12px;">📂 1. Load Excel File and Select Work Sheet:</label>
+                                <button class="btn btn-outline" id="toggleStep1Btn" onclick="toggleStep1Box()">▲</button>
                             </div>
                             <div id="loadFilesContainer">
-                                <div style="
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                width: 100%;
-              ">
+                                <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                     <input type="file" id="upload" accept=".xlsx, .xls"/>
                                     <select id="sheetSelector" class="hidden" onchange="loadSheet(this.value)" style="width: 100%"></select>
                                 </div>
                             </div>
                         </div>
                     </div>
-                <div id="step2" class="hidden" style="margin-top: 10px;">
-                <div style="
-            background: rgba(0, 0, 0, 0.03);
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-          ">
-                    <div style="
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 10px;
-            ">
-                        <label style="color: var(--primary); font-weight: 700">🔍 2. Choose Filterable Columns</label>
-                        <div style="display: flex; gap: 6px; align-items: center">
-                            <button class="btn btn-outline" id="toggleStep2Btn" onclick="toggleStep2Box()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲
-              </button>
+                <div id="step2" class="hidden" style="margin-top: 16px;">
+                    <div class="dashboard-module">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <label style="color: var(--primary); font-weight: 700; font-size: 12px;">🔍 2. Choose Filterable Columns</label>
+                            <div style="display: flex; gap: 6px; align-items: center">
+                                <button class="btn btn-outline" id="toggleStep2Btn" onclick="toggleStep2Box()">▲</button>
+                            </div>
+                        </div>
+                        <div id="headerListContainer">
+                            <div id="headerListWrapper" style="border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); padding: 10px; display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                                <div style="display:flex; gap: 6px; flex-wrap: wrap;">
+                                    <button class="btn btn-outline" style="font-size: 11px; padding: 6px 12px;" onclick="selectAllColumns()">Select All</button>
+                                    <button class="btn btn-outline" style="font-size: 11px; padding: 6px 12px;" onclick="clearAllColumns()">Clear All</button>
+                                </div>
+                                <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: var(--card-bg);"></div>
+                            </div>
+                            <button class="btn" style="width: 100%; margin-top: 12px; justify-content: center" onclick="buildInterface()">Initialize Dashboard</button>
                         </div>
                     </div>
-                    <div id="headerListContainer">
-                        <div id="headerListWrapper" style="border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); padding: 10px; display: flex; flex-direction: column; gap: 6px; width: 100%;">
-                            <div style="display:flex; gap: 6px; flex-wrap: wrap;">
-                                <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="selectAllColumns()">Select All</button>
-                                <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="clearAllColumns()">Clear All</button>
-                            </div>
-                            <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: var(--card-bg);"></div>
-                        </div>
-                        <button class="btn" style="width: 100%; margin-top: 10px; justify-content: center" onclick="buildInterface()">Initialize Dashboard
-            </button>
+                </div>
+            <div id="filterContainerSection" class="hidden" style="margin-top: 16px">
+                <div class="dashboard-module">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="color: var(--primary); font-weight: 700; font-size: 12px;">🔍 3. Active Filters</label>
+                        <button class="btn btn-outline" id="toggleFilterBtn" onclick="toggleFilterBox()">▲</button>
+                    </div>
+                    <div id="filterControlsWrapper">
+                        <div id="filterArea" class="filters-container" style="background: transparent; border: none; padding: 0; box-shadow: none;"></div>
                     </div>
                 </div>
             </div>
-            <div id="filterContainerSection" class="hidden" style="margin-top: 20px">
-                    <div style="
-                    background: var(--pivot-bg);
-                    padding: 15px;
-                    border-radius: 8px;
-                    border: 1px dashed var(--primary);
-                    width: 100%;
-                  ">
-                        <div style="
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            margin-bottom: 10px;
-                          ">
-                            <label style="color: var(--primary); font-weight: 700">🔍 3. Active Filters</label>
-                            <button class="btn btn-outline" id="toggleFilterBtn" onclick="toggleFilterBox()" style="padding: 2px 8px; font-size: 10px; border-style: dashed">▲
-                                </button>
-                        </div>
-                        <div id="filterControlsWrapper">
-                            <div id="filterArea" class="filters-container" style="
-                              background: transparent;
-                              border: none;
-                              padding: 0;
-                              box-shadow: none;
-                            "></div>
-                        </div>
-                    </div>
-                </div>
             <div id="groupBySection" class="hidden">
                 <div class="dashboard-module">
                     <div style="
