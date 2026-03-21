@@ -969,10 +969,6 @@
                                 
                                 <div id="headerListWrapper" style="border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); padding: 8px; display: flex; flex-direction: column; gap: 6px;">
 
-                                    <div style="display:flex; gap:6px; flex-wrap: wrap;">
-                                        <button class="btn btn-outline" style="font-size:11px; padding:3px 6px;" onclick="selectAllGroupBy(); return false;">Select All</button>
-                                        <button class="btn btn-outline" style="font-size:11px; padding:3px 6px;" onclick="clearAllGroupBy(); return false;">Clear All</button>
-                                    </div>
                                     <div id="groupByColumnList" class="filters-container" style="display:grid; grid-template-columns: 1fr; gap: 4px; max-height: 180px; overflow-y:auto; background: var(--card-bg); display: flex; flex-direction: column; gap: 6px;"></div>
                                     
                                 </div>
@@ -1315,26 +1311,6 @@
                             groupByColumnList.appendChild(chip);
                         });
                         //alert("Group By list reordered: selected columns moved.");
-                    }
-
-                    function selectAllGroupBy() {
-                        document.querySelectorAll(".group-by-col-check").forEach((cb)=>{
-                            cb.checked = true;
-                            syncGroupByChip(cb);
-                        });
-                        reorderGroupByList();
-                        updateGroupBySelection();
-                        runFilter();
-                    }
-
-                    function clearAllGroupBy() {
-                        document.querySelectorAll(".group-by-col-check").forEach((cb)=>{
-                            cb.checked = false;
-                            syncGroupByChip(cb);
-                        });
-                        reorderGroupByList();
-                        updateGroupBySelection();
-                        runFilter();
                     }
 
                     function moveGroupByOption(button, direction) {
