@@ -1103,22 +1103,26 @@
                 min-width: 0;
             }
 
-            #sidebarToggleContainer {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 8px;
-                gap: 8px;
+            .header-section {
+                position: sticky;
+                top: 0;
+                background: var(--card-bg);
+                z-index: 100;
+                padding: 20px;
+                border-bottom: 1px solid var(--border);
             }
 
-            #sidebarToggle {
-                font-size: 12px;
-                margin-left: 0;
-            }
             #sidebarToggleContainer {
-                display: flex;
-                justify-content: flex-start;
-                margin-bottom: 10px;
+                position: sticky;
+                top: 60px;
+                background: var(--card-bg);
+                z-index: 99;
+                padding: 8px 20px;
+                border-bottom: 1px solid var(--border);
+            }
+
+            #layoutWrapper {
+                margin-top: 10px;
             }
         </style>
     </head>
@@ -1209,13 +1213,13 @@
             <div id="sidebarToggleContainer">
                 <button id="sidebarToggle" class="btn btn-outline" onclick="toggleSidebar()">⬅️</button>
             
-                <div style="display: flex; gap: 10px">
+                
                         <button onclick="toggleTheme()" class="btn btn-outline" id="themeBtn">🌙 Dark Mode
                         </button>
                         <button class="btn-outline" onclick="toggleDevMode()" style="color: #ed8936; border-color: #ed8936">
                             Dev Mode: <span id="devStatus">OFF</span>
                         </button>
-                </div>
+                
             </div>  
             <div id="debugPanel">
                 <div style="
@@ -1914,7 +1918,7 @@
                         setFunctionCallStatus('buildInterface', true);
                         
                         // 1. Get the selected columns from Step 2
-                        selectedFilterCols = Array.from(document.querySelectorAll(".col-check:checked"), ).map((cb)=>cb.value).slice(0,5);
+                        selectedFilterCols = Array.from(document.querySelectorAll(".col-check:checked"), ).map((cb)=>cb.value);
                         if (Array.from(document.querySelectorAll(".col-check:checked")).length > 10) {
                             alert("More than 10 filter columns selected. This may cause slow responce from the webpage.");
                         }
@@ -2372,7 +2376,7 @@
 
                                 // Update Step 1 header with file + sheet
                                 const fileName = e.target.files?.[0]?.name || "Untitled";
-                                document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet: ${fileName} - ${workbook.SheetNames[0]}`;
+                                document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet:`;
 
                                 loadSheet(workbook.SheetNames[0]);
                                 setProgressStatus('loadFile', 'complete', `${fileName} loaded`);
@@ -2394,7 +2398,7 @@
                         
                         // Update Step 1 header when switching sheets
                         const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
-                        document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet: ${fileName} - ${name}`;
+                        document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet:`;
 
                         logDebug("Loading sheet: " + name);
                         console.log("Loading sheet:", name);
