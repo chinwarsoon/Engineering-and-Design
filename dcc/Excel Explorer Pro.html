@@ -2669,6 +2669,7 @@
 
                         if (groupByCols.length > 0) {
                             setProgressStatus('groupBy', 'loading', `Grouping by ${groupByCols.join(', ')}...`);
+                            setProgressStatus('updateTable', 'loading', 'Building groups...');
                             
                             const groupMap = new Map();
                             let total = 0;
@@ -2704,6 +2705,8 @@
                                 total = globalDistinctSet.size;
                             }
 
+                            setProgressStatus('updateTable', 'loading', 'Sorting groups...');
+                            
                             currentGroupedData = Array.from(groupMap.values())
                                 .sort((a,b)=> (a._sortKey > b._sortKey ? 1 : -1))
                                 .map((g)=>{
@@ -2717,6 +2720,8 @@
                                     };
                                 });
 
+                            setProgressStatus('updateTable', 'loading', 'Rendering table...');
+                            
                             const k = Object.keys(currentGroupedData[0]);
                             tHead.innerHTML = `<tr>${k.map((x)=>{
                                 const icon = getSortIcon(x);
@@ -2730,9 +2735,13 @@
                             // Mark GroupBy as complete
                             setProgressStatus('groupBy', 'complete', `${currentGroupedData.length} groups created`);
                             
+                            // Mark table update as complete for grouped data
+                            setProgressStatus('updateTable', 'complete', `${currentGroupedData.length} groups rendered`);
+                            
                             updateChart(currentGroupedData);
                         } else {
                             setProgressStatus('groupBy', 'idle', 'No grouping');
+                            setProgressStatus('updateTable', 'loading', 'Building raw data view...');
                             
                             const vis = headers.filter((h)=>!hiddenColumns.has(h));
                             document.getElementById("chartSection").classList.add("hidden");
@@ -2745,9 +2754,6 @@
                             }
                             ).join("")}</tr>`;
 
-                            //            const vis = headers.filter(h => !hiddenColumns.has(h));
-                            //            tHead.innerHTML = `<tr>${vis.map(h => `<th onclick="handleSort('${h}', false)">${h}</th>`).join('')}</tr>`;
-
                             tBody.innerHTML = data.slice(0, 300).map((r)=>`<tr>${vis.map((h)=>{
                                 const cellWidthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : "";
                                 return `<td ${cellWidthStyle}>${formatExcelDate(r[h]) ?? ""}</td>`;
@@ -2755,10 +2761,13 @@
                             ).join("")}</tr>`, ).join("");
                         }
 
+                        setProgressStatus('updateTable', 'loading', 'Initializing resizers...');
+                        
                         initResizers();
 
                         // Auto-fit columns on first render (then allow users to shrink columns manually)
                         if (!autoFitDone) {
+                            setProgressStatus('updateTable', 'loading', 'Auto-fitting columns...');
                             autoFitColumns();
                             autoFitDone = true;
                         }
@@ -2823,7 +2832,7 @@
                     }
 
                     function updateChart(gData) {
-                        setProgressStatus('updateCharts', 'loading', 'Updating charts...');
+                        setProgressStatus('updateCharts', 'loading', 'Preparing chart data...');
                         
                         const ctx = document.getElementById("dataChart").getContext("2d");
                         const type = document.getElementById("chartType").value;
@@ -2844,6 +2853,8 @@
                             return;
                         }
 
+                        setProgressStatus('updateCharts', 'loading', 'Processing chart series...');
+                        
                         const keys = Object.keys(gData[0]);
                         const metricKeys = keys.filter((k)=>!groupByCols.includes(k) && k !== "%");
                         const metricKey = metricKeys[0] || keys[keys.length - 2] || keys[0];
@@ -2889,6 +2900,8 @@
                             }, ];
                         }
 
+                        setProgressStatus('updateCharts', 'loading', 'Rendering chart...');
+                        
                         if (myChart)
                             myChart.destroy();
 
