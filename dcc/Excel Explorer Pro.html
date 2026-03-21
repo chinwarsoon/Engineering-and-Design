@@ -1289,11 +1289,32 @@
                     function syncGroupByChip(cb) {
                         const chip = cb.closest('.group-by-chip');
                         if (!chip) return;
+                        
                         if (cb.checked) {
                             chip.classList.add('active');
                         } else {
                             chip.classList.remove('active');
                         }
+                        
+                        // Reorder the list: selected items at top, unselected at bottom
+                        reorderGroupByList();
+                        //alert(`Group By column "${cb.value}" ${cb.checked ? 'selected' : 'deselected'}. List reordered.`);
+                    }
+
+                    function reorderGroupByList() {
+                        const groupByColumnList = document.getElementById("groupByColumnList");
+                        if (!groupByColumnList) return;
+
+                        const allChips = Array.from(groupByColumnList.querySelectorAll('.group-by-chip'));
+                        const checkedChips = allChips.filter((chip) => chip.querySelector('input[type="checkbox"]').checked);
+                        const uncheckedChips = allChips.filter((chip) => !chip.querySelector('input[type="checkbox"]').checked);
+
+                        // Clear the list and rebuild with checked first, then unchecked
+                        groupByColumnList.innerHTML = '';
+                        [...checkedChips, ...uncheckedChips].forEach((chip) => {
+                            groupByColumnList.appendChild(chip);
+                        });
+                        //alert("Group By list reordered: selected columns moved.");
                     }
 
                     function selectAllGroupBy() {
@@ -1301,6 +1322,7 @@
                             cb.checked = true;
                             syncGroupByChip(cb);
                         });
+                        reorderGroupByList();
                         updateGroupBySelection();
                         runFilter();
                     }
@@ -1310,6 +1332,7 @@
                             cb.checked = false;
                             syncGroupByChip(cb);
                         });
+                        reorderGroupByList();
                         updateGroupBySelection();
                         runFilter();
                     }
