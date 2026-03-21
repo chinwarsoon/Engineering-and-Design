@@ -1453,6 +1453,14 @@
                         <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
                             <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚙️ Configuration</div>
                             <div class="status-item">
+                                <span class="status-label">📁 File:</span>
+                                <span id="statusFileName" class="status-value">None</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">📄 Worksheet:</span>
+                                <span id="statusWorksheet" class="status-value">None</span>
+                            </div>
+                            <div class="status-item">
                                 <span class="status-label">🔍 Search:</span>
                                 <span id="statusSearch" class="status-value">None</span>
                             </div>
@@ -2322,11 +2330,7 @@
 
                         if (ySelect) {
                             ySelect.innerHTML = yCols.map((h)=>`<option value="${h}">${h}</option>`).join("");
-                            if (yCols.length > 0) {
-                                for (let i = 0; i < Math.min(2, yCols.length); i++) {
-                                    ySelect.options[i].selected = true;
-                                }
-                            }
+                            // Do not auto-select any Y columns - user must select manually
                         }
 
                         const yOptions = document.getElementById("dateRangeYOptions");
@@ -2638,6 +2642,10 @@
                         const reader = new FileReader();
                         
                         setProgressStatus('loadFile', 'loading', 'Reading file...');
+                        
+                        // Store file name for status box
+                        const fileName = e.target.files?.[0]?.name || "Untitled";
+                        document.getElementById("statusFileName").innerText = fileName;
 
                         reader.onload = (evt)=>{
                             try {
@@ -2655,6 +2663,10 @@
                                 // Update Step 1 header with file + sheet
                                 const fileName = e.target.files?.[0]?.name || "Untitled";
                                 document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet:`;
+                                
+                                // Set initial worksheet name in status box
+                                const firstSheet = workbook.SheetNames[0];
+                                document.getElementById("statusWorksheet").innerText = firstSheet;
 
                                 loadSheet(workbook.SheetNames[0]);
                                 setProgressStatus('loadFile', 'complete', `${fileName} loaded`);
@@ -2673,6 +2685,9 @@
                         setFunctionCallStatus('loadSheet', true);
                         
                         setProgressStatus('loadFile', 'loading', `Loading ${name}...`);
+                        
+                        // Update worksheet name in status box
+                        document.getElementById("statusWorksheet").innerText = name;
                         
                         // Update Step 1 header when switching sheets
                         const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
@@ -3417,6 +3432,9 @@
                         }
 
                         if (!container || !selectedX || selectedYs.length === 0) {
+                            // Mark as idle since no chart will be rendered
+                            setProgressStatus('updateCharts', 'idle', 'No Y columns selected');
+                            setFunctionCallStatus('updateDateRangeChart', false);
                             return;
                         }
 
@@ -3529,6 +3547,9 @@
                         );
 
                         if (!labels.length) {
+                            // Mark as idle since no data to display
+                            setProgressStatus('updateCharts', 'idle', 'No date data');
+                            setFunctionCallStatus('updateDateRangeChart', false);
                             return;
                         }
 
