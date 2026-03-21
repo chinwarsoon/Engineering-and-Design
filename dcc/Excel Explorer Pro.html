@@ -1160,6 +1160,15 @@
                         </div>
                     </div>
                     
+                    <!-- Debug Section -->
+                    <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                        <div style="font-size: 10px; font-weight: 600; color: var(--warning); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">🐛 Debug</div>
+                        <div class="status-item">
+                            <span class="status-label">🔍 Function Call:</span>
+                            <span id="statusFunctionCall" class="status-value status-idle">None</span>
+                        </div>
+                    </div>
+                    
                     <!-- Configuration Section -->
                     <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
                         <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚙️ Configuration</div>
@@ -1701,6 +1710,49 @@
                         }
                     }
 
+                    // Debug function call tracking
+                    function setFunctionCallStatus(functionName, isEntering) {
+                        const box = document.getElementById("statusBox");
+                        if (!box) {
+                            console.error('[DEBUG] statusBox not found!');
+                            return;
+                        }
+                        
+                        // Always show status box during debug tracing
+                        box.classList.remove("hidden");
+                        
+                        const element = document.getElementById("statusFunctionCall");
+                        if (!element) {
+                            console.error('[DEBUG] statusFunctionCall element not found!');
+                            return;
+                        }
+                        
+                        // Immediate update - no requestAnimationFrame
+                        element.classList.remove('status-idle', 'status-loading', 'status-complete');
+                        
+                        if (isEntering) {
+                            element.classList.add('status-loading');
+                            element.innerText = `calling ${functionName}()`;
+                            console.log(`[DEBUG] calling ${functionName}()`);
+                        } else {
+                            element.classList.add('status-complete');
+                            element.innerText = `${functionName}() done`;
+                            console.log(`[DEBUG] ${functionName}() done`);
+                            // Auto-reset after 1 second
+                            setTimeout(() => {
+                                if (element.classList.contains('status-complete')) {
+                                    element.classList.remove('status-complete');
+                                    element.classList.add('status-idle');
+                                    element.innerText = 'None';
+                                }
+                            }, 1000);
+                        }
+                        
+                        // Force immediate reflow
+                        void box.offsetHeight;
+                        void element.offsetHeight;
+                    }
+
                     function setAllColumns(checked) {
                         document.querySelectorAll(".col-check").forEach((cb)=>{
                             cb.checked = checked;
@@ -1718,15 +1770,22 @@
                     }
 
                     function getSelectedGroupByCols() {
-                        return Array.from(document.querySelectorAll(".group-by-col-check:checked")).map((cb)=>cb.value);
+                        setFunctionCallStatus('getSelectedGroupByCols', true);
+                        const result = Array.from(document.querySelectorAll(".group-by-col-check:checked")).map((cb)=>cb.value);
+                        setFunctionCallStatus('getSelectedGroupByCols', false);
+                        return result;
                     }
 
                     function updateGroupBySelection() {
+                        setFunctionCallStatus('updateGroupBySelection', true);
+                        
                         const selected = getSelectedGroupByCols();
                         const labelEl = document.getElementById("groupByLabel");
                         const badgeEl = document.getElementById("groupingBadge");
-                        if (!labelEl)
+                        if (!labelEl) {
+                            setFunctionCallStatus('updateGroupBySelection', false);
                             return;
+                        }
                         if (selected.length === 0) {
                             labelEl.innerText = "No grouping columns selected";
                             if (badgeEl) {
@@ -1746,6 +1805,51 @@
                                 badgeEl.innerText = `Grouping: ${selected.join(", ")}`;
                             }
                         }
+                        
+                        setFunctionCallStatus('updateGroupBySelection', false);
+                    }
+
+                    function handleGroupByChange(cb) {
+                        console.log('[DEBUG] handleGroupByChange started');
+                        // Show status immediately
+                        setFunctionCallStatus('handleGroupByChange', true);
+                        
+                        // Do lightweight UI updates immediately
+                        const chip = cb.closest('.group-by-chip');
+                        if (chip) {
+                            if (cb.checked) {
+                                chip.classList.add('active');
+                            } else {
+                                chip.classList.remove('active');
+                            }
+                        }
+                        
+                        // Defer all heavy operations to allow UI to update
+                        setTimeout(() => {
+                            console.log('[DEBUG] Starting heavy operations');
+                            // Reorder the list
+                            reorderGroupByList();
+                            
+                            // Update selection state
+                            updateGroupBySelection();
+                            
+                            // Check for aggregator conflict - reset aggregator if it matches a GroupBy column
+                            const selectedGroupCols = getSelectedGroupByCols();
+                            const aggValue = document.getElementById("aggColumn").value;
+                            if (aggValue) {
+                                const [,targetCol] = aggValue.split("|");
+                                if (targetCol && selectedGroupCols.includes(targetCol)) {
+                                    console.log('[DEBUG] Resetting aggregator - conflicts with GroupBy:', targetCol);
+                                    document.getElementById("aggColumn").value = "";
+                                }
+                            }
+                            
+                            // Run filter (already deferred internally)
+                            runFilter();
+                            
+                            setFunctionCallStatus('handleGroupByChange', false);
+                            console.log('[DEBUG] handleGroupByChange completed');
+                        }, 100);
                     }
 
                     function syncGroupByChip(cb) {
@@ -1757,10 +1861,6 @@
                         } else {
                             chip.classList.remove('active');
                         }
-                        
-                        // Reorder the list: selected items at top, unselected at bottom
-                        reorderGroupByList();
-                        //alert(`Group By column "${cb.value}" ${cb.checked ? 'selected' : 'deselected'}. List reordered.`);
                     }
 
                     function reorderGroupByList() {
@@ -1776,10 +1876,11 @@
                         [...checkedChips, ...uncheckedChips].forEach((chip) => {
                             groupByColumnList.appendChild(chip);
                         });
-                        //alert("Group By list reordered: selected columns moved.");
                     }
 
                     function moveGroupByOption(button, direction) {
+                        setFunctionCallStatus('moveGroupByOption', true);
+                        
                         const item = button.closest("div[id^='groupByItem-']");
                         if (!item)
                             return;
@@ -1804,10 +1905,14 @@
 
                         updateGroupBySelection();
                         runFilter();
+                        
+                        setFunctionCallStatus('moveGroupByOption', false);
                     }
 
                     // Auto-hide Step 2 after initializing to save space
                     function buildInterface() {
+                        setFunctionCallStatus('buildInterface', true);
+                        
                         // 1. Get the selected columns from Step 2
                         selectedFilterCols = Array.from(document.querySelectorAll(".col-check:checked"), ).map((cb)=>cb.value).slice(0,5);
                         if (Array.from(document.querySelectorAll(".col-check:checked")).length > 10) {
@@ -1908,7 +2013,7 @@
                         if (groupByColumnList) {
                             groupByColumnList.innerHTML = headers.map((h)=>`
                                 <label class="toggle-chip group-by-chip" > 
-                                    <input type="checkbox" class="group-by-col-check" value="${h}" onchange="syncGroupByChip(this); updateGroupBySelection(); runFilter();">
+                                    <input type="checkbox" class="group-by-col-check" value="${h}" onchange="handleGroupByChange(this)">
                                     <span class="status-icon"></span>
                                     ${h}
                                 </label>
@@ -2023,6 +2128,8 @@
                             console.log("Date inputs initialized:", document.querySelectorAll('input[type="date"]').length, );
                         }
                         , 100);
+                        
+                        setFunctionCallStatus('buildInterface', false);
                     }
 
                     function bulkToggleCols(showAll, event) {
@@ -2112,6 +2219,8 @@
                     // --- Column Resizing Engine ---
 
                     function initResizers() {
+                        setFunctionCallStatus('initResizers', true);
+                        
                         const ths = document.querySelectorAll("th");
 
                         ths.forEach((th)=>{
@@ -2176,9 +2285,13 @@
                             });
                         }
                         );
+                        
+                        setFunctionCallStatus('initResizers', false);
                     }
 
                     function autoFitColumns() {
+                        setFunctionCallStatus('autoFitColumns', true);
+                        
                         const table = document.getElementById("mainTable");
                         if (!table)
                             return;
@@ -2202,6 +2315,8 @@
                             table.style.tableLayout = "fixed";
                         }
                         );
+                        
+                        setFunctionCallStatus('autoFitColumns', false);
                     }
 
                     // Core Data Logic
@@ -2273,6 +2388,8 @@
                     );
 
                     function loadSheet(name) {
+                        setFunctionCallStatus('loadSheet', true);
+                        
                         setProgressStatus('loadFile', 'loading', `Loading ${name}...`);
                         
                         // Update Step 1 header when switching sheets
@@ -2386,6 +2503,8 @@
                             if (step1Btn)
                                 step1Btn.innerHTML = "▼";
                         }
+                        
+                        setFunctionCallStatus('loadSheet', false);
                     }
 
                     function syncChip(input) {
@@ -2401,6 +2520,8 @@
                     }
 
                     function populateDropdowns() {
+                        setFunctionCallStatus('populateDropdowns', true);
+                        
                         selectedFilterCols.forEach((col)=>{
                             const listEl = document.getElementById(`list-${col}`);
                             if (!listEl)
@@ -2433,6 +2554,8 @@
                             ).join("");
                         }
                         );
+                        
+                        setFunctionCallStatus('populateDropdowns', false);
                     }
 
                     function toggleDropdown(e, col) {
@@ -2541,106 +2664,115 @@
                     }
 
                     function runFilter() {
-                        // Reset sorting whenever filters/grouping change so the UI stays consistent.
-                        sortConfig = {
-                            column: null,
-                            direction: "asc"
-                        };
+                        setFunctionCallStatus('runFilter', true);
                         
-                        // Set progress status for apply filters
-                        setProgressStatus('applyFilters', 'loading', 'Applying filters...');
-                        
-                        // 1. Get the global search term and normalize it. This is the value from serach textbox
-                        const search = document.getElementById("globalSearch").value.toLowerCase();
-                        //alert("get date range values");
-                        // --- PREP THE KITCHEN: Grab DOM values ONCE before the loop ---
-                        // to get min and max dates, blank settings, and multiselect choices for each selected filter column
-                        const filterSettings = selectedFilterCols.map(col => {
-                            const minEl = document.getElementById(`date-min-${col}`);
-                            const maxEl = document.getElementById(`date-max-${col}`);
-                            const blankEl = document.getElementById(`blank-${col}`);
-                            
-                            return {
-                                col: col,
-                                minTime: minEl?.value ? new Date(minEl.value).setHours(0,0,0,0) : null,
-                                maxTime: maxEl?.value ? new Date(maxEl.value).setHours(0,0,0,0) : null,
-                                showBlanks: blankEl?.checked || false,
-                                hasFilter: minEl?.value || maxEl?.value,
-                                selections: activeSelections[col]
+                        // Defer heavy work to allow status update to render
+                        setTimeout(() => {
+                            // Reset sorting whenever filters/grouping change so the UI stays consistent.
+                            sortConfig = {
+                                column: null,
+                                direction: "asc"
                             };
-                        });
-                        //alert("Filtering data with search term: " + search);
-                        // Start the Spinner
-                        //showLoading();
+                            
+                            // Set progress status for apply filters
+                            setProgressStatus('applyFilters', 'loading', 'Applying filters...');
+                            
+                            // 1. Get the global search term and normalize it. This is the value from serach textbox
+                            const search = document.getElementById("globalSearch").value.toLowerCase();
+                            //alert("get date range values");
+                            // --- PREP THE KITCHEN: Grab DOM values ONCE before the loop ---
+                            // to get min and max dates, blank settings, and multiselect choices for each selected filter column
+                            const filterSettings = selectedFilterCols.map(col => {
+                                const minEl = document.getElementById(`date-min-${col}`);
+                                const maxEl = document.getElementById(`date-max-${col}`);
+                                const blankEl = document.getElementById(`blank-${col}`);
+                                
+                                return {
+                                    col: col,
+                                    minTime: minEl?.value ? new Date(minEl.value).setHours(0,0,0,0) : null,
+                                    maxTime: maxEl?.value ? new Date(maxEl.value).setHours(0,0,0,0) : null,
+                                    showBlanks: blankEl?.checked || false,
+                                    hasFilter: minEl?.value || maxEl?.value,
+                                    selections: activeSelections[col]
+                                };
+                            });
+                            //alert("Filtering data with search term: " + search);
+                            // Start the Spinner
+                            //showLoading();
 
-                        // 2. Filter the data based on your criteria
-                        // --- THE HIGH-SPEED HIGHWAY ---
-                        filteredDataGlobal = rawData.filter((row) => {
-                            // 1. Optimized Global Search (Use .some instead of joining everything)
-                            if (search) {
-                                const matches = Object.values(row).some(val => 
-                                    String(val).toLowerCase().includes(search)
-                                );
-                                if (!matches) return false;
+                            // 2. Filter the data based on your criteria
+                            // --- THE HIGH-SPEED HIGHWAY ---
+                            filteredDataGlobal = rawData.filter((row) => {
+                                // 1. Optimized Global Search (Use .some instead of joining everything)
+                                if (search) {
+                                    const matches = Object.values(row).some(val => 
+                                        String(val).toLowerCase().includes(search)
+                                    );
+                                    if (!matches) return false;
+                                }
+
+                                // 2. Optimized Column Filters (Use the pre-grabbed settings)
+                                return filterSettings.every((f) => {
+                                    const rawVal = row[f.col];
+                                    
+                                    // Date Logic using pre-calculated minTime/maxTime
+                                    if (f.minTime || f.maxTime || f.showBlanks) {
+                                        const cellDate = (rawVal === null || rawVal === undefined) ? null : excelSerialToJsDate(rawVal);
+                                        
+                                        if (!cellDate || isNaN(cellDate.getTime())) {
+                                            if (f.showBlanks) return true;
+                                            return !f.hasFilter;
+                                        }
+                                        
+                                        const cellTime = cellDate.setHours(0,0,0,0);
+                                        if (f.minTime && cellTime < f.minTime) return false;
+                                        if (f.maxTime && cellTime > f.maxTime) return false;
+                                    }
+
+                                    // Multiselect Logic
+                                    if (f.selections && f.selections.size > 0) {
+                                        const formatted = String(formatExcelDate(rawVal) ?? "");
+                                        const displayVal = (rawVal === null || formatted.trim() === "") ? "(Blanks)" : formatted;
+                                        if (!f.selections.has(displayVal)) return false;
+                                    }
+
+                                    return true;
+                                });
+                            });
+
+                            //alert("Filtering complete. " + filteredDataGlobal.length + " results found.");        
+                            // showFilterStatus(filteredDataGlobal.length);
+                            //alert("updating UI with filtered data");
+                            // 2. Update the counter UI (e.g., "15 / 100")
+                            const statsEl = document.getElementById("stats");
+                            if (statsEl) {
+                                statsEl.innerText = `${filteredDataGlobal.length} / ${rawData.length}`;
+                            }
+                            //alert("Updating table with filtered data");
+                            // 3. Refresh the table and charts
+                            updateTable(filteredDataGlobal);
+
+                            //alert("Updating charts with filtered data");
+                            updateDateRangeChart();
+
+                            // 5. Log activity if Dev Mode is active
+                            if (typeof logDebug === "function") {
+                                logDebug(`Filter executed: ${filteredDataGlobal.length} results found.`, );
                             }
 
-                            // 2. Optimized Column Filters (Use the pre-grabbed settings)
-                            return filterSettings.every((f) => {
-                                const rawVal = row[f.col];
-                                
-                                // Date Logic using pre-calculated minTime/maxTime
-                                if (f.minTime || f.maxTime || f.showBlanks) {
-                                    const cellDate = (rawVal === null || rawVal === undefined) ? null : excelSerialToJsDate(rawVal);
-                                    
-                                    if (!cellDate || isNaN(cellDate.getTime())) {
-                                        if (f.showBlanks) return true;
-                                        return !f.hasFilter;
-                                    }
-                                    
-                                    const cellTime = cellDate.setHours(0,0,0,0);
-                                    if (f.minTime && cellTime < f.minTime) return false;
-                                    if (f.maxTime && cellTime > f.maxTime) return false;
-                                }
-
-                                // Multiselect Logic
-                                if (f.selections && f.selections.size > 0) {
-                                    const formatted = String(formatExcelDate(rawVal) ?? "");
-                                    const displayVal = (rawVal === null || formatted.trim() === "") ? "(Blanks)" : formatted;
-                                    if (!f.selections.has(displayVal)) return false;
-                                }
-
-                                return true;
-                            });
-                        });
-
-                        //alert("Filtering complete. " + filteredDataGlobal.length + " results found.");        
-                        // showFilterStatus(filteredDataGlobal.length);
-                        //alert("updating UI with filtered data");
-                        // 2. Update the counter UI (e.g., "15 / 100")
-                        const statsEl = document.getElementById("stats");
-                        if (statsEl) {
-                            statsEl.innerText = `${filteredDataGlobal.length} / ${rawData.length}`;
-                        }
-                        //alert("Updating table with filtered data");
-                        // 3. Refresh the table and charts
-                        updateTable(filteredDataGlobal);
-
-                        //alert("Updating charts with filtered data");
-                        updateDateRangeChart();
-
-                        // 5. Log activity if Dev Mode is active
-                        if (typeof logDebug === "function") {
-                            logDebug(`Filter executed: ${filteredDataGlobal.length} results found.`, );
-                        }
-
-                        // Update status box with current data manipulation details
-                        updateStatusBox();
-                        
-                        // Mark filters as complete
-                        setProgressStatus('applyFilters', 'complete', `${filteredDataGlobal.length} rows filtered`);
+                            // Update status box with current data manipulation details
+                            updateStatusBox();
+                            
+                            // Mark filters as complete
+                            setProgressStatus('applyFilters', 'complete', `${filteredDataGlobal.length} rows filtered`);
+                            
+                            setFunctionCallStatus('runFilter', false);
+                        }, 0);
                     }
 
                     function updateTable(data) {
+                        setFunctionCallStatus('updateTable', true);
+                        
                         setProgressStatus('updateTable', 'loading', 'Updating table...');
                         
                         const tHead = document.getElementById("tHead")
@@ -2671,9 +2803,18 @@
                             setProgressStatus('groupBy', 'loading', `Grouping by ${groupByCols.join(', ')}...`);
                             setProgressStatus('updateTable', 'loading', 'Building groups...');
                             
+                            // Check for aggregator conflict and reset to Count if needed
+                            let effectiveMode = mode;
+                            let effectiveTargetCol = targetCol;
+                            if (targetCol && groupByCols.includes(targetCol)) {
+                                console.log('[DEBUG] Aggregator column conflicts with GroupBy, resetting to Count');
+                                effectiveMode = '';
+                                effectiveTargetCol = '';
+                            }
+                            
                             const groupMap = new Map();
                             let total = 0;
-                            const globalDistinctSet = mode === "DISTINCT" ? new Set() : null;
+                            const globalDistinctSet = effectiveMode === "DISTINCT" ? new Set() : null;
 
                             data.forEach((row)=>{
                                 const groupValues = groupByCols.map((c)=>getGranularDate(row[c], gran));
@@ -2689,19 +2830,19 @@
                                 }
 
                                 const bucket = groupMap.get(key);
-                                const rowValue = mode === "SUM" ? Number(row[targetCol]) || 0 : mode === "DISTINCT" ? 0 : 1;
+                                const rowValue = effectiveMode === "SUM" ? Number(row[effectiveTargetCol]) || 0 : effectiveMode === "DISTINCT" ? 0 : 1;
 
-                                if (mode === "DISTINCT") {
-                                    bucket._set.add(row[targetCol] ?? "N/A");
-                                    globalDistinctSet.add(row[targetCol] ?? "N/A");
+                                if (effectiveMode === "DISTINCT") {
+                                    bucket._set.add(row[effectiveTargetCol] ?? "N/A");
+                                    globalDistinctSet.add(row[effectiveTargetCol] ?? "N/A");
                                 }
 
                                 bucket._val += rowValue;
-                                if (mode !== "DISTINCT")
+                                if (effectiveMode !== "DISTINCT")
                                     total += rowValue;
                             });
 
-                            if (mode === "DISTINCT") {
+                            if (effectiveMode === "DISTINCT") {
                                 total = globalDistinctSet.size;
                             }
 
@@ -2775,6 +2916,8 @@
                         // Mark table update as complete
                         const rowCount = groupByCols.length > 0 ? currentGroupedData.length : Math.min(data.length, 300);
                         setProgressStatus('updateTable', 'complete', `${rowCount} rows rendered`);
+                        
+                        setFunctionCallStatus('updateTable', false);
                     }
 
                     function getSortIcon(columnName) {
@@ -2786,6 +2929,8 @@
                     }
 
                     function handleSort(col, isG) {
+                        setFunctionCallStatus('handleSort', true);
+                        
                         // 1. Toggle Direction
                         sortConfig.direction = sortConfig.column === col && sortConfig.direction === "asc" ? "desc" : "asc";
                         sortConfig.column = col;
@@ -2818,9 +2963,13 @@
                         // 4. Force Table Refresh
                         // We pass the global filtered data; if Grouping is active, updateTable handles it
                         updateTable(filteredDataGlobal);
+                        
+                        setFunctionCallStatus('handleSort', false);
                     }
 
                     function updateTableFromGrouped() {
+                        setFunctionCallStatus('updateTableFromGrouped', true);
+                        
                         const tBody = document.getElementById("tBody");
                         const k = Object.keys(currentGroupedData[0]);
 
@@ -2829,9 +2978,13 @@
                         updateChart(currentGroupedData);
 
                         initResizers();
+                        
+                        setFunctionCallStatus('updateTableFromGrouped', false);
                     }
 
                     function updateChart(gData) {
+                        setFunctionCallStatus('updateChart', true);
+                        
                         setProgressStatus('updateCharts', 'loading', 'Preparing chart data...');
                         
                         const ctx = document.getElementById("dataChart").getContext("2d");
@@ -2935,9 +3088,13 @@
                         const seriesCount = datasets.length;
                         const dataPoints = labels.length;
                         setProgressStatus('updateCharts', 'complete', `${seriesCount} series, ${dataPoints} points`);
+                        
+                        setFunctionCallStatus('updateChart', false);
                     }
 
                     function updateDateRangeChart() {
+                        setFunctionCallStatus('updateDateRangeChart', true);
+                        
                         setProgressStatus('updateCharts', 'loading', 'Updating date chart...');
                         
                         const container = document.getElementById("dateRangeChartSection");
@@ -3151,6 +3308,8 @@
                         
                         // Mark date range chart as complete
                         setProgressStatus('updateCharts', 'complete', `Date chart: ${labels.length} points`);
+                        
+                        setFunctionCallStatus('updateDateRangeChart', false);
                     }
 
                     function downloadDateRangeChart() {
