@@ -1809,7 +1809,7 @@
                                     <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px" onclick="downloadChart()">🖼️ Save Chart</button>
                                 </div>
                             </div>
-                            <div style="height: 300px">
+                            <div id="chartCanvasContainer" style="height: 300px">
                                 <canvas id="dataChart"></canvas>
                             </div>
                         </div>
@@ -1936,6 +1936,7 @@
                       , filteredDataGlobal = []
                       , hiddenColumns = new Set()
                       , myChart = null
+                      , multipleCharts = []
                       , dateRangeChart = null;
 
                     // Persist resized column widths across re-renders
@@ -3669,23 +3670,171 @@
                     }
 
                     function updateChart(gData) {
-                        setFunctionCallStatus('updateChart', true);
-                        
+                        setFunctionCallStatus('updateChart', true);                        
                         setProgressStatus('updateCharts', 'loading', 'Preparing chart data...');
                         
-                        const ctx = document.getElementById("dataChart").getContext("2d");
+                        const chartContainer = document.getElementById("chartCanvasContainer");
+                        if (!chartContainer) {
+                             console.error("Chart container not found");
+                             setFunctionCallStatus('updateChart', false);
+                             return;
+                        }
+
                         const type = document.getElementById("chartType").value;
                         document.getElementById("chartSection").classList.remove("hidden");
+
+                        // Clear previous multi-charts
+                        if (multipleCharts.length > 0) {
+                            multipleCharts.forEach(c => c.destroy());
+                            multipleCharts = [];
+                        }
 
                         if (!Array.isArray(gData) || gData.length === 0) {
                             if (myChart)
                                 myChart.destroy();
+                            chartContainer.innerHTML = '<canvas id="dataChart"></canvas>';
                             setProgressStatus('updateCharts', 'idle', 'No data');
                             setFunctionCallStatus('updateChart', false);
                             return;
                         }
 
                         const groupByCols = getSelectedGroupByCols();
+                        
+                        // --- MULTI-PIE MODE ---
+                        if (type === 'pie' && groupByCols.length > 1) {
+                            if (myChart) {
+                                myChart.destroy();
+                                myChart = null;
+                            }
+                            
+                            chartContainer.innerHTML = '';
+                            chartContainer.style.height = 'auto';
+                            chartContainer.style.display = 'grid';
+                            chartContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(280px, 1fr))';
+                            chartContainer.style.gap = '15px';
+                            chartContainer.style.padding = '10px';
+
+                            const firstGroupKey = groupByCols[0];
+                            const keys = Object.keys(gData[0]);
+                            const metricKeys = keys.filter(k => !groupByCols.includes(k) && k !== "%");
+                            const metricKey = metricKeys[0] || keys[keys.length - 2];
+
+                            // Group by first key
+                            const grouped = {};
+                            gData.forEach(row => {
+                                const key = row[firstGroupKey];
+                                if (!grouped[key]) grouped[key] = { total: 0, rows: [] };
+                                const val = Number(row[metricKey]) || 0;
+                                grouped[key].total += val;
+                                grouped[key].rows.push({ ...row, _metric: val });
+                            });
+
+                            // Sort X items by total value and take top 20
+                            const topX = Object.entries(grouped)
+                                .sort((a, b) => b[1].total - a[1].total)
+                                .slice(0, 20);
+
+                            if (Object.keys(grouped).length > 20) {
+                                showWarning(`Showing top 20 categories for ${firstGroupKey}.`);
+                            }
+
+                            const colors = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#0ea5e9", "#ec4899", "#14b8a6"];
+
+                            topX.forEach(([xLabel, data], index) => {
+                                // Create Chart Card
+                                const card = document.createElement('div');
+                                card.style.background = 'var(--card-bg)';
+                                card.style.border = '1px solid var(--border)';
+                                card.style.borderRadius = '8px';
+                                card.style.padding = '10px';
+                                card.style.height = '300px';
+                                card.style.display = 'flex';
+                                card.style.flexDirection = 'column';
+
+                                const title = document.createElement('div');
+                                title.innerText = `${xLabel}`;
+                                title.style.fontWeight = '700';
+                                title.style.textAlign = 'center';
+                                title.style.marginBottom = '8px';
+                                title.style.fontSize = '12px';
+                                title.style.overflow = 'hidden';
+                                title.style.textOverflow = 'ellipsis';
+                                title.style.whiteSpace = 'nowrap';
+                                card.appendChild(title);
+
+                                const canvasContainer = document.createElement('div');
+                                canvasContainer.style.flex = '1';
+                                canvasContainer.style.position = 'relative';
+                                const canvas = document.createElement('canvas');
+                                canvasContainer.appendChild(canvas);
+                                card.appendChild(canvasContainer);
+                                chartContainer.appendChild(card);
+
+                                // Prepare Slices (Top 10 + Others)
+                                let slices = data.rows.map(r => {
+                                    // Label is combination of other group keys
+                                    const label = groupByCols.slice(1).map(c => r[c]).join(" | ");
+                                    return { label, value: r._metric };
+                                });
+                                
+                                slices.sort((a, b) => b.value - a.value);
+                                
+                                if (slices.length > 10) {
+                                    const top10 = slices.slice(0, 10);
+                                    const othersVal = slices.slice(10).reduce((sum, s) => sum + s.value, 0);
+                                    top10.push({ label: 'Others', value: othersVal });
+                                    slices = top10;
+                                }
+
+                                const chart = new Chart(canvas.getContext('2d'), {
+                                    type: 'pie',
+                                    data: {
+                                        labels: slices.map(s => s.label),
+                                        datasets: [{
+                                            data: slices.map(s => s.value),
+                                            backgroundColor: slices.map((_, i) => colors[i % colors.length]),
+                                            borderWidth: 1
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: {
+                                            legend: { display: true, position: 'bottom', labels: { boxWidth: 8, font: { size: 10 } } },
+                                            tooltip: {
+                                                callbacks: {
+                                                    label: (ctx) => {
+                                                        const val = ctx.raw;
+                                                        const pct = (data.total > 0) ? ((val / data.total) * 100).toFixed(1) + "%" : "0%";
+                                                        return `${ctx.label}: ${val} (${pct})`;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                                multipleCharts.push(chart);
+                            });
+
+                            setProgressStatus('updateCharts', 'complete', `Generated ${multipleCharts.length} pie charts`);
+                            setFunctionCallStatus('updateChart', false);
+                            return;
+                        }
+
+                        // --- SINGLE CHART MODE ---
+                        
+                        // Restore container style
+                        chartContainer.style.height = '300px';
+                        chartContainer.style.display = 'block';
+                        chartContainer.style.gridTemplateColumns = 'none';
+                        chartContainer.style.gap = '0';
+                        chartContainer.style.padding = '0';
+                        
+                        if (!document.getElementById("dataChart")) {
+                            chartContainer.innerHTML = '<canvas id="dataChart"></canvas>';
+                        }
+                        
+                        const ctx = document.getElementById("dataChart").getContext("2d");
 
                         if (groupByCols.length > 2) {
                             showWarning("Data Chart rendering limited to 2 or fewer grouping columns. Please reduce grouping columns.");
@@ -3755,13 +3904,27 @@
                                 return valB - valA;
                             });
 
-                            if (chartData.length > 20) {
+                            if (type === 'pie' && chartData.length > 10) {
+                                const top10 = chartData.slice(0, 10);
+                                const others = chartData.slice(10);
+                                const othersSum = others.reduce((sum, r) => sum + (Number(r[metricKey]) || 0), 0);
+                                
+                                const othersRow = { ...top10[0] };
+                                if (firstGroupKey) othersRow[firstGroupKey] = "Others";
+                                othersRow[metricKey] = othersSum;
+                                othersRow._isOthers = true;
+                                
+                                chartData = [...top10, othersRow];
+                            } else if (chartData.length > 20) {
                                 showWarning(`Chart has ${chartData.length} items. Showing top 20 ranking data.`);
                                 chartData = chartData.slice(0, 20);
                                 isTruncated = true;
                             }
 
-                            labels = firstGroupKey ? chartData.map((r)=>r[firstGroupKey]) : chartData.map((r,i)=>i + 1);
+                            labels = chartData.map((r, i) => {
+                                if (r._isOthers) return "Others";
+                                return firstGroupKey ? r[firstGroupKey] : (i + 1);
+                            });
                             
                             const colors = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#0ea5e9", "#ec4899", "#14b8a6"];
                             const bgColors = type === "pie" ? chartData.map((_, i) => colors[i % colors.length]) : "#2563eb";
