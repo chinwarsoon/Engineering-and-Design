@@ -1406,13 +1406,6 @@
         <div class="card">
             <div class="header-section">
                 <h2 style="margin: 0">📊 TWRP C4B DCC Submission Explorer Pro</h2>
-                <div id="globalWarningBar" class="hidden" style="background: #fff7ed; border: 1px solid #fdba74; color: #c2410c; padding: 8px 12px; border-radius: 6px; margin-left: 20px; flex: 1; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span>⚠️</span>
-                        <span id="globalWarningText"></span>
-                    </div>
-                    <button onclick="document.getElementById('globalWarningBar').classList.add('hidden')" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #9a3412; padding: 0 4px; line-height: 1;">&times;</button>
-                </div>
                 <!-- Status Box -->
                 <div id="statusBox" class="status-box hidden">
                     <div class="status-box-header">
@@ -1420,6 +1413,13 @@
                         <button class="status-box-close btn-toggle-compact" onclick="toggleStatusBox()">−</button>
                     </div>
                     <div class="status-box-content">
+                        <div id="globalWarningBar" class="hidden" style="background: #fff7ed; border: 1px solid #fdba74; color: #c2410c; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span>⚠️</span>
+                                <span id="globalWarningText"></span>
+                            </div>
+                            <button onclick="document.getElementById('globalWarningBar').classList.add('hidden')" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #9a3412; padding: 0 4px; line-height: 1;">&times;</button>
+                        </div>
                         <div id="progressBarContainer" class="hidden" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
                             <div style="font-size: 10px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Progress</div>
                             <progress id="progressBar" value="0" max="100" style="width: 100%; height: 8px; border-radius: 4px;"></progress>
@@ -1806,13 +1806,26 @@
                         column: null,
                         direction: "asc"
                     };
+                    
+                    let warningTimeout = null;
 
                     function showWarning(message) {
+                        const box = document.getElementById("statusBox");
                         const bar = document.getElementById("globalWarningBar");
                         const text = document.getElementById("globalWarningText");
+                        
+                        if (box && box.classList.contains("hidden")) {
+                            box.classList.remove("hidden");
+                        }
+                        
                         if (bar && text) {
                             text.innerText = message;
                             bar.classList.remove("hidden");
+                            
+                            if (warningTimeout) clearTimeout(warningTimeout);
+                            warningTimeout = setTimeout(() => {
+                                bar.classList.add("hidden");
+                            }, 5000);
                         }
                     }
 
@@ -3352,6 +3365,7 @@
                             if (myChart)
                                 myChart.destroy();
                             setProgressStatus('updateCharts', 'idle', 'No data');
+                            setFunctionCallStatus('updateChart', false);
                             return;
                         }
 
@@ -3360,6 +3374,8 @@
                         if (groupByCols.length > 2) {
                             showWarning("Data Chart rendering limited to 2 or fewer grouping columns. Please reduce grouping columns.");
                             document.getElementById("chartSection").classList.add("hidden");
+                            setProgressStatus('updateCharts', 'idle', 'Chart skipped (> 2 groups)');
+                            setFunctionCallStatus('updateChart', false);
                             return;
                         }
 
