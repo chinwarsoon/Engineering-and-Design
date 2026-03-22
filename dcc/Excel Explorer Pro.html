@@ -1413,12 +1413,22 @@
                         <button class="status-box-close btn-toggle-compact" onclick="toggleStatusBox()">−</button>
                     </div>
                     <div class="status-box-content">
-                        <div id="globalWarningBar" class="hidden" style="background: #fff7ed; border: 1px solid #fdba74; color: #c2410c; padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span>⚠️</span>
-                                <span id="globalWarningText"></span>
+                        <div id="warningSection" class="hidden" style="margin-bottom: 12px; width: 100%;">
+                            <div id="warningHeader" style="background: #fff7ed; border: 1px solid #fdba74; color: #c2410c; padding: 8px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s;" onclick="toggleWarningHistory()">
+                                <div style="display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden;">
+                                    <span>⚠️</span>
+                                    <span id="latestWarningText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+                                    <span id="warningCount" style="background: #c2410c; color: white; border-radius: 10px; padding: 1px 6px; font-size: 10px; min-width: 14px; text-align: center;">0</span>
+                                </div>
+                                <span id="warningToggleIcon" style="font-size: 10px;">▼</span>
                             </div>
-                            <button onclick="document.getElementById('globalWarningBar').classList.add('hidden')" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #9a3412; padding: 0 4px; line-height: 1;">&times;</button>
+                            <div id="warningHistory" class="hidden" style="background: #fff7ed; border: 1px solid #fdba74; border-top: none; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; padding: 0;">
+                                <div style="padding: 8px; border-bottom: 1px solid #fed7aa; display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-size: 10px; text-transform: uppercase; color: #9a3412;">History</span>
+                                    <button onclick="clearWarnings(event)" style="background: none; border: none; color: #c2410c; text-decoration: underline; cursor: pointer; font-size: 10px; padding: 0;">Clear</button>
+                                </div>
+                                <ul id="warningList" style="list-style: none; padding: 0; margin: 0; max-height: 150px; overflow-y: auto;"></ul>
+                            </div>
                         </div>
                         <div id="progressBarContainer" class="hidden" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
                             <div style="font-size: 10px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Progress</div>
@@ -1807,26 +1817,62 @@
                         direction: "asc"
                     };
                     
-                    let warningTimeout = null;
+                    let warningHistory = [];
 
                     function showWarning(message) {
                         const box = document.getElementById("statusBox");
-                        const bar = document.getElementById("globalWarningBar");
-                        const text = document.getElementById("globalWarningText");
+                        const section = document.getElementById("warningSection");
+                        const latestText = document.getElementById("latestWarningText");
+                        const countBadge = document.getElementById("warningCount");
+                        const list = document.getElementById("warningList");
                         
                         if (box && box.classList.contains("hidden")) {
                             box.classList.remove("hidden");
                         }
                         
-                        if (bar && text) {
-                            text.innerText = message;
-                            bar.classList.remove("hidden");
+                        if (section && latestText && list) {
+                            const timestamp = new Date().toLocaleTimeString();
+                            warningHistory.unshift({ time: timestamp, msg: message });
                             
-                            if (warningTimeout) clearTimeout(warningTimeout);
-                            warningTimeout = setTimeout(() => {
-                                bar.classList.add("hidden");
-                            }, 5000);
+                            latestText.innerText = message;
+                            countBadge.innerText = warningHistory.length;
+                            section.classList.remove("hidden");
+                            
+                            const newItem = document.createElement("li");
+                            newItem.style.cssText = "padding: 6px 12px; border-bottom: 1px solid rgba(253, 186, 116, 0.3); font-size: 11px; color: #9a3412; display: flex; gap: 6px;";
+                            newItem.innerHTML = `<span style="opacity: 0.7; font-size: 10px; min-width: 50px;">${timestamp}</span><span>${message}</span>`;
+                            
+                            if (list.firstChild) {
+                                list.insertBefore(newItem, list.firstChild);
+                            } else {
+                                list.appendChild(newItem);
+                            }
                         }
+                    }
+
+                    function toggleWarningHistory() {
+                        const history = document.getElementById("warningHistory");
+                        const icon = document.getElementById("warningToggleIcon");
+                        const header = document.getElementById("warningHeader");
+                        
+                        if (history.classList.contains("hidden")) {
+                            history.classList.remove("hidden");
+                            icon.innerText = "▲";
+                            if (header) header.style.borderRadius = "6px 6px 0 0";
+                        } else {
+                            history.classList.add("hidden");
+                            icon.innerText = "▼";
+                            if (header) header.style.borderRadius = "6px";
+                        }
+                    }
+
+                    function clearWarnings(e) {
+                        if (e) e.stopPropagation();
+                        warningHistory = [];
+                        document.getElementById("warningList").innerHTML = "";
+                        document.getElementById("warningCount").innerText = "0";
+                        document.getElementById("latestWarningText").innerText = "No warnings";
+                        document.getElementById("warningSection").classList.add("hidden");
                     }
 
                     function toggleFilterBox() {
