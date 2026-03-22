@@ -422,9 +422,9 @@
                 border: 1px solid var(--border) !important;
                 border-left: 3px solid var(--primary) !important;
                 border-radius: var(--radius);
-                padding: 16px;
-                margin-top: 16px;
-                margin-bottom: 16px;
+                padding: 12px;
+                margin-top: 10px;
+                margin-bottom: 10px;
                 width: 100%;
                 box-sizing: border-box;
                 font-size: 12px;
@@ -525,7 +525,7 @@
             /* Ensure all filter items have the same vertical alignment */
             .filter-item {
                 background: var(--card-bg);
-                padding: 14px;
+                padding: 2px;
                 border-radius: var(--radius-sm);
                 border: 1px solid var(--border);
                 display: flex;
@@ -545,13 +545,16 @@
                 font-weight: 600;
                 color: var(--text-secondary);
                 margin-bottom: 2px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
 
             /* Ensure the grid layout in the container is tight */
             #filterArea {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-                gap: 16px;
+                grid-template-columns: 1fr;
+                gap: 2px;
                 margin-top: 8px;
             }
 
@@ -671,9 +674,9 @@
 
             #filterArea {
                 display: grid !important;
-                /* Forces the grid layout */
-                grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-                gap: 15px;
+                /* Forces the grid layout to fit width */
+                grid-template-columns: 1fr;
+                gap: 2px;
             }
 
             #loadFilesContainer {
@@ -686,7 +689,7 @@
                 width: 100%;
                 max-width: 100%;
                 /* Forces it to stay inside the blue box */
-                padding: 8px;
+                padding: 6px;
                 background: var(--card-bg);
                 border: 1px solid var(--border);
                 border-radius: 6px;
@@ -725,7 +728,7 @@
             .filters-container.grid-layout {
                 background: var(--card-bg);
                 border: 1px solid var(--border);
-                padding: 6px;
+                padding: 2px;
                 display: flex;
                 flex-direction: column;
                 gap: 2px;
@@ -778,7 +781,7 @@
             #groupByColumnList .toggle-chip,
             #headerList .toggle-chip {
                 width: 100%;
-                justify-content: space-between;
+                justify-content: flex-start;
                 font-size: 11px;
                 border-radius: 8px;
                 padding: 5px 10px;
@@ -968,7 +971,7 @@
                 grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
                 gap: 2px;
                 background: rgba(0, 0, 0, 0.03);
-                padding: 15px;
+                padding: 2px;
                 border-radius: 8px;
                 margin-bottom: 20px;
                 max-height: 300px;
@@ -1341,12 +1344,12 @@
             }
 
             #sidebar {
-                width: 300px;
-                min-width: 250px;
+                width: 250px;
+                min-width: 220px;
                 background: var(--card-bg);
                 border: 1px solid var(--border);
                 border-radius: var(--radius);
-                padding: 16px;
+                padding: 10px;
                 box-shadow: var(--shadow);
                 max-height: calc(100vh - 100px);
                 overflow: auto;
@@ -1373,6 +1376,33 @@
 
             #sidebar.hidden {
                 display: none;
+            }
+            
+            /* Compact Sidebar Elements */
+            #sidebar label {
+                font-size: 10px !important;
+                opacity: 0.9;
+            }
+            
+            #sidebar select, 
+            #sidebar input[type="text"], 
+            #sidebar input[type="date"] {
+                padding: 4px 8px;
+                height: 30px;
+                font-size: 11px;
+            }
+
+            #sidebar .btn, 
+            #sidebar .btn-outline, 
+            #sidebar .btn-toggle-compact {
+                padding: 4px 10px;
+                min-height: 30px;
+                font-size: 11px;
+            }
+
+            #sidebar .multiselect-display {
+                padding: 6px 10px;
+                min-height: 32px;
             }
 
             #mainContent {
@@ -1689,12 +1719,12 @@
                         <div id="dashboardContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
                             <div style="display:flex; flex-direction: column; gap:4px; min-width:100%;">
                                 
-                                <div id="headerListWrapper" style="border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                                <div id="groupByWrapper" style="border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); padding: 4px; display: flex; flex-direction: column; gap: 2px;">
                                     <div style="display:flex; justify-content:flex-end;">
                                         <button class="btn btn-outline" style="padding: 2px 8px; font-size: 10px;" onclick="resetGroupBy()">Reset Grouping</button>
                                     </div>
 
-                                    <div id="groupByColumnList" class="filters-container" style="display:grid; grid-template-columns: 1fr; gap: 4px; max-height: 180px; overflow-y:auto; background: var(--card-bg); display: flex; flex-direction: column; gap: 6px;"></div>
+                                    <div id="groupByColumnList" class="filters-container" style="display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; background: var(--card-bg); width: 100%;"></div>
                                     
                                 </div>
                                 
@@ -4285,13 +4315,15 @@
                         if (!mode) return;
 
                         if (mode === "2") {
-                            const webChoice = prompt("Select Web Agent:\n1. ChatGPT\n2. Google Gemini\n3. Claude\n4. Perplexity\n\nEnter number:", "1");
+                            const webChoice = prompt("Select Web Agent:\n1. ChatGPT\n2. Google Gemini\n3. Claude\n4. Perplexity\n5. Microsoft Copilot\n6. HuggingChat\n\nEnter number:", "1");
                             let url = "https://chatgpt.com/";
                             let name = "ChatGPT";
                             
                             if (webChoice === "2") { url = "https://gemini.google.com/"; name = "Google Gemini"; }
                             else if (webChoice === "3") { url = "https://claude.ai/"; name = "Claude"; }
                             else if (webChoice === "4") { url = "https://www.perplexity.ai/"; name = "Perplexity"; }
+                            else if (webChoice === "5") { url = "https://copilot.microsoft.com/"; name = "Microsoft Copilot"; }
+                            else if (webChoice === "6") { url = "https://huggingface.co/chat/"; name = "HuggingChat"; }
                             
                             aiConfig.provider = 'web';
                             aiConfig.webUrl = url;
