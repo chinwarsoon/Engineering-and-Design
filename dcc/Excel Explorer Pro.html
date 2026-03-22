@@ -2318,10 +2318,12 @@
                             element.classList.add('status-loading');
                             element.innerText = `calling ${functionName}()`;
                             console.log(`[DEBUG] calling ${functionName}()`);
+                            logDebug(`calling ${functionName}()`);
                         } else {
                             element.classList.add('status-complete');
                             element.innerText = `${functionName}() done`;
                             console.log(`[DEBUG] ${functionName}() done`);
+                            logDebug(`${functionName}() done`);
                             // Auto-reset after 1 second
                             setTimeout(() => {
                                 if (element.classList.contains('status-complete')) {
@@ -2395,6 +2397,7 @@
 
                     function handleGroupByChange(cb) {
                         console.log('[DEBUG] handleGroupByChange processing');
+                        logDebug('[DEBUG] handleGroupByChange processing');
                         setFunctionCallStatus('handleGroupByChange', true);
                         
                         // 1. Immediate Visual Feedback (Synchronous)
@@ -2411,6 +2414,7 @@
                         setTimeout(() => {
                             try {
                                 console.log('[DEBUG] Starting heavy operations'); 
+                                logDebug('[DEBUG] Starting heavy operations'); 
                                 reorderGroupByList();
                                 updateGroupBySelection();
                                 
@@ -2420,6 +2424,7 @@
                                     const [,targetCol] = aggValue.split("|");
                                     if (targetCol && selectedGroupCols.includes(targetCol)) {
                                         console.log('[DEBUG] Resetting aggregator - conflicts with GroupBy:', targetCol);
+                                        logDebug(`[DEBUG] Resetting aggregator - conflicts with GroupBy: ${targetCol}`);
                                         showWarning(`Column '${targetCol}' is used in Group By. Aggregator reset to Count.`);
                                         document.getElementById("aggColumn").value = "";
                                     }
@@ -2430,9 +2435,11 @@
                                 runFilter();
                             } catch (err) {
                                 console.error('[ERROR] handleGroupByChange failed:', err);
+                                logDebug(`[ERROR] handleGroupByChange failed: ${err}`);
                                 setFunctionCallStatus('handleGroupByChange', false);
                             } finally {
                                 console.log('[DEBUG] handleGroupByChange completed');
+                                logDebug('[DEBUG] handleGroupByChange completed');
                             }
                         }, 50);
                     }
@@ -2733,6 +2740,7 @@
 
                         setTimeout(()=>{
                             console.log("Date inputs initialized:", document.querySelectorAll('input[type="date"]').length, );
+                            logDebug(`Date inputs initialized: ${document.querySelectorAll('input[type="date"]').length}`);
                         }
                         , 100);
                         
@@ -2994,6 +3002,7 @@
                             } catch (err) {
                                 setProgressStatus('loadFile', 'error', 'Failed to load');
                                 console.error('File loading error:', err);
+                                logDebug('File loading error: ' + err.message);
                             }
                         }
                         ;
@@ -3101,6 +3110,7 @@
                         // Assign header
                         headers = Object.keys(rawData[0]);
                         console.log("Detected Headers:", headers);
+                        logDebug("Detected Headers: " + headers.join(", "));
 
                         // Reset any saved widths when the dataset changes
                         columnWidths = {};
@@ -3442,6 +3452,7 @@
                             let effectiveTargetCol = targetCol;
                             if (targetCol && groupByCols.includes(targetCol)) {
                                 console.log('[DEBUG] Aggregator column conflicts with GroupBy, resetting to Count');
+                                logDebug('[DEBUG] Aggregator column conflicts with GroupBy, resetting to Count');
                                 effectiveMode = '';
                                 effectiveTargetCol = '';
                             }
@@ -3676,6 +3687,7 @@
                         const chartContainer = document.getElementById("chartCanvasContainer");
                         if (!chartContainer) {
                              console.error("Chart container not found");
+                             logDebug("Error: Chart container not found");
                              setFunctionCallStatus('updateChart', false);
                              return;
                         }
@@ -4040,6 +4052,7 @@
                         const gran = document.getElementById("dateGranularity")?.value || "none";
                         const aggMode = document.getElementById("dateRangeAgg")?.value || "SUM";
                         console.log("Date range chart aggMode", aggMode, "selectedYs", selectedYs);
+                        logDebug(`Date range chart aggMode: ${aggMode}, selectedYs: ${selectedYs.join(', ')}`);
 
                         const data = filteredDataGlobal || [];
 
@@ -4461,6 +4474,7 @@
                         themeBtn.innerText = `${nextTheme.icon} ${nextTheme.name}`;
                         
                         console.log(`[THEME] Switched to ${nextTheme.name} mode`);
+                        logDebug(`[THEME] Switched to ${nextTheme.name} mode`);
                     }
 
                     let devModeActive = false;
@@ -4681,6 +4695,7 @@
                             }
                         } catch (e) {
                             console.error("Error fetching models:", e);
+                            logDebug("Error fetching models: " + e.message);
                         }
                         return [];
                     }
@@ -4831,11 +4846,13 @@
                                 lastBotMsg.innerText = answer;
                             } else {
                                 console.warn("Gemini Response:", data);
+                                logDebug("Gemini Response Warning: " + JSON.stringify(data));
                                 lastBotMsg.innerText = "⚠️ Response was empty or blocked. Check console.";
                             }
                         } catch (e) {
                             const lastBotMsg = document.getElementById("aiMessages").lastElementChild;
                             lastBotMsg.innerText = "⚠️ Error connecting to AI: " + e.message;
+                            logDebug("AI Error: " + e.message);
                         }
                     }
 
@@ -4875,6 +4892,7 @@
                         } catch (e) {
                             const lastBotMsg = document.getElementById("aiMessages").lastElementChild;
                             lastBotMsg.innerText = "⚠️ Error connecting to AI: " + e.message;
+                            logDebug("AI Error: " + e.message);
                         }
                     }
                 </script>
