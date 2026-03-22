@@ -1905,7 +1905,7 @@
 
                         // Group By
                         const groupCols = getSelectedGroupByCols();
-                        document.getElementById("statusGroupBy").innerText = groupCols.length > 0 ? groupCols.join(", ") : "None";
+                        document.getElementById("statusGroupByCols").innerText = groupCols.length > 0 ? groupCols.join(", ") : "None";
 
                         // Aggregate
                         const aggVal = document.getElementById("aggColumn")?.value;
@@ -2131,12 +2131,14 @@
                                         document.getElementById("aggColumn").value = "";
                                     }
                                 }
-                                
+                                updateStatusBox();
+                                setFunctionCallStatus('handleGroupByChange', false);
+                                // Hand off to runFilter; it will update the status to "calling runFilter()"
                                 runFilter();
                             } catch (err) {
                                 console.error('[ERROR] handleGroupByChange failed:', err);
-                            } finally {
                                 setFunctionCallStatus('handleGroupByChange', false);
+                            } finally {
                                 console.log('[DEBUG] handleGroupByChange completed');
                             }
                         }, 50);
@@ -2972,6 +2974,7 @@
                             };
                             
                             // Set progress status for apply filters
+                            //alert("Applying filters to data...");
                             setProgressStatus('applyFilters', 'loading', 'Applying filters...');
                             
                             // 1. Get the global search term and normalize it. This is the value from serach textbox
@@ -3064,13 +3067,15 @@
                             setProgressStatus('applyFilters', 'complete', `${filteredDataGlobal.length} rows filtered`);
                             
                             setFunctionCallStatus('runFilter', false);
-                        }, 0);
+                        }, 50);
                     }
 
                     function updateTable(data) {
                         setFunctionCallStatus('updateTable', true);
                         
                         setProgressStatus('updateTable', 'loading', 'Updating table...');
+                        
+                        setTimeout(() => {
                         
                         const tHead = document.getElementById("tHead")
                           , tBody = document.getElementById("tBody");
@@ -3215,6 +3220,7 @@
                         setProgressStatus('updateTable', 'complete', `${rowCount} rows rendered`);
                         
                         setFunctionCallStatus('updateTable', false);
+                        }, 50);
                     }
 
                     function getSortIcon(columnName) {
