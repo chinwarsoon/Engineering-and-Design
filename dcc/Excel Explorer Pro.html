@@ -1411,7 +1411,10 @@
                 <div id="statusBox" class="status-box hidden">
                     <div class="status-box-header">
                         <span class="status-box-title">📋 Current Status</span>
-                        <button class="status-box-close btn-toggle-compact" onclick="toggleStatusBox()">−</button>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <button id="cancelOperationBtn" class="btn-toggle-compact hidden" style="color: #ef4444; border-color: #ef4444; font-size: 10px; padding: 2px 6px;" onclick="cancelCurrentOperation()">🛑 Cancel</button>
+                            <button class="status-box-close btn-toggle-compact" onclick="toggleStatusBox()">−</button>
+                        </div>
                     </div>
                     <div class="status-box-content">
                         <div id="warningSection" class="hidden" style="margin-bottom: 12px; width: 100%;">
@@ -1817,6 +1820,7 @@
                         column: null,
                         direction: "asc"
                     };
+                    let activeOperation = null;
                     
                     let warningHistory = [];
 
@@ -1874,6 +1878,45 @@
                         document.getElementById("warningCount").innerText = "0";
                         document.getElementById("latestWarningText").innerText = "No warnings";
                         document.getElementById("warningSection").classList.add("hidden");
+                    }
+                    
+                    function registerOperation(cancelFn) {
+                        activeOperation = { cancel: cancelFn };
+                        const btn = document.getElementById('cancelOperationBtn');
+                        if (btn) btn.classList.remove('hidden');
+                    }
+
+                    function clearOperation() {
+                        activeOperation = null;
+                        const btn = document.getElementById('cancelOperationBtn');
+                        if (btn) btn.classList.add('hidden');
+                    }
+
+                    function cancelCurrentOperation() {
+                        if (activeOperation && activeOperation.cancel) {
+                            activeOperation.cancel();
+                            activeOperation = null;
+                            
+                            showWarning("Operation cancelled by user.");
+                            
+                            const btn = document.getElementById('cancelOperationBtn');
+                            if (btn) btn.classList.add('hidden');
+                            
+                            const progressBarContainer = document.getElementById('progressBarContainer');
+                            if (progressBarContainer) progressBarContainer.classList.add('hidden');
+                            
+                            const statuses = ['statusLoadFile', 'statusUpdateCharts', 'statusUpdateTable', 'statusApplyFilters', 'statusGroupBy'];
+                            statuses.forEach(id => {
+                                const el = document.getElementById(id);
+                                if (el && el.classList.contains('status-loading')) {
+                                    el.classList.remove('status-loading');
+                                    el.classList.add('status-idle');
+                                    el.innerText = 'Cancelled';
+                                }
+                            });
+                            
+                            setFunctionCallStatus('Cancelled', false);
+                        }
                     }
 
                     function toggleFilterBox() {
@@ -3332,6 +3375,7 @@
                                 
                                 updateChart(currentGroupedData);
                                 finishUpdateTable();
+                                clearOperation();
                             }
                             
                             // Start chunked processing
@@ -3363,6 +3407,7 @@
                                 tBody.innerHTML += `<tr><td colspan="${vis.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Raw data preview limited to ${limit} rows. Export to Excel to view all ${data.length} records.</td></tr>`;
                             }
                             finishUpdateTable();
+                            clearOperation();
                         }
 
                         function finishUpdateTable() {
