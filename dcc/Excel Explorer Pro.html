@@ -1618,6 +1618,9 @@
                             <div style="display:flex; flex-direction: column; gap:4px; min-width:100%;">
                                 
                                 <div id="headerListWrapper" style="border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                                    <div style="display:flex; justify-content:flex-end;">
+                                        <button class="btn btn-outline" style="padding: 2px 8px; font-size: 10px;" onclick="resetGroupBy()">Reset Grouping</button>
+                                    </div>
 
                                     <div id="groupByColumnList" class="filters-container" style="display:grid; grid-template-columns: 1fr; gap: 4px; max-height: 180px; overflow-y:auto; background: var(--card-bg); display: flex; flex-direction: column; gap: 6px;"></div>
                                     
@@ -2362,6 +2365,30 @@
                         runFilter();
                         
                         setFunctionCallStatus('moveGroupByOption', false);
+                    }
+
+                    function resetGroupBy() {
+                        setFunctionCallStatus('resetGroupBy', true);
+                        
+                        // Reset Aggregator to default
+                        const aggSelect = document.getElementById("aggColumn");
+                        if (aggSelect) aggSelect.value = "";
+
+                        // Restore original order and uncheck all
+                        const list = document.getElementById("groupByColumnList");
+                        if (list && headers.length > 0) {
+                            list.innerHTML = headers.map((h) => `
+                                <label class="toggle-chip group-by-chip" > 
+                                    <input type="checkbox" class="group-by-col-check" value="${h}" onchange="handleGroupByChange(this)">
+                                    <span class="status-icon"></span>
+                                    ${h}
+                                </label>
+                            `).join("");
+                        }
+
+                        updateGroupBySelection();
+                        runFilter();
+                        setFunctionCallStatus('resetGroupBy', false);
                     }
 
                     // Auto-hide Step 2 after initializing to save space
