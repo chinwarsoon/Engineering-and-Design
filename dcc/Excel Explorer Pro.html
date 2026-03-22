@@ -4428,16 +4428,34 @@
                     }
 
                     function getAIContextData(limit = 100) {
-                        const context = `Dataset: ${filteredDataGlobal.length} rows visible. Columns: ${headers.join(', ')}.`;
-                        let dataSample = "";
+                        const rowCount = filteredDataGlobal.length;
+                        const totalRows = rawData.length;
                         
+                        // 1. Data Context & State
+                        let context = `Dataset Summary:\n- Rows: ${rowCount} visible / ${totalRows} total\n- Columns: ${headers.join(', ')}`;
+                        
+                        // Get grouping info safely (without triggering status updates)
+                        const activeGroups = Array.from(document.querySelectorAll(".group-by-col-check:checked")).map(cb => cb.value);
+                        context += `\n- Active Grouping: ${activeGroups.length > 0 ? activeGroups.join(", ") : "None"}`;
+                        
+                        const aggVal = document.getElementById("aggColumn")?.value;
+                        context += `\n- Active Aggregation: ${aggVal || "Count"}`;
+
+                        // 2. Capabilities Description
+                        context += `\n\nTool Capabilities (You can recommend these actions):`;
+                        context += `\n- Filtering: Search text, filter by values, date ranges, or blanks.`;
+                        context += `\n- Grouping: Group by any column (supports multi-level).`;
+                        context += `\n- Aggregation: Sum, Count, Distinct Count.`;
+                        context += `\n- Visualization: Bar, Line, Pie charts. Date Range Chart.`;
+
+                        let dataSample = "";
                         if (currentGroupedData.length > 0) {
-                            dataSample = `Grouped Data (Top ${limit} of ${currentGroupedData.length}): ` + JSON.stringify(currentGroupedData.slice(0, limit));
+                            dataSample = `Grouped Data Sample (Top ${limit}): ` + JSON.stringify(currentGroupedData.slice(0, limit));
                         } else {
-                            dataSample = `Data Sample (Top ${limit} of ${filteredDataGlobal.length}): ` + JSON.stringify(filteredDataGlobal.slice(0, limit));
+                            dataSample = `Raw Data Sample (Top ${limit}): ` + JSON.stringify(filteredDataGlobal.slice(0, limit));
                         }
                         
-                        return `Context: ${context}\n\n${dataSample}`;
+                        return `Context:\n${context}\n\n${dataSample}`;
                     }
 
                     function openOnlineAgent(userPrompt) {
