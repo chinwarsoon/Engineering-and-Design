@@ -1420,6 +1420,10 @@
                         <button class="status-box-close btn-toggle-compact" onclick="toggleStatusBox()">−</button>
                     </div>
                     <div class="status-box-content">
+                        <div id="progressBarContainer" class="hidden" style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                            <div style="font-size: 10px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">Progress</div>
+                            <progress id="progressBar" value="0" max="100" style="width: 100%; height: 8px; border-radius: 4px;"></progress>
+                        </div>
                         <!-- Progress Section -->
                         <div style="margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
                             <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">⚡ Operations</div>
@@ -3103,23 +3107,8 @@
 
                         const aggKey = mode === "DISTINCT" ? `DISTINCT - ${targetCol || "Value"}` : mode || "Count";
 
-                        // Helper to escape HTML and prevent XSS
-                        const escapeHTML = (str)=>{
-                            if (typeof str !== "string")
-                                return str;
-                            return str.replace(/[&<>"']/g, (m)=>({
-                                "&": "&amp;",
-                                "<": "&lt;",
-                                ">": "&gt;",
-                                '"': "&quot;",
-                                "'": "&#39;",
-                            })[m], );
-                        }
-                        ;
-
                         if (groupByCols.length > 0) {
                             setProgressStatus('groupBy', 'loading', `Grouping by ${groupByCols.join(', ')}...`);
-                            setProgressStatus('updateTable', 'loading', 'Building groups...');
                             
                             // Check for aggregator conflict and reset to Count if needed
                             let effectiveMode = mode;
@@ -3134,75 +3123,107 @@
                             let total = 0;
                             const globalDistinctSet = effectiveMode === "DISTINCT" ? new Set() : null;
 
-                            data.forEach((row)=>{
-                                const groupValues = groupByCols.map((c)=>getGranularDate(row[c], gran));
-                                const key = groupValues.join(" | ");
+                            // Progress Bar Setup
+                            const progressBar = document.getElementById('progressBar');
+                            const progressBarContainer = document.getElementById('progressBarContainer');
+                            if (progressBarContainer) progressBarContainer.classList.remove('hidden');
+                            if (progressBar) { progressBar.value = 0; progressBar.max = data.length; }
 
-                                if (!groupMap.has(key)) {
-                                    groupMap.set(key, {
-                                        values: groupValues,
-                                        _val: 0,
-                                        _set: new Set(),
-                                        _sortKey: parseDateSort(key),
-                                    });
+                            let currentIndex = 0;
+                            const chunkSize = 5000; // Process in chunks to prevent freezing
+
+                            function processBatch() {
+                                const end = Math.min(currentIndex + chunkSize, data.length);
+                                for (let i = currentIndex; i < end; i++) {
+                                    const row = data[i];
+                                    const groupValues = groupByCols.map((c)=>getGranularDate(row[c], gran));
+                                    const key = groupValues.join(" | ");
+
+                                    if (!groupMap.has(key)) {
+                                        groupMap.set(key, {
+                                            values: groupValues,
+                                            _val: 0,
+                                            _set: new Set(),
+                                            _sortKey: parseDateSort(key),
+                                        });
+                                    }
+
+                                    const bucket = groupMap.get(key);
+                                    const rowValue = effectiveMode === "SUM" ? Number(row[effectiveTargetCol]) || 0 : effectiveMode === "DISTINCT" ? 0 : 1;
+
+                                    if (effectiveMode === "DISTINCT") {
+                                        bucket._set.add(row[effectiveTargetCol] ?? "N/A");
+                                        globalDistinctSet.add(row[effectiveTargetCol] ?? "N/A");
+                                    }
+
+                                    bucket._val += rowValue;
+                                    if (effectiveMode !== "DISTINCT")
+                                        total += rowValue;
                                 }
+                                
+                                currentIndex = end;
+                                if (progressBar) progressBar.value = currentIndex;
 
-                                const bucket = groupMap.get(key);
-                                const rowValue = effectiveMode === "SUM" ? Number(row[effectiveTargetCol]) || 0 : effectiveMode === "DISTINCT" ? 0 : 1;
+                                if (currentIndex < data.length) {
+                                    const percent = Math.floor((currentIndex / data.length) * 100);
+                                    setProgressStatus('groupBy', 'loading', `Grouping... ${percent}%`);
+                                    setTimeout(processBatch, 0); // Yield to UI
+                                } else {
+                                    if (progressBarContainer) progressBarContainer.classList.add('hidden');
+                                    renderGroupedData();
+                                }
+                            }
 
+                            function renderGroupedData() {
                                 if (effectiveMode === "DISTINCT") {
-                                    bucket._set.add(row[effectiveTargetCol] ?? "N/A");
-                                    globalDistinctSet.add(row[effectiveTargetCol] ?? "N/A");
+                                    total = globalDistinctSet.size;
                                 }
 
-                                bucket._val += rowValue;
-                                if (effectiveMode !== "DISTINCT")
-                                    total += rowValue;
-                            });
+                                setProgressStatus('updateTable', 'loading', 'Sorting groups...');
+                                
+                                currentGroupedData = Array.from(groupMap.values())
+                                    .sort((a,b)=> (a._sortKey > b._sortKey ? 1 : -1))
+                                    .map((g)=>{
+                                        const f = mode === "DISTINCT" ? g._set.size : g._val;
+                                        const resultRow = Object.fromEntries(groupByCols.map((c,i)=>[c, g.values[i]]));
 
-                            if (effectiveMode === "DISTINCT") {
-                                total = globalDistinctSet.size;
+                                        return {
+                                            ...resultRow,
+                                            [aggKey]: f,
+                                            "%": total > 0 ? (f / total) * 100 : 0,
+                                        };
+                                    });
+
+                                setProgressStatus('updateTable', 'loading', 'Rendering table...');
+                                
+                                const k = Object.keys(currentGroupedData[0]);
+                                tHead.innerHTML = `<tr>${k.map((x)=>{
+                                    const icon = getSortIcon(x);
+                                    const widthStyle = columnWidths[x] ? `style=\"width:${columnWidths[x]}px;\"` : "";
+                                    return `<th data-col=\"${x}\" ${widthStyle} onclick=\"handleSort('${x}', true)\">${x} ${icon}</th>`;
+                                }
+                                ).join("")}</tr>`;
+
+                                const limit = 2000;
+                                tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
+                                
+                                if (currentGroupedData.length > limit) {
+                                    tBody.innerHTML += `<tr><td colspan="${k.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Display limited to top ${limit} groups. Export to Excel to view all ${currentGroupedData.length} groups.</td></tr>`;
+                                }
+                                
+                                // Mark GroupBy as complete
+                                setProgressStatus('groupBy', 'complete', `${currentGroupedData.length} groups created`);
+                                
+                                // Mark table update as complete for grouped data
+                                setProgressStatus('updateTable', 'complete', `${currentGroupedData.length} groups rendered`);
+                                
+                                updateChart(currentGroupedData);
+                                finishUpdateTable();
                             }
-
-                            setProgressStatus('updateTable', 'loading', 'Sorting groups...');
                             
-                            currentGroupedData = Array.from(groupMap.values())
-                                .sort((a,b)=> (a._sortKey > b._sortKey ? 1 : -1))
-                                .map((g)=>{
-                                    const f = mode === "DISTINCT" ? g._set.size : g._val;
-                                    const resultRow = Object.fromEntries(groupByCols.map((c,i)=>[c, g.values[i]]));
-
-                                    return {
-                                        ...resultRow,
-                                        [aggKey]: f,
-                                        "%": total > 0 ? (f / total) * 100 : 0,
-                                    };
-                                });
-
-                            setProgressStatus('updateTable', 'loading', 'Rendering table...');
+                            // Start chunked processing
+                            processBatch();
                             
-                            const k = Object.keys(currentGroupedData[0]);
-                            tHead.innerHTML = `<tr>${k.map((x)=>{
-                                const icon = getSortIcon(x);
-                                const widthStyle = columnWidths[x] ? `style=\"width:${columnWidths[x]}px;\"` : "";
-                                return `<th data-col=\"${x}\" ${widthStyle} onclick=\"handleSort('${x}', true)\">${x} ${icon}</th>`;
-                            }
-                            ).join("")}</tr>`;
-
-                            const limit = 2000;
-                            tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
-                            
-                            if (currentGroupedData.length > limit) {
-                                tBody.innerHTML += `<tr><td colspan="${k.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Display limited to top ${limit} groups. Export to Excel to view all ${currentGroupedData.length} groups.</td></tr>`;
-                            }
-                            
-                            // Mark GroupBy as complete
-                            setProgressStatus('groupBy', 'complete', `${currentGroupedData.length} groups created`);
-                            
-                            // Mark table update as complete for grouped data
-                            setProgressStatus('updateTable', 'complete', `${currentGroupedData.length} groups rendered`);
-                            
-                            updateChart(currentGroupedData);
                         } else {
                             setProgressStatus('groupBy', 'idle', 'No grouping');
                             setProgressStatus('updateTable', 'loading', 'Building raw data view...');
@@ -3228,24 +3249,26 @@
                             if (data.length > limit) {
                                 tBody.innerHTML += `<tr><td colspan="${vis.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Raw data preview limited to ${limit} rows. Export to Excel to view all ${data.length} records.</td></tr>`;
                             }
+                            finishUpdateTable();
                         }
 
-                        setProgressStatus('updateTable', 'loading', 'Initializing resizers...');
-                        
-                        initResizers();
+                        function finishUpdateTable() {
+                            setProgressStatus('updateTable', 'loading', 'Initializing resizers...');
+                            initResizers();
 
-                        // Auto-fit columns on first render (then allow users to shrink columns manually)
-                        if (!autoFitDone) {
-                            setProgressStatus('updateTable', 'loading', 'Auto-fitting columns...');
-                            autoFitColumns();
-                            autoFitDone = true;
+                            // Auto-fit columns on first render (then allow users to shrink columns manually)
+                            if (!autoFitDone) {
+                                setProgressStatus('updateTable', 'loading', 'Auto-fitting columns...');
+                                autoFitColumns();
+                                autoFitDone = true;
+                            }
+                            
+                            // Mark table update as complete
+                            const rowCount = groupByCols.length > 0 ? currentGroupedData.length : Math.min(data.length, 300);
+                            setProgressStatus('updateTable', 'complete', `${rowCount} rows rendered`);
+                            
+                            setFunctionCallStatus('updateTable', false);
                         }
-                        
-                        // Mark table update as complete
-                        const rowCount = groupByCols.length > 0 ? currentGroupedData.length : Math.min(data.length, 300);
-                        setProgressStatus('updateTable', 'complete', `${rowCount} rows rendered`);
-                        
-                        setFunctionCallStatus('updateTable', false);
                         }, 50);
                     }
 
