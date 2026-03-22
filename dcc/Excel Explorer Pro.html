@@ -1401,6 +1401,60 @@
             #layoutWrapper {
                 margin-top: 10px;
             }
+
+            /* AI Agent Styling */
+            #aiFloatBtn {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 50px;
+                height: 50px;
+                border-radius: 25px;
+                background: linear-gradient(135deg, #6366f1, #a855f7);
+                color: white;
+                font-size: 24px;
+                border: none;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                cursor: pointer;
+                z-index: 9990;
+                transition: transform 0.2s, box-shadow 0.2s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            #aiFloatBtn:hover {
+                transform: scale(1.1);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            }
+            #aiChatWindow {
+                position: fixed;
+                bottom: 80px;
+                right: 20px;
+                width: 320px;
+                height: 450px;
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                z-index: 9991;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                transform-origin: bottom right;
+            }
+            #aiChatWindow.hidden {
+                transform: scale(0.9);
+                opacity: 0;
+                pointer-events: none;
+                display: none; /* Helpers for accessibility */
+            }
+            .ai-header { background: linear-gradient(135deg, #6366f1, #a855f7); color: white; padding: 12px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+            .ai-messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); font-size: 12px; }
+            .ai-message { padding: 8px 12px; border-radius: 8px; max-width: 85%; word-wrap: break-word; line-height: 1.4; }
+            .ai-message.user { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+            .ai-message.bot { align-self: flex-start; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-main); border-bottom-left-radius: 2px; box-shadow: var(--shadow-sm); }
+            .ai-input-area { padding: 10px; border-top: 1px solid var(--border); background: var(--card-bg); display: flex; gap: 6px; }
         </style>
     </head>
     <body>
@@ -1551,6 +1605,24 @@
                 <div id="debugList"></div>
             </div>
             <div style="border-bottom: 1px solid var(--border); margin-bottom: 10px; width: 100%;"></div>
+            
+            <!-- AI Agent Floating Interface -->
+            <button id="aiFloatBtn" onclick="toggleAIChat()" title="AI Data Analyst">🤖</button>
+            <div id="aiChatWindow" class="hidden">
+                <div class="ai-header">
+                    <span>🤖 Data Analyst</span>
+                    <button onclick="configureAI()" style="background:none; border:1px solid rgba(255,255,255,0.3); border-radius:4px; color:white; font-size:10px; padding:2px 6px; cursor:pointer; margin-left:auto; margin-right:8px;">🔑 API Key</button>
+                    <button onclick="toggleAIChat()" style="background:none; border:none; color:white; cursor:pointer; font-size:16px;">&times;</button>
+                </div>
+                <div id="aiMessages" class="ai-messages">
+                    <div class="ai-message bot">👋 Hi! Load data, and I'll help you analyze it.</div>
+                </div>
+                <div class="ai-input-area">
+                    <input type="text" id="aiInput" placeholder="Ask about your data..." onkeyup="if(event.key==='Enter') sendUserMessage()" style="flex:1;">
+                    <button class="btn-toggle-compact" onclick="sendUserMessage()">➤</button>
+                </div>
+            </div>
+
             <div id="layoutWrapper">
                 <aside id="sidebar">
                     <div id="step1" style="width: 100%">
@@ -3469,6 +3541,7 @@
                             const rowCount = groupByCols.length > 0 ? currentGroupedData.length : Math.min(data.length, 300);
                             setProgressStatus('updateTable', 'complete', `${rowCount} rows rendered`);
                             
+                            generateAIAdvice(data, groupByCols);
                             setFunctionCallStatus('updateTable', false);
                         }
                         }, 50);
@@ -4188,6 +4261,291 @@
                         div.classList.add("hidden-toast");
                         document.body.appendChild(div);
                         return div;
+                    }
+
+                    // --- AI Agent Logic ---
+                    let aiConfig = {
+                        provider: localStorage.getItem('dcc_ai_provider') || 'gemini',
+                        apiKey: localStorage.getItem('dcc_ai_key') || '',
+                        model: localStorage.getItem('dcc_ai_model') || 'gemini-pro',
+                        webUrl: localStorage.getItem('dcc_ai_web_url') || 'https://chatgpt.com/',
+                        webName: localStorage.getItem('dcc_ai_web_name') || 'ChatGPT'
+                    };
+
+                    function toggleAIChat() {
+                        const w = document.getElementById("aiChatWindow");
+                        w.classList.toggle("hidden");
+                        if (!w.classList.contains("hidden")) {
+                            document.getElementById("aiInput").focus();
+                        }
+                    }
+
+                    async function configureAI() {
+                        const mode = prompt("Select AI Mode:\n1. API Integration (Gemini, OpenAI, DeepSeek)\n2. Web Agent (ChatGPT, Claude, etc. - No Key)\n\nEnter 1 or 2:", "1");
+                        if (!mode) return;
+
+                        if (mode === "2") {
+                            const webChoice = prompt("Select Web Agent:\n1. ChatGPT\n2. Google Gemini\n3. Claude\n4. Perplexity\n\nEnter number:", "1");
+                            let url = "https://chatgpt.com/";
+                            let name = "ChatGPT";
+                            
+                            if (webChoice === "2") { url = "https://gemini.google.com/"; name = "Google Gemini"; }
+                            else if (webChoice === "3") { url = "https://claude.ai/"; name = "Claude"; }
+                            else if (webChoice === "4") { url = "https://www.perplexity.ai/"; name = "Perplexity"; }
+                            
+                            aiConfig.provider = 'web';
+                            aiConfig.webUrl = url;
+                            aiConfig.webName = name;
+                            
+                            localStorage.setItem('dcc_ai_provider', 'web');
+                            localStorage.setItem('dcc_ai_web_url', url);
+                            localStorage.setItem('dcc_ai_web_name', name);
+                            
+                            addAiMessage("bot", `✅ Switched to Web Agent mode (${name}). Questions will be copied to clipboard.`);
+                            return;
+                        }
+
+                        const choice = prompt("Select AI API Provider:\n1. Google Gemini (Default)\n2. DeepSeek (OpenAI-compatible)\n3. OpenAI (ChatGPT)\n\nEnter 1, 2 or 3:", "1");
+                        if (!choice) return;
+
+                        let provider = "gemini";
+                        if (choice === "2") provider = "deepseek";
+                        if (choice === "3") provider = "openai";
+
+                        const currentKey = aiConfig.provider === provider ? aiConfig.apiKey : "";
+                        const key = prompt(`Enter API Key for ${provider} (leave empty to disable):`, currentKey);
+                        
+                        if (key === null) return;
+
+                        const trimmedKey = key.trim();
+                        if (key !== null) {
+                            aiConfig.provider = provider;
+                            aiConfig.apiKey = trimmedKey;
+                            localStorage.setItem('dcc_ai_provider', provider);
+                            localStorage.setItem('dcc_ai_key', aiConfig.apiKey);
+
+                            if (trimmedKey) {
+                                addAiMessage("bot", `🔄 Fetching available models for ${provider}...`);
+                                let models = [];
+                                try {
+                                    models = await fetchModels(provider, trimmedKey);
+                                } catch (e) {
+                                    console.warn("Model fetch error:", e);
+                                }
+                                
+                                // Fallback defaults if fetch fails or returns empty
+                                if (models.length === 0) {
+                                    if (provider === 'gemini') models = ["gemini-1.5-flash", "gemini-pro", "gemini-1.5-pro"];
+                                    if (provider === 'openai') models = ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"];
+                                    if (provider === 'deepseek') models = ["deepseek-chat", "deepseek-coder"];
+                                }
+
+                                const modelList = models.map((m, i) => `${i + 1}. ${m}`).join("\n");
+                                const defaultModel = models.includes(aiConfig.model) ? aiConfig.model : models[0];
+                                const m = prompt(`Select Model for ${provider}:\n${modelList}\n\nEnter number or name:`, defaultModel);
+                                if (m) {
+                                    const num = parseInt(m);
+                                    if (!isNaN(num) && num > 0 && num <= models.length) {
+                                        aiConfig.model = models[num - 1];
+                                    } else {
+                                        aiConfig.model = m.trim();
+                                    }
+                                    localStorage.setItem('dcc_ai_model', aiConfig.model);
+                                }
+                            }
+                            addAiMessage("bot", aiConfig.apiKey ? `✅ API Key saved. Using ${provider} (${aiConfig.model}).` : "ℹ️ API Key removed. Using Local Analyst.");
+                        }
+                    }
+
+                    async function fetchModels(provider, key) {
+                        try {
+                            if (provider === 'gemini') {
+                                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+                                if (!response.ok) return [];
+                                const data = await response.json();
+                                return (data.models || [])
+                                    .map(m => m.name.replace(/^models\//, ''))
+                                    .filter(m => m.includes('gemini') || m.includes('flash') || m.includes('pro'));
+                            } else if (provider === 'openai') {
+                                const response = await fetch('https://api.openai.com/v1/models', {
+                                    headers: { 'Authorization': `Bearer ${key}` }
+                                });
+                                if (!response.ok) return [];
+                                const data = await response.json();
+                                return (data.data || []).map(m => m.id).filter(id => id.startsWith('gpt') || id.includes('o1')).sort().reverse();
+                            } else if (provider === 'deepseek') {
+                                const response = await fetch('https://api.deepseek.com/models', {
+                                    headers: { 'Authorization': `Bearer ${key}` }
+                                });
+                                if (!response.ok) return [];
+                                const data = await response.json();
+                                return (data.data || []).map(m => m.id);
+                            }
+                        } catch (e) {
+                            console.error("Error fetching models:", e);
+                        }
+                        return [];
+                    }
+
+                    function addAiMessage(role, text) {
+                        const container = document.getElementById("aiMessages");
+                        const div = document.createElement("div");
+                        div.className = `ai-message ${role}`;
+                        div.innerText = text;
+                        container.appendChild(div);
+                        container.scrollTop = container.scrollHeight;
+                    }
+
+                    function sendUserMessage() {
+                        const input = document.getElementById("aiInput");
+                        const text = input.value.trim();
+                        if (!text) return;
+                        
+                        addAiMessage("user", text);
+                        input.value = "";
+                        
+                        if (aiConfig.provider === 'web') {
+                             openOnlineAgent(text);
+                             return;
+                        }
+
+                        // Simulate processing or call API
+                        addAiMessage("bot", "🤔 Analyzing...");
+                        
+                        if (aiConfig.apiKey) {
+                            if (aiConfig.provider === 'gemini') {
+                                callGeminiAPI(text);
+                            } else {
+                                callOpenAICompatibleAPI(text);
+                            }
+                        } else {
+                            // Local fallback response
+                            setTimeout(() => {
+                                const lastBotMsg = document.getElementById("aiMessages").lastElementChild;
+                                lastBotMsg.innerText = `[Local Agent]: I see ${filteredDataGlobal.length} records. (Add an API Key for intelligent answers). You asked: "${text}"`;
+                            }, 600);
+                        }
+                    }
+
+                    function getAIContextData(limit = 100) {
+                        const context = `Dataset: ${filteredDataGlobal.length} rows visible. Columns: ${headers.join(', ')}.`;
+                        let dataSample = "";
+                        
+                        if (currentGroupedData.length > 0) {
+                            dataSample = `Grouped Data (Top ${limit} of ${currentGroupedData.length}): ` + JSON.stringify(currentGroupedData.slice(0, limit));
+                        } else {
+                            dataSample = `Data Sample (Top ${limit} of ${filteredDataGlobal.length}): ` + JSON.stringify(filteredDataGlobal.slice(0, limit));
+                        }
+                        
+                        return `Context: ${context}\n\n${dataSample}`;
+                    }
+
+                    function openOnlineAgent(userPrompt) {
+                        const fullPrompt = `${getAIContextData(20)}\n\nMy Question: ${userPrompt}`;
+                        
+                        navigator.clipboard.writeText(fullPrompt).then(() => {
+                            addAiMessage("bot", `📋 Prompt copied! Opening ${aiConfig.webName}... Paste (Ctrl+V) to chat.`);
+                            setTimeout(() => window.open(aiConfig.webUrl, '_blank'), 800);
+                        }).catch(err => {
+                            addAiMessage("bot", `⚠️ Clipboard error. Opening ${aiConfig.webName}...`);
+                            window.open(aiConfig.webUrl, '_blank');
+                        });
+                    }
+
+                    function generateAIAdvice(data, groupCols) {
+                        const rowCount = data.length;
+                        if (rowCount === 0) return;
+
+                        let advice = "";
+                        
+                        // Heuristic analysis
+                        if (groupCols && groupCols.length > 0) {
+                            advice = `I've grouped the data by ${groupCols.join(" & ")}. There are ${rowCount} groups.`;
+                            // Find largest group if available
+                            if (data[0] && typeof data[0].Count === 'number') {
+                                const max = data.reduce((prev, current) => (prev.Count > current.Count) ? prev : current);
+                                advice += ` The largest group is "${Object.values(max).slice(0, groupCols.length).join('|')}" with ${max.Count} items.`;
+                            }
+                        } else {
+                            advice = `Loaded ${rowCount} records.`;
+                            const dateCols = headers.filter(h => rawData.some(r => r[h] instanceof Date));
+                            if (dateCols.length > 0) {
+                                advice += ` Dataset covers a time range on column '${dateCols[0]}'.`;
+                            }
+                        }
+
+                        addAiMessage("bot", "💡 Update: " + advice);
+                    }
+
+                    async function callGeminiAPI(prompt) {
+                        const fullPrompt = `You are a data analyst helper. ${getAIContextData(100)}\n\nUser Question: ${prompt}`;
+                        
+                        try {
+                            // Using configured model (defaults to gemini-pro for stability)
+                            const url = `https://generativelanguage.googleapis.com/v1beta/models/${aiConfig.model}:generateContent?key=${aiConfig.apiKey}`;
+                            const response = await fetch(url, {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
+                            });
+                            
+                            const data = await response.json();
+                            if (data.error) {
+                                throw new Error(data.error.message || "API Error");
+                            }
+
+                            const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                            
+                            const lastBotMsg = document.getElementById("aiMessages").lastElementChild;
+                            if (answer) {
+                                lastBotMsg.innerText = answer;
+                            } else {
+                                console.warn("Gemini Response:", data);
+                                lastBotMsg.innerText = "⚠️ Response was empty or blocked. Check console.";
+                            }
+                        } catch (e) {
+                            const lastBotMsg = document.getElementById("aiMessages").lastElementChild;
+                            lastBotMsg.innerText = "⚠️ Error connecting to AI: " + e.message;
+                        }
+                    }
+
+                    async function callOpenAICompatibleAPI(prompt) {
+                        const fullPrompt = `You are a data analyst helper. ${getAIContextData(100)}\n\nUser Question: ${prompt}`;
+                        
+                        let url = "https://api.openai.com/v1/chat/completions";
+                        let model = "gpt-3.5-turbo";
+                        
+                        if (aiConfig.provider === "deepseek") {
+                            url = "https://api.deepseek.com/chat/completions";
+                            model = "deepseek-chat";
+                        }
+                        
+                        try {
+                            const response = await fetch(url, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${aiConfig.apiKey}`
+                                },
+                                body: JSON.stringify({
+                                    model: model,
+                                    messages: [
+                                        { role: "system", content: "You are a helpful data analyst." },
+                                        { role: "user", content: fullPrompt }
+                                    ],
+                                    stream: false
+                                })
+                            });
+                            
+                            const data = await response.json();
+                            const answer = data.choices?.[0]?.message?.content || (data.error ? "API Error: " + data.error.message : "Sorry, I couldn't interpret the response.");
+                            
+                            const lastBotMsg = document.getElementById("aiMessages").lastElementChild;
+                            lastBotMsg.innerText = answer;
+                        } catch (e) {
+                            const lastBotMsg = document.getElementById("aiMessages").lastElementChild;
+                            lastBotMsg.innerText = "⚠️ Error connecting to AI: " + e.message;
+                        }
                     }
                 </script>
     </body>
