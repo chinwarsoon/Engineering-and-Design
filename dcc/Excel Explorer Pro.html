@@ -1406,6 +1406,13 @@
         <div class="card">
             <div class="header-section">
                 <h2 style="margin: 0">📊 TWRP C4B DCC Submission Explorer Pro</h2>
+                <div id="globalWarningBar" class="hidden" style="background: #fff7ed; border: 1px solid #fdba74; color: #c2410c; padding: 8px 12px; border-radius: 6px; margin-left: 20px; flex: 1; display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 600;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span>⚠️</span>
+                        <span id="globalWarningText"></span>
+                    </div>
+                    <button onclick="document.getElementById('globalWarningBar').classList.add('hidden')" style="background: transparent; border: none; cursor: pointer; font-size: 16px; color: #9a3412; padding: 0 4px; line-height: 1;">&times;</button>
+                </div>
                 <!-- Status Box -->
                 <div id="statusBox" class="status-box hidden">
                     <div class="status-box-header">
@@ -1795,6 +1802,15 @@
                         column: null,
                         direction: "asc"
                     };
+
+                    function showWarning(message) {
+                        const bar = document.getElementById("globalWarningBar");
+                        const text = document.getElementById("globalWarningText");
+                        if (bar && text) {
+                            text.innerText = message;
+                            bar.classList.remove("hidden");
+                        }
+                    }
 
                     function toggleFilterBox() {
                         const wrapper = document.getElementById("filterControlsWrapper");
@@ -2208,7 +2224,7 @@
                         // 1. Get the selected columns from Step 2
                         selectedFilterCols = Array.from(document.querySelectorAll(".col-check:checked"), ).map((cb)=>cb.value);
                         if (Array.from(document.querySelectorAll(".col-check:checked")).length > 10) {
-                            alert("More than 10 filter columns selected. This may cause slow responce from the webpage.");
+                            showWarning("More than 10 filter columns selected. This may cause slow response from the webpage.");
                         }
                         // Clear previous selections to prevent logic conflicts with removed columns
                         activeSelections = {};
@@ -2220,7 +2236,7 @@
                         // 2. Validation: If nothing is selected, hide the section and exit
                         const section = document.getElementById("filterContainerSection");
                         if (selectedFilterCols.length === 0) {
-                            alert("Please select at least one column to filter.");
+                            showWarning("Please select at least one column to filter.");
                             section.classList.add("hidden");
                             section.style.display = "none";
                             return;
@@ -2712,7 +2728,7 @@
 
                         // 2. Validation Check
                         if (sheetData.length === 0) {
-                            alert("This sheet appears to be empty.");
+                            showWarning("This sheet appears to be empty.");
                             return;
                         }
 
@@ -3173,7 +3189,12 @@
                             }
                             ).join("")}</tr>`;
 
-                            tBody.innerHTML = currentGroupedData.map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
+                            const limit = 2000;
+                            tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
+                            
+                            if (currentGroupedData.length > limit) {
+                                tBody.innerHTML += `<tr><td colspan="${k.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Display limited to top ${limit} groups. Export to Excel to view all ${currentGroupedData.length} groups.</td></tr>`;
+                            }
                             
                             // Mark GroupBy as complete
                             setProgressStatus('groupBy', 'complete', `${currentGroupedData.length} groups created`);
@@ -3197,11 +3218,16 @@
                             }
                             ).join("")}</tr>`;
 
-                            tBody.innerHTML = data.slice(0, 300).map((r)=>`<tr>${vis.map((h)=>{
+                            const limit = 300;
+                            tBody.innerHTML = data.slice(0, limit).map((r)=>`<tr>${vis.map((h)=>{
                                 const cellWidthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : "";
                                 return `<td ${cellWidthStyle}>${formatExcelDate(r[h]) ?? ""}</td>`;
                             }
                             ).join("")}</tr>`, ).join("");
+
+                            if (data.length > limit) {
+                                tBody.innerHTML += `<tr><td colspan="${vis.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Raw data preview limited to ${limit} rows. Export to Excel to view all ${data.length} records.</td></tr>`;
+                            }
                         }
 
                         setProgressStatus('updateTable', 'loading', 'Initializing resizers...');
@@ -3276,7 +3302,12 @@
                         const tBody = document.getElementById("tBody");
                         const k = Object.keys(currentGroupedData[0]);
 
-                        tBody.innerHTML = currentGroupedData.map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
+                        const limit = 2000;
+                        tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
+                        
+                        if (currentGroupedData.length > limit) {
+                            tBody.innerHTML += `<tr><td colspan="${k.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Display limited to top ${limit} groups. Export to Excel to view all ${currentGroupedData.length} groups.</td></tr>`;
+                        }
 
                         updateChart(currentGroupedData);
 
@@ -3304,7 +3335,7 @@
                         const groupByCols = getSelectedGroupByCols();
 
                         if (groupByCols.length > 2) {
-                            alert("Data Chart rendering limited to 2 or fewer grouping columns. Please reduce grouping columns.");
+                            showWarning("Data Chart rendering limited to 2 or fewer grouping columns. Please reduce grouping columns.");
                             document.getElementById("chartSection").classList.add("hidden");
                             return;
                         }
@@ -3651,7 +3682,7 @@
                         let dataToExport = isGroupingActive ? currentGroupedData : filteredDataGlobal;
 
                         if (!dataToExport || dataToExport.length === 0) {
-                            alert("No data available to export with current filters.");
+                            showWarning("No data available to export with current filters.");
                             return;
                         }
 
