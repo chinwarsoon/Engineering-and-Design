@@ -3751,17 +3751,6 @@
                                 card.style.display = 'flex';
                                 card.style.flexDirection = 'column';
 
-                                const title = document.createElement('div');
-                                title.innerText = `${xLabel}`;
-                                title.style.fontWeight = '700';
-                                title.style.textAlign = 'center';
-                                title.style.marginBottom = '8px';
-                                title.style.fontSize = '12px';
-                                title.style.overflow = 'hidden';
-                                title.style.textOverflow = 'ellipsis';
-                                title.style.whiteSpace = 'nowrap';
-                                card.appendChild(title);
-
                                 const canvasContainer = document.createElement('div');
                                 canvasContainer.style.flex = '1';
                                 canvasContainer.style.position = 'relative';
@@ -3786,10 +3775,16 @@
                                     slices = top10;
                                 }
 
+                                // Generate labels with Value and %
+                                const chartLabels = slices.map(s => {
+                                    const pct = (data.total > 0) ? ((s.value / data.total) * 100).toFixed(1) + "%" : "0%";
+                                    return `${s.label} (${s.value} | ${pct})`;
+                                });
+
                                 const chart = new Chart(canvas.getContext('2d'), {
                                     type: 'pie',
                                     data: {
-                                        labels: slices.map(s => s.label),
+                                        labels: chartLabels,
                                         datasets: [{
                                             data: slices.map(s => s.value),
                                             backgroundColor: slices.map((_, i) => colors[i % colors.length]),
@@ -3799,8 +3794,21 @@
                                     options: {
                                         responsive: true,
                                         maintainAspectRatio: false,
+                                        layout: {
+                                            padding: 10
+                                        },
                                         plugins: {
-                                            legend: { display: true, position: 'bottom', labels: { boxWidth: 8, font: { size: 10 } } },
+                                            title: {
+                                                display: true,
+                                                text: `${xLabel} (Total: ${data.total})`,
+                                                font: { size: 12, weight: 'bold' },
+                                                padding: { bottom: 10 }
+                                            },
+                                            legend: { 
+                                                display: true, 
+                                                position: 'right', 
+                                                labels: { boxWidth: 8, font: { size: 9 }, padding: 6 } 
+                                            },
                                             tooltip: {
                                                 callbacks: {
                                                     label: (ctx) => {
