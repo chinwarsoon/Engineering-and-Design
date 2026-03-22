@@ -1378,6 +1378,19 @@
                 display: none;
             }
             
+            /* Unified inner box style */
+            .inner-control-box {
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                background: var(--card-bg);
+                padding: 8px;
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                width: 100%;
+                box-sizing: border-box;
+            }
+
             /* Compact Sidebar Elements */
             #sidebar label {
                 font-size: 10px !important;
@@ -1658,7 +1671,7 @@
                     <div id="step1" style="width: 100%">
                         <div class="dashboard-module" style="margin-top: 0;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <label id="step1Header" style="color: var(--primary); font-weight: 700; font-size: 12px;">📂 1. Load Excel File and Select Work Sheet:</label>
+                                <label id="step1Header" style="color: var(--primary); font-weight: 700; font-size: 12px;">📂 1. Load Excel File and Select Work Sheet</label>
                                 <button class="btn-toggle-compact" id="toggleStep1Btn" onclick="toggleStep1Box()">▲</button>
                             </div>
                             <div id="loadFilesContainer">
@@ -1678,12 +1691,12 @@
                             </div>
                         </div>
                         <div id="headerListContainer">
-                            <div id="headerListWrapper" style="border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); padding: 10px; display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <div id="headerListWrapper" class="inner-control-box">
                                 <div style="display:flex; gap: 6px; flex-wrap: wrap;">
                                     <button class="btn btn-outline" style="font-size: 11px; padding: 6px 12px;" onclick="selectAllColumns()">Select All</button>
                                     <button class="btn btn-outline" style="font-size: 11px; padding: 6px 12px;" onclick="clearAllColumns()">Clear All</button>
                                 </div>
-                                <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: var(--card-bg);"></div>
+                                <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: transparent; border: none; padding: 0;"></div>
                             </div>
                             <button class="btn" style="width: 100%; margin-top: 12px; justify-content: center" onclick="buildInterface()">Initialize Dashboard</button>
                         </div>
@@ -1693,10 +1706,17 @@
                 <div class="dashboard-module">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <label style="color: var(--primary); font-weight: 700; font-size: 12px;">🔍 3. Active Filters</label>
-                        <button class="btn-toggle-compact" id="toggleFilterBtn" onclick="toggleFilterBox()">▲</button>
+                        <div style="display: flex; gap: 6px; align-items: center">
+                            <button class="btn-toggle-compact" id="toggleFilterBtn" onclick="toggleFilterBox()">▲</button>
+                        </div>
                     </div>
                     <div id="filterControlsWrapper">
-                        <div id="filterArea" class="filters-container" style="background: transparent; border: none; padding: 0; box-shadow: none;"></div>
+                        <div class="inner-control-box">
+                            <div style="display:flex; justify-content:flex-end;">
+                                <button class="btn btn-outline" style="padding: 2px 8px; font-size: 10px;" onclick="resetActiveFilters()">Reset Filters</button>
+                            </div>
+                            <div id="filterArea" class="filters-container" style="background: transparent; border: none; padding: 0; box-shadow: none;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1719,12 +1739,12 @@
                         <div id="dashboardContainer" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
                             <div style="display:flex; flex-direction: column; gap:4px; min-width:100%;">
                                 
-                                <div id="groupByWrapper" style="border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); padding: 4px; display: flex; flex-direction: column; gap: 2px;">
+                                <div id="groupByWrapper" class="inner-control-box">
                                     <div style="display:flex; justify-content:flex-end;">
                                         <button class="btn btn-outline" style="padding: 2px 8px; font-size: 10px;" onclick="resetGroupBy()">Reset Grouping</button>
                                     </div>
 
-                                    <div id="groupByColumnList" class="filters-container" style="display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; background: var(--card-bg); width: 100%;"></div>
+                                    <div id="groupByColumnList" class="filters-container" style="display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; background: transparent; border: none; padding: 0; width: 100%;"></div>
                                     
                                 </div>
                                 
@@ -2958,7 +2978,7 @@
 
                                 // Update Step 1 header with file + sheet
                                 const fileName = e.target.files?.[0]?.name || "Untitled";
-                                document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet:`;
+                                document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet`;
                                 
                                 // Set initial worksheet name in status box
                                 const firstSheet = workbook.SheetNames[0];
@@ -2987,7 +3007,7 @@
                         
                         // Update Step 1 header when switching sheets
                         const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
-                        document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet:`;
+                        document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet`;
 
                         // Clear warnings and reset status box for new load
                         clearWarnings();
@@ -4148,6 +4168,30 @@
 
                         // 3. Re-initialize the interface and data
                         buildInterface();
+                    }
+
+                    function resetActiveFilters() {
+                        setFunctionCallStatus('resetActiveFilters', true);
+                        
+                        // 1. Clear selections
+                        activeSelections = {};
+
+                        // 2. Clear inputs and checkboxes in filter area
+                        const filterArea = document.getElementById("filterArea");
+                        if (filterArea) {
+                            filterArea.querySelectorAll("input").forEach(el => {
+                                if (el.type === "checkbox" || el.type === "radio") el.checked = false;
+                                else el.value = "";
+                            });
+                            // Reset dropdown labels
+                            selectedFilterCols.forEach(col => {
+                                const label = document.getElementById(`label-${col}`);
+                                if (label) label.innerText = "All Items";
+                            });
+                        }
+
+                        runFilter();
+                        setFunctionCallStatus('resetActiveFilters', false);
                     }
 
                     function resetColumnWidths() {
