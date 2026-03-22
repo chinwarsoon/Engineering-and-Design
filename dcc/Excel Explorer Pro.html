@@ -4396,7 +4396,7 @@
                         container.scrollTop = container.scrollHeight;
                     }
 
-                    function sendUserMessage() {
+                    async function sendUserMessage() {
                         const input = document.getElementById("aiInput");
                         const text = input.value.trim();
                         if (!text) return;
@@ -4408,17 +4408,31 @@
                              openOnlineAgent(text);
                              return;
                         }
-
-                        // Simulate processing or call API
-                        addAiMessage("bot", "🤔 Analyzing...");
                         
                         if (aiConfig.apiKey) {
+                            if (!confirm("⚠️ Allow AI Agent to access webpage content, data items, and dashboard state for analysis?")) {
+                                addAiMessage("bot", "❌ Access denied. Analysis aborted.");
+                                return;
+                            }
+
+                            let limitStr = prompt("How many records should be loaded for analysis context? (Default: 100)", "100");
+                            if (limitStr === null) {
+                                addAiMessage("bot", "❌ Operation cancelled.");
+                                return;
+                            }
+                            let limit = parseInt(limitStr, 10);
+                            if (isNaN(limit) || limit < 0) limit = 100;
+
+                            addAiMessage("bot", `🤔 Analyzing with ${limit} records context...`);
+
                             if (aiConfig.provider === 'gemini') {
-                                callGeminiAPI(text);
+                                callGeminiAPI(text, limit);
                             } else {
-                                callOpenAICompatibleAPI(text);
+                                callOpenAICompatibleAPI(text, limit);
                             }
                         } else {
+                            // Simulate processing
+                            addAiMessage("bot", "🤔 Analyzing...");
                             // Local fallback response
                             setTimeout(() => {
                                 const lastBotMsg = document.getElementById("aiMessages").lastElementChild;
@@ -4495,8 +4509,8 @@
                         addAiMessage("bot", "💡 Update: " + advice);
                     }
 
-                    async function callGeminiAPI(prompt) {
-                        const fullPrompt = `You are a data analyst helper. ${getAIContextData(100)}\n\nUser Question: ${prompt}`;
+                    async function callGeminiAPI(prompt, limit = 100) {
+                        const fullPrompt = `You are a data analyst helper. ${getAIContextData(limit)}\n\nUser Question: ${prompt}`;
                         
                         try {
                             // Using configured model (defaults to gemini-pro for stability)
@@ -4527,8 +4541,8 @@
                         }
                     }
 
-                    async function callOpenAICompatibleAPI(prompt) {
-                        const fullPrompt = `You are a data analyst helper. ${getAIContextData(100)}\n\nUser Question: ${prompt}`;
+                    async function callOpenAICompatibleAPI(prompt, limit = 100) {
+                        const fullPrompt = `You are a data analyst helper. ${getAIContextData(limit)}\n\nUser Question: ${prompt}`;
                         
                         let url = "https://api.openai.com/v1/chat/completions";
                         let model = "gpt-3.5-turbo";
