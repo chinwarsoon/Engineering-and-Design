@@ -3705,6 +3705,7 @@
 
                         let labels = [];
                         let datasets = [];
+                        let isTruncated = false;
 
                         if (firstGroupKey && groupByCols.length > 1) {
                             labels = [...new Set(gData.map((r)=>r[firstGroupKey]))];
@@ -3733,6 +3734,7 @@
                             if (seriesEntries.length > 20) {
                                 showWarning(`Chart has ${seriesEntries.length} series. Showing top 20 ranking data.`);
                                 seriesEntries = seriesEntries.slice(0, 20);
+                                isTruncated = true;
                             }
 
                             datasets = seriesEntries.map(([seriesLabel,valMap],idx)=>({
@@ -3756,6 +3758,7 @@
                             if (chartData.length > 20) {
                                 showWarning(`Chart has ${chartData.length} items. Showing top 20 ranking data.`);
                                 chartData = chartData.slice(0, 20);
+                                isTruncated = true;
                             }
 
                             labels = firstGroupKey ? chartData.map((r)=>r[firstGroupKey]) : chartData.map((r,i)=>i + 1);
@@ -3796,8 +3799,8 @@
                                 scales: {
                                     x: {
                                         title: {
-                                            display: Boolean(firstGroupKey),
-                                            text: firstGroupKey || "Group",
+                                            display: Boolean(firstGroupKey) || isTruncated,
+                                            text: isTruncated ? [firstGroupKey || "Group", "(Top 20 Rank Items)"] : (firstGroupKey || "Group"),
                                         },
                                     },
                                 },
