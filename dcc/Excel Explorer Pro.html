@@ -2887,6 +2887,23 @@
                         const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
                         document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet:`;
 
+                        // Clear warnings and reset status box for new load
+                        clearWarnings();
+                        document.getElementById("statusSearch").innerText = "None";
+                        document.getElementById("statusGroupByCols").innerText = "None";
+                        document.getElementById("statusAggregate").innerText = "Count";
+                        document.getElementById("statusDistinct").innerText = "None";
+                        document.getElementById("statusDateBin").innerText = "None";
+                        document.getElementById("statusFilters").innerText = "0";
+                        document.getElementById("statusRecords").innerText = "0 / 0";
+
+                        // Reset/Hide downstream UI elements for new data load
+                        document.getElementById("step3").classList.add("hidden");
+                        document.getElementById("groupBySection").classList.add("hidden");
+                        document.getElementById("filterContainerSection").classList.add("hidden");
+                        if (myChart) { myChart.destroy(); myChart = null; }
+                        if (dateRangeChart) { dateRangeChart.destroy(); dateRangeChart = null; }
+
                         logDebug("Loading sheet: " + name);
                         console.log("Loading sheet:", name);
 
