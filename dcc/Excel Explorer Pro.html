@@ -525,7 +525,7 @@
             /* Ensure all filter items have the same vertical alignment */
             .filter-item {
                 background: var(--card-bg);
-                padding: 2px;
+                padding: 4px;
                 border-radius: var(--radius-sm);
                 border: 1px solid var(--border);
                 display: flex;
@@ -533,6 +533,8 @@
                 gap: 8px;
                 box-shadow: var(--shadow-sm);
                 transition: all 0.2s ease;
+                width: 100%;
+                box-sizing: border-box;
             }
 
             .filter-item:hover {
@@ -545,9 +547,11 @@
                 font-weight: 600;
                 color: var(--text-secondary);
                 margin-bottom: 2px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+                word-wrap: break-word;
+                line-height: 1.2;
             }
 
             /* Ensure the grid layout in the container is tight */
@@ -555,7 +559,7 @@
                 display: grid;
                 grid-template-columns: 1fr;
                 gap: 2px;
-                margin-top: 8px;
+                margin-top: 0px;
             }
 
             /* Force specific height on all interactive elements */
