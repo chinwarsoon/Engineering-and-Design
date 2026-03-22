@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-        <title>TWRP C4B DCC Submission Explorer Pro | Analytics Edition</title>
+        <title>Excel Explorer Pro | Analytics Edition</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1074,6 +1074,7 @@
                 margin-bottom: 12px;
                 padding-bottom: 12px;
                 border-bottom: 1px solid var(--border);
+                cursor: move;
             }
 
             .status-box-title {
@@ -1405,7 +1406,7 @@
     <body>
         <div class="card">
             <div class="header-section">
-                <h2 style="margin: 0">📊 TWRP C4B DCC Submission Explorer Pro</h2>
+                <h2 style="margin: 0">📊 Excel Explorer Pro</h2>
                 <!-- Status Box -->
                 <div id="statusBox" class="status-box hidden">
                     <div class="status-box-header">
@@ -1971,6 +1972,45 @@
                             btn.innerHTML = "−";
                         }
                     }
+                    
+                    // Initialize draggable status box (Horizontal movement only)
+                    (function() {
+                        const box = document.getElementById("statusBox");
+                        const header = box.querySelector(".status-box-header");
+                        let isDragging = false, startX, startLeft;
+
+                        if (header) {
+                            header.addEventListener("mousedown", (e) => {
+                                if (e.target.closest("button")) return; // Prevent dragging when clicking close button
+                                
+                                isDragging = true;
+                                startX = e.clientX;
+                                
+                                // Switch from right-positioned to left-positioned to allow dragging calculation
+                                const rect = box.getBoundingClientRect();
+                                box.style.right = "auto";
+                                box.style.left = rect.left + "px";
+                                startLeft = rect.left;
+                                
+                                document.addEventListener("mousemove", onMouseMove);
+                                document.addEventListener("mouseup", onMouseUp);
+                                e.preventDefault();
+                            });
+                        }
+
+                        function onMouseMove(e) {
+                            if (!isDragging) return;
+                            const dx = e.clientX - startX;
+                            // Only update left (X-axis) to keep it aligned to the top
+                            box.style.left = (startLeft + dx) + "px";
+                        }
+
+                        function onMouseUp() {
+                            isDragging = false;
+                            document.removeEventListener("mousemove", onMouseMove);
+                            document.removeEventListener("mouseup", onMouseUp);
+                        }
+                    })();
 
                     function updateStatusBox() {
                         const box = document.getElementById("statusBox");
