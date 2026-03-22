@@ -1056,8 +1056,8 @@
                 border-left: 3px solid var(--primary);
                 border-radius: var(--radius);
                 padding: 16px 20px;
-                min-width: 240px;
-                max-width: 320px;
+                width: fit-content;
+                max-width: 400px;
                 box-shadow: var(--shadow-lg);
                 z-index: 1000;
                 font-size: 12px;
@@ -1124,10 +1124,8 @@
                 font-weight: 600;
                 font-size: 11px;
                 text-align: right;
-                max-width: 140px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
+                white-space: normal;
+                word-break: break-word;
             }
 
             .status-value.status-idle {
@@ -2104,9 +2102,7 @@
                     }
 
                     function handleGroupByChange(cb) {
-                        console.log('[DEBUG] handleGroupByChange started');
-                        setFunctionCallStatus('handleGroupByChange', true);
-                        
+                        // 1. Immediate Visual Feedback (Synchronous)
                         const chip = cb.closest('.group-by-chip');
                         if (chip) {
                             if (cb.checked) {
@@ -2116,9 +2112,11 @@
                             }
                         }
                         
+                        // 2. Defer heavy logic to allow browser repaint
                         setTimeout(() => {
                             try {
-                                console.log('[DEBUG] Starting heavy operations');
+                                console.log('[DEBUG] handleGroupByChange processing');
+                                setFunctionCallStatus('handleGroupByChange', true);
                                 reorderGroupByList();
                                 updateGroupBySelection();
                                 
@@ -2139,7 +2137,7 @@
                                 setFunctionCallStatus('handleGroupByChange', false);
                                 console.log('[DEBUG] handleGroupByChange completed');
                             }
-                        }, 100);
+                        }, 50);
                     }
 
                     function syncGroupByChip(cb) {
