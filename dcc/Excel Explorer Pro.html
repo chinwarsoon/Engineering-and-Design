@@ -2365,7 +2365,9 @@
 
                         if (ySelect) {
                             ySelect.innerHTML = yCols.map((h)=>`<option value="${h}">${h}</option>`).join("");
-                            // Do not auto-select any Y columns - user must select manually
+                            if (yCols.length > 0) {
+                                ySelect.options[0].selected = true;
+                            }
                         }
 
                         const yOptions = document.getElementById("dateRangeYOptions");
