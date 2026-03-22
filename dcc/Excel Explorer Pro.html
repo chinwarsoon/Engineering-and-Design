@@ -3405,7 +3405,21 @@
 
                             const colors = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#0ea5e9", "#ec4899", "#14b8a6", ];
 
-                            datasets = [...seriesByRemaining.entries()].map(([seriesLabel,valMap],idx)=>({
+                            let seriesEntries = [...seriesByRemaining.entries()];
+                            
+                            // Sort series by total value (descending) to show top ranking data
+                            seriesEntries.sort((a, b) => {
+                                const sumA = Object.values(a[1]).reduce((acc, v) => acc + v, 0);
+                                const sumB = Object.values(b[1]).reduce((acc, v) => acc + v, 0);
+                                return sumB - sumA;
+                            });
+
+                            if (seriesEntries.length > 20) {
+                                showWarning(`Chart has ${seriesEntries.length} series. Showing top 20 ranking data.`);
+                                seriesEntries = seriesEntries.slice(0, 20);
+                            }
+
+                            datasets = seriesEntries.map(([seriesLabel,valMap],idx)=>({
                                 label: seriesLabel,
                                 data: labels.map((x)=>valMap[x] ?? 0),
                                 backgroundColor: colors[idx % colors.length],
@@ -3414,12 +3428,29 @@
                                 tension: 0.2,
                             }), );
                         } else {
-                            labels = firstGroupKey ? gData.map((r)=>r[firstGroupKey]) : gData.map((r,i)=>i + 1);
+                            let chartData = [...gData];
+                            
+                            // Sort by value descending to show top ranking data
+                            chartData.sort((a, b) => {
+                                const valA = Number(a[metricKey]) || 0;
+                                const valB = Number(b[metricKey]) || 0;
+                                return valB - valA;
+                            });
+
+                            if (chartData.length > 20) {
+                                showWarning(`Chart has ${chartData.length} items. Showing top 20 ranking data.`);
+                                chartData = chartData.slice(0, 20);
+                            }
+
+                            labels = firstGroupKey ? chartData.map((r)=>r[firstGroupKey]) : chartData.map((r,i)=>i + 1);
+                            
+                            const colors = ["#2563eb", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#0ea5e9", "#ec4899", "#14b8a6"];
+                            const bgColors = type === "pie" ? chartData.map((_, i) => colors[i % colors.length]) : "#2563eb";
 
                             datasets = [{
                                 label: `${metricKey || "Metric"}`,
-                                data: gData.map((r)=>Number(r[metricKey]) || 0),
-                                backgroundColor: "#2563eb",
+                                data: chartData.map((r)=>Number(r[metricKey]) || 0),
+                                backgroundColor: bgColors,
                                 borderColor: "#2563eb",
                                 fill: type === "line" ? false : true,
                                 tension: 0.2,
