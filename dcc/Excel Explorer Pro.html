@@ -2207,6 +2207,7 @@
                                     const [,targetCol] = aggValue.split("|");
                                     if (targetCol && selectedGroupCols.includes(targetCol)) {
                                         console.log('[DEBUG] Resetting aggregator - conflicts with GroupBy:', targetCol);
+                                        showWarning(`Column '${targetCol}' is used in Group By. Aggregator reset to Count.`);
                                         document.getElementById("aggColumn").value = "";
                                     }
                                 }
@@ -3048,6 +3049,17 @@
                         
                         // Defer heavy work to allow status update to render
                         setTimeout(() => {
+                            // Check for conflict between GroupBy and Aggregator
+                            const groupCols = getSelectedGroupByCols();
+                            const aggVal = document.getElementById("aggColumn").value;
+                            if (aggVal) {
+                                const [,target] = aggVal.split("|");
+                                if (target && groupCols.includes(target)) {
+                                    showWarning(`Column '${target}' is used in Group By. Aggregator reset to Count.`);
+                                    document.getElementById("aggColumn").value = "";
+                                }
+                            }
+
                             // Reset sorting whenever filters/grouping change so the UI stays consistent.
                             sortConfig = {
                                 column: null,
