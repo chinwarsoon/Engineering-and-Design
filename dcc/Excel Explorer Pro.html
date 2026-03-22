@@ -1525,7 +1525,7 @@
                                     <span id="latestWarningText" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
                                     <span id="warningCount" style="background: #c2410c; color: white; border-radius: 10px; padding: 1px 6px; font-size: 10px; min-width: 14px; text-align: center;">0</span>
                                 </div>
-                                <span id="warningToggleIcon" style="font-size: 10px;">▼</span>
+                                <span id="warningToggleIcon" style="font-size: 10px;">+</span>
                             </div>
                             <div id="warningHistory" class="hidden" style="background: #fff7ed; border: 1px solid #fdba74; border-top: none; border-bottom-left-radius: 6px; border-bottom-right-radius: 6px; padding: 0;">
                                 <div style="padding: 8px; border-bottom: 1px solid #fed7aa; display: flex; justify-content: space-between; align-items: center;">
@@ -1676,7 +1676,7 @@
                         <div class="dashboard-module" style="margin-top: 0;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <label id="step1Header" style="color: var(--primary); font-weight: 700; font-size: 12px;">📂 1. Load Excel File and Select Work Sheet</label>
-                                <button class="btn-toggle-compact" id="toggleStep1Btn" onclick="toggleStep1Box()">▲</button>
+                                <button class="btn-toggle-compact" id="toggleStep1Btn" onclick="toggleStep1Box()">-</button>
                             </div>
                             <div id="loadFilesContainer">
                                 <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
@@ -1691,7 +1691,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                             <label style="color: var(--primary); font-weight: 700; font-size: 12px;">🔍 2. Choose Filterable Columns</label>
                             <div style="display: flex; gap: 6px; align-items: center">
-                                <button class="btn-toggle-compact" id="toggleStep2Btn" onclick="toggleStep2Box()">▲</button>
+                                <button class="btn-toggle-compact" id="toggleStep2Btn" onclick="toggleStep2Box()">-</button>
                             </div>
                         </div>
                         <div id="headerListContainer">
@@ -1711,7 +1711,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <label style="color: var(--primary); font-weight: 700; font-size: 12px;">🔍 3. Active Filters</label>
                         <div style="display: flex; gap: 6px; align-items: center">
-                            <button class="btn-toggle-compact" id="toggleFilterBtn" onclick="toggleFilterBox()">▲</button>
+                            <button class="btn-toggle-compact" id="toggleFilterBtn" onclick="toggleFilterBox()">-</button>
                         </div>
                     </div>
                     <div id="filterControlsWrapper">
@@ -1736,7 +1736,7 @@
                             <label style="color: var(--primary); font-weight: 700">📊 4. Grouping &Analytics</label>
                         </div>
                         <div style="display: flex; gap: 6px; align-items: center">
-                            <button class="btn-toggle-compact" id="toggleGroupBtn" onclick="toggleGroupBox()">▲</button>
+                            <button class="btn-toggle-compact" id="toggleGroupBtn" onclick="toggleGroupBox()">-</button>
                         </div>
                     </div>
                     <div id="groupControlsContainer" style="display:flex; flex-direction: column; align-items:flex-start; gap:12px; flex-wrap:wrap;">
@@ -1780,7 +1780,7 @@
                 <div id="chartsContainer" class="dashboard-module" style="margin-top: 20px; margin-bottom: 20px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                         <label style="color: var(--primary); font-weight: 700;">📈 Charts & Visualizations</label>
-                        <button id="toggleChartsBtn" class="btn-toggle-compact" onclick="toggleChartsContainer()">▲</button>
+                        <button id="toggleChartsBtn" class="btn-toggle-compact" onclick="toggleChartsContainer()">-</button>
                     </div>
                     <div id="chartsWrapper">
                         <!-- Main Chart Section -->
@@ -1953,17 +1953,37 @@
                     let activeOperation = null;
                     
                     let warningHistory = [];
+                    let statusBoxTimer = null;
+
+                    function handleStatusBoxVisibility() {
+                        const box = document.getElementById("statusBox");
+                        if (!box) return;
+                        
+                        if (box.classList.contains("hidden")) {
+                            box.classList.remove("hidden");
+                        }
+
+                        if (statusBoxCollapsed) {
+                            // Case 1: Status box is closed. Open it, then schedule close.
+                            toggleStatusBox();
+                            
+                            if (statusBoxTimer) clearTimeout(statusBoxTimer);
+                            statusBoxTimer = setTimeout(() => {
+                                if (!statusBoxCollapsed) {
+                                    toggleStatusBox();
+                                }
+                            }, 5000);
+                        }
+                        // Case 2: Status box is open. Just update status. Leave it open.
+                    }
 
                     function showWarning(message) {
-                        const box = document.getElementById("statusBox");
                         const section = document.getElementById("warningSection");
                         const latestText = document.getElementById("latestWarningText");
                         const countBadge = document.getElementById("warningCount");
                         const list = document.getElementById("warningList");
                         
-                        if (box && box.classList.contains("hidden")) {
-                            box.classList.remove("hidden");
-                        }
+                        handleStatusBoxVisibility();
                         
                         if (section && latestText && list) {
                             const timestamp = new Date().toLocaleTimeString();
@@ -1992,11 +2012,11 @@
                         
                         if (history.classList.contains("hidden")) {
                             history.classList.remove("hidden");
-                            icon.innerText = "▲";
+                            icon.innerText = "-";
                             if (header) header.style.borderRadius = "6px 6px 0 0";
                         } else {
                             history.classList.add("hidden");
-                            icon.innerText = "▼";
+                            icon.innerText = "+";
                             if (header) header.style.borderRadius = "6px";
                         }
                     }
@@ -2055,10 +2075,10 @@
 
                         if (wrapper.style.display === "none") {
                             wrapper.style.display = "block";
-                            btn.innerHTML = "▲";
+                            btn.innerHTML = "-";
                         } else {
                             wrapper.style.display = "none";
-                            btn.innerHTML = "▼";
+                            btn.innerHTML = "+";
                         }
                     }
 
@@ -2068,10 +2088,10 @@
 
                         if (container.style.display === "none") {
                             container.style.display = "block";
-                            btn.innerHTML = "▲";
+                            btn.innerHTML = "-";
                         } else {
                             container.style.display = "none";
-                            btn.innerHTML = "▼";
+                            btn.innerHTML = "+";
                         }
                     }
 
@@ -2096,10 +2116,10 @@
 
                         if (container.style.display === "none") {
                             container.style.display = "flex";
-                            btn.innerHTML = "▲";
+                            btn.innerHTML = "-";
                         } else {
                             container.style.display = "none";
-                            btn.innerHTML = "▼";
+                            btn.innerHTML = "+";
                         }
                     }
 
@@ -2110,10 +2130,10 @@
                         // Using display: none for a clean "closed" state
                         if (container.style.display === "none") {
                             container.style.display = "block";
-                            btn.innerHTML = "▲";
+                            btn.innerHTML = "-";
                         } else {
                             container.style.display = "none";
-                            btn.innerHTML = "▼";
+                            btn.innerHTML = "+";
                         }
                     }
 
@@ -2123,19 +2143,25 @@
 
                         if (wrapper.style.display === "none") {
                             wrapper.style.display = "block";
-                            btn.innerHTML = "▲";
+                            btn.innerHTML = "-";
                         } else {
                             wrapper.style.display = "none";
-                            btn.innerHTML = "▼";
+                            btn.innerHTML = "+";
                         }
                     }
 
-                    let statusBoxCollapsed = false;
+                    let statusBoxCollapsed = localStorage.getItem('dcc_status_box_collapsed') === 'true';
 
                     function toggleStatusBox() {
+                        // Manual interaction cancels auto-close
+                        if (statusBoxTimer) {
+                            clearTimeout(statusBoxTimer);
+                            statusBoxTimer = null;
+                        }
                         const box = document.getElementById("statusBox");
                         const btn = box.querySelector(".status-box-close");
                         statusBoxCollapsed = !statusBoxCollapsed;
+                        localStorage.setItem('dcc_status_box_collapsed', statusBoxCollapsed);
                         
                         if (statusBoxCollapsed) {
                             box.classList.add("collapsed");
@@ -2145,6 +2171,16 @@
                             btn.innerHTML = "−";
                         }
                     }
+
+                    // Apply initial state
+                    (function initStatusBoxState() {
+                        const box = document.getElementById("statusBox");
+                        if (box && statusBoxCollapsed) {
+                            box.classList.add("collapsed");
+                            const btn = box.querySelector(".status-box-close");
+                            if (btn) btn.innerHTML = "+";
+                        }
+                    })();
                     
                     // Initialize draggable status box (Horizontal movement only)
                     (function() {
@@ -2186,10 +2222,7 @@
                     })();
 
                     function updateStatusBox() {
-                        const box = document.getElementById("statusBox");
-                        if (box.classList.contains("hidden")) {
-                            box.classList.remove("hidden");
-                        }
+                        handleStatusBoxVisibility();
 
                         // Search
                         const searchVal = document.getElementById("globalSearch")?.value?.trim();
@@ -2244,10 +2277,7 @@
 
                     // Progress tracking function for status box
                     function setProgressStatus(operation, status, message) {
-                        const box = document.getElementById("statusBox");
-                        if (box.classList.contains("hidden")) {
-                            box.classList.remove("hidden");
-                        }
+                        handleStatusBoxVisibility();
                         
                         const statusMap = {
                             'loadFile': 'statusLoadFile',
@@ -2302,8 +2332,7 @@
                             return;
                         }
                         
-                        // Always show status box during debug tracing
-                        box.classList.remove("hidden");
+                        handleStatusBoxVisibility();
                         
                         const element = document.getElementById("statusFunctionCall");
                         if (!element) {
@@ -2603,7 +2632,7 @@
                                             <div class="multiselect-box" onclick="toggleDropdown(event, '${col}')">
                                                 <div class="multiselect-display">
                                                     <span id="label-${col}">All Items</span>
-                                                    <span>▼</span>
+                                                    <span>+</span>
                                                 </div>
                                                 <div class="multiselect-options hidden" id="options-${col}" onclick="event.stopPropagation()">
                                                     <div class="selection-controls">
@@ -2695,8 +2724,8 @@
                         //document.getElementById('columnChecklist').innerHTML = headers.map(h => `<label><input type="checkbox" checked onchange="toggleCol('${h}')"> ${h}</label>`).join('');
                         //document.getElementById('columnChecklist').innerHTML = headers.map((h, i) => `
                         //    <div class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
-                        //        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">▲</button>
-                        //        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">▼</button>
+                        //        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">-</button>
+                        //        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">+</button>
                         //        <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1;">
                         //            <input type="checkbox" ${hiddenColumns.has(h) ? '' : 'checked'} onchange="toggleCol('${h}')"> ${h}
                         //        </label>
@@ -2713,8 +2742,8 @@
                                 ${headers.map((h,i)=>`
                                     <div id="columnItem-${i}" class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
                                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'top', event)">⇑</button>
-                                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">▲</button>
-                                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">▼</button>
+                                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">-</button>
+                                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">+</button>
                                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'bottom', event)">⇓</button>
                                         <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1; cursor: pointer;">
                                             <input type="checkbox" class="col-visibility-check" data-col="${h}" ${hiddenColumns.has(h) ? "" : "checked"} onchange="toggleCol('${h}')"> ${h}
@@ -2813,8 +2842,8 @@
                                                 return `
                                                 <div id="columnItem-${i}" class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
                                                     <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'top', event)">⇑</button>
-                                                    <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">▲</button>
-                                                    <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">▼</button>
+                                                    <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">-</button>
+                                                    <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">+</button>
                                                     <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'bottom', event)">⇓</button>
                                                     <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1; cursor: pointer;">
                                                         <input type="checkbox" class="col-visibility-check" 
@@ -3146,7 +3175,7 @@
                         if (step1Container) {
                             step1Container.style.display = "none";
                             if (step1Btn)
-                                step1Btn.innerHTML = "▼";
+                                step1Btn.innerHTML = "+";
                         }
                         
                         setFunctionCallStatus('loadSheet', false);
@@ -3221,10 +3250,10 @@
 
                         if (container.classList.contains("hidden")) {
                             container.classList.remove("hidden");
-                            btn.innerText = "▼";
+                            btn.innerText = "+";
                         } else {
                             container.classList.add("hidden");
-                            btn.innerText = "▲";
+                            btn.innerText = "-";
                         }
                     }
 
@@ -3618,7 +3647,7 @@
                             return `<span class="sort-icon">↕</span>`;
                             // Neutral state
                         }
-                        return sortConfig.direction === "asc" ? `<span class="sort-icon active">▲</span>` : `<span class="sort-icon active">▼</span>`;
+                        return sortConfig.direction === "asc" ? `<span class="sort-icon active">-</span>` : `<span class="sort-icon active">+</span>`;
                     }
 
                     function handleSort(col, isG) {
