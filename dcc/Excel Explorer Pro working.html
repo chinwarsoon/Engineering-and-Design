@@ -534,6 +534,8 @@
                 box-shadow: var(--shadow-sm);
                 transition: all 0.2s ease;
                 width: 100%;
+                max-width: 100%;
+                min-width: 0;
                 box-sizing: border-box;
             }
 
@@ -560,6 +562,8 @@
                 grid-template-columns: minmax(0, 1fr);
                 gap: 6px;
                 width: 100%;
+                max-width: 100%;
+                min-width: 0;
                 margin-top: 0px;
             }
 
@@ -680,8 +684,25 @@
             #filterArea {
                 display: grid !important;
                 /* Forces the grid layout to fit width */
-                grid-template-columns: 1fr;
+                grid-template-columns: minmax(0, 1fr);
                 gap: 2px;
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+            }
+
+            #filterArea > * {
+                min-width: 0;
+                max-width: 100%;
+            }
+
+            .filter-item .multiselect-box,
+            .filter-item .multiselect-display,
+            .filter-item input,
+            .filter-item select {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
             }
 
             #loadFilesContainer {
@@ -709,6 +730,34 @@
                 padding: 5px 10px;
                 border-radius: 4px;
                 cursor: pointer;
+            }
+
+            #sheetControls .sheet-range-row {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 6px;
+                margin-bottom: 8px;
+                width: 100%;
+                align-items: end;
+            }
+
+            #sheetControls .sheet-range-field {
+                min-width: 0;
+            }
+
+            #sheetControls .sheet-range-field label {
+                font-size: 9px;
+                display: block;
+                margin-bottom: 2px;
+            }
+
+            #sheetControls .sheet-range-field input {
+                width: 100%;
+                height: 30px;
+                min-height: 30px;
+                padding: 4px 8px;
+                font-size: 11px;
+                line-height: 1.2;
             }
 
             #headerListContainer.hidden {
@@ -1357,7 +1406,9 @@
                 padding: 10px;
                 box-shadow: var(--shadow);
                 max-height: calc(100vh - 100px);
-                overflow: auto;
+                overflow-y: auto;
+                overflow-x: hidden;
+                scrollbar-gutter: stable;
                 position: sticky;
                 top: 80px;
             }
@@ -1684,18 +1735,18 @@
                                     <input type="file" id="upload" accept=".xlsx, .xls"/>
                                     <select id="sheetSelector" class="hidden" onchange="loadSheet(this.value)" style="width: 100%"></select>
                                     <div id="sheetControls" class="hidden" style="background: var(--bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
-                                        <div style="display: flex; gap: 5px; margin-bottom: 8px;">
-                                            <div style="flex: 1;">
-                                                <label style="font-size: 9px; display: block; margin-bottom: 2px;">Header Row</label>
-                                                <input type="number" id="headerRowInput" value="1" min="1" style="width: 100%; box-sizing: border-box; padding: 4px; font-size: 11px;">
+                                        <div class="sheet-range-row">
+                                            <div class="sheet-range-field">
+                                                <label>Header Row</label>
+                                                <input type="number" id="headerRowInput" value="1" min="1">
                                             </div>
-                                            <div style="flex: 1;">
-                                                <label style="font-size: 9px; display: block; margin-bottom: 2px;">Start Col</label>
-                                                <input type="text" id="startColInput" placeholder="A" style="width: 100%; box-sizing: border-box; padding: 4px; font-size: 11px;">
+                                            <div class="sheet-range-field">
+                                                <label>Start Col</label>
+                                                <input type="text" id="startColInput" placeholder="A">
                                             </div>
-                                            <div style="flex: 1;">
-                                                <label style="font-size: 9px; display: block; margin-bottom: 2px;">End Col</label>
-                                                <input type="text" id="endColInput" placeholder="" style="width: 100%; box-sizing: border-box; padding: 4px; font-size: 11px;">
+                                            <div class="sheet-range-field">
+                                                <label>End Col</label>
+                                                <input type="text" id="endColInput" placeholder="">
                                             </div>
                                         </div>
                                         <button class="btn btn-outline" onclick="reloadCurrentSheet()" style="width: 100%; padding: 4px 8px; font-size: 11px; height: 26px; min-height: 26px; justify-content: center;" title="Reload Sheet">🔄 Refresh Sheet</button>
