@@ -1683,6 +1683,23 @@
                                 <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                     <input type="file" id="upload" accept=".xlsx, .xls"/>
                                     <select id="sheetSelector" class="hidden" onchange="loadSheet(this.value)" style="width: 100%"></select>
+                                    <div id="sheetControls" class="hidden" style="background: var(--bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
+                                        <div style="display: flex; gap: 5px; margin-bottom: 8px;">
+                                            <div style="flex: 1;">
+                                                <label style="font-size: 9px; display: block; margin-bottom: 2px;">Header Row</label>
+                                                <input type="number" id="headerRowInput" value="1" min="1" style="width: 100%; box-sizing: border-box; padding: 4px; font-size: 11px;">
+                                            </div>
+                                            <div style="flex: 1;">
+                                                <label style="font-size: 9px; display: block; margin-bottom: 2px;">Start Col</label>
+                                                <input type="text" id="startColInput" placeholder="A" style="width: 100%; box-sizing: border-box; padding: 4px; font-size: 11px;">
+                                            </div>
+                                            <div style="flex: 1;">
+                                                <label style="font-size: 9px; display: block; margin-bottom: 2px;">End Col</label>
+                                                <input type="text" id="endColInput" placeholder="" style="width: 100%; box-sizing: border-box; padding: 4px; font-size: 11px;">
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-outline" onclick="reloadCurrentSheet()" style="width: 100%; padding: 4px 8px; font-size: 11px; height: 26px; min-height: 26px; justify-content: center;" title="Reload Sheet">🔄 Refresh Sheet</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3018,6 +3035,7 @@
                                 s.innerHTML = workbook.SheetNames.map((n)=>`<option value="${n}">${n}</option>`, ).join("");
 
                                 s.classList.remove("hidden");
+                                document.getElementById("sheetControls").classList.remove("hidden");
 
                                 // Update Step 1 header with file + sheet
                                 const fileName = e.target.files?.[0]?.name || "Untitled";
@@ -3040,6 +3058,13 @@
                         reader.readAsArrayBuffer(e.target.files[0]);
                     }
                     );
+
+                    function reloadCurrentSheet() {
+                        const selector = document.getElementById("sheetSelector");
+                        if (selector && selector.value) {
+                            loadSheet(selector.value);
+                        }
+                    }
 
                     function loadSheet(name) {
                         setFunctionCallStatus('loadSheet', true);
@@ -3075,15 +3100,31 @@
 
                         // 1. Data Extraction
                         const sheet = workbook.Sheets[name];
+                        
+                        const headerRowVal = parseInt(document.getElementById('headerRowInput').value) || 1;
+                        const startColVal = document.getElementById('startColInput').value.trim().toUpperCase();
+                        const endColVal = document.getElementById('endColInput').value.trim().toUpperCase();
 
-                        // We use {cellDates: true} in the reader, so sheet_to_json handles the rest
-                        // Convert to JSON with defval as null to easily identify truly empty cells
-                        // const sheetData = XLSX.utils.sheet_to_json(sheet, {defval: ""});
-                        let sheetData = XLSX.utils.sheet_to_json(sheet, {
+                        const opts = {
                             defval: null,
-                            cellDates: true,    // Rule 1: "Turn numbers into real dates"
-                        dateNF: 'yyyy-mm-dd' // Rule 2: "Format them like Year-Month-Day"
-                        });
+                            cellDates: true,
+                            dateNF: 'yyyy-mm-dd'
+                        };
+
+                        if (sheet['!ref']) {
+                            const range = XLSX.utils.decode_range(sheet['!ref']);
+                            range.s.r = Math.max(range.s.r, headerRowVal - 1);
+                            
+                            if (startColVal) {
+                                try { range.s.c = Math.max(range.s.c, XLSX.utils.decode_col(startColVal)); } catch(e) {}
+                            }
+                            if (endColVal) {
+                                try { range.e.c = Math.min(range.e.c, XLSX.utils.decode_col(endColVal)); } catch(e) {}
+                            }
+                            opts.range = range;
+                        }
+
+                        let sheetData = XLSX.utils.sheet_to_json(sheet, opts);
 
                         // 2. Validation Check
                         if (sheetData.length === 0) {
