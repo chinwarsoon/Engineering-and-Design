@@ -850,6 +850,12 @@
                 margin-bottom: 4px;
             }
 
+            #filterArea .toggle-chip {
+                width: 100%;
+                justify-content: flex-start;
+                text-align: left;
+            }
+
             .toggle-chip:hover {
                 border-color: var(--primary-light);
                 background: rgba(59, 130, 246, 0.04);
@@ -1077,6 +1083,42 @@
                 box-shadow: var(--shadow-lg);
                 padding: 12px;
                 margin-top: 4px;
+                text-align: left;
+                direction: ltr;
+            }
+
+            .multiselect-options .option-item {
+                display: flex !important;
+                justify-content: flex-start !important;
+                align-items: center !important;
+                text-align: left !important;
+                width: 100% !important;
+                direction: ltr !important;
+                margin-bottom: 6px;
+            }
+
+            .multiselect-options .option-item label {
+                display: flex !important;
+                justify-content: flex-start !important;
+                align-items: center !important;
+                gap: 8px;
+                width: 100% !important;
+                text-align: left !important;
+                margin: 0 !important;
+                padding: 2px 0 !important;
+            }
+
+            .multiselect-options .option-item label * {
+                text-align: left !important;
+            }
+
+            .multiselect-options .option-item input[type="checkbox"] {
+                width: auto !important;
+                max-width: none !important;
+                min-width: auto !important;
+                height: auto !important;
+                flex: 0 0 auto !important;
+                margin: 0 8px 0 0 !important;
             }
 
             body.dark-mode .multiselect-options {
