@@ -2781,6 +2781,15 @@
                         if (typeof toggleStep2Box === "function")
                             toggleStep2Box();
 
+                        // Hide Step 1 only after dashboard is initialized.
+                        const step1Container = document.getElementById("loadFilesContainer");
+                        const step1Btn = document.getElementById("toggleStep1Btn");
+                        if (step1Container) {
+                            step1Container.style.display = "none";
+                            if (step1Btn)
+                                step1Btn.innerHTML = "+";
+                        }
+
                         // 4. Populate logic
                         populateDropdowns();
                         runFilter();
@@ -3271,15 +3280,8 @@
                             step2Container.classList.remove("hidden");
                         }
 
-                        // Auto-collapse Step 1 (the file upload box) to focus the user on Step 2
-                        const step1Container = document.getElementById("loadFilesContainer");
-                        const step1Btn = document.getElementById("toggleStep1Btn");
-                        if (step1Container) {
-                            step1Container.style.display = "none";
-                            if (step1Btn)
-                                step1Btn.innerHTML = "+";
-                        }
-                        
+                        // Keep Step 1 visible until user initializes dashboard.
+
                         setProgressStatus('loadFile', 'complete', 'Sheet loaded');
                         setFunctionCallStatus('loadSheet', false);
                     }
