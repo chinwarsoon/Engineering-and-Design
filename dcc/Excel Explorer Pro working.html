@@ -3129,6 +3129,8 @@
                         // 2. Validation Check
                         if (sheetData.length === 0) {
                             showWarning("This sheet appears to be empty.");
+                            setProgressStatus('loadFile', 'error', 'Empty sheet');
+                            setFunctionCallStatus('loadSheet', false);
                             return;
                         }
 
@@ -3220,6 +3222,7 @@
                                 step1Btn.innerHTML = "+";
                         }
                         
+                        setProgressStatus('loadFile', 'complete', 'Sheet loaded');
                         setFunctionCallStatus('loadSheet', false);
                     }
 
