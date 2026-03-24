@@ -4676,10 +4676,10 @@
                     }
 
                     function logDebug(message) {
-                        if (!devModeActive)
+                        const list = document.getElementById("debugList");
+                        if (!list)
                             return;
 
-                        const list = document.getElementById("debugList");
                         const entry = document.createElement("div");
                         entry.className = "debug-entry";
 
