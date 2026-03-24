@@ -3524,11 +3524,12 @@
                             const finalUnique = [...new Set(uniqueFormatted)].sort();
 
                             listEl.innerHTML = finalUnique.map((v)=>{
-                                const escaped = v.replace(/'/g, "\\'");
+                                const jsEscaped = v.replace(/'/g, "\\'");
+                                const htmlEscaped = v.replace(/"/g, "&quot;");
                                 return `
                 <div class="option-item">
                     <label>
-                        <input type="checkbox" data-val="${escaped}" onchange="handleSelect('${col}','${escaped}', this.checked)"> 
+                        <input type="checkbox" data-val="${htmlEscaped}" onchange="handleSelect('${col}','${jsEscaped}', this.checked)"> 
                         ${v}
                     </label>
                 </div>`;
@@ -4830,6 +4831,14 @@
                             selectedFilterCols.forEach(col => {
                                 const label = document.getElementById(`label-${col}`);
                                 if (label) label.innerText = "All Items";
+                                
+                                // Reset visibility of all items in the dropdown (in case they were hidden by search)
+                                const listEl = document.getElementById(`list-${col}`);
+                                if (listEl) {
+                                    listEl.querySelectorAll(".option-item").forEach(item => {
+                                        item.style.display = "flex"; 
+                                    });
+                                }
                             });
                         }
 
