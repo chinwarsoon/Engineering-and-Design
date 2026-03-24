@@ -1087,6 +1087,71 @@
                 direction: ltr;
             }
 
+            .selection-controls {
+                display: flex;
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+
+            .control-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 4px 10px;
+                border-radius: 6px;
+                border: 1px solid var(--border);
+                background: var(--card-bg);
+                color: var(--text-secondary);
+                font-size: 11px;
+                font-weight: 600;
+                cursor: pointer;
+                user-select: none;
+                transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.08s ease, box-shadow 0.18s ease;
+            }
+
+            .control-btn:hover {
+                background: var(--pivot-bg);
+                border-color: var(--primary-light);
+                color: var(--primary);
+                box-shadow: var(--shadow-sm);
+            }
+
+            .control-btn:active {
+                transform: scale(0.97);
+            }
+
+            #globalSearchResults {
+                position: absolute;
+                top: calc(100% + 4px);
+                left: 0;
+                right: 0;
+                max-height: 220px;
+                overflow-y: auto;
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                box-shadow: var(--shadow);
+                z-index: 1200;
+                padding: 4px;
+            }
+
+            .global-search-item {
+                width: 100%;
+                padding: 6px 8px;
+                border-radius: 6px;
+                font-size: 11px;
+                color: var(--text-main);
+                cursor: pointer;
+                text-align: left;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .global-search-item:hover {
+                background: var(--pivot-bg);
+            }
+
             .multiselect-options .option-item {
                 display: flex !important;
                 justify-content: flex-start !important;
@@ -2011,7 +2076,8 @@
               align-items: center;
               position: relative;
             ">
-                            <input type="search" id="globalSearch" placeholder="Return to Search..." onkeyup="if (event.key === 'Enter') runFilter();"/>
+                            <input type="search" id="globalSearch" placeholder="Return to Search..." oninput="debouncedRunFilter()" onkeyup="if (event.key === 'Enter') runFilter();"/>
+                            <div id="globalSearchResults" class="hidden"></div>
                             <div class="column-menu-wrapper" style="position: relative; display: inline-block;">
                                 <button class="btn btn-outline" onclick="toggleColumnMenu(event)">👁️ Select/Sort Visible Columns
                                 </button>
@@ -2065,6 +2131,7 @@
                     
                     let warningHistory = [];
                     let statusBoxTimer = null;
+                    let searchDebounceTimer = null;
 
                     function handleStatusBoxVisibility() {
                         const box = document.getElementById("statusBox");
@@ -2086,6 +2153,49 @@
                             }, 5000);
                         }
                         // Case 2: Status box is open. Just update status. Leave it open.
+                    }
+
+                    function debouncedRunFilter(delayMs = 220) {
+                        if (searchDebounceTimer) {
+                            clearTimeout(searchDebounceTimer);
+                        }
+                        searchDebounceTimer = setTimeout(()=>{
+                            runFilter();
+                        }, delayMs);
+                    }
+
+                    function renderGlobalSearchResults(searchTerm, data) {
+                        const resultsEl = document.getElementById("globalSearchResults");
+                        if (!resultsEl)
+                            return;
+
+                        if (!searchTerm || !data || data.length === 0) {
+                            resultsEl.classList.add("hidden");
+                            resultsEl.innerHTML = "";
+                            return;
+                        }
+
+                        const visibleCols = headers.filter((h)=>!hiddenColumns.has(h)).slice(0, 3);
+                        const previewRows = data.slice(0, 30);
+                        resultsEl.innerHTML = previewRows.map((row)=>{
+                            const text = visibleCols.map((col)=>`${col}: ${formatExcelDate(row[col]) ?? ""}`).join(" | ");
+                            const escaped = text.replace(/"/g, "&quot;");
+                            return `<div class="global-search-item" title="${escaped}" onclick="selectSearchResult('${String(searchTerm).replace(/'/g, "\\'")}')">${text}</div>`;
+                        }).join("");
+                        resultsEl.classList.remove("hidden");
+                    }
+
+                    function selectSearchResult(term) {
+                        const searchEl = document.getElementById("globalSearch");
+                        if (!searchEl)
+                            return;
+                        searchEl.value = term;
+                        const resultsEl = document.getElementById("globalSearchResults");
+                        if (resultsEl) {
+                            resultsEl.classList.add("hidden");
+                            resultsEl.innerHTML = "";
+                        }
+                        runFilter();
                     }
 
                     function showWarning(message) {
@@ -2750,7 +2860,7 @@
                                                         <span class="control-btn" onclick="bulkSelect('${col}', true, event)">All</span>
                                                         <span class="control-btn" onclick="bulkSelect('${col}', false, event)">Clear</span>
                                                     </div>
-                                                    <input type="text" placeholder="Search..." oninput="filterDrop('${col}', this.value)">
+                                                    <input type="text" placeholder="Search..." oninput="filterDrop('${col}', this.value)" onkeydown="handleFilterSearchEnter('${col}', event)">
                                                     <div id="list-${col}"></div>
                                                 </div>
                                             </div>
@@ -3511,6 +3621,35 @@
                         items.forEach((item)=>(item.style.display = item.innerText.toLowerCase().includes(searchTerm) ? "flex" : "none"), );
                     }
 
+                    function handleFilterSearchEnter(col, event) {
+                        if (event.key !== "Enter")
+                            return;
+                        event.preventDefault();
+
+                        const listEl = document.getElementById(`list-${col}`);
+                        if (!listEl)
+                            return;
+
+                        const visibleInputs = Array.from(listEl.querySelectorAll("input")).filter((input)=>input.parentElement?.parentElement?.style.display !== "none");
+                        if (visibleInputs.length === 0)
+                            return;
+
+                        if (!activeSelections[col])
+                            activeSelections[col] = new Set();
+
+                        visibleInputs.forEach((input)=>{
+                            input.checked = true;
+                            activeSelections[col].add(input.dataset.val);
+                        });
+
+                        const label = document.getElementById(`label-${col}`);
+                        if (label) {
+                            label.innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items";
+                        }
+
+                        runFilter();
+                    }
+
                     function handleSelect(col, val, checked) {
                         if (!activeSelections[col])
                             activeSelections[col] = new Set();
@@ -3623,6 +3762,8 @@
                                     return true;
                                 });
                             });
+
+                            renderGlobalSearchResults(search, filteredDataGlobal);
 
                             //alert("Filtering complete. " + filteredDataGlobal.length + " results found.");        
                             // showFilterStatus(filteredDataGlobal.length);
