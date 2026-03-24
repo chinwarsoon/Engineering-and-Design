@@ -3014,6 +3014,51 @@
                         return typeof h === "string" ? h.replace(/[\r\n\t]+/g, " ").trim() : h;
                     }
 
+                    function getNonNullColumnBounds(sheet, headerRowVal) {
+                        if (!sheet || !sheet["!ref"]) {
+                            return null;
+                        }
+
+                        const sheetRange = XLSX.utils.decode_range(sheet["!ref"]);
+                        const dataStartRow = Math.max(sheetRange.s.r, headerRowVal);
+                        let firstCol = null;
+                        let lastCol = null;
+
+                        for (let c = sheetRange.s.c; c <= sheetRange.e.c; c++) {
+                            let hasDataInColumn = false;
+
+                            for (let r = dataStartRow; r <= sheetRange.e.r; r++) {
+                                const cellAddress = XLSX.utils.encode_cell({
+                                    r,
+                                    c
+                                });
+                                const cell = sheet[cellAddress];
+                                const value = cell ? cell.v : null;
+
+                                if (value !== null && value !== undefined && String(value).trim() !== "") {
+                                    hasDataInColumn = true;
+                                    break;
+                                }
+                            }
+
+                            if (hasDataInColumn) {
+                                if (firstCol === null) {
+                                    firstCol = c;
+                                }
+                                lastCol = c;
+                            }
+                        }
+
+                        if (firstCol === null || lastCol === null) {
+                            return null;
+                        }
+
+                        return {
+                            startColLetter: XLSX.utils.encode_col(firstCol),
+                            endColLetter: XLSX.utils.encode_col(lastCol)
+                        };
+                    }
+
                     document.getElementById("upload").addEventListener("change", (e)=>{
                         const reader = new FileReader();
                         
@@ -3102,8 +3147,21 @@
                         const sheet = workbook.Sheets[name];
                         
                         const headerRowVal = parseInt(document.getElementById('headerRowInput').value) || 1;
-                        const startColVal = document.getElementById('startColInput').value.trim().toUpperCase();
-                        const endColVal = document.getElementById('endColInput').value.trim().toUpperCase();
+                        const startColInput = document.getElementById('startColInput');
+                        const endColInput = document.getElementById('endColInput');
+
+                        // Auto-fill bounds only when user has not provided manual overrides.
+                        const shouldAutoFillCols = startColInput.value.trim() === "" && endColInput.value.trim() === "";
+                        if (shouldAutoFillCols) {
+                            const autoBounds = getNonNullColumnBounds(sheet, headerRowVal);
+                            if (autoBounds) {
+                                startColInput.value = autoBounds.startColLetter;
+                                endColInput.value = autoBounds.endColLetter;
+                            }
+                        }
+
+                        const startColVal = startColInput.value.trim().toUpperCase();
+                        const endColVal = endColInput.value.trim().toUpperCase();
 
                         const opts = {
                             defval: null,
