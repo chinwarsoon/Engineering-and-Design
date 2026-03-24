@@ -1911,7 +1911,7 @@
                                             <div id="dateRangeYOptions" class="multiselect-options hidden" style="padding: 8px; max-height: 200px; overflow-y: auto; width: 260px;">
                                             </div>
                                         </div>
-                                        <select id="dateRangeYColumns" multiple onchange="syncYSelection(); runFilter()" class="hidden"></select>
+                                        <select id="dateRangeYColumns" multiple onchange="syncYSelection(); updateDateRangeChart()" class="hidden"></select>
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 4px;">
                                         <label style="font-size: 11px; opacity: 0.8;">Y Aggregator</label>
@@ -2763,7 +2763,7 @@
                         if (yOptions) {
                             yOptions.innerHTML = yCols.map((h)=>`
                 <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 12px;">
-                  <input type="checkbox" value="${h}" class="date-y-option" onclick="syncYSelection(); runFilter();"/>
+                  <input type="checkbox" value="${h}" class="date-y-option" onclick="syncYSelection(); updateDateRangeChart();"/>
                   ${h}
                 </label>
               `, ).join("");
@@ -3438,7 +3438,7 @@
                         );
 
                         updateDateYLabel();
-                        // keep runFilter triggered by caller
+                        // Date range Y selection should only refresh the date range chart.
                     }
 
                     function updateDateYLabel() {
@@ -4062,7 +4062,19 @@
                         let isTruncated = false;
 
                         if (firstGroupKey && groupByCols.length > 1) {
-                            labels = [...new Set(gData.map((r)=>r[firstGroupKey]))];
+                            const labelTotals = new Map();
+                            gData.forEach((row)=>{
+                                const label = row[firstGroupKey];
+                                const val = Number(row[metricKey]) || 0;
+                                labelTotals.set(label, (labelTotals.get(label) || 0) + val);
+                            });
+
+                            labels = [...labelTotals.entries()].sort((a, b)=>b[1] - a[1]).map(([label])=>label);
+                            if (labels.length > 20) {
+                                showWarning(`Chart has ${labels.length} categories. Showing top 20 ranking data.`);
+                                labels = labels.slice(0, 20);
+                                isTruncated = true;
+                            }
 
                             const seriesByRemaining = new Map();
                             gData.forEach((row)=>{
