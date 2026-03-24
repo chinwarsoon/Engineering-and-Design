@@ -4424,10 +4424,33 @@
                         setFunctionCallStatus('updateDateRangeChart', false);
                     }
 
+                    function getCanvasPngWithWhiteBackground(sourceCanvas) {
+                        if (!sourceCanvas)
+                            return null;
+
+                        const exportCanvas = document.createElement("canvas");
+                        exportCanvas.width = sourceCanvas.width;
+                        exportCanvas.height = sourceCanvas.height;
+
+                        const exportCtx = exportCanvas.getContext("2d");
+                        exportCtx.fillStyle = "#ffffff";
+                        exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+                        exportCtx.drawImage(sourceCanvas, 0, 0);
+
+                        return exportCanvas.toDataURL("image/png");
+                    }
+
                     function downloadDateRangeChart() {
+                        const dateChartCanvas = document.getElementById("dateRangeChart");
+                        const pngDataUrl = getCanvasPngWithWhiteBackground(dateChartCanvas);
+                        if (!pngDataUrl) {
+                            showWarning("No date range chart to save.");
+                            return;
+                        }
+
                         const link = document.createElement("a");
                         link.download = "DateRangeChart.png";
-                        link.href = document.getElementById("dateRangeChart").toDataURL("image/png");
+                        link.href = pngDataUrl;
                         link.click();
                     }
 
@@ -4471,9 +4494,14 @@
                         }
 
                         if (canvases.length === 1) {
+                            const pngDataUrl = getCanvasPngWithWhiteBackground(canvases[0]);
+                            if (!pngDataUrl) {
+                                showWarning("No chart to save.");
+                                return;
+                            }
                             const link = document.createElement("a");
                             link.download = "Chart.png";
-                            link.href = canvases[0].toDataURL("image/png");
+                            link.href = pngDataUrl;
                             link.click();
                         } else {
                             // Stitch multiple charts into one image
