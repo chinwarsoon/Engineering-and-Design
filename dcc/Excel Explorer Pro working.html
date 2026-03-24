@@ -557,8 +557,9 @@
             /* Ensure the grid layout in the container is tight */
             #filterArea {
                 display: grid;
-                grid-template-columns: 1fr;
-                gap: 2px;
+                grid-template-columns: minmax(0, 1fr);
+                gap: 6px;
+                width: 100%;
                 margin-top: 0px;
             }
 
