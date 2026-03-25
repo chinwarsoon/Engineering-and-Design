@@ -3664,13 +3664,17 @@
                         const items = document.getElementById(`list-${col}`).querySelectorAll("input");
                         if (!activeSelections[col])
                             activeSelections[col] = new Set();
-                        items.forEach((i)=>{
-                            if (i.parentElement.parentElement.style.display !== "none") {
-                                i.checked = s;
-                                s ? activeSelections[col].add(i.dataset.val) : activeSelections[col].delete(i.dataset.val);
-                            }
+                        if (!s) {
+                            // Clear: wipe the entire set and uncheck every checkbox regardless of search visibility
+                            activeSelections[col].clear();
+                            items.forEach((i) => { i.checked = false; });
+                        } else {
+                            // All: select every item regardless of search visibility
+                            items.forEach((i) => {
+                                i.checked = true;
+                                activeSelections[col].add(i.dataset.val);
+                            });
                         }
-                        );
                         document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items";
                         runFilter();
                     }
