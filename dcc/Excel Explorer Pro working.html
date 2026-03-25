@@ -1892,7 +1892,7 @@
                                 <div style="display:flex; gap: 6px; flex-wrap: wrap;">
                                     <button class="btn btn-outline" style="font-size: 11px; padding: 6px 12px;" onclick="selectAllColumns()">Select All</button>
                                     <button class="btn btn-outline" style="font-size: 11px; padding: 6px 12px;" onclick="clearAllColumns()">Clear All</button>
-                                    <button class="btn btn-accent" style="flex: 1; padding: 6px; font-size: 11px;" onclick="applyColumnChanges(event)">Apply</button>
+                                    <button class="btn" style="flex: 1; padding: 6px; font-size: 11px; background: var(--primary); justify-content: center;" onclick="applyColumnChanges(event)">Apply</button>
                                 </div>
                                 <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: transparent; border: none; padding: 0;"></div>
                             </div>
@@ -2982,7 +2982,7 @@
                             <div style="display: flex; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
                                 <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(true, event)">Select All</button>
                                 <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(false, event)">Clear All</button>
-                                <button class="btn btn-accent" style="flex: 1; padding: 6px; font-size: 11px;" onclick="applyColumnChanges(event)">Apply</button>
+                                <button class="btn" style="flex: 1; padding: 6px; font-size: 11px; background: var(--primary); justify-content: center;" onclick="applyColumnChanges(event)">Apply</button>
                             </div>
                             <div id="checkListItems">
                                 ${headers.map((h,i)=>`
@@ -3088,7 +3088,7 @@
                                         <div style="display: flex; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
                                             <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(true, event)">Select All</button>
                                             <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(false, event)">Clear All</button>
-                                            <button class="btn btn-accent" style="flex: 1; padding: 6px; font-size: 11px;" onclick="applyColumnChanges(event)">Apply</button>
+                                            <button class="btn" style="flex: 1; padding: 6px; font-size: 11px; background: var(--primary); justify-content: center;" onclick="applyColumnChanges(event)">Apply</button>
                                         </div>
                                         <div id="checkListItems">
                                             ${headers.map((h, i) => {
