@@ -2088,12 +2088,13 @@
                 <div id="tableContainer" class="dashboard-module">
                         <div id="stats" style="font-weight: 700"></div>
                         <div style="
-              display: flex;
-              gap: 8px;
-              align-items: center;
-              position: relative;
-            ">
-                            <input type="search" id="globalSearch" placeholder="Return to Search..." oninput="debouncedRunFilter()" onkeyup="if (event.key === 'Enter') runFilter();"/>
+                        display: flex;
+                        gap: 8px;
+                        align-items: center;
+                        position: relative;
+                        justify-content: flex-end;
+                ">
+                            <input type="search" id="globalSearch" placeholder="Return to Search..." oninput="debouncedRunFilter()" onkeyup="if (event.key === 'Enter') runFilter();" style="height: 30px; width: 320px;"/>
                             <div id="globalSearchResults" class="hidden"></div>
                             <div class="column-menu-wrapper" style="position: relative; display: inline-block;">
                                 <button class="btn btn-outline" onclick="toggleColumnMenu(event)">👁️ Select/Sort Visible Columns
