@@ -2087,34 +2087,30 @@
 
                 <!-- Table Controls and Data -->
                 <div id="tableContainer" class="dashboard-module">
-                        <div id="stats" style="font-weight: 700"></div>
-                        <div style="
-                        display: flex;
-                        gap: 8px;
-                        align-items: center;
-                        position: relative;
-                        justify-content: flex-end;
-                ">
-                            <input type="search" id="globalSearch" placeholder="Return to Search..." oninput="debouncedRunFilter()" onkeyup="if (event.key === 'Enter') runFilter();" style="height: 30px; width: 320px;"/>
-                            <div id="globalSearchResults" class="hidden"></div>
-                            <div class="column-menu-wrapper" style="position: relative; display: inline-block;">
-                                <button class="btn btn-outline" onclick="toggleColumnMenu(event)">👁️ Select/Sort Visible Columns
-                                </button>
-                                <div id="columnToggleMenu" class="hidden column-toggle-menu">
-                                    <div id="columnChecklist"></div>
-                                    <div style="display: flex; gap: 8px; padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--border);">
-                                        
+                        <div style="display: flex; gap: 8px; align-items: center; position: relative; justify-content: space-between; width: 100%;">
+                            <div id="stats" style="font-weight: 700"></div>
+                            <div style="display: flex; gap: 8px; align-items: center; position: relative;">
+                                <input type="search" id="globalSearch" placeholder="Return to Search..." oninput="debouncedRunFilter()" onkeyup="if (event.key === 'Enter') runFilter();" style="height: 30px; width: 320px;"/>
+                                <div id="globalSearchResults" class="hidden"></div>
+                                <div class="column-menu-wrapper" style="position: relative; display: inline-block;">
+                                    <button class="btn btn-outline" onclick="toggleColumnMenu(event)">👁️ Select/Sort Visible Columns
+                                    </button>
+                                    <div id="columnToggleMenu" class="hidden column-toggle-menu">
+                                        <div id="columnChecklist"></div>
+                                        <div style="display: flex; gap: 8px; padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--border);">
+                                            
+                                        </div>
                                     </div>
                                 </div>
+                                <button onclick="document.body.classList.toggle('compact')" class="btn btn-outline">📏 Compact
+                </button>
+                                <button class="btn btn-outline" onclick="resetColumnWidths()">↔️ Reset Widths
+                </button>
+                                <button class="btn btn-accent" onclick="downloadExcel()" aria-label="Export to Excel">📥 Export Excel
+                </button>
+                                <button class="btn btn-outline" onclick="resetFilters()">Reset All
+                </button>
                             </div>
-                            <button onclick="document.body.classList.toggle('compact')" class="btn btn-outline">📏 Compact
-            </button>
-                            <button class="btn btn-outline" onclick="resetColumnWidths()">↔️ Reset Widths
-            </button>
-                            <button class="btn btn-accent" onclick="downloadExcel()" aria-label="Export to Excel">📥 Export Excel
-            </button>
-                            <button class="btn btn-outline" onclick="resetFilters()">Reset All
-            </button>
                         </div>
                         <div class="table-wrapper">
                             <table id="mainTable">
