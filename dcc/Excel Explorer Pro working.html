@@ -2139,6 +2139,7 @@
                     // Track whether we've auto-fitted column widths on the current dataset
                     let autoFitDone = false;
 
+                    let pendingFilterUpdate = false;
                     let activeSelections = {}
                       , sortConfig = {
                         column: null,
@@ -3563,10 +3564,17 @@
                         e.stopPropagation();
                         const menu = document.getElementById(`options-${col}`);
                         const isOpen = !menu.classList.contains("hidden");
-                        document.querySelectorAll(".multiselect-options").forEach((m)=>m.classList.add("hidden"));
+                        closeOpenMultiselectsAndApply();
                         if (!isOpen)
                             menu.classList.remove("hidden");
                     }
+
+                    document.addEventListener("click", (e) => {
+                        const openMenus = document.querySelectorAll(".multiselect-options:not(.hidden)");
+                        if (openMenus.length === 0) return;
+                        const clickedInside = Array.from(openMenus).some((m) => m.contains(e.target) || m.closest(".multiselect-box")?.contains(e.target));
+                        if (!clickedInside) closeOpenMultiselectsAndApply();
+                    });
 
                     function toggleDateRangeChart() {
                         const container = document.getElementById("chartContainer");
@@ -3665,6 +3673,7 @@
                         });
 
                         updateMultiselectLabel(col);
+                        pendingFilterUpdate = true;
                     }
 
                     function updateMultiselectLabel(col) {
@@ -3679,6 +3688,7 @@
                             activeSelections[col] = new Set();
                         checked ? activeSelections[col].add(val) : activeSelections[col].delete(val);
                         updateMultiselectLabel(col);
+                        pendingFilterUpdate = true;
                     }
 
                     function bulkSelect(col, s, e) {
@@ -3705,12 +3715,24 @@
                             filterDrop(col, "");
                         }
                         updateMultiselectLabel(col);
+                        pendingFilterUpdate = true;
                     }
 
                     function applyFilter(col, e) {
                         e.stopPropagation();
+                        pendingFilterUpdate = false;
                         document.getElementById(`options-${col}`)?.classList.add("hidden");
                         runFilter();
+                    }
+
+                    function closeOpenMultiselectsAndApply(skipCol) {
+                        const openMenus = document.querySelectorAll(".multiselect-options:not(.hidden)");
+                        const hadOpen = openMenus.length > 0;
+                        openMenus.forEach((m) => m.classList.add("hidden"));
+                        if (hadOpen && pendingFilterUpdate) {
+                            pendingFilterUpdate = false;
+                            runFilter();
+                        }
                     }
 
                     function runFilter() {
