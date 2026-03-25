@@ -3560,13 +3560,26 @@
                         setFunctionCallStatus('populateDropdowns', false);
                     }
 
+                    function syncCheckboxesToSelection(col) {
+                        const listEl = document.getElementById(`list-${col}`);
+                        if (!listEl) return;
+                        const selections = activeSelections[col];
+                        const allItems = listEl.querySelectorAll("input[type='checkbox']");
+                        const isAllItems = !selections || selections.size === 0 || selections.size >= allItems.length;
+                        allItems.forEach((input) => {
+                            input.checked = isAllItems ? true : selections.has(input.dataset.val);
+                        });
+                    }
+
                     function toggleDropdown(e, col) {
                         e.stopPropagation();
                         const menu = document.getElementById(`options-${col}`);
                         const isOpen = !menu.classList.contains("hidden");
                         closeOpenMultiselectsAndApply();
-                        if (!isOpen)
+                        if (!isOpen) {
                             menu.classList.remove("hidden");
+                            syncCheckboxesToSelection(col);
+                        }
                     }
 
                     document.addEventListener("click", (e) => {
