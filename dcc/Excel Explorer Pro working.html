@@ -1475,6 +1475,35 @@
                 box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             }
 
+            /* Column Search Box Styling */
+            .column-search-box {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                background: var(--card-bg);
+                border: 1.5px solid var(--primary);
+                border-radius: var(--radius-sm);
+                padding: 8px;
+                z-index: 1000;
+                min-width: 150px;
+                box-shadow: var(--shadow);
+                margin-top: 2px;
+            }
+
+            .column-search-box input {
+                width: 100%;
+                padding: 6px 8px;
+                border: 1px solid var(--border);
+                border-radius: 4px;
+                font-size: 11px;
+                box-sizing: border-box;
+            }
+
+            th {
+                position: relative;
+                cursor: pointer;
+            }
+
             /* This ensures the outer ID doesn't create a "second box" */
             #groupBySection {
                 background: none !important;
@@ -2090,7 +2119,7 @@
                         <div style="display: flex; gap: 8px; align-items: center; position: relative; justify-content: space-between; width: 100%;">
                             <div id="stats" style="font-weight: 700"></div>
                             <div style="display: flex; gap: 8px; align-items: center; position: relative;">
-                                <input type="search" id="globalSearch" placeholder="Return to Search..." oninput="debouncedRunFilter()" onkeyup="if (event.key === 'Enter') runFilter();" style="height: 30px; width: 320px;"/>
+                                <input type="search" id="globalSearch" placeholder="Return to Search..." oninput="debouncedRunFilter(); handleGlobalSearchInput();" onfocus="showGlobalSearchResultsIfNotEmpty();" onblur="hideGlobalSearchResults();" onkeyup="if (event.key === 'Enter') { runFilter(); hideGlobalSearchResults(); }" style="height: 30px; width: 320px;"/>
                                 <div id="globalSearchResults" class="hidden"></div>
                                 <div class="column-menu-wrapper" style="position: relative; display: inline-block;">
                                     <button class="btn btn-outline" onclick="toggleColumnMenu(event)">👁️ Select/Sort Visible Columns
@@ -2185,6 +2214,7 @@
 
                     function renderGlobalSearchResults(searchTerm, data) {
                         const resultsEl = document.getElementById("globalSearchResults");
+                        const searchEl = document.getElementById("globalSearch");
                         if (!resultsEl)
                             return;
 
@@ -2201,7 +2231,13 @@
                             const escaped = text.replace(/"/g, "&quot;");
                             return `<div class="global-search-item" title="${escaped}" onclick="selectSearchResult('${String(searchTerm).replace(/'/g, "\\'")}')">${text}</div>`;
                         }).join("");
-                        resultsEl.classList.remove("hidden");
+                        
+                        // Only show results if search input is focused and not empty
+                        if (searchEl === document.activeElement && searchEl.value.trim()) {
+                            resultsEl.classList.remove("hidden");
+                        } else {
+                            resultsEl.classList.add("hidden");
+                        }
                     }
 
                     function selectSearchResult(term) {
@@ -2215,6 +2251,36 @@
                             resultsEl.innerHTML = "";
                         }
                         runFilter();
+                    }
+
+                    function handleGlobalSearchInput() {
+                        const searchEl = document.getElementById("globalSearch");
+                        const resultsEl = document.getElementById("globalSearchResults");
+                        
+                        // Hide results if input is empty
+                        if (!searchEl.value.trim() && resultsEl) {
+                            resultsEl.classList.add("hidden");
+                            resultsEl.innerHTML = "";
+                        }
+                    }
+
+                    function showGlobalSearchResultsIfNotEmpty() {
+                        const searchEl = document.getElementById("globalSearch");
+                        const resultsEl = document.getElementById("globalSearchResults");
+                        
+                        // Show results only if input is not empty and results exist
+                        if (searchEl.value.trim() && resultsEl && resultsEl.innerHTML.trim()) {
+                            resultsEl.classList.remove("hidden");
+                        } else if (resultsEl) {
+                            resultsEl.classList.add("hidden");
+                        }
+                    }
+
+                    function hideGlobalSearchResults() {
+                        const resultsEl = document.getElementById("globalSearchResults");
+                        if (resultsEl) {
+                            resultsEl.classList.add("hidden");
+                        }
                     }
 
                     function showWarning(message) {
@@ -3590,6 +3656,16 @@
                         if (!clickedInside) closeOpenMultiselectsAndApply();
                     });
 
+                    // Close column search when clicking outside
+                    document.addEventListener("click", (e) => {
+                        const searchBox = document.querySelector(".column-search-box");
+                        if (searchBox && !searchBox.contains(e.target) && !e.target.closest('th')) {
+                            // Just close the search box, keep the filter active
+                            searchBox.remove();
+                            columnSearchActive = null;
+                        }
+                    });
+
                     function toggleDateRangeChart() {
                         const container = document.getElementById("chartContainer");
                         const btn = document.getElementById("toggleDateRangeChartBtn");
@@ -3751,6 +3827,11 @@
 
                     function runFilter() {
                         setFunctionCallStatus('runFilter', true);
+                        
+                        // Close any open column search boxes
+                        const searchBoxes = document.querySelectorAll('.column-search-box');
+                        searchBoxes.forEach(box => box.remove());
+                        columnSearchActive = null;
                         
                         // Defer heavy work to allow status update to render
                         setTimeout(() => {
@@ -3981,7 +4062,7 @@
                                 tHead.innerHTML = `<tr>${k.map((x)=>{
                                     const icon = getSortIcon(x);
                                     const widthStyle = columnWidths[x] ? `style=\"width:${columnWidths[x]}px;\"` : "";
-                                    return `<th data-col=\"${x}\" ${widthStyle} onclick=\"handleSort('${x}', true)\">${x} ${icon}</th>`;
+                                    return `<th data-col=\"${x}\" ${widthStyle} onclick=\"toggleColumnSearch(event, '${x}')\">${x} ${icon}</th>`;
                                 }
                                 ).join("")}</tr>`;
 
@@ -4017,7 +4098,7 @@
                             tHead.innerHTML = `<tr>${vis.map((h)=>{
                                 const icon = getSortIcon(h);
                                 const widthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : "";
-                                return `<th data-col=\"${h}\" ${widthStyle} onclick=\"handleSort('${h}', false)\">${h} ${icon}</th>`;
+                                return `<th data-col=\"${h}\" ${widthStyle} onclick=\"toggleColumnSearch(event, '${h}')\">${h} ${icon}</th>`;
                             }
                             ).join("")}</tr>`;
 
@@ -4101,6 +4182,92 @@
                         updateTable(filteredDataGlobal);
                         
                         setFunctionCallStatus('handleSort', false);
+                    }
+
+                    // Column Search Feature
+                    let columnSearchActive = null;
+
+                    function toggleColumnSearch(event, col) {
+                        event.stopPropagation();
+                        
+                        // Close any open column search box
+                        const openBox = document.querySelector('.column-search-box');
+                        if (openBox && columnSearchActive !== col) {
+                            openBox.remove();
+                        }
+                        
+                        if (columnSearchActive === col) {
+                            // Close the search box if clicking the same column
+                            // Keep the filtering active - don't reset
+                            const box = event.target.parentElement.querySelector('.column-search-box');
+                            if (box) box.remove();
+                            columnSearchActive = null;
+                        } else {
+                            // Open search box for this column
+                            const th = event.target.closest('th');
+                            
+                            // Remove existing search box
+                            const existing = th.querySelector('.column-search-box');
+                            if (existing) existing.remove();
+                            
+                            // Create search box HTML
+                            const searchBox = document.createElement('div');
+                            searchBox.className = 'column-search-box';
+                            searchBox.innerHTML = `<input type="text" placeholder="Search ${col}..." class="column-search-input" data-col="${col}" onkeyup="filterTableByColumn(this)" onkeydown="if(event.key==='Enter') { event.preventDefault(); closeColumnSearchBox(); }">`;
+                            
+                            th.style.position = 'relative';
+                            th.appendChild(searchBox);
+                            
+                            // Focus the input
+                            searchBox.querySelector('input').focus();
+                            
+                            columnSearchActive = col;
+                        }
+                    }
+
+                    function filterTableByColumn(input) {
+                        const col = input.getAttribute('data-col');
+                        const searchTerm = input.value.toLowerCase();
+                        const tBody = document.getElementById('tBody');
+                        const rows = tBody.querySelectorAll('tr');
+                        
+                        // Get column index
+                        const th = document.querySelector(`th[data-col="${col}"]`);
+                        const allThs = document.querySelectorAll('th');
+                        let colIndex = 0;
+                        
+                        for (let i = 0; i < allThs.length; i++) {
+                            if (allThs[i] === th) {
+                                colIndex = i;
+                                break;
+                            }
+                        }
+                        
+                        // Filter rows
+                        let visibleCount = 0;
+                        rows.forEach(row => {
+                            const cell = row.cells[colIndex];
+                            if (cell) {
+                                const cellText = cell.textContent.toLowerCase();
+                                const isVisible = cellText.includes(searchTerm);
+                                row.style.display = isVisible ? '' : 'none';
+                                if (isVisible) visibleCount++;
+                            }
+                        });
+                        
+                        // Update stats to show filtered count
+                        const statsEl = document.getElementById('stats');
+                        if (statsEl) {
+                            statsEl.innerText = `${visibleCount} / ${filteredDataGlobal.length}`;
+                        }
+                    }
+
+                    function closeColumnSearchBox() {
+                        const searchBox = document.querySelector('.column-search-box');
+                        if (searchBox) {
+                            searchBox.remove();
+                            columnSearchActive = null;
+                        }
                     }
 
                     function updateTableFromGrouped() {
