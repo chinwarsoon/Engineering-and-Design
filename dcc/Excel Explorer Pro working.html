@@ -1162,6 +1162,10 @@
                 margin-bottom: 6px;
             }
 
+            .multiselect-options .option-item.search-hidden {
+                display: none !important;
+            }
+
             .multiselect-options .option-item label {
                 display: flex !important;
                 justify-content: flex-start !important;
@@ -3619,7 +3623,10 @@
                         const listEl = document.getElementById(`list-${col}`);
                         const items = listEl.querySelectorAll(".option-item");
                         const searchTerm = term.toLowerCase();
-                        items.forEach((item)=>(item.style.display = item.innerText.toLowerCase().includes(searchTerm) ? "flex" : "none"), );
+                        items.forEach((item) => {
+                            const matches = item.innerText.toLowerCase().includes(searchTerm);
+                            item.classList.toggle("search-hidden", !matches);
+                        });
                     }
 
                     function handleFilterSearchEnter(col, event) {
@@ -3631,7 +3638,7 @@
                         if (!listEl)
                             return;
 
-                        const visibleInputs = Array.from(listEl.querySelectorAll("input")).filter((input)=>input.parentElement?.parentElement?.style.display !== "none");
+                        const visibleInputs = Array.from(listEl.querySelectorAll("input")).filter((input)=>!input.parentElement?.parentElement?.classList.contains("search-hidden"));
                         if (visibleInputs.length === 0)
                             return;
 
