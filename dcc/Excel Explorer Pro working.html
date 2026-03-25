@@ -3661,7 +3661,8 @@
 
                     function bulkSelect(col, s, e) {
                         e.stopPropagation();
-                        const items = document.getElementById(`list-${col}`).querySelectorAll("input");
+                        const listEl = document.getElementById(`list-${col}`);
+                        const items = listEl.querySelectorAll("input");
                         if (!activeSelections[col])
                             activeSelections[col] = new Set();
                         if (!s) {
@@ -3674,6 +3675,12 @@
                                 i.checked = true;
                                 activeSelections[col].add(i.dataset.val);
                             });
+                        }
+                        // Reset the search box and show all items
+                        const searchInput = document.getElementById(`options-${col}`)?.querySelector('input[type="text"]');
+                        if (searchInput) {
+                            searchInput.value = "";
+                            filterDrop(col, "");
                         }
                         document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items";
                         runFilter();
