@@ -1120,6 +1120,19 @@
                 transform: scale(0.97);
             }
 
+            .control-btn--apply {
+                background: var(--primary);
+                border-color: var(--primary);
+                color: #fff;
+                margin-left: auto;
+            }
+
+            .control-btn--apply:hover {
+                background: var(--primary-light);
+                border-color: var(--primary-light);
+                color: #fff;
+            }
+
             #globalSearchResults {
                 position: absolute;
                 top: calc(100% + 4px);
@@ -2863,6 +2876,7 @@
                                                     <div class="selection-controls">
                                                         <span class="control-btn" onclick="bulkSelect('${col}', true, event)">All</span>
                                                         <span class="control-btn" onclick="bulkSelect('${col}', false, event)">Clear</span>
+                                                        <span class="control-btn control-btn--apply" onclick="applyFilter('${col}', event)">Apply</span>
                                                     </div>
                                                     <input type="text" placeholder="Search..." oninput="filterDrop('${col}', this.value)" onkeydown="handleFilterSearchEnter('${col}', event)">
                                                     <div id="list-${col}"></div>
@@ -3651,7 +3665,6 @@
                         });
 
                         updateMultiselectLabel(col);
-                        runFilter();
                     }
 
                     function updateMultiselectLabel(col) {
@@ -3666,7 +3679,6 @@
                             activeSelections[col] = new Set();
                         checked ? activeSelections[col].add(val) : activeSelections[col].delete(val);
                         updateMultiselectLabel(col);
-                        runFilter();
                     }
 
                     function bulkSelect(col, s, e) {
@@ -3693,6 +3705,11 @@
                             filterDrop(col, "");
                         }
                         updateMultiselectLabel(col);
+                    }
+
+                    function applyFilter(col, e) {
+                        e.stopPropagation();
+                        document.getElementById(`options-${col}`)?.classList.add("hidden");
                         runFilter();
                     }
 
