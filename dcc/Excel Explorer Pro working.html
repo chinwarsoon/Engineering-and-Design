@@ -3650,19 +3650,22 @@
                             activeSelections[col].add(input.dataset.val);
                         });
 
-                        const label = document.getElementById(`label-${col}`);
-                        if (label) {
-                            label.innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items";
-                        }
-
+                        updateMultiselectLabel(col);
                         runFilter();
+                    }
+
+                    function updateMultiselectLabel(col) {
+                        const totalItems = document.getElementById(`list-${col}`)?.querySelectorAll("input").length ?? 0;
+                        const selectedCount = activeSelections[col]?.size ?? 0;
+                        const allSelected = selectedCount > 0 && selectedCount >= totalItems;
+                        document.getElementById(`label-${col}`).innerText = (selectedCount === 0 || allSelected) ? "All Items" : `${selectedCount} Selected`;
                     }
 
                     function handleSelect(col, val, checked) {
                         if (!activeSelections[col])
                             activeSelections[col] = new Set();
                         checked ? activeSelections[col].add(val) : activeSelections[col].delete(val);
-                        document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items";
+                        updateMultiselectLabel(col);
                         runFilter();
                     }
 
@@ -3689,7 +3692,7 @@
                             searchInput.value = "";
                             filterDrop(col, "");
                         }
-                        document.getElementById(`label-${col}`).innerText = activeSelections[col].size > 0 ? `${activeSelections[col].size} Selected` : "All Items";
+                        updateMultiselectLabel(col);
                         runFilter();
                     }
 
