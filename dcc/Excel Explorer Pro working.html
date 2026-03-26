@@ -4118,6 +4118,21 @@
                         columnSearchTerms = {};
                         columnSearchActive = null;
 
+                        // Reset any saved widths when the dataset changes
+                        columnWidths = {};
+                        autoFitDone = false;
+
+                        // UI: Populate Step 2 (Column Selection) with new headers
+                        const headerListEl = document.getElementById("headerList");
+                        if (headerListEl) {
+                            headerListEl.innerHTML = headers.map((h)=>`
+                                    <label class="toggle-chip">
+                                        <input type="checkbox" value="${h.replace(/"/g, "&quot;")}" class="col-check" onchange="syncChip(this)"> 
+                                        <span class="status-icon"></span> ${h}
+                                    </label>
+                                `, ).join("");
+                        }
+
                         // Update UI
                         document.getElementById("step2").classList.remove("hidden");
                         buildInterface();
