@@ -4335,13 +4335,14 @@
 
                     function getSortIcon(columnName) {
                         if (sortConfig.column !== columnName) {
-                            return `<span class="sort-icon">↕</span>`;
+                            return `<span class="sort-icon" onclick="event.stopPropagation(); handleSort('${columnName}')">↕</span>`;
                             // Neutral state
                         }
-                        return sortConfig.direction === "asc" ? `<span class="sort-icon active">-</span>` : `<span class="sort-icon active">+</span>`;
+                        const iconChar = sortConfig.direction === "asc" ? "-" : "+";
+                        return `<span class="sort-icon active" onclick="event.stopPropagation(); handleSort('${columnName}')">${iconChar}</span>`;
                     }
 
-                    function handleSort(col, isG) {
+                    function handleSort(col, isG = false) {
                         setFunctionCallStatus('handleSort', true);
                         
                         // 1. Toggle Direction
