@@ -1885,6 +1885,18 @@
                                 <span id="statusWorksheet" class="status-value">None</span>
                             </div>
                             <div class="status-item">
+                                <span class="status-label">🔢 Header Row:</span>
+                                <span id="statusHeaderRow" class="status-value">1</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">📐 Column Range:</span>
+                                <span id="statusColRange" class="status-value">All</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">🎯 Filters Applied:</span>
+                                <span id="statusFilters" class="status-value">0</span>
+                            </div>
+                            <div class="status-item">
                                 <span class="status-label">🔍 Search:</span>
                                 <span id="statusSearch" class="status-value">None</span>
                             </div>
@@ -1893,20 +1905,16 @@
                                 <span id="statusGroupByCols" class="status-value">None</span>
                             </div>
                             <div class="status-item">
-                                <span class="status-label">🔧 Aggregate:</span>
-                                <span id="statusAggregate" class="status-value">Count</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="status-label">🎯 Distinct By:</span>
-                                <span id="statusDistinct" class="status-value">None</span>
-                            </div>
-                            <div class="status-item">
                                 <span class="status-label">📅 Date Binning:</span>
                                 <span id="statusDateBin" class="status-value">None</span>
                             </div>
                             <div class="status-item">
-                                <span class="status-label">🎯 Filters Applied:</span>
-                                <span id="statusFilters" class="status-value">0</span>
+                                <span class="status-label">🔧 Aggregate:</span>
+                                <span id="statusAggregate" class="status-value">Count</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">🔀 Distinct By:</span>
+                                <span id="statusDistinct" class="status-value">None</span>
                             </div>
                         </div>
                         
@@ -2625,6 +2633,19 @@
 
                     function updateStatusBox() {
                         handleStatusBoxVisibility();
+
+                        // Header Row
+                        const headerRowVal = document.getElementById("headerRowInput")?.value?.trim();
+                        document.getElementById("statusHeaderRow").innerText = headerRowVal || "1";
+
+                        // Column Range
+                        const startCol = document.getElementById("startColInput")?.value?.trim().toUpperCase();
+                        const endCol   = document.getElementById("endColInput")?.value?.trim().toUpperCase();
+                        let colRangeText = "All";
+                        if (startCol && endCol)       colRangeText = `${startCol} → ${endCol}`;
+                        else if (startCol)             colRangeText = `${startCol} → end`;
+                        else if (endCol)               colRangeText = `A → ${endCol}`;
+                        document.getElementById("statusColRange").innerText = colRangeText;
 
                         // Search
                         const searchVal = document.getElementById("globalSearch")?.value?.trim();
