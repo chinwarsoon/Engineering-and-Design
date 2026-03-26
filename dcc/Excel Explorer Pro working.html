@@ -614,24 +614,67 @@
                 display: flex;
                 flex-wrap: wrap;
                 align-items: center;
-                gap: 6px;
-                padding: 6px 2px;
-                min-height: 32px;
+                gap: 0;
+                row-gap: 6px;
+                padding: 8px 2px;
+                min-height: 38px;
             }
 
             #filterStatusBar:empty { display: none; }
 
+            /* Arrow-box / chevron chip — pipeline breadcrumb style */
             .fsb-chip {
+                --fsb-h: 24px;
+                --fsb-tip: 9px;
+                position: relative;
                 display: inline-flex;
                 align-items: center;
                 gap: 5px;
-                padding: 3px 9px;
-                border-radius: 999px;
+                height: var(--fsb-h);
+                /* right padding accommodates the outgoing arrow tip */
+                padding: 0 calc(var(--fsb-tip) + 9px) 0 calc(var(--fsb-tip) + 9px);
                 font-size: 11px;
                 font-weight: 600;
                 white-space: nowrap;
-                border: 1px solid transparent;
+                /* margin-right creates the gap before the next chip's body */
+                margin-right: var(--fsb-tip);
+                box-sizing: border-box;
+                z-index: 1;
             }
+
+            /* Left notch (indent): hide for the very first chip */
+            .fsb-chip::before {
+                content: '';
+                position: absolute;
+                left: 0; top: 0;
+                width: 0; height: 0;
+                border-style: solid;
+                border-width: 12px 0 12px var(--fsb-tip);
+                border-color: transparent transparent transparent var(--card-bg);
+            }
+            .fsb-chip:first-child::before { display: none; }
+            .fsb-chip:first-child { padding-left: 12px; border-radius: 4px 0 0 4px; }
+
+            /* Right arrow tip pointing into the next chip */
+            .fsb-chip::after {
+                content: '';
+                position: absolute;
+                right: calc(-1 * var(--fsb-tip)); top: 0;
+                width: 0; height: 0;
+                border-style: solid;
+                border-width: 12px 0 12px var(--fsb-tip);
+                border-color: transparent transparent transparent var(--fsb-bg);
+                z-index: 2;
+            }
+
+            /* Last chip: no outgoing arrow or extra margin */
+            .fsb-chip:last-child::after { display: none; }
+            .fsb-chip:last-child { margin-right: 0; border-radius: 0 4px 4px 0; }
+
+            /* Single chip (only child): rounded both sides, no arrows */
+            .fsb-chip:only-child::before { display: none; }
+            .fsb-chip:only-child::after  { display: none; }
+            .fsb-chip:only-child { border-radius: 4px; padding-left: 12px; margin-right: 0; }
 
             .fsb-chip .fsb-label {
                 opacity: 0.65;
@@ -641,21 +684,23 @@
                 letter-spacing: 0.04em;
             }
 
-            .fsb-chip--filter  { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-            .fsb-chip--search  { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
-            .fsb-chip--column  { background: #fdf4ff; border-color: #e9d5ff; color: #7e22ce; }
-            .fsb-chip--groupby { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
-            .fsb-chip--agg     { background: #fefce8; border-color: #fde68a; color: #92400e; }
-            .fsb-chip--bin     { background: #f0f9ff; border-color: #bae6fd; color: #0369a1; }
-            .fsb-chip--warning { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+            /* Light mode chip colors — use --fsb-bg so ::after can pick it up */
+            .fsb-chip--filter  { --fsb-bg: #dbeafe; background: var(--fsb-bg); color: #1d4ed8; }
+            .fsb-chip--search  { --fsb-bg: #dcfce7; background: var(--fsb-bg); color: #15803d; }
+            .fsb-chip--column  { --fsb-bg: #f3e8ff; background: var(--fsb-bg); color: #7e22ce; }
+            .fsb-chip--groupby { --fsb-bg: #ffedd5; background: var(--fsb-bg); color: #c2410c; }
+            .fsb-chip--agg     { --fsb-bg: #fef9c3; background: var(--fsb-bg); color: #92400e; }
+            .fsb-chip--bin     { --fsb-bg: #e0f2fe; background: var(--fsb-bg); color: #0369a1; }
+            .fsb-chip--warning { --fsb-bg: #fee2e2; background: var(--fsb-bg); color: #b91c1c; }
 
-            body.dark-mode .fsb-chip--filter  { background: #1e3a5f; border-color: #2563eb; color: #93c5fd; }
-            body.dark-mode .fsb-chip--search  { background: #14532d; border-color: #16a34a; color: #86efac; }
-            body.dark-mode .fsb-chip--column  { background: #3b0764; border-color: #9333ea; color: #d8b4fe; }
-            body.dark-mode .fsb-chip--groupby { background: #431407; border-color: #ea580c; color: #fdba74; }
-            body.dark-mode .fsb-chip--agg     { background: #422006; border-color: #d97706; color: #fcd34d; }
-            body.dark-mode .fsb-chip--bin     { background: #082f49; border-color: #0284c7; color: #7dd3fc; }
-            body.dark-mode .fsb-chip--warning { background: #450a0a; border-color: #dc2626; color: #fca5a5; }
+            /* Dark mode overrides */
+            body.dark-mode .fsb-chip--filter  { --fsb-bg: #1e3a5f; color: #93c5fd; }
+            body.dark-mode .fsb-chip--search  { --fsb-bg: #14532d; color: #86efac; }
+            body.dark-mode .fsb-chip--column  { --fsb-bg: #3b0764; color: #d8b4fe; }
+            body.dark-mode .fsb-chip--groupby { --fsb-bg: #431407; color: #fdba74; }
+            body.dark-mode .fsb-chip--agg     { --fsb-bg: #422006; color: #fcd34d; }
+            body.dark-mode .fsb-chip--bin     { --fsb-bg: #082f49; color: #7dd3fc; }
+            body.dark-mode .fsb-chip--warning { --fsb-bg: #450a0a; color: #fca5a5; }
 
             /* Allow columns to be resized smaller than content; truncate overflowing text */
             table {
