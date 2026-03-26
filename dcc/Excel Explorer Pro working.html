@@ -4199,63 +4199,54 @@
 
                     function toggleColumnSearch(event, col) {
                         event.stopPropagation();
-                        
-                        // Close any other open column search box and clear its term
-                        const openBox = document.querySelector('.column-search-box');
-                        if (openBox && columnSearchActive !== col) {
-                            const prevCol = openBox.querySelector('input')?.getAttribute('data-col');
-                            openBox.remove();
-                            if (prevCol && columnSearchTerms[prevCol]) {
-                                delete columnSearchTerms[prevCol];
-                                runFilter();
-                            }
-                        }
-                        
+
                         if (columnSearchActive === col) {
-                            // Close the search box — clear its term and re-run filter
-                            const box = event.target.parentElement.querySelector('.column-search-box');
-                            if (box) box.remove();
-                            delete columnSearchTerms[col];
-                            columnSearchActive = null;
-                            runFilter();
-                        } else {
-                            // Open search box for this column
-                            const th = event.target.closest('th');
-                            
-                            // Remove existing search box
-                            const existing = th.querySelector('.column-search-box');
-                            if (existing) existing.remove();
-                            
-                            // Create search box HTML
-                            const searchBox = document.createElement('div');
-                            searchBox.className = 'column-search-box';
-                            searchBox.innerHTML = `<input type="text" placeholder="Search ${col}..." class="column-search-input" data-col="${col}" onkeyup="filterTableByColumn(this)" onkeydown="if(event.key==='Enter') { event.preventDefault(); closeColumnSearchBox(); }">`;
-                            
-                            th.style.position = 'relative';
-                            th.appendChild(searchBox);
-                            
-                            // Focus the input
-                            searchBox.querySelector('input').focus();
-                            
-                            columnSearchActive = col;
+                            // Box is already open for this column — just re-focus it, do nothing else
+                            const existing = document.querySelector('.column-search-box input');
+                            if (existing) existing.focus();
+                            return;
                         }
+
+                        // Close any other open column search box — keep its filter term intact
+                        const openBox = document.querySelector('.column-search-box');
+                        if (openBox) {
+                            openBox.remove();
+                        }
+
+                        // Open search box for this column
+                        const th = event.target.closest('th');
+                        const searchBox = document.createElement('div');
+                        searchBox.className = 'column-search-box';
+                        searchBox.innerHTML = `<input type="text" placeholder="Search ${col}..." class="column-search-input" data-col="${col}" onkeyup="filterTableByColumn(this)" onkeydown="if(event.key==='Enter') { event.preventDefault(); closeColumnSearchBox(); }">`;
+
+                        th.style.position = 'relative';
+                        th.appendChild(searchBox);
+
+                        // Pre-fill with any existing search term for this column
+                        const input = searchBox.querySelector('input');
+                        if (columnSearchTerms[col]) input.value = columnSearchTerms[col];
+                        input.focus();
+
+                        columnSearchActive = col;
                     }
 
                     function filterTableByColumn(input) {
                         const col = input.getAttribute('data-col');
-                        columnSearchTerms[col] = input.value;
+                        const term = input.value;
+                        if (term.trim() === "") {
+                            // User cleared the text — remove the filter for this column
+                            delete columnSearchTerms[col];
+                        } else {
+                            columnSearchTerms[col] = term;
+                        }
                         debouncedRunFilter(220);
                     }
 
                     function closeColumnSearchBox() {
+                        // Called on Enter — close box only, keep the filter term intact
                         const searchBox = document.querySelector('.column-search-box');
                         if (searchBox) {
-                            const col = searchBox.querySelector('input')?.getAttribute('data-col');
                             searchBox.remove();
-                            if (col) {
-                                delete columnSearchTerms[col];
-                                runFilter();
-                            }
                             columnSearchActive = null;
                         }
                     }
