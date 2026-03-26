@@ -4074,6 +4074,7 @@
                                     return `<th data-col=\"${x}\" ${widthStyle} onclick=\"toggleColumnSearch(event, '${x}')\">${x} ${icon}</th>`;
                                 }
                                 ).join("")}</tr>`;
+                                restoreColumnSearchBox();
 
                                 const limit = 2000;
                                 tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
@@ -4110,6 +4111,7 @@
                                 return `<th data-col=\"${h}\" ${widthStyle} onclick=\"toggleColumnSearch(event, '${h}')\">${h} ${icon}</th>`;
                             }
                             ).join("")}</tr>`;
+                            restoreColumnSearchBox();
 
                             const limit = 300;
                             tBody.innerHTML = data.slice(0, limit).map((r)=>`<tr>${vis.map((h)=>{
@@ -4197,13 +4199,32 @@
                     let columnSearchActive = null;
                     let columnSearchTerms = {};
 
+                    function restoreColumnSearchBox() {
+                        if (!columnSearchActive) return;
+                        const col = columnSearchActive;
+                        // If the box was wiped by a table re-render, recreate it
+                        if (document.querySelector('.column-search-box')) return;
+                        const th = document.querySelector(`th[data-col="${col}"]`);
+                        if (!th) { columnSearchActive = null; return; }
+                        const searchBox = document.createElement('div');
+                        searchBox.className = 'column-search-box';
+                        searchBox.innerHTML = `<input type="text" placeholder="Search ${col}..." class="column-search-input" data-col="${col}" onkeyup="filterTableByColumn(this)" onkeydown="if(event.key==='Enter') { event.preventDefault(); closeColumnSearchBox(); }">`;
+                        th.style.position = 'relative';
+                        th.appendChild(searchBox);
+                        const input = searchBox.querySelector('input');
+                        if (columnSearchTerms[col]) input.value = columnSearchTerms[col];
+                        input.focus();
+                    }
+
                     function toggleColumnSearch(event, col) {
                         event.stopPropagation();
 
                         if (columnSearchActive === col) {
-                            // Box is already open for this column — just re-focus it, do nothing else
+                            // Box is open (or was open before re-render) — re-focus or recreate it
                             const existing = document.querySelector('.column-search-box input');
-                            if (existing) existing.focus();
+                            if (existing) { existing.focus(); return; }
+                            // Box was destroyed by re-render — recreate it
+                            restoreColumnSearchBox();
                             return;
                         }
 
