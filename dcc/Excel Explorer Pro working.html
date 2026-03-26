@@ -3831,11 +3831,6 @@
                     function runFilter() {
                         setFunctionCallStatus('runFilter', true);
                         
-                        // Close any open column search boxes
-                        const searchBoxes = document.querySelectorAll('.column-search-box');
-                        searchBoxes.forEach(box => box.remove());
-                        columnSearchActive = null;
-                        
                         // Defer heavy work to allow status update to render
                         setTimeout(() => {
                             // Check for conflict between GroupBy and Aggregator
@@ -3921,6 +3916,17 @@
                                     return true;
                                 });
                             });
+
+                            // 3. Column search filter (data-level so charts stay in sync)
+                            const activeColSearches = Object.entries(columnSearchTerms).filter(([, term]) => term.trim() !== "");
+                            if (activeColSearches.length > 0) {
+                                filteredDataGlobal = filteredDataGlobal.filter(row => {
+                                    return activeColSearches.every(([col, term]) => {
+                                        const cellVal = String(formatExcelDate(row[col]) ?? "").toLowerCase();
+                                        return cellVal.includes(term.toLowerCase());
+                                    });
+                                });
+                            }
 
                             renderGlobalSearchResults(search, filteredDataGlobal);
 
@@ -4189,22 +4195,29 @@
 
                     // Column Search Feature
                     let columnSearchActive = null;
+                    let columnSearchTerms = {};
 
                     function toggleColumnSearch(event, col) {
                         event.stopPropagation();
                         
-                        // Close any open column search box
+                        // Close any other open column search box and clear its term
                         const openBox = document.querySelector('.column-search-box');
                         if (openBox && columnSearchActive !== col) {
+                            const prevCol = openBox.querySelector('input')?.getAttribute('data-col');
                             openBox.remove();
+                            if (prevCol && columnSearchTerms[prevCol]) {
+                                delete columnSearchTerms[prevCol];
+                                runFilter();
+                            }
                         }
                         
                         if (columnSearchActive === col) {
-                            // Close the search box if clicking the same column
-                            // Keep the filtering active - don't reset
+                            // Close the search box — clear its term and re-run filter
                             const box = event.target.parentElement.querySelector('.column-search-box');
                             if (box) box.remove();
+                            delete columnSearchTerms[col];
                             columnSearchActive = null;
+                            runFilter();
                         } else {
                             // Open search box for this column
                             const th = event.target.closest('th');
@@ -4230,45 +4243,19 @@
 
                     function filterTableByColumn(input) {
                         const col = input.getAttribute('data-col');
-                        const searchTerm = input.value.toLowerCase();
-                        const tBody = document.getElementById('tBody');
-                        const rows = tBody.querySelectorAll('tr');
-                        
-                        // Get column index
-                        const th = document.querySelector(`th[data-col="${col}"]`);
-                        const allThs = document.querySelectorAll('th');
-                        let colIndex = 0;
-                        
-                        for (let i = 0; i < allThs.length; i++) {
-                            if (allThs[i] === th) {
-                                colIndex = i;
-                                break;
-                            }
-                        }
-                        
-                        // Filter rows
-                        let visibleCount = 0;
-                        rows.forEach(row => {
-                            const cell = row.cells[colIndex];
-                            if (cell) {
-                                const cellText = cell.textContent.toLowerCase();
-                                const isVisible = cellText.includes(searchTerm);
-                                row.style.display = isVisible ? '' : 'none';
-                                if (isVisible) visibleCount++;
-                            }
-                        });
-                        
-                        // Update stats to show filtered count
-                        const statsEl = document.getElementById('stats');
-                        if (statsEl) {
-                            statsEl.innerText = `${visibleCount} / ${filteredDataGlobal.length}`;
-                        }
+                        columnSearchTerms[col] = input.value;
+                        debouncedRunFilter(220);
                     }
 
                     function closeColumnSearchBox() {
                         const searchBox = document.querySelector('.column-search-box');
                         if (searchBox) {
+                            const col = searchBox.querySelector('input')?.getAttribute('data-col');
                             searchBox.remove();
+                            if (col) {
+                                delete columnSearchTerms[col];
+                                runFilter();
+                            }
                             columnSearchActive = null;
                         }
                     }
