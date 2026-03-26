@@ -4295,6 +4295,36 @@
 
                                 setProgressStatus('updateTable', 'loading', 'Rendering table...');
                                 
+                                if (currentGroupedData.length === 0) {
+                                    // Still need to create headers based on group by columns
+                                    const groupByCols = getSelectedGroupByCols();
+                                    const aggValue = document.getElementById("aggColumn").value;
+                                    const [,targetCol] = aggValue.split("|");
+                                    const metricCol = targetCol || "Count";
+                                    const headers = [...groupByCols, metricCol];
+                                    if (groupByCols.length > 1) headers.push("%");
+                                    
+                                    tHead.innerHTML = `<tr>${headers.map((x)=>{
+                                        const icon = getSortIcon(x);
+                                        const widthStyle = columnWidths[x] ? `style=\"width:${columnWidths[x]}px;\"` : "";
+                                        return `<th data-col=\"${x}\" ${widthStyle} onclick=\"toggleColumnSearch(event, '${x}')\">${x} ${icon}</th>`;
+                                    }).join("")}</tr>`;
+                                    restoreColumnSearchBox();
+                                    
+                                    tBody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align:center; padding:20px; color:#6b7280; font-style:italic;">No data to display with current filters</td></tr>`;
+                                    
+                                    // Mark GroupBy as complete
+                                    setProgressStatus('groupBy', 'complete', '0 groups created');
+                                    
+                                    // Mark table update as complete for grouped data
+                                    setProgressStatus('updateTable', 'complete', '0 groups rendered');
+                                    
+                                    updateChart(currentGroupedData);
+                                    finishUpdateTable();
+                                    clearOperation();
+                                    return;
+                                }
+                                
                                 const k = Object.keys(currentGroupedData[0]);
                                 tHead.innerHTML = `<tr>${k.map((x)=>{
                                     const icon = getSortIcon(x);
@@ -4343,14 +4373,18 @@
                             restoreColumnSearchBox();
 
                             const limit = 300;
-                            tBody.innerHTML = data.slice(0, limit).map((r)=>`<tr>${vis.map((h)=>{
-                                const cellWidthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : "";
-                                return `<td ${cellWidthStyle}>${formatExcelDate(r[h]) ?? ""}</td>`;
-                            }
-                            ).join("")}</tr>`, ).join("");
+                            if (data.length === 0) {
+                                tBody.innerHTML = `<tr><td colspan="${vis.length}" style="text-align:center; padding:20px; color:#6b7280; font-style:italic;">No data to display with current filters</td></tr>`;
+                            } else {
+                                tBody.innerHTML = data.slice(0, limit).map((r)=>`<tr>${vis.map((h)=>{
+                                    const cellWidthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : "";
+                                    return `<td ${cellWidthStyle}>${formatExcelDate(r[h]) ?? ""}</td>`;
+                                }
+                                ).join("")}</tr>`, ).join("");
 
-                            if (data.length > limit) {
-                                tBody.innerHTML += `<tr><td colspan="${vis.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Raw data preview limited to ${limit} rows. Export to Excel to view all ${data.length} records.</td></tr>`;
+                                if (data.length > limit) {
+                                    tBody.innerHTML += `<tr><td colspan="${vis.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Raw data preview limited to ${limit} rows. Export to Excel to view all ${data.length} records.</td></tr>`;
+                                }
                             }
                             finishUpdateTable();
                             clearOperation();
@@ -4529,6 +4563,17 @@
                         setFunctionCallStatus('updateTableFromGrouped', true);
                         
                         const tBody = document.getElementById("tBody");
+                        
+                        if (currentGroupedData.length === 0) {
+                            // Need to get headers from somewhere - use the table headers if available
+                            const tHead = document.getElementById("tHead");
+                            const headerCells = tHead?.querySelectorAll("th");
+                            const colCount = headerCells?.length || selectedFilterCols.length || 1;
+                            tBody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding:20px; color:#6b7280; font-style:italic;">No data to display with current filters</td></tr>`;
+                            setFunctionCallStatus('updateTableFromGrouped', false);
+                            return;
+                        }
+                        
                         const k = Object.keys(currentGroupedData[0]);
 
                         const limit = 2000;
@@ -4569,7 +4614,7 @@
                         if (!Array.isArray(gData) || gData.length === 0) {
                             if (myChart)
                                 myChart.destroy();
-                            chartContainer.innerHTML = '<canvas id="dataChart"></canvas>';
+                            chartContainer.innerHTML = '<div style="text-align: center; padding: 40px; color: #6b7280; font-style: italic;">No data to display with current filters</div>';
                             setProgressStatus('updateCharts', 'idle', 'No data');
                             setFunctionCallStatus('updateChart', false);
                             return;
@@ -5034,6 +5079,22 @@
                         );
 
                         if (!labels.length) {
+                            // Hide chart and show no data message
+                            const chartContainer = document.getElementById("dateRangeChart");
+                            if (chartContainer) {
+                                chartContainer.style.display = "none";
+                            }
+                            const chartSection = document.getElementById("dateRangeChartSection");
+                            if (chartSection) {
+                                const noDataMsg = document.createElement("div");
+                                noDataMsg.id = "noDateChartData";
+                                noDataMsg.style.cssText = "text-align: center; padding: 40px; color: #6b7280; font-style: italic;";
+                                noDataMsg.textContent = "No date data to display with current filters";
+                                // Remove existing message if any
+                                const existingMsg = document.getElementById("noDateChartData");
+                                if (existingMsg) existingMsg.remove();
+                                chartSection.appendChild(noDataMsg);
+                            }
                             // Mark as idle since no data to display
                             setProgressStatus('updateCharts', 'idle', 'No date data');
                             setFunctionCallStatus('updateDateRangeChart', false);
@@ -5104,6 +5165,14 @@
                                 },
                             };
                         }
+
+                        // Show chart and remove any "No data" message
+                        const chartContainer = document.getElementById("dateRangeChart");
+                        if (chartContainer) {
+                            chartContainer.style.display = "block";
+                        }
+                        const existingMsg = document.getElementById("noDateChartData");
+                        if (existingMsg) existingMsg.remove();
 
                         const ctx = document.getElementById("dateRangeChart").getContext("2d");
                         if (dateRangeChart)
