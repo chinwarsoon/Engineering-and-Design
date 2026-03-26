@@ -2069,7 +2069,6 @@
                                 <div style="display:flex; gap: 6px; flex-wrap: wrap;">
                                     <button class="btn btn-outline" style="font-size: 11px; padding: 6px 12px;" onclick="selectAllColumns()">Select All</button>
                                     <button class="btn btn-outline" style="font-size: 11px; padding: 6px 12px;" onclick="clearAllColumns()">Clear All</button>
-                                    <button class="btn" style="flex: 1; padding: 6px; font-size: 11px; background: var(--primary); justify-content: center;" onclick="applyColumnChanges(event)">Apply</button>
                                 </div>
                                 <div id="headerList" class="filters-container grid-layout" style="max-height: 200px; background: transparent; border: none; padding: 0;"></div>
                             </div>
@@ -3278,7 +3277,6 @@
                             <div style="display: flex; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
                                 <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(true, event)">Select All</button>
                                 <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(false, event)">Clear All</button>
-                                <button class="btn" style="flex: 1; padding: 6px; font-size: 11px; background: var(--primary); justify-content: center;" onclick="applyColumnChanges(event)">Apply</button>
                             </div>
                             <div id="checkListItems">
                                 ${selectedFilterCols.map((h,i)=>`
@@ -3384,7 +3382,6 @@
                                         <div style="display: flex; gap: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border);">
                                             <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(true, event)">Select All</button>
                                             <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(false, event)">Clear All</button>
-                                            <button class="btn" style="flex: 1; padding: 6px; font-size: 11px; background: var(--primary); justify-content: center;" onclick="applyColumnChanges(event)">Apply</button>
                                         </div>
                                         <div id="checkListItems">
                                             ${headers.map((h, i) => {
@@ -4149,7 +4146,10 @@
                         const searchBox = document.querySelector(".column-search-box");
                         if (searchBox && !searchBox.contains(e.target) && !e.target.closest('th')) {
                             // Just close the search box, keep the filter active
+                            const th = searchBox.parentElement;
                             searchBox.remove();
+                            // Reset position back to sticky
+                            if (th) th.style.position = 'sticky';
                             columnSearchActive = null;
                         }
                     });
@@ -4800,7 +4800,10 @@
                         // Close any other open column search box — keep its filter term intact
                         const openBox = document.querySelector('.column-search-box');
                         if (openBox) {
+                            const th = openBox.parentElement;
                             openBox.remove();
+                            // Reset position back to sticky
+                            if (th) th.style.position = 'sticky';
                         }
 
                         // Open search box for this column
@@ -4836,7 +4839,10 @@
                         // Called on Enter — close box only, keep the filter term intact
                         const searchBox = document.querySelector('.column-search-box');
                         if (searchBox) {
+                            const th = searchBox.parentElement;
                             searchBox.remove();
+                            // Reset position back to sticky
+                            th.style.position = 'sticky';
                             columnSearchActive = null;
                         }
                     }
@@ -5639,7 +5645,8 @@
 
                     function toggleCol(c) {
                         hiddenColumns.has(c) ? hiddenColumns.delete(c) : hiddenColumns.add(c);
-                        // Do NOT call runFilter() here - wait for Apply button
+                        // Apply filter immediately since Apply button is removed
+                        runFilter();
                     }
 
                     function toggleColumnMenu(e) {
@@ -5651,14 +5658,6 @@
                         if (!isHidden) {
                             runFilter();
                         }
-                    }
-
-                    function applyColumnChanges(event) {
-                        if (event)
-                            event.stopPropagation();
-                        // Close the menu and trigger data table update
-                        document.getElementById("columnToggleMenu").classList.add("hidden");
-                        runFilter();
                     }
 
                     function resetFilters() {
