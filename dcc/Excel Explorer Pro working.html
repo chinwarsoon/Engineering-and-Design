@@ -3160,14 +3160,15 @@
                         ).join("");
 
                         // 5. Update the rest of the UI (Aggregators and Column Visibility Menu)
-                        const numericCols = headers.filter((h)=>rawData.some((r)=>typeof r[h] === "number" && !isExcelDate(r[h])), );
+                        // Use selectedFilterCols to limit options to what user selected in Step 2
+                        const numericCols = selectedFilterCols.filter((h)=>rawData.some((r)=>typeof r[h] === "number" && !isExcelDate(r[h])), );
                         document.getElementById("aggColumn").innerHTML = `<option value="">-- Count --</option>
-                    <optgroup label="Unique Distinct">${headers.map((h)=>`<option value="DISTINCT|${h}">${h}</option>`).join("")}</optgroup>
+                    <optgroup label="Unique Distinct">${selectedFilterCols.map((h)=>`<option value="DISTINCT|${h}">${h}</option>`).join("")}</optgroup>
                     <optgroup label="Sum">${numericCols.map((h)=>`<option value="SUM|${h}">${h}</option>`).join("")}</optgroup>`;
 
                         const groupByColumnList = document.getElementById("groupByColumnList");
                         if (groupByColumnList) {
-                            groupByColumnList.innerHTML = headers.map((h)=>`
+                            groupByColumnList.innerHTML = selectedFilterCols.map((h)=>`
                                 <label class="toggle-chip group-by-chip" > 
                                     <input type="checkbox" class="group-by-col-check" value="${h}" onchange="handleGroupByChange(this)">
                                     <span class="status-icon"></span>
@@ -3181,8 +3182,9 @@
                         document.querySelectorAll('.group-by-col-check').forEach((checkbox)=>syncGroupByChip(checkbox));
 
                         // Populate Date Range X/Y selectors
-                        const dateCols = headers.filter((h)=>rawData.some((r)=>r[h]instanceof Date || isExcelDate(r[h])), );
-                        const yCols = headers.filter((h)=>!dateCols.includes(h));
+                        // Use selectedFilterCols to limit options to what user selected in Step 2
+                        const dateCols = selectedFilterCols.filter((h)=>rawData.some((r)=>r[h]instanceof Date || isExcelDate(r[h])), );
+                        const yCols = selectedFilterCols.filter((h)=>!dateCols.includes(h));
 
                         const xSelect = document.getElementById("dateRangeXColumn");
                         const ySelect = document.getElementById("dateRangeYColumns");
@@ -3251,7 +3253,7 @@
                                 <button class="btn" style="flex: 1; padding: 6px; font-size: 11px; background: var(--primary); justify-content: center;" onclick="applyColumnChanges(event)">Apply</button>
                             </div>
                             <div id="checkListItems">
-                                ${headers.map((h,i)=>`
+                                ${selectedFilterCols.map((h,i)=>`
                                     <div id="columnItem-${i}" class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
                                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'top', event)">⇑</button>
                                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">↑</button>
@@ -4303,7 +4305,8 @@
                             setProgressStatus('groupBy', 'idle', 'No grouping');
                             setProgressStatus('updateTable', 'loading', 'Building raw data view...');
                             
-                            const vis = headers.filter((h)=>!hiddenColumns.has(h));
+                            // Show only selectedFilterCols that are not hidden
+                            const vis = selectedFilterCols.filter((h)=>!hiddenColumns.has(h));
                             document.getElementById("chartSection").classList.add("hidden");
 
                             // FIXED: Apply sort icons to Raw Data Headers
