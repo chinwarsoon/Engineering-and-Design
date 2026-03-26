@@ -3597,6 +3597,41 @@
                         const fileName = e.target.files?.[0]?.name || "Untitled";
                         document.getElementById("statusFileName").innerText = fileName;
 
+                        // Reset all values in loadFilesContainer
+                        // Reset sheet selector
+                        document.getElementById("sheetSelectorLabel").textContent = "Select sheets...";
+                        document.getElementById("sheetDropdown").classList.add("hidden");
+                        document.getElementById("sheetSelector").classList.add("hidden");
+                        document.getElementById("sheetList").innerHTML = "";
+                        
+                        // Reset sheet controls to defaults
+                        document.getElementById("headerRowInput").value = "1";
+                        document.getElementById("startColInput").value = "";
+                        document.getElementById("endColInput").value = "";
+                        document.getElementById("sheetControls").classList.add("hidden");
+                        
+                        // Reset status box values
+                        document.getElementById("statusWorksheet").innerText = "None";
+                        
+                        // Hide downstream sections
+                        document.getElementById("step2").classList.add("hidden");
+                        document.getElementById("step3").classList.add("hidden");
+                        document.getElementById("groupBySection").classList.add("hidden");
+                        document.getElementById("filterContainerSection").classList.add("hidden");
+                        
+                        // Clear any existing data
+                        rawData = [];
+                        filteredDataGlobal = [];
+                        headers = [];
+                        selectedFilterCols = [];
+                        hiddenColumns.clear();
+                        columnSearchTerms = {};
+                        columnSearchActive = null;
+                        
+                        // Destroy charts
+                        if (myChart) { myChart.destroy(); myChart = null; }
+                        if (dateRangeChart) { dateRangeChart.destroy(); dateRangeChart = null; }
+
                         reader.onload = (evt)=>{
                             try {
                                 workbook = XLSX.read(evt.target.result, {
@@ -3626,12 +3661,7 @@
                                 const fileName = e.target.files?.[0]?.name || "Untitled";
                                 document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet`;
                                 
-                                // Set initial worksheet name in status box
-                                const firstSheet = workbook.SheetNames[0];
-                                document.getElementById("statusWorksheet").innerText = firstSheet;
-
-                                loadSheet(workbook.SheetNames[0]);
-                                setProgressStatus('loadFile', 'complete', `${fileName} loaded`);
+                                setProgressStatus('loadFile', 'complete', `${fileName} loaded - select sheets to continue`);
                             } catch (err) {
                                 setProgressStatus('loadFile', 'error', 'Failed to load');
                                 console.error('File loading error:', err);
@@ -3711,6 +3741,54 @@
                         document.getElementById("sheetDropdown").classList.add("hidden");
                     }
 
+                    function updateSheetRangeValues(sheetNames) {
+                        console.log("=== updateSheetRangeValues called ===");
+                        console.log("Sheets to process:", sheetNames);
+                        
+                        // Preserve the user's header row input value
+                        const currentHeaderRow = document.getElementById('headerRowInput').value;
+                        console.log("Current header row input value:", currentHeaderRow);
+                        
+                        // Find the combined column range across all selected sheets
+                        let minCol = null;
+                        let maxCol = null;
+                        
+                        sheetNames.forEach(sheetName => {
+                            const sheet = workbook.Sheets[sheetName];
+                            console.log(`Processing sheet: ${sheetName}`);
+                            if (sheet['!ref']) {
+                                const range = XLSX.utils.decode_range(sheet['!ref']);
+                                console.log(`Sheet ${sheetName} range: ${XLSX.utils.encode_range(range)} (start col: ${range.s.c}, end col: ${range.e.c})`);
+                                
+                                if (minCol === null || range.s.c < minCol) minCol = range.s.c;
+                                if (maxCol === null || range.e.c > maxCol) maxCol = range.e.c;
+                            } else {
+                                console.log(`Sheet ${sheetName} has no '!ref' property`);
+                            }
+                        });
+                        
+                        console.log(`Final combined range - minCol: ${minCol}, maxCol: ${maxCol}`);
+                        
+                        // Update column range inputs if we found valid columns
+                        if (minCol !== null && maxCol !== null) {
+                            const startColLetter = XLSX.utils.encode_col(minCol);
+                            const endColLetter = XLSX.utils.encode_col(maxCol);
+                            document.getElementById('startColInput').value = startColLetter;
+                            document.getElementById('endColInput').value = endColLetter;
+                            console.log(`Set start column to: ${startColLetter}`);
+                            console.log(`Set end column to: ${endColLetter}`);
+                        } else {
+                            console.log("No valid columns found, keeping current values");
+                        }
+                        
+                        // Verify the values were set
+                        console.log("=== Verification ===");
+                        console.log("Header row input value:", document.getElementById('headerRowInput').value);
+                        console.log("Start col input value:", document.getElementById('startColInput').value);
+                        console.log("End col input value:", document.getElementById('endColInput').value);
+                        console.log("=== updateSheetRangeValues completed ===");
+                    }
+
                     function loadMultipleSheets(sheetNames) {
                         setFunctionCallStatus('loadMultipleSheets', true);
                         
@@ -3747,7 +3825,10 @@
                         const allHeaders = new Set();
                         const sheetDataMap = new Map();
                         
-                        // Get header row and column settings
+                        // Update sheet-range-row values based on loaded sheets
+                        updateSheetRangeValues(sheetNames);
+                        
+                        // Get header row and column settings (now updated)
                         const headerRowVal = parseInt(document.getElementById('headerRowInput').value) || 1;
                         const startColInput = document.getElementById('startColInput');
                         const endColInput = document.getElementById('endColInput');
@@ -3871,11 +3952,189 @@
                         setFunctionCallStatus('loadMultipleSheets', false);
                     }
 
+                    function loadMultipleSheetsWithPreservedInputs(sheetNames) {
+                        setFunctionCallStatus('loadMultipleSheets', true);
+                        
+                        setProgressStatus('loadFile', 'loading', `Refreshing ${sheetNames.length} sheet${sheetNames.length > 1 ? 's' : ''}...`);
+                        
+                        // Update worksheet name in status box
+                        document.getElementById("statusWorksheet").innerText = sheetNames.join(", ");
+                        
+                        // Update Step 1 header
+                        const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
+                        document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet`;
+
+                        // Clear warnings and reset status box for new load
+                        clearWarnings();
+                        document.getElementById("statusSearch").innerText = "None";
+                        document.getElementById("statusGroupByCols").innerText = "None";
+                        document.getElementById("statusAggregate").innerText = "Count";
+                        document.getElementById("statusDistinct").innerText = "None";
+                        document.getElementById("statusDateBin").innerText = "None";
+                        document.getElementById("statusFilters").innerText = "0";
+                        document.getElementById("statusRecords").innerText = "0 / 0";
+
+                        // Reset/Hide downstream UI elements for new data load
+                        document.getElementById("step3").classList.add("hidden");
+                        document.getElementById("groupBySection").classList.add("hidden");
+                        document.getElementById("filterContainerSection").classList.add("hidden");
+                        if (myChart) { myChart.destroy(); myChart = null; }
+                        if (dateRangeChart) { dateRangeChart.destroy(); dateRangeChart = null; }
+
+                        logDebug("Refreshing sheets: " + sheetNames.join(", "));
+                        console.log("Refreshing sheets:", sheetNames);
+
+                        // Collect all unique headers from all sheets
+                        const allHeaders = new Set();
+                        const sheetDataMap = new Map();
+                        
+                        // DO NOT update sheet-range-row values - preserve user inputs
+                        
+                        // Get header row and column settings (preserve current user inputs)
+                        const headerRowVal = parseInt(document.getElementById('headerRowInput').value) || 1;
+                        const startColInput = document.getElementById('startColInput');
+                        const endColInput = document.getElementById('endColInput');
+                        const startColVal = startColInput.value.trim().toUpperCase();
+                        const endColVal = endColInput.value.trim().toUpperCase();
+                        
+                        // Simple verification
+                        console.log("loadMultipleSheetsWithPreservedInputs - Using headerRowVal:", headerRowVal);
+                        console.log("loadMultipleSheetsWithPreservedInputs - Using startColVal:", startColVal);
+                        console.log("loadMultipleSheetsWithPreservedInputs - Using endColVal:", endColVal);
+                        
+                        // Debug: Log the input values
+                        console.log(`Input values - Header row input: '${document.getElementById('headerRowInput').value}' -> ${headerRowVal}`);
+                        console.log(`Input values - Start col input: '${startColInput.value}' -> '${startColVal}'`);
+                        console.log(`Input values - End col input: '${endColInput.value}' -> '${endColVal}'`);
+
+                        // Load each sheet and collect headers and data
+                        sheetNames.forEach(sheetName => {
+                            const sheet = workbook.Sheets[sheetName];
+                            
+                            const opts = {
+                                defval: null,
+                                cellDates: true,
+                                dateNF: 'yyyy-mm-dd'
+                            };
+
+                            // Debug: Log the values being used
+                            console.log(`Sheet ${sheetName} - Header row: ${headerRowVal}, Start col: ${startColVal}, End col: ${endColVal}`);
+
+                            if (sheet['!ref']) {
+                                const range = XLSX.utils.decode_range(sheet['!ref']);
+                                console.log(`Original range: ${XLSX.utils.encode_range(range)}`);
+                                
+                                // Set header row
+                                range.s.r = Math.max(range.s.r, headerRowVal - 1);
+                                
+                                // Apply column bounds if provided
+                                if (startColVal && startColVal !== "") {
+                                    try { 
+                                        const startColIdx = XLSX.utils.decode_col(startColVal);
+                                        range.s.c = Math.max(range.s.c, startColIdx);
+                                        console.log(`Applied start column ${startColVal} (index ${startColIdx})`);
+                                    } catch(e) { console.error(`Invalid start column: ${startColVal}`, e); }
+                                }
+                                
+                                if (endColVal && endColVal !== "") {
+                                    try { 
+                                        const endColIdx = XLSX.utils.decode_col(endColVal);
+                                        range.e.c = Math.min(range.e.c, endColIdx);
+                                        console.log(`Applied end column ${endColVal} (index ${endColIdx})`);
+                                    } catch(e) { console.error(`Invalid end column: ${endColVal}`, e); }
+                                }
+                                
+                                opts.range = range;
+                                console.log(`Final range: ${XLSX.utils.encode_range(range)}`);
+                            } else {
+                                console.warn(`Sheet ${sheetName} has no '!ref' property`);
+                            }
+
+                            let sheetData = XLSX.utils.sheet_to_json(sheet, opts);
+
+                            // Validation Check
+                            if (sheetData.length === 0) {
+                                console.warn(`Sheet ${sheetName} appears to be empty.`);
+                                return;
+                            }
+
+                            // Collect headers from this sheet
+                            Object.keys(sheetData[0]).forEach(header => {
+                                allHeaders.add(sanitizeHeader(header));
+                            });
+
+                            sheetDataMap.set(sheetName, sheetData);
+                        });
+
+                        // Convert Set to Array and sort
+                        const mergedHeaders = Array.from(allHeaders).sort();
+
+                        // Merge data from all sheets
+                        const mergedData = [];
+                        sheetNames.forEach(sheetName => {
+                            const sheetData = sheetDataMap.get(sheetName);
+                            if (sheetData && sheetData.length > 0) {
+                                sheetData.forEach(row => {
+                                    const cleanRow = {};
+                                    mergedHeaders.forEach(header => {
+                                        // Find original header that matches this sanitized header
+                                        const originalHeader = Object.keys(row).find(orig => sanitizeHeader(orig) === header);
+                                        cleanRow[header] = originalHeader ? row[originalHeader] : null;
+                                    });
+                                    
+                                    // Add source sheet info if multiple sheets
+                                    if (sheetNames.length > 1) {
+                                        cleanRow._source_sheet = sheetName;
+                                    }
+                                    
+                                    mergedData.push(cleanRow);
+                                });
+                            }
+                        });
+
+                        // Remove blank rows
+                        const filteredData = mergedData.filter(row => {
+                            return Object.values(row).some(val => val !== null && val !== undefined && val !== "");
+                        });
+
+                        // Remove blank columns
+                        const nonBlankHeaders = mergedHeaders.filter(header => {
+                            return filteredData.some(row => row[header] !== null && row[header] !== undefined && row[header] !== "");
+                        });
+
+                        const finalData = filteredData.map(row => {
+                            const cleanRow = {};
+                            nonBlankHeaders.forEach(header => {
+                                cleanRow[header] = row[header];
+                            });
+                            return cleanRow;
+                        });
+
+                        // Update global variables
+                        rawData = finalData;
+                        headers = nonBlankHeaders;
+                        selectedFilterCols = [...headers];
+                        hiddenColumns.clear();
+                        columnSearchTerms = {};
+                        columnSearchActive = null;
+
+                        // Update UI
+                        document.getElementById("step2").classList.remove("hidden");
+                        buildInterface();
+                        setProgressStatus('loadFile', 'complete', `${sheetNames.length} sheet${sheetNames.length > 1 ? 's' : ''} refreshed`);
+                        setFunctionCallStatus('loadMultipleSheets', false);
+                    }
+
                     function reloadCurrentSheet() {
                         const checkboxes = document.querySelectorAll(".sheet-check:checked");
                         if (checkboxes.length > 0) {
                             const selectedSheets = Array.from(checkboxes).map(cb => cb.value);
-                            loadMultipleSheets(selectedSheets);
+                            console.log("reloadCurrentSheet called with sheets:", selectedSheets);
+                            console.log("Current header row input:", document.getElementById('headerRowInput').value);
+                            console.log("Current start col input:", document.getElementById('startColInput').value);
+                            console.log("Current end col input:", document.getElementById('endColInput').value);
+                            // Load sheets without updating sheet-range-row values (preserve user inputs)
+                            loadMultipleSheetsWithPreservedInputs(selectedSheets);
                         }
                     }
 
@@ -4131,12 +4390,14 @@
                         
                         if (!clickedInside && !clickedInSheetSelector) {
                             closeOpenMultiselectsAndApply();
-                            // Also close sheet dropdown if open
+                            // Also close sheet dropdown if open and load selected sheets
                             const sheetDropdown = document.getElementById("sheetDropdown");
                             const sheetDisplay = document.querySelector("#sheetSelector .multiselect-display");
                             if (sheetDropdown && !sheetDropdown.classList.contains("hidden")) {
                                 sheetDropdown.classList.add("hidden");
                                 if (sheetDisplay) sheetDisplay.classList.remove("active");
+                                // Load selected sheets when dropdown is closed
+                                loadSelectedSheets();
                             }
                         }
                     });
