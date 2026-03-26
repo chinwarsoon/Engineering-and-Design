@@ -1179,6 +1179,21 @@
                 box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
             }
 
+            .dropdown-arrow {
+                margin-left: auto;
+                font-size: 12px;
+                opacity: 0.7;
+                transition: transform 0.2s ease;
+            }
+
+            .multiselect-display.active .dropdown-arrow {
+                transform: rotate(180deg);
+            }
+
+            .multiselect-wrapper {
+                position: relative;
+            }
+
             /* Fix for dropdown menus being cut off */
             .multiselect-options {
                 position: absolute;
@@ -2006,7 +2021,20 @@
                             <div id="loadFilesContainer">
                                 <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                     <input type="file" id="upload" accept=".xlsx, .xls"/>
-                                    <select id="sheetSelector" class="hidden" onchange="loadSheet(this.value)" style="width: 100%"></select>
+                                    <div id="sheetSelector" class="multiselect-wrapper hidden" style="width: 100%">
+                                    <div class="multiselect-display" onclick="toggleSheetDropdown()">
+                                        <span id="sheetSelectorLabel">Select sheets...</span>
+                                        <span class="dropdown-arrow">▼</span>
+                                    </div>
+                                    <div id="sheetDropdown" class="multiselect-options hidden" style="width: 100%; max-height: 200px; overflow-y: auto;">
+                                        <div style="padding: 8px; border-bottom: 1px solid var(--border);">
+                                            <span class="control-btn" onclick="selectAllSheets(true)">All</span>
+                                            <span class="control-btn" onclick="selectAllSheets(false)">Clear</span>
+                                            <span class="control-btn control-btn--apply" onclick="loadSelectedSheets()">Load</span>
+                                        </div>
+                                        <div id="sheetList"></div>
+                                    </div>
+                                </div>
                                     <div id="sheetControls" class="hidden" style="background: var(--bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
                                         <div class="sheet-range-row">
                                             <div class="sheet-range-field">
@@ -3579,11 +3607,22 @@
                                     cellDates: true,
                                 });
 
-                                const s = document.getElementById("sheetSelector");
+                                // Populate sheet list with checkboxes
+                                const sheetList = document.getElementById("sheetList");
+                                sheetList.innerHTML = workbook.SheetNames.map((n)=>`
+                                    <label class="toggle-chip" style="margin: 2px;">
+                                        <input type="checkbox" value="${n}" class="sheet-check" onchange="updateSheetLabel()"> 
+                                        <span class="status-icon"></span> ${n}
+                                    </label>
+                                `).join("");
+                                
+                                // Initialize visual state (all unchecked initially)
+                                document.querySelectorAll(".sheet-check").forEach(cb => {
+                                    cb.checked = false;
+                                    cb.parentElement.classList.remove("active");
+                                });
 
-                                s.innerHTML = workbook.SheetNames.map((n)=>`<option value="${n}">${n}</option>`, ).join("");
-
-                                s.classList.remove("hidden");
+                                document.getElementById("sheetSelector").classList.remove("hidden");
                                 document.getElementById("sheetControls").classList.remove("hidden");
 
                                 // Update Step 1 header with file + sheet
@@ -3608,10 +3647,238 @@
                     }
                     );
 
+                    function toggleSheetDropdown() {
+                        const dropdown = document.getElementById("sheetDropdown");
+                        const display = document.querySelector("#sheetSelector .multiselect-display");
+                        
+                        dropdown.classList.toggle("hidden");
+                        display.classList.toggle("active");
+                        
+                        // Close other dropdowns
+                        document.querySelectorAll(".multiselect-options:not(#sheetDropdown)").forEach(el => {
+                            el.classList.add("hidden");
+                        });
+                        document.querySelectorAll(".multiselect-display:not(#sheetSelector .multiselect-display)").forEach(el => {
+                            el.classList.remove("active");
+                        });
+                    }
+
+                    function updateSheetLabel() {
+                        const checkboxes = document.querySelectorAll(".sheet-check:checked");
+                        const label = document.getElementById("sheetSelectorLabel");
+                        
+                        if (checkboxes.length === 0) {
+                            label.textContent = "Select sheets...";
+                        } else if (checkboxes.length === 1) {
+                            label.textContent = checkboxes[0].value;
+                        } else {
+                            label.textContent = `${checkboxes.length} sheets selected`;
+                        }
+                        
+                        // Update visual state of all sheet checkboxes
+                        document.querySelectorAll(".sheet-check").forEach(cb => {
+                            const label = cb.parentElement;
+                            if (cb.checked) {
+                                label.classList.add("active");
+                            } else {
+                                label.classList.remove("active");
+                            }
+                        });
+                    }
+
+                    function selectAllSheets(select) {
+                        const checkboxes = document.querySelectorAll(".sheet-check");
+                        checkboxes.forEach(cb => {
+                            cb.checked = select;
+                            const label = cb.parentElement;
+                            if (select) {
+                                label.classList.add("active");
+                            } else {
+                                label.classList.remove("active");
+                            }
+                        });
+                        updateSheetLabel();
+                    }
+
+                    function loadSelectedSheets() {
+                        const checkboxes = document.querySelectorAll(".sheet-check:checked");
+                        if (checkboxes.length === 0) {
+                            showWarning("Please select at least one sheet to load.");
+                            return;
+                        }
+                        
+                        const selectedSheets = Array.from(checkboxes).map(cb => cb.value);
+                        loadMultipleSheets(selectedSheets);
+                        
+                        // Close dropdown
+                        document.getElementById("sheetDropdown").classList.add("hidden");
+                    }
+
+                    function loadMultipleSheets(sheetNames) {
+                        setFunctionCallStatus('loadMultipleSheets', true);
+                        
+                        setProgressStatus('loadFile', 'loading', `Loading ${sheetNames.length} sheet${sheetNames.length > 1 ? 's' : ''}...`);
+                        
+                        // Update worksheet name in status box
+                        document.getElementById("statusWorksheet").innerText = sheetNames.join(", ");
+                        
+                        // Update Step 1 header
+                        const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
+                        document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet`;
+
+                        // Clear warnings and reset status box for new load
+                        clearWarnings();
+                        document.getElementById("statusSearch").innerText = "None";
+                        document.getElementById("statusGroupByCols").innerText = "None";
+                        document.getElementById("statusAggregate").innerText = "Count";
+                        document.getElementById("statusDistinct").innerText = "None";
+                        document.getElementById("statusDateBin").innerText = "None";
+                        document.getElementById("statusFilters").innerText = "0";
+                        document.getElementById("statusRecords").innerText = "0 / 0";
+
+                        // Reset/Hide downstream UI elements for new data load
+                        document.getElementById("step3").classList.add("hidden");
+                        document.getElementById("groupBySection").classList.add("hidden");
+                        document.getElementById("filterContainerSection").classList.add("hidden");
+                        if (myChart) { myChart.destroy(); myChart = null; }
+                        if (dateRangeChart) { dateRangeChart.destroy(); dateRangeChart = null; }
+
+                        logDebug("Loading sheets: " + sheetNames.join(", "));
+                        console.log("Loading sheets:", sheetNames);
+
+                        // Collect all unique headers from all sheets
+                        const allHeaders = new Set();
+                        const sheetDataMap = new Map();
+                        
+                        // Get header row and column settings
+                        const headerRowVal = parseInt(document.getElementById('headerRowInput').value) || 1;
+                        const startColInput = document.getElementById('startColInput');
+                        const endColInput = document.getElementById('endColInput');
+                        const startColVal = startColInput.value.trim().toUpperCase();
+                        const endColVal = endColInput.value.trim().toUpperCase();
+
+                        // Load each sheet and collect headers and data
+                        sheetNames.forEach(sheetName => {
+                            const sheet = workbook.Sheets[sheetName];
+                            
+                            // Determine range for this sheet
+                            const opts = {
+                                defval: null,
+                                cellDates: true,
+                                dateNF: 'yyyy-mm-dd'
+                            };
+
+                            if (sheet['!ref']) {
+                                const range = XLSX.utils.decode_range(sheet['!ref']);
+                                range.s.r = Math.max(range.s.r, headerRowVal - 1);
+                                
+                                if (startColVal) {
+                                    try { range.s.c = Math.max(range.s.c, XLSX.utils.decode_col(startColVal)); } catch(e) {}
+                                }
+                                if (endColVal) {
+                                    try { range.e.c = Math.min(range.e.c, XLSX.utils.decode_col(endColVal)); } catch(e) {}
+                                }
+                                opts.range = range;
+                            }
+
+                            let sheetData = XLSX.utils.sheet_to_json(sheet, opts);
+                            
+                            if (sheetData.length > 0) {
+                                // Collect headers from this sheet
+                                Object.keys(sheetData[0]).forEach(header => {
+                                    allHeaders.add(sanitizeHeader(header));
+                                });
+                                
+                                // Store the data
+                                sheetDataMap.set(sheetName, sheetData);
+                            }
+                        });
+
+                        if (allHeaders.size === 0) {
+                            showWarning("No data found in selected sheets.");
+                            setProgressStatus('loadFile', 'error', 'No data');
+                            setFunctionCallStatus('loadMultipleSheets', false);
+                            return;
+                        }
+
+                        // Convert Set to Array for headers
+                        headers = Array.from(allHeaders);
+                        console.log("All Headers from all sheets:", headers);
+                        logDebug("All Headers: " + headers.join(", "));
+
+                        // Merge data from all sheets
+                        rawData = [];
+                        sheetDataMap.forEach((sheetData, sheetName) => {
+                            sheetData.forEach((row, rowIndex) => {
+                                const cleanRow = {};
+                                let hasData = false;
+
+                                // Process all possible headers
+                                headers.forEach(header => {
+                                    // Find the original header that maps to this sanitized header
+                                    const originalHeader = Object.keys(row).find(orig => sanitizeHeader(orig) === header);
+                                    const value = originalHeader ? row[originalHeader] : null;
+
+                                    // Check if the value is actually something useful
+                                    if (value !== null && value !== undefined && String(value).trim() !== "") {
+                                        hasData = true;
+                                        cleanRow[header] = value;
+                                    } else {
+                                        cleanRow[header] = null;
+                                    }
+                                });
+
+                                // Only add non-empty rows
+                                if (hasData) {
+                                    // Add sheet name as a column if multiple sheets
+                                    if (sheetNames.length > 1) {
+                                        cleanRow['_source_sheet'] = sheetName;
+                                    }
+                                    rawData.push(cleanRow);
+                                }
+                            });
+                        });
+
+                        // Add source sheet to headers if we added it
+                        if (sheetNames.length > 1 && !headers.includes('_source_sheet')) {
+                            headers.unshift('_source_sheet');
+                        }
+
+                        // Reset any saved widths when the dataset changes
+                        columnWidths = {};
+                        autoFitDone = false;
+
+                        logDebug(`Merged Data: ${rawData.length} rows, ${headers.length} columns from ${sheetNames.length} sheets.`);
+
+                        // UI: Populate Step 2 (Column Selection)
+                        const headerListEl = document.getElementById("headerList");
+                        if (headerListEl) {
+                            headerListEl.innerHTML = headers.map((h)=>`
+                                    <label class="toggle-chip">
+                                        <input type="checkbox" value="${h.replace(/"/g, "&quot;")}" class="col-check" onchange="syncChip(this)"> 
+                                        <span class="status-icon"></span> ${h}
+                                    </label>
+                                `, ).join("");
+                        }
+
+                        // UI: Transitions
+                        document.getElementById("step2").classList.remove("hidden");
+
+                        const step2Container = document.getElementById("headerListContainer");
+                        if (step2Container) {
+                            step2Container.style.display = "block";
+                            step2Container.classList.remove("hidden");
+                        }
+
+                        setProgressStatus('loadFile', 'complete', `${sheetNames.length} sheet${sheetNames.length > 1 ? 's' : ''} loaded`);
+                        setFunctionCallStatus('loadMultipleSheets', false);
+                    }
+
                     function reloadCurrentSheet() {
-                        const selector = document.getElementById("sheetSelector");
-                        if (selector && selector.value) {
-                            loadSheet(selector.value);
+                        const checkboxes = document.querySelectorAll(".sheet-check:checked");
+                        if (checkboxes.length > 0) {
+                            const selectedSheets = Array.from(checkboxes).map(cb => cb.value);
+                            loadMultipleSheets(selectedSheets);
                         }
                     }
 
@@ -3858,8 +4125,23 @@
                     document.addEventListener("click", (e) => {
                         const openMenus = document.querySelectorAll(".multiselect-options:not(.hidden)");
                         if (openMenus.length === 0) return;
+                        
+                        // Check if clicking inside sheet selector
+                        const sheetSelector = document.getElementById("sheetSelector");
+                        const clickedInSheetSelector = sheetSelector && sheetSelector.contains(e.target);
+                        
                         const clickedInside = Array.from(openMenus).some((m) => m.contains(e.target) || m.closest(".multiselect-box")?.contains(e.target));
-                        if (!clickedInside) closeOpenMultiselectsAndApply();
+                        
+                        if (!clickedInside && !clickedInSheetSelector) {
+                            closeOpenMultiselectsAndApply();
+                            // Also close sheet dropdown if open
+                            const sheetDropdown = document.getElementById("sheetDropdown");
+                            const sheetDisplay = document.querySelector("#sheetSelector .multiselect-display");
+                            if (sheetDropdown && !sheetDropdown.classList.contains("hidden")) {
+                                sheetDropdown.classList.add("hidden");
+                                if (sheetDisplay) sheetDisplay.classList.remove("active");
+                            }
+                        }
                     });
 
                     // Close column search when clicking outside
