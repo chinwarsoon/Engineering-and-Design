@@ -3941,10 +3941,34 @@
                         const listEl = document.getElementById(`list-${col}`);
                         const items = listEl.querySelectorAll(".option-item");
                         const searchTerm = term.toLowerCase();
+                        
+                        // Ensure activeSelections exists for this column
+                        if (!activeSelections[col]) {
+                            activeSelections[col] = new Set();
+                        }
+                        
+                        let hasVisible = false;
                         items.forEach((item) => {
                             const matches = item.innerText.toLowerCase().includes(searchTerm);
                             item.classList.toggle("search-hidden", !matches);
+                            if (matches) hasVisible = true;
+                            
+                            // Auto-select visible items when searching
+                            const input = item.querySelector("input");
+                            if (input) {
+                                if (searchTerm && matches) {
+                                    // When searching, select all matching items
+                                    input.checked = true;
+                                    activeSelections[col].add(input.dataset.val);
+                                } else if (!searchTerm) {
+                                    // When search is cleared, maintain current selections
+                                    input.checked = activeSelections[col].has(input.dataset.val);
+                                }
+                            }
                         });
+                        
+                        updateMultiselectLabel(col);
+                        pendingFilterUpdate = true;
                     }
 
                     function handleFilterSearchEnter(col, event) {
