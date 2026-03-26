@@ -3237,8 +3237,8 @@
                                 ${headers.map((h,i)=>`
                                     <div id="columnItem-${i}" class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
                                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'top', event)">⇑</button>
-                                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">-</button>
-                                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">+</button>
+                                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">↑</button>
+                                        <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">↓</button>
                                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'bottom', event)">⇓</button>
                                         <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1; cursor: pointer;">
                                             <input type="checkbox" class="col-visibility-check" data-col="${h}" ${hiddenColumns.has(h) ? "" : "checked"} onchange="toggleCol('${h}')"> ${h}
