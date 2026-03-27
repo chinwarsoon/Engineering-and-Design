@@ -2243,8 +2243,22 @@
                                 </div>
                                 <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; margin-top: 1px;" onclick="downloadDateRangeChart()">🖼️ Save Chart</button>
                             </div>
-                            <div id="dateRangeChartCanvasWrap" style="height: 240px">
-                                <canvas id="dateRangeChart"></canvas>
+                            <div id="dateRangeChartCanvasWrap" style="height: 480px; display: flex; gap: 14px; align-items: stretch; flex-wrap: wrap;">
+                                <div style="flex: 1 1 720px; min-width: 320px; min-height: 100%; position: relative;">
+                                    <canvas id="dateRangeChart"></canvas>
+                                </div>
+                                <div style="width: 260px; max-width: 100%; display: flex; flex-direction: column; gap: 6px;">
+                                    <label style="font-size: 11px; opacity: 0.8;">Visible Series</label>
+                                    <div class="multiselect-box" style="position: relative;">
+                                        <div id="dateRangeSeriesDisplay" class="multiselect-display" onclick="toggleDateRangeSeriesDropdown()" style="min-height: 40px; width: 100%; flex-wrap: wrap; gap: 4px; align-items: center;">
+                                            <span id="dateRangeSeriesLabel" style="white-space: normal;">All series</span>
+                                            <span style="margin-left:auto; font-size: 12px; opacity: 0.7;">▾</span>
+                                        </div>
+                                        <div id="dateRangeSeriesOptions" class="multiselect-options hidden" style="padding: 8px; max-height: 360px; overflow-y: auto; width: 100%;">
+                                            <div style="font-size: 11px; color: #64748b;">Series will appear after chart data is prepared.</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div id="dateRangeChartControls" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-top: 20px; margin-bottom: 8px; padding: 10px 0;">
                                 <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -2320,6 +2334,7 @@
                       , multipleCharts = []
                       , dateRangeChart = null;
                     let dateRangeDateColumns = [];
+                    let dateRangeVisibleSeries = new Set();
                     const FULL_TIMELINE_VALUE = "__FULL_TIMELINE__";
 
                     // Persist resized column widths across re-renders
@@ -4543,6 +4558,13 @@
                         menu.classList.toggle("hidden");
                     }
 
+                    function toggleDateRangeSeriesDropdown() {
+                        const menu = document.getElementById("dateRangeSeriesOptions");
+                        if (!menu)
+                            return;
+                        menu.classList.toggle("hidden");
+                    }
+
                     function syncYSelection() {
                         const ySelect = document.getElementById("dateRangeYColumns");
                         const checkboxes = document.querySelectorAll(".date-y-option");
@@ -4572,6 +4594,94 @@
 
                         const selectedCount = Array.from(ySelect.selectedOptions).length;
                         label.innerText = selectedCount === 0 ? "Select y columns" : `${selectedCount} selected`;
+                    }
+
+                    function updateDateRangeSeriesLabel(availableCount = 0) {
+                        const label = document.getElementById("dateRangeSeriesLabel");
+                        if (!label)
+                            return;
+
+                        if (availableCount === 0) {
+                            label.innerText = "No series";
+                            return;
+                        }
+
+                        const visibleCount = dateRangeVisibleSeries.size;
+                        if (visibleCount === 0) {
+                            label.innerText = "No series selected";
+                        } else if (visibleCount >= availableCount) {
+                            label.innerText = "All series";
+                        } else {
+                            label.innerText = `${visibleCount} of ${availableCount} selected`;
+                        }
+                    }
+
+                    function rebuildDateRangeSeriesSelector(seriesDefinitions) {
+                        const optionsEl = document.getElementById("dateRangeSeriesOptions");
+                        if (!optionsEl)
+                            return [];
+
+                        const validKeys = new Set(seriesDefinitions.map((series)=>series.key));
+                        dateRangeVisibleSeries.forEach((key)=>{
+                            if (!validKeys.has(key)) {
+                                dateRangeVisibleSeries.delete(key);
+                            }
+                        });
+
+                        if (dateRangeVisibleSeries.size === 0) {
+                            seriesDefinitions.forEach((series)=>dateRangeVisibleSeries.add(series.key));
+                        }
+
+                        if (seriesDefinitions.length === 0) {
+                            optionsEl.innerHTML = `<div style="font-size: 11px; color: #64748b;">No series available for current selections.</div>`;
+                            updateDateRangeSeriesLabel(0);
+                            return [];
+                        }
+
+                        optionsEl.innerHTML = `
+                            <div class="selection-controls">
+                                <span class="control-btn" onclick="bulkToggleDateRangeSeries(true, event)">All</span>
+                                <span class="control-btn" onclick="bulkToggleDateRangeSeries(false, event)">Clear</span>
+                            </div>
+                            <div id="dateRangeSeriesList">
+                                ${seriesDefinitions.map((series)=>`
+                                    <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px;">
+                                        <input type="checkbox" class="date-range-series-option" value="${escapeAttr(series.key)}" ${dateRangeVisibleSeries.has(series.key) ? "checked" : ""} onchange="handleDateRangeSeriesToggle(${toInlineJsString(series.key)}, this.checked)">
+                                        ${escapeHtml(series.label)}
+                                    </label>
+                                `).join("")}
+                            </div>
+                        `;
+
+                        updateDateRangeSeriesLabel(seriesDefinitions.length);
+                        return seriesDefinitions.filter((series)=>dateRangeVisibleSeries.has(series.key));
+                    }
+
+                    function handleDateRangeSeriesToggle(seriesKey, checked) {
+                        if (checked) {
+                            dateRangeVisibleSeries.add(seriesKey);
+                        } else {
+                            dateRangeVisibleSeries.delete(seriesKey);
+                        }
+                        const optionsEl = document.getElementById("dateRangeSeriesOptions");
+                        const availableCount = optionsEl ? optionsEl.querySelectorAll(".date-range-series-option").length : 0;
+                        updateDateRangeSeriesLabel(availableCount);
+                        updateDateRangeChart();
+                    }
+
+                    function bulkToggleDateRangeSeries(selectAll, event) {
+                        if (event)
+                            event.stopPropagation();
+                        const checkboxes = document.querySelectorAll(".date-range-series-option");
+                        dateRangeVisibleSeries.clear();
+                        checkboxes.forEach((box)=>{
+                            box.checked = selectAll;
+                            if (selectAll) {
+                                dateRangeVisibleSeries.add(box.value);
+                            }
+                        });
+                        updateDateRangeSeriesLabel(checkboxes.length);
+                        updateDateRangeChart();
                     }
 
                     function collectDateValuesForColumns(columns, minVal = "", maxVal = "", sourceData = null) {
@@ -4673,6 +4783,17 @@
                             return;
                         if (!yMenu.classList.contains("hidden") && !yMenu.contains(e.target) && !yDisplay.contains(e.target)) {
                             yMenu.classList.add("hidden");
+                        }
+                    }
+                    );
+
+                    document.addEventListener("click", (e)=>{
+                        const seriesMenu = document.getElementById("dateRangeSeriesOptions");
+                        const seriesDisplay = document.getElementById("dateRangeSeriesDisplay");
+                        if (!seriesMenu || !seriesDisplay)
+                            return;
+                        if (!seriesMenu.classList.contains("hidden") && !seriesMenu.contains(e.target) && !seriesDisplay.contains(e.target)) {
+                            seriesMenu.classList.add("hidden");
                         }
                     }
                     );
@@ -5726,13 +5847,14 @@
                                 y,
                                 label: `${y} (${aggMode})`
                             }));
+                        const visibleSeriesDefinitions = rebuildDateRangeSeriesSelector(seriesDefinitions);
 
                         const xValues = [];
                         const xCounts = {};
                         const accumulated = {};
                         const counts = {};
                         const distinctSets = {}; // Track unique values per series per X label
-                        seriesDefinitions.forEach((series)=>{
+                        visibleSeriesDefinitions.forEach((series)=>{
                             accumulated[series.key] = {};
                             counts[series.key] = {};
                             distinctSets[series.key] = {};
@@ -5762,7 +5884,7 @@
                                     xValues.push(xLabel);
                                 xCounts[xLabel] = (xCounts[xLabel] || 0) + 1;
 
-                                const applicableSeries = seriesDefinitions.filter((series)=>series.xColumn === xColumn);
+                                const applicableSeries = visibleSeriesDefinitions.filter((series)=>series.xColumn === xColumn);
                                 applicableSeries.forEach((series)=>{
                                     const value = row[series.y];
                                     const numValue = Number(value);
@@ -5794,7 +5916,7 @@
                         }
 
                         const normalized = {};
-                        seriesDefinitions.forEach((series)=>{
+                        visibleSeriesDefinitions.forEach((series)=>{
                             normalized[series.key] = {};
                             xValues.forEach((xLabel)=>{
                                 const sum = accumulated[series.key][xLabel] || 0;
@@ -5828,7 +5950,7 @@
                         );
 
                         const plottedValues = {};
-                        seriesDefinitions.forEach((series)=>{
+                        visibleSeriesDefinitions.forEach((series)=>{
                             plottedValues[series.key] = {};
                             let runningTotal = 0;
                             labels.forEach((label)=>{
@@ -5842,7 +5964,7 @@
                             });
                         });
 
-                        if (!labels.length) {
+                        if (!labels.length || visibleSeriesDefinitions.length === 0) {
                             // Hide chart and show no data message
                             const chartContainer = document.getElementById("dateRangeChart");
                             if (chartContainer) {
@@ -5853,7 +5975,9 @@
                                 const noDataMsg = document.createElement("div");
                                 noDataMsg.id = "noDateChartData";
                                 noDataMsg.style.cssText = "text-align: center; padding: 40px; color: #6b7280; font-style: italic;";
-                                noDataMsg.textContent = "No date data to display with current filters";
+                                noDataMsg.textContent = visibleSeriesDefinitions.length === 0
+                                    ? "No date range series selected"
+                                    : "No date data to display with current filters";
                                 // Remove existing message if any
                                 const existingMsg = document.getElementById("noDateChartData");
                                 if (existingMsg) existingMsg.remove();
@@ -5870,7 +5994,7 @@
                         let chartConfig;
 
                         if (chartType === "pie") {
-                            const pieSeries = seriesDefinitions;
+                            const pieSeries = visibleSeriesDefinitions;
                             const totals = pieSeries.map((series)=>labels.reduce((sum,label)=>sum + (normalized[series.key][label] || 0), 0), );
                             chartConfig = {
                                 type: "pie",
@@ -5898,7 +6022,7 @@
                                 type: chartType === "bar" ? "bar" : "line",
                                 data: {
                                     labels,
-                                    datasets: seriesDefinitions.map((series,idx)=>({
+                                    datasets: visibleSeriesDefinitions.map((series,idx)=>({
                                         label: isFullTimeline ? series.label : `${series.y} (${aggMode})`,
                                         data: labels.map((label)=>plottedValues[series.key][label] || 0),
                                         borderColor: colors[idx % colors.length],
