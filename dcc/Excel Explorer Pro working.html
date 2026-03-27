@@ -2378,8 +2378,7 @@
                         const previewRows = data.slice(0, 30);
                         resultsEl.innerHTML = previewRows.map((row)=>{
                             const text = visibleCols.map((col)=>`${col}: ${formatExcelDate(row[col]) ?? ""}`).join(" | ");
-                            const escaped = text.replace(/"/g, "&quot;");
-                            return `<div class="global-search-item" title="${escaped}" onclick="selectSearchResult('${String(searchTerm).replace(/'/g, "\\'")}')">${text}</div>`;
+                            return `<div class="global-search-item" title="${escapeAttr(text)}" onclick="selectSearchResult(${toInlineJsString(searchTerm)})">${escapeHtml(text)}</div>`;
                         }).join("");
                         
                         // Only show results if search input is focused and not empty
@@ -3081,9 +3080,9 @@
                         if (list && headers.length > 0) {
                             list.innerHTML = headers.map((h) => `
                                 <label class="toggle-chip group-by-chip" > 
-                                    <input type="checkbox" class="group-by-col-check" value="${h}" onchange="handleGroupByChange(this)">
+                                    <input type="checkbox" class="group-by-col-check" value="${escapeAttr(h)}" onchange="handleGroupByChange(this)">
                                     <span class="status-icon"></span>
-                                    ${h}
+                                    ${escapeHtml(h)}
                                 </label>
                             `).join("");
                         }
@@ -3138,6 +3137,9 @@
                         filterArea.innerHTML = selectedFilterCols.map((col)=>{
                             const sample = rawData.find((r)=>r[col] !== "" && r[col] !== null, )?.[col];
                             const isDateCol = sample instanceof Date || isExcelDate(sample);
+                            const safeColHtml = escapeHtml(col);
+                            const safeColAttr = escapeAttr(col);
+                            const colJsArg = toInlineJsString(col);
                             //(typeof sample === 'number' && sample > 29221 && sample < 60000) ||
                             //(col.toLowerCase().includes('date')) ||
                             //(col.toLowerCase().includes('time'));
@@ -3145,19 +3147,19 @@
                             if (isDateCol) {
                                 return `
                                          <div class="filter-item">
-                                             <label> ${col}</label>
+                                             <label> ${safeColHtml}</label>
                                              <label class="toggle-chip" style="padding: 4px 8px; margin: 0; font-size: 10px; flex-shrink: 0;">
-                                                 <input type="checkbox" id="blank-${col}" onchange="syncChip(this); runFilter();">
+                                                 <input type="checkbox" id="blank-${safeColAttr}" onchange="syncChip(this); runFilter();">
                                                  <span class="status-icon"></span> Blanks
                                              </label>
                                              <div style="display: flex; gap: 5px; margin-top: 5px;">
                                                  <input type="date" 
-                                                    id="date-min-${col}" 
+                                                    id="date-min-${safeColAttr}" 
                                                     onchange="runFilter()" 
                                                     onclick="this.showPicker()" 
                                                     //style="width:50%;">
                                                  <input type="date" 
-                                                    id="date-max-${col}" 
+                                                    id="date-max-${safeColAttr}" 
                                                     onchange="runFilter()" 
                                                     onclick="this.showPicker()" 
                                                     //style="width:50%;">
@@ -3167,20 +3169,20 @@
                               } else {
                                                         return `
                                         <div class="filter-item">
-                                            <label>${col}</label>
-                                            <div class="multiselect-box" onclick="toggleDropdown(event, '${col}')">
+                                            <label>${safeColHtml}</label>
+                                            <div class="multiselect-box" onclick="toggleDropdown(event, ${colJsArg})">
                                                 <div class="multiselect-display">
-                                                    <span id="label-${col}">All Items</span>
+                                                    <span id="label-${safeColAttr}">All Items</span>
                                                     <span>+</span>
                                                 </div>
-                                                <div class="multiselect-options hidden" id="options-${col}" onclick="event.stopPropagation()">
+                                                <div class="multiselect-options hidden" id="options-${safeColAttr}" onclick="event.stopPropagation()">
                                                     <div class="selection-controls">
-                                                        <span class="control-btn" onclick="bulkSelect('${col}', true, event)">All</span>
-                                                        <span class="control-btn" onclick="bulkSelect('${col}', false, event)">Clear</span>
-                                                        <span class="control-btn control-btn--apply" onclick="applyFilter('${col}', event)">Apply</span>
+                                                        <span class="control-btn" onclick="bulkSelect(${colJsArg}, true, event)">All</span>
+                                                        <span class="control-btn" onclick="bulkSelect(${colJsArg}, false, event)">Clear</span>
+                                                        <span class="control-btn control-btn--apply" onclick="applyFilter(${colJsArg}, event)">Apply</span>
                                                     </div>
-                                                    <input type="text" placeholder="Search..." oninput="filterDrop('${col}', this.value)" onkeydown="handleFilterSearchEnter('${col}', event)">
-                                                    <div id="list-${col}"></div>
+                                                    <input type="text" placeholder="Search..." oninput="filterDrop(${colJsArg}, this.value)" onkeydown="handleFilterSearchEnter(${colJsArg}, event)">
+                                                    <div id="list-${safeColAttr}"></div>
                                                 </div>
                                             </div>
                                         </div>`;
@@ -3192,16 +3194,16 @@
                         // Use selectedFilterCols to limit options to what user selected in Step 2
                         const numericCols = selectedFilterCols.filter((h)=>rawData.some((r)=>typeof r[h] === "number" && !isExcelDate(r[h])), );
                         document.getElementById("aggColumn").innerHTML = `<option value="">-- Count --</option>
-                    <optgroup label="Unique Distinct">${selectedFilterCols.map((h)=>`<option value="DISTINCT|${h}">${h}</option>`).join("")}</optgroup>
-                    <optgroup label="Sum">${numericCols.map((h)=>`<option value="SUM|${h}">${h}</option>`).join("")}</optgroup>`;
+                    <optgroup label="Unique Distinct">${selectedFilterCols.map((h)=>`<option value="${escapeAttr(`DISTINCT|${h}`)}">${escapeHtml(h)}</option>`).join("")}</optgroup>
+                    <optgroup label="Sum">${numericCols.map((h)=>`<option value="${escapeAttr(`SUM|${h}`)}">${escapeHtml(h)}</option>`).join("")}</optgroup>`;
 
                         const groupByColumnList = document.getElementById("groupByColumnList");
                         if (groupByColumnList) {
                             groupByColumnList.innerHTML = selectedFilterCols.map((h)=>`
                                 <label class="toggle-chip group-by-chip" > 
-                                    <input type="checkbox" class="group-by-col-check" value="${h}" onchange="handleGroupByChange(this)">
+                                    <input type="checkbox" class="group-by-col-check" value="${escapeAttr(h)}" onchange="handleGroupByChange(this)">
                                     <span class="status-icon"></span>
-                                    ${h}
+                                    ${escapeHtml(h)}
                                 </label>
                             `).join("");
                         }
@@ -3220,13 +3222,13 @@
 
                         if (xSelect) {
                             xSelect.innerHTML = `<option value="">Select date column</option>`;
-                            xSelect.innerHTML += dateCols.map((h)=>`<option value="${h}">${h}</option>`).join("");
+                            xSelect.innerHTML += dateCols.map((h)=>`<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`).join("");
                             if (dateCols.length > 0)
                                 xSelect.value = dateCols[0];
                         }
 
                         if (ySelect) {
-                            ySelect.innerHTML = yCols.map((h)=>`<option value="${h}">${h}</option>`).join("");
+                            ySelect.innerHTML = yCols.map((h)=>`<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`).join("");
                             if (yCols.length > 0) {
                                 ySelect.options[0].selected = true;
                             }
@@ -3236,8 +3238,8 @@
                         if (yOptions) {
                             yOptions.innerHTML = yCols.map((h)=>`
                 <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 12px;">
-                  <input type="checkbox" value="${h}" class="date-y-option" onclick="syncYSelection(); updateDateRangeChart();"/>
-                  ${h}
+                  <input type="checkbox" value="${escapeAttr(h)}" class="date-y-option" onclick="syncYSelection(); updateDateRangeChart();"/>
+                  ${escapeHtml(h)}
                 </label>
               `, ).join("");
 
@@ -3288,7 +3290,7 @@
                                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">↓</button>
                                         <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'bottom', event)">⇓</button>
                                         <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1; cursor: pointer;">
-                                            <input type="checkbox" class="col-visibility-check" data-col="${h}" ${hiddenColumns.has(h) ? "" : "checked"} onchange="toggleCol('${h}')"> ${h}
+                                            <input type="checkbox" class="col-visibility-check" data-col="${escapeAttr(h)}" ${hiddenColumns.has(h) ? "" : "checked"} onchange="toggleCol(${toInlineJsString(h)})"> ${escapeHtml(h)}
                                         </label>
                                     </div>
                                 `, ).join("")}
@@ -3387,8 +3389,7 @@
                                         </div>
                                         <div id="checkListItems">
                                             ${selectedFilterCols.map((h, i) => {
-                                                // Escape single quotes for safety
-                                                const safeH = h.replace(/'/g, "\\'"); 
+                                                const safeH = toInlineJsString(h);
                                                 return `
                                                 <div id="columnItem-${i}" class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
                                                     <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'top', event)">⇑</button>
@@ -3397,9 +3398,9 @@
                                                     <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'bottom', event)">⇓</button>
                                                     <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1; cursor: pointer;">
                                                         <input type="checkbox" class="col-visibility-check" 
-                                                            data-col="${h}" 
+                                                            data-col="${escapeAttr(h)}" 
                                                             ${hiddenColumns.has(h) ? "" : "checked"} 
-                                                            onchange="toggleCol('${safeH}', event)"> ${h}
+                                                            onchange="toggleCol(${safeH}, event)"> ${escapeHtml(h)}
                                                     </label>
                                                 </div>`;
                                             }).join("")}
@@ -3545,6 +3546,43 @@
                         return typeof h === "string" ? h.replace(/[\r\n\t]+/g, " ").trim() : h;
                     }
 
+                    function escapeHtml(value) {
+                        return String(value ?? "")
+                            .replace(/&/g, "&amp;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;")
+                            .replace(/"/g, "&quot;")
+                            .replace(/'/g, "&#39;");
+                    }
+
+                    function escapeAttr(value) {
+                        return escapeHtml(value).replace(/`/g, "&#96;");
+                    }
+
+                    function toInlineJsString(value) {
+                        const jsLiteral = `'${String(value ?? "")
+                            .replace(/\\/g, "\\\\")
+                            .replace(/'/g, "\\'")
+                            .replace(/\r/g, "\\r")
+                            .replace(/\n/g, "\\n")
+                            .replace(/\u2028/g, "\\u2028")
+                            .replace(/\u2029/g, "\\u2029")}'`;
+
+                        return jsLiteral
+                            .replace(/&/g, "&amp;")
+                            .replace(/"/g, "&quot;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;");
+                    }
+
+                    function escapeSelectorValue(value) {
+                        const stringValue = String(value ?? "");
+                        if (window.CSS && typeof window.CSS.escape === "function") {
+                            return window.CSS.escape(stringValue);
+                        }
+                        return stringValue.replace(/["\\]/g, "\\$&");
+                    }
+
                     function getNonNullColumnBounds(sheet, headerRowVal) {
                         if (!sheet || !sheet["!ref"]) {
                             return null;
@@ -3648,8 +3686,8 @@
                                 const sheetList = document.getElementById("sheetList");
                                 sheetList.innerHTML = workbook.SheetNames.map((n)=>`
                                     <label class="toggle-chip" style="margin: 2px;">
-                                        <input type="checkbox" value="${n}" class="sheet-check" onchange="updateSheetLabel()"> 
-                                        <span class="status-icon"></span> ${n}
+                                        <input type="checkbox" value="${escapeAttr(n)}" class="sheet-check" onchange="updateSheetLabel()"> 
+                                        <span class="status-icon"></span> ${escapeHtml(n)}
                                     </label>
                                 `).join("");
                                 
@@ -3999,8 +4037,8 @@
                         if (headerListEl) {
                             headerListEl.innerHTML = headers.map((h)=>`
                                     <label class="toggle-chip">
-                                        <input type="checkbox" value="${h.replace(/"/g, "&quot;")}" class="col-check" onchange="syncChip(this)"> 
-                                        <span class="status-icon"></span> ${h}
+                                        <input type="checkbox" value="${escapeAttr(h)}" class="col-check" onchange="syncChip(this)"> 
+                                        <span class="status-icon"></span> ${escapeHtml(h)}
                                     </label>
                                 `, ).join("");
                         }
@@ -4193,8 +4231,8 @@
                         if (headerListEl) {
                             headerListEl.innerHTML = headers.map((h)=>`
                                     <label class="toggle-chip">
-                                        <input type="checkbox" value="${h.replace(/"/g, "&quot;")}" class="col-check" onchange="syncChip(this)"> 
-                                        <span class="status-icon"></span> ${h}
+                                        <input type="checkbox" value="${escapeAttr(h)}" class="col-check" onchange="syncChip(this)"> 
+                                        <span class="status-icon"></span> ${escapeHtml(h)}
                                     </label>
                                 `, ).join("");
                         }
@@ -4349,8 +4387,8 @@
                         if (headerListEl) {
                             headerListEl.innerHTML = headers.map((h)=>`
                                     <label class="toggle-chip">
-                                        <input type="checkbox" value="${h.replace(/"/g, "&quot;")}" class="col-check" onchange="syncChip(this)"> 
-                                        <span class="status-icon"></span> ${h}
+                                        <input type="checkbox" value="${escapeAttr(h)}" class="col-check" onchange="syncChip(this)"> 
+                                        <span class="status-icon"></span> ${escapeHtml(h)}
                                     </label>
                                 `, ).join("");
                         }
@@ -4407,13 +4445,11 @@
                             const finalUnique = [...new Set(uniqueFormatted)].sort();
 
                             listEl.innerHTML = finalUnique.map((v)=>{
-                                const jsEscaped = v.replace(/'/g, "\\'");
-                                const htmlEscaped = v.replace(/"/g, "&quot;");
                                 return `
                 <div class="option-item">
                     <label>
-                        <input type="checkbox" data-val="${htmlEscaped}" onchange="handleSelect('${col}','${jsEscaped}', this.checked)"> 
-                        ${v}
+                        <input type="checkbox" data-val="${escapeAttr(v)}" onchange="handleSelect(${toInlineJsString(col)}, ${toInlineJsString(v)}, this.checked)"> 
+                        ${escapeHtml(v)}
                     </label>
                 </div>`;
                             }
@@ -4458,14 +4494,12 @@
                         
                         if (!clickedInside && !clickedInSheetSelector) {
                             closeOpenMultiselectsAndApply();
-                            // Also close sheet dropdown if open and load selected sheets
+                            // Also close sheet dropdown if open
                             const sheetDropdown = document.getElementById("sheetDropdown");
                             const sheetDisplay = document.querySelector("#sheetSelector .multiselect-display");
                             if (sheetDropdown && !sheetDropdown.classList.contains("hidden")) {
                                 sheetDropdown.classList.add("hidden");
                                 if (sheetDisplay) sheetDisplay.classList.remove("active");
-                                // Load selected sheets when dropdown is closed
-                                loadSelectedSheets();
                             }
                         }
                     });
@@ -4552,34 +4586,11 @@
                         const listEl = document.getElementById(`list-${col}`);
                         const items = listEl.querySelectorAll(".option-item");
                         const searchTerm = term.toLowerCase();
-                        
-                        // Ensure activeSelections exists for this column
-                        if (!activeSelections[col]) {
-                            activeSelections[col] = new Set();
-                        }
-                        
-                        let hasVisible = false;
+
                         items.forEach((item) => {
                             const matches = item.innerText.toLowerCase().includes(searchTerm);
                             item.classList.toggle("search-hidden", !matches);
-                            if (matches) hasVisible = true;
-                            
-                            // Auto-select visible items when searching
-                            const input = item.querySelector("input");
-                            if (input) {
-                                if (searchTerm && matches) {
-                                    // When searching, select all matching items
-                                    input.checked = true;
-                                    activeSelections[col].add(input.dataset.val);
-                                } else if (!searchTerm) {
-                                    // When search is cleared, maintain current selections
-                                    input.checked = activeSelections[col].has(input.dataset.val);
-                                }
-                            }
                         });
-                        
-                        updateMultiselectLabel(col);
-                        pendingFilterUpdate = true;
                     }
 
                     function handleFilterSearchEnter(col, event) {
@@ -4916,9 +4927,9 @@
                                     if (groupByCols.length > 1) headers.push("%");
                                     
                                     tHead.innerHTML = `<tr>${headers.map((x)=>{
-                                        const icon = getSortIcon(x);
+                                        const icon = getSortIcon(x, true);
                                         const widthStyle = columnWidths[x] ? `style=\"width:${columnWidths[x]}px;\"` : "";
-                                        return `<th data-col=\"${x}\" ${widthStyle} onclick=\"toggleColumnSearch(event, '${x}')\">${x} ${icon}</th>`;
+                                        return `<th data-col=\"${escapeAttr(x)}\" ${widthStyle} onclick=\"toggleColumnSearch(event, ${toInlineJsString(x)})\">${escapeHtml(x)} ${icon}</th>`;
                                     }).join("")}</tr>`;
                                     restoreColumnSearchBox();
                                     
@@ -4938,15 +4949,15 @@
                                 
                                 const k = Object.keys(currentGroupedData[0]);
                                 tHead.innerHTML = `<tr>${k.map((x)=>{
-                                    const icon = getSortIcon(x);
+                                    const icon = getSortIcon(x, true);
                                     const widthStyle = columnWidths[x] ? `style=\"width:${columnWidths[x]}px;\"` : "";
-                                    return `<th data-col=\"${x}\" ${widthStyle} onclick=\"toggleColumnSearch(event, '${x}')\">${x} ${icon}</th>`;
+                                    return `<th data-col=\"${escapeAttr(x)}\" ${widthStyle} onclick=\"toggleColumnSearch(event, ${toInlineJsString(x)})\">${escapeHtml(x)} ${icon}</th>`;
                                 }
                                 ).join("")}</tr>`;
                                 restoreColumnSearchBox();
 
                                 const limit = 2000;
-                                tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
+                                tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${escapeHtml(r[x].toFixed(1))}%</td>` : `<td>${escapeHtml(r[x])}</td>`)).join("")}</tr>`, ).join("");
                                 
                                 if (currentGroupedData.length > limit) {
                                     tBody.innerHTML += `<tr><td colspan="${k.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Display limited to top ${limit} groups. Export to Excel to view all ${currentGroupedData.length} groups.</td></tr>`;
@@ -4976,9 +4987,9 @@
 
                             // FIXED: Apply sort icons to Raw Data Headers
                             tHead.innerHTML = `<tr>${vis.map((h)=>{
-                                const icon = getSortIcon(h);
+                                const icon = getSortIcon(h, false);
                                 const widthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : "";
-                                return `<th data-col=\"${h}\" ${widthStyle} onclick=\"toggleColumnSearch(event, '${h}')\">${h} ${icon}</th>`;
+                                return `<th data-col=\"${escapeAttr(h)}\" ${widthStyle} onclick=\"toggleColumnSearch(event, ${toInlineJsString(h)})\">${escapeHtml(h)} ${icon}</th>`;
                             }
                             ).join("")}</tr>`;
                             restoreColumnSearchBox();
@@ -4989,7 +5000,7 @@
                             } else {
                                 tBody.innerHTML = data.slice(0, limit).map((r)=>`<tr>${vis.map((h)=>{
                                     const cellWidthStyle = columnWidths[h] ? `style=\"width:${columnWidths[h]}px;\"` : "";
-                                    return `<td ${cellWidthStyle}>${formatExcelDate(r[h]) ?? ""}</td>`;
+                                    return `<td ${cellWidthStyle}>${escapeHtml(formatExcelDate(r[h]) ?? "")}</td>`;
                                 }
                                 ).join("")}</tr>`, ).join("");
 
@@ -5022,16 +5033,16 @@
                         }, 50);
                     }
 
-                    function getSortIcon(columnName) {
+                    function getSortIcon(columnName, isGrouped = false) {
                         if (sortConfig.column !== columnName) {
-                            return `<span class="sort-icon" onclick="event.stopPropagation(); handleSort('${columnName}')">↕</span>`;
+                            return `<span class="sort-icon" onclick="event.stopPropagation(); handleSort(${toInlineJsString(columnName)}, ${isGrouped})">↕</span>`;
                             // Neutral state
                         }
                         if (!sortConfig.column) {
-                            return `<span class="sort-icon" onclick="event.stopPropagation(); handleSort('${columnName}')">↕</span>`;
+                            return `<span class="sort-icon" onclick="event.stopPropagation(); handleSort(${toInlineJsString(columnName)}, ${isGrouped})">↕</span>`;
                         }
                         const iconChar = sortConfig.direction === "asc" ? "↑" : "↓";
-                        return `<span class="sort-icon active" onclick="event.stopPropagation(); handleSort('${columnName}')">${iconChar}</span>`;
+                        return `<span class="sort-icon active" onclick="event.stopPropagation(); handleSort(${toInlineJsString(columnName)}, ${isGrouped})">${iconChar}</span>`;
                     }
 
                     function handleSort(col, isG = false) {
@@ -5087,7 +5098,11 @@
                             }
 
                             // Force Table Refresh
-                            updateTable(filteredDataGlobal);
+                            if (isG) {
+                                updateTableFromGrouped();
+                            } else {
+                                updateTable(filteredDataGlobal);
+                            }
                         }
                         
                         setFunctionCallStatus('handleSort', false);
@@ -5102,11 +5117,11 @@
                         const col = columnSearchActive;
                         // If the box was wiped by a table re-render, recreate it
                         if (document.querySelector('.column-search-box')) return;
-                        const th = document.querySelector(`th[data-col="${col}"]`);
+                        const th = document.querySelector(`th[data-col="${escapeSelectorValue(col)}"]`);
                         if (!th) { columnSearchActive = null; return; }
                         const searchBox = document.createElement('div');
                         searchBox.className = 'column-search-box';
-                        searchBox.innerHTML = `<input type="text" placeholder="Search ${col}..." class="column-search-input" data-col="${col}" onkeyup="filterTableByColumn(this)" onkeydown="if(event.key==='Enter') { event.preventDefault(); closeColumnSearchBox(); }">`;
+                        searchBox.innerHTML = `<input type="text" placeholder="Search ${escapeAttr(col)}..." class="column-search-input" data-col="${escapeAttr(col)}" onkeyup="filterTableByColumn(this)" onkeydown="if(event.key==='Enter') { event.preventDefault(); closeColumnSearchBox(); }">`;
                         th.style.position = 'relative';
                         th.appendChild(searchBox);
                         const input = searchBox.querySelector('input');
@@ -5139,7 +5154,7 @@
                         const th = event.target.closest('th');
                         const searchBox = document.createElement('div');
                         searchBox.className = 'column-search-box';
-                        searchBox.innerHTML = `<input type="text" placeholder="Search ${col}..." class="column-search-input" data-col="${col}" onkeyup="filterTableByColumn(this)" onkeydown="if(event.key==='Enter') { event.preventDefault(); closeColumnSearchBox(); }">`;
+                        searchBox.innerHTML = `<input type="text" placeholder="Search ${escapeAttr(col)}..." class="column-search-input" data-col="${escapeAttr(col)}" onkeyup="filterTableByColumn(this)" onkeydown="if(event.key==='Enter') { event.preventDefault(); closeColumnSearchBox(); }">`;
 
                         th.style.position = 'relative';
                         th.appendChild(searchBox);
@@ -5194,7 +5209,7 @@
                         const k = Object.keys(currentGroupedData[0]);
 
                         const limit = 2000;
-                        tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${r[x].toFixed(1)}%</td>` : `<td>${r[x]}</td>`)).join("")}</tr>`, ).join("");
+                        tBody.innerHTML = currentGroupedData.slice(0, limit).map((r)=>`<tr>${k.map((x)=>(x === "%" ? `<td>${escapeHtml(r[x].toFixed(1))}%</td>` : `<td>${escapeHtml(r[x])}</td>`)).join("")}</tr>`, ).join("");
                         
                         if (currentGroupedData.length > limit) {
                             tBody.innerHTML += `<tr><td colspan="${k.length}" style="text-align:center; padding:12px; background:#fff7ed; color:#c2410c; font-weight:600; border-top:2px solid #fdba74;">⚠️ Display limited to top ${limit} groups. Export to Excel to view all ${currentGroupedData.length} groups.</td></tr>`;
@@ -6437,7 +6452,19 @@
                             }
                         }
 
-                        addAiMessage("bot", "💡 Update: " + advice);
+                        const container = document.getElementById("aiMessages");
+                        if (!container) return;
+
+                        let adviceMessage = container.querySelector('.ai-message.bot[data-auto-advice="true"]');
+                        if (!adviceMessage) {
+                            adviceMessage = document.createElement("div");
+                            adviceMessage.className = "ai-message bot";
+                            adviceMessage.dataset.autoAdvice = "true";
+                            container.appendChild(adviceMessage);
+                        }
+
+                        adviceMessage.innerText = "💡 Update: " + advice;
+                        container.scrollTop = container.scrollHeight;
                     }
 
                     async function callGeminiAPI(prompt, limit = 100) {
@@ -6478,11 +6505,11 @@
                         const fullPrompt = `You are a data analyst helper. ${getAIContextData(limit)}\n\nUser Question: ${prompt}`;
                         
                         let url = "https://api.openai.com/v1/chat/completions";
-                        let model = "gpt-3.5-turbo";
+                        let model = aiConfig.model || "gpt-4o-mini";
                         
                         if (aiConfig.provider === "deepseek") {
                             url = "https://api.deepseek.com/chat/completions";
-                            model = "deepseek-chat";
+                            model = aiConfig.model || "deepseek-chat";
                         }
                         
                         try {
