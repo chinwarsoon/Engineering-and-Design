@@ -2218,7 +2218,7 @@
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 4px;">
                                         <label style="font-size: 11px; opacity: 0.8;">Y Aggregator</label>
-                                        <select id="dateRangeAgg" onchange="runFilter(); updateDateRangeChart()" style="height: 35px; min-width: 130px;">
+                                        <select id="dateRangeAgg" onchange="updateDateRangeChart()" style="height: 35px; min-width: 130px;">
                                             <option value="SUM">Sum</option>
                                             <option value="COUNT">Count</option>
                                             <option value="AVG">Average</option>
@@ -2227,11 +2227,18 @@
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 4px;">
                                         <label style="font-size: 11px; opacity: 0.8;">Chart Type</label>
-                                        <select id="dateRangeChartType" onchange="runFilter()" style="height: 35px; min-width: 150px;">
+                                        <select id="dateRangeChartType" onchange="updateDateRangeChart()" style="height: 35px; min-width: 150px;">
                                             <option value="line">Curve</option>
                                             <option value="bar">Column</option>
                                             <option value="pie">Pie</option>
                                         </select>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; gap: 4px; justify-content: flex-end; min-width: 150px;">
+                                        <label style="font-size: 11px; opacity: 0.8;">Curve Mode</label>
+                                        <label class="toggle-chip" style="height: 35px; align-items: center; margin: 0; text-transform: none;">
+                                            <input type="checkbox" id="dateRangeCumulative" onchange="syncChip(this); handleDateRangeCumulativeToggle()">
+                                            <span class="status-icon"></span> Cumulative S-Curve
+                                        </label>
                                     </div>
                                 </div>
                                 <button class="btn btn-outline" style="padding: 4px 10px; font-size: 11px; margin-top: 1px;" onclick="downloadDateRangeChart()">🖼️ Save Chart</button>
@@ -2242,15 +2249,15 @@
                             <div id="dateRangeChartControls" style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-top: 20px; margin-bottom: 8px; padding: 10px 0;">
                                 <div style="display: flex; flex-direction: column; gap: 4px;">
                                     <label style="font-size: 11px; opacity: 0.8;">X (Date) Column</label>
-                                    <select id="dateRangeXColumn" onchange="runFilter()" style="height: 35px; min-width: 180px;">
+                                    <select id="dateRangeXColumn" onchange="updateDateRangeChart()" style="height: 35px; min-width: 180px;">
                                         <option value="">Select date column</option>
                                     </select>
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 4px;">
                                     <label style="font-size: 11px; opacity: 0.8;">Date Range</label>
                                     <div style="display:flex; gap:4px;">
-                                        <input type="date" id="dateRangeMin" onchange="runFilter()" style="height: 35px;">
-                                        <input type="date" id="dateRangeMax" onchange="runFilter()" style="height: 35px;">
+                                        <input type="date" id="dateRangeMin" onchange="handleDateRangeBoundsChange()" style="height: 35px;">
+                                        <input type="date" id="dateRangeMax" onchange="handleDateRangeBoundsChange()" style="height: 35px;">
                                     </div>
                                 </div>
                             </div>
@@ -2312,6 +2319,8 @@
                       , myChart = null
                       , multipleCharts = []
                       , dateRangeChart = null;
+                    let dateRangeDateColumns = [];
+                    const FULL_TIMELINE_VALUE = "__FULL_TIMELINE__";
 
                     // Persist resized column widths across re-renders
                     let columnWidths = {};
@@ -3215,6 +3224,7 @@
                         // Populate Date Range X/Y selectors
                         // Use selectedFilterCols to limit options to what user selected in Step 2
                         const dateCols = selectedFilterCols.filter((h)=>rawData.some((r)=>r[h]instanceof Date || isExcelDate(r[h])), );
+                        dateRangeDateColumns = [...dateCols];
                         const yCols = selectedFilterCols.filter((h)=>!dateCols.includes(h));
 
                         const xSelect = document.getElementById("dateRangeXColumn");
@@ -3222,9 +3232,6 @@
 
                         if (xSelect) {
                             xSelect.innerHTML = `<option value="">Select date column</option>`;
-                            xSelect.innerHTML += dateCols.map((h)=>`<option value="${escapeAttr(h)}">${escapeHtml(h)}</option>`).join("");
-                            if (dateCols.length > 0)
-                                xSelect.value = dateCols[0];
                         }
 
                         if (ySelect) {
@@ -3253,17 +3260,13 @@
 
                         updateDateYLabel();
 
-                        // Pre-fill date range based on selected date column
-                        const selectedDateCol = xSelect?.value;
-                        if (selectedDateCol) {
-                            const allDates = rawData.map((r)=>excelSerialToJsDate(r[selectedDateCol])).filter((d)=>d instanceof Date && !isNaN(d.getTime())).map((d)=>d.toISOString().slice(0, 10));
-                            if (allDates.length) {
-                                const minDate = allDates.reduce((a,b)=>(a < b ? a : b));
-                                const maxDate = allDates.reduce((a,b)=>(a > b ? a : b));
-                                document.getElementById("dateRangeMin").value = minDate;
-                                document.getElementById("dateRangeMax").value = maxDate;
-                            }
+                        // Pre-fill date range based on all available date columns
+                        const overallTimelineBounds = getDateRangeBoundsForColumns(dateRangeDateColumns, "", "", rawData);
+                        if (overallTimelineBounds) {
+                            document.getElementById("dateRangeMin").value = overallTimelineBounds.min;
+                            document.getElementById("dateRangeMax").value = overallTimelineBounds.max;
                         }
+                        buildDateRangeXOptions(dateCols.length > 1 ? FULL_TIMELINE_VALUE : (dateCols[0] || ""), rawData);
 
                         //document.getElementById('columnChecklist').innerHTML = headers.map(h => `<label><input type="checkbox" checked onchange="toggleCol('${h}')"> ${h}</label>`).join('');
                         //document.getElementById('columnChecklist').innerHTML = headers.map((h, i) => `
@@ -4571,6 +4574,98 @@
                         label.innerText = selectedCount === 0 ? "Select y columns" : `${selectedCount} selected`;
                     }
 
+                    function collectDateValuesForColumns(columns, minVal = "", maxVal = "", sourceData = null) {
+                        const rows = Array.isArray(sourceData) ? sourceData : filteredDataGlobal;
+                        const minTime = minVal ? new Date(minVal).setHours(0, 0, 0, 0) : null;
+                        const maxTime = maxVal ? new Date(maxVal).setHours(0, 0, 0, 0) : null;
+                        const values = [];
+
+                        rows.forEach((row)=>{
+                            columns.forEach((col)=>{
+                                const d = excelSerialToJsDate(row[col]);
+                                if (!d || isNaN(d.getTime()))
+                                    return;
+
+                                const ts = new Date(d).setHours(0, 0, 0, 0);
+                                if (minTime && ts < minTime)
+                                    return;
+                                if (maxTime && ts > maxTime)
+                                    return;
+                                values.push(ts);
+                            }
+                            );
+                        }
+                        );
+
+                        return values;
+                    }
+
+                    function getDateRangeBoundsForColumns(columns, minVal = "", maxVal = "", sourceData = null) {
+                        const values = collectDateValuesForColumns(columns, minVal, maxVal, sourceData);
+                        if (values.length === 0) {
+                            return null;
+                        }
+
+                        const minTime = Math.min(...values);
+                        const maxTime = Math.max(...values);
+                        return {
+                            min: new Date(minTime).toISOString().slice(0, 10),
+                            max: new Date(maxTime).toISOString().slice(0, 10)
+                        };
+                    }
+
+                    function buildDateRangeXOptions(preferredValue, sourceData = null) {
+                        const xSelect = document.getElementById("dateRangeXColumn");
+                        if (!xSelect)
+                            return;
+
+                        const minVal = document.getElementById("dateRangeMin")?.value || "";
+                        const maxVal = document.getElementById("dateRangeMax")?.value || "";
+                        const currentValue = preferredValue ?? xSelect.value;
+
+                        const optionDefs = [];
+                        const fullTimelineBounds = getDateRangeBoundsForColumns(dateRangeDateColumns, minVal, maxVal, sourceData);
+                        if (fullTimelineBounds) {
+                            optionDefs.push({
+                                value: FULL_TIMELINE_VALUE,
+                                label: `Full Timeline (${fullTimelineBounds.min} → ${fullTimelineBounds.max})`
+                            });
+                        }
+
+                        dateRangeDateColumns.forEach((col)=>{
+                            const bounds = getDateRangeBoundsForColumns([col], minVal, maxVal, sourceData);
+                            if (bounds) {
+                                optionDefs.push({
+                                    value: col,
+                                    label: `${col} (${bounds.min} → ${bounds.max})`
+                                });
+                            }
+                        }
+                        );
+
+                        xSelect.innerHTML = `<option value="">Select date column</option>` + optionDefs.map((opt)=>`<option value="${escapeAttr(opt.value)}">${escapeHtml(opt.label)}</option>`).join("");
+
+                        const nextValue = optionDefs.some((opt)=>opt.value === currentValue)
+                            ? currentValue
+                            : (optionDefs[0]?.value || "");
+                        xSelect.value = nextValue;
+                    }
+
+                    function handleDateRangeBoundsChange() {
+                        const xSelect = document.getElementById("dateRangeXColumn");
+                        buildDateRangeXOptions(xSelect?.value || "");
+                        updateDateRangeChart();
+                    }
+
+                    function handleDateRangeCumulativeToggle() {
+                        const cumulativeToggle = document.getElementById("dateRangeCumulative");
+                        const chartTypeSelect = document.getElementById("dateRangeChartType");
+                        if (cumulativeToggle?.checked && chartTypeSelect && chartTypeSelect.value !== "line") {
+                            chartTypeSelect.value = "line";
+                        }
+                        updateDateRangeChart();
+                    }
+
                     document.addEventListener("click", (e)=>{
                         const yMenu = document.getElementById("dateRangeYOptions");
                         const yDisplay = document.getElementById("dateRangeYDisplay");
@@ -5561,14 +5656,22 @@
                         const xSelect = document.getElementById("dateRangeXColumn");
                         const ySelect = document.getElementById("dateRangeYColumns");
                         const chartType = document.getElementById("dateRangeChartType")?.value || "line";
+                        const minVal = document.getElementById("dateRangeMin")?.value;
+                        const maxVal = document.getElementById("dateRangeMax")?.value;
+                        buildDateRangeXOptions(xSelect?.value || "");
 
                         const selectedX = xSelect?.value;
                         const selectedYs = Array.from(ySelect?.selectedOptions || []).map((o)=>o.value, );
 
                         const xColumnMeta = document.getElementById("dateRangeXColumnMeta");
                         const filterMeta = document.getElementById("dateRangeFilterMeta");
+                        const cumulativeMode = document.getElementById("dateRangeCumulative")?.checked || false;
                         if (xColumnMeta) {
-                            xColumnMeta.innerText = `X Column: ${selectedX || "None selected"}`;
+                            if (selectedX === FULL_TIMELINE_VALUE) {
+                                xColumnMeta.innerText = `X Column: Full Timeline (${dateRangeDateColumns.length} date columns)`;
+                            } else {
+                                xColumnMeta.innerText = `X Column: ${selectedX || "None selected"}`;
+                            }
                         }
 
                         const filterParts = [];
@@ -5591,7 +5694,8 @@
                         );
 
                         if (filterMeta) {
-                            filterMeta.innerText = "Filters: " + (filterParts.length > 0 ? filterParts.join(" | ") : "None applied");
+                            const dateWindow = [document.getElementById("dateRangeMin")?.value || "...", document.getElementById("dateRangeMax")?.value || "..."].join(" → ");
+                            filterMeta.innerText = "Filters: " + (filterParts.length > 0 ? filterParts.join(" | ") : "None applied") + ` | Date Range Chart Window: ${dateWindow} | Mode: ${cumulativeMode ? "Cumulative S-Curve" : "Per-period"}`;
                         }
 
                         if (!container || !selectedX || selectedYs.length === 0) {
@@ -5601,69 +5705,83 @@
                             return;
                         }
 
-                        const minVal = document.getElementById("dateRangeMin")?.value;
-                        const maxVal = document.getElementById("dateRangeMax")?.value;
                         const gran = document.getElementById("dateGranularity")?.value || "none";
                         const aggMode = document.getElementById("dateRangeAgg")?.value || "SUM";
                         console.log("Date range chart aggMode", aggMode, "selectedYs", selectedYs);
                         logDebug(`Date range chart aggMode: ${aggMode}, selectedYs: ${selectedYs.join(', ')}`);
 
                         const data = filteredDataGlobal || [];
+                        const isFullTimeline = selectedX === FULL_TIMELINE_VALUE;
+                        const xColumns = isFullTimeline ? dateRangeDateColumns : [selectedX];
+                        const seriesDefinitions = isFullTimeline
+                            ? xColumns.flatMap((xColumn)=>selectedYs.map((y)=>({
+                                key: `${xColumn}|||${y}`,
+                                xColumn,
+                                y,
+                                label: `${y} | ${xColumn}`
+                            })))
+                            : selectedYs.map((y)=>({
+                                key: y,
+                                xColumn: selectedX,
+                                y,
+                                label: `${y} (${aggMode})`
+                            }));
 
                         const xValues = [];
                         const xCounts = {};
                         const accumulated = {};
                         const counts = {};
-                        const distinctSets = {}; // Track unique values for distinct count
-                        selectedYs.forEach((y)=>{
-                            accumulated[y] = {};
-                            counts[y] = {};
-                            distinctSets[y] = {}; // Each Y has distinct sets per X label
-                        }
-                        );
+                        const distinctSets = {}; // Track unique values per series per X label
+                        seriesDefinitions.forEach((series)=>{
+                            accumulated[series.key] = {};
+                            counts[series.key] = {};
+                            distinctSets[series.key] = {};
+                        });
 
                         data.forEach((row)=>{
-                            const xRaw = row[selectedX];
-                            const d = excelSerialToJsDate(xRaw);
-                            if (!d || isNaN(d.getTime()))
-                                return;
-
-                            const dt = new Date(d).setHours(0, 0, 0, 0);
-                            if (minVal) {
-                                const minT = new Date(minVal).setHours(0, 0, 0, 0);
-                                if (dt < minT)
+                            xColumns.forEach((xColumn)=>{
+                                const xRaw = row[xColumn];
+                                const d = excelSerialToJsDate(xRaw);
+                                if (!d || isNaN(d.getTime()))
                                     return;
-                            }
-                            if (maxVal) {
-                                const maxT = new Date(maxVal).setHours(0, 0, 0, 0);
-                                if (dt > maxT)
-                                    return;
-                            }
 
-                            const xLabel = getGranularDate(xRaw, gran);
-                            if (!xValues.includes(xLabel))
-                                xValues.push(xLabel);
-                            xCounts[xLabel] = (xCounts[xLabel] || 0) + 1;
-
-                            selectedYs.forEach((y)=>{
-                                const value = row[y];
-                                const numValue = Number(value);
-                                const currentSum = accumulated[y][xLabel] || 0;
-                                const currentCount = counts[y][xLabel] || 0;
-
-                                counts[y][xLabel] = currentCount + 1;
-                                
-                                // Track distinct values
-                                if (!distinctSets[y][xLabel]) {
-                                    distinctSets[y][xLabel] = new Set();
+                                const dt = new Date(d).setHours(0, 0, 0, 0);
+                                if (minVal) {
+                                    const minT = new Date(minVal).setHours(0, 0, 0, 0);
+                                    if (dt < minT)
+                                        return;
                                 }
-                                distinctSets[y][xLabel].add(value);
-                                
-                                if (!isNaN(numValue)) {
-                                    accumulated[y][xLabel] = currentSum + numValue;
-                                } else {
-                                    accumulated[y][xLabel] = currentSum;
+                                if (maxVal) {
+                                    const maxT = new Date(maxVal).setHours(0, 0, 0, 0);
+                                    if (dt > maxT)
+                                        return;
                                 }
+
+                                const xLabel = getGranularDate(xRaw, gran);
+                                if (!xValues.includes(xLabel))
+                                    xValues.push(xLabel);
+                                xCounts[xLabel] = (xCounts[xLabel] || 0) + 1;
+
+                                const applicableSeries = seriesDefinitions.filter((series)=>series.xColumn === xColumn);
+                                applicableSeries.forEach((series)=>{
+                                    const value = row[series.y];
+                                    const numValue = Number(value);
+                                    const currentSum = accumulated[series.key][xLabel] || 0;
+                                    const currentCount = counts[series.key][xLabel] || 0;
+
+                                    counts[series.key][xLabel] = currentCount + 1;
+                                    
+                                    if (!distinctSets[series.key][xLabel]) {
+                                        distinctSets[series.key][xLabel] = new Set();
+                                    }
+                                    distinctSets[series.key][xLabel].add(value);
+                                    
+                                    if (!isNaN(numValue)) {
+                                        accumulated[series.key][xLabel] = currentSum + numValue;
+                                    } else {
+                                        accumulated[series.key][xLabel] = currentSum;
+                                    }
+                                });
                             }
                             );
                         }
@@ -5676,21 +5794,20 @@
                         }
 
                         const normalized = {};
-                        selectedYs.forEach((y)=>{
-                            normalized[y] = {};
+                        seriesDefinitions.forEach((series)=>{
+                            normalized[series.key] = {};
                             xValues.forEach((xLabel)=>{
-                                const sum = accumulated[y][xLabel] || 0;
-                                const count = counts[y][xLabel] || 0;
+                                const sum = accumulated[series.key][xLabel] || 0;
+                                const count = counts[series.key][xLabel] || 0;
                                 if (aggMode === "COUNT") {
-                                    normalized[y][xLabel] = count;
+                                    normalized[series.key][xLabel] = count;
                                 } else if (aggMode === "AVG") {
-                                    normalized[y][xLabel] = count > 0 ? sum / count : 0;
+                                    normalized[series.key][xLabel] = count > 0 ? sum / count : 0;
                                 } else if (aggMode === "DISTINCT") {
-                                    // Count distinct values
-                                    const distinctCount = distinctSets[y][xLabel] ? distinctSets[y][xLabel].size : 0;
-                                    normalized[y][xLabel] = distinctCount;
+                                    const distinctCount = distinctSets[series.key][xLabel] ? distinctSets[series.key][xLabel].size : 0;
+                                    normalized[series.key][xLabel] = distinctCount;
                                 } else {
-                                    normalized[y][xLabel] = sum;
+                                    normalized[series.key][xLabel] = sum;
                                 }
                             }
                             );
@@ -5709,6 +5826,21 @@
                             return 0;
                         }
                         );
+
+                        const plottedValues = {};
+                        seriesDefinitions.forEach((series)=>{
+                            plottedValues[series.key] = {};
+                            let runningTotal = 0;
+                            labels.forEach((label)=>{
+                                const baseValue = normalized[series.key][label] || 0;
+                                if (cumulativeMode && chartType !== "pie") {
+                                    runningTotal += baseValue;
+                                    plottedValues[series.key][label] = runningTotal;
+                                } else {
+                                    plottedValues[series.key][label] = baseValue;
+                                }
+                            });
+                        });
 
                         if (!labels.length) {
                             // Hide chart and show no data message
@@ -5738,15 +5870,16 @@
                         let chartConfig;
 
                         if (chartType === "pie") {
-                            const totals = selectedYs.map((y)=>labels.reduce((sum,label)=>sum + (normalized[y][label] || 0), 0), );
+                            const pieSeries = seriesDefinitions;
+                            const totals = pieSeries.map((series)=>labels.reduce((sum,label)=>sum + (normalized[series.key][label] || 0), 0), );
                             chartConfig = {
                                 type: "pie",
                                 data: {
-                                    labels: selectedYs,
+                                    labels: pieSeries.map((series)=>series.label),
                                     datasets: [{
                                         label: `Y Totals (${aggMode})`,
                                         data: totals,
-                                        backgroundColor: selectedYs.map((_,i)=>colors[i % colors.length], ),
+                                        backgroundColor: pieSeries.map((_,i)=>colors[i % colors.length], ),
                                     }, ],
                                 },
                                 options: {
@@ -5765,9 +5898,9 @@
                                 type: chartType === "bar" ? "bar" : "line",
                                 data: {
                                     labels,
-                                    datasets: selectedYs.map((y,idx)=>({
-                                        label: `${y} (${aggMode})`,
-                                        data: labels.map((label)=>normalized[y][label] || 0),
+                                    datasets: seriesDefinitions.map((series,idx)=>({
+                                        label: isFullTimeline ? series.label : `${series.y} (${aggMode})`,
+                                        data: labels.map((label)=>plottedValues[series.key][label] || 0),
                                         borderColor: colors[idx % colors.length],
                                         backgroundColor: colors[idx % colors.length],
                                         fill: chartType === "line" ? false : true,
@@ -5783,7 +5916,7 @@
                                         },
                                         title: {
                                             display: true,
-                                            text: `Date Range Chart (${selectedX || "Date"})`,
+                                            text: `Date Range Chart (${selectedX || "Date"})${cumulativeMode && chartType !== "pie" ? " - Cumulative S-Curve" : ""}`,
                                         },
                                     },
                                     scales: {
@@ -5791,6 +5924,12 @@
                                             title: {
                                                 display: true,
                                                 text: selectedX || "Date",
+                                            },
+                                        },
+                                        y: {
+                                            title: {
+                                                display: true,
+                                                text: cumulativeMode && chartType !== "pie" ? `Cumulative ${aggMode}` : aggMode,
                                             },
                                         },
                                     },
