@@ -5990,16 +5990,28 @@
                     }
 
                     function resetFilters() {
-                        // 1. Clear the global search input
+                        // 1. Clear all column-search-box inputs
+                        document.querySelectorAll(".column-search-box input").forEach(el => {
+                            el.value = "";
+                        });
+                        columnSearchTerms = {};
+
+                        // 2. Reset date binning to 'actual day'
+                        const dateGranularitySelect = document.getElementById("dateGranularity");
+                        if (dateGranularitySelect) {
+                            dateGranularitySelect.value = "actual day";
+                        }
+
+                        // 3. Clear the global search input
                         document.getElementById("globalSearch").value = "";
 
-                        // 2. Reset the sorting configuration to default
+                        // 4. Reset the sorting configuration to default
                         sortConfig = {
                             column: null,
                             direction: "asc"
                         };
 
-                        // 3. Re-initialize the interface and data
+                        // 5. Re-initialize the interface and data
                         buildInterface();
                     }
 
