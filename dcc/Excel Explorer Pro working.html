@@ -3333,11 +3333,11 @@
                         // Keep the menu open
 
                         if (showAll) {
-                            // Show all: Clear the hidden set
-                            hiddenColumns.clear();
+                            // Show all: Clear the hidden set for selectedFilterCols
+                            selectedFilterCols.forEach((h)=>hiddenColumns.delete(h));
                         } else {
-                            // Clear all: Add every header to the hidden set
-                            headers.forEach((h)=>hiddenColumns.add(h));
+                            // Clear all: Add every selectedFilterCol to the hidden set
+                            selectedFilterCols.forEach((h)=>hiddenColumns.add(h));
                         }
 
                         // Update the checkboxes visually
@@ -3356,22 +3356,22 @@
 
                         if (direction === 'top') {
                             // Move to top
-                            const item = headers[index];
-                            headers.splice(index, 1);
-                            headers.unshift(item);
+                            const item = selectedFilterCols[index];
+                            selectedFilterCols.splice(index, 1);
+                            selectedFilterCols.unshift(item);
                         } else if (direction === 'bottom') {
                             // Move to bottom
-                            const item = headers[index];
-                            headers.splice(index, 1);
-                            headers.push(item);
+                            const item = selectedFilterCols[index];
+                            selectedFilterCols.splice(index, 1);
+                            selectedFilterCols.push(item);
                         } else {
                             // Regular up/down movement
                             const newIndex = index + direction;
-                            if (newIndex >= 0 && newIndex < headers.length) {
-                                // 1. Swap headers in the global array
-                                const temp = headers[index];
-                                headers[index] = headers[newIndex];
-                                headers[newIndex] = temp;
+                            if (newIndex >= 0 && newIndex < selectedFilterCols.length) {
+                                // Swap columns in selectedFilterCols
+                                const temp = selectedFilterCols[index];
+                                selectedFilterCols[index] = selectedFilterCols[newIndex];
+                                selectedFilterCols[newIndex] = temp;
                             } else {
                                 return;
                                 // Invalid move
@@ -3386,14 +3386,14 @@
                                             <button class="btn-outline" style="flex: 1; padding: 4px; font-size: 11px;" onclick="bulkToggleCols(false, event)">Clear All</button>
                                         </div>
                                         <div id="checkListItems">
-                                            ${headers.map((h, i) => {
+                                            ${selectedFilterCols.map((h, i) => {
                                                 // Escape single quotes for safety
                                                 const safeH = h.replace(/'/g, "\\'"); 
                                                 return `
                                                 <div id="columnItem-${i}" class="col-reorder-item" style="display: flex; align-items: center; gap: 5px; margin-bottom: 5px;">
                                                     <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'top', event)">⇑</button>
-                                                    <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">-</button>
-                                                    <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">+</button>
+                                                    <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, -1, event)">↑</button>
+                                                    <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 1, event)">↓</button>
                                                     <button class="btn-outline" style="padding: 2px 5px; font-size: 10px;" onclick="moveColumn(${i}, 'bottom', event)">⇓</button>
                                                     <label style="flex-grow: 1; margin: 0; text-transform: none; opacity: 1; cursor: pointer;">
                                                         <input type="checkbox" class="col-visibility-check" 
