@@ -3737,6 +3737,30 @@
                         }
                         
                         const selectedSheets = Array.from(checkboxes).map(cb => cb.value);
+                        const headerRowInput = document.getElementById('headerRowInput');
+                        const startColInput = document.getElementById('startColInput');
+                        const endColInput = document.getElementById('endColInput');
+                        
+                        // Set default values if inputs are empty
+                        if (!headerRowInput.value || headerRowInput.value === '') {
+                            headerRowInput.value = '1';
+                        }
+                        if (!startColInput.value || startColInput.value === '') {
+                            startColInput.value = 'A';
+                        }
+                        if (!endColInput.value || endColInput.value === '') {
+                            // Get max column from selected sheets
+                            let maxCol = 0;
+                            selectedSheets.forEach(sheetName => {
+                                const sheet = workbook.Sheets[sheetName];
+                                if (sheet['!ref']) {
+                                    const range = XLSX.utils.decode_range(sheet['!ref']);
+                                    maxCol = Math.max(maxCol, range.e.c);
+                                }
+                            });
+                            endColInput.value = XLSX.utils.encode_col(maxCol);
+                        }
+                        
                         loadMultipleSheets(selectedSheets);
                         
                         // Close dropdown
