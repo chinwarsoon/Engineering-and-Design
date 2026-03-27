@@ -2021,19 +2021,21 @@
                             <div id="loadFilesContainer">
                                 <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                     <input type="file" id="upload" accept=".xlsx, .xls"/>
-                                    <div id="sheetSelector" class="multiselect-wrapper hidden" style="width: 100%">
-                                    <div class="multiselect-display" onclick="toggleSheetDropdown()">
-                                        <span id="sheetSelectorLabel">Select sheets...</span>
-                                        <span class="dropdown-arrow">▼</span>
-                                    </div>
-                                    <div id="sheetDropdown" class="multiselect-options hidden" style="width: 100%; max-height: 200px; overflow-y: auto;">
-                                        <div style="padding: 8px; border-bottom: 1px solid var(--border);">
-                                            <span class="control-btn" onclick="selectAllSheets(true)">All</span>
-                                            <span class="control-btn" onclick="selectAllSheets(false)">Clear</span>
-                                            <span class="control-btn control-btn--apply" onclick="loadSelectedSheets()">Load</span>
+                                    <div id="sheetSelector" class="multiselect-wrapper hidden" style="width: 100%; display: flex; gap: 8px; align-items: flex-start;">
+                                    <div style="flex: 1;">
+                                        <div class="multiselect-display" onclick="toggleSheetDropdown()">
+                                            <span id="sheetSelectorLabel">Select sheets...</span>
+                                            <span class="dropdown-arrow">▼</span>
                                         </div>
-                                        <div id="sheetList"></div>
+                                        <div id="sheetDropdown" class="multiselect-options hidden" style="width: 100%; max-height: 200px; overflow-y: auto;">
+                                            <div style="padding: 8px; border-bottom: 1px solid var(--border);">
+                                                <span class="control-btn" onclick="selectAllSheets(true)">All</span>
+                                                <span class="control-btn" onclick="selectAllSheets(false)">Clear</span>
+                                            </div>
+                                            <div id="sheetList"></div>
+                                        </div>
                                     </div>
+                                    <span class="control-btn control-btn--apply" onclick="loadSelectedSheets()">Load</span>
                                 </div>
                                     <div id="sheetControls" class="hidden" style="background: var(--bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
                                         <div class="sheet-range-row">
