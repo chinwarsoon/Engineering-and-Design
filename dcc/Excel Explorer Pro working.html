@@ -2023,7 +2023,7 @@
                                     <input type="file" id="upload" accept=".xlsx, .xls"/>
                                     <div id="sheetSelector" class="multiselect-wrapper hidden" style="width: 100%; display: flex; gap: 8px; align-items: flex-start;">
                                     <div style="flex: 1;">
-                                        <div class="multiselect-display" onclick="toggleSheetDropdown()">
+                                        <div class="multiselect-display" onclick="toggleSheetDropdown()" style="height: 34px; display: flex; align-items: center;">
                                             <span id="sheetSelectorLabel">Select sheets...</span>
                                             <span class="dropdown-arrow">▼</span>
                                         </div>
@@ -2035,7 +2035,7 @@
                                             <div id="sheetList"></div>
                                         </div>
                                     </div>
-                                    <span class="control-btn control-btn--apply" onclick="loadSelectedSheets()">Load</span>
+                                    <span class="control-btn control-btn--apply" onclick="loadSelectedSheets()" style="height: 34px; display: flex; align-items: center;">Load</span>
                                 </div>
                                     <div id="sheetControls" class="hidden" style="background: var(--bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
                                         <div class="sheet-range-row">
