@@ -2052,7 +2052,6 @@
                                                 <input type="text" id="endColInput" placeholder="">
                                             </div>
                                         </div>
-                                        <button class="btn btn-outline" onclick="reloadCurrentSheet()" style="width: 100%; padding: 4px 8px; font-size: 11px; height: 26px; min-height: 26px; justify-content: center;" title="Reload Sheet">🔄 Refresh Sheet</button>
                                     </div>
                                 </div>
                             </div>
@@ -3825,7 +3824,7 @@
                         
                         // Update Step 1 header
                         const fileName = document.getElementById("upload").files?.[0]?.name || "Untitled";
-                        document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet`;
+                        // document.getElementById("step1Header").innerText = `📂 1. Load Excel File and Select Work Sheet`;
 
                         // Clear warnings and reset status box for new load
                         clearWarnings();
@@ -3852,7 +3851,6 @@
                         const sheetDataMap = new Map();
                         
                         // Update sheet-range-row values based on loaded sheets
-                        updateSheetRangeValues(sheetNames);
                         
                         // Get header row and column settings (now updated)
                         const headerRowVal = parseInt(document.getElementById('headerRowInput').value) || 1;
@@ -4164,19 +4162,6 @@
                         buildInterface();
                         setProgressStatus('loadFile', 'complete', `${sheetNames.length} sheet${sheetNames.length > 1 ? 's' : ''} refreshed`);
                         setFunctionCallStatus('loadMultipleSheets', false);
-                    }
-
-                    function reloadCurrentSheet() {
-                        const checkboxes = document.querySelectorAll(".sheet-check:checked");
-                        if (checkboxes.length > 0) {
-                            const selectedSheets = Array.from(checkboxes).map(cb => cb.value);
-                            console.log("reloadCurrentSheet called with sheets:", selectedSheets);
-                            console.log("Current header row input:", document.getElementById('headerRowInput').value);
-                            console.log("Current start col input:", document.getElementById('startColInput').value);
-                            console.log("Current end col input:", document.getElementById('endColInput').value);
-                            // Load sheets without updating sheet-range-row values (preserve user inputs)
-                            loadMultipleSheetsWithPreservedInputs(selectedSheets);
-                        }
                     }
 
                     function loadSheet(name) {
