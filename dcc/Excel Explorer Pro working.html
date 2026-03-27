@@ -2053,7 +2053,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <span class="control-btn control-btn--apply" onclick="loadSelectedSheets()" style="height: 34px; display: flex; align-items: center; width: 100%">Load</span>
+                                    <span class="control-btn control-btn--apply hidden" id="loadButton" onclick="loadSelectedSheets()" style="height: 34px; display: flex; align-items: center; width: 100%">Load</span>
                                 </div>
                             </div>
                         </div>
@@ -3640,6 +3640,9 @@
                                     type: "array",
                                     cellDates: true,
                                 });
+
+                                // Show the Load button
+                                document.getElementById("loadButton").classList.remove("hidden");
 
                                 // Populate sheet list with checkboxes
                                 const sheetList = document.getElementById("sheetList");
