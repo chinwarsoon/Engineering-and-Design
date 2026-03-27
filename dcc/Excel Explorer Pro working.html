@@ -819,8 +819,8 @@
 
             #loadFilesContainer {
                 width: 100%;
-                overflow: hidden;
-                /* Prevents children from poking out */
+                overflow: visible;
+                /* Allows dropdown to overflow */
             }
 
             #upload {
@@ -2013,7 +2013,7 @@
             <div id="layoutWrapper">
                 <aside id="sidebar">
                     <div id="step1" style="width: 100%">
-                        <div class="dashboard-module" style="margin-top: 0;">
+                        <div class="dashboard-module" style="margin-top: 0; position: relative;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <label id="step1Header" style="color: var(--primary); font-weight: 700; font-size: 12px;">📂 1. Load Excel File and Select Work Sheet</label>
                                 <button class="btn-toggle-compact" id="toggleStep1Btn" onclick="toggleStep1Box()">-</button>
@@ -2022,17 +2022,17 @@
                                 <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                     <input type="file" id="upload" accept=".xlsx, .xls"/>
                                     <div id="sheetSelector" class="multiselect-wrapper hidden" style="width: 100%; display: flex; gap: 8px; align-items: flex-start;">
-                                    <div style="flex: 1;">
+                                    <div style="flex: 1; position: relative;">
                                         <div class="multiselect-display" onclick="toggleSheetDropdown()" style="height: 34px; display: flex; align-items: center;">
                                             <span id="sheetSelectorLabel">Select sheets...</span>
                                             <span class="dropdown-arrow">▼</span>
                                         </div>
-                                        <div id="sheetDropdown" class="multiselect-options hidden" style="width: 100%; max-height: 200px; overflow-y: auto;">
-                                            <div style="padding: 8px; border-bottom: 1px solid var(--border);">
+                                        <div id="sheetDropdown" class="multiselect-options hidden" style="width: 100%; position: absolute; top: 100%; left: 0; right: 0; max-height: none; display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box; padding: 0; margin-top: 0;">
+                                            <div style="padding: 8px; border-bottom: 1px solid var(--border); flex-shrink: 0;">
                                                 <span class="control-btn" onclick="selectAllSheets(true)">All</span>
                                                 <span class="control-btn" onclick="selectAllSheets(false)">Clear</span>
                                             </div>
-                                            <div id="sheetList"></div>
+                                            <div id="sheetList" style="flex: 1; overflow-y: auto; min-height: 0; box-sizing: border-box;"></div>
                                         </div>
                                     </div>
                                     
@@ -3682,9 +3682,29 @@
                     function toggleSheetDropdown() {
                         const dropdown = document.getElementById("sheetDropdown");
                         const display = document.querySelector("#sheetSelector .multiselect-display");
+                        const dashboardModule = document.querySelector("#step1 .dashboard-module");
                         
                         dropdown.classList.toggle("hidden");
                         display.classList.toggle("active");
+                        
+                        // Toggle height of dashboard-module
+                        if (dropdown.classList.contains("hidden")) {
+                            // Dropdown is being closed - revert to normal height
+                            dashboardModule.style.minHeight = "";
+                            dropdown.style.height = "";
+                        } else {
+                            // Dropdown is being opened - double the height
+                            const currentHeight = dashboardModule.offsetHeight;
+                            dashboardModule.style.minHeight = (currentHeight * 2) + "px";
+                            
+                            // Calculate height for dropdown to fit till bottom of dashboard-module
+                            setTimeout(() => {
+                                const displayRect = display.getBoundingClientRect();
+                                const moduleRect = dashboardModule.getBoundingClientRect();
+                                const remainingHeight = moduleRect.bottom - displayRect.bottom - 2; // -2 for border
+                                dropdown.style.height = Math.max(0, remainingHeight) + "px";
+                            }, 0);
+                        }
                         
                         // Close other dropdowns
                         document.querySelectorAll(".multiselect-options:not(#sheetDropdown)").forEach(el => {
@@ -3694,6 +3714,24 @@
                             el.classList.remove("active");
                         });
                     }
+
+                    // Close sheetDropdown when clicking outside
+                    document.addEventListener("click", (e) => {
+                        const sheetDropdown = document.getElementById("sheetDropdown");
+                        const sheetSelector = document.getElementById("sheetSelector");
+                        const dashboardModule = document.querySelector("#step1 .dashboard-module");
+                        
+                        if (!sheetSelector.contains(e.target) && !sheetDropdown.contains(e.target)) {
+                            if (!sheetDropdown.classList.contains("hidden")) {
+                                sheetDropdown.classList.add("hidden");
+                                document.querySelector("#sheetSelector .multiselect-display").classList.remove("active");
+                                
+                                // Reset dashboard-module height
+                                dashboardModule.style.minHeight = "";
+                                sheetDropdown.style.height = "";
+                            }
+                        }
+                    });
 
                     function updateSheetLabel() {
                         const checkboxes = document.querySelectorAll(".sheet-check:checked");
