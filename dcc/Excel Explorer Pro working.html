@@ -2021,8 +2021,7 @@
                             <div id="loadFilesContainer">
                                 <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
                                     <input type="file" id="upload" accept=".xlsx, .xls"/>
-                                    <div id="sheetSelector" class="multiselect-wrapper hidden" style="width: 100%; display: flex; gap: 8px; align-items: flex-start;">
-                                    <div style="flex: 1;">
+                                    <div id="sheetSelector" class="multiselect-wrapper hidden" style="width: 100%;">
                                         <div class="multiselect-display" onclick="toggleSheetDropdown()" style="height: 34px; display: flex; align-items: center;">
                                             <span id="sheetSelectorLabel">Select sheets...</span>
                                             <span class="dropdown-arrow">▼</span>
@@ -2035,8 +2034,6 @@
                                             <div id="sheetList"></div>
                                         </div>
                                     </div>
-                                    <span class="control-btn control-btn--apply" onclick="loadSelectedSheets()" style="height: 34px; display: flex; align-items: center;">Load</span>
-                                </div>
                                     <div id="sheetControls" class="hidden" style="background: var(--bg); padding: 8px; border-radius: 6px; border: 1px solid var(--border);">
                                         <div class="sheet-range-row">
                                             <div class="sheet-range-field">
@@ -2053,6 +2050,8 @@
                                             </div>
                                         </div>
                                     </div>
+                                    <span class="control-btn control-btn--apply" onclick="loadSelectedSheets()" style="height: 34px; display: flex; align-items: center; justify-content: center; width: 100%;">Load</span>
+                                </div>
                                 </div>
                             </div>
                         </div>
