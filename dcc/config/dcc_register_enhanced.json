@@ -329,7 +329,7 @@
         }
       },
       "Reviewer": {
-        "aliases": ["Reviewer", "Review By", "Reviewed By"],
+        "aliases": ["Reviewer", "Responder", "Review By", "Reviewed By"],
         "data_type": "string",
         "required": false,
         "allow_null": true,
@@ -482,8 +482,8 @@
           "timezone_aware": false
         }
       },
-      "This_Submission_Date": {
-        "aliases": ["This Submission Date", "Current Submission Date"],
+      "Submission_Date": {
+        "aliases": ["This Submission Date", "Current Submission Date", "Date Submit"],
         "data_type": "date",
         "required": false,
         "allow_null": true,
@@ -498,6 +498,25 @@
         "validation": {
           "format": "YYYY-MM-DD",
           "description": "Date of current submission"
+        },
+        "processing": {
+          "auto_format": true,
+          "timezone_aware": false
+        }
+      },
+      "Review_Return_Actual_Date": {
+        "aliases": ["Actual Date S.O. Response", "SO Response Date", "Review Return Date", "Actual Response Date"],
+        "data_type": "date",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "leave_null",
+          "description": "Leave null if no response date provided"
+        },
+        "validation": {
+          "format": "YYYY-MM-DD",
+          "description": "Actual date when S.O. responded to review"
         },
         "processing": {
           "auto_format": true,
@@ -526,8 +545,40 @@
           "timezone_aware": false
         }
       },
-      "This_Submission_Approval_Status": {
-        "aliases": ["This Submission Approval Status", "Current Status"],
+      "Resubmission_Required": {
+        "aliases": ["To Resubmit (Yes/No)", "Resubmit Required", "Need Resubmission"],
+        "data_type": "boolean",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "default_value",
+          "fill_value": false,
+          "description": "Default to false if not specified"
+        },
+        "validation": {
+          "allowed_values": [true, false, "Yes", "No", "Y", "N", 1, 0],
+          "description": "Boolean value for resubmission requirement"
+        }
+      },
+      "Submission_Closed": {
+        "aliases": ["Closed", "Submission Closed", "Completed", "Finished"],
+        "data_type": "boolean",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "default_value",
+          "fill_value": false,
+          "description": "Default to false if not specified"
+        },
+        "validation": {
+          "allowed_values": [true, false, "Yes", "No", "Y", "N", 1, 0, "Closed", "Open", "Completed", "Pending"],
+          "description": "Boolean value for submission closure status"
+        }
+      },
+      "Review_Status": {
+        "aliases": ["This Submission Approval Status", "Current Status", "SO Review Status"],
         "data_type": "categorical",
         "required": false,
         "allow_null": true,
@@ -726,7 +777,7 @@
         }
       },
       "Resubmission_Plan_Date": {
-        "aliases": ["Date CES to Response(14 Working Days)", "Date CES to Response\n(14 Working Days)", "Target Resubmit Date"],
+        "aliases": ["Date CES to Response(14 Working Days)", "Date CES to Response\n(14 Working Days)", "Target Resubmit Date", "Target date to resubmit"],
         "data_type": "date",
         "required": false,
         "allow_null": true,
