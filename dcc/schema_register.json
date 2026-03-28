@@ -1,0 +1,158 @@
+{
+  "register_name": "dcc_schema_register",
+  "source": {
+    "type": "notebook",
+    "path": "dcc/dcc_mdl.ipynb",
+    "cell_id": "17c02c0e"
+  },
+  "schema": {
+    "Document_ID": [
+      "CES_SALCON-SDC JV Cor Ref No"
+    ],
+    "Document_Title": [
+      "Document Description"
+    ],
+    "Document_Revision": [
+      "Rev ",
+      "This Revision"
+    ],
+    "Department": [
+      "Dept"
+    ],
+    "Discipline": [
+      "Discipline"
+    ],
+    "Project_Code": [
+      "Proj. Code"
+    ],
+    "Facility_Code": [
+      "Proj. Prefix"
+    ],
+    "Document_Type": [
+      "Doc Type"
+    ],
+    "Document_Sequence_Number": [
+      "Number"
+    ],
+    "Submitted_By": [
+      "Document Owner"
+    ],
+    "Archive_Location": [
+      "File Path"
+    ],
+    "Submission_Session": [
+      "Prolog Submittal No.",
+      "Prolog Submittal No..1"
+    ],
+    "Submission_Session_Subject": [
+      "Document Description / Drawing Title"
+    ],
+    "Submission_Session_Revision": [
+      "Prolog Rev.",
+      "Prolog Rev..1"
+    ],
+    "Transmittal_Number": [
+      "Project Wise Transmittal No.  (WIP)"
+    ],
+    "Submission_Date": [
+      "Date Submit"
+    ],
+    "Resubmission_Forecast_Date": [
+      "Target date to resubmit"
+    ],
+    "Submission_Reference_1": [
+      "Submission Reference 1"
+    ],
+    "Submission_Closed": [
+      "Closed"
+    ],
+    "Reviewer": [
+      "Reviewer"
+    ],
+    "Review_Return_Actual_Date": [
+      "Actual Date S.O. Response"
+    ],
+    "Review_Status": [
+      "SO Review Status",
+      "This Revision Approval Status"
+    ],
+    "Review_Comments": [
+      "S.O. Review and Comments"
+    ],
+    "Resubmission_Required": [
+      "To Resubmit (Yes/No)"
+    ],
+    "Internal_Reference": [
+      "Internal Reference"
+    ],
+    "Notes": [
+      "Notes",
+      "Note",
+      "Other Notes",
+      "Remark"
+    ],
+    "All_Approval_Code": [
+      "All Approval Code"
+    ],
+    "Approval_Code": [
+      "Approval Code"
+    ],
+    "Review_Status_Code": [
+      "Review Status Code"
+    ],
+    "First_Submittion_Date": [
+      "1st Submittion Date"
+    ],
+    "This_Submission_Date": [
+      "This Submission Date"
+    ],
+    "This_Review Return_Date": [
+      "This Review Return Date"
+    ],
+    "This_Submission_Approval_Status": [
+      "This Submission Approval Status"
+    ],
+    "This_Submission_Approval_Code": [
+      "This Submission Approval Code"
+    ],
+    "Latest_Submittion_Date": [
+      "Latest Submittion Date"
+    ],
+    "Latest_Revision": [
+      "Latest Revision"
+    ],
+    "Latest_Approval_Status": [
+      "Latest Approval Status"
+    ],
+    "All_Submission_Sessions": [
+      "All Submission Sessions"
+    ],
+    "All_Submission_Dates": [
+      "All Submission Dates"
+    ],
+    "All_Submission_Session_Revisions": [
+      "All Submission Session Revisions"
+    ],
+    "Count_of_Submissions": [
+      "Count of Submissions",
+      "# of Submissions"
+    ],
+    "Review_Return_Plan_Date": [
+      "Date S.O. to Response (20 Working Days/ 14 Working Days)",
+      "Date S.O. to Response\n(20 Working Days/\n 14 Working Days)"
+    ],
+    "Resubmission_Plan_Date": [
+      "Date CES to Response(14 Working Days)",
+      "Date CES to Response\n(14 Working Days)"
+    ],
+    "Resubmission_Overdue_Status": [
+      "Overdue to resubmit"
+    ],
+    "Delay_of_Resubmission": [
+      "Delays to resubmit"
+    ],
+    "Duration_of_Review": [
+      "SO Response Variance"
+    ]
+  }
+}
