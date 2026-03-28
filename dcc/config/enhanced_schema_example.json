@@ -1,0 +1,101 @@
+{
+  "register_name": "dcc_register_enhanced",
+  "schema_definition": {
+    "columns": {
+      "Document_ID": {
+        "aliases": ["CES_SALCON-SDC JV Cor Ref No", "Document ID", "Doc ID", "Reference No"],
+        "data_type": "string",
+        "required": true,
+        "validation": {
+          "pattern": "^[A-Z0-9-]+$",
+          "description": "Document identifier with alphanumeric characters"
+        }
+      },
+      "Document_Title": {
+        "aliases": ["Document Description", "Title", "Subject", "Doc Title"],
+        "data_type": "string",
+        "required": true,
+        "validation": {
+          "min_length": 5,
+          "description": "Document title must be at least 5 characters"
+        }
+      },
+      "Submission_Date": {
+        "aliases": ["Date Submit", "Submit Date", "Submitted Date"],
+        "data_type": "date",
+        "required": true,
+        "validation": {
+          "format": "YYYY-MM-DD",
+          "description": "Date in standard format"
+        },
+        "processing": {
+          "auto_format": true,
+          "timezone_aware": false
+        }
+      },
+      "Review_Status": {
+        "aliases": ["SO Review Status", "Approval Status", "Status"],
+        "data_type": "categorical",
+        "required": true,
+        "validation": {
+          "allowed_values": ["Approved", "Rejected", "Pending", "Approved with Comments", "Not Approved"],
+          "description": "Review status must be one of the predefined values"
+        }
+      },
+      "Approval_Code": {
+        "aliases": ["Approval Code", "Code", "Status Code"],
+        "data_type": "categorical",
+        "required": false,
+        "validation": {
+          "allowed_values": ["APP", "REJ", "PEN", "AWC", "NAP", "INF", "VOID"],
+          "description": "Standard approval codes"
+        },
+        "mapping": {
+          "Approved": "APP",
+          "Rejected": "REJ",
+          "Pending": "PEN",
+          "Approved with Comments": "AWC",
+          "Not Approved": "NAP",
+          "For Information": "INF",
+          "Void": "VOID"
+        }
+      }
+    },
+    "column_groups": {
+      "document_info": ["Document_ID", "Document_Title", "Document_Revision"],
+      "submission_info": ["Submission_Session", "Submission_Date", "Submitted_By"],
+      "review_info": ["Review_Status", "Approval_Code", "Review_Return_Actual_Date"],
+      "metadata": ["Department", "Discipline", "Project_Code"]
+    },
+    "data_processing": {
+      "date_columns": ["Submission_Date", "Review_Return_Actual_Date", "Resubmission_Forecast_Date"],
+      "numeric_columns": ["Count_of_Submissions", "Duration_of_Review"],
+      "text_columns": ["Document_Title", "Review_Comments", "Notes"],
+      "categorical_columns": ["Review_Status", "Approval_Code", "Department", "Discipline"]
+    },
+    "validation_rules": {
+      "required_fields": ["Document_ID", "Document_Title", "Submission_Date"],
+      "unique_fields": ["Document_ID"],
+      "date_consistency": {
+        "Submission_Date": "must_be_before",
+        "Review_Return_Actual_Date": "must_be_after"
+      }
+    }
+  },
+  "universal_features": {
+    "fuzzy_matching": {
+      "enabled": true,
+      "threshold": 0.8,
+      "algorithms": ["levenshtein", "jaccard", "cosine"]
+    },
+    "auto_detection": {
+      "header_row_candidates": [1, 4, 5],
+      "confidence_threshold": 0.7
+    },
+    "data_quality": {
+      "null_handling": "forward_fill",
+      "duplicate_detection": true,
+      "outlier_detection": true
+    }
+  }
+}
