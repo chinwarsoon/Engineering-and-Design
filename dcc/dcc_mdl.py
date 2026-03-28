@@ -172,6 +172,7 @@ else:
 # ===== CELL 2 =====
 # P.2 define Global variables for the notebook.
 # Note: Global declarations are not needed at module level - module-level variables are automatically global
+# NOTE: These are NATIVE DEFAULTS (lowest precedence priority)
 
 is_colab = False
 overwrite_existing_downloads = True # Set to True to overwrite existing files, False to skip
@@ -206,6 +207,7 @@ linux_download_path = Path.home() / "dsai" / "Engineering-and-Design" / "dcc" / 
 # Colab-specific path
 colab_upload_file = Path("/content/sample_data/Submittal and RFI Tracker Lists.xlsx")
 colab_download_path = Path("/content/output")
+upload_colab_file_name = str(colab_upload_file)
 
 # Select paths based on environment
 if google_colab_available and google_colab is not None:
@@ -270,7 +272,7 @@ debug_print(f"Resubmission Duration: {resubmission_duration}")
 debug_print(f"Progress Stage: {progress_stage}")
 debug_print(f"Overwrite Existing Downloads: {overwrite_existing_downloads}")
 debug_print(f"Schema Register File: {schema_register_file}")
-status_print("All parameters are loaded.")
+status_print("✓ Native default parameters loaded (lowest precedence priority).")
 
 # ===== CELL 3 =====
 # P.3 display current environment
@@ -308,31 +310,32 @@ parser.add_argument('--schema_register', type=str, help='Path to an alternative 
 # This prevents SystemExit errors when running interactively in environments like Colab if kernel args are present.
 args, unknown_args = parser.parse_known_args()
 
-# Now, 'args' will contain the values for 'upload_file', 'upload_sheet', and 'download_path'.
-# If no arguments were provided by the user, these attributes will be None. The DummyArgs class is no longer necessary.
-
-# Pass arguments to global parameters if they are provided
+# Store CLI arguments for later application after JSON loading
+# This ensures correct precedence: Native defaults → JSON file → CLI arguments
+cli_args = {}
 if args.upload_file:
-    upload_file_name = args.upload_file
-    status_print(f"Global 'upload_file_name' set to: {upload_file_name}")
+    cli_args['upload_file_name'] = args.upload_file
 if args.upload_sheet:
-    upload_sheet_name = args.upload_sheet
-    status_print(f"Global 'upload_sheet_name' set to: {upload_sheet_name}")
+    cli_args['upload_sheet_name'] = args.upload_sheet
 if args.download_path:
-    download_file_path = args.download_path
-    status_print(f"Global 'download_file_path' set to: {download_file_path}")
+    cli_args['download_file_path'] = args.download_path
 if args.overwrite:
-    overwrite_existing_downloads = True if args.overwrite == 'True' else False
-    status_print(f"Global 'overwrite_existing_downloads' set to: {overwrite_existing_downloads}")
+    cli_args['overwrite_existing_downloads'] = True if args.overwrite == 'True' else False
 if args.debug_mode:
-    debug_dev_mode = True if args.debug_mode == 'True' else False
-    status_print(f"Global 'debug_dev_mode' set to: {debug_dev_mode}")
+    cli_args['debug_dev_mode'] = True if args.debug_mode == 'True' else False
 if args.schema_register:
-    schema_register_file = args.schema_register
-    status_print(f"Global 'schema_register_file' set to: {schema_register_file}")
+    cli_args['schema_register_file'] = args.schema_register
+
+if cli_args:
+    status_print("CLI arguments detected and stored for precedence application:")
+    for param, value in cli_args.items():
+        status_print(f"  {param}: {value}")
+else:
+    debug_print("No CLI arguments provided.")
 
 # ===== CELL 5 =====
 # P.5 Define local 'Schema', approval_code_mapping, and other constants. 
+# NOTE: These are NATIVE DEFAULTS (lowest precedence priority)
 
 # in case no external schema register is given, use the default schema defined below.
 # The schema register will be used to dynamically generate the schema and approval code mapping used in the notebook,
@@ -408,15 +411,20 @@ for variations, code in raw_mapping.items():
     for item in variations:
         approval_code_mapping[item] = code
 
-print("Schema:")
+print("Default Schema:")
 print(schema)
-print("Approval_Code Mapping:")
+print("Default Approval_Code Mapping:")
 print(approval_code_mapping)
-cell_done("Default schema and approval code mapping prepared")
+cell_done("Default schema and approval code mapping prepared (native defaults)")
 
 
 # ===== CELL 6 =====
 # P.6 Load schema, parameters, and row mapping from JSON config when available.
+
+# CORRECT PRECEDENCE IMPLEMENTATION:
+# 1. Native defaults (already defined in cells 2-3) - LOWEST PRIORITY
+# 2. JSON file parameters (applied here) - MEDIUM PRIORITY  
+# 3. CLI arguments (applied last) - HIGHEST PRIORITY
 
 # Prefer schema_register.json as the single source of truth.
 # Fall back to global_parameters.json only for backward compatibility.
@@ -464,6 +472,7 @@ global_parameters_path = next((path for path in global_parameters_candidates if 
 effective_parameters = default_parameters.copy()
 effective_row_mapping = None
 
+# STEP 1: Apply JSON file parameters (MEDIUM PRIORITY)
 if schema_register_path:
     with schema_register_path.open('r', encoding='utf-8') as f:
         schema_register = json.load(f)
@@ -492,7 +501,7 @@ if schema_register_path:
                 for alias in aliases:
                     approval_code_mapping[alias] = approval_code
 
-    status_print(f"Success! Register file loaded successfully from: {schema_register_path}")
+    status_print(f"✓ JSON config loaded from: {schema_register_path}")
 elif global_parameters_path:
     with global_parameters_path.open('r', encoding='utf-8') as f:
         file_parameters = json.load(f)
@@ -502,17 +511,31 @@ elif global_parameters_path:
         for parameter_name, parameter_value in file_parameters.items():
             globals()[parameter_name] = parameter_value
 
-    status_print(f"Success! Register file loaded successfully from fallback parameters file: {global_parameters_path}")
+    status_print(f"✓ Fallback JSON config loaded from: {global_parameters_path}")
 else:
-    status_print("No JSON config found. Using default notebook schema and parameters.")
+    status_print("No JSON config found. Using native defaults.")
+
+# STEP 2: Apply CLI arguments (HIGHEST PRIORITY)
+# These override both native defaults and JSON parameters
+if cli_args:
+    status_print("Applying CLI arguments (highest precedence):")
+    for parameter_name, parameter_value in cli_args.items():
+        globals()[parameter_name] = parameter_value
+        status_print(f"  ✓ {parameter_name} = {parameter_value}")
+
+# Final status report
+status_print("Parameter precedence applied successfully:")
+status_print("  1. Native defaults (lowest priority)")
+status_print("  2. JSON file parameters (middle priority)")  
+status_print("  3. CLI arguments (highest priority)")
 
 print("Schema:")
 print(schema)
-print("Parameters:")
+print("Effective Parameters:")
 print(effective_parameters)
 print("Approval_Code Mapping:")
 print(approval_code_mapping)
-cell_done("Schema, parameters, and row mapping loaded")
+cell_done("Schema, parameters, and row mapping loaded with correct precedence")
 
 
 # ===== CELL 7 =====
@@ -1751,44 +1774,27 @@ cell_done("Final dataframe validation summary prepared")
 # ===== CELL 43 =====
 output_file_name = 'Processed_Submittal_Tracker.xlsx'
 
-# Always save the file first (creates it in the current working directory)
-df_cleaned_and_filtered.to_excel(output_file_name, index=False)
+# Construct the full path for the output file
+output_full_path = os.path.join(download_file_path, output_file_name)
 
-# Construct the full path where the file *would be* in the download_file_path directory
-destination_full_path = os.path.join(download_file_path, output_file_name)
+# Ensure the download directory exists
+os.makedirs(download_file_path, exist_ok=True)
 
-# Environment-specific feedback and actions
-if is_colab:
-    status_print(f"DataFrame successfully saved to '{output_file_name}' in Colab.")
-    status_print("A download prompt will appear shortly.")
-    # Download to local machine via Colab's file download mechanism
-    files.download(output_file_name)
-
-    # Ensure the download_file_path directory exists
-    os.makedirs(download_file_path, exist_ok=True)
-
-    # Compare absolute paths to avoid SameFileError
-    if os.path.abspath(output_file_name) == destination_full_path and not overwrite_existing_downloads:
-        status_print(f"The file '{output_file_name}' is already at the destination '{download_file_path}'. Skipping redundant copy.")
-    elif os.path.exists(destination_full_path) and not overwrite_existing_downloads:
-        status_print(f"File '{output_file_name}' already exists at '{download_file_path}'. Overwrite is disabled, skipping copy.")
-    else:
-        shutil.copy(output_file_name, download_file_path)
-        status_print(f"The file '{output_file_name}' has been copied to '{download_file_path}'.")
-else: # Local environment
-    status_print(f"DataFrame successfully saved to '{output_file_name}' in your local directory.")
-
-    # Ensure the download_file_path directory exists
-    os.makedirs(download_file_path, exist_ok=True)
-
-    # Compare absolute paths to avoid SameFileError
-    if os.path.abspath(output_file_name) == destination_full_path and not overwrite_existing_downloads:
-        status_print(f"The file '{output_file_name}' is already at the destination '{download_file_path}'. Skipping redundant copy.")
-    elif os.path.exists(destination_full_path) and not overwrite_existing_downloads:
-        status_print(f"File '{output_file_name}' already exists at '{download_file_path}'. Overwrite is disabled, skipping copy.")
-    else:
-        shutil.copy(output_file_name, download_file_path)
-        status_print(f"The file '{output_file_name}' has been copied to '{download_file_path}'.")
+# Check if file exists and overwrite setting
+if os.path.exists(output_full_path) and not overwrite_existing_downloads:
+    status_print(f"File '{output_file_name}' already exists at '{download_file_path}'. Overwrite is disabled, skipping save.")
+else:
+    # Save directly to the output directory
+    df_cleaned_and_filtered.to_excel(output_full_path, index=False)
+    
+    # Environment-specific feedback and actions
+    if is_colab:
+        status_print(f"DataFrame successfully saved to '{output_file_name}' in Colab.")
+        status_print("A download prompt will appear shortly.")
+        # Download to local machine via Colab's file download mechanism
+        files.download(output_full_path)
+    else: # Local environment
+        status_print(f"DataFrame successfully saved to '{output_file_name}' in '{download_file_path}'.")
 
 # ===== CELL 44 =====
 # export data frame to DuctDB

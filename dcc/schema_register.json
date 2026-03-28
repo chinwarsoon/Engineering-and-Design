@@ -22,13 +22,13 @@
     "upload_sheet_name": "Prolog Submittals ",
     "win_upload_file": "K:\\J Submission\\Submittal and RFI Tracker Lists.xlsx",
     "win_download_path": "K:\\J Submission\\AI Tools and Report",
-    "linux_upload_file": "{user_home}/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx",
-    "linux_download_path": "{user_home}/dsai/Engineering-and-Design/dcc/output",
+    "linux_upload_file": "/home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx",
+    "linux_download_path": "/home/franklin/dsai/Engineering-and-Design/dcc/output",
     "colab_upload_file": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
     "colab_download_path": "/content/output",
-    "upload_file_name": "K:\\J Submission\\Submittal and RFI Tracker Lists.xlsx",
+    "upload_file_name": "/home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx",
     "upload_colab_file_name": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
-    "download_file_path": "K:\\J Submission\\AI Tools and Report"
+    "download_file_path": "/home/franklin/dsai/Engineering-and-Design/dcc/output"
   },
   "row_mapping": {
     "REJ": [
