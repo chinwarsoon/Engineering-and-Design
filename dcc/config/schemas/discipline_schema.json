@@ -1,0 +1,20 @@
+{
+  "schema_name": "discipline_choices",
+  "type": "standard_choices",
+  "choices": [
+    "Process",
+    "Piping",
+    "CSA",
+    "Architechture",
+    "Civil",
+    "Structural",
+    "Building Service",
+    "Electrical",
+    "ICA",
+    "Mechanical",
+    "NA"
+  ],
+  "description": "Standard engineering discipline classifications",
+  "created": "2026-03-28",
+  "version": "1.0"
+}

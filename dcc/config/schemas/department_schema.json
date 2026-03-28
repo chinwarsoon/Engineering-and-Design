@@ -1,0 +1,24 @@
+{
+  "schema_name": "department_choices",
+  "type": "standard_choices",
+  "choices": [
+    "Project",
+    "QAQC", 
+    "Contract",
+    "Procurement",
+    "Process",
+    "Piping",
+    "CSA",
+    "Architechture",
+    "Civil",
+    "Structural",
+    "Building Service",
+    "Electrical",
+    "ICA",
+    "Mechanical",
+    "NA"
+  ],
+  "description": "Standard department classifications for document management",
+  "created": "2026-03-28",
+  "version": "1.0"
+}

@@ -1,0 +1,12 @@
+{
+    "document_types": {
+        "DCC_SUBMITTAL": {
+            "schema_file": "config/dcc_register.json",
+            "description": "DCC Submittal Register"
+        },
+        "RFI_TRACKER": {
+            "schema_file": "config/rfi_register.json",
+            "description": "Request for Information Logs"
+        }
+    }
+}
