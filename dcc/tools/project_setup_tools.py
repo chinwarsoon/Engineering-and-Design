@@ -21,10 +21,14 @@ class DCCProjectSetupTools:
             schema_file: Path to enhanced schema file
         """
         self.data_file = data_file or "/home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx"
-        self.schema_file = schema_file or "/home/franklin/dsai/Engineering-and-Design/dcc/config/dcc_register_enhanced.json"
+        self.schema_file = schema_file or "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json"
         self.sheet_name = "Prolog Submittals "
         self.header_row = 4
         self.column_range = "P:AP"
+        
+        # Load project structure from master_registry.json
+        self.master_registry = self._load_master_registry()
+        self.project_structure = self.master_registry.get("project_structure", {})
         
         # Original schema from dcc_mdl.ipynb
         self.original_schema = {
@@ -135,6 +139,16 @@ class DCCProjectSetupTools:
             "This_Submission_Approval_Status", # Calculated from Review_Status
             "This_Submission_Approval_Code",    # Calculated from Review_Status
         ]
+    
+    def _load_master_registry(self):
+        """Load master registry JSON from config/schemas/"""
+        registry_path = Path(__file__).parent.parent / "config" / "schemas" / "master_registry.json"
+        try:
+            with open(registry_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"⚠️  Could not load master_registry.json: {e}")
+            return {}
     
     def analyze_columns(self):
         """Analyze actual Excel columns vs schema requirements"""
@@ -483,6 +497,222 @@ class DCCProjectSetupTools:
             print(f"❌ Error reorganizing schema columns: {e}")
             return None
     
+    def validate_project_structure(self, base_path=None):
+        """Validate all required files and folders for distribution using master_registry.json"""
+        
+        base_path = Path(base_path) if base_path else Path(__file__).parent.parent
+        results = {
+            "folders": {},
+            "files": {},
+            "schema_refs": {},
+            "ready_for_distribution": False
+        }
+        
+        print("🔍 PROJECT STRUCTURE VALIDATION")
+        print("=" * 70)
+        print(f"📁 Base Path: {base_path}")
+        
+        if not self.project_structure:
+            print("⚠️  Using fallback validation (master_registry.json not loaded)")
+        else:
+            print("✅ Loaded from master_registry.json")
+        print()
+        
+        # Use project_structure from JSON if available, else fallback
+        folders_config = self.project_structure.get("required_folders", [])
+        files_config = self.project_structure.get("required_files", {})
+        
+        # 1. Check required folders
+        print("📂 Required Folders:")
+        all_folders_exist = True
+        for folder_info in folders_config:
+            name = folder_info["name"]
+            required = folder_info.get("required", True)
+            purpose = folder_info.get("purpose", "")
+            folder_path = base_path / name
+            exists = folder_path.exists()
+            results["folders"][name] = {
+                "path": str(folder_path), 
+                "exists": exists,
+                "required": required
+            }
+            status = "✅" if exists else ("❌" if required else "⚠️")
+            req_str = "(required)" if required else "(optional)"
+            print(f"  {status} {name:<20} {req_str:<12} # {purpose}")
+            if not exists:
+                if required:
+                    all_folders_exist = False
+                    print(f"     💡 Create: mkdir -p {folder_path}")
+                else:
+                    print(f"     💡 Optional: mkdir -p {folder_path}")
+        print()
+        
+        # 2. Check required schema files
+        schema_files = files_config.get("schemas", [])
+        if schema_files:
+            print("📋 Required Schema Files:")
+            schema_path = base_path / "config" / "schemas"
+            all_schemas_exist = True
+            for file_info in schema_files:
+                filename = file_info["file"]
+                description = file_info["description"]
+                required = file_info.get("required", True)
+                filepath = schema_path / filename
+                exists = filepath.exists()
+                results["files"][filename] = {
+                    "path": str(filepath),
+                    "exists": exists,
+                    "description": description,
+                    "required": required
+                }
+                status = "✅" if exists else ("❌" if required else "⚠️")
+                req_str = "(required)" if required else "(optional)"
+                size = f"({filepath.stat().st_size} bytes)" if exists else ""
+                print(f"  {status} {filename:<30} {req_str:<10} {size:<12} # {description}")
+                if not exists and required:
+                    all_schemas_exist = False
+            print()
+        
+        # 3. Check workflow files
+        workflow_files = files_config.get("workflow", [])
+        if workflow_files:
+            print("🔧 Required Workflow Files:")
+            workflow_path = base_path / "workflow"
+            all_workflow_exist = True
+            for file_info in workflow_files:
+                filename = file_info["file"]
+                description = file_info["description"]
+                required = file_info.get("required", True)
+                filepath = workflow_path / filename
+                exists = filepath.exists()
+                results["files"][filename] = {
+                    "path": str(filepath),
+                    "exists": exists,
+                    "description": description,
+                    "required": required
+                }
+                status = "✅" if exists else ("❌" if required else "⚠️")
+                req_str = "(required)" if required else "(optional)"
+                size = f"({filepath.stat().st_size} bytes)" if exists else ""
+                print(f"  {status} {filename:<35} {req_str:<10} {size:<12} # {description}")
+                if not exists and required:
+                    all_workflow_exist = False
+            print()
+        
+        # 4. Check for data files
+        print("📊 Data Files (.xlsx):")
+        data_path = base_path / "data"
+        if data_path.exists():
+            data_files = list(data_path.glob("*.xlsx"))
+            if data_files:
+                for f in data_files:
+                    print(f"  ✅ {f.name:<35} ({f.stat().st_size} bytes)")
+                results["files"]["data"] = {"found": len(data_files), "files": [str(f) for f in data_files]}
+            else:
+                print("  ⚠️  No .xlsx files found")
+                print(f"     💡 Add Excel files to: {data_path}")
+        else:
+            print("  ❌ data/ folder missing")
+        print()
+        
+        # 5. Validate schema references (if main schema exists)
+        main_schema = schema_path / "dcc_register_enhanced.json"
+        if main_schema.exists():
+            print("🔗 Schema References Validation:")
+            try:
+                with open(main_schema, 'r', encoding='utf-8') as f:
+                    schema_data = json.load(f)
+                
+                refs = schema_data.get("schema_references", {})
+                for ref_name, ref_path in refs.items():
+                    # Resolve relative to base_path, not schema_path (avoid double config/)
+                    full_path = (base_path / ref_path.replace("../", "")).resolve()
+                    rel_path = ref_path.replace("../config/schemas/", "")
+                    exists = full_path.exists()
+                    results["schema_refs"][ref_name] = {
+                        "path": str(ref_path),
+                        "resolved": str(full_path),
+                        "exists": exists
+                    }
+                    status = "✅" if exists else "❌"
+                    print(f"  {status} {ref_name:<25} -> {rel_path}")
+                    if not exists:
+                        print(f"     💡 Expected at: {full_path}")
+            except Exception as e:
+                print(f"  ❌ Error reading schema: {e}")
+            print()
+        
+        # Summary
+        print("=" * 70)
+        print("📊 VALIDATION SUMMARY:")
+        
+        missing_folders = [n for n, d in results["folders"].items() if not d["exists"]]
+        missing_files = [n for n, d in results["files"].items() if not d.get("exists", True)]
+        
+        if missing_folders or missing_files:
+            print(f"  ❌ Missing Folders: {len(missing_folders)}")
+            for f in missing_folders:
+                print(f"     - {f}")
+            print(f"  ❌ Missing Files: {len(missing_files)}")
+            for f in missing_files:
+                print(f"     - {f}")
+            print()
+            print("⚠️  Project NOT ready for distribution!")
+            print("   Create missing folders/files before distributing.")
+        else:
+            print("  ✅ All required folders exist")
+            print("  ✅ All required schema files exist")
+            print("  ✅ All required workflow files exist")
+            print("  ✅ Schema references valid")
+            print()
+            print("🎉 Project structure is COMPLETE and ready for distribution!")
+            results["ready_for_distribution"] = True
+        
+        return results
+    
+    def check_workflow_dependencies(self):
+        """Check Python module dependencies for workflow files"""
+        
+        print("\n🔍 WORKFLOW DEPENDENCIES CHECK")
+        print("=" * 70)
+        
+        workflow_path = Path(__file__).parent.parent / "workflow"
+        
+        # Check imports in processor
+        processor_file = workflow_path / "universal_document_processor.py"
+        if processor_file.exists():
+            print(f"\n📄 {processor_file.name} imports:")
+            with open(processor_file, 'r') as f:
+                content = f.read()
+                imports = [line.strip() for line in content.split('\n') 
+                          if line.strip().startswith(('import ', 'from '))]
+                for imp in imports[:10]:  # Show first 10
+                    print(f"  {imp}")
+                if len(imports) > 10:
+                    print(f"  ... and {len(imports)-10} more")
+        
+        # Check imports in mapper
+        mapper_file = workflow_path / "universal_column_mapper.py"
+        if mapper_file.exists():
+            print(f"\n📄 {mapper_file.name} imports:")
+            with open(mapper_file, 'r') as f:
+                content = f.read()
+                imports = [line.strip() for line in content.split('\n') 
+                          if line.strip().startswith(('import ', 'from '))]
+                for imp in imports[:10]:
+                    print(f"  {imp}")
+                if len(imports) > 10:
+                    print(f"  ... and {len(imports)-10} more")
+        
+        print("\n💡 Common dependencies:")
+        print("  - pandas (Excel/data processing)")
+        print("  - numpy (numerical operations)")
+        print("  - json (schema parsing)")
+        print("  - pathlib (file handling)")
+        print("  - fuzzywuzzy or rapidfuzz (column matching)")
+        print("  - openpyxl (Excel reading)")
+
+
     def run_complete_analysis(self):
         """Run complete project setup analysis"""
         
@@ -531,8 +761,12 @@ def main():
             tools.reorganize_schema_columns()
         elif command == "complete":
             tools.run_complete_analysis()
+        elif command == "validate_structure":
+            tools.validate_project_structure()
+        elif command == "check_dependencies":
+            tools.check_workflow_dependencies()
         else:
-            print("Available commands: analyze, compare, validate, sequence, reorganize, complete")
+            print("Available commands: analyze, compare, validate, sequence, reorganize, complete, validate_structure, check_dependencies")
     else:
         tools.run_complete_analysis()
 

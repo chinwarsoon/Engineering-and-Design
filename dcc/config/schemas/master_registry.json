@@ -135,5 +135,33 @@
             "file": "workflow/universal-processing-workflow.md",
             "description": "Complete workflow documentation with Mermaid diagrams"
         }
+    },
+    "project_structure": {
+        "required_folders": [
+            {"name": "config/schemas", "purpose": "Schema definitions", "required": true},
+            {"name": "data", "purpose": "Input data files", "required": true},
+            {"name": "output", "purpose": "Generated output", "required": false},
+            {"name": "reference", "purpose": "Documentation and instructions", "required": false},
+            {"name": "workflow", "purpose": "Processing notebooks and modules", "required": true},
+            {"name": "tools", "purpose": "Setup and utility scripts", "required": true}
+        ],
+        "required_files": {
+            "schemas": [
+                {"file": "dcc_register_enhanced.json", "description": "Main schema definition", "required": true},
+                {"file": "department_schema.json", "description": "Department validation", "required": true},
+                {"file": "discipline_schema.json", "description": "Discipline validation", "required": true},
+                {"file": "document_type_schema.json", "description": "Document type validation", "required": true},
+                {"file": "approval_code_mapping.json", "description": "Status code mapping", "required": true}
+            ],
+            "workflow": [
+                {"file": "universal_document_processor.py", "description": "Schema-driven processing engine", "required": true},
+                {"file": "universal_column_mapper.py", "description": "Column name mapping utility", "required": true},
+                {"file": "dcc_register_main.ipynb", "description": "Main orchestration notebook", "required": true}
+            ]
+        },
+        "optional_patterns": {
+            "data": "*.xlsx",
+            "reference": "*.md"
+        }
     }
 }
