@@ -34,12 +34,117 @@
     "colab_download_path": "/content/output",
     "upload_file_name": "/home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx",
     "upload_colab_file_name": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
-    "download_file_path": "/home/franklin/dsai/Engineering-and-Design/dcc/output"
+    "download_file_path": "/home/franklin/dsai/Engineering-and-Design/dcc/output",
+    "dynamic_column_creation": {
+      "enabled": true,
+      "missing_column_action": "create_with_default",
+      "default_value": "NA",
+      "description": "Allow creation of schema columns if not found in data during processing"
+    }
   },
   "enhanced_schema": {
     "columns": {
+      "Project_Code": {
+        "aliases": [
+          "Proj. Code",
+          "Project Code",
+          "Proj Code"
+        ],
+        "data_type": "string",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "default_value",
+          "default_value": "NA",
+          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "pattern": "^[A-Z0-9-]*$",
+          "description": "Project code identifier"
+        }
+      },
+      "Facility_Code": {
+        "aliases": [
+          "Proj. Prefix",
+          "Facility Code",
+          "Project Prefix"
+        ],
+        "data_type": "string",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "default_value",
+          "default_value": "NA",
+          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "pattern": "^[A-Z0-9-]*$",
+          "description": "Facility or project prefix"
+        }
+      },
+      "Document_Type": {
+        "aliases": [
+          "Doc Type",
+          "Document Type",
+          "Type"
+        ],
+        "data_type": "categorical",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "schema_reference": "document_type_schema",
+        "null_handling": {
+          "strategy": "default_value",
+          "default_value": "NA",
+          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+        }
+      },
+      "Discipline": {
+        "aliases": [
+          "Discipline",
+          "Disc",
+          "Engineering Discipline"
+        ],
+        "data_type": "categorical",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "schema_reference": "discipline_schema",
+        "null_handling": {
+          "strategy": "default_value",
+          "default_value": "NA",
+          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+        }
+      },
+      "Document_Sequence_Number": {
+        "aliases": [
+          "Number",
+          "Doc Number",
+          "Sequence No"
+        ],
+        "data_type": "string",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "default_value",
+          "default_value": "NA",
+          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "pattern": "^[0-9]*$",
+          "description": "Document sequence number"
+        }
+      },
       "Document_ID": {
-        "aliases": ["CES_SALCON-SDC JV Cor Ref No", "Document ID", "Doc ID", "Reference No"],
+        "aliases": [
+          "CES_SALCON-SDC JV Cor Ref No",
+          "Document ID",
+          "Doc ID",
+          "Reference No"
+        ],
         "data_type": "string",
         "required": true,
         "allow_null": false,
@@ -47,7 +152,12 @@
         "calculation": {
           "type": "composite",
           "method": "build_document_id",
-          "source_columns": ["Project_Code", "Facility_Code", "Document_Type", "Document_Sequence_Number"],
+          "source_columns": [
+            "Project_Code",
+            "Facility_Code",
+            "Document_Type",
+            "Document_Sequence_Number"
+          ],
           "format": "{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}",
           "fallback_source": "Document_ID",
           "description": "Build Document_ID from components or use existing Document_ID"
@@ -57,7 +167,12 @@
           "calculation": {
             "type": "composite",
             "method": "build_document_id",
-            "source_columns": ["Project_Code", "Facility_Code", "Document_Type", "Document_Sequence_Number"],
+            "source_columns": [
+              "Project_Code",
+              "Facility_Code",
+              "Document_Type",
+              "Document_Sequence_Number"
+            ],
             "format": "{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}",
             "fallback_value": "UNKNOWN-DOC-ID",
             "description": "Generate Document_ID if null"
@@ -68,275 +183,527 @@
           "description": "Document identifier with alphanumeric characters"
         }
       },
-      "Document_Title": {
-        "aliases": ["Document Description", "Title", "Subject", "Doc Title"],
-        "data_type": "string",
-        "required": true,
-        "allow_null": false,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "lookup_if_null",
-          "calculation": {
-            "type": "lookup",
-            "method": "find_by_document_id",
-            "source_column": "Document_Title",
-            "lookup_key": "Document_ID",
-            "fallback_value": "UNKNOWN-TITLE",
-            "description": "Find Document_Title for same Document_ID, use fallback if not found"
-          }
-        },
-        "validation": {
-          "min_length": 5,
-          "description": "Document title must be at least 5 characters"
-        }
-      },
       "Document_Revision": {
-        "aliases": ["Rev ", "This Revision", "Revision", "Rev"],
+        "aliases": [
+          "Rev ",
+          "This Revision",
+          "Revision",
+          "Rev"
+        ],
         "data_type": "string",
-        "required": true,
+        "required": false,
         "allow_null": true,
         "is_calculated": false,
         "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "0",
-          "na_fallback": true,
-          "description": "Forward fill revision number within same document, use NA if no previous value"
+          "strategy": "multi_level_forward_fill",
+          "levels": [
+            {
+              "group_by": [
+                "Document_ID",
+                "Submission_Session",
+                "Submission_Session_Revision"
+              ],
+              "description": "Forward fill within same document, session, and revision"
+            },
+            {
+              "group_by": [
+                "Document_ID",
+                "Submission_Session"
+              ],
+              "description": "Forward fill within same document and session"
+            },
+            {
+              "group_by": [
+                "Document_ID"
+              ],
+              "description": "Forward fill within same document"
+            }
+          ],
+          "final_fill": "NA",
+          "description": "Three-level forward fill per original dcc_mdl.ipynb logic, then fill remaining with NA"
         },
         "validation": {
           "pattern": "^[A-Z0-9.]*$",
           "description": "Revision number or identifier (optional)"
         }
       },
-      "Department": {
-        "aliases": ["Dept", "Department", "Dept Name"],
-        "data_type": "categorical",
-        "required": true,
-        "allow_null": true,
-        "is_calculated": false,
-        "schema_reference": "department_schema",
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill department within same document, use NA if unknown"
-        }
-      },
-      "Discipline": {
-        "aliases": ["Discipline", "Disc", "Engineering Discipline"],
-        "data_type": "categorical",
-        "required": true,
-        "allow_null": true,
-        "is_calculated": false,
-        "schema_reference": "discipline_schema",
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill discipline within same document, use NA if unknown"
-        }
-      },
-      "Project_Code": {
-        "aliases": ["Proj. Code", "Project Code", "Proj Code"],
+      "Document_Title": {
+        "aliases": [
+          "Document Description",
+          "Title",
+          "Subject",
+          "Doc Title"
+        ],
         "data_type": "string",
         "required": false,
         "allow_null": true,
         "is_calculated": false,
         "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill project code within same document, use NA if unknown"
-        },
-        "validation": {
-          "pattern": "^[A-Z0-9-]*$",
-          "description": "Project code identifier"
-        }
-      },
-      "Facility_Code": {
-        "aliases": ["Proj. Prefix", "Facility Code", "Project Prefix"],
-        "data_type": "string",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill facility code within same document, use NA if unknown"
-        },
-        "validation": {
-          "pattern": "^[A-Z0-9-]*$",
-          "description": "Facility or project prefix"
-        }
-      },
-      "Document_Type": {
-        "aliases": ["Doc Type", "Document Type", "Type"],
-        "data_type": "categorical",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "schema_reference": "document_type_schema",
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill document type within same document, use NA if unknown"
-        }
-      },
-      "Document_Sequence_Number": {
-        "aliases": ["Number", "Doc Number", "Sequence No"],
-        "data_type": "string",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill sequence number within same document, use NA if unknown"
-        },
-        "validation": {
-          "pattern": "^[0-9]*$",
-          "description": "Document sequence number"
-        }
-      },
-      "Submitted_By": {
-        "aliases": ["Document Owner", "Submitted By", "Submitter"],
-        "data_type": "string",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill submitter within same document, use NA if unknown"
-        },
-        "validation": {
-          "min_length": 2,
-          "description": "Name of document submitter"
-        }
-      },
-      "Archive_Location": {
-        "aliases": ["File Path", "Archive Location", "Storage Location"],
-        "data_type": "string",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill archive location within same document, use NA if unknown"
-        },
-        "validation": {
-          "description": "Document archive or storage location"
-        }
-      },
-      "Submission_Session": {
-        "aliases": ["Prolog Submittal No.", "Prolog Submittal No..1", "Submittal No", "Submission Number"],
-        "data_type": "string",
-        "required": true,
-        "allow_null": false,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "error",
-          "message": "Submission Session is required and cannot be null"
-        },
-        "validation": {
-          "pattern": "^[A-Z0-9-]+$",
-          "description": "Unique submission session identifier"
-        }
-      },
-      "Submission_Session_Subject": {
-        "aliases": ["Document Description / Drawing Title", "Subject", "Submission Subject"],
-        "data_type": "string",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "copy_from",
-          "source_column": "Document_Title",
-          "fallback_value": "NA",
-          "na_fallback": true,
-          "description": "Copy from Document_Title if null, use NA if both null"
+          "strategy": "leave_null",
+          "description": "Leave null as this column is not available in current data structure"
         },
         "validation": {
           "min_length": 5,
-          "description": "Subject of the submission"
-        }
-      },
-      "Submission_Session_Revision": {
-        "aliases": ["Prolog Rev.", "Prolog Rev..1", "Submission Revision"],
-        "data_type": "string",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "copy_from",
-          "source_column": "Document_Revision",
-          "fallback_value": "NA",
-          "na_fallback": true,
-          "description": "Copy from Document_Revision if null, use NA if both null"
-        },
-        "validation": {
-          "pattern": "^[A-Z0-9.]*$",
-          "description": "Revision for this submission"
+          "description": "Document title must be at least 5 characters"
         }
       },
       "Transmittal_Number": {
-        "aliases": ["Project Wise Transmittal No.  (WIP)", "Transmittal No", "Transmittal Number"],
+        "aliases": [
+          "Project Wise Transmittal No.  (WIP)",
+          "Transmittal No",
+          "Transmittal Number"
+        ],
         "data_type": "string",
         "required": false,
         "allow_null": true,
         "is_calculated": false,
         "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Submission_Session"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill transmittal number within same submission, use NA if unknown"
+          "strategy": "default_value",
+          "default_value": "NA",
+          "text_replacements": {
+            "N.A.": "NA",
+            "N.A": "NA",
+            "nan": "NA"
+          },
+          "type_conversion": "string",
+          "description": "Convert to string, replace N.A./N.A/nan with NA, fill nulls with NA per original dcc_mdl.ipynb logic"
         },
         "validation": {
           "pattern": "^[A-Z0-9-]*$",
           "description": "Transmittal reference number"
         }
       },
-      "Submission_Reference_1": {
-        "aliases": ["Submission Reference 1", "Reference 1", "Submission Ref"],
+      "Submission_Session": {
+        "aliases": [
+          "Prolog Submittal No.",
+          "Prolog Submittal No..1",
+          "Submittal No",
+          "Submission Number"
+        ],
+        "data_type": "string",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "forward_fill",
+          "group_by": [],
+          "fill_value": "0",
+          "description": "Forward fill Submission Session by itself (sequential) and format as 6-digit string per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "pattern": "^[A-Z0-9-]+$",
+          "description": "Unique submission session identifier"
+        }
+      },
+      "Submission_Session_Revision": {
+        "aliases": [
+          "Prolog Rev.",
+          "Prolog Rev..1",
+          "Submission Revision"
+        ],
+        "data_type": "string",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "forward_fill",
+          "group_by": [
+            "Submission_Session"
+          ],
+          "fill_value": "0",
+          "na_fallback": true,
+          "description": "Forward fill revision by Submission_Session and format as 2-digit string per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "pattern": "^[A-Z0-9.]*$",
+          "description": "Revision for this submission"
+        }
+      },
+      "Submission_Session_Subject": {
+        "aliases": [
+          "Document Description / Drawing Title",
+          "Subject",
+          "Submission Subject"
+        ],
         "data_type": "string",
         "required": false,
         "allow_null": true,
         "is_calculated": false,
         "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": ["Submission_Session"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill reference within same submission, use NA if unknown"
+          "strategy": "multi_level_forward_fill",
+          "levels": [
+            {
+              "group_by": [
+                "Submission_Session",
+                "Submission_Session_Revision"
+              ],
+              "description": "Forward fill within same submission session and revision"
+            },
+            {
+              "group_by": [
+                "Submission_Session"
+              ],
+              "description": "Forward fill within same submission session"
+            }
+          ],
+          "conditional_processing": {
+            "if_column_exists": true,
+            "description": "Only process if Submission_Session_Subject column exists in data per original dcc_mdl.ipynb logic"
+          },
+          "description": "Two-level forward fill per submission sessions if column exists per original dcc_mdl.ipynb logic"
         },
         "validation": {
-          "description": "Additional submission reference"
+          "min_length": 5,
+          "description": "Subject of the submission"
+        }
+      },
+      "Consolidated_Submission_Session_Subject": {
+        "aliases": [
+          "Consolidated Subject",
+          "All Subjects",
+          "Subject History"
+        ],
+        "data_type": "text",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "aggregate",
+          "method": "concatenate_unique_quoted",
+          "source_column": "Submission_Session_Subject",
+          "group_by": [
+            "Document_ID"
+          ],
+          "separator": " && ",
+          "quote_each": true,
+          "filter_na": true,
+          "description": "Concatenates unique subjects with quotes and && separator per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "description": "Consolidated submission subjects for each document"
+        }
+      },
+      "Department": {
+        "aliases": [
+          "Dept",
+          "Department",
+          "Dept Name"
+        ],
+        "data_type": "categorical",
+        "required": true,
+        "allow_null": true,
+        "is_calculated": false,
+        "schema_reference": "department_schema",
+        "null_handling": {
+          "strategy": "multi_level_forward_fill",
+          "levels": [
+            {
+              "group_by": ["Submission_Session", "Submission_Session_Revision"],
+              "description": "Forward fill within same submission session and revision"
+            },
+            {
+              "group_by": ["Submission_Session"],
+              "description": "Forward fill within same submission session"
+            }
+          ],
+          "final_fill": "NA",
+          "conditional_processing": {
+            "if_column_exists": true,
+            "description": "Only process if Department column exists in data per original dcc_mdl.ipynb logic"
+          },
+          "description": "Two-level forward fill per submission sessions if column exists, fill remaining with NA per original dcc_mdl.ipynb logic"
+        }
+      },
+      "Submitted_By": {
+        "aliases": [
+          "Document Owner",
+          "Submitted By",
+          "Submitter"
+        ],
+        "data_type": "string",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "multi_level_forward_fill",
+          "levels": [
+            {
+              "group_by": [
+                "Submission_Session",
+                "Submission_Session_Revision"
+              ],
+              "description": "Forward fill within same submission session and revision"
+            },
+            {
+              "group_by": [
+                "Submission_Session"
+              ],
+              "description": "Forward fill within same submission session"
+            }
+          ],
+          "final_fill": "NA",
+          "column_creation": {
+            "if_missing": "create_with_default",
+            "default_value": "NA",
+            "description": "Create column with 'NA' if not found in data per original dcc_mdl.ipynb logic"
+          },
+          "description": "Two-level forward fill per submission sessions, create column if missing, fill remaining with NA per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "min_length": 2,
+          "description": "Name of document submitter"
+        }
+      },
+      "Submission_Date": {
+        "aliases": [
+          "Date Submit",
+          "This Submission Date",
+          "Current Submission Date"
+        ],
+        "data_type": "date",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "multi_level_forward_fill",
+          "levels": [
+            {
+              "group_by": [
+                "Submission_Session",
+                "Submission_Session_Revision"
+              ],
+              "description": "Forward fill within same submission session and revision"
+            },
+            {
+              "group_by": [
+                "Submission_Session"
+              ],
+              "description": "Forward fill within same submission session"
+            }
+          ],
+          "datetime_conversion": {
+            "errors": "coerce",
+            "description": "Convert to datetime with errors='coerce' per original dcc_mdl.ipynb logic"
+          }
+        },
+        "validation": {
+          "format": "YYYY-MM-DD",
+          "description": "Date of submission"
+        }
+      },
+      "First_Submittion_Date": {
+        "aliases": [
+          "1st Submittion Date",
+          "First Submission Date",
+          "Initial Submit Date"
+        ],
+        "data_type": "date",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "aggregate",
+          "method": "min",
+          "source_column": "Submission_Date",
+          "group_by": [
+            "Document_ID"
+          ],
+          "description": "Finds earliest submission date for each document"
+        },
+        "validation": {
+          "format": "YYYY-MM-DD",
+          "description": "Date of first submission"
+        },
+        "processing": {
+          "auto_format": true,
+          "timezone_aware": false
+        }
+      },
+      "Latest_Submittion_Date": {
+        "aliases": [
+          "Latest Submittion Date",
+          "Latest Submission Date"
+        ],
+        "data_type": "date",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "aggregate",
+          "method": "max",
+          "source_column": "Submission_Date",
+          "group_by": [
+            "Document_ID"
+          ],
+          "description": "Finds latest submission date for each document"
+        },
+        "validation": {
+          "format": "YYYY-MM-DD",
+          "description": "Date of latest submission"
+        },
+        "processing": {
+          "auto_format": true,
+          "timezone_aware": false
+        }
+      },
+      "Latest_Revision": {
+        "aliases": [
+          "Latest Revision",
+          "Current Revision"
+        ],
+        "data_type": "string",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "aggregate",
+          "method": "latest_by_date",
+          "source_column": "Document_Revision",
+          "group_by": [
+            "Document_ID"
+          ],
+          "sort_by": [
+            "Submission_Date"
+          ],
+          "sort_direction": [
+            "desc"
+          ],
+          "filter": {
+            "exclude_values": [
+              "NA"
+            ],
+            "description": "Exclude NA values from latest revision calculation"
+          },
+          "mapping": {
+            "method": "map_to_all_rows",
+            "fallback_value": "NA",
+            "description": "Map latest revision to all rows per Document_ID, fill with NA if no valid revisions"
+          },
+          "description": "Find latest revision by sorting Document_ID asc, Submission_Date desc, exclude NA, map to all rows per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "pattern": "^[A-Z0-9.]+$",
+          "description": "Latest revision number"
+        }
+      },
+      "All_Submission_Sessions": {
+        "aliases": [
+          "All Submission Sessions",
+          "Submission History"
+        ],
+        "data_type": "text",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "aggregate",
+          "method": "concatenate_unique",
+          "source_column": "Submission_Session",
+          "group_by": [
+            "Document_ID"
+          ],
+          "separator": "&&",
+          "description": "Concatenates all unique submission session IDs with && separator per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "description": "All submission session identifiers"
+        }
+      },
+      "All_Submission_Dates": {
+        "aliases": [
+          "All Submission Dates",
+          "Submission Date History"
+        ],
+        "data_type": "text",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "aggregate",
+          "method": "concatenate_dates",
+          "source_column": "Submission_Date",
+          "group_by": [
+            "Document_ID"
+          ],
+          "date_format": "YYYY-MM-DD",
+          "separator": ", ",
+          "sort_by": [
+            "Submission_Date"
+          ],
+          "description": "Concatenates all submission dates"
+        },
+        "validation": {
+          "description": "All submission dates"
+        }
+      },
+      "All_Submission_Session_Revisions": {
+        "aliases": [
+          "All Submission Session Revisions",
+          "Revision History"
+        ],
+        "data_type": "text",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "aggregate",
+          "method": "concatenate_unique",
+          "source_column": "Submission_Session_Revision",
+          "group_by": [
+            "Document_ID"
+          ],
+          "separator": ", ",
+          "sort_by": [
+            "Submission_Date"
+          ],
+          "description": "Concatenates all revision numbers"
+        },
+        "validation": {
+          "description": "All revision numbers for submissions"
+        }
+      },
+      "Count_of_Submissions": {
+        "aliases": [
+          "Count of Submissions",
+          "# of Submissions",
+          "Submission Count"
+        ],
+        "data_type": "numeric",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "aggregate",
+          "method": "count",
+          "source_column": "Document_ID",
+          "group_by": [
+            "Document_ID"
+          ],
+          "transform": true,
+          "description": "Count submissions per Document_ID and apply to all rows using transform per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "min_value": 1,
+          "max_value": 100,
+          "description": "Total number of submissions"
         }
       },
       "Reviewer": {
-        "aliases": ["Reviewer", "Responder", "Review By", "Reviewed By"],
+        "aliases": [
+          "Reviewer",
+          "Responder",
+          "Review By",
+          "Reviewed By"
+        ],
         "data_type": "string",
         "required": false,
         "allow_null": true,
         "is_calculated": false,
         "null_handling": {
           "strategy": "forward_fill",
-          "group_by": ["Submission_Session"],
+          "group_by": [
+            "Submission_Session"
+          ],
           "fill_value": "NA",
           "na_fallback": true,
           "description": "Forward fill reviewer within same submission, use NA if unknown"
@@ -346,78 +713,113 @@
           "description": "Name of reviewer"
         }
       },
-      "Review_Comments": {
-        "aliases": ["S.O. Review and Comments", "Review Comments", "Comments"],
-        "data_type": "text",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "default_value",
-          "default": "NA",
-          "na_fallback": true,
-          "description": "Default to NA if null"
-        },
-        "validation": {
-          "max_length": 2000,
-          "description": "Review comments and feedback"
-        }
-      },
-      "Internal_Reference": {
-        "aliases": ["Internal Reference", "Internal Ref", "Reference"],
-        "data_type": "string",
+      "Review_Return_Actual_Date": {
+        "aliases": [
+          "Actual Date S.O. Response",
+          "SO Response Date",
+          "Review Return Date",
+          "Actual Response Date"
+        ],
+        "data_type": "date",
         "required": false,
         "allow_null": true,
         "is_calculated": false,
         "null_handling": {
           "strategy": "forward_fill",
-          "group_by": ["Document_ID"],
-          "fill_value": "NA",
-          "na_fallback": true,
-          "description": "Forward fill internal reference within same document, use NA if unknown"
+          "group_by": ["Submission_Session", "Submission_Session_Revision"],
+          "conditional_processing": {
+            "if_column_exists": true,
+            "description": "Only process if Review_Return_Actual_Date column exists in data per original dcc_mdl.ipynb logic"
+          },
+          "datetime_conversion": {
+            "errors": "coerce",
+            "description": "Convert to datetime with errors='coerce' per original dcc_mdl.ipynb logic"
+          },
+          "preprocessing": {
+            "grouping_columns": {
+              "Submission_Session_Revision": {
+                "convert_to_string": true,
+                "description": "Convert Submission_Session_Revision to string for consistent grouping per original dcc_mdl.ipynb logic"
+              }
+            }
+          },
+          "description": "Convert to datetime, convert revision to string, forward fill within same submission session and revision per original dcc_mdl.ipynb logic"
         },
         "validation": {
-          "description": "Internal reference number"
+          "format": "YYYY-MM-DD",
+          "description": "Actual date when S.O. responded to review"
+        },
+        "processing": {
+          "auto_format": true,
+          "timezone_aware": false
         }
       },
-      "Notes": {
-        "aliases": ["Notes", "Note", "Other Notes", "Remark", "Remarks"],
-        "data_type": "text",
+      "Review_Status": {
+        "aliases": [
+          "SO Review Status",
+          "This Submission Approval Status",
+          "Current Status"
+        ],
+        "data_type": "categorical",
         "required": false,
         "allow_null": true,
         "is_calculated": false,
         "null_handling": {
-          "strategy": "default_value",
-          "default": "NA",
-          "na_fallback": true,
-          "description": "Default to NA if null"
+          "strategy": "forward_fill",
+          "group_by": [
+            "Submission_Session",
+            "Submission_Session_Revision"
+          ],
+          "fill_value": "Pending",
+          "description": "Forward fill review status within same submission session and revision, then fill remaining with 'Pending' per original dcc_mdl.ipynb logic"
         },
         "validation": {
-          "max_length": 2000,
-          "description": "Additional notes or remarks"
+          "allowed_values": [
+            "Approved",
+            "Rejected",
+            "Pending",
+            "Approved with Comments",
+            "Not Approved"
+          ],
+          "description": "Review status for submission"
         }
       },
-      "All_Approval_Code": {
-        "aliases": ["All Approval Code", "Approval History", "Code History"],
-        "data_type": "text",
+      "Review_Status_Code": {
+        "aliases": [
+          "Review Status Code",
+          "Status Code",
+          "Review Code"
+        ],
+        "data_type": "categorical",
         "required": false,
         "allow_null": true,
         "is_calculated": true,
         "calculation": {
-          "type": "aggregate",
-          "method": "concatenate_unique",
-          "source_columns": ["Approval_Code"],
-          "group_by": ["Document_ID"],
-          "separator": ", ",
-          "sort_by": ["Submission_Date"],
-          "description": "Concatenates all unique approval codes for each document"
+          "type": "mapping",
+          "method": "status_to_code",
+          "source_column": "Review_Status",
+          "mapping_reference": "approval_code_mapping",
+          "description": "Map Review_Status to code using approval_code_mapping per original dcc_mdl.ipynb logic"
         },
         "validation": {
-          "description": "Historical approval codes for all revisions"
+          "allowed_values": [
+            "APP",
+            "REJ",
+            "PEN",
+            "AWC",
+            "NAP",
+            "INF",
+            "VOID"
+          ],
+          "description": "Review status code"
         }
       },
       "Approval_Code": {
-        "aliases": ["Approval Code", "Code", "Status Code"],
+        "aliases": [
+          "Approval Code",
+          "Code",
+          "Status Code"
+        ],
         "data_type": "categorical",
         "required": false,
         "allow_null": true,
@@ -439,164 +841,574 @@
           "description": "Maps review status to standard approval code"
         },
         "validation": {
-          "allowed_values": ["APP", "REJ", "PEN", "AWC", "NAP", "INF", "VOID"],
+          "allowed_values": [
+            "APP",
+            "REJ",
+            "PEN",
+            "AWC",
+            "NAP",
+            "INF",
+            "VOID"
+          ],
           "description": "Standard approval codes"
         }
       },
-      "Review_Status_Code": {
-        "aliases": ["Review Status Code", "Status Code", "Review Code"],
+      "Review_Comments": {
+        "aliases": [
+          "S.O. Review and Comments",
+          "Review Comments",
+          "Comments"
+        ],
+        "data_type": "text",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "multi_level_forward_fill",
+          "levels": [
+            {
+              "group_by": ["Submission_Session", "Submission_Session_Revision"],
+              "description": "Forward fill within same submission session and revision"
+            },
+            {
+              "group_by": ["Submission_Session"],
+              "description": "Forward fill within same submission session"
+            }
+          ],
+          "final_fill": "NA",
+          "conditional_processing": {
+            "if_column_exists": true,
+            "description": "Only process if Review_Comments column exists in data per original dcc_mdl.ipynb logic"
+          },
+          "description": "Two-level forward fill per submission sessions if column exists, fill remaining with NA per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "max_length": 2000,
+          "description": "Review comments and feedback"
+        }
+      },
+      "Latest_Approval_Status": {
+        "aliases": [
+          "Latest Approval Status",
+          "Latest Status"
+        ],
         "data_type": "categorical",
         "required": false,
         "allow_null": true,
         "is_calculated": true,
         "calculation": {
-          "type": "copy",
-          "method": "direct",
-          "source_column": "Approval_Code",
-          "description": "Copies approval code for consistency"
+          "type": "custom_aggregate",
+          "method": "latest_non_pending_status",
+          "source_column": "Review_Status",
+          "group_by": [
+            "Document_ID"
+          ],
+          "sort_by": [
+            "Submission_Date"
+          ],
+          "sort_direction": [
+            "desc"
+          ],
+          "preprocessing": {
+            "text_cleaning": {
+              "remove_patterns": [
+                "[\\/]"
+              ],
+              "strip_whitespace": true,
+              "convert_to_string": true,
+              "description": "Remove backslashes and strip whitespace per original dcc_mdl.ipynb logic"
+            }
+          },
+          "filter": {
+            "exclude_values": [
+              "pending_status"
+            ],
+            "description": "Exclude pending status from latest approval calculation"
+          },
+          "fallback_value": "pending_status",
+          "mapping": {
+            "method": "map_to_all_rows",
+            "description": "Map latest non-pending status to all rows per Document_ID per original dcc_mdl.ipynb logic"
+          },
+          "description": "Copy Review_Status, clean text, find latest non-pending status by sorting Document_ID asc, Submission_Date desc, exclude pending, map to all rows"
         },
         "validation": {
-          "allowed_values": ["APP", "REJ", "PEN", "AWC", "NAP", "INF", "VOID"],
-          "description": "Review status code"
+          "allowed_values": [
+            "Approved",
+            "Rejected",
+            "Pending",
+            "Approved with Comments",
+            "Not Approved"
+          ],
+          "description": "Latest approval status"
         }
       },
-      "First_Submittion_Date": {
-        "aliases": ["1st Submittion Date", "First Submission Date", "Initial Submit Date"],
-        "data_type": "date",
+      "Latest_Approval_Code": {
+        "aliases": [
+          "Latest Approval Code",
+          "Current Approval Code",
+          "Latest Status Code"
+        ],
+        "data_type": "categorical",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "mapping",
+          "method": "status_to_code",
+          "source_column": "Latest_Approval_Status",
+          "mapping_reference": "approval_code_mapping",
+          "preprocessing": {
+            "text_cleaning": {
+              "remove_patterns": ["/"],
+              "strip_whitespace": true,
+              "description": "Remove forward slashes and strip whitespace per original dcc_mdl.ipynb logic"
+            }
+          },
+          "description": "Clean Latest_Approval_Status, then map to code using approval_code_mapping per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "allowed_values": [
+            "APP",
+            "REJ",
+            "PEN",
+            "AWC",
+            "NAP",
+            "INF",
+            "VOID"
+          ],
+          "description": "Latest approval code"
+        }
+      },
+      "All_Approval_Code": {
+        "aliases": [
+          "All Approval Code",
+          "Approval History",
+          "Code History"
+        ],
+        "data_type": "text",
         "required": false,
         "allow_null": true,
         "is_calculated": true,
         "calculation": {
           "type": "aggregate",
-          "method": "min",
-          "source_column": "Submission_Date",
-          "group_by": ["Document_ID"],
-          "description": "Finds earliest submission date for each document"
+          "method": "concatenate_unique",
+          "source_columns": [
+            "Approval_Code"
+          ],
+          "group_by": [
+            "Document_ID"
+          ],
+          "separator": ", ",
+          "sort_by": [
+            "Submission_Date"
+          ],
+          "description": "Concatenates all unique approval codes for each document"
         },
         "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Date of first submission"
-        },
-        "processing": {
-          "auto_format": true,
-          "timezone_aware": false
+          "description": "Historical approval codes for all revisions"
         }
       },
-      "Submission_Date": {
-        "aliases": ["This Submission Date", "Current Submission Date", "Date Submit"],
-        "data_type": "date",
+      "Duration_of_Review": {
+        "aliases": [
+          "SO Response Variance",
+          "Review Duration",
+          "Response Time"
+        ],
+        "data_type": "numeric",
         "required": false,
         "allow_null": true,
         "is_calculated": true,
         "calculation": {
-          "type": "conditional",
-          "method": "current_row",
-          "source_column": "Submission_Date",
-          "condition": "is_current_submission",
-          "description": "Uses submission date from current row"
+          "type": "conditional_business_day_calculation",
+          "method": "calculate_duration_of_review",
+          "dependencies": [
+            "Submission_Date",
+            "Review_Return_Actual_Date",
+            "Resubmission_Plan_Date"
+          ],
+          "parameter_reference": "duration_is_working_day",
+          "preprocessing": {
+            "datetime_conversion": {
+              "columns": ["Review_Return_Actual_Date", "Submission_Date", "Resubmission_Plan_Date"],
+              "method": "pd.to_datetime",
+              "description": "Convert date columns to datetime objects per original dcc_mdl.ipynb logic"
+            }
+          },
+          "end_date_logic": {
+            "primary": "Review_Return_Actual_Date",
+            "fallback": "current_date",
+            "description": "Use actual return date if available, otherwise use today's date"
+          },
+          "conditional_calculation": {
+            "if": "duration_is_working_day == true",
+            "then": {
+              "type": "numpy_busday_count",
+              "start_date": "Submission_Date",
+              "end_date": "end_dates",
+              "format": "datetime64[D]",
+              "description": "Use NumPy business day count when duration_is_working_day = true"
+            },
+            "else": {
+              "type": "calendar_days_between",
+              "start_date": "Submission_Date",
+              "end_date": "end_dates",
+              "method": "pd.Timedelta",
+              "description": "Use calendar days when duration_is_working_day = false"
+            }
+          },
+          "null_handling": {
+            "valid_mask": "~np.isnat(start_arr) & ~np.isnat(end_arr)",
+            "initialize": "np.zeros(len(df))",
+            "conditional_calculation": "only on valid rows",
+            "description": "Create mask for valid dates to prevent TypeError"
+          },
+          "non_negative": {
+            "method": "np.maximum(raw_counts, 0)",
+            "description": "Ensure no negative durations"
+          },
+          "final_assignment": {
+            "valid_rows": "calculated durations",
+            "invalid_rows": "np.nan",
+            "description": "Assign NaN where Submission_Date was missing"
+          },
+          "description": "Conditional business vs calendar day calculation based on duration_is_working_day parameter per original dcc_mdl.ipynb logic"
         },
         "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Date of current submission"
-        },
-        "processing": {
-          "auto_format": true,
-          "timezone_aware": false
-        }
-      },
-      "Review_Return_Actual_Date": {
-        "aliases": ["Actual Date S.O. Response", "SO Response Date", "Review Return Date", "Actual Response Date"],
-        "data_type": "date",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "leave_null",
-          "description": "Leave null if no response date provided"
-        },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Actual date when S.O. responded to review"
-        },
-        "processing": {
-          "auto_format": true,
-          "timezone_aware": false
-        }
-      },
-      "This_Review Return_Date": {
-        "aliases": ["This Review Return Date", "Current Review Date"],
-        "data_type": "date",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "conditional",
-          "method": "current_row",
-          "source_column": "Review_Return_Actual_Date",
-          "condition": "is_current_submission",
-          "description": "Uses review return date from current row"
-        },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Return date for current review"
-        },
-        "processing": {
-          "auto_format": true,
-          "timezone_aware": false
-        }
-      },
-      "Resubmission_Required": {
-        "aliases": ["To Resubmit (Yes/No)", "Resubmit Required", "Need Resubmission"],
-        "data_type": "boolean",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "default_value",
-          "fill_value": false,
-          "description": "Default to false if not specified"
-        },
-        "validation": {
-          "allowed_values": [true, false, "Yes", "No", "Y", "N", 1, 0],
-          "description": "Boolean value for resubmission requirement"
+          "min_value": 0,
+          "max_value": 365,
+          "description": "Duration of review in days"
         }
       },
       "Submission_Closed": {
-        "aliases": ["Closed", "Submission Closed", "Completed", "Finished"],
-        "data_type": "boolean",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": false,
-        "null_handling": {
-          "strategy": "default_value",
-          "fill_value": false,
-          "description": "Default to false if not specified"
-        },
-        "validation": {
-          "allowed_values": [true, false, "Yes", "No", "Y", "N", 1, 0, "Closed", "Open", "Completed", "Pending"],
-          "description": "Boolean value for submission closure status"
-        }
-      },
-      "Review_Status": {
-        "aliases": ["This Submission Approval Status", "Current Status", "SO Review Status"],
+        "aliases": [
+          "Closed",
+          "Submission Closed",
+          "Completed",
+          "Finished"
+        ],
         "data_type": "categorical",
         "required": false,
         "allow_null": true,
         "is_calculated": true,
         "calculation": {
           "type": "conditional",
-          "method": "current_row",
-          "source_column": "Review_Status",
-          "condition": "is_current_submission",
-          "description": "Uses review status from current row"
+          "method": "submission_closure_status",
+          "source_column": "Submission_Closed",
+          "dependencies": ["Latest_Approval_Code"],
+          "preprocessing": {
+            "text_cleaning": {
+              "convert_to_uppercase": true,
+              "fill_nulls": "NO",
+              "description": "Convert to uppercase and fill nulls with NO per original dcc_mdl.ipynb logic"
+            }
+          },
+          "logic": {
+            "conditions": [
+              {
+                "if": "Submission_Closed == 'YES'",
+                "then": "'YES'",
+                "description": "Keep YES if already YES"
+              },
+              {
+                "if": "Latest_Approval_Code in ['APP', 'VOID', 'INF']",
+                "then": "'YES'",
+                "description": "Set to YES if Latest_Approval_Code is in approval list"
+              },
+              {
+                "else": "'NO'",
+                "description": "Default to NO for all other cases"
+              }
+            ]
+          },
+          "description": "Convert to uppercase, then set to YES if already YES or if Latest_Approval_Code is in [APP, VOID, INF], else NO per original dcc_mdl.ipynb logic"
         },
         "validation": {
-          "allowed_values": ["Approved", "Rejected", "Pending", "Approved with Comments", "Not Approved"],
-          "description": "Approval status for current submission"
+          "allowed_values": [
+            "YES",
+            "NO"
+          ],
+          "description": "Submission closure status"
+        }
+      },
+      "Resubmission_Required": {
+        "aliases": [
+          "To Resubmit (Yes/No)",
+          "Resubmit Required",
+          "Need Resubmission"
+        ],
+        "data_type": "categorical",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "conditional",
+          "method": "update_resubmission_required",
+          "source_column": "Resubmission_Required",
+          "dependencies": ["Submission_Closed"],
+          "conditions": [
+            {
+              "if": "Resubmission_Required == 'NO'",
+              "then": "'NO'",
+              "description": "Keep NO if already NO"
+            },
+            {
+              "if": "Submission_Closed == 'YES'",
+              "then": "'NO'",
+              "description": "Set to NO if submission is closed"
+            },
+            {
+              "else": "'YES'",
+              "description": "Default to YES for all other cases"
+            }
+          ],
+          "description": "Update resubmission requirement based on current value and submission closure status per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "allowed_values": [
+            "YES",
+            "NO"
+          ],
+          "description": "Resubmission requirement status"
+        }
+      },
+      "Resubmission_Plan_Date": {
+        "aliases": [
+          "Date CES to Response(14 Working Days)",
+          "Date CES to Response\n(14 Working Days)",
+          "Target Resubmit Date",
+          "Target date to resubmit"
+        ],
+        "data_type": "date",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "custom_conditional_date",
+          "method": "calculate_resubmission_plan_date",
+          "dependencies": [
+            "Submission_Closed",
+            "Review_Return_Actual_Date",
+            "Latest_Submittion_Date",
+            "Submission_Date"
+          ],
+          "conditions": [
+            {
+              "if": "Submission_Closed == 'YES'",
+              "then": "pd.NaT",
+              "description": "If submission is closed, return NaT"
+            },
+            {
+              "if": "Review_Return_Actual_Date is not null",
+              "then": "Review_Return_Actual_Date + duration_offset",
+              "description": "If review return date exists, add resubmission duration"
+            },
+            {
+              "if": "Latest_Submittion_Date == Submission_Date",
+              "then": "Submission_Date + (first_review_duration + resubmission_duration)",
+              "description": "If first submission, add first review + resubmission duration"
+            },
+            {
+              "else": "Submission_Date + (second_review_duration + resubmission_duration)",
+              "description": "If subsequent submission, add second review + resubmission duration"
+            }
+          ],
+          "parameters": {
+            "resubmission_duration": 14,
+            "first_review_duration": 20,
+            "second_review_duration": 14,
+            "duration_is_working_day": true,
+            "description": "Duration parameters for resubmission calculation"
+          },
+          "date_offset_mode": {
+            "working_day": "use pd.offsets.BDay() when duration_is_working_day = true",
+            "calendar_day": "use pd.Timedelta(days=X) when duration_is_working_day = false",
+            "description": "Two modes: working days vs calendar days per original dcc_mdl.ipynb logic"
+          },
+          "description": "Complex conditional date calculation based on submission status, review dates, and submission sequence per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "format": "YYYY-MM-DD",
+          "description": "Target date for resubmission"
+        },
+        "processing": {
+          "auto_format": true,
+          "timezone_aware": false
+        }
+      },
+      "Resubmission_Overdue_Status": {
+        "aliases": [
+          "Overdue to resubmit",
+          "Resubmission Overdue",
+          "Is Overdue"
+        ],
+        "data_type": "categorical",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "conditional",
+          "method": "calculate_overdue_status",
+          "dependencies": [
+            "Review_Return_Actual_Date",
+            "Submission_Closed",
+            "Resubmission_Plan_Date"
+          ],
+          "conditions": [
+            {
+              "if": "Review_Return_Actual_Date is not null",
+              "then": "'Resubmitted'",
+              "description": "If review return date exists, submission has been resubmitted"
+            },
+            {
+              "if": "Submission_Closed != 'YES' and Resubmission_Plan_Date is not null and Resubmission_Plan_Date < current_date",
+              "then": "'Overdue'",
+              "description": "If not closed, has plan date, and plan date is in past, then overdue"
+            },
+            {
+              "else": "'NO'",
+              "description": "Default to NO for all other cases"
+            }
+          ],
+          "date_reference": {
+            "current_date": "datetime.now()",
+            "description": "Use current datetime for overdue comparison per original dcc_mdl.ipynb logic"
+          },
+          "description": "Calculate overdue status based on review return date, submission closure, and plan date per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "allowed_values": [
+            "Resubmitted",
+            "Overdue",
+            "NO"
+          ],
+          "description": "Resubmission overdue status"
+        }
+      },
+      "Delay_of_Resubmission": {
+        "aliases": [
+          "Delays to resubmit",
+          "Resubmission Delay",
+          "Delay Days"
+        ],
+        "data_type": "numeric",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "calculation": {
+          "type": "complex_lookup",
+          "method": "calculate_delay_of_resubmission",
+          "dependencies": [
+            "Submission_Closed",
+            "Document_ID",
+            "Submission_Date",
+            "Resubmission_Plan_Date"
+          ],
+          "lookup_logic": {
+            "if": "Submission_Closed == 'YES'",
+            "then": "0",
+            "description": "If submission is closed, delay is 0"
+          },
+          "else": {
+            "lookup_previous_submissions": {
+              "filter": "Document_ID == current_row.Document_ID AND Submission_Date < current_row.Submission_Date",
+              "sort_by": "Submission_Date desc",
+              "description": "Find previous submissions for same Document_ID with earlier dates"
+            },
+            "get_latest_plan_date": {
+              "filter": "Resubmission_Plan_Date is not null",
+              "get": "max(Resubmission_Plan_Date)",
+              "description": "Get latest previous resubmission plan date"
+            },
+            "calculate_delay": {
+              "formula": "(current_row.Submission_Date - latest_previous_plan_date).days",
+              "ensure_non_negative": "max(delay, 0)",
+              "description": "Calculate days difference and ensure non-negative"
+            },
+            "no_previous_fallback": "0",
+            "description": "If no previous submissions, delay is 0"
+          },
+          "description": "Calculate resubmission delay by looking up previous submissions for same Document_ID per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "min_value": 0,
+          "max_value": 365,
+          "description": "Number of days delayed for resubmission"
+        }
+      },
+      "Notes": {
+        "aliases": [
+          "Notes",
+          "Note",
+          "Other Notes",
+          "Remark",
+          "Remarks"
+        ],
+        "data_type": "text",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "default_value",
+          "default_value": "",
+          "description": "Fill nulls with empty string per original dcc_mdl.ipynb logic"
+        },
+        "validation": {
+          "max_length": 2000,
+          "description": "Additional notes or remarks"
+        }
+      },
+      "Submission_Reference_1": {
+        "aliases": [
+          "Submission Reference 1",
+          "Reference 1",
+          "Submission Ref"
+        ],
+        "data_type": "string",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "forward_fill",
+          "group_by": [
+            "Document_ID"
+          ],
+          "fill_value": "NA",
+          "na_fallback": true,
+          "description": "Forward fill submitter within same document, use NA if unknown"
+        },
+        "validation": {
+          "description": "Additional submission reference"
+        }
+      },
+      "Internal_Reference": {
+        "aliases": [
+          "Internal Reference",
+          "Internal Ref",
+          "Reference"
+        ],
+        "data_type": "string",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": false,
+        "null_handling": {
+          "strategy": "forward_fill",
+          "group_by": [
+            "Document_ID"
+          ],
+          "fill_value": "NA",
+          "na_fallback": true,
+          "description": "Forward fill internal reference within same document, use NA if unknown"
+        },
+        "validation": {
+          "description": "Internal reference number"
         }
       },
       "This_Submission_Approval_Code": {
-        "aliases": ["This Submission Approval Code", "Current Code"],
+        "aliases": [
+          "This Submission Approval Code",
+          "Current Code"
+        ],
         "data_type": "categorical",
         "required": false,
         "allow_null": true,
@@ -609,274 +1421,72 @@
           "description": "Uses approval code from current row"
         },
         "validation": {
-          "allowed_values": ["APP", "REJ", "PEN", "AWC", "NAP", "INF", "VOID"],
+          "allowed_values": [
+            "APP",
+            "REJ",
+            "PEN",
+            "AWC",
+            "NAP",
+            "INF",
+            "VOID"
+          ],
           "description": "Approval code for current submission"
-        }
-      },
-      "Latest_Submittion_Date": {
-        "aliases": ["Latest Submittion Date", "Latest Submission Date"],
-        "data_type": "date",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "aggregate",
-          "method": "max",
-          "source_column": "Submission_Date",
-          "group_by": ["Document_ID"],
-          "description": "Finds latest submission date for each document"
-        },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Date of latest submission"
-        },
-        "processing": {
-          "auto_format": true,
-          "timezone_aware": false
-        }
-      },
-      "Latest_Revision": {
-        "aliases": ["Latest Revision", "Current Revision"],
-        "data_type": "string",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "aggregate",
-          "method": "latest_by_date",
-          "source_column": "Document_Revision",
-          "group_by": ["Document_ID"],
-          "sort_by": ["Submission_Date"],
-          "description": "Finds revision from latest submission"
-        },
-        "validation": {
-          "pattern": "^[A-Z0-9.]+$",
-          "description": "Latest revision number"
-        }
-      },
-      "Latest_Approval_Status": {
-        "aliases": ["Latest Approval Status", "Latest Status"],
-        "data_type": "categorical",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "aggregate",
-          "method": "latest_by_date",
-          "source_column": "Review_Status",
-          "group_by": ["Document_ID"],
-          "sort_by": ["Submission_Date"],
-          "description": "Finds approval status from latest submission"
-        },
-        "validation": {
-          "allowed_values": ["Approved", "Rejected", "Pending", "Approved with Comments", "Not Approved"],
-          "description": "Latest approval status"
-        }
-      },
-      "All_Submission_Sessions": {
-        "aliases": ["All Submission Sessions", "Submission History"],
-        "data_type": "text",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "aggregate",
-          "method": "concatenate_unique",
-          "source_column": "Submission_Session",
-          "group_by": ["Document_ID"],
-          "separator": ", ",
-          "sort_by": ["Submission_Date"],
-          "description": "Concatenates all submission session IDs"
-        },
-        "validation": {
-          "description": "All submission session identifiers"
-        }
-      },
-      "All_Submission_Dates": {
-        "aliases": ["All Submission Dates", "Submission Date History"],
-        "data_type": "text",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "aggregate",
-          "method": "concatenate_dates",
-          "source_column": "Submission_Date",
-          "group_by": ["Document_ID"],
-          "date_format": "YYYY-MM-DD",
-          "separator": ", ",
-          "sort_by": ["Submission_Date"],
-          "description": "Concatenates all submission dates"
-        },
-        "validation": {
-          "description": "All submission dates"
-        }
-      },
-      "All_Submission_Session_Revisions": {
-        "aliases": ["All Submission Session Revisions", "Revision History"],
-        "data_type": "text",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "aggregate",
-          "method": "concatenate_unique",
-          "source_column": "Submission_Session_Revision",
-          "group_by": ["Document_ID"],
-          "separator": ", ",
-          "sort_by": ["Submission_Date"],
-          "description": "Concatenates all revision numbers"
-        },
-        "validation": {
-          "description": "All revision numbers for submissions"
-        }
-      },
-      "Count_of_Submissions": {
-        "aliases": ["Count of Submissions", "# of Submissions", "Submission Count"],
-        "data_type": "numeric",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "aggregate",
-          "method": "count",
-          "source_column": "Submission_Session",
-          "group_by": ["Document_ID"],
-          "description": "Counts total submissions per document"
-        },
-        "validation": {
-          "min_value": 1,
-          "max_value": 100,
-          "description": "Total number of submissions"
-        }
-      },
-      "Review_Return_Plan_Date": {
-        "aliases": ["Date S.O. to Response (20 Working Days/ 14 Working Days)", "Date S.O. to Response\n(20 Working Days/\n 14 Working Days)", "Target Response Date"],
-        "data_type": "date",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "date_calculation",
-          "method": "add_working_days",
-          "source_column": "Submission_Date",
-          "parameters": {
-            "days": 20,
-            "is_first_submission": true
-          },
-          "fallback_days": 14,
-          "description": "Calculates target response date based on submission date"
-        },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Target date for review response"
-        },
-        "processing": {
-          "auto_format": true,
-          "timezone_aware": false
-        }
-      },
-      "Resubmission_Plan_Date": {
-        "aliases": ["Date CES to Response(14 Working Days)", "Date CES to Response\n(14 Working Days)", "Target Resubmit Date", "Target date to resubmit"],
-        "data_type": "date",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "date_calculation",
-          "method": "add_working_days",
-          "source_column": "Review_Return_Actual_Date",
-          "parameters": {
-            "days": 14
-          },
-          "description": "Calculates target resubmission date based on review response"
-        },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Target date for resubmission"
-        },
-        "processing": {
-          "auto_format": true,
-          "timezone_aware": false
-        }
-      },
-      "Resubmission_Overdue_Status": {
-        "aliases": ["Overdue to resubmit", "Resubmission Overdue", "Is Overdue"],
-        "data_type": "boolean",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "conditional",
-          "method": "date_comparison",
-          "source_column": "Resubmission_Plan_Date",
-          "compare_to": "current_date",
-          "operator": "<",
-          "description": "Checks if resubmission is overdue"
-        },
-        "validation": {
-          "allowed_values": [true, false, "Yes", "No"],
-          "description": "Whether resubmission is overdue"
-        }
-      },
-      "Delay_of_Resubmission": {
-        "aliases": ["Delays to resubmit", "Resubmission Delay", "Delay Days"],
-        "data_type": "numeric",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "date_calculation",
-          "method": "working_days_between",
-          "source_column": "Resubmission_Plan_Date",
-          "compare_to": "current_date",
-          "condition": "is_overdue",
-          "default": 0,
-          "description": "Calculates days delayed for resubmission"
-        },
-        "validation": {
-          "min_value": 0,
-          "max_value": 365,
-          "description": "Number of days delayed for resubmission"
-        }
-      },
-      "Duration_of_Review": {
-        "aliases": ["SO Response Variance", "Review Duration", "Response Time"],
-        "data_type": "numeric",
-        "required": false,
-        "allow_null": true,
-        "is_calculated": true,
-        "calculation": {
-          "type": "date_calculation",
-          "method": "working_days_between",
-          "source_column": "Submission_Date",
-          "compare_to": "Review_Return_Actual_Date",
-          "condition": "has_response_date",
-          "default": null,
-          "description": "Calculates review duration in working days"
-        },
-        "validation": {
-          "min_value": 0,
-          "max_value": 365,
-          "description": "Duration of review in days"
         }
       }
     },
     "column_groups": {
-      "document_info": ["Document_ID", "Document_Title", "Document_Revision"],
-      "submission_info": ["Submission_Session", "Submission_Date", "Submitted_By"],
-      "review_info": ["Review_Status", "Approval_Code", "Review_Return_Actual_Date"],
-      "metadata": ["Department", "Discipline", "Project_Code"]
+      "document_info": [
+        "Document_ID",
+        "Document_Title",
+        "Document_Revision"
+      ],
+      "submission_info": [
+        "Submission_Session",
+        "Submission_Date",
+        "Submitted_By"
+      ],
+      "review_info": [
+        "Review_Status",
+        "Approval_Code",
+        "Review_Return_Actual_Date"
+      ],
+      "metadata": [
+        "Department",
+        "Discipline",
+        "Project_Code"
+      ]
     },
     "data_processing": {
-      "date_columns": ["Submission_Date", "Review_Return_Actual_Date", "Resubmission_Forecast_Date"],
-      "numeric_columns": ["Count_of_Submissions", "Duration_of_Review"],
-      "text_columns": ["Document_Title", "Review_Comments", "Notes"],
-      "categorical_columns": ["Review_Status", "Approval_Code", "Department", "Discipline"]
+      "date_columns": [
+        "Submission_Date",
+        "Review_Return_Actual_Date",
+        "Resubmission_Forecast_Date"
+      ],
+      "numeric_columns": [
+        "Count_of_Submissions",
+        "Duration_of_Review"
+      ],
+      "text_columns": [
+        "Document_Title",
+        "Review_Comments",
+        "Notes"
+      ],
+      "categorical_columns": [
+        "Review_Status",
+        "Approval_Code",
+        "Department",
+        "Discipline"
+      ]
     },
     "validation_rules": {
-      "required_fields": ["Document_ID", "Document_Title", "Submission_Date"],
-      "unique_fields": ["Document_ID"],
+      "required_fields": [
+        "Document_ID",
+        "Document_Title",
+        "Submission_Date"
+      ],
+      "unique_fields": [
+        "Document_ID"
+      ],
       "date_consistency": {
         "Submission_Date": "must_be_before",
         "Review_Return_Actual_Date": "must_be_after"
@@ -887,10 +1497,18 @@
     "fuzzy_matching": {
       "enabled": true,
       "threshold": 0.8,
-      "algorithms": ["levenshtein", "jaccard", "cosine"]
+      "algorithms": [
+        "levenshtein",
+        "jaccard",
+        "cosine"
+      ]
     },
     "auto_detection": {
-      "header_row_candidates": [1, 4, 5],
+      "header_row_candidates": [
+        1,
+        4,
+        5
+      ],
       "confidence_threshold": 0.7
     },
     "data_quality": {
@@ -903,6 +1521,11 @@
   "created": "2026-03-28",
   "compatibility": {
     "min_python_version": "3.8",
-    "dependencies": ["pandas", "openpyxl", "jsonschema", "fuzzywuzzy"]
+    "dependencies": [
+      "pandas",
+      "openpyxl",
+      "jsonschema",
+      "fuzzywuzzy"
+    ]
   }
 }
