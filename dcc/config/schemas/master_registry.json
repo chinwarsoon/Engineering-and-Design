@@ -163,5 +163,26 @@
             "data": "*.xlsx",
             "reference": "*.md"
         }
+    },
+    "environment": {
+        "conda_environment_file": {
+            "file": "dcc.yml",
+            "path": "../dcc.yml",
+            "description": "Conda environment specification with all required Python packages",
+            "required": true,
+            "setup_command": "conda env create -f dcc.yml",
+            "activate_command": "conda activate dcc",
+            "key_dependencies": [
+                "python=3.13",
+                "pandas",
+                "numpy",
+                "matplotlib",
+                "seaborn",
+                "jupyter",
+                "ipykernel",
+                "duckdb",
+                "openpyxl"
+            ]
+        }
     }
 }

@@ -615,7 +615,31 @@ class DCCProjectSetupTools:
             print("  ❌ data/ folder missing")
         print()
         
-        # 5. Validate schema references (if main schema exists)
+        # 5. Check environment setup file
+        env_config = self.master_registry.get("environment", {}).get("conda_environment_file", {})
+        if env_config:
+            print("🐍 Environment Setup:")
+            env_file = env_config.get("file", "dcc.yml")
+            env_path = base_path / env_file
+            exists = env_path.exists()
+            results["files"][env_file] = {
+                "path": str(env_path),
+                "exists": exists,
+                "description": env_config.get("description", "Conda environment file"),
+                "required": env_config.get("required", True)
+            }
+            status = "✅" if exists else "❌"
+            size = f"({env_path.stat().st_size} bytes)" if exists else ""
+            print(f"  {status} {env_file:<30} (required) {size:<12}")
+            print(f"     📋 {env_config.get('description', '')}")
+            if exists:
+                print(f"     💡 Setup: {env_config.get('setup_command', 'conda env create -f dcc.yml')}")
+                print(f"     💡 Activate: {env_config.get('activate_command', 'conda activate dcc')}")
+            else:
+                print(f"     ⚠️  Environment file missing - users cannot recreate the Python environment")
+        print()
+        
+        # 6. Validate schema references (if main schema exists)
         main_schema = schema_path / "dcc_register_enhanced.json"
         if main_schema.exists():
             print("🔗 Schema References Validation:")
