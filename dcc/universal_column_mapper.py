@@ -11,6 +11,7 @@ import difflib
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import logging
+import pandas as pd
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -310,6 +311,33 @@ class UniversalColumnMapper:
             'matched_count': len(detected),
             'match_rate': len(detected) / len(headers) if headers else 0
         }
+    
+    def rename_dataframe_columns(self, df: pd.DataFrame, mapping_result: Dict) -> pd.DataFrame:
+        """
+        Rename DataFrame columns based on detected mapping.
+        
+        Args:
+            df: Input DataFrame with original column names
+            mapping_result: Result from detect_columns() method
+            
+        Returns:
+            DataFrame with columns renamed to schema names
+        """
+        df_renamed = df.copy()
+        
+        # Create rename mapping
+        rename_dict = {}
+        for header, mapping in mapping_result['detected_columns'].items():
+            schema_column = mapping['mapped_column']
+            if header in df_renamed.columns:
+                rename_dict[header] = schema_column
+        
+        # Apply renaming
+        df_renamed = df_renamed.rename(columns=rename_dict)
+        
+        logger.info(f"Renamed {len(rename_dict)} columns to schema names")
+        
+        return df_renamed
     
     def get_column_bounds(self, data, detected_columns: Dict) -> Dict[str, Tuple[int, int]]:
         """
