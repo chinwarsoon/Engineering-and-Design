@@ -83,7 +83,61 @@ class SchemaLoader:
                 self.loaded_schemas[schema_name] = fallback_data
                 return fallback_data
             else:
-                raise RuntimeError(f"Error loading schema {schema_name}: {e}")
+                raise ValueError(f"Error loading schema {schema_name}: {e}")
+    
+    def load_schema_from_path(self, schema_path: str, fallback_data: Dict = None) -> Dict:
+        """
+        Load schema file from full path with fallback handling.
+        
+        Args:
+            schema_path: Full path to schema file (including .json extension)
+            fallback_data: Fallback data if file not found
+            
+        Returns:
+            Dictionary containing schema data or fallback
+        """
+        # Use the path as a cache key
+        cache_key = schema_path
+        if cache_key in self.loaded_schemas:
+            return self.loaded_schemas[cache_key]
+            
+        # Resolve path relative to main schema location
+        # The main schema is in dcc/config/schemas/, so we need to go up two levels
+        main_schema_path = Path(__file__).parent.parent / "config" / "schemas" / "dcc_register_enhanced.json"
+        schema_file = main_schema_path.parent / schema_path
+        
+        try:
+            if schema_file.exists():
+                with open(schema_file, 'r', encoding='utf-8') as f:
+                    schema_data = json.load(f)
+                    logger.info(f"Loaded schema: {schema_path}")
+                    self.loaded_schemas[cache_key] = schema_data
+                    return schema_data
+            else:
+                logger.warning(f"Schema file not found: {schema_file}")
+                if fallback_data is not None:
+                    logger.info(f"Using fallback data for {schema_path}")
+                    self.loaded_schemas[cache_key] = fallback_data
+                    return fallback_data
+                else:
+                    raise FileNotFoundError(f"Schema file not found: {schema_file}")
+                    
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON in schema file {schema_file}: {e}")
+            if fallback_data is not None:
+                logger.info(f"Using fallback data for {schema_path} due to JSON error")
+                self.loaded_schemas[cache_key] = fallback_data
+                return fallback_data
+            else:
+                raise ValueError(f"Invalid JSON in schema file {schema_file}: {e}")
+        except Exception as e:
+            logger.error(f"Error loading schema {schema_file}: {e}")
+            if fallback_data is not None:
+                logger.info(f"Using fallback data for {schema_path}")
+                self.loaded_schemas[cache_key] = fallback_data
+                return fallback_data
+            else:
+                raise ValueError(f"Error loading schema {schema_file}: {e}")
     
     def validate_schema_references(self, main_schema: Dict) -> List[str]:
         """
@@ -101,7 +155,8 @@ class SchemaLoader:
         # Check if referenced files exist
         for ref_name, ref_path in schema_refs.items():
             # Resolve relative path from main schema location
-            main_schema_path = Path(__file__).parent / "config" / "dcc_register_enhanced.json"
+            # The main schema is in dcc/config/schemas/, so we need to go up two levels
+            main_schema_path = Path(__file__).parent.parent / "config" / "schemas" / "dcc_register_enhanced.json"
             ref_file = main_schema_path.parent / ref_path
             
             # Try both relative and absolute paths
@@ -141,7 +196,8 @@ class SchemaLoader:
         # Load all referenced schemas
         for ref_name, ref_path in schema_refs.items():
             try:
-                schema_data = self.load_schema(ref_name.replace('_schema', ''))
+                # Use the full path from schema_references directly
+                schema_data = self.load_schema_from_path(ref_path)
                 resolved_schema[f'{ref_name}_data'] = schema_data
             except Exception as e:
                 logger.error(f"Failed to resolve schema reference {ref_name}: {e}")

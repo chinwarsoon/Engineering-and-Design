@@ -6,10 +6,10 @@
     "cell_id": "17c02c0e"
   },
   "schema_references": {
-    "department_schema": "./config/schemas/department_schema.json",
-    "discipline_schema": "./config/schemas/discipline_schema.json",
-    "document_type_schema": "./config/schemas/document_type_schema.json",
-    "approval_code_mapping": "./config/schemas/approval_code_mapping.json"
+    "department_schema": "../config/schemas/department_schema.json",
+    "discipline_schema": "../config/schemas/discipline_schema.json", 
+    "document_type_schema": "../config/schemas/document_type_schema.json",
+    "approval_code_mapping": "../config/schemas/approval_code_mapping.json"
   },
   "parameters": {
     "debug_dev_mode": false,

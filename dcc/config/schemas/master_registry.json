@@ -5,7 +5,7 @@
             "description": "DCC Submittal Register"
         },
         "DCC_ENHANCED": {
-            "schema_file": "config/dcc_register_enhanced.json",
+            "schema_file": "config/schemas/dcc_register_enhanced.json",
             "description": "Enhanced DCC Register with Universal Processing"
         },
         "RFI_TRACKER": {
@@ -27,7 +27,7 @@
             ]
         },
         "UNIVERSAL_COLUMN_MAPPER": {
-            "tool_file": "universal_column_mapper.py",
+            "tool_file": "workflow/universal_column_mapper.py",
             "description": "Universal column mapper with fuzzy matching and schema integration",
             "functions": [
                 "load_main_schema",
@@ -37,7 +37,7 @@
             ]
         },
         "UNIVERSAL_DOCUMENT_PROCESSOR": {
-            "tool_file": "universal_document_processor.py",
+            "tool_file": "workflow/universal_document_processor.py",
             "description": "Universal document processor with schema-driven calculations and null handling",
             "functions": [
                 "load_schema",
@@ -50,13 +50,36 @@
     },
     "workflows": {
         "UNIVERSAL_PROCESSING": {
-            "notebook": "workflow/dcc_mdl_universal.ipynb",
+            "notebook": "workflow/dcc_register_main.ipynb",
             "description": "Complete universal document processing workflow",
             "steps": [
                 "Load enhanced schema",
                 "Universal column mapping",
                 "Document processing",
                 "Data export"
+            ]
+        },
+        "UNIVERSAL_COLUMN_MAPPING": {
+            "workflow_file": "workflow/explaination/universal-column-mapping-workflow.md",
+            "description": "Universal column mapping workflow with fuzzy matching and schema integration",
+            "tool_file": "workflow/universal_column_mapper.py",
+            "functions": [
+                "load_main_schema",
+                "detect_columns",
+                "rename_dataframe_columns",
+                "get_column_bounds"
+            ]
+        },
+        "UNIVERSAL_DOCUMENT_PROCESSING_WORKFLOW": {
+            "workflow_file": "workflow/explaination/universal-document-processing-workflow.md",
+            "description": "Universal document processing workflow with schema-driven calculations and null handling",
+            "tool_file": "workflow/universal_document_processor.py",
+            "functions": [
+                "load_schema",
+                "process_data",
+                "apply_null_handling",
+                "apply_calculations",
+                "validate_data"
             ]
         },
         "DCC_MAIN": {
