@@ -108,7 +108,8 @@ class DCCProjectSetupTools:
             "Count_of_Submissions",            # Calculated aggregate
 
             "Reviewer",                      # From Excel: Responder
-            "Review_Return_Actual_Date",       # From Excel: Actual Date S.O. Response        
+            "Review_Return_Actual_Date",       # From Excel: Actual Date S.O. Response  
+            "Review_Return_Plan_Date",         # calculated from submission date
             "Review_Status",                 # From Excel: SO Review Status
             "Review_Status_Code",             # Calculated from Review_Status
             "Approval_Code",                  # Calculated from Review_Status
@@ -120,6 +121,7 @@ class DCCProjectSetupTools:
             "Submission_Closed",               # From Excel: Closed
             "Resubmission_Required",          # From Excel: To Resubmit (Yes/No)
             "Resubmission_Plan_Date",          # Calculated from Review_Return_Actual_Date
+            "Resubmission_Forecast_Date",       # from Excel: Resubmission Forecast Date
             "Resubmission_Overdue_Status",       # Calculated from Resubmission_Plan_Date
             "Delay_of_Resubmission",           # Calculated from Resubmission_Plan_Date
             "Notes",                         # From Excel: Remark

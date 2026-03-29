@@ -33,9 +33,57 @@ class SchemaLoader:
             base_path = Path(base_path)
         
         self.base_path = base_path
+        self.main_schema_path = None
         self.loaded_schemas = {}
         self.schema_references = {}
-        
+
+    def set_main_schema_path(self, schema_file: str):
+        """Set the main schema path so relative references resolve correctly."""
+        self.main_schema_path = Path(schema_file).resolve()
+        if self.main_schema_path.parent.exists():
+            self.base_path = self.main_schema_path.parent
+        return self.main_schema_path
+
+    def _resolve_reference_path(self, ref_path: str) -> Path:
+        """Resolve schema reference path with several fallbacks."""
+        candidate = Path(ref_path)
+        if candidate.is_absolute():
+            return candidate
+
+        # Relative to main schema path if available
+        if self.main_schema_path is not None:
+            resolved = (self.main_schema_path.parent / candidate).resolve()
+            if resolved.exists():
+                return resolved
+
+        # Relative to base_path
+        resolved = (self.base_path / candidate).resolve()
+        if resolved.exists():
+            return resolved
+
+        # Try compacting the path (use only file name) for common '../config/schemas/' cases
+        candidate_name = candidate.name
+        alt = (self.base_path / candidate_name).resolve()
+        if alt.exists():
+            return alt
+
+        if self.main_schema_path is not None:
+            alt2 = (self.main_schema_path.parent / candidate_name).resolve()
+            if alt2.exists():
+                return alt2
+
+        # Relative to current working directory
+        resolved = (Path.cwd() / candidate).resolve()
+        if resolved.exists():
+            return resolved
+
+        alt3 = (Path.cwd() / candidate_name).resolve()
+        if alt3.exists():
+            return alt3
+
+        # Final fallback: return resolved path (may not exist)
+        return (self.base_path / candidate).resolve()
+
     def load_schema(self, schema_name: str, fallback_data: Any = None) -> Dict:
         """
         Load schema file with fallback handling.
@@ -90,27 +138,23 @@ class SchemaLoader:
         Load schema file from full path with fallback handling.
         
         Args:
-            schema_path: Full path to schema file (including .json extension)
+            schema_path: Full path to schema file (including .json extension or relative path)
             fallback_data: Fallback data if file not found
             
         Returns:
             Dictionary containing schema data or fallback
         """
-        # Use the path as a cache key
-        cache_key = schema_path
+        cache_key = str(Path(schema_path).resolve()) if Path(schema_path).is_absolute() else schema_path
         if cache_key in self.loaded_schemas:
             return self.loaded_schemas[cache_key]
-            
-        # Resolve path relative to main schema location
-        # The main schema is in dcc/config/schemas/, so we need to go up two levels
-        main_schema_path = Path(__file__).parent.parent / "config" / "schemas" / "dcc_register_enhanced.json"
-        schema_file = main_schema_path.parent / schema_path
+
+        schema_file = self._resolve_reference_path(schema_path)
         
         try:
             if schema_file.exists():
                 with open(schema_file, 'r', encoding='utf-8') as f:
                     schema_data = json.load(f)
-                    logger.info(f"Loaded schema: {schema_path}")
+                    logger.info(f"Loaded schema: {schema_file}")
                     self.loaded_schemas[cache_key] = schema_data
                     return schema_data
             else:
@@ -121,7 +165,7 @@ class SchemaLoader:
                     return fallback_data
                 else:
                     raise FileNotFoundError(f"Schema file not found: {schema_file}")
-                    
+
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON in schema file {schema_file}: {e}")
             if fallback_data is not None:
@@ -154,30 +198,18 @@ class SchemaLoader:
         
         # Check if referenced files exist
         for ref_name, ref_path in schema_refs.items():
-            # Resolve relative path from main schema location
-            # The main schema is in dcc/config/schemas/, so we need to go up two levels
-            main_schema_path = Path(__file__).parent.parent / "config" / "schemas" / "dcc_register_enhanced.json"
-            ref_file = main_schema_path.parent / ref_path
-            
-            # Try both relative and absolute paths
-            if not ref_file.exists():
-                # Try absolute path from current working directory
-                cwd = Path.cwd()
-                ref_file_abs = cwd / Path(ref_path)
-                if ref_file_abs.exists():
-                    ref_file = ref_file_abs
-                else:
+            try:
+                ref_file = self._resolve_reference_path(ref_path)
+                if not ref_file.exists():
                     errors.append(f"Referenced schema file not found: {ref_path}")
-            else:
-                # Try to load referenced schema
-                try:
-                    with open(ref_file, 'r', encoding='utf-8') as f:
-                        json.load(f)
-                except json.JSONDecodeError as e:
-                    errors.append(f"Invalid JSON in referenced schema {ref_path}: {e}")
-                except Exception as e:
-                    errors.append(f"Error reading referenced schema {ref_path}: {e}")
-        
+                    continue
+
+                with open(ref_file, 'r', encoding='utf-8') as f:
+                    json.load(f)
+            except json.JSONDecodeError as e:
+                errors.append(f"Invalid JSON in referenced schema {ref_path}: {e}")
+            except Exception as e:
+                errors.append(f"Error reading referenced schema {ref_path}: {e}")        
         return errors
     
     def resolve_schema_dependencies(self, main_schema: Dict) -> Dict:
@@ -234,12 +266,15 @@ class UniversalColumnMapper:
             with open(schema_file, 'r', encoding='utf-8') as f:
                 self.main_schema = json.load(f)
                 logger.info(f"Loaded main schema: {schema_file}")
-                
+
+            # record main schema path for relative refs
+            self.schema_loader.set_main_schema_path(schema_file)
+
             # Validate schema references
             errors = self.schema_loader.validate_schema_references(self.main_schema)
             if errors:
                 logger.warning(f"Schema reference validation errors: {errors}")
-                
+
             # Resolve schema dependencies
             self.resolved_schema = self.schema_loader.resolve_schema_dependencies(self.main_schema)
             logger.info("Schema dependencies resolved")
@@ -365,7 +400,7 @@ class UniversalColumnMapper:
             'unmatched_headers': unmatched,
             'total_headers': len(headers),
             'matched_count': len(detected),
-            'match_rate': len(detected) / len(headers) if headers else 0
+            'match_rate': len(detected) / len(headers) if len(headers) > 0 else 0
         }
     
     def rename_dataframe_columns(self, df: pd.DataFrame, mapping_result: Dict) -> pd.DataFrame:

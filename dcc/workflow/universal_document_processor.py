@@ -70,12 +70,23 @@ class CalculationEngine:
         group_by = null_handling.get('group_by', [])
         fill_value = null_handling.get('fill_value', 'NA')
         na_fallback = null_handling.get('na_fallback', False)
+        formatting = null_handling.get('formatting', {})
+        zero_pad = formatting.get('zero_pad')
         
         if group_by:
             # Group by specified columns and forward fill within groups
-            df_sorted = df.sort_values(group_by)
+            # Convert group_by columns to string to avoid type comparison issues
+            df_copy = df.copy()
             for col in group_by:
-                df_sorted[col] = df_sorted[col].ffill()
+                if col in df_copy.columns:
+                    df_copy[col] = df_copy[col].astype(str)
+            
+            # Sort and forward fill within groups
+            df_sorted = df_copy.sort_values(group_by)
+            df_sorted[column_name] = df_sorted.groupby(group_by)[column_name].ffill()
+            
+            # Update original dataframe with filled values
+            df[column_name] = df_sorted[column_name].reindex(df.index)
         else:
             # Simple forward fill
             df[column_name] = df[column_name].fillna(fill_value)
@@ -83,6 +94,17 @@ class CalculationEngine:
         if na_fallback:
             # Replace remaining NaN with 'NA' if fill_value was NaN
             df[column_name] = df[column_name].fillna('NA')
+        
+        # Apply zero-padding formatting if specified
+        if zero_pad:
+            try:
+                # Convert to numeric, then format with zero padding
+                df[column_name] = df[column_name].apply(
+                    lambda x: str(int(float(x))).zfill(zero_pad) if pd.notna(x) and x != 'NA' else x
+                )
+                logger.info(f"Applied zero-padding ({zero_pad} digits) for {column_name}")
+            except Exception as e:
+                logger.warning(f"Could not apply zero-padding for {column_name}: {e}")
         
         logger.info(f"Applied forward fill for {column_name}: strategy={null_handling.get('strategy')}, group_by={group_by}")
         return df
@@ -157,8 +179,28 @@ class CalculationEngine:
     
     def _apply_default_value(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
         """Apply default value strategy."""
-        default_value = null_handling.get('default', 'NA')
-        df[column_name] = df[column_name].fillna(default_value)
+        default_value = null_handling.get('default_value', null_handling.get('default', 'NA'))
+        text_replacements = null_handling.get('text_replacements', {})
+        type_conversion = null_handling.get('type_conversion')
+        
+        # Apply text replacements first
+        if text_replacements and column_name in df.columns:
+            for old_text, new_text in text_replacements.items():
+                df[column_name] = df[column_name].replace(old_text, new_text)
+                # Also replace in string representation
+                df[column_name] = df[column_name].astype(str).str.replace(old_text, new_text, regex=False)
+        
+        # Apply type conversion if specified
+        if type_conversion == 'string' and column_name in df.columns:
+            df[column_name] = df[column_name].astype(str)
+            # Replace 'nan' string with actual NaN for proper null handling
+            df[column_name] = df[column_name].replace('nan', pd.NA)
+            df[column_name] = df[column_name].replace('NaN', pd.NA)
+        
+        # Fill null values with default
+        if column_name in df.columns:
+            df[column_name] = df[column_name].fillna(default_value)
+        
         logger.info(f"Applied default value for {column_name}: {default_value}")
         return df
     

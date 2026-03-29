@@ -1,3 +1,5 @@
 {
-    "ndjson.port": 2000
+    "ndjson.port": 2000,
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda"
 }
