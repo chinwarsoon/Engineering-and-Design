@@ -4,7 +4,7 @@
             "schema_file": "config/dcc_register.json",
             "description": "DCC Submittal Register"
         },
-        "DCC_ENHANCED": {
+        "DCC_SUBMITTAL_ENHANCED": {
             "schema_file": "config/schemas/dcc_register_enhanced.json",
             "description": "Enhanced DCC Register with Universal Processing"
         },
