@@ -50,12 +50,6 @@ class CalculationEngine:
                 continue
                 
             null_handling = column_def.get('null_handling', {})
-            
-            # Check conditional processing guard
-            conditional = null_handling.get('conditional_processing', {})
-            if conditional.get('if_column_exists', False) and column_name not in original_columns:
-                continue
-                
             strategy = null_handling.get('strategy')
             
             if strategy == 'forward_fill':
@@ -324,7 +318,7 @@ class CalculationEngine:
         mapping = calculation.get('mapping', {})
         default = calculation.get('default', 'PEN')
         
-        if source_column in df.columns and column_name in df.columns:
+        if source_column in df.columns:
             df[column_name] = df[source_column].map(mapping).fillna(default)
         
         logger.info(f"Applied mapping calculation for {column_name}: {len(mapping)} mappings")
@@ -338,7 +332,7 @@ class CalculationEngine:
         sort_by = calculation.get('sort_by', [])
         separator = calculation.get('separator', ', ')
         
-        if source_column in df.columns and column_name in df.columns and group_by:
+        if source_column in df.columns and group_by:
             grouped = df.groupby(group_by, dropna=False)
             
             if method == 'count':
@@ -427,7 +421,7 @@ class CalculationEngine:
         """Apply direct copy calculation."""
         source_column = calculation.get('source_column')
         
-        if source_column in df.columns and column_name in df.columns:
+        if source_column in df.columns:
             df[column_name] = df[source_column]
         
         logger.info(f"Applied copy calculation for {column_name}: source={source_column}")
@@ -438,7 +432,7 @@ class CalculationEngine:
         source_column = calculation.get('source_column')
         condition = calculation.get('condition')
         
-        if source_column in df.columns and column_name in df.columns:
+        if source_column in df.columns:
             if condition == 'is_current_submission':
                 # Mark current row values (simplified for demo)
                 df[column_name] = df[source_column]
@@ -484,7 +478,7 @@ class CalculationEngine:
         format_string = calculation.get('format', '{Document_ID}')
         fallback_source = calculation.get('fallback_source')
         
-        if all(col in df.columns for col in source_columns) and column_name in df.columns:
+        if all(col in df.columns for col in source_columns):
             # Build composite string
             composite_values = {}
             for col in source_columns:
