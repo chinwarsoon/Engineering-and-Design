@@ -30,27 +30,38 @@ class CalculationEngine:
         self.schema_data = schema_data
         self.columns = schema_data.get('enhanced_schema', {}).get('columns', {})
         
-    def apply_null_handling(self, df: pd.DataFrame) -> pd.DataFrame:
+    def apply_null_handling(self, df: pd.DataFrame, original_columns: set = None) -> pd.DataFrame:
         """
         Apply null handling rules based on schema definitions.
         
         Args:
             df: Input DataFrame
+            original_columns: Set of columns natively mapped via detection
             
         Returns:
             DataFrame with null handling applied
         """
         df_processed = df.copy()
+        if original_columns is None:
+            original_columns = set(df_processed.columns)
         
         for column_name, column_def in self.columns.items():
             if column_name not in df_processed.columns:
                 continue
                 
             null_handling = column_def.get('null_handling', {})
+            
+            # Check conditional processing guard
+            conditional = null_handling.get('conditional_processing', {})
+            if conditional.get('if_column_exists', False) and column_name not in original_columns:
+                continue
+                
             strategy = null_handling.get('strategy')
             
             if strategy == 'forward_fill':
                 df_processed = self._apply_forward_fill(df_processed, column_name, null_handling)
+            elif strategy == 'multi_level_forward_fill':
+                df_processed = self._apply_multi_level_forward_fill(df_processed, column_name, null_handling)
             elif strategy == 'copy_from':
                 df_processed = self._apply_copy_from(df_processed, column_name, null_handling)
             elif strategy == 'calculate_if_null':
@@ -109,6 +120,35 @@ class CalculationEngine:
         logger.info(f"Applied forward fill for {column_name}: strategy={null_handling.get('strategy')}, group_by={group_by}")
         return df
     
+    def _apply_multi_level_forward_fill(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
+        """Apply multi-level forward fill strategy."""
+        levels = null_handling.get('levels', [])
+        final_fill = null_handling.get('final_fill')
+        datetime_conversion = null_handling.get('datetime_conversion', {})
+        
+        # Optionally perform datetime conversion beforehand
+        if datetime_conversion and column_name in df.columns:
+            errors = datetime_conversion.get('errors', 'coerce')
+            df[column_name] = pd.to_datetime(df[column_name], errors=errors)
+        
+        for level in levels:
+            group_by = level.get('group_by', [])
+            if group_by:
+                df_copy = df.copy()
+                for col in group_by:
+                    if col in df_copy.columns:
+                        df_copy[col] = df_copy[col].astype(str)
+                
+                df_sorted = df_copy.sort_values(group_by)
+                df_sorted[column_name] = df_sorted.groupby(group_by)[column_name].ffill()
+                df[column_name] = df_sorted[column_name].reindex(df.index)
+                
+        if final_fill is not None and column_name in df.columns:
+            df[column_name] = df[column_name].fillna(final_fill)
+            
+        logger.info(f"Applied multi_level_forward_fill for {column_name}")
+        return df
+
     def _apply_copy_from(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
         """Apply copy from strategy."""
         source_column = null_handling.get('source_column')
@@ -242,7 +282,7 @@ class CalculationEngine:
         df_calculated = df.copy()
         
         for column_name, column_def in self.columns.items():
-            if column_def.get('is_calculated', False):
+            if not column_def.get('is_calculated', False):
                 continue
                 
             calculation = column_def.get('calculation', {})
@@ -259,6 +299,12 @@ class CalculationEngine:
                 df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'aggregate' and method == 'concatenate_unique':
                 df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'aggregate' and method == 'concatenate_unique_quoted':
+                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'aggregate' and method == 'concatenate_dates':
+                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'aggregate' and method == 'latest_by_date':
+                df_calculated = self._apply_latest_by_date_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'copy' and method == 'direct':
                 df_calculated = self._apply_copy_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'conditional' and method == 'current_row':
@@ -304,13 +350,77 @@ class CalculationEngine:
                     df_sorted = df.sort_values(sort_by)
                     grouped = df_sorted.groupby(group_by, dropna=False)
                 
-                def concat_unique(x):
-                    unique_vals = x[source_column].dropna().unique()
+                def concat_unique(series):
+                    unique_vals = series.dropna().unique()
                     return separator.join(str(val) for val in unique_vals if pd.notna(val))
                 
-                df[column_name] = grouped.apply(concat_unique)
+                # Use transform directly on the source_column series to broadcast results
+                df[column_name] = grouped[source_column].transform(concat_unique)
+                
+            elif method == 'concatenate_unique_quoted':
+                if sort_by:
+                    df_sorted = df.sort_values(sort_by)
+                    grouped = df_sorted.groupby(group_by, dropna=False)
+                
+                quote_each = calculation.get('quote_each', True)
+                def concat_unique_quoted(series):
+                    unique_vals = series.dropna().unique()
+                    if quote_each:
+                        return separator.join(f'"{val}"' for val in unique_vals if pd.notna(val))
+                    return separator.join(str(val) for val in unique_vals if pd.notna(val))
+                
+                df[column_name] = grouped[source_column].transform(concat_unique_quoted)
+                
+            elif method == 'concatenate_dates':
+                if sort_by:
+                    df_sorted = df.sort_values(sort_by)
+                    grouped = df_sorted.groupby(group_by, dropna=False)
+                
+                date_fmt = calculation.get('date_format', 'YYYY-MM-DD')
+                py_date_fmt = date_fmt.replace('YYYY', '%Y').replace('MM', '%m').replace('DD', '%d')
+                
+                def concat_dates(series):
+                    valid_dates = pd.to_datetime(series.dropna(), errors='coerce').dropna()
+                    formatted = valid_dates.dt.strftime(py_date_fmt)
+                    return separator.join(formatted.dropna().astype(str))
+                
+                df[column_name] = grouped[source_column].transform(concat_dates)
         
         logger.info(f"Applied aggregate calculation for {column_name}: method={method}")
+        return df
+
+    def _apply_latest_by_date_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """Apply latest by date aggregations."""
+        source_column = calculation.get('source_column')
+        group_by = calculation.get('group_by', [])
+        sort_by = calculation.get('sort_by', [])
+        sort_dir = calculation.get('sort_direction', ['desc'])
+        mapping = calculation.get('mapping', {})
+        fallback = mapping.get('fallback_value', 'NA')
+        
+        if source_column in df.columns and group_by and sort_by:
+            filtered_df = df.copy()
+            exclude = calculation.get('filter', {}).get('exclude_values', [])
+            if exclude:
+                filtered_df = filtered_df[~filtered_df[source_column].isin(exclude)]
+                
+            asc_flags = [d.lower() == 'asc' for d in sort_dir]
+            if len(asc_flags) < len(sort_by):
+                asc_flags.extend([False] * (len(sort_by) - len(asc_flags)))
+                
+            sorted_df = filtered_df.sort_values(sort_by, ascending=asc_flags)
+            latest_vals = sorted_df.groupby(group_by)[source_column].first()
+            
+            # Map values back to original dataframe lengths
+            if len(group_by) == 1:
+                df[column_name] = df[group_by[0]].map(latest_vals).fillna(fallback)
+            else:
+                mapped = pd.merge(df[group_by], latest_vals, left_on=group_by, right_index=True, how='left')
+                df[column_name] = mapped[source_column].fillna(fallback)
+        else:
+            df[column_name] = fallback
+            
+        logger.info(f"Applied latest_by_date calculation for {column_name}")
         return df
     
     def _apply_copy_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
@@ -442,9 +552,13 @@ class UniversalDocumentProcessor:
             raise ValueError("Schema not loaded. Call load_schema() first.")
         
         logger.info(f"Processing data with {len(df)} rows and {len(df.columns)} columns")
+        original_columns = set(df.columns)
+        
+        # Step 0: Initialize missing columns
+        df_initialized = self._initialize_missing_columns(df)
         
         # Step 1: Apply null handling
-        df_processed = self.calculation_engine.apply_null_handling(df)
+        df_processed = self.calculation_engine.apply_null_handling(df_initialized, original_columns)
         
         # Step 2: Apply calculations
         df_calculated = self.calculation_engine.apply_calculations(df_processed)
@@ -454,6 +568,30 @@ class UniversalDocumentProcessor:
         
         logger.info(f"Data processing complete: {len(df_validated)} rows")
         return df_validated
+        
+    def _initialize_missing_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Initialize missing columns based on schema rules."""
+        df_init = df.copy()
+        enhanced_schema = self.schema_data.get('enhanced_schema', {})
+        columns = enhanced_schema.get('columns', {})
+        parameters = self.schema_data.get('parameters', {})
+        dyn_creation = parameters.get('dynamic_column_creation', {})
+        global_enabled = dyn_creation.get('enabled', False)
+        global_default = dyn_creation.get('default_value', 'NA')
+        
+        for col_name, col_def in columns.items():
+            if col_name not in df_init.columns:
+                create_missing = col_def.get('create_if_missing', False)
+                
+                if create_missing or global_enabled:
+                    default_val = global_default
+                    if 'default_value' in col_def:  # Top level overrides global
+                        default_val = col_def.get('default_value')
+                    
+                    df_init[col_name] = default_val
+                    logger.info(f"Created missing column: {col_name} with default '{default_val}'")
+                    
+        return df_init
     
     def _apply_validation(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply validation rules from schema."""
@@ -463,8 +601,16 @@ class UniversalDocumentProcessor:
         df_validated = df.copy()
         
         for column_name, column_def in columns.items():
+            is_required = column_def.get('required', False)
             if column_name not in df_validated.columns:
+                if is_required:
+                    logger.error(f"Validation failed: Required column {column_name} is missing.")
                 continue
+                
+            allow_null = column_def.get('allow_null', True)
+            null_count = df_validated[column_name].isna().sum()
+            if not allow_null and null_count > 0:
+                logger.warning(f"Validation failed for {column_name}: contains {null_count} nulls but allow_null is False")
                 
             validation = column_def.get('validation', {})
             
@@ -486,6 +632,30 @@ class UniversalDocumentProcessor:
                 invalid_count = mask.sum()
                 if invalid_count > 0:
                     logger.warning(f"Min length validation failed for {column_name}: {invalid_count} values too short")
+                    
+            if 'max_length' in validation:
+                max_len = validation['max_length']
+                mask = df_validated[column_name].astype(str).str.len() > max_len
+                if mask.sum() > 0:
+                    logger.warning(f"Max length validation failed for {column_name}: {mask.sum()} values too long")
+                    
+            if 'max_value' in validation:
+                max_val = validation['max_value']
+                mask = pd.to_numeric(df_validated[column_name], errors='coerce') > max_val
+                if mask.sum() > 0:
+                    logger.warning(f"Max value validation failed for {column_name}: {mask.sum()} numeric values > {max_val}")
+                    
+            if 'min_value' in validation:
+                min_val = validation['min_value']
+                mask = pd.to_numeric(df_validated[column_name], errors='coerce') < min_val
+                if mask.sum() > 0:
+                    logger.warning(f"Min value validation failed for {column_name}: {mask.sum()} numeric values < {min_val}")
+                    
+            if 'format' in validation and validation['format'] == 'YYYY-MM-DD':
+                parsed = pd.to_datetime(df_validated[column_name], format="%Y-%m-%d", errors='coerce')
+                mask = parsed.isna() & df_validated[column_name].notna() & (df_validated[column_name] != 'NA')
+                if mask.sum() > 0:
+                    logger.warning(f"Format validation (YYYY-MM-DD) failed for {column_name}: {mask.sum()} invalid dates")
             
             # Apply allowed values validation
             if 'allowed_values' in validation:

@@ -447,7 +447,8 @@
         "required": false,
         "allow_null": true,
         "is_calculated": false,
-        "create_if_missing": false,
+        "create_if_missing": true,
+        "default_value": "NA",
         "null_handling": {
           "strategy": "multi_level_forward_fill",
           "levels": [
@@ -466,12 +467,7 @@
             }
           ],
           "final_fill": "NA",
-          "column_creation": {
-            "if_missing": "create_with_default",
-            "default_value": "NA",
-            "description": "Create column with 'NA' if not found in data per original dcc_mdl.ipynb logic"
-          },
-          "description": "Two-level forward fill per submission sessions, create column if missing, fill remaining with NA per original dcc_mdl.ipynb logic"
+          "description": "Two-level forward fill per submission sessions, fill remaining with NA per original dcc_mdl.ipynb logic"
         },
         "validation": {
           "min_length": 2,
