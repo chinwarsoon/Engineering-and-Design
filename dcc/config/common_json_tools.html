@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DCC · JSON Schema Inspector</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f14;
+  --surface: #13161d;
+  --surface2: #1a1e28;
+  --border: #252a38;
+  --accent: #4fffb0;
+  --accent2: #ff6b35;
+  --accent3: #7b8cde;
+  --text: #e8ecf4;
+  --muted: #6b7591;
+  --tag-bg: #1e2535;
+  --danger: #ff4757;
+  --warn: #ffa502;
+  --success: #2ed573;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(79,255,176,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(79,255,176,0.025) 1px, transparent 1px);
+  background-size: 36px 36px;
+  pointer-events: none;
+  z-index: 0;
+}
+header {
+  position: relative; z-index: 10;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(13,15,20,0.9);
+  backdrop-filter: blur(12px);
+  flex-shrink: 0;
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 800; font-size: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.logo-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: blink 2.5s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.logo span { color: var(--muted); }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; padding: 3px 9px;
+  background: var(--tag-bg); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--muted);
+}
+.chip.ok { color: var(--success); border-color: rgba(46,213,115,.3); background: rgba(46,213,115,.06); }
+.layout {
+  position: relative; z-index: 1;
+  display: flex; flex: 1; overflow: hidden;
+}
+.sidebar {
+  width: 272px; min-width: 272px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-top {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+  flex-shrink: 0;
+}
+.sidebar-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--muted);
+  letter-spacing: .15em; text-transform: uppercase;
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 8px 14px; border-radius: 5px; border: none; cursor: pointer;
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 12px; letter-spacing: .04em; transition: all .15s;
+}
+.btn-primary {
+  background: var(--accent); color: #0d0f14;
+  box-shadow: 0 0 18px rgba(79,255,176,.2);
+  width: 100%;
+}
+.btn-primary:hover { background: #5fffc0; }
+.btn-primary:active { transform: scale(.97); }
+.btn-secondary {
+  background: var(--tag-bg); color: var(--muted);
+  border: 1px solid var(--border); width: 100%;
+}
+.btn-secondary:hover { color: var(--text); border-color: var(--accent); }
+.folder-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--accent3);
+  word-break: break-all; line-height: 1.5;
+  padding: 5px 8px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 4px;
+  display: none;
+}
+.file-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+.file-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 16px; cursor: pointer;
+  border: none; background: none; width: 100%;
+  text-align: left; color: var(--text);
+  border-left: 2px solid transparent;
+  transition: all .12s;
+}
+.file-item:hover { background: var(--surface2); border-left-color: rgba(79,255,176,.4); }
+.file-item.active { background: rgba(79,255,176,.07); border-left-color: var(--accent); }
+.file-item .fi-icon { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--accent); opacity:.6; flex-shrink:0; }
+.file-item .fi-name { font-size:12px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.file-item .fi-size { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); flex-shrink:0; }
+.sidebar-empty {
+  padding: 20px 16px; text-align: center;
+  color: var(--muted); font-size: 12px; line-height: 1.9;
+}
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.welcome-panel {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; color: var(--muted); font-size: 13px;
+}
+.welcome-panel.hidden { display: none; }
+.welcome-icon { font-size: 44px; }
+.welcome-panel h2 { font-size: 18px; font-weight: 800; color: var(--text); }
+.welcome-panel code {
+  font-family:'JetBrains Mono',monospace; font-size:11px;
+  color: var(--accent3); background: var(--tag-bg);
+  padding: 3px 8px; border-radius: 4px;
+}
+#file-view { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+#file-view.visible { display: flex; }
+.stats-strip {
+  display: flex; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  overflow-x: auto;
+}
+.stat-item {
+  padding: 10px 18px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+}
+.stat-label { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; }
+.stat-value { font-size:17px; font-weight:800; color:var(--text); }
+.stat-value.acc  { color: var(--accent); }
+.stat-value.warn { color: var(--warn); }
+.stat-value.err  { color: var(--danger); }
+.toolbar {
+  border-bottom: 1px solid var(--border);
+  padding: 9px 18px;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); flex-shrink: 0; flex-wrap: wrap;
+}
+.toolbar-info { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); flex:1; min-width:0; }
+.toolbar-info strong { color: var(--accent3); }
+.search-box {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 5px; padding: 6px 11px;
+  transition: border-color .15s;
+}
+.search-box:focus-within { border-color: var(--accent); }
+.search-box input {
+  background: none; border: none; outline: none;
+  color: var(--text); font-family:'JetBrains Mono',monospace;
+  font-size: 12px; width: 160px;
+}
+.search-box input::placeholder { color: var(--muted); }
+.filter-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+.flt {
+  padding: 4px 9px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--tag-bg); color: var(--muted);
+  font-size: 11px; font-family: 'Syne', sans-serif; font-weight: 600;
+  cursor: pointer; transition: all .12s; white-space: nowrap;
+}
+.flt:hover { color: var(--text); }
+.flt.on { background: rgba(79,255,176,.1); border-color: var(--accent); color: var(--accent); }
+.tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  background: var(--surface2); flex-shrink: 0;
+  padding: 0 18px; overflow-x: auto;
+}
+.tab {
+  padding: 9px 15px; background: none; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  font-family:'Syne',sans-serif; font-weight:700; font-size:12px;
+  letter-spacing:.04em; cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover:not(.active) { color: var(--text); }
+.tab-badge {
+  display: inline-block; margin-left: 5px;
+  padding: 1px 5px; border-radius: 9px;
+  background: var(--tag-bg); color: var(--muted); font-size: 10px;
+}
+.tab.active .tab-badge { background: rgba(79,255,176,.15); color: var(--accent); }
+.panels { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.panel { display: none; flex: 1; overflow: auto; }
+.panel.active { display: block; }
+/* Tables */
+.tbl-wrap { }
+table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+thead { position: sticky; top: 0; z-index: 5; }
+thead tr { background: #0f111a; }
+th {
+  padding: 10px 13px; text-align: left;
+  color: var(--accent); font-size: 10px;
+  letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+td {
+  padding: 8px 13px; border-bottom: 1px solid rgba(37,42,56,.45);
+  vertical-align: top; word-break: break-word;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(79,255,176,.016); }
+.c-path  { color: var(--accent3); font-size: 11px; word-break: break-all; }
+.c-key   { color: var(--accent);  font-weight: 600; }
+.c-pkey  { color: var(--muted);   font-size: 11px; }
+.c-num   { color: var(--accent2); }
+.val-str  { color: #ffd93d; }
+.val-num  { color: var(--accent2); }
+.val-bool-t { color: var(--success); }
+.val-bool-f { color: var(--danger); }
+.val-null { color: var(--muted); font-style: italic; }
+.val-arr  { color: var(--accent3); }
+.tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+.tag-object  { background:rgba(123,140,222,.15); color:var(--accent3); }
+.tag-array   { background:rgba(255,165,2,.12); color:var(--warn); }
+.tag-string  { background:rgba(255,211,61,.1); color:#ffd93d; }
+.tag-number  { background:rgba(255,107,53,.12); color:var(--accent2); }
+.tag-boolean { background:rgba(46,213,115,.1); color:var(--success); }
+.tag-null    { background:rgba(107,117,145,.15); color:var(--muted); }
+/* JSON raw */
+.json-raw {
+  padding: 20px 24px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; line-height: 1.75;
+  white-space: pre-wrap; word-break: break-word; color: var(--muted);
+}
+.jk { color: var(--accent3); }
+.jv { color: #ffd93d; }
+.jn { color: var(--accent2); }
+.jb { color: var(--success); }
+.jx { color: var(--muted); font-style:italic; }
+.info-box {
+  margin: 20px 24px; padding: 14px 18px;
+  border-radius: 6px; font-size: 13px; line-height: 1.7;
+}
+.info-box.warn { background: rgba(255,165,2,.08); border:1px solid rgba(255,165,2,.2); color:var(--warn); }
+.info-box.err  { background: rgba(255,71,87,.08); border:1px solid rgba(255,71,87,.2); color:var(--danger); }
+.info-box.info { background: rgba(79,255,176,.06); border:1px solid rgba(79,255,176,.2); color:var(--accent); }
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    DCC <span>·</span> JSON Schema Inspector
+  </div>
+  <div class="header-right">
+    <span class="chip" id="api-chip">Checking…</span>
+    <span class="chip" id="folder-chip">No folder loaded</span>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-label">dcc / config / schemas</div>
+      <button class="btn btn-primary" id="open-folder-btn">📂 Open schemas folder</button>
+      <button class="btn btn-secondary" id="open-file-btn">📄 Open single JSON file</button>
+      <div class="folder-path" id="folder-path"></div>
+    </div>
+    <div class="file-list" id="file-list">
+      <div class="sidebar-empty">
+        Open <strong>config/schemas</strong> folder or a single JSON file to begin.
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="welcome-panel" id="welcome-panel">
+      <div class="welcome-icon">🗂️</div>
+      <h2>No file selected</h2>
+      <p>Open the <code>config/schemas</code> folder from the sidebar,</p>
+      <p>then click any <code>.json</code> file to inspect it.</p>
+    </div>
+
+    <div id="file-view">
+      <div class="stats-strip" id="stats-strip"></div>
+      <div class="toolbar">
+        <div class="toolbar-info" id="toolbar-info"></div>
+        <div class="search-box">
+          <span style="color:var(--muted)">⌕</span>
+          <input type="text" id="search-input" placeholder="Filter rows…">
+        </div>
+        <div class="filter-btns" id="filter-btns"></div>
+      </div>
+      <div class="tabs" id="tabs"></div>
+      <div class="panels" id="panels"></div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".json" style="display:none">
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let activeFilter = 'all';
+let allFlatRows  = [];
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+const hasFS = 'showDirectoryPicker' in window;
+document.getElementById('api-chip').textContent = hasFS ? 'File System API ✓' : 'File API (single file only)';
+if (hasFS) document.getElementById('api-chip').classList.add('ok');
+else {
+  const fb = document.getElementById('open-folder-btn');
+  fb.disabled = true;
+  fb.style.opacity = '.4';
+  fb.title = 'showDirectoryPicker not available — use Chrome or Edge, or open single files.';
+}
+
+// ── Open folder ───────────────────────────────────────────────────────────────
+document.getElementById('open-folder-btn').addEventListener('click', async () => {
+  try {
+    const dir = await window.showDirectoryPicker({ mode: 'read' });
+    const files = [];
+    for await (const [name, handle] of dir.entries()) {
+      if (handle.kind === 'file' && name.endsWith('.json')) {
+        const f = await handle.getFile();
+        files.push({ name, handle, size: f.size });
+      }
+    }
+    files.sort((a, b) => a.name.localeCompare(b.name));
+
+    document.getElementById('folder-path').style.display = 'block';
+    document.getElementById('folder-path').textContent = '📁 ' + dir.name + '/';
+    document.getElementById('folder-chip').textContent = dir.name;
+    document.getElementById('folder-chip').classList.add('ok');
+
+    buildSidebar(files);
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('Error: ' + e.message);
+  }
+});
+
+// ── Open single file ──────────────────────────────────────────────────────────
+document.getElementById('open-file-btn').addEventListener('click', () => {
+  document.getElementById('file-input').click();
+});
+document.getElementById('file-input').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const entry = { name: f.name, file: f, size: f.size };
+  buildSidebar([entry]);
+  loadEntry(entry);
+  e.target.value = '';
+});
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function buildSidebar(files) {
+  const list = document.getElementById('file-list');
+  list.innerHTML = '';
+  if (!files.length) {
+    list.innerHTML = '<div class="sidebar-empty">No .json files found.</div>';
+    return;
+  }
+  files.forEach(entry => {
+    const btn = document.createElement('button');
+    btn.className = 'file-item';
+    btn.innerHTML = `<span class="fi-icon">{}</span><span class="fi-name">${esc(entry.name)}</span><span class="fi-size">${fmtSize(entry.size)}</span>`;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.file-item').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadEntry(entry);
+    });
+    list.appendChild(btn);
+  });
+}
+
+// ── Load file ─────────────────────────────────────────────────────────────────
+async function loadEntry(entry) {
+  try {
+    const file = entry.handle ? await entry.handle.getFile() : entry.file;
+    const text = await file.text();
+    const data = JSON.parse(text);
+    renderAll(data, entry);
+  } catch (e) {
+    showErr('Failed to parse: ' + e.message);
+  }
+}
+
+// ── Master render ─────────────────────────────────────────────────────────────
+function renderAll(data, entry) {
+  document.getElementById('welcome-panel').classList.add('hidden');
+  const view = document.getElementById('file-view');
+  view.classList.add('visible');
+
+  // Flatten everything
+  allFlatRows = [];
+  flatten(data, '(root)', [], allFlatRows, 0);
+
+  renderStats(data, entry, allFlatRows);
+  renderToolbar(entry, allFlatRows);
+  renderFilters(allFlatRows);
+  renderTabs(data, allFlatRows);
+  document.getElementById('search-input').value = '';
+  activeFilter = 'all';
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+function renderStats(data, entry, rows) {
+  const leaves   = rows.filter(r => r.vtype !== 'object' && r.vtype !== 'array').length;
+  const objects  = rows.filter(r => r.vtype === 'object').length;
+  const arrays   = rows.filter(r => r.vtype === 'array').length;
+  const nulls    = rows.filter(r => r.vtype === 'null').length;
+  const maxDepth = Math.max(0, ...rows.map(r => r.depth));
+
+  document.getElementById('stats-strip').innerHTML = `
+    <div class="stat-item"><span class="stat-label">Total Rows</span><span class="stat-value acc">${rows.length}</span></div>
+    <div class="stat-item"><span class="stat-label">Leaf Values</span><span class="stat-value">${leaves}</span></div>
+    <div class="stat-item"><span class="stat-label">Objects</span><span class="stat-value">${objects}</span></div>
+    <div class="stat-item"><span class="stat-label">Arrays</span><span class="stat-value warn">${arrays}</span></div>
+    <div class="stat-item"><span class="stat-label">Nulls</span><span class="stat-value ${nulls ? 'err' : ''}">${nulls}</span></div>
+    <div class="stat-item"><span class="stat-label">Max Depth</span><span class="stat-value">${maxDepth}</span></div>
+    <div class="stat-item"><span class="stat-label">File Size</span><span class="stat-value" style="font-size:14px">${fmtSize(entry.size)}</span></div>
+  `;
+}
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+function renderToolbar(entry, rows) {
+  document.getElementById('toolbar-info').innerHTML =
+    `<strong>${esc(entry.name)}</strong>&nbsp; · &nbsp;${rows.length} entries &nbsp; · &nbsp;${fmtSize(entry.size)}`;
+
+  const inp = document.getElementById('search-input');
+  inp.oninput = applyFilters;
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function renderFilters(rows) {
+  const types = ['all', ...new Set(rows.map(r => r.vtype))];
+  const container = document.getElementById('filter-btns');
+  container.innerHTML = '';
+  types.forEach(t => {
+    const count = t === 'all' ? rows.length : rows.filter(r => r.vtype === t).length;
+    const btn = document.createElement('button');
+    btn.className = 'flt' + (t === 'all' ? ' on' : '');
+    btn.textContent = t + ' (' + count + ')';
+    btn.dataset.f = t;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.flt').forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      activeFilter = t;
+      applyFilters();
+    });
+    container.appendChild(btn);
+  });
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+function renderTabs(data, rows) {
+  const tabsEl   = document.getElementById('tabs');
+  const panelsEl = document.getElementById('panels');
+  tabsEl.innerHTML = '';
+  panelsEl.innerHTML = '';
+
+  const addTab = (id, label, count, builder) => {
+    const tab = document.createElement('button');
+    tab.className = 'tab';
+    tab.dataset.id = id;
+    tab.innerHTML = label + (count != null ? `<span class="tab-badge">${count}</span>` : '');
+
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.dataset.id = id;
+
+    tab.addEventListener('click', () => {
+      tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      panelsEl.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      panel.classList.add('active');
+      if (!panel._built) { panel.appendChild(builder()); panel._built = true; }
+      applyFilters();
+    });
+
+    tabsEl.appendChild(tab);
+    panelsEl.appendChild(panel);
+  };
+
+  // 1. Full inspection (every node)
+  addTab('full', 'Full Inspection', rows.length - 1, () => buildFullTable(rows));
+
+  // 2. Top-level keys
+  const topCount = typeof data === 'object' && data !== null ? Object.keys(data).length : 0;
+  addTab('top', 'Top-Level Keys', topCount, () => buildTopTable(data));
+
+  // Schema-specific tabs
+  if (data.enhanced_schema && data.enhanced_schema.columns) {
+    const cols = Object.entries(data.enhanced_schema.columns);
+    addTab('cols', 'Columns Detail', cols.length, () => buildColumnsTable(cols));
+  }
+  if (data.mappings && typeof data.mappings === 'object') {
+    const total = Object.values(data.mappings).reduce((s, v) => s + (Array.isArray(v) ? v.length : 1), 0);
+    addTab('map', 'Mappings', total, () => buildMappingsTable(data.mappings));
+  }
+  if (data.choices && Array.isArray(data.choices)) {
+    addTab('cho', 'Choices', data.choices.length, () => buildChoicesTable(data.choices));
+  }
+  if (data.document_types) addTab('dt', 'Document Types', Object.keys(data.document_types).length, () => buildDictTable(data.document_types));
+  if (data.tools)          addTab('tl', 'Tools', Object.keys(data.tools).length, () => buildDictTable(data.tools));
+  if (data.workflows)      addTab('wf', 'Workflows', Object.keys(data.workflows).length, () => buildDictTable(data.workflows));
+  if (data.schema)         addTab('sm', 'Schema Map', null, () => buildSchemaMap(data.schema));
+  if (data.row_mapping)    addTab('rm', 'Row Mapping', null, () => buildMappingsTable(data.row_mapping));
+  if (data.parameters)     addTab('pm', 'Parameters', Object.keys(data.parameters).length, () => buildParamsTable(data.parameters));
+
+  // Raw JSON
+  addTab('raw', 'Raw JSON', null, () => buildRaw(data));
+
+  // Activate first tab
+  tabsEl.querySelector('.tab').click();
+}
+
+// ── Flatten JSON ──────────────────────────────────────────────────────────────
+function flatten(node, path, pathArr, out, depth) {
+  const t = vtype(node);
+  const childCount = t === 'object' ? Object.keys(node).length : t === 'array' ? node.length : null;
+
+  out.push({
+    path, pathArr: [...pathArr],
+    key: pathArr.length ? pathArr[pathArr.length - 1] : '(root)',
+    parentPath: pathArr.length > 1 ? pathArr.slice(0, -1).join('.') : '',
+    depth, vtype: t, value: node, childCount
+  });
+
+  if (t === 'object') {
+    for (const [k, v] of Object.entries(node)) {
+      flatten(v, (path !== '(root)' ? path + '.' : '') + k, [...pathArr, k], out, depth + 1);
+    }
+  } else if (t === 'array') {
+    node.forEach((v, i) => {
+      flatten(v, path + '[' + i + ']', [...pathArr, '[' + i + ']'], out, depth + 1);
+    });
+  }
+}
+
+function vtype(v) {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) return 'array';
+  return typeof v;
+}
+
+// ── 1. Full inspection table ──────────────────────────────────────────────────
+function buildFullTable(rows) {
+  const wrap = div('tbl-wrap');
+  const table = el('table');
+  table.id = 'tbl-full';
+  table.innerHTML = `<thead><tr>
+    <th style="min-width:38px">#</th>
+    <th style="min-width:200px">JSON Path</th>
+    <th style="min-width:140px">Key / Index</th>
+    <th style="min-width:120px">Parent Path</th>
+    <th style="width:56px;text-align:center">Depth</th>
+    <th style="min-width:78px">Value Type</th>
+    <th style="min-width:200px;max-width:420px">Value</th>
+    <th style="width:76px;text-align:center">Children</th>
+  </tr></thead>`;
+  const tbody = el('tbody');
+
+  rows.forEach((row, i) => {
+    if (row.path === '(root)') return; // skip synthetic root row
+    const tr = el('tr');
+    tr.className = 'data-row';
+    tr.dataset.vtype = row.vtype;
+    tr.dataset.search = (row.path + ' ' + row.key + ' ' + valText(row)).toLowerCase();
+
+    tr.innerHTML = `
+      <td class="c-pkey">${i}</td>
+      <td class="c-path">${esc(row.path)}</td>
+      <td class="c-key">${esc(String(row.key))}</td>
+      <td class="c-pkey" style="max-width:140px;word-break:break-all">${esc(row.parentPath)}</td>
+      <td class="c-num" style="text-align:center">${row.depth}</td>
+      <td><span class="tag tag-${row.vtype}">${row.vtype}</span></td>
+      <td style="max-width:420px">${renderVal(row.value, row.vtype)}</td>
+      <td class="c-num" style="text-align:center">${row.childCount !== null ? row.childCount : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ── 2. Top-level keys ─────────────────────────────────────────────────────────
+function buildTopTable(data) {
+  const wrap = div('tbl-wrap');
+  if (typeof data !== 'object' || !data) {
+    wrap.appendChild(infoBox('Root is not an object.', 'info'));
+    return wrap;
+  }
+  const table = el('table');
+  table.innerHTML = `<thead><tr>
+    <th>#</th><th style="min-width:160px">Key</th><th style="min-width:80px">Type</th>
+    <th style="min-width:90px">Size</th><th style="min-width:200px">Value / Preview</th>
+    <th style="min-width:200px">Sub-keys (if object)</th>
+  </tr></thead>`;
+  const tbody = el('tbody');
+
+  Object.entries(data).forEach(([k, v], i) => {
+    const t = vtype(v);
+    const size = t === 'object' ? Object.keys(v).length + ' keys'
+               : t === 'array'  ? v.length + ' items'
+               : t === 'string' ? v.length + ' chars' : '—';
+    const preview = t === 'string' ? v.substring(0, 150) + (v.length > 150 ? '…' : '')
+                  : t === 'number' || t === 'boolean' || t === 'null' ? String(v)
+                  : t === 'array' ? v.slice(0,6).map(x => typeof x === 'object' ? '{…}' : String(x)).join(', ') + (v.length > 6 ? '…' : '')
+                  : Object.keys(v).slice(0, 6).join(', ') + (Object.keys(v).length > 6 ? '…' : '');
+    const subkeys = t === 'object'
+      ? Object.keys(v).map(sk => `<span class="tag tag-string" style="margin:1px 2px;display:inline-block">${esc(sk)}</span>`).join('')
+      : '—';
+
+    const tr = el('tr');
+    tr.className = 'data-row';
+    tr.dataset.vtype = t;
+    tr.dataset.search = (k + ' ' + preview).toLowerCase();
+    tr.innerHTML = `
+      <td class="c-pkey">${i + 1}</td>
+      <td class="c-key">${esc(k)}</td>
+      <td><span class="tag tag-${t}">${t}</span></td>
+      <td class="c-num">${size}</td>
+      <td style="max-width:260px;word-break:break-word">${renderVal(v, t, 120)}</td>
+      <td style="max-width:300px;line-height:1.9">${subkeys}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ── 3. Enhanced schema columns ────────────────────────────────────────────────
+function buildColumnsTable(cols) {
+  const wrap = div('tbl-wrap');
+  const table = el('table');
+  table.innerHTML = `<thead><tr>
+    <th>#</th>
+    <th style="min-width:180px">Column Name</th>
+    <th style="min-width:90px">Data Type</th>
+    <th style="text-align:center">Required</th>
+    <th style="text-align:center">Allow Null</th>
+    <th style="text-align:center">Is Calculated</th>
+    <th style="text-align:center">Create If Missing</th>
+    <th style="min-width:80px">Default Value</th>
+    <th style="min-width:130px">Null Strategy</th>
+    <th style="min-width:130px">Calc Method</th>
+    <th style="min-width:160px">Calc Source / Format</th>
+    <th style="min-width:180px">Aliases</th>
+    <th style="min-width:160px">Validation Rules</th>
+    <th style="min-width:120px">Schema Reference</th>
+    <th style="min-width:200px">Null Handling Detail</th>
+    <th style="min-width:200px">Calculation Detail</th>
+  </tr></thead>`;
+  const tbody = el('tbody');
+
+  cols.forEach(([name, c], i) => {
+    const aliases = (c.aliases || []).join(' | ');
+    const nullStrat  = c.null_handling ? c.null_handling.strategy || '—' : (c.default_value !== undefined ? 'default_value' : '—');
+    const calcMethod = c.calculation ? (c.calculation.method || c.calculation.type || '—') : '—';
+    const calcSrc    = c.calculation ? (c.calculation.format || (c.calculation.source_column ? c.calculation.source_column : '') || (Array.isArray(c.calculation.source_columns) ? c.calculation.source_columns.join(', ') : '')) : '—';
+    const defVal     = c.default_value !== undefined ? String(c.default_value)
+                     : (c.null_handling && c.null_handling.default_value !== undefined ? String(c.null_handling.default_value) : '—');
+
+    // Validation rules
+    const val = c.validation ? Object.entries(c.validation)
+      .map(([k, v]) => `<span class="c-pkey">${esc(k)}:</span> <span class="val-str">${esc(String(v))}</span>`)
+      .join('<br>') : '—';
+
+    // Null handling detail
+    const nhd = c.null_handling
+      ? (c.null_handling.description || '') + (c.null_handling.group_by ? '<br><span class="c-pkey">group_by:</span> ' + esc(JSON.stringify(c.null_handling.group_by)) : '')
+           + (c.null_handling.fill_value !== undefined ? '<br><span class="c-pkey">fill_value:</span> ' + esc(String(c.null_handling.fill_value)) : '')
+      : '—';
+
+    // Calculation detail
+    const cd = c.calculation
+      ? (c.calculation.description || '') + (c.calculation.group_by ? '<br><span class="c-pkey">group_by:</span> ' + esc(JSON.stringify(c.calculation.group_by)) : '')
+      : '—';
+
+    const tr = el('tr');
+    tr.className = 'data-row';
+    tr.dataset.vtype = 'object';
+    tr.dataset.search = (name + ' ' + aliases + ' ' + nullStrat + ' ' + calcMethod).toLowerCase();
+    tr.innerHTML = `
+      <td class="c-pkey">${i + 1}</td>
+      <td class="c-key" style="white-space:nowrap">${esc(name)}</td>
+      <td><span class="tag tag-${c.data_type || 'string'}">${esc(c.data_type || '—')}</span></td>
+      <td style="text-align:center">${c.required ? '<span style="color:var(--danger)">✓</span>' : '<span class="c-pkey">—</span>'}</td>
+      <td style="text-align:center">${c.allow_null === false ? '<span style="color:var(--danger)">no</span>' : '<span style="color:var(--muted)">yes</span>'}</td>
+      <td style="text-align:center">${c.is_calculated ? '<span style="color:var(--warn)">⟳</span>' : '<span class="c-pkey">—</span>'}</td>
+      <td style="text-align:center">${c.create_if_missing ? '<span style="color:var(--success)">yes</span>' : '<span class="c-pkey">—</span>'}</td>
+      <td class="val-str">${esc(defVal)}</td>
+      <td><span style="color:var(--accent3);font-size:11px">${esc(nullStrat)}</span></td>
+      <td><span style="color:var(--accent2);font-size:11px">${esc(calcMethod)}</span></td>
+      <td class="c-pkey" style="font-size:11px;word-break:break-all">${esc(String(calcSrc || '—'))}</td>
+      <td class="c-pkey" style="font-size:11px;max-width:220px;word-break:break-word">${esc(aliases) || '—'}</td>
+      <td style="font-size:11px;line-height:1.8">${val}</td>
+      <td style="font-size:11px;color:var(--accent3)">${c.schema_reference ? esc(c.schema_reference) : '—'}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:240px;line-height:1.7">${nhd}</td>
+      <td style="font-size:11px;color:var(--muted);max-width:240px;line-height:1.7">${cd}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ── 4. Mappings ───────────────────────────────────────────────────────────────
+function buildMappingsTable(mappings) {
+  const wrap = div('tbl-wrap');
+  const table = el('table');
+  table.innerHTML = `<thead><tr><th>#</th><th style="min-width:120px">Code / Key</th><th style="min-width:260px">Alias / Mapped Value</th><th style="text-align:center">Alias #</th></tr></thead>`;
+  const tbody = el('tbody');
+  let idx = 1;
+
+  Object.entries(mappings).forEach(([code, vals]) => {
+    const aliases = Array.isArray(vals) ? vals : [vals];
+    aliases.forEach((alias, ai) => {
+      const tr = el('tr');
+      tr.className = 'data-row';
+      tr.dataset.vtype = 'string';
+      tr.dataset.search = (code + ' ' + alias).toLowerCase();
+      tr.innerHTML = `
+        <td class="c-pkey">${idx++}</td>
+        <td class="c-key">${esc(code)}</td>
+        <td class="val-str">${esc(String(alias))}</td>
+        <td class="c-num" style="text-align:center">${ai + 1} / ${aliases.length}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ── 5. Choices ────────────────────────────────────────────────────────────────
+function buildChoicesTable(choices) {
+  const wrap = div('tbl-wrap');
+  const table = el('table');
+  table.innerHTML = `<thead><tr><th>#</th><th style="min-width:200px">Choice Value</th><th>Char Length</th><th style="text-align:center">Has Spaces</th><th style="text-align:center">All Uppercase</th><th style="text-align:center">All Lowercase</th></tr></thead>`;
+  const tbody = el('tbody');
+
+  choices.forEach((c, i) => {
+    const s = String(c);
+    const tr = el('tr');
+    tr.className = 'data-row';
+    tr.dataset.vtype = 'string';
+    tr.dataset.search = s.toLowerCase();
+    tr.innerHTML = `
+      <td class="c-pkey">${i + 1}</td>
+      <td class="val-str">${esc(s)}</td>
+      <td class="c-num">${s.length}</td>
+      <td style="text-align:center">${/\s/.test(s) ? '<span style="color:var(--warn)">yes</span>' : '<span class="c-pkey">no</span>'}</td>
+      <td style="text-align:center">${s === s.toUpperCase() && /[A-Z]/.test(s) ? '<span style="color:var(--success)">yes</span>' : '<span class="c-pkey">no</span>'}</td>
+      <td style="text-align:center">${s === s.toLowerCase() ? '<span style="color:var(--accent3)">yes</span>' : '<span class="c-pkey">no</span>'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ── 6. Generic dict (document_types / tools / workflows) ─────────────────────
+function buildDictTable(dict) {
+  const wrap = div('tbl-wrap');
+  const allSubKeys = new Set();
+  Object.values(dict).forEach(v => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) Object.keys(v).forEach(k => allSubKeys.add(k));
+  });
+  const subKeys = [...allSubKeys];
+
+  const table = el('table');
+  table.innerHTML = `<thead><tr><th>#</th><th style="min-width:180px">ID / Name</th>${subKeys.map(k => `<th style="min-width:140px">${esc(k)}</th>`).join('')}</tr></thead>`;
+  const tbody = el('tbody');
+
+  Object.entries(dict).forEach(([id, entry], i) => {
+    const tr = el('tr');
+    tr.className = 'data-row';
+    tr.dataset.vtype = 'object';
+    tr.dataset.search = id.toLowerCase();
+    tr.innerHTML = `
+      <td class="c-pkey">${i + 1}</td>
+      <td class="c-key">${esc(id)}</td>
+      ${subKeys.map(k => {
+        const v = entry ? entry[k] : undefined;
+        if (v === undefined) return `<td class="c-pkey">—</td>`;
+        if (Array.isArray(v)) return `<td style="font-size:11px;color:var(--muted);line-height:1.7">${v.map(x => esc(String(x))).join('<br>')}</td>`;
+        if (typeof v === 'object') return `<td style="font-size:11px;color:var(--accent3)">${esc(Object.keys(v).join(', '))}</td>`;
+        return `<td class="val-str" style="font-size:12px">${esc(String(v))}</td>`;
+      }).join('')}
+    `;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ── 7. Schema map ─────────────────────────────────────────────────────────────
+function buildSchemaMap(schema) {
+  const wrap = div('tbl-wrap');
+  const table = el('table');
+  table.innerHTML = `<thead><tr><th>#</th><th style="min-width:200px">Standard Column Name</th><th style="min-width:260px">Source Alias</th><th style="text-align:center">Alias Index</th></tr></thead>`;
+  const tbody = el('tbody');
+  let idx = 1;
+
+  Object.entries(schema).forEach(([std, aliases]) => {
+    const list = Array.isArray(aliases) ? aliases : [aliases];
+    list.forEach((alias, ai) => {
+      const tr = el('tr');
+      tr.className = 'data-row';
+      tr.dataset.vtype = 'string';
+      tr.dataset.search = (std + ' ' + alias).toLowerCase();
+      tr.innerHTML = `
+        <td class="c-pkey">${idx++}</td>
+        <td class="c-key">${esc(std)}</td>
+        <td class="val-str">${esc(String(alias))}</td>
+        <td class="c-num" style="text-align:center">${ai}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ── 8. Parameters ─────────────────────────────────────────────────────────────
+function buildParamsTable(params) {
+  const wrap = div('tbl-wrap');
+  const table = el('table');
+  table.innerHTML = `<thead><tr><th>#</th><th style="min-width:220px">Parameter</th><th style="min-width:80px">Type</th><th style="min-width:300px">Value</th></tr></thead>`;
+  const tbody = el('tbody');
+
+  Object.entries(params).forEach(([k, v], i) => {
+    const t = vtype(v);
+    const tr = el('tr');
+    tr.className = 'data-row';
+    tr.dataset.vtype = t;
+    tr.dataset.search = (k + ' ' + String(v)).toLowerCase();
+    tr.innerHTML = `
+      <td class="c-pkey">${i + 1}</td>
+      <td class="c-key">${esc(k)}</td>
+      <td><span class="tag tag-${t}">${t}</span></td>
+      <td>${renderVal(v, t)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ── 9. Raw JSON ───────────────────────────────────────────────────────────────
+function buildRaw(data) {
+  const wrap = div('json-raw');
+  wrap.innerHTML = syntaxHL(JSON.stringify(data, null, 2));
+  return wrap;
+}
+
+function syntaxHL(json) {
+  return esc(json)
+    .replace(/"((?:[^"\\]|\\.)*)"\s*:/g, '<span class="jk">"$1"</span>:')
+    .replace(/:\s*"((?:[^"\\]|\\.)*)"/g, ': <span class="jv">"$1"</span>')
+    .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="jn">$1</span>')
+    .replace(/:\s*(true|false)/g, ': <span class="jb">$1</span>')
+    .replace(/:\s*(null)/g, ': <span class="jx">$1</span>');
+}
+
+// ── Filter / search ───────────────────────────────────────────────────────────
+function applyFilters() {
+  const q = (document.getElementById('search-input').value || '').toLowerCase();
+  const panel = document.querySelector('.panel.active');
+  if (!panel) return;
+  panel.querySelectorAll('.data-row').forEach(tr => {
+    const typeMatch   = activeFilter === 'all' || tr.dataset.vtype === activeFilter;
+    const searchMatch = !q || (tr.dataset.search || tr.textContent.toLowerCase()).includes(q);
+    tr.style.display  = typeMatch && searchMatch ? '' : 'none';
+  });
+}
+
+// ── Value renderers ───────────────────────────────────────────────────────────
+function renderVal(v, t, maxLen) {
+  if (t === 'null')    return `<span class="val-null">null</span>`;
+  if (t === 'boolean') return `<span class="${v ? 'val-bool-t' : 'val-bool-f'}">${v}</span>`;
+  if (t === 'number')  return `<span class="val-num">${v}</span>`;
+  if (t === 'string') {
+    const s = maxLen && v.length > maxLen ? v.substring(0, maxLen) + '…' : v;
+    return `<span class="val-str">${esc(s)}</span>`;
+  }
+  if (t === 'array') {
+    if (!v.length) return `<span class="val-arr">[] empty</span>`;
+    const prim = v.every(x => typeof x !== 'object' || x === null);
+    if (prim && v.length <= 10)
+      return `<span class="val-arr">[</span> ` + v.map(x => `<span class="val-str">${esc(String(x))}</span>`).join(', ') + ` <span class="val-arr">]</span>`;
+    return `<span class="tag tag-array">[${v.length} items]</span>`;
+  }
+  if (t === 'object') {
+    const keys = Object.keys(v);
+    if (!keys.length) return `<span class="val-arr">{} empty</span>`;
+    return `<span class="tag tag-object">{${keys.length} keys}</span> <span class="c-pkey" style="font-size:11px">${keys.slice(0, 5).map(esc).join(', ')}${keys.length > 5 ? '…' : ''}</span>`;
+  }
+  return esc(String(v));
+}
+
+function valText(row) {
+  const v = row.value, t = row.vtype;
+  if (t === 'null' || t === 'boolean' || t === 'number') return String(v);
+  if (t === 'string') return v;
+  if (t === 'array')  return v.join(' ');
+  if (t === 'object') return Object.keys(v).join(' ');
+  return '';
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function el(tag) { return document.createElement(tag); }
+function div(cls) { const d = el('div'); d.className = cls; return d; }
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtSize(b) {
+  if (!b && b !== 0) return '?';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+function infoBox(msg, type) {
+  const d = div('info-box ' + type);
+  d.textContent = msg;
+  return d;
+}
+function showErr(msg) {
+  document.getElementById('welcome-panel').classList.add('hidden');
+  document.getElementById('file-view').classList.add('visible');
+  document.getElementById('panels').innerHTML = '';
+  document.getElementById('panels').appendChild(infoBox(msg, 'err'));
+}
+</script>
+</body>
+</html>
