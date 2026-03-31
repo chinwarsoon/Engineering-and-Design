@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DCC · JSON Schema Inspector</title>
+<title>JSON Schema Inspector</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -93,6 +93,202 @@ header {
   display: flex; flex-direction: column; gap: 10px;
   flex-shrink: 0;
 }
+.file-list {
+  overflow-y: auto;
+  padding: 8px 0;
+  min-height: 140px;
+  flex-shrink: 0;
+}
+.key-tree-container {
+  border-top: 1px solid var(--border);
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.key-tree-container.visible { display: flex; }
+.key-tree-header {
+  padding: 10px 16px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.key-tree-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--muted);
+  letter-spacing: .15em; text-transform: uppercase;
+  font-weight: 700;
+}
+.key-tree-actions {
+  display: flex; gap: 5px;
+}
+.key-tree-btn {
+  background: var(--tag-bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.key-tree-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.key-tree {
+  padding: 8px 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.tree-node {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.tree-node-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px 5px 12px;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text);
+  border-left: 2px solid transparent;
+  transition: all .12s;
+  user-select: none;
+}
+.tree-node-inner:hover {
+  background: var(--surface2);
+  border-left-color: rgba(79,255,176,.4);
+}
+.tree-node-inner.selected {
+  background: rgba(79,255,176,.07);
+  border-left-color: var(--accent);
+}
+.tree-toggle {
+  width: 16px; height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: transform .15s;
+}
+.tree-toggle.expanded {
+  transform: rotate(90deg);
+}
+.tree-toggle.hidden-node {
+  visibility: hidden;
+}
+.tree-key {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-type {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  opacity: .7;
+}
+.tree-type.object { background: rgba(123,140,222,.2); color: var(--accent3); }
+.tree-type.array { background: rgba(255,165,2,.2); color: var(--warn); }
+.tree-children {
+  display: none;
+  padding-left: 14px;
+}
+.tree-children.expanded {
+  display: block;
+}
+.kv-header {
+  padding: 8px 18px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.kv-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--muted);
+  letter-spacing: .15em; text-transform: uppercase;
+  font-weight: 700;
+}
+.kv-path {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--accent3);
+  background: var(--tag-bg);
+  padding: 2px 8px;
+  border-radius: 3px;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kv-content {
+  padding: 12px 18px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.kv-empty {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 0;
+}
+.kv-table {
+  width: 100%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  border-collapse: collapse;
+}
+.kv-table th {
+  text-align: left;
+  padding: 6px 10px;
+  color: var(--accent);
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.kv-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(37,42,56,.45);
+  vertical-align: top;
+  word-break: break-word;
+}
+.kv-table tr:last-child td {
+  border-bottom: none;
+}
+.kv-table tr:hover td {
+  background: rgba(79,255,176,.016);
+}
+.kv-key {
+  color: var(--accent);
+  font-weight: 600;
+  min-width: 140px;
+}
+.kv-value {
+  color: var(--text);
+}
+.kv-type {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  display: inline-block;
+}
 .sidebar-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px; color: var(--muted);
@@ -124,7 +320,6 @@ header {
   border: 1px solid var(--border); border-radius: 4px;
   display: none;
 }
-.file-list { flex: 1; overflow-y: auto; padding: 8px 0; }
 .file-item {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 16px; cursor: pointer;
@@ -222,9 +417,65 @@ header {
   background: var(--tag-bg); color: var(--muted); font-size: 10px;
 }
 .tab.active .tab-badge { background: rgba(79,255,176,.15); color: var(--accent); }
-.panels { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
-.panel { display: none; flex: 1; overflow: auto; }
+.tab-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: 6px; padding: 0 4px;
+  border-radius: 4px; font-size: 14px; line-height: 1;
+  color: var(--muted); opacity: .6;
+  transition: all .12s;
+}
+.tab-close:hover {
+  opacity: 1; color: var(--danger); background: rgba(255,71,87,.1);
+}
+.tab.active .tab-close { opacity: .8; }
+.tab.active .tab-close:hover { opacity: 1; }
+.panels-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.panels {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.panel { display: none; flex: 1; overflow: auto; min-height: 0; }
 .panel.active { display: block; }
+.kv-detail-panel {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  display: none;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 120px;
+}
+.kv-detail-panel.visible {
+  display: flex;
+}
+.kv-resize-handle {
+  height: 8px;
+  cursor: ns-resize;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.kv-resize-handle:hover {
+  background: var(--border);
+}
+.kv-resize-handle::after {
+  content: '⋮⋮';
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 2px;
+}
 /* Tables */
 .tbl-wrap { }
 table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
@@ -300,7 +551,7 @@ tr:hover td { background: rgba(79,255,176,.016); }
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-top">
-      <div class="sidebar-label">dcc / config / schemas</div>
+      <div class="sidebar-label">.. / config / schemas</div>
       <button class="btn btn-primary" id="open-folder-btn">📂 Open schemas folder</button>
       <button class="btn btn-secondary" id="open-file-btn">📄 Open single JSON file</button>
       <div class="folder-path" id="folder-path"></div>
@@ -309,6 +560,16 @@ tr:hover td { background: rgba(79,255,176,.016); }
       <div class="sidebar-empty">
         Open <strong>config/schemas</strong> folder or a single JSON file to begin.
       </div>
+    </div>
+    <div class="key-tree-container" id="key-tree-container">
+      <div class="key-tree-header">
+        <span class="key-tree-title">Key Explorer</span>
+        <div class="key-tree-actions">
+          <button class="key-tree-btn" id="expand-all-btn" title="Expand all">⤢</button>
+          <button class="key-tree-btn" id="collapse-all-btn" title="Collapse all">⤡</button>
+        </div>
+      </div>
+      <div class="key-tree" id="key-tree"></div>
     </div>
   </aside>
 
@@ -331,7 +592,19 @@ tr:hover td { background: rgba(79,255,176,.016); }
         <div class="filter-btns" id="filter-btns"></div>
       </div>
       <div class="tabs" id="tabs"></div>
-      <div class="panels" id="panels"></div>
+      <div class="panels-container">
+        <div class="panels" id="panels"></div>
+        <div class="kv-resize-handle" id="kv-resize-handle"></div>
+        <div class="kv-detail-panel" id="kv-detail-panel">
+          <div class="kv-header">
+            <span class="kv-title">Key-Value Details</span>
+            <span class="kv-path" id="kv-path"></span>
+          </div>
+          <div class="kv-content" id="kv-content">
+            <div class="kv-empty">Select a key from the Key Explorer to view details</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -342,6 +615,43 @@ tr:hover td { background: rgba(79,255,176,.016); }
 // ── State ─────────────────────────────────────────────────────────────────────
 let activeFilter = 'all';
 let allFlatRows  = [];
+let currentJsonData = null;
+let selectedKeyPath = null;
+let selectedKeyValue = null;
+let dynamicTabs = new Map(); // Map<pathStr, {id, label, count}>
+let dynamicTabCounter = 0;
+let activeDynamicTabId = null; // Track currently active dynamic tab
+
+// ── Resize Handler ────────────────────────────────────────────────────────────
+let isResizing = false;
+let resizeStartY = 0;
+let resizeStartHeight = 0;
+
+document.getElementById('kv-resize-handle').addEventListener('mousedown', (e) => {
+  isResizing = true;
+  resizeStartY = e.clientY;
+  const kvPanel = document.getElementById('kv-detail-panel');
+  resizeStartHeight = kvPanel.offsetHeight;
+  document.body.style.cursor = 'ns-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isResizing) return;
+  const deltaY = resizeStartY - e.clientY;
+  const newHeight = Math.max(120, Math.min(resizeStartHeight + deltaY, window.innerHeight * 0.6));
+  const kvPanel = document.getElementById('kv-detail-panel');
+  kvPanel.style.height = newHeight + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+});
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 const hasFS = 'showDirectoryPicker' in window;
@@ -430,9 +740,16 @@ function renderAll(data, entry) {
   const view = document.getElementById('file-view');
   view.classList.add('visible');
 
+  // Store current data
+  currentJsonData = data;
+  selectedKeyPath = null;
+
   // Flatten everything
   allFlatRows = [];
   flatten(data, '(root)', [], allFlatRows, 0);
+
+  // Build key tree
+  buildKeyTree(data);
 
   renderStats(data, entry, allFlatRows);
   renderToolbar(entry, allFlatRows);
@@ -491,6 +808,265 @@ function renderFilters(rows) {
   });
 }
 
+// ── Key Tree ──────────────────────────────────────────────────────────────────
+function buildKeyTree(data) {
+  const container = document.getElementById('key-tree-container');
+  const treeEl = document.getElementById('key-tree');
+  
+  if (typeof data !== 'object' || data === null) {
+    container.classList.remove('visible');
+    return;
+  }
+  
+  container.classList.add('visible');
+  treeEl.innerHTML = '';
+  
+  const rootNode = buildTreeNode(data, [], '(root)', true);
+  treeEl.appendChild(rootNode);
+  
+  // Setup expand/collapse buttons
+  document.getElementById('expand-all-btn').onclick = () => expandCollapseAll(treeEl, true);
+  document.getElementById('collapse-all-btn').onclick = () => expandCollapseAll(treeEl, false);
+}
+
+function buildTreeNode(node, pathArr, pathStr, isRoot = false) {
+  const t = vtype(node);
+  const li = document.createElement('li');
+  li.className = 'tree-node';
+  
+  const hasChildren = t === 'object' || t === 'array';
+  
+  // Create node inner
+  const inner = document.createElement('div');
+  inner.className = 'tree-node-inner';
+  if (isRoot) inner.classList.add('selected');
+  
+  // Toggle arrow
+  const toggle = document.createElement('span');
+  toggle.className = 'tree-toggle' + (hasChildren ? '' : ' hidden-node');
+  toggle.textContent = '▶';
+  inner.appendChild(toggle);
+  
+  // Key name
+  const keySpan = document.createElement('span');
+  keySpan.className = 'tree-key';
+  keySpan.textContent = isRoot ? '(root)' : pathArr[pathArr.length - 1];
+  inner.appendChild(keySpan);
+  
+  // Type badge (only for objects and arrays)
+  if (t === 'object' || t === 'array') {
+    const typeBadge = document.createElement('span');
+    typeBadge.className = 'tree-type ' + t;
+    typeBadge.textContent = t === 'object' ? '{}' : '[]';
+    inner.appendChild(typeBadge);
+  }
+  
+  li.appendChild(inner);
+  
+  // Create children container
+  if (hasChildren) {
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = 'tree-children';
+    
+    if (t === 'object') {
+      Object.entries(node).forEach(([key, value]) => {
+        const childPath = [...pathArr, key];
+        const childPathStr = pathStr === '(root)' ? key : pathStr + '.' + key;
+        const childNode = buildTreeNode(value, childPath, childPathStr);
+        childrenContainer.appendChild(childNode);
+      });
+    } else if (t === 'array') {
+      node.forEach((value, index) => {
+        const childPath = [...pathArr, '[' + index + ']'];
+        const childPathStr = pathStr + '[' + index + ']';
+        const childNode = buildTreeNode(value, childPath, childPathStr);
+        childrenContainer.appendChild(childNode);
+      });
+    }
+    
+    li.appendChild(childrenContainer);
+
+    // Toggle expand/collapse on toggle click only
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+
+      if (hasChildren) {
+        const isExpanded = childrenContainer.classList.contains('expanded');
+        if (isExpanded) {
+          childrenContainer.classList.remove('expanded');
+          toggle.classList.remove('expanded');
+        } else {
+          childrenContainer.classList.add('expanded');
+          toggle.classList.add('expanded');
+        }
+      }
+    });
+
+    // Handle selection and detail panel on key click
+    inner.addEventListener('click', (e) => {
+      // Don't trigger if clicking the toggle
+      if (e.target === toggle || toggle.contains(e.target)) {
+        return;
+      }
+
+      e.stopPropagation();
+
+      // Handle selection
+      document.querySelectorAll('.tree-node-inner').forEach(n => n.classList.remove('selected'));
+      inner.classList.add('selected');
+
+      // Update key-value detail panel
+      selectedKeyPath = pathStr;
+      selectedKeyValue = node;
+      updateKVDetailPanel(pathStr, node, t);
+      
+      // Create new dynamic tab for objects/arrays
+      if (t === 'object' || t === 'array') {
+        createOrUpdateDynamicTab(pathStr, node, t);
+      }
+    });
+
+    // Auto-expand root
+    if (isRoot) {
+      childrenContainer.classList.add('expanded');
+      toggle.classList.add('expanded');
+    }
+  } else {
+    // Leaf node click handler
+    inner.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.tree-node-inner').forEach(n => n.classList.remove('selected'));
+      inner.classList.add('selected');
+
+      // Update key-value detail panel
+      selectedKeyPath = pathStr;
+      selectedKeyValue = node;
+      updateKVDetailPanel(pathStr, node, t);
+    });
+  }
+  
+  return li;
+}
+
+function updateKVDetailPanel(path, value, valueType) {
+  const panel = document.getElementById('kv-detail-panel');
+  const pathEl = document.getElementById('kv-path');
+  const contentEl = document.getElementById('kv-content');
+
+  panel.classList.add('visible');
+  pathEl.textContent = path;
+
+  // Build detail table
+  contentEl.innerHTML = '';
+  const table = document.createElement('table');
+  table.className = 'kv-table';
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th style="min-width:100px">Property</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="kv-key">Key / Path</td>
+        <td class="kv-value">${esc(path)}</td>
+      </tr>
+      <tr>
+        <td class="kv-key">Type</td>
+        <td class="kv-value"><span class="tag tag-${valueType}">${valueType}</span></td>
+      </tr>
+      <tr>
+        <td class="kv-key">Value</td>
+        <td class="kv-value">${renderVal(value, valueType, 200)}</td>
+      </tr>
+    </tbody>
+  `;
+
+  // Add extra info for objects and arrays
+  if (valueType === 'object' && value !== null) {
+    const keys = Object.keys(value);
+    const extraRow = document.createElement('tr');
+    extraRow.innerHTML = `
+      <td class="kv-key">Keys (${keys.length})</td>
+      <td class="kv-value">${keys.length ? keys.map(k => `<span class="tag tag-string" style="margin:1px 3px;display:inline-block">${esc(k)}</span>`).join('') : '<span class="kv-type" style="color:var(--muted)">none</span>'}</td>
+    `;
+    table.querySelector('tbody').appendChild(extraRow);
+  }
+
+  if (valueType === 'array') {
+    const len = value.length;
+    const preview = value.slice(0, 10);
+    const extraRow = document.createElement('tr');
+    extraRow.innerHTML = `
+      <td class="kv-key">Length</td>
+      <td class="kv-value"><span class="tag tag-number">${len} items</span>${len > 10 ? ' <span class="kv-type" style="color:var(--muted)">(showing first 10)</span>' : ''}</td>
+    `;
+    table.querySelector('tbody').appendChild(extraRow);
+
+    const previewRow = document.createElement('tr');
+    previewRow.innerHTML = `
+      <td class="kv-key">Preview</td>
+      <td class="kv-value">${preview.map((v, i) => `[${i}]: ${renderVal(v, vtype(v), 80)}`).join('<br>')}</td>
+    `;
+    table.querySelector('tbody').appendChild(previewRow);
+  }
+
+  // Add raw JSON for complex types
+  if (valueType === 'object' || valueType === 'array') {
+    const rawRow = document.createElement('tr');
+    const rawJson = JSON.stringify(value, null, 2);
+    const previewJson = rawJson.length > 500 ? rawJson.substring(0, 500) + '...' : rawJson;
+    rawRow.innerHTML = `
+      <td class="kv-key">Raw JSON</td>
+      <td class="kv-value"><pre style="margin:0;padding:8px;background:var(--tag-bg);border-radius:4px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-word">${esc(previewJson)}</pre></td>
+    `;
+    table.querySelector('tbody').appendChild(rawRow);
+  }
+
+  contentEl.appendChild(table);
+}
+
+function expandCollapseAll(treeEl, expand) {
+  treeEl.querySelectorAll('.tree-children').forEach(el => {
+    el.classList.toggle('expanded', expand);
+  });
+  treeEl.querySelectorAll('.tree-toggle:not(.hidden-node)').forEach(el => {
+    el.classList.toggle('expanded', expand);
+  });
+}
+
+function getValueByPath(data, pathStr) {
+  if (pathStr === '(root)') return { value: data, type: vtype(data) };
+  const parts = pathStr.split(/\.|\[/).filter(p => p !== '');
+  let current = data;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i].replace(']', '');
+    if (current === null || current === undefined) return null;
+    if (!isNaN(part)) {
+      current = current[parseInt(part)];
+    } else {
+      current = current[part];
+    }
+  }
+  return { value: current, type: vtype(current) };
+}
+
+function highlightTreeNode(pathStr) {
+  // Find and highlight the matching tree node
+  document.querySelectorAll('.tree-node-inner').forEach(inner => {
+    const keySpan = inner.querySelector('.tree-key');
+    if (keySpan && keySpan.textContent === pathStr) {
+      document.querySelectorAll('.tree-node-inner').forEach(n => n.classList.remove('selected'));
+      inner.classList.add('selected');
+      
+      // Scroll into view
+      inner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
+}
+
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 function renderTabs(data, rows) {
   const tabsEl   = document.getElementById('tabs');
@@ -498,21 +1074,46 @@ function renderTabs(data, rows) {
   tabsEl.innerHTML = '';
   panelsEl.innerHTML = '';
 
-  const addTab = (id, label, count, builder) => {
+  // Clear dynamic tabs on new file load
+  dynamicTabs.clear();
+  dynamicTabCounter = 0;
+  activeDynamicTabId = null;
+
+  const addTab = (id, label, count, builder, isDynamic = false) => {
     const tab = document.createElement('button');
     tab.className = 'tab';
     tab.dataset.id = id;
-    tab.innerHTML = label + (count != null ? `<span class="tab-badge">${count}</span>` : '');
+    
+    const badgeHtml = count != null ? `<span class="tab-badge">${count}</span>` : '';
+    const closeHtml = isDynamic ? `<span class="tab-close" title="Close tab">×</span>` : '';
+    tab.innerHTML = label + badgeHtml + closeHtml;
 
     const panel = document.createElement('div');
     panel.className = 'panel';
     panel.dataset.id = id;
 
-    tab.addEventListener('click', () => {
+    tab.addEventListener('click', (e) => {
+      // Handle close button click
+      if (e.target.classList.contains('tab-close')) {
+        e.stopPropagation();
+        if (isDynamic) {
+          removeDynamicTab(id);
+        }
+        return;
+      }
+
       tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
       panelsEl.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       panel.classList.add('active');
+      
+      // Track active dynamic tab
+      if (isDynamic) {
+        activeDynamicTabId = id;
+      } else {
+        activeDynamicTabId = null;
+      }
+      
       if (!panel._built) { panel.appendChild(builder()); panel._built = true; }
       applyFilters();
     });
@@ -528,30 +1129,272 @@ function renderTabs(data, rows) {
   const topCount = typeof data === 'object' && data !== null ? Object.keys(data).length : 0;
   addTab('top', 'Top-Level Keys', topCount, () => buildTopTable(data));
 
-  // Schema-specific tabs
-  if (data.enhanced_schema && data.enhanced_schema.columns) {
-    const cols = Object.entries(data.enhanced_schema.columns);
-    addTab('cols', 'Columns Detail', cols.length, () => buildColumnsTable(cols));
-  }
-  if (data.mappings && typeof data.mappings === 'object') {
-    const total = Object.values(data.mappings).reduce((s, v) => s + (Array.isArray(v) ? v.length : 1), 0);
-    addTab('map', 'Mappings', total, () => buildMappingsTable(data.mappings));
-  }
-  if (data.choices && Array.isArray(data.choices)) {
-    addTab('cho', 'Choices', data.choices.length, () => buildChoicesTable(data.choices));
-  }
-  if (data.document_types) addTab('dt', 'Document Types', Object.keys(data.document_types).length, () => buildDictTable(data.document_types));
-  if (data.tools)          addTab('tl', 'Tools', Object.keys(data.tools).length, () => buildDictTable(data.tools));
-  if (data.workflows)      addTab('wf', 'Workflows', Object.keys(data.workflows).length, () => buildDictTable(data.workflows));
-  if (data.schema)         addTab('sm', 'Schema Map', null, () => buildSchemaMap(data.schema));
-  if (data.row_mapping)    addTab('rm', 'Row Mapping', null, () => buildMappingsTable(data.row_mapping));
-  if (data.parameters)     addTab('pm', 'Parameters', Object.keys(data.parameters).length, () => buildParamsTable(data.parameters));
-
   // Raw JSON
   addTab('raw', 'Raw JSON', null, () => buildRaw(data));
 
   // Activate first tab
   tabsEl.querySelector('.tab').click();
+}
+
+// ── Dynamic Tabs for Nested Keys ─────────────────────────────────────────────
+function createOrUpdateDynamicTab(pathStr, value, valueType) {
+  if (pathStr === '(root)' || valueType === 'null') return;
+  if (valueType !== 'object' && valueType !== 'array') return;
+  
+  const tabsEl = document.getElementById('tabs');
+  const panelsEl = document.getElementById('panels');
+  
+  // Check if tab already exists
+  if (dynamicTabs.has(pathStr)) {
+    // Activate existing tab
+    const existingTab = tabsEl.querySelector(`.tab[data-path="${pathStr}"]`);
+    if (existingTab) {
+      existingTab.click();
+    }
+    return;
+  }
+
+  // Create new dynamic tab
+  dynamicTabCounter++;
+  const tabId = 'dynamic-' + dynamicTabCounter;
+  const shortPath = pathStr.length > 30 ? '...' + pathStr.slice(-27) : pathStr;
+  const itemCount = valueType === 'object' ? Object.keys(value).length : value.length;
+
+  const tab = document.createElement('button');
+  tab.className = 'tab';
+  tab.dataset.id = tabId;
+  tab.dataset.path = pathStr;
+  tab.dataset.dynamic = 'true';
+  tab.innerHTML = `📑 ${shortPath}<span class="tab-badge">${itemCount}</span><span class="tab-close" title="Close tab">×</span>`;
+
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.dataset.id = tabId;
+
+  tab.addEventListener('click', (e) => {
+    if (e.target.classList.contains('tab-close')) {
+      e.stopPropagation();
+      removeDynamicTab(tabId);
+      return;
+    }
+
+    tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    panelsEl.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    panel.classList.add('active');
+    
+    // Track active dynamic tab
+    activeDynamicTabId = tabId;
+    
+    if (!panel._built) {
+      panel.appendChild(buildNestedKeyTable(pathStr, value, valueType));
+      panel._built = true;
+    }
+    applyFilters();
+  });
+
+  tabsEl.appendChild(tab);
+  panelsEl.appendChild(panel);
+
+  // Store in map
+  dynamicTabs.set(pathStr, { id: tabId, label: shortPath, count: itemCount });
+
+  // Activate the new tab (which sets activeDynamicTabId)
+  tab.click();
+}
+
+function removeDynamicTab(tabId) {
+  const tabsEl = document.getElementById('tabs');
+  const panelsEl = document.getElementById('panels');
+  
+  // Find and remove tab
+  const tabToRemove = tabsEl.querySelector(`.tab[data-id="${tabId}"]`);
+  const panelToRemove = panelsEl.querySelector(`.panel[data-id="${tabId}"]`);
+  
+  if (tabToRemove) tabToRemove.remove();
+  if (panelToRemove) panelToRemove.remove();
+  
+  // Remove from map
+  const pathToRemove = [...dynamicTabs.entries()].find(([_, v]) => v.id === tabId);
+  if (pathToRemove) {
+    dynamicTabs.delete(pathToRemove[0]);
+  }
+  
+  // If removed tab was active, activate first tab
+  if (tabToRemove && tabToRemove.classList.contains('active')) {
+    const firstTab = tabsEl.querySelector('.tab');
+    if (firstTab) firstTab.click();
+  }
+}
+
+function updateActiveDynamicTab(pathStr, value, valueType) {
+  if (!activeDynamicTabId) return;
+  
+  const tabsEl = document.getElementById('tabs');
+  const panelsEl = document.getElementById('panels');
+  
+  // Find the active dynamic tab
+  const activeTab = tabsEl.querySelector(`.tab[data-id="${activeDynamicTabId}"]`);
+  const activePanel = panelsEl.querySelector(`.panel[data-id="${activeDynamicTabId}"]`);
+  
+  if (!activeTab || !activePanel) return;
+  
+  // Update tab label and badge
+  const shortPath = pathStr.length > 30 ? '...' + pathStr.slice(-27) : pathStr;
+  const itemCount = valueType === 'object' ? Object.keys(value).length : value.length;
+  activeTab.dataset.path = pathStr;
+  activeTab.innerHTML = `📑 ${shortPath}<span class="tab-badge">${itemCount}</span><span class="tab-close" title="Close tab">×</span>`;
+  
+  // Update the map
+  const oldEntry = [...dynamicTabs.entries()].find(([_, v]) => v.id === activeDynamicTabId);
+  if (oldEntry) {
+    dynamicTabs.delete(oldEntry[0]);
+  }
+  dynamicTabs.set(pathStr, { id: activeDynamicTabId, label: shortPath, count: itemCount });
+  
+  // Rebuild panel content
+  activePanel.innerHTML = '';
+  activePanel.appendChild(buildNestedKeyTable(pathStr, value, valueType));
+  activePanel._built = true;
+}
+
+function buildNestedKeyTable(pathStr, value, valueType) {
+  const wrap = document.createElement('div');
+  wrap.className = 'tbl-wrap';
+  wrap.dataset.tabPath = pathStr; // Store current path for tab updates
+
+  const table = document.createElement('table');
+  table.innerHTML = `<thead><tr>
+    <th style="min-width:38px">#</th>
+    <th style="min-width:200px">Key / Path</th>
+    <th style="min-width:100px">Type</th>
+    <th style="min-width:80px">Size</th>
+    <th style="min-width:200px">Value / Preview</th>
+    <th style="min-width:200px">Sub-keys</th>
+  </tr></thead>`;
+
+  const tbody = document.createElement('tbody');
+
+  const entries = valueType === 'object' ? Object.entries(value) : value.map((v, i) => [`[${i}]`, v]);
+
+  entries.forEach(([key, val], i) => {
+    const t = vtype(val);
+    const fullPath = pathStr === '(root)' ? key : pathStr + '.' + key;
+    const size = t === 'object' ? Object.keys(val).length + ' keys'
+               : t === 'array'  ? val.length + ' items'
+               : t === 'string' ? val.length + ' chars' : '—';
+    const preview = t === 'string' ? val.substring(0, 100) + (val.length > 100 ? '…' : '')
+                  : t === 'number' || t === 'boolean' || t === 'null' ? String(val)
+                  : t === 'array' ? val.slice(0,4).map(x => typeof x === 'object' ? '{…}' : String(x)).join(', ') + (val.length > 4 ? '…' : '')
+                  : Object.keys(val).slice(0, 4).join(', ') + (Object.keys(val).length > 4 ? '…' : '');
+    const subkeys = t === 'object'
+      ? Object.keys(val).slice(0, 5).map(sk => `<span class="tag tag-string" style="margin:1px 2px;display:inline-block">${esc(sk)}</span>`).join('')
+      : '—';
+
+    const tr = document.createElement('tr');
+    tr.className = 'data-row';
+    tr.dataset.vtype = t;
+    tr.dataset.search = (key + ' ' + preview).toLowerCase();
+    tr.dataset.path = fullPath;
+    tr.innerHTML = `
+      <td class="c-pkey">${i + 1}</td>
+      <td class="c-key">${esc(String(key))}</td>
+      <td><span class="tag tag-${t}">${t}</span></td>
+      <td class="c-num">${size}</td>
+      <td style="max-width:260px;word-break:break-word">${renderVal(val, t, 120)}</td>
+      <td style="max-width:300px;line-height:1.9">${subkeys}</td>
+    `;
+
+    tr.addEventListener('click', () => {
+      tbody.querySelectorAll('.data-row').forEach(r => r.style.background = '');
+      tr.style.background = 'rgba(79,255,176,.07)';
+
+      selectedKeyPath = fullPath;
+      selectedKeyValue = val;
+      updateKVDetailPanel(fullPath, val, t);
+      highlightTreeNode(fullPath);
+
+      // Update current dynamic tab instead of creating new one
+      if (t === 'object' || t === 'array') {
+        updateActiveDynamicTab(fullPath, val, t);
+      }
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  // Calculate parent path
+  const parentPath = getParentPath(pathStr);
+
+  // Add header with path and up arrow
+  const header = document.createElement('div');
+  header.style.cssText = 'padding:12px 18px;background:var(--surface2);border-bottom:1px solid var(--border);margin-bottom:1px;display:flex;align-items:center;justify-content:space-between;gap:12px;';
+
+  const headerLeft = document.createElement('div');
+  headerLeft.innerHTML = `
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;font-weight:700;margin-bottom:6px">Nested Key Details</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent3);">${esc(pathStr)}</div>
+    <div style="margin-top:8px">
+      <span class="tag tag-${valueType}">${valueType}</span>
+      <span class="tag tag-number" style="margin-left:6px">${valueType === 'object' ? Object.keys(value).length : value.length} ${valueType === 'object' ? 'keys' : 'items'}</span>
+    </div>
+  `;
+  
+  const headerRight = document.createElement('div');
+  if (parentPath !== null) {
+    const upBtn = document.createElement('button');
+    upBtn.className = 'btn-up';
+    upBtn.innerHTML = '⤴';
+    upBtn.title = 'Go to parent key: ' + parentPath;
+    upBtn.style.cssText = 'padding:6px 10px;background:var(--tag-bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);cursor:pointer;font-size:14px;transition:all .12s;';
+    upBtn.onmouseover = () => upBtn.style.cssText = 'padding:6px 10px;background:rgba(79,255,176,.1);border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer;font-size:14px;';
+    upBtn.onmouseout = () => upBtn.style.cssText = 'padding:6px 10px;background:var(--tag-bg);border:1px solid var(--border);border-radius:4px;color:var(--accent);cursor:pointer;font-size:14px;';
+    upBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const parentData = getValueByPath(currentJsonData, parentPath);
+      if (parentData.value !== undefined) {
+        selectedKeyPath = parentPath;
+        selectedKeyValue = parentData.value;
+        updateKVDetailPanel(parentPath, parentData.value, parentData.type);
+        highlightTreeNode(parentPath);
+        updateActiveDynamicTab(parentPath, parentData.value, parentData.type);
+      }
+    });
+    headerRight.appendChild(upBtn);
+  }
+  
+  header.appendChild(headerLeft);
+  header.appendChild(headerRight);
+  wrap.insertBefore(header, wrap.firstChild);
+
+  return wrap;
+}
+
+function getParentPath(pathStr) {
+  if (pathStr === '(root)' || !pathStr) return null;
+  
+  // Handle array indices like [0], [1], etc.
+  const lastDotIndex = pathStr.lastIndexOf('.');
+  const lastBracketIndex = pathStr.lastIndexOf('[');
+  
+  if (lastDotIndex === -1 && lastBracketIndex === -1) {
+    // Top-level key, parent is root
+    return '(root)';
+  }
+  
+  if (lastDotIndex > lastBracketIndex) {
+    // Last segment is object property (after a dot)
+    const parent = pathStr.substring(0, lastDotIndex);
+    return parent || '(root)';
+  } else {
+    // Last segment is array index
+    const parent = pathStr.substring(0, lastBracketIndex);
+    // Remove trailing dot if present
+    return parent.endsWith('.') ? parent.slice(0, -1) : (parent || '(root)');
+  }
 }
 
 // ── Flatten JSON ──────────────────────────────────────────────────────────────
@@ -606,6 +1449,7 @@ function buildFullTable(rows) {
     tr.className = 'data-row';
     tr.dataset.vtype = row.vtype;
     tr.dataset.search = (row.path + ' ' + row.key + ' ' + valText(row)).toLowerCase();
+    tr.dataset.path = row.path;
 
     tr.innerHTML = `
       <td class="c-pkey">${i}</td>
@@ -617,6 +1461,19 @@ function buildFullTable(rows) {
       <td style="max-width:420px">${renderVal(row.value, row.vtype)}</td>
       <td class="c-num" style="text-align:center">${row.childCount !== null ? row.childCount : '—'}</td>
     `;
+    tr.addEventListener('click', () => {
+      // Highlight in table
+      tbody.querySelectorAll('.data-row').forEach(r => r.style.background = '');
+      tr.style.background = 'rgba(79,255,176,.07)';
+      
+      // Update key-value detail panel
+      selectedKeyPath = row.path;
+      selectedKeyValue = row.value;
+      updateKVDetailPanel(row.path, row.value, row.vtype);
+      
+      // Highlight in tree
+      highlightTreeNode(row.path);
+    });
     tbody.appendChild(tr);
   });
 
@@ -665,6 +1522,15 @@ function buildTopTable(data) {
       <td style="max-width:260px;word-break:break-word">${renderVal(v, t, 120)}</td>
       <td style="max-width:300px;line-height:1.9">${subkeys}</td>
     `;
+    tr.addEventListener('click', () => {
+      tbody.querySelectorAll('.data-row').forEach(r => r.style.background = '');
+      tr.style.background = 'rgba(79,255,176,.07)';
+      
+      selectedKeyPath = k;
+      selectedKeyValue = v;
+      updateKVDetailPanel(k, v, t);
+      highlightTreeNode(k);
+    });
     tbody.appendChild(tr);
   });
 
