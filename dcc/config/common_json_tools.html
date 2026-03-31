@@ -1173,6 +1173,7 @@
   </div>
 
   <input type="file" id="file-input" accept=".json" style="display:none">
+  <input type="file" id="folder-input" webkitdirectory directory style="display:none">
 
   <script>
     // ── State ─────────────────────────────────────────────────────────────────────
@@ -1218,37 +1219,62 @@
 
     // ── Init ──────────────────────────────────────────────────────────────────────
     const hasFS = 'showDirectoryPicker' in window;
-    document.getElementById('api-chip').textContent = hasFS ? 'File System API ✓' : 'File API (single file only)';
-    if (hasFS) document.getElementById('api-chip').classList.add('ok');
-    else {
-      const fb = document.getElementById('open-folder-btn');
-      fb.disabled = true;
-      fb.style.opacity = '.4';
-      fb.title = 'showDirectoryPicker not available — use Chrome or Edge, or open single files.';
-    }
+    const apiChip = document.getElementById('api-chip');
+    apiChip.textContent = hasFS ? 'File System API ✓' : 'Folder Support (Compatible) ✓';
+    apiChip.classList.add('ok');
 
     // ── Open folder ───────────────────────────────────────────────────────────────
     document.getElementById('open-folder-btn').addEventListener('click', async () => {
-      try {
-        const dir = await window.showDirectoryPicker({ mode: 'read' });
-        const files = [];
-        for await (const [name, handle] of dir.entries()) {
-          if (handle.kind === 'file' && name.endsWith('.json')) {
-            const f = await handle.getFile();
-            files.push({ name, handle, size: f.size });
+      if (hasFS) {
+        try {
+          const dir = await window.showDirectoryPicker({ mode: 'read' });
+          const files = [];
+          for await (const [name, handle] of dir.entries()) {
+            if (handle.kind === 'file' && name.endsWith('.json')) {
+              const f = await handle.getFile();
+              files.push({ name, handle, size: f.size });
+            }
           }
+          files.sort((a, b) => a.name.localeCompare(b.name));
+
+          document.getElementById('folder-path').style.display = 'block';
+          document.getElementById('folder-path').textContent = '📁 ' + dir.name + '/';
+          document.getElementById('folder-chip').textContent = dir.name;
+          document.getElementById('folder-chip').classList.add('ok');
+
+          buildSidebar(files);
+        } catch (e) {
+          if (e.name !== 'AbortError') alert('Error: ' + e.message);
         }
-        files.sort((a, b) => a.name.localeCompare(b.name));
-
-        document.getElementById('folder-path').style.display = 'block';
-        document.getElementById('folder-path').textContent = '📁 ' + dir.name + '/';
-        document.getElementById('folder-chip').textContent = dir.name;
-        document.getElementById('folder-chip').classList.add('ok');
-
-        buildSidebar(files);
-      } catch (e) {
-        if (e.name !== 'AbortError') alert('Error: ' + e.message);
+      } else {
+        // Fallback for Firefox/Safari
+        document.getElementById('folder-input').click();
       }
+    });
+
+    document.getElementById('folder-input').addEventListener('change', async e => {
+      const selectedFiles = Array.from(e.target.files);
+      const jsonFiles = selectedFiles.filter(f => f.name.endsWith('.json'));
+      
+      if (!jsonFiles.length) {
+        alert('No .json files found in the selected folder.');
+        return;
+      }
+
+      const files = jsonFiles.map(f => ({ name: f.name, file: f, size: f.size }));
+      files.sort((a, b) => a.name.localeCompare(b.name));
+
+      // Attempt to get relative path for the folder name
+      const folderPath = jsonFiles[0].webkitRelativePath || '';
+      const folderName = folderPath.split('/')[0] || 'Selected Folder';
+
+      document.getElementById('folder-path').style.display = 'block';
+      document.getElementById('folder-path').textContent = '📁 ' + folderName + '/';
+      document.getElementById('folder-chip').textContent = folderName;
+      document.getElementById('folder-chip').classList.add('ok');
+
+      buildSidebar(files);
+      e.target.value = '';
     });
 
     // ── Open single file ──────────────────────────────────────────────────────────
@@ -1542,7 +1568,7 @@
       </tr>
       <tr>
         <td class="kv-key">Value</td>
-        <td class="kv-value">${renderVal(value, valueType, 200)}</td>
+        <td class="kv-value">${renderVal(value, valueType, 200, path.split('.').pop().split('[').pop().replace(/\]$/, ''))}</td>
       </tr>
     </tbody>
   `;
@@ -1936,7 +1962,7 @@
           <td class="c-key"><span class="fi-type-icon">${icon}</span>${esc(String(key))}</td>
           <td><span class="tag tag-${t}">${t}</span></td>
           <td class="c-num">${size}</td>
-          <td style="max-width:260px;word-break:break-word">${renderVal(val, t, 120)}</td>
+          <td style="max-width:260px;word-break:break-word">${renderVal(val, t, 120, key)}</td>
           <td style="max-width:300px;line-height:1.9">${subkeys}</td>
         `;
 
@@ -2048,7 +2074,7 @@
       <td class="c-pkey" style="max-width:140px;word-break:break-all">${esc(row.parentPath)}</td>
       <td class="c-num" style="text-align:center">${row.depth}</td>
       <td><span class="tag tag-${row.vtype}">${row.vtype}</span></td>
-      <td style="max-width:420px">${renderVal(row.value, row.vtype)}</td>
+      <td style="max-width:420px">${renderVal(row.value, row.vtype, null, row.key)}</td>
       <td class="c-num" style="text-align:center">${row.childCount !== null ? row.childCount : '—'}</td>
     `;
         tr.addEventListener('click', () => {
@@ -2109,7 +2135,7 @@
       <td class="c-key">${esc(k)}</td>
       <td><span class="tag tag-${t}">${t}</span></td>
       <td class="c-num">${size}</td>
-      <td style="max-width:260px;word-break:break-word">${renderVal(v, t, 120)}</td>
+      <td style="max-width:260px;word-break:break-word">${renderVal(v, t, 120, d.key)}</td>
       <td style="max-width:300px;line-height:1.9">${subkeys}</td>
     `;
         tr.addEventListener('click', () => {
@@ -2350,7 +2376,7 @@
       <td class="c-pkey">${i + 1}</td>
       <td class="c-key">${esc(k)}</td>
       <td><span class="tag tag-${t}">${t}</span></td>
-      <td>${renderVal(v, t)}</td>
+      <td>${renderVal(v, t, null, k)}</td>
     `;
         tbody.appendChild(tr);
       });
@@ -2389,12 +2415,13 @@
     }
 
     // ── Value renderers ───────────────────────────────────────────────────────────
-    function renderVal(v, t, maxLen) {
+    function renderVal(v, t, maxLen, k) {
       if (t === 'null') return `<span class="val-null">null</span>`;
       if (t === 'boolean') return `<span class="${v ? 'val-bool-t' : 'val-bool-f'}">${v}</span>`;
       if (t === 'number') return `<span class="val-num">${v}</span>`;
       if (t === 'string') {
-        const s = maxLen && v.length > maxLen ? v.substring(0, maxLen) + '…' : v;
+        const isDesc = k && String(k).toLowerCase() === 'description';
+        const s = (!isDesc && maxLen && v.length > maxLen) ? v.substring(0, maxLen) + '…' : v;
         return `<span class="val-str">${esc(s)}</span>`;
       }
       if (t === 'array') {

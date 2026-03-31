@@ -39,7 +39,7 @@
       "enabled": true,
       "missing_column_action": "create_with_default",
       "default_value": "NA",
-      "description": "Allow creation of schema columns if not found in data during processing"
+      "description": "Executed by _initialize_missing_columns. If a schema column is not found in the input data, it is created using the global or column-specific default value."
     }
   },
   "enhanced_schema": {
@@ -59,11 +59,11 @@
         "null_handling": {
           "strategy": "default_value",
           "default_value": "NA",
-          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
         },
         "validation": {
           "pattern": "^[A-Z0-9-]*$",
-          "description": "Project code identifier"
+          "description": "Validated by _apply_validation using regex pattern matching. Warns if identifier contains non-alphanumeric characters."
         }
       },
       "Facility_Code": {
@@ -80,11 +80,11 @@
         "null_handling": {
           "strategy": "default_value",
           "default_value": "NA",
-          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
         },
         "validation": {
           "pattern": "^[A-Z0-9-]*$",
-          "description": "Facility or project prefix"
+          "description": "Validated by _apply_validation using regex pattern matching. Warns if prefix contains non-alphanumeric characters."
         }
       },
       "Document_Type": {
@@ -102,7 +102,7 @@
         "null_handling": {
           "strategy": "default_value",
           "default_value": "NA",
-          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
         }
       },
       "Discipline": {
@@ -120,7 +120,7 @@
         "null_handling": {
           "strategy": "default_value",
           "default_value": "NA",
-          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
         }
       },
       "Document_Sequence_Number": {
@@ -137,11 +137,11 @@
         "null_handling": {
           "strategy": "default_value",
           "default_value": "NA",
-          "description": "Fill with NA for Document_ID calculation per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
         },
         "validation": {
           "pattern": "^[0-9]*$",
-          "description": "Document sequence number"
+          "description": "Validated by _apply_validation using regex pattern matching. Ensures only numeric characters are used."
         }
       },
       "Document_ID": {
@@ -167,7 +167,7 @@
           ],
           "format": "{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}",
           "fallback_source": "Document_ID",
-          "description": "Build Document_ID from components or use existing Document_ID"
+          "description": "Calculated via _apply_composite_calculation with method build_document_id. Concatenates identifiers using the defined format string."
         },
         "null_handling": {
           "strategy": "calculate_if_null",
@@ -182,12 +182,12 @@
             ],
             "format": "{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}",
             "fallback_value": "UNKNOWN-DOC-ID",
-            "description": "Generate Document_ID if null"
+            "description": "Processed by _apply_calculate_if_null. Re-runs the composite builder if the document has no valid identifier."
           }
         },
         "validation": {
           "pattern": "^[A-Z0-9-]+$",
-          "description": "Document identifier with alphanumeric characters"
+          "description": "Validated by _apply_validation using regex pattern matching. Ensures the final ID contains only uppercase, numeric, and hyphen characters."
         }
       },
       "Document_Revision": {
@@ -228,7 +228,7 @@
             }
           ],
           "final_fill": "NA",
-          "description": "Three-level forward fill per original dcc_mdl.ipynb logic, then fill remaining with NA"
+          "description": "Processed by _apply_multi_level_forward_fill. Performs sequential forward filling based on the nesting levels [DocID > Session > Revision] to maintain revision history consistency across rows."
         },
         "validation": {
           "pattern": "^[A-Z0-9.]*$",
@@ -276,7 +276,7 @@
             "nan": "NA"
           },
           "type_conversion": "string",
-          "description": "Convert to string, replace N.A./N.A/nan with NA, fill nulls with NA per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_default_value. Performs string conversion, executes explicit text replacements (nan/N.A.), and fills gaps with 'NA' to ensure data type uniformity."
         },
         "validation": {
           "pattern": "^[A-Z0-9-]*$",
@@ -301,9 +301,9 @@
           "fill_value": "0",
           "formatting": {
             "zero_pad": 6,
-            "description": "Format as 6-digit zero-padded string (e.g., 000100)"
+            "description": "Applied via _apply_forward_fill formatting. Ensures session identifiers are uniformly padded specifically to 6 digits."
           },
-          "description": "Forward fill Submission Session by itself (sequential) and format as 6-digit string per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_forward_fill. Leverages sequential filling combined with zfill formatting to create standardized submission containers."
         },
         "validation": {
           "pattern": "^[0-9]{6}$",
@@ -332,7 +332,7 @@
             "description": "Format as 2-digit zero-padded string (e.g., 01)"
           },
           "na_fallback": true,
-          "description": "Forward fill revision by Submission_Session and format as 2-digit string per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_forward_fill. Performs grouping by Submission_Session and applies 2-digit zero-padding to create unique revision identifiers."
         },
         "validation": {
           "pattern": "^[0-9]{2}$",
@@ -399,7 +399,7 @@
           "separator": " && ",
           "quote_each": true,
           "filter_na": true,
-          "description": "Concatenates unique subjects with quotes and && separator per original dcc_mdl.ipynb logic"
+          "description": "Executed via _apply_aggregate_calculation using method 'concatenate_unique_quoted'. Groups subjects by Document_ID and applies quoting to each fragment for cross-reference readability."
         },
         "validation": {
           "description": "Consolidated submission subjects for each document"
@@ -434,7 +434,7 @@
             "if_column_exists": true,
             "description": "Only process if Department column exists in data per original dcc_mdl.ipynb logic"
           },
-          "description": "Two-level forward fill per submission sessions if column exists, fill remaining with NA per original dcc_mdl.ipynb logic"
+          "description": "Processed via _apply_multi_level_forward_fill. Performs sequential grouping by [Session > Revision] combined with NA final filling. Includes a check to ensure the Department column exists before execution."
         }
       },
       "Submitted_By": {
@@ -467,7 +467,7 @@
             }
           ],
           "final_fill": "NA",
-          "description": "Two-level forward fill per submission sessions, fill remaining with NA per original dcc_mdl.ipynb logic"
+          "description": "Processed via _apply_multi_level_forward_fill. Maintains submitter continuity within submission sessions using sequential grouping, with 'NA' assigned as the final fallback value."
         },
         "validation": {
           "min_length": 2,
@@ -504,7 +504,7 @@
           ],
           "datetime_conversion": {
             "errors": "coerce",
-            "description": "Convert to datetime with errors='coerce' per original dcc_mdl.ipynb logic"
+            "description": "Executed via _apply_multi_level_forward_fill. Performs explicit datetime coercion for all input formats to enable chronological sorting and aggregation."
           }
         },
         "validation": {
@@ -530,7 +530,7 @@
           "group_by": [
             "Document_ID"
           ],
-          "description": "Finds earliest submission date for each document"
+          "description": "Calculated via _apply_aggregate_calculation with method 'min'. Identifies the earliest datetime recorded in the submission history for the unique document."
         },
         "validation": {
           "format": "YYYY-MM-DD",
@@ -558,7 +558,7 @@
           "group_by": [
             "Document_ID"
           ],
-          "description": "Finds latest submission date for each document"
+          "description": "Calculated via _apply_aggregate_calculation with method 'max'. Identifies the most recent datetime recorded in the submission history for the unique document."
         },
         "validation": {
           "format": "YYYY-MM-DD",
@@ -601,9 +601,9 @@
           "mapping": {
             "method": "map_to_all_rows",
             "fallback_value": "NA",
-            "description": "Map latest revision to all rows per Document_ID, fill with NA if no valid revisions"
+            "description": "Uses broadcast mapping to apply the calculated latest revision value to every row associated with the current Document_ID."
           },
-          "description": "Find latest revision by sorting Document_ID asc, Submission_Date desc, exclude NA, map to all rows per original dcc_mdl.ipynb logic"
+          "description": "Calculated via _apply_latest_by_date_calculation. Sorts submissions by date (descending), filters out 'NA', and identifies the current state for each unique document."
         },
         "validation": {
           "pattern": "^[A-Z0-9.]+$",
@@ -628,7 +628,7 @@
             "Document_ID"
           ],
           "separator": "&&",
-          "description": "Concatenates all unique submission session IDs with && separator per original dcc_mdl.ipynb logic"
+          "description": "Executed via _apply_aggregate_calculation using method 'concatenate_unique'. Creates a non-redundant historical list of every submission session ID associated with the document."
         },
         "validation": {
           "description": "All submission session identifiers"
@@ -656,7 +656,7 @@
           "sort_by": [
             "Submission_Date"
           ],
-          "description": "Concatenates all submission dates"
+          "description": "Executed via _apply_aggregate_calculation using method 'concatenate_dates'. Performs date format enforcement and chronological joining of all submission date occurrences."
         },
         "validation": {
           "description": "All submission dates"
@@ -683,7 +683,7 @@
           "sort_by": [
             "Submission_Date"
           ],
-          "description": "Concatenates all revision numbers"
+          "description": "Executed via _apply_aggregate_calculation using method 'concatenate_unique'. Joins every distinct revision number identified in the document history."
         },
         "validation": {
           "description": "All revision numbers for submissions"
@@ -708,7 +708,7 @@
             "Document_ID"
           ],
           "transform": true,
-          "description": "Count submissions per Document_ID and apply to all rows using transform per original dcc_mdl.ipynb logic"
+          "description": "Calculated via _apply_aggregate_calculation with method 'count'. Performs a grouping count of Document_ID instances and broadcasts the result to all associated rows using 'transform'."
         },
         "validation": {
           "min_value": 1,
@@ -735,7 +735,7 @@
           ],
           "fill_value": "NA",
           "na_fallback": true,
-          "description": "Forward fill reviewer within same submission, use NA if unknown"
+          "description": "Processed by _apply_forward_fill. Performs grouping by Session ID to ensure the assigned reviewer is consistently mapped across all documents within the same submission container."
         },
         "validation": {
           "min_length": 2,
@@ -773,7 +773,7 @@
               }
             }
           },
-          "description": "Convert to datetime, convert revision to string, forward fill within same submission session and revision per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_multi_level_forward_fill. Leverages datetime coercion, revision-level grouping, and explicit string conversion of session revisions to ensure precise historical tracking of response dates."
         },
         "validation": {
           "format": "YYYY-MM-DD",
@@ -830,11 +830,11 @@
             "Submission_Session",
             "Submission_Session_Revision"
           ],
-          "description": "Calculate planned review return date based on submission date and review duration. First submissions use first_review_duration, resubmissions use second_review_duration. Applied per same submission session and revision."
+          "description": "Calculated via _apply_calculate_if_null (or direct calculation). Uses method 'calculate_review_return_plan_date' to branch between first-time submissions and resubmissions based on historical existence."
         },
         "null_handling": {
           "strategy": "calculated_fill",
-          "description": "Calculate value based on submission date and duration rules"
+          "description": "Processed by _apply_calculate_if_null using condition-checked date arithmetic based on submission history."
         },
         "validation": {
           "format": "YYYY-MM-DD",
@@ -845,7 +845,7 @@
           "timezone_aware": false,
           "working_days": {
             "parameter": "duration_is_working_day",
-            "description": "Use working days if duration_is_working_day is true"
+            "description": "If enabled, performs day arithmetic using pd.offsets.BDay() to exclude weekends and holidays."
           }
         }
       },
@@ -867,7 +867,7 @@
             "Submission_Session_Revision"
           ],
           "fill_value": "Pending",
-          "description": "Forward fill review status within same submission session and revision, then fill remaining with 'Pending' per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_forward_fill. Leverages cross-row grouping within the same session ID and assigns 'Pending' as the default state for unreviewed rows."
         },
         "validation": {
           "allowed_values": [
@@ -896,7 +896,7 @@
           "method": "status_to_code",
           "source_column": "Review_Status",
           "mapping_reference": "approval_code_mapping",
-          "description": "Map Review_Status to code using approval_code_mapping per original dcc_mdl.ipynb logic"
+          "description": "Calculated via _apply_mapping_calculation using method 'status_to_code'. Transforms textual status labels into standardized shorthand codes defined in the mapping reference."
         },
         "validation": {
           "allowed_values": [
@@ -936,7 +936,7 @@
             "Void": "VOID"
           },
           "default": "PEN",
-          "description": "Maps review status to standard approval code"
+          "description": "Calculated via _apply_mapping_calculation using an explicit internal mapping. Directly converts approval statuses to standardized APP/REJ/PEN codes with a PEN fallback."
         },
         "validation": {
           "allowed_values": [
@@ -979,7 +979,7 @@
             "if_column_exists": true,
             "description": "Only process if Review_Comments column exists in data per original dcc_mdl.ipynb logic"
           },
-          "description": "Two-level forward fill per submission sessions if column exists, fill remaining with NA per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_multi_level_forward_fill. Sequentially groups by [Session > Revision] with an 'if_column_exists' pre-check to maintain comments across associated rows."
         },
         "validation": {
           "max_length": 2000,
@@ -1030,7 +1030,7 @@
             "method": "map_to_all_rows",
             "description": "Map latest non-pending status to all rows per Document_ID per original dcc_mdl.ipynb logic"
           },
-          "description": "Copy Review_Status, clean text, find latest non-pending status by sorting Document_ID asc, Submission_Date desc, exclude pending, map to all rows"
+          "description": "Calculated via _apply_latest_by_date_calculation with method 'latest_non_pending_status'. Performs textual cleaning (regex strip), excludes 'Pending' states, and identifies the most recent conclusive approval for each document."
         },
         "validation": {
           "allowed_values": [
@@ -1066,7 +1066,7 @@
               "description": "Remove forward slashes and strip whitespace per original dcc_mdl.ipynb logic"
             }
           },
-          "description": "Clean Latest_Approval_Status, then map to code using approval_code_mapping per original dcc_mdl.ipynb logic"
+          "description": "Calculated via _apply_mapping_calculation. Enhances data quality through forward-slash removal and whitespace stripping before mapping the latest status to a standard code."
         },
         "validation": {
           "allowed_values": [
@@ -1175,7 +1175,7 @@
             "invalid_rows": "np.nan",
             "description": "Assign NaN where Submission_Date was missing"
           },
-          "description": "Conditional business vs calendar day calculation based on duration_is_working_day parameter per original dcc_mdl.ipynb logic"
+          "description": "Calculated via conditional_business_day_calculation. Differentiates between calendar days and NumPy-powered business day counts based on project-level parameters. Includes non-negative enforcement."
         },
         "validation": {
           "min_value": 0,
@@ -1225,7 +1225,7 @@
               }
             ]
           },
-          "description": "Convert to uppercase, then set to YES if already YES or if Latest_Approval_Code is in [APP, VOID, INF], else NO per original dcc_mdl.ipynb logic"
+          "description": "Calculated via status_based conditional mapping. Merges current closure status with Latest_Approval_Code to determine if the document lifecycle has reached a terminal state (APP/VOID/INF)."
         },
         "validation": {
           "allowed_values": [
@@ -1267,7 +1267,7 @@
               "description": "Default to YES for all other cases"
             }
           ],
-          "description": "Update resubmission requirement based on current value and submission closure status per original dcc_mdl.ipynb logic"
+          "description": "Executed via update_resubmission_required conditional check. Inherits existing flags unless the Submission_Closed state overrides the requirement to 'NO'."
         },
         "validation": {
           "allowed_values": [
@@ -1330,7 +1330,7 @@
             "calendar_day": "use pd.Timedelta(days=X) when duration_is_working_day = false",
             "description": "Two modes: working days vs calendar days per original dcc_mdl.ipynb logic"
           },
-          "description": "Complex conditional date calculation based on submission status, review dates, and submission sequence per original dcc_mdl.ipynb logic"
+          "description": "Calculated via custom_conditional_date logic. Applies multi-staged duration offsets (First Review + Resubmission vs Second Review + Resubmission) based on document status and terminal state checks."
         },
         "validation": {
           "format": "YYYY-MM-DD",
@@ -1376,7 +1376,7 @@
             }
           },
           "final_fill": "keep_null",
-          "description": "Forward fill within same submission session and revision, then fallback to session-level forward fill. Keep null if forward fill fails."
+          "description": "Processed by _apply_multi_level_forward_fill. Employs a multi-stage fallback strategy (Session+Revision -> Session-only) to preserve forecasted targets during iterative reviews."
         },
         "validation": {
           "format": "YYYY-MM-DD",
@@ -1430,7 +1430,7 @@
             "current_date": "datetime.now()",
             "description": "Use current datetime for overdue comparison per original dcc_mdl.ipynb logic"
           },
-          "description": "Calculate overdue status based on review return date, submission closure, and plan date per original dcc_mdl.ipynb logic"
+          "description": "Calculated via calculate_overdue_status. Performs a time-relative comparison between the plan date and current_date, while accounting for actual submittal arrivals."
         },
         "validation": {
           "allowed_values": [
@@ -1485,7 +1485,7 @@
             "no_previous_fallback": "0",
             "description": "If no previous submissions, delay is 0"
           },
-          "description": "Calculate resubmission delay by looking up previous submissions for same Document_ID per original dcc_mdl.ipynb logic"
+          "description": "Calculated via complex_lookup logic. Identifies delay by finding the maximum previous plan date for the same Document_ID and calculating the calendar variance against the current submission."
         },
         "validation": {
           "min_value": 0,
@@ -1509,7 +1509,7 @@
         "null_handling": {
           "strategy": "default_value",
           "default_value": "",
-          "description": "Fill nulls with empty string per original dcc_mdl.ipynb logic"
+          "description": "Processed by _apply_default_value. Ensures the column contains a string (empty by default) to prevent numeric-only column detection issues."
         },
         "validation": {
           "max_length": 2000,
@@ -1534,7 +1534,7 @@
           ],
           "fill_value": "NA",
           "na_fallback": true,
-          "description": "Forward fill submitter within same document, use NA if unknown"
+          "description": "Processed by _apply_forward_fill. Synchronizes secondary references across all rows of the same Document_ID to maintain cross-system metadata parity."
         },
         "validation": {
           "description": "Additional submission reference"
@@ -1558,7 +1558,7 @@
           ],
           "fill_value": "NA",
           "na_fallback": true,
-          "description": "Forward fill internal reference within same document, use NA if unknown"
+          "description": "Processed by _apply_forward_fill. Synchronizes internal reference numbers across all rows of the same Document_ID to ensure consistent tracking."
         },
         "validation": {
           "description": "Internal reference number"
@@ -1579,7 +1579,7 @@
           "method": "current_row",
           "source_column": "Approval_Code",
           "condition": "is_current_submission",
-          "description": "Uses approval code from current row"
+          "description": "Calculated via direct copy mapping. Isolates the approval code for the current row to differentiate from historical aggregate statuses."
         },
         "validation": {
           "allowed_values": [
