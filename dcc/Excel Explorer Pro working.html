@@ -2032,6 +2032,145 @@
             display: flex;
             gap: 6px;
         }
+        /* ── Welcome Screen ── */
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+            min-height: 50vh;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        .welcome-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 32px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+        }
+
+        .welcome-title {
+            font-family: 'Syne', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 12px;
+            background: linear-gradient(90deg, var(--accent), var(--accent3));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .welcome-subtitle {
+            color: var(--muted);
+            font-size: 14px;
+            margin-bottom: 28px;
+            line-height: 1.5;
+        }
+
+        .steps-guide {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: left;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .step-item.active {
+            background: rgba(79, 255, 176, 0.05);
+            border-color: rgba(79, 255, 176, 0.2);
+            transform: translateX(8px);
+        }
+
+        .step-item.completed {
+            background: rgba(46, 213, 115, 0.05);
+            border-color: rgba(46, 213, 115, 0.2);
+            opacity: 0.8;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--surface2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .active .step-number {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(79, 255, 176, 0.4);
+        }
+
+        .completed .step-number {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .step-text {
+            flex: 1;
+        }
+
+        .step-label {
+            font-size: 14px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .step-desc {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Workspace ── */
+        #workspace {
+            display: none; /* Hidden until initialized */
+            padding: 24px;
+            gap: 24px;
+            flex-direction: column;
+        }
+
+        #workspace.visible {
+            display: flex;
+        }
+
+        .glass-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
     </style>
 </head>
 
@@ -2402,7 +2541,50 @@
                 </div>
             </aside>
             <div id="mainContent">
-                <div id="step3" class="hidden">
+                <!-- Welcome Screen -->
+                <div id="welcomeScreen" class="welcome-screen">
+                    <div class="welcome-card">
+                        <h1 class="welcome-title">Excel Explorer Pro</h1>
+                        <p class="welcome-subtitle">Your intelligent data companion. Follow the steps below to start analyzing your Excel files.</p>
+                        
+                        <div class="steps-guide">
+                            <div id="step-item-1" class="step-item active">
+                                <div class="step-number">1</div>
+                                <div class="step-text">
+                                    <span class="step-label">📂 Load Excel File</span>
+                                    <span class="step-desc">Select a .xlsx or .xls file from your computer.</span>
+                                </div>
+                            </div>
+                            
+                            <div id="step-item-2" class="step-item">
+                                <div class="step-number">2</div>
+                                <div class="step-text">
+                                    <span class="step-label">📄 Choose Sheets</span>
+                                    <span class="step-desc">Pick one or more worksheets to analyze.</span>
+                                </div>
+                            </div>
+                            
+                            <div id="step-item-3" class="step-item">
+                                <div class="step-number">3</div>
+                                <div class="step-text">
+                                    <span class="step-label">🔍 Select Columns</span>
+                                    <span class="step-desc">Choose the headers you want to filter and group.</span>
+                                </div>
+                            </div>
+                            
+                            <div id="step-item-4" class="step-item">
+                                <div class="step-number">4</div>
+                                <div class="step-text">
+                                    <span class="step-label">📊 Ready to Explore</span>
+                                    <span class="step-desc">Your dashboard is configured and ready to build.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="workspace">
+                    <div id="step3">
                     <!-- Charts Container -->
                     <div id="chartsContainer" class="dashboard-module" style="margin-top: 20px; margin-bottom: 20px;">
                         <div
@@ -2646,10 +2828,82 @@
                     direction: "asc"
                 };
             let activeOperation = null;
+            let isDashboardActive = false;
 
+            let statusBoxCollapsed = localStorage.getItem('dcc_status_box_collapsed') === 'true';
             let warningHistory = [];
             let statusBoxTimer = null;
             let searchDebounceTimer = null;
+
+            // Welcome Screen Logic
+            function updateWelcomeScreen() {
+                const welcomeScreen = document.getElementById('welcomeScreen');
+                const workspace = document.getElementById('workspace');
+                if (!welcomeScreen || !workspace) return;
+
+                const upload = document.getElementById('upload');
+                const sheetList = document.getElementById('sheetList');
+                if (!upload || !sheetList) return;
+
+                const hasFile = upload.files.length > 0;
+                const hasSelectedSheets = document.querySelectorAll(".sheet-check:checked").length > 0;
+                const isLoaded = rawData && rawData.length > 0;
+                const hasSelectedColumns = document.querySelectorAll(".col-check:checked").length > 0;
+
+                // Handle Roll-back visibility
+                if (!isDashboardActive) {
+                    welcomeScreen.style.display = 'flex';
+                    workspace.style.display = 'none';
+                } else {
+                    welcomeScreen.style.display = 'none';
+                    workspace.style.display = 'flex';
+                }
+
+                // Step Elements
+                const s1 = document.getElementById('step-item-1');
+                const s2 = document.getElementById('step-item-2');
+                const s3 = document.getElementById('step-item-3');
+                const s4 = document.getElementById('step-item-4');
+
+                if (!s1 || !s2 || !s3 || !s4) return;
+
+                // Reset states
+                [s1, s2, s3, s4].forEach(s => s.classList.remove('active', 'completed'));
+
+                // Step 1: File Selection
+                if (hasFile) {
+                    s1.classList.add('completed');
+                } else {
+                    s1.classList.add('active');
+                }
+
+                // Step 2: Worksheet selection
+                if (hasFile) {
+                    if (hasSelectedSheets) {
+                        s2.classList.add('completed');
+                    } else {
+                        s2.classList.add('active');
+                    }
+                }
+
+                // Step 3: Column Filtering
+                if (isLoaded) {
+                    s2.classList.add('completed'); // Ensure step 2 is done if data is loaded
+                    if (hasSelectedColumns) {
+                        s3.classList.add('completed');
+                        s4.classList.add('active');
+                    } else {
+                        s3.classList.add('active');
+                    }
+                }
+
+                // Step 4: Ready/Initialized
+                if (isDashboardActive) {
+                    [s1, s2, s3, s4].forEach(s => s.classList.add('completed'));
+                }
+            }
+
+
 
             function handleStatusBoxVisibility() {
                 const box = document.getElementById("statusBox");
@@ -2925,7 +3179,6 @@
                 }
             }
 
-            let statusBoxCollapsed = localStorage.getItem('dcc_status_box_collapsed') === 'true';
 
             function toggleStatusBox() {
                 // Manual interaction cancels auto-close
@@ -3229,8 +3482,8 @@
                 document.querySelectorAll(".col-check").forEach((cb) => {
                     cb.checked = checked;
                     syncChip(cb);
-                }
-                );
+                });
+                updateWelcomeScreen();
             }
 
             function selectAllColumns() {
@@ -3415,6 +3668,10 @@
             // Auto-hide Step 2 after initializing to save space
             function buildInterface() {
                 setFunctionCallStatus('buildInterface', true);
+                
+                // Hide Welcome Screen, Show Workspace
+                isDashboardActive = true;
+                updateWelcomeScreen();
 
                 // 1. Get the selected columns from Step 2
                 selectedFilterCols = Array.from(document.querySelectorAll(".col-check:checked"),).map((cb) => cb.value);
@@ -3948,6 +4205,7 @@
                 setProgressStatus('loadFile', 'loading', 'Reading file...');
 
                 // Store file name for status box
+                isDashboardActive = false;
                 const fileName = e.target.files?.[0]?.name || "Untitled";
                 document.getElementById("statusFileName").innerText = fileName;
 
@@ -4028,6 +4286,7 @@
                     ;
 
                 reader.readAsArrayBuffer(e.target.files[0]);
+                updateWelcomeScreen();
             }
             );
 
@@ -4087,6 +4346,7 @@
 
             function updateSheetLabel() {
                 const checkboxes = document.querySelectorAll(".sheet-check:checked");
+                updateWelcomeScreen();
                 const label = document.getElementById("sheetSelectorLabel");
 
                 if (checkboxes.length === 0) {
@@ -4123,6 +4383,8 @@
             }
 
             function loadSelectedSheets() {
+                setFunctionCallStatus('loadSelectedSheets', true);
+                updateWelcomeScreen();
                 const checkboxes = document.querySelectorAll(".sheet-check:checked");
                 if (checkboxes.length === 0) {
                     showWarning("Please select at least one sheet to load.");
@@ -4155,6 +4417,7 @@
                 }
 
                 loadMultipleSheets(selectedSheets);
+                updateWelcomeScreen();
 
                 // Close dropdown
                 document.getElementById("sheetDropdown").classList.add("hidden");
@@ -4734,6 +4997,7 @@
                 } else {
                     label.classList.remove("active");
                 }
+                updateWelcomeScreen();
             }
 
             function populateDropdowns() {
@@ -7099,6 +7363,13 @@
                     logDebug("AI Error: " + e.message);
                 }
             }
+
+            // Welcome Screen Initialization
+            window.addEventListener('DOMContentLoaded', () => {
+                const workspace = document.getElementById('workspace');
+                if (workspace) workspace.style.display = 'none';
+                updateWelcomeScreen();
+            });
         </script>
 </body>
 
