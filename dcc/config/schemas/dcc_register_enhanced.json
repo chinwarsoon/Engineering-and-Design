@@ -186,8 +186,8 @@
           "Rev"
         ],
         "data_type": "string",
-        "required": false,
-        "allow_null": true,
+        "required": true,
+        "allow_null": false,
         "is_calculated": false,
         "create_if_missing": false,
         "null_handling": {
