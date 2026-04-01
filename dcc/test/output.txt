@@ -1,0 +1,41 @@
+=== Universal Document Processing Results ===
+Input rows: 4
+Input columns: 10
+Output rows: 4
+Output columns: 27
+
+=== Sample Processed Data ===
+                                                                                                                                                                                                                                                                                                                                                             Document_ID     Document_Title Document_Revision  Department  Discipline Project_Code  Document_Type Submission_Date Review_Status Review_Return_Actual_Date Facility_Code Document_Sequence_Number Submission_Session Submission_Session_Revision Submission_Session_Subject Submitted_By Consolidated_Submission_Session_Subject First_Submittion_Date Latest_Submittion_Date Latest_Revision All_Submission_Sessions                            All_Submission_Dates All_Submission_Session_Revisions  Count_of_Submissions Review_Status_Code Approval_Code This_Submission_Approval_Code
+0  0    CESL-22120\n1    CESL-22120\n2            NA\n3    CESL-22120\nName: Project_Code, dtype: str-0    NA\n1    NA\n2    NA\n3    NA\nName: Facility_Code, dtype: str-0          Drawing\n1          Drawing\n2    Specification\n3               NA\nName: Document_Type, dtype: str-0    NA\n1    NA\n2    NA\n3    NA\nName: Document_Sequence_Number, dtype: str    Foundation Plan                 0       Civil       Civil   CESL-22120        Drawing      2024-01-15      Approved                2024-01-25            NA                       NA                 NA                          NA                         NA           NA                                    "NA"            2024-01-15             2024-02-01               2                      NA  2024-01-15, 2024-01-20, 2024-02-01, 2024-02-01                               NA                     4                PEN           APP                           APP
+1  0    CESL-22120\n1    CESL-22120\n2            NA\n3    CESL-22120\nName: Project_Code, dtype: str-0    NA\n1    NA\n2    NA\n3    NA\nName: Facility_Code, dtype: str-0          Drawing\n1          Drawing\n2    Specification\n3               NA\nName: Document_Type, dtype: str-0    NA\n1    NA\n2    NA\n3    NA\nName: Document_Sequence_Number, dtype: str    Foundation Plan                 1       Civil  Structural   CESL-22120        Drawing      2024-01-20      Rejected                2024-01-25            NA                       NA                 NA                          NA                         NA           NA                                    "NA"            2024-01-15             2024-02-01               2                      NA  2024-01-15, 2024-01-20, 2024-02-01, 2024-02-01                               NA                     4                PEN           REJ                           REJ
+2  0    CESL-22120\n1    CESL-22120\n2            NA\n3    CESL-22120\nName: Project_Code, dtype: str-0    NA\n1    NA\n2    NA\n3    NA\nName: Facility_Code, dtype: str-0          Drawing\n1          Drawing\n2    Specification\n3               NA\nName: Document_Type, dtype: str-0    NA\n1    NA\n2    NA\n3    NA\nName: Document_Sequence_Number, dtype: str  Structural Design                 2  Structural         MEP           NA  Specification      2024-02-01       Pending                2024-02-15            NA                       NA                 NA                          NA                         NA           NA                                    "NA"            2024-01-15             2024-02-01               2                      NA  2024-01-15, 2024-01-20, 2024-02-01, 2024-02-01                               NA                     4                PEN           PEN                           PEN
+3  0    CESL-22120\n1    CESL-22120\n2            NA\n3    CESL-22120\nName: Project_Code, dtype: str-0    NA\n1    NA\n2    NA\n3    NA\nName: Facility_Code, dtype: str-0          Drawing\n1          Drawing\n2    Specification\n3               NA\nName: Document_Type, dtype: str-0    NA\n1    NA\n2    NA\n3    NA\nName: Document_Sequence_Number, dtype: str         MEP Design                 1          NA          NA   CESL-22120             NA      2024-02-01      Approved                2024-02-20            NA                       NA                 NA                          NA                         NA           NA                                    "NA"            2024-01-15             2024-02-01               2                      NA  2024-01-15, 2024-01-20, 2024-02-01, 2024-02-01                               NA                     4                PEN           APP                           APP
+
+=== Processing Summary ===
+Document_ID: 4 rows, 0 null values
+Document_Title: 4 rows, 0 null values
+Document_Revision: 4 rows, 0 null values
+Department: 4 rows, 0 null values
+Discipline: 4 rows, 0 null values
+Project_Code: 4 rows, 0 null values
+Document_Type: 4 rows, 0 null values
+Submission_Date: 4 rows, 0 null values
+Review_Status: 4 rows, 0 null values
+Review_Return_Actual_Date: 4 rows, 0 null values
+Facility_Code: 4 rows, 0 null values
+Document_Sequence_Number: 4 rows, 0 null values
+Submission_Session: 4 rows, 0 null values
+Submission_Session_Revision: 4 rows, 0 null values
+Submission_Session_Subject: 4 rows, 0 null values
+Submitted_By: 4 rows, 0 null values
+Consolidated_Submission_Session_Subject: 4 rows, 0 null values
+First_Submittion_Date: 4 rows, 0 null values
+Latest_Submittion_Date: 4 rows, 0 null values
+Latest_Revision: 4 rows, 0 null values
+All_Submission_Sessions: 4 rows, 0 null values
+All_Submission_Dates: 4 rows, 0 null values
+All_Submission_Session_Revisions: 4 rows, 0 null values
+Count_of_Submissions: 4 rows, 0 null values
+Review_Status_Code: 4 rows, 0 null values
+Approval_Code: 4 rows, 0 null values
+This_Submission_Approval_Code: 4 rows, 0 null values

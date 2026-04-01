@@ -354,10 +354,16 @@ class CalculationEngine:
                     grouped = df_sorted.groupby(group_by, dropna=False)
                 
                 def concat_unique(series):
-                    unique_vals = series.dropna().unique()
-                    return separator.join(str(val) for val in unique_vals if pd.notna(val))
+                    # Filter out nulls and get unique values
+                    unique_vals = [str(val) for val in series.dropna().unique() if pd.notna(val)]
+                    # Sort numerically if possible, otherwise alphabetically
+                    try:
+                        # Attempt numeric sort if all look like numbers
+                        sorted_vals = sorted(unique_vals, key=lambda x: float(x))
+                    except (ValueError, TypeError):
+                        sorted_vals = sorted(unique_vals)
+                    return separator.join(sorted_vals)
                 
-                # Use transform directly on the source_column series to broadcast results
                 df[column_name] = grouped[source_column].transform(concat_unique)
                 
             elif method == 'concatenate_unique_quoted':
@@ -367,10 +373,12 @@ class CalculationEngine:
                 
                 quote_each = calculation.get('quote_each', True)
                 def concat_unique_quoted(series):
-                    unique_vals = series.dropna().unique()
+                    unique_vals = [str(val) for val in series.dropna().unique() if pd.notna(val)]
+                    # Alpha sort for quoted strings
+                    sorted_vals = sorted(unique_vals)
                     if quote_each:
-                        return separator.join(f'"{val}"' for val in unique_vals if pd.notna(val))
-                    return separator.join(str(val) for val in unique_vals if pd.notna(val))
+                        return separator.join(f'"{val}"' for val in sorted_vals)
+                    return separator.join(sorted_vals)
                 
                 df[column_name] = grouped[source_column].transform(concat_unique_quoted)
                 
@@ -383,9 +391,16 @@ class CalculationEngine:
                 py_date_fmt = date_fmt.replace('YYYY', '%Y').replace('MM', '%m').replace('DD', '%d')
                 
                 def concat_dates(series):
-                    valid_dates = pd.to_datetime(series.dropna(), errors='coerce').dropna()
-                    formatted = valid_dates.dt.strftime(py_date_fmt)
-                    return separator.join(formatted.dropna().astype(str))
+                    # Convert to datetime and get unique, sorted dates
+                    valid_dates = pd.to_datetime(series, errors='coerce').dropna()
+                    if valid_dates.empty:
+                        return ""
+                    
+                    unique_sorted_dates = sorted(valid_dates.unique())
+                    # Convert back to Series to use dt.strftime if we want vector, 
+                    # but simple list comprehension is safer and faster for unique small sets
+                    formatted = [pd.Timestamp(d).strftime(py_date_fmt) for d in unique_sorted_dates]
+                    return separator.join(formatted)
                 
                 df[column_name] = grouped[source_column].transform(concat_dates)
         
@@ -482,28 +497,35 @@ class CalculationEngine:
         return df
     
     def _apply_composite_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
-        """Apply composite calculation."""
-        source_columns = calculation.get('source_columns', [])
-        format_string = calculation.get('format', '{Document_ID}')
-        fallback_source = calculation.get('fallback_source')
+        """Apply composite calculation using row-by-row formatting."""
+        # Support both 'sources' and 'source_columns'
+        source_columns = calculation.get('sources') or calculation.get('source_columns', [])
+        format_string = calculation.get('format', '')
         
-        if all(col in df.columns for col in source_columns):
-            # Build composite string
-            composite_values = {}
-            for col in source_columns:
-                if col in df.columns:
-                    composite_values[col] = df[col].fillna('NA')
+        if not format_string:
+            logger.warning(f"No format string provided for composite calculation of {column_name}")
+            return df
             
-            # Apply format string
-            try:
-                df[column_name] = format_string.format(**composite_values)
-            except KeyError as e:
-                if fallback_source and fallback_source in df.columns:
-                    df[column_name] = df[fallback_source]
-                else:
-                    df[column_name] = 'UNKNOWN-COMPOSITE'
+        # Verify which sources exist in df
+        available_sources = [col for col in source_columns if col in df.columns]
         
-        logger.info(f"Applied composite calculation for {column_name}: {len(source_columns)} sources")
+        if not available_sources:
+            logger.warning(f"No available source columns for composite calculation: {column_name}")
+            return df
+            
+        def format_row(row):
+            try:
+                # Convert row to dict and fill NaNs with empty string or 'NA' for cleaner output
+                values = row.to_dict()
+                # Ensure all required keys in format string are present
+                return format_string.format(**values)
+            except Exception:
+                return "ERR-COMPOSITE"
+
+        # Apply formatting row-by-row
+        df[column_name] = df[available_sources].apply(format_row, axis=1)
+        
+        logger.info(f"Applied composite calculation for {column_name}: {len(available_sources)}/{len(source_columns)} sources found")
         return df
 
 
@@ -557,21 +579,55 @@ class UniversalDocumentProcessor:
         logger.info(f"Processing data with {len(df)} rows and {len(df.columns)} columns")
         original_columns = set(df.columns)
         
-        # Step 0: Initialize missing columns
+        # Step 0: Initialize missing columns (handles required columns if create_if_missing is true)
         df_initialized = self._initialize_missing_columns(df)
         
-        # Step 1: Apply null handling
+        # Step 1: Verify all required columns now exist (after attempted initialization)
+        self._verify_required_columns(df_initialized)
+        
+        # Step 2: Apply null handling
         df_processed = self.calculation_engine.apply_null_handling(df_initialized, original_columns)
         
-        # Step 2: Apply calculations
+        # Step 3: Apply calculations
         df_calculated = self.calculation_engine.apply_calculations(df_processed)
         
-        # Step 3: Apply validation
+        # Step 4: Apply final validation
         df_validated = self._apply_validation(df_calculated)
         
         logger.info(f"Data processing complete: {len(df_validated)} rows")
         return df_validated
         
+    def _verify_required_columns(self, df: pd.DataFrame):
+        """
+        Verify that all columns marked as required (and not calculated) 
+        are present in the data after initialization.
+        
+        Args:
+            df: Initialized DataFrame
+            
+        Raises:
+            ValueError: If required input columns are missing
+        """
+        enhanced_schema = self.schema_data.get('enhanced_schema', {})
+        columns = enhanced_schema.get('columns', {})
+        
+        missing_required = []
+        for col_name, col_def in columns.items():
+            is_required = col_def.get('required', False)
+            is_calculated = col_def.get('is_calculated', False)
+            
+            # If required but NOT calculated, it MUST be in the input
+            if is_required and not is_calculated:
+                if col_name not in df.columns:
+                    missing_required.append(col_name)
+        
+        if missing_required:
+            error_msg = f"CRITICAL ERROR: The following required input columns are missing from the original data set: {', '.join(missing_required)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+            
+        logger.info("Successfully verified all required input columns exist.")
+
     def _initialize_missing_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Initialize missing columns based on schema rules."""
         df_init = df.copy()
@@ -586,7 +642,7 @@ class UniversalDocumentProcessor:
             if col_name not in df_init.columns:
                 create_missing = col_def.get('create_if_missing', False)
                 
-                if create_missing or global_enabled:
+                if create_missing and global_enabled:
                     default_val = global_default
                     if 'default_value' in col_def:  # Top level overrides global
                         default_val = col_def.get('default_value')
@@ -691,7 +747,7 @@ def main():
     
     # Initialize processor with explicit schema path
     processor = UniversalDocumentProcessor()
-    schema_path = Path(__file__).parent / "config" / "dcc_register_enhanced.json"
+    schema_path = Path(__file__).parent.parent / "config" / "schemas" / "dcc_register_enhanced.json"
     processor.schema_file = str(schema_path)  # Convert to string
     processor.load_schema()
     

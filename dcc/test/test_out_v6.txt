@@ -1,0 +1,13 @@
+INFO:universal_column_mapper:Loaded main schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/department_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/discipline_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/document_type_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/approval_code_mapping.json
+INFO:universal_column_mapper:Schema dependencies resolved
+INFO:__main__:Loading headers from /home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx [Prolog Submittals ]
+/home/franklin/miniconda3/lib/python3.13/site-packages/openpyxl/reader/workbook.py:118: UserWarning: Print area cannot be set to Defined name: 'Delay in Response'!$A:$P.
+  warn(f"Print area cannot be set to Defined name: {defn.value}.")
+INFO:__main__:Extracted 27 headers from range P:AP at row 4
+WARNING:universal_column_mapper:Required input column missing during mapping detection: Document_Title
+INFO:__main__:Report generated at /home/franklin/dsai/Engineering-and-Design/dcc/test/mapping_analysis_report.md
+Report generated at /home/franklin/dsai/Engineering-and-Design/dcc/test/mapping_analysis_report.md

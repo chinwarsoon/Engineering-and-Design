@@ -7,7 +7,7 @@
   },
   "schema_references": {
     "department_schema": "../config/schemas/department_schema.json",
-    "discipline_schema": "../config/schemas/discipline_schema.json", 
+    "discipline_schema": "../config/schemas/discipline_schema.json",
     "document_type_schema": "../config/schemas/document_type_schema.json",
     "approval_code_mapping": "../config/schemas/approval_code_mapping.json"
   },
@@ -228,7 +228,8 @@
           "Document Description",
           "Title",
           "Subject",
-          "Doc Title"
+          "Doc Title",
+          "Document Title"
         ],
         "data_type": "string",
         "required": true,
@@ -356,14 +357,10 @@
               "description": "Forward fill within same submission session"
             }
           ],
-          "conditional_processing": {
-            "if_column_exists": true,
-            "description": "Only process if Submission_Session_Subject column exists in data per original dcc_mdl.ipynb logic"
-          },
           "description": "Two-level forward fill per submission sessions if column exists per original dcc_mdl.ipynb logic"
         },
         "validation": {
-          "min_length": 5,
+          "min_length": 2,
           "description": "Subject of the submission"
         }
       },
@@ -374,10 +371,10 @@
           "Subject History"
         ],
         "data_type": "text",
-        "required": false,
-        "allow_null": true,
+        "required": true,
+        "allow_null": false,
         "is_calculated": true,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "calculation": {
           "type": "aggregate",
           "method": "concatenate_unique_quoted",
@@ -404,26 +401,27 @@
         "required": true,
         "allow_null": true,
         "is_calculated": false,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "schema_reference": "department_schema",
         "null_handling": {
           "strategy": "multi_level_forward_fill",
           "levels": [
             {
-              "group_by": ["Submission_Session", "Submission_Session_Revision"],
+              "group_by": [
+                "Submission_Session",
+                "Submission_Session_Revision"
+              ],
               "description": "Forward fill within same submission session and revision"
             },
             {
-              "group_by": ["Submission_Session"],
+              "group_by": [
+                "Submission_Session"
+              ],
               "description": "Forward fill within same submission session"
             }
           ],
           "final_fill": "NA",
-          "conditional_processing": {
-            "if_column_exists": true,
-            "description": "Only process if Department column exists in data per original dcc_mdl.ipynb logic"
-          },
-          "description": "Processed via _apply_multi_level_forward_fill. Performs sequential grouping by [Session > Revision] combined with NA final filling. Includes a check to ensure the Department column exists before execution."
+          "description": "Processed via _apply_multi_level_forward_fill. Performs sequential grouping by [Session > Revision] combined with NA final filling."
         }
       },
       "Submitted_By": {
@@ -433,8 +431,8 @@
           "Submitter"
         ],
         "data_type": "string",
-        "required": false,
-        "allow_null": true,
+        "required": true,
+        "allow_null": false,
         "is_calculated": false,
         "create_if_missing": true,
         "default_value": "NA",
@@ -470,10 +468,10 @@
           "Current Submission Date"
         ],
         "data_type": "date",
-        "required": false,
-        "allow_null": true,
+        "required": true,
+        "allow_null": false,
         "is_calculated": false,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "null_handling": {
           "strategy": "multi_level_forward_fill",
           "levels": [
@@ -501,9 +499,9 @@
           "description": "Date of submission"
         }
       },
-      "First_Submittion_Date": {
+      "First_Submission_Date": {
         "aliases": [
-          "1st Submittion Date",
+          "1st Submission Date",
           "First Submission Date",
           "Initial Submit Date"
         ],
@@ -511,7 +509,7 @@
         "required": false,
         "allow_null": true,
         "is_calculated": true,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "calculation": {
           "type": "aggregate",
           "method": "min",
@@ -530,9 +528,9 @@
           "timezone_aware": false
         }
       },
-      "Latest_Submittion_Date": {
+      "Latest_Submission_Date": {
         "aliases": [
-          "Latest Submittion Date",
+          "Latest Submission Date",
           "Latest Submission Date"
         ],
         "data_type": "date",
@@ -745,11 +743,10 @@
         "create_if_missing": false,
         "null_handling": {
           "strategy": "forward_fill",
-          "group_by": ["Submission_Session", "Submission_Session_Revision"],
-          "conditional_processing": {
-            "if_column_exists": true,
-            "description": "Only process if Review_Return_Actual_Date column exists in data per original dcc_mdl.ipynb logic"
-          },
+          "group_by": [
+            "Submission_Session",
+            "Submission_Session_Revision"
+          ],
           "datetime_conversion": {
             "errors": "coerce",
             "description": "Convert to datetime with errors='coerce' per original dcc_mdl.ipynb logic"
@@ -845,10 +842,10 @@
           "Current Status"
         ],
         "data_type": "categorical",
-        "required": false,
+        "required": true,
         "allow_null": true,
         "is_calculated": false,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "null_handling": {
           "strategy": "forward_fill",
           "group_by": [
@@ -947,19 +944,24 @@
           "Comments"
         ],
         "data_type": "text",
-        "required": false,
+        "required": true,
         "allow_null": true,
         "is_calculated": false,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "null_handling": {
           "strategy": "multi_level_forward_fill",
           "levels": [
             {
-              "group_by": ["Submission_Session", "Submission_Session_Revision"],
+              "group_by": [
+                "Submission_Session",
+                "Submission_Session_Revision"
+              ],
               "description": "Forward fill within same submission session and revision"
             },
             {
-              "group_by": ["Submission_Session"],
+              "group_by": [
+                "Submission_Session"
+              ],
               "description": "Forward fill within same submission session"
             }
           ],
@@ -1050,7 +1052,9 @@
           "mapping_reference": "approval_code_mapping",
           "preprocessing": {
             "text_cleaning": {
-              "remove_patterns": ["/"],
+              "remove_patterns": [
+                "/"
+              ],
               "strip_whitespace": true,
               "description": "Remove forward slashes and strip whitespace per original dcc_mdl.ipynb logic"
             }
@@ -1122,7 +1126,11 @@
           "parameter_reference": "duration_is_working_day",
           "preprocessing": {
             "datetime_conversion": {
-              "columns": ["Review_Return_Actual_Date", "Submission_Date", "Resubmission_Plan_Date"],
+              "columns": [
+                "Review_Return_Actual_Date",
+                "Submission_Date",
+                "Resubmission_Plan_Date"
+              ],
               "method": "pd.to_datetime",
               "description": "Convert date columns to datetime objects per original dcc_mdl.ipynb logic"
             }
@@ -1180,15 +1188,17 @@
           "Finished"
         ],
         "data_type": "categorical",
-        "required": false,
+        "required": true,
         "allow_null": true,
         "is_calculated": true,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "calculation": {
           "type": "conditional",
           "method": "submission_closure_status",
           "source_column": "Submission_Closed",
-          "dependencies": ["Latest_Approval_Code"],
+          "dependencies": [
+            "Latest_Approval_Code"
+          ],
           "preprocessing": {
             "text_cleaning": {
               "convert_to_uppercase": true,
@@ -1231,15 +1241,17 @@
           "Need Resubmission"
         ],
         "data_type": "categorical",
-        "required": false,
+        "required": true,
         "allow_null": true,
         "is_calculated": true,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "calculation": {
           "type": "conditional",
           "method": "update_resubmission_required",
           "source_column": "Resubmission_Required",
-          "dependencies": ["Submission_Closed"],
+          "dependencies": [
+            "Submission_Closed"
+          ],
           "conditions": [
             {
               "if": "Resubmission_Required == 'NO'",
@@ -1283,7 +1295,7 @@
           "dependencies": [
             "Submission_Closed",
             "Review_Return_Actual_Date",
-            "Latest_Submittion_Date",
+            "Latest_Submission_Date",
             "Submission_Date"
           ],
           "conditions": [
@@ -1298,7 +1310,7 @@
               "description": "If review return date exists, add resubmission duration"
             },
             {
-              "if": "Latest_Submittion_Date == Submission_Date",
+              "if": "Latest_Submission_Date == Submission_Date",
               "then": "Submission_Date + (first_review_duration + resubmission_duration)",
               "description": "If first submission, add first review + resubmission duration"
             },
@@ -1344,10 +1356,12 @@
         "null_handling": {
           "strategy": "forward_fill",
           "group_by": [
-            "Submission_Session", 
+            "Submission_Session",
             "Submission_Session_Revision"
           ],
-          "fallback_group_by": ["Submission_Session"],
+          "fallback_group_by": [
+            "Submission_Session"
+          ],
           "conditional_processing": {
             "if_column_exists": true,
             "description": "Only process if Resubmission_Forecast_Date column exists in data"
@@ -1491,10 +1505,10 @@
           "Remarks"
         ],
         "data_type": "text",
-        "required": false,
+        "required": true,
         "allow_null": true,
         "is_calculated": false,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "null_handling": {
           "strategy": "default_value",
           "default_value": "",
@@ -1631,8 +1645,23 @@
     "validation_rules": {
       "required_fields": [
         "Document_ID",
+        "Project_Code",
+        "Facility_Code",
+        "Document_Type",
+        "Discipline",
+        "Document_Sequence_Number",
+        "Document_Revision",
         "Document_Title",
-        "Submission_Date"
+        "Submission_Session",
+        "Submission_Session_Revision",
+        "Submission_Session_Subject",
+        "Department",
+        "Submission_Date",
+        "Review_Status",
+        "Review_Comments",
+        "Submission_Closed",
+        "Resubmission_Required",
+        "Notes"
       ],
       "unique_fields": [
         "Document_ID"

@@ -357,6 +357,10 @@ class UniversalColumnMapper:
         
         detected = {}
         unmatched = []
+        missing_required = []
+        
+        # Track which schema columns were matched to ensure all required are found
+        matched_column_names = set()
         
         for header in headers:
             best_match = None
@@ -381,8 +385,17 @@ class UniversalColumnMapper:
                     'matched_alias': best_match,
                     'column_definition': columns[best_column_name]
                 }
+                matched_column_names.add(best_column_name)
             else:
                 unmatched.append(header)
+                
+        # Check for missing required columns (that are NOT calculated)
+        for col_name, col_def in columns.items():
+            is_required = col_def.get('required', False)
+            is_calculated = col_def.get('is_calculated', False)
+            if is_required and not is_calculated and col_name not in matched_column_names:
+                missing_required.append(col_name)
+                logger.warning(f"Required input column missing during mapping detection: {col_name}")
         
         # Add schema choices for categorical columns
         for header, mapping in detected.items():
@@ -398,6 +411,7 @@ class UniversalColumnMapper:
         return {
             'detected_columns': detected,
             'unmatched_headers': unmatched,
+            'missing_required': missing_required,
             'total_headers': len(headers),
             'matched_count': len(detected),
             'match_rate': len(detected) / len(headers) if len(headers) > 0 else 0

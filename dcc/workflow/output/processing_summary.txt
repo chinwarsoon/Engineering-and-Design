@@ -1,0 +1,17 @@
+🚀 Universal Document Processing Summary
+==================================================
+
+Processing Date: 2026-04-01 22:39:48
+
+Input Data Shape: (11096, 26)
+Output Data Shape: (11096, 38)
+Column Mapping Success Rate: 100.0%
+Schema References Loaded: 4
+Validation Issues: 10 columns
+
+
+📋 Export Files:
+  Excel: processed_dcc_universal.xlsx
+  CSV: processed_dcc_universal.csv
+  JSON: processed_dcc_universal.json
+  Summary: processing_summary.txt

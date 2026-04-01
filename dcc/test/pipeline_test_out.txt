@@ -1,0 +1,89 @@
+INFO:FullPipeline:Initializing Column Mapper and Document Processor...
+INFO:universal_column_mapper:Loaded main schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/department_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/discipline_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/document_type_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/approval_code_mapping.json
+INFO:universal_column_mapper:Schema dependencies resolved
+INFO:universal_document_processor:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json
+INFO:universal_document_processor:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json
+INFO:FullPipeline:Loading Excel from /home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx [Sheet: Prolog Submittals , Range: P:AP, Header: 4]
+/home/franklin/miniconda3/lib/python3.13/site-packages/openpyxl/reader/workbook.py:118: UserWarning: Print area cannot be set to Defined name: 'Delay in Response'!$A:$P.
+  warn(f"Print area cannot be set to Defined name: {defn.value}.")
+INFO:FullPipeline:Loaded 50 rows with 27 headers.
+INFO:FullPipeline:Step 1: Mapping columns to schema aliases...
+WARNING:universal_column_mapper:Required input column missing during mapping detection: Document_Title
+WARNING:FullPipeline:Mapper identified missing required columns: ['Document_Title']
+INFO:universal_column_mapper:Renamed 27 columns to schema names
+INFO:FullPipeline:Step 2: Processing renamed data set...
+INFO:universal_document_processor:Processing data with 50 rows and 27 columns
+INFO:universal_document_processor:Created missing column: Document_Title with default 'NA'
+INFO:universal_document_processor:Created missing column: Consolidated_Submission_Session_Subject with default 'NA'
+INFO:universal_document_processor:Created missing column: First_Submission_Date with default 'NA'
+INFO:universal_document_processor:Successfully verified all required input columns exist.
+INFO:universal_document_processor:Applied default value for Project_Code: NA
+INFO:universal_document_processor:Applied default value for Facility_Code: NA
+INFO:universal_document_processor:Applied default value for Document_Type: NA
+INFO:universal_document_processor:Applied default value for Discipline: NA
+INFO:universal_document_processor:Applied default value for Document_Sequence_Number: NA
+INFO:universal_document_processor:Applied multi_level_forward_fill for Document_Revision
+INFO:universal_document_processor:Applied default value for Document_Title: NA
+INFO:universal_document_processor:Applied default value for Transmittal_Number: NA
+INFO:universal_document_processor:Applied zero-padding (6 digits) for Submission_Session
+INFO:universal_document_processor:Applied forward fill for Submission_Session: strategy=forward_fill, group_by=[]
+INFO:universal_document_processor:Applied zero-padding (2 digits) for Submission_Session_Revision
+INFO:universal_document_processor:Applied forward fill for Submission_Session_Revision: strategy=forward_fill, group_by=['Submission_Session']
+INFO:universal_document_processor:Applied multi_level_forward_fill for Submission_Session_Subject
+INFO:universal_document_processor:Applied multi_level_forward_fill for Department
+INFO:universal_document_processor:Applied multi_level_forward_fill for Submitted_By
+INFO:universal_document_processor:Applied multi_level_forward_fill for Submission_Date
+INFO:universal_document_processor:Applied forward fill for Reviewer: strategy=forward_fill, group_by=['Submission_Session']
+INFO:universal_document_processor:Applied forward fill for Review_Return_Actual_Date: strategy=forward_fill, group_by=['Submission_Session', 'Submission_Session_Revision']
+INFO:universal_document_processor:Applied forward fill for Review_Status: strategy=forward_fill, group_by=['Submission_Session', 'Submission_Session_Revision']
+INFO:universal_document_processor:Applied multi_level_forward_fill for Review_Comments
+INFO:universal_document_processor:Applied forward fill for Resubmission_Forecast_Date: strategy=forward_fill, group_by=['Submission_Session', 'Submission_Session_Revision']
+INFO:universal_document_processor:Applied default value for Notes: 
+INFO:universal_document_processor:Applied composite calculation for Document_ID: 4 sources
+INFO:universal_document_processor:Applied aggregate calculation for Consolidated_Submission_Session_Subject: method=concatenate_unique_quoted
+INFO:universal_document_processor:Applied aggregate calculation for First_Submission_Date: method=min
+INFO:universal_document_processor:Applied aggregate calculation for Latest_Submission_Date: method=max
+INFO:universal_document_processor:Applied latest_by_date calculation for Latest_Revision
+INFO:universal_document_processor:Applied aggregate calculation for All_Submission_Sessions: method=concatenate_unique
+INFO:universal_document_processor:Applied aggregate calculation for All_Submission_Dates: method=concatenate_dates
+INFO:universal_document_processor:Applied aggregate calculation for All_Submission_Session_Revisions: method=concatenate_unique
+INFO:universal_document_processor:Applied aggregate calculation for Count_of_Submissions: method=count
+WARNING:universal_document_processor:Unsupported calculation type: conditional_date_calculation for Review_Return_Plan_Date
+INFO:universal_document_processor:Applied mapping calculation for Review_Status_Code: 0 mappings
+INFO:universal_document_processor:Applied mapping calculation for Approval_Code: 7 mappings
+WARNING:universal_document_processor:Unsupported calculation type: custom_aggregate for Latest_Approval_Status
+INFO:universal_document_processor:Applied mapping calculation for Latest_Approval_Code: 0 mappings
+INFO:universal_document_processor:Applied aggregate calculation for All_Approval_Code: method=concatenate_unique
+WARNING:universal_document_processor:Unsupported calculation type: conditional_business_day_calculation for Duration_of_Review
+WARNING:universal_document_processor:Unsupported calculation type: conditional for Submission_Closed
+WARNING:universal_document_processor:Unsupported calculation type: conditional for Resubmission_Required
+WARNING:universal_document_processor:Unsupported calculation type: custom_conditional_date for Resubmission_Plan_Date
+WARNING:universal_document_processor:Unsupported calculation type: conditional for Resubmission_Overdue_Status
+WARNING:universal_document_processor:Unsupported calculation type: complex_lookup for Delay_of_Resubmission
+INFO:universal_document_processor:Applied current row calculation for This_Submission_Approval_Code: condition=is_current_submission
+WARNING:universal_document_processor:Pattern validation failed for Project_Code: 3 invalid values
+WARNING:universal_document_processor:Pattern validation failed for Document_Sequence_Number: 4 invalid values
+WARNING:universal_document_processor:Pattern validation failed for Document_ID: 50 invalid values
+WARNING:universal_document_processor:Pattern validation failed for Submission_Session_Revision: 4 invalid values
+WARNING:universal_document_processor:Allowed values validation failed for Review_Status: 3 invalid values
+WARNING:universal_document_processor:Allowed values validation failed for Resubmission_Overdue_Status: 16 invalid values
+WARNING:universal_document_processor:Max value validation failed for Delay_of_Resubmission: 1 numeric values > 365
+INFO:universal_document_processor:Data processing complete: 50 rows
+INFO:FullPipeline:Success! Processed data contains 39 columns.
+INFO:FullPipeline:Output saved to /home/franklin/dsai/Engineering-and-Design/dcc/test/pipeline_test_output.csv
+
+=== PIPELINE INTEGRATION TEST SUCCESSFUL ===
+Original Headers: 27
+Mapped Count:   27
+Final Count:    39
+Result Preview (first 5 rows of Document_ID):
+0    0                                             ...
+1    0                                             ...
+2    0                                             ...
+3    0                                             ...
+4    0                                             ...
+Name: Document_ID, dtype: str

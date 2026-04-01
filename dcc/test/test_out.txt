@@ -1,0 +1,6 @@
+INFO:universal_document_processor:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json
+INFO:universal_document_processor:Processing data with 1 rows and 13 columns
+ERROR:universal_document_processor:CRITICAL ERROR: The following required input columns are missing from the original data set: Document_Title
+
+--- Testing Missing Required Column (Document_Title) ---
+SUCCESS: Caught expected error: CRITICAL ERROR: The following required input columns are missing from the original data set: Document_Title

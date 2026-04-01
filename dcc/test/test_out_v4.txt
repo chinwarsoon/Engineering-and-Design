@@ -1,0 +1,21 @@
+INFO:universal_column_mapper:Loaded main schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/department_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/discipline_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/document_type_schema.json
+INFO:universal_column_mapper:Loaded schema: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/approval_code_mapping.json
+INFO:universal_column_mapper:Schema dependencies resolved
+INFO:__main__:Loading headers from /home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx [Prolog Submittals ]
+/home/franklin/miniconda3/lib/python3.13/site-packages/openpyxl/reader/workbook.py:118: UserWarning: Print area cannot be set to Defined name: 'Delay in Response'!$A:$P.
+  warn(f"Print area cannot be set to Defined name: {defn.value}.")
+ERROR:universal_column_mapper:Required input column missing: Project_Code
+ERROR:universal_column_mapper:Required input column missing: Facility_Code
+ERROR:universal_column_mapper:Required input column missing: Document_Type
+ERROR:universal_column_mapper:Required input column missing: Discipline
+ERROR:universal_column_mapper:Required input column missing: Document_Sequence_Number
+ERROR:universal_column_mapper:Required input column missing: Submission_Session_Revision
+ERROR:universal_column_mapper:Required input column missing: Submission_Session_Subject
+ERROR:universal_column_mapper:Required input column missing: Department
+ERROR:universal_column_mapper:Required input column missing: Review_Comments
+ERROR:universal_column_mapper:Required input column missing: Notes
+INFO:__main__:Report generated at /home/franklin/dsai/Engineering-and-Design/dcc/test/mapping_analysis_report.md
+Report generated at /home/franklin/dsai/Engineering-and-Design/dcc/test/mapping_analysis_report.md

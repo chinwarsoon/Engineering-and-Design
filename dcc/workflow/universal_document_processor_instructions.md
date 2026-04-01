@@ -9,8 +9,11 @@ Key capabilities:
 - **Schema-driven processing**: All transformations are defined in external JSON schemas, not hardcoded
 - **Null handling**: Multiple strategies for resolving missing values (forward fill, copy from, calculations, lookups)
 - **Calculated columns**: Support for mappings, aggregations, date calculations, and composite fields
-- **Validation**: Pattern matching, length/value bounds, format checking, and allowed values enforcement
-- **Missing column creation**: Automatically creates columns defined in schema but missing from input data
+- **Strict Input Validation**: Mandatory columns (required: true / is_calculated: false) must be present in the source data.
+- **Controlled Column Creation**: Columns are auto-created ONLY if both global and per-column flags are enabled.
+- **Calculated columns**: Support for mappings, aggregations, date calculations, and composite fields.
+- **Validation**: Pattern matching, length/value bounds, format checking, and allowed values enforcement.
+- **Automatic Initialization**: Creates columns defined in schema with defaults where allowed.
 
 ---
 
@@ -27,16 +30,23 @@ flowchart TD
     InitEngine --> ProcessData{"process_data(df)"}
     ProcessData --> Step0["Step 0: Initialize Missing Columns"]
     
-    %% Step 0
+    %% Step 0 (Auto-Creation)
     Step0 --> ColCheck{"Column exists?"}
-    ColCheck -- "No" --> CreateCheck{"create_if_missing<br>or global enabled?"}
+    ColCheck -- "No" --> CreateCheck{"create_if_missing<br>AND global enabled?"}
     ColCheck -- "Yes" --> Step1
     CreateCheck -- "Yes" --> Inject["Create column with<br>default_value"]
-    CreateCheck -- "No" --> NextCol
+    CreateCheck -- "No" --> NextColInit
     Inject --> Step1
+
+    %% Step 1 (Mandatory Check)
+    Step1["Step 1: Verify Required Columns"] --> ReqCheck{"required: true AND<br>is_calculated: false?"}
+    ReqCheck -- "Yes" --> ExistenceCheck{"Exist in initialized df?"}
+    ExistenceCheck -- "No" --> StopError([Raise ValueError / STOP])
+    ExistenceCheck -- "Yes" --> Step2
+    ReqCheck -- "No" --> Step2
     
-    %% Step 1
-    Step1["Step 1: apply_null_handling()"] --> EvalStrategy{"Evaluate<br>strategy"}
+    %% Step 2
+    Step2["Step 2: apply_null_handling()"] --> EvalStrategy{"Evaluate<br>strategy"}
     EvalStrategy --> ForwardFill["forward_fill /<br>multi_level_forward_fill"]
     EvalStrategy --> CopyFrom["copy_from"]
     EvalStrategy --> CalcIfNull["calculate_if_null"]
@@ -44,17 +54,16 @@ flowchart TD
     EvalStrategy --> LookupIfNull["lookup_if_null"]
     EvalStrategy --> LeaveNull["leave_null"]
     
-    ForwardFill --> Step2
-    CopyFrom --> Step2
-    CalcIfNull --> Step2
-    DefaultValue --> Step2
-    LookupIfNull --> Step2
-    LeaveNull --> Step2
-    SkipCol --> Step2
+    ForwardFill --> Step3
+    CopyFrom --> Step3
+    CalcIfNull --> Step3
+    DefaultValue --> Step3
+    LookupIfNull --> Step3
+    LeaveNull --> Step3
     
-    %% Step 2
-    Step2["Step 2: apply_calculations()"] --> IsCalc{"is_calculated<br>== true?"}
-    IsCalc -- "No" --> Step3
+    %% Step 3
+    Step3["Step 3: apply_calculations()"] --> IsCalc{"is_calculated<br>== true?"}
+    IsCalc -- "No" --> Step4
     IsCalc -- "Yes" --> EvalCalc{"Evaluate<br>calculation type"}
     
     EvalCalc --> Mapping["mapping:<br>status_to_code"]
@@ -65,17 +74,17 @@ flowchart TD
     EvalCalc --> DateCalc["date_calculation:<br>add_working_days/<br>date_difference"]
     EvalCalc --> Composite["composite:<br>build_document_id"]
     
-    Mapping --> Step3
-    Aggregate --> Step3
-    LatestByDate --> Step3
-    Copy --> Step3
-    Conditional --> Step3
-    DateCalc --> Step3
-    Composite --> Step3
+    Mapping --> Step4
+    Aggregate --> Step4
+    LatestByDate --> Step4
+    Copy --> Step4
+    Conditional --> Step4
+    DateCalc --> Step4
+    Composite --> Step4
     
-    %% Step 3
-    Step3["Step 3: apply_validation()"] --> ValidateRules{"Check<br>validation rules"}
-    ValidateRules --> Required["required"]
+    %% Step 4
+    Step4["Step 4: apply_validation()"] --> ValidateRules{"Check<br>validation rules"}
+    ValidateRules --> Required["required (Final existence)"]
     ValidateRules --> AllowNull["allow_null"]
     ValidateRules --> Pattern["pattern (regex)"]
     ValidateRules --> MinMaxLen["min_length/max_length"]
@@ -83,16 +92,17 @@ flowchart TD
     ValidateRules --> Format["format (YYYY-MM-DD)"]
     ValidateRules --> AllowedVals["allowed_values"]
     
-    Required --> NextCol
-    AllowNull --> NextCol
-    Pattern --> NextCol
-    MinMaxLen --> NextCol
-    MinMaxVal --> NextCol
-    Format --> NextCol
-    AllowedVals --> NextCol
+    Required --> NextColFinal
+    AllowNull --> NextColFinal
+    Pattern --> NextColFinal
+    MinMaxLen --> NextColFinal
+    MinMaxVal --> NextColFinal
+    Format --> NextColFinal
+    AllowedVals --> NextColFinal
     
-    NextCol["Next Column"] --> ColCheck
-    NextCol --> Finished([Return<br>df_validated])
+    NextColInit["Next Column"] --> ColCheck
+    NextColReq["Next Column"] --> ReqCheck
+    NextColFinal["Next Column"] --> Finished([Return<br>df_validated])
 ```
 
 ---
@@ -105,9 +115,10 @@ flowchart TD
 |----------|---------|----------------|-------------------|---------|
 | `__init__` | Initialize the processor with optional schema file path | `schema_file` (str): Path to enhanced schema JSON file | Stores schema file path, initializes empty schema_data and calculation_engine | Ready-to-configure processor instance |
 | `load_schema` | Load and parse the JSON schema file | None (uses `self.schema_file`) | Opens schema JSON file, parses into `schema_data` dict, initializes `CalculationEngine` with schema | Populated `schema_data` and initialized `calculation_engine` |
-| `process_data` | Main entry point for data processing | `df` (pd.DataFrame): Input data to process | Executes 4-step pipeline: (0) initialize missing columns, (1) apply null handling, (2) apply calculations, (3) apply validation | Fully processed DataFrame with all transformations applied |
-| `_initialize_missing_columns` | Create columns defined in schema but missing from input data | `df` (pd.DataFrame): Input data | Iterates schema columns, checks `create_if_missing` flag and global `dynamic_column_creation.enabled`, creates missing columns with `default_value` | DataFrame with all schema-defined columns present |
-| `_apply_validation` | Apply validation rules from schema to processed data | `df` (pd.DataFrame): Processed data to validate | Checks each column for: `required`, `allow_null`, `pattern` (regex), `min_length`/`max_length`, `min_value`/`max_value`, `format` (YYYY-MM-DD), `allowed_values` | Validated DataFrame; logs warnings for validation failures |
+| `process_data` | Main entry point for data processing | `df` (pd.DataFrame): Input data to process | Executes 5-step pipeline: (0) initialize missing columns, (1) verify required columns, (2) apply null handling, (3) apply calculations, (4) apply validation | Fully processed DataFrame with all transformations applied |
+| `_initialize_missing_columns` | Create gaps defined in schema but allowed for auto-creation | `df` (pd.DataFrame): Input data | Iterates schema columns, checks `create_if_missing` AND global `enabled`, creates missing columns with `default_value` | Initialized DataFrame with all allowed schema-defined columns |
+| `_verify_required_columns` | Block processing if mandatory columns remain missing | `df` (pd.DataFrame): Initialized data | Identifies `required: true` / `is_calculated: false` columns; stops execution if missing after initialization attempt | None; stops execution on failure |
+| `_apply_validation` | Apply final quality and format rules | `df` (pd.DataFrame): Processed data to validate | Checks existence (required post-calc), `allow_null`, `pattern`, `min/max bounds`, `format`, `allowed_values` | Validated DataFrame; logs warnings for failures |
 
 ### CalculationEngine Class
 
@@ -140,8 +151,8 @@ flowchart TD
 ### Initialization Directives
 | Key | Location | Type | Description |
 |-----|----------|------|-------------|
-| `create_if_missing` | Column definition | boolean | If true, creates missing column with default value |
-| `parameters.dynamic_column_creation.enabled` | Root level | boolean | Globally enable automatic column creation |
+| `create_if_missing` | Column definition | boolean | **Mandatory** condition for auto-creation. Must be true AND global creation enabled. |
+| `parameters.dynamic_column_creation.enabled` | Root level | boolean | **Master switch** for auto-creation. Must be true for any column to be auto-injected. |
 | `parameters.dynamic_column_creation.default_value` | Root level | string | Default value for globally created columns |
 
 ### Null Handling (`null_handling` section)
@@ -171,8 +182,8 @@ flowchart TD
 ### Validation Rules (`validation` section)
 | Key | Type | Description |
 |-----|------|-------------|
-| `required` | boolean | If true, column must exist or error is logged |
-| `allow_null` | boolean | If false, warns when nulls are present |
+| `required` | boolean | **Initialization**: If true and column not in source, it will be auto-created ONLY if `create_if_missing: true`. <br>**Step 1 Check**: After initialization, if mandatory (not calculated) and STILL missing -> **STOPS**. <br>**Final Validation**: post-calc existence check. |
+| `allow_null` | boolean | If false, warns when nulls are present after all processing steps. |
 | `pattern` | string | Regex pattern that values must match |
 | `min_length`/`max_length` | integer | String length bounds |
 | `min_value`/`max_value` | number | Numeric value bounds |
