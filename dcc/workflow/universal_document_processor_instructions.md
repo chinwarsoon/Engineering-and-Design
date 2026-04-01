@@ -1,9 +1,16 @@
 # Universal Document Processor User Instructions
 
 ## Introduction
-The `UniversalDocumentProcessor` is an advanced Python execution engine built to interpret and execute complex schema-driven instructions on structured datasets. While the `UniversalColumnMapper` is responsible strictly for identifying and standardizing dataset layouts, the `UniversalDocumentProcessor` actively transforms the dataset locally based directly on logic parameters stored inside targeting JSON schemas (such as `dcc_register_enhanced.json`). 
+The `UniversalDocumentProcessor` is an advanced Python engine designed to interpret and execute schema-driven transformations on structured datasets. While the `UniversalColumnMapper` focuses on identifying and standardizing column layouts, the `UniversalDocumentProcessor` actively transforms data based on logic defined in JSON schemas (e.g., `dcc_register_enhanced.json`).
 
-It programmatically enforces data validation boundaries, injects missing data columns iteratively, resolves missing variables via cascaded recursive null handling strategies, and securely calculates dynamic computational strings, aggregations, and dates sequences utilizing native declarative architecture parameters.
+The processor enforces data validation rules, creates missing columns, resolves null values through configurable strategies (forward fill, copy from, default values, calculations), and computes dynamic values including aggregations, date calculations, and composite fields—all driven by declarative schema configuration.
+
+Key capabilities:
+- **Schema-driven processing**: All transformations are defined in external JSON schemas, not hardcoded
+- **Null handling**: Multiple strategies for resolving missing values (forward fill, copy from, calculations, lookups)
+- **Calculated columns**: Support for mappings, aggregations, date calculations, and composite fields
+- **Validation**: Pattern matching, length/value bounds, format checking, and allowed values enforcement
+- **Missing column creation**: Automatically creates columns defined in schema but missing from input data
 
 ---
 
@@ -11,102 +18,165 @@ It programmatically enforces data validation boundaries, injects missing data co
 
 ```mermaid
 flowchart TD
-    %% Workflow Initialization
-    Start([Initialize UniversalDocumentProcessor]) --> LoadSchema["load_schema()"]
-    LoadSchema --> Parse["Parse Core JSON Schema"]
-    Parse --> Engine["Init CalculationEngine"]
-    
-    %% Execution Chain
-    Engine --> ProcessData{"Call process_data(df)"}
-    ProcessData --> ColLoop["For Each Schema Column"]
+    %% Initialization
+    Start([Initialize UDP]) --> LoadSchema["load_schema()"]
+    LoadSchema --> Parse["Parse JSON Schema"]
+    Parse --> InitEngine["Init CalculationEngine"]
+
+    %% Main Processing
+    InitEngine --> ProcessData{"process_data(df)"}
+    ProcessData --> Step0["Step 0: Initialize Missing Columns"]
     
     %% Step 0
-    ColLoop --> MissingCheck{"Is Column Missing<br>from dataset?"}
-    MissingCheck -- "Yes" --> SchemaCreate{"Schema 'create_if_missing'<br>== True?"}
-    MissingCheck -- "No" --> Step1["Step 1: apply_null_handling()"]
-    
-    SchemaCreate -- "Yes" --> Inject["Inject column<br>with 'default_value'"]
-    SchemaCreate -- "No" --> SkipCol("Skip Column Logic Entirely")
-    
+    Step0 --> ColCheck{"Column exists?"}
+    ColCheck -- "No" --> CreateCheck{"create_if_missing<br>or global enabled?"}
+    ColCheck -- "Yes" --> Step1
+    CreateCheck -- "Yes" --> Inject["Create column with<br>default_value"]
+    CreateCheck -- "No" --> NextCol
     Inject --> Step1
     
     %% Step 1
-    Step1["Step 1: apply_null_handling()"] --> Strategy["Evaluate Schema Strategy"]
-    
-    Strategy --> ForwardFill["multi_level_forward_fill<br>or standard forward_fill"]
-    Strategy --> Copy["copy_from"]
-    Strategy --> SpecificFallback["default_value / calculate_if_null"]
+    Step1["Step 1: apply_null_handling()"] --> EvalStrategy{"Evaluate<br>strategy"}
+    EvalStrategy --> ForwardFill["forward_fill /<br>multi_level_forward_fill"]
+    EvalStrategy --> CopyFrom["copy_from"]
+    EvalStrategy --> CalcIfNull["calculate_if_null"]
+    EvalStrategy --> DefaultValue["default_value"]
+    EvalStrategy --> LookupIfNull["lookup_if_null"]
+    EvalStrategy --> LeaveNull["leave_null"]
     
     ForwardFill --> Step2
-    Copy --> Step2
-    SpecificFallback --> Step2
+    CopyFrom --> Step2
+    CalcIfNull --> Step2
+    DefaultValue --> Step2
+    LookupIfNull --> Step2
+    LeaveNull --> Step2
+    SkipCol --> Step2
     
     %% Step 2
-    Step2 --> CalcType{"Check 'is_calculated'"}
-    CalcType -- "Yes" --> Aggregate["Evaluate calculation type:<br>aggregate / composite<br>/ date_calculation / latest_by_date"]
-    CalcType -- "No" --> Step3["Step 3: _apply_validation()"]
+    Step2["Step 2: apply_calculations()"] --> IsCalc{"is_calculated<br>== true?"}
+    IsCalc -- "No" --> Step3
+    IsCalc -- "Yes" --> EvalCalc{"Evaluate<br>calculation type"}
+    
+    EvalCalc --> Mapping["mapping:<br>status_to_code"]
+    EvalCalc --> Aggregate["aggregate:<br>count/min/max/<br>concatenate_unique/<br>concatenate_dates"]
+    EvalCalc --> LatestByDate["latest_by_date"]
+    EvalCalc --> Copy["copy: direct"]
+    EvalCalc --> Conditional["conditional:<br>current_row"]
+    EvalCalc --> DateCalc["date_calculation:<br>add_working_days/<br>date_difference"]
+    EvalCalc --> Composite["composite:<br>build_document_id"]
+    
+    Mapping --> Step3
     Aggregate --> Step3
+    LatestByDate --> Step3
+    Copy --> Step3
+    Conditional --> Step3
+    DateCalc --> Step3
+    Composite --> Step3
     
     %% Step 3
-    Step3 --> Meta["Validate schema: required / allow_null"]
-    Step3 --> Regex["Validate constraint: pattern"]
-    Step3 --> Limits["Validate constraint: format / length"]
-    Step3 --> Numerical["Validate bounds: min/max limits"]
+    Step3["Step 3: apply_validation()"] --> ValidateRules{"Check<br>validation rules"}
+    ValidateRules --> Required["required"]
+    ValidateRules --> AllowNull["allow_null"]
+    ValidateRules --> Pattern["pattern (regex)"]
+    ValidateRules --> MinMaxLen["min_length/max_length"]
+    ValidateRules --> MinMaxVal["min_value/max_value"]
+    ValidateRules --> Format["format (YYYY-MM-DD)"]
+    ValidateRules --> AllowedVals["allowed_values"]
     
-    Meta --> NextCol
-    Limits --> NextCol
-    Regex --> NextCol
-    Numerical --> NextCol
+    Required --> NextCol
+    AllowNull --> NextCol
+    Pattern --> NextCol
+    MinMaxLen --> NextCol
+    MinMaxVal --> NextCol
+    Format --> NextCol
+    AllowedVals --> NextCol
     
-    SkipCol --> NextCol["Process Next Column"]
-    NextCol --> Finished([Return fully<br>processed df_validated])
+    NextCol["Next Column"] --> ColCheck
+    NextCol --> Finished([Return<br>df_validated])
 ```
 
 ---
 
-## Schema Processing Keys Dictionary
+## Function Reference Table
 
-The Python processor securely listens to explicit keys configured directly at the JSON schema structural levels:
+### UniversalDocumentProcessor Class
 
-### Initialization Directives
-- **`create_if_missing`** *(boolean)*: Core root flag indicating if absent columns should be natively forcefully created dynamically.
-- **`parameters.dynamic_column_creation`**: Global explicit parameters defining `enabled` booleans and fallbacks default strings globally applied to created instances uniformly.
+| Function | Purpose | Key Parameters | Processing Details | Results |
+|----------|---------|----------------|-------------------|---------|
+| `__init__` | Initialize the processor with optional schema file path | `schema_file` (str): Path to enhanced schema JSON file | Stores schema file path, initializes empty schema_data and calculation_engine | Ready-to-configure processor instance |
+| `load_schema` | Load and parse the JSON schema file | None (uses `self.schema_file`) | Opens schema JSON file, parses into `schema_data` dict, initializes `CalculationEngine` with schema | Populated `schema_data` and initialized `calculation_engine` |
+| `process_data` | Main entry point for data processing | `df` (pd.DataFrame): Input data to process | Executes 4-step pipeline: (0) initialize missing columns, (1) apply null handling, (2) apply calculations, (3) apply validation | Fully processed DataFrame with all transformations applied |
+| `_initialize_missing_columns` | Create columns defined in schema but missing from input data | `df` (pd.DataFrame): Input data | Iterates schema columns, checks `create_if_missing` flag and global `dynamic_column_creation.enabled`, creates missing columns with `default_value` | DataFrame with all schema-defined columns present |
+| `_apply_validation` | Apply validation rules from schema to processed data | `df` (pd.DataFrame): Processed data to validate | Checks each column for: `required`, `allow_null`, `pattern` (regex), `min_length`/`max_length`, `min_value`/`max_value`, `format` (YYYY-MM-DD), `allowed_values` | Validated DataFrame; logs warnings for validation failures |
 
-### Null Handling (`null_handling`)
-- **`conditional_processing.if_column_exists`**: Validation boolean hook forcing calculations to immediately abort processing structures if a column wasn't natively extracted and was simply locally injected natively via defaults structures logic. 
-- **`strategy: multi_level_forward_fill`**: Evaluates cascading sequential iterations lists natively looping `levels` constraints tracking dynamic hierarchies `group_by` boundaries automatically sequentially evaluating `ffill()` structures safely.
-- **`strategy: copy_from` / `default_value` / `calculate_if_null`**: Applies strict scalar replacement parameters locally overriding blank indexes.
+### CalculationEngine Class
 
-### Calculation Logic (`calculation`)
-*Bound natively when the root evaluates: `is_calculated: true`.*
-- **`composite` + `method: build_document_id`**: Dynamically binds target structural sequences variables utilizing local mapping representations (`format: {Project_Code}-{Facility_Code}...`).
-- **`aggregate` + `latest_by_date`**: Executes deep extraction variables extracting `.first()` values recursively evaluating structural tracking bound natively via `sort_direction` / `sort_by`. 
-- **`aggregate` + `concatenate_unique_quoted`**: Appends recursive variables binding strings dynamically wrapping objects strictly utilizing `"` quotes joined locally sequentially tracking custom internal `separator` layouts.
-- **`aggregate` + `concatenate_dates`**: Safely builds text clusters grouping unique strings mapping structured Python configurations `YYYY-MM-DD` converted dynamically against `strftime` arrays explicitly matching.
-
-### Boundary Validations (`validation`)
-- **`required`**: Validation hook triggering severe `.error()` warnings if processing logic terminates mapping entirely absent representations mapping explicit references limits bounds mapping boundaries.
-- **`allow_null`**: Inspects logic natively bounding representations tracking variables safely rejecting states measuring configurations matching `.isna().sum()` outputs representations boundaries limits tables.
-- **`pattern`**: Explicit Regular Expression mapping strings verification definitions mappings safely outputs variables logic outputs limits logic paths rules logic targets strings constraints layouts mappings values points mappings grids instances locations references bounds parameters sequences mapping strings.
-- **`min_length`/`max_length` / `min_value`/`max_value`**: Checks boundary scopes on representations strings geometries sizes representations values lists dimensions sizes variables bounding variables sets values metrics. 
-- **`format`: `YYYY-MM-DD`**: Temporally coerces columns ensuring outputs exactly conform to defined timestamp layouts schemas targets grids graphs maps paths references logic representations parameters limits strings structures layouts strings variables layouts.
+| Function | Purpose | Key Parameters | Processing Details | Results |
+|----------|---------|----------------|-------------------|---------|
+| `__init__` | Initialize calculation engine with schema data | `schema_data` (dict): Resolved schema dictionary | Extracts `enhanced_schema.columns` for column definitions | Ready-to-use calculation engine |
+| `apply_null_handling` | Apply null handling rules based on schema definitions | `df` (pd.DataFrame): Input data<br>`original_columns` (set): Columns natively mapped | Iterates columns, dispatches to specific strategy handlers based on `null_handling.strategy` | DataFrame with null values resolved per schema rules |
+| `_apply_forward_fill` | Apply forward fill null handling strategy | `df`, `column_name`, `null_handling` (dict with `group_by`, `fill_value`, `na_fallback`, `formatting.zero_pad`) | Optionally groups by columns, forward fills within groups, applies `na_fallback` to replace remaining NaN with 'NA', applies zero-padding if specified | Column with forward-filled values |
+| `_apply_multi_level_forward_fill` | Apply multi-level cascading forward fill | `df`, `column_name`, `null_handling` (dict with `levels` list, `final_fill`, `datetime_conversion`) | Iterates through level configurations, applies grouped forward fill at each level, optionally converts to datetime | Column with multi-level forward-filled values |
+| `_apply_copy_from` | Copy values from source column where target is null | `df`, `column_name`, `null_handling` (dict with `source_column`, `fallback_value`) | Identifies null positions, copies from source column, applies fallback for remaining nulls | Column populated from source column |
+| `_apply_calculate_if_null` | Calculate values for null entries based on calculation type | `df`, `column_name`, `null_handling` (dict with `calculation` type/method) | Dispatches to `date_calculation` (add_working_days) or `conditional` (status_based) handlers | Column with calculated values for previously null entries |
+| `_apply_default_value` | Fill null values with default or apply text replacements | `df`, `column_name`, `null_handling` (dict with `default_value`, `default` (fallback), `text_replacements`, `type_conversion`) | Applies text replacements first, optionally converts type, fills nulls with `default_value` or `default` fallback | Column with nulls replaced by default values |
+| `_apply_lookup_if_null` | Lookup values from grouped data to fill nulls | `df`, `column_name`, `null_handling` (dict with `calculation.lookup_key`, `source_column`, `fallback_value`) | Groups by lookup key, finds first non-null value in group, applies fallback for remaining | Column with lookup-derived values |
+| `_calculate_working_days` | Add working days to a date column | `df`, `column_name`, `calculation` (dict with `source_column`, `parameters.days`) | Converts dates, adds specified number of days using `pd.Timedelta` | Date column with calculated target dates |
+| `_apply_conditional_calculation` | Apply conditional calculation based on another column's value | `df`, `column_name`, `calculation` (dict with `source_column`, `mapping`, `default`) | Maps source column values to results, applies default for unmatched | Column with conditionally calculated values |
+| `apply_calculations` | Apply all calculated columns based on schema | `df` (pd.DataFrame): Input data | Iterates `is_calculated=true` columns, dispatches to specific calculation handlers | DataFrame with all calculated columns added |
+| `_apply_mapping_calculation` | Map source values to target codes using lookup table | `df`, `column_name`, `calculation` (dict with `source_column`, `mapping`, `default`) | Uses pandas `map()` with fallback to default value | Column with mapped code values |
+| `_apply_aggregate_calculation` | Apply aggregate calculations (count, min, max, concatenate) | `df`, `column_name`, `calculation` (dict with `source_column`, `method`, `group_by`, `sort_by`, `separator`) | Groups by specified columns, applies aggregation method (count/min/max/concatenate_unique/concatenate_unique_quoted/concatenate_dates) | Column with aggregated values broadcast to original rows |
+| `_apply_latest_by_date_calculation` | Extract latest value by date sorting | `df`, `column_name`, `calculation` (dict with `source_column`, `group_by`, `sort_by`, `sort_direction`, `mapping`) | Filters excluded values, sorts by date columns, extracts first value per group | Column with latest values by date |
+| `_apply_copy_calculation` | Direct copy from source column | `df`, `column_name`, `calculation` (dict with `source_column`) | Copies source column values directly to target | Column with copied values |
+| `_apply_current_row_calculation` | Apply current row conditional logic | `df`, `column_name`, `calculation` (dict with `source_column`, `condition`) | Evaluates condition (e.g., `is_current_submission`), copies source value | Column with current row values |
+| `_apply_date_calculation` | Apply date calculations (add days, calculate difference) | `df`, `column_name`, `calculation` (dict with `method`, `parameters`) | Dispatches to working days or date difference handlers | Column with calculated date values |
+| `_calculate_date_difference` | Calculate difference between two date columns | `df`, `column_name`, `calculation` (dict with `source_column`, `target_column`) | Converts both columns to datetime, calculates difference in days | Column with day differences |
+| `_apply_composite_calculation` | Build composite string from multiple source columns | `df`, `column_name`, `calculation` (dict with `source_columns`, `format`, `fallback_source`) | Formats multiple columns into composite string using format template | Column with composite identifier strings |
 
 ---
 
-## Core Classes & Functions Breakdown
+## Schema Configuration Keys
 
-### 1. `UniversalDocumentProcessor`
-The primary execution structure interface natively handling root processing loops configurations logic limits operations routines definitions.
-- **`__init__(self, schema_file)`**: Bootstrap limits operations representations paths limits constraints initialization logics instances values grids variables instances properties objects representations setups setups mappings structures coordinates dimensions mappings interfaces logic parameters paths endpoints variables bindings endpoints limits points endpoints configurations dimensions mappings properties references instances logic instances outputs references offsets paths targets sequences bindings mappings structures mappings structures endpoints locations parameters mapping boundaries structs sizes. 
-- **`load_schema(self)`**: Reads constraints sequences bounds loops sequences points grids variables mappings targets sequences outputs values sizes sizes mappings objects arrays bounds lengths references logic sequences variables grids definitions sizes trees representations lengths lengths states grids ranges logic strings parameters parameters tuples limits graphs nodes dictionaries targets offsets targets paths maps objects graphs locations trees values tables maps items. 
-- **`process_data(self, df)`**: Sequences pipeline actions configurations lists mapping boundaries offsets executing nested layouts outputs boundaries variables instances outputs boundaries paths layouts components blocks loops operations values outputs limits references configurations blocks targets bounds tables outputs states targets layouts states values bounds boundaries limits variables lengths boundaries metrics layouts functions locations loops mapping lists logic ranges operations tables loops offsets fields logic values configurations. 
-- **`_initialize_missing_columns(self, df)`**: Extends boundaries mapping inputs configurations points offsets boundaries bounds variables sizes dimensions loops mappings representations targets endpoints points states ranges functions endpoints boundaries paths tables lengths definitions locations outputs locations operations layouts values coordinates functions outputs states boundaries sizes endpoints sizes variables paths mappings strings locations objects lists sequences logic points offsets limits configurations variables ranges graphs sequences mapping boundaries bounds bounds points arrays arrays grids nodes mapping variables maps strings arrays frames dimensions arrays dimensions variables.
-- **`_apply_validation(self, df)`**: Ensures endpoints limits operations lists logic tables matrices offsets endpoints lists properties grids constraints endpoints strings logic sizes graphs lists states inputs values lengths sizes endpoints grids properties outputs limits points tables geometries operations variables dictionaries limits components representations locations components values parameters states grids lists ranges fields values components sets variables mappings boundaries graphs metrics sequences lines offsets fields sets points lists structures inputs arrays strings arrays limits maps states values mappings configurations arrays endpoints structures properties inputs limits lists lines limits logic boundaries graphs sizes coordinates sets lines variables paths parameters maps loops parameters.
+### Initialization Directives
+| Key | Location | Type | Description |
+|-----|----------|------|-------------|
+| `create_if_missing` | Column definition | boolean | If true, creates missing column with default value |
+| `parameters.dynamic_column_creation.enabled` | Root level | boolean | Globally enable automatic column creation |
+| `parameters.dynamic_column_creation.default_value` | Root level | string | Default value for globally created columns |
 
-### 2. `CalculationEngine`
-Nested operations engine computing mapping structures lengths parameters values grids. limits constraints limits metrics limits layouts endpoints endpoints sequences loops loops locations dimensions.
-- **`apply_null_handling(...)`**: Operations bounds endpoints limits graphs lists offsets parameters values arrays ranges lengths variables arrays instances loops endpoints targets nodes metrics points loops limits mappings limits loops tuples mappings sequences parameters sizes arrays states inputs points representations sizes logic lines endpoints bounds paths lists metrics. 
-- **`_apply_multi_level_forward_fill(...)`**: Computes mappings tuples offsets dimensions fields locations variables trees inputs offsets lists limits strings bounds fields loops sequences endpoints layouts grids graphs tuples items states lists nodes dimensions tables fields configurations limits lengths points limits graphs endpoints points outputs fields mapping lines fields vectors points graphs logic points nodes lengths bounds items structures mapping lists fields lengths mappings strings.
-- **`apply_calculations(...)`**: Variables limits layouts outputs mappings tuples items arrays items mapping values configurations tables matrices vectors points targets fields metrics targets bounds variables lines targets metrics configurations nodes vectors maps fields sequences points ranges points logic parameters paths vectors mappings logic coordinates items coordinates structures vectors parameters arrays grids operations vectors. 
-- **`_apply_latest_by_date_calculation(...)`**: Operations targets fields representations instances targets metrics graphs configurations tuples ranges bounds configurations items tables mappings items items vectors operations paths items sequences ranges graphs representations formats mappings objects metrics constraints logic sizes loops objects maps limits mappings coordinates variables outputs operations boundaries schemas tables points variables formats representations loops graphs nodes mapping loops logic matrices outputs operations functions lengths bounds limits nodes functions matrices points states tables states variables bounds lengths properties frames logic boundaries maps frames fields definitions representations properties strings sequences instances trees parameters sizes schemas logic values locations variables nodes fields sizes states fields sequences structs boundaries properties logic structures offsets properties boundaries logic parameters coordinates.
-- **`_apply_aggregate_calculation(...)`**: Generates scalar outputs formats logic sequences bounds schemas maps bounds formats tables graphs dictionaries tables logic fields schemas structures values grids schemas representations schemas representations schemas items mapping offsets schemas strings objects sequences definitions frames strings structures formats outputs points bounds structs values representations configurations frames nodes metrics representations metrics variables configurations graphs formats formats definitions items tables nodes points parameters fields functions coordinates instances lists structs definitions schemas definitions definitions structs variables references trees formats operations parameters items lists points schemas outputs values limits formats arrays layouts sequences fields lines templates items vectors arrays tuples structures templates outputs functions templates boundaries paths nodes coordinates lengths operations sequences structures formats variables grids representations configurations formats tables outputs lines trees definitions coordinates paths sequences sizes logic ranges values limits loops geometries operations nodes logic bounds formats values formats loops dimensions sequences schemas structures coordinates ranges metrics limits values paths bounds frames sizes endpoints instances boundaries offsets constraints configurations formats offsets vectors templates logic definitions states functions templates configurations values inputs fields formats dimensions fields trees layouts metrics configurations sequences variables parameters states tables arrays ranges strings representations states offsets limits nodes formats maps mapping templates constraints points formats properties dimensions endpoints variables dictionaries grids paths coordinates inputs offsets layouts outputs references formats structures paths properties boundaries functions logic maps properties states states sizes loops offsets grids paths templates frames lengths parameters matrices loops frames properties structures states strings instances variables layouts frames grids definitions interfaces structures lines sequences ranges arrays parameters lengths states variables structures strings matrices dimensions vectors points items lengths interfaces paths templates points offsets templates inputs vectors interfaces definitions points sizes arrays nodes formats logic formats sizes locations endpoints structures templates dictionaries lines lines parameters configurations layouts locations ranges interfaces variables ranges loops lists metrics sizes grids states variables sizes boundaries lines metrics boundaries configurations fields interfaces mappings instances mappings functions templates grids sequences lengths variables items boundaries structures templates metrics lines strings nodes operations boundaries functions templates interfaces interfaces constraints sequences sequences limits interfaces templates loops variables geometries definitions matrices templates variables definitions vectors templates logic outputs loops components sizes grids templates outputs layouts functions configurations schemas constraints metrics bounds templates endpoints locations strings inputs ranges configurations matrices fields coordinates operations bounds definitions values strings strings representations references vectors vectors vectors.
+### Null Handling (`null_handling` section)
+| Key | Type | Description |
+|-----|------|-------------|
+| `strategy` | string | One of: `forward_fill`, `multi_level_forward_fill`, `copy_from`, `calculate_if_null`, `default_value`, `leave_null`, `lookup_if_null` |
+| `group_by` | list | Columns to group by for grouped forward fill |
+| `fill_value` | any | Value to use for forward fill |
+| `source_column` | string | Source column for copy_from strategy |
+| `fallback_value` | any | Fallback when source is also null |
+| `calculation` | object | Calculation config for `calculate_if_null` strategy |
+| `default_value` | any | Default value for `default_value` strategy |
+| `text_replacements` | dict | Old→new text replacements before filling |
+| `levels` | list | Level configs for multi-level forward fill |
+
+### Calculation Logic (`calculation` section, when `is_calculated: true`)
+| Key | Type | Description |
+|-----|------|-------------|
+| `type` | string | One of: `mapping`, `aggregate`, `copy`, `conditional`, `date_calculation`, `composite` |
+| `method` | string | Specific method (e.g., `status_to_code`, `count`, `build_document_id`) |
+| `source_column` | string | Source column for calculation |
+| `mapping` | dict | Value-to-value mapping for mapping calculations |
+| `group_by` | list | Grouping columns for aggregations |
+| `sort_by` | list | Sorting columns for ordered aggregations |
+| `format` | string | Format string for composite or date formatting |
+
+### Validation Rules (`validation` section)
+| Key | Type | Description |
+|-----|------|-------------|
+| `required` | boolean | If true, column must exist or error is logged |
+| `allow_null` | boolean | If false, warns when nulls are present |
+| `pattern` | string | Regex pattern that values must match |
+| `min_length`/`max_length` | integer | String length bounds |
+| `min_value`/`max_value` | number | Numeric value bounds |
+| `format` | string | Expected format (e.g., `YYYY-MM-DD`) |
+| `allowed_values` | list | Explicit list of allowed values |
+
+---

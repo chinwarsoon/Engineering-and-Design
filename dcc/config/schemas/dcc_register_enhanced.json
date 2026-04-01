@@ -170,20 +170,8 @@
           "description": "Calculated via _apply_composite_calculation with method build_document_id. Concatenates identifiers using the defined format string."
         },
         "null_handling": {
-          "strategy": "calculate_if_null",
-          "calculation": {
-            "type": "composite",
-            "method": "build_document_id",
-            "source_columns": [
-              "Project_Code",
-              "Facility_Code",
-              "Document_Type",
-              "Document_Sequence_Number"
-            ],
-            "format": "{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}",
-            "fallback_value": "UNKNOWN-DOC-ID",
-            "description": "Processed by _apply_calculate_if_null. Re-runs the composite builder if the document has no valid identifier."
-          }
+          "strategy": "leave_null",
+          "description": "Leave null values as-is; will be populated by is_calculated logic (composite/build_document_id)."
         },
         "validation": {
           "pattern": "^[A-Z0-9-]+$",
@@ -815,7 +803,7 @@
             },
             {
               "if": "previous_submission_exists",
-              "then": "Submission_Date + second_review_duration", 
+              "then": "Submission_Date + second_review_duration",
               "description": "Resubmission: add second_review_duration days"
             }
           ],
@@ -830,11 +818,11 @@
             "Submission_Session",
             "Submission_Session_Revision"
           ],
-          "description": "Calculated via _apply_calculate_if_null (or direct calculation). Uses method 'calculate_review_return_plan_date' to branch between first-time submissions and resubmissions based on historical existence."
+          "description": "Calculated via _apply_date_calculation with method calculate_review_return_plan_date. Branches between first-time submissions and resubmissions based on historical existence."
         },
         "null_handling": {
-          "strategy": "calculated_fill",
-          "description": "Processed by _apply_calculate_if_null using condition-checked date arithmetic based on submission history."
+          "strategy": "leave_null",
+          "description": "Leave null values as-is; will be populated by is_calculated logic (conditional_date_calculation/calculate_review_return_plan_date)."
         },
         "validation": {
           "format": "YYYY-MM-DD",

@@ -159,18 +159,27 @@ class CalculationEngine:
         return df
     
     def _apply_calculate_if_null(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
-        """Apply calculate if null strategy."""
+        """
+        Apply calculate if null strategy.
+        
+        Note: This method is deprecated for columns with is_calculated=true.
+        Use null_handling.strategy: leave_null instead for calculated columns.
+        Currently only handles legacy date_calculation and conditional calculations.
+        """
         calculation = null_handling.get('calculation', {})
         calc_type = calculation.get('type')
         method = calculation.get('method')
-        
+
         if calc_type == 'date_calculation' and method == 'add_working_days':
             df = self._calculate_working_days(df, column_name, calculation)
         elif calc_type == 'conditional' and method == 'status_based':
             df = self._apply_conditional_calculation(df, column_name, calculation)
         else:
-            logger.warning(f"Unsupported calculation type: {calc_type} for {column_name}")
-        
+            logger.warning(
+                f"Unsupported calculation type in calculate_if_null: {calc_type}/{method} for {column_name}. "
+                f"Use is_calculated:true with appropriate calculation type instead."
+            )
+
         return df
     
     def _calculate_working_days(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
