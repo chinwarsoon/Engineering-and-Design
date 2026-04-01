@@ -335,10 +335,10 @@
           "Submission Subject"
         ],
         "data_type": "string",
-        "required": false,
-        "allow_null": true,
+        "required": true,
+        "allow_null": false,
         "is_calculated": false,
-        "create_if_missing": false,
+        "create_if_missing": true,
         "null_handling": {
           "strategy": "multi_level_forward_fill",
           "levels": [
