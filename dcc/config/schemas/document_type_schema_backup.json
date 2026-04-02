@@ -1,0 +1,18 @@
+{
+  "schema_name": "document_type_choices",
+  "type": "standard_choices",
+  "choices": [
+    "Drawing",
+    "Specification",
+    "Report",
+    "Calculation",
+    "Procedure",
+    "Manual",
+    "Method Statement",
+    "Schedule",
+    "NA"
+  ],
+  "description": "Standard document type classifications",
+  "created": "2026-03-28",
+  "version": "1.0"
+}

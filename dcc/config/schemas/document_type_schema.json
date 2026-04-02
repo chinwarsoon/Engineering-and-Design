@@ -1,18 +1,261 @@
 {
-  "schema_name": "document_type_choices",
-  "type": "standard_choices",
-  "choices": [
-    "Drawing",
-    "Specification",
-    "Report",
-    "Calculation",
-    "Procedure",
-    "Manual",
-    "Method Statement",
-    "Schedule",
-    "NA"
-  ],
-  "description": "Standard document type classifications",
-  "created": "2026-03-28",
-  "version": "1.0"
+    "schema_name": "document_type_choices",
+    "type": "standard_choices",
+    "document": [
+        {
+            "code": "AD",
+            "description": "Addendum"
+        },
+        {
+            "code": "AF",
+            "description": "Animation File"
+        },
+        {
+            "code": "AG",
+            "description": "Agenda"
+        },
+        {
+            "code": "AU",
+            "description": "Audit Files"
+        },
+        {
+            "code": "BQ",
+            "description": "Bill of Quantities/material"
+        },
+        {
+            "code": "CB",
+            "description": "Commercial Bid Evaluation"
+        },
+        {
+            "code": "CD",
+            "description": "Construction Record / Document"
+        },
+        {
+            "code": "CE",
+            "description": "Cost Estimation"
+        },
+        {
+            "code": "CH",
+            "description": "Checklist"
+        },
+        {
+            "code": "CL",
+            "description": "Calculations"
+        },
+        {
+            "code": "CM",
+            "description": "Combined Model"
+        },
+        {
+            "code": "CN",
+            "description": "Change Notices / Request"
+        },
+        {
+            "code": "CR",
+            "description": "Specific for the clash process"
+        },
+        {
+            "code": "CT",
+            "description": "Contract"
+        },
+        {
+            "code": "DA",
+            "description": "Daily Report"
+        },
+        {
+            "code": "DB",
+            "description": "Database"
+        },
+        {
+            "code": "DR",
+            "description": "2D Drawing"
+        },
+        {
+            "code": "DS",
+            "description": "Data Sheet"
+        },
+        {
+            "code": "EM",
+            "description": "Email"
+        },
+        {
+            "code": "FM",
+            "description": "Forms/Templates"
+        },
+        {
+            "code": "ID",
+            "description": "Incoming Data"
+        },
+        {
+            "code": "IV",
+            "description": "Invoice"
+        },
+        {
+            "code": "LC",
+            "description": "Licence/Certificates"
+        },
+        {
+            "code": "LT",
+            "description": "Letter"
+        },
+        {
+            "code": "M2",
+            "description": "2D Model File"
+        },
+        {
+            "code": "M3",
+            "description": "3D Model File"
+        },
+        {
+            "code": "M4",
+            "description": "4D Model File"
+        },
+        {
+            "code": "M5",
+            "description": "5D Model File"
+        },
+        {
+            "code": "M6",
+            "description": "6D Model File"
+        },
+        {
+            "code": "MI",
+            "description": "Minutes/Action notes"
+        },
+        {
+            "code": "MM",
+            "description": "Memo"
+        },
+        {
+            "code": "MR",
+            "description": "Material Requisition"
+        },
+        {
+            "code": "MS",
+            "description": "Method Statement"
+        },
+        {
+            "code": "NC",
+            "description": "Non Conformance Report"
+        },
+        {
+            "code": "OM",
+            "description": "Operations & Maintenance (O&M)"
+        },
+        {
+            "code": "PC",
+            "description": "Payment Certificate / Progress Claim"
+        },
+        {
+            "code": "PG",
+            "description": "Programme"
+        },
+        {
+            "code": "PO",
+            "description": "Purchase Order"
+        },
+        {
+            "code": "PP",
+            "description": "Project Management/Execution Plans"
+        },
+        {
+            "code": "PQ",
+            "description": "Pre-Qualification"
+        },
+        {
+            "code": "PS",
+            "description": "Presentation"
+        },
+        {
+            "code": "PT",
+            "description": "Photograph"
+        },
+        {
+            "code": "QA",
+            "description": "Quality Assurance / Inspection Test Plan"
+        },
+        {
+            "code": "QC",
+            "description": "Quality Control"
+        },
+        {
+            "code": "QU",
+            "description": "Quotation"
+        },
+        {
+            "code": "RG",
+            "description": "Register"
+        },
+        {
+            "code": "RI",
+            "description": "Request for Information"
+        },
+        {
+            "code": "RN",
+            "description": "Request for Inspection"
+        },
+        {
+            "code": "RT",
+            "description": "Report"
+        },
+        {
+            "code": "SD",
+            "description": "Shop Drawing"
+        },
+        {
+            "code": "SH",
+            "description": "Schedules"
+        },
+        {
+            "code": "SI",
+            "description": "Site Instruction"
+        },
+        {
+            "code": "SK",
+            "description": "Sketch Part, Part Print/Plan"
+        },
+        {
+            "code": "SN",
+            "description": "Snagging List (Punch List)"
+        },
+        {
+            "code": "SP",
+            "description": "Specification"
+        },
+        {
+            "code": "SU",
+            "description": "Survey"
+        },
+        {
+            "code": "TB",
+            "description": "Technical Bid Evaluation"
+        },
+        {
+            "code": "TE",
+            "description": "Tender"
+        },
+        {
+            "code": "TM",
+            "description": "Tech Memo"
+        },
+        {
+            "code": "TS",
+            "description": "Timesheet"
+        },
+        {
+            "code": "VI",
+            "description": "Vendor Information"
+        },
+        {
+            "code": "VO",
+            "description": "Variation Order"
+        },
+        {
+            "code": "VS",
+            "description": "Visualization File"
+        }
+    ],
+    "description": "Standard document type classifications",
+    "created": "2026/04/02",
+    "version": 2
 }
