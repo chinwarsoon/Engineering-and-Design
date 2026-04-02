@@ -251,7 +251,7 @@ input.ctl::placeholder { color: var(--muted); }
     <div class="format-legend" id="fmt-legend" style="display:none">
       <div class="legend-item"><div class="legend-swatch" style="background:rgba(124,106,247,0.6)"></div>Row 1 = header keys</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#a8d8a8"></div>Row 2+ = values</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#c9a8f7"></div>key.nested = nested object</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#c9a8f7"></div>key.nested = array of objects</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#f7a06a"></div>Same title ×2 = key-value map</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#f87171;opacity:0.7"></div>null = stored as null</div>
     </div>
@@ -263,8 +263,8 @@ input.ctl::placeholder { color: var(--muted); }
         <div class="upload-icon">📊</div>
         <h3>Drop your spreadsheet here</h3>
         <p>
-          <b style="color:var(--accent)">Row 1</b> — header keys (use <code>.</code> for nesting)<br>
-          <b style="color:var(--string)">Row 2+</b> — values (multiple rows → array)<br>
+          <b style="color:var(--accent)">Row 1</b> — header keys (use <code>.</code> for array of objects)<br>
+          <b style="color:var(--string)">Row 2+</b> — values (dotted keys → array of objects)<br>
           <b style="color:var(--muted2)">Each column</b> = one field<br>
           <b style="color:#f7a06a">Duplicate column titles</b> → key-value mapping<br>
           <b style="color:var(--red)">null / empty after values</b> → dropped
@@ -411,7 +411,44 @@ function coerce(v) {
   return s;
 }
 
-function setNested(obj, path, value) {
+function setNested(obj, path, value, rowIdx) {
+  const keys = path.split('.');
+  let current = obj;
+  
+  if (keys.length > 1) {
+    const parentKey = keys[0];
+    const childPath = keys.slice(1).join('.');
+    
+    if (!(parentKey in current) || !Array.isArray(current[parentKey])) {
+      current[parentKey] = [];
+    }
+    
+    // Ensure we have an object at that row index
+    if (!current[parentKey][rowIdx]) {
+      current[parentKey][rowIdx] = {};
+    }
+    
+    // Set the property inside that row's object
+    // Using the original logic for the nested part to support further dots as objects
+    setNestedSimple(current[parentKey][rowIdx], childPath, value);
+  } else {
+    // Top-level flat key: default behavior (accumulate into array across rows)
+    const lastKey = keys[0];
+    if (lastKey in current) {
+      const existing = current[lastKey];
+      if (Array.isArray(existing)) {
+        existing.push(value);
+      } else {
+        current[lastKey] = [existing, value];
+      }
+    } else {
+      current[lastKey] = value;
+    }
+  }
+}
+
+/** Legacy nesting for properties inside high-level arrays */
+function setNestedSimple(obj, path, value) {
   const keys = path.split('.');
   let current = obj;
   for (let i = 0; i < keys.length - 1; i++) {
@@ -422,8 +459,6 @@ function setNested(obj, path, value) {
     current = current[k];
   }
   const lastKey = keys[keys.length - 1];
-  
-  // If key already exists, convert to array or push to existing array
   if (lastKey in current) {
     const existing = current[lastKey];
     if (Array.isArray(existing)) {
@@ -525,7 +560,7 @@ function parse(aoa) {
         const depth = key.split('.').length;
         maxDepth = Math.max(maxDepth, depth);
 
-        setNested(root, key, val);
+        setNested(root, key, val, r - 1); // Pass 0-based data row index
       }
     }
 
