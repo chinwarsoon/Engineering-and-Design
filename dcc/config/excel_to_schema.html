@@ -252,6 +252,7 @@ input.ctl::placeholder { color: var(--muted); }
       <div class="legend-item"><div class="legend-swatch" style="background:rgba(124,106,247,0.6)"></div>Row 1 = header keys</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#a8d8a8"></div>Row 2+ = values</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#c9a8f7"></div>key.nested = nested object</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f7a06a"></div>Same title ×2 = key-value map</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#f87171;opacity:0.7"></div>null = stored as null</div>
     </div>
 
@@ -265,7 +266,8 @@ input.ctl::placeholder { color: var(--muted); }
           <b style="color:var(--accent)">Row 1</b> — header keys (use <code>.</code> for nesting)<br>
           <b style="color:var(--string)">Row 2+</b> — values (multiple rows → array)<br>
           <b style="color:var(--muted2)">Each column</b> = one field<br>
-          <b style="color:var(--red)">null / empty</b> → stored as null
+          <b style="color:#f7a06a">Duplicate column titles</b> → key-value mapping<br>
+          <b style="color:var(--red)">null / empty after values</b> → dropped
         </p>
         <div style="position:relative;display:inline-block">
           <div class="btn btn-primary">Choose File</div>
@@ -442,6 +444,20 @@ function parse(aoa) {
   const headerRow = aoa[0] || [];
   const keys = headerRow.map(k => isEmpty(k) ? null : String(k).trim());
   
+  // Detect duplicate column pairs (key-value mappings)
+  // Consecutive columns with same header = mapping pair
+  const isMappingKey = {};  // colIndex -> true if this col is key of a mapping pair
+  const isMappingValue = {}; // colIndex -> true if this col is value of a mapping pair
+  const mappingPairs = {};   // baseKey -> { keyCol, valCol }
+  
+  for (let c = 0; c < keys.length - 1; c++) {
+    if (keys[c] && keys[c] === keys[c + 1]) {
+      isMappingKey[c] = true;
+      isMappingValue[c + 1] = true;
+      mappingPairs[keys[c]] = { keyCol: c, valCol: c + 1 };
+    }
+  }
+
   // For each column, find the last row with a non-null value
   const lastValueRow = {};
   for (let c = 0; c < keys.length; c++) {
@@ -467,29 +483,56 @@ function parse(aoa) {
       const key = keys[c];
       if (!key) continue;
 
+      // Skip value columns of mappings (handled via key column)
+      if (isMappingValue[c]) continue;
+
       // Skip cells after the last value in this column
       if (lastValueRow[c] !== undefined && r > lastValueRow[c]) {
         continue;
       }
 
       hasData = true;
-      const raw = c < row.length ? row[c] : null;
-      const val = coerce(raw);
+      
+      if (isMappingKey[c]) {
+        // Handle key-value mapping pair
+        const valCol = c + 1;
+        const keyRaw = c < row.length ? row[c] : null;
+        const valRaw = valCol < row.length ? row[valCol] : null;
+        
+        if (isEmpty(keyRaw)) continue;
+        
+        const mapKey = coerce(keyRaw);
+        const mapVal = isEmpty(valRaw) ? null : coerce(valRaw);
+        
+        if (mapVal === null) {
+          droppedNulls++;
+        }
+        
+        const depth = key.split('.').length;
+        maxDepth = Math.max(maxDepth, depth);
+        
+        // Set as object mapping: { key: value }
+        setNestedMapping(root, key, mapKey, mapVal);
+      } else {
+        // Regular column - collect values as array
+        const raw = c < row.length ? row[c] : null;
+        const val = coerce(raw);
 
-      if (val === null) {
-        droppedNulls++;
+        if (val === null) {
+          droppedNulls++;
+        }
+
+        const depth = key.split('.').length;
+        maxDepth = Math.max(maxDepth, depth);
+
+        setNested(root, key, val);
       }
-
-      const depth = key.split('.').length;
-      maxDepth = Math.max(maxDepth, depth);
-
-      setNested(root, key, val);
     }
 
     if (hasData) totalKeys++;
   }
 
-  // Convert single-value arrays to plain values
+  // Convert single-value arrays to plain values, keep mappings as objects
   function unwrapArrays(obj) {
     if (Array.isArray(obj)) {
       return obj.length === 1 ? obj[0] : obj;
@@ -505,6 +548,27 @@ function parse(aoa) {
   unwrapArrays(root);
 
   return { schemaName: 'Schema', obj: root, stats: { totalKeys, droppedNulls, maxDepth } };
+}
+
+function setNestedMapping(obj, path, mapKey, mapVal) {
+  const keys = path.split('.');
+  let current = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    if (!(k in current) || typeof current[k] !== 'object') {
+      current[k] = {};
+    }
+    current = current[k];
+  }
+  const lastKey = keys[keys.length - 1];
+  
+  // Initialize as object for mappings
+  if (!(lastKey in current)) {
+    current[lastKey] = {};
+  }
+  if (typeof current[lastKey] === 'object' && !Array.isArray(current[lastKey])) {
+    current[lastKey][mapKey] = mapVal;
+  }
 }
 
 // ──────────────────────────────────────────
@@ -630,7 +694,8 @@ function resetAll() {
     <p><b style="color:var(--accent)">Row 1</b> — header keys (use . for nesting)<br>
     <b style="color:var(--string)">Row 2+</b> — values (multiple rows → array)<br>
     <b style="color:var(--muted2)">Each column</b> = one field<br>
-    <b style="color:var(--red)">null / empty</b> → stored as null</p>
+    <b style="color:#f7a06a">Duplicate column titles</b> → key-value mapping<br>
+    <b style="color:var(--red)">null / empty after values</b> → dropped</p>
     <div style="position:relative;display:inline-block">
       <div class="btn btn-primary">Choose File</div>
       <input type="file" id="file-input2" accept=".xlsx,.xls,.csv"
