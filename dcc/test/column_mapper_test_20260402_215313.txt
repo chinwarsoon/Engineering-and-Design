@@ -1,0 +1,90 @@
+======================================================================
+UNIVERSAL COLUMN MAPPER TEST REPORT
+======================================================================
+Timestamp: 2026-04-02 21:53:16
+Excel File: /home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx
+Schema File: /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json
+
+PARAMETERS FROM SCHEMA:
+----------------------------------------
+Sheet Name: Prolog Submittals 
+Header Row: 4
+Column Range: P:AP
+
+RESULTS SUMMARY:
+----------------------------------------
+Total Headers: 27
+Matched: 0
+Unmatched: 27
+Match Rate: 0.0%
+Missing Required: 16
+
+DETECTED MAPPINGS:
+----------------------------------------
+
+UNMATCHED HEADERS:
+----------------------------------------
+- Unnamed: 15
+- Unnamed: 16
+- Unnamed: 17
+- Unnamed: 18
+- Unnamed: 19
+- Unnamed: 20
+- Unnamed: 21
+- Unnamed: 22
+- Unnamed: 23
+- Unnamed: 24
+- Unnamed: 25
+- Unnamed: 26
+- Unnamed: 27
+- Unnamed: 28
+- Unnamed: 29
+- Unnamed: 30
+- Unnamed: 31
+- Unnamed: 32
+- Unnamed: 33
+- Unnamed: 34
+- Unnamed: 35
+- Unnamed: 36
+- Unnamed: 37
+- Unnamed: 38
+- Unnamed: 39
+- Unnamed: 40
+- Unnamed: 41
+
+MISSING REQUIRED:
+----------------------------------------
+- Project_Code
+- Facility_Code
+- Document_Type
+- Discipline
+- Document_Sequence_Number
+- Document_Revision
+- Document_Title
+- Submission_Session
+- Submission_Session_Revision
+- Submission_Session_Subject
+- Department
+- Submitted_By
+- Submission_Date
+- Review_Status
+- Review_Comments
+- Notes
+
+SCHEMA REFERENCES:
+----------------------------------------
+- ../config/schemas/department_schema.json
+- ../config/schemas/discipline_schema.json
+- ../config/schemas/document_type_schema.json
+- ../config/schemas/approval_code_mapping.json
+
+RENAME TEST:
+----------------------------------------
+Success: Yes
+Shape: (11100, 27)
+Columns: Unnamed: 15, Unnamed: 16, Unnamed: 17, Unnamed: 18, Unnamed: 19, Unnamed: 20, Unnamed: 21, Unnamed: 22, Unnamed: 23, Unnamed: 24, Unnamed: 25, Unnamed: 26, Unnamed: 27, Unnamed: 28, Unnamed: 29, Unnamed: 30, Unnamed: 31, Unnamed: 32, Unnamed: 33, Unnamed: 34
+... and 7 more
+
+======================================================================
+END OF REPORT
+======================================================================
