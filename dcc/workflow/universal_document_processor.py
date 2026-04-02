@@ -716,20 +716,48 @@ class UniversalDocumentProcessor:
                 if mask.sum() > 0:
                     logger.warning(f"Format validation (YYYY-MM-DD) failed for {column_name}: {mask.sum()} invalid dates")
             
-            # Apply allowed values validation
+            # Apply allowed values validation from schema rules
             if 'allowed_values' in validation:
                 allowed = validation['allowed_values']
                 mask = ~df_validated[column_name].isin(allowed)
                 invalid_count = mask.sum()
                 if invalid_count > 0:
                     logger.warning(f"Allowed values validation failed for {column_name}: {invalid_count} invalid values")
+            
+            # Apply schema_reference validation (for external schema files like document_type_schema, discipline_schema)
+            schema_ref = column_def.get('schema_reference')
+            if schema_ref:
+                ref_data = self.schema_data.get(f'{schema_ref}_data', {})
+                if ref_data:
+                    # Find array key containing code/description objects (document, discipline, etc.)
+                    array_key = None
+                    for key in ref_data.keys():
+                        if isinstance(ref_data[key], list) and len(ref_data[key]) > 0:
+                            if isinstance(ref_data[key][0], dict) and 'code' in ref_data[key][0]:
+                                array_key = key
+                                break
+                    
+                    if array_key:
+                        # Handle new format: array with code/description objects
+                        allowed_codes = [item.get('code') for item in ref_data[array_key] if item.get('code')]
+                        mask = ~df_validated[column_name].isin(allowed_codes)
+                        invalid_count = mask.sum()
+                        if invalid_count > 0:
+                            logger.warning(f"Schema reference validation failed for {column_name}: {invalid_count} values not in {schema_ref}")
+                    # Handle old format: choices array
+                    elif 'choices' in ref_data:
+                        allowed = ref_data.get('choices', [])
+                        mask = ~df_validated[column_name].isin(allowed)
+                        invalid_count = mask.sum()
+                        if invalid_count > 0:
+                            logger.warning(f"Schema reference validation failed for {column_name}: {invalid_count} invalid values")
         
         return df_validated
 
 
 def main():
     """Example usage of UniversalDocumentProcessor."""
-    # Create sample data
+    # Create sample data with new document type codes
     sample_data = {
         'Document_ID': ['DOC-001', 'DOC-001', 'DOC-002', 'DOC-003'],
         'Document_Title': ['Foundation Plan', 'Foundation Plan', 'Structural Design', 'MEP Design'],
@@ -737,7 +765,7 @@ def main():
         'Department': ['Civil', 'Civil', 'Structural', 'NA'],
         'Discipline': ['Civil', 'Structural', 'MEP', 'NA'],
         'Project_Code': ['CESL-22120', 'CESL-22120', 'NA', 'CESL-22120'],
-        'Document_Type': ['Drawing', 'Drawing', 'Specification', 'NA'],
+        'Document_Type': ['DR', 'DR', 'SP', 'NA'],  # Using new codes: DR=Drawing, SP=Specification
         'Submission_Date': ['2024-01-15', '2024-01-20', '2024-02-01', pd.NaT],
         'Review_Status': ['Approved', 'Rejected', 'Pending', 'Approved'],
         'Review_Return_Actual_Date': ['2024-01-25', pd.NaT, '2024-02-15', '2024-02-20']

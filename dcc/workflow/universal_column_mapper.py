@@ -406,7 +406,22 @@ class UniversalColumnMapper:
                     schema_name = schema_ref.replace('_schema', '')
                     schema_data = self.schema_loader.loaded_schemas.get(schema_name)
                     if schema_data:
-                        mapping['choices'] = schema_data.get('choices', [])
+                        # Find array key containing code/description objects (document, discipline, department, etc.)
+                        array_key = None
+                        for key in schema_data.keys():
+                            if isinstance(schema_data[key], list) and len(schema_data[key]) > 0:
+                                if isinstance(schema_data[key][0], dict) and 'code' in schema_data[key][0]:
+                                    array_key = key
+                                    break
+                        
+                        if array_key:
+                            # Handle new format: array with code/description objects
+                            mapping['choices'] = [item.get('code') for item in schema_data[array_key] if item.get('code')]
+                            mapping['choice_descriptions'] = {item.get('code'): item.get('description') 
+                                                                for item in schema_data[array_key] if item.get('code')}
+                        # Handle old format: choices array
+                        elif 'choices' in schema_data:
+                            mapping['choices'] = schema_data.get('choices', [])
         
         return {
             'detected_columns': detected,
