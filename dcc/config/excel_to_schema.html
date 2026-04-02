@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel → Schema JSON</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Outfit:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg: #0f0f13;
+  --panel: #16161d;
+  --panel2: #1c1c26;
+  --border: #2a2a3a;
+  --border2: #353548;
+  --accent: #7c6af7;
+  --accent-glow: rgba(124,106,247,0.25);
+  --accent2: #f7a06a;
+  --green: #4ade80;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --text: #e8e8f0;
+  --muted: #6b6b80;
+  --muted2: #9090a8;
+  --string: #a8d8a8;
+  --number: #87ceeb;
+  --bool: #ffb347;
+  --null-c: #a0a0b0;
+  --key: #c9a8f7;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.85rem 1.5rem; background: var(--panel);
+  border-bottom: 1px solid var(--border); gap: 1rem; flex-wrap: wrap; flex-shrink: 0;
+}
+.logo { display: flex; align-items: center; gap: 0.6rem; font-weight: 700; font-size: 1rem; }
+.logo-icon {
+  width: 28px; height: 28px;
+  background: linear-gradient(135deg, var(--accent), #a06af7);
+  border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
+}
+.logo span { color: var(--muted2); font-weight: 300; }
+.topbar-actions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-family: 'Outfit', sans-serif; font-size: 0.82rem; font-weight: 500;
+  padding: 0.45rem 1rem; border-radius: 7px; border: none; cursor: pointer;
+  transition: all 0.18s; white-space: nowrap;
+}
+.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--muted2); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #9080f9; box-shadow: 0 0 16px var(--accent-glow); }
+.btn-success { background: rgba(74,222,128,0.15); border: 1px solid rgba(74,222,128,0.4); color: var(--green); }
+.btn-success:hover { background: rgba(74,222,128,0.25); }
+
+.badge {
+  background: var(--panel2); border: 1px solid var(--border2); border-radius: 5px;
+  padding: 0.15rem 0.55rem; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted2);
+}
+
+.main {
+  flex: 1; display: grid; grid-template-columns: 1fr 1fr;
+  min-height: 0; height: calc(100vh - 53px);
+}
+
+.pane { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.pane-left { border-right: 1px solid var(--border); }
+
+.pane-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.65rem 1.2rem; background: var(--panel); border-bottom: 1px solid var(--border);
+  gap: 0.75rem; flex-wrap: wrap; flex-shrink: 0;
+}
+.pane-title {
+  font-size: 0.76rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted2); font-family: 'JetBrains Mono', monospace;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.pane-title .dot { width: 7px; height: 7px; border-radius: 50%; }
+.pane-body { flex: 1; overflow: auto; min-height: 0; }
+
+.sheet-tabs {
+  display: flex; padding: 0 1.2rem; border-bottom: 1px solid var(--border);
+  background: var(--panel); overflow-x: auto; scrollbar-width: none; flex-shrink: 0;
+}
+.sheet-tab {
+  padding: 0.5rem 0.9rem; font-size: 0.78rem; font-weight: 500; color: var(--muted);
+  cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+  transition: all 0.15s; user-select: none;
+}
+.sheet-tab:hover { color: var(--text); }
+.sheet-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.upload-zone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; min-height: 200px; padding: 2rem; text-align: center; cursor: pointer;
+}
+.upload-zone.drag-over { background: rgba(124,106,247,0.06); }
+.upload-icon {
+  width: 60px; height: 60px; background: var(--panel2); border: 2px dashed var(--border2);
+  border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; margin-bottom: 1.1rem; transition: border-color 0.2s;
+}
+.upload-zone:hover .upload-icon, .upload-zone.drag-over .upload-icon { border-color: var(--accent); }
+.upload-zone h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.6rem; }
+.upload-zone p { font-size: 0.8rem; color: var(--muted); margin-bottom: 1.3rem; line-height: 1.8; }
+
+/* Format legend */
+.format-legend {
+  padding: 0.55rem 1.2rem; background: var(--panel2); border-bottom: 1px solid var(--border);
+  font-size: 0.71rem; color: var(--muted); display: flex; gap: 1.2rem; flex-wrap: wrap; flex-shrink: 0;
+}
+.legend-item { display: flex; align-items: center; gap: 0.35rem; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+/* Raw table */
+.table-wrap { overflow: auto; height: 100%; }
+table.raw-table { border-collapse: collapse; width: max-content; min-width: 100%; font-size: 0.78rem; }
+
+table.raw-table th {
+  position: sticky; top: 0; z-index: 2; background: var(--panel2);
+  border-bottom: 2px solid var(--border2); border-right: 1px solid var(--border);
+  padding: 0.42rem 0.9rem; font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem; font-weight: 500; color: var(--muted2); white-space: nowrap;
+}
+table.raw-table th.col-row { color: var(--muted); width: 36px; text-align: center; }
+table.raw-table td {
+  border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+  padding: 0.3rem 0.9rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+  color: var(--muted2); white-space: nowrap;
+}
+table.raw-table td.col-row { text-align: center; color: var(--muted); font-size: 0.68rem; background: var(--panel); }
+table.raw-table tr.row-schema td { background: rgba(124,106,247,0.09); }
+table.raw-table td.cell-schema-name { color: var(--accent); font-weight: 600; font-size: 0.85rem; }
+table.raw-table td.cell-empty { color: #2a2a42; }
+table.raw-table td.cell-key { color: var(--key); font-weight: 500; }
+table.raw-table td.cell-key.d1 { padding-left: 1.8rem; }
+table.raw-table td.cell-key.d2 { padding-left: 3.2rem; }
+table.raw-table td.cell-key.d3 { padding-left: 4.6rem; }
+table.raw-table td.cell-key.d4 { padding-left: 6rem; }
+table.raw-table td.cell-val { color: var(--string); }
+table.raw-table td.cell-null { color: var(--red); opacity: 0.6; font-style: italic; text-decoration: line-through; }
+table.raw-table tr:hover td { background: rgba(255,255,255,0.02); }
+table.raw-table tr:hover td.col-row { background: var(--panel); }
+
+/* JSON pane */
+.json-toolbar {
+  display: flex; align-items: center; gap: 0.7rem; padding: 0.5rem 1.2rem;
+  border-bottom: 1px solid var(--border); background: var(--panel); flex-shrink: 0; flex-wrap: wrap;
+}
+.ctl-label { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+select.ctl, input.ctl {
+  background: var(--panel2); border: 1px solid var(--border2); color: var(--text);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.76rem;
+  padding: 0.26rem 0.5rem; border-radius: 6px; cursor: pointer; transition: border-color 0.15s;
+}
+select.ctl:focus, input.ctl:focus { border-color: var(--accent); outline: none; }
+input.ctl::placeholder { color: var(--muted); }
+
+.json-output {
+  flex: 1; padding: 1.1rem 1.4rem; overflow: auto; min-height: 0;
+  font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; line-height: 1.8; white-space: pre;
+}
+.json-output .j-key  { color: var(--key); }
+.json-output .j-str  { color: var(--string); }
+.json-output .j-num  { color: var(--number); }
+.json-output .j-bool { color: var(--bool); }
+.json-output .j-null { color: var(--null-c); font-style: italic; }
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100%; color: var(--muted); text-align: center; gap: 0.5rem; font-size: 0.85rem;
+}
+.empty-state .e-icon { font-size: 2rem; opacity: 0.3; }
+
+.statusbar {
+  display: flex; align-items: center; gap: 1.2rem; padding: 0.32rem 1.2rem;
+  background: var(--panel2); border-top: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--muted); flex-shrink: 0;
+}
+.statusbar .sb-val { color: var(--muted2); }
+.statusbar .ok { color: var(--green); }
+.statusbar .warn { color: var(--yellow); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+.toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: var(--panel2); border: 1px solid var(--green); color: var(--green);
+  padding: 0.6rem 1.1rem; border-radius: 8px; font-size: 0.82rem;
+  font-family: 'JetBrains Mono', monospace; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  opacity: 0; transform: translateY(8px); transition: all 0.25s; pointer-events: none; z-index: 999;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+@media (max-width: 800px) {
+  .main { grid-template-columns: 1fr; height: auto; }
+  .pane-left { border-right: none; border-bottom: 1px solid var(--border); max-height: 45vh; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">⟨/⟩</div>
+    Excel <span>→</span> Schema JSON
+  </div>
+  <div class="topbar-actions">
+    <span class="badge" id="status-badge" style="display:none"></span>
+    <button class="btn btn-ghost" id="btn-reset" style="display:none" onclick="resetAll()">↩ Reset</button>
+    <button class="btn btn-ghost" id="btn-copy"  style="display:none" onclick="copyJSON()">⧉ Copy</button>
+    <button class="btn btn-success" id="btn-dl"  style="display:none" onclick="downloadJSON()">↓ Download .json</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- LEFT: raw table -->
+  <div class="pane pane-left">
+    <div class="pane-header">
+      <div class="pane-title"><span class="dot" style="background:#7c6af7"></span>Raw Table</div>
+      <div style="display:flex;gap:0.5rem;align-items:center">
+        <span class="badge" id="row-count" style="display:none"></span>
+        <div style="position:relative">
+          <div class="btn btn-ghost" style="cursor:pointer">📂 Load File
+            <input type="file" id="file-input" accept=".xlsx,.xls,.csv"
+              style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="format-legend" id="fmt-legend" style="display:none">
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(124,106,247,0.6)"></div>Row 1 = schema name</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#c9a8f7"></div>Key (col = depth)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#a8d8a8"></div>Value</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#1c1c26;border:1px solid #2a2a3a"></div>Empty = indent</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f87171;opacity:0.7"></div>null = dropped</div>
+    </div>
+
+    <div class="sheet-tabs" id="sheet-tabs" style="display:none"></div>
+
+    <div class="pane-body" id="left-body">
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-icon">📊</div>
+        <h3>Drop your spreadsheet here</h3>
+        <p>
+          <b style="color:var(--accent)">Row 1</b> — schema name (cell A1)<br>
+          <b style="color:var(--key)">Col A</b> = key &nbsp;·&nbsp; <b style="color:var(--string)">next col</b> = value<br>
+          <b style="color:var(--muted2)">Empty leading cells</b> → nested under parent<br>
+          <b style="color:var(--red)">null / empty values</b> are dropped
+        </p>
+        <div style="position:relative;display:inline-block">
+          <div class="btn btn-primary">Choose File</div>
+          <input type="file" id="file-input2" accept=".xlsx,.xls,.csv"
+            style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: JSON output -->
+  <div class="pane">
+    <div class="pane-header">
+      <div class="pane-title"><span class="dot" style="background:#f7a06a"></span>JSON Output</div>
+    </div>
+
+    <div class="json-toolbar" id="json-toolbar" style="display:none">
+      <span class="ctl-label">Indent:</span>
+      <select class="ctl" id="indent-sel" onchange="updateOutput()">
+        <option value="2">2 spaces</option>
+        <option value="4">4 spaces</option>
+        <option value="tab">tab</option>
+      </select>
+      <span class="ctl-label" style="margin-left:0.4rem">Wrap in key:</span>
+      <input class="ctl" type="text" id="wrap-key" placeholder="(none)" style="width:130px" oninput="updateOutput()">
+    </div>
+
+    <div class="pane-body" style="display:flex;flex-direction:column;min-height:0">
+      <div class="empty-state" id="empty-json">
+        <div class="e-icon">{ }</div>
+        <div>Load a spreadsheet to generate JSON</div>
+      </div>
+      <div class="json-output" id="json-out" style="display:none"></div>
+    </div>
+
+    <div class="statusbar" id="statusbar" style="display:none">
+      <span>schema: <span class="sb-val" id="sb-name">—</span></span>
+      <span>keys: <span class="sb-val" id="sb-keys">—</span></span>
+      <span>max depth: <span class="sb-val" id="sb-depth">—</span></span>
+      <span class="warn">dropped nulls: <span class="sb-val" id="sb-nulls">—</span></span>
+      <span class="ok">✓ valid JSON</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ──────────────────────────────────────────
+//  STATE
+// ──────────────────────────────────────────
+let rawSheets = {};      // { name: aoa (2D array) }
+let currentSheet = null;
+let parsedResult = null; // { schemaName, obj, stats }
+
+// ──────────────────────────────────────────
+//  FILE LOADING
+// ──────────────────────────────────────────
+function handleFile(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = ext === 'csv'
+        ? XLSX.read(e.target.result, { type: 'string' })
+        : XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      loadWorkbook(wb, file.name);
+    } catch (err) { alert('Could not read file:\n' + err.message); }
+  };
+  ext === 'csv' ? reader.readAsText(file) : reader.readAsArrayBuffer(file);
+}
+
+function loadWorkbook(wb, filename) {
+  rawSheets = {};
+  wb.SheetNames.forEach(name => {
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null, raw: true });
+    if (aoa.some(row => row && row.some(c => c !== null))) rawSheets[name] = aoa;
+  });
+
+  const names = Object.keys(rawSheets);
+  if (!names.length) { alert('No data found in this file.'); return; }
+
+  // Sheet tabs
+  const tabBar = document.getElementById('sheet-tabs');
+  tabBar.innerHTML = '';
+  tabBar.style.display = names.length > 1 ? 'flex' : 'none';
+  names.forEach(n => {
+    const t = document.createElement('div');
+    t.className = 'sheet-tab';
+    t.textContent = n;
+    t.onclick = () => selectSheet(n);
+    tabBar.appendChild(t);
+  });
+
+  document.getElementById('status-badge').textContent = filename;
+  document.getElementById('status-badge').style.display = '';
+  document.getElementById('btn-reset').style.display = '';
+  document.getElementById('btn-copy').style.display  = '';
+  document.getElementById('btn-dl').style.display    = '';
+  document.getElementById('upload-zone') && (document.getElementById('upload-zone').style.display = 'none');
+
+  selectSheet(names[0]);
+}
+
+function selectSheet(name) {
+  currentSheet = name;
+  document.querySelectorAll('.sheet-tab').forEach(t => t.classList.toggle('active', t.textContent === name));
+
+  const aoa = rawSheets[name];
+  parsedResult = parse(aoa);
+
+  renderTable(aoa);
+  updateOutput();
+
+  document.getElementById('fmt-legend').style.display = '';
+  document.getElementById('json-toolbar').style.display = '';
+  document.getElementById('statusbar').style.display = '';
+  document.getElementById('row-count').textContent = aoa.length + ' rows';
+  document.getElementById('row-count').style.display = '';
+}
+
+// ──────────────────────────────────────────
+//  PARSER
+//
+//  Format rules:
+//  • Row 0  →  cell A = schema name (everything else ignored)
+//  • Row 1+ →  scan each cell left-to-right
+//               first non-null cell  = KEY    (its column index = nesting depth)
+//               next  non-null cell  = VALUE
+//               no value cell        = nested object container
+//               null/empty value     = drop this key entirely
+// ──────────────────────────────────────────
+function isEmpty(v) { return v === null || v === undefined || String(v).trim() === ''; }
+
+function coerce(v) {
+  if (typeof v === 'number' || typeof v === 'boolean') return v;
+  const s = String(v).trim();
+  if (s.toLowerCase() === 'true')  return true;
+  if (s.toLowerCase() === 'false') return false;
+  if (s.toLowerCase() === 'null')  return null;  // explicit "null" text → will be dropped
+  if (s !== '' && !isNaN(s))       return Number(s);
+  return s;
+}
+
+function parse(aoa) {
+  const schemaName = (aoa[0] && !isEmpty(aoa[0][0])) ? String(aoa[0][0]).trim() : 'Schema';
+
+  const root = {};
+  // containerStack[depth] = object currently being written at that depth
+  const stack = [root];
+  let totalKeys = 0, droppedNulls = 0, maxDepth = 0;
+
+  for (let r = 1; r < aoa.length; r++) {
+    const row = aoa[r] || [];
+
+    // Find key: first non-empty cell
+    let keyCol = -1;
+    for (let c = 0; c < row.length; c++) {
+      if (!isEmpty(row[c])) { keyCol = c; break; }
+    }
+    if (keyCol === -1) continue;  // blank row
+
+    const key = String(row[keyCol]).trim();
+    if (!key) continue;
+
+    // Find value: first non-empty cell after key
+    let valCol = -1;
+    for (let c = keyCol + 1; c < row.length; c++) {
+      if (!isEmpty(row[c])) { valCol = c; break; }
+    }
+
+    const depth = keyCol;
+    maxDepth = Math.max(maxDepth, depth);
+
+    // Determine parent container
+    // Walk back from depth-1 to find the nearest registered container
+    let parent = root;
+    for (let d = depth - 1; d >= 0; d--) {
+      if (stack[d] !== undefined) { parent = stack[d]; break; }
+    }
+
+    if (valCol === -1) {
+      // No value → create nested object
+      const child = {};
+      parent[key] = child;
+      stack[depth] = child;
+      // Clear deeper stacks
+      stack.length = depth + 1;
+      totalKeys++;
+    } else {
+      const raw = row[valCol];
+      const val = coerce(raw);
+
+      // null (or coerced to null) → drop
+      if (val === null) {
+        droppedNulls++;
+        stack.length = Math.min(stack.length, depth);
+        continue;
+      }
+
+      parent[key] = val;
+      // This depth is now a scalar – no longer a container
+      stack.length = Math.min(stack.length, depth);
+      totalKeys++;
+    }
+  }
+
+  return { schemaName, obj: root, stats: { totalKeys, droppedNulls, maxDepth } };
+}
+
+// ──────────────────────────────────────────
+//  RENDER RAW TABLE
+// ──────────────────────────────────────────
+function colLabel(i) {
+  let s = ''; i++;
+  while (i > 0) { s = String.fromCharCode(64 + (i % 26 || 26)) + s; i = Math.floor((i - 1) / 26); }
+  return s;
+}
+
+function renderTable(aoa) {
+  let maxCol = 2;
+  aoa.forEach(row => { if (row) maxCol = Math.max(maxCol, row.length); });
+  maxCol = Math.max(maxCol, 3);
+
+  let html = '<div class="table-wrap"><table class="raw-table"><thead><tr><th class="col-row">#</th>';
+  for (let c = 0; c < maxCol; c++) html += `<th>${colLabel(c)}</th>`;
+  html += '</tr></thead><tbody>';
+
+  aoa.forEach((row, ri) => {
+    if (ri === 0) {
+      // Schema name row
+      const name = (row && !isEmpty(row[0])) ? esc(String(row[0])) : '';
+      html += `<tr class="row-schema"><td class="col-row">1</td>`;
+      html += `<td class="cell-schema-name" colspan="${maxCol}">${name}</td></tr>`;
+      return;
+    }
+
+    html += `<tr><td class="col-row">${ri + 1}</td>`;
+
+    // Find key col
+    let keyCol = -1;
+    if (row) for (let c = 0; c < row.length; c++) { if (!isEmpty(row[c])) { keyCol = c; break; } }
+
+    // Find val col
+    let valCol = -1;
+    if (keyCol !== -1 && row) {
+      for (let c = keyCol + 1; c < row.length; c++) { if (!isEmpty(row[c])) { valCol = c; break; } }
+    }
+
+    for (let ci = 0; ci < maxCol; ci++) {
+      const v = row ? row[ci] : null;
+      if (ci === keyCol) {
+        const dClass = keyCol > 0 ? ` d${Math.min(keyCol, 4)}` : '';
+        html += `<td class="cell-key${dClass}">${esc(String(v))}</td>`;
+      } else if (ci === valCol) {
+        const coerced = coerce(v);
+        if (coerced === null) {
+          html += `<td class="cell-null">${esc(String(v))} ✕</td>`;
+        } else {
+          html += `<td class="cell-val">${esc(String(v))}</td>`;
+        }
+      } else {
+        html += `<td class="cell-empty">·</td>`;
+      }
+    }
+
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  document.getElementById('left-body').innerHTML = html;
+}
+
+// ──────────────────────────────────────────
+//  OUTPUT
+// ──────────────────────────────────────────
+function updateOutput() {
+  if (!parsedResult) return;
+  const { schemaName, obj, stats } = parsedResult;
+  const indentVal = document.getElementById('indent-sel').value;
+  const wrapKey   = (document.getElementById('wrap-key').value || '').trim();
+  const indentStr = indentVal === 'tab' ? '\t' : ' '.repeat(+indentVal);
+  const output    = wrapKey ? { [wrapKey]: obj } : obj;
+  const json      = JSON.stringify(output, null, indentStr);
+
+  document.getElementById('json-out').innerHTML = highlight(esc(json));
+  document.getElementById('json-out').style.display = '';
+  document.getElementById('empty-json').style.display = 'none';
+
+  document.getElementById('sb-name').textContent  = schemaName;
+  document.getElementById('sb-keys').textContent  = stats.totalKeys;
+  document.getElementById('sb-depth').textContent = stats.maxDepth;
+  document.getElementById('sb-nulls').textContent = stats.droppedNulls;
+}
+
+// ──────────────────────────────────────────
+//  SYNTAX HIGHLIGHT  (on HTML-escaped string)
+// ──────────────────────────────────────────
+function highlight(escaped) {
+  return escaped.replace(
+    /(&quot;(?:[^&]|&(?!quot;))*&quot;(\s*:)?|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
+    m => {
+      if (m.endsWith(':'))           return `<span class="j-key">${m}</span>`;
+      if (m.startsWith('&quot;'))    return `<span class="j-str">${m}</span>`;
+      if (m === 'true' || m === 'false') return `<span class="j-bool">${m}</span>`;
+      if (m === 'null')              return `<span class="j-null">${m}</span>`;
+      return `<span class="j-num">${m}</span>`;
+    }
+  );
+}
+
+// ──────────────────────────────────────────
+//  ACTIONS
+// ──────────────────────────────────────────
+function getRaw() {
+  if (!parsedResult) return '';
+  const indentVal = document.getElementById('indent-sel').value;
+  const wrapKey   = (document.getElementById('wrap-key').value || '').trim();
+  const indentStr = indentVal === 'tab' ? '\t' : ' '.repeat(+indentVal);
+  const output    = wrapKey ? { [wrapKey]: parsedResult.obj } : parsedResult.obj;
+  return JSON.stringify(output, null, indentStr);
+}
+
+function copyJSON() {
+  const t = getRaw(); if (!t) return;
+  navigator.clipboard.writeText(t).then(() => toast('✓ Copied to clipboard'));
+}
+
+function downloadJSON() {
+  const t = getRaw(); if (!t) return;
+  const name = (parsedResult.schemaName || 'schema').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([t], { type: 'application/json' })),
+    download: name + '.json'
+  });
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('✓ Downloaded ' + name + '.json');
+}
+
+function resetAll() {
+  rawSheets = {}; currentSheet = null; parsedResult = null;
+  document.getElementById('left-body').innerHTML = `<div class="upload-zone" id="upload-zone">
+    <div class="upload-icon">📊</div>
+    <h3>Drop your spreadsheet here</h3>
+    <p><b style="color:var(--accent)">Row 1</b> — schema name (cell A1)<br>
+    <b style="color:var(--key)">Col A</b> = key · <b style="color:var(--string)">next col</b> = value<br>
+    <b style="color:var(--muted2)">Empty leading cells</b> → nested under parent<br>
+    <b style="color:var(--red)">null / empty values</b> are dropped</p>
+    <div style="position:relative;display:inline-block">
+      <div class="btn btn-primary">Choose File</div>
+      <input type="file" id="file-input2" accept=".xlsx,.xls,.csv"
+        style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+    </div>
+  </div>`;
+  ['sheet-tabs','json-toolbar','statusbar','fmt-legend'].forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById('json-out').style.display = 'none';
+  document.getElementById('json-out').innerHTML = '';
+  document.getElementById('empty-json').style.display = '';
+  ['status-badge','btn-reset','btn-copy','btn-dl','row-count'].forEach(id => document.getElementById(id).style.display = 'none');
+  bindInputs();
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ──────────────────────────────────────────
+//  FILE INPUT WIRING
+// ──────────────────────────────────────────
+function bindInputs() {
+  document.querySelectorAll('#file-input, #file-input2').forEach(inp => {
+    inp.onchange = e => { if (e.target.files[0]) handleFile(e.target.files[0]); };
+  });
+}
+bindInputs();
+
+document.body.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('upload-zone')?.classList.add('drag-over'); });
+document.body.addEventListener('dragleave', () => document.getElementById('upload-zone')?.classList.remove('drag-over'));
+document.body.addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('upload-zone')?.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+</script>
+</body>
+</html>

@@ -253,9 +253,21 @@
   /* ── KPI CARDS ── */
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
     margin-bottom: 2rem;
+  }
+
+  @media (max-width: 1200px) {
+    .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    .kpi-grid { grid-template-columns: 1fr; }
   }
 
   .kpi-card {
@@ -291,8 +303,18 @@
     font-size: 2rem;
     font-weight: 700;
     color: var(--text);
-    line-height: 1;
+    line-height: 1.1;
     margin-bottom: 0.3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .kpi-pct {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-top: 0.25rem;
   }
 
   .kpi-sub {
@@ -630,6 +652,145 @@
   }
 
   .disc-pill span { color: var(--text); font-weight: 500; }
+
+  /* ── MULTI FILTER WRAPPER ── */
+  .multi-filter-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Sora', sans-serif;
+    font-size: 0.82rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .filter-btn:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 12px rgba(0,212,255,0.15);
+  }
+
+  .filter-btn.active {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.1);
+  }
+
+  .filter-arrow { font-size: 0.65rem; color: var(--muted); }
+
+  .filter-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 280px;
+    max-height: 320px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    z-index: 200;
+    overflow: hidden;
+    display: none;
+    flex-direction: column;
+  }
+
+  .filter-dropdown.open { display: flex; }
+
+  .filter-dd-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    flex-shrink: 0;
+  }
+
+  .filter-dd-title {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .filter-dd-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .filter-dd-action {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Sora', sans-serif;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-dd-action:hover { border-color: var(--accent); color: var(--accent); }
+
+  .filter-dd-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .filter-dd-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .filter-dd-item:hover { border-color: var(--accent); }
+
+  .filter-dd-item.selected {
+    background: rgba(0,212,255,0.12);
+    border-color: var(--accent);
+  }
+
+  .filter-dd-item input[type=checkbox] { display: none; }
+
+  .filter-dd-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+  }
+
+  .filter-dd-item.selected .filter-dd-label { color: var(--accent); }
+
+  .filter-count {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-left: 0.25rem;
+  }
 </style>
 </head>
 <body>
@@ -747,11 +908,12 @@ function processRows(rows) {
 
   const depts = [...new Set(valid.map(r => r['Department']).filter(Boolean))].sort();
   const allDiscs = [...new Set(valid.map(r => r['Discipline']).filter(Boolean))].sort();
+  const allDocTypes = [...new Set(valid.map(r => r['Document_Type']).filter(Boolean))].sort();
   const overall = buildOverallStats(valid);
   const departments = {};
   depts.forEach(d => { departments[d] = buildDeptStats(valid.filter(r => r['Department'] === d)); });
 
-  return { overall: { ...overall, departments: depts, allDiscs }, departments, _rawRows: valid };
+  return { overall: { ...overall, departments: depts, allDiscs, allDocTypes }, departments, _rawRows: valid };
 }
 
 function groupBy(arr, key) {
@@ -788,7 +950,71 @@ function buildOverallStats(valid) {
     latest_approval: groupBy(valid.filter(r => r['Latest_Approval_Status']), 'Latest_Approval_Status'),
     scurve: buildSCurve(valid),
     monthly_freq: buildMonthlyFreq(valid),
+    latest_status_counts: getLatestStatusCounts(valid),
+    awaiting_over_20_days: getAwaitingOver20Days(valid),
   };
+}
+
+function getLatestStatusCounts(rows) {
+  // Get the latest submission for each unique document ID based on Submission_Date
+  const latestByDoc = {};
+  rows.forEach(r => {
+    const id = r['Document_ID'];
+    const date = r['Submission_Date'];
+    if (!id || !date) return;
+    if (!latestByDoc[id] || date > latestByDoc[id].Submission_Date) {
+      latestByDoc[id] = r;
+    }
+  });
+  // Count by Review_Status of the latest submission
+  const statusCounts = {};
+  Object.values(latestByDoc).forEach(r => {
+    const status = r['Review_Status'] || 'Unknown';
+    statusCounts[status] = (statusCounts[status] || 0) + 1;
+  });
+  return statusCounts;
+}
+
+function getAwaitingOver20Days(rows) {
+  // Get the latest submission for each unique document ID
+  const latestByDoc = {};
+  rows.forEach(r => {
+    const id = r['Document_ID'];
+    const date = r['Submission_Date'];
+    if (!id || !date) return;
+    if (!latestByDoc[id] || date > latestByDoc[id].Submission_Date) {
+      latestByDoc[id] = r;
+    }
+  });
+  
+  // Count unique docs awaiting response for over 20 working days
+  const now = new Date();
+  let count = 0;
+  
+  Object.values(latestByDoc).forEach(r => {
+    const status = r['Review_Status'];
+    if (status !== "Awaiting S.O.'s response") return;
+    
+    const subDate = new Date(r['Submission_Date']);
+    if (isNaN(subDate.getTime())) return;
+    
+    const workingDays = getWorkingDaysBetween(subDate, now);
+    if (workingDays > 20) count++;
+  });
+  
+  return count;
+}
+
+function getWorkingDaysBetween(start, end) {
+  // Count working days (Mon-Fri) between two dates
+  let count = 0;
+  const current = new Date(start);
+  while (current < end) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) count++; // Skip Sunday (0) and Saturday (6)
+    current.setDate(current.getDate() + 1);
+  }
+  return count;
 }
 
 function buildDeptStats(rows) {
@@ -800,6 +1026,8 @@ function buildDeptStats(rows) {
     scurve: buildSCurve(rows),
     monthly_freq: buildMonthlyFreq(rows),
     discipline: groupBy(rows.filter(r => r['Discipline']), 'Discipline'),
+    latest_status_counts: getLatestStatusCounts(rows),
+    awaiting_over_20_days: getAwaitingOver20Days(rows),
   };
 }
 
@@ -969,7 +1197,7 @@ function statusTable(statusObj) {
 //  RENDER OVERALL TAB
 // ═══════════════════════════════════════
 
-// Collect all disciplines across departments (from embedded data or raw rows)
+// Collect all disciplines, departments, and document types
 function getAllDiscs(data) {
   if (data.overall.allDiscs) return data.overall.allDiscs;
   const discs = new Set();
@@ -979,134 +1207,183 @@ function getAllDiscs(data) {
   return [...discs].sort();
 }
 
-// Filter embedded data by selected disciplines using per-dept discipline info
-function filterByDiscs(data, selectedDiscs) {
-  if (!selectedDiscs || selectedDiscs.length === 0) return data;
-  // If we have raw rows, filter directly
+function getAllDocTypes(data) {
+  if (data.overall.allDocTypes) return data.overall.allDocTypes;
+  const docTypes = new Set();
   if (data._rawRows) {
-    const filtered = data._rawRows.filter(r => selectedDiscs.includes(r['Discipline']));
-    const depts = data.overall.departments;
-    const overall = buildOverallStats(filtered);
-    const departments = {};
-    depts.forEach(d => {
-      const dRows = filtered.filter(r => r['Department'] === d);
-      if (dRows.length > 0) departments[d] = buildDeptStats(dRows);
-      else departments[d] = data.departments[d]; // keep original dept for KPI display
-    });
-    return { overall: { ...overall, departments: depts, allDiscs: data.overall.allDiscs }, departments, _rawRows: data._rawRows };
+    data._rawRows.forEach(r => { if (r['Document_Type']) docTypes.add(r['Document_Type']); });
   }
-  // Embedded data: approximate by scaling dept discipline proportions
-  const depts = data.overall.departments;
-  const newDepts = {};
-  depts.forEach(d => {
-    const dd = data.departments[d];
-    if (!dd || !dd.discipline) { newDepts[d] = dd; return; }
-    const totalDisc = Object.entries(dd.discipline)
-      .filter(([k]) => selectedDiscs.includes(k))
-      .reduce((s,[,v]) => s+v, 0);
-    const totalAll = Object.values(dd.discipline).reduce((s,v) => s+v, 0);
-    if (totalAll === 0) { newDepts[d] = dd; return; }
-    const ratio = totalDisc / totalAll;
-    // Scale all counts by ratio
-    const scale = obj => {
-      const r = {};
-      Object.entries(obj).forEach(([k,v]) => { r[k] = Math.round(v * ratio); });
-      return r;
-    };
-    const scaleArr = arr => arr.map(pt => ({ ...pt, count: Math.round(pt.count * ratio), cumulative: Math.round(pt.cumulative * ratio) }));
-    // Re-cumulate scurve
-    const sc = scaleArr(dd.scurve);
-    let cum = 0;
-    sc.forEach(pt => { cum += pt.count; pt.cumulative = cum; });
+  // Fallback: extract from embedded department data if available
+  if (data.departments) {
+    Object.values(data.departments).forEach(d => {
+      if (d.document_type) Object.keys(d.document_type).forEach(k => docTypes.add(k));
+    });
+  }
+  return [...docTypes].sort();
+}
 
-    newDepts[d] = {
-      total_submissions: Math.round(dd.total_submissions * ratio),
-      unique_docs: Math.round(dd.unique_docs * ratio),
-      review_status: scale(dd.review_status),
-      latest_approval: scale(dd.latest_approval),
-      scurve: sc,
-      monthly_freq: scaleArr(dd.monthly_freq),
-      discipline: Object.fromEntries(Object.entries(dd.discipline).filter(([k]) => selectedDiscs.includes(k))),
-    };
+function getAllDepts(data) {
+  if (data.overall.departments) return data.overall.departments;
+  return [];
+}
+
+// Filter data by disciplines, departments, and document types
+function filterData(data, filters) {
+  const { selectedDiscs = [], selectedDepts = [], selectedDocTypes = [] } = filters;
+  const hasFilters = selectedDiscs.length > 0 || selectedDepts.length > 0 || selectedDocTypes.length > 0;
+  if (!hasFilters) return data;
+
+  if (!data._rawRows) return data;
+
+  let filtered = data._rawRows;
+  if (selectedDiscs.length > 0) {
+    filtered = filtered.filter(r => selectedDiscs.includes(r['Discipline']));
+  }
+  if (selectedDepts.length > 0) {
+    filtered = filtered.filter(r => selectedDepts.includes(r['Department']));
+  }
+  if (selectedDocTypes.length > 0) {
+    filtered = filtered.filter(r => selectedDocTypes.includes(r['Document_Type']));
+  }
+
+  const depts = data.overall.departments;
+  const overall = buildOverallStats(filtered);
+  const departments = {};
+  depts.forEach(d => {
+    const dRows = filtered.filter(r => r['Department'] === d);
+    if (dRows.length > 0) departments[d] = buildDeptStats(dRows);
+    else departments[d] = { total_submissions: 0, unique_docs: 0, review_status: {}, latest_approval: {}, scurve: [], monthly_freq: [], discipline: {}, latest_status_counts: {}, awaiting_over_20_days: 0 };
   });
-  // Rebuild overall from newDepts
-  const mergeObj = (objs) => {
-    const result = {};
-    objs.forEach(obj => { if (!obj) return; Object.entries(obj).forEach(([k,v]) => { result[k] = (result[k]||0) + v; }); });
-    return result;
-  };
-  const allVals = Object.values(newDepts);
-  const newTotal = allVals.reduce((s,d) => s + (d?.total_submissions||0), 0);
-  const newUnique = allVals.reduce((s,d) => s + (d?.unique_docs||0), 0);
-  const newReview = mergeObj(allVals.map(d => d?.review_status));
-  const newApproval = mergeObj(allVals.map(d => d?.latest_approval));
-  // Rebuild merged scurve
-  const monthMap = {};
-  allVals.forEach(d => { if (!d?.scurve) return; d.scurve.forEach(pt => { monthMap[pt.Month] = (monthMap[pt.Month]||0) + pt.count; }); });
-  const sortedMonths = Object.keys(monthMap).sort();
-  let c = 0;
-  const newScurve = sortedMonths.map(m => { c += monthMap[m]; return { Month: m, count: monthMap[m], cumulative: c }; });
-  const freqMap = {};
-  allVals.forEach(d => { if (!d?.monthly_freq) return; d.monthly_freq.forEach(pt => { freqMap[pt.Month] = (freqMap[pt.Month]||0) + pt.count; }); });
-  const newFreq = Object.keys(freqMap).sort().map(m => ({ Month: m, count: freqMap[m] }));
 
   return {
-    overall: { total_submissions: newTotal, unique_docs: newUnique, review_status: newReview, latest_approval: newApproval, scurve: newScurve, monthly_freq: newFreq, departments: depts, allDiscs: data.overall.allDiscs },
-    departments: newDepts,
-    _rawRows: data._rawRows,
+    overall: { ...overall, departments: depts, allDiscs: data.overall.allDiscs, allDocTypes: data.overall.allDocTypes },
+    departments,
+    _rawRows: data._rawRows
   };
 }
 
-let _overallSelectedDiscs = []; // [] = all
+// Global filter state
+let _overallSelectedDiscs = [];
+let _overallSelectedDepts = [];
+let _overallSelectedDocTypes = [];
 
-function renderOverall(data, selectedDiscs) {
+function renderOverall(data, filters = {}) {
+  const { selectedDiscs = [], selectedDepts = [], selectedDocTypes = [] } = filters;
   _overallSelectedDiscs = selectedDiscs || [];
-  const allDiscs = getAllDiscs(data);
-  const filteredData = _overallSelectedDiscs.length > 0 ? filterByDiscs(data, _overallSelectedDiscs) : data;
-  const o = filteredData.overall;
-  const depts = data.overall.departments; // always show all depts
+  _overallSelectedDepts = selectedDepts || [];
+  _overallSelectedDocTypes = selectedDocTypes || [];
 
-  const deptSubs = depts.map(d => filteredData.departments[d]?.total_submissions || 0);
-  const deptDocs = depts.map(d => filteredData.departments[d]?.unique_docs || 0);
-  const deptApprovalRate = depts.map(d => {
-    const dd = filteredData.departments[d];
-    if (!dd) return 0;
-    const tot = Object.values(dd.latest_approval).reduce((a,b)=>a+b,0);
-    const app = (dd.latest_approval['Approved'] || 0) + (dd.latest_approval['Approved with Comments'] || 0);
-    return tot ? Math.round((app/tot)*100) : 0;
+  const allDiscs = getAllDiscs(data);
+  const allDocTypes = getAllDocTypes(data);
+  const allDepts = getAllDepts(data);
+
+  const filteredData = filterData(data, { selectedDiscs: _overallSelectedDiscs, selectedDepts: _overallSelectedDepts, selectedDocTypes: _overallSelectedDocTypes });
+  const o = filteredData.overall;
+
+  // Filter out departments with zero submissions after applying filters
+  const activeDepts = [];
+  const deptSubs = [];
+  const deptDocs = [];
+  const deptApprovalRate = [];
+
+  allDepts.forEach(d => {
+    const subs = filteredData.departments[d]?.total_submissions || 0;
+    const docs = filteredData.departments[d]?.unique_docs || 0;
+    // Include department if it has any submissions or unique docs
+    if (subs > 0 || docs > 0) {
+      activeDepts.push(d);
+      deptSubs.push(subs);
+      deptDocs.push(docs);
+      const dd = filteredData.departments[d];
+      const tot = dd ? Object.values(dd.latest_approval).reduce((a,b)=>a+b,0) : 0;
+      const app = dd ? ((dd.latest_approval['Approved'] || 0) + (dd.latest_approval['Approved with Comments'] || 0)) : 0;
+      deptApprovalRate.push(tot ? Math.round((app/tot)*100) : 0);
+    }
   });
 
-  const filterLabel = _overallSelectedDiscs.length === 0
-    ? 'All Disciplines'
-    : _overallSelectedDiscs.length === 1
-      ? _overallSelectedDiscs[0]
-      : `${_overallSelectedDiscs.length} Disciplines`;
+  const discLabel = _overallSelectedDiscs.length === 0 ? 'All Disciplines'
+    : _overallSelectedDiscs.length === 1 ? _overallSelectedDiscs[0]
+    : `${_overallSelectedDiscs.length} Disciplines`;
+  const deptLabel = _overallSelectedDepts.length === 0 ? 'All Departments'
+    : _overallSelectedDepts.length === 1 ? _overallSelectedDepts[0]
+    : `${_overallSelectedDepts.length} Departments`;
+  const docTypeLabel = _overallSelectedDocTypes.length === 0 ? 'All Doc Types'
+    : _overallSelectedDocTypes.length === 1 ? _overallSelectedDocTypes[0]
+    : `${_overallSelectedDocTypes.length} Doc Types`;
 
   const html = `
     <div class="section-header" style="flex-wrap:wrap;gap:0.75rem">
       <div style="display:flex;align-items:center;gap:1rem;flex:1;min-width:0">
         <div class="section-title">Project Overview</div>
-        <div class="section-dept-badge">All Departments · ${depts.length} Depts</div>
+        <div class="section-dept-badge">${deptLabel}</div>
       </div>
-      <div class="disc-filter-wrap">
-        <button class="disc-filter-btn" id="disc-filter-btn" onclick="toggleDiscDropdown()">
-          <span style="color:var(--accent)">⬡</span> ${filterLabel}
-          <span class="disc-arrow" id="disc-arrow">▾</span>
-        </button>
-        <div class="disc-dropdown" id="disc-dropdown">
-          <div class="disc-dd-header">
-            <span style="font-size:0.75rem;color:var(--muted);font-family:'DM Mono',monospace">FILTER BY DISCIPLINE</span>
-            <div style="display:flex;gap:0.5rem">
-              <button class="disc-dd-action" onclick="selectAllDiscs()">All</button>
-              <button class="disc-dd-action" onclick="clearAllDiscs()">Clear</button>
+      <div class="multi-filter-wrap">
+        <div class="disc-filter-wrap" style="position:relative">
+          <button class="filter-btn" id="disc-filter-btn" onclick="toggleFilterDropdown('disc')">
+            <span style="color:var(--accent)">⬡</span> ${discLabel}
+            <span class="filter-arrow" id="disc-arrow">▾</span>
+          </button>
+          <div class="filter-dropdown" id="disc-dropdown">
+            <div class="filter-dd-header">
+              <span class="filter-dd-title">FILTER BY DISCIPLINE</span>
+              <div class="filter-dd-actions">
+                <button class="filter-dd-action" onclick="selectAllFilter('disc')">All</button>
+                <button class="filter-dd-action" onclick="clearAllFilter('disc')">Clear</button>
+              </div>
+            </div>
+            <div class="filter-dd-list">
+              ${allDiscs.map(d => `
+                <label class="filter-dd-item ${_overallSelectedDiscs.includes(d) ? 'selected' : ''}">
+                  <input type="checkbox" value="${d}" ${_overallSelectedDiscs.includes(d) ? 'checked' : ''} onchange="onFilterChange('disc', this)">
+                  <span class="filter-dd-label">${d}</span>
+                </label>`).join('')}
             </div>
           </div>
-          <div class="disc-dd-list">
-            ${allDiscs.map(d => `
-              <label class="disc-dd-item ${_overallSelectedDiscs.includes(d) ? 'selected' : ''}">
-                <input type="checkbox" value="${d}" ${_overallSelectedDiscs.includes(d) ? 'checked' : ''} onchange="onDiscChange(this)">
-                <span class="disc-dd-code">${d}</span>
-              </label>`).join('')}
+        </div>
+        
+        <div class="disc-filter-wrap" style="position:relative">
+          <button class="filter-btn" id="dept-filter-btn" onclick="toggleFilterDropdown('dept')">
+            <span style="color:var(--accent2)">⬡</span> ${deptLabel}
+            <span class="filter-arrow" id="dept-arrow">▾</span>
+          </button>
+          <div class="filter-dropdown" id="dept-dropdown">
+            <div class="filter-dd-header">
+              <span class="filter-dd-title">FILTER BY DEPARTMENT</span>
+              <div class="filter-dd-actions">
+                <button class="filter-dd-action" onclick="selectAllFilter('dept')">All</button>
+                <button class="filter-dd-action" onclick="clearAllFilter('dept')">Clear</button>
+              </div>
+            </div>
+            <div class="filter-dd-list">
+              ${allDepts.map(d => `
+                <label class="filter-dd-item ${_overallSelectedDepts.includes(d) ? 'selected' : ''}">
+                  <input type="checkbox" value="${d}" ${_overallSelectedDepts.includes(d) ? 'checked' : ''} onchange="onFilterChange('dept', this)">
+                  <span class="filter-dd-label">${d}</span>
+                </label>`).join('')}
+            </div>
+          </div>
+        </div>
+        
+        <div class="disc-filter-wrap" style="position:relative">
+          <button class="filter-btn" id="doctype-filter-btn" onclick="toggleFilterDropdown('doctype')">
+            <span style="color:var(--accent3)">⬡</span> ${docTypeLabel}
+            <span class="filter-arrow" id="doctype-arrow">▾</span>
+          </button>
+          <div class="filter-dropdown" id="doctype-dropdown">
+            <div class="filter-dd-header">
+              <span class="filter-dd-title">FILTER BY DOCUMENT TYPE</span>
+              <div class="filter-dd-actions">
+                <button class="filter-dd-action" onclick="selectAllFilter('doctype')">All</button>
+                <button class="filter-dd-action" onclick="clearAllFilter('doctype')">Clear</button>
+              </div>
+            </div>
+            <div class="filter-dd-list">
+              ${allDocTypes.map(d => `
+                <label class="filter-dd-item ${_overallSelectedDocTypes.includes(d) ? 'selected' : ''}">
+                  <input type="checkbox" value="${d}" ${_overallSelectedDocTypes.includes(d) ? 'checked' : ''} onchange="onFilterChange('doctype', this)">
+                  <span class="filter-dd-label">${d}</span>
+                </label>`).join('')}
+            </div>
           </div>
         </div>
       </div>
@@ -1125,7 +1402,7 @@ function renderOverall(data, selectedDiscs) {
       </div>
       <div class="kpi-card" style="--accent-color:#10b981">
         <div class="kpi-label">Departments</div>
-        <div class="kpi-value">${depts.length}</div>
+        <div class="kpi-value">${activeDepts.length}</div>
         <div class="kpi-sub">Active submitting depts</div>
       </div>
       <div class="kpi-card" style="--accent-color:#f59e0b">
@@ -1134,14 +1411,24 @@ function renderOverall(data, selectedDiscs) {
         <div class="kpi-sub">Resubmission rate indicator</div>
       </div>
       <div class="kpi-card" style="--accent-color:#10b981">
-        <div class="kpi-label">Approved (Latest)</div>
-        <div class="kpi-value">${(()=>{const tot=Object.values(o.latest_approval).reduce((a,b)=>a+b,0);return tot?((((o.latest_approval['Approved']||0)+(o.latest_approval['Approved with Comments']||0))/tot)*100).toFixed(0)+'%':'—';})()}</div>
-        <div class="kpi-sub">APP + AWC of unique docs</div>
+        <div class="kpi-label">Approved</div>
+        <div class="kpi-value">${(()=>{const lc=o.latest_status_counts||{};const app=(lc['Approved']||0)+(lc['Approved with Comments']||0);const tot=o.unique_docs||0;return tot?`<span>${app.toLocaleString()}</span><span class="kpi-pct">${((app/tot)*100).toFixed(0)}%</span>`:'—';})()}</div>
+        <div class="kpi-sub">APP + AWC of unique docs (latest)</div>
       </div>
       <div class="kpi-card" style="--accent-color:#ef4444">
-        <div class="kpi-label">Not Approved (Latest)</div>
-        <div class="kpi-value">${(()=>{const tot=Object.values(o.latest_approval).reduce((a,b)=>a+b,0);return tot?(((o.latest_approval['Not Approved']||0)/tot)*100).toFixed(0)+'%':'—';})()}</div>
-        <div class="kpi-sub">Requires resubmission</div>
+        <div class="kpi-label">Not Approved</div>
+        <div class="kpi-value">${(()=>{const lc=o.latest_status_counts||{};const nap=lc['Not Approved']||0;const tot=o.unique_docs||0;return tot?`<span>${nap.toLocaleString()}</span><span class="kpi-pct">${((nap/tot)*100).toFixed(0)}%</span>`:'—';})()}</div>
+        <div class="kpi-sub">Requires resubmission (latest)</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#f59e0b">
+        <div class="kpi-label">Awaiting Response</div>
+        <div class="kpi-value">${(()=>{const lc=o.latest_status_counts||{};const awr=lc["Awaiting S.O.'s response"]||0;const tot=o.unique_docs||0;return tot?`<span>${awr.toLocaleString()}</span><span class="kpi-pct">${((awr/tot)*100).toFixed(0)}%</span>`:'—';})()}</div>
+        <div class="kpi-sub">Pending review outcome (latest)</div>
+      </div>
+      <div class="kpi-card" style="--accent-color:#ef4444">
+        <div class="kpi-label">Awaiting &gt; 20 Days</div>
+        <div class="kpi-value">${(()=>{const cnt=o.awaiting_over_20_days||0;const tot=o.unique_docs||0;return tot?`<span>${cnt.toLocaleString()}</span><span class="kpi-pct">${((cnt/tot)*100).toFixed(0)}%</span>`:'—';})()}</div>
+        <div class="kpi-sub">Awaiting response over 20 working days</div>
       </div>
     </div>
 
@@ -1183,17 +1470,17 @@ function renderOverall(data, selectedDiscs) {
   document.getElementById('tab-content').innerHTML = `<div class="tab-panel active" id="panel-overall">${html}</div>`;
 
   // Close dropdown on outside click
-  document.addEventListener('click', closeDiscDropdownOutside, { once: false });
+  document.addEventListener('click', closeFilterDropdownOutside, { once: false });
 
   requestAnimationFrame(() => {
     scurveChart('c-overall-scurve', o.scurve, o.monthly_freq);
     statusDonut('c-overall-approval', o.latest_approval);
-    deptBarChart('c-dept-subs', depts, deptSubs, 'Submissions');
-    deptBarChart('c-dept-docs', depts, deptDocs, 'Unique Docs');
+    deptBarChart('c-dept-subs', activeDepts, deptSubs, 'Submissions');
+    deptBarChart('c-dept-docs', activeDepts, deptDocs, 'Unique Docs');
     mkChart('c-dept-approval', {
       type: 'bar',
       data: {
-        labels: depts,
+        labels: activeDepts,
         datasets: [{
           label: 'Approval Rate %',
           data: deptApprovalRate,
@@ -1213,90 +1500,159 @@ function renderOverall(data, selectedDiscs) {
   });
 }
 
-// ── Discipline dropdown helpers ──
-function toggleDiscDropdown() {
-  const dd = document.getElementById('disc-dropdown');
-  const arrow = document.getElementById('disc-arrow');
-  const open = dd.classList.toggle('open');
-  arrow.textContent = open ? '▴' : '▾';
+// ── Filter dropdown helpers ──
+function toggleFilterDropdown(type) {
+  const dd = document.getElementById(`${type}-dropdown`);
+  const arrow = document.getElementById(`${type}-arrow`);
+  const isOpen = dd.classList.contains('open');
+  
+  // Close all other dropdowns
+  document.querySelectorAll('.filter-dropdown').forEach(d => {
+    if (d !== dd) d.classList.remove('open');
+  });
+  document.querySelectorAll('.filter-arrow').forEach(a => {
+    if (a !== arrow) a.textContent = '▾';
+  });
+  
+  dd.classList.toggle('open');
+  arrow.textContent = isOpen ? '▾' : '▴';
 }
 
-function closeDiscDropdownOutside(e) {
-  const wrap = document.querySelector('.disc-filter-wrap');
-  if (wrap && !wrap.contains(e.target)) {
-    const dd = document.getElementById('disc-dropdown');
-    const arrow = document.getElementById('disc-arrow');
-    if (dd) { dd.classList.remove('open'); }
-    if (arrow) arrow.textContent = '▾';
+function closeFilterDropdownOutside(e) {
+  const wraps = document.querySelectorAll('.disc-filter-wrap');
+  let inside = false;
+  wraps.forEach(wrap => {
+    if (wrap.contains(e.target)) inside = true;
+  });
+  if (!inside) {
+    document.querySelectorAll('.filter-dropdown').forEach(dd => dd.classList.remove('open'));
+    document.querySelectorAll('.filter-arrow').forEach(arrow => arrow.textContent = '▾');
   }
 }
 
-function onDiscChange(checkbox) {
+function onFilterChange(type, checkbox) {
   const val = checkbox.value;
-  const item = checkbox.closest('.disc-dd-item');
+  const item = checkbox.closest('.filter-dd-item');
+  const stateVar = type === 'disc' ? _overallSelectedDiscs : type === 'dept' ? _overallSelectedDepts : _overallSelectedDocTypes;
+  
   if (checkbox.checked) {
-    if (!_overallSelectedDiscs.includes(val)) _overallSelectedDiscs.push(val);
+    if (!stateVar.includes(val)) stateVar.push(val);
     item.classList.add('selected');
   } else {
-    _overallSelectedDiscs = _overallSelectedDiscs.filter(d => d !== val);
+    const idx = stateVar.indexOf(val);
+    if (idx > -1) stateVar.splice(idx, 1);
     item.classList.remove('selected');
   }
-  // Re-render charts without closing dropdown
+  updateFilterButtonLabel(type);
   reRenderOverallCharts();
 }
 
-function selectAllDiscs() {
-  _overallSelectedDiscs = [];
-  document.querySelectorAll('.disc-dd-item input').forEach(cb => { cb.checked = false; cb.closest('.disc-dd-item').classList.remove('selected'); });
+function selectAllFilter(type) {
+  const stateVar = type === 'disc' ? _overallSelectedDiscs : type === 'dept' ? _overallSelectedDepts : _overallSelectedDocTypes;
+  const dropdown = document.getElementById(`${type}-dropdown`);
+  if (dropdown) {
+    const items = dropdown.querySelectorAll('.filter-dd-item');
+    stateVar.length = 0;
+    items.forEach(item => {
+      const cb = item.querySelector('input');
+      const value = cb.value;
+      cb.checked = true;
+      item.classList.add('selected');
+      if (!stateVar.includes(value)) stateVar.push(value);
+    });
+  }
+  updateFilterButtonLabel(type);
   reRenderOverallCharts();
 }
 
-function clearAllDiscs() {
-  _overallSelectedDiscs = [];
-  document.querySelectorAll('.disc-dd-item input').forEach(cb => { cb.checked = false; cb.closest('.disc-dd-item').classList.remove('selected'); });
+function clearAllFilter(type) {
+  const stateVar = type === 'disc' ? _overallSelectedDiscs : type === 'dept' ? _overallSelectedDepts : _overallSelectedDocTypes;
+  stateVar.length = 0;
+  const dropdown = document.getElementById(`${type}-dropdown`);
+  if (dropdown) {
+    dropdown.querySelectorAll('.filter-dd-item input').forEach(cb => {
+      cb.checked = false;
+      cb.closest('.filter-dd-item').classList.remove('selected');
+    });
+  }
+  updateFilterButtonLabel(type);
   reRenderOverallCharts();
+}
+
+function updateFilterButtonLabel(type) {
+  const btn = document.getElementById(`${type}-filter-btn`);
+  const arrow = document.getElementById(`${type}-arrow`);
+  if (!btn || !arrow) return;
+  
+  const stateVar = type === 'disc' ? _overallSelectedDiscs : type === 'dept' ? _overallSelectedDepts : _overallSelectedDocTypes;
+  const color = type === 'disc' ? 'var(--accent)' : type === 'dept' ? 'var(--accent2)' : 'var(--accent3)';
+  const label = stateVar.length === 0 
+    ? (type === 'disc' ? 'All Disciplines' : type === 'dept' ? 'All Departments' : 'All Doc Types')
+    : stateVar.length === 1 ? stateVar[0]
+    : `${stateVar.length} ${type === 'disc' ? 'Disciplines' : type === 'dept' ? 'Departments' : 'Doc Types'}`;
+  
+  btn.innerHTML = `<span style="color:${color}">⬡</span> ${label} <span class="filter-arrow" id="${type}-arrow">${arrow.textContent}</span>`;
 }
 
 function reRenderOverallCharts() {
-  // Update button label
-  const btn = document.getElementById('disc-filter-btn');
-  const arrow = document.getElementById('disc-arrow');
-  if (btn && arrow) {
-    const label = _overallSelectedDiscs.length === 0 ? 'All Disciplines'
-      : _overallSelectedDiscs.length === 1 ? _overallSelectedDiscs[0]
-      : `${_overallSelectedDiscs.length} Disciplines`;
-    btn.innerHTML = `<span style="color:var(--accent)">⬡</span> ${label} <span class="disc-arrow" id="disc-arrow">${arrow.textContent}</span>`;
-  }
-
-  // Destroy only overview charts, not dropdown
+  // Destroy all charts
   allCharts.forEach(c => c.destroy());
   allCharts = [];
 
-  const filteredData = _overallSelectedDiscs.length > 0 ? filterByDiscs(currentData, _overallSelectedDiscs) : currentData;
+  const filteredData = filterData(currentData, {
+    selectedDiscs: _overallSelectedDiscs,
+    selectedDepts: _overallSelectedDepts,
+    selectedDocTypes: _overallSelectedDocTypes
+  });
+
   const o = filteredData.overall;
-  const depts = currentData.overall.departments;
-  const deptSubs = depts.map(d => filteredData.departments[d]?.total_submissions || 0);
-  const deptDocs = depts.map(d => filteredData.departments[d]?.unique_docs || 0);
-  const deptApprovalRate = depts.map(d => {
-    const dd = filteredData.departments[d];
-    if (!dd) return 0;
-    const tot = Object.values(dd.latest_approval).reduce((a,b)=>a+b,0);
-    const app = (dd.latest_approval['Approved'] || 0) + (dd.latest_approval['Approved with Comments'] || 0);
-    return tot ? Math.round((app/tot)*100) : 0;
+  const allDepts = currentData.overall.departments;
+
+  // Filter out departments with zero submissions after applying filters
+  const activeDepts = [];
+  const deptSubs = [];
+  const deptDocs = [];
+  const deptApprovalRate = [];
+
+  allDepts.forEach(d => {
+    const subs = filteredData.departments[d]?.total_submissions || 0;
+    const docs = filteredData.departments[d]?.unique_docs || 0;
+    // Include department if it has any submissions or unique docs
+    if (subs > 0 || docs > 0) {
+      activeDepts.push(d);
+      deptSubs.push(subs);
+      deptDocs.push(docs);
+      const dd = filteredData.departments[d];
+      const tot = dd ? Object.values(dd.latest_approval).reduce((a,b)=>a+b,0) : 0;
+      const app = dd ? ((dd.latest_approval['Approved'] || 0) + (dd.latest_approval['Approved with Comments'] || 0)) : 0;
+      deptApprovalRate.push(tot ? Math.round((app/tot)*100) : 0);
+    }
   });
 
   // Update KPI cards
   const kpiGrid = document.querySelector('.kpi-grid');
   if (kpiGrid) {
-    const tot = Object.values(o.latest_approval).reduce((a,b)=>a+b,0);
-    const appPct = tot ? ((((o.latest_approval['Approved']||0)+(o.latest_approval['Approved with Comments']||0))/tot)*100).toFixed(0)+'%' : '—';
-    const napPct = tot ? (((o.latest_approval['Not Approved']||0)/tot)*100).toFixed(0)+'%' : '—';
+    const lc = o.latest_status_counts || {};
+    const appCount = (lc['Approved'] || 0) + (lc['Approved with Comments'] || 0);
+    const napCount = lc['Not Approved'] || 0;
+    const awrCount = lc["Awaiting S.O.'s response"] || 0;
+    const awr20Count = o.awaiting_over_20_days || 0;
+    const tot = o.unique_docs || 0;
+
+    const appText = tot ? `<span>${appCount.toLocaleString()}</span><span class="kpi-pct">${((appCount / tot) * 100).toFixed(0)}%</span>` : '—';
+    const napText = tot ? `<span>${napCount.toLocaleString()}</span><span class="kpi-pct">${((napCount / tot) * 100).toFixed(0)}%</span>` : '—';
+    const awrText = tot ? `<span>${awrCount.toLocaleString()}</span><span class="kpi-pct">${((awrCount / tot) * 100).toFixed(0)}%</span>` : '—';
+    const awr20Text = tot ? `<span>${awr20Count.toLocaleString()}</span><span class="kpi-pct">${((awr20Count / tot) * 100).toFixed(0)}%</span>` : '—';
+
     const vals = kpiGrid.querySelectorAll('.kpi-value');
     if (vals[0]) vals[0].textContent = o.total_submissions.toLocaleString();
     if (vals[1]) vals[1].textContent = o.unique_docs.toLocaleString();
-    if (vals[3]) vals[3].textContent = o.unique_docs ? (o.total_submissions/o.unique_docs).toFixed(1) : '—';
-    if (vals[4]) vals[4].textContent = appPct;
-    if (vals[5]) vals[5].textContent = napPct;
+    if (vals[2]) vals[2].textContent = activeDepts.length;
+    if (vals[3]) vals[3].textContent = o.unique_docs ? (o.total_submissions / o.unique_docs).toFixed(1) : '—';
+    if (vals[4]) vals[4].innerHTML = appText;
+    if (vals[5]) vals[5].innerHTML = napText;
+    if (vals[6]) vals[6].innerHTML = awrText;
+    if (vals[7]) vals[7].innerHTML = awr20Text;
   }
 
   // Update status tables
@@ -1304,15 +1660,24 @@ function reRenderOverallCharts() {
   if (tables[0]) tables[0].closest('[style*="overflow"]').innerHTML = statusTable(o.review_status);
   if (tables[1]) tables[1].closest('[style*="overflow"]').innerHTML = statusTable(o.latest_approval);
 
+  // Update department badge
+  const deptBadge = document.querySelector('.section-dept-badge');
+  if (deptBadge) {
+    const deptLabel = _overallSelectedDepts.length === 0 ? 'All Departments'
+      : _overallSelectedDepts.length === 1 ? _overallSelectedDepts[0]
+      : `${_overallSelectedDepts.length} Departments`;
+    deptBadge.textContent = deptLabel;
+  }
+
   requestAnimationFrame(() => {
     scurveChart('c-overall-scurve', o.scurve, o.monthly_freq);
     statusDonut('c-overall-approval', o.latest_approval);
-    deptBarChart('c-dept-subs', depts, deptSubs, 'Submissions');
-    deptBarChart('c-dept-docs', depts, deptDocs, 'Unique Docs');
+    deptBarChart('c-dept-subs', activeDepts, deptSubs, 'Submissions');
+    deptBarChart('c-dept-docs', activeDepts, deptDocs, 'Unique Docs');
     mkChart('c-dept-approval', {
       type: 'bar',
       data: {
-        labels: depts,
+        labels: activeDepts,
         datasets: [{
           label: 'Approval Rate %',
           data: deptApprovalRate,
@@ -1441,9 +1806,11 @@ function buildDashboard(data, filename) {
     tabBar.appendChild(tab);
   });
 
-  // Render overall
+  // Reset all filters and render overall
   _overallSelectedDiscs = [];
-  renderOverall(data, []);
+  _overallSelectedDepts = [];
+  _overallSelectedDocTypes = [];
+  renderOverall(data, { selectedDiscs: [], selectedDepts: [], selectedDocTypes: [] });
 }
 
 function switchTab(idx, tabs, data) {
@@ -1456,7 +1823,11 @@ function switchTab(idx, tabs, data) {
   const content = document.getElementById('tab-content');
 
   if (idx === 0) {
-    renderOverall(data, _overallSelectedDiscs);
+    renderOverall(data, { 
+      selectedDiscs: _overallSelectedDiscs, 
+      selectedDepts: _overallSelectedDepts, 
+      selectedDocTypes: _overallSelectedDocTypes 
+    });
     return;
   }
 
