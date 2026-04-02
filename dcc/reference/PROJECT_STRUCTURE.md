@@ -14,7 +14,7 @@ conda activate dcc
 python tools/project_setup_tools.py validate_structure
 
 # 3. Run main workflow
-jupyter notebook workflow/dcc_register_main.ipynb
+jupyter notebook workflow/dcc_register_processor_main.ipynb
 ```
 
 ---

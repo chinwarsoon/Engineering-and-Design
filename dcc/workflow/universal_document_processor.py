@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 import logging
 import re
+from universal_column_mapper import SchemaLoader
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -93,8 +94,8 @@ class CalculationEngine:
             # Update original dataframe with filled values
             df[column_name] = df_sorted[column_name].reindex(df.index)
         else:
-            # Simple forward fill
-            df[column_name] = df[column_name].fillna(fill_value)
+            # Simple forward fill - use ffill() to copy last valid value, then fallback for any remaining NaN at start
+            df[column_name] = df[column_name].ffill().fillna(fill_value)
         
         if na_fallback:
             # Replace remaining NaN with 'NA' if fill_value was NaN
@@ -221,10 +222,12 @@ class CalculationEngine:
         return df
     
     def _apply_default_value(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
-        """Apply default value strategy."""
+        """Apply default value strategy with formatting support."""
         default_value = null_handling.get('default_value', null_handling.get('default', 'NA'))
         text_replacements = null_handling.get('text_replacements', {})
         type_conversion = null_handling.get('type_conversion')
+        formatting = null_handling.get('formatting', {})
+        zero_pad = formatting.get('zero_pad')
         
         # Apply text replacements first
         if text_replacements and column_name in df.columns:
@@ -243,6 +246,25 @@ class CalculationEngine:
         # Fill null values with default
         if column_name in df.columns:
             df[column_name] = df[column_name].fillna(default_value)
+        
+        # Apply zero-padding formatting if specified
+        if zero_pad and column_name in df.columns:
+            try:
+                def pad_if_numeric(x):
+                    if pd.isna(x) or x == 'NA':
+                        return x
+                    # Try to convert to int and pad
+                    try:
+                        num = int(float(str(x)))
+                        return str(num).zfill(zero_pad)
+                    except (ValueError, TypeError):
+                        # Not a number, return as-is
+                        return x
+                
+                df[column_name] = df[column_name].apply(pad_if_numeric)
+                logger.info(f"Applied zero-padding ({zero_pad} digits) for {column_name}")
+            except Exception as e:
+                logger.warning(f"Could not apply zero-padding for {column_name}: {e}")
         
         logger.info(f"Applied default value for {column_name}: {default_value}")
         return df
@@ -314,6 +336,12 @@ class CalculationEngine:
                 df_calculated = self._apply_current_row_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'date_calculation':
                 df_calculated = self._apply_date_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'conditional_date_calculation':
+                df_calculated = self._apply_conditional_date_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'conditional_business_day_calculation':
+                df_calculated = self._apply_conditional_business_day_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'custom_aggregate' and method == 'latest_non_pending_status':
+                df_calculated = self._apply_latest_non_pending_status(df_calculated, column_name, calculation)
             elif calc_type == 'composite' and method == 'build_document_id':
                 df_calculated = self._apply_composite_calculation(df_calculated, column_name, calculation)
             else:
@@ -322,10 +350,22 @@ class CalculationEngine:
         return df_calculated
     
     def _apply_mapping_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
-        """Apply mapping calculation."""
+        """Apply mapping calculation with support for external mapping references."""
         source_column = calculation.get('source_column')
         mapping = calculation.get('mapping', {})
+        mapping_ref = calculation.get('mapping_reference')
         default = calculation.get('default', 'PEN')
+        
+        # Load external mapping if reference provided
+        if mapping_ref and not mapping:
+            ref_data = self.schema_data.get(f'{mapping_ref}_data', {})
+            if ref_data:
+                # approval_code_mapping has format: {code: [variations]}
+                # Need to invert to: {variation: code}
+                mappings = ref_data.get('mappings', {})
+                for code, variations in mappings.items():
+                    for variation in variations:
+                        mapping[variation] = code
         
         if source_column in df.columns:
             df[column_name] = df[source_column].map(mapping).fillna(default)
@@ -441,6 +481,77 @@ class CalculationEngine:
         logger.info(f"Applied latest_by_date calculation for {column_name}")
         return df
     
+    def _apply_latest_non_pending_status(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Apply custom aggregate to find latest non-pending status per group.
+        
+        For Latest_Approval_Status:
+        - Groups by Document_ID
+        - Sorts by Submission_Date descending
+        - Filters out pending statuses
+        - Takes the most recent non-pending status
+        - Falls back to pending_status if all are pending
+        """
+        source_column = calculation.get('source_column')
+        group_by = calculation.get('group_by', ['Document_ID'])
+        sort_by = calculation.get('sort_by', ['Submission_Date'])
+        sort_direction = calculation.get('sort_direction', ['desc'])
+        filter_config = calculation.get('filter', {})
+        exclude_values = filter_config.get('exclude_values', [])
+        fallback_value = calculation.get('fallback_value', 'pending_status')
+        preprocessing = calculation.get('preprocessing', {})
+        
+        if source_column not in df.columns:
+            logger.warning(f"Source column {source_column} not found for latest_non_pending_status")
+            return df
+        
+        # Get required columns
+        required_cols = group_by + sort_by + [source_column]
+        missing_cols = [c for c in required_cols if c not in df.columns]
+        if missing_cols:
+            logger.warning(f"Missing columns for latest_non_pending_status: {missing_cols}")
+            return df
+        
+        # Apply preprocessing if configured
+        df_copy = df.copy()
+        text_cleaning = preprocessing.get('text_cleaning', {})
+        if text_cleaning:
+            # Remove patterns
+            remove_patterns = text_cleaning.get('remove_patterns', [])
+            if remove_patterns:
+                for pattern in remove_patterns:
+                    df_copy[source_column] = df_copy[source_column].astype(str).str.replace(pattern, '', regex=True)
+            # Strip whitespace
+            if text_cleaning.get('strip_whitespace'):
+                df_copy[source_column] = df_copy[source_column].astype(str).str.strip()
+        
+        def get_latest_non_pending(group_df):
+            # Sort by date descending
+            sorted_df = group_df.sort_values(by=sort_by[0], ascending=False)
+            
+            # Filter out excluded values (pending statuses)
+            mask = ~sorted_df[source_column].isin(exclude_values)
+            non_pending = sorted_df[mask]
+            
+            if len(non_pending) > 0:
+                return non_pending.iloc[0][source_column]
+            else:
+                return fallback_value
+        
+        # Group and apply
+        result = df_copy.groupby(group_by).apply(get_latest_non_pending, include_groups=False)
+        
+        # Merge back
+        if isinstance(result, pd.Series):
+            result_df = result.reset_index()
+            result_df.columns = group_by + [column_name]
+            df = pd.merge(df, result_df, on=group_by, how='left')
+        else:
+            df[column_name] = fallback_value
+        
+        logger.info(f"Applied latest_non_pending_status for {column_name}: grouped by {group_by}")
+        return df
+    
     def _apply_copy_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """Apply direct copy calculation."""
         source_column = calculation.get('source_column')
@@ -496,6 +607,136 @@ class CalculationEngine:
         logger.info(f"Calculated date difference for {column_name}: {source_column} to {target_column}")
         return df
     
+    def _apply_conditional_date_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Apply conditional date calculation based on previous submission existence.
+        
+        For Review_Return_Plan_Date:
+        - First submission: Submission_Date + first_review_duration
+        - Resubmission: Submission_Date + second_review_duration
+        """
+        dependencies = calculation.get('dependencies', [])
+        conditions = calculation.get('conditions', [])
+        lookup_logic = calculation.get('lookup_logic', {})
+        group_by = calculation.get('group_by', [])
+        
+        # Get required columns
+        doc_id_col = 'Document_ID'
+        submission_date_col = 'Submission_Date'
+        
+        if doc_id_col not in df.columns or submission_date_col not in df.columns:
+            logger.warning(f"Missing required columns for conditional date calculation: {doc_id_col}, {submission_date_col}")
+            return df
+        
+        # Get durations from schema parameters
+        first_duration = calculation.get('first_review_duration', 20)
+        second_duration = calculation.get('second_review_duration', 14)
+        
+        # Convert submission date to datetime
+        df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
+        
+        # Calculate for each row
+        results = []
+        for idx, row in df.iterrows():
+            doc_id = row.get(doc_id_col)
+            sub_date = row.get(submission_date_col)
+            
+            if pd.isna(sub_date) or not doc_id:
+                results.append(pd.NaT)
+                continue
+            
+            # Check if previous submission exists
+            previous_exists = False
+            if doc_id:
+                previous = df[
+                    (df[doc_id_col] == doc_id) & 
+                    (df[submission_date_col] < sub_date)
+                ]
+                previous_exists = len(previous) > 0
+            
+            # Apply appropriate duration
+            if previous_exists:
+                # Resubmission: use second_review_duration
+                result_date = sub_date + pd.Timedelta(days=second_duration)
+            else:
+                # First submission: use first_review_duration
+                result_date = sub_date + pd.Timedelta(days=first_duration)
+            
+            results.append(result_date)
+        
+        df[column_name] = pd.to_datetime(results)
+        
+        logger.info(f"Applied conditional date calculation for {column_name}: first={first_duration}d, resub={second_duration}d")
+        return df
+    
+    def _apply_conditional_business_day_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Apply conditional business day calculation.
+        
+        For Duration_of_Review:
+        - Primary end date: Review_Return_Actual_Date
+        - Fallback end date: current_date (today)
+        - Calculate days between Submission_Date and end_date
+        - Ensures non-negative values
+        """
+        # Get configuration
+        end_date_logic = calculation.get('end_date_logic', {})
+        primary_end = end_date_logic.get('primary', 'Review_Return_Actual_Date')
+        fallback_end = end_date_logic.get('fallback', 'current_date')
+        
+        start_col = 'Submission_Date'
+        
+        if start_col not in df.columns:
+            logger.warning(f"Missing required column for business day calculation: {start_col}")
+            return df
+        
+        # Convert to datetime
+        df[start_col] = pd.to_datetime(df[start_col], errors='coerce')
+        
+        # Determine end date: primary if available, else fallback
+        end_dates = []
+        today = pd.Timestamp.now().normalize()
+        
+        for idx, row in df.iterrows():
+            # Try primary end date first
+            primary_date = None
+            if primary_end in df.columns:
+                primary_val = row.get(primary_end)
+                if pd.notna(primary_val):
+                    primary_date = pd.to_datetime(primary_val, errors='coerce')
+            
+            # Use primary if valid, else fallback to today
+            if pd.notna(primary_date):
+                end_dates.append(primary_date)
+            elif fallback_end == 'current_date':
+                end_dates.append(today)
+            else:
+                end_dates.append(pd.NaT)
+        
+        # Calculate duration in days
+        durations = []
+        for idx, row in df.iterrows():
+            start = row.get(start_col)
+            end = end_dates[idx]
+            
+            if pd.isna(start) or pd.isna(end):
+                durations.append(np.nan)
+                continue
+            
+            # Calculate calendar days
+            diff = (end - start).days
+            
+            # Apply non-negative enforcement
+            if diff < 0:
+                diff = np.nan
+            
+            durations.append(diff)
+        
+        df[column_name] = durations
+        
+        logger.info(f"Applied conditional business day calculation for {column_name}: primary={primary_end}, fallback={fallback_end}")
+        return df
+    
     def _apply_composite_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """Apply composite calculation using row-by-row formatting."""
         # Support both 'sources' and 'source_columns'
@@ -547,17 +788,25 @@ class UniversalDocumentProcessor:
             self.load_schema()
     
     def load_schema(self):
-        """Load and process schema file."""
+        """Load and process schema file with external references."""
         if self.schema_file is None:
             raise ValueError("Schema file path not set. Use UniversalDocumentProcessor(schema_file='path/to/schema.json')")
         
         try:
+            # Use SchemaLoader to properly resolve external references
+            schema_loader = SchemaLoader()
+            schema_loader.set_main_schema_path(self.schema_file)
+            
             with open(self.schema_file, 'r', encoding='utf-8') as f:
-                self.schema_data = json.load(f)
+                main_schema = json.load(f)
                 logger.info(f"Loaded schema: {self.schema_file}")
-                
-                # Initialize calculation engine
-                self.calculation_engine = CalculationEngine(self.schema_data)
+            
+            # Resolve schema dependencies (approval_code_mapping, etc.)
+            self.schema_data = schema_loader.resolve_schema_dependencies(main_schema)
+            logger.info(f"Resolved schema dependencies: {list(main_schema.get('schema_references', {}).keys())}")
+            
+            # Initialize calculation engine with resolved schema data
+            self.calculation_engine = CalculationEngine(self.schema_data)
                 
         except Exception as e:
             logger.error(f"Error loading schema {e}")

@@ -137,7 +137,11 @@
         "null_handling": {
           "strategy": "default_value",
           "default_value": "NA",
-          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
+          "formatting": {
+            "zero_pad": 4,
+            "description": "Apply zero-padding to numeric values (e.g., 1 → 0001). Text values remain unchanged."
+          },
+          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid. Numeric values are zero-padded to 4 digits."
         },
         "validation": {
           "pattern": "^[0-9]*$",
