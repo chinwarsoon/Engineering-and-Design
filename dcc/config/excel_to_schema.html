@@ -249,11 +249,10 @@ input.ctl::placeholder { color: var(--muted); }
     </div>
 
     <div class="format-legend" id="fmt-legend" style="display:none">
-      <div class="legend-item"><div class="legend-swatch" style="background:rgba(124,106,247,0.6)"></div>Row 1 = schema name</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#c9a8f7"></div>Key (col = depth)</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#a8d8a8"></div>Value</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#1c1c26;border:1px solid #2a2a3a"></div>Empty = indent</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#f87171;opacity:0.7"></div>null = dropped</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:rgba(124,106,247,0.6)"></div>Row 1 = header keys</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#a8d8a8"></div>Row 2+ = values</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#c9a8f7"></div>key.nested = nested object</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#f87171;opacity:0.7"></div>null = stored as null</div>
     </div>
 
     <div class="sheet-tabs" id="sheet-tabs" style="display:none"></div>
@@ -263,10 +262,10 @@ input.ctl::placeholder { color: var(--muted); }
         <div class="upload-icon">📊</div>
         <h3>Drop your spreadsheet here</h3>
         <p>
-          <b style="color:var(--accent)">Row 1</b> — schema name (cell A1)<br>
-          <b style="color:var(--key)">Col A</b> = key &nbsp;·&nbsp; <b style="color:var(--string)">next col</b> = value<br>
-          <b style="color:var(--muted2)">Empty leading cells</b> → nested under parent<br>
-          <b style="color:var(--red)">null / empty values</b> are dropped
+          <b style="color:var(--accent)">Row 1</b> — header keys (use <code>.</code> for nesting)<br>
+          <b style="color:var(--string)">Row 2+</b> — values (multiple rows → array)<br>
+          <b style="color:var(--muted2)">Each column</b> = one field<br>
+          <b style="color:var(--red)">null / empty</b> → stored as null
         </p>
         <div style="position:relative;display:inline-block">
           <div class="btn btn-primary">Choose File</div>
@@ -393,12 +392,10 @@ function selectSheet(name) {
 //  PARSER
 //
 //  Format rules:
-//  • Row 0  →  cell A = schema name (everything else ignored)
-//  • Row 1+ →  scan each cell left-to-right
-//               first non-null cell  = KEY    (its column index = nesting depth)
-//               next  non-null cell  = VALUE
-//               no value cell        = nested object container
-//               null/empty value     = drop this key entirely
+//  • Row 0  →  header row: keys (nested keys separated by '.')
+//  • Row 1+ →  values for each key
+//  • Multiple rows → values become an array
+//  • null/empty values → included as null in array
 // ──────────────────────────────────────────
 function isEmpty(v) { return v === null || v === undefined || String(v).trim() === ''; }
 
@@ -407,75 +404,107 @@ function coerce(v) {
   const s = String(v).trim();
   if (s.toLowerCase() === 'true')  return true;
   if (s.toLowerCase() === 'false') return false;
-  if (s.toLowerCase() === 'null')  return null;  // explicit "null" text → will be dropped
+  if (s.toLowerCase() === 'null')  return null;
   if (s !== '' && !isNaN(s))       return Number(s);
   return s;
 }
 
-function parse(aoa) {
-  const schemaName = (aoa[0] && !isEmpty(aoa[0][0])) ? String(aoa[0][0]).trim() : 'Schema';
+function setNested(obj, path, value) {
+  const keys = path.split('.');
+  let current = obj;
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    if (!(k in current) || typeof current[k] !== 'object') {
+      current[k] = {};
+    }
+    current = current[k];
+  }
+  const lastKey = keys[keys.length - 1];
+  
+  // If key already exists, convert to array or push to existing array
+  if (lastKey in current) {
+    const existing = current[lastKey];
+    if (Array.isArray(existing)) {
+      existing.push(value);
+    } else {
+      current[lastKey] = [existing, value];
+    }
+  } else {
+    current[lastKey] = value;
+  }
+}
 
+function parse(aoa) {
+  if (!aoa || aoa.length === 0) {
+    return { schemaName: 'Schema', obj: {}, stats: { totalKeys: 0, droppedNulls: 0, maxDepth: 0 } };
+  }
+
+  const headerRow = aoa[0] || [];
+  const keys = headerRow.map(k => isEmpty(k) ? null : String(k).trim());
+  
+  // For each column, find the last row with a non-null value
+  const lastValueRow = {};
+  for (let c = 0; c < keys.length; c++) {
+    if (!keys[c]) continue;
+    for (let r = aoa.length - 1; r >= 1; r--) {
+      const row = aoa[r] || [];
+      const raw = c < row.length ? row[c] : null;
+      if (!isEmpty(raw)) {
+        lastValueRow[c] = r;
+        break;
+      }
+    }
+  }
+  
   const root = {};
-  // containerStack[depth] = object currently being written at that depth
-  const stack = [root];
   let totalKeys = 0, droppedNulls = 0, maxDepth = 0;
 
   for (let r = 1; r < aoa.length; r++) {
     const row = aoa[r] || [];
+    let hasData = false;
 
-    // Find key: first non-empty cell
-    let keyCol = -1;
-    for (let c = 0; c < row.length; c++) {
-      if (!isEmpty(row[c])) { keyCol = c; break; }
-    }
-    if (keyCol === -1) continue;  // blank row
+    for (let c = 0; c < keys.length; c++) {
+      const key = keys[c];
+      if (!key) continue;
 
-    const key = String(row[keyCol]).trim();
-    if (!key) continue;
-
-    // Find value: first non-empty cell after key
-    let valCol = -1;
-    for (let c = keyCol + 1; c < row.length; c++) {
-      if (!isEmpty(row[c])) { valCol = c; break; }
-    }
-
-    const depth = keyCol;
-    maxDepth = Math.max(maxDepth, depth);
-
-    // Determine parent container
-    // Walk back from depth-1 to find the nearest registered container
-    let parent = root;
-    for (let d = depth - 1; d >= 0; d--) {
-      if (stack[d] !== undefined) { parent = stack[d]; break; }
-    }
-
-    if (valCol === -1) {
-      // No value → create nested object
-      const child = {};
-      parent[key] = child;
-      stack[depth] = child;
-      // Clear deeper stacks
-      stack.length = depth + 1;
-      totalKeys++;
-    } else {
-      const raw = row[valCol];
-      const val = coerce(raw);
-
-      // null (or coerced to null) → drop
-      if (val === null) {
-        droppedNulls++;
-        stack.length = Math.min(stack.length, depth);
+      // Skip cells after the last value in this column
+      if (lastValueRow[c] !== undefined && r > lastValueRow[c]) {
         continue;
       }
 
-      parent[key] = val;
-      // This depth is now a scalar – no longer a container
-      stack.length = Math.min(stack.length, depth);
-      totalKeys++;
+      hasData = true;
+      const raw = c < row.length ? row[c] : null;
+      const val = coerce(raw);
+
+      if (val === null) {
+        droppedNulls++;
+      }
+
+      const depth = key.split('.').length;
+      maxDepth = Math.max(maxDepth, depth);
+
+      setNested(root, key, val);
     }
+
+    if (hasData) totalKeys++;
   }
 
-  return { schemaName, obj: root, stats: { totalKeys, droppedNulls, maxDepth } };
+  // Convert single-value arrays to plain values
+  function unwrapArrays(obj) {
+    if (Array.isArray(obj)) {
+      return obj.length === 1 ? obj[0] : obj;
+    }
+    if (typeof obj === 'object' && obj !== null) {
+      for (const k in obj) {
+        obj[k] = unwrapArrays(obj[k]);
+      }
+    }
+    return obj;
+  }
+
+  unwrapArrays(root);
+
+  return { schemaName: 'Schema', obj: root, stats: { totalKeys, droppedNulls, maxDepth } };
 }
 
 // ──────────────────────────────────────────
@@ -497,40 +526,26 @@ function renderTable(aoa) {
   html += '</tr></thead><tbody>';
 
   aoa.forEach((row, ri) => {
-    if (ri === 0) {
-      // Schema name row
-      const name = (row && !isEmpty(row[0])) ? esc(String(row[0])) : '';
-      html += `<tr class="row-schema"><td class="col-row">1</td>`;
-      html += `<td class="cell-schema-name" colspan="${maxCol}">${name}</td></tr>`;
-      return;
-    }
-
     html += `<tr><td class="col-row">${ri + 1}</td>`;
-
-    // Find key col
-    let keyCol = -1;
-    if (row) for (let c = 0; c < row.length; c++) { if (!isEmpty(row[c])) { keyCol = c; break; } }
-
-    // Find val col
-    let valCol = -1;
-    if (keyCol !== -1 && row) {
-      for (let c = keyCol + 1; c < row.length; c++) { if (!isEmpty(row[c])) { valCol = c; break; } }
-    }
 
     for (let ci = 0; ci < maxCol; ci++) {
       const v = row ? row[ci] : null;
-      if (ci === keyCol) {
-        const dClass = keyCol > 0 ? ` d${Math.min(keyCol, 4)}` : '';
-        html += `<td class="cell-key${dClass}">${esc(String(v))}</td>`;
-      } else if (ci === valCol) {
+      if (isEmpty(v)) {
+        html += `<td class="cell-empty">·</td>`;
+      } else if (ri === 0) {
+        // Header row - keys
+        const keyStr = esc(String(v));
+        const depth = keyStr.split('.').length;
+        const dClass = depth > 1 ? ` d${Math.min(depth, 4)}` : '';
+        html += `<td class="cell-key${dClass}">${keyStr}</td>`;
+      } else {
+        // Data rows - values
         const coerced = coerce(v);
         if (coerced === null) {
-          html += `<td class="cell-null">${esc(String(v))} ✕</td>`;
+          html += `<td class="cell-null">${esc(String(v))}</td>`;
         } else {
           html += `<td class="cell-val">${esc(String(v))}</td>`;
         }
-      } else {
-        html += `<td class="cell-empty">·</td>`;
       }
     }
 
@@ -612,10 +627,10 @@ function resetAll() {
   document.getElementById('left-body').innerHTML = `<div class="upload-zone" id="upload-zone">
     <div class="upload-icon">📊</div>
     <h3>Drop your spreadsheet here</h3>
-    <p><b style="color:var(--accent)">Row 1</b> — schema name (cell A1)<br>
-    <b style="color:var(--key)">Col A</b> = key · <b style="color:var(--string)">next col</b> = value<br>
-    <b style="color:var(--muted2)">Empty leading cells</b> → nested under parent<br>
-    <b style="color:var(--red)">null / empty values</b> are dropped</p>
+    <p><b style="color:var(--accent)">Row 1</b> — header keys (use . for nesting)<br>
+    <b style="color:var(--string)">Row 2+</b> — values (multiple rows → array)<br>
+    <b style="color:var(--muted2)">Each column</b> = one field<br>
+    <b style="color:var(--red)">null / empty</b> → stored as null</p>
     <div style="position:relative;display:inline-block">
       <div class="btn btn-primary">Choose File</div>
       <input type="file" id="file-input2" accept=".xlsx,.xls,.csv"
