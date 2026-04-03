@@ -158,15 +158,15 @@
         "create_if_missing": true,
         "null_handling": {
           "strategy": "default_value",
-          "default_value": "NA",
+          "default_value": "0000",
           "formatting": {
             "zero_pad": 4,
             "description": "Apply zero-padding to numeric values (e.g., 1 → 0001). Text values remain unchanged."
           },
-          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid. Numeric values are zero-padded to 4 digits."
+          "description": "Processed by _apply_default_value. Fills nulls with '0000' to ensure Document_ID calculation remains valid. Numeric values are zero-padded to 4 digits."
         },
         "validation": {
-          "pattern": "^[0-9]*$",
+          "pattern": "^[0-9]{4}$",
           "description": "Validated by _apply_validation using regex pattern matching. Ensures only numeric characters are used."
         }
       },
