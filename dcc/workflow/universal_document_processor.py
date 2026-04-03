@@ -348,12 +348,16 @@ class CalculationEngine:
                 df_calculated = self._apply_update_resubmission_required(df_calculated, column_name, calculation)
             elif calc_type == 'conditional' and method == 'submission_closure_status':
                 df_calculated = self._apply_submission_closure_status(df_calculated, column_name, calculation)
+            elif calc_type == 'conditional' and method == 'calculate_overdue_status':
+                df_calculated = self._apply_calculate_overdue_status(df_calculated, column_name, calculation)
             elif calc_type == 'date_calculation':
                 df_calculated = self._apply_date_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'conditional_date_calculation':
                 df_calculated = self._apply_conditional_date_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'conditional_business_day_calculation':
                 df_calculated = self._apply_conditional_business_day_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'custom_conditional_date' and method == 'calculate_resubmission_plan_date':
+                df_calculated = self._apply_resubmission_plan_date(df_calculated, column_name, calculation)
             elif calc_type == 'custom_aggregate' and method == 'latest_non_pending_status':
                 df_calculated = self._apply_latest_non_pending_status(df_calculated, column_name, calculation)
             elif calc_type == 'composite' and method == 'build_document_id':
@@ -648,13 +652,14 @@ class CalculationEngine:
     def _apply_submission_closure_status(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """
         Calculate Submission_Closed based on multiple conditions with short-circuit logic.
-        Once a condition sets YES, subsequent conditions are skipped for that row.
+        Once a condition sets a value, subsequent conditions are skipped for that row.
         
         Priority order:
-        1. Keep YES if already YES
-        2. Set to YES if Latest_Approval_Code in ['APP', 'VOID', 'INF']
-        3. Set to YES if Resubmission_Required is NO (no resubmission needed)
-        4. Default to NO for remaining rows
+        1. Set to NO if Resubmission_Required is YES (short-circuit - not closed if resubmission needed)
+        2. Keep YES if already YES
+        3. Set to YES if Latest_Approval_Code in ['APP', 'VOID', 'INF']
+        4. Set to YES if Resubmission_Required is NO (no resubmission needed)
+        5. Default to NO for remaining rows
         """
         source_column = calculation.get('source_column', 'Submission_Closed')
         
@@ -673,31 +678,154 @@ class CalculationEngine:
         # Initialize: start with default NO for all rows
         df[column_name] = 'NO'
         
-        # Track which rows have been determined (set to YES) - these skip remaining checks
+        # Track which rows have been determined - these skip remaining checks
         determined_mask = pd.Series([False] * len(df), index=df.index)
         
-        # Condition 1: Keep YES if already YES
+        # Condition 1: Set to NO if Resubmission_Required is YES (short-circuit)
+        if resubmission_required_col:
+            mask_resubmit_yes = df[resubmission_required_col] == 'YES'
+            df.loc[mask_resubmit_yes, column_name] = 'NO'
+            determined_mask |= mask_resubmit_yes
+        
+        # Condition 2: Keep YES if already YES (only for undetermined rows)
         if source_column in df.columns:
-            mask_already_yes = df[source_column] == 'YES'
+            mask_already_yes = (df[source_column] == 'YES') & ~determined_mask
             df.loc[mask_already_yes, column_name] = 'YES'
             determined_mask |= mask_already_yes
         
-        # Condition 2: Set to YES if Latest_Approval_Code is in approval list
+        # Condition 3: Set to YES if Latest_Approval_Code is in approval list
         if latest_approval_col:
             approval_codes = ['APP', 'VOID', 'INF']
             mask_approved = df[latest_approval_col].isin(approval_codes) & ~determined_mask
             df.loc[mask_approved, column_name] = 'YES'
             determined_mask |= mask_approved
         
-        # Condition 3: Set to YES if Resubmission_Required is NO
+        # Condition 4: Set to YES if Resubmission_Required is NO
         if resubmission_required_col:
             mask_no_resubmit = (df[resubmission_required_col] == 'NO') & ~determined_mask
             df.loc[mask_no_resubmit, column_name] = 'YES'
             determined_mask |= mask_no_resubmit
         
-        # Condition 4: Default NO - already set for all remaining undetermined rows
+        # Condition 5: Default NO - already set for all remaining undetermined rows
         
-        logger.info(f"Applied submission_closure_status for {column_name}: {determined_mask.sum()} rows set to YES, {(~determined_mask).sum()} rows remain NO")
+        logger.info(f"Applied submission_closure_status for {column_name}: {(df[column_name] == 'YES').sum()} rows set to YES, {(df[column_name] == 'NO').sum()} rows set to NO")
+        return df
+    
+    def _apply_calculate_overdue_status(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Calculate Resubmission_Overdue_Status based on conditional logic.
+        
+        Logic:
+        1. If Resubmission_Required == 'YES' AND Resubmission_Plan_Date is not null AND Resubmission_Plan_Date < current_date → 'Overdue'
+        2. Otherwise → null
+        """
+        from datetime import datetime
+        
+        # Get required columns
+        resubmission_required_col = 'Resubmission_Required' if 'Resubmission_Required' in df.columns else None
+        resubmission_plan_date_col = 'Resubmission_Plan_Date' if 'Resubmission_Plan_Date' in df.columns else None
+        
+        # Initialize with null
+        df[column_name] = None
+        
+        if resubmission_required_col and resubmission_plan_date_col:
+            # Convert plan date to datetime
+            df[resubmission_plan_date_col] = pd.to_datetime(df[resubmission_plan_date_col], errors='coerce')
+            
+            # Get current date
+            current_date = pd.Timestamp.now().normalize()
+            
+            # Condition: Resubmission_Required == 'YES' AND plan date not null AND plan date < current_date
+            mask_overdue = (
+                (df[resubmission_required_col] == 'YES') &
+                (df[resubmission_plan_date_col].notna()) &
+                (df[resubmission_plan_date_col] < current_date)
+            )
+            
+            df.loc[mask_overdue, column_name] = 'Overdue'
+            
+            logger.info(f"Applied calculate_overdue_status for {column_name}: {mask_overdue.sum()} rows Overdue, {(~mask_overdue).sum()} rows null")
+        else:
+            logger.warning(f"Cannot calculate overdue status: missing required columns")
+        
+        return df
+    
+    def _apply_resubmission_plan_date(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Calculate Resubmission_Plan_Date based on conditional logic.
+        Important: When Submission_Closed is YES, always overwrite to null (NaT).
+        """
+        dependencies = calculation.get('dependencies', [])
+        conditions = calculation.get('conditions', [])
+        parameters = calculation.get('parameters', {})
+        
+        # Get parameters
+        resubmission_duration = parameters.get('resubmission_duration', 14)
+        first_review_duration = parameters.get('first_review_duration', 20)
+        second_review_duration = parameters.get('second_review_duration', 14)
+        duration_is_working_day = parameters.get('duration_is_working_day', True)
+        
+        # Get required columns
+        submission_closed_col = 'Submission_Closed' if 'Submission_Closed' in df.columns else None
+        review_return_date_col = 'Review_Return_Actual_Date' if 'Review_Return_Actual_Date' in df.columns else None
+        latest_submission_date_col = 'Latest_Submission_Date' if 'Latest_Submission_Date' in df.columns else None
+        submission_date_col = 'Submission_Date' if 'Submission_Date' in df.columns else None
+        
+        # Initialize column as NaT (will be overwritten based on conditions)
+        df[column_name] = pd.NaT
+        
+        # Track which rows have been determined (set) - these skip remaining checks
+        determined_mask = pd.Series([False] * len(df), index=df.index)
+        
+        # Condition 1: If Submission_Closed == 'YES', set to NaT (null) - OVERWRITES existing values
+        if submission_closed_col:
+            mask_closed = df[submission_closed_col] == 'YES'
+            df.loc[mask_closed, column_name] = pd.NaT
+            determined_mask |= mask_closed
+            
+        # Condition 2: If Review_Return_Actual_Date is not null, add duration offset
+        if review_return_date_col:
+            df[review_return_date_col] = pd.to_datetime(df[review_return_date_col], errors='coerce')
+            mask_has_return_date = df[review_return_date_col].notna() & ~determined_mask
+            
+            if duration_is_working_day:
+                # Use business days
+                from pandas.tseries.offsets import BDay
+                df.loc[mask_has_return_date, column_name] = df.loc[mask_has_return_date, review_return_date_col] + BDay(resubmission_duration)
+            else:
+                # Use calendar days
+                df.loc[mask_has_return_date, column_name] = df.loc[mask_has_return_date, review_return_date_col] + pd.Timedelta(days=resubmission_duration)
+            
+            determined_mask |= mask_has_return_date
+        
+        # Condition 3: If Latest_Submission_Date == Submission_Date (first submission)
+        if latest_submission_date_col and submission_date_col:
+            df[latest_submission_date_col] = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
+            df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
+            
+            mask_first_submission = (df[latest_submission_date_col] == df[submission_date_col]) & ~determined_mask
+            
+            total_days = first_review_duration + resubmission_duration
+            if duration_is_working_day:
+                from pandas.tseries.offsets import BDay
+                df.loc[mask_first_submission, column_name] = df.loc[mask_first_submission, submission_date_col] + BDay(total_days)
+            else:
+                df.loc[mask_first_submission, column_name] = df.loc[mask_first_submission, submission_date_col] + pd.Timedelta(days=total_days)
+            
+            determined_mask |= mask_first_submission
+        
+        # Condition 4: Else (subsequent submission)
+        if submission_date_col:
+            mask_subsequent = ~determined_mask
+            total_days = second_review_duration + resubmission_duration
+            if duration_is_working_day:
+                from pandas.tseries.offsets import BDay
+                df.loc[mask_subsequent, column_name] = df.loc[mask_subsequent, submission_date_col] + BDay(total_days)
+            else:
+                df.loc[mask_subsequent, column_name] = df.loc[mask_subsequent, submission_date_col] + pd.Timedelta(days=total_days)
+            determined_mask |= mask_subsequent
+        
+        logger.info(f"Applied resubmission_plan_date for {column_name}: {df[column_name].notna().sum()} rows with dates, {df[column_name].isna().sum()} rows null")
         return df
     
     def _apply_date_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:

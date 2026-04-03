@@ -1263,6 +1263,11 @@
           "logic": {
             "conditions": [
               {
+                "if": "Resubmission_Required == 'YES'",
+                "then": "'NO'",
+                "description": "Short-circuit: Set to NO if resubmission is required (submission is not closed)"
+              },
+              {
                 "if": "Submission_Closed == 'YES'",
                 "then": "'YES'",
                 "description": "Keep YES if already YES"
@@ -1424,24 +1429,18 @@
           "type": "conditional",
           "method": "calculate_overdue_status",
           "dependencies": [
-            "Review_Return_Actual_Date",
-            "Submission_Closed",
+            "Resubmission_Required",
             "Resubmission_Plan_Date"
           ],
           "conditions": [
             {
-              "if": "Review_Return_Actual_Date is not null",
-              "then": "'Resubmitted'",
-              "description": "If review return date exists, submission has been resubmitted"
-            },
-            {
-              "if": "Submission_Closed != 'YES' and Resubmission_Plan_Date is not null and Resubmission_Plan_Date < current_date",
+              "if": "Resubmission_Required == 'YES' and Resubmission_Plan_Date is not null and Resubmission_Plan_Date < current_date",
               "then": "'Overdue'",
-              "description": "If not closed, has plan date, and plan date is in past, then overdue"
+              "description": "If resubmission is required, has plan date, and plan date is in past, then overdue"
             },
             {
-              "else": "'NO'",
-              "description": "Default to NO for all other cases"
+              "else": "null",
+              "description": "Default to null for all other cases"
             }
           ],
           "date_reference": {
