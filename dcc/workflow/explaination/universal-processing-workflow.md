@@ -27,7 +27,7 @@ graph TB
     LOAD_EXTERNAL --> DEPT_SCHEMA[department_schema.json]
     LOAD_EXTERNAL --> DISC_SCHEMA[discipline_schema.json]
     LOAD_EXTERNAL --> DOC_TYPE_SCHEMA[document_type_schema.json]
-    LOAD_EXTERNAL --> APPROVAL_MAPPING[approval_code_mapping.json]
+    LOAD_EXTERNAL --> APPROVAL_MAPPING[approval_code_schema.json]
     
     DEPT_SCHEMA --> VALIDATE_SCHEMA
     DISC_SCHEMA --> VALIDATE_SCHEMA
@@ -323,7 +323,7 @@ graph TD
         DEPT[department_schema.json]
         DISC[discipline_schema.json]
         DOCTYPE[document_type_schema.json]
-        APPROVAL[approval_code_mapping.json]
+        APPROVAL[approval_code_schema.json]
     end
     
     %% Column Categories

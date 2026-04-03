@@ -44,7 +44,7 @@ dcc/
 | `department_schema.json` | ✅ Yes | ~454B | Department validation rules |
 | `discipline_schema.json` | ✅ Yes | ~379B | Discipline validation rules |
 | `document_type_schema.json` | ✅ Yes | ~350B | Document type validation rules |
-| `approval_code_mapping.json` | ✅ Yes | ~763B | Status code mappings (APP, REJ, PEN, etc.) |
+| `approval_code_schema.json` | ✅ Yes | ~763B | Status code mappings (APP, REJ, PEN, etc.) |
 
 **Dependencies:**
 - `dcc_register_enhanced.json` references all other schema files
@@ -162,7 +162,7 @@ dcc_register_main.ipynb
             ├── department_schema.json
             ├── discipline_schema.json
             ├── document_type_schema.json
-            └── approval_code_mapping.json
+            └── approval_code_schema.json
 ```
 
 ---

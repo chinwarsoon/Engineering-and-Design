@@ -403,8 +403,7 @@ class UniversalColumnMapper:
             if col_def.get('data_type') == 'categorical':
                 schema_ref = col_def.get('schema_reference')
                 if schema_ref:
-                    schema_name = schema_ref.replace('_schema', '')
-                    schema_data = self.schema_loader.loaded_schemas.get(schema_name)
+                    schema_data = self.resolved_schema.get(f'{schema_ref}_data')
                     if schema_data:
                         # Find array key containing code/description objects (document, discipline, department, etc.)
                         array_key = None

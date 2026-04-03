@@ -151,7 +151,7 @@
                 {"file": "department_schema.json", "description": "Department validation", "required": true},
                 {"file": "discipline_schema.json", "description": "Discipline validation", "required": true},
                 {"file": "document_type_schema.json", "description": "Document type validation", "required": true},
-                {"file": "approval_code_mapping.json", "description": "Status code mapping", "required": true}
+                {"file": "approval_code_schema.json", "description": "Status code mapping", "required": true}
             ],
             "workflow": [
                 {"file": "universal_document_processor.py", "description": "Schema-driven processing engine", "required": true},

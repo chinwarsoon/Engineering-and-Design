@@ -56,7 +56,7 @@ The `UniversalDocumentProcessor.process_data()` method executes these steps in o
 | 25 | `Review_Return_Actual_Date` | Input | Raw return date column | Forward fill by Session+Revision with datetime conversion | `forward_fill`: group_by=[Session, Session_Revision], datetime_conversion: coerce |
 | 26 | `Review_Return_Plan_Date` | Calculated | `Submission_Date`, `Submission_Session`, `Submission_Session_Revision` | **conditional_date_calculation/calculate_review_return_plan_date**: If no previous submission → Submission_Date + first_review_duration (20 days), else → Submission_Date + second_review_duration (14 days). Uses working days if duration_is_working_day=true | `leave_null`: Populated by conditional calculation |
 | 27 | `Review_Status` | Input | Raw status column | Forward fill by Session+Revision | `forward_fill`: group_by=[Session, Session_Revision], fill_value: "Pending" |
-| 28 | `Review_Status_Code` | Calculated | `Review_Status` | **mapping/status_to_code**: Map status text to code via approval_code_mapping | N/A (calculated) |
+| 28 | `Review_Status_Code` | Calculated | `Review_Status` | **mapping/status_to_code**: Map status text to code via approval_code_schema | N/A (calculated) |
 | 29 | `Approval_Code` | Calculated | `Review_Status` | **mapping/status_to_code**: Explicit mapping (Approved→APP, Rejected→REJ, Pending→PEN, etc.), default: "PEN" | N/A (calculated) |
 | 30 | `Review_Comments` | Input | Raw comments column | Multi-level forward fill with conditional processing | `multi_level_forward_fill`: [Session+Rev → Session], final_fill: "NA", if_column_exists: true |
 | 31 | `Latest_Approval_Status` | Calculated | `Review_Status`, `Submission_Date` | **custom_aggregate/latest_non_pending_status**: Clean slashes/whitespace, sort by Submission_Date desc, exclude pending_status, get latest non-pending status per Document_ID | N/A (calculated), fallback: pending_status |
@@ -126,7 +126,7 @@ The `UniversalDocumentProcessor.process_data()` method executes these steps in o
 
 ### Method: `mapping/status_to_code`
 - **Used by**: Review_Status_Code, Approval_Code, Latest_Approval_Code
-- **Logic**: Map text values to standardized codes using approval_code_mapping or explicit mapping
+- **Logic**: Map text values to standardized codes using approval_code_schema or explicit mapping
 
 ### Method: `conditional_date_calculation`
 - **Used by**: Review_Return_Plan_Date

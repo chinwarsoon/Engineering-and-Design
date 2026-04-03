@@ -5,7 +5,6 @@ Implements schema-driven calculations, null handling, and data processing for un
 """
 
 import json
-from collections import defaultdict
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -32,6 +31,12 @@ class CalculationEngine:
         self.schema_data = schema_data
         self.columns = schema_data.get('enhanced_schema', {}).get('columns', {})
         self.calculation_order = self._resolve_calculation_order()
+
+    def _print_processing_step(self, phase: str, column_name: str, detail: str):
+        """Print user-visible progress for column processing order."""
+        message = f"[{phase}] {column_name}: {detail}"
+        print(message)
+        logger.info(message)
 
     def _extract_column_dependencies(self, column_name: str, column_def: Dict) -> Set[str]:
         """Extract schema column dependencies for a calculated column."""
@@ -99,10 +104,11 @@ class CalculationEngine:
 
     def _resolve_calculation_order(self) -> List[str]:
         """
-        Build a dependency-safe execution order for calculated columns.
+        Validate that calculated columns can be processed in schema order.
 
         Raises:
-            ValueError: If the schema introduces a circular dependency
+            ValueError: If the schema introduces a circular dependency or
+                requires a later schema column to be processed first
         """
         calculated_columns = [
             name for name, definition in self.columns.items()
@@ -124,53 +130,29 @@ class CalculationEngine:
             )
 
         original_index = {name: idx for idx, name in enumerate(self.columns.keys())}
-        dependents: Dict[str, Set[str]] = defaultdict(set)
-        indegree = {name: len(deps) for name, deps in dependency_graph.items()}
-
-        for column_name, deps in dependency_graph.items():
-            for dep in deps:
-                dependents[dep].add(column_name)
-
-        ready = sorted(
-            [name for name, degree in indegree.items() if degree == 0],
-            key=lambda name: original_index.get(name, float('inf'))
-        )
-        ordered: List[str] = []
-
-        while ready:
-            current = ready.pop(0)
-            ordered.append(current)
-
-            newly_ready = []
-            for dependent in dependents.get(current, set()):
-                indegree[dependent] -= 1
-                if indegree[dependent] == 0:
-                    newly_ready.append(dependent)
-
-            ready.extend(newly_ready)
-            ready.sort(key=lambda name: original_index.get(name, float('inf')))
-
-        if len(ordered) != len(calculated_columns):
-            unresolved = sorted(set(calculated_columns) - set(ordered))
-            raise ValueError(
-                f"Could not resolve calculation order for calculated columns: {unresolved}"
-            )
-
+        schema_order_violations = []
         for column_name, deps in dependency_graph.items():
             later_dependencies = [
                 dep for dep in deps
                 if original_index.get(dep, -1) > original_index.get(column_name, -1)
             ]
             if later_dependencies:
-                logger.warning(
-                    "Schema order forward-reference for %s: depends on later calculated columns %s. "
-                    "Using dependency-safe execution order instead.",
-                    column_name,
-                    later_dependencies,
+                schema_order_violations.append(
+                    f"{column_name} depends on later calculated columns {later_dependencies}"
                 )
 
-        logger.info("Resolved calculation order for %s calculated columns", len(ordered))
-        return ordered
+        if schema_order_violations:
+            raise ValueError(
+                "Schema column processing order violation detected. "
+                "A column cannot depend on a later schema column. "
+                + " | ".join(schema_order_violations)
+            )
+
+        logger.info(
+            "Validated schema-order calculation sequence for %s calculated columns",
+            len(calculated_columns)
+        )
+        return calculated_columns
         
     def apply_null_handling(self, df: pd.DataFrame, original_columns: set = None) -> pd.DataFrame:
         """
@@ -186,6 +168,12 @@ class CalculationEngine:
         df_processed = df.copy()
         if original_columns is None:
             original_columns = set(df_processed.columns)
+
+        null_columns = [
+            column_name for column_name, column_def in self.columns.items()
+            if column_name in df_processed.columns and column_def.get('null_handling', {}).get('strategy')
+        ]
+        print(f"[NULL_HANDLING] Processing sequence: {null_columns}")
         
         for column_name, column_def in self.columns.items():
             if column_name not in df_processed.columns:
@@ -193,6 +181,8 @@ class CalculationEngine:
                 
             null_handling = column_def.get('null_handling', {})
             strategy = null_handling.get('strategy')
+            if strategy:
+                self._print_processing_step('NULL_HANDLING', column_name, f"strategy={strategy}")
             
             if strategy == 'forward_fill':
                 df_processed = self._apply_forward_fill(df_processed, column_name, null_handling)
@@ -456,6 +446,7 @@ class CalculationEngine:
             DataFrame with all calculations applied
         """
         df_calculated = df.copy()
+        print(f"[CALCULATION] Processing sequence: {self.calculation_order}")
         
         for column_name in self.calculation_order:
             column_def = self.columns[column_name]
@@ -463,6 +454,11 @@ class CalculationEngine:
             calculation = column_def.get('calculation', {})
             calc_type = calculation.get('type')
             method = calculation.get('method')
+            self._print_processing_step(
+                'CALCULATION',
+                column_name,
+                f"type={calc_type}, method={method}"
+            )
             
             if calc_type == 'mapping' and method == 'status_to_code':
                 df_calculated = self._apply_mapping_calculation(df_calculated, column_name, calculation)
@@ -522,12 +518,18 @@ class CalculationEngine:
         if mapping_ref and not mapping:
             ref_data = self.schema_data.get(f'{mapping_ref}_data', {})
             if ref_data:
-                # approval_code_mapping has format: {code: [variations]}
-                # Need to invert to: {variation: code}
-                mappings = ref_data.get('mappings', {})
-                for code, variations in mappings.items():
-                    for variation in variations:
-                        mapping[variation] = code
+                # approval_code_schema stores rows under approval[] with
+                # {code, status, aliases}. Invert aliases/status to {text: code}.
+                approval_rows = ref_data.get('approval', [])
+                for row in approval_rows:
+                    code = row.get('code')
+                    if not code:
+                        continue
+                    status = row.get('status')
+                    if status:
+                        mapping[status] = code
+                    for alias in row.get('aliases', []):
+                        mapping[alias] = code
         
         if source_column in df.columns:
             df[column_name] = df[source_column].map(mapping).fillna(default)
@@ -1279,7 +1281,7 @@ class UniversalDocumentProcessor:
                 main_schema = json.load(f)
                 logger.info(f"Loaded schema: {self.schema_file}")
             
-            # Resolve schema dependencies (approval_code_mapping, etc.)
+            # Resolve schema dependencies (approval_code_schema, etc.)
             self.schema_data = schema_loader.resolve_schema_dependencies(main_schema)
             logger.info(f"Resolved schema dependencies: {list(main_schema.get('schema_references', {}).keys())}")
             
@@ -1413,6 +1415,8 @@ class UniversalDocumentProcessor:
                 # Convert to string for pattern matching
                 df_str = df_validated[column_name].astype(str)
                 mask = ~df_str.str.match(pattern)
+                if allow_null:
+                    mask &= df_validated[column_name].notna()
                 invalid_count = mask.sum()
                 if invalid_count > 0:
                     logger.warning(f"Pattern validation failed for {column_name}: {invalid_count} invalid values")
@@ -1422,6 +1426,8 @@ class UniversalDocumentProcessor:
                 min_len = validation['min_length']
                 df_str = df_validated[column_name].astype(str)
                 mask = df_str.str.len() < min_len
+                if allow_null:
+                    mask &= df_validated[column_name].notna()
                 invalid_count = mask.sum()
                 if invalid_count > 0:
                     logger.warning(f"Min length validation failed for {column_name}: {invalid_count} values too short")
@@ -1429,24 +1435,32 @@ class UniversalDocumentProcessor:
             if 'max_length' in validation:
                 max_len = validation['max_length']
                 mask = df_validated[column_name].astype(str).str.len() > max_len
+                if allow_null:
+                    mask &= df_validated[column_name].notna()
                 if mask.sum() > 0:
                     logger.warning(f"Max length validation failed for {column_name}: {mask.sum()} values too long")
                     
             if 'max_value' in validation:
                 max_val = validation['max_value']
                 mask = pd.to_numeric(df_validated[column_name], errors='coerce') > max_val
+                if allow_null:
+                    mask &= df_validated[column_name].notna()
                 if mask.sum() > 0:
                     logger.warning(f"Max value validation failed for {column_name}: {mask.sum()} numeric values > {max_val}")
                     
             if 'min_value' in validation:
                 min_val = validation['min_value']
                 mask = pd.to_numeric(df_validated[column_name], errors='coerce') < min_val
+                if allow_null:
+                    mask &= df_validated[column_name].notna()
                 if mask.sum() > 0:
                     logger.warning(f"Min value validation failed for {column_name}: {mask.sum()} numeric values < {min_val}")
                     
             if 'format' in validation and validation['format'] == 'YYYY-MM-DD':
                 parsed = pd.to_datetime(df_validated[column_name], format="%Y-%m-%d", errors='coerce')
                 mask = parsed.isna() & df_validated[column_name].notna() & (df_validated[column_name] != 'NA')
+                if allow_null:
+                    mask &= df_validated[column_name].notna()
                 if mask.sum() > 0:
                     logger.warning(f"Format validation (YYYY-MM-DD) failed for {column_name}: {mask.sum()} invalid dates")
             
@@ -1454,6 +1468,8 @@ class UniversalDocumentProcessor:
             if 'allowed_values' in validation:
                 allowed = validation['allowed_values']
                 mask = ~df_validated[column_name].isin(allowed)
+                if allow_null:
+                    mask &= df_validated[column_name].notna()
                 invalid_count = mask.sum()
                 if invalid_count > 0:
                     logger.warning(f"Allowed values validation failed for {column_name}: {invalid_count} invalid values")
@@ -1475,6 +1491,8 @@ class UniversalDocumentProcessor:
                         # Handle new format: array with code/description objects
                         allowed_codes = [item.get('code') for item in ref_data[array_key] if item.get('code')]
                         mask = ~df_validated[column_name].isin(allowed_codes)
+                        if allow_null:
+                            mask &= df_validated[column_name].notna()
                         invalid_count = mask.sum()
                         if invalid_count > 0:
                             logger.warning(f"Schema reference validation failed for {column_name}: {invalid_count} values not in {schema_ref}")
@@ -1482,6 +1500,8 @@ class UniversalDocumentProcessor:
                     elif 'choices' in ref_data:
                         allowed = ref_data.get('choices', [])
                         mask = ~df_validated[column_name].isin(allowed)
+                        if allow_null:
+                            mask &= df_validated[column_name].notna()
                         invalid_count = mask.sum()
                         if invalid_count > 0:
                             logger.warning(f"Schema reference validation failed for {column_name}: {invalid_count} invalid values")

@@ -1,0 +1,68 @@
+{
+  "schema_name": "approval_code_schema",
+  "type": "status_to_code_mapping",
+  "approval": [
+    {
+      "code": "REJ",
+      "status": "Rejected",
+      "aliases": [
+        "Rejected",
+        "REJ"
+      ]
+    },
+    {
+      "code": "NAP",
+      "status": "Not Approved",
+      "aliases": [
+        "Not Approved - Revise and resubmit",
+        "Not Approved"
+      ]
+    },
+    {
+      "code": "AWC",
+      "status": "Approved with Comments",
+      "aliases": [
+        "Approved with Comments",
+        "Approved as noted"
+      ]
+    },
+    {
+      "code": "APP",
+      "status": "Approved",
+      "aliases": [
+        "Approved",
+        "APP"
+      ]
+    },
+    {
+      "code": "INF",
+      "status": "For Information",
+      "aliases": [
+        "For Information",
+        "INF"
+      ]
+    },
+    {
+      "code": "VOID",
+      "status": "Void",
+      "aliases": [
+        "Void",
+        "(VOID / NOT IN USE)",
+        "(VOID  NOT IN USE)"
+      ]
+    },
+    {
+      "code": "PEN",
+      "status": "Awaiting S.O.'s response",
+      "aliases": [
+        "Pending Review",
+        "Pending",
+        "Awaiting S.O.'s response",
+        "Awaiting S.O. Review"
+      ]
+    }
+  ],
+  "description": "Mapping of approval status variations to standardized codes",
+  "created": "2026-03-28",
+  "version": "1.0"
+}
