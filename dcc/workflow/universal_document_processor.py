@@ -344,6 +344,10 @@ class CalculationEngine:
                 df_calculated = self._apply_copy_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'conditional' and method == 'current_row':
                 df_calculated = self._apply_current_row_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'conditional' and method == 'update_resubmission_required':
+                df_calculated = self._apply_update_resubmission_required(df_calculated, column_name, calculation)
+            elif calc_type == 'conditional' and method == 'submission_closure_status':
+                df_calculated = self._apply_submission_closure_status(df_calculated, column_name, calculation)
             elif calc_type == 'date_calculation':
                 df_calculated = self._apply_date_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'conditional_date_calculation':
@@ -585,6 +589,115 @@ class CalculationEngine:
                 df[column_name] = df[source_column]
         
         logger.info(f"Applied current row calculation for {column_name}: condition={condition}")
+        return df
+    
+    def _apply_update_resubmission_required(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Update Resubmission_Required based on multiple conditions with short-circuit logic.
+        Once a condition sets NO, subsequent conditions are skipped for that row.
+        
+        Priority order:
+        1. Keep NO if already NO
+        2. Set to NO if submission is closed
+        3. Set to NO if not the latest submission (resubmission already done)
+        4. Default to YES for remaining rows
+        """
+        source_column = calculation.get('source_column', 'Resubmission_Required')
+        
+        # Get required columns
+        submission_closed_col = 'Submission_Closed' if 'Submission_Closed' in df.columns else None
+        document_id_col = 'Document_ID' if 'Document_ID' in df.columns else None
+        submission_date_col = 'Submission_Date' if 'Submission_Date' in df.columns else None
+        
+        # Initialize: start with default YES for all rows
+        df[column_name] = 'YES'
+        
+        # Track which rows have been determined (set to NO) - these skip remaining checks
+        determined_mask = pd.Series([False] * len(df), index=df.index)
+        
+        # Condition 1: Keep NO if already NO
+        if source_column in df.columns:
+            mask_already_no = df[source_column] == 'NO'
+            df.loc[mask_already_no, column_name] = 'NO'
+            determined_mask |= mask_already_no
+        
+        # Condition 2: Set to NO if submission is closed (skip rows already determined)
+        if submission_closed_col:
+            mask_closed = (df[submission_closed_col] == 'YES') & ~determined_mask
+            df.loc[mask_closed, column_name] = 'NO'
+            determined_mask |= mask_closed
+        
+        # Condition 3: Set to NO if not the latest submission (skip rows already determined)
+        if document_id_col and submission_date_col:
+            # Convert submission_date to datetime for comparison
+            df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
+            
+            # Find the latest submission date for each Document_ID
+            latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+            
+            # If current row's submission date is NOT the latest, it's not the current submission
+            mask_not_latest = (df[submission_date_col] < latest_dates) & ~determined_mask
+            df.loc[mask_not_latest, column_name] = 'NO'
+            determined_mask |= mask_not_latest
+        
+        # Condition 4: Default YES - already set for all remaining undetermined rows
+        
+        logger.info(f"Applied update_resubmission_required for {column_name}: {determined_mask.sum()} rows set to NO, {(~determined_mask).sum()} rows remain YES")
+        return df
+    
+    def _apply_submission_closure_status(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Calculate Submission_Closed based on multiple conditions with short-circuit logic.
+        Once a condition sets YES, subsequent conditions are skipped for that row.
+        
+        Priority order:
+        1. Keep YES if already YES
+        2. Set to YES if Latest_Approval_Code in ['APP', 'VOID', 'INF']
+        3. Set to YES if Resubmission_Required is NO (no resubmission needed)
+        4. Default to NO for remaining rows
+        """
+        source_column = calculation.get('source_column', 'Submission_Closed')
+        
+        # Get required columns
+        latest_approval_col = 'Latest_Approval_Code' if 'Latest_Approval_Code' in df.columns else None
+        resubmission_required_col = 'Resubmission_Required' if 'Resubmission_Required' in df.columns else None
+        
+        # Preprocessing: convert to uppercase and fill nulls
+        preprocessing = calculation.get('preprocessing', {})
+        text_cleaning = preprocessing.get('text_cleaning', {})
+        if text_cleaning.get('convert_to_uppercase') and source_column in df.columns:
+            df[source_column] = df[source_column].str.upper()
+        if text_cleaning.get('fill_nulls') and source_column in df.columns:
+            df[source_column] = df[source_column].fillna(text_cleaning['fill_nulls'])
+        
+        # Initialize: start with default NO for all rows
+        df[column_name] = 'NO'
+        
+        # Track which rows have been determined (set to YES) - these skip remaining checks
+        determined_mask = pd.Series([False] * len(df), index=df.index)
+        
+        # Condition 1: Keep YES if already YES
+        if source_column in df.columns:
+            mask_already_yes = df[source_column] == 'YES'
+            df.loc[mask_already_yes, column_name] = 'YES'
+            determined_mask |= mask_already_yes
+        
+        # Condition 2: Set to YES if Latest_Approval_Code is in approval list
+        if latest_approval_col:
+            approval_codes = ['APP', 'VOID', 'INF']
+            mask_approved = df[latest_approval_col].isin(approval_codes) & ~determined_mask
+            df.loc[mask_approved, column_name] = 'YES'
+            determined_mask |= mask_approved
+        
+        # Condition 3: Set to YES if Resubmission_Required is NO
+        if resubmission_required_col:
+            mask_no_resubmit = (df[resubmission_required_col] == 'NO') & ~determined_mask
+            df.loc[mask_no_resubmit, column_name] = 'YES'
+            determined_mask |= mask_no_resubmit
+        
+        # Condition 4: Default NO - already set for all remaining undetermined rows
+        
+        logger.info(f"Applied submission_closure_status for {column_name}: {determined_mask.sum()} rows set to YES, {(~determined_mask).sum()} rows remain NO")
         return df
     
     def _apply_date_calculation(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:

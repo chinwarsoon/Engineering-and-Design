@@ -1185,6 +1185,55 @@
           "description": "Duration of review in days"
         }
       },
+      "Resubmission_Required": {
+        "aliases": [
+          "To Resubmit (Yes/No)",
+          "Resubmit Required",
+          "Need Resubmission"
+        ],
+        "data_type": "categorical",
+        "required": true,
+        "allow_null": true,
+        "is_calculated": true,
+        "create_if_missing": true,
+        "calculation": {
+          "type": "conditional",
+          "method": "update_resubmission_required",
+          "source_column": "Resubmission_Required",
+          "dependencies": [
+            "Submission_Closed"
+          ],
+          "conditions": [
+            {
+              "if": "Resubmission_Required == 'NO'",
+              "then": "'NO'",
+              "description": "Keep NO if already NO"
+            },
+            {
+              "if": "Submission_Closed == 'YES'",
+              "then": "'NO'",
+              "description": "Set to NO if submission is closed"
+            },
+            {
+              "if": "Document_ID is not the latest by Submission_Date for this document",
+              "then": "'NO'",
+              "description": "Set to NO if a newer submission exists for this document (resubmission already done)"
+            },
+            {
+              "else": "'YES'",
+              "description": "Default to YES for all other cases"
+            }
+          ],
+          "description": "Executed via update_resubmission_required conditional check. Inherits existing flags unless the Submission_Closed state overrides the requirement to 'NO'."
+        },
+        "validation": {
+          "allowed_values": [
+            "YES",
+            "NO"
+          ],
+          "description": "Resubmission requirement status"
+        }
+      },
       "Submission_Closed": {
         "aliases": [
           "Closed",
@@ -1224,6 +1273,11 @@
                 "description": "Set to YES if Latest_Approval_Code is in approval list"
               },
               {
+                "if": "Resubmission_Required == 'NO'",
+                "then": "'YES'",
+                "description": "Set to YES if Resubmission_Required is NO (resubmission not needed, submission is effectively closed)"
+              },
+              {
                 "else": "'NO'",
                 "description": "Default to NO for all other cases"
               }
@@ -1237,50 +1291,6 @@
             "NO"
           ],
           "description": "Submission closure status"
-        }
-      },
-      "Resubmission_Required": {
-        "aliases": [
-          "To Resubmit (Yes/No)",
-          "Resubmit Required",
-          "Need Resubmission"
-        ],
-        "data_type": "categorical",
-        "required": true,
-        "allow_null": true,
-        "is_calculated": true,
-        "create_if_missing": true,
-        "calculation": {
-          "type": "conditional",
-          "method": "update_resubmission_required",
-          "source_column": "Resubmission_Required",
-          "dependencies": [
-            "Submission_Closed"
-          ],
-          "conditions": [
-            {
-              "if": "Resubmission_Required == 'NO'",
-              "then": "'NO'",
-              "description": "Keep NO if already NO"
-            },
-            {
-              "if": "Submission_Closed == 'YES'",
-              "then": "'NO'",
-              "description": "Set to NO if submission is closed"
-            },
-            {
-              "else": "'YES'",
-              "description": "Default to YES for all other cases"
-            }
-          ],
-          "description": "Executed via update_resubmission_required conditional check. Inherits existing flags unless the Submission_Closed state overrides the requirement to 'NO'."
-        },
-        "validation": {
-          "allowed_values": [
-            "YES",
-            "NO"
-          ],
-          "description": "Resubmission requirement status"
         }
       },
       "Resubmission_Plan_Date": {
