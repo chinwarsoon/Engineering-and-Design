@@ -87,8 +87,10 @@ class CalculationEngine:
                 if col in df_copy.columns:
                     df_copy[col] = df_copy[col].astype(str)
             
-            # Forward fill within groups (preserves original row order)
-            df_copy[column_name] = df_copy.groupby(group_by)[column_name].ffill()
+            # Forward fill within groups - ONLY fill null values, preserve existing data
+            mask = df_copy[column_name].isna()
+            filled_values = df_copy.groupby(group_by)[column_name].ffill()
+            df_copy.loc[mask, column_name] = filled_values[mask]
             
             # Apply fill_value for any remaining NaN (groups that started with null)
             df_copy[column_name] = df_copy[column_name].fillna(fill_value)
@@ -96,8 +98,12 @@ class CalculationEngine:
             # Update original dataframe with filled values
             df[column_name] = df_copy[column_name]
         else:
-            # Simple forward fill - use ffill() to copy last valid value, then fallback for any remaining NaN at start
-            df[column_name] = df[column_name].ffill().fillna(fill_value)
+            # Simple forward fill - ONLY fill nulls, preserve existing data
+            mask = df[column_name].isna()
+            filled_values = df[column_name].ffill()
+            df.loc[mask, column_name] = filled_values[mask]
+            # Apply fill_value for any remaining NaN at start
+            df[column_name] = df[column_name].fillna(fill_value)
         
         if na_fallback:
             # Replace remaining NaN with 'NA' if fill_value was NaN
@@ -136,8 +142,10 @@ class CalculationEngine:
                     if col in df_copy.columns:
                         df_copy[col] = df_copy[col].astype(str)
                 
-                # Forward fill within groups (preserves original row order)
-                df_copy[column_name] = df_copy.groupby(group_by)[column_name].ffill()
+                # Forward fill within groups - ONLY fill null values, preserve existing data
+                mask = df_copy[column_name].isna()
+                filled_values = df_copy.groupby(group_by)[column_name].ffill()
+                df_copy.loc[mask, column_name] = filled_values[mask]
                 df[column_name] = df_copy[column_name]
                 
         if final_fill is not None and column_name in df.columns:
