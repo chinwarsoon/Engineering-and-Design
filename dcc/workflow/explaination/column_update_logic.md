@@ -1,127 +1,161 @@
 # DCC Column Update Logic
 
-This file summarizes the processing logic in `workflow/universal_document_processor.py` based on `config/schemas/dcc_register_enhanced.json`.
+This file summarizes the schema-driven column update logic defined in `dcc_register_enhanced.json` and implemented by `universal_document_processor.py`.
 
 ## Overview
 
 ```mermaid
 flowchart TD
-    A[Load worksheet with column mapping] --> B[Initialize missing columns]
-    B --> C[Apply null handling strategies]
-    C --> D[Apply calculations per schema]
-    D --> E[Apply final validation]
-    E --> F[Export processed data]
+    A[Load cleaned worksheet] --> B[Initialize missing columns with defaults]
+    B --> C[Apply null handling strategies per schema]
+    C --> D[Apply calculated columns: composite IDs]
+    D --> E[Apply calculated columns: aggregates and mappings]
+    E --> F[Apply calculated columns: conditional dates and status]
+    F --> G[Apply validation rules]
+    G --> H[Output processed dataframe]
 ```
 
-## Processing Pipeline Steps
+## Processing Pipeline
 
-1. **Column Mapping** - Map input columns to schema-defined names using `UniversalColumnMapper`
-2. **Initialize Missing Columns** - Create columns marked with `create_if_missing: true`
-3. **Apply Null Handling** - Process nulls per `null_handling.strategy` (forward_fill, default_value, etc.)
-4. **Apply Calculations** - Execute `is_calculated: true` columns in schema order
-5. **Apply Validation** - Check patterns, allowed_values, min/max constraints
+The `UniversalDocumentProcessor.process_data()` method executes these steps in order:
 
-## Detailed Logic Table (Processing Sequence)
+1. **Initialize Missing Columns**: Creates schema-defined columns that don't exist in input data
+2. **Verify Required Columns**: Ensures all required non-calculated columns are present
+3. **Apply Null Handling**: Executes null handling strategies (forward fill, default values, multi-level fills)
+4. **Apply Calculations**: Executes all `is_calculated: true` column definitions
+5. **Apply Validation**: Validates data against schema rules (patterns, lengths, allowed values)
 
-| Step | Target Column | Input Columns | Processing Logic | Null Handling | Validation | Overwrite Behavior | Schema Reference / Mapping |
-|------|--------------|---------------|------------------|---------------|------------|-------------------|---------------------------|
-| 1 | **Row_Index** | - | auto_increment (generate_row_index) | leave_null | min_value=1 | Overwrites all | - |
-| 2 | **Project_Code** | - | null_handling: default_value | default_value; default=NA | pattern=`^[A-Z0-9-]*$` | Only fills nulls | schema_reference: project_schema |
-| 3 | **Facility_Code** | - | null_handling: default_value | default_value; default=NA | pattern=`^[A-Z0-9-]*$` | Only fills nulls | schema_reference: facility_schema |
-| 4 | **Document_Type** | - | null_handling: default_value | default_value; default=NA | - | Only fills nulls | schema_reference: document_type_schema |
-| 5 | **Discipline** | - | null_handling: default_value | default_value; default=NA | - | Only fills nulls | schema_reference: discipline_schema |
-| 6 | **Document_Sequence_Number** | - | null_handling: default_value | default_value; default=NA; zero_pad=4 | pattern=`^[0-9]*$` | Only fills nulls | - |
-| 7 | **Document_ID** | Project_Code, Facility_Code, Document_Type, Document_Sequence_Number | composite (build_document_id); format: `{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}` | leave_null | pattern=`^[A-Z0-9-]+$` | Overwrites all | - |
-| 8 | **Document_Revision** | - | null_handling: multi_level_forward_fill | multi_level_forward_fill; levels=[Document_ID→Submission_Session→Revision, Document_ID→Submission_Session, Document_ID] | pattern=`^[A-Z0-9.]*$` | Only fills nulls | - |
-| 9 | **Document_Title** | - | null_handling: default_value | default_value; default=NA | - | Only fills nulls | - |
-| 10 | **Transmittal_Number** | - | null_handling: default_value | default_value; default=NA | pattern=`^[A-Z0-9-]*$` | Only fills nulls | - |
-| 11 | **Submission_Session** | - | null_handling: forward_fill | forward_fill; fill=0; zero_pad=6 | pattern=`^[0-9]{6}$` | Only fills nulls | - |
-| 12 | **Submission_Session_Revision** | - | null_handling: forward_fill | forward_fill; fill=0; zero_pad=2 | pattern=`^[0-9]{2}$` | Only fills nulls | - |
-| 13 | **Submission_Session_Subject** | - | null_handling: multi_level_forward_fill | multi_level_forward_fill; levels=[Submission_Session+Revision, Submission_Session] | - | Only fills nulls | - |
-| 14 | **Consolidated_Submission_Session_Subject** | Submission_Session_Subject | aggregate (concatenate_unique_quoted); group_by: `['Document_ID']` | - | - | Overwrites all | - |
-| 15 | **Department** | - | null_handling: multi_level_forward_fill | multi_level_forward_fill; levels=[Submission_Session+Revision, Submission_Session] | - | Only fills nulls | schema_reference: department_schema |
-| 16 | **Submitted_By** | - | null_handling: multi_level_forward_fill | multi_level_forward_fill; levels=[Submission_Session+Revision, Submission_Session] | - | Only fills nulls | - |
-| 17 | **Submission_Date** | - | null_handling: multi_level_forward_fill | multi_level_forward_fill; levels=[Submission_Session+Revision, Submission_Session] | - | Only fills nulls | - |
-| 18 | **First_Submission_Date** | Submission_Date | aggregate (min); group_by: `['Document_ID']` | - | - | Overwrites all | - |
-| 19 | **Latest_Submission_Date** | Submission_Date | aggregate (max); group_by: `['Document_ID']` | - | - | Overwrites all | - |
-| 20 | **Latest_Revision** | Document_Revision | aggregate (latest_by_date); group_by: `['Document_ID']` | - | pattern=`^[A-Z0-9.]+$` | Overwrites all | - |
-| 21 | **All_Submission_Sessions** | Submission_Session | aggregate (concatenate_unique); group_by: `['Document_ID']` | - | - | Overwrites all | - |
-| 22 | **All_Submission_Dates** | Submission_Date | aggregate (concatenate_dates); group_by: `['Document_ID']` | - | - | Overwrites all | - |
-| 23 | **All_Submission_Session_Revisions** | Submission_Session_Revision | aggregate (concatenate_unique); group_by: `['Document_ID']` | - | - | Overwrites all | - |
-| 24 | **Count_of_Submissions** | Document_ID | aggregate (count); group_by: `['Document_ID']` | - | - | Overwrites all | - |
-| 25 | **Reviewer** | - | null_handling: forward_fill | forward_fill; group_by=[Submission_Session+Revision]; fill=NA | - | Only fills nulls | - |
-| 26 | **Review_Return_Actual_Date** | - | null_handling: forward_fill | forward_fill; group_by=[Submission_Session+Revision] | - | Only fills nulls | - |
-| 27 | **Review_Return_Plan_Date** | Submission_Date, Submission_Session, Submission_Session_Revision | conditional_date_calculation (calculate_review_return_plan_date) | leave_null | - | Overwrites all | - |
-| 28 | **Review_Status** | - | null_handling: forward_fill | forward_fill; group_by=[Submission_Session+Revision]; fill=Pending | allowed=`['Approved', 'Rejected', 'Pending', 'Approved with Comments', 'Not Approved']` | Only fills nulls | - |
-| 29 | **Review_Status_Code** | Review_Status | mapping (status_to_code); source: Review_Status | - | allowed=`['APP', 'REJ', 'PEN', 'AWC', 'NAP', 'INF', 'VOID']` | Overwrites all | mapping_reference: approval_code_mapping |
-| 30 | **Approval_Code** | Review_Status | mapping (status_to_code); source: Review_Status | - | allowed=`['APP', 'REJ', 'PEN', 'AWC', 'NAP', 'INF', 'VOID']` | Overwrites all | mapping_reference: approval_code_mapping |
-| 31 | **Review_Comments** | - | null_handling: multi_level_forward_fill | multi_level_forward_fill; levels=[Submission_Session+Revision, Submission_Session] | - | Only fills nulls | - |
-| 32 | **Latest_Approval_Status** | Review_Status | custom_aggregate (latest_non_pending_status); group_by: `['Document_ID']` | - | allowed=`['Approved', 'Rejected', 'Pending', 'Approved with Comments', 'Not Approved']` | Overwrites all | - |
-| 33 | **Latest_Approval_Code** | Latest_Approval_Status | mapping (status_to_code); source: Latest_Approval_Status | - | allowed=`['APP', 'REJ', 'PEN', 'AWC', 'NAP', 'INF', 'VOID']` | Overwrites all | mapping_reference: approval_code_mapping |
-| 34 | **All_Approval_Code** | Approval_Code | aggregate (concatenate_unique); group_by: `['Document_ID']` | - | - | Overwrites all | - |
-| 35 | **Duration_of_Review** | Submission_Date, Review_Return_Actual_Date, Resubmission_Plan_Date | conditional_business_day_calculation (calculate_duration_of_review) | - | - | Overwrites all | - |
-| 36 | **Resubmission_Required** | Resubmission_Required, Submission_Closed | conditional (update_resubmission_required); 4 conditions | - | allowed=`['YES', 'NO']` | **Overwrites YES→NO** when conditions met | - |
-| 37 | **Submission_Closed** | Submission_Closed, Latest_Approval_Code | conditional (submission_closure_status); 4 conditions | - | allowed=`['YES', 'NO']` | **Overwrites NO→YES** when conditions met | - |
-| 38 | **Resubmission_Plan_Date** | Submission_Closed, Review_Return_Actual_Date, Latest_Submission_Date, Submission_Date | custom_conditional_date (calculate_resubmission_plan_date) | - | - | **Overwrites to null** when Submission_Closed=YES | - |
-| 39 | **Resubmission_Forecast_Date** | - | null_handling: forward_fill | forward_fill; group_by=[Submission_Session+Revision] | - | Only fills nulls | - |
-| 40 | **Resubmission_Overdue_Status** | Resubmission_Required, Resubmission_Plan_Date | conditional (calculate_overdue_status); 2 conditions | - | allowed=`['Overdue']` or null | Overwrites all | - |
-| 41 | **Delay_of_Resubmission** | Submission_Closed, Document_ID, Submission_Date, Resubmission_Plan_Date | complex_lookup (calculate_delay_of_resubmission) | - | - | Overwrites all | - |
-| 42 | **Notes** | - | null_handling: default_value | default_value | - | Only fills nulls | - |
-| 43 | **Submission_Reference_1** | - | null_handling: forward_fill | forward_fill; group_by=[Document_ID]; fill=NA | - | Only fills nulls | - |
-| 44 | **Internal_Reference** | - | null_handling: forward_fill | forward_fill; group_by=[Document_ID]; fill=NA | - | Only fills nulls | - |
-| 45 | **This_Submission_Approval_Code** | Approval_Code | conditional (current_row) | - | allowed=`['APP', 'REJ', 'PEN', 'AWC', 'NAP', 'INF', 'VOID']` | Overwrites all | - |
+## Detailed Logic Table
 
-## Key Processing Details
+| Step | Target column(s) | Schema Type | Main input column(s) | Logic / Calculation Method | Null / Default Handling Strategy |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `Project_Code` | Input | Raw project code column | Direct mapping from aliases | `default_value`: "NA" |
+| 2 | `Facility_Code` | Input | Raw facility code column | Direct mapping from aliases | `default_value`: "NA" |
+| 3 | `Document_Type` | Input | Raw document type column | Validated against document_type_schema | `default_value`: "NA" |
+| 4 | `Discipline` | Input | Raw discipline column | Validated against discipline_schema | `default_value`: "NA" |
+| 5 | `Document_Sequence_Number` | Input | Raw sequence number column | Validated with numeric pattern | `default_value`: "NA" |
+| 6 | `Document_ID` | Calculated | `Project_Code`, `Facility_Code`, `Document_Type`, `Document_Sequence_Number` | **composite/build_document_id**: Format `{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}` | `leave_null`: Populated by composite calculation |
+| 7 | `Document_Revision` | Input | Raw revision column | Multi-level forward fill | `multi_level_forward_fill`: [DocID+Session+Rev → DocID+Session → DocID], final_fill: "NA" |
+| 8 | `Document_Title` | Input | Raw title column | Direct mapping | `default_value`: "NA" |
+| 9 | `Transmittal_Number` | Input | Raw transmittal column | String conversion, text replacements (N.A.→NA, nan→NA) | `default_value` with text_replacements: "NA" |
+| 10 | `Submission_Session` | Input | Raw session column | Forward fill, zero-pad to 6 digits | `forward_fill`: group_by=[], fill_value="0", zero_pad: 6 |
+| 11 | `Submission_Session_Revision` | Input | Raw revision column | Forward fill by Session, zero-pad to 2 digits | `forward_fill`: group_by=[Submission_Session], fill_value="0", zero_pad: 2, na_fallback: true |
+| 12 | `Submission_Session_Subject` | Input | Raw subject column | Multi-level forward fill | `multi_level_forward_fill`: [Session+Rev → Session] |
+| 13 | `Consolidated_Submission_Session_Subject` | Calculated | `Submission_Session_Subject` | **aggregate/concatenate_unique_quoted**: Group by Document_ID, quote each value, join with " && " | N/A (calculated) |
+| 14 | `Department` | Input | Raw department column | Validated against department_schema, multi-level forward fill | `multi_level_forward_fill`: [Session+Rev → Session], final_fill: "NA" |
+| 15 | `Submitted_By` | Input | Raw submitter column | Multi-level forward fill | `multi_level_forward_fill`: [Session+Rev → Session], final_fill: "NA" |
+| 16 | `Submission_Date` | Input | Raw date column | Multi-level forward fill with datetime conversion | `multi_level_forward_fill`: [Session+Rev → Session], datetime_conversion: coerce |
+| 17 | `First_Submission_Date` | Calculated | `Submission_Date` | **aggregate/min**: Group by Document_ID, find earliest date | N/A (calculated) |
+| 18 | `Latest_Submission_Date` | Calculated | `Submission_Date` | **aggregate/max**: Group by Document_ID, find latest date | N/A (calculated) |
+| 19 | `Latest_Revision` | Calculated | `Document_Revision`, `Submission_Date` | **latest_by_date**: Sort by Submission_Date desc, exclude "NA", get first non-NA revision per Document_ID | N/A (calculated), fallback: "NA" |
+| 20 | `All_Submission_Sessions` | Calculated | `Submission_Session` | **aggregate/concatenate_unique**: Group by Document_ID, join unique sessions with "&&" | N/A (calculated) |
+| 21 | `All_Submission_Dates` | Calculated | `Submission_Date` | **aggregate/concatenate_dates**: Group by Document_ID, sort chronologically, format YYYY-MM-DD, join with ", " | N/A (calculated) |
+| 22 | `All_Submission_Session_Revisions` | Calculated | `Submission_Session_Revision` | **aggregate/concatenate_unique**: Group by Document_ID, join unique revisions with ", " | N/A (calculated) |
+| 23 | `Count_of_Submissions` | Calculated | `Document_ID` | **aggregate/count**: Count rows per Document_ID, broadcast to all rows via transform | N/A (calculated) |
+| 24 | `Reviewer` | Input | Raw reviewer column | Forward fill by Session | `forward_fill`: group_by=[Submission_Session], fill_value="NA", na_fallback: true |
+| 25 | `Review_Return_Actual_Date` | Input | Raw return date column | Forward fill by Session+Revision with datetime conversion | `forward_fill`: group_by=[Session, Session_Revision], datetime_conversion: coerce |
+| 26 | `Review_Return_Plan_Date` | Calculated | `Submission_Date`, `Submission_Session`, `Submission_Session_Revision` | **conditional_date_calculation/calculate_review_return_plan_date**: If no previous submission → Submission_Date + first_review_duration (20 days), else → Submission_Date + second_review_duration (14 days). Uses working days if duration_is_working_day=true | `leave_null`: Populated by conditional calculation |
+| 27 | `Review_Status` | Input | Raw status column | Forward fill by Session+Revision | `forward_fill`: group_by=[Session, Session_Revision], fill_value: "Pending" |
+| 28 | `Review_Status_Code` | Calculated | `Review_Status` | **mapping/status_to_code**: Map status text to code via approval_code_mapping | N/A (calculated) |
+| 29 | `Approval_Code` | Calculated | `Review_Status` | **mapping/status_to_code**: Explicit mapping (Approved→APP, Rejected→REJ, Pending→PEN, etc.), default: "PEN" | N/A (calculated) |
+| 30 | `Review_Comments` | Input | Raw comments column | Multi-level forward fill with conditional processing | `multi_level_forward_fill`: [Session+Rev → Session], final_fill: "NA", if_column_exists: true |
+| 31 | `Latest_Approval_Status` | Calculated | `Review_Status`, `Submission_Date` | **custom_aggregate/latest_non_pending_status**: Clean slashes/whitespace, sort by Submission_Date desc, exclude pending_status, get latest non-pending status per Document_ID | N/A (calculated), fallback: pending_status |
+| 32 | `Latest_Approval_Code` | Calculated | `Latest_Approval_Status` | **mapping/status_to_code**: Map latest status to code, clean "/" and whitespace | N/A (calculated) |
+| 33 | `All_Approval_Code` | Calculated | `Approval_Code` | **aggregate/concatenate_unique**: Group by Document_ID, join unique approval codes with ", ", sort by Submission_Date | N/A (calculated) |
+| 34 | `Duration_of_Review` | Calculated | `Submission_Date`, `Review_Return_Actual_Date`, `Resubmission_Plan_Date` | **conditional_business_day_calculation/calculate_duration_of_review**: End date = Review_Return_Actual_Date or current_date. If duration_is_working_day=true → np.busday_count, else → calendar days. Clamp to 0, return NaN for invalid dates | N/A (calculated) |
+| 35 | `Submission_Closed` | Calculated | `Submission_Closed`, `Latest_Approval_Code` | **conditional/submission_closure_status**: Uppercase, fill null with "NO". If "YES" or Latest_Approval_Code in [APP, VOID, INF] → "YES", else → "NO" | N/A (calculated) |
+| 36 | `Resubmission_Required` | Calculated | `Resubmission_Required`, `Submission_Closed` | **conditional/update_resubmission_required**: Keep "NO" if already "NO". If Submission_Closed=="YES" → "NO", else → "YES" | N/A (calculated) |
+| 37 | `Resubmission_Plan_Date` | Calculated | `Submission_Closed`, `Review_Return_Actual_Date`, `Latest_Submission_Date`, `Submission_Date` | **custom_conditional_date/calculate_resubmission_plan_date**: If closed → NaT. If Review_Return_Actual_Date exists → add resubmission_duration (14 days). If first submission → Submission_Date + (first_review + resubmission duration). Else → Submission_Date + (second_review + resubmission duration). Uses working days if duration_is_working_day=true | N/A (calculated) |
+| 38 | `Resubmission_Forecast_Date` | Input | Raw forecast date column | Multi-level forward fill with datetime conversion | `forward_fill`: group_by=[Session, Session_Revision], fallback: [Session], if_column_exists: true, datetime_conversion: coerce, final_fill: keep_null |
+| 39 | `Resubmission_Overdue_Status` | Calculated | `Review_Return_Actual_Date`, `Submission_Closed`, `Resubmission_Plan_Date` | **conditional/calculate_overdue_status**: If Review_Return_Actual_Date exists → "Resubmitted". Else if not closed and Resubmission_Plan_Date < current_date → "Overdue". Else → "NO" | N/A (calculated) |
 
-### 1. Null Handling Strategies
-- **forward_fill**: Copy last valid value forward within groups
-- **multi_level_forward_fill**: Cascading forward fill across multiple grouping levels
-- **default_value**: Fill with specified default value
-- **leave_null**: Keep null for calculated columns
+## Schema Parameters
 
-### 2. Calculation Types
-- **auto_increment**: Generate sequential row index starting from 1
-- **composite**: Build string from multiple columns using format template
-- **aggregate**: Group-based calculations (min, max, count, concatenate)
-- **mapping**: Map source values to codes using lookup table
-- **conditional**: Multiple if/else conditions with short-circuit logic
-- **conditional_date_calculation**: Date calculations based on conditions
-- **conditional_business_day_calculation**: Business day aware date math
-- **custom_conditional_date**: Custom conditional date logic
-- **custom_aggregate**: Custom aggregation with filtering
-- **complex_lookup**: Multi-step lookup with previous submission analysis
+| Parameter | Value | Description |
+| --- | --- | --- |
+| `debug_dev_mode` | false | Enable debug output |
+| `duration_is_working_day` | true | Use business days (excluding weekends) for date calculations |
+| `first_review_duration` | 20 | Days for first review response |
+| `second_review_duration` | 14 | Days for subsequent review responses |
+| `resubmission_duration` | 14 | Days for resubmission planning |
+| `pending_status` | "Awaiting S.O.'s response" | Default pending status value |
+| `dynamic_column_creation.enabled` | true | Auto-create missing schema columns |
+| `dynamic_column_creation.default_value` | "NA" | Default value for created columns |
 
-### 3. Short-Circuit Logic
-Conditional calculations use `determined_mask` to skip rows already processed by earlier conditions, ensuring efficient evaluation.
+## Null Handling Strategies
 
-### 4. Zero-Padding Formatting
-Applied during null handling for numeric fields (Document_Sequence_Number, Submission_Session, Submission_Session_Revision) to ensure consistent formatting.
+### Strategy: `default_value`
+- **Used by**: Project_Code, Facility_Code, Document_Type, Discipline, Document_Sequence_Number, Document_Title, Transmittal_Number, Submitted_By, Department
+- **Logic**: Fill null values with column-specific or global default ("NA")
+- **Special cases**: Transmittal_Number performs text replacements (N.A.→NA, nan→NA) before filling
 
-### 5. Cross-Column Dependencies
-- `Document_ID` depends on Project_Code, Facility_Code, Document_Type, Document_Sequence_Number
-- `Resubmission_Required` depends on Submission_Closed, Document_ID, Submission_Date
-- `Submission_Closed` depends on Latest_Approval_Code, Resubmission_Required
-- `Resubmission_Plan_Date` depends on Submission_Closed (cleared to null when closed)
-- `Resubmission_Overdue_Status` depends on Resubmission_Required and Resubmission_Plan_Date
+### Strategy: `forward_fill`
+- **Used by**: Submission_Session, Submission_Session_Revision, Reviewer, Review_Return_Actual_Date, Resubmission_Forecast_Date
+- **Logic**: Forward fill within group_by columns, apply zero-padding formatting where specified
+- **Variants**: 
+  - Simple forward fill (no group_by)
+  - Grouped forward fill (with group_by)
+  - With na_fallback (replace remaining NaN with "NA")
+  - With zero_pad (format as zero-padded string)
 
-### 6. Schema Reference Application
+### Strategy: `multi_level_forward_fill`
+- **Used by**: Document_Revision, Submission_Session_Subject, Department, Submitted_By, Submission_Date, Review_Comments
+- **Logic**: Sequential forward fill through multiple grouping levels, optional final fill
+- **Levels**: [Session+Revision → Session → Document_ID] with final_fill: "NA"
 
-Columns with `schema_reference` or `mapping_reference` use external schema definitions for validation and mapping:
+### Strategy: `leave_null`
+- **Used by**: Document_ID, Review_Return_Plan_Date
+- **Logic**: Leave null values as-is; populated by calculated column logic
 
-| Column | Schema Reference | How Rules Are Applied |
-|--------|-----------------|----------------------|
-| **Project_Code** | schema_reference: project_schema | Values validated against schema's `allowed_values` or pattern. Default "NA" applied if null. |
-| **Facility_Code** | schema_reference: facility_schema | Values validated against schema's `allowed_values` or pattern. Default "NA" applied if null. |
-| **Document_Type** | schema_reference: document_type_schema | Values validated against schema. Default "NA" applied if null. |
-| **Discipline** | schema_reference: discipline_schema | Values validated against schema. Default "NA" applied if null. |
-| **Department** | schema_reference: department_schema | Values validated against schema during forward fill. |
-| **Review_Status_Code** | mapping_reference: approval_code_mapping | Status text mapped to code using `approval_code_mapping` schema data |
-| **Approval_Code** | mapping_reference: approval_code_mapping | Status text mapped to code using `approval_code_mapping` schema data |
-| **Latest_Approval_Code** | mapping_reference: approval_code_mapping | Status text mapped to code using `approval_code_mapping` schema data |
+## Calculation Methods
 
-**Schema Loading**: References are resolved by `UniversalDocumentProcessor._load_schema_references()` which loads external schema data into `self.schema_data`. Mapping calculations then access these via `self.schema_data.get(f'{mapping_ref}_data', {})`.
+### Method: `composite/build_document_id`
+- **Used by**: Document_ID
+- **Logic**: Concatenate source columns using format string `{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}`
 
-## Source Files
-- Schema: `config/schemas/dcc_register_enhanced.json`
-- Processor: `workflow/universal_document_processor.py`
-- Mapper: `workflow/universal_column_mapper.py`
+### Method: `aggregate/*`
+- **count**: Count rows per group, broadcast via transform
+- **min/max**: Find earliest/latest date per group
+- **concatenate_unique**: Join unique values with separator, optional sort
+- **concatenate_unique_quoted**: Join unique values with quotes around each value
+- **concatenate_dates**: Convert to datetime, sort chronologically, format and join
+
+### Method: `latest_by_date`
+- **Used by**: Latest_Revision
+- **Logic**: Sort by date descending, filter excluded values, get first value per group, map back to all rows
+
+### Method: `mapping/status_to_code`
+- **Used by**: Review_Status_Code, Approval_Code, Latest_Approval_Code
+- **Logic**: Map text values to standardized codes using approval_code_mapping or explicit mapping
+
+### Method: `conditional_date_calculation`
+- **Used by**: Review_Return_Plan_Date
+- **Logic**: Branch calculation based on previous submission existence, add working or calendar days
+
+### Method: `conditional/submission_closure_status`
+- **Used by**: Submission_Closed
+- **Logic**: Check current value and Latest_Approval_Code, determine closure status
+
+### Method: `conditional/update_resubmission_required`
+- **Used by**: Resubmission_Required
+- **Logic**: Inherit existing flag or derive from Submission_Closed status
+
+### Method: `custom_conditional_date`
+- **Used by**: Resubmission_Plan_Date
+- **Logic**: Multi-branch date calculation based on closure status, review return date, and submission history
+
+### Method: `conditional_business_day_calculation`
+- **Used by**: Duration_of_Review
+- **Logic**: Calculate business or calendar days between submission and return dates, clamp to 0
+
+## Cross-Cutting Notes
+
+| Topic | Rule |
+| --- | --- |
+| Null checks | Validation logs warnings for columns with nulls where allow_null=false |
+| Debug mode | Controlled by `debug_dev_mode` parameter in schema |
+| Sheet selection | Upload/download paths configured per environment (Windows/Linux/Colab) |
+| Config dependency | Mappings and durations loaded from schema parameters and referenced schemas |
+| Dynamic column creation | Missing columns auto-created with default values if `create_if_missing: true` |
+| Validation | Pattern, length, format, and allowed value checks applied post-processing |
+| Working days | When `duration_is_working_day=true`, uses `pd.offsets.BDay()` for business day calculations |
