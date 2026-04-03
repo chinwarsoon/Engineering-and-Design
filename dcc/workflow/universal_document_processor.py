@@ -81,18 +81,20 @@ class CalculationEngine:
         
         if group_by:
             # Group by specified columns and forward fill within groups
-            # Convert group_by columns to string to avoid type comparison issues
+            # Do NOT sort - preserve original row order for correct forward fill
             df_copy = df.copy()
             for col in group_by:
                 if col in df_copy.columns:
                     df_copy[col] = df_copy[col].astype(str)
             
-            # Sort and forward fill within groups
-            df_sorted = df_copy.sort_values(group_by)
-            df_sorted[column_name] = df_sorted.groupby(group_by)[column_name].ffill()
+            # Forward fill within groups (preserves original row order)
+            df_copy[column_name] = df_copy.groupby(group_by)[column_name].ffill()
+            
+            # Apply fill_value for any remaining NaN (groups that started with null)
+            df_copy[column_name] = df_copy[column_name].fillna(fill_value)
             
             # Update original dataframe with filled values
-            df[column_name] = df_sorted[column_name].reindex(df.index)
+            df[column_name] = df_copy[column_name]
         else:
             # Simple forward fill - use ffill() to copy last valid value, then fallback for any remaining NaN at start
             df[column_name] = df[column_name].ffill().fillna(fill_value)
@@ -134,9 +136,9 @@ class CalculationEngine:
                     if col in df_copy.columns:
                         df_copy[col] = df_copy[col].astype(str)
                 
-                df_sorted = df_copy.sort_values(group_by)
-                df_sorted[column_name] = df_sorted.groupby(group_by)[column_name].ffill()
-                df[column_name] = df_sorted[column_name].reindex(df.index)
+                # Forward fill within groups (preserves original row order)
+                df_copy[column_name] = df_copy.groupby(group_by)[column_name].ffill()
+                df[column_name] = df_copy[column_name]
                 
         if final_fill is not None and column_name in df.columns:
             df[column_name] = df[column_name].fillna(final_fill)

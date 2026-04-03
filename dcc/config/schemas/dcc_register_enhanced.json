@@ -50,12 +50,12 @@
           "Project Code",
           "Proj Code"
         ],
-        "data_type": "string",
+        "data_type": "categorical",
         "required": true,
         "allow_null": false,
         "is_calculated": false,
         "create_if_missing": true,
-        "default_value": "NA",
+        "schema_reference": "project_schema",
         "null_handling": {
           "strategy": "default_value",
           "default_value": "NA",
@@ -72,11 +72,12 @@
           "Facility Code",
           "Project Prefix"
         ],
-        "data_type": "string",
+        "data_type": "categorical",
         "required": true,
         "allow_null": false,
         "is_calculated": false,
         "create_if_missing": true,
+        "schema_reference": "facility_schema",
         "null_handling": {
           "strategy": "default_value",
           "default_value": "NA",

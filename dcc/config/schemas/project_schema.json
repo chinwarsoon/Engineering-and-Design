@@ -1,0 +1,11 @@
+{
+  "schema_name": "project_choices",
+  "type": "standard_choices",
+  "project": {
+    "code": "131242",
+    "description": "TWRP"
+  },
+  "description": "Standard project codes",
+  "created": "2026/04/02",
+  "version": 1
+}
