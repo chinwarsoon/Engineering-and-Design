@@ -1090,11 +1090,20 @@ class CalculationEngine:
     def _apply_row_index(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """
         Generate auto-increment row index starting from 1.
-        
+
         This creates a unique index for each row in the imported data,
         useful for tracking original row positions.
+        The Row_Index column is placed as the first column in the DataFrame.
         """
         df[column_name] = range(1, len(df) + 1)
+        
+        # Move Row_Index to be the first column
+        cols = df.columns.tolist()
+        if column_name in cols:
+            cols.remove(column_name)
+            cols = [column_name] + cols
+            df = df[cols]
+        
         logger.info(f"Applied row index generation for {column_name}: {len(df)} rows indexed")
         return df
 
