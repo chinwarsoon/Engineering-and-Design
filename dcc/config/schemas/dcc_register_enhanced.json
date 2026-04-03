@@ -6,6 +6,8 @@
     "cell_id": "17c02c0e"
   },
   "schema_references": {
+    "project_schema": "../config/schemas/project_schema.json",
+    "facility_schema": "../config/schemas/facility_schema.json",
     "department_schema": "../config/schemas/department_schema.json",
     "discipline_schema": "../config/schemas/discipline_schema.json",
     "document_type_schema": "../config/schemas/document_type_schema.json",

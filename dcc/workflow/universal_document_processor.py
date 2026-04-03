@@ -5,11 +5,12 @@ Implements schema-driven calculations, null handling, and data processing for un
 """
 
 import json
+from collections import defaultdict
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 import logging
 import re
 from universal_column_mapper import SchemaLoader
@@ -30,6 +31,146 @@ class CalculationEngine:
         """
         self.schema_data = schema_data
         self.columns = schema_data.get('enhanced_schema', {}).get('columns', {})
+        self.calculation_order = self._resolve_calculation_order()
+
+    def _extract_column_dependencies(self, column_name: str, column_def: Dict) -> Set[str]:
+        """Extract schema column dependencies for a calculated column."""
+        dependencies = set()
+        calculation = column_def.get('calculation', {})
+
+        dependency_keys = [
+            'dependencies',
+            'source_columns',
+            'group_by',
+            'sort_by',
+        ]
+        scalar_keys = [
+            'source_column',
+            'target_column',
+        ]
+
+        for key in dependency_keys:
+            value = calculation.get(key, [])
+            if isinstance(value, list):
+                dependencies.update(value)
+
+        for key in scalar_keys:
+            value = calculation.get(key)
+            if isinstance(value, str):
+                dependencies.add(value)
+
+        # Self-references such as source_column == column_name are treated as
+        # seed/input values rather than recursive calculation dependencies.
+        dependencies.discard(column_name)
+
+        return {dep for dep in dependencies if dep in self.columns}
+
+    def _find_cycle_path(self, dependency_graph: Dict[str, Set[str]]) -> List[str]:
+        """Return one cycle path if present, otherwise an empty list."""
+        visiting = set()
+        visited = set()
+        stack: List[str] = []
+
+        def dfs(node: str) -> List[str]:
+            visiting.add(node)
+            stack.append(node)
+
+            for dep in dependency_graph.get(node, set()):
+                if dep in visiting:
+                    cycle_start = stack.index(dep)
+                    return stack[cycle_start:] + [dep]
+                if dep not in visited:
+                    cycle = dfs(dep)
+                    if cycle:
+                        return cycle
+
+            stack.pop()
+            visiting.remove(node)
+            visited.add(node)
+            return []
+
+        for node in dependency_graph:
+            if node not in visited:
+                cycle = dfs(node)
+                if cycle:
+                    return cycle
+
+        return []
+
+    def _resolve_calculation_order(self) -> List[str]:
+        """
+        Build a dependency-safe execution order for calculated columns.
+
+        Raises:
+            ValueError: If the schema introduces a circular dependency
+        """
+        calculated_columns = [
+            name for name, definition in self.columns.items()
+            if definition.get('is_calculated', False)
+        ]
+        dependency_graph: Dict[str, Set[str]] = {
+            name: {
+                dep for dep in self._extract_column_dependencies(name, self.columns[name])
+                if self.columns.get(dep, {}).get('is_calculated', False)
+            }
+            for name in calculated_columns
+        }
+
+        cycle = self._find_cycle_path(dependency_graph)
+        if cycle:
+            raise ValueError(
+                "Circular calculated-column dependency detected: "
+                + " -> ".join(cycle)
+            )
+
+        original_index = {name: idx for idx, name in enumerate(self.columns.keys())}
+        dependents: Dict[str, Set[str]] = defaultdict(set)
+        indegree = {name: len(deps) for name, deps in dependency_graph.items()}
+
+        for column_name, deps in dependency_graph.items():
+            for dep in deps:
+                dependents[dep].add(column_name)
+
+        ready = sorted(
+            [name for name, degree in indegree.items() if degree == 0],
+            key=lambda name: original_index.get(name, float('inf'))
+        )
+        ordered: List[str] = []
+
+        while ready:
+            current = ready.pop(0)
+            ordered.append(current)
+
+            newly_ready = []
+            for dependent in dependents.get(current, set()):
+                indegree[dependent] -= 1
+                if indegree[dependent] == 0:
+                    newly_ready.append(dependent)
+
+            ready.extend(newly_ready)
+            ready.sort(key=lambda name: original_index.get(name, float('inf')))
+
+        if len(ordered) != len(calculated_columns):
+            unresolved = sorted(set(calculated_columns) - set(ordered))
+            raise ValueError(
+                f"Could not resolve calculation order for calculated columns: {unresolved}"
+            )
+
+        for column_name, deps in dependency_graph.items():
+            later_dependencies = [
+                dep for dep in deps
+                if original_index.get(dep, -1) > original_index.get(column_name, -1)
+            ]
+            if later_dependencies:
+                logger.warning(
+                    "Schema order forward-reference for %s: depends on later calculated columns %s. "
+                    "Using dependency-safe execution order instead.",
+                    column_name,
+                    later_dependencies,
+                )
+
+        logger.info("Resolved calculation order for %s calculated columns", len(ordered))
+        return ordered
         
     def apply_null_handling(self, df: pd.DataFrame, original_columns: set = None) -> pd.DataFrame:
         """
@@ -316,9 +457,8 @@ class CalculationEngine:
         """
         df_calculated = df.copy()
         
-        for column_name, column_def in self.columns.items():
-            if not column_def.get('is_calculated', False):
-                continue
+        for column_name in self.calculation_order:
+            column_def = self.columns[column_name]
                 
             calculation = column_def.get('calculation', {})
             calc_type = calculation.get('type')
