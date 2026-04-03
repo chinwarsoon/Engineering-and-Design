@@ -44,6 +44,27 @@
   },
   "enhanced_schema": {
     "columns": {
+      "Row_Index": {
+        "aliases": [
+          "Row Index",
+          "Row Number",
+          "Index"
+        ],
+        "data_type": "numeric",
+        "required": false,
+        "allow_null": false,
+        "is_calculated": true,
+        "create_if_missing": true,
+        "calculation": {
+          "type": "auto_increment",
+          "method": "generate_row_index",
+          "description": "Auto-generated row index starting from 1 for each imported data row"
+        },
+        "validation": {
+          "min_value": 1,
+          "description": "Row index must be a positive integer starting from 1"
+        }
+      },
       "Project_Code": {
         "aliases": [
           "Proj. Code",
@@ -1185,6 +1206,65 @@
           "description": "Duration of review in days"
         }
       },
+      "Submission_Closed": {
+        "aliases": [
+          "Closed",
+          "Submission Closed",
+          "Completed",
+          "Finished"
+        ],
+        "data_type": "categorical",
+        "required": true,
+        "allow_null": true,
+        "is_calculated": true,
+        "create_if_missing": true,
+        "calculation": {
+          "type": "conditional",
+          "method": "submission_closure_status",
+          "source_column": "Submission_Closed",
+          "dependencies": [
+            "Latest_Approval_Code"
+          ],
+          "preprocessing": {
+            "text_cleaning": {
+              "convert_to_uppercase": true,
+              "fill_nulls": "NO",
+              "description": "Convert to uppercase and fill nulls with NO per original dcc_mdl.ipynb logic"
+            }
+          },
+          "logic": {
+            "conditions": [
+              {
+                "if": "Submission_Closed == 'YES'",
+                "then": "'YES'",
+                "description": "Keep YES if already YES"
+              },
+              {
+                "if": "current Submission_Date is not the latest for Document_ID",
+                "then": "'YES'",
+                "description": "Set to YES if current submission is not the latest for this document (superseded by newer submission)"
+              },
+              {
+                "if": "Latest_Approval_Code in ['APP', 'VOID']",
+                "then": "'YES'",
+                "description": "Set to YES if Latest_Approval_Code is in approval list"
+              },
+              {
+                "else": "'NO'",
+                "description": "Default to NO for all other cases"
+              }
+            ]
+          },
+          "description": "Calculated via status_based conditional mapping. Merges current closure status with Latest_Approval_Code to determine if the document lifecycle has reached a terminal state (APP/VOID/INF)."
+        },
+        "validation": {
+          "allowed_values": [
+            "YES",
+            "NO"
+          ],
+          "description": "Submission closure status"
+        }
+      },
       "Resubmission_Required": {
         "aliases": [
           "To Resubmit (Yes/No)",
@@ -1232,70 +1312,6 @@
             "NO"
           ],
           "description": "Resubmission requirement status"
-        }
-      },
-      "Submission_Closed": {
-        "aliases": [
-          "Closed",
-          "Submission Closed",
-          "Completed",
-          "Finished"
-        ],
-        "data_type": "categorical",
-        "required": true,
-        "allow_null": true,
-        "is_calculated": true,
-        "create_if_missing": true,
-        "calculation": {
-          "type": "conditional",
-          "method": "submission_closure_status",
-          "source_column": "Submission_Closed",
-          "dependencies": [
-            "Latest_Approval_Code"
-          ],
-          "preprocessing": {
-            "text_cleaning": {
-              "convert_to_uppercase": true,
-              "fill_nulls": "NO",
-              "description": "Convert to uppercase and fill nulls with NO per original dcc_mdl.ipynb logic"
-            }
-          },
-          "logic": {
-            "conditions": [
-              {
-                "if": "Resubmission_Required == 'YES'",
-                "then": "'NO'",
-                "description": "Short-circuit: Set to NO if resubmission is required (submission is not closed)"
-              },
-              {
-                "if": "Submission_Closed == 'YES'",
-                "then": "'YES'",
-                "description": "Keep YES if already YES"
-              },
-              {
-                "if": "Latest_Approval_Code in ['APP', 'VOID', 'INF']",
-                "then": "'YES'",
-                "description": "Set to YES if Latest_Approval_Code is in approval list"
-              },
-              {
-                "if": "Resubmission_Required == 'NO'",
-                "then": "'YES'",
-                "description": "Set to YES if Resubmission_Required is NO (resubmission not needed, submission is effectively closed)"
-              },
-              {
-                "else": "'NO'",
-                "description": "Default to NO for all other cases"
-              }
-            ]
-          },
-          "description": "Calculated via status_based conditional mapping. Merges current closure status with Latest_Approval_Code to determine if the document lifecycle has reached a terminal state (APP/VOID/INF)."
-        },
-        "validation": {
-          "allowed_values": [
-            "YES",
-            "NO"
-          ],
-          "description": "Submission closure status"
         }
       },
       "Resubmission_Plan_Date": {

@@ -362,6 +362,10 @@ class CalculationEngine:
                 df_calculated = self._apply_latest_non_pending_status(df_calculated, column_name, calculation)
             elif calc_type == 'composite' and method == 'build_document_id':
                 df_calculated = self._apply_composite_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'auto_increment' and method == 'generate_row_index':
+                df_calculated = self._apply_row_index(df_calculated, column_name, calculation)
+            elif calc_type == 'complex_lookup' and method == 'calculate_delay_of_resubmission':
+                df_calculated = self._apply_delay_of_resubmission(df_calculated, column_name, calculation)
             else:
                 logger.warning(f"Unsupported calculation type: {calc_type} for {column_name}")
         
@@ -655,17 +659,20 @@ class CalculationEngine:
         Once a condition sets a value, subsequent conditions are skipped for that row.
         
         Priority order:
-        1. Set to NO if Resubmission_Required is YES (short-circuit - not closed if resubmission needed)
-        2. Keep YES if already YES
+        1. Keep YES if already YES
+        2. Set to YES if current submission is not the latest (superseded by newer submission)
         3. Set to YES if Latest_Approval_Code in ['APP', 'VOID', 'INF']
-        4. Set to YES if Resubmission_Required is NO (no resubmission needed)
-        5. Default to NO for remaining rows
+        4. Default to NO for remaining rows
+        
+        Note: Does NOT depend on Resubmission_Required to avoid circular dependency
+        (Resubmission_Required is processed after Submission_Closed).
         """
         source_column = calculation.get('source_column', 'Submission_Closed')
         
         # Get required columns
         latest_approval_col = 'Latest_Approval_Code' if 'Latest_Approval_Code' in df.columns else None
-        resubmission_required_col = 'Resubmission_Required' if 'Resubmission_Required' in df.columns else None
+        document_id_col = 'Document_ID' if 'Document_ID' in df.columns else None
+        submission_date_col = 'Submission_Date' if 'Submission_Date' in df.columns else None
         
         # Preprocessing: convert to uppercase and fill nulls
         preprocessing = calculation.get('preprocessing', {})
@@ -681,32 +688,28 @@ class CalculationEngine:
         # Track which rows have been determined - these skip remaining checks
         determined_mask = pd.Series([False] * len(df), index=df.index)
         
-        # Condition 1: Set to NO if Resubmission_Required is YES (short-circuit)
-        if resubmission_required_col:
-            mask_resubmit_yes = df[resubmission_required_col] == 'YES'
-            df.loc[mask_resubmit_yes, column_name] = 'NO'
-            determined_mask |= mask_resubmit_yes
-        
-        # Condition 2: Keep YES if already YES (only for undetermined rows)
+        # Condition 1: Keep YES if already YES (only for undetermined rows). This allow user to force closing the submission
         if source_column in df.columns:
             mask_already_yes = (df[source_column] == 'YES') & ~determined_mask
             df.loc[mask_already_yes, column_name] = 'YES'
             determined_mask |= mask_already_yes
         
+        # Condition 2: Set to YES if current submission is not the latest (superseded)
+        if document_id_col and submission_date_col:
+            df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
+            latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+            mask_not_latest = (df[submission_date_col] < latest_dates) & ~determined_mask
+            df.loc[mask_not_latest, column_name] = 'YES'
+            determined_mask |= mask_not_latest
+        
         # Condition 3: Set to YES if Latest_Approval_Code is in approval list
         if latest_approval_col:
-            approval_codes = ['APP', 'VOID', 'INF']
+            approval_codes = ['APP', 'VOID']
             mask_approved = df[latest_approval_col].isin(approval_codes) & ~determined_mask
             df.loc[mask_approved, column_name] = 'YES'
             determined_mask |= mask_approved
         
-        # Condition 4: Set to YES if Resubmission_Required is NO
-        if resubmission_required_col:
-            mask_no_resubmit = (df[resubmission_required_col] == 'NO') & ~determined_mask
-            df.loc[mask_no_resubmit, column_name] = 'YES'
-            determined_mask |= mask_no_resubmit
-        
-        # Condition 5: Default NO - already set for all remaining undetermined rows
+        # Condition 4: Default NO - already set for all remaining undetermined rows
         
         logger.info(f"Applied submission_closure_status for {column_name}: {(df[column_name] == 'YES').sum()} rows set to YES, {(df[column_name] == 'NO').sum()} rows set to NO")
         return df
@@ -1019,6 +1022,81 @@ class CalculationEngine:
         
         logger.info(f"Applied composite calculation for {column_name}: {len(available_sources)}/{len(source_columns)} sources found")
         return df
+    
+    def _apply_delay_of_resubmission(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Calculate Delay_of_Resubmission with non-negative check.
+        
+        Logic:
+        - If Submission_Closed == 'YES', return 0
+        - Find previous submissions for same Document_ID with earlier Submission_Date
+        - Get latest Resubmission_Plan_Date from previous submissions
+        - Calculate days between that plan date and current Submission_Date
+        - Ensure non-negative: return max(delay, 0)
+        """
+        doc_id_col = 'Document_ID'
+        submission_date_col = 'Submission_Date'
+        plan_date_col = 'Resubmission_Plan_Date'
+        closed_col = 'Submission_Closed'
+        
+        required_cols = [doc_id_col, submission_date_col, plan_date_col, closed_col]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            logger.warning(f"Missing required columns for delay calculation: {missing_cols}")
+            df[column_name] = 0
+            return df
+        
+        df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
+        df[plan_date_col] = pd.to_datetime(df[plan_date_col], errors='coerce')
+        
+        delays = []
+        for idx, row in df.iterrows():
+            # If submission is closed, delay is 0
+            if row.get(closed_col) == 'YES':
+                delays.append(0)
+                continue
+            
+            current_doc_id = row.get(doc_id_col)
+            current_submission_date = row.get(submission_date_col)
+            
+            if pd.isna(current_doc_id) or pd.isna(current_submission_date):
+                delays.append(0)
+                continue
+            
+            # Find previous submissions for same Document_ID
+            prev_subs = df[(df[doc_id_col] == current_doc_id) & (df[submission_date_col] < current_submission_date)]
+            
+            if prev_subs.empty:
+                delays.append(0)
+                continue
+            
+            # Get latest Resubmission_Plan_Date from previous submissions
+            latest_plan = prev_subs[plan_date_col].max()
+            
+            if pd.isna(latest_plan):
+                delays.append(0)
+                continue
+            
+            # Calculate days and ensure non-negative
+            delay = (current_submission_date - latest_plan).days
+            delay = max(delay, 0)  # Non-negative check
+            
+            delays.append(delay)
+        
+        df[column_name] = delays
+        logger.info(f"Applied delay_of_resubmission for {column_name}: {len([d for d in delays if d > 0])} rows with positive delay")
+        return df
+    
+    def _apply_row_index(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
+        """
+        Generate auto-increment row index starting from 1.
+        
+        This creates a unique index for each row in the imported data,
+        useful for tracking original row positions.
+        """
+        df[column_name] = range(1, len(df) + 1)
+        logger.info(f"Applied row index generation for {column_name}: {len(df)} rows indexed")
+        return df
 
 
 class UniversalDocumentProcessor:
@@ -1137,6 +1215,13 @@ class UniversalDocumentProcessor:
         dyn_creation = parameters.get('dynamic_column_creation', {})
         global_enabled = dyn_creation.get('enabled', False)
         global_default = dyn_creation.get('default_value', 'NA')
+        
+        # Cast Submission_Session related columns to string for consistent grouping
+        submission_session_cols = ['Submission_Session', 'Submission_Session_Revision']
+        for col in submission_session_cols:
+            if col in df_init.columns:
+                df_init[col] = df_init[col].astype(str)
+                logger.info(f"Cast {col} to string for consistent grouping")
         
         for col_name, col_def in columns.items():
             if col_name not in df_init.columns:
