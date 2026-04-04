@@ -15,19 +15,31 @@ class ProjectSetupValidator:
     """Validate the DCC project structure from config/schemas/project_setup.json."""
 
     def __init__(self, base_path: str | Path | None = None, schema_path: str | Path | None = None):
-        self.base_path = Path(base_path) if base_path else Path(__file__).resolve().parent.parent
+        self.base_path = self._normalize_path(base_path) if base_path else self._default_base_path()
         self.schema_path = (
-            Path(schema_path)
+            self._normalize_path(schema_path)
             if schema_path
             else self.base_path / "config" / "schemas" / "project_setup.json"
         )
-        self.schema_document = self._load_json(self.schema_path)
-        self.project_setup = self._extract_project_setup(self.schema_document)
-        self.validation_rules = {
-            item.get("rule"): bool(item.get("enabled", True))
-            for item in self.project_setup.get("validation_rules", [])
-            if isinstance(item, dict) and item.get("rule")
-        }
+        self.schema_document: Dict[str, Any] = {}
+        self.project_setup: Dict[str, Any] = {}
+        self.validation_rules: Dict[str, bool] = {}
+
+        if self.schema_path.is_file():
+            self.schema_document = self._load_json(self.schema_path)
+            self.project_setup = self._extract_project_setup(self.schema_document)
+            self.validation_rules = {
+                item.get("rule"): bool(item.get("enabled", True))
+                for item in self.project_setup.get("validation_rules", [])
+                if isinstance(item, dict) and item.get("rule")
+            }
+
+    def _normalize_path(self, value: str | Path) -> Path:
+        return Path(value).expanduser().resolve()
+
+    def _default_base_path(self) -> Path:
+        cwd = Path.cwd().resolve()
+        return cwd.parent if cwd.name.lower() == "workflow" else cwd
 
     def _load_json(self, path: Path) -> Dict[str, Any]:
         with path.open("r", encoding="utf-8") as handle:
@@ -122,11 +134,13 @@ class ProjectSetupValidator:
             pattern = item.get("pattern", "")
             if not pattern:
                 continue
+            required = bool(item.get("required", False))
             minimum_count = int(item.get("minimum_count", 0))
             matches = sorted(str(path.relative_to(self.base_path)) for path in data_dir.glob(pattern)) if data_dir.exists() else []
             results["data_files"].append(
                 {
                     "pattern": pattern,
+                    "required": required,
                     "minimum_count": minimum_count,
                     "match_count": len(matches),
                     "matches": matches,
@@ -289,7 +303,7 @@ class ProjectSetupValidator:
                     return False
 
         for item in results.get("data_files", []):
-            if not item.get("valid", False):
+            if item.get("required", False) and not item.get("valid", False):
                 return False
 
         for item in results.get("schema_refs", []):
@@ -336,9 +350,10 @@ class ProjectSetupValidator:
             lines.append("")
             lines.append("Data File Patterns:")
             for item in results["data_files"]:
-                status = "OK" if item["valid"] else "MISS"
+                status = "OK" if item["valid"] else ("MISS" if item.get("required", False) else "WARN")
+                required_text = "required" if item.get("required", False) else "optional"
                 lines.append(
-                    f"  [{status}] {item['pattern']} matched {item['match_count']} file(s); minimum {item['minimum_count']}"
+                    f"  [{status}] {item['pattern']} ({required_text}) matched {item['match_count']} file(s); minimum {item['minimum_count']}"
                 )
                 for match in item["matches"]:
                     lines.append(f"      - {match}")
@@ -360,11 +375,15 @@ class ProjectSetupValidator:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate required DCC project folders and files.")
-    parser.add_argument("--base-path", default=None, help="Project root to validate. Defaults to the dcc folder.")
+    parser.add_argument(
+        "--base-path",
+        default=None,
+        help="Project root to validate. Defaults to the current working directory.",
+    )
     parser.add_argument(
         "--schema-path",
         default=None,
-        help="Override the project setup schema path. Defaults to config/schemas/project_setup.json.",
+        help="Override the project setup schema path. Defaults to <base-path>/config/schemas/project_setup.json.",
     )
     parser.add_argument(
         "--json",

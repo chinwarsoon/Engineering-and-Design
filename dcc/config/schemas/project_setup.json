@@ -159,6 +159,10 @@
             "type": "string",
             "description": "Glob pattern for matching data files"
           },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this data file pattern is mandatory"
+          },
           "minimum_count": {
             "type": "integer",
             "description": "Minimum number of files matching the pattern",
@@ -263,7 +267,7 @@
         },
         {
           "name": "data",
-          "required": true,
+          "required": false,
           "purpose": "Input data files"
         },
         {
@@ -328,15 +332,15 @@
           "approximate_size": "~350B"
         },
         {
-          "filename": "approval_code_mapping.json",
+          "filename": "approval_code_schema.json",
           "required": true,
-          "description": "Status code mappings (APP, REJ, PEN, etc.)",
-          "approximate_size": "~763B"
+          "description": "Status code definition and mappings (APP, REJ, PEN, etc.)",
+          "approximate_size": "~1316B"
         }
       ],
       "workflow_files": [
         {
-          "filename": "dcc_register_main.ipynb",
+          "filename": "dcc_register_processor_main.ipynb",
           "required": true,
           "type": "notebook",
           "description": "Main orchestration notebook - Step-by-step processing",
@@ -373,6 +377,7 @@
       ],
       "data_files": [
         {
+          "required": false,
           "pattern": "*.xlsx",
           "minimum_count": 1,
           "sheet_name": "Prolog Submittals ",

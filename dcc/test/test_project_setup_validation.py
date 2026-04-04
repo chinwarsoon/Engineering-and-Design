@@ -64,7 +64,7 @@ class ProjectSetupValidatorTest(unittest.TestCase):
                         }
                     ],
                     "data_files": [
-                        {"pattern": "*.xlsx", "minimum_count": 1}
+                        {"pattern": "*.xlsx", "required": False, "minimum_count": 1}
                     ],
                     "environment": [
                         {"name": "conda", "required": True, "file": "dcc.yml", "location": "root"}
@@ -125,6 +125,18 @@ class ProjectSetupValidatorTest(unittest.TestCase):
             self.assertFalse(results["ready"])
             self.assertFalse(results["workflow_files"][0]["exists"])
             self.assertFalse(results["data_files"][0]["valid"])
+            self.assertFalse(results["data_files"][0]["required"])
+
+    def test_optional_missing_data_pattern_does_not_fail_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_root = self._build_temp_project(Path(tmp_dir), include_data=False)
+            validator = ProjectSetupValidator(base_path=project_root)
+
+            results = validator.validate()
+
+            self.assertTrue(results["ready"])
+            self.assertFalse(results["data_files"][0]["valid"])
+            self.assertFalse(results["data_files"][0]["required"])
 
 
 if __name__ == "__main__":
