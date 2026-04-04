@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Set
 import logging
 import re
-from schema_validation import SchemaLoader, SchemaValidator
+from schema_validation import SchemaLoader, validate_validation_status
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1268,19 +1268,18 @@ class UniversalDocumentProcessor:
             self.load_schema()
     
     def load_schema(self):
-        """Load and process schema file with external references."""
+        """Load and process schema file after schema_validation.py has succeeded."""
         if self.schema_file is None:
             raise ValueError("Schema file path not set. Use UniversalDocumentProcessor(schema_file='path/to/schema.json')")
         
         try:
-            schema_validator = SchemaValidator(self.schema_file)
-            validation_results = schema_validator.validate()
-            if validation_results["errors"]:
-                logger.warning("Schema validation errors: %s", validation_results["errors"])
+            is_validated, message = validate_validation_status(self.schema_file)
+            if not is_validated:
+                raise ValueError(message)
 
             schema_loader = SchemaLoader()
             schema_loader.set_main_schema_path(self.schema_file)
-            main_schema = schema_validator.load_main_schema()
+            main_schema = schema_loader.load_json_file(self.schema_file)
             logger.info(f"Loaded schema: {self.schema_file}")
             
             # Resolve schema dependencies (approval_code_schema, etc.)

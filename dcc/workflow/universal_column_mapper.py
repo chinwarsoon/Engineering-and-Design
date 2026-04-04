@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import logging
 import pandas as pd
-from schema_validation import SchemaLoader, SchemaValidator
+from schema_validation import SchemaLoader, validate_validation_status
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -38,19 +38,19 @@ class UniversalColumnMapper:
     
     def load_main_schema(self, schema_file: str):
         """
-        Load main schema file with validation.
+        Load main schema file after schema_validation.py has succeeded.
         
         Args:
             schema_file: Path to main schema file
         """
         try:
-            schema_validator = SchemaValidator(schema_file)
-            validation_results = schema_validator.validate()
-            if validation_results["errors"]:
-                logger.warning("Schema validation errors: %s", validation_results["errors"])
+            is_validated, message = validate_validation_status(schema_file)
+            if not is_validated:
+                raise ValueError(message)
 
-            self.main_schema = schema_validator.load_main_schema()
+            self.schema_loader = SchemaLoader()
             self.schema_loader.set_main_schema_path(schema_file)
+            self.main_schema = self.schema_loader.load_json_file(schema_file)
             self.resolved_schema = self.schema_loader.resolve_schema_dependencies(self.main_schema)
             logger.info("Schema dependencies resolved")
             

@@ -311,6 +311,13 @@
           "approximate_size": "~85KB"
         },
         {
+          "filename": "dcc_register_processor_main.py",
+          "required": true,
+          "type": "python_module",
+          "description": "Main Python pipeline for setup validation, schema validation, mapping, and processing",
+          "approximate_size": "~12KB"
+        },
+        {
           "filename": "universal_document_processor.py",
           "required": true,
           "type": "python_module",
