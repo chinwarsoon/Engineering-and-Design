@@ -57,7 +57,7 @@ Create a universal processing system capable of handling any document type with:
 | `schemas/department_schema.json` | Standard department choices (14 options). | JSON | ✅ COMPLETED |
 | `schemas/discipline_schema.json` | Standard discipline choices (11 options). | JSON | ✅ COMPLETED |
 | `schemas/document_type_schema.json` | Standard document type choices (9 options). | JSON | ✅ COMPLETED |
-| `schemas/approval_code_mapping.json` | Approval status to code mappings (7 codes). | JSON | ✅ COMPLETED |
+| `schemas/approval_code_schema.json` | Approval status to code mappings (7 codes). | JSON | ✅ COMPLETED |
 | `universal_column_mapper.py` | Fuzzy logic for header detection with column renaming. | Python/Pandas | ✅ COMPLETED |
 | `universal_document_processor.py`| Core engine for cleaning and merging data with schema processing. | Python/DuckDB | ✅ COMPLETED |
 | `dcc_mdl_universal.ipynb` | Complete integration notebook with end-to-end workflow. | Jupyter/Python | ✅ COMPLETED |

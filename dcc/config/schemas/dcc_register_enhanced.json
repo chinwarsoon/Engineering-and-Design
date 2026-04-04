@@ -6,10 +6,12 @@
     "cell_id": "17c02c0e"
   },
   "schema_references": {
+    "project_schema": "../config/schemas/project_schema.json",
+    "facility_schema": "../config/schemas/facility_schema.json",
     "department_schema": "../config/schemas/department_schema.json",
     "discipline_schema": "../config/schemas/discipline_schema.json",
     "document_type_schema": "../config/schemas/document_type_schema.json",
-    "approval_code_mapping": "../config/schemas/approval_code_mapping.json"
+    "approval_code_schema": "../config/schemas/approval_code_schema.json"
   },
   "parameters": {
     "debug_dev_mode": false,
@@ -158,15 +160,15 @@
         "create_if_missing": true,
         "null_handling": {
           "strategy": "default_value",
-          "default_value": "NA",
+          "default_value": "0000",
           "formatting": {
             "zero_pad": 4,
             "description": "Apply zero-padding to numeric values (e.g., 1 → 0001). Text values remain unchanged."
           },
-          "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid. Numeric values are zero-padded to 4 digits."
+          "description": "Processed by _apply_default_value. Fills nulls with '0000' to ensure Document_ID calculation remains valid. Numeric values are zero-padded to 4 digits."
         },
         "validation": {
-          "pattern": "^[0-9]*$",
+          "pattern": "^[0-9]{4}$",
           "description": "Validated by _apply_validation using regex pattern matching. Ensures only numeric characters are used."
         }
       },
@@ -814,9 +816,8 @@
           "type": "conditional_date_calculation",
           "method": "calculate_review_return_plan_date",
           "dependencies": [
-            "Submission_Date",
-            "Submission_Session",
-            "Submission_Session_Revision"
+            "Document_ID",
+            "Submission_Date"
           ],
           "parameter_reference": "duration_is_working_day",
           "conditions": [
@@ -907,7 +908,7 @@
           "type": "mapping",
           "method": "status_to_code",
           "source_column": "Review_Status",
-          "mapping_reference": "approval_code_mapping",
+          "mapping_reference": "approval_code_schema",
           "description": "Calculated via _apply_mapping_calculation using method 'status_to_code'. Transforms textual status labels into standardized shorthand codes defined in the mapping reference."
         },
         "validation": {
@@ -1075,7 +1076,7 @@
           "type": "mapping",
           "method": "status_to_code",
           "source_column": "Latest_Approval_Status",
-          "mapping_reference": "approval_code_mapping",
+          "mapping_reference": "approval_code_schema",
           "preprocessing": {
             "text_cleaning": {
               "remove_patterns": [
@@ -1146,16 +1147,14 @@
           "method": "calculate_duration_of_review",
           "dependencies": [
             "Submission_Date",
-            "Review_Return_Actual_Date",
-            "Resubmission_Plan_Date"
+            "Review_Return_Actual_Date"
           ],
           "parameter_reference": "duration_is_working_day",
           "preprocessing": {
             "datetime_conversion": {
               "columns": [
                 "Review_Return_Actual_Date",
-                "Submission_Date",
-                "Resubmission_Plan_Date"
+                "Submission_Date"
               ],
               "method": "pd.to_datetime",
               "description": "Convert date columns to datetime objects per original dcc_mdl.ipynb logic"
@@ -1223,7 +1222,9 @@
           "method": "submission_closure_status",
           "source_column": "Submission_Closed",
           "dependencies": [
-            "Latest_Approval_Code"
+            "Latest_Approval_Code",
+            "Document_ID",
+            "Submission_Date"
           ],
           "preprocessing": {
             "text_cleaning": {
@@ -1281,7 +1282,9 @@
           "method": "update_resubmission_required",
           "source_column": "Resubmission_Required",
           "dependencies": [
-            "Submission_Closed"
+            "Submission_Closed",
+            "Document_ID",
+            "Submission_Date"
           ],
           "conditions": [
             {

@@ -4,12 +4,12 @@ This folder contains configuration definitions used by the DCC project processin
 
 ## Schema files
 
-### `approval_code_mapping.json`
+### `approval_code_schema.json`
 - Purpose: Normalize approval status text variations into standardized codes.
 - Structure:
-  - `schema_name`: approval_code_mapping
+  - `schema_name`: approval_code_schema
   - `type`: status_to_code_mapping
-  - `mappings`: object mapping standard code keys (`REJ`, `APP`, `PEN`, etc.) to arrays of equivalent text values.
+  - `approval`: array of objects with `code`, `status`, and `aliases`
   - `description`, `created`, `version`
 
 ### `department_schema.json`

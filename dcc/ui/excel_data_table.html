@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataLens — Excel Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #111118; --surface2: #1a1a24; --surface3: #22222f;
+    --border: #2a2a3a; --accent: #6ee7b7; --accent2: #818cf8; --accent3: #f472b6;
+    --text: #e8e8f0; --text2: #9090a8; --text3: #5a5a70; --danger: #f87171;
+    --radius: 10px; --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  header { padding: 18px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; background: var(--surface); position: sticky; top: 0; z-index: 100; }
+  .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  .steps-bar { display: flex; margin-left: auto; align-items: center; }
+  .step { display: flex; align-items: center; gap: 8px; padding: 6px 14px; font-size: 11px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; transition: color 0.3s; }
+  .step.active { color: var(--accent); }
+  .step.done { color: var(--text2); }
+  .step-num { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 10px; font-family: 'Syne', sans-serif; font-weight: 700; }
+  .step.done .step-num { background: var(--text2); border-color: var(--text2); color: var(--bg); }
+  .step.active .step-num { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  .step-sep { color: var(--border); font-size: 16px; }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 28px 32px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 20px; animation: fadeUp 0.35s ease both; }
+  .top-panels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: stretch; }
+  .top-panels .panel { margin-bottom: 0; min-width: 0; height: 100%; display: flex; flex-direction: column; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .panel-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; color: var(--text); margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+  .tag { font-size: 10px; padding: 2px 8px; border-radius: 20px; font-family: 'DM Mono', monospace; }
+  .tag-green { background: rgba(110,231,183,0.12); color: var(--accent); border: 1px solid rgba(110,231,183,0.25); }
+  .tag-purple { background: rgba(129,140,248,0.12); color: var(--accent2); border: 1px solid rgba(129,140,248,0.25); }
+
+  /* DROP ZONE */
+  #dropZone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 56px 40px; text-align: center; cursor: pointer; transition: all 0.25s; position: relative; background: radial-gradient(ellipse at 50% 0%, rgba(110,231,183,0.04) 0%, transparent 70%); }
+  #dropZone:hover, #dropZone.drag-over { border-color: var(--accent); background: radial-gradient(ellipse at 50% 0%, rgba(110,231,183,0.09) 0%, transparent 70%); }
+  #dropZone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .drop-icon { width: 52px; height: 52px; margin: 0 auto 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+  .drop-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 17px; margin-bottom: 7px; }
+  .drop-sub { color: var(--text2); font-size: 12px; }
+  .drop-types { color: var(--text3); font-size: 11px; margin-top: 10px; }
+  .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .file-item { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 15px; display: flex; align-items: center; gap: 11px; animation: fadeUp 0.2s ease both; }
+  .file-icon { font-size: 19px; }
+  .file-info { flex: 1; }
+  .file-name { font-size: 13px; color: var(--text); font-weight: 500; }
+  .file-meta { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .file-remove { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 17px; width: 27px; height: 27px; border-radius: 6px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .file-remove:hover { background: rgba(248,113,113,0.12); color: var(--danger); }
+
+  /* SHEETS */
+  .sheet-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sheet-chip { padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 12px; cursor: pointer; transition: all 0.2s; background: var(--surface2); color: var(--text2); user-select: none; display: flex; flex-direction: column; gap: 2px; }
+  .sheet-chip:hover { border-color: var(--accent2); color: var(--text); }
+  .sheet-chip.selected { border-color: var(--accent); background: rgba(110,231,183,0.1); color: var(--accent); }
+  .sheet-chip .sheet-file { font-size: 10px; color: var(--text3); }
+  .sheet-chip.selected .sheet-file { color: rgba(110,231,183,0.6); }
+
+  /* CONFIG */
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .config-item { display: flex; flex-direction: column; gap: 5px; }
+  .config-label { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+  input[type="number"], input[type="text"], select { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 11px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px; width: 100%; outline: none; transition: border-color 0.2s; -webkit-appearance: none; }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  /* BUTTONS */
+  .btn { padding: 9px 18px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 600; font-size: 13px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 7px; }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { background: #4ade80; transform: translateY(-1px); }
+  .btn-primary:disabled { background: var(--surface3); color: var(--text3); cursor: not-allowed; transform: none; }
+  .btn-secondary { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+  .btn-secondary:hover { border-color: var(--accent2); color: var(--text); }
+  .btn-sm { padding: 5px 11px; font-size: 11px; }
+
+  /* TABLE */
+  .search-wrap { position: relative; max-width: 500px; }
+  .search-wrap input { padding-left: 34px; }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 13px; pointer-events: none; }
+  .table-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; max-height: 520px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead { position: sticky; top: 0; z-index: 10; }
+  thead th { background: var(--surface2); padding: 10px 13px; text-align: left; font-family: 'Syne', sans-serif; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text2); border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; transition: color 0.2s; }
+  thead th:hover { color: var(--accent); }
+  thead th.sorted-asc::after { content: ' ▲'; color: var(--accent); font-size: 9px; }
+  thead th.sorted-desc::after { content: ' ▼'; color: var(--accent); font-size: 9px; }
+  tbody tr { border-bottom: 1px solid rgba(42,42,58,0.6); transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 8px 13px; color: var(--text); white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+  .no-data { text-align: center; padding: 44px; color: var(--text3); font-size: 13px; }
+
+  /* ── COLLAPSIBLE (header-only toggle) ── */
+  .coll-section { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: visible; margin-bottom: 14px; }
+  .coll-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--surface2); cursor: pointer; user-select: none; border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+  .coll-header:hover { background: var(--surface3); }
+  .coll-section.collapsed .coll-header { border-radius: var(--radius-sm); }
+  .coll-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 8px; }
+  .coll-arrow { transition: transform 0.22s; display: inline-block; color: var(--text3); font-size: 10px; }
+  .coll-section.collapsed .coll-arrow { transform: rotate(-90deg); }
+  .coll-actions { display: flex; gap: 7px; align-items: center; }
+  .coll-body { padding: 16px; background: var(--surface); overflow: visible; max-height: 3000px; transition: max-height 0.35s ease, padding 0.35s ease; border-top: 1px solid var(--border); }
+  .coll-section.collapsed .coll-body { max-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; overflow: hidden; border-top: none; }
+
+  /* ── FILTER MULTI-SELECT ── */
+  .filters-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .flt-item { display: flex; flex-direction: column; gap: 4px; min-width: 160px; flex: 1; max-width: 240px; position: relative; }
+  .flt-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .fms-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px 9px; min-height: 36px; cursor: pointer; transition: border-color 0.2s; display: flex; align-items: center; justify-content: space-between; gap: 5px; font-size: 12px; color: var(--text2); }
+  .fms-box:hover { border-color: var(--accent); color: var(--text); }
+  .fms-box.open { border-color: var(--accent); }
+  .fms-box-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fms-badge { background: var(--accent); color: var(--bg); border-radius: 10px; padding: 1px 5px; font-size: 10px; font-family: 'Syne', sans-serif; font-weight: 700; flex-shrink: 0; }
+  .fms-caret { color: var(--text3); font-size: 9px; flex-shrink: 0; transition: transform 0.2s; }
+  .fms-box.open .fms-caret { transform: rotate(180deg); }
+
+  .fms-drop { position: absolute; z-index: 500; top: calc(100% + 3px); left: 0; right: 0; background: var(--surface2); border: 1px solid var(--accent); border-radius: var(--radius-sm); box-shadow: 0 12px 40px rgba(0,0,0,0.7); display: none; flex-direction: column; min-width: 180px; }
+  .fms-top { padding: 7px 7px 4px; border-bottom: 1px solid var(--border); }
+  .fms-top input { width: 100%; padding: 5px 8px; font-size: 12px; background: var(--surface3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); outline: none; margin-bottom: 5px; }
+  .fms-top input:focus { border-color: var(--accent); }
+  .fms-btns { display: flex; gap: 4px; }
+  .fms-btn { font-size: 10px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--surface3); color: var(--text2); cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.15s; }
+  .fms-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .fms-list { max-height: 200px; overflow-y: auto; }
+  .fms-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; font-size: 12px; color: var(--text2); transition: background 0.1s; }
+  .fms-row:hover { background: var(--surface3); color: var(--text); }
+  .fms-row.is-checked { color: var(--accent); }
+  .fms-row input[type=checkbox] { accent-color: var(--accent); width: 13px; height: 13px; flex-shrink: 0; cursor: pointer; }
+  .fms-empty { padding: 12px 10px; font-size: 11px; color: var(--text3); text-align: center; }
+
+  /* ── GROUP-BY ORDERED ── */
+  .gb-wrap { position: relative; }
+  .gb-box { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); min-height: 38px; padding: 5px 8px; cursor: pointer; transition: border-color 0.2s; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .gb-box:hover { border-color: var(--accent2); }
+  .gb-box.open { border-color: var(--accent2); }
+  .gb-ph { font-size: 12px; color: var(--text3); }
+  .gb-tag { background: rgba(129,140,248,0.15); border: 1px solid rgba(129,140,248,0.35); color: var(--accent2); border-radius: 5px; padding: 2px 6px; font-size: 11px; display: flex; align-items: center; gap: 5px; cursor: grab; user-select: none; }
+  .gb-tag.dragging { opacity: 0.35; }
+  .gb-tag-n { background: var(--accent2); color: var(--bg); border-radius: 50%; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-family: 'Syne', sans-serif; font-weight: 700; flex-shrink: 0; }
+  .gb-tag-x { background: none; border: none; cursor: pointer; color: inherit; opacity: 0.6; font-size: 11px; padding: 0; line-height: 1; }
+  .gb-tag-x:hover { opacity: 1; }
+
+  .gb-drop { position: absolute; z-index: 500; top: calc(100% + 3px); left: 0; right: 0; background: var(--surface2); border: 1px solid var(--accent2); border-radius: var(--radius-sm); box-shadow: 0 12px 40px rgba(0,0,0,0.7); display: none; flex-direction: column; min-width: 200px; }
+  .gb-top { padding: 7px 7px 5px; border-bottom: 1px solid var(--border); }
+  .gb-top input { width: 100%; padding: 5px 8px; font-size: 12px; background: var(--surface3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); outline: none; }
+  .gb-top input:focus { border-color: var(--accent2); }
+  .gb-list { max-height: 210px; overflow-y: auto; }
+  .gb-opt { display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; font-size: 12px; color: var(--text2); transition: background 0.1s; }
+  .gb-opt:hover { background: var(--surface3); color: var(--text); }
+  .gb-opt.is-sel { color: var(--accent2); }
+  .gb-opt input[type=checkbox] { accent-color: var(--accent2); width: 13px; height: 13px; flex-shrink: 0; }
+  .gb-hint { font-size: 10px; color: var(--text3); padding: 5px 10px; border-top: 1px solid var(--border); text-align: center; }
+
+  /* ── AGG ── */
+  .agg-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  @media(max-width:800px) { .agg-grid { grid-template-columns: 1fr; } }
+  .agg-item { display: flex; flex-direction: column; gap: 5px; }
+
+  /* ── PIPELINE FLOW ── */
+  .pipe-wrap { margin-bottom: 6px; }
+  .pipe-label-row { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .pipeline { display: flex; align-items: stretch; overflow-x: auto; gap: 0; padding-bottom: 4px; }
+  .pipe-node { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); min-width: 100px; text-align: center; flex-shrink: 0; transition: all 0.25s; }
+  .pipe-node.p-active { border-color: var(--accent); background: rgba(110,231,183,0.07); }
+  .pipe-node.p-active .p-icon { color: var(--accent); }
+  .pipe-node.p-active .p-lbl { color: var(--accent); }
+  .pipe-node.p-dim { opacity: 0.3; }
+  .p-icon { font-size: 17px; line-height: 1; }
+  .p-lbl { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px; }
+  .p-val { font-size: 10px; color: var(--text3); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pipe-arrow { display: flex; align-items: center; padding: 0 5px; color: var(--text3); font-size: 16px; flex-shrink: 0; transition: color 0.25s; }
+  .pipe-arrow.p-active { color: var(--accent); }
+
+  /* ── DF TABS ── */
+  .df-tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 18px; overflow-x: auto; }
+  .df-tab { padding: 10px 20px; font-size: 12px; cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; font-family: 'Syne', sans-serif; font-weight: 600; }
+  .df-tab:hover { color: var(--text); }
+  .df-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* STATS */
+  .stats-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .stat-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 5px; }
+  .stat-pill strong { color: var(--text); }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .section-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--text2); display: flex; align-items: center; gap: 8px; }
+
+  /* PAGINATION */
+  .pagination { display: flex; gap: 5px; align-items: center; margin-top: 11px; flex-wrap: wrap; }
+  .page-btn { width: 30px; height: 30px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--text2); cursor: pointer; font-family: 'DM Mono', monospace; font-size: 12px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .page-btn:hover { border-color: var(--accent2); color: var(--text); }
+  .page-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
+  .page-info { font-size: 11px; color: var(--text3); margin-left: 7px; }
+
+  #toast { position: fixed; bottom: 22px; right: 22px; padding: 11px 18px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; color: var(--text); z-index: 9999; display: none; animation: fadeUp 0.3s ease; max-width: 320px; }
+  .hidden { display: none !important; }
+  @media(max-width:1100px) { .top-panels { grid-template-columns: 1fr; } .top-panels .panel { margin-bottom: 20px; } }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Data<span>Lens</span></div>
+  <div class="steps-bar">
+    <div class="step active" id="step1"><span class="step-num">1</span> Upload</div>
+    <div class="step-sep">›</div>
+    <div class="step" id="step2"><span class="step-num">2</span> Select Sheets</div>
+    <div class="step-sep">›</div>
+    <div class="step" id="step3"><span class="step-num">3</span> Configure</div>
+    <div class="step-sep">›</div>
+    <div class="step" id="step4"><span class="step-num">4</span> Analyze</div>
+  </div>
+</header>
+
+<main>
+
+  <div class="top-panels">
+    <!-- STEP 1 -->
+    <div class="panel" id="panelUpload">
+      <div class="panel-title">Upload Excel Files <span class="tag tag-green">Step 1</span></div>
+      <div id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.csv" multiple>
+        <div class="drop-icon">📊</div>
+        <div class="drop-title">Drop Excel files here</div>
+        <div class="drop-sub">or click to browse your computer</div>
+        <div class="drop-types">Supported: .xlsx · .xls · .xlsm · .csv</div>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="panel hidden" id="panelSheets">
+      <div class="panel-title">Select Worksheets <span class="tag tag-purple">Step 2</span></div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:14px;">Choose one or more worksheets. Sheets with matching headers will be merged into one dataframe.</p>
+      <div class="sheet-grid" id="sheetGrid"></div>
+      <div style="margin-top:18px;display:flex;gap:10px;">
+        <button class="btn btn-secondary btn-sm" onclick="selectAllSheets()">Select All</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearAllSheets()">Clear</button>
+        <button class="btn btn-primary" id="btnConfigure" onclick="goToConfigure()" style="margin-left:auto" disabled>Configure Headers →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="panel hidden" id="panelConfig">
+      <div class="panel-title">Configure Header &amp; Range <span class="tag tag-green">Step 3</span></div>
+      <div id="sheetConfigList"></div>
+      <div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn btn-secondary" onclick="goBack()">← Back</button>
+        <button class="btn btn-primary" onclick="processData()">Process Data →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="panel hidden" id="panelData">
+    <div class="panel-title">Data Explorer <span class="tag tag-green">Step 4</span></div>
+
+    <div class="df-tabs hidden" id="dfTabs"></div>
+    <div class="stats-row" id="statsRow"></div>
+
+    <!-- FILTER COLLAPSIBLE — header click only -->
+    <div class="coll-section" id="filterSection">
+      <div class="coll-header" id="filterHeader">
+        <div class="coll-title">⚡ Filters <span class="coll-arrow">▼</span></div>
+        <div class="coll-actions">
+          <button class="btn btn-secondary btn-sm" id="clearFiltersBtn">Clear All</button>
+        </div>
+      </div>
+      <div class="coll-body">
+        <div style="margin-bottom:12px;">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="globalSearch" placeholder="Global search across all columns…" oninput="applyFiltersAndRender()">
+          </div>
+        </div>
+        <div class="filters-grid" id="filtersGrid"></div>
+      </div>
+    </div>
+
+    <!-- AGG COLLAPSIBLE — header click only -->
+    <div class="coll-section" id="aggSection">
+      <div class="coll-header" id="aggHeader">
+        <div class="coll-title">📊 Group &amp; Aggregate <span class="coll-arrow">▼</span></div>
+        <div class="coll-actions">
+          <button class="btn btn-primary btn-sm" id="runAggBtn">▶ Run</button>
+        </div>
+      </div>
+      <div class="coll-body">
+        <div class="agg-grid">
+          <div class="agg-item">
+            <div class="config-label">Group By (ordered — drag to reorder)</div>
+            <div class="gb-wrap" id="groupByWrap"></div>
+          </div>
+          <div class="agg-item">
+            <div class="config-label">Value Column</div>
+            <select id="aggColumn" onchange="updateAggMethods()">
+              <option value="">— Select column —</option>
+            </select>
+          </div>
+          <div class="agg-item">
+            <div class="config-label">Aggregation Method</div>
+            <select id="aggMethod">
+              <option value="count">Count</option>
+              <option value="unique_count">Unique Count</option>
+              <option value="sum">Sum</option>
+              <option value="avg">Average</option>
+              <option value="min">Min</option>
+              <option value="max">Max</option>
+              <option value="first">First</option>
+              <option value="last">Last</option>
+              <option value="concat">Concat (unique)</option>
+            </select>
+          </div>
+        </div>
+        <div id="aggResults"></div>
+      </div>
+    </div>
+
+    <!-- PIPELINE FLOW DIAGRAM -->
+    <div class="pipe-wrap">
+      <div class="pipe-label-row">Data Pipeline — how your selections transform the data</div>
+      <div class="pipeline" id="pipeline"></div>
+    </div>
+
+    <!-- MAIN TABLE -->
+    <div>
+      <div class="section-header">
+        <div class="section-title">📋 Data Table</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="config-label">Rows/page</span>
+          <select id="pageSize" onchange="changePage(1)" style="width:76px">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="500">500</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="mainTable">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+
+    <div style="margin-top:18px;display:flex;gap:10px;">
+      <button class="btn btn-secondary" onclick="resetToStart()">← Start Over</button>
+      <button class="btn btn-secondary" onclick="exportCSV()" style="margin-left:auto">⬇ Export CSV</button>
+    </div>
+  </div>
+
+</main>
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// COLLAPSIBLE — wire header clicks only (not body)
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('filterHeader').addEventListener('click', () => {
+    document.getElementById('filterSection').classList.toggle('collapsed');
+  });
+  document.getElementById('aggHeader').addEventListener('click', () => {
+    document.getElementById('aggSection').classList.toggle('collapsed');
+  });
+  document.getElementById('clearFiltersBtn').addEventListener('click', (e) => {
+    e.stopPropagation(); clearFilters();
+  });
+  document.getElementById('runAggBtn').addEventListener('click', (e) => {
+    e.stopPropagation(); runAggregation();
+  });
+});
+
+// ============================================================
+// STATE
+// ============================================================
+let uploadedFiles = [];
+let selectedSheets = [];
+let sheetConfigs = {};
+let dataframes = [];
+let activeDF = 0;
+let currentData = [];
+let sortCol = null, sortDir = 1, currentPage = 1;
+let colFilterSelections = {}; // ci -> Set of selected values (empty = all)
+let groupByColumns = [];      // ordered array
+
+// ============================================================
+// UPLOAD
+// ============================================================
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFiles([...e.dataTransfer.files]); });
+fileInput.addEventListener('change', () => { handleFiles([...fileInput.files]); fileInput.value = ''; });
+
+async function handleFiles(files) {
+  for (const file of files) {
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!['.xlsx','.xls','.xlsm','.csv'].includes(ext)) { showToast('⚠ Unsupported: ' + file.name); continue; }
+    if (uploadedFiles.find(f => f.name === file.name)) { showToast('Already added: ' + file.name); continue; }
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      const sheets = {};
+      wb.SheetNames.forEach(sn => { sheets[sn] = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, defval:'', raw:false}); });
+      uploadedFiles.push({name:file.name, size:file.size, sheets});
+      renderFileList(); renderSheetGrid(); setStep(2); showPanel('panelSheets');
+    } catch(e) { showToast('❌ Error reading ' + file.name); }
+  }
+}
+
+function removeFile(idx) {
+  uploadedFiles.splice(idx, 1);
+  selectedSheets = selectedSheets.filter(s=>s.fileIdx!==idx).map(s=>({...s, fileIdx:s.fileIdx>idx?s.fileIdx-1:s.fileIdx}));
+  renderFileList(); renderSheetGrid();
+  if (!uploadedFiles.length) { hidePanel('panelSheets'); setStep(1); }
+}
+
+function renderFileList() {
+  document.getElementById('fileList').innerHTML = uploadedFiles.map((f,i) => {
+    const sz = f.size>1048576 ? (f.size/1048576).toFixed(1)+' MB' : (f.size/1024).toFixed(0)+' KB';
+    const sc = Object.keys(f.sheets).length;
+    return `<div class="file-item"><div class="file-icon">📗</div>
+      <div class="file-info"><div class="file-name">${H(f.name)}</div><div class="file-meta">${sz} · ${sc} sheet${sc>1?'s':''}</div></div>
+      <button class="file-remove" onclick="removeFile(${i})">✕</button></div>`;
+  }).join('');
+}
+
+// ============================================================
+// SHEETS
+// ============================================================
+function renderSheetGrid() {
+  document.getElementById('sheetGrid').innerHTML = uploadedFiles.map((f,fi) =>
+    Object.keys(f.sheets).map(sn => {
+      const sel = selectedSheets.some(s=>s.fileIdx===fi&&s.sheetName===sn);
+      return `<div class="sheet-chip ${sel?'selected':''}" onclick="toggleSheet(${fi},'${A(sn)}')">
+        <span>📄 ${H(sn)}</span><span class="sheet-file">${H(f.name)} · ${f.sheets[sn].length} rows</span></div>`;
+    }).join('')
+  ).join('');
+  document.getElementById('btnConfigure').disabled = !selectedSheets.length;
+}
+
+function toggleSheet(fi, sn) {
+  const idx = selectedSheets.findIndex(s=>s.fileIdx===fi&&s.sheetName===sn);
+  if (idx>=0) selectedSheets.splice(idx,1);
+  else selectedSheets.push({fileIdx:fi, sheetName:sn, displayName:`${uploadedFiles[fi].name} › ${sn}`});
+  renderSheetGrid();
+}
+function selectAllSheets() { selectedSheets=[]; uploadedFiles.forEach((f,fi)=>Object.keys(f.sheets).forEach(sn=>selectedSheets.push({fileIdx:fi,sheetName:sn,displayName:`${f.name} › ${sn}`}))); renderSheetGrid(); }
+function clearAllSheets() { selectedSheets=[]; renderSheetGrid(); }
+
+// ============================================================
+// CONFIG
+// ============================================================
+function goToConfigure() {
+  if (!selectedSheets.length) { showToast('Select at least one sheet.'); return; }
+  renderConfigs(); setStep(3); showPanel('panelConfig');
+}
+function renderConfigs() {
+  document.getElementById('sheetConfigList').innerHTML = selectedSheets.map((sel,i) => {
+    const rows = uploadedFiles[sel.fileIdx].sheets[sel.sheetName];
+    const maxRow = rows.length, maxCol = Math.max(...rows.slice(0,5).map(r=>r.length),1);
+    const key = `${sel.fileIdx}__${sel.sheetName}`;
+    if (!sheetConfigs[key]) sheetConfigs[key]={headerRow:1,colStart:1,colEnd:maxCol};
+    const cfg = sheetConfigs[key];
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin-bottom:10px;">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:12px;color:var(--accent)">📄 ${H(sel.displayName)}</div>
+      <div class="config-grid">
+        <div class="config-item"><label class="config-label">Header Row</label>
+          <input type="number" min="1" max="${maxRow}" value="${cfg.headerRow}" onchange="updCfg('${A(key)}','headerRow',+this.value,${i})"></div>
+        <div class="config-item"><label class="config-label">Column Start</label>
+          <input type="number" min="1" max="${maxCol}" value="${cfg.colStart}" onchange="updCfg('${A(key)}','colStart',+this.value,${i})"></div>
+        <div class="config-item"><label class="config-label">Column End (0=all)</label>
+          <input type="number" min="0" value="${cfg.colEnd}" onchange="updCfg('${A(key)}','colEnd',+this.value,${i})"></div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text3)">Preview: <span id="cfgPv_${i}">${prevHeaders(rows,cfg)}</span></div>
+    </div>`;
+  }).join('');
+}
+function prevHeaders(rows, cfg) {
+  const hri = cfg.headerRow-1, cs = cfg.colStart-1, ce = cfg.colEnd>0?cfg.colEnd:undefined;
+  if (!rows[hri]) return '(empty)';
+  const cols = rows[hri].slice(cs,ce).filter(c=>c!==''&&c!=null);
+  return cols.slice(0,6).map(c=>`<code style="background:var(--surface3);padding:1px 4px;border-radius:3px">${H(String(c))}</code>`).join(' ')+(cols.length>6?` +${cols.length-6} more`:'');
+}
+function updCfg(key, field, val, i) {
+  sheetConfigs[key][field]=val;
+  const sel=selectedSheets.find(s=>`${s.fileIdx}__${s.sheetName}`===key);
+  if(sel){const el=document.getElementById(`cfgPv_${i}`);if(el)el.innerHTML=prevHeaders(uploadedFiles[sel.fileIdx].sheets[sel.sheetName],sheetConfigs[key]);}
+}
+function goBack() { hidePanel('panelConfig'); setStep(2); }
+
+// ============================================================
+// PROCESS DATA
+// ============================================================
+function processData() {
+  const dfMap={};
+  selectedSheets.forEach(sel=>{
+    const key=`${sel.fileIdx}__${sel.sheetName}`;
+    const cfg=sheetConfigs[key]||{headerRow:1,colStart:1,colEnd:0};
+    const allRows=uploadedFiles[sel.fileIdx].sheets[sel.sheetName];
+    const hri=cfg.headerRow-1, cs=cfg.colStart-1, ce=cfg.colEnd>0?cfg.colEnd:undefined;
+    if(!allRows[hri]) return;
+    const rawH=allRows[hri].slice(cs,ce);
+    const headerIdx=[], headers=[];
+    rawH.forEach((h,i)=>{const hs=String(h).trim();if(hs&&hs!=='undefined'&&hs!=='null'){headers.push(hs);headerIdx.push(cs+i);}});
+    if(!headers.length) return;
+    const nk=headers.map(h=>h.toLowerCase().trim()).sort().join('|');
+    const dataRows=[];
+    for(let ri=hri+1;ri<allRows.length;ri++){
+      const vals=headerIdx.map(ci=>{const v=allRows[ri][ci];return(v===null||v===undefined)?'':String(v).trim();});
+      if(vals.every(v=>v==='')) continue;
+      dataRows.push(vals);
+    }
+    if(!dfMap[nk]) dfMap[nk]={headers,rows:[],sources:[]};
+    dfMap[nk].rows.push(...dataRows);
+    dfMap[nk].sources.push(sel.displayName);
+  });
+  if(!Object.keys(dfMap).length){showToast('⚠ No valid data found.');return;}
+  dataframes=Object.values(dfMap).map(df=>({key:df.headers.join(', ').slice(0,40),headers:df.headers,rows:df.rows,sources:df.sources}));
+  activeDF=0; colFilterSelections={}; groupByColumns=[];
+  showPanel('panelData'); setStep(4); renderDataView();
+}
+
+// ============================================================
+// DATA VIEW
+// ============================================================
+function renderDataView() {
+  const tabs=document.getElementById('dfTabs');
+  if(dataframes.length>1){
+    tabs.classList.remove('hidden');
+    tabs.innerHTML=dataframes.map((df,i)=>`<div class="df-tab ${i===activeDF?'active':''}" onclick="switchDF(${i})">Schema ${i+1} <span style="font-size:10px;color:var(--text3);margin-left:4px">${df.rows.length} rows</span></div>`).join('');
+  }else tabs.classList.add('hidden');
+  const df=dataframes[activeDF];
+  sortCol=null;sortDir=1;currentPage=1;
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-pill">Rows <strong>${df.rows.length.toLocaleString()}</strong></div>
+    <div class="stat-pill">Columns <strong>${df.headers.length}</strong></div>
+    <div class="stat-pill">Sources <strong>${df.sources.length}</strong></div>
+    <div class="stat-pill" title="${H(df.sources.join(', '))}">📄 ${H(df.sources.join(' · ').slice(0,80))}${df.sources.join(' · ').length>80?'…':''}</div>`;
+  buildFilterDropdowns();
+  buildGroupByWidget();
+  buildAggColumnSelect();
+  applyFiltersAndRender();
+}
+function switchDF(i){activeDF=i;colFilterSelections={};groupByColumns=[];renderDataView();}
+
+// ============================================================
+// FILTER MULTI-SELECT DROPDOWNS
+// ============================================================
+function buildFilterDropdowns() {
+  const df=dataframes[activeDF];
+  colFilterSelections={};
+  const grid=document.getElementById('filtersGrid');
+  grid.innerHTML='';
+  df.headers.forEach((h,ci)=>{
+    colFilterSelections[ci]=new Set();
+    const uniqueVals=[...new Set(df.rows.map(r=>r[ci]).filter(v=>v!==''))].sort((a,b)=>{
+      const na=parseFloat(a),nb=parseFloat(b);
+      return(!isNaN(na)&&!isNaN(nb))?na-nb:String(a).localeCompare(String(b));
+    });
+    const wrap=document.createElement('div'); wrap.className='flt-item';
+    const lbl=document.createElement('div'); lbl.className='flt-label'; lbl.textContent=h;
+    const boxId=`fms_${ci}`;
+    const box=document.createElement('div'); box.className='fms-box'; box.id=boxId;
+    box.innerHTML=`<span class="fms-box-label">All</span><span class="fms-caret">▼</span>`;
+
+    const drop=buildFMSDrop(ci, uniqueVals, boxId);
+    drop.style.display='none';
+
+    box.addEventListener('click', e=>{
+      e.stopPropagation();
+      const wasOpen=box.classList.contains('open');
+      closeAllDropdowns();
+      if(!wasOpen){ box.classList.add('open'); drop.style.display='flex'; }
+    });
+
+    wrap.appendChild(lbl); wrap.appendChild(box); wrap.appendChild(drop);
+    grid.appendChild(wrap);
+  });
+}
+
+function buildFMSDrop(ci, uniqueVals, boxId) {
+  const d=document.createElement('div'); d.className='fms-drop';
+  d.addEventListener('click', e=>e.stopPropagation());
+  let q='';
+
+  const top=document.createElement('div'); top.className='fms-top';
+  const si=document.createElement('input'); si.type='text'; si.placeholder='Search…';
+  si.addEventListener('click', e=>e.stopPropagation());
+  si.oninput=()=>{q=si.value;renderList();};
+  const btnRow=document.createElement('div'); btnRow.className='fms-btns';
+
+  const mkBtn=(txt,fn)=>{const b=document.createElement('button');b.className='fms-btn';b.textContent=txt;b.addEventListener('click',e=>{e.stopPropagation();fn();});return b;};
+  btnRow.append(
+    mkBtn('All', ()=>{ colFilterSelections[ci]=new Set(); renderList(); refreshBox(); applyFiltersAndRender(); }),
+    mkBtn('Clear', ()=>{ colFilterSelections[ci]=new Set(); renderList(); refreshBox(); applyFiltersAndRender(); }),
+    mkBtn('Invert', ()=>{
+      const vis=uniqueVals.filter(v=>String(v).toLowerCase().includes(q.toLowerCase()));
+      const ns=new Set(vis.filter(v=>!colFilterSelections[ci].has(v)));
+      colFilterSelections[ci]=ns; renderList(); refreshBox(); applyFiltersAndRender();
+    })
+  );
+  top.append(si, btnRow);
+
+  const list=document.createElement('div'); list.className='fms-list';
+
+  const renderList=()=>{
+    const vis=uniqueVals.filter(v=>String(v).toLowerCase().includes(q.toLowerCase()));
+    if(!vis.length){list.innerHTML='<div class="fms-empty">No options</div>';return;}
+    list.innerHTML='';
+    vis.forEach(v=>{
+      const chk=colFilterSelections[ci].has(v);
+      const row=document.createElement('label'); row.className='fms-row'+(chk?' is-checked':'');
+      row.addEventListener('click',e=>e.stopPropagation());
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=chk;
+      cb.addEventListener('change',()=>{ if(cb.checked)colFilterSelections[ci].add(v);else colFilterSelections[ci].delete(v); row.className='fms-row'+(cb.checked?' is-checked':''); refreshBox(); applyFiltersAndRender(); });
+      const sp=document.createElement('span'); sp.textContent=String(v).slice(0,80);
+      row.append(cb,sp); list.appendChild(row);
+    });
+  };
+
+  const refreshBox=()=>{
+    const box=document.getElementById(boxId); if(!box) return;
+    const sel=colFilterSelections[ci];
+    const lbl=box.querySelector('.fms-box-label');
+    let badge=box.querySelector('.fms-badge');
+    if(sel.size===0){lbl.textContent='All';if(badge)badge.remove();}
+    else{
+      lbl.textContent=[...sel].slice(0,2).join(', ')+(sel.size>2?` +${sel.size-2}`:'');
+      if(!badge){badge=document.createElement('span');badge.className='fms-badge';box.insertBefore(badge,box.querySelector('.fms-caret'));}
+      badge.textContent=sel.size;
+    }
+  };
+
+  d.append(top,list);
+  d._renderList=renderList;
+  renderList();
+  return d;
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.fms-box.open').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.fms-drop').forEach(d=>d.style.display='none');
+  document.querySelectorAll('.gb-box.open').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.gb-drop').forEach(d=>d.style.display='none');
+}
+
+document.addEventListener('click', ()=>closeAllDropdowns());
+
+// ============================================================
+// FILTERS
+// ============================================================
+function applyFiltersAndRender() {
+  const df=dataframes[activeDF];
+  const gq=(document.getElementById('globalSearch')?.value||'').toLowerCase().trim();
+  let filtered=df.rows.filter(row=>{
+    for(let ci=0;ci<df.headers.length;ci++){
+      const sel=colFilterSelections[ci];
+      if(sel&&sel.size>0&&!sel.has(String(row[ci]).trim())) return false;
+    }
+    if(gq&&!row.join(' ').toLowerCase().includes(gq)) return false;
+    return true;
+  });
+  if(sortCol!==null){
+    filtered.sort((a,b)=>{
+      const av=a[sortCol],bv=b[sortCol],an=parseFloat(av),bn=parseFloat(bv);
+      return(!isNaN(an)&&!isNaN(bn))?(an-bn)*sortDir:String(av).localeCompare(String(bv))*sortDir;
+    });
+  }
+  currentData=filtered; currentPage=1;
+  renderTable(); updatePipeline();
+}
+
+function clearFilters() {
+  document.getElementById('globalSearch').value='';
+  Object.keys(colFilterSelections).forEach(ci=>colFilterSelections[ci].clear());
+  // Reset all FMS boxes
+  document.querySelectorAll('.fms-box').forEach(box=>{
+    const lbl=box.querySelector('.fms-box-label'); if(lbl) lbl.textContent='All';
+    const badge=box.querySelector('.fms-badge'); if(badge) badge.remove();
+  });
+  // Re-render all lists
+  document.querySelectorAll('.fms-drop').forEach(d=>{if(d._renderList)d._renderList();});
+  applyFiltersAndRender();
+}
+
+// ============================================================
+// GROUP-BY ORDERED WIDGET
+// ============================================================
+function buildGroupByWidget() {
+  const df=dataframes[activeDF];
+  groupByColumns=[];
+  const wrap=document.getElementById('groupByWrap'); wrap.innerHTML='';
+
+  const box=document.createElement('div'); box.className='gb-box'; box.id='gbBox';
+  const drop=document.createElement('div'); drop.className='gb-drop';
+  drop.addEventListener('click',e=>e.stopPropagation());
+
+  let gbQ='';
+  const ph=document.createElement('span'); ph.className='gb-ph'; ph.textContent='Select columns to group by…'; box.appendChild(ph);
+
+  const renderBox=()=>{
+    box.querySelectorAll('.gb-tag').forEach(t=>t.remove());
+    const hasSel=groupByColumns.length>0;
+    ph.style.display=hasSel?'none':'';
+    groupByColumns.forEach((col,idx)=>{
+      const tag=document.createElement('div'); tag.className='gb-tag'; tag.draggable=true; tag.dataset.col=col;
+      tag.innerHTML=`<span class="gb-tag-n">${idx+1}</span>${H(col)}`;
+      const xBtn=document.createElement('button'); xBtn.className='gb-tag-x'; xBtn.textContent='✕';
+      xBtn.addEventListener('click',e=>{e.stopPropagation();gbRemove(col);});
+      tag.appendChild(xBtn);
+      tag.addEventListener('dragstart',gbDS); tag.addEventListener('dragover',gbDO); tag.addEventListener('drop',gbDP); tag.addEventListener('dragend',gbDE);
+      box.insertBefore(tag, ph);
+    });
+    updatePipeline();
+  };
+
+  const renderDrop=()=>{
+    const vis=df.headers.filter(h=>h.toLowerCase().includes(gbQ.toLowerCase()));
+    list.innerHTML=vis.length===0?'<div style="padding:10px;font-size:11px;color:var(--text3)">No columns</div>':
+      vis.map(h=>{
+        const isSel=groupByColumns.includes(h);
+        return `<label class="gb-opt ${isSel?'is-sel':''}" onclick="event.stopPropagation()">
+          <input type="checkbox" ${isSel?'checked':''} data-col="${A(h)}">
+          ${isSel?`<span class="gb-tag-n">${groupByColumns.indexOf(h)+1}</span>`:'<span style="width:14px;display:inline-block"></span>'}
+          ${H(h)}</label>`;
+      }).join('');
+    list.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.addEventListener('change',e=>{e.stopPropagation();const col=cb.dataset.col;if(cb.checked){if(!groupByColumns.includes(col))groupByColumns.push(col);}else{groupByColumns=groupByColumns.filter(c=>c!==col);}renderBox();renderDrop();});
+      cb.addEventListener('click',e=>e.stopPropagation());
+    });
+  };
+
+  const top=document.createElement('div'); top.className='gb-top';
+  const si=document.createElement('input'); si.type='text'; si.placeholder='Search columns…';
+  si.addEventListener('click',e=>e.stopPropagation());
+  si.oninput=()=>{gbQ=si.value;renderDrop();};
+  top.appendChild(si);
+
+  const list=document.createElement('div'); list.className='gb-list';
+  const hint=document.createElement('div'); hint.className='gb-hint'; hint.textContent='Drag tags to reorder';
+  drop.append(top,list,hint);
+
+  box.addEventListener('click',e=>{
+    if(e.target.closest('.gb-tag-x')) return;
+    e.stopPropagation();
+    const wasOpen=box.classList.contains('open');
+    closeAllDropdowns();
+    if(!wasOpen){box.classList.add('open');drop.style.display='flex';renderDrop();}
+  });
+
+  wrap.appendChild(box); wrap.appendChild(drop);
+  window._gbRenderBox=renderBox; window._gbRenderDrop=renderDrop;
+
+  function gbRemove(col){groupByColumns=groupByColumns.filter(c=>c!==col);renderBox();renderDrop();}
+  window.gbRemove=gbRemove;
+
+  renderBox();
+}
+
+let _gbDrag=null;
+function gbDS(){_gbDrag=this;this.classList.add('dragging');}
+function gbDO(e){e.preventDefault();}
+function gbDP(e){
+  e.preventDefault();
+  if(!_gbDrag||_gbDrag===this) return;
+  const fc=_gbDrag.dataset.col,tc=this.dataset.col;
+  const fi=groupByColumns.indexOf(fc),ti=groupByColumns.indexOf(tc);
+  if(fi<0||ti<0) return;
+  groupByColumns.splice(fi,1); groupByColumns.splice(ti,0,fc);
+  if(window._gbRenderBox) window._gbRenderBox();
+  if(window._gbRenderDrop) window._gbRenderDrop();
+}
+function gbDE(){this.classList.remove('dragging');_gbDrag=null;}
+
+// ============================================================
+// PIPELINE DIAGRAM
+// ============================================================
+function updatePipeline() {
+  const df=dataframes[activeDF];
+  const totalRows=df.rows.length, filteredRows=currentData.length;
+  const gq=(document.getElementById('globalSearch')?.value||'').trim();
+  const activeFlt=Object.values(colFilterSelections).filter(s=>s.size>0).length;
+  const gbActive=groupByColumns.length>0;
+
+  const nodes=[
+    {icon:'📂', lbl:'Source Data',   val:`${totalRows.toLocaleString()} rows`,                   on:true},
+    {icon:'⚡',  lbl:'Col Filters',   val:activeFlt>0?`${activeFlt} column${activeFlt>1?'s':''}`:'off', on:activeFlt>0},
+    {icon:'🔍',  lbl:'Global Search', val:gq?`"${gq.slice(0,14)}${gq.length>14?'…':''}"` :'off',      on:!!gq},
+    {icon:'↕',  lbl:'Sort',          val:sortCol!==null?`col ${sortCol+1} ${sortDir>0?'↑':'↓'}`:'off', on:sortCol!==null},
+    {icon:'🗂',  lbl:'Group By',      val:gbActive?groupByColumns.slice(0,2).join('→')+(groupByColumns.length>2?'…':''):'off', on:gbActive},
+    {icon:'📋',  lbl:'Table Output',  val:`${filteredRows.toLocaleString()} rows`,                on:true},
+  ];
+
+  const pipe=document.getElementById('pipeline'); pipe.innerHTML='';
+  nodes.forEach((n,i)=>{
+    const el=document.createElement('div');
+    el.className='pipe-node'+(n.on?' p-active':' p-dim');
+    el.innerHTML=`<div class="p-icon">${n.icon}</div><div class="p-lbl">${n.lbl}</div><div class="p-val" title="${H(n.val)}">${H(n.val)}</div>`;
+    pipe.appendChild(el);
+    if(i<nodes.length-1){
+      const ar=document.createElement('div');
+      ar.className='pipe-arrow'+(n.on?' p-active':'');
+      ar.textContent='→'; pipe.appendChild(ar);
+    }
+  });
+}
+
+// ============================================================
+// TABLE
+// ============================================================
+function renderTable() {
+  const df=dataframes[activeDF];
+  const ps=parseInt(document.getElementById('pageSize').value);
+  const tp=Math.max(1,Math.ceil(currentData.length/ps));
+  if(currentPage>tp) currentPage=1;
+  const start=(currentPage-1)*ps, rows=currentData.slice(start,start+ps);
+
+  document.getElementById('tableHead').innerHTML='<tr>'+df.headers.map((h,i)=>{
+    const cls=sortCol===i?(sortDir===1?'sorted-asc':'sorted-desc'):'';
+    return `<th class="${cls}" onclick="sortBy(${i})">${H(h)}</th>`;
+  }).join('')+'</tr>';
+
+  const tbody=document.getElementById('tableBody');
+  tbody.innerHTML=rows.length
+    ?rows.map(row=>'<tr>'+row.map(v=>`<td title="${A(String(v))}">${H(String(v).slice(0,100))}</td>`).join('')+'</tr>').join('')
+    :`<tr><td colspan="${df.headers.length}" class="no-data">No data matches filters</td></tr>`;
+
+  // pagination
+  const pag=document.getElementById('pagination'); pag.innerHTML='';
+  if(!currentData.length){pag.innerHTML='<span class="page-info">No results</span>';return;}
+  const s2=start+1,e2=Math.min(currentPage*ps,currentData.length);
+  const ab=(lbl,pg,act,dis)=>{const b=document.createElement('button');b.className='page-btn'+(act?' active':'');b.textContent=lbl;b.disabled=dis;b.onclick=()=>{currentPage=pg;renderTable();};pag.appendChild(b);};
+  ab('‹',currentPage-1,false,currentPage===1);
+  let prev=0;
+  [...new Set([1,tp,currentPage-1,currentPage,currentPage+1].filter(p=>p>=1&&p<=tp))].sort((a,b)=>a-b).forEach(p=>{
+    if(prev&&p-prev>1){const d=document.createElement('span');d.textContent='…';d.style.cssText='color:var(--text3);padding:0 4px;font-size:12px';pag.appendChild(d);}
+    ab(p,p,p===currentPage,false);prev=p;
+  });
+  ab('›',currentPage+1,false,currentPage===tp);
+  const info=document.createElement('span');info.className='page-info';info.textContent=`${s2.toLocaleString()}–${e2.toLocaleString()} of ${currentData.length.toLocaleString()} rows`;pag.appendChild(info);
+}
+
+function changePage(p){currentPage=p;renderTable();}
+function sortBy(ci){if(sortCol===ci)sortDir=-sortDir;else{sortCol=ci;sortDir=1;}applyFiltersAndRender();}
+
+// ============================================================
+// AGGREGATION
+// ============================================================
+function buildAggColumnSelect(){
+  const df=dataframes[activeDF];
+  document.getElementById('aggColumn').innerHTML='<option value="">— Select column —</option>'+df.headers.map((h,i)=>`<option value="${i}">${H(h)}</option>`).join('');
+  document.getElementById('aggResults').innerHTML='';
+}
+
+function updateAggMethods(){
+  const ci=parseInt(document.getElementById('aggColumn').value),df=dataframes[activeDF];
+  if(!isNaN(ci)){
+    const vals=df.rows.map(r=>r[ci]).filter(v=>v!=='');
+    const isNum=vals.some(v=>!isNaN(parseFloat(v))&&isFinite(v));
+    [...document.getElementById('aggMethod').options].forEach(o=>{o.disabled=['sum','avg','min','max'].includes(o.value)&&!isNum;});
+  }
+}
+
+function runAggregation(){
+  const df=dataframes[activeDF];
+  if(!groupByColumns.length){showToast('Select at least one Group By column.');return;}
+  const colIdx=document.getElementById('aggColumn').value;
+  const method=document.getElementById('aggMethod').value;
+  const gbi=groupByColumns.map(h=>df.headers.indexOf(h)).filter(i=>i>=0);
+  const vi=colIdx!==''?parseInt(colIdx):null;
+
+  const groups={};
+  currentData.forEach(row=>{
+    const gk=gbi.map(i=>row[i]).join(' ║ ');
+    if(!groups[gk]) groups[gk]=[];
+    groups[gk].push(row);
+  });
+
+  const results=Object.entries(groups).map(([gk,rows])=>{
+    const vals=vi!==null?rows.map(r=>r[vi]).filter(v=>v!==''):[];
+    let agg;
+    switch(method){
+      case 'count':agg=rows.length;break;
+      case 'unique_count':agg=vi!==null?new Set(vals).size:new Set(rows.map(r=>r.join('|'))).size;break;
+      case 'sum':agg=+(vals.map(v=>parseFloat(v)||0).reduce((a,b)=>a+b,0)).toFixed(4);break;
+      case 'avg':{const ns=vals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));agg=ns.length?+(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(4):'N/A';break;}
+      case 'min':{const ns=vals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));agg=ns.length?Math.min(...ns):(vals.sort()[0]||'N/A');break;}
+      case 'max':{const ns=vals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));agg=ns.length?Math.max(...ns):(vals.sort().pop()||'N/A');break;}
+      case 'first':agg=vals[0]??'';break;
+      case 'last':agg=vals[vals.length-1]??'';break;
+      case 'concat':agg=[...new Set(vals)].join(', ');break;
+      default:agg=rows.length;
+    }
+    return{parts:gk.split(' ║ '),agg};
+  }).sort((a,b)=>typeof a.agg==='number'&&typeof b.agg==='number'?b.agg-a.agg:String(b.agg).localeCompare(String(a.agg)));
+
+  const ml=document.getElementById('aggMethod').options[document.getElementById('aggMethod').selectedIndex].text;
+  const al=vi!==null?df.headers[vi]:'rows';
+  document.getElementById('aggResults').innerHTML=`
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">${results.length} groups · ${H(ml)} of <em>${H(al)}</em> · grouped by <em>${H(groupByColumns.join(' → '))}</em></div>
+    <div class="table-wrap" style="max-height:280px"><table>
+      <thead><tr>${groupByColumns.map((h,i)=>`<th><span style="color:var(--accent2);margin-right:4px">${i+1}</span>${H(h)}</th>`).join('')}
+        <th style="color:var(--accent)">${H(ml)}: ${H(al)}</th></tr></thead>
+      <tbody>${results.slice(0,300).map(r=>`<tr>${r.parts.map(v=>`<td>${H(String(v).slice(0,80))}</td>`).join('')}
+        <td style="color:var(--accent);font-weight:600">${H(typeof r.agg==='number'?r.agg.toLocaleString():String(r.agg).slice(0,120))}</td></tr>`).join('')}
+      ${results.length>300?`<tr><td colspan="${groupByColumns.length+1}" class="no-data">Top 300 of ${results.length}</td></tr>`:''}
+      </tbody></table></div>`;
+  updatePipeline();
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportCSV(){
+  const df=dataframes[activeDF];
+  const lines=[df.headers.map(h=>`"${String(h).replace(/"/g,'""')}"`).join(',')];
+  currentData.forEach(row=>lines.push(row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')));
+  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='datalens_export.csv';a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ Exported ${currentData.length.toLocaleString()} rows`);
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function showPanel(id){document.getElementById(id).classList.remove('hidden');setTimeout(()=>document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'}),60);}
+function hidePanel(id){document.getElementById(id).classList.add('hidden');}
+function setStep(n){for(let i=1;i<=4;i++){const el=document.getElementById(`step${i}`);el.classList.remove('active','done');if(i<n)el.classList.add('done');else if(i===n)el.classList.add('active');}}
+function resetToStart(){
+  uploadedFiles=[];selectedSheets=[];sheetConfigs={};dataframes=[];activeDF=0;
+  currentData=[];groupByColumns=[];colFilterSelections={};sortCol=null;sortDir=1;currentPage=1;
+  document.getElementById('fileList').innerHTML='';document.getElementById('sheetGrid').innerHTML='';
+  ['panelSheets','panelConfig','panelData'].forEach(hidePanel);setStep(1);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',3200);}
+function H(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function A(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
