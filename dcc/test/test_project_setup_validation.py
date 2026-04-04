@@ -2,6 +2,7 @@
 """Tests for the schema-driven project setup validator."""
 
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -72,7 +73,6 @@ class ProjectSetupValidatorTest(unittest.TestCase):
                     "validation_rules": [
                         {"rule": "check_folders", "enabled": True},
                         {"rule": "check_files", "enabled": True},
-                        {"rule": "check_schema_refs", "enabled": True},
                     ],
                 }
             ]
@@ -112,7 +112,11 @@ class ProjectSetupValidatorTest(unittest.TestCase):
 
             self.assertTrue(results["ready"])
             self.assertNotIn("data_files", results)
-            self.assertTrue(all(item["exists"] for item in results["schema_refs"]))
+            self.assertNotIn("schema_refs", results)
+            self.assertIn("os", results)
+            self.assertIn("system", results["os"])
+            self.assertIn("normalized", results["os"])
+            self.assertNotIn("schema_validation", results)
 
     def test_validator_flags_missing_required_items(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -125,6 +129,26 @@ class ProjectSetupValidatorTest(unittest.TestCase):
             self.assertFalse(results["ready"])
             self.assertFalse(results["workflow_files"][0]["exists"])
             self.assertNotIn("data_files", results)
+
+    def test_validator_auto_creates_missing_folders_from_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_root = self._build_temp_project(Path(tmp_dir))
+            shutil.rmtree(project_root / "data")
+            self.assertFalse((project_root / "data").exists())
+
+            validator = ProjectSetupValidator(base_path=project_root)
+            results = validator.validate()
+
+            data_entry = next(item for item in results["folders"] if item["name"] == "data")
+            self.assertTrue((project_root / "data").is_dir())
+            self.assertTrue(data_entry["exists"])
+            self.assertTrue(data_entry["auto_created"])
+
+    def test_default_base_path_is_parent_of_workflow_directory(self) -> None:
+        validator = ProjectSetupValidator()
+        expected_base_path = Path(__file__).resolve().parents[1]
+
+        self.assertEqual(validator.base_path, expected_base_path)
 
 
 if __name__ == "__main__":

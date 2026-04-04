@@ -12,230 +12,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
 import logging
 import pandas as pd
+from schema_validation import SchemaLoader, SchemaValidator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-class SchemaLoader:
-    """Handles dynamic loading of external schema files with fallback handling."""
-    
-    def __init__(self, base_path: str = None):
-        """
-        Initialize schema loader with base path.
-        
-        Args:
-            base_path: Base directory for schema files (defaults to config/schemas)
-        """
-        if base_path is None:
-            base_path = Path(__file__).parent / "config" / "schemas"
-        else:
-            base_path = Path(base_path)
-        
-        self.base_path = base_path
-        self.main_schema_path = None
-        self.loaded_schemas = {}
-        self.schema_references = {}
-
-    def set_main_schema_path(self, schema_file: str):
-        """Set the main schema path so relative references resolve correctly."""
-        self.main_schema_path = Path(schema_file).resolve()
-        if self.main_schema_path.parent.exists():
-            self.base_path = self.main_schema_path.parent
-        return self.main_schema_path
-
-    def _resolve_reference_path(self, ref_path: str) -> Path:
-        """Resolve schema reference path with several fallbacks."""
-        candidate = Path(ref_path)
-        if candidate.is_absolute():
-            return candidate
-
-        # Relative to main schema path if available
-        if self.main_schema_path is not None:
-            resolved = (self.main_schema_path.parent / candidate).resolve()
-            if resolved.exists():
-                return resolved
-
-        # Relative to base_path
-        resolved = (self.base_path / candidate).resolve()
-        if resolved.exists():
-            return resolved
-
-        # Try compacting the path (use only file name) for common '../config/schemas/' cases
-        candidate_name = candidate.name
-        alt = (self.base_path / candidate_name).resolve()
-        if alt.exists():
-            return alt
-
-        if self.main_schema_path is not None:
-            alt2 = (self.main_schema_path.parent / candidate_name).resolve()
-            if alt2.exists():
-                return alt2
-
-        # Relative to current working directory
-        resolved = (Path.cwd() / candidate).resolve()
-        if resolved.exists():
-            return resolved
-
-        alt3 = (Path.cwd() / candidate_name).resolve()
-        if alt3.exists():
-            return alt3
-
-        # Final fallback: return resolved path (may not exist)
-        return (self.base_path / candidate).resolve()
-
-    def load_schema(self, schema_name: str, fallback_data: Any = None) -> Dict:
-        """
-        Load schema file with fallback handling.
-        
-        Args:
-            schema_name: Name of schema to load (without .json extension)
-            fallback_data: Fallback data if file not found
-            
-        Returns:
-            Dictionary containing schema data or fallback
-        """
-        if schema_name in self.loaded_schemas:
-            return self.loaded_schemas[schema_name]
-            
-        schema_file = self.base_path / f"{schema_name}.json"
-        
-        try:
-            if schema_file.exists():
-                with open(schema_file, 'r', encoding='utf-8') as f:
-                    schema_data = json.load(f)
-                    logger.info(f"Loaded schema: {schema_name}")
-                    self.loaded_schemas[schema_name] = schema_data
-                    return schema_data
-            else:
-                logger.warning(f"Schema file not found: {schema_file}")
-                if fallback_data is not None:
-                    logger.info(f"Using fallback data for {schema_name}")
-                    self.loaded_schemas[schema_name] = fallback_data
-                    return fallback_data
-                else:
-                    raise FileNotFoundError(f"Schema file not found: {schema_file}")
-                    
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in schema file {schema_file}: {e}")
-            if fallback_data is not None:
-                logger.info(f"Using fallback data for {schema_name} due to JSON error")
-                self.loaded_schemas[schema_name] = fallback_data
-                return fallback_data
-            else:
-                raise ValueError(f"Invalid JSON in schema file {schema_file}: {e}")
-        except Exception as e:
-            logger.error(f"Error loading schema {schema_name}: {e}")
-            if fallback_data is not None:
-                logger.info(f"Using fallback data for {schema_name} due to error")
-                self.loaded_schemas[schema_name] = fallback_data
-                return fallback_data
-            else:
-                raise ValueError(f"Error loading schema {schema_name}: {e}")
-    
-    def load_schema_from_path(self, schema_path: str, fallback_data: Dict = None) -> Dict:
-        """
-        Load schema file from full path with fallback handling.
-        
-        Args:
-            schema_path: Full path to schema file (including .json extension or relative path)
-            fallback_data: Fallback data if file not found
-            
-        Returns:
-            Dictionary containing schema data or fallback
-        """
-        cache_key = str(Path(schema_path).resolve()) if Path(schema_path).is_absolute() else schema_path
-        if cache_key in self.loaded_schemas:
-            return self.loaded_schemas[cache_key]
-
-        schema_file = self._resolve_reference_path(schema_path)
-        
-        try:
-            if schema_file.exists():
-                with open(schema_file, 'r', encoding='utf-8') as f:
-                    schema_data = json.load(f)
-                    logger.info(f"Loaded schema: {schema_file}")
-                    self.loaded_schemas[cache_key] = schema_data
-                    return schema_data
-            else:
-                logger.warning(f"Schema file not found: {schema_file}")
-                if fallback_data is not None:
-                    logger.info(f"Using fallback data for {schema_path}")
-                    self.loaded_schemas[cache_key] = fallback_data
-                    return fallback_data
-                else:
-                    raise FileNotFoundError(f"Schema file not found: {schema_file}")
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON in schema file {schema_file}: {e}")
-            if fallback_data is not None:
-                logger.info(f"Using fallback data for {schema_path} due to JSON error")
-                self.loaded_schemas[cache_key] = fallback_data
-                return fallback_data
-            else:
-                raise ValueError(f"Invalid JSON in schema file {schema_file}: {e}")
-        except Exception as e:
-            logger.error(f"Error loading schema {schema_file}: {e}")
-            if fallback_data is not None:
-                logger.info(f"Using fallback data for {schema_path}")
-                self.loaded_schemas[cache_key] = fallback_data
-                return fallback_data
-            else:
-                raise ValueError(f"Error loading schema {schema_file}: {e}")
-    
-    def validate_schema_references(self, main_schema: Dict) -> List[str]:
-        """
-        Validate schema references and detect circular dependencies.
-        
-        Args:
-            main_schema: Main schema dictionary with schema_references
-            
-        Returns:
-            List of validation errors
-        """
-        errors = []
-        schema_refs = main_schema.get('schema_references', {})
-        
-        # Check if referenced files exist
-        for ref_name, ref_path in schema_refs.items():
-            try:
-                ref_file = self._resolve_reference_path(ref_path)
-                if not ref_file.exists():
-                    errors.append(f"Referenced schema file not found: {ref_path}")
-                    continue
-
-                with open(ref_file, 'r', encoding='utf-8') as f:
-                    json.load(f)
-            except json.JSONDecodeError as e:
-                errors.append(f"Invalid JSON in referenced schema {ref_path}: {e}")
-            except Exception as e:
-                errors.append(f"Error reading referenced schema {ref_path}: {e}")        
-        return errors
-    
-    def resolve_schema_dependencies(self, main_schema: Dict) -> Dict:
-        """
-        Resolve all schema dependencies and return resolved schema.
-        
-        Args:
-            main_schema: Main schema dictionary
-            
-        Returns:
-            Resolved schema with all external schemas loaded
-        """
-        resolved_schema = main_schema.copy()
-        schema_refs = main_schema.get('schema_references', {})
-        
-        # Load all referenced schemas
-        for ref_name, ref_path in schema_refs.items():
-            try:
-                # Use the full path from schema_references directly
-                schema_data = self.load_schema_from_path(ref_path)
-                resolved_schema[f'{ref_name}_data'] = schema_data
-            except Exception as e:
-                logger.error(f"Failed to resolve schema reference {ref_name}: {e}")
-                
-        return resolved_schema
-
 
 class UniversalColumnMapper:
     """Universal column mapper with fuzzy matching and schema-driven validation."""
@@ -263,19 +44,13 @@ class UniversalColumnMapper:
             schema_file: Path to main schema file
         """
         try:
-            with open(schema_file, 'r', encoding='utf-8') as f:
-                self.main_schema = json.load(f)
-                logger.info(f"Loaded main schema: {schema_file}")
+            schema_validator = SchemaValidator(schema_file)
+            validation_results = schema_validator.validate()
+            if validation_results["errors"]:
+                logger.warning("Schema validation errors: %s", validation_results["errors"])
 
-            # record main schema path for relative refs
+            self.main_schema = schema_validator.load_main_schema()
             self.schema_loader.set_main_schema_path(schema_file)
-
-            # Validate schema references
-            errors = self.schema_loader.validate_schema_references(self.main_schema)
-            if errors:
-                logger.warning(f"Schema reference validation errors: {errors}")
-
-            # Resolve schema dependencies
             self.resolved_schema = self.schema_loader.resolve_schema_dependencies(self.main_schema)
             logger.info("Schema dependencies resolved")
             

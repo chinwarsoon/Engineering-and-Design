@@ -1,6 +1,6 @@
 # DCC Project Structure & Required Files
 
-> **Last Updated:** March 29, 2026  
+> **Last Updated:** April 4, 2026  
 > **Purpose:** Distribution checklist for DCC (Document Control Center) project
 
 ## Quick Setup
@@ -11,7 +11,7 @@ conda env create -f dcc.yml
 conda activate dcc
 
 # 2. Validate project structure
-python tools/project_setup_tools.py validate_structure
+python workflow/project_setup_validation.py
 
 # 3. Run main workflow
 jupyter notebook workflow/dcc_register_processor_main.ipynb
@@ -90,20 +90,17 @@ dcc/
 
 | File | Required | Purpose |
 |------|----------|---------|
-| `project_setup_tools.py` | ✅ Yes | **Main validation tool** - Checks all required files and folders |
+| `project_setup_tools.py` | ⚠️ Optional | Utility script for column analysis, comparison, dependency checks, and schema reordering |
 
 **Usage:**
 ```bash
-# Complete project validation
-python tools/project_setup_tools.py validate_structure
-
-# Or run all checks
+# Run utility analysis
 python tools/project_setup_tools.py complete
 ```
 
 **Functions:**
-- `validate_project_structure()` - Validates folders, files, schemas
 - `analyze_columns()` - Compares Excel columns vs schema
+- `compare_column_handling()` - Compares original and enhanced handling
 - `check_workflow_dependencies()` - Checks Python imports
 - `reorganize_schema_columns()` - Reorders schema columns
 
@@ -113,6 +110,7 @@ python tools/project_setup_tools.py complete
 
 | File | Required | Size | Purpose |
 |------|----------|------|---------|
+| `project_setup_validation.py` | ✅ Yes | ~13KB | Main project setup validator for folders, files, environment files, schema references, and OS-aware folder creation |
 | `dcc_register_main.ipynb` | ✅ Yes | ~85KB | **Main orchestration notebook** - Step-by-step processing |
 | `universal_document_processor.py` | ✅ Yes | ~25KB | Schema-driven processing engine |
 | `universal_column_mapper.py` | ✅ Yes | ~20KB | Fuzzy column name mapping |
@@ -124,6 +122,7 @@ python tools/project_setup_tools.py complete
 
 **Workflow Documentation:**
 - `explaination/` folder contains detailed workflow guides
+- `project-setup-validation-guide.md`
 - `universal-column-mapping-workflow.md`
 - `universal-document-processing-workflow.md`
 - `universal-processing-workflow.md` (with Mermaid diagrams)
@@ -169,18 +168,19 @@ dcc_register_main.ipynb
 
 ## Validation Checklist
 
-Use `project_setup_tools.py` to verify:
+Use `project_setup_validation.py` to verify:
 
 - [ ] ✅ All 6 required folders exist
 - [ ] ✅ All 5 schema JSON files exist
+- [ ] ✅ The validator uses `dcc/` as the root when running from `workflow/project_setup_validation.py`
 - [ ] ✅ All 3 workflow files exist
 - [ ] ✅ `dcc.yml` environment file exists
-- [ ] ✅ At least 1 `.xlsx` data file in `data/`
 - [ ] ✅ Schema references valid (no broken links)
+- [ ] ✅ Missing folders are auto-created when supported by the OS
 
 **Run validation:**
 ```bash
-python tools/project_setup_tools.py validate_structure
+python workflow/project_setup_validation.py
 ```
 
 ---
@@ -196,9 +196,9 @@ dcc/
 ├── data/                        # Excel input files
 ├── output/                      # Empty folder (created on run)
 ├── reference/                   # Documentation (optional)
-├── tools/
-│   └── project_setup_tools.py  # Validation script
+├── tools/                       # Optional utility scripts
 └── workflow/
+    ├── project_setup_validation.py  # Validation script
     ├── dcc_register_main.ipynb   # Main notebook
     ├── universal_document_processor.py
     └── universal_column_mapper.py
@@ -250,7 +250,7 @@ dcc/
 3. Run `python tools/project_setup_tools.py reorganize` to reorder
 
 **When distributing to new users:**
-1. Run `validate_structure` to check completeness
+1. Run `python workflow/project_setup_validation.py` to check completeness
 2. Ensure `reference/` folder has usage documentation
 3. Verify `dcc.yml` has all required dependencies
 
@@ -258,6 +258,7 @@ dcc/
 
 ## Contact & Support
 
-- **Validation Tool:** `python tools/project_setup_tools.py complete`
+- **Validation Tool:** `python workflow/project_setup_validation.py`
+- **Validation Guide:** `workflow/explaination/project-setup-validation-guide.md`
 - **Schema Issues:** Check `config/schemas/` folder contents
 - **Workflow Issues:** Review `workflow/explaination/*.md` guides

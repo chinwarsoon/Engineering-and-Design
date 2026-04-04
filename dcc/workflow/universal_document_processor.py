@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Set
 import logging
 import re
-from universal_column_mapper import SchemaLoader
+from schema_validation import SchemaLoader, SchemaValidator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1273,13 +1273,15 @@ class UniversalDocumentProcessor:
             raise ValueError("Schema file path not set. Use UniversalDocumentProcessor(schema_file='path/to/schema.json')")
         
         try:
-            # Use SchemaLoader to properly resolve external references
+            schema_validator = SchemaValidator(self.schema_file)
+            validation_results = schema_validator.validate()
+            if validation_results["errors"]:
+                logger.warning("Schema validation errors: %s", validation_results["errors"])
+
             schema_loader = SchemaLoader()
             schema_loader.set_main_schema_path(self.schema_file)
-            
-            with open(self.schema_file, 'r', encoding='utf-8') as f:
-                main_schema = json.load(f)
-                logger.info(f"Loaded schema: {self.schema_file}")
+            main_schema = schema_validator.load_main_schema()
+            logger.info(f"Loaded schema: {self.schema_file}")
             
             # Resolve schema dependencies (approval_code_schema, etc.)
             self.schema_data = schema_loader.resolve_schema_dependencies(main_schema)

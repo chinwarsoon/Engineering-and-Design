@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
 from pathlib import Path
 from typing import Any, Dict, Iterable, List
 
@@ -24,6 +25,7 @@ class ProjectSetupValidator:
         self.schema_document: Dict[str, Any] = {}
         self.project_setup: Dict[str, Any] = {}
         self.validation_rules: Dict[str, bool] = {}
+        self.os_info = self._detect_os()
 
         if self.schema_path.is_file():
             self.schema_document = self._load_json(self.schema_path)
@@ -38,12 +40,24 @@ class ProjectSetupValidator:
         return Path(value).expanduser().resolve()
 
     def _default_base_path(self) -> Path:
-        cwd = Path.cwd().resolve()
-        return cwd.parent if cwd.name.lower() == "workflow" else cwd
+        script_dir = Path(__file__).resolve().parent
+        return script_dir.parent if script_dir.name.lower() == "workflow" else script_dir
 
     def _load_json(self, path: Path) -> Dict[str, Any]:
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
+
+    def _detect_os(self) -> Dict[str, str]:
+        system_name = platform.system().strip() or "Unknown"
+        normalized_name = {
+            "Windows": "windows",
+            "Linux": "linux",
+            "Darwin": "macos",
+        }.get(system_name, system_name.lower())
+        return {
+            "system": system_name,
+            "normalized": normalized_name,
+        }
 
     def _extract_project_setup(self, document: Dict[str, Any]) -> Dict[str, Any]:
         config = document.get("project_setup", [])
@@ -78,6 +92,13 @@ class ProjectSetupValidator:
             }
         )
 
+    def _should_auto_create_folders(self) -> bool:
+        return self.os_info["normalized"] in {"windows", "linux", "macos"}
+
+    def _ensure_folder(self, path: Path) -> bool:
+        path.mkdir(parents=True, exist_ok=True)
+        return path.is_dir()
+
     def _validate_folders(self, results: Dict[str, Any]) -> None:
         for folder in self.project_setup.get("folders", []):
             if not isinstance(folder, dict):
@@ -87,16 +108,24 @@ class ProjectSetupValidator:
                 continue
             required = bool(folder.get("required", True))
             path = self.base_path / name
+            exists = path.is_dir()
+            auto_created = False
+            if not exists and self._should_auto_create_folders():
+                auto_created = self._ensure_folder(path)
+                exists = path.is_dir()
+
             self._record_path_check(
                 results,
                 "folders",
                 name,
                 path,
                 required,
-                path.is_dir(),
+                exists,
                 folder.get("purpose", ""),
                 "folder",
             )
+            results["folders"][-1]["auto_created"] = auto_created
+            results["folders"][-1]["schema_auto_created"] = bool(folder.get("auto_created", False))
 
     def _validate_named_files(
         self,
@@ -151,62 +180,17 @@ class ProjectSetupValidator:
                 }
             )
 
-    def _validate_schema_references(self, results: Dict[str, Any]) -> None:
-        main_schema = self.base_path / "config" / "schemas" / "dcc_register_enhanced.json"
-        if not main_schema.is_file():
-            results["schema_refs"].append(
-                {
-                    "source": str(main_schema),
-                    "reference": None,
-                    "resolved_path": None,
-                    "exists": False,
-                    "error": "Main schema file not found",
-                }
-            )
-            return
-
-        try:
-            schema_data = self._load_json(main_schema)
-        except Exception as exc:  # pragma: no cover - defensive
-            results["schema_refs"].append(
-                {
-                    "source": str(main_schema),
-                    "reference": None,
-                    "resolved_path": None,
-                    "exists": False,
-                    "error": str(exc),
-                }
-            )
-            return
-
-        for ref_name, ref_path in schema_data.get("schema_references", {}).items():
-            candidates = [
-                (main_schema.parent / ref_path).resolve(),
-                (self.base_path / ref_path).resolve(),
-                (self.base_path / ref_path.replace("../", "")).resolve(),
-            ]
-            resolved_path = next((path for path in candidates if path.is_file()), candidates[0])
-            results["schema_refs"].append(
-                {
-                    "source": str(main_schema),
-                    "reference": ref_name,
-                    "configured_path": ref_path,
-                    "resolved_path": str(resolved_path),
-                    "exists": resolved_path.is_file(),
-                }
-            )
-
     def validate(self) -> Dict[str, Any]:
         results: Dict[str, Any] = {
             "base_path": str(self.base_path),
             "schema_path": str(self.schema_path),
+            "os": self.os_info,
             "folders": [],
             "root_files": [],
             "schema_files": [],
             "workflow_files": [],
             "tool_files": [],
             "environment": [],
-            "schema_refs": [],
             "errors": [],
             "ready": True,
         }
@@ -259,9 +243,6 @@ class ProjectSetupValidator:
             )
             self._validate_environment(results)
 
-        if self._rule_enabled("check_schema_refs"):
-            self._validate_schema_references(results)
-
         results["ready"] = self._is_ready(results)
         return results
 
@@ -275,10 +256,6 @@ class ProjectSetupValidator:
                 if item.get("required") and not item.get("exists"):
                     return False
 
-        for item in results.get("schema_refs", []):
-            if not item.get("exists", False):
-                return False
-
         return True
 
     def format_report(self, results: Dict[str, Any]) -> str:
@@ -287,6 +264,7 @@ class ProjectSetupValidator:
         lines.append("=" * 72)
         lines.append(f"Base Path: {results['base_path']}")
         lines.append(f"Schema Path: {results['schema_path']}")
+        lines.append(f"Operating System: {results['os']['system']} ({results['os']['normalized']})")
 
         if results["errors"]:
             lines.append("")
@@ -313,16 +291,11 @@ class ProjectSetupValidator:
             for item in entries:
                 status = "OK" if item["exists"] else ("MISS" if item["required"] else "WARN")
                 required_text = "required" if item["required"] else "optional"
-                lines.append(f"  [{status}] {item['name'] if 'name' in item else Path(item['path']).name} ({required_text}) -> {item['path']}")
-
-        if results.get("schema_refs"):
-            lines.append("")
-            lines.append("Schema References:")
-            for item in results["schema_refs"]:
-                label = item.get("reference") or "schema_reference_check"
-                status = "OK" if item["exists"] else "MISS"
-                target = item.get("resolved_path") or item.get("error") or "unresolved"
-                lines.append(f"  [{status}] {label} -> {target}")
+                auto_created_text = " [created]" if item.get("auto_created") else ""
+                lines.append(
+                    f"  [{status}] {item['name'] if 'name' in item else Path(item['path']).name} "
+                    f"({required_text}) -> {item['path']}{auto_created_text}"
+                )
 
         lines.append("")
         lines.append("Summary:")
