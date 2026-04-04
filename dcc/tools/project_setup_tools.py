@@ -9,6 +9,12 @@ import json
 from pathlib import Path
 import sys
 
+WORKFLOW_PATH = Path(__file__).resolve().parent.parent / "workflow"
+if str(WORKFLOW_PATH) not in sys.path:
+    sys.path.insert(0, str(WORKFLOW_PATH))
+
+from project_setup_validation import ProjectSetupValidator
+
 class DCCProjectSetupTools:
     """Comprehensive DCC project setup and analysis tools"""
     
@@ -498,201 +504,26 @@ class DCCProjectSetupTools:
             return None
     
     def validate_project_structure(self, base_path=None):
-        """Validate all required files and folders for distribution using master_registry.json"""
-        
-        base_path = Path(base_path) if base_path else Path(__file__).parent.parent
-        results = {
-            "folders": {},
-            "files": {},
-            "schema_refs": {},
-            "ready_for_distribution": False
+        """Validate project folders and files using config/schemas/project_setup.json."""
+
+        validator = ProjectSetupValidator(base_path=base_path)
+        results = validator.validate()
+        print(validator.format_report(results))
+        return {
+            "folders": {item["name"]: item for item in results["folders"]},
+            "files": {
+                item["name"]: item
+                for section in ("root_files", "schema_files", "workflow_files", "tool_files", "environment")
+                for item in results[section]
+            },
+            "schema_refs": {
+                item.get("reference", f"schema_ref_{index}"): item
+                for index, item in enumerate(results["schema_refs"])
+            },
+            "ready_for_distribution": results["ready"],
+            "data_files": results["data_files"],
+            "errors": results["errors"],
         }
-        
-        print("🔍 PROJECT STRUCTURE VALIDATION")
-        print("=" * 70)
-        print(f"📁 Base Path: {base_path}")
-        
-        if not self.project_structure:
-            print("⚠️  Using fallback validation (master_registry.json not loaded)")
-        else:
-            print("✅ Loaded from master_registry.json")
-        print()
-        
-        # Use project_structure from JSON if available, else fallback
-        folders_config = self.project_structure.get("required_folders", [])
-        files_config = self.project_structure.get("required_files", {})
-        
-        # 1. Check required folders
-        print("📂 Required Folders:")
-        all_folders_exist = True
-        for folder_info in folders_config:
-            name = folder_info["name"]
-            required = folder_info.get("required", True)
-            purpose = folder_info.get("purpose", "")
-            folder_path = base_path / name
-            exists = folder_path.exists()
-            results["folders"][name] = {
-                "path": str(folder_path), 
-                "exists": exists,
-                "required": required
-            }
-            status = "✅" if exists else ("❌" if required else "⚠️")
-            req_str = "(required)" if required else "(optional)"
-            print(f"  {status} {name:<20} {req_str:<12} # {purpose}")
-            if not exists:
-                if required:
-                    all_folders_exist = False
-                    print(f"     💡 Create: mkdir -p {folder_path}")
-                else:
-                    print(f"     💡 Optional: mkdir -p {folder_path}")
-        print()
-        
-        # 2. Check required schema files
-        schema_files = files_config.get("schemas", [])
-        if schema_files:
-            print("📋 Required Schema Files:")
-            schema_path = base_path / "config" / "schemas"
-            all_schemas_exist = True
-            for file_info in schema_files:
-                filename = file_info["file"]
-                description = file_info["description"]
-                required = file_info.get("required", True)
-                filepath = schema_path / filename
-                exists = filepath.exists()
-                results["files"][filename] = {
-                    "path": str(filepath),
-                    "exists": exists,
-                    "description": description,
-                    "required": required
-                }
-                status = "✅" if exists else ("❌" if required else "⚠️")
-                req_str = "(required)" if required else "(optional)"
-                size = f"({filepath.stat().st_size} bytes)" if exists else ""
-                print(f"  {status} {filename:<30} {req_str:<10} {size:<12} # {description}")
-                if not exists and required:
-                    all_schemas_exist = False
-            print()
-        
-        # 3. Check workflow files
-        workflow_files = files_config.get("workflow", [])
-        if workflow_files:
-            print("🔧 Required Workflow Files:")
-            workflow_path = base_path / "workflow"
-            all_workflow_exist = True
-            for file_info in workflow_files:
-                filename = file_info["file"]
-                description = file_info["description"]
-                required = file_info.get("required", True)
-                filepath = workflow_path / filename
-                exists = filepath.exists()
-                results["files"][filename] = {
-                    "path": str(filepath),
-                    "exists": exists,
-                    "description": description,
-                    "required": required
-                }
-                status = "✅" if exists else ("❌" if required else "⚠️")
-                req_str = "(required)" if required else "(optional)"
-                size = f"({filepath.stat().st_size} bytes)" if exists else ""
-                print(f"  {status} {filename:<35} {req_str:<10} {size:<12} # {description}")
-                if not exists and required:
-                    all_workflow_exist = False
-            print()
-        
-        # 4. Check for data files
-        print("📊 Data Files (.xlsx):")
-        data_path = base_path / "data"
-        if data_path.exists():
-            data_files = list(data_path.glob("*.xlsx"))
-            if data_files:
-                for f in data_files:
-                    print(f"  ✅ {f.name:<35} ({f.stat().st_size} bytes)")
-                results["files"]["data"] = {"found": len(data_files), "files": [str(f) for f in data_files]}
-            else:
-                print("  ⚠️  No .xlsx files found")
-                print(f"     💡 Add Excel files to: {data_path}")
-        else:
-            print("  ❌ data/ folder missing")
-        print()
-        
-        # 5. Check environment setup file
-        env_config = self.master_registry.get("environment", {}).get("conda_environment_file", {})
-        if env_config:
-            print("🐍 Environment Setup:")
-            env_file = env_config.get("file", "dcc.yml")
-            env_path = base_path / env_file
-            exists = env_path.exists()
-            results["files"][env_file] = {
-                "path": str(env_path),
-                "exists": exists,
-                "description": env_config.get("description", "Conda environment file"),
-                "required": env_config.get("required", True)
-            }
-            status = "✅" if exists else "❌"
-            size = f"({env_path.stat().st_size} bytes)" if exists else ""
-            print(f"  {status} {env_file:<30} (required) {size:<12}")
-            print(f"     📋 {env_config.get('description', '')}")
-            if exists:
-                print(f"     💡 Setup: {env_config.get('setup_command', 'conda env create -f dcc.yml')}")
-                print(f"     💡 Activate: {env_config.get('activate_command', 'conda activate dcc')}")
-            else:
-                print(f"     ⚠️  Environment file missing - users cannot recreate the Python environment")
-        print()
-        
-        # 6. Validate schema references (if main schema exists)
-        main_schema = schema_path / "dcc_register_enhanced.json"
-        if main_schema.exists():
-            print("🔗 Schema References Validation:")
-            try:
-                with open(main_schema, 'r', encoding='utf-8') as f:
-                    schema_data = json.load(f)
-                
-                refs = schema_data.get("schema_references", {})
-                for ref_name, ref_path in refs.items():
-                    # Resolve relative to base_path, not schema_path (avoid double config/)
-                    full_path = (base_path / ref_path.replace("../", "")).resolve()
-                    rel_path = ref_path.replace("../config/schemas/", "")
-                    exists = full_path.exists()
-                    results["schema_refs"][ref_name] = {
-                        "path": str(ref_path),
-                        "resolved": str(full_path),
-                        "exists": exists
-                    }
-                    status = "✅" if exists else "❌"
-                    print(f"  {status} {ref_name:<25} -> {rel_path}")
-                    if not exists:
-                        print(f"     💡 Expected at: {full_path}")
-            except Exception as e:
-                print(f"  ❌ Error reading schema: {e}")
-            print()
-        
-        # Summary
-        print("=" * 70)
-        print("📊 VALIDATION SUMMARY:")
-        
-        missing_folders = [n for n, d in results["folders"].items() if not d["exists"]]
-        missing_files = [n for n, d in results["files"].items() if not d.get("exists", True)]
-        
-        if missing_folders or missing_files:
-            print(f"  ❌ Missing Folders: {len(missing_folders)}")
-            for f in missing_folders:
-                print(f"     - {f}")
-            print(f"  ❌ Missing Files: {len(missing_files)}")
-            for f in missing_files:
-                print(f"     - {f}")
-            print()
-            print("⚠️  Project NOT ready for distribution!")
-            print("   Create missing folders/files before distributing.")
-        else:
-            print("  ✅ All required folders exist")
-            print("  ✅ All required schema files exist")
-            print("  ✅ All required workflow files exist")
-            print("  ✅ Schema references valid")
-            print()
-            print("🎉 Project structure is COMPLETE and ready for distribution!")
-            results["ready_for_distribution"] = True
-        
-        return results
     
     def check_workflow_dependencies(self):
         """Check Python module dependencies for workflow files"""
