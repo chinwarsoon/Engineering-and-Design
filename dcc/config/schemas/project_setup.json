@@ -1,0 +1,440 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DCC Project Setup Validation Schema",
+  "description": "Schema for validating required folders and files for DCC project distribution and setup",
+  "version": "1.0.0",
+  "type": "object",
+  "properties": {
+    "folders": {
+      "type": "array",
+      "description": "All required and optional directories for the DCC project",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Relative path of the folder from project root"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this folder is mandatory"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Description of the folder's purpose"
+          },
+          "auto_created": {
+            "type": "boolean",
+            "description": "Whether this folder is auto-created on first run"
+          }
+        },
+        "required": ["name", "required", "purpose"]
+      }
+    },
+    "root_files": {
+      "type": "array",
+      "description": "Files required at the project root level",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Filename at root level"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this file is mandatory"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Description of the file's purpose"
+          },
+          "extension": {
+            "type": "string",
+            "enum": ["yml", "yaml", "md", "txt", "py", "json", "other"],
+            "description": "File type extension"
+          }
+        },
+        "required": ["name", "required", "purpose"]
+      }
+    },
+    "schema_files": {
+      "type": "array",
+      "description": "Required JSON schema definition files (located in config/schemas)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Schema filename"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this schema file is mandatory"
+          },
+          "description": {
+            "type": "string",
+            "description": "Purpose of this schema file"
+          },
+          "approximate_size": {
+            "type": "string",
+            "description": "Expected approximate file size"
+          }
+        },
+        "required": ["filename", "required", "description"]
+      }
+    },
+    "workflow_files": {
+      "type": "array",
+      "description": "Required workflow notebooks and Python modules (located in workflow)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Workflow filename"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this workflow file is mandatory"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["notebook", "python_module", "documentation"],
+            "description": "Type of workflow file"
+          },
+          "description": {
+            "type": "string",
+            "description": "Purpose of this workflow file"
+          },
+          "approximate_size": {
+            "type": "string",
+            "description": "Expected approximate file size"
+          }
+        },
+        "required": ["filename", "required", "type", "description"]
+      }
+    },
+    "tool_files": {
+      "type": "array",
+      "description": "Required utility and setup script files (located in tools)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string",
+            "description": "Tool filename"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this tool file is mandatory"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["python_script", "shell_script", "other"],
+            "description": "Type of tool file"
+          },
+          "description": {
+            "type": "string",
+            "description": "Purpose of this tool file"
+          },
+          "main_functions": {
+            "type": "array",
+            "description": "Key functions provided by this tool",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["filename", "required", "type", "description"]
+      }
+    },
+    "data_files": {
+      "type": "array",
+      "description": "Expected input data files (located in data)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "description": "Glob pattern for matching data files"
+          },
+          "minimum_count": {
+            "type": "integer",
+            "description": "Minimum number of files matching the pattern",
+            "minimum": 0
+          },
+          "sheet_name": {
+            "type": "string",
+            "description": "Expected Excel sheet name (may have trailing space)"
+          },
+          "header_row": {
+            "type": "integer",
+            "description": "0-indexed row number for column headers"
+          },
+          "column_range": {
+            "type": "string",
+            "description": "Expected Excel column range (e.g. P:AP)"
+          }
+        },
+        "required": ["pattern", "minimum_count"]
+      }
+    },
+    "environment": {
+      "type": "array",
+      "description": "Environment specifications for the project",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Environment spec name or identifier"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this environment spec is mandatory"
+          },
+          "file": {
+            "type": "string",
+            "description": "Environment specification filename"
+          },
+          "location": {
+            "type": "string",
+            "description": "Location relative to project root"
+          },
+          "setup_commands": {
+            "type": "array",
+            "description": "Commands to set up the environment",
+            "items": {
+              "type": "string"
+            }
+          },
+          "key_dependencies": {
+            "type": "array",
+            "description": "Key Python packages required",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["name", "required", "file"]
+      }
+    },
+    "validation_rules": {
+      "type": "array",
+      "description": "Validation rule toggles for project setup checks",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule": {
+            "type": "string",
+            "description": "Name of the validation rule"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "Whether this rule is active"
+          },
+          "description": {
+            "type": "string",
+            "description": "What this rule checks"
+          }
+        },
+        "required": ["rule", "enabled"]
+      }
+    }
+  },
+  "required": [
+    "folders",
+    "root_files",
+    "schema_files",
+    "workflow_files",
+    "tool_files",
+    "data_files",
+    "environment",
+    "validation_rules"
+  ],
+  "project_setup": [
+    {
+      "folders": [
+        {
+          "name": "config/schemas",
+          "required": true,
+          "purpose": "Schema definitions"
+        },
+        {
+          "name": "data",
+          "required": true,
+          "purpose": "Input data files"
+        },
+        {
+          "name": "output",
+          "required": false,
+          "purpose": "Generated output",
+          "auto_created": true
+        },
+        {
+          "name": "reference",
+          "required": false,
+          "purpose": "Documentation and instructions"
+        },
+        {
+          "name": "workflow",
+          "required": true,
+          "purpose": "Processing notebooks and modules"
+        },
+        {
+          "name": "tools",
+          "required": true,
+          "purpose": "Setup and utility scripts"
+        }
+      ],
+      "root_files": [
+        {
+          "name": "dcc.yml",
+          "required": true,
+          "purpose": "Conda environment specification",
+          "extension": "yml"
+        },
+        {
+          "name": "README.md",
+          "required": false,
+          "purpose": "Project overview",
+          "extension": "md"
+        }
+      ],
+      "schema_files": [
+        {
+          "filename": "dcc_register_enhanced.json",
+          "required": true,
+          "description": "Main schema with column definitions, aliases, null handling",
+          "approximate_size": "~56KB"
+        },
+        {
+          "filename": "department_schema.json",
+          "required": true,
+          "description": "Department validation rules",
+          "approximate_size": "~454B"
+        },
+        {
+          "filename": "discipline_schema.json",
+          "required": true,
+          "description": "Discipline validation rules",
+          "approximate_size": "~379B"
+        },
+        {
+          "filename": "document_type_schema.json",
+          "required": true,
+          "description": "Document type validation rules",
+          "approximate_size": "~350B"
+        },
+        {
+          "filename": "approval_code_mapping.json",
+          "required": true,
+          "description": "Status code mappings (APP, REJ, PEN, etc.)",
+          "approximate_size": "~763B"
+        }
+      ],
+      "workflow_files": [
+        {
+          "filename": "dcc_register_main.ipynb",
+          "required": true,
+          "type": "notebook",
+          "description": "Main orchestration notebook - Step-by-step processing",
+          "approximate_size": "~85KB"
+        },
+        {
+          "filename": "universal_document_processor.py",
+          "required": true,
+          "type": "python_module",
+          "description": "Schema-driven processing engine",
+          "approximate_size": "~25KB"
+        },
+        {
+          "filename": "universal_column_mapper.py",
+          "required": true,
+          "type": "python_module",
+          "description": "Fuzzy column name mapping",
+          "approximate_size": "~20KB"
+        }
+      ],
+      "tool_files": [
+        {
+          "filename": "project_setup_tools.py",
+          "required": true,
+          "type": "python_script",
+          "description": "Main validation tool - Checks all required files and folders",
+          "main_functions": [
+            "validate_project_structure",
+            "analyze_columns",
+            "check_workflow_dependencies",
+            "reorganize_schema_columns"
+          ]
+        }
+      ],
+      "data_files": [
+        {
+          "pattern": "*.xlsx",
+          "minimum_count": 1,
+          "sheet_name": "Prolog Submittals ",
+          "header_row": 4,
+          "column_range": "P:AP"
+        }
+      ],
+      "environment": [
+        {
+          "name": "conda",
+          "required": true,
+          "file": "dcc.yml",
+          "location": "root",
+          "setup_commands": [
+            "conda env create -f dcc.yml",
+            "conda activate dcc"
+          ],
+          "key_dependencies": [
+            "python=3.13",
+            "pandas",
+            "numpy",
+            "matplotlib",
+            "seaborn",
+            "jupyter",
+            "ipykernel",
+            "duckdb",
+            "openpyxl"
+          ]
+        }
+      ],
+      "validation_rules": [
+        {
+          "rule": "check_folders",
+          "enabled": true,
+          "description": "Validate folder structure exists"
+        },
+        {
+          "rule": "check_files",
+          "enabled": true,
+          "description": "Validate file existence"
+        },
+        {
+          "rule": "check_schema_refs",
+          "enabled": true,
+          "description": "Validate schema file cross-references"
+        },
+        {
+          "rule": "check_data_files",
+          "enabled": true,
+          "description": "Validate input data files exist"
+        },
+        {
+          "rule": "check_environment",
+          "enabled": true,
+          "description": "Validate environment specification"
+        },
+        {
+          "rule": "fail_on_missing_required",
+          "enabled": true,
+          "description": "Fail validation if any required item is missing"
+        }
+      ]
+    }
+  ]
+}
