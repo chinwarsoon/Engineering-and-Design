@@ -111,7 +111,7 @@ class ProjectSetupValidatorTest(unittest.TestCase):
             results = validator.validate()
 
             self.assertTrue(results["ready"])
-            self.assertEqual(results["data_files"][0]["match_count"], 1)
+            self.assertNotIn("data_files", results)
             self.assertTrue(all(item["exists"] for item in results["schema_refs"]))
 
     def test_validator_flags_missing_required_items(self) -> None:
@@ -124,19 +124,7 @@ class ProjectSetupValidatorTest(unittest.TestCase):
 
             self.assertFalse(results["ready"])
             self.assertFalse(results["workflow_files"][0]["exists"])
-            self.assertFalse(results["data_files"][0]["valid"])
-            self.assertFalse(results["data_files"][0]["required"])
-
-    def test_optional_missing_data_pattern_does_not_fail_readiness(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            project_root = self._build_temp_project(Path(tmp_dir), include_data=False)
-            validator = ProjectSetupValidator(base_path=project_root)
-
-            results = validator.validate()
-
-            self.assertTrue(results["ready"])
-            self.assertFalse(results["data_files"][0]["valid"])
-            self.assertFalse(results["data_files"][0]["required"])
+            self.assertNotIn("data_files", results)
 
 
 if __name__ == "__main__":

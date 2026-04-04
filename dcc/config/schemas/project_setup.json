@@ -149,41 +149,6 @@
         "required": ["filename", "required", "type", "description"]
       }
     },
-    "data_files": {
-      "type": "array",
-      "description": "Expected input data files (located in data)",
-      "items": {
-        "type": "object",
-        "properties": {
-          "pattern": {
-            "type": "string",
-            "description": "Glob pattern for matching data files"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this data file pattern is mandatory"
-          },
-          "minimum_count": {
-            "type": "integer",
-            "description": "Minimum number of files matching the pattern",
-            "minimum": 0
-          },
-          "sheet_name": {
-            "type": "string",
-            "description": "Expected Excel sheet name (may have trailing space)"
-          },
-          "header_row": {
-            "type": "integer",
-            "description": "0-indexed row number for column headers"
-          },
-          "column_range": {
-            "type": "string",
-            "description": "Expected Excel column range (e.g. P:AP)"
-          }
-        },
-        "required": ["pattern", "minimum_count"]
-      }
-    },
     "environment": {
       "type": "array",
       "description": "Environment specifications for the project",
@@ -253,7 +218,6 @@
     "schema_files",
     "workflow_files",
     "tool_files",
-    "data_files",
     "environment",
     "validation_rules"
   ],
@@ -375,16 +339,6 @@
           ]
         }
       ],
-      "data_files": [
-        {
-          "required": false,
-          "pattern": "*.xlsx",
-          "minimum_count": 1,
-          "sheet_name": "Prolog Submittals ",
-          "header_row": 4,
-          "column_range": "P:AP"
-        }
-      ],
       "environment": [
         {
           "name": "conda",
@@ -423,11 +377,6 @@
           "rule": "check_schema_refs",
           "enabled": true,
           "description": "Validate schema file cross-references"
-        },
-        {
-          "rule": "check_data_files",
-          "enabled": true,
-          "description": "Validate input data files exist"
         },
         {
           "rule": "check_environment",

@@ -521,7 +521,6 @@ class DCCProjectSetupTools:
                 for index, item in enumerate(results["schema_refs"])
             },
             "ready_for_distribution": results["ready"],
-            "data_files": results["data_files"],
             "errors": results["errors"],
         }
     

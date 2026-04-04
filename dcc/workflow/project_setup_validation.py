@@ -126,31 +126,6 @@ class ProjectSetupValidator:
                 "file",
             )
 
-    def _validate_data_files(self, results: Dict[str, Any]) -> None:
-        data_dir = self.base_path / "data"
-        for item in self.project_setup.get("data_files", []):
-            if not isinstance(item, dict):
-                continue
-            pattern = item.get("pattern", "")
-            if not pattern:
-                continue
-            required = bool(item.get("required", False))
-            minimum_count = int(item.get("minimum_count", 0))
-            matches = sorted(str(path.relative_to(self.base_path)) for path in data_dir.glob(pattern)) if data_dir.exists() else []
-            results["data_files"].append(
-                {
-                    "pattern": pattern,
-                    "required": required,
-                    "minimum_count": minimum_count,
-                    "match_count": len(matches),
-                    "matches": matches,
-                    "valid": len(matches) >= minimum_count,
-                    "sheet_name": item.get("sheet_name"),
-                    "header_row": item.get("header_row"),
-                    "column_range": item.get("column_range"),
-                }
-            )
-
     def _validate_environment(self, results: Dict[str, Any]) -> None:
         for item in self.project_setup.get("environment", []):
             if not isinstance(item, dict):
@@ -230,7 +205,6 @@ class ProjectSetupValidator:
             "schema_files": [],
             "workflow_files": [],
             "tool_files": [],
-            "data_files": [],
             "environment": [],
             "schema_refs": [],
             "errors": [],
@@ -283,7 +257,6 @@ class ProjectSetupValidator:
                 "filename",
                 "description",
             )
-            self._validate_data_files(results)
             self._validate_environment(results)
 
         if self._rule_enabled("check_schema_refs"):
@@ -301,10 +274,6 @@ class ProjectSetupValidator:
             for item in results.get(section, []):
                 if item.get("required") and not item.get("exists"):
                     return False
-
-        for item in results.get("data_files", []):
-            if item.get("required", False) and not item.get("valid", False):
-                return False
 
         for item in results.get("schema_refs", []):
             if not item.get("exists", False):
@@ -345,18 +314,6 @@ class ProjectSetupValidator:
                 status = "OK" if item["exists"] else ("MISS" if item["required"] else "WARN")
                 required_text = "required" if item["required"] else "optional"
                 lines.append(f"  [{status}] {item['name'] if 'name' in item else Path(item['path']).name} ({required_text}) -> {item['path']}")
-
-        if results.get("data_files"):
-            lines.append("")
-            lines.append("Data File Patterns:")
-            for item in results["data_files"]:
-                status = "OK" if item["valid"] else ("MISS" if item.get("required", False) else "WARN")
-                required_text = "required" if item.get("required", False) else "optional"
-                lines.append(
-                    f"  [{status}] {item['pattern']} ({required_text}) matched {item['match_count']} file(s); minimum {item['minimum_count']}"
-                )
-                for match in item["matches"]:
-                    lines.append(f"      - {match}")
 
         if results.get("schema_refs"):
             lines.append("")
