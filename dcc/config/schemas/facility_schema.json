@@ -1,6 +1,79 @@
 {
   "schema_name": "facility_choices",
   "type": "standard_choices",
+  "data_section": "facility",
+  "field_definitions": {
+    "prefix": {
+      "data_type": "string",
+      "required": true,
+      "validation": {
+        "pattern": "^[A-Z]{3}\\d{2}$",
+        "min_length": 5,
+        "max_length": 5,
+        "unique": true
+      }
+    },
+    "building_description": {
+      "data_type": "string",
+      "required": true,
+      "validation": {
+        "min_length": 1,
+        "max_length": 150,
+        "unique": true
+      }
+    },
+    "project_prefix_sort_order": {
+      "data_type": "numeric",
+      "required": true
+    },
+    "plant_area_name": {
+      "data_type": "string",
+      "required": true,
+      "validation": {
+        "min_length": 1,
+        "max_length": 100
+      }
+    },
+    "plant_area_order": {
+      "data_type": "numeric",
+      "required": true
+    },
+    "work_area": {
+      "data_type": "string",
+      "required": true,
+      "validation": {
+        "min_length": 1,
+        "max_length": 50
+      }
+    },
+    "contract": {
+      "data_type": "string",
+      "required": false,
+      "validation": {
+        "min_length": 1,
+        "max_length": 20
+      }
+    },
+    "Contract_MEICA": {
+      "data_type": "string",
+      "required": false,
+      "validation": {
+        "min_length": 1,
+        "max_length": 20
+      }
+    },
+    "used_for_pid": {
+      "data_type": "boolean",
+      "required": true
+    },
+    "sort_number": {
+      "data_type": "numeric",
+      "required": true,
+      "validation": {
+        "unique": true
+      }
+    }
+  },
   "facility": [
     {
       "prefix": "WDP00",

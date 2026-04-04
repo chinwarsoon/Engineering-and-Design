@@ -1,6 +1,19 @@
 {
   "schema_name": "department_choices",
   "type": "standard_choices",
+  "data_section": "choices",
+  "data_item_type": "scalar",
+  "field_definitions": {
+    "value": {
+      "data_type": "string",
+      "required": true,
+      "validation": {
+        "min_length": 1,
+        "max_length": 50,
+        "unique": true
+      }
+    }
+  },
   "choices": [
     "Project",
     "QAQC", 

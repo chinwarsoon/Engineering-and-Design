@@ -37,6 +37,44 @@ class SchemaValidationTest(unittest.TestCase):
             },
         }
 
+    def _build_lookup_schema_with_field_definitions(self, records: list[dict]) -> dict:
+        return {
+            "schema_name": "approval_code_schema",
+            "type": "status_to_code_mapping",
+            "data_section": "approval",
+            "field_definitions": {
+                "code": {
+                    "data_type": "string",
+                    "required": True,
+                    "validation": {
+                        "pattern": "^[A-Z]{3,4}$",
+                        "min_length": 3,
+                        "max_length": 4,
+                        "unique": True,
+                    },
+                },
+                "status": {
+                    "data_type": "string",
+                    "required": True,
+                    "validation": {
+                        "min_length": 1,
+                        "max_length": 100,
+                        "unique": True,
+                    },
+                },
+                "aliases": {
+                    "data_type": "array[string]",
+                    "required": True,
+                    "validation": {
+                        "min_items": 1,
+                        "unique_items": True,
+                        "global_unique_items": True,
+                    },
+                },
+            },
+            "approval": records,
+        }
+
     def test_schema_validator_reports_ready_for_valid_references(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -117,6 +155,126 @@ class SchemaValidationTest(unittest.TestCase):
             self.assertIn("Circular schema dependency detected", results["errors"][-1])
             self.assertTrue(any(ref["reference"] == "schema_a" for ref in results["references"]))
             self.assertTrue(any(ref["reference"] == "schema_b" for ref in results["references"]))
+
+    def test_schema_validator_enforces_field_definitions_on_referenced_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            schema_path = root / "config" / "schemas" / "dcc_register_enhanced.json"
+            self._write_json(
+                schema_path,
+                {
+                    "enhanced_schema": {"columns": {}},
+                    "schema_references": {
+                        "approval_code_schema": "approval_code_schema.json"
+                    },
+                },
+            )
+            self._write_json(
+                root / "config" / "schemas" / "approval_code_schema.json",
+                self._build_lookup_schema_with_field_definitions(
+                    [
+                        {
+                            "code": "app",
+                            "status": "Approved",
+                            "aliases": ["Approved", "Approved"],
+                        },
+                        {
+                            "code": "APP",
+                            "status": "Approved",
+                            "aliases": ["Approved"],
+                        },
+                    ]
+                ),
+            )
+
+            results = SchemaValidator(schema_path).validate()
+
+            self.assertFalse(results["ready"])
+            self.assertTrue(
+                any("field 'code' does not match pattern" in error for error in results["errors"])
+            )
+            self.assertTrue(
+                any("field 'aliases' contains duplicate items" in error for error in results["errors"])
+            )
+            self.assertTrue(
+                any("field 'status' duplicates record" in error for error in results["errors"])
+            )
+
+    def test_schema_validator_accepts_valid_field_definitions_on_referenced_schema(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            schema_path = root / "config" / "schemas" / "dcc_register_enhanced.json"
+            self._write_json(
+                schema_path,
+                {
+                    "enhanced_schema": {"columns": {}},
+                    "schema_references": {
+                        "approval_code_schema": "approval_code_schema.json"
+                    },
+                },
+            )
+            self._write_json(
+                root / "config" / "schemas" / "approval_code_schema.json",
+                self._build_lookup_schema_with_field_definitions(
+                    [
+                        {
+                            "code": "APP",
+                            "status": "Approved",
+                            "aliases": ["Approved"],
+                        },
+                        {
+                            "code": "AWC",
+                            "status": "Approved with Comments",
+                            "aliases": ["Approved as noted"],
+                        },
+                    ]
+                ),
+            )
+
+            results = SchemaValidator(schema_path).validate()
+
+            self.assertTrue(results["ready"])
+
+    def test_schema_validator_enforces_scalar_field_definitions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            schema_path = root / "config" / "schemas" / "dcc_register_enhanced.json"
+            self._write_json(
+                schema_path,
+                {
+                    "enhanced_schema": {"columns": {}},
+                    "schema_references": {
+                        "department_schema": "department_schema.json"
+                    },
+                },
+            )
+            self._write_json(
+                root / "config" / "schemas" / "department_schema.json",
+                {
+                    "schema_name": "department_choices",
+                    "type": "standard_choices",
+                    "data_section": "choices",
+                    "data_item_type": "scalar",
+                    "field_definitions": {
+                        "value": {
+                            "data_type": "string",
+                            "required": True,
+                            "validation": {
+                                "min_length": 1,
+                                "max_length": 50,
+                                "unique": True,
+                            },
+                        }
+                    },
+                    "choices": ["QAQC", "QAQC", ""],
+                },
+            )
+
+            results = SchemaValidator(schema_path).validate()
+
+            self.assertFalse(results["ready"])
+            self.assertTrue(any("duplicates record" in error for error in results["errors"]))
+            self.assertTrue(any("is shorter than 1" in error for error in results["errors"]))
 
 
 if __name__ == "__main__":
