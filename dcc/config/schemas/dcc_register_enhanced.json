@@ -62,10 +62,144 @@
           "method": "generate_row_index",
           "description": "Auto-generated row index starting from 1 for each imported data row"
         },
-        "validation": {
-          "min_value": 1,
-          "description": "Row index must be a positive integer starting from 1"
-        }
+        "validation": [
+          {
+            "type": "min_value",
+            "min_value": 1,
+            "description": "Row index must be a positive integer starting from 1"
+          }
+        ]
+      },
+      "column_sequence": [
+        "Row_Index",
+        "Submission_Session",
+        "Submission_Session_Revision",
+        "Submission_Session_Subject",
+        "Project_Code",
+        "Facility_Code",
+        "Document_Type",
+        "Discipline",
+        "Document_Sequence_Number",
+        "Document_ID",
+        "Document_Revision",
+        "Document_Title",
+        "Transmittal_Number",
+        "Consolidated_Submission_Session_Subject",
+        "Department",
+        "Submitted_By",
+        "Submission_Date",
+        "First_Submission_Date",
+        "Latest_Submission_Date",
+        "Latest_Revision",
+        "All_Submission_Sessions",
+        "All_Submission_Dates",
+        "All_Submission_Session_Revisions",
+        "Count_of_Submissions",
+        "Reviewer",
+        "Review_Return_Actual_Date",
+        "Review_Return_Plan_Date",
+        "Review_Status"
+      ],
+      "Submission_Session": {
+        "aliases": [
+          "Prolog Submittal No.",
+          "Prolog Submittal No..1",
+          "Submittal No",
+          "Submission Number"
+        ],
+        "data_type": "string",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "create_if_missing": true,
+        "null_handling": {
+          "strategy": "forward_fill",
+          "group_by": [],
+          "fill_value": "0",
+          "formatting": {
+            "zero_pad": 6,
+            "description": "Applied via _apply_forward_fill formatting. Ensures session identifiers are uniformly padded specifically to 6 digits."
+          },
+          "description": "Processed by _apply_forward_fill. Leverages sequential filling combined with zfill formatting to create standardized submission containers."
+        },
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[0-9]{6}$",
+            "description": "Unique submission session identifier (6-digit zero-padded)"
+          }
+        ]
+      },
+      "Submission_Session_Revision": {
+        "aliases": [
+          "Prolog Rev.",
+          "Prolog Rev..1",
+          "Submission Revision"
+        ],
+        "data_type": "string",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "create_if_missing": true,
+        "null_handling": {
+          "strategy": "forward_fill",
+          "group_by": [
+            "Submission_Session"
+          ],
+          "fill_value": "0",
+          "formatting": {
+            "zero_pad": 2,
+            "description": "Format as 2-digit zero-padded string (e.g., 01)"
+          },
+          "na_fallback": true,
+          "description": "Processed by _apply_forward_fill. Performs grouping by Submission_Session and applies 2-digit zero-padding to create unique revision identifiers."
+        },
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[0-9]{2}$",
+            "description": "Revision for this submission (2-digit zero-padded)"
+          }
+        ]
+      },
+      "Submission_Session_Subject": {
+        "aliases": [
+          "Document Description / Drawing Title",
+          "Subject",
+          "Submission Subject"
+        ],
+        "data_type": "string",
+        "required": true,
+        "allow_null": false,
+        "is_calculated": false,
+        "create_if_missing": true,
+        "null_handling": {
+          "strategy": "multi_level_forward_fill",
+          "levels": [
+            {
+              "group_by": [
+                "Submission_Session",
+                "Submission_Session_Revision"
+              ],
+              "description": "Forward fill within same submission session and revision"
+            },
+            {
+              "group_by": [
+                "Submission_Session"
+              ],
+              "description": "Forward fill within same submission session"
+            }
+          ],
+          "final_fill": "NA",
+          "description": "Two-level forward fill per submission sessions if column exists per original dcc_mdl.ipynb logic, with 'NA' used as the final fallback after all forward-fill passes."
+        },
+        "validation": [
+          {
+            "type": "min_length",
+            "min_length": 2,
+            "description": "Subject of the submission"
+          }
+        ]
       },
       "Project_Code": {
         "aliases": [
@@ -84,10 +218,20 @@
           "default_value": "NA",
           "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
         },
-        "validation": {
-          "pattern": "^[A-Z0-9-]*$",
-          "description": "Validated by _apply_validation using regex pattern matching. Warns if identifier contains non-alphanumeric characters."
-        }
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[A-Z0-9-]*$",
+            "description": "Validated by _apply_validation using regex pattern matching. Warns if identifier contains non-alphanumeric characters."
+          },
+          {
+            "type": "schema_reference_check",
+            "reference": "project_schema",
+            "data_section": "project",
+            "field": "code",
+            "description": "Validated by _apply_validation against project_schema.project[*].code to ensure Project_Code exists in the approved project code list."
+          }
+        ]
       },
       "Facility_Code": {
         "aliases": [
@@ -106,10 +250,20 @@
           "default_value": "NA",
           "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
         },
-        "validation": {
-          "pattern": "^[A-Z0-9-]*$",
-          "description": "Validated by _apply_validation using regex pattern matching. Warns if prefix contains non-alphanumeric characters."
-        }
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[A-Z0-9-]*$",
+            "description": "Validated by _apply_validation using regex pattern matching. Warns if prefix contains non-alphanumeric characters."
+          },
+          {
+            "type": "schema_reference_check",
+            "reference": "facility_schema",
+            "data_section": "facility",
+            "field": "prefix",
+            "description": "Validated by _apply_validation against facility_schema.facility[*].prefix to ensure Facility_Code exists in the approved facility prefix list."
+          }
+        ]
       },
       "Document_Type": {
         "aliases": [
@@ -127,7 +281,16 @@
           "strategy": "default_value",
           "default_value": "NA",
           "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
-        }
+        },
+        "validation": [
+          {
+            "type": "schema_reference_check",
+            "reference": "document_type_schema",
+            "data_section": "document",
+            "field": "code",
+            "description": "Validated by _apply_validation against document_type_schema.document[*].code to ensure Document_Type exists in the approved document type code list."
+          }
+        ]
       },
       "Discipline": {
         "aliases": [
@@ -145,7 +308,16 @@
           "strategy": "default_value",
           "default_value": "NA",
           "description": "Processed by _apply_default_value. Fills nulls with 'NA' to ensure Document_ID calculation remains valid."
-        }
+        },
+        "validation": [
+          {
+            "type": "schema_reference_check",
+            "reference": "discipline_schema",
+            "data_section": "discipline",
+            "field": "code",
+            "description": "Validated by _apply_validation against discipline_schema.discipline[*].code to ensure Discipline exists in the approved discipline code list."
+          }
+        ]
       },
       "Document_Sequence_Number": {
         "aliases": [
@@ -160,17 +332,20 @@
         "create_if_missing": true,
         "null_handling": {
           "strategy": "default_value",
-          "default_value": "0000",
+          "default_value": "9999",
           "formatting": {
             "zero_pad": 4,
-            "description": "Apply zero-padding to numeric values (e.g., 1 → 0001). Text values remain unchanged."
+            "description": "Apply zero-padding to numeric values (e.g., 1 \u2192 0001). Text values remain unchanged."
           },
           "description": "Processed by _apply_default_value. Fills nulls with '0000' to ensure Document_ID calculation remains valid. Numeric values are zero-padded to 4 digits."
         },
-        "validation": {
-          "pattern": "^[0-9]{4}$",
-          "description": "Validated by _apply_validation using regex pattern matching. Ensures only numeric characters are used."
-        }
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[0-9]{4}$",
+            "description": "Validated by _apply_validation using regex pattern matching. Ensures only numeric characters are used."
+          }
+        ]
       },
       "Document_ID": {
         "aliases": [
@@ -201,10 +376,13 @@
           "strategy": "leave_null",
           "description": "Leave null values as-is; will be populated by is_calculated logic (composite/build_document_id)."
         },
-        "validation": {
-          "pattern": "^[A-Z0-9-]+$",
-          "description": "Validated by _apply_validation using regex pattern matching. Ensures the final ID contains only uppercase, numeric, and hyphen characters."
-        }
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[A-Z0-9-]+$",
+            "description": "Validated by _apply_validation using regex pattern matching. Ensures the final ID contains only uppercase, numeric, and hyphen characters."
+          }
+        ]
       },
       "Document_Revision": {
         "aliases": [
@@ -246,10 +424,13 @@
           "final_fill": "NA",
           "description": "Processed by _apply_multi_level_forward_fill. Performs sequential forward filling based on the nesting levels [DocID > Session > Revision] to maintain revision history consistency across rows."
         },
-        "validation": {
-          "pattern": "^[A-Z0-9.]*$",
-          "description": "Revision number or identifier (optional)"
-        }
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[A-Z0-9.]*$",
+            "description": "Revision number or identifier (optional)"
+          }
+        ]
       },
       "Document_Title": {
         "aliases": [
@@ -269,10 +450,13 @@
           "default_value": "NA",
           "description": "Processed by _apply_default_value. Fills nulls with 'NA'."
         },
-        "validation": {
-          "min_length": 2,
-          "description": "Document title must be at least 2 characters"
-        }
+        "validation": [
+          {
+            "type": "min_length",
+            "min_length": 2,
+            "description": "Document title must be at least 2 characters"
+          }
+        ]
       },
       "Transmittal_Number": {
         "aliases": [
@@ -296,102 +480,13 @@
           "type_conversion": "string",
           "description": "Processed by _apply_default_value. Performs string conversion, executes explicit text replacements (nan/N.A.), and fills gaps with 'NA' to ensure data type uniformity."
         },
-        "validation": {
-          "pattern": "^[A-Z0-9-]*$",
-          "description": "Transmittal reference number"
-        }
-      },
-      "Submission_Session": {
-        "aliases": [
-          "Prolog Submittal No.",
-          "Prolog Submittal No..1",
-          "Submittal No",
-          "Submission Number"
-        ],
-        "data_type": "string",
-        "required": true,
-        "allow_null": false,
-        "is_calculated": false,
-        "create_if_missing": true,
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": [],
-          "fill_value": "0",
-          "formatting": {
-            "zero_pad": 6,
-            "description": "Applied via _apply_forward_fill formatting. Ensures session identifiers are uniformly padded specifically to 6 digits."
-          },
-          "description": "Processed by _apply_forward_fill. Leverages sequential filling combined with zfill formatting to create standardized submission containers."
-        },
-        "validation": {
-          "pattern": "^[0-9]{6}$",
-          "description": "Unique submission session identifier (6-digit zero-padded)"
-        }
-      },
-      "Submission_Session_Revision": {
-        "aliases": [
-          "Prolog Rev.",
-          "Prolog Rev..1",
-          "Submission Revision"
-        ],
-        "data_type": "string",
-        "required": true,
-        "allow_null": false,
-        "is_calculated": false,
-        "create_if_missing": true,
-        "null_handling": {
-          "strategy": "forward_fill",
-          "group_by": [
-            "Submission_Session"
-          ],
-          "fill_value": "0",
-          "formatting": {
-            "zero_pad": 2,
-            "description": "Format as 2-digit zero-padded string (e.g., 01)"
-          },
-          "na_fallback": true,
-          "description": "Processed by _apply_forward_fill. Performs grouping by Submission_Session and applies 2-digit zero-padding to create unique revision identifiers."
-        },
-        "validation": {
-          "pattern": "^[0-9]{2}$",
-          "description": "Revision for this submission (2-digit zero-padded)"
-        }
-      },
-      "Submission_Session_Subject": {
-        "aliases": [
-          "Document Description / Drawing Title",
-          "Subject",
-          "Submission Subject"
-        ],
-        "data_type": "string",
-        "required": true,
-        "allow_null": false,
-        "is_calculated": false,
-        "create_if_missing": true,
-        "null_handling": {
-          "strategy": "multi_level_forward_fill",
-          "levels": [
-            {
-              "group_by": [
-                "Submission_Session",
-                "Submission_Session_Revision"
-              ],
-              "description": "Forward fill within same submission session and revision"
-            },
-            {
-              "group_by": [
-                "Submission_Session"
-              ],
-              "description": "Forward fill within same submission session"
-            }
-          ],
-          "final_fill": "NA",
-          "description": "Two-level forward fill per submission sessions if column exists per original dcc_mdl.ipynb logic, with 'NA' used as the final fallback after all forward-fill passes."
-        },
-        "validation": {
-          "min_length": 2,
-          "description": "Subject of the submission"
-        }
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[A-Z0-9-]*$",
+            "description": "Transmittal reference number"
+          }
+        ]
       },
       "Consolidated_Submission_Session_Subject": {
         "aliases": [
@@ -416,9 +511,12 @@
           "filter_na": true,
           "description": "Executed via _apply_aggregate_calculation using method 'concatenate_unique_quoted'. Groups subjects by Document_ID and applies quoting to each fragment for cross-reference readability."
         },
-        "validation": {
-          "description": "Consolidated submission subjects for each document"
-        }
+        "validation": [
+          {
+            "type": "info",
+            "description": "Consolidated submission subjects for each document"
+          }
+        ]
       },
       "Department": {
         "aliases": [
@@ -485,10 +583,13 @@
           "final_fill": "NA",
           "description": "Processed via _apply_multi_level_forward_fill. Maintains submitter continuity within submission sessions using sequential grouping, with 'NA' assigned as the final fallback value."
         },
-        "validation": {
-          "min_length": 2,
-          "description": "Name of document submitter"
-        }
+        "validation": [
+          {
+            "type": "min_length",
+            "min_length": 2,
+            "description": "Name of document submitter"
+          }
+        ]
       },
       "Submission_Date": {
         "aliases": [
@@ -523,10 +624,13 @@
             "description": "Executed via _apply_multi_level_forward_fill. Performs explicit datetime coercion for all input formats to enable chronological sorting and aggregation."
           }
         },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Date of submission"
-        }
+        "validation": [
+          {
+            "type": "format",
+            "format": "YYYY-MM-DD",
+            "description": "Date of submission"
+          }
+        ]
       },
       "First_Submission_Date": {
         "aliases": [
@@ -548,10 +652,13 @@
           ],
           "description": "Calculated via _apply_aggregate_calculation with method 'min'. Identifies the earliest datetime recorded in the submission history for the unique document."
         },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Date of first submission"
-        },
+        "validation": [
+          {
+            "type": "format",
+            "format": "YYYY-MM-DD",
+            "description": "Date of first submission"
+          }
+        ],
         "processing": {
           "auto_format": true,
           "timezone_aware": false
@@ -576,10 +683,13 @@
           ],
           "description": "Calculated via _apply_aggregate_calculation with method 'max'. Identifies the most recent datetime recorded in the submission history for the unique document."
         },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Date of latest submission"
-        },
+        "validation": [
+          {
+            "type": "format",
+            "format": "YYYY-MM-DD",
+            "description": "Date of latest submission"
+          }
+        ],
         "processing": {
           "auto_format": true,
           "timezone_aware": false
@@ -621,10 +731,13 @@
           },
           "description": "Calculated via _apply_latest_by_date_calculation. Sorts submissions by date (descending), filters out 'NA', and identifies the current state for each unique document."
         },
-        "validation": {
-          "pattern": "^[A-Z0-9.]+$",
-          "description": "Latest revision number"
-        }
+        "validation": [
+          {
+            "type": "pattern",
+            "pattern": "^[A-Z0-9.]+$",
+            "description": "Latest revision number"
+          }
+        ]
       },
       "All_Submission_Sessions": {
         "aliases": [
@@ -646,9 +759,12 @@
           "separator": "&&",
           "description": "Executed via _apply_aggregate_calculation using method 'concatenate_unique'. Creates a non-redundant historical list of every submission session ID associated with the document."
         },
-        "validation": {
-          "description": "All submission session identifiers"
-        }
+        "validation": [
+          {
+            "type": "info",
+            "description": "All submission session identifiers"
+          }
+        ]
       },
       "All_Submission_Dates": {
         "aliases": [
@@ -674,9 +790,12 @@
           ],
           "description": "Executed via _apply_aggregate_calculation using method 'concatenate_dates'. Performs date format enforcement and chronological joining of all submission date occurrences."
         },
-        "validation": {
-          "description": "All submission dates"
-        }
+        "validation": [
+          {
+            "type": "info",
+            "description": "All submission dates"
+          }
+        ]
       },
       "All_Submission_Session_Revisions": {
         "aliases": [
@@ -701,9 +820,12 @@
           ],
           "description": "Executed via _apply_aggregate_calculation using method 'concatenate_unique'. Joins every distinct revision number identified in the document history."
         },
-        "validation": {
-          "description": "All revision numbers for submissions"
-        }
+        "validation": [
+          {
+            "type": "info",
+            "description": "All revision numbers for submissions"
+          }
+        ]
       },
       "Count_of_Submissions": {
         "aliases": [
@@ -726,11 +848,18 @@
           "transform": true,
           "description": "Calculated via _apply_aggregate_calculation with method 'count'. Performs a grouping count of Document_ID instances and broadcasts the result to all associated rows using 'transform'."
         },
-        "validation": {
-          "min_value": 1,
-          "max_value": 100,
-          "description": "Total number of submissions"
-        }
+        "validation": [
+          {
+            "type": "min_value",
+            "min_value": 1,
+            "description": "Total number of submissions"
+          },
+          {
+            "type": "max_value",
+            "max_value": 100,
+            "description": "Total number of submissions"
+          }
+        ]
       },
       "Reviewer": {
         "aliases": [
@@ -753,10 +882,13 @@
           "na_fallback": true,
           "description": "Processed by _apply_forward_fill. Performs grouping by Session ID to ensure the assigned reviewer is consistently mapped across all documents within the same submission container."
         },
-        "validation": {
-          "min_length": 2,
-          "description": "Name of reviewer"
-        }
+        "validation": [
+          {
+            "type": "min_length",
+            "min_length": 2,
+            "description": "Name of reviewer"
+          }
+        ]
       },
       "Review_Return_Actual_Date": {
         "aliases": [
@@ -790,10 +922,13 @@
           },
           "description": "Processed by _apply_multi_level_forward_fill. Leverages datetime coercion, revision-level grouping, and explicit string conversion of session revisions to ensure precise historical tracking of response dates."
         },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Actual date when S.O. responded to review"
-        },
+        "validation": [
+          {
+            "type": "format",
+            "format": "YYYY-MM-DD",
+            "description": "Actual date when S.O. responded to review"
+          }
+        ],
         "processing": {
           "auto_format": true,
           "timezone_aware": false
@@ -850,10 +985,13 @@
           "strategy": "leave_null",
           "description": "Leave null values as-is; will be populated by is_calculated logic (conditional_date_calculation/calculate_review_return_plan_date)."
         },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Calculated planned date when S.O. is expected to respond to review"
-        },
+        "validation": [
+          {
+            "type": "format",
+            "format": "YYYY-MM-DD",
+            "description": "Calculated planned date when S.O. is expected to respond to review"
+          }
+        ],
         "processing": {
           "auto_format": true,
           "timezone_aware": false,
@@ -883,16 +1021,19 @@
           "fill_value": "Pending",
           "description": "Processed by _apply_forward_fill. Leverages cross-row grouping within the same session ID and assigns 'Pending' as the default state for unreviewed rows."
         },
-        "validation": {
-          "allowed_values": [
-            "Approved",
-            "Rejected",
-            "Pending",
-            "Approved with Comments",
-            "Not Approved"
-          ],
-          "description": "Review status for submission"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "Approved",
+              "Rejected",
+              "Pending",
+              "Approved with Comments",
+              "Not Approved"
+            ],
+            "description": "Review status for submission"
+          }
+        ]
       },
       "Review_Status_Code": {
         "aliases": [
@@ -912,18 +1053,21 @@
           "mapping_reference": "approval_code_schema",
           "description": "Calculated via _apply_mapping_calculation using method 'status_to_code'. Transforms textual status labels into standardized shorthand codes defined in the mapping reference."
         },
-        "validation": {
-          "allowed_values": [
-            "APP",
-            "REJ",
-            "PEN",
-            "AWC",
-            "NAP",
-            "INF",
-            "VOID"
-          ],
-          "description": "Review status code"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "APP",
+              "REJ",
+              "PEN",
+              "AWC",
+              "NAP",
+              "INF",
+              "VOID"
+            ],
+            "description": "Review status code"
+          }
+        ]
       },
       "Approval_Code": {
         "aliases": [
@@ -952,18 +1096,21 @@
           "default": "PEN",
           "description": "Calculated via _apply_mapping_calculation using an explicit internal mapping. Directly converts approval statuses to standardized APP/REJ/PEN codes with a PEN fallback."
         },
-        "validation": {
-          "allowed_values": [
-            "APP",
-            "REJ",
-            "PEN",
-            "AWC",
-            "NAP",
-            "INF",
-            "VOID"
-          ],
-          "description": "Standard approval codes"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "APP",
+              "REJ",
+              "PEN",
+              "AWC",
+              "NAP",
+              "INF",
+              "VOID"
+            ],
+            "description": "Standard approval codes"
+          }
+        ]
       },
       "Review_Comments": {
         "aliases": [
@@ -1000,10 +1147,13 @@
           },
           "description": "Processed by _apply_multi_level_forward_fill. Sequentially groups by [Session > Revision] with an 'if_column_exists' pre-check to maintain comments across associated rows."
         },
-        "validation": {
-          "max_length": 2000,
-          "description": "Review comments and feedback"
-        }
+        "validation": [
+          {
+            "type": "max_length",
+            "max_length": 2000,
+            "description": "Review comments and feedback"
+          }
+        ]
       },
       "Latest_Approval_Status": {
         "aliases": [
@@ -1051,16 +1201,19 @@
           },
           "description": "Calculated via _apply_latest_by_date_calculation with method 'latest_non_pending_status'. Performs textual cleaning (regex strip), excludes 'Pending' states, and identifies the most recent conclusive approval for each document."
         },
-        "validation": {
-          "allowed_values": [
-            "Approved",
-            "Rejected",
-            "Pending",
-            "Approved with Comments",
-            "Not Approved"
-          ],
-          "description": "Latest approval status"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "Approved",
+              "Rejected",
+              "Pending",
+              "Approved with Comments",
+              "Not Approved"
+            ],
+            "description": "Latest approval status"
+          }
+        ]
       },
       "Latest_Approval_Code": {
         "aliases": [
@@ -1089,18 +1242,21 @@
           },
           "description": "Calculated via _apply_mapping_calculation. Enhances data quality through forward-slash removal and whitespace stripping before mapping the latest status to a standard code."
         },
-        "validation": {
-          "allowed_values": [
-            "APP",
-            "REJ",
-            "PEN",
-            "AWC",
-            "NAP",
-            "INF",
-            "VOID"
-          ],
-          "description": "Latest approval code"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "APP",
+              "REJ",
+              "PEN",
+              "AWC",
+              "NAP",
+              "INF",
+              "VOID"
+            ],
+            "description": "Latest approval code"
+          }
+        ]
       },
       "All_Approval_Code": {
         "aliases": [
@@ -1128,9 +1284,12 @@
           ],
           "description": "Concatenates all unique approval codes for each document"
         },
-        "validation": {
-          "description": "Historical approval codes for all revisions"
-        }
+        "validation": [
+          {
+            "type": "info",
+            "description": "Historical approval codes for all revisions"
+          }
+        ]
       },
       "Duration_of_Review": {
         "aliases": [
@@ -1200,11 +1359,18 @@
           },
           "description": "Calculated via conditional_business_day_calculation. Differentiates between calendar days and NumPy-powered business day counts based on project-level parameters. Includes non-negative enforcement."
         },
-        "validation": {
-          "min_value": 0,
-          "max_value": 365,
-          "description": "Duration of review in days"
-        }
+        "validation": [
+          {
+            "type": "min_value",
+            "min_value": 0,
+            "description": "Duration of review in days"
+          },
+          {
+            "type": "max_value",
+            "max_value": 365,
+            "description": "Duration of review in days"
+          }
+        ]
       },
       "Submission_Closed": {
         "aliases": [
@@ -1259,13 +1425,16 @@
           },
           "description": "Calculated via status_based conditional mapping. Merges current closure status with Latest_Approval_Code to determine if the document lifecycle has reached a terminal state (APP/VOID/INF)."
         },
-        "validation": {
-          "allowed_values": [
-            "YES",
-            "NO"
-          ],
-          "description": "Submission closure status"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "YES",
+              "NO"
+            ],
+            "description": "Submission closure status"
+          }
+        ]
       },
       "Resubmission_Required": {
         "aliases": [
@@ -1310,13 +1479,16 @@
           ],
           "description": "Executed via update_resubmission_required conditional check. Inherits existing flags unless the Submission_Closed state overrides the requirement to 'NO'."
         },
-        "validation": {
-          "allowed_values": [
-            "YES",
-            "NO"
-          ],
-          "description": "Resubmission requirement status"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "YES",
+              "NO"
+            ],
+            "description": "Resubmission requirement status"
+          }
+        ]
       },
       "Resubmission_Plan_Date": {
         "aliases": [
@@ -1373,10 +1545,13 @@
           },
           "description": "Calculated via custom_conditional_date logic. Applies multi-staged duration offsets (First Review + Resubmission vs Second Review + Resubmission) based on document status and terminal state checks."
         },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Target date for resubmission"
-        },
+        "validation": [
+          {
+            "type": "format",
+            "format": "YYYY-MM-DD",
+            "description": "Target date for resubmission"
+          }
+        ],
         "processing": {
           "auto_format": true,
           "timezone_aware": false
@@ -1421,10 +1596,13 @@
           "final_fill": "keep_null",
           "description": "Processed by _apply_multi_level_forward_fill. Employs a multi-stage fallback strategy (Session+Revision -> Session-only) to preserve forecasted targets during iterative reviews."
         },
-        "validation": {
-          "format": "YYYY-MM-DD",
-          "description": "Forecast date for resubmission"
-        },
+        "validation": [
+          {
+            "type": "format",
+            "format": "YYYY-MM-DD",
+            "description": "Forecast date for resubmission"
+          }
+        ],
         "processing": {
           "auto_format": true,
           "timezone_aware": false,
@@ -1469,14 +1647,17 @@
           },
           "description": "Calculated via calculate_overdue_status. Performs a time-relative comparison between the plan date and current_date, while accounting for actual submittal arrivals."
         },
-        "validation": {
-          "allowed_values": [
-            "Resubmitted",
-            "Overdue",
-            "NO"
-          ],
-          "description": "Resubmission overdue status"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "Resubmitted",
+              "Overdue",
+              "NO"
+            ],
+            "description": "Resubmission overdue status"
+          }
+        ]
       },
       "Delay_of_Resubmission": {
         "aliases": [
@@ -1524,11 +1705,18 @@
           },
           "description": "Calculated via complex_lookup logic. Identifies delay by finding the maximum previous plan date for the same Document_ID and calculating the calendar variance against the current submission."
         },
-        "validation": {
-          "min_value": 0,
-          "max_value": 365,
-          "description": "Number of days delayed for resubmission"
-        }
+        "validation": [
+          {
+            "type": "min_value",
+            "min_value": 0,
+            "description": "Number of days delayed for resubmission"
+          },
+          {
+            "type": "max_value",
+            "max_value": 365,
+            "description": "Number of days delayed for resubmission"
+          }
+        ]
       },
       "Notes": {
         "aliases": [
@@ -1548,10 +1736,13 @@
           "default_value": "",
           "description": "Processed by _apply_default_value. Ensures the column contains a string (empty by default) to prevent numeric-only column detection issues."
         },
-        "validation": {
-          "max_length": 2000,
-          "description": "Additional notes or remarks"
-        }
+        "validation": [
+          {
+            "type": "max_length",
+            "max_length": 2000,
+            "description": "Additional notes or remarks"
+          }
+        ]
       },
       "Submission_Reference_1": {
         "aliases": [
@@ -1573,9 +1764,12 @@
           "na_fallback": true,
           "description": "Processed by _apply_forward_fill. Synchronizes secondary references across all rows of the same Document_ID to maintain cross-system metadata parity."
         },
-        "validation": {
-          "description": "Additional submission reference"
-        }
+        "validation": [
+          {
+            "type": "info",
+            "description": "Additional submission reference"
+          }
+        ]
       },
       "Internal_Reference": {
         "aliases": [
@@ -1597,9 +1791,12 @@
           "na_fallback": true,
           "description": "Processed by _apply_forward_fill. Synchronizes internal reference numbers across all rows of the same Document_ID to ensure consistent tracking."
         },
-        "validation": {
-          "description": "Internal reference number"
-        }
+        "validation": [
+          {
+            "type": "info",
+            "description": "Internal reference number"
+          }
+        ]
       },
       "This_Submission_Approval_Code": {
         "aliases": [
@@ -1618,18 +1815,21 @@
           "condition": "is_current_submission",
           "description": "Calculated via direct copy mapping. Isolates the approval code for the current row to differentiate from historical aggregate statuses."
         },
-        "validation": {
-          "allowed_values": [
-            "APP",
-            "REJ",
-            "PEN",
-            "AWC",
-            "NAP",
-            "INF",
-            "VOID"
-          ],
-          "description": "Approval code for current submission"
-        }
+        "validation": [
+          {
+            "type": "allowed_values",
+            "allowed_values": [
+              "APP",
+              "REJ",
+              "PEN",
+              "AWC",
+              "NAP",
+              "INF",
+              "VOID"
+            ],
+            "description": "Approval code for current submission"
+          }
+        ]
       }
     },
     "column_groups": {

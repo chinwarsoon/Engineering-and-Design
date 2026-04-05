@@ -1466,107 +1466,208 @@ class UniversalDocumentProcessor:
             null_count = df_validated[column_name].isna().sum()
             if not allow_null and null_count > 0:
                 logger.warning(f"Validation failed for {column_name}: contains {null_count} nulls but allow_null is False")
-                
-            validation = column_def.get('validation', {})
-            
-            # Apply pattern validation
-            if 'pattern' in validation:
-                pattern = validation['pattern']
-                # Convert to string for pattern matching
-                df_str = df_validated[column_name].astype(str)
-                mask = ~df_str.str.match(pattern)
-                if allow_null:
-                    mask &= df_validated[column_name].notna()
-                invalid_count = mask.sum()
-                if invalid_count > 0:
-                    logger.warning(f"Pattern validation failed for {column_name}: {invalid_count} invalid values")
-            
-            # Apply min/max length validation
-            if 'min_length' in validation:
-                min_len = validation['min_length']
-                df_str = df_validated[column_name].astype(str)
-                mask = df_str.str.len() < min_len
-                if allow_null:
-                    mask &= df_validated[column_name].notna()
-                invalid_count = mask.sum()
-                if invalid_count > 0:
-                    logger.warning(f"Min length validation failed for {column_name}: {invalid_count} values too short")
-                    
-            if 'max_length' in validation:
-                max_len = validation['max_length']
-                mask = df_validated[column_name].astype(str).str.len() > max_len
-                if allow_null:
-                    mask &= df_validated[column_name].notna()
-                if mask.sum() > 0:
-                    logger.warning(f"Max length validation failed for {column_name}: {mask.sum()} values too long")
-                    
-            if 'max_value' in validation:
-                max_val = validation['max_value']
-                mask = pd.to_numeric(df_validated[column_name], errors='coerce') > max_val
-                if allow_null:
-                    mask &= df_validated[column_name].notna()
-                if mask.sum() > 0:
-                    logger.warning(f"Max value validation failed for {column_name}: {mask.sum()} numeric values > {max_val}")
-                    
-            if 'min_value' in validation:
-                min_val = validation['min_value']
-                mask = pd.to_numeric(df_validated[column_name], errors='coerce') < min_val
-                if allow_null:
-                    mask &= df_validated[column_name].notna()
-                if mask.sum() > 0:
-                    logger.warning(f"Min value validation failed for {column_name}: {mask.sum()} numeric values < {min_val}")
-                    
-            if 'format' in validation and validation['format'] == 'YYYY-MM-DD':
-                parsed = pd.to_datetime(df_validated[column_name], format="%Y-%m-%d", errors='coerce')
-                mask = parsed.isna() & df_validated[column_name].notna() & (df_validated[column_name] != 'NA')
-                if allow_null:
-                    mask &= df_validated[column_name].notna()
-                if mask.sum() > 0:
-                    logger.warning(f"Format validation (YYYY-MM-DD) failed for {column_name}: {mask.sum()} invalid dates")
-            
-            # Apply allowed values validation from schema rules
-            if 'allowed_values' in validation:
-                allowed = validation['allowed_values']
-                mask = ~df_validated[column_name].isin(allowed)
-                if allow_null:
-                    mask &= df_validated[column_name].notna()
-                invalid_count = mask.sum()
-                if invalid_count > 0:
-                    logger.warning(f"Allowed values validation failed for {column_name}: {invalid_count} invalid values")
-            
-            # Apply schema_reference validation (for external schema files like document_type_schema, discipline_schema)
+
+            validation_rules = self._normalize_validation_rules(column_def.get('validation', {}))
+
+            for validation in validation_rules:
+                rule_type = validation.get('type')
+
+                if rule_type == 'pattern' or ('pattern' in validation and rule_type is None):
+                    pattern = validation['pattern']
+                    df_str = df_validated[column_name].astype(str)
+                    mask = ~df_str.str.match(pattern)
+                    if allow_null:
+                        mask &= df_validated[column_name].notna()
+                    invalid_count = mask.sum()
+                    if invalid_count > 0:
+                        logger.warning(f"Pattern validation failed for {column_name}: {invalid_count} invalid values")
+
+                if rule_type == 'min_length' or ('min_length' in validation and rule_type is None):
+                    min_len = validation['min_length']
+                    df_str = df_validated[column_name].astype(str)
+                    mask = df_str.str.len() < min_len
+                    if allow_null:
+                        mask &= df_validated[column_name].notna()
+                    invalid_count = mask.sum()
+                    if invalid_count > 0:
+                        logger.warning(f"Min length validation failed for {column_name}: {invalid_count} values too short")
+
+                if rule_type == 'max_length' or ('max_length' in validation and rule_type is None):
+                    max_len = validation['max_length']
+                    mask = df_validated[column_name].astype(str).str.len() > max_len
+                    if allow_null:
+                        mask &= df_validated[column_name].notna()
+                    if mask.sum() > 0:
+                        logger.warning(f"Max length validation failed for {column_name}: {mask.sum()} values too long")
+
+                if rule_type == 'max_value' or ('max_value' in validation and rule_type is None):
+                    max_val = validation['max_value']
+                    mask = pd.to_numeric(df_validated[column_name], errors='coerce') > max_val
+                    if allow_null:
+                        mask &= df_validated[column_name].notna()
+                    if mask.sum() > 0:
+                        logger.warning(f"Max value validation failed for {column_name}: {mask.sum()} numeric values > {max_val}")
+
+                if rule_type == 'min_value' or ('min_value' in validation and rule_type is None):
+                    min_val = validation['min_value']
+                    mask = pd.to_numeric(df_validated[column_name], errors='coerce') < min_val
+                    if allow_null:
+                        mask &= df_validated[column_name].notna()
+                    if mask.sum() > 0:
+                        logger.warning(f"Min value validation failed for {column_name}: {mask.sum()} numeric values < {min_val}")
+
+                if (rule_type == 'format' or ('format' in validation and rule_type is None)) and validation.get('format') == 'YYYY-MM-DD':
+                    parsed = pd.to_datetime(df_validated[column_name], format="%Y-%m-%d", errors='coerce')
+                    mask = parsed.isna() & df_validated[column_name].notna() & (df_validated[column_name] != 'NA')
+                    if allow_null:
+                        mask &= df_validated[column_name].notna()
+                    if mask.sum() > 0:
+                        logger.warning(f"Format validation (YYYY-MM-DD) failed for {column_name}: {mask.sum()} invalid dates")
+
+                if rule_type == 'allowed_values' or ('allowed_values' in validation and rule_type is None):
+                    allowed = validation['allowed_values']
+                    mask = ~df_validated[column_name].isin(allowed)
+                    if allow_null:
+                        mask &= df_validated[column_name].notna()
+                    invalid_count = mask.sum()
+                    if invalid_count > 0:
+                        logger.warning(f"Allowed values validation failed for {column_name}: {invalid_count} invalid values")
+
+                if rule_type == 'schema_reference_check':
+                    schema_ref = validation.get('reference') or column_def.get('schema_reference')
+                    if schema_ref:
+                        self._apply_schema_reference_validation(
+                            df_validated,
+                            column_name,
+                            allow_null,
+                            schema_ref,
+                            data_section=validation.get('data_section'),
+                            field_name=validation.get('field'),
+                        )
+
+            # Backward-compatible default schema_reference validation when no
+            # explicit schema_reference_check rule is declared.
+            has_explicit_schema_ref_rule = any(
+                rule.get('type') == 'schema_reference_check' for rule in validation_rules
+            )
             schema_ref = column_def.get('schema_reference')
-            if schema_ref:
-                ref_data = self.schema_data.get(f'{schema_ref}_data', {})
-                if ref_data:
-                    # Find array key containing code/description objects (document, discipline, etc.)
-                    array_key = None
-                    for key in ref_data.keys():
-                        if isinstance(ref_data[key], list) and len(ref_data[key]) > 0:
-                            if isinstance(ref_data[key][0], dict) and 'code' in ref_data[key][0]:
-                                array_key = key
-                                break
-                    
-                    if array_key:
-                        # Handle new format: array with code/description objects
-                        allowed_codes = [item.get('code') for item in ref_data[array_key] if item.get('code')]
-                        mask = ~df_validated[column_name].isin(allowed_codes)
-                        if allow_null:
-                            mask &= df_validated[column_name].notna()
-                        invalid_count = mask.sum()
-                        if invalid_count > 0:
-                            logger.warning(f"Schema reference validation failed for {column_name}: {invalid_count} values not in {schema_ref}")
-                    # Handle old format: choices array
-                    elif 'choices' in ref_data:
-                        allowed = ref_data.get('choices', [])
-                        mask = ~df_validated[column_name].isin(allowed)
-                        if allow_null:
-                            mask &= df_validated[column_name].notna()
-                        invalid_count = mask.sum()
-                        if invalid_count > 0:
-                            logger.warning(f"Schema reference validation failed for {column_name}: {invalid_count} invalid values")
+            if schema_ref and not has_explicit_schema_ref_rule:
+                self._apply_schema_reference_validation(
+                    df_validated, column_name, allow_null, schema_ref
+                )
         
         return df_validated
+
+    def _normalize_validation_rules(self, validation: Any) -> List[Dict[str, Any]]:
+        """Normalize validation config to a list of rule objects."""
+        if isinstance(validation, list):
+            return [rule for rule in validation if isinstance(rule, dict)]
+        if isinstance(validation, dict):
+            scalar_keys = {
+                'pattern',
+                'min_length',
+                'max_length',
+                'min_value',
+                'max_value',
+                'format',
+                'allowed_values',
+            }
+            nested_rule_keys = {'schema_reference_check'}
+            rules: List[Dict[str, Any]] = []
+
+            for key in scalar_keys:
+                if key in validation:
+                    rule = {'type': key, key: validation[key]}
+                    if 'description' in validation:
+                        rule['description'] = validation['description']
+                    rules.append(rule)
+
+            for key in nested_rule_keys:
+                value = validation.get(key)
+                if isinstance(value, dict):
+                    rule = {'type': key, **value}
+                    rules.append(rule)
+
+            return rules
+        return []
+
+    def _apply_schema_reference_validation(
+        self,
+        df: pd.DataFrame,
+        column_name: str,
+        allow_null: bool,
+        schema_ref: str,
+        data_section: Optional[str] = None,
+        field_name: Optional[str] = None,
+    ) -> None:
+        """Validate a column against allowed values from a referenced schema."""
+        ref_data = self.schema_data.get(f'{schema_ref}_data', {})
+        if not ref_data:
+            return
+
+        allowed_codes = self._get_schema_reference_allowed_codes(
+            ref_data,
+            data_section=data_section,
+            field_name=field_name,
+        )
+        if allowed_codes is not None:
+            mask = ~df[column_name].isin(allowed_codes)
+            if allow_null:
+                mask &= df[column_name].notna()
+            invalid_count = mask.sum()
+            if invalid_count > 0:
+                logger.warning(
+                    f"Schema reference validation failed for {column_name}: "
+                    f"{invalid_count} values not in {schema_ref}"
+                )
+            return
+
+        if 'choices' in ref_data:
+            allowed = ref_data.get('choices', [])
+            mask = ~df[column_name].isin(allowed)
+            if allow_null:
+                mask &= df[column_name].notna()
+            invalid_count = mask.sum()
+            if invalid_count > 0:
+                logger.warning(f"Schema reference validation failed for {column_name}: {invalid_count} invalid values")
+
+    def _get_schema_reference_allowed_codes(
+        self,
+        ref_data: Dict[str, Any],
+        data_section: Optional[str] = None,
+        field_name: Optional[str] = None,
+    ) -> Optional[List[str]]:
+        """
+        Return allowed values from a referenced schema.
+
+        Preference order:
+        1. The explicitly requested `data_section` and `field_name`
+        2. The schema's own `data_section` using the explicit field or `code`
+        3. The first list containing dict rows with the explicit field or `code`
+        """
+        target_field = field_name or 'code'
+        target_section = data_section or ref_data.get('data_section')
+
+        if isinstance(target_section, str):
+            rows = ref_data.get(target_section)
+            if isinstance(rows, list):
+                return [
+                    item.get(target_field)
+                    for item in rows
+                    if isinstance(item, dict) and item.get(target_field)
+                ]
+
+        for key, value in ref_data.items():
+            if isinstance(value, list) and value:
+                first_item = value[0]
+                if isinstance(first_item, dict) and target_field in first_item:
+                    return [
+                        item.get(target_field)
+                        for item in value
+                        if isinstance(item, dict) and item.get(target_field)
+                    ]
+
+        return None
 
 
 def main():
