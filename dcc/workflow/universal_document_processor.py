@@ -1231,23 +1231,28 @@ class CalculationEngine:
     
     def _apply_row_index(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """
-        Generate auto-increment row index starting from 1.
+        Generate or preserve auto-increment row index starting from 1.
 
         This creates a unique index for each row in the imported data,
         useful for tracking original row positions.
         The Row_Index column is placed as the first column in the DataFrame.
         """
-        df[column_name] = range(1, len(df) + 1)
-        
-        # Move Row_Index to be the first column
-        cols = df.columns.tolist()
-        if column_name in cols:
-            cols.remove(column_name)
-            cols = [column_name] + cols
-            df = df[cols]
+        if column_name not in df.columns:
+            df[column_name] = range(1, len(df) + 1)
+
+        df = self._move_column_to_front(df, column_name)
         
         logger.info(f"Applied row index generation for {column_name}: {len(df)} rows indexed")
         return df
+
+    def _move_column_to_front(self, df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+        """Return a DataFrame with the specified column moved to the first position."""
+        cols = df.columns.tolist()
+        if column_name not in cols:
+            return df
+
+        cols.remove(column_name)
+        return df[[column_name] + cols]
 
 
 class UniversalDocumentProcessor:
@@ -1305,7 +1310,10 @@ class UniversalDocumentProcessor:
         """
         if self.calculation_engine is None:
             raise ValueError("Schema not loaded. Call load_schema() first.")
-        
+
+        # Stamp a stable row index onto imported rows as early as possible so
+        # downstream mapping/null-handling/calculation logic can rely on it.
+        df = self._ensure_row_index_column(df)
         logger.info(f"Processing data with {len(df)} rows and {len(df.columns)} columns")
         original_columns = set(df.columns)
         
@@ -1323,9 +1331,60 @@ class UniversalDocumentProcessor:
         
         # Step 4: Apply final validation
         df_validated = self._apply_validation(df_calculated)
+
+        # Final safeguard: keep the schema-defined row index as the first column.
+        row_index_column = self._get_row_index_column_name()
+        if row_index_column:
+            df_validated = self._move_column_to_front(df_validated, row_index_column)
         
         logger.info(f"Data processing complete: {len(df_validated)} rows")
         return df_validated
+
+    def _get_row_index_column_name(self) -> Optional[str]:
+        """Return the schema-defined auto-increment row index column name, if any."""
+        enhanced_schema = self.schema_data.get('enhanced_schema', {})
+        columns = enhanced_schema.get('columns', {})
+
+        for col_name, col_def in columns.items():
+            calculation = col_def.get('calculation', {})
+            if (
+                calculation.get('type') == 'auto_increment'
+                and calculation.get('method') == 'generate_row_index'
+            ):
+                return col_name
+
+        return None
+
+    def _ensure_row_index_column(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add the schema-configured row index column immediately after input load.
+
+        If the row index column already exists, preserve it and only move it to
+        the front for consistent downstream ordering.
+        """
+        row_index_column = self._get_row_index_column_name()
+        if not row_index_column:
+            return df
+
+        df_with_index = df.copy()
+        if row_index_column not in df_with_index.columns:
+            df_with_index[row_index_column] = range(1, len(df_with_index) + 1)
+            logger.info(
+                "Added %s immediately after data load: %s rows indexed",
+                row_index_column,
+                len(df_with_index),
+            )
+
+        return self._move_column_to_front(df_with_index, row_index_column)
+
+    def _move_column_to_front(self, df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+        """Return a DataFrame with the specified column moved to the first position."""
+        cols = df.columns.tolist()
+        if column_name not in cols:
+            return df
+
+        cols.remove(column_name)
+        return df[[column_name] + cols]
         
     def _verify_required_columns(self, df: pd.DataFrame):
         """

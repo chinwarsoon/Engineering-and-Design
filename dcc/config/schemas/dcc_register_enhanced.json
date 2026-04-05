@@ -385,7 +385,8 @@
               "description": "Forward fill within same submission session"
             }
           ],
-          "description": "Two-level forward fill per submission sessions if column exists per original dcc_mdl.ipynb logic"
+          "final_fill": "NA",
+          "description": "Two-level forward fill per submission sessions if column exists per original dcc_mdl.ipynb logic, with 'NA' used as the final fallback after all forward-fill passes."
         },
         "validation": {
           "min_length": 2,
