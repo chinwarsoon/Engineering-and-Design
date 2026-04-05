@@ -144,6 +144,8 @@ class UniversalColumnMapper:
             
             # Try to match against each column's aliases
             for column_name, column_def in columns.items():
+                if not isinstance(column_def, dict) or column_def.get('is_calculated', False):
+                    continue
                 aliases = column_def.get('aliases', [])
                 match, score = self.fuzzy_match_column(header, aliases)
                 

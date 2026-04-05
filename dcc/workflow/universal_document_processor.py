@@ -29,7 +29,24 @@ class CalculationEngine:
             schema_data: Resolved schema dictionary with column definitions
         """
         self.schema_data = schema_data
-        self.columns = schema_data.get('enhanced_schema', {}).get('columns', {})
+        enhanced_schema = schema_data.get('enhanced_schema', {})
+        raw_columns = enhanced_schema.get('columns', {})
+        column_sequence = enhanced_schema.get('column_sequence', [])
+        
+        if column_sequence:
+            # Reorder columns based on column_sequence, keeping only valid column definitions
+            self.columns = {
+                name: raw_columns[name] 
+                for name in column_sequence 
+                if name in raw_columns and isinstance(raw_columns[name], dict)
+            }
+            # Add any columns from raw_columns that are not in column_sequence
+            for name, definition in raw_columns.items():
+                if name not in self.columns and isinstance(definition, dict):
+                    self.columns[name] = definition
+        else:
+            self.columns = {name: defn for name, defn in raw_columns.items() if isinstance(defn, dict)}
+            
         self.calculation_order = self._resolve_calculation_order()
 
     def _print_processing_step(self, phase: str, column_name: str, detail: str):
@@ -1402,6 +1419,8 @@ class UniversalDocumentProcessor:
         
         missing_required = []
         for col_name, col_def in columns.items():
+            if not isinstance(col_def, dict):
+                continue
             is_required = col_def.get('required', False)
             is_calculated = col_def.get('is_calculated', False)
             
@@ -1435,6 +1454,8 @@ class UniversalDocumentProcessor:
                 logger.info(f"Cast {col} to string for consistent grouping")
         
         for col_name, col_def in columns.items():
+            if not isinstance(col_def, dict):
+                continue
             if col_name not in df_init.columns:
                 create_missing = col_def.get('create_if_missing', False)
                 
@@ -1449,13 +1470,26 @@ class UniversalDocumentProcessor:
         return df_init
     
     def _apply_validation(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply validation rules from schema."""
+        """Apply validation rules from schema and record errors per-row."""
         enhanced_schema = self.schema_data.get('enhanced_schema', {})
         columns = enhanced_schema.get('columns', {})
         
         df_validated = df.copy()
         
+        # Initialize Validation_Errors column if it exists in schema
+        error_col = "Validation_Errors"
+        if error_col in columns:
+            df_validated[error_col] = ""
+
+        def record_errors(mask, message):
+            if error_col in df_validated.columns and mask.any():
+                df_validated.loc[mask, error_col] = df_validated.loc[mask, error_col].apply(
+                    lambda x: f"{x}; {message}".strip("; ")
+                )
+
         for column_name, column_def in columns.items():
+            if not isinstance(column_def, dict):
+                continue
             is_required = column_def.get('required', False)
             if column_name not in df_validated.columns:
                 if is_required:
@@ -1463,9 +1497,11 @@ class UniversalDocumentProcessor:
                 continue
                 
             allow_null = column_def.get('allow_null', True)
-            null_count = df_validated[column_name].isna().sum()
-            if not allow_null and null_count > 0:
-                logger.warning(f"Validation failed for {column_name}: contains {null_count} nulls but allow_null is False")
+            mask_null = df_validated[column_name].isna()
+            if not allow_null and mask_null.any():
+                msg = f"{column_name} cannot be null"
+                logger.warning(f"Validation failed: {msg} ({mask_null.sum()} found)")
+                record_errors(mask_null, msg)
 
             validation_rules = self._normalize_validation_rules(column_def.get('validation', {}))
 
@@ -1478,9 +1514,10 @@ class UniversalDocumentProcessor:
                     mask = ~df_str.str.match(pattern)
                     if allow_null:
                         mask &= df_validated[column_name].notna()
-                    invalid_count = mask.sum()
-                    if invalid_count > 0:
-                        logger.warning(f"Pattern validation failed for {column_name}: {invalid_count} invalid values")
+                    if mask.any():
+                        msg = f"{column_name} pattern mismatch ({pattern})"
+                        logger.warning(f"Pattern validation failed for {column_name}: {mask.sum()} invalid values")
+                        record_errors(mask, msg)
 
                 if rule_type == 'min_length' or ('min_length' in validation and rule_type is None):
                     min_len = validation['min_length']
@@ -1488,55 +1525,78 @@ class UniversalDocumentProcessor:
                     mask = df_str.str.len() < min_len
                     if allow_null:
                         mask &= df_validated[column_name].notna()
-                    invalid_count = mask.sum()
-                    if invalid_count > 0:
-                        logger.warning(f"Min length validation failed for {column_name}: {invalid_count} values too short")
+                    if mask.any():
+                        msg = f"{column_name} too short (<{min_len})"
+                        logger.warning(f"Min length validation failed for {column_name}: {mask.sum()} values too short")
+                        record_errors(mask, msg)
 
                 if rule_type == 'max_length' or ('max_length' in validation and rule_type is None):
                     max_len = validation['max_length']
                     mask = df_validated[column_name].astype(str).str.len() > max_len
                     if allow_null:
                         mask &= df_validated[column_name].notna()
-                    if mask.sum() > 0:
+                    if mask.any():
+                        msg = f"{column_name} too long (>{max_len})"
                         logger.warning(f"Max length validation failed for {column_name}: {mask.sum()} values too long")
+                        record_errors(mask, msg)
 
                 if rule_type == 'max_value' or ('max_value' in validation and rule_type is None):
                     max_val = validation['max_value']
                     mask = pd.to_numeric(df_validated[column_name], errors='coerce') > max_val
                     if allow_null:
                         mask &= df_validated[column_name].notna()
-                    if mask.sum() > 0:
+                    if mask.any():
+                        msg = f"{column_name} too high (>{max_val})"
                         logger.warning(f"Max value validation failed for {column_name}: {mask.sum()} numeric values > {max_val}")
+                        record_errors(mask, msg)
 
                 if rule_type == 'min_value' or ('min_value' in validation and rule_type is None):
                     min_val = validation['min_value']
                     mask = pd.to_numeric(df_validated[column_name], errors='coerce') < min_val
                     if allow_null:
                         mask &= df_validated[column_name].notna()
-                    if mask.sum() > 0:
+                    if mask.any():
+                        msg = f"{column_name} too low (<{min_val})"
                         logger.warning(f"Min value validation failed for {column_name}: {mask.sum()} numeric values < {min_val}")
+                        record_errors(mask, msg)
 
                 if (rule_type == 'format' or ('format' in validation and rule_type is None)) and validation.get('format') == 'YYYY-MM-DD':
                     parsed = pd.to_datetime(df_validated[column_name], format="%Y-%m-%d", errors='coerce')
                     mask = parsed.isna() & df_validated[column_name].notna() & (df_validated[column_name] != 'NA')
                     if allow_null:
                         mask &= df_validated[column_name].notna()
-                    if mask.sum() > 0:
+                    if mask.any():
+                        msg = f"{column_name} invalid date format (expected YYYY-MM-DD)"
                         logger.warning(f"Format validation (YYYY-MM-DD) failed for {column_name}: {mask.sum()} invalid dates")
+                        record_errors(mask, msg)
 
                 if rule_type == 'allowed_values' or ('allowed_values' in validation and rule_type is None):
                     allowed = validation['allowed_values']
                     mask = ~df_validated[column_name].isin(allowed)
                     if allow_null:
                         mask &= df_validated[column_name].notna()
-                    invalid_count = mask.sum()
-                    if invalid_count > 0:
-                        logger.warning(f"Allowed values validation failed for {column_name}: {invalid_count} invalid values")
+                    if mask.any():
+                        msg = f"{column_name} value not allowed"
+                        logger.warning(f"Allowed values validation failed for {column_name}: {mask.sum()} invalid values")
+                        record_errors(mask, msg)
+
+                if rule_type == 'group_consistency':
+                    group_cols = validation.get('group_by', [])
+                    target_col = validation.get('ensure_same')
+                    if group_cols and target_col and target_col in df_validated.columns:
+                        valid_group_cols = [c for c in group_cols if c in df_validated.columns]
+                        if len(valid_group_cols) == len(group_cols):
+                            nunique_counts = df_validated.groupby(valid_group_cols)[target_col].transform('nunique')
+                            mask = nunique_counts > 1
+                            if mask.any():
+                                msg = f"{column_name} group inconsistency on {target_col}"
+                                logger.warning(f"Group consistency validation failed for {column_name}: Column {target_col} must be the same within groups {valid_group_cols}")
+                                record_errors(mask, msg)
 
                 if rule_type == 'schema_reference_check':
                     schema_ref = validation.get('reference') or column_def.get('schema_reference')
                     if schema_ref:
-                        self._apply_schema_reference_validation(
+                        mask = self._apply_schema_reference_validation(
                             df_validated,
                             column_name,
                             allow_null,
@@ -1544,6 +1604,29 @@ class UniversalDocumentProcessor:
                             data_section=validation.get('data_section'),
                             field_name=validation.get('field'),
                         )
+                        if mask is not None and mask.any():
+                            msg = f"{column_name} not in {schema_ref}"
+                            record_errors(mask, msg)
+
+                if rule_type == 'starts_with_schema_reference':
+                    schema_ref = validation.get('reference') or column_def.get('schema_reference')
+                    if schema_ref:
+                        ref_data = self.schema_data.get(f'{schema_ref}_data', {})
+                        allowed_codes = self._get_schema_reference_allowed_codes(
+                            ref_data,
+                            data_section=validation.get('data_section'),
+                            field_name=validation.get('field'),
+                        )
+                        if allowed_codes:
+                            codes_regex = "|".join([re.escape(str(c)) for c in allowed_codes if c is not None])
+                            pattern = f"^({codes_regex})"
+                            mask = ~df_validated[column_name].astype(str).str.match(pattern, na=False)
+                            if allow_null:
+                                mask &= df_validated[column_name].notna()
+                            if mask.any():
+                                msg = f"{column_name} does not start with valid code from {schema_ref}"
+                                logger.warning(f"Starts-with validation failed for {column_name}: {mask.sum()} invalid values")
+                                record_errors(mask, msg)
 
             # Backward-compatible default schema_reference validation when no
             # explicit schema_reference_check rule is declared.
@@ -1552,9 +1635,12 @@ class UniversalDocumentProcessor:
             )
             schema_ref = column_def.get('schema_reference')
             if schema_ref and not has_explicit_schema_ref_rule:
-                self._apply_schema_reference_validation(
+                mask = self._apply_schema_reference_validation(
                     df_validated, column_name, allow_null, schema_ref
                 )
+                if mask is not None and mask.any():
+                    msg = f"{column_name} not in {schema_ref}"
+                    record_errors(mask, msg)
         
         return df_validated
 
@@ -1572,7 +1658,7 @@ class UniversalDocumentProcessor:
                 'format',
                 'allowed_values',
             }
-            nested_rule_keys = {'schema_reference_check'}
+            nested_rule_keys = {'schema_reference_check', 'starts_with_schema_reference'}
             rules: List[Dict[str, Any]] = []
 
             for key in scalar_keys:
@@ -1599,11 +1685,11 @@ class UniversalDocumentProcessor:
         schema_ref: str,
         data_section: Optional[str] = None,
         field_name: Optional[str] = None,
-    ) -> None:
+    ) -> Optional[pd.Series]:
         """Validate a column against allowed values from a referenced schema."""
         ref_data = self.schema_data.get(f'{schema_ref}_data', {})
         if not ref_data:
-            return
+            return None
 
         allowed_codes = self._get_schema_reference_allowed_codes(
             ref_data,
@@ -1620,7 +1706,7 @@ class UniversalDocumentProcessor:
                     f"Schema reference validation failed for {column_name}: "
                     f"{invalid_count} values not in {schema_ref}"
                 )
-            return
+            return mask
 
         if 'choices' in ref_data:
             allowed = ref_data.get('choices', [])
@@ -1630,6 +1716,9 @@ class UniversalDocumentProcessor:
             invalid_count = mask.sum()
             if invalid_count > 0:
                 logger.warning(f"Schema reference validation failed for {column_name}: {invalid_count} invalid values")
+            return mask
+        
+        return None
 
     def _get_schema_reference_allowed_codes(
         self,

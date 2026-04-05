@@ -45,6 +45,54 @@
     }
   },
   "enhanced_schema": {
+    "column_sequence": [
+      "Row_Index",
+      "Transmittal_Number",
+      "Submission_Session",
+      "Submission_Session_Revision",
+      "Submission_Session_Subject",
+      "Department",
+      "Submitted_By",
+      "Submission_Date",
+      "Project_Code",
+      "Facility_Code",
+      "Document_Type",
+      "Discipline",
+      "Document_Sequence_Number",
+      "Document_ID",
+      "Document_Revision",
+      "Document_Title",
+      "Reviewer",
+      "Review_Return_Actual_Date",
+      "Review_Return_Plan_Date",
+      "Review_Status",
+      "Review_status_Code",
+      "Review_Comments",
+      "Duration_of_Review",
+      "Approval_Code",
+      "First_Submission_Date",
+      "Latest_Submission_Date",
+      "Latest_Revision",
+      "All_Submission_Sessions",
+      "All_Submission_Dates",
+      "All_Submission_Session_Revisions",
+      "Count_of_Submissions",
+      "Latest_Approval_Status",
+      "Latest_Approval_Code",
+      "All_Approval_Codes",
+      "Consolidated_Submission_Session_Subject",
+      "Submission_Closed",
+      "Resubmission_Required",
+      "Resubmission_Plan_Date",
+      "Resubmission_Forecasted_Date",
+      "Resubmission_Overdue_Status",
+      "Delay_of_Resubmission",
+      "Notes",
+      "Submission_Reference_1",
+      "Internal_Reference",
+      "This_Submission_Approval_Code",
+      "Validation_Errors"
+    ],
     "columns": {
       "Row_Index": {
         "aliases": [
@@ -70,36 +118,6 @@
           }
         ]
       },
-      "column_sequence": [
-        "Row_Index",
-        "Submission_Session",
-        "Submission_Session_Revision",
-        "Submission_Session_Subject",
-        "Project_Code",
-        "Facility_Code",
-        "Document_Type",
-        "Discipline",
-        "Document_Sequence_Number",
-        "Document_ID",
-        "Document_Revision",
-        "Document_Title",
-        "Transmittal_Number",
-        "Consolidated_Submission_Session_Subject",
-        "Department",
-        "Submitted_By",
-        "Submission_Date",
-        "First_Submission_Date",
-        "Latest_Submission_Date",
-        "Latest_Revision",
-        "All_Submission_Sessions",
-        "All_Submission_Dates",
-        "All_Submission_Session_Revisions",
-        "Count_of_Submissions",
-        "Reviewer",
-        "Review_Return_Actual_Date",
-        "Review_Return_Plan_Date",
-        "Review_Status"
-      ],
       "Submission_Session": {
         "aliases": [
           "Prolog Submittal No.",
@@ -127,6 +145,15 @@
             "type": "pattern",
             "pattern": "^[0-9]{6}$",
             "description": "Unique submission session identifier (6-digit zero-padded)"
+          },
+          {
+            "type": "group_consistency",
+            "group_by": [
+              "Submission_Session",
+              "Submission_Session_Revision"
+            ],
+            "ensure_same": "Submission_Date",
+            "description": "Ensures submission_date is the same for the same submission_session and submission_session_revision"
           }
         ]
       },
@@ -381,6 +408,13 @@
             "type": "pattern",
             "pattern": "^[A-Z0-9-]+$",
             "description": "Validated by _apply_validation using regex pattern matching. Ensures the final ID contains only uppercase, numeric, and hyphen characters."
+          },
+          {
+            "type": "starts_with_schema_reference",
+            "reference": "project_schema",
+            "data_section": "project",
+            "field": "code",
+            "description": "Ensures Document_ID starts with a valid project code from project_schema"
           }
         ]
       },
@@ -549,7 +583,15 @@
           ],
           "final_fill": "NA",
           "description": "Processed via _apply_multi_level_forward_fill. Performs sequential grouping by [Session > Revision] combined with NA final filling."
-        }
+        },
+        "validation": [
+          {
+            "type": "schema_reference_check",
+            "reference": "department_schema",
+            "data_section": "choices",
+            "description": "Validated by _apply_validation against department_schema.choices to ensure department is valid."
+          }
+        ]
       },
       "Submitted_By": {
         "aliases": [
@@ -1015,23 +1057,19 @@
         "null_handling": {
           "strategy": "forward_fill",
           "group_by": [
-            "Submission_Session",
-            "Submission_Session_Revision"
+           "Submission_Session",
+           "Submission_Session_Revision"
           ],
-          "fill_value": "Pending",
-          "description": "Processed by _apply_forward_fill. Leverages cross-row grouping within the same session ID and assigns 'Pending' as the default state for unreviewed rows."
-        },
+          "fill_value": "Awaiting S.O.'s response",
+          "description": "Processed by _apply_forward_fill. Leverages cross-row grouping within the same session ID and assigns 'Awaiting S.O.'s response' as the default state for unreviewed rows."
+          },
         "validation": [
           {
-            "type": "allowed_values",
-            "allowed_values": [
-              "Approved",
-              "Rejected",
-              "Pending",
-              "Approved with Comments",
-              "Not Approved"
-            ],
-            "description": "Review status for submission"
+            "type": "schema_reference_check",
+            "reference": "approval_code_schema",
+            "data_section": "approval",
+            "field": "status",
+            "description": "Validated by _apply_validation against approval_code_schema.approval[*].status to ensure review status is valid."
           }
         ]
       },
@@ -1055,17 +1093,11 @@
         },
         "validation": [
           {
-            "type": "allowed_values",
-            "allowed_values": [
-              "APP",
-              "REJ",
-              "PEN",
-              "AWC",
-              "NAP",
-              "INF",
-              "VOID"
-            ],
-            "description": "Review status code"
+            "type": "schema_reference_check",
+            "reference": "approval_code_schema",
+            "data_section": "approval",
+            "field": "code",
+            "description": "Validated against approval_code_schema codes."
           }
         ]
       },
@@ -1084,31 +1116,17 @@
           "type": "mapping",
           "method": "status_to_code",
           "source_column": "Review_Status",
-          "mapping": {
-            "Approved": "APP",
-            "Rejected": "REJ",
-            "Pending": "PEN",
-            "Approved with Comments": "AWC",
-            "Not Approved": "NAP",
-            "For Information": "INF",
-            "Void": "VOID"
-          },
+          "mapping_reference": "approval_code_schema",
           "default": "PEN",
-          "description": "Calculated via _apply_mapping_calculation using an explicit internal mapping. Directly converts approval statuses to standardized APP/REJ/PEN codes with a PEN fallback."
+          "description": "Calculated via _apply_mapping_calculation using the mapping reference 'approval_code_schema'. Transforms textual status labels into standardized shorthand codes."
         },
         "validation": [
           {
-            "type": "allowed_values",
-            "allowed_values": [
-              "APP",
-              "REJ",
-              "PEN",
-              "AWC",
-              "NAP",
-              "INF",
-              "VOID"
-            ],
-            "description": "Standard approval codes"
+            "type": "schema_reference_check",
+            "reference": "approval_code_schema",
+            "data_section": "approval",
+            "field": "code",
+            "description": "Validated against approval_code_schema codes."
           }
         ]
       },
@@ -1830,18 +1848,44 @@
             "description": "Approval code for current submission"
           }
         ]
+      },
+      "Validation_Errors": {
+        "aliases": [
+          "Validation Errors",
+          "Errors",
+          "Warnings"
+        ],
+        "data_type": "string",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "create_if_missing": true,
+        "calculation": {
+          "type": "error_tracking",
+          "method": "aggregate_row_errors",
+          "description": "Auto-populated by processor during validation to track row-specific data quality issues."
+        }
       }
     },
     "column_groups": {
       "document_info": [
+        "Project_Code",
+        "Facility_Code",
+        "Document_Type",
+        "Discipline",
+        "Document_Sequence_Number",
         "Document_ID",
-        "Document_Title",
-        "Document_Revision"
+        "Document_Revision",
+        "Document_Title"
       ],
       "submission_info": [
+        "Transmittal_Number",
         "Submission_Session",
-        "Submission_Date",
-        "Submitted_By"
+        "Submission_Session_Revision",
+        "Submission_Session_Subject",
+        "Department",
+        "Submitted_By",
+        "Submission_Date"
       ],
       "review_info": [
         "Review_Status",
@@ -1851,7 +1895,8 @@
       "metadata": [
         "Department",
         "Discipline",
-        "Project_Code"
+        "Project_Code",
+        "Facility_Code"
       ]
     },
     "data_processing": {
