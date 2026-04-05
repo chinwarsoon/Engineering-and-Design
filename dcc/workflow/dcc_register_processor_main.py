@@ -18,23 +18,18 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-import pandas as pd
-
-from project_setup_validation import ProjectSetupValidator
-from schema_validation import SchemaValidator, write_validation_status
-from universal_column_mapper import UniversalColumnMapper
-from universal_document_processor import UniversalDocumentProcessor
-
 
 DEBUG_DEV_MODE = False
 
 
 def status_print(*args: Any, **kwargs: Any) -> None:
+    kwargs.setdefault("flush", True)
     builtins.print(*args, **kwargs)
 
 
 def debug_print(*args: Any, **kwargs: Any) -> None:
     if DEBUG_DEV_MODE:
+        kwargs.setdefault("flush", True)
         builtins.print(*args, **kwargs)
 
 
@@ -65,6 +60,43 @@ def _build_native_defaults(base_path: Path) -> Dict[str, Any]:
     }
 
 
+def _import_dependency(module_name: str, attribute_names: list[str] | None = None) -> tuple[Any, str | None]:
+    """Import a module and optional attributes with clear failure reporting."""
+    try:
+        module = importlib.import_module(module_name)
+        if not attribute_names:
+            return module, None
+        values = [getattr(module, name) for name in attribute_names]
+        if len(values) == 1:
+            return values[0], None
+        return tuple(values), None
+    except ModuleNotFoundError as exc:
+        return None, f"Missing module '{module_name}': {exc}"
+    except AttributeError as exc:
+        return None, f"Module '{module_name}' is missing expected logic: {exc}"
+    except Exception as exc:
+        return None, f"Failed to import '{module_name}': {exc}"
+
+
+def _load_pipeline_dependencies() -> Dict[str, Any]:
+    """Load local pipeline modules lazily so startup can fail gracefully."""
+    dependencies: Dict[str, Any] = {}
+    imports = {
+        "project_setup_validator_cls": ("project_setup_validation", ["ProjectSetupValidator"]),
+        "schema_validation_imports": ("schema_validation", ["SchemaValidator", "write_validation_status"]),
+        "universal_column_mapper_cls": ("universal_column_mapper", ["UniversalColumnMapper"]),
+        "universal_document_processor_cls": ("universal_document_processor", ["UniversalDocumentProcessor"]),
+    }
+
+    for dependency_name, (module_name, attribute_names) in imports.items():
+        imported_value, error = _import_dependency(module_name, attribute_names)
+        if error is not None:
+            raise ImportError(error)
+        dependencies[dependency_name] = imported_value
+
+    return dependencies
+
+
 def _test_environment() -> Dict[str, Any]:
     status_print("Testing environment and required libraries...")
     required_modules = [
@@ -79,12 +111,19 @@ def _test_environment() -> Dict[str, Any]:
         "duckdb",
         "matplotlib",
     ]
+    local_dependencies = {
+        "project_setup_validation": ["ProjectSetupValidator"],
+        "schema_validation": ["SchemaValidator", "write_validation_status"],
+        "universal_column_mapper": ["UniversalColumnMapper"],
+        "universal_document_processor": ["UniversalDocumentProcessor"],
+    }
 
     results: Dict[str, Any] = {
         "python_version": platform.python_version(),
         "platform": platform.system(),
         "required_modules": {},
         "optional_modules": {},
+        "local_dependencies": {},
         "errors": [],
         "ready": True,
     }
@@ -103,6 +142,14 @@ def _test_environment() -> Dict[str, Any]:
             results["optional_modules"][module_name] = "ok"
         except Exception as exc:
             results["optional_modules"][module_name] = f"warning: {exc}"
+
+    for module_name, attribute_names in local_dependencies.items():
+        _, error = _import_dependency(module_name, attribute_names)
+        if error is None:
+            results["local_dependencies"][module_name] = "ok"
+        else:
+            results["local_dependencies"][module_name] = f"error: {error}"
+            results["errors"].append(error)
 
     results["ready"] = not results["errors"]
     if results["ready"]:
@@ -221,7 +268,23 @@ def _resolve_output_path(base_path: Path, effective_parameters: Dict[str, Any]) 
     return output_dir / "processed_dcc_universal.csv"
 
 
-def _load_excel_data(excel_path: Path, effective_parameters: Dict[str, Any], nrows: int | None = None) -> pd.DataFrame:
+def _resolve_export_paths(base_path: Path, effective_parameters: Dict[str, Any]) -> Dict[str, Path]:
+    base_output_path = _resolve_output_path(base_path, effective_parameters)
+    output_dir = base_output_path.parent
+    stem = base_output_path.stem or "processed_dcc_universal"
+    return {
+        "output_dir": output_dir,
+        "csv_path": output_dir / f"{stem}.csv",
+        "excel_path": output_dir / f"{stem}.xlsx",
+        "summary_path": output_dir / "processing_summary.txt",
+    }
+
+
+def _load_excel_data(excel_path: Path, effective_parameters: Dict[str, Any], nrows: int | None = None) -> Any:
+    pd_module, error = _import_dependency("pandas")
+    if error is not None:
+        raise ImportError(f"Failed to import pandas for Excel loading: {error}")
+
     sheet_name = effective_parameters.get("upload_sheet_name", "Prolog Submittals ")
     header_row = effective_parameters.get("header_row_index", 4)
     start_col = effective_parameters.get("start_col", "P")
@@ -232,7 +295,7 @@ def _load_excel_data(excel_path: Path, effective_parameters: Dict[str, Any], nro
     debug_print(
         f"Excel settings: sheet={sheet_name}, header_row={header_row}, usecols={usecols}, nrows={nrows}"
     )
-    return pd.read_excel(
+    return pd_module.read_excel(
         excel_path,
         sheet_name=sheet_name,
         header=header_row,
@@ -249,45 +312,223 @@ def _validate_output_path(output_path: Path, overwrite_existing: bool) -> None:
         )
 
 
+def _validate_export_paths(export_paths: Dict[str, Path], overwrite_existing: bool) -> None:
+    export_paths["output_dir"].mkdir(parents=True, exist_ok=True)
+    if overwrite_existing:
+        return
+
+    for file_key in ("csv_path", "excel_path", "summary_path"):
+        target_path = export_paths[file_key]
+        if target_path.exists():
+            raise FileExistsError(
+                f"Output file already exists: {target_path}. Use --overwrite True or choose another output file."
+            )
+
+
+def _write_processing_summary(
+    summary_path: Path,
+    input_file: Path,
+    main_schema_path: Path,
+    schema_results: Dict[str, Any],
+    raw_columns: list[str],
+    mapped_columns: list[str],
+    processed_columns: list[str],
+    raw_shape: tuple[int, int],
+    mapped_shape: tuple[int, int],
+    processed_shape: tuple[int, int],
+    raw_null_counts: Dict[str, int],
+    mapped_null_counts: Dict[str, int],
+    processed_null_counts: Dict[str, int],
+    mapping_result: Dict[str, Any],
+    schema_reference_count: int,
+    csv_path: Path,
+    excel_path: Path,
+) -> None:
+    detected_columns = mapping_result.get("detected_columns", {})
+    unmatched_headers = mapping_result.get("unmatched_headers", [])
+    missing_required = mapping_result.get("missing_required", [])
+    processed_added_columns = [column for column in processed_columns if column not in mapped_columns]
+    summary_path.parent.mkdir(parents=True, exist_ok=True)
+    schema_files = [str(main_schema_path)]
+    schema_files.extend(
+        item.get("resolved_path")
+        for item in schema_results.get("references", [])
+        if item.get("resolved_path")
+    )
+    schema_files = list(dict.fromkeys(schema_files))
+
+    warnings: list[str] = []
+    warnings.extend(f"Missing required mapped column: {column}" for column in missing_required)
+    warnings.extend(f"Unmatched input header: {header}" for header in unmatched_headers)
+    warnings.extend(f"Column created during processing: {column}" for column in processed_added_columns)
+    warnings.extend(schema_results.get("errors", []))
+
+    with summary_path.open("w", encoding="utf-8") as handle:
+        handle.write("Universal Document Processing Summary\n")
+        handle.write("=" * 50 + "\n\n")
+        handle.write(f"Processing Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        handle.write("Input and Output Files:\n")
+        handle.write(f"  Input Data File: {input_file}\n")
+        handle.write(f"  CSV Export: {csv_path}\n")
+        handle.write(f"  Excel Export: {excel_path}\n")
+        handle.write(f"  Summary Report: {summary_path}\n\n")
+
+        handle.write("Schema Files Used:\n")
+        for schema_file in schema_files:
+            handle.write(f"  - {schema_file}\n")
+        handle.write("\n")
+
+        handle.write("Dataset Shapes:\n")
+        handle.write(f"  Raw Input Shape: {raw_shape}\n")
+        handle.write(f"  Mapped Data Shape: {mapped_shape}\n")
+        handle.write(f"  Processed Data Shape: {processed_shape}\n\n")
+
+        handle.write("Column Overview:\n")
+        handle.write(f"  Column Mapping Success Rate: {mapping_result['match_rate']:.1%}\n")
+        handle.write(f"  Matched Headers: {mapping_result['matched_count']} / {mapping_result['total_headers']}\n")
+        handle.write(f"  Missing Required Columns: {len(mapping_result['missing_required'])}\n")
+        handle.write(f"  Schema References Loaded: {schema_reference_count}\n\n")
+
+        handle.write("Columns Read From Input:\n")
+        for index, column_name in enumerate(raw_columns, start=1):
+            handle.write(f"  {index:02d}. {column_name}\n")
+        handle.write("\n")
+
+        handle.write("Column Mapping Details:\n")
+        for original_header in raw_columns:
+            if original_header in detected_columns:
+                mapped_column = detected_columns[original_header]["mapped_column"]
+                matched_alias = detected_columns[original_header].get("matched_alias", "")
+                match_score = detected_columns[original_header].get("match_score", 0.0)
+                handle.write(
+                    f"  - {original_header} -> {mapped_column} "
+                    f"(alias='{matched_alias}', score={match_score:.2f})\n"
+                )
+            else:
+                handle.write(f"  - {original_header} -> NOT MAPPED\n")
+        handle.write("\n")
+
+        handle.write("Mapped Columns After Rename:\n")
+        for index, column_name in enumerate(mapped_columns, start=1):
+            handle.write(f"  {index:02d}. {column_name}\n")
+        handle.write("\n")
+
+        handle.write("Processed Columns:\n")
+        for index, column_name in enumerate(processed_columns, start=1):
+            marker = " [ADDED DURING PROCESSING]" if column_name in processed_added_columns else ""
+            handle.write(f"  {index:02d}. {column_name}{marker}\n")
+        handle.write("\n")
+
+        handle.write("Null Summary:\n")
+        handle.write("  Raw Input Columns With Nulls:\n")
+        raw_null_items = [(column, count) for column, count in raw_null_counts.items() if count > 0]
+        if raw_null_items:
+            for column_name, count in sorted(raw_null_items, key=lambda item: (-item[1], item[0])):
+                handle.write(f"    - {column_name}: {count}\n")
+        else:
+            handle.write("    - None\n")
+
+        handle.write("  Mapped Columns With Nulls:\n")
+        mapped_null_items = [(column, count) for column, count in mapped_null_counts.items() if count > 0]
+        if mapped_null_items:
+            for column_name, count in sorted(mapped_null_items, key=lambda item: (-item[1], item[0])):
+                handle.write(f"    - {column_name}: {count}\n")
+        else:
+            handle.write("    - None\n")
+
+        handle.write("  Processed Columns With Nulls:\n")
+        processed_null_items = [(column, count) for column, count in processed_null_counts.items() if count > 0]
+        if processed_null_items:
+            for column_name, count in sorted(processed_null_items, key=lambda item: (-item[1], item[0])):
+                handle.write(f"    - {column_name}: {count}\n")
+        else:
+            handle.write("    - None\n")
+        handle.write("\n")
+
+        handle.write("Warnings and Potential Issues:\n")
+        if warnings:
+            for warning in warnings:
+                handle.write(f"  - {warning}\n")
+        else:
+            handle.write("  - None\n")
+
+
 def run_pipeline(
     base_path: Path,
     schema_path: Path,
     effective_parameters: Dict[str, Any],
     nrows: int | None = None,
 ) -> Dict[str, Any]:
+    dependencies = _load_pipeline_dependencies()
+    project_setup_validator_cls = dependencies["project_setup_validator_cls"]
+    schema_validator_cls, write_validation_status_fn = dependencies["schema_validation_imports"]
+    universal_column_mapper_cls = dependencies["universal_column_mapper_cls"]
+    universal_document_processor_cls = dependencies["universal_document_processor_cls"]
+
     excel_path = Path(effective_parameters["upload_file_name"]).expanduser().resolve()
-    output_path = _resolve_output_path(base_path, effective_parameters)
-    _validate_output_path(output_path, bool(effective_parameters.get("overwrite_existing_downloads", True)))
+    export_paths = _resolve_export_paths(base_path, effective_parameters)
+    _validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
 
     status_print("Step 1: Project setup validation")
-    setup_validator = ProjectSetupValidator(base_path=base_path)
+    setup_validator = project_setup_validator_cls(base_path=base_path)
     setup_results = setup_validator.validate()
     if not setup_results.get("ready"):
         raise ValueError(setup_validator.format_report(setup_results))
+    status_print("Step 1 complete")
 
     status_print("Step 2: Schema validation")
-    schema_validator = SchemaValidator(schema_path)
+    schema_validator = schema_validator_cls(schema_path)
     schema_results = schema_validator.validate()
-    write_validation_status(schema_results)
+    write_validation_status_fn(schema_results)
     if not schema_results.get("ready"):
         raise ValueError(json.dumps(schema_results, indent=2))
+    status_print("Step 2 complete")
 
     status_print("Step 3: Universal column mapping")
     df_raw = _load_excel_data(excel_path, effective_parameters, nrows=nrows)
-    mapper = UniversalColumnMapper(schema_file=str(schema_path))
+    mapper = universal_column_mapper_cls(schema_file=str(schema_path))
     mapping_result = mapper.detect_columns(df_raw.columns.tolist())
     df_mapped = mapper.rename_dataframe_columns(df_raw, mapping_result)
+    status_print("Step 3 complete")
 
     status_print("Step 4: Universal document processing")
-    processor = UniversalDocumentProcessor(schema_file=str(schema_path))
+    processor = universal_document_processor_cls(schema_file=str(schema_path))
     df_processed = processor.process_data(df_mapped)
-    df_processed.to_csv(output_path, index=False)
+    df_processed.to_excel(export_paths["excel_path"], index=False)
+    df_processed.to_csv(export_paths["csv_path"], index=False)
+    schema_reference_count = len(getattr(processor, "schema_data", {}).get("schema_references", {}))
+    _write_processing_summary(
+        summary_path=export_paths["summary_path"],
+        input_file=excel_path,
+        main_schema_path=schema_path,
+        schema_results=schema_results,
+        raw_columns=df_raw.columns.tolist(),
+        mapped_columns=df_mapped.columns.tolist(),
+        processed_columns=df_processed.columns.tolist(),
+        raw_shape=tuple(df_raw.shape),
+        mapped_shape=tuple(df_mapped.shape),
+        processed_shape=tuple(df_processed.shape),
+        raw_null_counts={column: int(count) for column, count in df_raw.isna().sum().items()},
+        mapped_null_counts={column: int(count) for column, count in df_mapped.isna().sum().items()},
+        processed_null_counts={column: int(count) for column, count in df_processed.isna().sum().items()},
+        mapping_result=mapping_result,
+        schema_reference_count=schema_reference_count,
+        csv_path=export_paths["csv_path"],
+        excel_path=export_paths["excel_path"],
+    )
+    status_print(
+        "Step 4 complete: output written to "
+        f"{export_paths['csv_path']}, {export_paths['excel_path']}, and {export_paths['summary_path']}"
+    )
 
     return {
         "base_path": str(base_path),
         "schema_path": str(schema_path),
         "excel_path": str(excel_path),
-        "output_path": str(output_path),
+        "output_path": str(export_paths["csv_path"]),
+        "csv_output_path": str(export_paths["csv_path"]),
+        "excel_output_path": str(export_paths["excel_path"]),
+        "summary_path": str(export_paths["summary_path"]),
         "raw_shape": list(df_raw.shape),
         "mapped_shape": list(df_mapped.shape),
         "processed_shape": list(df_processed.shape),
@@ -305,7 +546,9 @@ def _print_summary(results: Dict[str, Any]) -> None:
     status_print(f"Base Path: {results['base_path']}")
     status_print(f"Schema File: {results['schema_path']}")
     status_print(f"Excel File: {results['excel_path']}")
-    status_print(f"Output File: {results['output_path']}")
+    status_print(f"CSV Output: {results['csv_output_path']}")
+    status_print(f"Excel Output: {results['excel_output_path']}")
+    status_print(f"Summary File: {results['summary_path']}")
     status_print(f"Raw Shape: {tuple(results['raw_shape'])}")
     status_print(f"Mapped Shape: {tuple(results['mapped_shape'])}")
     status_print(f"Processed Shape: {tuple(results['processed_shape'])}")
