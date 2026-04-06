@@ -37,19 +37,12 @@ class ProjectSetupValidator:
             }
 
     def _normalize_path(self, value: str | Path) -> Path:
-        p = Path(value).expanduser()
-        try:
-            return p.resolve()
-        except (OSError, PermissionError):
-            return Path(p.absolute())
+        return Path(value).expanduser().absolute()
 
     def _default_base_path(self) -> Path:
-        script_dir = Path(__file__).expanduser()
-        try:
-            script_dir = script_dir.resolve()
-        except (OSError, PermissionError):
-            pass
-        return script_dir.parent if script_dir.name.lower() == "workflow" else script_dir
+        # Use script directory directly. Do NOT use resolve(),
+        # which injects restricted network paths on Windows UNC shares.
+        return Path(__file__).parent.parent if Path(__file__).parent.name.lower() == "workflow" else Path(__file__).parent
 
     def _load_json(self, path: Path) -> Dict[str, Any]:
         with path.open("r", encoding="utf-8") as handle:

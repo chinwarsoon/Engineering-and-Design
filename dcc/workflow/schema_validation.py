@@ -8,7 +8,29 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 from pathlib import Path
+
+
+def _safe_resolve(path: Path) -> Path:
+    """Return an absolute path without filesystem I/O (no resolve)."""
+    return Path(path.expanduser().absolute())
+
+
+def _safe_cwd() -> Path:
+    """Get current working directory safely, falling back if inaccessible."""
+    try:
+        return Path.cwd().absolute()
+    except (OSError, PermissionError):
+        pass
+    try:
+        return Path(os.getcwd())
+    except (OSError, PermissionError):
+        pass
+    # Final fallback: script directory (guaranteed to exist since script is running)
+    return Path(__file__).parent.absolute()
+
+
 from typing import Any, Dict, List, Set
 
 logger = logging.getLogger(__name__)
@@ -17,7 +39,7 @@ logging.basicConfig(level=logging.INFO)
 
 def get_validation_status_path(schema_file: str | Path) -> Path:
     """Return the default persisted schema-validation status path."""
-    schema_path = Path(schema_file).expanduser().resolve()
+    schema_path = _safe_resolve(Path(schema_file))
     project_root = schema_path.parents[2] if len(schema_path.parents) >= 3 else schema_path.parent
     return project_root / "output" / "schema_validation_status.json"
 
@@ -25,7 +47,7 @@ def get_validation_status_path(schema_file: str | Path) -> Path:
 def _tracked_schema_files(results: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Build tracked schema file metadata for pipeline enforcement."""
     tracked_files: List[Dict[str, Any]] = []
-    main_schema_path = Path(results["main_schema_path"]).expanduser().resolve()
+    main_schema_path = _safe_resolve(Path(results["main_schema_path"]))
     if main_schema_path.exists():
         tracked_files.append(
             {
@@ -39,7 +61,7 @@ def _tracked_schema_files(results: Dict[str, Any]) -> List[Dict[str, Any]]:
         resolved_path = item.get("resolved_path")
         if not resolved_path or resolved_path in seen_paths:
             continue
-        path = Path(resolved_path).expanduser().resolve()
+        path = _safe_resolve(Path(resolved_path))
         if not path.exists():
             continue
         tracked_files.append(
@@ -55,7 +77,7 @@ def _tracked_schema_files(results: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 def write_validation_status(results: Dict[str, Any], status_path: str | Path | None = None) -> Path:
     """Persist schema-validation status for downstream pipeline steps."""
-    destination = Path(status_path).expanduser().resolve() if status_path else get_validation_status_path(results["main_schema_path"])
+    destination = _safe_resolve(Path(status_path)) if status_path else get_validation_status_path(results["main_schema_path"])
     destination.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "main_schema_path": results["main_schema_path"],
@@ -70,14 +92,14 @@ def write_validation_status(results: Dict[str, Any], status_path: str | Path | N
 
 def load_validation_status(schema_file: str | Path, status_path: str | Path | None = None) -> Dict[str, Any]:
     """Load the persisted schema-validation status for a schema file."""
-    source = Path(status_path).expanduser().resolve() if status_path else get_validation_status_path(schema_file)
+    source = _safe_resolve(Path(status_path)) if status_path else get_validation_status_path(schema_file)
     with source.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def validate_validation_status(schema_file: str | Path, status_path: str | Path | None = None) -> tuple[bool, str]:
     """Check whether a persisted validation status is present and current."""
-    schema_path = Path(schema_file).expanduser().resolve()
+    schema_path = _safe_resolve(Path(schema_file))
     try:
         status = load_validation_status(schema_path, status_path)
     except FileNotFoundError:
@@ -88,7 +110,7 @@ def validate_validation_status(schema_file: str | Path, status_path: str | Path 
     except Exception as exc:
         return False, f"Could not read schema validation status for {schema_path}: {exc}"
 
-    if Path(status.get("main_schema_path", "")).expanduser().resolve() != schema_path:
+    if _safe_resolve(Path(status.get("main_schema_path", ""))) != schema_path:
         return False, (
             f"Schema validation status does not match {schema_path}. "
             f"Run `python dcc/workflow/schema_validation.py --schema-file {schema_path}` first."
@@ -101,7 +123,7 @@ def validate_validation_status(schema_file: str | Path, status_path: str | Path 
         )
 
     for item in status.get("tracked_files", []):
-        tracked_path = Path(item["path"]).expanduser().resolve()
+        tracked_path = _safe_resolve(Path(item["path"]))
         if not tracked_path.exists():
             return False, (
                 f"Schema validation status is stale because {tracked_path} is missing. "
@@ -121,21 +143,21 @@ class SchemaLoader:
 
     def __init__(self, base_path: str | Path | None = None):
         if base_path is None:
-            base_path = Path(__file__).resolve().parent.parent / "config" / "schemas"
-        self.base_path = Path(base_path).expanduser().resolve()
+            base_path = _safe_resolve(Path(__file__).parent.parent / "config" / "schemas")
+        self.base_path = _safe_resolve(Path(base_path))
         self.main_schema_path: Path | None = None
         self.loaded_schemas: Dict[str, Dict[str, Any]] = {}
 
     def set_main_schema_path(self, schema_file: str | Path) -> Path:
         """Set the main schema path so relative references resolve correctly."""
-        self.main_schema_path = Path(schema_file).expanduser().resolve()
+        self.main_schema_path = _safe_resolve(Path(schema_file))
         if self.main_schema_path.parent.exists():
             self.base_path = self.main_schema_path.parent
         return self.main_schema_path
 
     def load_json_file(self, path: str | Path) -> Dict[str, Any]:
         """Load and return a JSON document from disk."""
-        resolved = Path(path).expanduser().resolve()
+        resolved = _safe_resolve(Path(path))
         with resolved.open("r", encoding="utf-8") as handle:
             return json.load(handle)
 
@@ -143,26 +165,27 @@ class SchemaLoader:
         """Resolve a schema reference path using several fallback strategies."""
         candidate = Path(ref_path)
         if candidate.is_absolute():
-            return candidate.expanduser().resolve()
+            return _safe_resolve(candidate)
 
         search_paths: List[Path] = []
         if self.main_schema_path is not None:
-            search_paths.append((self.main_schema_path.parent / candidate).resolve())
-        search_paths.append((self.base_path / candidate).resolve())
+            search_paths.append(_safe_resolve(self.main_schema_path.parent / candidate))
+        search_paths.append(_safe_resolve(self.base_path / candidate))
 
         candidate_name = candidate.name
-        search_paths.append((self.base_path / candidate_name).resolve())
+        search_paths.append(_safe_resolve(self.base_path / candidate_name))
         if self.main_schema_path is not None:
-            search_paths.append((self.main_schema_path.parent / candidate_name).resolve())
+            search_paths.append(_safe_resolve(self.main_schema_path.parent / candidate_name))
 
-        search_paths.append((Path.cwd() / candidate).resolve())
-        search_paths.append((Path.cwd() / candidate_name).resolve())
+        cwd = _safe_cwd()
+        search_paths.append(_safe_resolve(cwd / candidate))
+        search_paths.append(_safe_resolve(cwd / candidate_name))
 
         for resolved in search_paths:
             if resolved.exists():
                 return resolved
 
-        return (self.base_path / candidate).resolve()
+        return _safe_resolve(self.base_path / candidate)
 
     def load_schema(self, schema_name: str, fallback_data: Any = None) -> Dict[str, Any]:
         """Load a schema by stem name relative to the configured schema directory."""
@@ -195,7 +218,7 @@ class SchemaLoader:
 
     def load_schema_from_path(self, schema_path: str | Path, fallback_data: Dict[str, Any] | None = None) -> Dict[str, Any]:
         """Load a schema by path, resolving it relative to the main schema when needed."""
-        cache_key = str(Path(schema_path).expanduser().resolve()) if Path(schema_path).is_absolute() else str(schema_path)
+        cache_key = str(_safe_resolve(Path(schema_path))) if Path(schema_path).is_absolute() else str(schema_path)
         if cache_key in self.loaded_schemas:
             return self.loaded_schemas[cache_key]
 
@@ -260,7 +283,7 @@ class SchemaValidator:
     """Validate a main schema file and its external references."""
 
     def __init__(self, schema_file: str | Path):
-        self.schema_file = Path(schema_file).expanduser().resolve()
+        self.schema_file = _safe_resolve(Path(schema_file))
         self.loader = SchemaLoader()
         self.loader.set_main_schema_path(self.schema_file)
 
@@ -325,7 +348,7 @@ class SchemaValidator:
         validated_paths: Set[Path],
     ) -> List[Path]:
         """Walk nested schema references and return one cycle path if found."""
-        resolved_current_path = current_path.expanduser().resolve()
+        resolved_current_path = _safe_resolve(current_path)
         visited_paths.add(resolved_current_path)
         recursion_stack.append(resolved_current_path)
 
@@ -389,7 +412,7 @@ class SchemaValidator:
         validated_paths: Set[Path],
     ) -> None:
         """Validate field definitions for one schema document."""
-        resolved_schema_path = schema_path.expanduser().resolve()
+        resolved_schema_path = _safe_resolve(schema_path)
         if resolved_schema_path in validated_paths:
             return
         validated_paths.add(resolved_schema_path)
@@ -707,7 +730,7 @@ class SchemaValidator:
 
 
 def _default_schema_path() -> Path:
-    return Path(__file__).resolve().parent.parent / "config" / "schemas" / "dcc_register_enhanced.json"
+    return _safe_resolve(Path(__file__).parent.parent / "config" / "schemas" / "dcc_register_enhanced.json")
 
 
 def format_report(results: Dict[str, Any]) -> str:

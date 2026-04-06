@@ -13,6 +13,7 @@ import argparse
 import builtins
 import importlib
 import json
+import os
 import platform
 from datetime import datetime
 from pathlib import Path
@@ -34,17 +35,17 @@ def debug_print(*args: Any, **kwargs: Any) -> None:
 
 
 def _safe_resolve(path: Path) -> Path:
-    """Resolve a path safely, falling back if filesystem access fails (e.g., network drives)."""
-    try:
-        return path.expanduser().resolve()
-    except (OSError, PermissionError) as exc:
-        debug_print(f"Path resolve failed for {path}, using absolute path: {exc}")
-        return Path(path.expanduser().absolute())
+    """Return an absolute path without filesystem I/O (no resolve)."""
+    return Path(path.expanduser().absolute())
 
 
 def _default_base_path() -> Path:
-    script_dir = _safe_resolve(Path(__file__).parent)
-    return script_dir.parent if script_dir.name.lower() == "workflow" else script_dir
+    # Use script directory directly. Do NOT use resolve() or cwd,
+    # which inject restricted network paths on Windows UNC shares.
+    script_dir = Path(__file__).parent
+    if script_dir.name.lower() == "workflow":
+        script_dir = script_dir.parent
+    return Path(script_dir).absolute()
 
 
 def _default_schema_path(base_path: Path) -> Path:
@@ -597,6 +598,14 @@ def _print_summary(results: Dict[str, Any]) -> None:
 
 def main() -> int:
     base_path = _default_base_path()
+
+    # Ensure working directory is always accessible.
+    # If the shell's cwd points to an inaccessible network share, switch to the script's directory.
+    try:
+        os.chdir(base_path)
+    except (OSError, PermissionError):
+        pass
+
     native_defaults = _build_native_defaults(base_path)
     args, cli_args = _parse_cli_args(base_path)
 
