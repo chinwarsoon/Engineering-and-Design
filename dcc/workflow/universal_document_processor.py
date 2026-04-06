@@ -213,14 +213,47 @@ class CalculationEngine:
         """
         Apply null handling rules based on schema definitions.
         
+        Processing order follows self.columns which is ordered by column_sequence from schema.
+
         Args:
             df: Input DataFrame
             original_columns: Set of columns natively mapped via detection
-            
+
         Returns:
             DataFrame with null handling applied
         """
+        # CRITICAL: Reset DataFrame index to simple RangeIndex to prevent tuple corruption
+        logger.info(f"[NULL_HANDLING] Entry - DataFrame index type: {type(df.index)}")
+        if not isinstance(df.index, pd.RangeIndex):
+            logger.warning(f"DataFrame index is {type(df.index)}, resetting to RangeIndex")
+            logger.warning(f"Current index sample: {df.index[:3].tolist() if hasattr(df.index, 'tolist') else list(df.index)[:3]}")
+            df = df.reset_index(drop=True)
+            logger.info(f"Index reset to RangeIndex, new index sample: {df.index[:3].tolist()}")
+        
+        # CRITICAL: Ensure all columns are strings before any processing
+        # This prevents tuple columns from propagating through copies
+        if not all(isinstance(c, str) for c in df.columns):
+            logger.warning("Flattening non-string columns in apply_null_handling before processing")
+            df = df.copy()
+            df.columns = ['_'.join(str(level) for level in (c if isinstance(c, tuple) else [c])).strip('_') 
+                          for c in df.columns]
+        
+        logger.info(f"[NULL_HANDLING] Starting null handling with {len(df)} rows, {len(df.columns)} columns")
+        logger.info(f"[NULL_HANDLING] Column processing order (from schema column_sequence): {list(self.columns.keys())[:10]}...")
+
         df_processed = df.copy()
+        
+        # Verify index is still RangeIndex after copy
+        if not isinstance(df_processed.index, pd.RangeIndex):
+            logger.warning("Index corrupted after copy, resetting again")
+            df_processed = df_processed.reset_index(drop=True)
+        
+        # Verify columns are still strings after copy
+        if not all(isinstance(c, str) for c in df_processed.columns):
+            logger.error("Columns became tuples during copy! Re-flattening.")
+            df_processed.columns = ['_'.join(str(level) for level in (c if isinstance(c, tuple) else [c])).strip('_') 
+                                    for c in df_processed.columns]
+        
         if original_columns is None:
             original_columns = set(df_processed.columns)
 
@@ -260,7 +293,20 @@ class CalculationEngine:
     def _apply_forward_fill(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
         """Apply forward fill strategy."""
         group_by = null_handling.get('group_by', [])
-        
+
+        # DEBUG: Log entry into function
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - column_name='{column_name}' (type={type(column_name)})")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - df.shape={df.shape}")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - df.columns[:10]={list(df.columns)[:10]}")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - df.index type={type(df.index)}")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - df.index[:5]={df.index[:5].tolist()}")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - group_by={group_by}")
+
+        # Defensive check: ensure column_name is a string, not a tuple
+        if not isinstance(column_name, str):
+            logger.error(f"Invalid column_name type: {type(column_name)} - {column_name}")
+            column_name = str(column_name) if isinstance(column_name, tuple) else column_name
+
         # Resolve fill_value from schema reference if specified
         fill_value_ref = null_handling.get('fill_value_reference')
         if fill_value_ref:
@@ -269,34 +315,134 @@ class CalculationEngine:
                 fill_value = null_handling.get('fill_value', 'NA')
         else:
             fill_value = null_handling.get('fill_value', 'NA')
-        
+
         na_fallback = null_handling.get('na_fallback', False)
         formatting = null_handling.get('formatting', {})
         zero_pad = formatting.get('zero_pad')
-        
+
+        # Validate that column exists in DataFrame
+        if column_name not in df.columns:
+            logger.error(f"Column '{column_name}' not found in DataFrame. Available columns: {list(df.columns)[:10]}...")
+            return df
+
         if group_by:
+            # Validate group_by columns exist
+            valid_group_by = [col for col in group_by if col in df.columns]
+            if not valid_group_by:
+                logger.warning(f"None of the group_by columns {group_by} found in DataFrame. Skipping forward fill for {column_name}.")
+                return df
+            
             # Group by specified columns and forward fill within groups
             # Do NOT sort - preserve original row order for correct forward fill
             df_copy = df.copy()
-            for col in group_by:
-                if col in df_copy.columns:
-                    df_copy[col] = df_copy[col].astype(str)
             
+            logger.info(f"[DEBUG] After copy - df_copy.index type={type(df_copy.index)}")
+            logger.info(f"[DEBUG] After copy - df_copy.index[:5]={df_copy.index[:5].tolist()}")
+            
+            for col in valid_group_by:
+                df_copy[col] = df_copy[col].astype(str)
+                
+            logger.info(f"[DEBUG] After astype - df_copy.index type={type(df_copy.index)}")
+            logger.info(f"[DEBUG] After astype - df_copy.index[:5]={df_copy.index[:5].tolist()}")
+            logger.info(f"[DEBUG] df_copy['{column_name}'][:5]={df_copy[column_name].head().tolist()}")
+
             # Forward fill within groups - ONLY fill null values, preserve existing data
             mask = df_copy[column_name].isna()
-            filled_values = df_copy.groupby(group_by)[column_name].ffill()
-            df_copy.loc[mask, column_name] = filled_values[mask]
             
+            logger.info(f"[DEBUG] mask type={type(mask)}")
+            logger.info(f"[DEBUG] mask index type={type(mask.index)}")
+            logger.info(f"[DEBUG] mask index[:5]={mask.index[:5].tolist()}")
+            logger.info(f"[DEBUG] mask.sum()={mask.sum()}")
+            
+            filled_values = df_copy.groupby(valid_group_by)[column_name].ffill()
+            
+            logger.info(f"[DEBUG] _apply_forward_fill - filled_values type={type(filled_values)}")
+            logger.info(f"[DEBUG] _apply_forward_fill - filled_values.shape={filled_values.shape if hasattr(filled_values, 'shape') else 'N/A'}")
+            
+            # Use .values to avoid pandas index alignment issues that cause string iteration
+            fill_data = filled_values[mask].values
+            logger.info(f"[DEBUG] _apply_forward_fill - fill_data type={type(fill_data)}, shape={fill_data.shape if hasattr(fill_data, 'shape') else 'N/A'}")
+            
+            df_copy.loc[mask, column_name] = fill_data
+
             # Apply fill_value for any remaining NaN (groups that started with null)
             df_copy[column_name] = df_copy[column_name].fillna(fill_value)
-            
+
             # Update original dataframe with filled values
             df[column_name] = df_copy[column_name]
         else:
             # Simple forward fill - ONLY fill nulls, preserve existing data
-            mask = df[column_name].isna()
-            filled_values = df[column_name].ffill()
-            df.loc[mask, column_name] = filled_values[mask]
+            logger.info(f"[DEBUG] Simple forward fill branch - column_name='{column_name}' (type={type(column_name)})")
+            logger.info(f"[DEBUG] df.shape={df.shape}, df.index type={type(df.index)}")
+            logger.info(f"[DEBUG] df.columns type={type(df.columns)}, df.columns[:5]={list(df.columns)[:5]}")
+            logger.info(f"[DEBUG] df index sample={df.index[:3].tolist() if hasattr(df.index, 'tolist') else list(df.index)[:3]}")
+            
+            # CRITICAL: Check for duplicate columns which cause df[col] to return DataFrame
+            col_count = df.columns.tolist().count(column_name)
+            if col_count > 1:
+                logger.error(f"DUPLICATE COLUMNS DETECTED: '{column_name}' appears {col_count} times!")
+                logger.error(f"All columns: {list(df.columns)}")
+                logger.error("Removing duplicate columns...")
+                
+                # Keep only the first occurrence of each column
+                df = df.loc[:, ~df.columns.duplicated()].copy()
+                logger.info(f"Removed duplicates. New df.columns: {list(df.columns)}")
+                df.index = pd.RangeIndex(len(df))
+            
+            # CRITICAL: Rebuild DataFrame to ensure clean structure
+            # This fixes any corruption from previous operations
+            try:
+                # Reset index to ensure it's clean
+                if not isinstance(df.index, pd.RangeIndex):
+                    logger.warning("Resetting index before forward fill")
+                    df = df.reset_index(drop=True)
+                
+                # Verify column exists and is accessible
+                if column_name not in df.columns:
+                    logger.error(f"Column '{column_name}' not found in df.columns")
+                    logger.error(f"Available columns: {list(df.columns)}")
+                    return df
+                
+                # Test column access explicitly
+                test_col = df[column_name]
+                if isinstance(test_col, pd.DataFrame):
+                    logger.error(f"df['{column_name}'] returned a DataFrame, not a Series!")
+                    logger.error(f"This indicates DataFrame corruption. Attempting to fix...")
+                    # Rebuild the DataFrame from scratch
+                    df = pd.DataFrame(df.values, columns=df.columns, index=df.index)
+                    df.index = pd.RangeIndex(len(df))
+                    logger.info("DataFrame rebuilt successfully")
+                
+                logger.info(f"[DEBUG] Attempting df['{column_name}'].isna()")
+                mask = df[column_name].isna()
+                logger.info(f"[DEBUG] mask created successfully, mask.sum()={mask.sum()}")
+            except Exception as e:
+                logger.error(f"[DEBUG] Error creating mask: {e}")
+                logger.error(f"[DEBUG] df.index type={type(df.index)}, df.index[:5]={df.index[:5].tolist() if hasattr(df.index, 'tolist') else list(df.index)[:5]}")
+                logger.error(f"[DEBUG] df.columns type={type(df.columns)}, df.columns[:10]={list(df.columns)[:10]}")
+                raise
+            
+            try:
+                logger.info(f"[DEBUG] Attempting df['{column_name}'].ffill()")
+                filled_values = df[column_name].ffill()
+                logger.info(f"[DEBUG] ffill successful, filled_values[:5]={filled_values.head().tolist()}")
+            except Exception as e:
+                logger.error(f"[DEBUG] Error in ffill: {e}")
+                logger.error(f"[DEBUG] df['{column_name}'] type={type(df[column_name])}")
+                raise
+
+            # Use .values to avoid pandas index alignment issues that cause string iteration
+            try:
+                logger.info(f"[DEBUG] Attempting df.loc[mask, '{column_name}'] assignment")
+                fill_data = filled_values[mask].values
+                df.loc[mask, column_name] = fill_data
+                logger.info(f"[DEBUG] Assignment successful")
+            except Exception as e:
+                logger.error(f"[DEBUG] Error in loc assignment: {e}")
+                logger.error(f"[DEBUG] fill_data type={type(fill_data)}, fill_data[:5]={fill_data[:5]}")
+                logger.error(f"[DEBUG] mask index type={type(mask.index)}, mask index[:5]={mask.index[:5].tolist()}")
+                raise
+            
             # Apply fill_value for any remaining NaN at start
             df[column_name] = df[column_name].fillna(fill_value)
         
@@ -336,11 +482,12 @@ class CalculationEngine:
                 for col in group_by:
                     if col in df_copy.columns:
                         df_copy[col] = df_copy[col].astype(str)
-                
+
                 # Forward fill within groups - ONLY fill null values, preserve existing data
                 mask = df_copy[column_name].isna()
                 filled_values = df_copy.groupby(group_by)[column_name].ffill()
-                df_copy.loc[mask, column_name] = filled_values[mask]
+                # Use .values to avoid pandas index alignment issues
+                df_copy.loc[mask, column_name] = filled_values[mask].values
                 df[column_name] = df_copy[column_name]
                 
         if final_fill is not None and column_name in df.columns:
@@ -1445,22 +1592,42 @@ class UniversalDocumentProcessor:
     def process_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Process data according to schema rules.
-        
+
         Args:
             df: Input DataFrame
-            
+
         Returns:
             Processed DataFrame with all calculations applied
         """
         if self.calculation_engine is None:
             raise ValueError("Schema not loaded. Call load_schema() first.")
 
+        # CRITICAL: Flatten MultiIndex/tuple columns IMMEDIATELY
+        # This must happen before ANY other processing
+        df = df.copy()
+        if hasattr(pd, 'MultiIndex') and isinstance(df.columns, pd.MultiIndex):
+            logger.warning("Flattening MultiIndex columns at start of process_data")
+            df.columns = ['_'.join(str(level) for level in levels).strip('_') 
+                          for levels in df.columns]
+        elif len(df.columns) > 0 and isinstance(df.columns[0], tuple):
+            logger.warning("Flattening tuple columns at start of process_data")
+            df.columns = ['_'.join(str(level) for level in levels).strip('_') 
+                          for levels in df.columns]
+        
+        # Double-check all columns are strings
+        if not all(isinstance(c, str) for c in df.columns):
+            logger.warning(f"Non-string columns detected, converting all to strings")
+            df.columns = ['_'.join(str(level) for level in (c if isinstance(c, tuple) else [c])).strip('_') 
+                          for c in df.columns]
+        
+        logger.info(f"DataFrame columns after flattening: {list(df.columns)[:10]}...")
+
         # Stamp a stable row index onto imported rows as early as possible so
         # downstream mapping/null-handling/calculation logic can rely on it.
         df = self._ensure_row_index_column(df)
         logger.info(f"Processing data with {len(df)} rows and {len(df.columns)} columns")
         original_columns = set(df.columns)
-        
+
         # Step 0: Initialize missing columns (handles required columns if create_if_missing is true)
         df_initialized = self._initialize_missing_columns(df)
         
@@ -1566,6 +1733,13 @@ class UniversalDocumentProcessor:
     def _initialize_missing_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Initialize missing columns based on schema rules."""
         df_init = df.copy()
+        
+        # Ensure columns are strings before processing
+        if not all(isinstance(c, str) for c in df_init.columns):
+            logger.warning("Flattening columns in _initialize_missing_columns")
+            df_init.columns = ['_'.join(str(level) for level in (c if isinstance(c, tuple) else [c])).strip('_') 
+                               for c in df_init.columns]
+        
         enhanced_schema = self.schema_data.get('enhanced_schema', {})
         columns = enhanced_schema.get('columns', {})
         parameters = self.schema_data.get('parameters', {})

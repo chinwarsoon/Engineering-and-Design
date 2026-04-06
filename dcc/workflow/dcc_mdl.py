@@ -200,9 +200,10 @@ pc_name = "CESL-22120"
 win_upload_file = Path(r"K:\J Submission\Submittal and RFI Tracker Lists.xlsx")
 win_download_path = Path(r"K:\J Submission\AI Tools and Report")
 
-# Linux/Colab paths (fallback)
-linux_upload_file = Path.home() / "dsai" / "Engineering-and-Design" / "dcc" / "data" / "Submittal and RFI Tracker Lists.xlsx"
-linux_download_path = Path.home() / "dsai" / "Engineering-and-Design" / "dcc" / "output"
+# Linux/Colab paths (fallback - relative to script directory)
+_script_dir = Path(__file__).parent
+linux_upload_file = _script_dir.parent / "data" / "Submittal and RFI Tracker Lists.xlsx"
+linux_download_path = _script_dir.parent / "output"
 
 # Colab-specific path
 colab_upload_file = Path("/content/sample_data/Submittal and RFI Tracker Lists.xlsx")

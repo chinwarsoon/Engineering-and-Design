@@ -117,16 +117,30 @@ class UniversalColumnMapper:
     def detect_columns(self, headers: List[str]) -> Dict[str, Dict]:
         """
         Detect and map input headers to schema columns.
-        
+
         Args:
             headers: List of input headers
-            
+
         Returns:
             Dictionary mapping detected columns with metadata
         """
         if not self.resolved_schema:
             raise ValueError("No schema loaded. Call load_main_schema() first.")
+
+        # Flatten tuple headers to strings (from MultiIndex Excel loading)
+        flattened_headers = []
+        for h in headers:
+            if isinstance(h, tuple):
+                flattened = '_'.join(str(level) for level in h).strip('_')
+                flattened_headers.append(flattened)
+                logger.warning(f"Flattened tuple header {h} to '{flattened}'")
+            elif isinstance(h, str):
+                flattened_headers.append(h)
+            else:
+                flattened_headers.append(str(h))
         
+        headers = flattened_headers
+
         enhanced_schema = self.resolved_schema.get('enhanced_schema', {})
         columns = enhanced_schema.get('columns', {})
         
@@ -211,15 +225,25 @@ class UniversalColumnMapper:
     def rename_dataframe_columns(self, df: pd.DataFrame, mapping_result: Dict) -> pd.DataFrame:
         """
         Rename DataFrame columns based on detected mapping.
-        
+
         Args:
             df: Input DataFrame with original column names
             mapping_result: Result from detect_columns() method
-            
+
         Returns:
             DataFrame with columns renamed to schema names
         """
         df_renamed = df.copy()
+        
+        # Flatten MultiIndex/tuple columns if present
+        if hasattr(pd, 'MultiIndex') and isinstance(df_renamed.columns, pd.MultiIndex):
+            logger.warning("Flattening MultiIndex columns in rename_dataframe_columns")
+            df_renamed.columns = ['_'.join(str(level) for level in levels).strip('_') 
+                                  for levels in df_renamed.columns]
+        elif len(df_renamed.columns) > 0 and isinstance(df_renamed.columns[0], tuple):
+            logger.warning("Flattening tuple columns in rename_dataframe_columns")
+            df_renamed.columns = ['_'.join(str(level) for level in levels).strip('_') 
+                                  for levels in df_renamed.columns]
         
         # Create rename mapping
         rename_dict = {}

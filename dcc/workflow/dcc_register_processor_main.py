@@ -186,12 +186,13 @@ def _test_environment() -> Dict[str, Any]:
     return results
 
 
-def _resolve_native_paths(native_defaults: Dict[str, Any]) -> Dict[str, Any]:
+def _resolve_native_paths(native_defaults: Dict[str, Any], base_path: Path) -> Dict[str, Any]:
     """
     Resolve platform-specific paths from native defaults.
 
     On Windows: tries K: network drive first, falls back to relative paths if not found.
-    On Linux/Mac: uses the linux_upload_file and linux_download_path directly.
+    On Linux/Mac: uses the linux_upload_file and linux_download_path, resolving relative paths against base_path.
+    Also resolves upload_file_name and download_file_path if they are relative.
     """
     status_print("Resolving platform paths...")
     resolved = native_defaults.copy()
@@ -207,9 +208,33 @@ def _resolve_native_paths(native_defaults: Dict[str, Any]) -> Dict[str, Any]:
             resolved["download_file_path"] = native_defaults["win_download_path_fallback"]
             debug_print("Windows network drive (K:) not found, using relative paths.")
     else:
-        resolved["upload_file_name"] = native_defaults["linux_upload_file"]
-        resolved["download_file_path"] = native_defaults["linux_download_path"]
-        debug_print(f"Using non-Windows defaults for {system_name}.")
+        # Resolve relative paths against base_path for Linux/Mac
+        upload_path = Path(native_defaults["linux_upload_file"])
+        download_path = Path(native_defaults["linux_download_path"])
+        
+        if not upload_path.is_absolute():
+            upload_path = base_path / upload_path
+        if not download_path.is_absolute():
+            download_path = base_path / download_path
+            
+        resolved["upload_file_name"] = str(upload_path)
+        resolved["download_file_path"] = str(download_path)
+        debug_print(f"Using non-Windows defaults for {system_name} (resolved against base_path).")
+
+    # Also resolve upload_file_name and download_file_path if they're relative paths
+    # (These may come from schema parameters and should be resolved against base_path or home folder)
+    active_upload = Path(resolved.get("upload_file_name", ""))
+    active_download = Path(resolved.get("download_file_path", ""))
+    
+    if not active_upload.is_absolute():
+        # Resolve relative paths against base_path
+        resolved["upload_file_name"] = str(base_path / active_upload)
+        debug_print(f"Resolved upload_file_name against base_path: {resolved['upload_file_name']}")
+    
+    if not active_download.is_absolute():
+        # Resolve relative paths against base_path
+        resolved["download_file_path"] = str(base_path / active_download)
+        debug_print(f"Resolved download_file_path against base_path: {resolved['download_file_path']}")
 
     Path(resolved["download_file_path"]).mkdir(parents=True, exist_ok=True)
     status_print(f"Current system detected: {system_name}")
@@ -328,17 +353,56 @@ def _load_excel_data(excel_path: Path, effective_parameters: Dict[str, Any], nro
     end_col = effective_parameters.get("end_col", "AP")
     usecols = f"{start_col}:{end_col}"
 
-    status_print(f"Loading Excel file: {excel_path}")
+    status_print(f"📁 Loading Excel file: {excel_path}")
+    status_print(f"   Sheet: '{sheet_name}'")
+    status_print(f"   Header row: {header_row + 1} (0-indexed: {header_row})")
+    status_print(f"   Column range: {start_col}:{end_col}")
+    status_print(f"   Row limit: {nrows if nrows else 'all'}")
+    
     debug_print(
         f"Excel settings: sheet={sheet_name}, header_row={header_row}, usecols={usecols}, nrows={nrows}"
     )
-    return pd_module.read_excel(
+    
+    # Read Excel with explicit parameters to ensure correct header and column range
+    df = pd_module.read_excel(
         excel_path,
         sheet_name=sheet_name,
         header=header_row,
         usecols=usecols,
         nrows=nrows,
     )
+    
+    # DEBUG: Log raw DataFrame state immediately after loading
+    import logging
+    raw_logger = logging.getLogger('excel_loader')
+    raw_logger.info(f"[DEBUG] Raw DataFrame after Excel load - shape: {df.shape}")
+    raw_logger.info(f"[DEBUG] Raw DataFrame columns type: {type(df.columns)}")
+    raw_logger.info(f"[DEBUG] Raw DataFrame first 10 columns: {list(df.columns)[:10]}")
+    has_tuples = any(isinstance(c, tuple) for c in df.columns)
+    raw_logger.info(f"[DEBUG] Has tuple columns: {has_tuples}")
+    if has_tuples:
+        tuple_cols = [c for c in df.columns if isinstance(c, tuple)]
+        raw_logger.warning(f"[DEBUG] Tuple columns: {tuple_cols}")
+    
+    # Validate that columns were loaded successfully
+    if len(df.columns) == 0:
+        raise ValueError(
+            f"No columns loaded from Excel file. "
+            f"Check if header_row_index={header_row} and column range {start_col}:{end_col} are correct."
+        )
+    
+    # Flatten MultiIndex columns if present (can happen with merged cells in Excel)
+    if hasattr(pd_module, 'MultiIndex') and isinstance(df.columns, pd_module.MultiIndex):
+        status_print("   ⚠️  Flattening MultiIndex columns from Excel header")
+        df.columns = ['_'.join(str(level) for level in levels).strip('_') 
+                      for levels in df.columns]
+    
+    # Remove any fully empty columns that might have been created
+    df = df.dropna(axis=1, how='all')
+    
+    status_print(f"   ✓ Loaded {len(df)} rows × {len(df.columns)} columns")
+    
+    return df
 
 
 def _validate_output_path(output_path: Path, overwrite_existing: bool) -> None:
@@ -523,6 +587,18 @@ def run_pipeline(
 
     status_print("Step 3: Universal column mapping")
     df_raw = _load_excel_data(excel_path, effective_parameters, nrows=nrows)
+    
+    # Safeguard: Ensure DataFrame columns are strings, not tuples (from Excel MultiIndex)
+    pd_module = __import__('pandas')
+    if hasattr(pd_module, 'MultiIndex') and isinstance(df_raw.columns, pd_module.MultiIndex):
+        status_print("   ⚠️  Flattening MultiIndex columns before mapping")
+        df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') 
+                          for levels in df_raw.columns]
+    elif len(df_raw.columns) > 0 and isinstance(df_raw.columns[0], tuple):
+        status_print("   ⚠️  Converting tuple columns to strings before mapping")
+        df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') 
+                          for levels in df_raw.columns]
+
     mapper = universal_column_mapper_cls(schema_file=str(schema_path))
     mapping_result = mapper.detect_columns(df_raw.columns.tolist())
     df_mapped = mapper.rename_dataframe_columns(df_raw, mapping_result)
@@ -644,7 +720,7 @@ def main() -> int:
         return 1
 
     base_path = _safe_resolve(Path(args.base_path))
-    native_defaults = _resolve_native_paths(_build_native_defaults(base_path))
+    native_defaults = _resolve_native_paths(_build_native_defaults(base_path), base_path)
     schema_path = _safe_resolve(Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"])))
     effective_parameters = _resolve_effective_parameters(schema_path, cli_args, native_defaults)
 
