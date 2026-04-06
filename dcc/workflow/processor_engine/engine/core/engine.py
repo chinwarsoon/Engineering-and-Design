@@ -43,7 +43,7 @@ class CalculationEngine:
             self.columns = {name: defn for name, defn in raw_columns.items() if isinstance(defn, dict)}
             
         # Determine the safe execution order for calculated columns
-        from engine.schema.dependency import resolve_calculation_order
+        from dcc.workflow.process_engine.engine.schema.dependency import resolve_calculation_order
         self.calculation_order = resolve_calculation_order(self.columns)
 
     def process_data(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -64,7 +64,7 @@ class CalculationEngine:
         strategy to each column.
         """
         from engine.utils.dataframe import prepare_dataframe_for_processing
-        from engine.core.registry import get_null_handler
+        from dcc.workflow.process_engine.engine.core.registry import get_null_handler
         
         df_processed = prepare_dataframe_for_processing(df)
         
@@ -86,7 +86,7 @@ class CalculationEngine:
         """
         Executes calculated columns in the validated dependency order.
         """
-        from engine.core.registry import get_calculation_handler
+        from dcc.workflow.process_engine.engine.core.registry import get_calculation_handler
         
         df_calculated = df.copy()
         

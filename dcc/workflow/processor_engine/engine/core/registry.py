@@ -7,12 +7,9 @@ import logging
 from typing import Callable, Dict, Optional
 
 # Import the calculation modules (these will be created in the /calculations folder)
-from engine.calculations import (
-    mapping,
-    aggregate,
-    conditional,
-    date,
-    dataframe_utils  # For copy/direct actions
+from dcc.workflow.process_engine.engine.calculations import aggregate, conditional, dataframe_utils, date
+from dcc.workflow.process_engine.engine.calculations import (
+    mapping  # For copy/direct actions
 )
 
 logger = logging.getLogger(__name__)
