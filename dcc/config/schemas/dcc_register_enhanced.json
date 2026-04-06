@@ -21,7 +21,14 @@
     "start_col": "P",
     "end_col": "AP",
     "header_row_index": 4,
-    "pending_status": "Awaiting S.O.'s response",
+    "pending_status": {
+      "$ref": {
+        "schema": "approval_code_schema",
+        "code": "PEN",
+        "field": "status",
+        "description": "Resolved from approval_code_schema approval entry with code 'PEN'. Ensures single source of truth for pending status."
+      }
+    },
     "duration_is_working_day": true,
     "first_review_duration": 20,
     "second_review_duration": 14,
@@ -30,6 +37,8 @@
     "upload_sheet_name": "Prolog Submittals ",
     "win_upload_file": "K:\\J Submission\\Submittal and RFI Tracker Lists.xlsx",
     "win_download_path": "K:\\J Submission\\AI Tools and Report",
+    "win_upload_file_fallback": "data/Submittal and RFI Tracker Lists.xlsx",
+    "win_download_path_fallback": "output",
     "linux_upload_file": "/home/franklin/dsai/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx",
     "linux_download_path": "/home/franklin/dsai/Engineering-and-Design/dcc/output",
     "colab_upload_file": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
@@ -1060,8 +1069,13 @@
            "Submission_Session",
            "Submission_Session_Revision"
           ],
-          "fill_value": "Awaiting S.O.'s response",
-          "description": "Processed by _apply_forward_fill. Leverages cross-row grouping within the same session ID and assigns 'Awaiting S.O.'s response' as the default state for unreviewed rows."
+          "fill_value_reference": {
+            "schema": "approval_code_schema",
+            "code": "PEN",
+            "field": "status",
+            "description": "Resolved from approval_code_schema approval entry with code 'PEN'. Ensures single source of truth for pending status."
+          },
+          "description": "Processed by _apply_forward_fill. Leverages cross-row grouping within the same session ID and assigns pending status (resolved from approval_code_schema PEN code) as the default state for unreviewed rows."
           },
         "validation": [
           {
@@ -1168,7 +1182,7 @@
         "validation": [
           {
             "type": "max_length",
-            "max_length": 2000,
+            "max_length": 500,
             "description": "Review comments and feedback"
           }
         ]
@@ -1207,12 +1221,20 @@
             }
           },
           "filter": {
-            "exclude_values": [
-              "pending_status"
-            ],
-            "description": "Exclude pending status from latest approval calculation"
+            "exclude_values_reference": {
+              "schema": "approval_code_schema",
+              "code": "PEN",
+              "field": "aliases",
+              "description": "Resolved from approval_code_schema approval entry with code 'PEN'. Excludes all pending status aliases from latest approval calculation."
+            },
+            "description": "Exclude pending status aliases from latest approval calculation. Resolved from approval_code_schema PEN code."
           },
-          "fallback_value": "pending_status",
+          "fallback_value_reference": {
+            "schema": "approval_code_schema",
+            "code": "PEN",
+            "field": "status",
+            "description": "Resolved from approval_code_schema approval entry with code 'PEN'. Falls back to pending status if all reviews are pending."
+          },
           "mapping": {
             "method": "map_to_all_rows",
             "description": "Map latest non-pending status to all rows per Document_ID per original dcc_mdl.ipynb logic"
@@ -1221,15 +1243,12 @@
         },
         "validation": [
           {
-            "type": "allowed_values",
-            "allowed_values": [
-              "Approved",
-              "Rejected",
-              "Pending",
-              "Approved with Comments",
-              "Not Approved"
-            ],
-            "description": "Latest approval status"
+            "type": "schema_reference_check",
+            "reference": "approval_code_schema",
+            "data_section": "approval",
+            "field": "status",
+            "exclude_codes": ["PEN"],
+            "description": "Validated by _apply_validation against approval_code_schema.approval[*].status (excluding pending) to ensure latest approval status is valid."
           }
         ]
       },
@@ -1262,17 +1281,11 @@
         },
         "validation": [
           {
-            "type": "allowed_values",
-            "allowed_values": [
-              "APP",
-              "REJ",
-              "PEN",
-              "AWC",
-              "NAP",
-              "INF",
-              "VOID"
-            ],
-            "description": "Latest approval code"
+            "type": "schema_reference_check",
+            "reference": "approval_code_schema",
+            "data_section": "approval",
+            "field": "code",
+            "description": "Validated by _apply_validation against approval_code_schema.approval[*].code to ensure latest approval code is valid."
           }
         ]
       },
@@ -1409,7 +1422,8 @@
           "dependencies": [
             "Latest_Approval_Code",
             "Document_ID",
-            "Submission_Date"
+            "Submission_Date",
+            "Latest_Submission_Date"
           ],
           "preprocessing": {
             "text_cleaning": {
@@ -1426,7 +1440,7 @@
                 "description": "Keep YES if already YES"
               },
               {
-                "if": "current Submission_Date is not the latest for Document_ID",
+                "if": "Submission_Date < Latest_Submission_Date",
                 "then": "'YES'",
                 "description": "Set to YES if current submission is not the latest for this document (superseded by newer submission)"
               },
@@ -1472,7 +1486,9 @@
           "dependencies": [
             "Submission_Closed",
             "Document_ID",
-            "Submission_Date"
+            "Submission_Date",
+            "Review_Return_Actual_Date",
+            "Latest_Submission_Date"
           ],
           "conditions": [
             {
@@ -1486,9 +1502,14 @@
               "description": "Set to NO if submission is closed"
             },
             {
-              "if": "Document_ID is not the latest by Submission_Date for this document",
-              "then": "'NO'",
+              "if": "Submission_Date < Latest_Submission_Date",
+              "then": "'RESUBMITTED'",
               "description": "Set to NO if a newer submission exists for this document (resubmission already done)"
+            },
+            {
+              "if": "Submission_Date == Latest_Submission_Date and Review_Return_Actual_Date is null",
+              "then": "PEN",
+              "description": "Status is Pending (PEN) while awaiting the return of review comments."
             },
             {
               "else": "'YES'",
@@ -1502,7 +1523,9 @@
             "type": "allowed_values",
             "allowed_values": [
               "YES",
-              "NO"
+              "NO",
+              "RESUBMITTED",
+              "PEN"
             ],
             "description": "Resubmission requirement status"
           }
@@ -1835,17 +1858,11 @@
         },
         "validation": [
           {
-            "type": "allowed_values",
-            "allowed_values": [
-              "APP",
-              "REJ",
-              "PEN",
-              "AWC",
-              "NAP",
-              "INF",
-              "VOID"
-            ],
-            "description": "Approval code for current submission"
+            "type": "schema_reference_check",
+            "reference": "approval_code_schema",
+            "data_section": "approval",
+            "field": "code",
+            "description": "Validated by _apply_validation against approval_code_schema.approval[*].code to ensure approval code is valid."
           }
         ]
       },

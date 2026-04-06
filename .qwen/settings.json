@@ -1,7 +1,27 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Read(//workspaces/Engineering-and-Engineering-and-Design/dcc/workflow/**)",
+      "Bash(import *)",
+      "Bash(as *)",
+      "Bash(enhanced *)",
+      "Bash(f)",
+      "Bash(approval *)",
+      "Bash(print)",
+      "Bash(pending_ref *)",
+      "Bash(review_status *)",
+      "Bash(fill_ref *)",
+      "Bash('fill_value_reference')",
+      "Bash(latest_status *)",
+      "Bash(validation *)",
+      "Bash(latest_code *)",
+      "Bash(validation_code *)",
+      "Bash(this_code *)",
+      "Bash(validation_this *)",
+      "Bash(pen_entry *)",
+      "Bash(eof)",
+      "Bash(python *)"
     ]
   },
   "$version": 3

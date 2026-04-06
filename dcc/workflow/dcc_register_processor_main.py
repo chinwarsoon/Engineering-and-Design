@@ -33,8 +33,17 @@ def debug_print(*args: Any, **kwargs: Any) -> None:
         builtins.print(*args, **kwargs)
 
 
+def _safe_resolve(path: Path) -> Path:
+    """Resolve a path safely, falling back if filesystem access fails (e.g., network drives)."""
+    try:
+        return path.expanduser().resolve()
+    except (OSError, PermissionError) as exc:
+        debug_print(f"Path resolve failed for {path}, using absolute path: {exc}")
+        return Path(path.expanduser().absolute())
+
+
 def _default_base_path() -> Path:
-    script_dir = Path(__file__).resolve().parent
+    script_dir = _safe_resolve(Path(__file__).parent)
     return script_dir.parent if script_dir.name.lower() == "workflow" else script_dir
 
 
@@ -43,6 +52,14 @@ def _default_schema_path(base_path: Path) -> Path:
 
 
 def _build_native_defaults(base_path: Path) -> Dict[str, Any]:
+    """
+    Build native default parameters for the DCC processing pipeline.
+
+    These are the lowest-priority defaults in the parameter precedence chain:
+    1. CLI arguments (highest) → 2. Schema parameters → 3. Native defaults (lowest)
+
+    Paths are defined here, not in mapper or processor files.
+    """
     return {
         "debug_dev_mode": False,
         "overwrite_existing_downloads": True,
@@ -51,10 +68,18 @@ def _build_native_defaults(base_path: Path) -> Dict[str, Any]:
         "header_row_index": 4,
         "upload_sheet_name": "Prolog Submittals ",
         "schema_register_file": str(_default_schema_path(base_path)),
+        # Windows network drive paths (primary if K: exists)
         "win_upload_file": r"K:\J Submission\Submittal and RFI Tracker Lists.xlsx",
         "win_download_path": r"K:\J Submission\AI Tools and Report",
+        # Windows fallback paths (relative to base_path)
+        "win_upload_file_fallback": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
+        "win_download_path_fallback": str(base_path / "output"),
+        # Linux/Colab paths
         "linux_upload_file": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
         "linux_download_path": str(base_path / "output"),
+        "colab_upload_file": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
+        "colab_download_path": "/content/output",
+        # Active paths (resolved by _resolve_native_paths)
         "upload_file_name": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
         "download_file_path": str(base_path / "output"),
     }
@@ -161,14 +186,25 @@ def _test_environment() -> Dict[str, Any]:
 
 
 def _resolve_native_paths(native_defaults: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Resolve platform-specific paths from native defaults.
+
+    On Windows: tries K: network drive first, falls back to relative paths if not found.
+    On Linux/Mac: uses the linux_upload_file and linux_download_path directly.
+    """
     status_print("Resolving platform paths...")
     resolved = native_defaults.copy()
     system_name = platform.system().lower()
 
-    if system_name == "windows" and Path(native_defaults["win_upload_file"]).exists():
-        resolved["upload_file_name"] = native_defaults["win_upload_file"]
-        resolved["download_file_path"] = native_defaults["win_download_path"]
-        debug_print("Windows path selection succeeded.")
+    if system_name == "windows":
+        if Path(native_defaults["win_upload_file"]).exists():
+            resolved["upload_file_name"] = native_defaults["win_upload_file"]
+            resolved["download_file_path"] = native_defaults["win_download_path"]
+            debug_print("Windows network drive (K:) path selection succeeded.")
+        else:
+            resolved["upload_file_name"] = native_defaults["win_upload_file_fallback"]
+            resolved["download_file_path"] = native_defaults["win_download_path_fallback"]
+            debug_print("Windows network drive (K:) not found, using relative paths.")
     else:
         resolved["upload_file_name"] = native_defaults["linux_upload_file"]
         resolved["download_file_path"] = native_defaults["linux_download_path"]
@@ -210,7 +246,7 @@ def _parse_cli_args(base_path: Path) -> tuple[argparse.Namespace, Dict[str, Any]
         cli_args["upload_sheet_name"] = args.upload_sheet
     if args.output_file:
         cli_args["output_file"] = args.output_file
-        cli_args["download_file_path"] = str(Path(args.output_file).expanduser().resolve().parent)
+        cli_args["download_file_path"] = str(_safe_resolve(Path(args.output_file)).parent)
     if args.start_col:
         cli_args["start_col"] = args.start_col
     if args.end_col:
@@ -263,8 +299,8 @@ def _resolve_effective_parameters(
 def _resolve_output_path(base_path: Path, effective_parameters: Dict[str, Any]) -> Path:
     explicit_output = effective_parameters.get("output_file")
     if explicit_output:
-        return Path(explicit_output).expanduser().resolve()
-    output_dir = Path(effective_parameters.get("download_file_path", base_path / "output")).expanduser().resolve()
+        return _safe_resolve(Path(explicit_output))
+    output_dir = _safe_resolve(Path(effective_parameters.get("download_file_path", str(base_path / "output"))))
     return output_dir / "processed_dcc_universal.csv"
 
 
@@ -465,7 +501,7 @@ def run_pipeline(
     universal_column_mapper_cls = dependencies["universal_column_mapper_cls"]
     universal_document_processor_cls = dependencies["universal_document_processor_cls"]
 
-    excel_path = Path(effective_parameters["upload_file_name"]).expanduser().resolve()
+    excel_path = _safe_resolve(Path(effective_parameters["upload_file_name"]))
     export_paths = _resolve_export_paths(base_path, effective_parameters)
     _validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
 
@@ -561,7 +597,7 @@ def _print_summary(results: Dict[str, Any]) -> None:
 
 def main() -> int:
     base_path = _default_base_path()
-    native_defaults = _resolve_native_paths(_build_native_defaults(base_path))
+    native_defaults = _build_native_defaults(base_path)
     args, cli_args = _parse_cli_args(base_path)
 
     global DEBUG_DEV_MODE
@@ -581,8 +617,9 @@ def main() -> int:
             status_print("Environment test failed.")
         return 1
 
-    base_path = Path(args.base_path).expanduser().resolve()
-    schema_path = Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"])).expanduser().resolve()
+    base_path = _safe_resolve(Path(args.base_path))
+    native_defaults = _resolve_native_paths(_build_native_defaults(base_path))
+    schema_path = _safe_resolve(Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"])))
     effective_parameters = _resolve_effective_parameters(schema_path, cli_args, native_defaults)
 
     try:

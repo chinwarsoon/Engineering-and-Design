@@ -55,6 +55,44 @@ class CalculationEngine:
         print(message)
         logger.info(message)
 
+    def _resolve_schema_reference(self, ref_config: Dict) -> any:
+        """
+        Resolve a schema reference to its actual value.
+        
+        Args:
+            ref_config: Dictionary with 'schema', 'code', and 'field' keys
+            
+        Returns:
+            Resolved value from the referenced schema, or None if not found
+        """
+        schema_name = ref_config.get('schema')
+        code = ref_config.get('code')
+        field = ref_config.get('field')
+        
+        if not all([schema_name, code, field]):
+            logger.warning(f"Invalid schema reference: {ref_config}")
+            return None
+        
+        # Load referenced schema data
+        ref_schema_data = self.schema_data.get(f'{schema_name}_data', {})
+        if not ref_schema_data:
+            logger.warning(f"Referenced schema data not found: {schema_name}_data")
+            return None
+        
+        # Find the entry with matching code
+        data_section = ref_config.get('data_section', 'approval')
+        entries = ref_schema_data.get(data_section, [])
+        
+        for entry in entries:
+            if entry.get('code') == code:
+                value = entry.get(field)
+                if value is not None:
+                    logger.debug(f"Resolved {schema_name} reference: code={code}, field={field} -> {value}")
+                    return value
+        
+        logger.warning(f"Code '{code}' not found in {schema_name}.{data_section}")
+        return None
+
     def _extract_column_dependencies(self, column_name: str, column_def: Dict) -> Set[str]:
         """Extract schema column dependencies for a calculated column."""
         dependencies = set()
@@ -222,7 +260,16 @@ class CalculationEngine:
     def _apply_forward_fill(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
         """Apply forward fill strategy."""
         group_by = null_handling.get('group_by', [])
-        fill_value = null_handling.get('fill_value', 'NA')
+        
+        # Resolve fill_value from schema reference if specified
+        fill_value_ref = null_handling.get('fill_value_reference')
+        if fill_value_ref:
+            fill_value = self._resolve_schema_reference(fill_value_ref)
+            if fill_value is None:
+                fill_value = null_handling.get('fill_value', 'NA')
+        else:
+            fill_value = null_handling.get('fill_value', 'NA')
+        
         na_fallback = null_handling.get('na_fallback', False)
         formatting = null_handling.get('formatting', {})
         zero_pad = formatting.get('zero_pad')
@@ -665,7 +712,7 @@ class CalculationEngine:
     def _apply_latest_non_pending_status(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """
         Apply custom aggregate to find latest non-pending status per group.
-        
+
         For Latest_Approval_Status:
         - Groups by Document_ID
         - Sorts by Submission_Date descending
@@ -673,13 +720,48 @@ class CalculationEngine:
         - Takes the most recent non-pending status
         - Falls back to pending_status if all are pending
         """
+        # Resolve pending_status parameter from schema (already resolved if it was a $ref)
+        parameters = self.schema_data.get('parameters', {})
+        pending_status_value = parameters.get('pending_status')
+        
+        # Fallback: if pending_status not in parameters, try to resolve from approval_code_schema
+        if pending_status_value is None or pending_status_value == 'pending_status':
+            pending_status_value = self._resolve_schema_reference({
+                'schema': 'approval_code_schema',
+                'code': 'PEN',
+                'field': 'status'
+            }) or "Awaiting S.O.'s response"
+        
         source_column = calculation.get('source_column')
         group_by = calculation.get('group_by', ['Document_ID'])
         sort_by = calculation.get('sort_by', ['Submission_Date'])
         sort_direction = calculation.get('sort_direction', ['desc'])
         filter_config = calculation.get('filter', {})
-        exclude_values = filter_config.get('exclude_values', [])
-        fallback_value = calculation.get('fallback_value', 'pending_status')
+        
+        # Resolve exclude_values from schema reference if specified
+        exclude_values_ref = filter_config.get('exclude_values_reference')
+        if exclude_values_ref:
+            exclude_values = self._resolve_schema_reference(exclude_values_ref)
+            # If the reference returns aliases (a list), use them; otherwise wrap in list
+            if isinstance(exclude_values, list):
+                exclude_values = exclude_values
+            else:
+                exclude_values = [exclude_values] if exclude_values else []
+        else:
+            # Legacy support: use exclude_values directly
+            exclude_values = filter_config.get('exclude_values', [])
+            # Resolve 'pending_status' placeholder if still used
+            exclude_values = [pending_status_value if v == 'pending_status' else v for v in exclude_values]
+        
+        # Resolve fallback_value from schema reference if specified
+        fallback_ref = calculation.get('fallback_value_reference')
+        if fallback_ref:
+            fallback_value = self._resolve_schema_reference(fallback_ref)
+        else:
+            # Legacy support: use fallback_value directly
+            fallback_config = calculation.get('fallback_value', 'pending_status')
+            fallback_value = pending_status_value if fallback_config == 'pending_status' else fallback_config
+        
         preprocessing = calculation.get('preprocessing', {})
         
         if source_column not in df.columns:
@@ -761,68 +843,87 @@ class CalculationEngine:
     def _apply_update_resubmission_required(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """
         Update Resubmission_Required based on multiple conditions with short-circuit logic.
-        Once a condition sets NO, subsequent conditions are skipped for that row.
-        
-        Priority order:
+        Once a condition sets a value, subsequent conditions are skipped for that row.
+
+        Priority order (per schema):
         1. Keep NO if already NO
         2. Set to NO if submission is closed
-        3. Set to NO if not the latest submission (resubmission already done)
-        4. Default to YES for remaining rows
+        3. Set to RESUBMITTED if not the latest submission (resubmission already done)
+        4. Set to PEN if latest submission and awaiting review return
+        5. Default to YES for remaining rows
         """
         source_column = calculation.get('source_column', 'Resubmission_Required')
-        
+
         # Get required columns
         submission_closed_col = 'Submission_Closed' if 'Submission_Closed' in df.columns else None
         document_id_col = 'Document_ID' if 'Document_ID' in df.columns else None
         submission_date_col = 'Submission_Date' if 'Submission_Date' in df.columns else None
-        
+        review_return_col = 'Review_Return_Actual_Date' if 'Review_Return_Actual_Date' in df.columns else None
+
         # Initialize: start with default YES for all rows
         df[column_name] = 'YES'
-        
-        # Track which rows have been determined (set to NO) - these skip remaining checks
+
+        # Track which rows have been determined - these skip remaining checks
         determined_mask = pd.Series([False] * len(df), index=df.index)
-        
+
         # Condition 1: Keep NO if already NO
         if source_column in df.columns:
             mask_already_no = df[source_column] == 'NO'
             df.loc[mask_already_no, column_name] = 'NO'
             determined_mask |= mask_already_no
-        
+
         # Condition 2: Set to NO if submission is closed (skip rows already determined)
         if submission_closed_col:
             mask_closed = (df[submission_closed_col] == 'YES') & ~determined_mask
             df.loc[mask_closed, column_name] = 'NO'
             determined_mask |= mask_closed
-        
-        # Condition 3: Set to NO if not the latest submission (skip rows already determined)
+
+        # Condition 3: Set to RESUBMITTED if not the latest submission (skip rows already determined)
         if document_id_col and submission_date_col:
             # Convert submission_date to datetime for comparison
             df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
-            
+
             # Find the latest submission date for each Document_ID
             latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
-            
-            # If current row's submission date is NOT the latest, it's not the current submission
+
+            # If current row's submission date is NOT the latest, resubmission already done
             mask_not_latest = (df[submission_date_col] < latest_dates) & ~determined_mask
-            df.loc[mask_not_latest, column_name] = 'NO'
+            df.loc[mask_not_latest, column_name] = 'RESUBMITTED'
             determined_mask |= mask_not_latest
-        
-        # Condition 4: Default YES - already set for all remaining undetermined rows
-        
-        logger.info(f"Applied update_resubmission_required for {column_name}: {determined_mask.sum()} rows set to NO, {(~determined_mask).sum()} rows remain YES")
+
+        # Condition 4: Set to PEN if latest submission and awaiting review return
+        if review_return_col and submission_date_col and document_id_col:
+            # Convert review return date to datetime
+            df[review_return_col] = pd.to_datetime(df[review_return_col], errors='coerce')
+            
+            # Get latest submission dates again
+            latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+            
+            # Latest submission with no review return yet
+            mask_pending = (
+                (df[submission_date_col] == latest_dates) & 
+                df[review_return_col].isna() & 
+                ~determined_mask
+            )
+            df.loc[mask_pending, column_name] = 'PEN'
+            determined_mask |= mask_pending
+
+        # Condition 5: Default YES - already set for all remaining undetermined rows
+
+        logger.info(f"Applied update_resubmission_required for {column_name}: {(df[column_name] == 'NO').sum()} NO, {(df[column_name] == 'RESUBMITTED').sum()} RESUBMITTED, {(df[column_name] == 'PEN').sum()} PEN, {(df[column_name] == 'YES').sum()} YES")
         return df
     
     def _apply_submission_closure_status(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """
         Calculate Submission_Closed based on multiple conditions with short-circuit logic.
         Once a condition sets a value, subsequent conditions are skipped for that row.
-        
+
         Priority order:
         1. Keep YES if already YES
         2. Set to YES if current submission is not the latest (superseded by newer submission)
-        3. Set to YES if Latest_Approval_Code in ['APP', 'VOID', 'INF']
+        3. Set to YES if Latest_Approval_Code in ['APP', 'VOID']
         4. Default to NO for remaining rows
-        
+
         Note: Does NOT depend on Resubmission_Required to avoid circular dependency
         (Resubmission_Required is processed after Submission_Closed).
         """
@@ -1307,14 +1408,40 @@ class UniversalDocumentProcessor:
             # Resolve schema dependencies (approval_code_schema, etc.)
             self.schema_data = schema_loader.resolve_schema_dependencies(main_schema)
             logger.info(f"Resolved schema dependencies: {list(main_schema.get('schema_references', {}).keys())}")
-            
+
+            # Resolve parameter references (e.g., pending_status from approval_code_schema)
+            self._resolve_parameter_references()
+
             # Initialize calculation engine with resolved schema data
             self.calculation_engine = CalculationEngine(self.schema_data)
                 
         except Exception as e:
             logger.error(f"Error loading schema {e}")
             raise
-    
+
+    def _resolve_parameter_references(self):
+        """
+        Resolve parameter references from other schemas.
+        
+        Converts $ref references in parameters to their actual values.
+        This ensures single source of truth for values like pending_status.
+        """
+        parameters = self.schema_data.get('parameters', {})
+        if not parameters:
+            return
+        
+        calculation_engine = CalculationEngine(self.schema_data)
+        
+        for param_name, param_value in list(parameters.items()):
+            if isinstance(param_value, dict) and '$ref' in param_value:
+                ref_config = param_value['$ref']
+                resolved_value = calculation_engine._resolve_schema_reference(ref_config)
+                if resolved_value is not None:
+                    self.schema_data['parameters'][param_name] = resolved_value
+                    logger.info(f"Resolved parameter '{param_name}' from {ref_config.get('schema')}: {resolved_value}")
+                else:
+                    logger.warning(f"Failed to resolve parameter '{param_name}': {ref_config}")
+
     def process_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Process data according to schema rules.
@@ -1603,6 +1730,7 @@ class UniversalDocumentProcessor:
                             schema_ref,
                             data_section=validation.get('data_section'),
                             field_name=validation.get('field'),
+                            exclude_codes=validation.get('exclude_codes', []),
                         )
                         if mask is not None and mask.any():
                             msg = f"{column_name} not in {schema_ref}"
@@ -1685,6 +1813,7 @@ class UniversalDocumentProcessor:
         schema_ref: str,
         data_section: Optional[str] = None,
         field_name: Optional[str] = None,
+        exclude_codes: Optional[List[str]] = None,
     ) -> Optional[pd.Series]:
         """Validate a column against allowed values from a referenced schema."""
         ref_data = self.schema_data.get(f'{schema_ref}_data', {})
@@ -1697,6 +1826,20 @@ class UniversalDocumentProcessor:
             field_name=field_name,
         )
         if allowed_codes is not None:
+            # Filter out excluded codes (e.g., pending status)
+            if exclude_codes:
+                # Get all aliases for excluded codes from approval schema
+                excluded_values = set(exclude_codes)
+                for entry in ref_data.get('approval', []):
+                    if entry.get('code') in exclude_codes:
+                        # Add all aliases and the status itself
+                        excluded_values.update(entry.get('aliases', []))
+                        if entry.get('status'):
+                            excluded_values.add(entry.get('status'))
+                
+                # Filter allowed_codes to exclude pending values
+                allowed_codes = [c for c in allowed_codes if c not in excluded_values]
+            
             mask = ~df[column_name].isin(allowed_codes)
             if allow_null:
                 mask &= df[column_name].notna()
