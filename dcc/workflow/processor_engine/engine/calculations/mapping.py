@@ -1,5 +1,7 @@
 """
-Functions like _apply_mapping_calculation (for status-to-code conversions).
+Mapping calculations: status-to-code conversions, value mapping with
+external mapping references.
+Extracted from UniversalDocumentProcessor._apply_mapping_calculation.
 """
 
 import pandas as pd
@@ -8,29 +10,46 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
+
 def apply_mapping_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
-    Applies a mapping transformation to a column based on a source column 
-    and a mapping dictionary defined in the schema.
+    Applies a mapping transformation to a column based on a source column
+    and a mapping dictionary defined in the schema, with support for
+    external mapping references.
     """
     source_column = calculation.get('source_column')
-    mapping_dict = calculation.get('mapping', {})
-    default_value = calculation.get('default_value')
+    mapping = calculation.get('mapping', {})
+    mapping_ref = calculation.get('mapping_reference')
+    default = calculation.get('default', 'PEN')
 
-    if not source_column or source_column not in df.columns:
+    # Load external mapping if reference provided
+    if mapping_ref and not mapping:
+        ref_data = engine.schema_data.get(f'{mapping_ref}_data', {})
+        if ref_data:
+            # approval_code_schema stores rows under approval[] with
+            # {code, status, aliases}. Invert aliases/status to {text: code}.
+            approval_rows = ref_data.get('approval', [])
+            for row in approval_rows:
+                code = row.get('code')
+                if not code:
+                    continue
+                status = row.get('status')
+                if status:
+                    mapping[status] = code
+                for alias in row.get('aliases', []):
+                    mapping[alias] = code
+
+    if source_column not in df.columns:
         logger.warning(f"Mapping skipped for {column_name}: source column {source_column} not found.")
         return df
 
-    engine._print_processing_step("Mapping", column_name, f"Mapping from {source_column}")
+    engine._print_processing_step("Mapping", column_name, f"Mapping from {source_column} ({len(mapping)} mappings)")
 
     # Use pandas map for efficiency
-    # If a value isn't in the mapping, it uses the default_value or remains NaN
-    df[column_name] = df[source_column].map(mapping_dict)
-    
-    if default_value is not None:
-        df[column_name] = df[column_name].fillna(default_value)
+    df[column_name] = df[source_column].map(mapping).fillna(default)
 
     return df
+
 
 def apply_status_to_code(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
@@ -38,7 +57,8 @@ def apply_status_to_code(engine, df: pd.DataFrame, column_name: str, calculation
     Often used when the 'mapping' values are stored in an external schema section.
     """
     source_column = calculation.get('source_column')
-    reference_config = calculation.get('reference_config') # e.g., {'schema': 'approval', 'field': 'code'}
+    reference_config = calculation.get('reference_config')  # e.g., {'schema': 'approval', 'field': 'code'}
+    default = calculation.get('default', 'PEN')
 
     if not source_column or source_column not in df.columns:
         return df
@@ -47,13 +67,12 @@ def apply_status_to_code(engine, df: pd.DataFrame, column_name: str, calculation
 
     def resolve_row_code(val):
         if pd.isna(val):
-            return None
+            return default
         # Logic to find the code associated with the status value
-        # This typically interacts with engine.schema_processor.resolve_reference
         return engine._resolve_schema_reference({
             **reference_config,
             'code': val
-        })
+        }) or default
 
     df[column_name] = df[source_column].apply(resolve_row_code)
     return df
