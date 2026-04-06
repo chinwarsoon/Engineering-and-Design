@@ -37,7 +37,7 @@ class ProjectSetupValidator:
             }
 
     def _normalize_path(self, value: str | Path) -> Path:
-        return Path(value).expanduser().absolute()
+        return Path(value).absolute()
 
     def _default_base_path(self) -> Path:
         # Use script directory directly. Do NOT use resolve(),

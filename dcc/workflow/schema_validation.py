@@ -13,8 +13,8 @@ from pathlib import Path
 
 
 def _safe_resolve(path: Path) -> Path:
-    """Return an absolute path without filesystem I/O (no resolve)."""
-    return Path(path.expanduser().absolute())
+    """Return an absolute path without filesystem I/O (no resolve, no expanduser)."""
+    return Path(path).absolute()
 
 
 def _safe_cwd() -> Path:

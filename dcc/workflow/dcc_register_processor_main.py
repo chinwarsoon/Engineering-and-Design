@@ -35,8 +35,8 @@ def debug_print(*args: Any, **kwargs: Any) -> None:
 
 
 def _safe_resolve(path: Path) -> Path:
-    """Return an absolute path without filesystem I/O (no resolve)."""
-    return Path(path.expanduser().absolute())
+    """Return an absolute path without filesystem I/O (no resolve, no expanduser)."""
+    return Path(path).absolute()
 
 
 def _default_base_path() -> Path:
@@ -598,6 +598,23 @@ def _print_summary(results: Dict[str, Any]) -> None:
 
 def main() -> int:
     base_path = _default_base_path()
+
+    # On Windows with mapped network drives, clean HOME env if it points
+    # to a non-existent network path (e.g., K:\home from cloud dev env).
+    if platform.system() == "Windows":
+        home = os.environ.get("HOME", "")
+        if home:
+            try:
+                home_exists = Path(home).exists()
+            except (OSError, PermissionError):
+                home_exists = False
+            if not home_exists:
+                # Fall back to LOCALAPPDATA (always local on Windows)
+                local_home = os.environ.get("LOCALAPPDATA", "")
+                if local_home:
+                    os.environ["HOME"] = local_home
+                else:
+                    os.environ.pop("HOME", None)
 
     # Ensure working directory is always accessible.
     # If the shell's cwd points to an inaccessible network share, switch to the script's directory.
