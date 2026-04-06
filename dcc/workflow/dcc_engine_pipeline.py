@@ -1,0 +1,537 @@
+#!/usr/bin/env python3
+"""
+DCC Engine Pipeline - Modular workflow using four engine folders:
+1. initiation_engine - Project setup validation
+2. schema_engine - Schema validation and dependency resolution
+3. mapper_engine - Column mapping and fuzzy matching
+4. processor_engine - Document processing and calculations
+"""
+
+from __future__ import annotations
+
+import argparse
+import builtins
+import importlib
+import json
+import os
+import platform
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
+
+# Insert workflow path for engine imports
+workflow_path = Path(__file__).parent
+if str(workflow_path) not in sys.path:
+    sys.path.insert(0, str(workflow_path))
+
+# Engine imports
+from initiation_engine.engine import (
+    ProjectSetupValidator, 
+    format_report as format_setup_report,
+    default_base_path,
+)
+from schema_engine.engine import (
+    SchemaValidator, 
+    write_validation_status,
+    safe_resolve,
+    default_schema_path,
+)
+from mapper_engine.engine import ColumnMapperEngine
+from processor_engine.engine import (
+    CalculationEngine,
+    load_excel_data,
+)
+
+
+DEBUG_DEV_MODE = False
+
+
+def status_print(*args: Any, **kwargs: Any) -> None:
+    """Print status messages with flush."""
+    kwargs.setdefault("flush", True)
+    builtins.print(*args, **kwargs)
+
+
+def debug_print(*args: Any, **kwargs: Any) -> None:
+    """Print debug messages only in dev mode."""
+    if DEBUG_DEV_MODE:
+        kwargs.setdefault("flush", True)
+        builtins.print(*args, **kwargs)
+
+
+def build_native_defaults(base_path: Path) -> Dict[str, Any]:
+    """
+    Build native default parameters for the DCC processing pipeline.
+    Precedence: CLI args → Schema params → Native defaults
+    """
+    return {
+        "debug_dev_mode": False,
+        "overwrite_existing_downloads": True,
+        "start_col": "P",
+        "end_col": "AP",
+        "header_row_index": 4,
+        "upload_sheet_name": "Prolog Submittals ",
+        "schema_register_file": str(default_schema_path(base_path)),
+        # Windows network drive paths
+        "win_upload_file": r"K:\J Submission\Submittal and RFI Tracker Lists.xlsx",
+        "win_download_path": r"K:\J Submission\AI Tools and Report\\data_output",
+        # Windows fallback paths
+        "win_upload_file_fallback": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
+        "win_download_path_fallback": str(base_path / "output"),
+        # Linux/Colab paths
+        "linux_upload_file": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
+        "linux_download_path": str(base_path / "output"),
+        "colab_upload_file": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
+        "colab_download_path": "/content/output",
+        # Active paths (resolved by resolve_platform_paths)
+        "upload_file_name": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
+        "download_file_path": str(base_path / "output"),
+    }
+
+
+def test_environment() -> Dict[str, Any]:
+    """Test environment and required libraries."""
+    status_print("Testing environment and required libraries...")
+    
+    required_modules = [
+        "argparse", "json", "pathlib", "pandas", "numpy", "openpyxl",
+    ]
+    optional_modules = ["duckdb", "matplotlib"]
+    
+    # Engine modules to test
+    engine_modules = [
+        ("initiation_engine.engine", ["ProjectSetupValidator"]),
+        ("schema_engine.engine", ["SchemaValidator", "write_validation_status"]),
+        ("mapper_engine.engine", ["ColumnMapperEngine"]),
+        ("processor_engine.engine", ["CalculationEngine"]),
+    ]
+    
+    results: Dict[str, Any] = {
+        "python_version": platform.python_version(),
+        "platform": platform.system(),
+        "required_modules": {},
+        "optional_modules": {},
+        "engine_modules": {},
+        "errors": [],
+        "ready": True,
+    }
+    
+    # Test required modules
+    for module_name in required_modules:
+        try:
+            importlib.import_module(module_name)
+            results["required_modules"][module_name] = "ok"
+        except Exception as exc:
+            results["required_modules"][module_name] = f"error: {exc}"
+            results["errors"].append(f"{module_name}: {exc}")
+    
+    # Test optional modules
+    for module_name in optional_modules:
+        try:
+            importlib.import_module(module_name)
+            results["optional_modules"][module_name] = "ok"
+        except Exception as exc:
+            results["optional_modules"][module_name] = f"warning: {exc}"
+    
+    # Test engine modules
+    for module_name, attributes in engine_modules:
+        try:
+            module = importlib.import_module(module_name)
+            for attr in attributes:
+                getattr(module, attr)
+            results["engine_modules"][module_name] = "ok"
+        except Exception as exc:
+            results["engine_modules"][module_name] = f"error: {exc}"
+            results["errors"].append(f"{module_name}: {exc}")
+    
+    results["ready"] = not results["errors"]
+    if results["ready"]:
+        status_print("Environment test passed.")
+    else:
+        status_print("Environment test failed.")
+    
+    debug_print(f"Environment details: {results}")
+    return results
+
+
+def resolve_platform_paths(
+    effective_parameters: Dict[str, Any],
+    base_path: Path,
+) -> Dict[str, Any]:
+    """
+    Resolve platform-specific paths from merged effective parameters.
+    Precedence: CLI → Schema → Native defaults
+    """
+    status_print("Resolving platform paths...")
+    params = effective_parameters.copy()
+    system_name = platform.system().lower()
+    
+    if system_name == "windows":
+        win_upload = params.get("win_upload_file", "")
+        win_download = params.get("win_download_path", "")
+        if win_upload and Path(win_upload).exists():
+            params["upload_file_name"] = win_upload
+            if win_download:
+                params["download_file_path"] = win_download
+            status_print(f"Using Windows path: {win_upload}")
+    else:
+        linux_upload = params.get("linux_upload_file", "")
+        linux_download = params.get("linux_download_path", "")
+        if linux_upload:
+            lp = Path(linux_upload)
+            if not lp.is_absolute():
+                lp = base_path / lp
+            if lp.exists():
+                params["upload_file_name"] = str(lp)
+                if linux_download:
+                    ld = Path(linux_download)
+                    if not ld.is_absolute():
+                        ld = base_path / ld
+                    params["download_file_path"] = str(ld)
+                status_print(f"Using Linux path: {lp}")
+    
+    # Resolve any remaining relative paths
+    active_upload = Path(params.get("upload_file_name", ""))
+    active_download = Path(params.get("download_file_path", ""))
+    if not active_upload.is_absolute():
+        params["upload_file_name"] = str(base_path / active_upload)
+    if not active_download.is_absolute():
+        params["download_file_path"] = str(base_path / active_download)
+    
+    Path(params["download_file_path"]).mkdir(parents=True, exist_ok=True)
+    status_print(f"Current system detected: {system_name}")
+    return params
+
+
+def create_parser(base_path: Path) -> argparse.ArgumentParser:
+    """Create CLI argument parser."""
+    parser = argparse.ArgumentParser(description="DCC Engine Pipeline - Modular processing workflow.")
+    parser.add_argument("--base-path", default=str(base_path), help="Project root path.")
+    parser.add_argument("--schema-file", default=None, help="Alternative schema register JSON file.")
+    parser.add_argument("--excel-file", default=None, help="Input Excel file.")
+    parser.add_argument("--upload-sheet", default=None, help="Input Excel sheet name.")
+    parser.add_argument("--output-file", default=None, help="Final CSV output file path.")
+    parser.add_argument("--start-col", default=None, help="Input Excel start column.")
+    parser.add_argument("--end-col", default=None, help="Input Excel end column.")
+    parser.add_argument("--header-row", type=int, default=None, help="Header row index.")
+    parser.add_argument("--overwrite", choices=["True", "False"], default=None, help="Overwrite output file.")
+    parser.add_argument("--debug-mode", choices=["True", "False"], default=None, help="Enable debug output.")
+    parser.add_argument("--nrows", type=int, default=None, help="Optional row limit.")
+    parser.add_argument("--json", action="store_true", help="Print final result as JSON.")
+    return parser
+
+
+def parse_cli_args(base_path: Path) -> Tuple[argparse.Namespace, Dict[str, Any]]:
+    """Parse CLI arguments and return as dictionary."""
+    status_print("Reading CLI arguments...")
+    parser = create_parser(base_path)
+    args, unknown_args = parser.parse_known_args()
+    
+    cli_args: Dict[str, Any] = {}
+    if args.schema_file:
+        cli_args["schema_register_file"] = args.schema_file
+    if args.excel_file:
+        cli_args["upload_file_name"] = args.excel_file
+    if args.upload_sheet:
+        cli_args["upload_sheet_name"] = args.upload_sheet
+    if args.output_file:
+        cli_args["output_file"] = args.output_file
+        cli_args["download_file_path"] = str(safe_resolve(Path(args.output_file)).parent)
+    if args.start_col:
+        cli_args["start_col"] = args.start_col
+    if args.end_col:
+        cli_args["end_col"] = args.end_col
+    if args.header_row is not None:
+        cli_args["header_row_index"] = args.header_row
+    if args.overwrite:
+        cli_args["overwrite_existing_downloads"] = args.overwrite == "True"
+    if args.debug_mode:
+        cli_args["debug_dev_mode"] = args.debug_mode == "True"
+    
+    if unknown_args:
+        debug_print(f"Ignoring unknown CLI arguments: {unknown_args}")
+    
+    if cli_args:
+        status_print("CLI overrides detected.")
+        debug_print(f"CLI values: {cli_args}")
+    else:
+        status_print("No CLI overrides provided.")
+    
+    return args, cli_args
+
+
+def load_schema_parameters(schema_path: Path) -> Dict[str, Any]:
+    """Load parameters section from schema file."""
+    with schema_path.open("r", encoding="utf-8") as handle:
+        return json.load(handle).get("parameters", {})
+
+
+def resolve_effective_parameters(
+    schema_path: Path,
+    cli_args: Dict[str, Any],
+    native_defaults: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Resolve effective parameters with precedence: CLI → Schema → Native."""
+    status_print("Resolving effective parameters...")
+    effective_parameters = native_defaults.copy()
+    
+    try:
+        schema_parameters = load_schema_parameters(schema_path)
+        effective_parameters.update(schema_parameters)
+        status_print(f"Loaded schema parameters from {schema_path}")
+    except Exception as exc:
+        status_print(f"WARNING: Could not load schema parameters: {exc}")
+    
+    effective_parameters.update(cli_args)
+    effective_parameters["schema_register_file"] = str(schema_path)
+    debug_print(f"Effective parameters: {effective_parameters}")
+    return effective_parameters
+
+
+def resolve_output_paths(base_path: Path, effective_parameters: Dict[str, Any]) -> Dict[str, Path]:
+    """Resolve output file paths."""
+    explicit_output = effective_parameters.get("output_file")
+    if explicit_output:
+        base_output = safe_resolve(Path(explicit_output))
+    else:
+        output_dir = safe_resolve(Path(effective_parameters.get("download_file_path", str(base_path / "output"))))
+        base_output = output_dir / "processed_dcc_universal.csv"
+    
+    output_dir = base_output.parent
+    stem = base_output.stem or "processed_dcc_universal"
+    
+    return {
+        "output_dir": output_dir,
+        "csv_path": output_dir / f"{stem}.csv",
+        "excel_path": output_dir / f"{stem}.xlsx",
+        "summary_path": output_dir / "processing_summary.txt",
+    }
+
+
+def validate_export_paths(export_paths: Dict[str, Path], overwrite_existing: bool) -> None:
+    """Validate output paths and check for existing files."""
+    export_paths["output_dir"].mkdir(parents=True, exist_ok=True)
+    if not overwrite_existing:
+        for file_key in ("csv_path", "excel_path", "summary_path"):
+            target_path = export_paths[file_key]
+            if target_path.exists():
+                raise FileExistsError(f"Output file exists: {target_path}. Use --overwrite True.")
+
+
+def run_engine_pipeline(
+    base_path: Path,
+    schema_path: Path,
+    effective_parameters: Dict[str, Any],
+    nrows: int | None = None,
+) -> Dict[str, Any]:
+    """
+    Run the four-engine pipeline:
+    1. initiation_engine - Project setup validation
+    2. schema_engine - Schema validation
+    3. mapper_engine - Column mapping
+    4. processor_engine - Document processing
+    """
+    excel_path = safe_resolve(Path(effective_parameters["upload_file_name"]))
+    export_paths = resolve_output_paths(base_path, effective_parameters)
+    validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
+    
+    # Step 1: Initiation Engine - Project Setup Validation
+    status_print("=" * 72)
+    status_print("STEP 1: Initiation Engine - Project Setup Validation")
+    status_print("=" * 72)
+    setup_validator = ProjectSetupValidator(base_path=base_path)
+    setup_results = setup_validator.validate()
+    if not setup_results.get("ready"):
+        raise ValueError(format_setup_report(setup_results))
+    status_print("✓ Project setup validation passed")
+    
+    # Step 2: Schema Engine - Schema Validation
+    status_print("\n" + "=" * 72)
+    status_print("STEP 2: Schema Engine - Schema Validation")
+    status_print("=" * 72)
+    schema_validator = SchemaValidator(schema_path)
+    schema_results = schema_validator.validate()
+    write_validation_status(schema_results)
+    if not schema_results.get("ready"):
+        raise ValueError(json.dumps(schema_results, indent=2))
+    status_print("✓ Schema validation passed")
+    
+    # Step 3: Mapper Engine - Column Mapping
+    status_print("\n" + "=" * 72)
+    status_print("STEP 3: Mapper Engine - Column Mapping")
+    status_print("=" * 72)
+    df_raw = load_excel_data(excel_path, effective_parameters, nrows=nrows)
+    
+    # Flatten MultiIndex/tuple columns
+    import pandas as pd
+    if isinstance(df_raw.columns, pd.MultiIndex):
+        status_print("   ⚠️  Flattening MultiIndex columns before mapping")
+        df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df_raw.columns]
+    elif len(df_raw.columns) > 0 and isinstance(df_raw.columns[0], tuple):
+        status_print("   ⚠️  Converting tuple columns to strings")
+        df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df_raw.columns]
+    
+    # Use mapper engine
+    mapper = ColumnMapperEngine(schema_file=str(schema_path))
+    mapping_result = mapper.detect_columns(df_raw.columns.tolist())
+    df_mapped = mapper.rename_dataframe_columns(df_raw, mapping_result)
+    status_print(f"✓ Column mapping complete: {mapping_result['match_rate']:.1%} match rate")
+    
+    # Step 4: Processor Engine - Document Processing
+    status_print("\n" + "=" * 72)
+    status_print("STEP 4: Processor Engine - Document Processing")
+    status_print("=" * 72)
+    processor = CalculationEngine(schema_file=str(schema_path))
+    df_processed = processor.process_data(df_mapped)
+    
+    # Export results
+    df_processed.to_excel(export_paths["excel_path"], index=False)
+    df_processed.to_csv(export_paths["csv_path"], index=False)
+    
+    status_print(f"✓ Processing complete")
+    status_print(f"   CSV: {export_paths['csv_path']}")
+    status_print(f"   Excel: {export_paths['excel_path']}")
+    
+    return {
+        "base_path": str(base_path),
+        "schema_path": str(schema_path),
+        "excel_path": str(excel_path),
+        "output_path": str(export_paths["csv_path"]),
+        "csv_output_path": str(export_paths["csv_path"]),
+        "excel_output_path": str(export_paths["excel_path"]),
+        "summary_path": str(export_paths["summary_path"]),
+        "raw_shape": list(df_raw.shape),
+        "mapped_shape": list(df_mapped.shape),
+        "processed_shape": list(df_processed.shape),
+        "matched_count": mapping_result["matched_count"],
+        "total_headers": mapping_result["total_headers"],
+        "match_rate": mapping_result["match_rate"],
+        "missing_required": mapping_result.get("missing_required", []),
+        "ready": True,
+    }
+
+
+def print_summary(results: Dict[str, Any]) -> None:
+    """Print processing summary."""
+    status_print("\n" + "=" * 72)
+    status_print("DCC ENGINE PIPELINE - PROCESSING COMPLETE")
+    status_print("=" * 72)
+    status_print(f"Base Path: {results['base_path']}")
+    status_print(f"Schema File: {results['schema_path']}")
+    status_print(f"Excel File: {results['excel_path']}")
+    status_print(f"CSV Output: {results['csv_output_path']}")
+    status_print(f"Excel Output: {results['excel_output_path']}")
+    status_print(f"Raw Shape: {tuple(results['raw_shape'])}")
+    status_print(f"Mapped Shape: {tuple(results['mapped_shape'])}")
+    status_print(f"Processed Shape: {tuple(results['processed_shape'])}")
+    status_print(f"Matched Headers: {results['matched_count']} / {results['total_headers']}")
+    status_print(f"Match Rate: {results['match_rate']:.1%}")
+    if results["missing_required"]:
+        status_print(f"Missing Required Columns: {results['missing_required']}")
+    status_print("Ready: YES")
+
+
+def main() -> int:
+    """Main entry point for DCC Engine Pipeline."""
+    base_path = default_base_path()
+    
+    # Handle Windows HOME env issues
+    if platform.system() == "Windows":
+        home = os.environ.get("HOME", "")
+        if home:
+            try:
+                home_exists = Path(home).exists()
+            except (OSError, PermissionError):
+                home_exists = False
+            if not home_exists:
+                local_home = os.environ.get("LOCALAPPDATA", "")
+                if local_home:
+                    os.environ["HOME"] = local_home
+                else:
+                    os.environ.pop("HOME", None)
+    
+    # Ensure working directory is accessible
+    try:
+        os.chdir(base_path)
+    except (OSError, PermissionError):
+        pass
+    
+    native_defaults = build_native_defaults(base_path)
+    args, cli_args = parse_cli_args(base_path)
+    
+    global DEBUG_DEV_MODE
+    DEBUG_DEV_MODE = bool(cli_args.get("debug_dev_mode", native_defaults.get("debug_dev_mode", False)))
+    
+    # Test environment
+    environment = test_environment()
+    if not environment["ready"]:
+        payload = {
+            "ready": False,
+            "error": "Environment test failed",
+            "environment": environment,
+            "timestamp": datetime.now().isoformat(),
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            status_print("Environment test failed.")
+        return 1
+    
+    base_path = safe_resolve(Path(args.base_path))
+    native_defaults = build_native_defaults(base_path)
+    
+    # Load schema parameters early for path resolution
+    schema_path = safe_resolve(
+        Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"]))
+    )
+    try:
+        schema_parameters = load_schema_parameters(schema_path)
+        debug_print(f"Loaded schema parameters early: {schema_path}")
+    except Exception as exc:
+        debug_print(f"Could not load schema parameters early: {exc}")
+        schema_parameters = {}
+    
+    # Merge parameters and resolve platform paths
+    effective_parameters = native_defaults.copy()
+    effective_parameters.update(schema_parameters)
+    effective_parameters.update(cli_args)
+    effective_parameters["schema_register_file"] = str(schema_path)
+    effective_parameters = resolve_platform_paths(effective_parameters, base_path)
+    
+    # Run the engine pipeline
+    try:
+        results = run_engine_pipeline(
+            base_path=base_path,
+            schema_path=schema_path,
+            effective_parameters=effective_parameters,
+            nrows=args.nrows,
+        )
+    except Exception as exc:
+        payload = {
+            "ready": False,
+            "error": str(exc),
+            "environment": environment,
+            "effective_parameters": effective_parameters,
+            "timestamp": datetime.now().isoformat(),
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            status_print(str(exc))
+        return 1
+    
+    results["environment"] = environment
+    results["effective_parameters"] = effective_parameters
+    results["timestamp"] = datetime.now().isoformat()
+    
+    if args.json:
+        print(json.dumps(results, indent=2))
+    else:
+        print_summary(results)
+    
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
