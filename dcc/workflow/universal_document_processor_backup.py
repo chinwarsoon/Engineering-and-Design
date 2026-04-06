@@ -55,8 +55,7 @@ class CalculationEngine:
         print(message)
         logger.info(message)
 
-    # FIX: return type annotation changed from 'any' (builtin function) to 'Any' (typing)
-    def _resolve_schema_reference(self, ref_config: Dict) -> Any:
+    def _resolve_schema_reference(self, ref_config: Dict) -> any:
         """
         Resolve a schema reference to its actual value.
         
@@ -295,6 +294,14 @@ class CalculationEngine:
         """Apply forward fill strategy."""
         group_by = null_handling.get('group_by', [])
 
+        # DEBUG: Log entry into function
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - column_name='{column_name}' (type={type(column_name)})")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - df.shape={df.shape}")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - df.columns[:10]={list(df.columns)[:10]}")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - df.index type={type(df.index)}")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - df.index[:5]={df.index[:5].tolist()}")
+        logger.info(f"[DEBUG] _apply_forward_fill ENTRY - group_by={group_by}")
+
         # Defensive check: ensure column_name is a string, not a tuple
         if not isinstance(column_name, str):
             logger.error(f"Invalid column_name type: {type(column_name)} - {column_name}")
@@ -318,104 +325,182 @@ class CalculationEngine:
             logger.error(f"Column '{column_name}' not found in DataFrame. Available columns: {list(df.columns)[:10]}...")
             return df
 
-        # FIX: Always work on a local copy; never mutate the caller's DataFrame.
-        # Both branches now operate on df_copy and return it.
-        df_copy = df.reset_index(drop=True).copy() if not isinstance(df.index, pd.RangeIndex) else df.copy()
-
-        # Remove duplicate columns which cause df[col] to return a DataFrame
-        if df_copy.columns.tolist().count(column_name) > 1:
-            logger.error(f"DUPLICATE COLUMNS DETECTED: '{column_name}' appears {df_copy.columns.tolist().count(column_name)} times! Removing duplicates.")
-            df_copy = df_copy.loc[:, ~df_copy.columns.duplicated()].copy()
-            df_copy.index = pd.RangeIndex(len(df_copy))
-
         if group_by:
             # Validate group_by columns exist
-            valid_group_by = [col for col in group_by if col in df_copy.columns]
+            valid_group_by = [col for col in group_by if col in df.columns]
             if not valid_group_by:
                 logger.warning(f"None of the group_by columns {group_by} found in DataFrame. Skipping forward fill for {column_name}.")
-                return df_copy
-
-            # Cast group keys to str so NaN group keys don't silently split groups
+                return df
+            
+            # Group by specified columns and forward fill within groups
+            # Do NOT sort - preserve original row order for correct forward fill
+            df_copy = df.copy()
+            
+            logger.info(f"[DEBUG] After copy - df_copy.index type={type(df_copy.index)}")
+            logger.info(f"[DEBUG] After copy - df_copy.index[:5]={df_copy.index[:5].tolist()}")
+            
             for col in valid_group_by:
                 df_copy[col] = df_copy[col].astype(str)
+                
+            logger.info(f"[DEBUG] After astype - df_copy.index type={type(df_copy.index)}")
+            logger.info(f"[DEBUG] After astype - df_copy.index[:5]={df_copy.index[:5].tolist()}")
+            logger.info(f"[DEBUG] df_copy['{column_name}'][:5]={df_copy[column_name].head().tolist()}")
 
-            # FIX: assign ffill result directly — no mask+.values juggling.
-            # ffill() never overwrites existing values, so the mask pattern is unnecessary
-            # and was the root cause of positional-alignment NaN bugs.
-            # sort=False preserves original row order within groups.
-            df_copy[column_name] = df_copy.groupby(valid_group_by, sort=False)[column_name].ffill()
+            # Forward fill within groups - ONLY fill null values, preserve existing data
+            mask = df_copy[column_name].isna()
+            
+            logger.info(f"[DEBUG] mask type={type(mask)}")
+            logger.info(f"[DEBUG] mask index type={type(mask.index)}")
+            logger.info(f"[DEBUG] mask index[:5]={mask.index[:5].tolist()}")
+            logger.info(f"[DEBUG] mask.sum()={mask.sum()}")
+            
+            filled_values = df_copy.groupby(valid_group_by)[column_name].ffill()
+            
+            logger.info(f"[DEBUG] _apply_forward_fill - filled_values type={type(filled_values)}")
+            logger.info(f"[DEBUG] _apply_forward_fill - filled_values.shape={filled_values.shape if hasattr(filled_values, 'shape') else 'N/A'}")
+            
+            # Use .values to avoid pandas index alignment issues that cause string iteration
+            fill_data = filled_values[mask].values
+            logger.info(f"[DEBUG] _apply_forward_fill - fill_data type={type(fill_data)}, shape={fill_data.shape if hasattr(fill_data, 'shape') else 'N/A'}")
+            
+            df_copy.loc[mask, column_name] = fill_data
 
             # Apply fill_value for any remaining NaN (groups that started with null)
             df_copy[column_name] = df_copy[column_name].fillna(fill_value)
 
+            # Update original dataframe with filled values
+            df[column_name] = df_copy[column_name]
         else:
-            # FIX: assign ffill result directly — no mask+.values juggling.
-            df_copy[column_name] = df_copy[column_name].ffill()
+            # Simple forward fill - ONLY fill nulls, preserve existing data
+            logger.info(f"[DEBUG] Simple forward fill branch - column_name='{column_name}' (type={type(column_name)})")
+            logger.info(f"[DEBUG] df.shape={df.shape}, df.index type={type(df.index)}")
+            logger.info(f"[DEBUG] df.columns type={type(df.columns)}, df.columns[:5]={list(df.columns)[:5]}")
+            logger.info(f"[DEBUG] df index sample={df.index[:3].tolist() if hasattr(df.index, 'tolist') else list(df.index)[:3]}")
+            
+            # CRITICAL: Check for duplicate columns which cause df[col] to return DataFrame
+            col_count = df.columns.tolist().count(column_name)
+            if col_count > 1:
+                logger.error(f"DUPLICATE COLUMNS DETECTED: '{column_name}' appears {col_count} times!")
+                logger.error(f"All columns: {list(df.columns)}")
+                logger.error("Removing duplicate columns...")
+                
+                # Keep only the first occurrence of each column
+                df = df.loc[:, ~df.columns.duplicated()].copy()
+                logger.info(f"Removed duplicates. New df.columns: {list(df.columns)}")
+                df.index = pd.RangeIndex(len(df))
+            
+            # CRITICAL: Rebuild DataFrame to ensure clean structure
+            # This fixes any corruption from previous operations
+            try:
+                # Reset index to ensure it's clean
+                if not isinstance(df.index, pd.RangeIndex):
+                    logger.warning("Resetting index before forward fill")
+                    df = df.reset_index(drop=True)
+                
+                # Verify column exists and is accessible
+                if column_name not in df.columns:
+                    logger.error(f"Column '{column_name}' not found in df.columns")
+                    logger.error(f"Available columns: {list(df.columns)}")
+                    return df
+                
+                # Test column access explicitly
+                test_col = df[column_name]
+                if isinstance(test_col, pd.DataFrame):
+                    logger.error(f"df['{column_name}'] returned a DataFrame, not a Series!")
+                    logger.error(f"This indicates DataFrame corruption. Attempting to fix...")
+                    # Rebuild the DataFrame from scratch
+                    df = pd.DataFrame(df.values, columns=df.columns, index=df.index)
+                    df.index = pd.RangeIndex(len(df))
+                    logger.info("DataFrame rebuilt successfully")
+                
+                logger.info(f"[DEBUG] Attempting df['{column_name}'].isna()")
+                mask = df[column_name].isna()
+                logger.info(f"[DEBUG] mask created successfully, mask.sum()={mask.sum()}")
+            except Exception as e:
+                logger.error(f"[DEBUG] Error creating mask: {e}")
+                logger.error(f"[DEBUG] df.index type={type(df.index)}, df.index[:5]={df.index[:5].tolist() if hasattr(df.index, 'tolist') else list(df.index)[:5]}")
+                logger.error(f"[DEBUG] df.columns type={type(df.columns)}, df.columns[:10]={list(df.columns)[:10]}")
+                raise
+            
+            try:
+                logger.info(f"[DEBUG] Attempting df['{column_name}'].ffill()")
+                filled_values = df[column_name].ffill()
+                logger.info(f"[DEBUG] ffill successful, filled_values[:5]={filled_values.head().tolist()}")
+            except Exception as e:
+                logger.error(f"[DEBUG] Error in ffill: {e}")
+                logger.error(f"[DEBUG] df['{column_name}'] type={type(df[column_name])}")
+                raise
 
-            # Apply fill_value for any remaining NaN at start of series
-            df_copy[column_name] = df_copy[column_name].fillna(fill_value)
+            # Use .values to avoid pandas index alignment issues that cause string iteration
+            try:
+                logger.info(f"[DEBUG] Attempting df.loc[mask, '{column_name}'] assignment")
+                fill_data = filled_values[mask].values
+                df.loc[mask, column_name] = fill_data
+                logger.info(f"[DEBUG] Assignment successful")
+            except Exception as e:
+                logger.error(f"[DEBUG] Error in loc assignment: {e}")
+                logger.error(f"[DEBUG] fill_data type={type(fill_data)}, fill_data[:5]={fill_data[:5]}")
+                logger.error(f"[DEBUG] mask index type={type(mask.index)}, mask index[:5]={mask.index[:5].tolist()}")
+                raise
+            
+            # Apply fill_value for any remaining NaN at start
+            df[column_name] = df[column_name].fillna(fill_value)
         
         if na_fallback:
             # Replace remaining NaN with 'NA' if fill_value was NaN
-            df_copy[column_name] = df_copy[column_name].fillna('NA')
+            df[column_name] = df[column_name].fillna('NA')
         
         # Apply zero-padding formatting if specified
         if zero_pad:
             try:
-                df_copy[column_name] = df_copy[column_name].apply(
+                # Convert to numeric, then format with zero padding
+                df[column_name] = df[column_name].apply(
                     lambda x: str(int(float(x))).zfill(zero_pad) if pd.notna(x) and x != 'NA' else x
                 )
                 logger.info(f"Applied zero-padding ({zero_pad} digits) for {column_name}")
             except Exception as e:
                 logger.warning(f"Could not apply zero-padding for {column_name}: {e}")
         
-        logger.info(f"Applied forward fill for '{column_name}': group_by={group_by}")
-        return df_copy
+        logger.info(f"Applied forward fill for {column_name}: strategy={null_handling.get('strategy')}, group_by={group_by}")
+        return df
     
     def _apply_multi_level_forward_fill(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
         """Apply multi-level forward fill strategy."""
         levels = null_handling.get('levels', [])
         final_fill = null_handling.get('final_fill')
         datetime_conversion = null_handling.get('datetime_conversion', {})
-
-        # FIX: work on a single copy throughout; never write back into input df
-        df_copy = df.copy()
-
+        
         # Optionally perform datetime conversion beforehand
-        if datetime_conversion and column_name in df_copy.columns:
+        if datetime_conversion and column_name in df.columns:
             errors = datetime_conversion.get('errors', 'coerce')
-            df_copy[column_name] = pd.to_datetime(df_copy[column_name], errors=errors)
+            df[column_name] = pd.to_datetime(df[column_name], errors=errors)
         
         for level in levels:
             group_by = level.get('group_by', [])
             if group_by:
+                df_copy = df.copy()
                 for col in group_by:
                     if col in df_copy.columns:
                         df_copy[col] = df_copy[col].astype(str)
 
-                # FIX: assign ffill result directly — no mask+.values juggling.
-                # sort=False preserves original row order within groups.
-                df_copy[column_name] = df_copy.groupby(group_by, sort=False)[column_name].ffill()
+                # Forward fill within groups - ONLY fill null values, preserve existing data
+                mask = df_copy[column_name].isna()
+                filled_values = df_copy.groupby(group_by)[column_name].ffill()
+                # Use .values to avoid pandas index alignment issues
+                df_copy.loc[mask, column_name] = filled_values[mask].values
+                df[column_name] = df_copy[column_name]
                 
-        if final_fill is not None and column_name in df_copy.columns:
-            df_copy[column_name] = df_copy[column_name].fillna(final_fill)
+        if final_fill is not None and column_name in df.columns:
+            df[column_name] = df[column_name].fillna(final_fill)
             
         logger.info(f"Applied multi_level_forward_fill for {column_name}")
-        return df_copy
+        return df
 
     def _apply_copy_from(self, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
         """Apply copy from strategy."""
         source_column = null_handling.get('source_column')
         fallback_value = null_handling.get('fallback_value', 'NA')
-
-        # FIX: guard against missing or unconfigured source_column
-        if not source_column:
-            logger.error(f"_apply_copy_from: 'source_column' not specified in null_handling for '{column_name}'. Skipping.")
-            return df
-        if source_column not in df.columns:
-            logger.error(f"_apply_copy_from: source column '{source_column}' not found in DataFrame for '{column_name}'. Skipping.")
-            return df
-
+        
         # Copy from source column where target is null
         mask = df[column_name].isna()
         df.loc[mask, column_name] = df.loc[mask, source_column]
@@ -496,28 +581,19 @@ class CalculationEngine:
         formatting = null_handling.get('formatting', {})
         zero_pad = formatting.get('zero_pad')
         
-        # FIX: Apply text replacements only on non-null values to avoid converting NaN
-        # to the string "nan" which then escapes fillna() downstream.
+        # Apply text replacements first
         if text_replacements and column_name in df.columns:
             for old_text, new_text in text_replacements.items():
-                # Exact-value replacement (non-destructive for NaN)
                 df[column_name] = df[column_name].replace(old_text, new_text)
-                # Substring replacement only on rows that are not null
-                not_null_mask = df[column_name].notna()
-                if not_null_mask.any():
-                    df.loc[not_null_mask, column_name] = (
-                        df.loc[not_null_mask, column_name]
-                        .astype(str)
-                        .str.replace(old_text, new_text, regex=False)
-                    )
+                # Also replace in string representation
+                df[column_name] = df[column_name].astype(str).str.replace(old_text, new_text, regex=False)
         
         # Apply type conversion if specified
         if type_conversion == 'string' and column_name in df.columns:
-            # Convert only non-null values to string; leave nulls as pd.NA
-            not_null_mask = df[column_name].notna()
-            df[column_name] = df[column_name].where(~not_null_mask, df[column_name].astype(str))
-            # Clean up any residual "nan" strings that may have slipped through
-            df[column_name] = df[column_name].replace({'nan': pd.NA, 'NaN': pd.NA})
+            df[column_name] = df[column_name].astype(str)
+            # Replace 'nan' string with actual NaN for proper null handling
+            df[column_name] = df[column_name].replace('nan', pd.NA)
+            df[column_name] = df[column_name].replace('NaN', pd.NA)
         
         # Fill null values with default
         if column_name in df.columns:
@@ -558,11 +634,10 @@ class CalculationEngine:
             # Group by lookup key and find first non-null value
             grouped = df.groupby(lookup_key, dropna=False)
             for key, group in grouped:
-                # FIX: use .iloc[0] instead of .loc[non_null_mask.idxmax()] to safely get
-                # the first non-null value regardless of the DataFrame index type.
+                # Get first non-null source value in group
                 non_null_mask = group[source_column].notna()
                 if non_null_mask.any():
-                    first_value = group.loc[non_null_mask, source_column].iloc[0]
+                    first_value = group.loc[non_null_mask.idxmax(), source_column]
                     df.loc[mask & (df[lookup_key] == key), column_name] = first_value
             
             # Apply fallback for remaining null values
@@ -598,12 +673,20 @@ class CalculationEngine:
             
             if calc_type == 'mapping' and method == 'status_to_code':
                 df_calculated = self._apply_mapping_calculation(df_calculated, column_name, calculation)
-            # FIX: collapse all aggregate/* branches into one condition — they all call
-            # the same function, so the repeated elif was just noise and a maintenance risk.
+            elif calc_type == 'aggregate' and method == 'count':
+                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'aggregate' and method == 'min':
+                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'aggregate' and method == 'max':
+                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'aggregate' and method == 'concatenate_unique':
+                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'aggregate' and method == 'concatenate_unique_quoted':
+                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
+            elif calc_type == 'aggregate' and method == 'concatenate_dates':
+                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'aggregate' and method == 'latest_by_date':
                 df_calculated = self._apply_latest_by_date_calculation(df_calculated, column_name, calculation)
-            elif calc_type == 'aggregate':
-                df_calculated = self._apply_aggregate_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'copy' and method == 'direct':
                 df_calculated = self._apply_copy_calculation(df_calculated, column_name, calculation)
             elif calc_type == 'conditional' and method == 'current_row':
@@ -729,6 +812,8 @@ class CalculationEngine:
                         return ""
                     
                     unique_sorted_dates = sorted(valid_dates.unique())
+                    # Convert back to Series to use dt.strftime if we want vector, 
+                    # but simple list comprehension is safer and faster for unique small sets
                     formatted = [pd.Timestamp(d).strftime(py_date_fmt) for d in unique_sorted_dates]
                     return separator.join(formatted)
                 
@@ -805,8 +890,9 @@ class CalculationEngine:
         if exclude_values_ref:
             exclude_values = self._resolve_schema_reference(exclude_values_ref)
             # If the reference returns aliases (a list), use them; otherwise wrap in list
-            # FIX: removed the no-op `exclude_values = exclude_values` branch
-            if not isinstance(exclude_values, list):
+            if isinstance(exclude_values, list):
+                exclude_values = exclude_values
+            else:
                 exclude_values = [exclude_values] if exclude_values else []
         else:
             # Legacy support: use exclude_values directly
@@ -848,11 +934,7 @@ class CalculationEngine:
             # Strip whitespace
             if text_cleaning.get('strip_whitespace'):
                 df_copy[source_column] = df_copy[source_column].astype(str).str.strip()
-
-        # FIX: use include_groups=True (default) / group_keys=False so that sort_by
-        # columns remain available inside the function. include_groups=False would drop
-        # group_by columns from the sub-DataFrame, causing a KeyError when sort_by
-        # overlaps with group_by.
+        
         def get_latest_non_pending(group_df):
             # Sort by date descending
             sorted_df = group_df.sort_values(by=sort_by[0], ascending=False)
@@ -867,7 +949,7 @@ class CalculationEngine:
                 return fallback_value
         
         # Group and apply
-        result = df_copy.groupby(group_by, group_keys=False).apply(get_latest_non_pending)
+        result = df_copy.groupby(group_by).apply(get_latest_non_pending, include_groups=False)
         
         # Merge back
         if isinstance(result, pd.Series):
@@ -1013,7 +1095,7 @@ class CalculationEngine:
         # Track which rows have been determined - these skip remaining checks
         determined_mask = pd.Series([False] * len(df), index=df.index)
         
-        # Condition 1: Keep YES if already YES. This allows user to force closing the submission
+        # Condition 1: Keep YES if already YES (only for undetermined rows). This allow user to force closing the submission
         if source_column in df.columns:
             mask_already_yes = (df[source_column] == 'YES') & ~determined_mask
             df.loc[mask_already_yes, column_name] = 'YES'
@@ -1044,16 +1126,17 @@ class CalculationEngine:
         Calculate Resubmission_Overdue_Status based on conditional logic.
         
         Logic:
-        1. If Resubmission_Required == 'YES' AND Resubmission_Plan_Date is not null AND Resubmission_Plan_Date < current_date -> 'Overdue'
-        2. Otherwise -> null
+        1. If Resubmission_Required == 'YES' AND Resubmission_Plan_Date is not null AND Resubmission_Plan_Date < current_date → 'Overdue'
+        2. Otherwise → null
         """
+        from datetime import datetime
+        
         # Get required columns
         resubmission_required_col = 'Resubmission_Required' if 'Resubmission_Required' in df.columns else None
         resubmission_plan_date_col = 'Resubmission_Plan_Date' if 'Resubmission_Plan_Date' in df.columns else None
         
-        # FIX: initialise with pd.NA (not None) so the column has a consistent
-        # nullable dtype and .notna() / .isna() behave predictably downstream.
-        df[column_name] = pd.NA
+        # Initialize with null
+        df[column_name] = None
         
         if resubmission_required_col and resubmission_plan_date_col:
             # Convert plan date to datetime
@@ -1116,9 +1199,11 @@ class CalculationEngine:
             mask_has_return_date = df[review_return_date_col].notna() & ~determined_mask
             
             if duration_is_working_day:
+                # Use business days
                 from pandas.tseries.offsets import BDay
                 df.loc[mask_has_return_date, column_name] = df.loc[mask_has_return_date, review_return_date_col] + BDay(resubmission_duration)
             else:
+                # Use calendar days
                 df.loc[mask_has_return_date, column_name] = df.loc[mask_has_return_date, review_return_date_col] + pd.Timedelta(days=resubmission_duration)
             
             determined_mask |= mask_has_return_date
@@ -1190,9 +1275,13 @@ class CalculationEngine:
         For Review_Return_Plan_Date:
         - First submission: Submission_Date + first_review_duration
         - Resubmission: Submission_Date + second_review_duration
-
-        FIX: replaced O(n^2) iterrows loop with a vectorised groupby approach.
         """
+        dependencies = calculation.get('dependencies', [])
+        conditions = calculation.get('conditions', [])
+        lookup_logic = calculation.get('lookup_logic', {})
+        group_by = calculation.get('group_by', [])
+        
+        # Get required columns
         doc_id_col = 'Document_ID'
         submission_date_col = 'Submission_Date'
         
@@ -1200,22 +1289,42 @@ class CalculationEngine:
             logger.warning(f"Missing required columns for conditional date calculation: {doc_id_col}, {submission_date_col}")
             return df
         
+        # Get durations from schema parameters
         first_duration = calculation.get('first_review_duration', 20)
         second_duration = calculation.get('second_review_duration', 14)
         
+        # Convert submission date to datetime
         df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
-
-        # Vectorised: a row is a "first submission" if its date equals the minimum
-        # submission date for that Document_ID group.
-        min_dates = df.groupby(doc_id_col)[submission_date_col].transform('min')
-        is_first = df[submission_date_col] == min_dates
-
-        results = pd.Series(pd.NaT, index=df.index)
-        valid = df[submission_date_col].notna()
-
-        results[valid & is_first] = df.loc[valid & is_first, submission_date_col] + pd.Timedelta(days=first_duration)
-        results[valid & ~is_first] = df.loc[valid & ~is_first, submission_date_col] + pd.Timedelta(days=second_duration)
-
+        
+        # Calculate for each row
+        results = []
+        for idx, row in df.iterrows():
+            doc_id = row.get(doc_id_col)
+            sub_date = row.get(submission_date_col)
+            
+            if pd.isna(sub_date) or not doc_id:
+                results.append(pd.NaT)
+                continue
+            
+            # Check if previous submission exists
+            previous_exists = False
+            if doc_id:
+                previous = df[
+                    (df[doc_id_col] == doc_id) & 
+                    (df[submission_date_col] < sub_date)
+                ]
+                previous_exists = len(previous) > 0
+            
+            # Apply appropriate duration
+            if previous_exists:
+                # Resubmission: use second_review_duration
+                result_date = sub_date + pd.Timedelta(days=second_duration)
+            else:
+                # First submission: use first_review_duration
+                result_date = sub_date + pd.Timedelta(days=first_duration)
+            
+            results.append(result_date)
+        
         df[column_name] = pd.to_datetime(results)
         
         logger.info(f"Applied conditional date calculation for {column_name}: first={first_duration}d, resub={second_duration}d")
@@ -1230,10 +1339,8 @@ class CalculationEngine:
         - Fallback end date: current_date (today)
         - Calculate days between Submission_Date and end_date
         - Ensures non-negative values
-
-        FIX: replaced two iterrows loops (one of which used df-index as a list
-        position causing wrong-row access on non-default indexes) with vectorised ops.
         """
+        # Get configuration
         end_date_logic = calculation.get('end_date_logic', {})
         primary_end = end_date_logic.get('primary', 'Review_Return_Actual_Date')
         fallback_end = end_date_logic.get('fallback', 'current_date')
@@ -1244,24 +1351,49 @@ class CalculationEngine:
             logger.warning(f"Missing required column for business day calculation: {start_col}")
             return df
         
+        # Convert to datetime
         df[start_col] = pd.to_datetime(df[start_col], errors='coerce')
-        today = pd.Timestamp.now().normalize()
-
-        # Build end_date Series vectorially
-        if primary_end in df.columns:
-            primary_series = pd.to_datetime(df[primary_end], errors='coerce')
-        else:
-            primary_series = pd.Series(pd.NaT, index=df.index)
-
-        if fallback_end == 'current_date':
-            end_dates = primary_series.fillna(today)
-        else:
-            end_dates = primary_series  # no fallback; missing stays NaT
         
-        # Calculate duration; enforce non-negative
-        diff = (end_dates - df[start_col]).dt.days
-        diff = diff.where(diff >= 0, other=np.nan)
-        df[column_name] = diff
+        # Determine end date: primary if available, else fallback
+        end_dates = []
+        today = pd.Timestamp.now().normalize()
+        
+        for idx, row in df.iterrows():
+            # Try primary end date first
+            primary_date = None
+            if primary_end in df.columns:
+                primary_val = row.get(primary_end)
+                if pd.notna(primary_val):
+                    primary_date = pd.to_datetime(primary_val, errors='coerce')
+            
+            # Use primary if valid, else fallback to today
+            if pd.notna(primary_date):
+                end_dates.append(primary_date)
+            elif fallback_end == 'current_date':
+                end_dates.append(today)
+            else:
+                end_dates.append(pd.NaT)
+        
+        # Calculate duration in days
+        durations = []
+        for idx, row in df.iterrows():
+            start = row.get(start_col)
+            end = end_dates[idx]
+            
+            if pd.isna(start) or pd.isna(end):
+                durations.append(np.nan)
+                continue
+            
+            # Calculate calendar days
+            diff = (end - start).days
+            
+            # Apply non-negative enforcement
+            if diff < 0:
+                diff = np.nan
+            
+            durations.append(diff)
+        
+        df[column_name] = durations
         
         logger.info(f"Applied conditional business day calculation for {column_name}: primary={primary_end}, fallback={fallback_end}")
         return df
@@ -1285,7 +1417,9 @@ class CalculationEngine:
             
         def format_row(row):
             try:
+                # Convert row to dict and fill NaNs with empty string or 'NA' for cleaner output
                 values = row.to_dict()
+                # Ensure all required keys in format string are present
                 return format_string.format(**values)
             except Exception:
                 return "ERR-COMPOSITE"
@@ -1306,8 +1440,6 @@ class CalculationEngine:
         - Get latest Resubmission_Plan_Date from previous submissions
         - Calculate days between that plan date and current Submission_Date
         - Ensure non-negative: return max(delay, 0)
-
-        FIX: replaced O(n^2) iterrows loop with a vectorised self-join approach.
         """
         doc_id_col = 'Document_ID'
         submission_date_col = 'Submission_Date'
@@ -1323,32 +1455,45 @@ class CalculationEngine:
         
         df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
         df[plan_date_col] = pd.to_datetime(df[plan_date_col], errors='coerce')
-
-        # For each row we need the max Resubmission_Plan_Date of all earlier rows
-        # (same Document_ID, earlier Submission_Date).
-        # Vectorised: sort by doc + date, use shifted cummax per group, then re-align.
-        df_sorted = df[[doc_id_col, submission_date_col, plan_date_col, closed_col]].copy()
-        df_sorted = df_sorted.sort_values([doc_id_col, submission_date_col])
-
-        df_sorted['_prev_max_plan'] = (
-            df_sorted.groupby(doc_id_col)[plan_date_col]
-            .transform(lambda s: s.shift(1).cummax())
-        )
-
-        # Re-align to original index
-        prev_max_plan = df_sorted['_prev_max_plan'].reindex(df.index)
-
-        # Calculate delay
-        delay = (df[submission_date_col] - prev_max_plan).dt.days.fillna(0).clip(lower=0).astype(int)
-
-        # Override: closed submissions always have delay 0
-        closed_mask = df[closed_col] == 'YES'
-        delay[closed_mask] = 0
-
-        df[column_name] = delay
-        logger.info(f"Applied delay_of_resubmission for {column_name}: {(delay > 0).sum()} rows with positive delay")
+        
+        delays = []
+        for idx, row in df.iterrows():
+            # If submission is closed, delay is 0
+            if row.get(closed_col) == 'YES':
+                delays.append(0)
+                continue
+            
+            current_doc_id = row.get(doc_id_col)
+            current_submission_date = row.get(submission_date_col)
+            
+            if pd.isna(current_doc_id) or pd.isna(current_submission_date):
+                delays.append(0)
+                continue
+            
+            # Find previous submissions for same Document_ID
+            prev_subs = df[(df[doc_id_col] == current_doc_id) & (df[submission_date_col] < current_submission_date)]
+            
+            if prev_subs.empty:
+                delays.append(0)
+                continue
+            
+            # Get latest Resubmission_Plan_Date from previous submissions
+            latest_plan = prev_subs[plan_date_col].max()
+            
+            if pd.isna(latest_plan):
+                delays.append(0)
+                continue
+            
+            # Calculate days and ensure non-negative
+            delay = (current_submission_date - latest_plan).days
+            delay = max(delay, 0)  # Non-negative check
+            
+            delays.append(delay)
+        
+        df[column_name] = delays
+        logger.info(f"Applied delay_of_resubmission for {column_name}: {len([d for d in delays if d > 0])} rows with positive delay")
         return df
-
+    
     def _apply_row_index(self, df: pd.DataFrame, column_name: str, calculation: Dict) -> pd.DataFrame:
         """
         Generate or preserve auto-increment row index starting from 1.
@@ -1421,34 +1566,6 @@ class UniversalDocumentProcessor:
             logger.error(f"Error loading schema {e}")
             raise
 
-    def _resolve_schema_reference_direct(self, ref_config: Dict) -> Any:
-        """
-        Lightweight schema reference resolver used during parameter resolution,
-        before the full CalculationEngine is initialised.
-        Mirrors CalculationEngine._resolve_schema_reference but reads from self.schema_data.
-
-        FIX: replaces the previous approach of constructing a full CalculationEngine
-        just to call _resolve_schema_reference once, which was immediately discarded.
-        """
-        schema_name = ref_config.get('schema')
-        code = ref_config.get('code')
-        field = ref_config.get('field')
-
-        if not all([schema_name, code, field]):
-            return None
-
-        ref_schema_data = self.schema_data.get(f'{schema_name}_data', {})
-        if not ref_schema_data:
-            return None
-
-        data_section = ref_config.get('data_section', 'approval')
-        for entry in ref_schema_data.get(data_section, []):
-            if entry.get('code') == code:
-                value = entry.get(field)
-                if value is not None:
-                    return value
-        return None
-
     def _resolve_parameter_references(self):
         """
         Resolve parameter references from other schemas.
@@ -1460,10 +1577,12 @@ class UniversalDocumentProcessor:
         if not parameters:
             return
         
+        calculation_engine = CalculationEngine(self.schema_data)
+        
         for param_name, param_value in list(parameters.items()):
             if isinstance(param_value, dict) and '$ref' in param_value:
                 ref_config = param_value['$ref']
-                resolved_value = self._resolve_schema_reference_direct(ref_config)
+                resolved_value = calculation_engine._resolve_schema_reference(ref_config)
                 if resolved_value is not None:
                     self.schema_data['parameters'][param_name] = resolved_value
                     logger.info(f"Resolved parameter '{param_name}' from {ref_config.get('schema')}: {resolved_value}")
@@ -1511,23 +1630,18 @@ class UniversalDocumentProcessor:
 
         # Step 0: Initialize missing columns (handles required columns if create_if_missing is true)
         df_initialized = self._initialize_missing_columns(df)
-
-        # Step 0.5: Validate raw input patterns BEFORE any transformations
-        # This catches non-conforming input data that would otherwise be masked
-        # by formatting transformations (e.g., zero-padding, date formatting)
-        raw_validation_errors = self._collect_raw_pattern_errors(df_initialized)
-
+        
         # Step 1: Verify all required columns now exist (after attempted initialization)
         self._verify_required_columns(df_initialized)
-
+        
         # Step 2: Apply null handling
         df_processed = self.calculation_engine.apply_null_handling(df_initialized, original_columns)
-
+        
         # Step 3: Apply calculations
         df_calculated = self.calculation_engine.apply_calculations(df_processed)
-
+        
         # Step 4: Apply final validation
-        df_validated = self._apply_validation(df_calculated, raw_validation_errors)
+        df_validated = self._apply_validation(df_calculated)
 
         # Final safeguard: keep the schema-defined row index as the first column.
         row_index_column = self._get_row_index_column_name()
@@ -1655,61 +1769,14 @@ class UniversalDocumentProcessor:
                     logger.info(f"Created missing column: {col_name} with default '{default_val}'")
                     
         return df_init
-
-    def _collect_raw_pattern_errors(self, df: pd.DataFrame) -> pd.Series:
-        """
-        Validate raw input data against schema pattern rules BEFORE any transformations.
-
-        Returns a Series of error strings indexed by DataFrame row index, for rows
-        where pattern validation fails. Empty string for rows that pass.
-        """
-        error_msgs = pd.Series("", index=df.index)
-        enhanced_schema = self.schema_data.get('enhanced_schema', {})
-        columns = enhanced_schema.get('columns', {})
-
-        for column_name, column_def in columns.items():
-            if not isinstance(column_def, dict):
-                continue
-            if column_name not in df.columns:
-                continue
-
-            allow_null = column_def.get('allow_null', True)
-            validation_rules = self._normalize_validation_rules(column_def.get('validation', {}))
-
-            for validation in validation_rules:
-                rule_type = validation.get('type')
-
-                if rule_type == 'pattern':
-                    pattern = validation['pattern']
-                    # Handle duplicate columns - take first occurrence
-                    col_data = df[column_name]
-                    if hasattr(col_data, 'columns'):  # DataFrame (duplicates)
-                        col_data = col_data.iloc[:, 0]
-                    df_str = col_data.astype(str)
-                    mask = ~df_str.str.match(pattern)
-                    if allow_null:
-                        mask &= col_data.notna()
-                    if mask.any():
-                        bad_values = col_data.loc[mask].dropna().head(5).tolist()
-                        msg = f"{column_name} raw input pattern mismatch ({pattern}): {bad_values}"
-                        logger.warning(
-                            f"Raw input pattern validation failed for {column_name}: "
-                            f"{mask.sum()}/{len(df)} values don't match {pattern}. "
-                            f"Sample: {bad_values[:5]}"
-                        )
-                        error_msgs[mask] = error_msgs[mask].apply(
-                            lambda x: f"[RAW INPUT] {msg}".strip("; ") if not x else f"{x}; [RAW INPUT] {msg}".strip("; ")
-                        )
-
-        return error_msgs
-
-    def _apply_validation(self, df: pd.DataFrame, raw_errors: pd.Series = None) -> pd.DataFrame:
+    
+    def _apply_validation(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply validation rules from schema and record errors per-row."""
         enhanced_schema = self.schema_data.get('enhanced_schema', {})
         columns = enhanced_schema.get('columns', {})
-
+        
         df_validated = df.copy()
-
+        
         # Initialize Validation_Errors column if it exists in schema
         error_col = "Validation_Errors"
         if error_col in columns:
@@ -1877,19 +1944,6 @@ class UniversalDocumentProcessor:
                     msg = f"{column_name} not in {schema_ref}"
                     record_errors(mask, msg)
 
-        # Merge raw input pattern validation errors (collected before transformations)
-        if raw_errors is not None and error_col in df_validated.columns:
-            raw_errors_aligned = raw_errors.reindex(df_validated.index, fill_value="")
-            has_raw_errors = raw_errors_aligned != ""
-            if has_raw_errors.any():
-                for idx in df_validated.index[has_raw_errors]:
-                    existing = df_validated.at[idx, error_col]
-                    raw_msg = raw_errors_aligned[idx]
-                    if not existing:
-                        df_validated.at[idx, error_col] = raw_msg
-                    else:
-                        df_validated.at[idx, error_col] = f"{existing}; {raw_msg}".strip("; ")
-
         # Summary: log validation statistics
         total_columns = 0
         total_rules = 0
@@ -1971,13 +2025,16 @@ class UniversalDocumentProcessor:
         if allowed_codes is not None:
             # Filter out excluded codes (e.g., pending status)
             if exclude_codes:
+                # Get all aliases for excluded codes from approval schema
                 excluded_values = set(exclude_codes)
                 for entry in ref_data.get('approval', []):
                     if entry.get('code') in exclude_codes:
+                        # Add all aliases and the status itself
                         excluded_values.update(entry.get('aliases', []))
                         if entry.get('status'):
                             excluded_values.add(entry.get('status'))
                 
+                # Filter allowed_codes to exclude pending values
                 allowed_codes = [c for c in allowed_codes if c not in excluded_values]
             
             mask = ~df[column_name].isin(allowed_codes)

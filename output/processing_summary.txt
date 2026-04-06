@@ -1,0 +1,280 @@
+Universal Document Processing Summary
+==================================================
+
+Processing Date: 2026-04-06 06:22:55
+
+Input and Output Files:
+  Input Data File: /workspaces/Engineering-and-Design/dcc/data/Submittal and RFI Tracker Lists.xlsx
+  CSV Export: /workspaces/Engineering-and-Design/output/processed_output.csv
+  Excel Export: /workspaces/Engineering-and-Design/output/processed_output.xlsx
+  Summary Report: /workspaces/Engineering-and-Design/output/processing_summary.txt
+
+Schema Files Used:
+  - /workspaces/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json
+  - /workspaces/Engineering-and-Design/dcc/config/schemas/project_schema.json
+  - /workspaces/Engineering-and-Design/dcc/config/schemas/facility_schema.json
+  - /workspaces/Engineering-and-Design/dcc/config/schemas/department_schema.json
+  - /workspaces/Engineering-and-Design/dcc/config/schemas/discipline_schema.json
+  - /workspaces/Engineering-and-Design/dcc/config/schemas/document_type_schema.json
+  - /workspaces/Engineering-and-Design/dcc/config/schemas/approval_code_schema.json
+
+Dataset Shapes:
+  Raw Input Shape: (11099, 26)
+  Mapped Data Shape: (11099, 26)
+  Processed Data Shape: (11099, 46)
+
+Column Overview:
+  Column Mapping Success Rate: 84.6%
+  Matched Headers: 22 / 26
+  Missing Required Columns: 1
+  Schema References Loaded: 6
+
+Columns Read From Input:
+  01. Prolog Submittal No..1
+  02. Prolog Rev..1
+  03. Document Owner
+  04. Dept
+  05. Project Wise Transmittal No.  (WIP)
+  06. Proj. Code
+  07. Proj. Prefix
+  08. Doc Type
+  09. Discipline
+  10. Number
+  11. Rev 
+  12. CES_SALCON-SDC JV Cor Ref No
+  13. Date Submit
+  14. Document Description / Drawing Title
+  15. S.O. Review and Comments
+  16. Date S.O. to Response
+(20 Working Days/
+ 14 Working Days)
+  17. Actual Date S.O. Response
+  18. SO Response Variance
+  19. SO Review Status
+  20. To Resubmit (Yes/No)
+  21. Date CES to Response
+(14 Working Days)
+  22. Closed
+  23. Overdue to resubmit
+  24. Delays to resubmit
+  25. Target date to resubmit
+  26. Remark
+
+Column Mapping Details:
+  - Prolog Submittal No..1 -> Submission_Session (alias='Prolog Submittal No..1', score=1.00)
+  - Prolog Rev..1 -> Submission_Session_Revision (alias='Prolog Rev..1', score=1.00)
+  - Document Owner -> Submitted_By (alias='Document Owner', score=1.00)
+  - Dept -> Department (alias='Dept', score=1.00)
+  - Project Wise Transmittal No.  (WIP) -> Transmittal_Number (alias='Project Wise Transmittal No.  (WIP)', score=1.00)
+  - Proj. Code -> Project_Code (alias='Proj. Code', score=1.00)
+  - Proj. Prefix -> Facility_Code (alias='Proj. Prefix', score=1.00)
+  - Doc Type -> Document_Type (alias='Doc Type', score=1.00)
+  - Discipline -> Discipline (alias='Discipline', score=1.00)
+  - Number -> Document_Sequence_Number (alias='Number', score=1.00)
+  - Rev  -> Document_Revision (alias='Rev ', score=1.00)
+  - CES_SALCON-SDC JV Cor Ref No -> NOT MAPPED
+  - Date Submit -> Submission_Date (alias='Date Submit', score=1.00)
+  - Document Description / Drawing Title -> Submission_Session_Subject (alias='Document Description / Drawing Title', score=1.00)
+  - S.O. Review and Comments -> Review_Comments (alias='S.O. Review and Comments', score=1.00)
+  - Date S.O. to Response
+(20 Working Days/
+ 14 Working Days) -> NOT MAPPED
+  - Actual Date S.O. Response -> Review_Return_Actual_Date (alias='Actual Date S.O. Response', score=1.00)
+  - SO Response Variance -> Review_Return_Actual_Date (alias='SO Response Date', score=0.78)
+  - SO Review Status -> Review_Status (alias='SO Review Status', score=1.00)
+  - To Resubmit (Yes/No) -> Submission_Session (alias='Submittal No', score=0.62)
+  - Date CES to Response
+(14 Working Days) -> NOT MAPPED
+  - Closed -> NOT MAPPED
+  - Overdue to resubmit -> Resubmission_Forecast_Date (alias='Target date to resubmit', score=0.71)
+  - Delays to resubmit -> Resubmission_Forecast_Date (alias='Target date to resubmit', score=0.68)
+  - Target date to resubmit -> Resubmission_Forecast_Date (alias='Target date to resubmit', score=1.00)
+  - Remark -> Notes (alias='Remark', score=1.00)
+
+Mapped Columns After Rename:
+  01. Submission_Session
+  02. Submission_Session_Revision
+  03. Submitted_By
+  04. Department
+  05. Transmittal_Number
+  06. Project_Code
+  07. Facility_Code
+  08. Document_Type
+  09. Discipline
+  10. Document_Sequence_Number
+  11. Document_Revision
+  12. CES_SALCON-SDC JV Cor Ref No
+  13. Submission_Date
+  14. Submission_Session_Subject
+  15. Review_Comments
+  16. Date S.O. to Response
+(20 Working Days/
+ 14 Working Days)
+  17. Review_Return_Actual_Date
+  18. Review_Return_Actual_Date
+  19. Review_Status
+  20. Submission_Session
+  21. Date CES to Response
+(14 Working Days)
+  22. Closed
+  23. Resubmission_Forecast_Date
+  24. Resubmission_Forecast_Date
+  25. Resubmission_Forecast_Date
+  26. Notes
+
+Processed Columns:
+  01. Row_Index [ADDED DURING PROCESSING]
+  02. Submission_Session
+  03. Submission_Session_Revision
+  04. Submitted_By
+  05. Department
+  06. Transmittal_Number
+  07. Project_Code
+  08. Facility_Code
+  09. Document_Type
+  10. Discipline
+  11. Document_Sequence_Number
+  12. Document_Revision
+  13. CES_SALCON-SDC JV Cor Ref No
+  14. Submission_Date
+  15. Submission_Session_Subject
+  16. Review_Comments
+  17. Date S.O. to Response
+(20 Working Days/
+ 14 Working Days)
+  18. Review_Return_Actual_Date
+  19. Review_Status
+  20. Date CES to Response
+(14 Working Days)
+  21. Closed
+  22. Resubmission_Forecast_Date
+  23. Notes
+  24. Document_ID [ADDED DURING PROCESSING]
+  25. Document_Title [ADDED DURING PROCESSING]
+  26. Consolidated_Submission_Session_Subject [ADDED DURING PROCESSING]
+  27. First_Submission_Date [ADDED DURING PROCESSING]
+  28. Submission_Closed [ADDED DURING PROCESSING]
+  29. Resubmission_Required [ADDED DURING PROCESSING]
+  30. Validation_Errors [ADDED DURING PROCESSING]
+  31. Review_Return_Plan_Date [ADDED DURING PROCESSING]
+  32. Duration_of_Review [ADDED DURING PROCESSING]
+  33. Approval_Code [ADDED DURING PROCESSING]
+  34. Latest_Submission_Date [ADDED DURING PROCESSING]
+  35. Latest_Revision [ADDED DURING PROCESSING]
+  36. All_Submission_Sessions [ADDED DURING PROCESSING]
+  37. All_Submission_Dates [ADDED DURING PROCESSING]
+  38. All_Submission_Session_Revisions [ADDED DURING PROCESSING]
+  39. Count_of_Submissions [ADDED DURING PROCESSING]
+  40. Latest_Approval_Status [ADDED DURING PROCESSING]
+  41. Latest_Approval_Code [ADDED DURING PROCESSING]
+  42. Resubmission_Plan_Date [ADDED DURING PROCESSING]
+  43. Resubmission_Overdue_Status [ADDED DURING PROCESSING]
+  44. Delay_of_Resubmission [ADDED DURING PROCESSING]
+  45. This_Submission_Approval_Code [ADDED DURING PROCESSING]
+  46. Review_Status_Code [ADDED DURING PROCESSING]
+
+Null Summary:
+  Raw Input Columns With Nulls:
+    - Remark: 10918
+    - Target date to resubmit: 10912
+    - S.O. Review and Comments: 8378
+    - Document Owner: 8167
+    - Dept: 8132
+    - Prolog Rev..1: 8091
+    - Prolog Submittal No..1: 8087
+    - Document Description / Drawing Title: 8062
+    - Delays to resubmit: 7434
+    - Project Wise Transmittal No.  (WIP): 4425
+    - SO Response Variance: 3353
+    - Overdue to resubmit: 2768
+    - Date CES to Response
+(14 Working Days): 2545
+    - Closed: 871
+    - To Resubmit (Yes/No): 870
+    - Actual Date S.O. Response: 869
+    - Rev : 113
+    - Doc Type: 71
+    - Proj. Prefix: 69
+    - Discipline: 67
+    - Number: 63
+    - CES_SALCON-SDC JV Cor Ref No: 41
+    - Date S.O. to Response
+(20 Working Days/
+ 14 Working Days): 4
+    - Proj. Code: 4
+    - SO Review Status: 4
+    - Date Submit: 3
+  Mapped Columns With Nulls:
+    - Notes: 10918
+    - Resubmission_Forecast_Date: 10912
+    - Review_Comments: 8378
+    - Submitted_By: 8167
+    - Department: 8132
+    - Submission_Session_Revision: 8091
+    - Submission_Session_Subject: 8062
+    - Transmittal_Number: 4425
+    - Review_Return_Actual_Date: 3353
+    - Date CES to Response
+(14 Working Days): 2545
+    - Closed: 871
+    - Submission_Session: 870
+    - Document_Revision: 113
+    - Document_Type: 71
+    - Facility_Code: 69
+    - Discipline: 67
+    - Document_Sequence_Number: 63
+    - CES_SALCON-SDC JV Cor Ref No: 41
+    - Date S.O. to Response
+(20 Working Days/
+ 14 Working Days): 4
+    - Project_Code: 4
+    - Review_Status: 4
+    - Submission_Date: 3
+  Processed Columns With Nulls:
+    - Resubmission_Overdue_Status: 7495
+    - Resubmission_Plan_Date: 6791
+    - Date CES to Response
+(14 Working Days): 2545
+    - Closed: 871
+    - Review_Return_Actual_Date: 846
+    - Duration_of_Review: 45
+    - CES_SALCON-SDC JV Cor Ref No: 41
+    - Date S.O. to Response
+(20 Working Days/
+ 14 Working Days): 4
+    - Review_Return_Plan_Date: 3
+    - Submission_Date: 3
+
+Warnings and Potential Issues:
+  - Missing required mapped column: Document_Title
+  - Unmatched input header: CES_SALCON-SDC JV Cor Ref No
+  - Unmatched input header: Date S.O. to Response
+(20 Working Days/
+ 14 Working Days)
+  - Unmatched input header: Date CES to Response
+(14 Working Days)
+  - Unmatched input header: Closed
+  - Column created during processing: Row_Index
+  - Column created during processing: Document_ID
+  - Column created during processing: Document_Title
+  - Column created during processing: Consolidated_Submission_Session_Subject
+  - Column created during processing: First_Submission_Date
+  - Column created during processing: Submission_Closed
+  - Column created during processing: Resubmission_Required
+  - Column created during processing: Validation_Errors
+  - Column created during processing: Review_Return_Plan_Date
+  - Column created during processing: Duration_of_Review
+  - Column created during processing: Approval_Code
+  - Column created during processing: Latest_Submission_Date
+  - Column created during processing: Latest_Revision
+  - Column created during processing: All_Submission_Sessions
+  - Column created during processing: All_Submission_Dates
+  - Column created during processing: All_Submission_Session_Revisions
+  - Column created during processing: Count_of_Submissions
+  - Column created during processing: Latest_Approval_Status
+  - Column created during processing: Latest_Approval_Code
+  - Column created during processing: Resubmission_Plan_Date
+  - Column created during processing: Resubmission_Overdue_Status
+  - Column created during processing: Delay_of_Resubmission
+  - Column created during processing: This_Submission_Approval_Code
+  - Column created during processing: Review_Status_Code

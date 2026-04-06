@@ -21,7 +21,9 @@
       "Bash(validation_this *)",
       "Bash(pen_entry *)",
       "Bash(eof)",
-      "Bash(python *)"
+      "Bash(python *)",
+      "Bash(tr *)",
+      "Bash(rm *)"
     ]
   },
   "$version": 3

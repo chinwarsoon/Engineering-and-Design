@@ -36,7 +36,7 @@
     "progress_stage": "not_start",
     "upload_sheet_name": "Prolog Submittals ",
     "win_upload_file": "K:\\J Submission\\Submittal and RFI Tracker Lists.xlsx",
-    "win_download_path": "K:\\J Submission\\AI Tools and Report",
+    "win_download_path": "K:\\J Submission\\AI Tools and Report\\data_output",
     "win_upload_file_fallback": "data/Submittal and RFI Tracker Lists.xlsx",
     "win_download_path_fallback": "output",
     "linux_upload_file": "data/Submittal and RFI Tracker Lists.xlsx",
@@ -142,7 +142,7 @@
         "null_handling": {
           "strategy": "forward_fill",
           "group_by": [],
-          "fill_value": "0",
+          "fill_value": "9",
           "formatting": {
             "zero_pad": 6,
             "description": "Applied via _apply_forward_fill formatting. Ensures session identifiers are uniformly padded specifically to 6 digits."

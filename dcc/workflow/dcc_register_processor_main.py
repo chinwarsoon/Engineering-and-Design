@@ -71,7 +71,7 @@ def _build_native_defaults(base_path: Path) -> Dict[str, Any]:
         "schema_register_file": str(_default_schema_path(base_path)),
         # Windows network drive paths (primary if K: exists)
         "win_upload_file": r"K:\J Submission\Submittal and RFI Tracker Lists.xlsx",
-        "win_download_path": r"K:\J Submission\AI Tools and Report",
+        "win_download_path": r"K:\J Submission\AI Tools and Report\\data_output",
         # Windows fallback paths (relative to base_path)
         "win_upload_file_fallback": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
         "win_download_path_fallback": str(base_path / "output"),
@@ -186,59 +186,59 @@ def _test_environment() -> Dict[str, Any]:
     return results
 
 
-def _resolve_native_paths(native_defaults: Dict[str, Any], base_path: Path) -> Dict[str, Any]:
+def _resolve_platform_paths(
+    effective_parameters: Dict[str, Any],
+    base_path: Path,
+) -> Dict[str, Any]:
     """
-    Resolve platform-specific paths from native defaults.
+    Resolve platform-specific paths from already-merged effective parameters.
+    Precedence is already applied: CLI → Schema → Native defaults.
 
-    On Windows: tries K: network drive first, falls back to relative paths if not found.
-    On Linux/Mac: uses the linux_upload_file and linux_download_path, resolving relative paths against base_path.
-    Also resolves upload_file_name and download_file_path if they are relative.
+    On Windows: checks win_upload_file, then falls back to upload_file_name.
+    On Linux/Mac: checks linux_upload_file, then falls back to upload_file_name.
+    Resolves any remaining relative paths against base_path.
     """
     status_print("Resolving platform paths...")
-    resolved = native_defaults.copy()
+    params = effective_parameters.copy()
     system_name = platform.system().lower()
 
     if system_name == "windows":
-        if Path(native_defaults["win_upload_file"]).exists():
-            resolved["upload_file_name"] = native_defaults["win_upload_file"]
-            resolved["download_file_path"] = native_defaults["win_download_path"]
-            debug_print("Windows network drive (K:) path selection succeeded.")
-        else:
-            resolved["upload_file_name"] = native_defaults["win_upload_file_fallback"]
-            resolved["download_file_path"] = native_defaults["win_download_path_fallback"]
-            debug_print("Windows network drive (K:) not found, using relative paths.")
+        # Check Windows-specific paths
+        win_upload = params.get("win_upload_file", "")
+        win_download = params.get("win_download_path", "")
+        if win_upload and Path(win_upload).exists():
+            params["upload_file_name"] = win_upload
+            if win_download:
+                params["download_file_path"] = win_download
+            status_print(f"Using Windows path: {win_upload}")
     else:
-        # Resolve relative paths against base_path for Linux/Mac
-        upload_path = Path(native_defaults["linux_upload_file"])
-        download_path = Path(native_defaults["linux_download_path"])
-        
-        if not upload_path.is_absolute():
-            upload_path = base_path / upload_path
-        if not download_path.is_absolute():
-            download_path = base_path / download_path
-            
-        resolved["upload_file_name"] = str(upload_path)
-        resolved["download_file_path"] = str(download_path)
-        debug_print(f"Using non-Windows defaults for {system_name} (resolved against base_path).")
+        # Check Linux-specific paths
+        linux_upload = params.get("linux_upload_file", "")
+        linux_download = params.get("linux_download_path", "")
+        if linux_upload:
+            lp = Path(linux_upload)
+            if not lp.is_absolute():
+                lp = base_path / lp
+            if lp.exists():
+                params["upload_file_name"] = str(lp)
+                if linux_download:
+                    ld = Path(linux_download)
+                    if not ld.is_absolute():
+                        ld = base_path / ld
+                    params["download_file_path"] = str(ld)
+                status_print(f"Using Linux path: {lp}")
 
-    # Also resolve upload_file_name and download_file_path if they're relative paths
-    # (These may come from schema parameters and should be resolved against base_path or home folder)
-    active_upload = Path(resolved.get("upload_file_name", ""))
-    active_download = Path(resolved.get("download_file_path", ""))
-    
+    # Resolve any remaining relative paths against base_path
+    active_upload = Path(params.get("upload_file_name", ""))
+    active_download = Path(params.get("download_file_path", ""))
     if not active_upload.is_absolute():
-        # Resolve relative paths against base_path
-        resolved["upload_file_name"] = str(base_path / active_upload)
-        debug_print(f"Resolved upload_file_name against base_path: {resolved['upload_file_name']}")
-    
+        params["upload_file_name"] = str(base_path / active_upload)
     if not active_download.is_absolute():
-        # Resolve relative paths against base_path
-        resolved["download_file_path"] = str(base_path / active_download)
-        debug_print(f"Resolved download_file_path against base_path: {resolved['download_file_path']}")
+        params["download_file_path"] = str(base_path / active_download)
 
-    Path(resolved["download_file_path"]).mkdir(parents=True, exist_ok=True)
+    Path(params["download_file_path"]).mkdir(parents=True, exist_ok=True)
     status_print(f"Current system detected: {system_name}")
-    return resolved
+    return params
 
 
 def _create_parser(base_path: Path) -> argparse.ArgumentParser:
@@ -380,9 +380,14 @@ def _load_excel_data(excel_path: Path, effective_parameters: Dict[str, Any], nro
     raw_logger.info(f"[DEBUG] Raw DataFrame first 10 columns: {list(df.columns)[:10]}")
     has_tuples = any(isinstance(c, tuple) for c in df.columns)
     raw_logger.info(f"[DEBUG] Has tuple columns: {has_tuples}")
+    has_dups = df.columns.duplicated().any()
+    raw_logger.info(f"[DEBUG] Has duplicate columns: {has_dups}")
     if has_tuples:
         tuple_cols = [c for c in df.columns if isinstance(c, tuple)]
         raw_logger.warning(f"[DEBUG] Tuple columns: {tuple_cols}")
+    if has_dups:
+        dup_cols = df.columns[df.columns.duplicated()].tolist()
+        raw_logger.warning(f"[DEBUG] Duplicate columns: {dup_cols}")
     
     # Validate that columns were loaded successfully
     if len(df.columns) == 0:
@@ -397,6 +402,14 @@ def _load_excel_data(excel_path: Path, effective_parameters: Dict[str, Any], nro
         df.columns = ['_'.join(str(level) for level in levels).strip('_') 
                       for levels in df.columns]
     
+    # CRITICAL: Remove duplicate columns (can happen with Excel merged cells or headers)
+    # When pandas reads Excel with duplicate column names, df[col] returns DataFrame instead of Series
+    if df.columns.duplicated().any():
+        dup_cols = df.columns[df.columns.duplicated()].tolist()
+        status_print(f"   ⚠️  Removing {len(dup_cols)} duplicate columns: {dup_cols[:5]}...")
+        df = df.loc[:, ~df.columns.duplicated()].copy()
+        status_print(f"   ✓ Removed duplicates. Remaining columns: {len(df.columns)}")
+
     # Remove any fully empty columns that might have been created
     df = df.dropna(axis=1, how='all')
     
@@ -720,9 +733,29 @@ def main() -> int:
         return 1
 
     base_path = _safe_resolve(Path(args.base_path))
-    native_defaults = _resolve_native_paths(_build_native_defaults(base_path), base_path)
-    schema_path = _safe_resolve(Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"])))
-    effective_parameters = _resolve_effective_parameters(schema_path, cli_args, native_defaults)
+    native_defaults = _build_native_defaults(base_path)
+
+    # Load schema parameters so path resolution can use them
+    # for proper precedence: CLI → Schema → Native defaults
+    schema_path = _safe_resolve(
+        Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"]))
+    )
+    try:
+        schema_parameters = _load_schema_parameters(schema_path)
+        debug_print(f"Loaded schema parameters early for path resolution: {schema_path}")
+    except Exception as exc:
+        debug_print(f"Could not load schema parameters early: {exc}")
+        schema_parameters = {}
+
+    # Merge parameters first, THEN resolve platform paths
+    # This ensures schema parameters are available before path resolution
+    effective_parameters = native_defaults.copy()
+    effective_parameters.update(schema_parameters)
+    effective_parameters.update(cli_args)
+    effective_parameters["schema_register_file"] = str(schema_path)
+
+    # Resolve platform-specific paths from merged parameters
+    effective_parameters = _resolve_platform_paths(effective_parameters, base_path)
 
     try:
         results = run_pipeline(
