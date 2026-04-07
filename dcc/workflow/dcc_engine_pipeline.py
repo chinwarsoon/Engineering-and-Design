@@ -39,6 +39,13 @@ from initiation_engine.engine import (
     ProjectSetupValidator, 
     format_report as format_setup_report,
     default_base_path,
+    get_homedir,
+    parse_cli_args,
+    status_print,
+    debug_print,
+    setup_logger,
+    set_debug_mode,
+    test_environment,
 )
 from schema_engine.engine import (
     SchemaValidator, 
@@ -56,24 +63,12 @@ from processor_engine.engine import (
 DEBUG_DEV_MODE = False
 
 
-def status_print(*args: Any, **kwargs: Any) -> None:
-    """Print status messages with flush."""
-    kwargs.setdefault("flush", True)
-    builtins.print(*args, **kwargs)
-
-
-def debug_print(*args: Any, **kwargs: Any) -> None:
-    """Print debug messages only in dev mode."""
-    if DEBUG_DEV_MODE:
-        kwargs.setdefault("flush", True)
-        builtins.print(*args, **kwargs)
-
-
 def build_native_defaults(base_path: Path) -> Dict[str, Any]:
     """
     Build native default parameters for the DCC processing pipeline.
     Precedence: CLI args → Schema params → Native defaults
     """
+    status_print("Building native default parameters...")
     return {
         "debug_dev_mode": False,
         "overwrite_existing_downloads": True,
@@ -99,69 +94,7 @@ def build_native_defaults(base_path: Path) -> Dict[str, Any]:
     }
 
 
-def test_environment() -> Dict[str, Any]:
-    """Test environment and required libraries."""
-    status_print("Testing environment and required libraries...")
-    
-    required_modules = [
-        "argparse", "json", "pathlib", "pandas", "numpy", "openpyxl",
-    ]
-    optional_modules = ["duckdb", "matplotlib"]
-    
-    # Engine modules to test
-    engine_modules = [
-        ("initiation_engine.engine", ["ProjectSetupValidator"]),
-        ("schema_engine.engine", ["SchemaValidator", "write_validation_status"]),
-        ("mapper_engine.engine", ["ColumnMapperEngine"]),
-        ("processor_engine.engine", ["CalculationEngine"]),
-    ]
-    
-    results: Dict[str, Any] = {
-        "python_version": platform.python_version(),
-        "platform": platform.system(),
-        "required_modules": {},
-        "optional_modules": {},
-        "engine_modules": {},
-        "errors": [],
-        "ready": True,
-    }
-    
-    # Test required modules
-    for module_name in required_modules:
-        try:
-            importlib.import_module(module_name)
-            results["required_modules"][module_name] = "ok"
-        except Exception as exc:
-            results["required_modules"][module_name] = f"error: {exc}"
-            results["errors"].append(f"{module_name}: {exc}")
-    
-    # Test optional modules
-    for module_name in optional_modules:
-        try:
-            importlib.import_module(module_name)
-            results["optional_modules"][module_name] = "ok"
-        except Exception as exc:
-            results["optional_modules"][module_name] = f"warning: {exc}"
-    
-    # Test engine modules
-    for module_name, attributes in engine_modules:
-        try:
-            module = importlib.import_module(module_name)
-            for attr in attributes:
-                getattr(module, attr)
-            results["engine_modules"][module_name] = "ok"
-        except Exception as exc:
-            results["engine_modules"][module_name] = f"error: {exc}"
-            results["errors"].append(f"{module_name}: {exc}")
-    
-    results["ready"] = not results["errors"]
-    if results["ready"]:
-        status_print("Environment test passed.")
-    else:
-        status_print("Environment test failed.")
-    
-    debug_print(f"Environment details: {results}")
-    return results
+
 
 
 def resolve_platform_paths(
@@ -213,61 +146,7 @@ def resolve_platform_paths(
     return params
 
 
-def create_parser(base_path: Path) -> argparse.ArgumentParser:
-    """Create CLI argument parser."""
-    parser = argparse.ArgumentParser(description="DCC Engine Pipeline - Modular processing workflow.")
-    parser.add_argument("--base-path", default=str(base_path), help="Project root path.")
-    parser.add_argument("--schema-file", default=None, help="Alternative schema register JSON file.")
-    parser.add_argument("--excel-file", default=None, help="Input Excel file.")
-    parser.add_argument("--upload-sheet", default=None, help="Input Excel sheet name.")
-    parser.add_argument("--output-file", default=None, help="Final CSV output file path.")
-    parser.add_argument("--start-col", default=None, help="Input Excel start column.")
-    parser.add_argument("--end-col", default=None, help="Input Excel end column.")
-    parser.add_argument("--header-row", type=int, default=None, help="Header row index.")
-    parser.add_argument("--overwrite", choices=["True", "False"], default=None, help="Overwrite output file.")
-    parser.add_argument("--debug-mode", choices=["True", "False"], default=None, help="Enable debug output.")
-    parser.add_argument("--nrows", type=int, default=None, help="Optional row limit.")
-    parser.add_argument("--json", action="store_true", help="Print final result as JSON.")
-    return parser
 
-
-def parse_cli_args(base_path: Path) -> Tuple[argparse.Namespace, Dict[str, Any]]:
-    """Parse CLI arguments and return as dictionary."""
-    status_print("Reading CLI arguments...")
-    parser = create_parser(base_path)
-    args, unknown_args = parser.parse_known_args()
-    
-    cli_args: Dict[str, Any] = {}
-    if args.schema_file:
-        cli_args["schema_register_file"] = args.schema_file
-    if args.excel_file:
-        cli_args["upload_file_name"] = args.excel_file
-    if args.upload_sheet:
-        cli_args["upload_sheet_name"] = args.upload_sheet
-    if args.output_file:
-        cli_args["output_file"] = args.output_file
-        cli_args["download_file_path"] = str(safe_resolve(Path(args.output_file)).parent)
-    if args.start_col:
-        cli_args["start_col"] = args.start_col
-    if args.end_col:
-        cli_args["end_col"] = args.end_col
-    if args.header_row is not None:
-        cli_args["header_row_index"] = args.header_row
-    if args.overwrite:
-        cli_args["overwrite_existing_downloads"] = args.overwrite == "True"
-    if args.debug_mode:
-        cli_args["debug_dev_mode"] = args.debug_mode == "True"
-    
-    if unknown_args:
-        debug_print(f"Ignoring unknown CLI arguments: {unknown_args}")
-    
-    if cli_args:
-        status_print("CLI overrides detected.")
-        debug_print(f"CLI values: {cli_args}")
-    else:
-        status_print("No CLI overrides provided.")
-    
-    return args, cli_args
 
 
 def load_schema_parameters(schema_path: Path) -> Dict[str, Any]:
@@ -448,26 +327,10 @@ def main() -> int:
     status_print(f"Project root path: {base_path}")
     
     # Handle Windows HOME env issues
-    if platform.system() == "Windows":
-        home = os.environ.get("HOME", "")
-        if home:
-            try:
-                home_exists = Path(home).exists()
-            except (OSError, PermissionError):
-                home_exists = False
-            if not home_exists:
-                local_home = os.environ.get("LOCALAPPDATA", "")
-                if local_home:
-                    os.environ["HOME"] = local_home
-                else:
-                    os.environ.pop("HOME", None)
+    local_home = get_homedir()
+    status_print(f"Resolved home directory: {local_home}")
     
-    # Ensure working directory is accessible
-    try:
-        os.chdir(base_path)
-    except (OSError, PermissionError):
-        pass
-    
+    # load local defaults and parse CLI args
     native_defaults = build_native_defaults(base_path)
     args, cli_args = parse_cli_args(base_path)
     
