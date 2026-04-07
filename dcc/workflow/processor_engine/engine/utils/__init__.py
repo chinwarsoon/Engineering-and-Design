@@ -2,7 +2,7 @@
 Utility functions for the document processor engine.
 """
 
-from dcc.workflow.processor_engine.engine.utils.dateframe import (
+from .dateframe import (
     prepare_dataframe_for_processing,
     flatten_columns,
     ensure_columns_are_strings,
@@ -14,7 +14,7 @@ from dcc.workflow.processor_engine.engine.utils.dateframe import (
     remove_duplicate_columns,
 )
 
-from dcc.workflow.processor_engine.engine.utils.dataio import (
+from .dataio import (
     load_excel_data,
 )
 

@@ -7,7 +7,7 @@ import logging
 from typing import Callable, Dict, Optional
 
 # Import null handling strategies
-from dcc.workflow.processor_engine.engine.calculations.null_handling import (
+from ..calculations.null_handling import (
     apply_forward_fill,
     apply_multi_level_forward_fill,
     apply_copy_from,
@@ -17,7 +17,7 @@ from dcc.workflow.processor_engine.engine.calculations.null_handling import (
 )
 
 # Import calculation modules
-from dcc.workflow.processor_engine.engine.calculations import (
+from ..calculations import (
     aggregate,
     conditional,
     date,

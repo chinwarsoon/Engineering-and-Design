@@ -3,14 +3,14 @@ Calculation modules for the document processor engine.
 """
 
 # Aggregate calculations
-from dcc.workflow.processor_engine.engine.calculations.aggregate import (
+from .aggregate import (
     apply_aggregate_calculation,
     apply_latest_by_date_calculation,
     apply_latest_non_pending_status,
 )
 
 # Conditional calculations
-from dcc.workflow.processor_engine.engine.calculations.conditional import (
+from .conditional import (
     apply_current_row_calculation,
     apply_update_resubmission_required,
     apply_submission_closure_status,
@@ -18,7 +18,7 @@ from dcc.workflow.processor_engine.engine.calculations.conditional import (
 )
 
 # Date calculations
-from dcc.workflow.processor_engine.engine.calculations.date import (
+from .date import (
     apply_date_calculation,
     calculate_working_days,
     calculate_date_difference,
@@ -28,13 +28,13 @@ from dcc.workflow.processor_engine.engine.calculations.date import (
 )
 
 # Mapping calculations
-from dcc.workflow.processor_engine.engine.calculations.mapping import (
+from .mapping import (
     apply_mapping_calculation,
     apply_status_to_code,
 )
 
 # Composite calculations
-from dcc.workflow.processor_engine.engine.calculations.composite import (
+from .composite import (
     apply_composite_calculation,
     apply_row_index,
     apply_delay_of_resubmission,
@@ -42,7 +42,7 @@ from dcc.workflow.processor_engine.engine.calculations.composite import (
 )
 
 # Null handling strategies
-from dcc.workflow.processor_engine.engine.calculations.null_handling import (
+from .null_handling import (
     apply_forward_fill,
     apply_multi_level_forward_fill,
     apply_copy_from,
@@ -52,7 +52,7 @@ from dcc.workflow.processor_engine.engine.calculations.null_handling import (
 )
 
 # Validation
-from dcc.workflow.processor_engine.engine.calculations.validation import (
+from .validation import (
     collect_raw_pattern_errors,
     apply_validation,
 )
