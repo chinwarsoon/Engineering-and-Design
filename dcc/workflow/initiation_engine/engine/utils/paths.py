@@ -6,8 +6,10 @@ Extracted from project_setup_validation.py path functions.
 import os
 import platform
 from pathlib import Path
+from typing import Any, Dict, List, Callable  # Add Any here
 
-from pathlib import Path
+from ..utils.logging import status_print
+
 
 
 # check and get "HOME" directory, with special handling for Windows network drive issues
@@ -72,3 +74,126 @@ def default_base_path() -> Path:
 def get_schema_path(base_path: Path) -> Path:
     """Return default schema path based on base path."""
     return base_path / "config" / "schemas" / "project_setup.json"
+
+
+def resolve_platform_paths(
+    effective_parameters: dict[str, Any],
+    base_path: Path,
+    status_print_fn: Any = print,
+) -> dict[str, Any]:
+    """
+    Resolve platform-specific paths from merged effective parameters.
+    Precedence: CLI → Schema → Native defaults
+    
+    Args:
+        effective_parameters: Merged parameters dictionary
+        base_path: Base path for resolving relative paths
+        status_print_fn: Function to print status messages (default: print)
+        
+    Returns:
+        Updated parameters dictionary with resolved paths
+    """
+    from typing import Dict, Any
+    
+    status_print_fn("Resolving platform paths...")
+    params = effective_parameters.copy()
+    system_name = platform.system().lower()
+    
+    if system_name == "windows":
+        win_upload = params.get("win_upload_file", "")
+        win_download = params.get("win_download_path", "")
+        if win_upload and Path(win_upload).exists():
+            params["upload_file_name"] = win_upload
+            if win_download:
+                params["download_file_path"] = win_download
+            status_print_fn(f"Using Windows path: {win_upload}")
+    else:
+        linux_upload = params.get("linux_upload_file", "")
+        linux_download = params.get("linux_download_path", "")
+        if linux_upload:
+            lp = Path(linux_upload)
+            if not lp.is_absolute():
+                lp = base_path / lp
+            if lp.exists():
+                params["upload_file_name"] = str(lp)
+                if linux_download:
+                    ld = Path(linux_download)
+                    if not ld.is_absolute():
+                        ld = base_path / ld
+                    params["download_file_path"] = str(ld)
+                status_print_fn(f"Using Linux path: {lp}")
+    
+    # Resolve any remaining relative paths
+    active_upload = Path(params.get("upload_file_name", ""))
+    active_download = Path(params.get("download_file_path", ""))
+    if not active_upload.is_absolute():
+        params["upload_file_name"] = str(base_path / active_upload)
+    if not active_download.is_absolute():
+        params["download_file_path"] = str(base_path / active_download)
+    
+    Path(params["download_file_path"]).mkdir(parents=True, exist_ok=True)
+    status_print_fn(f"Current system detected: {system_name}")
+    return params
+
+
+def resolve_output_paths(
+    base_path: Path,
+    effective_parameters: dict[str, Any],
+    safe_resolve_fn: Any = None,
+) -> dict[str, Path]:
+    """
+    Resolve output file paths for processed data.
+    
+    Args:
+        base_path: Base path for the project
+        effective_parameters: Dictionary containing output configuration
+        safe_resolve_fn: Optional path resolution function (defaults to Path resolution)
+        
+    Returns:
+        Dictionary with output_dir, csv_path, excel_path, summary_path
+    """
+    explicit_output = effective_parameters.get("output_file")
+    if explicit_output:
+        base_output = Path(explicit_output)
+        if safe_resolve_fn:
+            base_output = safe_resolve_fn(base_output)
+    else:
+        output_dir_str = effective_parameters.get("download_file_path", str(base_path / "output"))
+        output_dir = Path(output_dir_str)
+        if safe_resolve_fn:
+            output_dir = safe_resolve_fn(output_dir)
+        base_output = output_dir / "processed_dcc_universal.csv"
+    
+    output_dir = base_output.parent
+    stem = base_output.stem or "processed_dcc_universal"
+
+    status_print(f"Output directory: {output_dir}")
+    status_print(f"CSV path: {output_dir / f'{stem}.csv'}")
+    status_print(f"Excel path: {output_dir / f'{stem}.xlsx'}")
+    status_print(f"Summary path: {output_dir / 'processing_summary.txt'}")
+    
+    return {
+        "output_dir": output_dir,
+        "csv_path": output_dir / f"{stem}.csv",
+        "excel_path": output_dir / f"{stem}.xlsx",
+        "summary_path": output_dir / "processing_summary.txt",
+    }
+
+
+def validate_export_paths(export_paths: dict[str, Path], overwrite_existing: bool) -> None:
+    """
+    Validate output paths and check for existing files.
+    
+    Args:
+        export_paths: Dictionary containing output_dir, csv_path, excel_path, summary_path
+        overwrite_existing: If True, allow overwriting existing files
+        
+    Raises:
+        FileExistsError: If output files exist and overwrite_existing is False
+    """
+    export_paths["output_dir"].mkdir(parents=True, exist_ok=True)
+    if not overwrite_existing:
+        for file_key in ("csv_path", "excel_path", "summary_path"):
+            target_path = export_paths[file_key]
+            if target_path.exists():
+                raise FileExistsError(f"Output file exists: {target_path}. Use --overwrite True.")

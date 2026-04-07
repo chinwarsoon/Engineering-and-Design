@@ -10,6 +10,7 @@ from typing import Dict, Any, List
 def format_report(results: Dict[str, Any]) -> str:
     """Format validation results for terminal output."""
     lines: List[str] = []
+    lines.append("=" * 72)
     lines.append("PROJECT SETUP VALIDATION")
     lines.append("=" * 72)
     lines.append(f"Base Path: {results['base_path']}")

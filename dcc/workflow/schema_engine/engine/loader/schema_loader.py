@@ -153,3 +153,17 @@ class SchemaLoader:
                 schema_data[f"{ref_name}_data"] = self._resolve_schema_dependency(ref_path, visited_paths.copy())
 
         return schema_data
+
+
+def load_schema_parameters(schema_path: Path) -> Dict[str, Any]:
+    """
+    Load parameters section from schema file.
+    
+    Args:
+        schema_path: Path to the JSON schema file
+        
+    Returns:
+        Dictionary containing the 'parameters' section, or empty dict if not present
+    """
+    with schema_path.open("r", encoding="utf-8") as handle:
+        return json.load(handle).get("parameters", {})

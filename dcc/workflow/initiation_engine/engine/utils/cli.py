@@ -55,8 +55,7 @@ def parse_cli_args(base_path: Path) -> Tuple[argparse.Namespace, Dict[str, Any]]
         debug_print(f"Ignoring unknown CLI arguments: {unknown_args}")
     
     if cli_args:
-        status_print("CLI overrides detected.")
-        debug_print(f"CLI values: {cli_args}")
+        status_print(f"CLI overrides detected. CLI values: {cli_args}")
     else:
         status_print("No CLI overrides provided.")
     

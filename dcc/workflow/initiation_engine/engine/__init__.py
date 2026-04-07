@@ -21,6 +21,9 @@ from .utils.paths import (
     default_base_path,
     get_schema_path,
     get_homedir,
+    resolve_platform_paths,
+    resolve_output_paths,
+    validate_export_paths,
 )
 
 from .utils.cli import (
@@ -56,6 +59,9 @@ __all__ = [
     'normalize_path',
     'default_base_path',
     'get_schema_path',
+    'resolve_platform_paths',
+    'resolve_output_paths',
+    'validate_export_paths',
     'detect_os',
     'should_auto_create_folders',
     'get_homedir',

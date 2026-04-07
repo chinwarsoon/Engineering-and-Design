@@ -7,6 +7,9 @@ from .paths import (
     default_base_path,
     get_schema_path,
     get_homedir,
+    resolve_platform_paths,
+    resolve_output_paths,
+    validate_export_paths,
 )
 from .cli import (
     create_parser,
@@ -28,6 +31,9 @@ __all__ = [
     'default_base_path',
     'get_schema_path',
     'get_homedir',
+    'resolve_platform_paths',
+    'resolve_output_paths',
+    'validate_export_paths',
     'create_parser',
     'parse_cli_args',
     'status_print',

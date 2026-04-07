@@ -16,6 +16,7 @@ from ..validators.items import (
     check_ready,
 )
 from .reports import format_report
+from ..utils.logging import status_print
 
 
 class ProjectSetupValidator:
@@ -34,6 +35,7 @@ class ProjectSetupValidator:
         self.os_info = detect_os()
 
         if self.schema_path.is_file():
+            status_print(f"Loading schema from: {self.schema_path} for validation")
             self.schema_document = self._load_json(self.schema_path)
             self.project_setup = self._extract_project_setup(self.schema_document)
             self.validation_rules = {
@@ -48,12 +50,26 @@ class ProjectSetupValidator:
             return json.load(handle)
 
     def _extract_project_setup(self, document: Dict[str, Any]) -> Dict[str, Any]:
-        """Extract project_setup configuration from schema document."""
+        """
+        Extract project_setup configuration from schema document.
+        
+        Handles two structures:
+        1. "project_setup": [] - Array of projects, extracts first item
+        2. "project_setup": {} - Direct object, returns as-is
+        """
         config = document.get("project_setup", [])
+        
+        # Case 1: project_setup is a list/array
         if isinstance(config, list) and config:
             first_item = config[0]
             if isinstance(first_item, dict):
                 return first_item
+            return {}
+        
+        # Case 2: project_setup is a direct object/dict
+        if isinstance(config, dict):
+            return config
+            
         return {}
 
     def _rule_enabled(self, rule_name: str) -> bool:

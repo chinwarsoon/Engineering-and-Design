@@ -533,9 +533,8 @@
     "validation_rules",
     "dependencies"
   ],
-  "project_setup": [
-    {
-      "folders": [
+  "project_setup": {
+        "folders": [
         {
           "name": "config/schemas",
           "required": true,
@@ -616,20 +615,6 @@
       ],
       "workflow_files": [
         {
-          "filename": "dcc_register_processor_main.ipynb",
-          "required": true,
-          "type": "notebook",
-          "description": "Main orchestration notebook - Step-by-step processing",
-          "approximate_size": "~85KB"
-        },
-        {
-          "filename": "dcc_register_processor_main.py",
-          "required": true,
-          "type": "python_module",
-          "description": "Main Python pipeline for setup validation, schema validation, mapping, and processing",
-          "approximate_size": "~12KB"
-        },
-        {
           "filename": "dcc_engine_pipeline.py",
           "required": true,
           "type": "python_module",
@@ -640,25 +625,39 @@
           ],
           "approximate_size": "~15KB"
         },
+      {
+        "filename": "dcc_register_processor_main.ipynb",
+        "required": false,
+        "type": "notebook",
+        "description": "Main orchestration notebook - Step-by-step processing (legacy)",
+        "approximate_size": "~85KB"
+      },
+      {
+        "filename": "dcc_register_processor_main.py",
+        "required": false,
+        "type": "python_module",
+        "description": "Main Python pipeline (legacy - use dcc_engine_pipeline.py instead)",
+        "approximate_size": "~12KB"
+      },
         {
           "filename": "universal_document_processor.py",
-          "required": true,
+        "required": false,
           "type": "python_module",
-          "description": "Schema-driven processing engine",
+        "description": "Schema-driven processing engine (legacy - now in processor_engine)",
           "approximate_size": "~25KB"
         },
         {
           "filename": "universal_column_mapper.py",
-          "required": true,
+        "required": false,
           "type": "python_module",
-          "description": "Fuzzy column name mapping",
+        "description": "Fuzzy column name mapping (legacy - now in mapper_engine)",
           "approximate_size": "~20KB"
         },
         {
           "filename": "schema_validation.py",
-          "required": true,
+        "required": false,
           "type": "python_module",
-          "description": "Standalone schema validation and schema dependency resolution",
+        "description": "Standalone schema validation (legacy - now in schema_engine)",
           "approximate_size": "~10KB"
         }
       ],
@@ -1275,12 +1274,25 @@
           "path": "engine/utils/paths.py",
           "type": "python_module",
           "required": true,
-          "description": "Path normalization utilities",
-          "main_functions": [
-            "normalize_path",
-            "default_base_path",
-            "get_schema_path"
-          ]
+        "description": "Path normalization utilities"
+      },
+      {
+        "path": "engine/utils/cli.py",
+        "type": "python_module",
+        "required": true,
+        "description": "CLI argument parsing utilities"
+      },
+      {
+        "path": "engine/utils/logging.py",
+        "type": "python_module",
+        "required": true,
+        "description": "Logging utilities"
+      },
+      {
+        "path": "engine/utils/system.py",
+        "type": "python_module",
+        "required": true,
+        "description": "System detection utilities"
         },
         {
           "path": "engine/system",
@@ -1396,6 +1408,5 @@
           }
         ]
       }
-    }
-  ]
+  }
 }

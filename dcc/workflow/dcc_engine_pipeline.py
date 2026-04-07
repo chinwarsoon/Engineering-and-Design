@@ -46,12 +46,16 @@ from initiation_engine.engine import (
     setup_logger,
     set_debug_mode,
     test_environment,
+    resolve_platform_paths,
+    resolve_output_paths,
+    validate_export_paths,
 )
 from schema_engine.engine import (
     SchemaValidator, 
     write_validation_status,
     safe_resolve,
     default_schema_path,
+    load_schema_parameters,
 )
 from mapper_engine.engine import ColumnMapperEngine
 from processor_engine.engine import (
@@ -94,67 +98,6 @@ def build_native_defaults(base_path: Path) -> Dict[str, Any]:
     }
 
 
-
-
-
-def resolve_platform_paths(
-    effective_parameters: Dict[str, Any],
-    base_path: Path,
-) -> Dict[str, Any]:
-    """
-    Resolve platform-specific paths from merged effective parameters.
-    Precedence: CLI → Schema → Native defaults
-    """
-    status_print("Resolving platform paths...")
-    params = effective_parameters.copy()
-    system_name = platform.system().lower()
-    
-    if system_name == "windows":
-        win_upload = params.get("win_upload_file", "")
-        win_download = params.get("win_download_path", "")
-        if win_upload and Path(win_upload).exists():
-            params["upload_file_name"] = win_upload
-            if win_download:
-                params["download_file_path"] = win_download
-            status_print(f"Using Windows path: {win_upload}")
-    else:
-        linux_upload = params.get("linux_upload_file", "")
-        linux_download = params.get("linux_download_path", "")
-        if linux_upload:
-            lp = Path(linux_upload)
-            if not lp.is_absolute():
-                lp = base_path / lp
-            if lp.exists():
-                params["upload_file_name"] = str(lp)
-                if linux_download:
-                    ld = Path(linux_download)
-                    if not ld.is_absolute():
-                        ld = base_path / ld
-                    params["download_file_path"] = str(ld)
-                status_print(f"Using Linux path: {lp}")
-    
-    # Resolve any remaining relative paths
-    active_upload = Path(params.get("upload_file_name", ""))
-    active_download = Path(params.get("download_file_path", ""))
-    if not active_upload.is_absolute():
-        params["upload_file_name"] = str(base_path / active_upload)
-    if not active_download.is_absolute():
-        params["download_file_path"] = str(base_path / active_download)
-    
-    Path(params["download_file_path"]).mkdir(parents=True, exist_ok=True)
-    status_print(f"Current system detected: {system_name}")
-    return params
-
-
-
-
-
-def load_schema_parameters(schema_path: Path) -> Dict[str, Any]:
-    """Load parameters section from schema file."""
-    with schema_path.open("r", encoding="utf-8") as handle:
-        return json.load(handle).get("parameters", {})
-
-
 def resolve_effective_parameters(
     schema_path: Path,
     cli_args: Dict[str, Any],
@@ -177,36 +120,6 @@ def resolve_effective_parameters(
     return effective_parameters
 
 
-def resolve_output_paths(base_path: Path, effective_parameters: Dict[str, Any]) -> Dict[str, Path]:
-    """Resolve output file paths."""
-    explicit_output = effective_parameters.get("output_file")
-    if explicit_output:
-        base_output = safe_resolve(Path(explicit_output))
-    else:
-        output_dir = safe_resolve(Path(effective_parameters.get("download_file_path", str(base_path / "output"))))
-        base_output = output_dir / "processed_dcc_universal.csv"
-    
-    output_dir = base_output.parent
-    stem = base_output.stem or "processed_dcc_universal"
-    
-    return {
-        "output_dir": output_dir,
-        "csv_path": output_dir / f"{stem}.csv",
-        "excel_path": output_dir / f"{stem}.xlsx",
-        "summary_path": output_dir / "processing_summary.txt",
-    }
-
-
-def validate_export_paths(export_paths: Dict[str, Path], overwrite_existing: bool) -> None:
-    """Validate output paths and check for existing files."""
-    export_paths["output_dir"].mkdir(parents=True, exist_ok=True)
-    if not overwrite_existing:
-        for file_key in ("csv_path", "excel_path", "summary_path"):
-            target_path = export_paths[file_key]
-            if target_path.exists():
-                raise FileExistsError(f"Output file exists: {target_path}. Use --overwrite True.")
-
-
 def run_engine_pipeline(
     base_path: Path,
     schema_path: Path,
@@ -221,7 +134,7 @@ def run_engine_pipeline(
     4. processor_engine - Document processing
     """
     excel_path = safe_resolve(Path(effective_parameters["upload_file_name"]))
-    export_paths = resolve_output_paths(base_path, effective_parameters)
+    export_paths = resolve_output_paths(base_path, effective_parameters, safe_resolve)
     validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
     
     # Step 1: Initiation Engine - Project Setup Validation
@@ -322,8 +235,9 @@ def print_summary(results: Dict[str, Any]) -> None:
 
 def main() -> int:
     """Main entry point for DCC Engine Pipeline."""
+    
+    # load base path
     base_path = default_base_path()
-
     status_print(f"Project root path: {base_path}")
     
     # Handle Windows HOME env issues
@@ -334,10 +248,12 @@ def main() -> int:
     native_defaults = build_native_defaults(base_path)
     args, cli_args = parse_cli_args(base_path)
     
+    # set debug mode
     global DEBUG_DEV_MODE
     DEBUG_DEV_MODE = bool(cli_args.get("debug_dev_mode", native_defaults.get("debug_dev_mode", False)))
-    
-    # Test environment
+    status_print(f"Debug mode: {DEBUG_DEV_MODE}")
+
+    # Test environment, will load project_setup.json schema to check required modules and libraries
     environment = test_environment()
     if not environment["ready"]:
         payload = {
@@ -355,13 +271,13 @@ def main() -> int:
     base_path = safe_resolve(Path(args.base_path))
     native_defaults = build_native_defaults(base_path)
     
-    # Load schema parameters early for path resolution
+    # Load dcc register schema parameters early for path resolution
     schema_path = safe_resolve(
         Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"]))
     )
     try:
         schema_parameters = load_schema_parameters(schema_path)
-        debug_print(f"Loaded schema parameters early: {schema_path}")
+        status_print(f"Loaded schema parameters early: {schema_path}")
     except Exception as exc:
         debug_print(f"Could not load schema parameters early: {exc}")
         schema_parameters = {}
@@ -371,7 +287,7 @@ def main() -> int:
     effective_parameters.update(schema_parameters)
     effective_parameters.update(cli_args)
     effective_parameters["schema_register_file"] = str(schema_path)
-    effective_parameters = resolve_platform_paths(effective_parameters, base_path)
+    effective_parameters = resolve_platform_paths(effective_parameters, base_path, status_print)
     
     # Run the engine pipeline
     try:

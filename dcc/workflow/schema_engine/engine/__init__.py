@@ -4,7 +4,10 @@ Schema Engine
 A modular engine for schema loading, validation, and dependency resolution.
 """
 
-from .loader import SchemaLoader
+from .loader import (
+    SchemaLoader,
+    load_schema_parameters,
+)
 
 from .validator import (
     SchemaValidator,
@@ -36,6 +39,7 @@ from .core import format_report
 
 __all__ = [
     'SchemaLoader',
+    'load_schema_parameters',
     'SchemaValidator',
     'validate_schema_document',
     'validate_scalar_record_section',
