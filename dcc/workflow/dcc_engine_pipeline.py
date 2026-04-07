@@ -20,6 +20,15 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+print("DCC Register Universal Processing Pipeline")
+print("=" * 80)
+print("Enhanced Features:")
+print("- Universal Column Mapper: Fuzzy header detection with schema integration")
+print("- Universal Document Processor: Schema-driven calculations and null handling")
+print("- Enhanced Schema System: Modular configuration with external references")
+print("- Multi-format Export: Excel, CSV, JSON with comprehensive reporting")
+print("=" * 80)
+
 # Insert workflow path for engine imports
 workflow_path = Path(__file__).parent
 if str(workflow_path) not in sys.path:
@@ -75,7 +84,7 @@ def build_native_defaults(base_path: Path) -> Dict[str, Any]:
         "schema_register_file": str(default_schema_path(base_path)),
         # Windows network drive paths
         "win_upload_file": r"K:\J Submission\Submittal and RFI Tracker Lists.xlsx",
-        "win_download_path": r"K:\J Submission\AI Tools and Report\\data_output",
+        "win_download_path": r"K:\J Submission\AI Tools and Report\data_output",
         # Windows fallback paths
         "win_upload_file_fallback": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
         "win_download_path_fallback": str(base_path / "output"),
@@ -435,6 +444,8 @@ def print_summary(results: Dict[str, Any]) -> None:
 def main() -> int:
     """Main entry point for DCC Engine Pipeline."""
     base_path = default_base_path()
+
+    status_print(f"Project root path: {base_path}")
     
     # Handle Windows HOME env issues
     if platform.system() == "Windows":
