@@ -2,7 +2,7 @@
 Validation functions for the initiation engine.
 """
 
-from dcc.workflow.initiation_engine.engine.validators.items import (
+from .items import (
     validate_folders,
     validate_named_files,
     validate_environment,

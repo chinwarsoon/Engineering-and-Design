@@ -2,7 +2,7 @@
 Utility functions for the initiation engine.
 """
 
-from dcc.workflow.initiation_engine.engine.utils.paths import (
+from .paths import (
     normalize_path,
     default_base_path,
     get_schema_path,

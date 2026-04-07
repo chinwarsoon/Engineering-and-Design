@@ -2,8 +2,8 @@
 Schema validation and field-level validation.
 """
 
-from dcc.workflow.schema_engine.engine.validator.schema_validator import SchemaValidator
-from dcc.workflow.schema_engine.engine.validator.fields import (
+from .schema_validator import SchemaValidator
+from .fields import (
     validate_schema_document,
     validate_scalar_record_section,
     find_record_section,

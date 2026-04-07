@@ -7,13 +7,13 @@ import logging
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 
-from dcc.workflow.mapper_engine.engine.mappers.detection import (
+from ..mappers.detection import (
     flatten_multiindex_headers,
     detect_columns,
     extract_categorical_choices,
     rename_dataframe_columns,
 )
-from dcc.workflow.mapper_engine.engine.utils.columns import get_column_bounds
+from ..utils.columns import get_column_bounds
 
 logger = logging.getLogger(__name__)
 

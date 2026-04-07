@@ -7,15 +7,15 @@ import json
 from pathlib import Path
 from typing import Dict, Any
 
-from dcc.workflow.initiation_engine.engine.utils.paths import normalize_path, default_base_path, get_schema_path
-from dcc.workflow.initiation_engine.engine.system.os_detect import detect_os
-from dcc.workflow.initiation_engine.engine.validators.items import (
+from ..utils.paths import normalize_path, default_base_path, get_schema_path
+from ..system.os_detect import detect_os
+from ..validators.items import (
     validate_folders,
     validate_named_files,
     validate_environment,
     check_ready,
 )
-from dcc.workflow.initiation_engine.engine.core.reports import format_report
+from .reports import format_report
 
 
 class ProjectSetupValidator:

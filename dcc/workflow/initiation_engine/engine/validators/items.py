@@ -6,7 +6,7 @@ Extracted from project_setup_validation.py validation methods.
 from pathlib import Path
 from typing import Dict, Any, Iterable
 
-from dcc.workflow.initiation_engine.engine.system.os_detect import should_auto_create_folders
+from ..system.os_detect import should_auto_create_folders
 
 
 def record_path_check(

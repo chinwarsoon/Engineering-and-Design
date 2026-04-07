@@ -8,9 +8,9 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Set
 
-from dcc.workflow.schema_engine.engine.utils.paths import safe_resolve
-from dcc.workflow.schema_engine.engine.loader.schema_loader import SchemaLoader
-from dcc.workflow.schema_engine.engine.validator.fields import (
+from ..utils.paths import safe_resolve
+from ..loader.schema_loader import SchemaLoader
+from .fields import (
     validate_schema_document,
     find_record_section,
 )

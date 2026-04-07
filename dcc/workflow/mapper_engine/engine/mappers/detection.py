@@ -7,7 +7,7 @@ import logging
 from typing import Dict, List, Set, Any
 import pandas as pd
 
-from dcc.workflow.mapper_engine.engine.matchers.fuzzy import fuzzy_match_column
+from ..matchers.fuzzy import fuzzy_match_column
 
 logger = logging.getLogger(__name__)
 

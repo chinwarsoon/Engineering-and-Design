@@ -4,9 +4,9 @@ Schema Engine
 A modular engine for schema loading, validation, and dependency resolution.
 """
 
-from dcc.workflow.schema_engine.engine.loader import SchemaLoader
+from .loader import SchemaLoader
 
-from dcc.workflow.schema_engine.engine.validator import (
+from .validator import (
     SchemaValidator,
     validate_schema_document,
     validate_scalar_record_section,
@@ -18,21 +18,21 @@ from dcc.workflow.schema_engine.engine.validator import (
     validate_array_rules,
 )
 
-from dcc.workflow.schema_engine.engine.status import (
+from .status import (
     get_validation_status_path,
     write_validation_status,
     load_validation_status,
     validate_validation_status,
 )
 
-from dcc.workflow.schema_engine.engine.utils import (
+from .utils import (
     safe_resolve,
     safe_cwd,
     get_default_schema_path,
     default_schema_path,
 )
 
-from dcc.workflow.schema_engine.engine.core import format_report
+from .core import format_report
 
 __all__ = [
     'SchemaLoader',

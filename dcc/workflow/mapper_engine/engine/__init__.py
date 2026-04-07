@@ -4,23 +4,23 @@ Column Mapper Engine
 A modular engine for fuzzy header detection and schema-driven column mapping.
 """
 
-from dcc.workflow.mapper_engine.engine.core import ColumnMapperEngine
+from .core import ColumnMapperEngine
 
-from dcc.workflow.mapper_engine.engine.matchers import (
+from .matchers import (
     normalize_string,
     fuzzy_match_column,
     fuzzy_match_with_aliases,
     batch_fuzzy_match,
 )
 
-from dcc.workflow.mapper_engine.engine.mappers import (
+from .mappers import (
     flatten_multiindex_headers,
     detect_columns,
     extract_categorical_choices,
     rename_dataframe_columns,
 )
 
-from dcc.workflow.mapper_engine.engine.utils import (
+from .utils import (
     get_column_bounds,
     analyze_column_coverage,
 )

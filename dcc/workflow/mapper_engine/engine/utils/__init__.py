@@ -2,7 +2,7 @@
 Utility functions for the mapper engine.
 """
 
-from dcc.workflow.mapper_engine.engine.utils.columns import (
+from .columns import (
     get_column_bounds,
     analyze_column_coverage,
 )

@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Set
 
-from dcc.workflow.schema_engine.engine.utils.paths import safe_resolve
+from ..utils.paths import safe_resolve
 
 logger = logging.getLogger(__name__)
 

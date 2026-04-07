@@ -2,7 +2,7 @@
 Column mapping logic for schema-driven header detection.
 """
 
-from dcc.workflow.mapper_engine.engine.mappers.detection import (
+from .detection import (
     flatten_multiindex_headers,
     detect_columns,
     extract_categorical_choices,
