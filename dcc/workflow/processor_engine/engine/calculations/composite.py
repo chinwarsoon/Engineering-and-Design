@@ -42,12 +42,23 @@ def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calc
 
     df = df.copy()
 
-    # Apply formatting row-by-row
+    # Initialize column if not exists
     if column_name not in df.columns:
         df[column_name] = np.nan
-    df[column_name] = df[available_sources].apply(format_row, axis=1)
 
-    logger.info(f"Applied composite calculation for {column_name}: {len(available_sources)}/{len(source_columns)} sources found")
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+
+    # Calculate only for null values
+    null_mask = df[column_name].isna()
+    if null_mask.any():
+        df.loc[null_mask, column_name] = df.loc[null_mask, available_sources].apply(format_row, axis=1)
+        logger.info(f"Applied composite calculation to {null_mask.sum()} null rows in {column_name}")
+    else:
+        logger.info(f"Skipped composite for {column_name}: all values present")
+
     return df
 
 
@@ -61,9 +72,16 @@ def apply_row_index(engine, df: pd.DataFrame, column_name: str, calculation: Dic
     """
     df = df.copy()
 
-    # Always generate the row index, overwriting any existing values
-    # (e.g., 'NA' from initialize_missing_columns)
-    df[column_name] = range(1, len(df) + 1)
+    # Only generate row index where null - preserve existing values
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    null_mask = df[column_name].isna()
+    if null_mask.any():
+        df.loc[null_mask, column_name] = range(1, null_mask.sum() + 1)
+        logger.info(f"Applied row index to {null_mask.sum()} null rows in {column_name}")
+    else:
+        logger.info(f"Skipped row index for {column_name}: all values present")
 
     # Move column to front
     cols = df.columns.tolist()
@@ -71,7 +89,6 @@ def apply_row_index(engine, df: pd.DataFrame, column_name: str, calculation: Dic
         cols.remove(column_name)
         df = df[[column_name] + cols]
 
-    logger.info(f"Applied row index generation for {column_name}: {len(df)} rows indexed")
     return df
 
 
@@ -105,6 +122,15 @@ def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calc
 
     df = df.copy()
 
+    # Initialize column if not exists
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+
     df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
     df[plan_date_col] = pd.to_datetime(df[plan_date_col], errors='coerce')
 
@@ -129,8 +155,14 @@ def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calc
     closed_mask = df[closed_col] == 'YES'
     delay[closed_mask] = 0
 
-    df[column_name] = delay
-    logger.info(f"Applied delay_of_resubmission for {column_name}: {(delay > 0).sum()} rows with positive delay")
+    # Only apply to null values
+    null_mask = df[column_name].isna()
+    if null_mask.any():
+        df.loc[null_mask, column_name] = delay[null_mask]
+        logger.info(f"Applied delay_of_resubmission to {null_mask.sum()} null rows in {column_name}: {(delay > 0).sum()} rows with positive delay")
+    else:
+        logger.info(f"Skipped delay_of_resubmission for {column_name}: all values present")
+
     return df
 
 
@@ -148,7 +180,22 @@ def apply_copy_calculation(engine, df: pd.DataFrame, column_name: str, calculati
     engine._print_processing_step("Copy", column_name, f"Copying from {source_column}")
 
     df = df.copy()
-    df[column_name] = df[source_column]
 
-    logger.info(f"Applied copy calculation for {column_name}: source={source_column}")
+    # Initialize column if not exists
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+
+    # Only copy to null values
+    null_mask = df[column_name].isna()
+    if null_mask.any():
+        df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
+        logger.info(f"Applied copy to {null_mask.sum()} null rows in {column_name}")
+    else:
+        logger.info(f"Skipped copy for {column_name}: all values present")
+
     return df

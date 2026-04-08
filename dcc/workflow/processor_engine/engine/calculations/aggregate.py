@@ -26,12 +26,31 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
         return df
 
     engine._print_processing_step("Aggregate", column_name, f"{method} of {source_column} grouped by {group_by}")
+
+    # Initialize column if not exists
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+
+    # Calculate only for null values
+    null_mask = df[column_name].isna()
+    if not null_mask.any():
+        logger.info(f"Skipped aggregate for {column_name}: all values present")
+        return df
+
+    # Calculate for null rows only
     grouped = df.groupby(group_by, dropna=False)
 
     if method == 'count':
-        df[column_name] = grouped[source_column].transform('count')
+        calculated = grouped[source_column].transform('count')
+        df.loc[null_mask, column_name] = calculated[null_mask]
     elif method in ['min', 'max']:
-        df[column_name] = grouped[source_column].transform(method)
+        calculated = grouped[source_column].transform(method)
+        df.loc[null_mask, column_name] = calculated[null_mask]
     elif method == 'concatenate_unique':
         if sort_by:
             df_sorted = df.sort_values(sort_by)
@@ -45,7 +64,8 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
                 sorted_vals = sorted(unique_vals)
             return separator.join(sorted_vals)
 
-        df[column_name] = grouped[source_column].transform(concat_unique)
+        calculated = grouped[source_column].transform(concat_unique)
+        df.loc[null_mask, column_name] = calculated[null_mask]
 
     elif method == 'concatenate_unique_quoted':
         if sort_by:
@@ -60,7 +80,8 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
                 return separator.join(f'"{val}"' for val in sorted_vals)
             return separator.join(sorted_vals)
 
-        df[column_name] = grouped[source_column].transform(concat_unique_quoted)
+        calculated = grouped[source_column].transform(concat_unique_quoted)
+        df.loc[null_mask, column_name] = calculated[null_mask]
 
     elif method == 'concatenate_dates':
         if sort_by:
@@ -78,8 +99,10 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
             formatted = [pd.Timestamp(d).strftime(py_date_fmt) for d in unique_sorted_dates]
             return separator.join(formatted)
 
-        df[column_name] = grouped[source_column].transform(concat_dates)
+        calculated = grouped[source_column].transform(concat_dates)
+        df.loc[null_mask, column_name] = calculated[null_mask]
 
+    logger.info(f"Applied aggregate {method} to {null_mask.sum()} null rows in {column_name}")
     return df
 
 
@@ -96,7 +119,21 @@ def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str,
     fallback = mapping.get('fallback_value', 'NA')
 
     if source_column not in df.columns or not group_by or not sort_by:
-        df[column_name] = fallback
+        return df
+
+    # Initialize column if not exists
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+
+    # Calculate only for null values
+    null_mask = df[column_name].isna()
+    if not null_mask.any():
+        logger.info(f"Skipped latest_by_date for {column_name}: all values present")
         return df
 
     engine._print_processing_step("Latest-By-Date", column_name, f"Finding latest {source_column} via {sort_by}")
@@ -113,13 +150,15 @@ def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str,
     sorted_df = filtered_df.sort_values(sort_by, ascending=asc_flags)
     latest_vals = sorted_df.groupby(group_by)[source_column].first()
 
-    # Map values back to original dataframe
+    # Map values back to original dataframe (only for null rows)
     if len(group_by) == 1:
-        df[column_name] = df[group_by[0]].map(latest_vals).fillna(fallback)
+        calculated = df.loc[null_mask, group_by[0]].map(latest_vals)
+        df.loc[null_mask, column_name] = calculated.fillna(fallback)
     else:
-        mapped = pd.merge(df[group_by], latest_vals, left_on=group_by, right_index=True, how='left')
-        df[column_name] = mapped[source_column].fillna(fallback)
+        mapped = pd.merge(df.loc[null_mask, group_by], latest_vals, left_on=group_by, right_index=True, how='left')
+        df.loc[null_mask, column_name] = mapped[source_column].fillna(fallback)
 
+    logger.info(f"Applied latest_by_date to {null_mask.sum()} null rows in {column_name}")
     return df
 
 
@@ -177,8 +216,26 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
 
     engine._print_processing_step("Aggregate", column_name, "Finding latest non-pending status")
 
+    # Initialize column if not exists
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+
+    # Calculate only for null values
+    null_mask = df[column_name].isna()
+    if not null_mask.any():
+        logger.info(f"Skipped latest_non_pending_status for {column_name}: all values present")
+        return df
+
+    # Filter to only null rows for calculation
+    df_calc = df[null_mask].copy()
+
     # Apply preprocessing if configured
-    df_copy = df.copy()
+    df_copy = df_calc.copy()
     text_cleaning = preprocessing.get('text_cleaning', {})
     if text_cleaning:
         remove_patterns = text_cleaning.get('remove_patterns', [])
@@ -200,12 +257,18 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
 
     result = df_copy.groupby(group_by, group_keys=False).apply(get_latest_non_pending)
 
-    # Merge back
+    # Merge back - only update null values
     if isinstance(result, pd.Series):
         result_df = result.reset_index()
         result_df.columns = group_by + [column_name]
-        df = pd.merge(df, result_df, on=group_by, how='left')
+        # Merge only for originally null rows
+        df_merged = pd.merge(df_calc[group_by], result_df, on=group_by, how='left')
+        # Update only null positions
+        if len(df_merged) > 0:
+            df.loc[df_merged.index, column_name] = df_merged[column_name].values
+            logger.info(f"Applied latest_non_pending_status to {len(df_merged)} null rows in {column_name}")
     else:
-        df[column_name] = fallback_value
+        df.loc[null_mask, column_name] = fallback_value
+        logger.info(f"Applied fallback to {null_mask.sum()} null rows in {column_name}")
 
     return df

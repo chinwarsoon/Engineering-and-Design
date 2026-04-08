@@ -45,8 +45,19 @@ def apply_mapping_calculation(engine, df: pd.DataFrame, column_name: str, calcul
 
     engine._print_processing_step("Mapping", column_name, f"Mapping from {source_column} ({len(mapping)} mappings)")
 
-    # Use pandas map for efficiency
-    df[column_name] = df[source_column].map(mapping).fillna(default)
+    # Only calculate where target is null - preserve existing data
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    # Create mask for null values in target column
+    null_mask = df[column_name].isna()
+    if null_mask.any():
+        # Only map values where target is null
+        mapped_values = df.loc[null_mask, source_column].map(mapping)
+        df.loc[null_mask, column_name] = mapped_values.fillna(default)
+        logger.info(f"Applied mapping to {null_mask.sum()} rows with null values in {column_name}")
+    else:
+        logger.info(f"Skipped mapping for {column_name}: all values already present")
 
     return df
 

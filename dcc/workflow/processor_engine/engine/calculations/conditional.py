@@ -24,10 +24,19 @@ def apply_current_row_calculation(engine, df: pd.DataFrame, column_name: str, ca
 
     engine._print_processing_step("Conditional", column_name, f"Evaluating {condition}")
 
-    if condition == 'is_current_submission':
-        df[column_name] = df[source_column]
+    # Only fill null values in target column - preserve existing data
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    null_mask = df[column_name].isna()
+    if null_mask.any():
+        if condition == 'is_current_submission':
+            df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
+        else:
+            df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
+        logger.info(f"Applied current_row calculation to {null_mask.sum()} null rows in {column_name}")
     else:
-        df[column_name] = df[source_column]
+        logger.info(f"Skipped current_row calculation for {column_name}: all values present")
 
     return df
 
@@ -52,8 +61,23 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
 
     engine._print_processing_step("Conditional", column_name, f"Checking rejection/resubmission logic from {source_column}")
 
-    # Initialize: start with default YES for all rows
-    df[column_name] = 'YES'
+    # Only calculate where target is null - preserve existing data
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+
+    # Initialize null values with default YES
+    null_mask = df[column_name].isna()
+    if null_mask.any():
+        df.loc[null_mask, column_name] = 'YES'
+    else:
+        # All values already present, skip calculation
+        logger.info(f"Skipped update_resubmission_required for {column_name}: all values present")
+        return df
 
     # Track which rows have been determined - these skip remaining checks
     determined_mask = pd.Series([False] * len(df), index=df.index)
@@ -118,6 +142,15 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
 
     engine._print_processing_step("Conditional", column_name, "Evaluating closure status")
 
+    # Only calculate where target is null - preserve existing data
+    if column_name not in df.columns:
+        df[column_name] = None
+
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+
     # Preprocessing: convert to uppercase and fill nulls
     preprocessing = calculation.get('preprocessing', {})
     text_cleaning = preprocessing.get('text_cleaning', {})
@@ -126,8 +159,13 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
     if text_cleaning.get('fill_nulls') and source_column in df.columns:
         df[source_column] = df[source_column].fillna(text_cleaning['fill_nulls'])
 
-    # Initialize: start with default NO for all rows
-    df[column_name] = 'NO'
+    # Initialize null values with default NO
+    null_mask = df[column_name].isna()
+    if null_mask.any():
+        df.loc[null_mask, column_name] = 'NO'
+    else:
+        logger.info(f"Skipped submission_closure_status for {column_name}: all values present")
+        return df
 
     # Track which rows have been determined - these skip remaining checks
     determined_mask = pd.Series([False] * len(df), index=df.index)
@@ -173,8 +211,14 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
 
     engine._print_processing_step("Conditional", column_name, "Calculating Overdue/On-Track")
 
-    # Initialize with pd.NA for consistent nullable dtype
-    df[column_name] = pd.NA
+    # Only calculate where target is null - preserve existing data
+    if column_name not in df.columns:
+        df[column_name] = pd.NA
+
+    # Get existing non-null values
+    existing_mask = df[column_name].notna()
+    if existing_mask.any():
+        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
 
     if resubmission_required_col and resubmission_plan_date_col:
         # Convert plan date to datetime
