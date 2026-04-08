@@ -1,6 +1,7 @@
 data columns:
 1. sort column is not allowed before forward fill.
 2. forward fill shall not overwrite existing values.
+3. always check if there are duplicate columns in data frame.
 
 Schema:
 1. always check and enure compliance with schema standard.

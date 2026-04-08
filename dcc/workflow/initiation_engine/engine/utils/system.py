@@ -8,7 +8,7 @@ from .logging import (
     debug_print,
 )
 
-def test_environment() -> Dict[str, Any]:
+def test_environment(base_path: Path | None = None) -> Dict[str, Any]:
     """Test environment and required libraries."""
     status_print("Testing environment and required libraries...")
     
@@ -17,7 +17,7 @@ def test_environment() -> Dict[str, Any]:
     
     # Use ProjectSetupValidator to load dependencies from project_setup.json
     try:
-        validator = ProjectSetupValidator()
+        validator = ProjectSetupValidator(base_path=base_path)
         project_setup_data = validator.project_setup
         dependencies = project_setup_data.get("dependencies", {})
         

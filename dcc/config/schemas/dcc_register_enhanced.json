@@ -75,7 +75,7 @@
       "Review_Return_Actual_Date",
       "Review_Return_Plan_Date",
       "Review_Status",
-      "Review_status_Code",
+      "Review_Status_Code",
       "Review_Comments",
       "Duration_of_Review",
       "Approval_Code",
@@ -88,12 +88,12 @@
       "Count_of_Submissions",
       "Latest_Approval_Status",
       "Latest_Approval_Code",
-      "All_Approval_Codes",
+      "All_Approval_Code",
       "Consolidated_Submission_Session_Subject",
       "Submission_Closed",
       "Resubmission_Required",
       "Resubmission_Plan_Date",
-      "Resubmission_Forecasted_Date",
+      "Resubmission_Forecast_Date",
       "Resubmission_Overdue_Status",
       "Delay_of_Resubmission",
       "Notes",
@@ -202,7 +202,8 @@
         "aliases": [
           "Document Description / Drawing Title",
           "Subject",
-          "Submission Subject"
+          "Submission Subject",
+          "CES_SALCON-SDC JV Cor Ref No"
         ],
         "data_type": "string",
         "required": true,
@@ -371,7 +372,7 @@
           "default_value": "9999",
           "formatting": {
             "zero_pad": 4,
-            "description": "Apply zero-padding to numeric values (e.g., 1 \u2192 0001). Text values remain unchanged."
+            "description": "Apply zero-padding to numeric values (e.g., 1 → 0001). Text values remain unchanged."
           },
           "description": "Processed by _apply_default_value. Fills nulls with '0000' to ensure Document_ID calculation remains valid. Numeric values are zero-padded to 4 digits."
         },
@@ -991,8 +992,9 @@
           "Date S.O. to Response\n(20 Working Days/\n 14 Working Days)",
           "Date S.O. to Response\n(20 Working Days/ 14 Working Days)",
           "Date S.O. to Response (20 Working Days/ 14 Working Days)",
-          "Planned Response Date",
-          "Target Response Date"
+          "Planned Date for S.O. Response",
+          "Planned Review Return Date",
+          "Date S.O. to Response (20 Working Days/14 Working Days)"
         ],
         "data_type": "date",
         "required": false,

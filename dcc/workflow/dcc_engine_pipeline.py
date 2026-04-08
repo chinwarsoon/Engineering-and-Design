@@ -36,7 +36,7 @@ if str(workflow_path) not in sys.path:
 
 # Engine imports
 from initiation_engine.engine import (
-    ProjectSetupValidator, 
+    ProjectSetupValidator,
     format_report as format_setup_report,
     default_base_path,
     get_homedir,
@@ -51,7 +51,7 @@ from initiation_engine.engine import (
     validate_export_paths,
 )
 from schema_engine.engine import (
-    SchemaValidator, 
+    SchemaValidator,
     write_validation_status,
     safe_resolve,
     default_schema_path,
@@ -60,11 +60,9 @@ from schema_engine.engine import (
 from mapper_engine.engine import ColumnMapperEngine
 from processor_engine.engine import (
     CalculationEngine,
+    SchemaProcessor,
     load_excel_data,
 )
-
-
-DEBUG_DEV_MODE = False
 
 
 def build_native_defaults(base_path: Path) -> Dict[str, Any]:
@@ -103,7 +101,7 @@ def resolve_effective_parameters(
     cli_args: Dict[str, Any],
     native_defaults: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Resolve effective parameters with precedence: CLI → Schema → Native."""
+    """  Resolve effective parameters with precedence: CLI → Schema → Native."""
     status_print("Resolving effective parameters...")
     effective_parameters = native_defaults.copy()
     
@@ -125,6 +123,7 @@ def run_engine_pipeline(
     schema_path: Path,
     effective_parameters: Dict[str, Any],
     nrows: int | None = None,
+    debug_mode: bool = False,
 ) -> Dict[str, Any]:
     """
     Run the four-engine pipeline:
@@ -190,7 +189,29 @@ def run_engine_pipeline(
     status_print("=" * 72)
     processor = CalculationEngine(resolved_schema)
     df_processed = processor.process_data(df_mapped)
+
+    # Step 5: Reorder columns per schema column_sequence
+    status_print("\n" + "=" * 72)
+    status_print("STEP 5: Reordering columns per schema column_sequence")
+    status_print("=" * 72)
+    schema_processor = SchemaProcessor(resolved_schema)
+    ordered_columns = schema_processor.get_ordered_columns()
     
+    # Build ordered column list: only columns that exist in processed DataFrame
+    ordered_col_names = [col for col in ordered_columns.keys() if col in df_processed.columns]
+    
+    # Append any columns in DataFrame but not in schema sequence
+    extra_cols = [col for col in df_processed.columns if col not in ordered_col_names]
+    final_col_order = ordered_col_names + extra_cols
+    
+    if extra_cols:
+        status_print(f"  Warning: {len(extra_cols)} column(s) not in column_sequence: {extra_cols}")
+    
+    # Reorder DataFrame
+    df_processed = df_processed[final_col_order]
+    status_print(f"  Columns reordered: {len(ordered_col_names)} columns in schema order")
+    status_print(f"  Total columns: {len(df_processed.columns)}")
+
     # Export results
     df_processed.to_excel(export_paths["excel_path"], index=False)
     df_processed.to_csv(export_paths["csv_path"], index=False)
@@ -241,25 +262,25 @@ def print_summary(results: Dict[str, Any]) -> None:
 def main() -> int:
     """Main entry point for DCC Engine Pipeline."""
     
-    # load base path
-    base_path = default_base_path()
-    status_print(f"Project root path: {base_path}")
+    # 1. Centrally manage base_path
+    args, cli_args = parse_cli_args() # default_base_path is called inside parse_cli_args if not provided
+    base_path = safe_resolve(Path(args.base_path))
+    status_print(f"  Project root path: {base_path}")
     
     # Handle Windows HOME env issues
     local_home = get_homedir()
-    status_print(f"Resolved home directory: {local_home}")
+    status_print(f"  Resolved home directory: {local_home}")
     
-    # load local defaults and parse CLI args
+    # 2. Build parameters using the central base_path
     native_defaults = build_native_defaults(base_path)
-    args, cli_args = parse_cli_args(base_path)
-    
-    # set debug mode
-    global DEBUG_DEV_MODE
-    DEBUG_DEV_MODE = bool(cli_args.get("debug_dev_mode", native_defaults.get("debug_dev_mode", False)))
-    status_print(f"Debug mode: {DEBUG_DEV_MODE}")
 
-    # Test environment, will load project_setup.json schema to check required modules and libraries
-    environment = test_environment()
+    # Set debug mode
+    debug_mode = bool(cli_args.get("debug_dev_mode", native_defaults.get("debug_dev_mode", False)))
+    status_print(f"Debug mode: {debug_mode}")
+    set_debug_mode(debug_mode)
+
+    # 3. Test environment using central base_path
+    environment = test_environment(base_path=base_path)
     if not environment["ready"]:
         payload = {
             "ready": False,
@@ -272,35 +293,24 @@ def main() -> int:
         else:
             status_print("Environment test failed.")
         return 1
-    
-    base_path = safe_resolve(Path(args.base_path))
-    native_defaults = build_native_defaults(base_path)
-    
-    # Load dcc register schema parameters early for path resolution
+
+    # 4. Resolve the main schema path
     schema_path = safe_resolve(
         Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"]))
     )
-    try:
-        schema_parameters = load_schema_parameters(schema_path)
-        status_print(f"Loaded schema parameters early: {schema_path}")
-    except Exception as exc:
-        debug_print(f"Could not load schema parameters early: {exc}")
-        schema_parameters = {}
-    
-    # Merge parameters and resolve platform paths
-    effective_parameters = native_defaults.copy()
-    effective_parameters.update(schema_parameters)
-    effective_parameters.update(cli_args)
-    effective_parameters["schema_register_file"] = str(schema_path)
+
+    # 5. Resolve effective parameters
+    effective_parameters = resolve_effective_parameters(schema_path, cli_args, native_defaults)
     effective_parameters = resolve_platform_paths(effective_parameters, base_path, status_print)
-    
-    # Run the engine pipeline
+
+    # 6. Run the engine pipeline
     try:
         results = run_engine_pipeline(
             base_path=base_path,
             schema_path=schema_path,
             effective_parameters=effective_parameters,
             nrows=args.nrows,
+            debug_mode=debug_mode,
         )
     except Exception as exc:
         payload = {
@@ -313,7 +323,10 @@ def main() -> int:
         if args.json:
             print(json.dumps(payload, indent=2))
         else:
-            status_print(str(exc))
+            status_print(f"PIPELINE ERROR: {exc}")
+            import traceback
+            if debug_mode:
+                traceback.print_exc()
         return 1
     
     results["environment"] = environment

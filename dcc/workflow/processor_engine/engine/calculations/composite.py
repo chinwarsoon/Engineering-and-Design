@@ -61,8 +61,9 @@ def apply_row_index(engine, df: pd.DataFrame, column_name: str, calculation: Dic
     """
     df = df.copy()
 
-    if column_name not in df.columns:
-        df[column_name] = range(1, len(df) + 1)
+    # Always generate the row index, overwriting any existing values
+    # (e.g., 'NA' from initialize_missing_columns)
+    df[column_name] = range(1, len(df) + 1)
 
     # Move column to front
     cols = df.columns.tolist()

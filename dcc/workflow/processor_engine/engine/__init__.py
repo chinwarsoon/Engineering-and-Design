@@ -15,11 +15,13 @@ from .core import (
     list_registered_handlers,
 )
 
+from .schema import SchemaProcessor
 from .utils import load_excel_data
 
 __all__ = [
     'BaseProcessor',
     'CalculationEngine',
+    'SchemaProcessor',
     'get_null_handler',
     'get_calculation_handler',
     'register_null_handler',

@@ -24,8 +24,12 @@ def create_parser(base_path: Path) -> argparse.ArgumentParser:
     return parser
 
 
-def parse_cli_args(base_path: Path) -> Tuple[argparse.Namespace, Dict[str, Any]]:
+def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, Dict[str, Any]]:
     """Parse CLI arguments and return as dictionary."""
+    from .paths import default_base_path
+    if base_path is None:
+        base_path = default_base_path()
+        
     status_print("Reading CLI arguments...")
     parser = create_parser(base_path)
     args, unknown_args = parser.parse_known_args()

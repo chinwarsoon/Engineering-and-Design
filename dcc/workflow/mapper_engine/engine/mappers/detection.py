@@ -59,19 +59,21 @@ def detect_columns(headers: List[str], columns: Dict[str, Dict], threshold: floa
         best_match = None
         best_score = 0.0
         best_column_name = None
-        
+
         # Try to match against each column's aliases
+        # NOTE: We match ALL columns (including calculated ones) to ensure proper renaming
+        # Calculated columns may exist in the input data and need to be renamed to schema names
         for column_name, column_def in columns.items():
-            if not isinstance(column_def, dict) or column_def.get('is_calculated', False):
+            if not isinstance(column_def, dict):
                 continue
             aliases = column_def.get('aliases', [])
             match, score = fuzzy_match_column(header, aliases, threshold)
-            
+
             if score > best_score:
                 best_match = match
                 best_score = score
                 best_column_name = column_name
-        
+
         if best_score >= threshold:
             detected[header] = {
                 'mapped_column': best_column_name,
@@ -166,10 +168,19 @@ def rename_dataframe_columns(df: pd.DataFrame, mapping_result: Dict) -> pd.DataF
         schema_column = mapping['mapped_column']
         if header in df_renamed.columns:
             rename_dict[header] = schema_column
-    
+
     # Apply renaming
     df_renamed = df_renamed.rename(columns=rename_dict)
-    
+
+    # Remove duplicate columns (keep first occurrence)
+    # This can happen when multiple Excel headers map to the same schema column
+    duplicate_mask = df_renamed.columns.duplicated(keep='first')
+    if duplicate_mask.any():
+        duplicate_cols = df_renamed.columns[duplicate_mask].tolist()
+        logger.warning(f"Removing {len(duplicate_cols)} duplicate columns after rename: {duplicate_cols}")
+        df_renamed = df_renamed.loc[:, ~df_renamed.columns.duplicated(keep='first')]
+
     logger.info(f"Renamed {len(rename_dict)} columns to schema names")
-    
+    logger.info(f"Final DataFrame: {len(df_renamed)} rows × {len(df_renamed.columns)} columns")
+
     return df_renamed

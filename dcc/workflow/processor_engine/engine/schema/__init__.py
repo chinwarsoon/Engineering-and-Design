@@ -7,7 +7,9 @@ from .dependency import (
     _extract_column_dependencies,
     _find_cycle_path,
 )
+from .processor import SchemaProcessor
 
 __all__ = [
     'resolve_calculation_order',
+    'SchemaProcessor',
 ]
