@@ -16,7 +16,7 @@ from ..validators.items import (
     check_ready,
 )
 from .reports import format_report
-from ..utils.logging import status_print
+from ..utils.logging import log_context, log_status, log_error, trace_parameter, status_print
 
 
 class ProjectSetupValidator:
@@ -158,6 +158,11 @@ class ProjectSetupValidator:
             - base_path: Passed to all validation functions for path resolution.
             - os_info: Passed to validate_folders() for auto-creation decisions.
         """
+        with log_context("validator", "validate"):
+            return self._do_validate()
+
+    def _do_validate(self) -> Dict[str, Any]:
+        """Internal validation implementation."""
         results: Dict[str, Any] = {
             "base_path": str(self.base_path),
             "schema_path": str(self.schema_path),
@@ -172,64 +177,88 @@ class ProjectSetupValidator:
             "ready": True,
         }
 
+        trace_parameter("schema_path", self.schema_path, "validator", "checking")
         if not self.schema_path.is_file():
+            log_error(f"Schema not found: {self.schema_path}", "validator", "validate", fatal=False)
             results["errors"].append(f"Project setup schema not found: {self.schema_path}")
             results["ready"] = False
             return results
 
         if not self.project_setup:
+            log_error("No project_setup configuration found", "validator", "validate", fatal=False)
             results["errors"].append("No project_setup configuration found in project_setup.json")
             results["ready"] = False
             return results
 
+        log_status(f"OS: {self.os_info['system']} ({self.os_info['normalized']})", "validator")
+
         if self._rule_enabled("check_folders"):
+            folders = self.project_setup.get("folders", [])
+            log_status(f"Validating {len(folders)} folders...", "validator")
             validate_folders(
                 results,
-                self.project_setup.get("folders", []),
+                folders,
                 self.base_path,
                 self.os_info,
             )
+            log_status(f"Folders: {sum(1 for f in results['folders'] if f['exists'])} exist", "validator")
 
         if self._rule_enabled("check_files"):
-            validate_named_files(
-                results,
-                "root_files",
-                self.project_setup.get("root_files", []),
-                self.base_path,
-                "name",
-                "purpose",
-            )
-            validate_named_files(
-                results,
-                "schema_files",
-                self.project_setup.get("schema_files", []),
-                self.base_path / "config" / "schemas",
-                "filename",
-                "description",
-            )
-            validate_named_files(
-                results,
-                "workflow_files",
-                self.project_setup.get("workflow_files", []),
-                self.base_path / "workflow",
-                "filename",
-                "description",
-            )
-            validate_named_files(
-                results,
-                "tool_files",
-                self.project_setup.get("tool_files", []),
-                self.base_path / "tools",
-                "filename",
-                "description",
-            )
-            validate_environment(
-                results,
-                self.project_setup.get("environment", []),
-                self.base_path,
-            )
+            with log_context("validator", "validate_files"):
+                root_files = self.project_setup.get("root_files", [])
+                log_status(f"Validating {len(root_files)} root files...", "validator")
+                validate_named_files(
+                    results,
+                    "root_files",
+                    root_files,
+                    self.base_path,
+                    "name",
+                    "purpose",
+                )
+
+                schema_files = self.project_setup.get("schema_files", [])
+                log_status(f"Validating {len(schema_files)} schema files...", "validator")
+                validate_named_files(
+                    results,
+                    "schema_files",
+                    schema_files,
+                    self.base_path / "config" / "schemas",
+                    "filename",
+                    "description",
+                )
+
+                workflow_files = self.project_setup.get("workflow_files", [])
+                log_status(f"Validating {len(workflow_files)} workflow files...", "validator")
+                validate_named_files(
+                    results,
+                    "workflow_files",
+                    workflow_files,
+                    self.base_path / "workflow",
+                    "filename",
+                    "description",
+                )
+
+                tool_files = self.project_setup.get("tool_files", [])
+                log_status(f"Validating {len(tool_files)} tool files...", "validator")
+                validate_named_files(
+                    results,
+                    "tool_files",
+                    tool_files,
+                    self.base_path / "tools",
+                    "filename",
+                    "description",
+                )
+
+                env_items = self.project_setup.get("environment", [])
+                log_status(f"Validating {len(env_items)} environment items...", "validator")
+                validate_environment(
+                    results,
+                    env_items,
+                    self.base_path,
+                )
 
         results["ready"] = check_ready(results)
+        log_status(f"Ready: {'YES' if results['ready'] else 'NO'}", "validator")
         return results
 
     def format_report(self, results: Dict[str, Any]) -> str:

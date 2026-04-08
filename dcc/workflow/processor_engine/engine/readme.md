@@ -1,120 +1,596 @@
 # Document Processor Engine
 
-A modular engine for processing documents with schema-driven calculations, null handling, and validation.
+A modular engine for processing documents with schema-driven calculations, null handling, and validation. This engine provides a comprehensive framework for data transformation including aggregation, conditional logic, date calculations, mapping operations, and null value handling, all orchestrated through a dependency-aware calculation pipeline.
+
+---
+
+## Table of Contents
+
+- [Module Structure](#module-structure)
+- [Workflow Overview](#workflow-overview)
+- [Core Functions](#core-functions)
+- [Registry System](#registry-system)
+- [Calculation Types](#calculation-types)
+  - [Null Handling](#null-handling)
+  - [Aggregate Calculations](#aggregate-calculations)
+  - [Composite Calculations](#composite-calculations)
+  - [Conditional Calculations](#conditional-calculations)
+  - [Date Calculations](#date-calculations)
+  - [Mapping Calculations](#mapping-calculations)
+- [Schema Processing](#schema-processing)
+- [Utility Functions](#utility-functions)
+- [Usage Examples](#usage-examples)
+  - [Basic Processing](#basic-processing)
+  - [Custom Handler Registration](#custom-handler-registration)
+  - [Dependency Resolution](#dependency-resolution)
+- [Import Quick Reference](#import-quick-reference)
+- [Error Handling](#error-handling)
+- [Best Practices](#best-practices)
+
+---
 
 ## Module Structure
 
 ```
 processor_engine/engine/
-├── __init__.py          # Main engine exports
-├── readme.md            # This file
-├── core/                # Core engine components
-│   ├── __init__.py
-│   ├── base.py          # BaseProcessor with shared utilities
-│   ├── engine.py        # CalculationEngine orchestrator
-│   └── registry.py      # Handler registries for calculations and null handling
-├── calculations/        # Calculation implementations
-│   ├── __init__.py
-│   ├── aggregate.py     # Grouping/aggregation calculations
-│   ├── composite.py     # Composite, row index, delay calculations
-│   ├── conditional.py   # Conditional logic calculations
-│   ├── date.py          # Date arithmetic calculations
-│   ├── mapping.py       # Value mapping calculations
-│   ├── null_handling.py # Null handling strategies
-│   └── validation.py    # Data validation functions
-├── schema/              # Schema utilities
-│   ├── __init__.py
-│   ├── dependency.py    # Dependency resolution and calculation ordering
-│   └── processor.py     # Schema processing utilities
-└── utils/               # Utility functions
-    ├── __init__.py
-    ├── dateframe.py     # DataFrame manipulation utilities
-    └── logging.py       # Logging utilities
+├── __init__.py              # Main engine exports (all public functions)
+├── readme.md                # This documentation file
+├── core/                    # Core engine components
+│   ├── __init__.py          # Core module exports
+│   ├── base.py              # BaseProcessor with shared utilities
+│   ├── engine.py            # CalculationEngine orchestrator
+│   └── registry.py          # Handler registries
+├── calculations/            # Calculation implementations
+│   ├── __init__.py          # Calculation module exports
+│   ├── aggregate.py         # Grouping/aggregation calculations
+│   ├── composite.py         # Composite, row index, delay calculations
+│   ├── conditional.py       # Conditional logic calculations
+│   ├── date.py              # Date arithmetic calculations
+│   ├── mapping.py           # Value mapping calculations
+│   ├── null_handling.py     # Null handling strategies
+│   └── validation.py        # Data validation functions
+├── schema/                  # Schema utilities
+│   ├── __init__.py          # Schema module exports
+│   ├── dependency.py        # Dependency resolution and ordering
+│   └── processor.py         # Schema processing utilities
+└── utils/                   # Utility functions
+    ├── __init__.py          # Utils module exports
+    ├── dataio.py            # Data loading utilities
+    └── dateframe.py         # DataFrame manipulation utilities
 ```
 
-## Quick Start
+---
 
-```python
-from dcc.workflow.processor_engine.engine import CalculationEngine
-from dcc.workflow.processor_engine.engine.calculations import (
-    apply_forward_fill,
-    apply_aggregate_calculation,
-    apply_mapping_calculation,
-)
+## Workflow Overview
 
-# Create engine with schema data
-engine = CalculationEngine(schema_data)
+The processor engine follows a structured five-step processing pipeline:
 
-# Process DataFrame
-df_processed = engine.process_data(df)
+```mermaid
+flowchart TD
+    A["Initialize CalculationEngine<br/>CalculationEngine.__init__()"] --> B["Resolve calculation order<br/>resolve_calculation_order()"]
+    B --> C["Load schema and columns<br/>from schema_data"]
+    C --> D["Start process_data()"]
+    D --> E["Apply null handling<br/>apply_null_handling()"]
+    E --> F["Initialize missing columns<br/>initialize_missing_columns()"]
+    F --> G["Apply null strategies<br/>get_null_handler()"]
+    G --> H["Forward fill<br/>apply_forward_fill()"]
+    G --> I["Multi-level fill<br/>apply_multi_level_forward_fill()"]
+    G --> J["Default values<br/>apply_default_value()"]
+    H --> K["Apply calculations<br/>apply_calculations()"]
+    I --> K
+    J --> K
+    K --> L["Execute in dependency order<br/>calculation_order loop"]
+    L --> M{"Calculation type?"}
+    M -->|aggregate| N["apply_aggregate_calculation()"]
+    M -->|conditional| O["apply_current_row_calculation()<br/>apply_update_resubmission_required()"]
+    M -->|date| P["apply_conditional_date_calculation()<br/>apply_resubmission_plan_date()"]
+    M -->|mapping| Q["apply_mapping_calculation()<br/>apply_status_to_code()"]
+    M -->|composite| R["apply_composite_calculation()<br/>apply_row_index()"]
+    N --> S["Return processed DataFrame"]
+    O --> S
+    P --> S
+    Q --> S
+    R --> S
 ```
 
-## Calculation Types
+### Function I/O Reference
 
-### Aggregate Calculations (`aggregate.py`)
-- `apply_aggregate_calculation` - Standard grouping (count, min, max, concatenate)
-- `apply_latest_by_date_calculation` - Latest value by date
-- `apply_latest_non_pending_status` - Latest non-pending status
+| Function | File | Input | Output |
+|----------|------|-------|--------|
+| `CalculationEngine.__init__()` | `core/engine.py` | `schema_data` (Dict): Resolved schema | Engine instance with columns, calculation_order |
+| `process_data()` | `core/engine.py` | `df` (pd.DataFrame): Input data | Processed DataFrame with all calculations applied |
+| `apply_null_handling()` | `core/engine.py` | `df` (pd.DataFrame) | DataFrame with nulls handled per schema |
+| `apply_calculations()` | `core/engine.py` | `df` (pd.DataFrame) | DataFrame with calculated columns |
+| `resolve_calculation_order()` | `schema/dependency.py` | `columns` (Dict): Column definitions | List of column names in execution order |
+| `_extract_column_dependencies()` | `schema/dependency.py` | `column_name`, `column_def`, `all_columns` | Set of column dependencies |
+| `_find_cycle_path()` | `schema/dependency.py` | `dependency_graph` (Dict) | List representing cycle path or empty list |
+| `get_null_handler()` | `core/registry.py` | `strategy` (str): Strategy name | Handler function or None |
+| `get_calculation_handler()` | `core/registry.py` | `calc_type`, `method` | Handler function or None |
+| `register_null_handler()` | `core/registry.py` | `strategy`, `func` | None (registers handler) |
+| `register_calculation_handler()` | `core/registry.py` | `calc_type`, `method`, `func` | None (registers handler) |
+| `prepare_dataframe_for_processing()` | `utils/dateframe.py` | `df` (pd.DataFrame) | Prepared DataFrame |
+| `initialize_missing_columns()` | `utils/dateframe.py` | `df`, `columns`, `parameters` | DataFrame with missing columns initialized |
+| `load_excel_data()` | `utils/dataio.py` | `file_path`, `sheet_name`, etc. | DataFrame with loaded data |
+| `SchemaProcessor.__init__()` | `schema/processor.py` | `schema_data` (Dict) | SchemaProcessor instance |
+| `SchemaProcessor.get_ordered_columns()` | `schema/processor.py` | None | Dict of columns in sequence order |
+| `SchemaProcessor.resolve_reference()` | `schema/processor.py` | `ref_config` (Dict) | Resolved value or None |
 
-### Composite Calculations (`composite.py`)
-- `apply_composite_calculation` - Format string composition
-- `apply_row_index` - Auto-increment row indexing
-- `apply_delay_of_resubmission` - Delay calculation with vectorized approach
-- `apply_copy_calculation` - Direct column copy
+### Global Parameter Trace Matrix
 
-### Conditional Calculations (`conditional.py`)
-- `apply_current_row_calculation` - Current row value extraction
-- `apply_update_resubmission_required` - Resubmission logic with short-circuit
-- `apply_submission_closure_status` - Submission closure determination
-- `apply_calculate_overdue_status` - Overdue status calculation
+| Parameter | Initialized In | Modified/Resolved By | Primary Consumers | Role in Engine |
+|-----------|---------------|---------------------|-------------------|----------------|
+| `schema_data` | `CalculationEngine.__init__()` | Passed from resolved schema | `apply_null_handling()`, `apply_calculations()`, all handlers | Full resolved schema with enhanced_schema, columns, parameters |
+| `columns` | `CalculationEngine.__init__()` | Extracted from `schema_data['enhanced_schema']['columns']` | `resolve_calculation_order()`, all calculation handlers | Column definitions dict with calculation and null_handling specs |
+| `calculation_order` | `CalculationEngine.__init__()` | `resolve_calculation_order()` | `apply_calculations()` | Validated execution order for calculated columns |
+| `df` | `process_data()` input | Modified by `apply_null_handling()`, `apply_calculations()` | All processing functions | Working DataFrame throughout pipeline |
+| `null_handling` | Column definition | Specified per column in schema | `get_null_handler()`, handler functions | Null handling strategy configuration |
+| `calculation` | Column definition | Specified per column in schema | `get_calculation_handler()`, handler functions | Calculation type and method configuration |
+| `dependencies` | Column definition | `_extract_column_dependencies()` | `resolve_calculation_order()`, dependency graph | Cross-column dependencies for ordering |
 
-### Date Calculations (`date.py`)
-- `apply_date_calculation` - Standard date calculations
-- `calculate_working_days` - Working days addition
-- `calculate_date_difference` - Date difference in days
-- `apply_resubmission_plan_date` - Conditional resubmission date
-- `apply_conditional_date_calculation` - First vs subsequent submission dates
-- `apply_conditional_business_day_calculation` - Business day calculations
+---
 
-### Mapping Calculations (`mapping.py`)
-- `apply_mapping_calculation` - Status to code mapping
-- `apply_status_to_code` - Status code resolution
+## Core Functions
 
-### Null Handling (`null_handling.py`)
-- `apply_forward_fill` - Forward fill with grouping
-- `apply_multi_level_forward_fill` - Multi-level forward fill
-- `apply_copy_from` - Copy from source column
-- `apply_calculate_if_null` - Calculate if null (legacy)
-- `apply_default_value` - Default value with formatting
-- `apply_lookup_if_null` - Group-based lookup
+### CalculationEngine Class
 
-### Validation (`validation.py`)
-- `collect_raw_pattern_errors` - Raw input validation
-- `apply_validation` - Full schema validation
+**File:** `core/engine.py`
+
+The main orchestrator class that coordinates all data processing activities.
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `schema_data` (Dict): Resolved schema with enhanced_schema, columns, parameters |
+| **Output** | Engine instance with columns dict and validated calculation_order |
+| **Function** | Initializes engine, resolves dependencies, prepares for processing |
+| **Dependencies** | `resolve_calculation_order()`, `BaseProcessor.__init__()` |
+
+#### Methods
+
+##### `process_data(df)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame): Input data to process |
+| **Output** | Processed DataFrame with null handling and calculations applied |
+| **Function** | Main entry point for data transformation pipeline |
+| **Workflow** | 1. Apply null handling<br>2. Apply calculations in dependency order<br>3. Return processed DataFrame |
+
+##### `apply_null_handling(df)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame): Input data |
+| **Output** | DataFrame with null values handled per schema specifications |
+| **Function** | Applies designated null-handling strategy to each column |
+| **Workflow** | 1. Prepare DataFrame<br>2. Initialize missing columns<br>3. Get handler for each column's strategy<br>4. Apply handler |
+
+##### `apply_calculations(df)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame): DataFrame after null handling |
+| **Output** | DataFrame with calculated columns in dependency order |
+| **Function** | Executes calculated columns in validated dependency order |
+| **Workflow** | 1. Copy DataFrame<br>2. Iterate calculation_order<br>3. Get handler for each calculation<br>4. Apply handler<br>5. Return result |
+
+---
 
 ## Registry System
 
-The registry system maps calculation types to handler functions:
+**File:** `core/registry.py`
+
+The registry system provides dynamic handler registration and retrieval for null handling strategies and calculation types.
+
+### get_null_handler(strategy)
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `strategy` (str): Null handling strategy name |
+| **Output** | Handler function or None |
+| **Function** | Retrieves registered handler for null handling strategy |
+
+### get_calculation_handler(calc_type, method='default')
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `calc_type` (str): Calculation type<br>`method` (str): Specific method name |
+| **Output** | Handler function or None |
+| **Function** | Retrieves registered handler for calculation type and method |
+
+### register_null_handler(strategy, func)
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `strategy` (str): Strategy name to register<br>`func` (Callable): Handler function |
+| **Output** | None (registers in NULL_HANDLERS dict) |
+| **Function** | Dynamically registers new null handling strategy |
+
+### register_calculation_handler(calc_type, method, func)
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `calc_type` (str): Calculation type<br>`method` (str): Method name<br>`func` (Callable): Handler function |
+| **Output** | None (registers in CALCULATION_HANDLERS dict) |
+| **Function** | Dynamically registers new calculation handler |
+
+### list_registered_handlers()
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | None |
+| **Output** | Dict with all registered null_handlers and calculation_types |
+| **Function** | Returns listing of all registered handlers for debugging |
+
+---
+
+## Calculation Types
+
+### Null Handling
+
+**File:** `calculations/null_handling.py`
+
+| Function | Strategy | Description |
+|----------|----------|-------------|
+| `apply_forward_fill` | `forward_fill` | Forward fill nulls with grouping support |
+| `apply_multi_level_forward_fill` | `multi_level_forward_fill` | Multi-level forward fill (primary, secondary groups) |
+| `apply_copy_from` | `copy_from` | Copy values from source column |
+| `apply_calculate_if_null` | `calculate_if_null` | Calculate value if null (legacy) |
+| `apply_default_value` | `default_value` | Apply default value with optional formatting |
+| `apply_lookup_if_null` | `lookup_if_null` | Group-based lookup for null values |
+
+### Aggregate Calculations
+
+**File:** `calculations/aggregate.py`
+
+| Function | Method | Description |
+|----------|--------|-------------|
+| `apply_aggregate_calculation` | Various | Standard aggregation (count, min, max, concatenate, concatenate_unique, concatenate_dates) |
+| `apply_latest_by_date_calculation` | `latest_by_date` | Get latest value based on date column |
+| `apply_latest_non_pending_status` | `latest_non_pending_status` | Get latest non-pending status per group |
+
+### Composite Calculations
+
+**File:** `calculations/composite.py`
+
+| Function | Method | Description |
+|----------|--------|-------------|
+| `apply_composite_calculation` | `build_document_id` | Format string composition from multiple sources |
+| `apply_row_index` | `generate_row_index` | Auto-increment row indexing |
+| `apply_delay_of_resubmission` | `calculate_delay_of_resubmission` | Delay calculation with vectorized lookup |
+| `apply_copy_calculation` | `direct` | Direct column copy |
+
+### Conditional Calculations
+
+**File:** `calculations/conditional.py`
+
+| Function | Method | Description |
+|----------|--------|-------------|
+| `apply_current_row_calculation` | `current_row` | Current row value extraction |
+| `apply_update_resubmission_required` | `update_resubmission_required` | Resubmission logic with short-circuit evaluation |
+| `apply_submission_closure_status` | `submission_closure_status` | Submission closure determination |
+| `apply_calculate_overdue_status` | `calculate_overdue_status` | Overdue status calculation |
+
+### Date Calculations
+
+**File:** `calculations/date.py`
+
+| Function | Method | Description |
+|----------|--------|-------------|
+| `apply_date_calculation` | Various | Standard date calculations |
+| `calculate_working_days` | `add_working_days` | Add working days to date |
+| `calculate_date_difference` | `date_difference` | Calculate difference in days |
+| `apply_resubmission_plan_date` | `calculate_resubmission_plan_date` | Conditional resubmission plan date |
+| `apply_conditional_date_calculation` | `conditional_date_calculation` | First vs subsequent submission dates |
+| `apply_conditional_business_day_calculation` | `conditional_business_day` | Business day calculations with conditional logic |
+
+### Mapping Calculations
+
+**File:** `calculations/mapping.py`
+
+| Function | Method | Description |
+|----------|--------|-------------|
+| `apply_mapping_calculation` | `status_to_code` | Map status values to codes using lookup tables |
+| `apply_status_to_code` | `status_to_code` | Status code resolution from schema references |
+
+---
+
+## Schema Processing
+
+### SchemaProcessor Class
+
+**File:** `schema/processor.py`
+
+Handles translation of schema definitions into actionable instructions for the CalculationEngine.
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `schema_data` (Dict): Full resolved schema |
+| **Output** | SchemaProcessor instance with enhanced_schema access |
+| **Function** | Processes schema for column ordering and reference resolution |
+
+#### Methods
+
+##### `get_ordered_columns()`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | None (uses instance schema_data) |
+| **Output** | Dict of columns ordered by column_sequence |
+| **Function** | Returns column definitions in schema-specified order |
+
+##### `resolve_reference(ref_config)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `ref_config` (Dict): Contains schema, code, field keys |
+| **Output** | Resolved value from referenced schema or None |
+| **Function** | Looks up value in schema reference data |
+
+### Dependency Resolution
+
+**File:** `schema/dependency.py`
+
+#### resolve_calculation_order(columns)
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `columns` (Dict): Column definitions with dependencies |
+| **Output** | List of column names in validated execution order |
+| **Function** | Validates dependencies and returns safe calculation order |
+| **Raises** | ValueError on circular dependency or schema order violation |
+
+---
+
+## Utility Functions
+
+### Data Loading
+
+**File:** `utils/dataio.py`
+
+#### load_excel_data(file_path, sheet_name, header_row, ...)
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | Excel file parameters (path, sheet, header row, etc.) |
+| **Output** | DataFrame with loaded data |
+| **Function** | Loads Excel data with configurable options |
+
+### DataFrame Manipulation
+
+**File:** `utils/dateframe.py`
+
+#### prepare_dataframe_for_processing(df)
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame): Raw input DataFrame |
+| **Output** | Prepared DataFrame ready for processing |
+| **Function** | Standardizes DataFrame format for pipeline |
+
+#### initialize_missing_columns(df, columns, parameters)
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame), `columns` (Dict), `parameters` (Dict) |
+| **Output** | DataFrame with missing schema columns initialized |
+| **Function** | Adds missing columns from schema with null values |
+
+---
+
+## Usage Examples
+
+### Basic Processing
 
 ```python
-from dcc.workflow.processor_engine.engine.core import (
-    get_null_handler,
-    get_calculation_handler,
-    register_calculation_handler,
-)
+from dcc.workflow.processor_engine.engine import CalculationEngine
+from dcc.workflow.schema_engine.engine import SchemaLoader
 
-# Get a handler
-handler = get_calculation_handler('aggregate', 'latest_by_date')
+# Load and resolve schema
+schema_loader = SchemaLoader()
+schema_loader.set_main_schema_path('config/schemas/dcc_register.json')
+main_schema = schema_loader.load_json_file('config/schemas/dcc_register.json')
+resolved_schema = schema_loader.resolve_schema_dependencies(main_schema)
 
-# Register a custom handler
-register_calculation_handler('my_type', 'my_method', my_function)
+# Create engine
+engine = CalculationEngine(resolved_schema)
+
+# Process DataFrame
+df_processed = engine.process_data(df)
+
+print(f"Input: {len(df.columns)} columns")
+print(f"Output: {len(df_processed.columns)} columns")
 ```
 
-## Schema Dependency Resolution
+### Custom Handler Registration
+
+```python
+from dcc.workflow.processor_engine.engine import (
+    CalculationEngine,
+    register_calculation_handler,
+    get_calculation_handler,
+)
+
+# Define custom calculation
+def my_custom_calculation(processor, df, column_name, calculation_config):
+    """Custom calculation handler."""
+    source_col = calculation_config.get('source_column')
+    multiplier = calculation_config.get('multiplier', 1.0)
+    
+    df[column_name] = df[source_col] * multiplier
+    return df
+
+# Register handler
+register_calculation_handler('custom', 'multiply', my_custom_calculation)
+
+# Verify registration
+handler = get_calculation_handler('custom', 'multiply')
+assert handler == my_custom_calculation
+```
+
+### Dependency Resolution
 
 ```python
 from dcc.workflow.processor_engine.engine.schema import resolve_calculation_order
 
-# Get validated calculation order
-calculation_order = resolve_calculation_order(columns_schema)
+# Define columns with dependencies
+columns = {
+    'A': {'is_calculated': False},
+    'B': {
+        'is_calculated': True,
+        'calculation': {'dependencies': ['A']}
+    },
+    'C': {
+        'is_calculated': True,
+        'calculation': {'dependencies': ['B']}
+    },
+}
+
+# Get execution order
+order = resolve_calculation_order(columns)
+print(order)  # ['B', 'C'] - A is input, not calculated
+
+# Circular dependencies raise ValueError
+circular = {
+    'X': {'is_calculated': True, 'calculation': {'dependencies': ['Y']}},
+    'Y': {'is_calculated': True, 'calculation': {'dependencies': ['X']}},
+}
+# resolve_calculation_order(circular)  # Raises ValueError
 ```
+
+---
+
+## Import Quick Reference
+
+### Full Engine Import
+
+```python
+from dcc.workflow.processor_engine.engine import (
+    # Core
+    CalculationEngine,
+    BaseProcessor,
+    
+    # Registry
+    get_null_handler,
+    get_calculation_handler,
+    register_null_handler,
+    register_calculation_handler,
+    list_registered_handlers,
+    
+    # Schema
+    SchemaProcessor,
+    resolve_calculation_order,
+    
+    # Utils
+    load_excel_data,
+)
+
+# Calculations
+from dcc.workflow.processor_engine.engine.calculations import (
+    # Null handling
+    apply_forward_fill,
+    apply_multi_level_forward_fill,
+    apply_default_value,
+    apply_copy_from,
+    
+    # Aggregate
+    apply_aggregate_calculation,
+    apply_latest_by_date_calculation,
+    apply_latest_non_pending_status,
+    
+    # Conditional
+    apply_current_row_calculation,
+    apply_update_resubmission_required,
+    apply_submission_closure_status,
+    apply_calculate_overdue_status,
+    
+    # Date
+    apply_conditional_date_calculation,
+    apply_resubmission_plan_date,
+    calculate_working_days,
+    
+    # Mapping
+    apply_mapping_calculation,
+    apply_status_to_code,
+    
+    # Composite
+    apply_composite_calculation,
+    apply_row_index,
+    apply_delay_of_resubmission,
+    apply_copy_calculation,
+    
+    # Validation
+    collect_raw_pattern_errors,
+    apply_validation,
+)
+```
+
+### Module-Specific Imports
+
+```python
+# Core only
+from dcc.workflow.processor_engine.engine.core import (
+    CalculationEngine,
+    BaseProcessor,
+    get_calculation_handler,
+    register_calculation_handler,
+)
+
+# Schema only
+from dcc.workflow.processor_engine.engine.schema import (
+    SchemaProcessor,
+    resolve_calculation_order,
+)
+
+# Calculations only
+from dcc.workflow.processor_engine.engine.calculations import (
+    apply_aggregate_calculation,
+    apply_conditional_date_calculation,
+)
+
+# Utils only
+from dcc.workflow.processor_engine.engine.utils import load_excel_data
+```
+
+---
+
+## Error Handling
+
+The engine provides comprehensive error handling:
+
+1. **Schema Loading Errors**: Caught during engine initialization, raises with context
+2. **Circular Dependencies**: `resolve_calculation_order()` raises ValueError with cycle path
+3. **Missing Handlers**: `get_calculation_handler()` returns None, logged as warning
+4. **Invalid Configurations**: Handler functions validate config and raise descriptive errors
+5. **Data Type Errors**: Handlers check data types and convert or raise appropriate errors
+
+---
+
+## Best Practices
+
+1. **Always validate schema first**: Use SchemaValidator before creating CalculationEngine
+2. **Check calculation_order**: Log or inspect to understand execution sequence
+3. **Use dependency resolution**: Let the engine handle column dependency ordering
+4. **Register custom handlers**: For project-specific calculations, register handlers rather than modifying core
+5. **Handle missing handlers**: Check for None return from get_calculation_handler()
+6. **Process in chunks**: For large datasets, consider chunking before process_data()
+7. **Validate inputs**: Use collect_raw_pattern_errors() before full processing
+
+---
+
+## Dependencies
+
+- Python 3.10+ (uses type hints with `|` syntax)
+- pandas: DataFrame operations
+- numpy: Numerical operations
+- openpyxl: Excel file reading
+
+---
+
+## Notes
+
+- Calculation order is determined by dependency graph analysis
+- Circular dependencies are detected and raise ValueError
+- All handlers follow signature: `(processor, df, column_name, config) -> df`
+- Schema references are resolved at runtime via SchemaProcessor
+- Null handling is applied before calculations in the pipeline
+- The registry system allows dynamic extension without core modifications

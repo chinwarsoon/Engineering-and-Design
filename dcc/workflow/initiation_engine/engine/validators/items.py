@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, Iterable
 
 from ..system.os_detect import should_auto_create_folders
+from ..utils.logging import log_status, log_warning
 
 
 def record_path_check(
@@ -103,6 +104,10 @@ def validate_folders(
         - os_info: Initialized in __init__ via detect_os().
                    Passed to should_auto_create_folders() to check capability.
     """
+    auto_create_enabled = should_auto_create_folders(os_info)
+    if auto_create_enabled:
+        log_warning("Auto-creation enabled for this OS", "validators", "validate_folders")
+
     for folder in folders:
         if not isinstance(folder, dict):
             continue
@@ -129,6 +134,12 @@ def validate_folders(
         )
         results["folders"][-1]["auto_created"] = auto_created
         results["folders"][-1]["schema_auto_created"] = bool(folder.get("auto_created", False))
+
+        # Log folder status with indentation (2 spaces per depth level)
+        symbol = "[OK]" if exists else ("[MISS]" if required else "[WARN]")
+        req_text = "required" if required else "optional"
+        auto_text = " [created]" if auto_created else ""
+        log_status(f"{symbol} {name} ({req_text}) -> {path}{auto_text}", "validators")
 
 
 def validate_named_files(
@@ -163,6 +174,8 @@ def validate_named_files(
         - parent_dir: Resolved from base_path in validate() for each category.
                       root_files -> base_path, others -> base_path / subdir.
     """
+    log_warning(f"Validating {category} in {parent_dir}", "validators", "validate_named_files")
+
     for item in items:
         if not isinstance(item, dict):
             continue
@@ -171,16 +184,22 @@ def validate_named_files(
             continue
         required = bool(item.get("required", True))
         path = parent_dir / name
+        exists = path.is_file()
         record_path_check(
             results,
             category,
             name,
             path,
             required,
-            path.is_file(),
+            exists,
             item.get(description_key, ""),
             "file",
         )
+
+        # Log file status with indentation
+        symbol = "[OK]" if exists else ("[MISS]" if required else "[WARN]")
+        req_text = "required" if required else "optional"
+        log_status(f"{symbol} {name} ({req_text}) -> {path}", "validators")
 
 
 def validate_environment(
@@ -206,6 +225,8 @@ def validate_environment(
         - base_path: Initialized in __init__ via normalize_path().
                      Used to resolve 'root' and subdirectory paths.
     """
+    log_warning(f"Validating environment files in {base_path}", "validators", "validate_environment")
+
     for item in environment:
         if not isinstance(item, dict):
             continue
@@ -218,17 +239,24 @@ def validate_environment(
         else:
             path = base_path / location / filename
 
+        exists = path.is_file()
+        required = bool(item.get("required", True))
+
         results["environment"].append(
             {
                 "name": item.get("name", filename),
                 "path": str(path),
-                "required": bool(item.get("required", True)),
-                "exists": path.is_file(),
+                "required": required,
+                "exists": exists,
                 "location": location,
                 "setup_commands": item.get("setup_commands", []),
                 "key_dependencies": item.get("key_dependencies", []),
             }
         )
+
+        # Log environment file status
+        symbol = "[OK]" if exists else ("[MISS]" if required else "[WARN]")
+        log_status(f"{symbol} {filename} ({location})", "validators")
 
 
 def check_ready(results: Dict[str, Any]) -> bool:

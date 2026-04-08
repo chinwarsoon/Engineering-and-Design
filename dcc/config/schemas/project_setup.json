@@ -383,18 +383,62 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Whether this item is mandatory"
+            "description": "Whether this initiation engine item is required"
           },
           "description": {
             "type": "string",
-            "description": "Purpose of this module/file"
+            "description": "Purpose of this initiation engine item"
           },
           "main_functions": {
             "type": "array",
-            "description": "Key functions/classes provided (for modules)",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Main functions/classes exposed by this module"
+          }
+        },
+        "required": [
+          "path",
+          "type",
+          "required",
+          "description"
+        ]
+      }
+    },
+    "reporting_engine": {
+      "type": "array",
+      "description": "Reporting engine modules (located in workflow/reporting_engine)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path from workflow/reporting_engine"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "folder",
+              "python_module",
+              "documentation",
+              "init_file"
+            ],
+            "description": "Type of reporting engine item"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this reporting engine item is required"
+          },
+          "description": {
+            "type": "string",
+            "description": "Purpose of this reporting engine item"
+          },
+          "main_functions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Main functions/classes exposed by this module"
           }
         },
         "required": [
@@ -529,6 +573,7 @@
     "schema_validation",
     "schema_engine",
     "initiation_engine",
+    "reporting_engine",
     "environment",
     "validation_rules",
     "dependencies"
@@ -618,7 +663,7 @@
           "filename": "dcc_engine_pipeline.py",
           "required": true,
           "type": "python_module",
-          "description": "Modular engine pipeline using four engine folders: initiation, schema, mapper, processor",
+          "description": "Modular engine pipeline using five engine folders: initiation, schema, mapper, processor, reporting",
           "main_functions": [
             "run_engine_pipeline",
             "test_environment"
@@ -1314,6 +1359,35 @@
           "main_functions": [
             "detect_os",
             "should_auto_create_folders"
+          ]
+        }
+      ],
+      "reporting_engine": [
+        {
+          "path": "engine",
+          "type": "folder",
+          "required": true,
+          "description": "Main reporting engine package"
+        },
+        {
+          "path": "engine/__init__.py",
+          "type": "init_file",
+          "required": true,
+          "description": "Reporting engine package exports"
+        },
+        {
+          "path": "engine/readme.md",
+          "type": "documentation",
+          "required": false,
+          "description": "Reporting engine documentation"
+        },
+        {
+          "path": "engine/summary.py",
+          "type": "python_module",
+          "required": true,
+          "description": "Processing summary report generator",
+          "main_functions": [
+            "write_processing_summary"
           ]
         }
       ],

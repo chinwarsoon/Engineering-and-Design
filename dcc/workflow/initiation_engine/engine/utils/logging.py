@@ -1,87 +1,403 @@
+"""
+Tiered logging and debug utilities for initiation_engine.
+Implements structured logging with hierarchy levels, trace tables, and debug objects.
+"""
 
 import logging
 import sys
 import builtins
-from typing import Any
+import json
+import time
+import platform
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Callable
+from datetime import datetime
+from contextlib import contextmanager
 
-DEBUG_DEV_MODE = False
+# =============================================================================
+# GLOBAL STATE
+# =============================================================================
 
-def set_debug_mode(enabled: bool):
+DEBUG_LEVEL = 1  # 0=silent, 1=status/info, 2=warning/debug, 3=trace
+CALL_DEPTH = 0   # For hierarchical indentation
+DEBUG_OBJECT: Dict[str, Any] = {
+    "timestamp": None,
+    "system_snapshot": {},
+    "trace_table": [],
+    "global_parameters": {},
+    "messages": [],
+    "errors": [],
+}
+
+# =============================================================================
+# DEBUG OBJECT MANAGEMENT
+# =============================================================================
+
+def init_debug_object() -> None:
     """
-    Set the global debug mode flag.
-
-    Args:
-        enabled: True to enable debug mode, False to disable.
+    Initialize the global debug object with system snapshot.
 
     Breadcrumb Comments:
-        - DEBUG_DEV_MODE: Global flag modified here.
-                         Consumed by debug_print() to conditionally output.
+        - DEBUG_OBJECT: Global dict initialized here with metadata.
+                       Modified by all logging functions to accumulate debug info.
+                       Saved to debug_log.json at workflow end.
     """
-    global DEBUG_DEV_MODE
-    DEBUG_DEV_MODE = enabled
+    global DEBUG_OBJECT
+    DEBUG_OBJECT = {
+        "timestamp": datetime.now().isoformat(),
+        "system_snapshot": _get_system_snapshot(),
+        "trace_table": [],
+        "global_parameters": {},
+        "messages": [],
+        "errors": [],
+        "duration_ms": 0,
+    }
 
-# Global debug mode flag
-def setup_logger(debug_mode: bool = False):
+
+def _get_system_snapshot() -> Dict[str, Any]:
+    """Capture system information for level 1 logging."""
+    return {
+        "platform": platform.system(),
+        "platform_release": platform.release(),
+        "python_version": platform.python_version(),
+        "processor": platform.processor(),
+        "hostname": platform.node(),
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+def get_debug_object() -> Dict[str, Any]:
+    """Get the current debug object."""
+    return DEBUG_OBJECT
+
+
+def save_debug_log(output_path: Optional[Path] = None) -> Path:
     """
-    Configure the global logging settings.
-
-    Sets up basic logging configuration with timestamp, level, and message format.
-    Log level is DEBUG if debug_mode is True, otherwise INFO.
+    Save debug object to debug_log.json.
 
     Args:
-        debug_mode: If True, set log level to DEBUG. Default is INFO.
+        output_path: Optional path for debug log. Defaults to base_path/debug_log.json.
+
+    Returns:
+        Path to saved debug log file.
 
     Breadcrumb Comments:
-        - debug_mode: Controls logging level passed to logging.basicConfig().
-        - Format includes timestamp, level name, and message.
-        - Output directed to sys.stdout.
+        - DEBUG_OBJECT: Read here and serialized to JSON.
+                       Saved to disk for post-mortem analysis.
     """
-    level = logging.DEBUG if debug_mode else logging.INFO
-    
-    # Standard format: [TIME] LEVEL - MESSAGE
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-        stream=sys.stdout
-    )
+    global DEBUG_OBJECT
+    DEBUG_OBJECT["duration_ms"] = _calculate_duration()
+
+    if output_path is None:
+        output_path = Path("debug_log.json")
+
+    output_path = Path(output_path)
+    output_path.write_text(json.dumps(DEBUG_OBJECT, indent=2, default=str))
+    return output_path
+
+
+def _calculate_duration() -> float:
+    """Calculate elapsed time since debug object initialization."""
+    if DEBUG_OBJECT.get("timestamp"):
+        start = datetime.fromisoformat(DEBUG_OBJECT["timestamp"])
+        return (datetime.now() - start).total_seconds() * 1000
+    return 0.0
+
+
+# =============================================================================
+# TIERED LOGGING
+# =============================================================================
+
+def set_debug_level(level: int) -> None:
+    """
+    Set global debug verbosity level.
+
+    Args:
+        level: 0=silent/errors only, 1=status/info, 2=warning/debug, 3=trace
+
+    Breadcrumb Comments:
+        - DEBUG_LEVEL: Global integer modified here.
+                      Consumed by log_status(), log_debug(), log_trace().
+    """
+    global DEBUG_LEVEL
+    DEBUG_LEVEL = max(0, min(3, level))
+
+
+def _get_indent() -> str:
+    """Get indentation based on call depth."""
+    return "  " * CALL_DEPTH
+
+
+def log_status(message: str, module: str = "", context: str = "") -> None:
+    """
+    Level 1: Milestone progress / high-level workflow status.
+
+    Args:
+        message: Status message to display.
+        module: Module name for context.
+        context: Additional calling context.
+
+    Breadcrumb Comments:
+        - DEBUG_LEVEL: Checked here - only outputs if level >= 1.
+        - DEBUG_OBJECT: Appends message to 'messages' list.
+    """
+    if DEBUG_LEVEL >= 1:
+        prefix = _get_indent()
+        if module:
+            prefix += f"[{module}] "
+        if context:
+            prefix += f"({context}) "
+        builtins.print(f"{prefix}{message}", flush=True)
+
+    DEBUG_OBJECT["messages"].append({
+        "level": 1,
+        "timestamp": datetime.now().isoformat(),
+        "module": module,
+        "context": context,
+        "message": message,
+    })
+
+
+def log_warning(message: str, module: str = "", context: str = "") -> None:
+    """
+    Level 2: Warnings, detailed debugging, variable values, path resolutions.
+
+    Args:
+        message: Warning/debug message.
+        module: Module name for context.
+        context: Additional calling context.
+
+    Breadcrumb Comments:
+        - DEBUG_LEVEL: Checked here - only outputs if level >= 2.
+        - DEBUG_OBJECT: Appends message to 'messages' list.
+    """
+    if DEBUG_LEVEL >= 2:
+        prefix = _get_indent()
+        if module:
+            prefix += f"[{module}] "
+        if context:
+            prefix += f"({context}) "
+        builtins.print(f"{prefix}[DEBUG] {message}", flush=True)
+
+    DEBUG_OBJECT["messages"].append({
+        "level": 2,
+        "timestamp": datetime.now().isoformat(),
+        "module": module,
+        "context": context,
+        "message": message,
+    })
+
+
+def log_trace(message: str, module: str = "", context: str = "") -> None:
+    """
+    Level 3: Deep technical info - OS path slashes, JSON raw extraction, etc.
+
+    Args:
+        message: Trace message.
+        module: Module name for context.
+        context: Additional calling context.
+
+    Breadcrumb Comments:
+        - DEBUG_LEVEL: Checked here - only outputs if level >= 3.
+        - DEBUG_OBJECT: Appends message to 'messages' list.
+    """
+    if DEBUG_LEVEL >= 3:
+        prefix = _get_indent()
+        if module:
+            prefix += f"[{module}] "
+        if context:
+            prefix += f"({context}) "
+        builtins.print(f"{prefix}[TRACE] {message}", flush=True)
+
+    DEBUG_OBJECT["messages"].append({
+        "level": 3,
+        "timestamp": datetime.now().isoformat(),
+        "module": module,
+        "context": context,
+        "message": message,
+    })
+
+
+def log_error(message: str, module: str = "", context: str = "", fatal: bool = False) -> None:
+    """
+    Log errors. Always shown regardless of debug level.
+
+    Args:
+        message: Error message.
+        module: Module name for context.
+        context: Additional calling context.
+        fatal: If True, raises exception (fail-fast).
+
+    Breadcrumb Comments:
+        - DEBUG_LEVEL: Errors always output regardless of level.
+        - DEBUG_OBJECT: Appends to 'errors' list.
+        - If fatal=True, raises RuntimeError immediately (fail-fast).
+    """
+    prefix = _get_indent()
+    if module:
+        prefix += f"[{module}] "
+    if context:
+        prefix += f"({context}) "
+    builtins.print(f"{prefix}[ERROR] {message}", flush=True, file=sys.stderr)
+
+    error_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "module": module,
+        "context": context,
+        "message": message,
+        "fatal": fatal,
+    }
+    DEBUG_OBJECT["errors"].append(error_entry)
+
+    if fatal:
+        raise RuntimeError(f"[{module}] {context}: {message}")
+
+
+# =============================================================================
+# TRACE TABLE
+# =============================================================================
+
+def trace_parameter(
+    name: str,
+    value: Any,
+    source: str = "",
+    status: str = "",
+    duration_ms: float = 0.0,
+) -> None:
+    """
+    Add entry to structured trace table for parameter flow tracking.
+
+    Args:
+        name: Parameter name.
+        value: Parameter value (will be stringified).
+        source: Where the parameter came from.
+        status: Status of the parameter (e.g., 'resolved', 'modified', 'error').
+        duration_ms: Optional timing information.
+
+    Breadcrumb Comments:
+        - DEBUG_OBJECT['trace_table']: Appends structured entry here.
+                                     Used for tracking parameter lifecycle.
+    """
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "name": name,
+        "value": str(value)[:200],  # Truncate long values
+        "source": source,
+        "status": status,
+        "depth": CALL_DEPTH,
+        "duration_ms": duration_ms,
+    }
+    DEBUG_OBJECT["trace_table"].append(entry)
+
+    if DEBUG_LEVEL >= 2:
+        log_warning(f"Param '{name}' = {value!r} [{status}] from {source}", "trace")
+
+
+# =============================================================================
+# GLOBAL PARAMETER TRACKING
+# =============================================================================
+
+def track_global_param(name: str, value: Any, stage: str = "") -> None:
+    """
+    Track global parameter state before/after major transformations.
+
+    Args:
+        name: Parameter name.
+        value: Current value.
+        stage: 'before' or 'after' transformation.
+
+    Breadcrumb Comments:
+        - DEBUG_OBJECT['global_parameters']: Records parameter state.
+                                          Captures before/after for debugging.
+    """
+    if name not in DEBUG_OBJECT["global_parameters"]:
+        DEBUG_OBJECT["global_parameters"][name] = {}
+
+    DEBUG_OBJECT["global_parameters"][name][stage or "current"] = {
+        "value": str(value)[:200],
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    if DEBUG_LEVEL >= 2:
+        log_warning(f"Global '{name}' at stage '{stage}': {value!r}", "global")
+
+
+# =============================================================================
+# HIERARCHICAL CONTEXT MANAGER
+# =============================================================================
+
+@contextmanager
+def log_context(module: str, context: str):
+    """
+    Context manager for hierarchical logging with automatic indentation.
+
+    Usage:
+        with log_context("validator", "validate_folders"):
+            log_status("Checking folders...")
+
+    Args:
+        module: Module name.
+        context: Function or operation name.
+
+    Breadcrumb Comments:
+        - CALL_DEPTH: Incremented on entry, decremented on exit.
+                     Used by _get_indent() for visual hierarchy.
+    """
+    global CALL_DEPTH
+    log_status(f"▶ {context}", module)
+    CALL_DEPTH += 1
+    start_time = time.time()
+
+    try:
+        yield
+    except Exception as e:
+        log_error(f"Exception in {context}: {e}", module, fatal=False)
+        raise
+    finally:
+        duration = (time.time() - start_time) * 1000
+        CALL_DEPTH -= 1
+        log_status(f"◀ {context} ({duration:.1f}ms)", module)
+
+
+# =============================================================================
+# BACKWARD COMPATIBILITY
+# =============================================================================
 
 def status_print(*args: Any, **kwargs: Any) -> None:
     """
-    Print status messages with automatic flush.
-
-    Wrapper around print() that ensures output is flushed immediately.
-    Used throughout the engine for real-time status updates.
-
-    Args:
-        *args: Variable arguments to print.
-        **kwargs: Keyword arguments passed to print().
-
-    Breadcrumb Comments:
-        - Used by validate_folders(), resolve_output_paths(),
-          and throughout pipeline for status messages.
-        - Automatically sets flush=True for immediate output.
+    Legacy status print - maps to level 1 logging.
+    Kept for backward compatibility.
     """
-    kwargs.setdefault("flush", True)
-    builtins.print(*args, **kwargs)
+    message = " ".join(str(a) for a in args)
+    log_status(message)
 
 
 def debug_print(*args: Any, **kwargs: Any) -> None:
     """
-    Print debug messages only in dev mode.
-
-    Conditionally prints messages only when DEBUG_DEV_MODE is True.
-    Used for development and troubleshooting output.
-
-    Args:
-        *args: Variable arguments to print.
-        **kwargs: Keyword arguments passed to print().
-
-    Breadcrumb Comments:
-        - DEBUG_DEV_MODE: Global flag set via set_debug_mode().
-                         If True, prints with flush enabled.
-                         If False, silently discards output.
+    Legacy debug print - maps to level 2 logging.
+    Kept for backward compatibility.
     """
-    if DEBUG_DEV_MODE:
-        kwargs.setdefault("flush", True)
-        builtins.print(*args, **kwargs)
+    message = " ".join(str(a) for a in args)
+    log_warning(message)
+
+
+def setup_logger(debug_mode: bool = False) -> None:
+    """
+    Legacy setup - configures standard Python logging.
+    Kept for backward compatibility.
+    """
+    level = logging.DEBUG if debug_mode else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
+
+
+def set_debug_mode(enabled: bool) -> None:
+    """
+    Legacy debug mode setter.
+    Kept for backward compatibility.
+    """
+    set_debug_level(2 if enabled else 1)
