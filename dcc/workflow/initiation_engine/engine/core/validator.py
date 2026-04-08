@@ -20,9 +20,44 @@ from ..utils.logging import status_print
 
 
 class ProjectSetupValidator:
-    """Validate the DCC project structure from config/schemas/project_setup.json."""
+    """
+    Validate the DCC project structure from config/schemas/project_setup.json.
+
+    This class orchestrates the validation of project folders, files, environment
+    specifications, and dependencies. It supports configurable validation rules
+    and OS-specific behaviors like auto-folder creation.
+
+    Attributes:
+        base_path: Normalized absolute path to the project root.
+        schema_path: Normalized absolute path to project_setup.json.
+        schema_document: Raw parsed JSON document from schema_path.
+        project_setup: Extracted project setup configuration dictionary.
+        validation_rules: Dictionary mapping rule names to enabled status.
+        os_info: OS detection results with 'system' and 'normalized' keys.
+    """
 
     def __init__(self, base_path: str | Path | None = None, schema_path: str | Path | None = None):
+        """
+        Initialize the ProjectSetupValidator.
+
+        Validates the DCC project structure by loading the project_setup.json schema
+        and preparing validation rules. Detects OS and normalizes paths.
+
+        Args:
+            base_path: Project root directory. If None, uses default_base_path().
+            schema_path: Path to project_setup.json. If None, uses get_schema_path().
+
+        Breadcrumb Comments:
+            - base_path: Initialized here via normalize_path() or default_base_path().
+                         Consumed by validate_folders(), validate_named_files(),
+                         validate_environment(), resolve_platform_paths().
+            - schema_path: Initialized here via normalize_path() or get_schema_path().
+                         Consumed by _load_json(), validate().
+            - os_info: Initialized here via detect_os().
+                      Consumed by validate_folders(), should_auto_create_folders().
+            - validation_rules: Initialized here from _extract_project_setup().
+                               Consumed by _rule_enabled(), validate().
+        """
         self.base_path = normalize_path(base_path) if base_path else default_base_path()
         self.schema_path = (
             normalize_path(schema_path)
@@ -45,7 +80,19 @@ class ProjectSetupValidator:
             }
 
     def _load_json(self, path: Path) -> Dict[str, Any]:
-        """Load JSON document from disk."""
+        """
+        Load JSON document from disk.
+
+        Args:
+            path: Path to the JSON file.
+
+        Returns:
+            Parsed JSON document as a dictionary.
+
+        Breadcrumb Comments:
+            - path: Received from schema_path (initialized in __init__).
+                    Consumed here to load schema_document.
+        """
         with path.open("r", encoding="utf-8") as handle:
             return json.load(handle)
 
@@ -73,11 +120,44 @@ class ProjectSetupValidator:
         return {}
 
     def _rule_enabled(self, rule_name: str) -> bool:
-        """Check if a validation rule is enabled."""
+        """
+        Check if a validation rule is enabled.
+
+        Args:
+            rule_name: Name of the validation rule to check.
+
+        Returns:
+            True if the rule is enabled or not explicitly disabled.
+
+        Breadcrumb Comments:
+            - rule_name: Passed from validate() for each check ("check_folders", "check_files").
+            - validation_rules: Initialized in __init__ from _extract_project_setup().
+                              Consumed here to determine if rule should run.
+        """
         return self.validation_rules.get(rule_name, True)
 
     def validate(self) -> Dict[str, Any]:
-        """Run full project setup validation."""
+        """
+        Run full project setup validation.
+
+        Executes all enabled validation rules against the project structure.
+        Populates the results dictionary with validation outcomes.
+
+        Returns:
+            Dictionary containing validation results for all categories.
+
+        Breadcrumb Comments:
+            - results: Initialized here as empty accumulator.
+                       Modified by validate_folders(), validate_named_files(),
+                       validate_environment(), check_ready().
+                       Consumed by format_report(), caller inspection.
+            - project_setup: Loaded in __init__ via _extract_project_setup().
+                            Consumed here for folders, root_files, schema_files,
+                            workflow_files, tool_files, environment specs.
+            - validation_rules: Checked via _rule_enabled() to conditionally run checks.
+            - base_path: Passed to all validation functions for path resolution.
+            - os_info: Passed to validate_folders() for auto-creation decisions.
+        """
         results: Dict[str, Any] = {
             "base_path": str(self.base_path),
             "schema_path": str(self.schema_path),
@@ -153,5 +233,19 @@ class ProjectSetupValidator:
         return results
 
     def format_report(self, results: Dict[str, Any]) -> str:
-        """Format validation results for terminal output."""
+        """
+        Format validation results for terminal output.
+
+        Args:
+            results: Validation results dictionary from validate().
+
+        Returns:
+            Formatted multi-line string for terminal display.
+
+        Breadcrumb Comments:
+            - results: Initialized in validate(), modified by all validators.
+                       Passed here to generate human-readable report.
+                       Contains folders, root_files, schema_files, workflow_files,
+                       tool_files, environment sections with status indicators.
+        """
         return format_report(results)

@@ -8,7 +8,38 @@ from typing import Dict, Any, List
 
 
 def format_report(results: Dict[str, Any]) -> str:
-    """Format validation results for terminal output."""
+    """
+    Format validation results for terminal output.
+
+    Generates a human-readable report showing the validation status of all
+    project components including folders, files, environment settings, and
+    dependencies. Shows [OK], [MISS], or [WARN] indicators for each item.
+
+    Args:
+        results: Validation results dictionary containing:
+            - base_path: Project root directory path
+            - schema_path: Path to project_setup.json
+            - os: OS detection info with 'system' and 'normalized'
+            - folders: List of folder validation results
+            - root_files: List of root file validation results
+            - schema_files: List of schema file validation results
+            - workflow_files: List of workflow file validation results
+            - tool_files: List of tool file validation results
+            - environment: List of environment file validation results
+            - errors: List of error messages
+            - ready: Boolean indicating if all required items exist
+
+    Returns:
+        Formatted multi-line string suitable for terminal display.
+
+    Breadcrumb Comments:
+        - results: Initialized in ProjectSetupValidator.validate().
+                   Modified by validate_folders(), validate_named_files(),
+                   validate_environment(), check_ready().
+                   Consumed here to generate human-readable report.
+        - Each section (folders, root_files, etc.): Extracted from results
+                  and formatted with status symbols [OK], [MISS], [WARN].
+    """
     lines: List[str] = []
     lines.append("=" * 72)
     lines.append("PROJECT SETUP VALIDATION")

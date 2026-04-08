@@ -55,59 +55,73 @@ initiation_engine/engine/
 
 The initiation engine follows a structured validation workflow:
 
+```mermaid
+flowchart TD
+    A["Initialize ProjectSetupValidator<br/>ProjectSetupValidator.__init__()"] --> B["Load base_path & schema_path<br/>normalize_path(), default_base_path()"]
+    B --> C["Detect operating system<br/>detect_os()"]
+    C --> D["Load project_setup.json schema<br/>_load_json()"]
+    D --> E{"Validation Rules Enabled?<br/>_is_rule_enabled()"}
+    E -->|check_folders| F["validate_folders()"]
+    E -->|check_files| G["validate_named_files()"]
+    F --> H["Auto-create folders if enabled<br/>ensure_folder()"]
+    G --> I["Validate root_files<br/>validate_named_files()"]
+    G --> J["Validate schema_files<br/>validate_named_files()"]
+    G --> K["Validate workflow_files<br/>validate_named_files()"]
+    G --> L["Validate tool_files<br/>validate_named_files()"]
+    H --> M["validate_environment()"]
+    I --> M
+    J --> M
+    K --> M
+    L --> M
+    M --> N["check_ready()"]
+    N --> O{"All required items exist?"}
+    O -->|Yes| P["format_report()<br/>Ready: YES"]
+    O -->|No| Q["format_report()<br/>Ready: NO"]
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    INITIATION ENGINE WORKFLOW               │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-        ┌────────────────────────────────────────┐
-        │  1. Initialize ProjectSetupValidator   │
-        │     - Load base_path & schema_path     │
-        │     - Detect operating system          │
-        │     - Load project_setup.json schema   │
-        └────────────────────────────────────────┘
-                              │
-                              ▼
-        ┌────────────────────────────────────────┐
-        │  2. Run validate() Method              │
-        │     ┌──────────────────────────────┐   │
-        │     │ Check: Validation Rules      │   │
-        │     │  - check_folders (rule)      │   │
-        │     │  - check_files (rule)        │   │
-        │     └──────────────────────────────┘   │
-        └────────────────────────────────────────┘
-                              │
-              ┌───────────────┴───────────────┐
-              ▼                               ▼
-    ┌─────────────────────┐       ┌─────────────────────┐
-    │ validate_folders()  │       │ validate_named_     │
-    │   - Auto-create if  │       │   files()           │
-    │     enabled         │       │   - root_files      │
-    │   - Record results  │       │   - schema_files    │
-    └─────────────────────┘       │   - workflow_files  │
-                                  │   - tool_files      │
-                                  └─────────────────────┘
-                                              │
-                                  ┌─────────────────────┐
-                                  │ validate_           │
-                                  │ environment()       │
-                                  │   - env files       │
-                                  │   - setup commands  │
-                                  └─────────────────────┘
-                                              │
-                              ┌───────────────▼───────────────┐
-                              │  3. check_ready()              │
-                              │     - Verify all required      │
-                              │       items exist              │
-                              └───────────────────────────────┘
-                                              │
-                              ┌───────────────▼───────────────┐
-                              │  4. format_report()            │
-                              │     - Generate human-readable  │
-                              │       validation summary       │
-                              └───────────────────────────────┘
-```
+
+### Function I/O Reference
+
+| Function | File | Input | Output |
+|----------|------|-------|--------|
+| `ProjectSetupValidator.__init__()` | `core/validator.py` | `base_path` (str/Path, optional), `schema_path` (str/Path, optional) | Validator instance with loaded schema and OS info |
+| `normalize_path()` | `utils/paths.py` | `value` (str/Path) | Absolute `Path` |
+| `default_base_path()` | `utils/paths.py` | None | Default project base `Path` |
+| `detect_os()` | `system/os_detect.py` | None | `Dict[str, str]` - OS information |
+| `_load_json()` | `core/validator.py` | File path | Parsed JSON document |
+| `_is_rule_enabled()` | `core/validator.py` | Rule name | `bool` - Whether rule is enabled |
+| `validate_folders()` | `validators/items.py` | `results`, `folders`, `base_path`, `os_info` | Modifies `results['folders']` in-place |
+| `validate_named_files()` | `validators/items.py` | `results`, `category`, `items`, `parent_dir`, `name_key`, `description_key` | Modifies `results[category]` in-place |
+| `ensure_folder()` | `validators/items.py` | `path` (Path) | `bool` - True if directory exists after operation |
+| `validate_environment()` | `validators/items.py` | `results`, `environment`, `base_path` | Modifies `results['environment']` in-place |
+| `check_ready()` | `validators/items.py` | `results` (Dict) | `bool` - True if all required items exist |
+| `format_report()` | `core/reports.py` | `results` (Dict) | `str` - Formatted terminal report |
+
+### Global Parameter Trace Matrix
+
+| Parameter | Initialized In | Modified/Resolved By | Primary Consumers | Role in Engine |
+|-----------|---------------|---------------------|-------------------|----------------|
+| `base_path` | `ProjectSetupValidator.__init__()` | `normalize_path()`, `default_base_path()` | `validate_folders()`, `validate_named_files()`, `validate_environment()`, `resolve_platform_paths()`, `resolve_output_paths()` | Project root directory; anchor for all relative path resolution |
+| `schema_path` | `ProjectSetupValidator.__init__()` | `get_schema_path()` | `_load_json()`, `validate()` | Path to `project_setup.json`; source of validation rules and specs |
+| `project_setup` | `_extract_project_setup()` | `_load_json()` | `validate()`, `validation_rules`, all validation functions | Parsed configuration dict containing folders, files, environment specs |
+| `validation_rules` | `ProjectSetupValidator.__init__()` | `_extract_validation_rules()` | `_is_rule_enabled()`, `validate()` | Dict of enabled/disabled validation checks from schema |
+| `os_info` | `detect_os()` | `should_auto_create_folders()` | `validate_folders()`, `ensure_folder()` | OS detection results; determines auto-creation capability |
+| `results` | `validate()` | `validate_folders()`, `validate_named_files()`, `validate_environment()`, `check_ready()` | `format_report()`, caller inspection | Accumulator dict holding all validation outcomes and errors |
+| `effective_parameters` | `build_effective_parameters()` | `resolve_platform_paths()`, `resolve_output_paths()` | `run_engine_pipeline()`, `load_excel_data()` | Merged CLI args + schema defaults + native defaults for pipeline execution |
+| `export_paths` | `resolve_output_paths()` | `validate_export_paths()` | `run_engine_pipeline()`, file writers | Resolved output file paths (CSV, Excel, summary) |
+| `folders` | `project_setup['folders']` | N/A | `validate_folders()` | List of folder specifications from schema |
+
+### Validation Categories
+
+| Category | Function | Source in `project_setup.json` | Results Key | Debug Output Details |
+|----------|----------|-------------------------------|-------------|----------------------|
+| Folders | `validate_folders()` | `project_setup.folders` | `results['folders']` | `status_print(f"  {symbol} {name} ({req}) -> {path}")` - Shows [OK], [MISS], or [WARN] per folder |
+| Root Files | `validate_named_files()` | `project_setup.root_files` | `results['root_files']` | `status_print(f"  {symbol} {name} ({req}) -> {path}")` - File existence check with path resolution |
+| Schema Files | `validate_named_files()` | `project_setup.schema_files` | `results['schema_files']` | `status_print(f"  {symbol} {name} ({req}) -> {path}")` - Validates schema directory contents |
+| Workflow Files | `validate_named_files()` | `project_setup.workflow_files` | `results['workflow_files']` | `status_print(f"  {symbol} {name} ({req}) -> {path}")` - Checks pipeline script files |
+| Tool Files | `validate_named_files()` | `project_setup.tool_files` | `results['tool_files']` | `status_print(f"  {symbol} {name} ({req}) -> {path}")` - Validates utility scripts |
+| Environment | `validate_environment()` | `project_setup.environment` | `results['environment']` | `status_print(f"  {symbol} {name} ({location})")` - Env file location and setup commands |
+| Dependencies | `test_environment()` | `dependencies.required`, `dependencies.optional` | `results['dependencies']` | `status_print(f"  {module}: {status}")` - Module import test results |
+| Engine Modules | `test_environment()` | `dependencies.engines` | `results['engine_modules']` | `status_print(f"  {module}.{member}: {status}")` - Engine class/member availability |
 
 ### Validation Rule System
 

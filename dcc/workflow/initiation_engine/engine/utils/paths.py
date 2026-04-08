@@ -15,8 +15,20 @@ from ..utils.logging import status_print
 # check and get "HOME" directory, with special handling for Windows network drive issues
 def get_homedir() -> Path:
     """
-    Returns a validated home directory. 
+    Return a validated home directory.
+
     On Windows, it fixes broken/network HOME paths by falling back to LOCALAPPDATA.
+    Uses environment variables and Path.home() as fallback.
+
+    Returns:
+        Path object pointing to the validated home directory.
+
+    Breadcrumb Comments:
+        - Reads HOME environment variable first.
+        - On Windows, validates path exists (not a dead network drive).
+        - Falls back to LOCALAPPDATA on Windows if HOME is broken.
+        - Final fallback is Path.home() if no valid path found.
+        - Used for resolving user-specific paths in the project.
     """
     # Start with the standard HOME environment variable
     home_str = os.environ.get("HOME", "")
@@ -52,15 +64,40 @@ def get_homedir() -> Path:
 
 
 def normalize_path(value: str | Path) -> Path:
-    """Normalize a path to absolute form."""
+    """
+    Normalize a path to absolute form.
+
+    Args:
+        value: Path as string or Path object to normalize.
+
+    Returns:
+        Absolute Path object.
+
+    Breadcrumb Comments:
+        - value: Received from __init__ for base_path and schema_path.
+                 Modified here by Path(value).absolute() to ensure absolute path.
+                 Consumed as base_path for all path resolution operations.
+    """
     return Path(value).absolute()
 
 
 def default_base_path() -> Path:
     """
     Return default base path for project.
-    Uses script directory directly. Does NOT use resolve(),
-    which injects restricted network paths on Windows UNC shares.
+
+    Uses script directory directly without resolve() to avoid
+    injecting restricted network paths on Windows UNC shares.
+    Traverses parent directories to find the "workflow" folder,
+    then returns its parent as the project root.
+
+    Returns:
+        Path object pointing to the project root directory.
+
+    Breadcrumb Comments:
+        - Traverses Path(__file__).parents to find "workflow" directory.
+        - Returns parent of workflow folder as project base.
+        - If workflow not found, returns script parent directory.
+        - Consumed by __init__ when base_path is not provided.
     """
     # go through each parent to check if "workflow" is in the path, if so, return the parent of "workflow"
     for parent in Path(__file__).parents:
@@ -72,7 +109,20 @@ def default_base_path() -> Path:
 
 
 def get_schema_path(base_path: Path) -> Path:
-    """Return default schema path based on base path."""
+    """
+    Return default schema path based on base path.
+
+    Args:
+        base_path: Project root directory.
+
+    Returns:
+        Path to project_setup.json schema file.
+
+    Breadcrumb Comments:
+        - base_path: Initialized in __init__ via normalize_path().
+                     Used here to construct schema path.
+                     Returns base_path / "config" / "schemas" / "project_setup.json".
+    """
     return base_path / "config" / "schemas" / "project_setup.json"
 
 
@@ -83,15 +133,30 @@ def resolve_platform_paths(
 ) -> dict[str, Any]:
     """
     Resolve platform-specific paths from merged effective parameters.
+
+    Resolves upload and download file paths based on the operating system.
     Precedence: CLI → Schema → Native defaults
-    
+
     Args:
-        effective_parameters: Merged parameters dictionary
-        base_path: Base path for resolving relative paths
-        status_print_fn: Function to print status messages (default: print)
-        
+        effective_parameters: Merged parameters dictionary containing
+            win_upload_file, win_download_path, linux_upload_file,
+            linux_download_path, upload_file_name, download_file_path.
+        base_path: Base path for resolving relative paths.
+        status_print_fn: Function to print status messages (default: print).
+
     Returns:
-        Updated parameters dictionary with resolved paths
+        Updated parameters dictionary with resolved paths.
+
+    Breadcrumb Comments:
+        - effective_parameters: Initialized in build_effective_parameters()
+                                 from CLI args and schema defaults.
+                                 Modified here to set upload_file_name
+                                 and download_file_path based on OS.
+        - base_path: Initialized in __init__ via normalize_path().
+                     Used here to resolve relative Linux paths.
+        - Parameters consumed: win_upload_file, win_download_path,
+          linux_upload_file, linux_download_path.
+        - Parameters modified: upload_file_name, download_file_path.
     """
     from typing import Dict, Any
     
@@ -143,14 +208,26 @@ def resolve_output_paths(
 ) -> dict[str, Path]:
     """
     Resolve output file paths for processed data.
-    
+
+    Determines output directory and file paths based on effective_parameters.
+    Creates output directory if it doesn't exist.
+
     Args:
-        base_path: Base path for the project
-        effective_parameters: Dictionary containing output configuration
-        safe_resolve_fn: Optional path resolution function (defaults to Path resolution)
-        
+        base_path: Base path for the project.
+        effective_parameters: Dictionary containing output_file or
+            download_file_path for determining output location.
+        safe_resolve_fn: Optional path resolution function (defaults to Path resolution).
+
     Returns:
-        Dictionary with output_dir, csv_path, excel_path, summary_path
+        Dictionary with keys: output_dir, csv_path, excel_path, summary_path.
+
+    Breadcrumb Comments:
+        - effective_parameters: Initialized in build_effective_parameters().
+                                 Consumes output_file or download_file_path
+                                 to determine output_dir.
+        - base_path: Used as fallback if no explicit output path provided.
+        - Returns dictionary consumed by run_engine_pipeline() and
+          validate_export_paths() for writing output files.
     """
     explicit_output = effective_parameters.get("output_file")
     if explicit_output:
@@ -183,13 +260,23 @@ def resolve_output_paths(
 def validate_export_paths(export_paths: dict[str, Path], overwrite_existing: bool) -> None:
     """
     Validate output paths and check for existing files.
-    
+
+    Creates output directory if needed. Raises error if output files
+    already exist and overwrite is not enabled.
+
     Args:
-        export_paths: Dictionary containing output_dir, csv_path, excel_path, summary_path
-        overwrite_existing: If True, allow overwriting existing files
-        
+        export_paths: Dictionary with keys: output_dir, csv_path, excel_path, summary_path.
+        overwrite_existing: If True, allow overwriting existing files.
+
     Raises:
-        FileExistsError: If output files exist and overwrite_existing is False
+        FileExistsError: If output files exist and overwrite_existing is False.
+
+    Breadcrumb Comments:
+        - export_paths: Initialized in resolve_output_paths().
+                        Consumes output_dir for directory creation.
+                        Checks csv_path, excel_path, summary_path for existence.
+        - overwrite_existing: Passed from effective_parameters via CLI args.
+                              If False and files exist, raises FileExistsError.
     """
     export_paths["output_dir"].mkdir(parents=True, exist_ok=True)
     if not overwrite_existing:
