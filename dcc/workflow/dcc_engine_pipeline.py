@@ -151,7 +151,10 @@ def run_engine_pipeline(
     status_print("\n" + "=" * 72)
     status_print("STEP 2: Schema Engine - Schema Validation")
     status_print("=" * 72)
+    status_print(f"  Main schema: {schema_path}")
+
     schema_validator = SchemaValidator(schema_path)
+    status_print("  Validating schema and resolving dependencies...")
     schema_results = schema_validator.validate()
     write_validation_status(schema_results)
     if not schema_results.get("ready"):
@@ -174,7 +177,9 @@ def run_engine_pipeline(
         df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df_raw.columns]
     
     # Use mapper engine
-    mapper = ColumnMapperEngine(schema_file=str(schema_path))
+    resolved_schema = schema_validator.load_resolved_schema()
+    mapper = ColumnMapperEngine()
+    mapper.resolved_schema = resolved_schema
     mapping_result = mapper.detect_columns(df_raw.columns.tolist())
     df_mapped = mapper.rename_dataframe_columns(df_raw, mapping_result)
     status_print(f"✓ Column mapping complete: {mapping_result['match_rate']:.1%} match rate")
@@ -183,7 +188,7 @@ def run_engine_pipeline(
     status_print("\n" + "=" * 72)
     status_print("STEP 4: Processor Engine - Document Processing")
     status_print("=" * 72)
-    processor = CalculationEngine(schema_file=str(schema_path))
+    processor = CalculationEngine(resolved_schema)
     df_processed = processor.process_data(df_mapped)
     
     # Export results

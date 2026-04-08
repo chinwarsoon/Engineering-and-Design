@@ -13,7 +13,9 @@ from typing import Dict, List, Set, Optional
 # Configure logging
 logger = logging.getLogger(__name__)
 
-class CalculationEngine:
+from .base import BaseProcessor
+
+class CalculationEngine(BaseProcessor):
     """
     The orchestrator for the modular calculation engine.
     This class manages the sequence of null handling and calculation execution.
@@ -23,7 +25,7 @@ class CalculationEngine:
         """
         Initialize the engine using the resolved schema.
         """
-        self.schema_data = schema_data
+        super().__init__(schema_data)
         enhanced_schema = schema_data.get('enhanced_schema', {})
         raw_columns = enhanced_schema.get('columns', {})
         column_sequence = enhanced_schema.get('column_sequence', [])
@@ -43,18 +45,21 @@ class CalculationEngine:
             self.columns = {name: defn for name, defn in raw_columns.items() if isinstance(defn, dict)}
             
         # Determine the safe execution order for calculated columns
-        from dcc.workflow.process_engine.engine.schema.dependency import resolve_calculation_order
+        from ..schema.dependency import resolve_calculation_order
         self.calculation_order = resolve_calculation_order(self.columns)
 
     def process_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         The main entry point for data transformation.
         """
+        print(f"DEBUG: Starting process_data with {len(df.columns)} columns")
         # 1. Apply Null Handling
         df = self.apply_null_handling(df)
+        print(f"DEBUG: Finished null handling, now has {len(df.columns)} columns")
         
         # 2. Apply Calculations
         df = self.apply_calculations(df)
+        print(f"DEBUG: Finished calculations, now has {len(df.columns)} columns")
         
         return df
 
@@ -63,10 +68,16 @@ class CalculationEngine:
         Iterates through the schema and applies the designated null-handling 
         strategy to each column.
         """
-        from engine.utils.dataframe import prepare_dataframe_for_processing
-        from dcc.workflow.process_engine.engine.core.registry import get_null_handler
+        from ..utils.dateframe import prepare_dataframe_for_processing, initialize_missing_columns
+        from .registry import get_null_handler
         
+        print(f"DEBUG: Entering apply_null_handling")
         df_processed = prepare_dataframe_for_processing(df)
+        
+        # Initialize missing columns from schema
+        parameters = self.schema_data.get('parameters', {})
+        df_processed = initialize_missing_columns(df_processed, self.columns, parameters)
+        print(f"DEBUG: DataFrame prepared and initialized, has {len(df_processed.columns)} columns")
         
         for column_name, column_def in self.columns.items():
             if column_name not in df_processed.columns:
@@ -78,6 +89,7 @@ class CalculationEngine:
             if strategy and strategy != 'leave_null':
                 handler = get_null_handler(strategy)
                 if handler:
+                    # print(f"DEBUG: Applying null strategy {strategy} to {column_name}")
                     df_processed = handler(self, df_processed, column_name, null_handling)
         
         return df_processed
@@ -86,8 +98,9 @@ class CalculationEngine:
         """
         Executes calculated columns in the validated dependency order.
         """
-        from dcc.workflow.process_engine.engine.core.registry import get_calculation_handler
+        from .registry import get_calculation_handler
         
+        print(f"DEBUG: Entering apply_calculations, order: {self.calculation_order}")
         df_calculated = df.copy()
         
         for column_name in self.calculation_order:
@@ -97,6 +110,7 @@ class CalculationEngine:
             
             handler = get_calculation_handler(calc_type, calculation.get('method'))
             if handler:
+                print(f"DEBUG: Applying {calc_type}/{calculation.get('method')} to {column_name}")
                 df_calculated = handler(self, df_calculated, column_name, calculation)
             else:
                 logger.warning(f"No handler found for calculation type: {calc_type}")

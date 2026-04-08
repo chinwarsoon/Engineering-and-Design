@@ -52,7 +52,7 @@ class SchemaLoader:
         if self.main_schema_path is not None:
             search_paths.append(safe_resolve(self.main_schema_path.parent / candidate_name))
 
-        from dcc.workflow.schema_engine.engine.utils.paths import safe_cwd
+        from ..utils.paths import safe_cwd
         cwd = safe_cwd()
         search_paths.append(safe_resolve(cwd / candidate))
         search_paths.append(safe_resolve(cwd / candidate_name))

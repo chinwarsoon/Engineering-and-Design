@@ -25,28 +25,45 @@ def validate_schema_document(
         return
     validated_paths.add(resolved_schema_path)
 
+    print(f"  Validating field_definitions in schema: {resolved_schema_path}")
+
     field_definitions = schema_data.get("field_definitions", {})
     if not isinstance(field_definitions, dict) or not field_definitions:
         return
-
-    data_section_name = schema_data.get("data_section")
+    
+    data_section_path = schema_data.get("data_section")
     data_item_type = schema_data.get("data_item_type", "object")
+    
+    # Resolve the records section (supports dot-notation for nesting)
     records = None
-    if isinstance(data_section_name, str):
-        records = schema_data.get(data_section_name)
+    if isinstance(data_section_path, str):
+        records = schema_data
+        for part in data_section_path.split('.'):
+            if isinstance(records, dict):
+                records = records.get(part)
+            else:
+                records = None
+                break
+    
     if records is None:
         records = find_record_section(schema_data)
 
-    if not isinstance(records, list):
+    if records is None or (not isinstance(records, list) and not isinstance(records, dict)):
         results["errors"].append(
-            f"Schema field_definitions validation failed for {resolved_schema_path}: record section is missing or not a list"
+            f"Schema field_definitions validation failed for {resolved_schema_path}: record section '{data_section_path}' is missing or invalid type"
         )
         return
+
+    # Convert dictionary values to a list for standardized validation
+    if isinstance(records, dict):
+        records_to_validate = list(records.values())
+    else:
+        records_to_validate = records
 
     if data_item_type == "scalar":
         validate_scalar_record_section(
             schema_path=resolved_schema_path,
-            records=records,
+            records=records_to_validate,
             field_definitions=field_definitions,
             results=results,
         )
@@ -62,7 +79,7 @@ def validate_schema_document(
         if validation.get("global_unique_items"):
             global_item_trackers[field_name] = {}
 
-    for index, record in enumerate(records):
+    for index, record in enumerate(records_to_validate):
         if not isinstance(record, dict):
             results["errors"].append(
                 f"Schema field_definitions validation failed for {resolved_schema_path}: record at index {index} is not an object"

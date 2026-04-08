@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Dict, Any, List, Set
 
 from ..utils.paths import safe_resolve
-from ..loader.schema_loader import SchemaLoader
+from ..loader.schema_loader import (
+    SchemaLoader,
+)
 from .fields import (
     validate_schema_document,
     find_record_section,

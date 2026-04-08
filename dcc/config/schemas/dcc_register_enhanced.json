@@ -1066,8 +1066,8 @@
         "null_handling": {
           "strategy": "forward_fill",
           "group_by": [
-           "Submission_Session",
-           "Submission_Session_Revision"
+            "Submission_Session",
+            "Submission_Session_Revision"
           ],
           "fill_value_reference": {
             "schema": "approval_code_schema",
@@ -1076,7 +1076,7 @@
             "description": "Resolved from approval_code_schema approval entry with code 'PEN'. Ensures single source of truth for pending status."
           },
           "description": "Processed by _apply_forward_fill. Leverages cross-row grouping within the same session ID and assigns pending status (resolved from approval_code_schema PEN code) as the default state for unreviewed rows."
-          },
+        },
         "validation": [
           {
             "type": "schema_reference_check",
@@ -1247,7 +1247,9 @@
             "reference": "approval_code_schema",
             "data_section": "approval",
             "field": "status",
-            "exclude_codes": ["PEN"],
+            "exclude_codes": [
+              "PEN"
+            ],
             "description": "Validated by _apply_validation against approval_code_schema.approval[*].status (excluding pending) to ensure latest approval status is valid."
           }
         ]
@@ -2002,5 +2004,35 @@
       "jsonschema",
       "fuzzywuzzy"
     ]
-  }
+  },
+  "field_definitions": {
+    "data_type": {
+      "data_type": "string",
+      "required": true,
+      "validation": {
+        "allowed_values": [
+          "string",
+          "numeric",
+          "date",
+          "boolean",
+          "categorical",
+          "text",
+          "array[string]"
+        ]
+      }
+    },
+    "required": {
+      "data_type": "boolean",
+      "required": false
+    },
+    "allow_null": {
+      "data_type": "boolean",
+      "required": false
+    },
+    "is_calculated": {
+      "data_type": "boolean",
+      "required": false
+    }
+  },
+  "data_section": "enhanced_schema.columns"
 }

@@ -43,6 +43,8 @@ def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calc
     df = df.copy()
 
     # Apply formatting row-by-row
+    if column_name not in df.columns:
+        df[column_name] = np.nan
     df[column_name] = df[available_sources].apply(format_row, axis=1)
 
     logger.info(f"Applied composite calculation for {column_name}: {len(available_sources)}/{len(source_columns)} sources found")

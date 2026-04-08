@@ -2,7 +2,7 @@
 Schema utilities for the document processor engine.
 """
 
-from dcc.workflow.processor_engine.engine.schema.dependency import (
+from .dependency import (
     resolve_calculation_order,
     _extract_column_dependencies,
     _find_cycle_path,

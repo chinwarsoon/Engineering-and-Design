@@ -4,7 +4,7 @@ The logic for _resolve_schema_reference, which maps internal schema codes to act
 
 import logging
 from typing import Dict, Any, Optional, List
-from dcc.workflow.process_engine.engine.core.base import BaseProcessor
+from ..core.base import BaseProcessor
 
 logger = logging.getLogger(__name__)
 
