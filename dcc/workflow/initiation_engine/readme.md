@@ -17,18 +17,19 @@ A modular, comprehensive engine for project setup validation, initialization, an
   - [System Utilities](#system-utilities)
 - [System Detection](#system-detection)
 - [Report Formatting](#report-formatting)
+- [Validation Category Summary Table](#validation-category-summary-table)
 - [Usage Examples](#usage-examples)
-  - [Basic Validation](#basic-validation)
-  - [Custom Validation](#custom-validation)
-  - [CLI Usage](#cli-usage)
-  - [Environment Testing](#environment-testing)
+- [Troubleshooting](#troubleshooting)
+- [Import Quick Reference](#import-quick-reference)
+- [Error Handling](#error-handling)
+- [Best Practices](#best-practices)
 
 ---
 
 ## Module Structure
 
 ```
-initiation_engine/engine/
+initiation_engine/
 ├── __init__.py              # Main engine exports (all public functions)
 ├── readme.md                # This documentation file
 ├── core/                    # Core validation and reporting components
@@ -139,6 +140,19 @@ The engine supports configurable validation rules from `project_setup.json`:
 ```
 
 Rules can be dynamically enabled/disabled, allowing flexible validation workflows.
+
+---
+
+## Validation Category Summary Table
+
+The initiation engine performs several categories of project-level validation:
+
+| Category | Component | Description |
+|----------|-----------|-------------|
+| **Structure** | `validators/items.py` | Validates that required folders and root files exist (with auto-creation if enabled) |
+| **Resources** | `validators/items.py` | Validates that all configured schema, workflow, and tool files are present |
+| **Environment** | `validators/items.py` | Validates that environment specification files (e.g., `dcc.yml`) are correctly located |
+| **Dependencies** | `utils/system.py` | Validates that all required Python modules and engine components are importable |
 
 ---
 
@@ -562,12 +576,23 @@ Summary:
 
 ---
 
+## Troubleshooting
+
+| Issue | Potential Cause | Resolution |
+|-------|-----------------|------------|
+| **`Ready: NO`** | One or more required folders/files are missing | Check the formatted report for `[MISS]` markers; ensure all required files from `project_setup.json` exist |
+| **Environment test failed** | Missing Python module or incorrect engine path | Run `test_environment()` directly to see the detailed `errors` list in results |
+| **Path resolution error** | Improperly formatted path in CLI or schema | Use absolute paths or verify the `--base-path` anchor is correct |
+| **OS detection mismatch** | Non-standard environment (e.g., restricted VM) | Check `detect_os()` output; the engine supports Windows, Linux, and macOS |
+
+---
+
 ## Usage Examples
 
 ### Basic Validation
 
 ```python
-from dcc.workflow.initiation_engine.engine import ProjectSetupValidator
+from dcc.workflow.initiation_engine import ProjectSetupValidator
 
 # Create validator with defaults
 validator = ProjectSetupValidator()
@@ -591,7 +616,7 @@ else:
 
 ```python
 from pathlib import Path
-from dcc.workflow.initiation_engine.engine import (
+from dcc.workflow.initiation_engine import (
     ProjectSetupValidator,
     validate_folders,
     detect_os,
@@ -621,7 +646,7 @@ validate_folders(results, folders, custom_path, os_info)
 ### CLI Usage
 
 ```python
-from dcc.workflow.initiation_engine.engine import parse_cli_args
+from dcc.workflow.initiation_engine import parse_cli_args
 
 # Parse CLI arguments
 args, cli_overrides = parse_cli_args()
@@ -646,7 +671,7 @@ python script.py --base-path /my/project --excel-file data.xlsx --debug-mode Tru
 ### Environment Testing
 
 ```python
-from dcc.workflow.initiation_engine.engine import test_environment
+from dcc.workflow.initiation_engine import test_environment
 
 # Test environment
 env_results = test_environment()
@@ -674,7 +699,7 @@ else:
 
 ### Full Engine Import
 ```python
-from dcc.workflow.initiation_engine.engine import (
+from dcc.workflow.initiation_engine import (
     # Core
     ProjectSetupValidator,
     format_report,
@@ -718,13 +743,13 @@ from dcc.workflow.initiation_engine.engine import (
 ### Module-Specific Imports
 ```python
 # Core only
-from dcc.workflow.initiation_engine.engine.core import ProjectSetupValidator, format_report
+from dcc.workflow.initiation_engine.core import ProjectSetupValidator, format_report
 
 # Validators only
-from dcc.workflow.initiation_engine.engine.validators import validate_folders, check_ready
+from dcc.workflow.initiation_engine.validators import validate_folders, check_ready
 
 # Utils only
-from dcc.workflow.initiation_engine.engine.utils import (
+from dcc.workflow.initiation_engine.utils import (
     normalize_path,
     parse_cli_args,
     status_print,
@@ -732,7 +757,7 @@ from dcc.workflow.initiation_engine.engine.utils import (
 )
 
 # System only
-from dcc.workflow.initiation_engine.engine.system import detect_os
+from dcc.workflow.initiation_engine.system import detect_os
 ```
 
 ---

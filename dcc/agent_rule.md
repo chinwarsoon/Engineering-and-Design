@@ -36,7 +36,7 @@
 
 
 
-# Instruction README.md file
+# Instruction for README.md file
 1. always add the following sections in README.md file:
    - Table of Contents
    - Workflow Overview (mermaid flowchart, with brief description and functions in each step)
@@ -47,3 +47,24 @@
    - Examples
    - Troubleshooting
    - Best Practices
+2. the following sections must be included in READMD.md for main pipeline:
+   - Summary for main pipeline
+   - Table of Contents
+   - Environment setup and requirements
+   - Overall project folder structure
+   - Schema files
+   - Parser arguments and details
+   - Required input data files
+   - Designed output files
+   - Workflow Overview (mermaid flowchart, with brief description and functions in each step)
+   - Module Structure
+   - Function I/O Reference
+   - Global Parameter Trace Matrix
+   - Validation Category Summary Table
+   - Examples
+   - Troubleshooting
+   - Debugging and logging
+   - Best Practices
+   - List of module readme.md files and links to them
+   - Potential issues to users
+

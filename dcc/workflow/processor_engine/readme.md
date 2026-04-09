@@ -19,10 +19,9 @@ A modular engine for processing documents with schema-driven calculations, null 
   - [Mapping Calculations](#mapping-calculations)
 - [Schema Processing](#schema-processing)
 - [Utility Functions](#utility-functions)
+- [Validation Category Summary Table](#validation-category-summary-table)
 - [Usage Examples](#usage-examples)
-  - [Basic Processing](#basic-processing)
-  - [Custom Handler Registration](#custom-handler-registration)
-  - [Dependency Resolution](#dependency-resolution)
+- [Troubleshooting](#troubleshooting)
 - [Import Quick Reference](#import-quick-reference)
 - [Error Handling](#error-handling)
 - [Best Practices](#best-practices)
@@ -32,7 +31,7 @@ A modular engine for processing documents with schema-driven calculations, null 
 ## Module Structure
 
 ```
-processor_engine/engine/
+processor_engine/
 ├── __init__.py              # Main engine exports (all public functions)
 ├── readme.md                # This documentation file
 ├── core/                    # Core engine components
@@ -379,6 +378,19 @@ Uses centralized logging from `initiation_engine` (`debug_print`) for all diagno
 
 ---
 
+## Validation Category Summary Table
+
+The processor engine handles several categories of data transformation and validation:
+
+| Category | Component | Description |
+|----------|-----------|-------------|
+| **Dependency** | `schema/dependency.py` | Validates that column calculation order is safe and non-circular |
+| **Null Integrity** | `calculations/null_handling.py` | Ensures mandatory fields are populated using designated strategies |
+| **Data Types** | Handlers | Validates and converts input data (e.g., date strings to datetime objects) |
+| **Calculated Logic** | Handlers | Executes complex business rules (e.g., overdue status, resubmission logic) |
+
+---
+
 ## Logging System
 
 The processor engine uses **centralized logging** from `initiation_engine` instead of Python's standard `logging` module. All calculation modules, null handlers, and utilities use:
@@ -444,13 +456,24 @@ def apply_some_calculation(engine, df, column_name, calculation):
 
 ---
 
+## Troubleshooting
+
+| Issue | Potential Cause | Resolution |
+|-------|-----------------|------------|
+| **Circular dependency error** | Two or more columns reference each other | Check `dependencies` key in schema for those columns; break the cycle |
+| **Missing calculation handler** | Typo in schema `calculation/type` or `method` | Verify name against `list_registered_handlers()` output |
+| **Calculation not applied** | Column already has values and `is_calculated` is not forced | Check if the handler preserves existing values; clear column if re-calculation is needed |
+| **Date calculation failure** | Non-standard date format in input | Ensure input columns are correctly parsed as dates in `load_excel_data` |
+
+---
+
 ## Usage Examples
 
 ### Basic Processing
 
 ```python
-from dcc.workflow.processor_engine.engine import CalculationEngine
-from dcc.workflow.schema_engine.engine import SchemaLoader
+from dcc.workflow.processor_engine import CalculationEngine
+from dcc.workflow.schema_engine import SchemaLoader
 
 # Load and resolve schema
 schema_loader = SchemaLoader()
@@ -471,7 +494,7 @@ print(f"Output: {len(df_processed.columns)} columns")
 ### Custom Handler Registration
 
 ```python
-from dcc.workflow.processor_engine.engine import (
+from dcc.workflow.processor_engine import (
     CalculationEngine,
     register_calculation_handler,
     get_calculation_handler,
@@ -497,7 +520,7 @@ assert handler == my_custom_calculation
 ### Dependency Resolution
 
 ```python
-from dcc.workflow.processor_engine.engine.schema import resolve_calculation_order
+from dcc.workflow.processor_engine.schema import resolve_calculation_order
 
 # Define columns with dependencies
 columns = {
@@ -531,7 +554,7 @@ circular = {
 ### Full Engine Import
 
 ```python
-from dcc.workflow.processor_engine.engine import (
+from dcc.workflow.processor_engine import (
     # Core
     CalculationEngine,
     BaseProcessor,
@@ -552,7 +575,7 @@ from dcc.workflow.processor_engine.engine import (
 )
 
 # Calculations
-from dcc.workflow.processor_engine.engine.calculations import (
+from dcc.workflow.processor_engine.calculations import (
     # Null handling
     apply_forward_fill,
     apply_multi_level_forward_fill,
@@ -595,7 +618,7 @@ from dcc.workflow.processor_engine.engine.calculations import (
 
 ```python
 # Core only
-from dcc.workflow.processor_engine.engine.core import (
+from dcc.workflow.processor_engine.core import (
     CalculationEngine,
     BaseProcessor,
     get_calculation_handler,
@@ -603,19 +626,19 @@ from dcc.workflow.processor_engine.engine.core import (
 )
 
 # Schema only
-from dcc.workflow.processor_engine.engine.schema import (
+from dcc.workflow.processor_engine.schema import (
     SchemaProcessor,
     resolve_calculation_order,
 )
 
 # Calculations only
-from dcc.workflow.processor_engine.engine.calculations import (
+from dcc.workflow.processor_engine.calculations import (
     apply_aggregate_calculation,
     apply_conditional_date_calculation,
 )
 
 # Utils only
-from dcc.workflow.processor_engine.engine.utils import load_excel_data
+from dcc.workflow.processor_engine.utils import load_excel_data
 ```
 
 ---

@@ -14,10 +14,9 @@ A modular engine for schema loading, validation, and dependency resolution. This
 - [Field Validation Functions](#field-validation-functions)
 - [Status Persistence Functions](#status-persistence-functions)
 - [Utility Functions](#utility-functions)
+- [Validation Category Summary Table](#validation-category-summary-table)
 - [Usage Examples](#usage-examples)
-  - [Basic Validation](#basic-validation)
-  - [Schema Loading with Dependencies](#schema-loading-with-dependencies)
-  - [Status Persistence](#status-persistence)
+- [Troubleshooting](#troubleshooting)
 - [Import Quick Reference](#import-quick-reference)
 - [Error Handling](#error-handling)
 - [Best Practices](#best-practices)
@@ -27,7 +26,7 @@ A modular engine for schema loading, validation, and dependency resolution. This
 ## Module Structure
 
 ```
-schema_engine/engine/
+schema_engine/
 ├── __init__.py              # Main engine exports (all public functions)
 ├── readme.md                # This documentation file
 ├── core/                    # Core components
@@ -107,6 +106,19 @@ flowchart TD
 | `validated_paths` | `validate()` | `validate_schema_document()` | Prevents duplicate validation | Set of already validated schema paths |
 | `references` | `_detect_circular_dependencies()` | Populated as references checked | `results['references']`, downstream pipeline | List of reference validation results |
 | `base_path` | `SchemaLoader.__init__()` | Defaults to schema directory | `_resolve_reference_path()` | Base directory for relative path resolution |
+
+---
+
+## Validation Category Summary Table
+
+The schema engine performs several categories of validation:
+
+| Category | Component | Description |
+|----------|-----------|-------------|
+| **Structural** | `loader/schema_loader.py` | Validates that schema JSON files are well-formed and loadable |
+| **Integrity** | `validator/schema_validator.py` | Validates that no circular dependencies exist between referenced schemas |
+| **Field-level** | `validator/fields.py` | Validates that schema records comply with their own `field_definitions` |
+| **Continuity** | `status/persistence.py` | Validates that the current validation state is still valid for all involved files |
 
 ---
 
@@ -395,12 +407,23 @@ Handles loading JSON schemas and resolving external schema references. Uses cent
 
 ---
 
+## Troubleshooting
+
+| Issue | Potential Cause | Resolution |
+|-------|-----------------|------------|
+| **Circular dependency detected** | Two schemas reference each other in `schema_references` | Check `dependency_cycle` in results for the path; remove one reference to break the cycle |
+| **Field definition mismatch** | Schema `records` don't match `field_definitions` | Check validation errors for specific field names and record indices |
+| **Status invalid: file changed** | A schema file was modified after validation | Re-run the pipeline to re-validate and update the `schema_validation_status.json` |
+| **Reference file not found** | Relative path in `schema_references` is incorrect | Verify path relative to the schema that contains the reference |
+
+---
+
 ## Usage Examples
 
 ### Basic Validation
 
 ```python
-from dcc.workflow.schema_engine.engine import SchemaValidator, format_report
+from dcc.workflow.schema_engine import SchemaValidator, format_report
 
 # Create validator
 validator = SchemaValidator('config/schemas/dcc_register.json')
@@ -425,7 +448,7 @@ else:
 ### Schema Loading with Dependencies
 
 ```python
-from dcc.workflow.schema_engine.engine import SchemaLoader
+from dcc.workflow.schema_engine import SchemaLoader
 
 # Create loader
 loader = SchemaLoader()
@@ -446,7 +469,7 @@ approval_codes = resolved_schema.get('approval_code_schema_data', {})
 ### Status Persistence
 
 ```python
-from dcc.workflow.schema_engine.engine import (
+from dcc.workflow.schema_engine import (
     SchemaValidator,
     write_validation_status,
     validate_validation_status,
@@ -478,7 +501,7 @@ else:
 ### Full Engine Import
 
 ```python
-from dcc.workflow.schema_engine.engine import (
+from dcc.workflow.schema_engine import (
     # Loader
     SchemaLoader,
     load_schema_parameters,
@@ -515,32 +538,32 @@ from dcc.workflow.schema_engine.engine import (
 
 ```python
 # Loader only
-from dcc.workflow.schema_engine.engine.loader import (
+from dcc.workflow.schema_engine.loader import (
     SchemaLoader,
     load_schema_parameters,
 )
 
 # Validator only
-from dcc.workflow.schema_engine.engine.validator import (
+from dcc.workflow.schema_engine.validator import (
     SchemaValidator,
     validate_schema_document,
     validate_record_field,
 )
 
 # Status only
-from dcc.workflow.schema_engine.engine.status import (
+from dcc.workflow.schema_engine.status import (
     write_validation_status,
     validate_validation_status,
 )
 
 # Utils only
-from dcc.workflow.schema_engine.engine.utils import (
+from dcc.workflow.schema_engine.utils import (
     safe_resolve,
     get_default_schema_path,
 )
 
 # Core only
-from dcc.workflow.schema_engine.engine.core import format_report
+from dcc.workflow.schema_engine.core import format_report
 ```
 
 ---

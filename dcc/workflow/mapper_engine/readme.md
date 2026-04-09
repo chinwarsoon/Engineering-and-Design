@@ -25,7 +25,7 @@ A modular engine for fuzzy header detection and schema-driven column mapping. Th
 ## Module Structure
 
 ```
-mapper_engine/engine/
+mapper_engine/
 ├── __init__.py              # Main engine exports (all public functions)
 ├── readme.md                # This documentation file
 ├── core/                    # Core engine components
@@ -293,8 +293,8 @@ The main orchestrator class that coordinates all column mapping activities. Uses
 ### Basic Column Mapping
 
 ```python
-from dcc.workflow.mapper_engine.engine import ColumnMapperEngine
-from dcc.workflow.schema_engine.engine import SchemaLoader
+from dcc.workflow.mapper_engine import ColumnMapperEngine
+from dcc.workflow.schema_engine import SchemaLoader
 
 # Create engine and load schema
 schema_loader = SchemaLoader()
@@ -322,7 +322,7 @@ if mapping_info['missing_required']:
 ### Custom Fuzzy Matching
 
 ```python
-from dcc.workflow.mapper_engine.engine import fuzzy_match_column, normalize_string
+from dcc.workflow.mapper_engine import fuzzy_match_column, normalize_string
 
 # Direct fuzzy matching without engine
 headers = ["Doc Type", "Revision", "Date Submit"]
@@ -341,7 +341,7 @@ for header in headers:
 ### Column Coverage Analysis
 
 ```python
-from dcc.workflow.mapper_engine.engine import (
+from dcc.workflow.mapper_engine import (
     ColumnMapperEngine,
     get_column_bounds,
     analyze_column_coverage,
@@ -368,7 +368,7 @@ print(f"Average coverage: {stats['average_coverage']:.1f} rows/column")
 ### Full Engine Import
 
 ```python
-from dcc.workflow.mapper_engine.engine import (
+from dcc.workflow.mapper_engine import (
     # Core
     ColumnMapperEngine,
     
@@ -394,22 +394,22 @@ from dcc.workflow.mapper_engine.engine import (
 
 ```python
 # Core only
-from dcc.workflow.mapper_engine.engine.core import ColumnMapperEngine
+from dcc.workflow.mapper_engine.core import ColumnMapperEngine
 
 # Matchers only
-from dcc.workflow.mapper_engine.engine.matchers import (
+from dcc.workflow.mapper_engine.matchers import (
     fuzzy_match_column,
     normalize_string,
 )
 
 # Mappers only
-from dcc.workflow.mapper_engine.engine.mappers import (
+from dcc.workflow.mapper_engine.mappers import (
     detect_columns,
     rename_dataframe_columns,
 )
 
 # Utils only
-from dcc.workflow.mapper_engine.engine.utils import (
+from dcc.workflow.mapper_engine.utils import (
     get_column_bounds,
     analyze_column_coverage,
 )
