@@ -160,7 +160,7 @@ The main orchestrator class for schema validation.
 
 **File:** `loader/schema_loader.py`
 
-Handles loading JSON schemas and resolving external schema references.
+Handles loading JSON schemas and resolving external schema references. Uses centralized logging from `initiation_engine` (`status_print`, `debug_print`) for consistent output.
 
 | Attribute | Details |
 |-----------|---------|

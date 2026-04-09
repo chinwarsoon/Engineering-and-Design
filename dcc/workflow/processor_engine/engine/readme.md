@@ -359,13 +359,15 @@ Handles translation of schema definitions into actionable instructions for the C
 
 **File:** `utils/dateframe.py`
 
+Uses centralized logging from `initiation_engine` (`debug_print`) for all diagnostic output.
+
 #### prepare_dataframe_for_processing(df)
 
 | Attribute | Details |
 |-----------|---------|
 | **Input** | `df` (pd.DataFrame): Raw input DataFrame |
 | **Output** | Prepared DataFrame ready for processing |
-| **Function** | Standardizes DataFrame format for pipeline |
+| **Function** | Standardizes DataFrame format for pipeline (resets index, ensures clean state) |
 
 #### initialize_missing_columns(df, columns, parameters)
 
@@ -374,6 +376,71 @@ Handles translation of schema definitions into actionable instructions for the C
 | **Input** | `df` (pd.DataFrame), `columns` (Dict), `parameters` (Dict) |
 | **Output** | DataFrame with missing schema columns initialized |
 | **Function** | Adds missing columns from schema with null values |
+
+---
+
+## Logging System
+
+The processor engine uses **centralized logging** from `initiation_engine` instead of Python's standard `logging` module. All calculation modules, null handlers, and utilities use:
+
+| Function | Purpose | Output |
+|----------|---------|--------|
+| `status_print(message)` | User-facing status updates, warnings, errors | Console with hierarchical indentation |
+| `debug_print(message)` | Developer-only debug info (hidden unless `--debug` mode) | Console with hierarchical indentation |
+| `engine._print_processing_step(phase, column_name, detail)` | Standardized calculation step logging | Console via `status_print` |
+
+### Why Not Python's `logging` Module?
+
+The standard `logging` module was replaced because:
+1. **No indentation support** - Raw log lines don't show hierarchy
+2. **Not captured by DEBUG_OBJECT** - Standard logger bypasses the custom debug system
+3. **Duplicate output** - Was causing messages to appear twice
+4. **No file output** - No FileHandler was configured anyway
+
+### Where Logs Go
+
+- **Console**: Hierarchical indented output via `status_print()` / `debug_print()`
+- **In-memory**: All messages accumulate in `DEBUG_OBJECT` global dict
+- **File**: `debug_log.json` saved to output folder at pipeline end (see `dcc_engine_pipeline.py`)
+
+### Calculation Handler Logging
+
+All calculation handlers follow this pattern:
+
+```python
+def apply_some_calculation(engine, df, column_name, calculation):
+    # Entry message
+    engine._print_processing_step("Phase", column_name, "Description")
+    
+    # Preserving existing values
+    if existing_mask.any():
+        engine._print_processing_step("Phase", column_name, f"Preserving {count} existing values")
+    
+    # Completion message
+    engine._print_processing_step("Phase", column_name, f"Applied to {count} rows")
+    
+    # Skip message (debug only)
+    debug_print(f"Skipped {column_name}: all values present")
+    
+    return df
+```
+
+### Phase Names Used
+
+| Phase | Module | Example |
+|-------|--------|---------|
+| `Null-Handling` | null_handling.py | Forward fill, copy from, default value |
+| `Aggregate` | aggregate.py | Grouping, latest-by-date, concatenate |
+| `Conditional` | conditional.py | Current row, resubmission logic |
+| `Date-Calc` | date.py | Working days, date difference |
+| `Working-Days` | date.py | Add working days |
+| `Conditional-Date` | date.py | First vs subsequent submission |
+| `Business-Day` | date.py | Conditional business day calc |
+| `Resubmission-Plan` | date.py | Resubmission plan date |
+| `Composite` | composite.py | Document ID, row index |
+| `Complex-Lookup` | composite.py | Delay of resubmission |
+| `Copy` | composite.py | Direct column copy |
+| `Mapping` | mapping.py | Status-to-code mapping |
 
 ---
 
@@ -559,9 +626,10 @@ The engine provides comprehensive error handling:
 
 1. **Schema Loading Errors**: Caught during engine initialization, raises with context
 2. **Circular Dependencies**: `resolve_calculation_order()` raises ValueError with cycle path
-3. **Missing Handlers**: `get_calculation_handler()` returns None, logged as warning
+3. **Missing Handlers**: `get_calculation_handler()` returns None, logged via `status_print` as warning
 4. **Invalid Configurations**: Handler functions validate config and raise descriptive errors
 5. **Data Type Errors**: Handlers check data types and convert or raise appropriate errors
+6. **Missing Columns**: Detected and reported via `status_print` warnings
 
 ---
 
@@ -573,7 +641,8 @@ The engine provides comprehensive error handling:
 4. **Register custom handlers**: For project-specific calculations, register handlers rather than modifying core
 5. **Handle missing handlers**: Check for None return from get_calculation_handler()
 6. **Process in chunks**: For large datasets, consider chunking before process_data()
-7. **Validate inputs**: Use collect_raw_pattern_errors() before full processing
+7. **Use centralized logging**: All messages should use `status_print()` / `debug_print()` / `engine._print_processing_step()` - never raw `logger.info/warning`
+8. **Review debug_log.json**: After pipeline execution, inspect `debug_log.json` in output folder for detailed trace
 
 ---
 

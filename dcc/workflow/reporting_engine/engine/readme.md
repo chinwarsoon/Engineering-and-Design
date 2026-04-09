@@ -97,3 +97,4 @@ from reporting_engine import write_processing_summary
 - The reporting engine is designed to be called by the pipeline orchestrator after all processing engines complete
 - It aggregates data from all engines (initiation, schema, mapper, processor) into a single summary report
 - Output directory is created automatically if it doesn't exist
+- The pipeline also saves `debug_log.json` to the same output folder, containing a detailed trace of all processing steps with timestamps

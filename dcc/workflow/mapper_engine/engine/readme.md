@@ -103,7 +103,7 @@ flowchart TD
 
 **File:** `core/engine.py`
 
-The main orchestrator class that coordinates all column mapping activities.
+The main orchestrator class that coordinates all column mapping activities. Uses centralized logging from `initiation_engine` (`status_print`, `debug_print`) for consistent output.
 
 | Attribute | Details |
 |-----------|---------|
@@ -216,7 +216,7 @@ The main orchestrator class that coordinates all column mapping activities.
 |-----------|---------|
 | **Input** | `headers` (List[Any]): Headers that may contain tuples from MultiIndex |
 | **Output** | List of flattened string headers |
-| **Function** | Converts MultiIndex tuple headers to strings |
+| **Function** | Converts MultiIndex tuple headers to strings. Uses `status_print` for warnings. |
 | **Workflow** | 1. Detect tuple headers<br>2. Join with underscore<br>3. Return string headers |
 
 ### detect_columns(headers, columns, threshold=0.6)
@@ -231,7 +231,7 @@ The main orchestrator class that coordinates all column mapping activities.
 - unmatched_headers: [header, ...]
 - missing_required: [column_name, ...]
 - total_headers, matched_count, match_rate |
-| **Function** | Main column detection logic using fuzzy matching |
+| **Function** | Main column detection logic using fuzzy matching. Uses `status_print` for warnings about missing required columns. |
 | **Workflow** | 1. Iterate headers<br>2. Fuzzy match against all column aliases<br>3. Record matches above threshold<br>4. Check for missing required columns |
 
 ### extract_categorical_choices(detected_columns, resolved_schema)
