@@ -35,7 +35,8 @@ def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calc
 
     def format_row(row):
         try:
-            values = row.to_dict()
+            # Fill NA/NaN values with empty string before formatting
+            values = {col: '' if pd.isna(row.get(col)) else row[col] for col in available_sources}
             return format_string.format(**values)
         except Exception:
             return "ERR-COMPOSITE"

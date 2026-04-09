@@ -34,7 +34,7 @@ The `UniversalDocumentProcessor.process_data()` method executes these steps in o
 | 3 | `Document_Type` | Input | Raw document type column | Validated against document_type_schema | `default_value`: "NA" |
 | 4 | `Discipline` | Input | Raw discipline column | Validated against discipline_schema | `default_value`: "NA" |
 | 5 | `Document_Sequence_Number` | Input | Raw sequence number column | Validated with numeric pattern | `default_value`: "NA" |
-| 6 | `Document_ID` | Calculated | `Project_Code`, `Facility_Code`, `Document_Type`, `Document_Sequence_Number` | **composite/build_document_id**: Format `{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}` | `leave_null`: Populated by composite calculation |
+| 6 | `Document_ID` | Calculated | `Project_Code`, `Facility_Code`, `Document_Type`, `Discipline`, `Document_Sequence_Number` | **composite/build_document_id**: Format `{Project_Code}-{Facility_Code}-{Document_Type}-{Discipline}-{Document_Sequence_Number}` | `leave_null`: Populated by composite calculation |
 | 7 | `Document_Revision` | Input | Raw revision column | Multi-level forward fill | `multi_level_forward_fill`: [DocID+Session+Rev → DocID+Session → DocID], final_fill: "NA" |
 | 8 | `Document_Title` | Input | Raw title column | Direct mapping | `default_value`: "NA" |
 | 9 | `Transmittal_Number` | Input | Raw transmittal column | String conversion, text replacements (N.A.→NA, nan→NA) | `default_value` with text_replacements: "NA" |
@@ -111,7 +111,7 @@ The `UniversalDocumentProcessor.process_data()` method executes these steps in o
 
 ### Method: `composite/build_document_id`
 - **Used by**: Document_ID
-- **Logic**: Concatenate source columns using format string `{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}`
+- **Logic**: Concatenate source columns using format string `{Project_Code}-{Facility_Code}-{Document_Type}-{Discipline}-{Document_Sequence_Number}`
 
 ### Method: `aggregate/*`
 - **count**: Count rows per group, broadcast via transform

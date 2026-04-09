@@ -202,8 +202,7 @@
         "aliases": [
           "Document Description / Drawing Title",
           "Subject",
-          "Submission Subject",
-          "CES_SALCON-SDC JV Cor Ref No"
+          "Submission Subject"
         ],
         "data_type": "string",
         "required": true,
@@ -403,9 +402,10 @@
             "Project_Code",
             "Facility_Code",
             "Document_Type",
+            "Discipline",
             "Document_Sequence_Number"
           ],
-          "format": "{Project_Code}-{Facility_Code}-{Document_Type}-{Document_Sequence_Number}",
+          "format": "{Project_Code}-{Facility_Code}-{Document_Type}-{Discipline}-{Document_Sequence_Number}",
           "fallback_source": "Document_ID",
           "description": "Calculated via _apply_composite_calculation with method build_document_id. Concatenates identifiers using the defined format string."
         },
