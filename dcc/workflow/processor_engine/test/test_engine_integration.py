@@ -1,4 +1,4 @@
-from engine.core.engine import CalculationEngine
+from engine.core import CalculationEngine
 import pandas as pd
 
 def test_full_engine_flow():

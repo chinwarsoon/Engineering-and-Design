@@ -722,37 +722,37 @@
       ],
       "processor_engine": [
         {
-          "path": "engine",
+          "path": ".",
           "type": "folder",
           "required": true,
           "description": "Main engine package"
         },
         {
-          "path": "engine/__init__.py",
+          "path": "./__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Engine package exports"
         },
         {
-          "path": "engine/readme.md",
+          "path": "./readme.md",
           "type": "documentation",
           "required": false,
           "description": "Engine module documentation"
         },
         {
-          "path": "engine/core",
+          "path": "./core",
           "type": "folder",
           "required": true,
           "description": "Core engine components"
         },
         {
-          "path": "engine/core/__init__.py",
+          "path": "./core/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Core module exports"
         },
         {
-          "path": "engine/core/base.py",
+          "path": "./core/base.py",
           "type": "python_module",
           "required": true,
           "description": "BaseProcessor with shared utilities",
@@ -762,7 +762,7 @@
           ]
         },
         {
-          "path": "engine/core/engine.py",
+          "path": "./core/engine.py",
           "type": "python_module",
           "required": true,
           "description": "CalculationEngine orchestrator",
@@ -773,7 +773,7 @@
           ]
         },
         {
-          "path": "engine/core/registry.py",
+          "path": "./core/registry.py",
           "type": "python_module",
           "required": true,
           "description": "Handler registries for calculations and null handling",
@@ -784,19 +784,19 @@
           ]
         },
         {
-          "path": "engine/calculations",
+          "path": "./calculations",
           "type": "folder",
           "required": true,
           "description": "Calculation implementations"
         },
         {
-          "path": "engine/calculations/__init__.py",
+          "path": "./calculations/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Calculations module exports"
         },
         {
-          "path": "engine/calculations/aggregate.py",
+          "path": "./calculations/aggregate.py",
           "type": "python_module",
           "required": true,
           "description": "Grouping/aggregation calculations",
@@ -807,7 +807,7 @@
           ]
         },
         {
-          "path": "engine/calculations/composite.py",
+          "path": "./calculations/composite.py",
           "type": "python_module",
           "required": true,
           "description": "Composite, row index, delay calculations",
@@ -819,7 +819,7 @@
           ]
         },
         {
-          "path": "engine/calculations/conditional.py",
+          "path": "./calculations/conditional.py",
           "type": "python_module",
           "required": true,
           "description": "Conditional logic calculations",
@@ -830,7 +830,7 @@
           ]
         },
         {
-          "path": "engine/calculations/date.py",
+          "path": "./calculations/date.py",
           "type": "python_module",
           "required": true,
           "description": "Date arithmetic calculations",
@@ -841,7 +841,7 @@
           ]
         },
         {
-          "path": "engine/calculations/mapping.py",
+          "path": "./calculations/mapping.py",
           "type": "python_module",
           "required": true,
           "description": "Value mapping calculations",
@@ -851,7 +851,7 @@
           ]
         },
         {
-          "path": "engine/calculations/null_handling.py",
+          "path": "./calculations/null_handling.py",
           "type": "python_module",
           "required": true,
           "description": "Null handling strategies",
@@ -862,7 +862,7 @@
           ]
         },
         {
-          "path": "engine/calculations/validation.py",
+          "path": "./calculations/validation.py",
           "type": "python_module",
           "required": true,
           "description": "Data validation functions",
@@ -872,19 +872,19 @@
           ]
         },
         {
-          "path": "engine/schema",
+          "path": "./schema",
           "type": "folder",
           "required": true,
           "description": "Schema utilities"
         },
         {
-          "path": "engine/schema/__init__.py",
+          "path": "./schema/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Schema module exports"
         },
         {
-          "path": "engine/schema/dependency.py",
+          "path": "./schema/dependency.py",
           "type": "python_module",
           "required": true,
           "description": "Dependency resolution and calculation ordering",
@@ -893,25 +893,25 @@
           ]
         },
         {
-          "path": "engine/schema/processor.py",
+          "path": "./schema/processor.py",
           "type": "python_module",
           "required": true,
           "description": "Schema processing utilities"
         },
         {
-          "path": "engine/utils",
+          "path": "./utils",
           "type": "folder",
           "required": true,
           "description": "Utility functions"
         },
         {
-          "path": "engine/utils/__init__.py",
+          "path": "./utils/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Utils module exports"
         },
         {
-          "path": "engine/utils/dateframe.py",
+          "path": "./utils/dateframe.py",
           "type": "python_module",
           "required": true,
           "description": "DataFrame manipulation utilities",
@@ -922,7 +922,7 @@
           ]
         },
         {
-          "path": "engine/utils/logging.py",
+          "path": "./utils/logging.py",
           "type": "python_module",
           "required": false,
           "description": "Logging utilities"
@@ -960,37 +960,37 @@
       ],
       "mapper_engine": [
         {
-          "path": "engine",
+          "path": ".",
           "type": "folder",
           "required": true,
           "description": "Main mapper engine package"
         },
         {
-          "path": "engine/__init__.py",
+          "path": "./__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Mapper engine package exports"
         },
         {
-          "path": "engine/readme.md",
+          "path": "./readme.md",
           "type": "documentation",
           "required": false,
           "description": "Mapper engine documentation"
         },
         {
-          "path": "engine/core",
+          "path": "./core",
           "type": "folder",
           "required": true,
           "description": "Core mapper engine components"
         },
         {
-          "path": "engine/core/__init__.py",
+          "path": "./core/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Core module exports"
         },
         {
-          "path": "engine/core/engine.py",
+          "path": "./core/engine.py",
           "type": "python_module",
           "required": true,
           "description": "ColumnMapperEngine orchestrator",
@@ -1002,19 +1002,19 @@
           ]
         },
         {
-          "path": "engine/matchers",
+          "path": "./matchers",
           "type": "folder",
           "required": true,
           "description": "Fuzzy matching algorithms"
         },
         {
-          "path": "engine/matchers/__init__.py",
+          "path": "./matchers/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Matchers module exports"
         },
         {
-          "path": "engine/matchers/fuzzy.py",
+          "path": "./matchers/fuzzy.py",
           "type": "python_module",
           "required": true,
           "description": "Fuzzy matching and string normalization",
@@ -1025,19 +1025,19 @@
           ]
         },
         {
-          "path": "engine/mappers",
+          "path": "./mappers",
           "type": "folder",
           "required": true,
           "description": "Column mapping logic"
         },
         {
-          "path": "engine/mappers/__init__.py",
+          "path": "./mappers/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Mappers module exports"
         },
         {
-          "path": "engine/mappers/detection.py",
+          "path": "./mappers/detection.py",
           "type": "python_module",
           "required": true,
           "description": "Column detection and renaming logic",
@@ -1048,19 +1048,19 @@
           ]
         },
         {
-          "path": "engine/utils",
+          "path": "./utils",
           "type": "folder",
           "required": true,
           "description": "Utility functions"
         },
         {
-          "path": "engine/utils/__init__.py",
+          "path": "./utils/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Utils module exports"
         },
         {
-          "path": "engine/utils/columns.py",
+          "path": "./utils/columns.py",
           "type": "python_module",
           "required": true,
           "description": "Column bounds and coverage analysis",
@@ -1087,37 +1087,37 @@
       ],
       "schema_engine": [
         {
-          "path": "engine",
+          "path": ".",
           "type": "folder",
           "required": true,
           "description": "Main schema engine package"
         },
         {
-          "path": "engine/__init__.py",
+          "path": "./__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Schema engine package exports"
         },
         {
-          "path": "engine/readme.md",
+          "path": "./readme.md",
           "type": "documentation",
           "required": false,
           "description": "Schema engine documentation"
         },
         {
-          "path": "engine/core",
+          "path": "./core",
           "type": "folder",
           "required": true,
           "description": "Core schema engine components"
         },
         {
-          "path": "engine/core/__init__.py",
+          "path": "./core/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Core module exports"
         },
         {
-          "path": "engine/core/reports.py",
+          "path": "./core/reports.py",
           "type": "python_module",
           "required": true,
           "description": "Report formatting utilities",
@@ -1126,19 +1126,19 @@
           ]
         },
         {
-          "path": "engine/loader",
+          "path": "./loader",
           "type": "folder",
           "required": true,
           "description": "Schema loading and dependency resolution"
         },
         {
-          "path": "engine/loader/__init__.py",
+          "path": "./loader/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Loader module exports"
         },
         {
-          "path": "engine/loader/schema_loader.py",
+          "path": "./loader/schema_loader.py",
           "type": "python_module",
           "required": true,
           "description": "SchemaLoader class for loading and resolving schemas",
@@ -1149,19 +1149,19 @@
           ]
         },
         {
-          "path": "engine/validator",
+          "path": "./validator",
           "type": "folder",
           "required": true,
           "description": "Schema validation logic"
         },
         {
-          "path": "engine/validator/__init__.py",
+          "path": "./validator/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Validator module exports"
         },
         {
-          "path": "engine/validator/schema_validator.py",
+          "path": "./validator/schema_validator.py",
           "type": "python_module",
           "required": true,
           "description": "SchemaValidator class for validation and circular dependency detection",
@@ -1172,7 +1172,7 @@
           ]
         },
         {
-          "path": "engine/validator/fields.py",
+          "path": "./validator/fields.py",
           "type": "python_module",
           "required": true,
           "description": "Field-level validation functions",
@@ -1183,19 +1183,19 @@
           ]
         },
         {
-          "path": "engine/status",
+          "path": "./status",
           "type": "folder",
           "required": true,
           "description": "Validation status persistence"
         },
         {
-          "path": "engine/status/__init__.py",
+          "path": "./status/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Status module exports"
         },
         {
-          "path": "engine/status/persistence.py",
+          "path": "./status/persistence.py",
           "type": "python_module",
           "required": true,
           "description": "Validation status read/write/check functions",
@@ -1206,19 +1206,19 @@
           ]
         },
         {
-          "path": "engine/utils",
+          "path": "./utils",
           "type": "folder",
           "required": true,
           "description": "Utility functions"
         },
         {
-          "path": "engine/utils/__init__.py",
+          "path": "./utils/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Utils module exports"
         },
         {
-          "path": "engine/utils/paths.py",
+          "path": "./utils/paths.py",
           "type": "python_module",
           "required": true,
           "description": "Safe path resolution utilities",
@@ -1231,37 +1231,37 @@
       ],
       "initiation_engine": [
         {
-          "path": "engine",
+          "path": ".",
           "type": "folder",
           "required": true,
           "description": "Main initiation engine package"
         },
         {
-          "path": "engine/__init__.py",
+          "path": "./__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Initiation engine package exports"
         },
         {
-          "path": "engine/readme.md",
+          "path": "./readme.md",
           "type": "documentation",
           "required": false,
           "description": "Initiation engine documentation"
         },
         {
-          "path": "engine/core",
+          "path": "./core",
           "type": "folder",
           "required": true,
           "description": "Core initiation engine components"
         },
         {
-          "path": "engine/core/__init__.py",
+          "path": "./core/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Core module exports"
         },
         {
-          "path": "engine/core/validator.py",
+          "path": "./core/validator.py",
           "type": "python_module",
           "required": true,
           "description": "ProjectSetupValidator orchestrator",
@@ -1271,7 +1271,7 @@
           ]
         },
         {
-          "path": "engine/core/reports.py",
+          "path": "./core/reports.py",
           "type": "python_module",
           "required": true,
           "description": "Report formatting utilities",
@@ -1280,19 +1280,19 @@
           ]
         },
         {
-          "path": "engine/validators",
+          "path": "./validators",
           "type": "folder",
           "required": true,
           "description": "Validation logic"
         },
         {
-          "path": "engine/validators/__init__.py",
+          "path": "./validators/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Validators module exports"
         },
         {
-          "path": "engine/validators/items.py",
+          "path": "./validators/items.py",
           "type": "python_module",
           "required": true,
           "description": "Folder/file/environment validation functions",
@@ -1304,55 +1304,55 @@
           ]
         },
         {
-          "path": "engine/utils",
+          "path": "./utils",
           "type": "folder",
           "required": true,
           "description": "Utility functions"
         },
         {
-          "path": "engine/utils/__init__.py",
+          "path": "./utils/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Utils module exports"
         },
         {
-          "path": "engine/utils/paths.py",
+          "path": "./utils/paths.py",
           "type": "python_module",
           "required": true,
         "description": "Path normalization utilities"
       },
       {
-        "path": "engine/utils/cli.py",
+        "path": "./utils/cli.py",
         "type": "python_module",
         "required": true,
         "description": "CLI argument parsing utilities"
       },
       {
-        "path": "engine/utils/logging.py",
+        "path": "./utils/logging.py",
         "type": "python_module",
         "required": true,
         "description": "Logging utilities"
       },
       {
-        "path": "engine/utils/system.py",
+        "path": "./utils/system.py",
         "type": "python_module",
         "required": true,
         "description": "System detection utilities"
         },
         {
-          "path": "engine/system",
+          "path": "./system",
           "type": "folder",
           "required": true,
           "description": "System detection"
         },
         {
-          "path": "engine/system/__init__.py",
+          "path": "./system/__init__.py",
           "type": "init_file",
           "required": true,
           "description": "System module exports"
         },
         {
-          "path": "engine/system/os_detect.py",
+          "path": "./system/os_detect.py",
           "type": "python_module",
           "required": true,
           "description": "OS detection and auto-creation logic",
@@ -1364,25 +1364,25 @@
       ],
       "reporting_engine": [
         {
-          "path": "engine",
+          "path": ".",
           "type": "folder",
           "required": true,
           "description": "Main reporting engine package"
         },
         {
-          "path": "engine/__init__.py",
+          "path": "./__init__.py",
           "type": "init_file",
           "required": true,
           "description": "Reporting engine package exports"
         },
         {
-          "path": "engine/readme.md",
+          "path": "./readme.md",
           "type": "documentation",
           "required": false,
           "description": "Reporting engine documentation"
         },
         {
-          "path": "engine/summary.py",
+          "path": "./summary.py",
           "type": "python_module",
           "required": true,
           "description": "Processing summary report generator",
@@ -1456,26 +1456,26 @@
         ],
         "engines": [
           {
-            "module": "initiation_engine.engine",
+            "module": "initiation_engine",
             "members": [
               "ProjectSetupValidator"
             ]
           },
           {
-            "module": "schema_engine.engine",
+            "module": "schema_engine",
             "members": [
               "SchemaValidator",
               "write_validation_status"
             ]
           },
           {
-            "module": "mapper_engine.engine",
+            "module": "mapper_engine",
             "members": [
               "ColumnMapperEngine"
             ]
           },
           {
-            "module": "processor_engine.engine",
+            "module": "processor_engine",
             "members": [
               "CalculationEngine"
             ]

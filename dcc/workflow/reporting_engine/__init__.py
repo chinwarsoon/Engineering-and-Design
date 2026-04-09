@@ -1,9 +1,14 @@
-"""Reporting Engine for DCC Pipeline.
+"""Reporting Engine Core Module.
 
-This module provides reporting and summary generation functionality
-for the DCC document processing pipeline.
+Provides summary report generation for DCC pipeline processing.
 """
 
-from .engine import write_processing_summary
+from .summary import (
+    write_processing_summary,
+    print_summary,
+)
 
-__all__ = ["write_processing_summary"]
+__all__ = [
+    "write_processing_summary",
+    "print_summary",
+]
