@@ -265,5 +265,273 @@ This creates the conflict described above.
 
 ---
 
-**Status:** Awaiting decision  
-**Priority:** High - affects data accuracy
+## 8. April 9, 2026 - Implementation Complete
+
+### 8.1 Final Rules Established
+
+Based on detailed discussion, the following 13 rules were established in `column_priority_reference.md`:
+
+| Rule # | Rule | Implementation |
+|--------|------|----------------|
+| 1 | Sort column not allowed before forward fill | Enforced in processing |
+| 2 | Forward fill shall not overwrite existing values | All forward fill handlers check for existing values |
+| 3 | Only Row_Index is unique | Schema `unique_fields` = `["Row_Index"]` |
+| 4 | Define data column priority | P1 (Meta), P2 (Transactional), P3 (Calculated) |
+| 5 | Processing Sequence: Impute P1 → Validate P2 → Calculate P3 | Implemented in `apply_phased_processing()` |
+| 6 | Forward fill boundary conditions | Level 1: [Session, Revision], Level 2: [Session] |
+| 7 | Pipeline handles multiple sessions/revisions | Session-based grouping implemented |
+| 8 | Submission_Closed preserves user input | 2-step: forward fill if user value, else calculate |
+| 9 | Resubmission_Forecast_Date is user estimate | Not calculated, forward fill within boundary allowed |
+| 10 | Document_ID: calculate → null_handling | Phase 2.5 processing |
+| 11 | is_calculated=true: calculation FIRST, null_handling LAST | Implemented in `_apply_phase_calculated()` |
+| 12 | Manual input allowed → forward fill with boundary | P2 columns with Manual Input = YES |
+| 13 | Respect column sequence in schema | Process in `column_sequence` order |
+
+### 8.2 Schema Changes Applied
+
+**File:** `config/schemas/dcc_register_enhanced.json`
+
+```json
+// Added to all 46 columns:
+"processing_phase": "P1" | "P2" | "P2.5" | "P3"
+```
+
+**Distribution:**
+- P1 (Meta Data): 11 columns
+- P2 (Transactional): 11 columns  
+- P2.5 (Anomaly): 3 columns (Document_ID, Latest_Revision, Review_Status_Code)
+- P3 (Calculated): 21 columns
+
+### 8.3 Code Changes Applied
+
+**File:** `processor_engine/core/engine.py`
+
+#### New Methods Added:
+1. `apply_phased_processing(df)` - Main orchestrator (P1→P2→P2.5→P3)
+2. `_apply_phase_null_handling(df, column_names)` - P1 processing
+3. `_apply_phase_transactional(df, column_names)` - P2 processing with forward fill
+4. `_apply_phase_calculated(df, column_names)` - P2.5/P3 processing (calc first, null last)
+
+#### Modified Methods:
+- `process_data()` - Now calls `apply_phased_processing()` instead of separate null/calc calls
+- `apply_null_handling()` - Marked as deprecated for direct use
+- `apply_calculations()` - Marked as deprecated for direct use
+
+#### Key Implementation:
+```python
+# Rule 11: Calculation FIRST, null handling as LAST DEFENSE
+def _apply_phase_calculated(df, column_names):
+    # Step 1: Apply calculations FIRST
+    for col in column_names:
+        apply_calculation(col)
+    
+    # Step 2: Apply null handling only to REMAINING nulls
+    for col in column_names:
+        if df[col].isna().any():
+            apply_null_handling(col)  # Last defense
+```
+
+### 8.4 Documentation Updated
+
+**Files Modified:**
+1. `workflow/explaination/column_priority_reference.md` - Complete column priority documentation
+2. `workflow/processor_engine/readme.md` - Updated with phased processing flowchart and rules
+3. `workflow/README.md` - Added link to column priority reference
+
+### 8.5 Test Results
+
+**Pipeline Test:**
+```
+Raw Shape: (11099, 26)
+Mapped Shape: (11099, 26)
+Processed Shape: (11099, 42)
+Match Rate: 100.0%
+Status: Ready: YES
+```
+
+**Phase Processing Log:**
+```
+[Phase 1] Meta Data: Processing 11 columns
+[Phase 2] Transactional: Processing 11 columns
+[P2-ForwardFill] Resubmission_Forecast_Date: Applying forward_fill
+[Phase 2.5] Anomaly: Processing 3 columns
+[Calculation] Document_ID: Applying composite/build_document_id
+[Calculation] Review_Status_Code: Applying mapping/status_to_code
+[Calculation] Latest_Revision: Applying aggregate/latest_by_date
+[Phase 3] Calculated: Processing 21 columns
+[Calculation] Submission_Closed: Preserving 10228 existing values
+[Calculation] Resubmission_Required: Preserving 10229 existing values
+```
+
+### 8.6 Issues Resolved
+
+| Issue | Status | Resolution |
+|-------|--------|------------|
+| Null handling before calculations | ✅ RESOLVED | Calculations run FIRST, null handling as LAST DEFENSE |
+| Calculated columns overwriting data | ✅ RESOLVED | Calculations only fill nulls, preserve existing values |
+| Document_ID processing order | ✅ RESOLVED | Phase 2.5 (after P2, before P3) |
+| Forward fill boundaries | ✅ RESOLVED | Session/Revision boundaries for P1 + P2 Manual Input |
+| Processing sequence | ✅ RESOLVED | Schema `column_sequence` respected |
+
+### 8.7 Files Changed Summary
+
+**Schema:**
+- `config/schemas/dcc_register_enhanced.json` - Added `processing_phase` to 46 columns
+
+**Code:**
+- `processor_engine/core/engine.py` - Added phased processing methods
+
+**Documentation:**
+- `workflow/explaination/column_priority_reference.md` - Complete rules documentation
+- `workflow/processor_engine/readme.md` - Updated workflow and methods
+- `workflow/README.md` - Added reference link
+
+---
+
+## 9. Quick Reference Guide for Future Development
+
+### 9.1 Key Architectural Decisions
+
+| Decision | Rationale | Impact |
+|----------|-----------|--------|
+| **Phased Processing (P1→P2→P2.5→P3)** | Resolves conflict between null handling and calculations | Cleaner separation of concerns, predictable processing order |
+| **Calculation FIRST, Null handling LAST** | Rule 11: Calculated columns need priority | Existing data preserved, calculations fill gaps |
+| **Forward Fill Boundaries** | Rule 12: Prevent data bleeding across sessions | Session-based grouping with warnings |
+| **P2.5 Anomaly Phase** | Rule 10: Document_ID, Review_Status_Code need special handling | Calculated but processed before other P3 columns |
+| **Column Sequence Respect** | Rule 13: Schema order matters | Deterministic, debuggable processing |
+
+### 9.2 When Adding New Columns
+
+**Checklist:**
+1. [ ] Determine processing phase (P1/P2/P2.5/P3)
+2. [ ] Define `is_calculated` flag
+3. [ ] Define `null_handling` strategy
+4. [ ] Add to `column_sequence` in schema
+5. [ ] Add `processing_phase` field
+6. [ ] Document in `column_priority_reference.md`
+7. [ ] Update `column_update_logic.md`
+8. [ ] Test with actual data
+
+**Phase Decision Tree:**
+```
+Is it Meta Data (Project, Facility, Session info)?
+  → YES → P1
+  → NO → Is it Transactional (Doc Revision, Reviewer, Status)?
+    → YES → P2
+    → NO → Is it Anomaly (Document_ID, Review_Status_Code, Latest_Revision)?
+      → YES → P2.5
+      → NO → Is it Calculated?
+        → YES → P3
+        → NO → Review classification
+```
+
+### 9.3 Related Documents
+
+| Document | Purpose | Location |
+|----------|---------|----------|
+| **Column Priority Reference** | Complete 13 rules with detailed explanations | `workflow/explaination/column_priority_reference.md` |
+| **Column Update Logic** | 46-column processing logic table | `workflow/explaination/column_update_logic.md` |
+| **Error Handling Framework** | 24 error codes for validation | `workflow/explaination/error_handling.md` |
+| **Processor Engine README** | Engine architecture and methods | `workflow/processor_engine/readme.md` |
+| **Main Workflow README** | Pipeline overview | `workflow/README.md` |
+| **Schema File** | Column definitions and phases | `config/schemas/dcc_register_enhanced.json` |
+| **Engine Implementation** | Core processing logic | `workflow/processor_engine/core/engine.py` |
+
+### 9.4 Common Patterns
+
+**Adding a P3 Calculated Column:**
+```json
+{
+  "column_name": "My_New_Column",
+  "is_calculated": true,
+  "processing_phase": "P3",
+  "calculation": {
+    "type": "conditional",
+    "method": "my_calculation"
+  },
+  "null_handling": {
+    "strategy": "default_value",
+    "default_value": "NA"
+  }
+}
+```
+Note: Calculation runs FIRST, null handling only fills remaining nulls (Rule 11).
+
+**Adding a P2 Transactional Column with Forward Fill:**
+```json
+{
+  "column_name": "My_Input_Column",
+  "is_calculated": false,
+  "processing_phase": "P2",
+  "null_handling": {
+    "strategy": "forward_fill",
+    "group_by": ["Submission_Session"],
+    "fill_value": "NA"
+  }
+}
+```
+Note: Forward fill respects boundaries (Rule 12).
+
+### 9.5 Testing Checklist
+
+After any schema or engine change:
+1. [ ] Run `python dcc_engine_pipeline.py --nrows 100` for quick test
+2. [ ] Verify log shows P1→P2→P2.5→P3 phases
+3. [ ] Check `processing_summary.txt` for errors
+4. [ ] Run full dataset test (11,099 rows)
+5. [ ] Verify `validation_errors` column has no unexpected codes
+6. [ ] Check calculated columns preserve existing data
+7. [ ] Verify forward fill boundaries work correctly
+
+### 9.6 Debugging Tips
+
+**Issue: Calculated column not updating**
+- Check: Is it P2.5 or P3? Look for `processing_phase`
+- Check: Does calculation handler only fill nulls?
+- Check: Are there existing values preventing update?
+
+**Issue: Forward fill crossing sessions**
+- Check: `group_by` includes `Submission_Session`
+- Check: `na_fallback` is set appropriately
+- Check: Boundary rules are being applied
+
+**Issue: Wrong processing order**
+- Check: `column_sequence` in schema
+- Check: `processing_phase` assignments
+- Check: `resolve_calculation_order()` dependency graph
+
+---
+
+## 10. Changelog Summary (April 9, 2026)
+
+### Schema Changes
+- Added `processing_phase` to all 46 columns (P1=11, P2=11, P2.5=3, P3=21)
+- Updated `unique_fields` to `["Row_Index"]` per Rule 3
+- Verified `column_sequence` matches processing order
+
+### Engine Changes  
+- Implemented `apply_phased_processing()` (P1→P2→P2.5→P3)
+- Added `_apply_phase_null_handling()` for P1
+- Added `_apply_phase_transactional()` for P2
+- Added `_apply_phase_calculated()` for P2.5/P3
+- Modified `process_data()` to use phased processing
+- Deprecated direct use of `apply_null_handling()` and `apply_calculations()`
+
+### Documentation Changes
+- Created `column_priority_reference.md` with 13 rules
+- Updated `column_update_logic.md` with phases
+- Updated `processor_engine/readme.md` with new workflow
+- Created `error_handling.md` with 24 error codes
+- Updated `README.md` with reference links
+
+### Test Results
+- Pipeline: 11,099 rows processed successfully
+- Match Rate: 100%
+- Status: Ready: YES
+- All 5 core issues resolved
+
+---
+
+**Status:** ✅ IMPLEMENTATION COMPLETE - April 9, 2026  
+**Priority:** High - All issues resolved, pipeline tested successfully  
+**Reference Version:** v1.0 - Comprehensive development guide

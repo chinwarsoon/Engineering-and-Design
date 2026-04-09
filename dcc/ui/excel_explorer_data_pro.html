@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel Explorer Data Pro</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   COLOR THEMES
+═══════════════════════════════════════════════ */
+:root {
+  --bg:#0d1117; --surface:#161b22; --surface2:#21262d; --surface3:#2d333b;
+  --border:#30363d; --accent:#1f8adb; --accent-alt:#58a6ff; --accent2:#3fb950;
+  --accent3:#d2a679; --text:#e6edf3; --text2:#8b949e; --text3:#484f58;
+  --danger:#f85149; --warn:#d29922; --sidebar-w:280px; --radius:8px; --radius-sm:5px;
+  --th-bg:#161b22; --th-hover:#1c2128; --row-stripe:#1a1f27; --row-hover:#1c2333;
+  --tag-bg:rgba(31,138,219,0.15); --tag-border:rgba(88,166,255,0.3);
+}
+[data-theme="bridge"] {
+  --bg:#0d1117; --surface:#161b22; --surface2:#21262d; --surface3:#2d333b;
+  --border:#30363d; --accent:#1f8adb; --accent-alt:#58a6ff; --accent2:#3fb950;
+  --text:#e6edf3; --text2:#8b949e; --text3:#484f58;
+  --th-bg:#161b22; --th-hover:#1c2128; --row-stripe:#1a1f27; --row-hover:#1c2333;
+  --tag-bg:rgba(31,138,219,0.15); --tag-border:rgba(88,166,255,0.3);
+}
+[data-theme="dark"] {
+  --bg:#0a0a0a; --surface:#111111; --surface2:#1a1a1a; --surface3:#222222;
+  --border:#2a2a2a; --accent:#6ee7b7; --accent-alt:#4ade80; --accent2:#818cf8;
+  --text:#f0f0f0; --text2:#888888; --text3:#444444;
+  --th-bg:#111111; --th-hover:#181818; --row-stripe:#141414; --row-hover:#1f1f1f;
+  --tag-bg:rgba(110,231,183,0.12); --tag-border:rgba(110,231,183,0.28);
+}
+[data-theme="presentation"] {
+  --bg:#1a1035; --surface:#241a4a; --surface2:#2e2260; --surface3:#382a70;
+  --border:#4a3880; --accent:#c084fc; --accent-alt:#e879f9; --accent2:#38bdf8;
+  --text:#f5f0ff; --text2:#b8a8d8; --text3:#6b5a90;
+  --th-bg:#241a4a; --th-hover:#2e2260; --row-stripe:#201840; --row-hover:#2c2058;
+  --tag-bg:rgba(192,132,252,0.15); --tag-border:rgba(232,121,249,0.3);
+}
+[data-theme="light"] {
+  --bg:#f0f4ff; --surface:#ffffff; --surface2:#e8eeff; --surface3:#dce5ff;
+  --border:#c0cbf0; --accent:#2563eb; --accent-alt:#1d4ed8; --accent2:#059669;
+  --text:#0f172a; --text2:#475569; --text3:#94a3b8;
+  --danger:#dc2626; --warn:#d97706;
+  --th-bg:#eef2ff; --th-hover:#e0e7ff; --row-stripe:#f5f7ff; --row-hover:#e8eeff;
+  --tag-bg:rgba(37,99,235,0.1); --tag-border:rgba(37,99,235,0.3);
+}
+[data-theme="red"] {
+  --bg:#110808; --surface:#1c0f0f; --surface2:#261515; --surface3:#311c1c;
+  --border:#4a2222; --accent:#f87171; --accent-alt:#fca5a5; --accent2:#fb923c;
+  --text:#fef2f2; --text2:#c08080; --text3:#7a4545;
+  --th-bg:#1c0f0f; --th-hover:#261515; --row-stripe:#1a1010; --row-hover:#221414;
+  --tag-bg:rgba(248,113,113,0.15); --tag-border:rgba(252,165,165,0.3);
+}
+
+/* ═══════════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════════ */
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--text);display:flex;flex-direction:column;transition:background 0.3s,color 0.3s;}
+
+/* ═══════════════════════════════════════════════
+   TOPBAR
+═══════════════════════════════════════════════ */
+#topbar{
+  height:48px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 16px 0 0;flex-shrink:0;gap:0;z-index:200;
+}
+.tb-logo{width:var(--sidebar-w);padding:0 16px;font-family:'Syne',sans-serif;font-weight:120;font-size:18px;letter-spacing:-0.5px;flex-shrink:0;border-right:20px solid var(--border);height:100%;display:flex;align-items:center;}
+.tb-logo span{color:var(--accent-alt);}
+.tb-steps{display:flex;align-items:center;gap:0;padding:0 16px;flex:1;}
+.tb-step{display:flex;align-items:center;gap:6px;padding:4px 12px;font-size:11px;color:var(--text3);letter-spacing:0.4px;text-transform:uppercase;cursor:default;transition:color 0.25s;}
+.tb-step.active{color:var(--accent-alt);}
+.tb-step.done{color:var(--text2);cursor:pointer;}
+.tb-step.done:hover{color:var(--accent-alt);}
+.tb-num{width:20px;height:20px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:'Syne',sans-serif;font-weight:700;flex-shrink:0;}
+.tb-step.done .tb-num{background:var(--text2);border-color:var(--text2);color:var(--bg);}
+.tb-step.active .tb-num{background:var(--accent-alt);border-color:var(--accent-alt);color:var(--bg);}
+.tb-sep{color:var(--border);font-size:14px;padding:0 2px;}
+.tb-right{display:flex;align-items:center;gap:8px;margin-left:auto;}
+
+/* Theme picker */
+.theme-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 10px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s;}
+.theme-btn:hover{border-color:var(--accent-alt);color:var(--text);}
+.theme-swatch{width:10px;height:10px;border-radius:50%;background:#2563eb;}
+.theme-menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,0.5);z-index:999;min-width:180px;overflow:hidden;}
+.theme-opt{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;font-size:12px;color:var(--text2);transition:background 0.1s;}
+.theme-opt:hover{background:var(--surface3);color:var(--text);}
+.theme-opt.active{color:var(--accent-alt);}
+.theme-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.theme-wrap{position:relative;}
+
+/* Global search topbar */
+.tb-gsearch{position:relative;display:flex;align-items:center;}
+.tb-gsearch input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 10px 5px 30px;font-size:12px;font-family:'DM Mono',monospace;color:var(--text);outline:none;width:220px;transition:all 0.2s;}
+.tb-gsearch input:focus{border-color:var(--accent-alt);width:280px;}
+.tb-gsearch .gsi{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none;}
+.gs-badge{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--accent-alt);color:var(--bg);border-radius:10px;padding:1px 6px;font-size:10px;font-family:'Syne',sans-serif;font-weight:700;display:none;}
+
+/* ═══════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════ */
+#layout{display:flex;flex:1;overflow:hidden;}
+
+/* SIDEBAR */
+#sidebar{
+  width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;overflow-x:hidden;
+}
+.sb-section{border-bottom:1px solid var(--border);flex-shrink:0;}
+.sb-section.sb-open .sb-body{display:block;}
+.sb-section.sb-closed .sb-body{display:none;}
+.sb-header{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;user-select:none;background:var(--surface);transition:background 0.15s;flex-shrink:0;}
+.sb-header:hover{background:var(--surface2);}
+.sb-title{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;flex:1;}
+.sb-icon{font-size:14px;flex-shrink:0;}
+.sb-badge{background:var(--accent2);color:var(--bg);border-radius:10px;padding:1px 7px;font-size:10px;font-family:'Syne',sans-serif;font-weight:700;display:none;}
+.sb-badge.show{display:inline;}
+.sb-arrow{color:var(--text3);font-size:10px;transition:transform 0.3s;flex-shrink:0;}
+.sb-section.sb-closed .sb-arrow{transform:rotate(-90deg);}
+.sb-body{padding:12px;}
+
+/* Drop zone (sidebar) */
+#dropZone{border:2px dashed var(--border);border-radius:var(--radius);padding:20px 12px;text-align:center;cursor:pointer;transition:all 0.2s;position:relative;background:radial-gradient(ellipse at 50% 0%,rgba(88,166,255,0.04) 0%,transparent 70%);}
+#dropZone:hover,#dropZone.drag-over{border-color:var(--accent-alt);background:radial-gradient(ellipse at 50% 0%,rgba(88,166,255,0.09) 0%,transparent 70%);}
+#dropZone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;}
+.dz-icon{font-size:22px;margin-bottom:6px;}
+.dz-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:3px;}
+.dz-sub{font-size:10px;color:var(--text2);}
+.dz-types{font-size:10px;color:var(--text3);margin-top:6px;}
+
+.file-list{display:flex;flex-direction:column;gap:5px;margin-top:10px;}
+.file-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px;display:flex;align-items:center;gap:8px;animation:fadeIn 0.2s ease both;}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-6px);}to{opacity:1;transform:none;}}
+.fi-icon{font-size:15px;flex-shrink:0;}
+.fi-info{flex:1;min-width:0;}
+.fi-name{font-size:11px;color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fi-meta{font-size:10px;color:var(--text2);margin-top:1px;}
+.fi-rm{background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;}
+.fi-rm:hover{background:rgba(248,81,73,0.15);color:var(--danger);}
+
+/* Sheet chips */
+.sheet-grid{display:flex;flex-direction:column;gap:5px;}
+.sheet-chip{padding:7px 10px;border-radius:var(--radius-sm);border:1px solid var(--border);font-size:11px;cursor:pointer;transition:all 0.18s;background:var(--surface2);color:var(--text2);user-select:none;display:flex;align-items:center;gap:6px;}
+.sheet-chip:hover{border-color:var(--accent-alt);color:var(--text);}
+.sheet-chip.selected{border-color:var(--accent-alt);background:var(--tag-bg);color:var(--accent-alt);}
+.chip-check{width:14px;height:14px;border:1.5px solid currentColor;border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;}
+.sheet-chip.selected .chip-check::after{content:'✓';}
+.chip-info{flex:1;min-width:0;}
+.chip-name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.chip-sub{font-size:10px;color:var(--text3);margin-top:1px;}
+.sheet-chip.selected .chip-sub{color:rgba(88,166,255,0.6);}
+
+/* Config forms */
+.cfg-block{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-bottom:8px;}
+.cfg-block-title{font-family:'Syne',sans-serif;font-weight:700;font-size:10px;color:var(--accent-alt);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cfg-row{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+.cfg-row:last-child{margin-bottom:0;}
+.cfg-row-pair{display:flex;gap:6px;margin-bottom:8px;}
+.cfg-row-pair .cfg-half{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
+.cfg-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;}
+input[type=number],input[type=text],select{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 9px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none;transition:border-color 0.2s;-webkit-appearance:none;}
+input:focus,select:focus{border-color:var(--accent-alt);}
+select option{background:var(--surface3);}
+.cfg-preview{font-size:10px;color:var(--text3);margin-top:5px;line-height:1.6;}
+.cfg-preview code{background:var(--surface3);padding:1px 4px;border-radius:3px;font-size:10px;color:var(--text2);}
+
+/* Date tree filter */
+.cfd-tree{max-height:260px;overflow-y:auto;}
+.cfd-tree-year,.cfd-tree-month,.cfd-tree-date{font-size:12px;}
+.cfd-tree-yr-header,.cfd-tree-mo-header{
+  display:flex;align-items:center;gap:6px;padding:5px 10px;cursor:pointer;
+  font-weight:600;color:var(--text);transition:background 0.1s;user-select:none;
+}
+.cfd-tree-yr-header:hover,.cfd-tree-mo-header:hover{background:var(--surface3);}
+.cfd-tree-yr-header input[type=checkbox],.cfd-tree-mo-header input[type=checkbox]{accent-color:var(--accent-alt);width:13px;height:13px;flex-shrink:0;cursor:pointer;}
+.cfd-tree-toggle{color:var(--text3);font-size:9px;transition:transform 0.18s;flex-shrink:0;}
+.cfd-tree-toggle.open{transform:rotate(90deg);}
+.cfd-tree-mo-list{padding-left:12px;}
+.cfd-tree-date-list{padding-left:12px;}
+.cfd-date-row{display:flex;align-items:center;gap:6px;padding:4px 10px;cursor:pointer;font-size:11px;color:var(--text2);transition:background 0.1s;}
+.cfd-date-row:hover{background:var(--surface3);color:var(--text);}
+.cfd-date-row.is-chk{color:var(--accent-alt);}
+.cfd-date-row input[type=checkbox]{accent-color:var(--accent-alt);width:12px;height:12px;flex-shrink:0;}
+
+/* Agg controls in sidebar */
+.agg-item{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
+.agg-item:last-child{margin-bottom:0;}
+
+/* ═══════════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════════ */
+#content{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Welcome screen */
+#welcomePane{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px;}
+.wlc-icon{font-size:52px;line-height:1;}
+.wlc-title{font-family:'Syne',sans-serif;font-weight:500;font-size:28px;color:var(--text);}
+.wlc-sub{font-size:14px;color:var(--text2);text-align:center;max-width:420px;line-height:1.8;}
+.wlc-steps{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;justify-content:center;}
+.wlc-step{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;text-align:center;font-size:12px;color:var(--text2);}
+.wlc-step strong{display:block;font-family:'Syne',sans-serif;font-size:13px;color:var(--text);margin-bottom:4px;}
+
+/* Data pane */
+#dataPane{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Toolbar above table */
+#dataToolbar{padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;}
+.stats-row{display:flex;gap:6px;flex-wrap:wrap;}
+.stat-pill{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--text2);display:flex;align-items:center;gap:4px;}
+.stat-pill strong{color:var(--text);}
+.tb-actions{display:flex;gap:6px;align-items:center;margin-left:auto;}
+
+/* DF Tabs */
+#dfTabs{display:none;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;overflow-x:auto;padding:0 16px;}
+.df-tab{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all 0.18s;white-space:nowrap;font-family:'Syne',sans-serif;font-weight:600;}
+.df-tab:hover{color:var(--text);}
+.df-tab.active{color:var(--accent-alt);border-bottom-color:var(--accent-alt);}
+.df-tab-consolidated{background:rgba(37,99,235,0.06);}
+.df-tab-consolidated.active{color:var(--accent2);border-bottom-color:var(--accent2);}
+.df-tab-consolidated:hover{color:var(--accent2);}
+
+/* Pipeline */
+#pipelineBar{padding:8px 16px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:0;overflow-x:auto;flex-shrink:0;}
+.pipe-node{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);min-width:90px;text-align:center;flex-shrink:0;transition:all 0.22s;}
+.pipe-node.p-on{border-color:var(--accent-alt);background:var(--tag-bg);}
+.pipe-node.p-off{opacity:0.28;}
+.p-ico{font-size:14px;line-height:1;}
+.p-lbl{font-family:'Syne',sans-serif;font-weight:700;font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px;}
+.pipe-node.p-on .p-lbl{color:var(--accent-alt);}
+.p-val{font-size:9px;color:var(--text3);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pipe-node.p-on .p-val{color:var(--text2);}
+.p-arr{padding:0 5px;color:var(--border);font-size:14px;flex-shrink:0;transition:color 0.22s;}
+.p-arr.p-on{color:var(--accent-alt);}
+
+/* Table area */
+#tableArea{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.table-scroll{flex:1;overflow:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{
+  position:sticky;top:0;z-index:20;background:var(--th-bg);border-bottom:2px solid var(--border);
+  padding:0;white-space:nowrap;user-select:none;min-width:120px;
+}
+.th-inner{display:flex;flex-direction:column;gap:0;width:100%;}
+.th-top{
+  display:flex;align-items:center;gap:0;padding:7px 6px 7px 10px;
+  transition:background 0.15s;font-family:'Syne',sans-serif;font-weight:600;
+  font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text2);
+  min-width:0;
+}
+.th-top:hover{background:var(--th-hover);color:var(--text);}
+.th-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;cursor:pointer;}
+.th-name:hover{color:var(--text);}
+.flt-count{background:var(--accent-alt);color:var(--bg);border-radius:10px;padding:1px 5px;font-size:9px;font-family:'Syne',sans-serif;font-weight:700;flex-shrink:0;margin-left:3px;}
+.th-sort-btn{
+  flex-shrink:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border-radius:3px;cursor:pointer;color:var(--text3);font-size:11px;
+  transition:all 0.15s;margin-left:2px;
+}
+.th-sort-btn:hover{background:var(--th-hover);color:var(--text);}
+.th-sort-btn.sort-asc{color:var(--accent-alt);}
+.th-sort-btn.sort-desc{color:var(--accent-alt);}
+.th-filter-btn{
+  flex-shrink:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;
+  border-radius:3px;cursor:pointer;color:var(--text3);font-size:12px;
+  transition:all 0.15s;margin-left:1px;
+}
+.th-filter-btn:hover{background:var(--th-hover);color:var(--text);}
+.th-filter-btn.has-filter{color:var(--accent-alt);}
+/* Per-column search row */
+.th-filter{padding:3px 6px 4px;border-top:1px solid var(--border);}
+.th-filter input{width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:3px;padding:3px 6px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text);outline:none;transition:border-color 0.15s;}
+.th-filter input:focus{border-color:var(--accent-alt);}
+.th-filter input.has-val{border-color:var(--accent-alt);background:var(--tag-bg);}
+
+tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s;}
+tbody tr:nth-child(even){background:var(--row-stripe);}
+tbody tr:hover{background:var(--row-hover);}
+tbody td{padding:7px 10px;color:var(--text);white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis;}
+td.match-cell{color:var(--accent-alt);font-weight:600;}
+td.source-col{color:var(--text2);font-style:italic;font-size:11px;}
+thead th.source-col .th-name{color:var(--accent2);}
+.no-data{text-align:center;padding:44px;color:var(--text3);font-size:13px;}
+
+/* Inline column filter panel (dropdown) */
+.col-filter-drop{
+  position:fixed;z-index:800;background:var(--surface2);border:1px solid var(--accent-alt);
+  border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,0.6);
+  width:220px;display:none;flex-direction:column;
+}
+.cfd-top{padding:8px 8px 5px;border-bottom:1px solid var(--border);}
+.cfd-top input{width:100%;padding:5px 8px;font-size:12px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;color:var(--text);outline:none;margin-bottom:5px;}
+.cfd-top input:focus{border-color:var(--accent-alt);}
+.cfd-btns{display:flex;gap:4px;}
+.cfd-btn{font-size:10px;padding:3px 8px;border-radius:4px;border:1px solid var(--border);background:var(--surface3);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.15s;flex:1;text-align:center;}
+.cfd-btn:hover{border-color:var(--accent-alt);color:var(--text);}
+.cfd-list{max-height:200px;overflow-y:auto;}
+.cfd-row{display:flex;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;font-size:12px;color:var(--text2);transition:background 0.1s;}
+.cfd-row:hover{background:var(--surface3);color:var(--text);}
+.cfd-row.is-chk{color:var(--accent-alt);}
+.cfd-row input[type=checkbox]{accent-color:var(--accent-alt);width:13px;height:13px;flex-shrink:0;}
+.cfd-empty{padding:12px 10px;font-size:11px;color:var(--text3);text-align:center;}
+
+/* Pagination */
+#paginationBar{padding:8px 16px;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:6px;flex-shrink:0;flex-wrap:wrap;}
+.page-btn{width:28px;height:28px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all 0.18s;}
+.page-btn:hover{border-color:var(--accent-alt);color:var(--text);}
+.page-btn.active{background:var(--accent-alt);color:var(--bg);border-color:var(--accent-alt);font-weight:700;}
+.page-info{font-size:11px;color:var(--text3);margin-left:6px;}
+.page-size-wrap{display:flex;align-items:center;gap:6px;margin-left:auto;font-size:11px;color:var(--text2);}
+.page-size-wrap select{width:70px;padding:4px 7px;font-size:11px;}
+
+/* Agg results */
+#aggResults{margin-top:10px;}
+.agg-table-wrap{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:auto;max-height:250px;}
+.agg-table-wrap table thead th{background:var(--th-bg);}
+
+/* BUTTONS */
+.btn{padding:6px 14px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;font-size:12px;transition:all 0.18s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--accent-alt);color:var(--bg);}
+.btn-primary:hover{opacity:0.88;transform:translateY(-1px);}
+.btn-primary:disabled{background:var(--surface3);color:var(--text3);cursor:not-allowed;transform:none;}
+.btn-secondary{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+.btn-secondary:hover{border-color:var(--accent-alt);color:var(--text);}
+.btn-sm{padding:4px 10px;font-size:11px;}
+.btn-danger{background:rgba(248,81,73,0.12);color:var(--danger);border:1px solid rgba(248,81,73,0.25);}
+.btn-danger:hover{background:rgba(248,81,73,0.2);}
+
+/* GROUP BY widget */
+.gb-wrap{position:relative;}
+.gb-box{background:var(--surface3);border:1px solid var(--border);border-radius:var(--radius-sm);min-height:34px;padding:4px 7px;cursor:pointer;transition:border-color 0.18s;display:flex;flex-wrap:wrap;gap:3px;align-items:center;}
+.gb-box:hover,.gb-box.open{border-color:var(--accent-alt);}
+.gb-ph{font-size:11px;color:var(--text3);}
+.gb-tag{background:var(--tag-bg);border:1px solid var(--tag-border);color:var(--accent-alt);border-radius:4px;padding:2px 5px;font-size:10px;display:flex;align-items:center;gap:4px;cursor:grab;user-select:none;}
+.gb-tag.dragging{opacity:0.35;}
+.gb-n{background:var(--accent-alt);color:var(--bg);border-radius:50%;width:13px;height:13px;display:flex;align-items:center;justify-content:center;font-size:8px;font-family:'Syne',sans-serif;font-weight:700;flex-shrink:0;}
+.gb-x{background:none;border:none;cursor:pointer;color:inherit;opacity:0.6;font-size:10px;padding:0;line-height:1;}
+.gb-x:hover{opacity:1;}
+.gb-drop{position:absolute;z-index:900;top:calc(100% + 3px);left:0;right:0;background:var(--surface2);border:1px solid var(--accent-alt);border-radius:var(--radius);box-shadow:0 10px 35px rgba(0,0,0,0.6);display:none;flex-direction:column;}
+.gb-top{padding:6px 6px 4px;border-bottom:1px solid var(--border);}
+.gb-top input{width:100%;padding:4px 7px;font-size:11px;background:var(--surface3);border:1px solid var(--border);border-radius:3px;color:var(--text);outline:none;}
+.gb-top input:focus{border-color:var(--accent-alt);}
+.gb-list{max-height:190px;overflow-y:auto;}
+.gb-opt{display:flex;align-items:center;gap:7px;padding:6px 9px;cursor:pointer;font-size:11px;color:var(--text2);transition:background 0.1s;}
+.gb-opt:hover{background:var(--surface3);color:var(--text);}
+.gb-opt.is-sel{color:var(--accent-alt);}
+.gb-opt input[type=checkbox]{accent-color:var(--accent-alt);width:12px;height:12px;flex-shrink:0;}
+.gb-hint{font-size:10px;color:var(--text3);padding:5px 9px;border-top:1px solid var(--border);text-align:center;}
+
+/* Misc */
+#toast{position:fixed;bottom:20px;right:20px;padding:10px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text);z-index:9999;display:none;animation:fadeIn 0.3s ease;max-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.5);}
+.hidden{display:none!important;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text3);}
+.sb-btn-row{display:flex;gap:6px;margin-top:8px;}
+.sb-btn-row .btn{flex:1;justify-content:center;}
+
+/* SharePoint picker */
+.sp-picker{margin-top:10px;border-top:1px dashed var(--border);padding-top:10px;position:relative;z-index:2;}
+.sp-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.sp-row{display:flex;gap:5px;}
+.sp-row input{flex:1;font-size:11px;padding:5px 8px;}
+.sp-connect{background:var(--accent-alt);color:var(--bg);border:none;border-radius:var(--radius-sm);padding:5px 10px;font-size:11px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity 0.2s;}
+.sp-connect:hover{opacity:0.85;}
+.sp-status{font-size:10px;color:var(--text2);margin-top:5px;min-height:14px;}
+.sp-file-list{display:flex;flex-direction:column;gap:4px;margin-top:8px;max-height:160px;overflow-y:auto;}
+.sp-file-item{display:flex;align-items:center;gap:7px;padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:border-color 0.15s;font-size:11px;color:var(--text2);}
+.sp-file-item:hover{border-color:var(--accent-alt);color:var(--text);}
+.sp-file-icon{font-size:13px;flex-shrink:0;}
+
+/* Compact view */
+body.compact-view tbody td{padding:3px 8px;font-size:10px;}
+body.compact-view .th-top{padding:4px 6px;}
+body.compact-view .th-filter input{padding:2px 4px;font-size:10px;}
+
+/* Column resize */
+thead th{position:relative;}
+.col-resizer{position:absolute;right:0;top:0;bottom:0;width:4px;cursor:col-resize;background:transparent;z-index:30;}
+.col-resizer:hover,.col-resizer.resizing{background:var(--accent-alt);}
+thead th.resizing{user-select:none;}
+
+/* Content area view tabs (Data Table / Agg Results) */
+#viewTabBar{display:none;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface);padding:0 16px;}
+.view-tab{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;transition:all 0.18s;white-space:nowrap;font-family:'Syne',sans-serif;font-weight:600;}
+.view-tab:hover{color:var(--text);}
+.view-tab.active{color:var(--accent-alt);border-bottom-color:var(--accent-alt);}
+#aggPane{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+#aggPaneInner{flex:1;overflow-y:auto;padding:16px;}
+.agg-summary-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.agg-kpi{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;display:flex;flex-direction:column;gap:2px;}
+.agg-kpi-val{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--accent-alt);}
+.agg-kpi-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.4px;}
+.agg-dl-bar{display:flex;gap:6px;margin-bottom:10px;}
+.agg-pct{font-size:10px;color:var(--text2);margin-left:4px;}
+
+/* Toolbar view controls */
+.view-ctrl-group{display:flex;align-items:center;gap:4px;border-left:1px solid var(--border);padding-left:8px;margin-left:4px;}
+.view-ctrl-btn{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 9px;font-size:11px;cursor:pointer;color:var(--text2);transition:all 0.15s;font-family:'DM Mono',monospace;display:flex;align-items:center;gap:4px;}
+.view-ctrl-btn:hover{border-color:var(--accent-alt);color:var(--text);}
+.view-ctrl-btn.active{background:var(--tag-bg);border-color:var(--accent-alt);color:var(--accent-alt);}
+
+</style>
+</head>
+<body data-theme="light">
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="tb-logo">Excel Explorer <span> Data Pro</span></div>
+  <div class="tb-steps">
+    <div class="tb-step active" id="step1" onclick="jumpStep(1)"><span class="tb-num">1</span>Upload</div>
+    <div class="tb-sep">›</div>
+    <div class="tb-step" id="step2" onclick="jumpStep(2)"><span class="tb-num">2</span>Sheets</div>
+    <div class="tb-sep">›</div>
+    <div class="tb-step" id="step3" onclick="jumpStep(3)"><span class="tb-num">3</span>Configure</div>
+    <div class="tb-sep">›</div>
+    <div class="tb-step" id="step4" onclick="jumpStep(4)"><span class="tb-num">4</span>Analyze</div>
+  </div>
+  <div class="tb-right">
+    <!-- Theme picker -->
+    <div class="theme-wrap" id="themeWrap">
+      <button class="theme-btn" onclick="toggleThemeMenu()">
+        <div class="theme-swatch" id="themeSwatch"></div>
+        <span id="themeLabel">Bridge</span> ▾
+      </button>
+      <div class="theme-menu hidden" id="themeMenu">
+        <div class="theme-opt" data-theme="bridge"><div class="theme-dot" style="background:#58a6ff"></div>Bridge</div>
+        <div class="theme-opt" data-theme="dark"><div class="theme-dot" style="background:#6ee7b7"></div>Dark</div>
+        <div class="theme-opt" data-theme="presentation"><div class="theme-dot" style="background:#c084fc"></div>Presentation</div>
+        <div class="theme-opt active" data-theme="light"><div class="theme-dot" style="background:#2563eb"></div>Light</div>
+        <div class="theme-opt" data-theme="red"><div class="theme-dot" style="background:#f87171"></div>Red</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LAYOUT -->
+<div id="layout">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+
+    <!-- Section 1: Upload -->
+    <div class="sb-section sb-open" id="sbUpload">
+      <div class="sb-header" onclick="toggleSb('sbUpload')">
+        <span class="sb-icon">📁</span>
+        <span class="sb-title">1 · Load Files</span>
+        <span class="sb-badge" id="badgeFiles"></span>
+        <span class="sb-arrow">▼</span>
+      </div>
+      <div class="sb-body">
+        <div id="dropZone">
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.csv" multiple>
+          <div class="dz-icon">📊</div>
+          <div class="dz-title">Drop files here</div>
+          <div class="dz-sub">or click anywhere in this box to browse</div>
+          <div class="dz-types">.xlsx · .xls · .xlsm · .csv</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;margin-top:6px;" onclick="document.getElementById('fileInput').click()">📂 Browse Local Files</button>
+        <div class="file-list" id="fileList"></div>
+        <!-- SharePoint Picker -->
+        <div class="sp-picker">
+          <div class="sp-label">☁ Load from URL / SharePoint</div>
+          <div class="sp-row">
+            <input type="text" id="spUrl" placeholder="https://…/file.xlsx or SharePoint folder URL" onkeydown="if(event.key==='Enter')connectSharePoint()">
+            <button class="sp-connect" onclick="connectSharePoint()">Load</button>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:4px;line-height:1.5;">
+            Supports: direct .xlsx/.csv URLs, SharePoint document library URLs.<br>
+            For SharePoint: must be signed in to that tenant in this browser.
+          </div>
+          <div class="sp-status" id="spStatus"></div>
+          <div class="sp-file-list" id="spFileList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Sheets -->
+    <div class="sb-section sb-closed" id="sbSheets">
+      <div class="sb-header" onclick="toggleSb('sbSheets')">
+        <span class="sb-icon">📋</span>
+        <span class="sb-title">2 · Select Sheets</span>
+        <span class="sb-badge" id="badgeSheets"></span>
+        <span class="sb-arrow">▼</span>
+      </div>
+      <div class="sb-body">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:8px;">Sheets with matching headers are merged.</div>
+        <div class="sheet-grid" id="sheetGrid"></div>
+        <div class="sb-btn-row">
+          <button class="btn btn-secondary btn-sm" onclick="selectAllSheets()">All</button>
+          <button class="btn btn-secondary btn-sm" onclick="clearAllSheets()">Clear</button>
+          <button class="btn btn-primary btn-sm" id="btnConfigure" onclick="goToConfigure()" disabled>Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Configure -->
+    <div class="sb-section sb-closed" id="sbConfig">
+      <div class="sb-header" onclick="toggleSb('sbConfig')">
+        <span class="sb-icon">⚙️</span>
+        <span class="sb-title">3 · Header &amp; Range</span>
+        <span class="sb-badge" id="badgeCfg"></span>
+        <span class="sb-arrow">▼</span>
+      </div>
+      <div class="sb-body">
+        <div id="sheetConfigList"></div>
+        <div class="sb-btn-row">
+          <button class="btn btn-primary btn-sm" onclick="processData()" style="width:100%;justify-content:center;">▶ Process Data</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Group & Aggregate -->
+    <div class="sb-section sb-closed" id="sbAgg">
+      <div class="sb-header" onclick="toggleSb('sbAgg')">
+        <span class="sb-icon">📊</span>
+        <span class="sb-title">4 · Group &amp; Aggregate</span>
+        <span class="sb-arrow">▼</span>
+      </div>
+      <div class="sb-body">
+        <div class="agg-item">
+          <div class="cfg-label">Group By (drag to reorder)</div>
+          <div class="gb-wrap" id="groupByWrap"></div>
+        </div>
+        <div class="agg-item">
+          <div class="cfg-label">Value Column</div>
+          <select id="aggColumn" onchange="updateAggMethods()">
+            <option value="">— Select —</option>
+          </select>
+        </div>
+        <div class="agg-item">
+          <div class="cfg-label">Method</div>
+          <select id="aggMethod">
+            <option value="count">Count</option>
+            <option value="unique_count">Unique Count</option>
+            <option value="sum">Sum</option>
+            <option value="avg">Average</option>
+            <option value="min">Min</option>
+            <option value="max">Max</option>
+            <option value="first">First</option>
+            <option value="last">Last</option>
+            <option value="concat">Concat (unique)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="runAggregation()" style="width:100%;justify-content:center;margin-top:4px;">▶ Run</button>
+      </div>
+    </div>
+
+    <!-- Section 5: Export -->
+    <div class="sb-section sb-closed" id="sbExport">
+      <div class="sb-header" onclick="toggleSb('sbExport')">
+        <span class="sb-icon">⬇</span>
+        <span class="sb-title">Export</span>
+        <span class="sb-arrow">▼</span>
+      </div>
+      <div class="sb-body">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:8px;">Download current filtered data or aggregation results.</div>
+        <button class="btn btn-secondary btn-sm" onclick="exportCSV()" style="width:100%;justify-content:center;">⬇ Data Table CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportAggCSV()" style="width:100%;justify-content:center;margin-top:5px;">⬇ Agg Results CSV</button>
+        <button class="btn btn-danger btn-sm" onclick="resetToStart()" style="width:100%;justify-content:center;margin-top:10px;">↺ Start Over</button>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- CONTENT -->
+  <div id="content">
+
+    <!-- Welcome pane -->
+    <div id="welcomePane">
+      <div class="wlc-icon">📊</div>
+      <div class="wlc-title">Excel Explorer Data Pro</div>
+      <div class="wlc-sub">Load one or more Excel files from the sidebar to begin exploring your data.</div>
+      <div class="wlc-steps">
+        <div class="wlc-step"><strong>① Upload</strong>Drop .xlsx/.csv files</div>
+        <div class="wlc-step"><strong>② Sheets</strong>Pick worksheets</div>
+        <div class="wlc-step"><strong>③ Configure</strong>Set header row</div>
+        <div class="wlc-step"><strong>④ Analyze</strong>Filter, search, group</div>
+      </div>
+    </div>
+
+    <!-- Data pane -->
+    <div id="dataPane" class="hidden">
+      <!-- Toolbar -->
+      <div id="dataToolbar">
+        <div class="stats-row" id="statsRow"></div>
+        <div class="tb-actions">
+          <div class="tb-gsearch" style="position:relative;">
+            <span class="gsi">🔍</span>
+            <input type="text" id="globalSearch" placeholder="Global search…" oninput="applyFiltersAndRender()">
+            <span class="gs-badge" id="gsBadge"></span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="clearAllColFilters()">Clear Filters</button>
+          <div class="view-ctrl-group">
+            <button class="view-ctrl-btn" id="btnCompact" onclick="toggleCompact()" title="Compact view">⊟ Compact</button>
+            <button class="view-ctrl-btn" id="btnAutoFit" onclick="autoFitColumns()" title="Auto-fit column widths">↔ Fit</button>
+          </div>
+        </div>
+      </div>
+      <!-- DF tabs -->
+      <div id="dfTabs"></div>
+      <!-- View tabs: Data Table vs Agg Results -->
+      <div id="viewTabBar">
+        <div class="view-tab active" id="vtData" onclick="switchViewTab('data')">📋 Data Table <span id="vtDataCount" style="font-size:10px;color:var(--text2);margin-left:4px;"></span></div>
+        <div class="view-tab" id="vtAgg" onclick="switchViewTab('agg')">📊 Agg Results <span id="vtAggCount" style="font-size:10px;color:var(--text2);margin-left:4px;"></span></div>
+      </div>
+      <!-- Pipeline -->
+      <div id="pipelineBar"></div>
+      <!-- Table view -->
+      <div id="tableArea">
+        <div class="table-scroll" id="tableScroll">
+          <table id="mainTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Agg pane -->
+      <div id="aggPane" class="hidden">
+        <div id="aggPaneInner">
+          <div class="agg-dl-bar">
+            <button class="btn btn-secondary btn-sm" onclick="exportAggCSV()">⬇ Download Agg CSV</button>
+          </div>
+          <div class="agg-summary-bar" id="aggSummaryBar"></div>
+          <div id="aggResultsMain"></div>
+        </div>
+      </div>
+      <!-- Pagination -->
+      <div id="paginationBar"></div>
+    </div>
+
+  </div><!-- /content -->
+
+</div><!-- /layout -->
+
+<!-- Column filter dropdown (shared, repositioned per column) -->
+<div class="col-filter-drop" id="colFilterDrop">
+  <div class="cfd-top">
+    <input type="text" id="cfdSearch" placeholder="Search values…">
+    <div id="cfdDateLabel" style="display:none;padding:4px 8px 2px;font-size:10px;color:var(--text2);font-family:'Syne',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">📅 Date Tree</div>
+    <div class="cfd-btns">
+      <button class="cfd-btn" onclick="cfdAll()">All</button>
+      <button class="cfd-btn" onclick="cfdClear()">Clear</button>
+      <button class="cfd-btn" onclick="cfdInvert()">Invert</button>
+    </div>
+  </div>
+  <div class="cfd-list" id="cfdList"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let uploadedFiles=[], selectedSheets=[], sheetConfigs={}, dataframes=[], activeDF=0;
+let currentData=[], sortCol=null, sortDir=1, currentPage=1;
+let colFilterSelections={};   // ci -> Set (empty=all)
+let colTextFilters={};         // ci -> string
+let groupByColumns=[];
+let _aggResults=[], _aggMeta={};
+
+// Column filter dropdown state
+let cfdOpenCol=-1, cfdUniqueVals=[];
+
+// ═══════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════
+const THEMES={bridge:'Bridge',dark:'Dark',presentation:'Presentation',light:'Light',red:'Red'};
+function toggleThemeMenu(){document.getElementById('themeMenu').classList.toggle('hidden');}
+document.querySelectorAll('.theme-opt').forEach(opt=>{
+  opt.addEventListener('click',()=>{
+    const t=opt.dataset.theme;
+    document.body.setAttribute('data-theme',t);
+    document.getElementById('themeLabel').textContent=THEMES[t];
+    document.querySelectorAll('.theme-opt').forEach(o=>o.classList.toggle('active',o.dataset.theme===t));
+    // update swatch color to match chosen theme dot
+    const dotColor=opt.querySelector('.theme-dot').style.background;
+    document.getElementById('themeSwatch').style.background=dotColor;
+    document.getElementById('themeMenu').classList.add('hidden');
+  });
+});
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#themeWrap')) document.getElementById('themeMenu').classList.add('hidden');
+});
+// Init active — default is light
+document.querySelector('.theme-opt[data-theme="light"]').classList.add('active');
+document.getElementById('themeLabel').textContent='Light';
+
+// ═══════════════════════════════════════════════════
+// SIDEBAR ACCORDION
+// ═══════════════════════════════════════════════════
+// Sections that are part of the step-by-step workflow (won't auto-close each other)
+const WORKFLOW_SECTIONS=['sbUpload','sbSheets','sbConfig'];
+// Tool sections (aggregate, export) — close others when manually opened
+const TOOL_SECTIONS=['sbAgg','sbExport'];
+
+function openSb(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('sb-closed'); el.classList.add('sb-open');
+}
+function closeSb(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.classList.add('sb-closed'); el.classList.remove('sb-open');
+}
+function toggleSb(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const isOpen=el.classList.contains('sb-open');
+  if(!isOpen){
+    // Opening: if it's a tool section, close other tool sections
+    if(TOOL_SECTIONS.includes(id)){
+      TOOL_SECTIONS.forEach(s=>{ if(s!==id) closeSb(s); });
+    }
+    openSb(id);
+  } else {
+    closeSb(id);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// UPLOAD
+// ═══════════════════════════════════════════════════
+const dropZone=document.getElementById('dropZone');
+const fileInput=document.getElementById('fileInput');
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag-over');handleFiles([...e.dataTransfer.files]);});
+fileInput.addEventListener('change',()=>{handleFiles([...fileInput.files]);fileInput.value='';});
+
+async function handleFiles(files){
+  for(const file of files){
+    const ext='.'+file.name.split('.').pop().toLowerCase();
+    if(!['.xlsx','.xls','.xlsm','.csv'].includes(ext)){showToast('⚠ Unsupported: '+file.name);continue;}
+    if(uploadedFiles.find(f=>f.name===file.name)){showToast('Already added: '+file.name);continue;}
+    try{
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array',cellDates:true});
+      const sheets={};
+      wb.SheetNames.forEach(sn=>{sheets[sn]=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false});});
+      uploadedFiles.push({name:file.name,size:file.size,sheets});
+      renderFileList(); renderSheetGrid();
+      // Auto-progress: open sheets, close upload
+      closeSb('sbUpload'); openSb('sbSheets'); setStep(2);
+      showWelcome(false);
+    }catch(e){showToast('❌ Error: '+file.name);}
+  }
+  updBadge('badgeFiles',uploadedFiles.length);
+}
+
+// ═══════════════════════════════════════════════════
+// SHAREPOINT / URL LOADER
+// ═══════════════════════════════════════════════════
+async function connectSharePoint(){
+  const url=document.getElementById('spUrl').value.trim();
+  const status=document.getElementById('spStatus');
+  const fileList=document.getElementById('spFileList');
+  if(!url){showToast('Please enter a SharePoint or direct file URL.');return;}
+  status.textContent='⏳ Connecting…';
+  fileList.innerHTML='';
+  try{
+    // Detect if URL is a direct file link or a SharePoint folder/library
+    const isDirectFile=/\.(xlsx|xls|xlsm|csv)(\?|$)/i.test(url);
+    if(isDirectFile){
+      await loadSharePointFile(url, url.split('/').pop().split('?')[0]);
+      status.textContent='✓ Loaded successfully';
+    } else {
+      // Try SharePoint REST API for folder listing
+      // Convert SharePoint web URL to REST API endpoint
+      let apiUrl=url;
+      if(url.includes('sharepoint.com')){
+        // Try to get files list from the folder
+        const spBase=url.replace(/_layouts.*/,'').replace(/\/Forms\/.*/,'');
+        const relativePath=url.replace(/^https?:\/\/[^\/]+/,'').replace(/\/Forms\/.*/,'').replace(/\/$/, '');
+        apiUrl=`${spBase.match(/^https?:\/\/[^\/]+/)[0]}/_api/web/GetFolderByServerRelativeUrl('${encodeURIComponent(relativePath)}')/Files?$filter=substringof('.xlsx',Name) or substringof('.xls',Name) or substringof('.csv',Name)&$select=Name,ServerRelativeUrl,Length`;
+        const resp=await fetch(apiUrl,{headers:{Accept:'application/json;odata=verbose'}});
+        if(resp.ok){
+          const data=await resp.json();
+          const files=(data.d&&data.d.results)||[];
+          if(!files.length){status.textContent='No Excel/CSV files found in this folder.';return;}
+          status.textContent=`Found ${files.length} file${files.length>1?'s':''}:`;
+          files.forEach(f=>{
+            const fileUrl=`${url.match(/^https?:\/\/[^\/]+/)[0]}${f.ServerRelativeUrl}`;
+            const item=document.createElement('div');item.className='sp-file-item';
+            item.innerHTML=`<span class="sp-file-icon">📗</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${H(f.Name)}</span><span style="font-size:10px;color:var(--text3)">${f.Length?Math.round(f.Length/1024)+'KB':''}</span>`;
+            item.onclick=()=>{status.textContent=`⏳ Loading ${f.Name}…`;loadSharePointFile(fileUrl,f.Name).then(()=>{status.textContent=`✓ ${f.Name} loaded`;});};
+            fileList.appendChild(item);
+          });
+        } else {
+          // Fallback: try direct fetch of the URL as a file
+          await loadSharePointFile(url, url.split('/').pop().split('?')[0]||'sharepoint_file.xlsx');
+          status.textContent='✓ Loaded successfully';
+        }
+      } else {
+        // Generic URL — try fetching directly
+        await loadSharePointFile(url, url.split('/').pop().split('?')[0]||'remote_file.xlsx');
+        status.textContent='✓ Loaded successfully';
+      }
+    }
+  }catch(err){
+    status.textContent='❌ '+(err.message||'Failed to load. Check URL or CORS permissions.');
+    console.error('SharePoint load error:',err);
+  }
+}
+
+async function loadSharePointFile(url, filename){
+  const resp=await fetch(url,{credentials:'include'});
+  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const buf=await resp.arrayBuffer();
+  const file=new File([buf],filename);
+  await handleFiles([file]);
+  document.getElementById('spUrl').value='';
+}
+
+function removeFile(idx){
+  uploadedFiles.splice(idx,1);
+  selectedSheets=selectedSheets.filter(s=>s.fileIdx!==idx).map(s=>({...s,fileIdx:s.fileIdx>idx?s.fileIdx-1:s.fileIdx}));
+  renderFileList(); renderSheetGrid();
+  updBadge('badgeFiles',uploadedFiles.length);
+  if(!uploadedFiles.length){openSb('sbUpload');closeSb('sbSheets');setStep(1);showWelcome(true);}
+}
+
+function renderFileList(){
+  document.getElementById('fileList').innerHTML=uploadedFiles.map((f,i)=>{
+    const sz=f.size>1048576?(f.size/1048576).toFixed(1)+' MB':(f.size/1024).toFixed(0)+' KB';
+    const sc=Object.keys(f.sheets).length;
+    return `<div class="file-item"><div class="fi-icon">📗</div>
+      <div class="fi-info"><div class="fi-name" title="${H(f.name)}">${H(f.name)}</div><div class="fi-meta">${sz} · ${sc}sh</div></div>
+      <button class="fi-rm" onclick="removeFile(${i})">✕</button></div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// SHEETS
+// ═══════════════════════════════════════════════════
+function renderSheetGrid(){
+  document.getElementById('sheetGrid').innerHTML=uploadedFiles.map((f,fi)=>
+    Object.keys(f.sheets).map(sn=>{
+      const sel=selectedSheets.some(s=>s.fileIdx===fi&&s.sheetName===sn);
+      const rc=f.sheets[sn].length;
+      return `<div class="sheet-chip ${sel?'selected':''}" onclick="toggleSheet(${fi},'${A(sn)}')">
+        <div class="chip-check"></div>
+        <div class="chip-info"><div class="chip-name">${H(sn)}</div><div class="chip-sub">${H(f.name)} · ${rc} rows</div></div>
+      </div>`;
+    }).join('')
+  ).join('');
+  document.getElementById('btnConfigure').disabled=!selectedSheets.length;
+  updBadge('badgeSheets',selectedSheets.length);
+}
+
+function toggleSheet(fi,sn){
+  const idx=selectedSheets.findIndex(s=>s.fileIdx===fi&&s.sheetName===sn);
+  if(idx>=0)selectedSheets.splice(idx,1);
+  else selectedSheets.push({fileIdx:fi,sheetName:sn,displayName:`${uploadedFiles[fi].name} › ${sn}`});
+  renderSheetGrid();
+}
+function selectAllSheets(){selectedSheets=[];uploadedFiles.forEach((f,fi)=>Object.keys(f.sheets).forEach(sn=>selectedSheets.push({fileIdx:fi,sheetName:sn,displayName:`${f.name} › ${sn}`})));renderSheetGrid();}
+function clearAllSheets(){selectedSheets=[];renderSheetGrid();}
+
+function goToConfigure(){
+  if(!selectedSheets.length){showToast('Select at least one sheet.');return;}
+  renderConfigs(); closeSb('sbSheets'); openSb('sbConfig'); setStep(3);
+  updBadge('badgeCfg',selectedSheets.length);
+}
+
+// ═══════════════════════════════════════════════════
+// CONFIGURE
+// ═══════════════════════════════════════════════════
+function renderConfigs(){
+  document.getElementById('sheetConfigList').innerHTML=selectedSheets.map((sel,i)=>{
+    const rows=uploadedFiles[sel.fileIdx].sheets[sel.sheetName];
+    const maxRow=rows.length, maxCol=Math.max(...rows.slice(0,10).map(r=>r.length),1);
+    const key=`${sel.fileIdx}__${sel.sheetName}`;
+    if(!sheetConfigs[key]) sheetConfigs[key]={headerRow:1,colStart:1,colEnd:maxCol};
+    const cfg=sheetConfigs[key];
+    // Build row options showing first 100 chars of each row for selection
+    const rowOpts=rows.slice(0,20).map((r,ri)=>{
+      const preview=r.filter(c=>c!==''&&c!=null).slice(0,5).join(', ').slice(0,60);
+      const selected=cfg.headerRow===ri+1?'selected':'';
+      return `<option value="${ri+1}" ${selected}>Row ${ri+1}: ${H(preview||'(empty)')}</option>`;
+    }).join('');
+    return `<div class="cfg-block">
+      <div class="cfg-block-title" title="${H(sel.displayName)}">${H(sel.sheetName)}</div>
+      <div class="cfg-row"><div class="cfg-label">Header Row</div>
+        <select onchange="updCfg('${A(key)}','headerRow',+this.value,${i})">${rowOpts}</select>
+      </div>
+      <div class="cfg-row-pair">
+        <div class="cfg-half"><div class="cfg-label">Col Start</div>
+          <input type="number" min="1" max="${maxCol}" value="${cfg.colStart}" onchange="updCfg('${A(key)}','colStart',+this.value,${i})"></div>
+        <div class="cfg-half"><div class="cfg-label">Col End (0=all)</div>
+          <input type="number" min="0" value="${cfg.colEnd}" onchange="updCfg('${A(key)}','colEnd',+this.value,${i})"></div>
+      </div>
+      <div class="cfg-preview" id="cfgPv_${i}">${prevHdrs(rows,cfg)}</div>
+    </div>`;
+  }).join('');
+}
+
+function prevHdrs(rows,cfg){
+  const hri=cfg.headerRow-1,cs=cfg.colStart-1,ce=cfg.colEnd>0?cfg.colEnd:undefined;
+  if(!rows[hri]) return '(empty)';
+  const cols=rows[hri].slice(cs,ce).filter(c=>c!==''&&c!=null);
+  return cols.slice(0,5).map(c=>`<code>${H(String(c))}</code>`).join(' ')+(cols.length>5?` +${cols.length-5}`:'');
+}
+function updCfg(key,field,val,i){
+  sheetConfigs[key][field]=val;
+  const sel=selectedSheets.find(s=>`${s.fileIdx}__${s.sheetName}`===key);
+  if(sel){const el=document.getElementById(`cfgPv_${i}`);if(el)el.innerHTML=prevHdrs(uploadedFiles[sel.fileIdx].sheets[sel.sheetName],sheetConfigs[key]);}
+}
+
+// ═══════════════════════════════════════════════════
+// PROCESS DATA
+// ═══════════════════════════════════════════════════
+function processData(){
+  // Build one dataframe per selected worksheet, plus consolidated groups
+  const perSheet=[];   // [{sheetName, fileName, headers, rows}]
+  const mergeMap={};   // normalizedKey -> {headers, rows[], sourceLabels[]}
+
+  selectedSheets.forEach(sel=>{
+    const key=`${sel.fileIdx}__${sel.sheetName}`;
+    const cfg=sheetConfigs[key]||{headerRow:1,colStart:1,colEnd:0};
+    const allRows=uploadedFiles[sel.fileIdx].sheets[sel.sheetName];
+    const hri=cfg.headerRow-1, cs=cfg.colStart-1, ce=cfg.colEnd>0?cfg.colEnd:undefined;
+    if(!allRows[hri]) return;
+    const rawH=allRows[hri].slice(cs,ce);
+    const headerIdx=[],headers=[];
+    rawH.forEach((h,i)=>{const hs=String(h).trim();if(hs&&hs!=='undefined'&&hs!=='null'){headers.push(hs);headerIdx.push(cs+i);}});
+    if(!headers.length) return;
+
+    const sourceLabel=`${uploadedFiles[sel.fileIdx].name} › ${sel.sheetName}`;
+    const dataRows=[];
+    for(let ri=hri+1;ri<allRows.length;ri++){
+      const vals=headerIdx.map(ci=>{const v=allRows[ri][ci];return(v===null||v===undefined)?'':String(v).trim();});
+      if(vals.every(v=>v==='')) continue;
+      vals.push(sourceLabel);
+      dataRows.push(vals);
+    }
+
+    // Per-sheet dataframe (always)
+    perSheet.push({
+      tabLabel:sel.sheetName,
+      sheetName:sel.sheetName,
+      fileName:uploadedFiles[sel.fileIdx].name,
+      headers:[...headers,'_Source'],
+      rows:dataRows,
+      sources:[sel.displayName],
+      sheetNames:[sel.sheetName]
+    });
+
+    // Merge map for consolidated tabs
+    const nk=headers.map(h=>h.toLowerCase().trim()).sort().join('|');
+    if(!mergeMap[nk]) mergeMap[nk]={headers,rows:[],sources:[],sheetNames:[]};
+    mergeMap[nk].rows.push(...dataRows);
+    mergeMap[nk].sources.push(sel.displayName);
+    mergeMap[nk].sheetNames.push(sel.sheetName);
+  });
+
+  if(!perSheet.length){showToast('⚠ No valid data found.');return;}
+
+  // Build final dataframes array:
+  // - If only 1 sheet selected: just that sheet (no consolidated needed)
+  // - If multiple sheets with same headers: Consolidated first, then each sheet
+  // - If multiple sheets with different headers: one consolidated per schema group, then each sheet
+  dataframes=[];
+
+  if(perSheet.length===1){
+    // Single sheet — just show it, no tabs needed
+    dataframes=perSheet;
+  } else {
+    // Build consolidated tabs first (one per unique schema)
+    const consolidatedAdded=new Set();
+    Object.values(mergeMap).forEach(m=>{
+      if(m.sheetNames.length>1){
+        // Multiple sheets share this schema — add a consolidated tab
+        const nk=m.headers.map(h=>h.toLowerCase().trim()).sort().join('|');
+        if(!consolidatedAdded.has(nk)){
+          consolidatedAdded.add(nk);
+          const label=m.sheetNames.length===perSheet.length?'Consolidated':`Consolidated (${m.sheetNames.slice(0,2).join(', ')}${m.sheetNames.length>2?'…':''})`;
+          dataframes.push({
+            tabLabel:label,
+            isConsolidated:true,
+            headers:[...m.headers,'_Source'],
+            rows:m.rows,
+            sources:m.sources,
+            sheetNames:m.sheetNames
+          });
+        }
+      }
+    });
+    // Then add each individual sheet tab
+    perSheet.forEach(s=>dataframes.push(s));
+  }
+
+  activeDF=0; colFilterSelections={}; colTextFilters={}; groupByColumns=[];
+  closeSb('sbConfig'); openSb('sbAgg'); openSb('sbExport'); setStep(4);
+  showWelcome(false);
+  document.getElementById('dataPane').classList.remove('hidden');
+  renderDataView();
+}
+
+// ═══════════════════════════════════════════════════
+// DATA VIEW
+// ═══════════════════════════════════════════════════
+function renderDataView(){
+  const df=dataframes[activeDF];
+  sortCol=null;sortDir=1;currentPage=1;_theadBuilt=false;
+  // DF tabs — always show when we have data
+  const tabsEl=document.getElementById('dfTabs');
+  tabsEl.style.display='flex';
+  tabsEl.innerHTML=dataframes.map((d,i)=>{
+    const isConsolidated=!!d.isConsolidated;
+    const label=d.tabLabel||`Sheet ${i+1}`;
+    const rowCount=d.rows.length;
+    const tip=H((d.sheetNames||[]).join(', '));
+    return `<div class="df-tab ${i===activeDF?'active':''} ${isConsolidated?'df-tab-consolidated':''}"
+      onclick="switchDF(${i})" title="${tip}">
+      ${isConsolidated?'<span style="font-size:9px;margin-right:3px;">⊕</span>':''}${H(label)}
+      <span style="font-size:10px;color:var(--text2);margin-left:4px;">${rowCount.toLocaleString()}r</span>
+    </div>`;
+  }).join('');
+  // Stats
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat-pill">Rows <strong>${df.rows.length.toLocaleString()}</strong></div>
+    <div class="stat-pill">Cols <strong>${df.headers.length}</strong></div>
+    <div class="stat-pill">Src <strong>${df.sources.length}</strong></div>`;
+  // Show view tab bar
+  showViewTabBar(true);
+  // Default to data tab
+  switchViewTab('data');
+  document.getElementById('vtDataCount').textContent=df.rows.length.toLocaleString()+'r';
+  // Agg
+  buildAggColumnSelect(); buildGroupByWidget();
+  applyFiltersAndRender();
+}
+
+function switchDF(i){activeDF=i;colFilterSelections={};colTextFilters={};groupByColumns=[];_theadBuilt=false;renderDataView();}
+
+// ═══════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════
+function applyFiltersAndRender(rebuildThead=false){
+  const df=dataframes[activeDF];
+  const gq=(document.getElementById('globalSearch')?.value||'').toLowerCase().trim();
+  // Pre-compute unique counts per column for "all selected = no filter" logic
+  const colUniqueCounts={};
+  df.headers.forEach((_,ci)=>{
+    colUniqueCounts[ci]=new Set(df.rows.map(r=>r[ci]).filter(v=>v!=='')).size;
+  });
+  let filtered=df.rows.filter(row=>{
+    for(let ci=0;ci<df.headers.length;ci++){
+      const sel=colFilterSelections[ci];
+      // sel empty = no filter; sel size equals all unique = no filter either
+      if(sel&&sel.size>0&&sel.size<colUniqueCounts[ci]&&!sel.has(String(row[ci]).trim())) return false;
+      const tf=(colTextFilters[ci]||'').toLowerCase();
+      if(tf&&!String(row[ci]).toLowerCase().includes(tf)) return false;
+    }
+    if(gq&&!row.join(' ').toLowerCase().includes(gq)) return false;
+    return true;
+  });
+  if(sortCol!==null){
+    filtered.sort((a,b)=>{
+      const av=a[sortCol],bv=b[sortCol],an=parseFloat(av),bn=parseFloat(bv);
+      return(!isNaN(an)&&!isNaN(bn))?(an-bn)*sortDir:String(av).localeCompare(String(bv))*sortDir;
+    });
+  }
+  currentData=filtered; currentPage=1;
+  renderTable(rebuildThead); updatePipeline(); updateGsBadge(gq);
+}
+
+function clearAllColFilters(){
+  colFilterSelections={}; colTextFilters={};
+  document.getElementById('globalSearch').value='';
+  _theadBuilt=false; // force full rebuild to clear filter inputs
+  applyFiltersAndRender(true);
+}
+
+function updateGsBadge(q){
+  const badge=document.getElementById('gsBadge');
+  if(q){badge.style.display='inline';badge.textContent=currentData.length.toLocaleString();}
+  else badge.style.display='none';
+}
+
+// ═══════════════════════════════════════════════════
+// TABLE RENDER (with inline column filters)
+// ═══════════════════════════════════════════════════
+let _theadBuilt=false; // track if thead was built for current DF
+
+function renderTable(rebuildThead=false){
+  const df=dataframes[activeDF];
+  const ps=parseInt(document.getElementById('pageSizeSelect')?.value||'50');
+  const tp=Math.max(1,Math.ceil(currentData.length/ps));
+  if(currentPage>tp) currentPage=1;
+  const start=(currentPage-1)*ps, rows=currentData.slice(start,start+ps);
+  const gq=(document.getElementById('globalSearch')?.value||'').toLowerCase().trim();
+
+  // THEAD — only rebuild when needed (schema change, sort change, or explicit flag)
+  // This preserves focus in filter inputs while user types
+  if(rebuildThead||!_theadBuilt){
+    _theadBuilt=true;
+    const thead=document.getElementById('tableHead');
+    thead.innerHTML='<tr>'+df.headers.map((h,ci)=>{
+      const isSource=h==='_Source';
+      const sortState=sortCol===ci?(sortDir===1?'asc':'desc'):'none';
+      const sortIcon=sortState==='asc'?'▲':sortState==='desc'?'▼':'⇅';
+      const sortCls=sortState!=='none'?`sort-${sortState}`:'';
+      const hasFlt=colFilterSelections[ci]&&colFilterSelections[ci].size>0;
+      const fltCls=hasFlt?'has-filter':'';
+      const fltCount=hasFlt?`<span class="flt-count">${colFilterSelections[ci].size}</span>`:'';
+      const displayName=isSource?'📄 Source':H(h);
+      return `<th${isSource?' class="source-col"':''}>
+        <div class="th-inner">
+          <div class="th-top">
+            <span class="th-name" onclick="sortBy(${ci})" title="${H(h)}">${displayName}${fltCount}</span>
+            <span class="th-sort-btn ${sortCls}" onclick="sortBy(${ci})" title="Sort">${sortIcon}</span>
+            <span class="th-filter-btn ${fltCls}" onclick="event.stopPropagation();openColFilter(${ci},this)" title="Filter values">☰</span>
+          </div>
+          <div class="th-filter">
+            <input type="text" placeholder="Search…" data-ci="${ci}"
+              oninput="setColTextFilter(${ci},this.value)"
+              onclick="event.stopPropagation()"
+              onkeydown="event.stopPropagation()">
+          </div>
+        </div>
+      </th>`;
+    }).join('')+'</tr>';
+    // Restore filter values and styles after rebuild
+    df.headers.forEach((h,ci)=>{
+      const inp=document.getElementById('tableHead').querySelector(`input[data-ci="${ci}"]`);
+      if(!inp) return;
+      const val=colTextFilters[ci]||'';
+      inp.value=val;
+      inp.className=val?'has-val':'';
+    });
+    // Init column resize handles
+    setTimeout(initColResize,0);
+  } else {
+    // Just update sort indicators and filter counts without rebuilding
+    const thead=document.getElementById('tableHead');
+    df.headers.forEach((h,ci)=>{
+      const th=thead.querySelectorAll('th')[ci];
+      if(!th) return;
+      // Update sort button
+      const sortBtn=th.querySelector('.th-sort-btn');
+      if(sortBtn){
+        const sortState=sortCol===ci?(sortDir===1?'asc':'desc'):'none';
+        sortBtn.textContent=sortState==='asc'?'▲':sortState==='desc'?'▼':'⇅';
+        sortBtn.className='th-sort-btn'+(sortState!=='none'?` sort-${sortState}`:'');
+      }
+      // Update filter button and count badge
+      const filterBtn=th.querySelector('.th-filter-btn');
+      const nameSpan=th.querySelector('.th-name');
+      const hasFlt=colFilterSelections[ci]&&colFilterSelections[ci].size>0;
+      if(filterBtn) filterBtn.className='th-filter-btn'+(hasFlt?' has-filter':'');
+      // Sync flt-count badge inside name span
+      if(nameSpan){
+        const existing=nameSpan.querySelector('.flt-count');
+        if(hasFlt&&!existing){
+          const badge=document.createElement('span');badge.className='flt-count';
+          badge.textContent=colFilterSelections[ci].size;
+          nameSpan.appendChild(badge);
+        } else if(hasFlt&&existing){
+          existing.textContent=colFilterSelections[ci].size;
+        } else if(!hasFlt&&existing){
+          existing.remove();
+        }
+      }
+      // Update input style
+      const inp=th.querySelector('input[data-ci]');
+      if(inp){
+        const val=colTextFilters[ci]||'';
+        inp.className=val?'has-val':'';
+      }
+    });
+  }
+
+  // TBODY
+  const tbody=document.getElementById('tableBody');
+  if(!rows.length){
+    tbody.innerHTML=`<tr><td colspan="${df.headers.length}" class="no-data">No data matches filters</td></tr>`;
+  }else{
+    tbody.innerHTML=rows.map(row=>'<tr>'+row.map((v,ci)=>{
+      const vs=String(v).slice(0,100);
+      const isSource=df.headers[ci]==='_Source';
+      const match=gq&&vs.toLowerCase().includes(gq);
+      const cls=[isSource?'source-col':'',match?'match-cell':''].filter(Boolean).join(' ');
+      return `<td title="${A(String(v))}"${cls?` class="${cls}"`:''}">${H(vs)}</td>`;
+    }).join('')+'</tr>').join('');
+  }
+  renderPagination(tp,ps);
+}
+
+function setColTextFilter(ci,val){
+  colTextFilters[ci]=val;
+  applyFiltersAndRender(); // will call renderTable without rebuild, preserving focus
+}
+
+function sortBy(ci){
+  if(sortCol!==ci){
+    // New column: start with descending
+    sortCol=ci; sortDir=-1;
+  } else if(sortDir===-1){
+    // Was desc → go asc
+    sortDir=1;
+  } else {
+    // Was asc → clear sort
+    sortCol=null; sortDir=1;
+  }
+  applyFiltersAndRender(true);
+}
+
+// ═══════════════════════════════════════════════════
+// COLUMN FILTER DROPDOWN — date-aware tree view
+// ═══════════════════════════════════════════════════
+let cfdQuery='';
+let cfdIsDate=false;       // true if column is detected as date type
+let cfdDateTree={};        // { year: { month: [dateStr, ...] } }
+let cfdYearOpen={};        // { year: bool }
+let cfdMonthOpen={};       // { 'year-month': bool }
+
+const MONTH_NAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Heuristic: try parsing a sample of values; if ≥60% parse as dates → date column
+function detectDateColumn(vals){
+  if(!vals.length) return false;
+  const sample=vals.slice(0,Math.min(50,vals.length));
+  const parsed=sample.filter(v=>{
+    if(!v||String(v).trim()==='') return false;
+    const s=String(v).trim();
+    // Try ISO, common separators
+    const d=new Date(s);
+    return !isNaN(d.getTime()) && d.getFullYear()>1900 && d.getFullYear()<2100;
+  });
+  return parsed.length/sample.length>=0.6;
+}
+
+function parseDate(s){
+  const d=new Date(String(s).trim());
+  if(isNaN(d.getTime())) return null;
+  if(d.getFullYear()<1900||d.getFullYear()>2100) return null;
+  return d;
+}
+
+function buildDateTree(vals){
+  const tree={};
+  vals.forEach(v=>{
+    const d=parseDate(v);
+    if(!d) return;
+    const yr=d.getFullYear();
+    const mo=d.getMonth(); // 0-11
+    const day=d.getDate();
+    const dayKey=`${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    if(!tree[yr]) tree[yr]={};
+    if(!tree[yr][mo]) tree[yr][mo]=new Set();
+    tree[yr][mo].add(v); // keep original string for filter matching
+  });
+  // Convert sets to sorted arrays
+  Object.keys(tree).forEach(yr=>{
+    Object.keys(tree[yr]).forEach(mo=>{
+      tree[yr][mo]=[...tree[yr][mo]].sort((a,b)=>new Date(a)-new Date(b));
+    });
+  });
+  return tree;
+}
+
+function openColFilter(ci,triggerEl){
+  const df=dataframes[activeDF];
+  cfdOpenCol=ci;
+  cfdQuery='';
+  const allVals=df.rows.map(r=>r[ci]).filter(v=>v!=='');
+  cfdUniqueVals=[...new Set(allVals)].sort((a,b)=>{
+    const na=parseFloat(a),nb=parseFloat(b);
+    return(!isNaN(na)&&!isNaN(nb))?na-nb:String(a).localeCompare(String(b));
+  });
+  if(!colFilterSelections[ci]) colFilterSelections[ci]=new Set();
+
+  // Detect date column
+  cfdIsDate=detectDateColumn(cfdUniqueVals);
+  if(cfdIsDate){
+    cfdDateTree=buildDateTree(cfdUniqueVals);
+    // Default: expand all years, collapse months
+    cfdYearOpen={};cfdMonthOpen={};
+    Object.keys(cfdDateTree).forEach(yr=>{cfdYearOpen[yr]=true;});
+  }
+
+  document.getElementById('cfdSearch').value='';
+  // Show/hide search bar and date label for date mode
+  document.getElementById('cfdSearch').style.display=cfdIsDate?'none':'block';
+  document.getElementById('cfdDateLabel').style.display=cfdIsDate?'block':'none';
+
+  renderCFD();
+
+  // Widen the dropdown for date tree
+  const drop=document.getElementById('colFilterDrop');
+  drop.style.width=cfdIsDate?'260px':'220px';
+  drop.style.display='flex';
+  const rect=triggerEl.getBoundingClientRect();
+  let left=rect.left, top=rect.bottom+4;
+  const w=cfdIsDate?260:220;
+  if(left+w>window.innerWidth) left=window.innerWidth-(w+10);
+  if(left<4) left=4;
+  if(top+400>window.innerHeight) top=rect.top-404;
+  drop.style.left=left+'px'; drop.style.top=top+'px';
+}
+
+function renderCFD(){
+  const list=document.getElementById('cfdList');
+  if(cfdIsDate){
+    renderCFDDateTree(list);
+  } else {
+    renderCFDFlat(list);
+  }
+}
+
+function renderCFDFlat(list){
+  const vis=cfdUniqueVals.filter(v=>String(v).toLowerCase().includes(cfdQuery.toLowerCase()));
+  const sel=colFilterSelections[cfdOpenCol]||new Set();
+  if(!vis.length){list.innerHTML='<div class="cfd-empty">No values</div>';return;}
+  list.innerHTML=vis.map(v=>{
+    const chk=sel.has(v);
+    return `<label class="cfd-row ${chk?'is-chk':''}" onclick="event.stopPropagation()">
+      <input type="checkbox" ${chk?'checked':''} onchange="toggleCFD('${A(String(v))}',this.checked)">
+      <span>${H(String(v).slice(0,80))}</span>
+    </label>`;
+  }).join('');
+}
+
+// --- Date tree rendering ---
+function renderCFDDateTree(list){
+  list.className='cfd-tree';
+  const sel=colFilterSelections[cfdOpenCol]||new Set();
+  const years=Object.keys(cfdDateTree).sort((a,b)=>+a-+b);
+  list.innerHTML='';
+
+  years.forEach(yr=>{
+    const yrNode=document.createElement('div');
+    yrNode.className='cfd-tree-year';
+
+    const months=Object.keys(cfdDateTree[yr]).sort((a,b)=>+a-+b);
+    // Compute year check state
+    const allYrVals=months.flatMap(mo=>[...cfdDateTree[yr][mo]]);
+    const yrChecked=allYrVals.every(v=>sel.has(v));
+    const yrIndet=!yrChecked&&allYrVals.some(v=>sel.has(v));
+
+    const yrHeader=document.createElement('div');
+    yrHeader.className='cfd-tree-yr-header';
+    yrHeader.innerHTML=`
+      <input type="checkbox" ${yrChecked?'checked':''} onclick="event.stopPropagation();treeToggleYear('${yr}',this.checked)">
+      <span class="cfd-tree-toggle ${cfdYearOpen[yr]?'open':''}">▶</span>
+      <span style="flex:1">${yr}</span>
+      <span style="font-size:10px;color:var(--text3)">${allYrVals.length}</span>`;
+    if(yrIndet) yrHeader.querySelector('input').indeterminate=true;
+
+    yrHeader.addEventListener('click',e=>{
+      if(e.target.tagName==='INPUT') return;
+      e.stopPropagation();
+      cfdYearOpen[yr]=!cfdYearOpen[yr];
+      renderCFDDateTree(list);
+    });
+    yrNode.appendChild(yrHeader);
+
+    // Month list
+    const moList=document.createElement('div');
+    moList.className='cfd-tree-mo-list';
+    moList.style.display=cfdYearOpen[yr]?'block':'none';
+
+    months.forEach(mo=>{
+      const moKey=`${yr}-${mo}`;
+      const moVals=[...cfdDateTree[yr][mo]];
+      const moChecked=moVals.every(v=>sel.has(v));
+      const moIndet=!moChecked&&moVals.some(v=>sel.has(v));
+
+      const moNode=document.createElement('div');
+      moNode.className='cfd-tree-month';
+
+      const moHeader=document.createElement('div');
+      moHeader.className='cfd-tree-mo-header';
+      moHeader.innerHTML=`
+        <input type="checkbox" ${moChecked?'checked':''} onclick="event.stopPropagation();treeToggleMonth('${yr}','${mo}',this.checked)">
+        <span class="cfd-tree-toggle ${cfdMonthOpen[moKey]?'open':''}">▶</span>
+        <span style="flex:1">${MONTH_NAMES[+mo]}</span>
+        <span style="font-size:10px;color:var(--text3)">${moVals.length}</span>`;
+      if(moIndet) moHeader.querySelector('input').indeterminate=true;
+
+      moHeader.addEventListener('click',e=>{
+        if(e.target.tagName==='INPUT') return;
+        e.stopPropagation();
+        cfdMonthOpen[moKey]=!cfdMonthOpen[moKey];
+        renderCFDDateTree(list);
+      });
+      moNode.appendChild(moHeader);
+
+      // Date list
+      const dateList=document.createElement('div');
+      dateList.className='cfd-tree-date-list';
+      dateList.style.display=cfdMonthOpen[moKey]?'block':'none';
+
+      moVals.forEach(v=>{
+        const d=parseDate(v);
+        const dayLabel=d?`${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`:v;
+        const chk=sel.has(v);
+        const row=document.createElement('label');
+        row.className='cfd-date-row'+(chk?' is-chk':'');
+        row.addEventListener('click',e=>e.stopPropagation());
+        const cb=document.createElement('input');cb.type='checkbox';cb.checked=chk;
+        cb.addEventListener('change',e=>{e.stopPropagation();toggleCFD(v,cb.checked);});
+        const sp=document.createElement('span');sp.textContent=dayLabel;
+        row.append(cb,sp);
+        dateList.appendChild(row);
+      });
+
+      moNode.appendChild(dateList);
+      moList.appendChild(moNode);
+    });
+
+    yrNode.appendChild(moList);
+    list.appendChild(yrNode);
+  });
+}
+
+function treeToggleYear(yr,checked){
+  const months=Object.keys(cfdDateTree[yr]);
+  months.forEach(mo=>{
+    cfdDateTree[yr][mo].forEach(v=>{
+      if(checked) colFilterSelections[cfdOpenCol].add(v);
+      else colFilterSelections[cfdOpenCol].delete(v);
+    });
+  });
+  renderCFD(); applyFiltersAndRender(false);
+}
+
+function treeToggleMonth(yr,mo,checked){
+  cfdDateTree[yr][mo].forEach(v=>{
+    if(checked) colFilterSelections[cfdOpenCol].add(v);
+    else colFilterSelections[cfdOpenCol].delete(v);
+  });
+  renderCFD(); applyFiltersAndRender(false);
+}
+
+function toggleCFD(val,checked){
+  if(!colFilterSelections[cfdOpenCol]) colFilterSelections[cfdOpenCol]=new Set();
+  if(checked) colFilterSelections[cfdOpenCol].add(val);
+  else colFilterSelections[cfdOpenCol].delete(val);
+  renderCFD(); applyFiltersAndRender(false);
+}
+function cfdAll(){
+  if(cfdIsDate){
+    // Select all date values
+    cfdUniqueVals.forEach(v=>colFilterSelections[cfdOpenCol].add(v));
+  } else {
+    const vis=cfdUniqueVals.filter(v=>String(v).toLowerCase().includes(cfdQuery.toLowerCase()));
+    colFilterSelections[cfdOpenCol]=new Set(vis);
+  }
+  renderCFD(); applyFiltersAndRender(false);
+}
+function cfdClear(){
+  colFilterSelections[cfdOpenCol]=new Set();
+  renderCFD(); applyFiltersAndRender(false);
+}
+function cfdInvert(){
+  if(cfdIsDate){
+    const cur=colFilterSelections[cfdOpenCol]||new Set();
+    colFilterSelections[cfdOpenCol]=new Set(cfdUniqueVals.filter(v=>!cur.has(v)));
+  } else {
+    const vis=cfdUniqueVals.filter(v=>String(v).toLowerCase().includes(cfdQuery.toLowerCase()));
+    const cur=colFilterSelections[cfdOpenCol]||new Set();
+    colFilterSelections[cfdOpenCol]=new Set(vis.filter(v=>!cur.has(v)));
+  }
+  renderCFD(); applyFiltersAndRender(false);
+}
+document.getElementById('cfdSearch').addEventListener('input',e=>{cfdQuery=e.target.value;renderCFD();});
+document.getElementById('cfdSearch').addEventListener('click',e=>e.stopPropagation());
+document.getElementById('colFilterDrop').addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('click',()=>{document.getElementById('colFilterDrop').style.display='none';});
+
+// ═══════════════════════════════════════════════════
+// PAGINATION
+// ═══════════════════════════════════════════════════
+function renderPagination(tp,ps){
+  const bar=document.getElementById('paginationBar');
+  if(!currentData.length){bar.innerHTML='<span class="page-info">No results</span>';return;}
+  const s=((currentPage-1)*ps)+1,e=Math.min(currentPage*ps,currentData.length);
+  bar.innerHTML='';
+  const ab=(lbl,pg,act,dis)=>{
+    const b=document.createElement('button');b.className='page-btn'+(act?' active':'');
+    b.textContent=lbl;b.disabled=dis;
+    b.onclick=()=>{currentPage=pg;renderTable();};bar.appendChild(b);
+  };
+  ab('‹',currentPage-1,false,currentPage===1);
+  let prev=0;
+  [...new Set([1,tp,currentPage-1,currentPage,currentPage+1].filter(p=>p>=1&&p<=tp))].sort((a,b)=>a-b).forEach(p=>{
+    if(prev&&p-prev>1){const d=document.createElement('span');d.textContent='…';d.style.cssText='color:var(--text3);padding:0 4px;font-size:12px';bar.appendChild(d);}
+    ab(p,p,p===currentPage,false);prev=p;
+  });
+  ab('›',currentPage+1,false,currentPage===tp);
+  const info=document.createElement('span');info.className='page-info';
+  info.textContent=`${s.toLocaleString()}–${e.toLocaleString()} of ${currentData.length.toLocaleString()}`;bar.appendChild(info);
+  // page size
+  const psWrap=document.createElement('div');psWrap.className='page-size-wrap';
+  psWrap.innerHTML=`Rows/page <select id="pageSizeSelect" onchange="currentPage=1;applyFiltersAndRender()">
+    <option value="25" ${ps===25?'selected':''}>25</option>
+    <option value="50" ${ps===50?'selected':''}>50</option>
+    <option value="100" ${ps===100?'selected':''}>100</option>
+    <option value="500" ${ps===500?'selected':''}>500</option>
+  </select>`;
+  bar.appendChild(psWrap);
+}
+function changePage(p){currentPage=p;renderTable();}
+
+// ═══════════════════════════════════════════════════
+// PIPELINE DIAGRAM
+// ═══════════════════════════════════════════════════
+function updatePipeline(){
+  const df=dataframes[activeDF];
+  const totalRows=df.rows.length, filteredRows=currentData.length;
+  const gq=(document.getElementById('globalSearch')?.value||'').trim();
+  const activeFlt=Object.values(colFilterSelections).filter(s=>s.size>0).length;
+  const activeTxt=Object.values(colTextFilters).filter(v=>v).length;
+  const gbActive=groupByColumns.length>0;
+
+  const nodes=[
+    {ico:'📂',lbl:'Source',val:`${totalRows.toLocaleString()} rows`,on:true},
+    {ico:'☰',lbl:'Col Filter',val:activeFlt>0?`${activeFlt} col${activeFlt>1?'s':''}`:activeTxt>0?`${activeTxt} text`:'off',on:activeFlt>0||activeTxt>0},
+    {ico:'🔍',lbl:'Search',val:gq?`"${gq.slice(0,12)}${gq.length>12?'…':''}"`:'off',on:!!gq},
+    {ico:'↕',lbl:'Sort',val:sortCol!==null?`col ${sortCol+1} ${sortDir>0?'↑':'↓'}`:'off',on:sortCol!==null},
+    {ico:'🗂',lbl:'Group By',val:gbActive?groupByColumns.slice(0,2).join('→')+(groupByColumns.length>2?'…':''):'off',on:gbActive},
+    {ico:'📋',lbl:'Output',val:`${filteredRows.toLocaleString()} rows`,on:true},
+  ];
+
+  const bar=document.getElementById('pipelineBar'); bar.innerHTML='';
+  nodes.forEach((n,i)=>{
+    const el=document.createElement('div');
+    el.className='pipe-node '+(n.on?'p-on':'p-off');
+    el.innerHTML=`<div class="p-ico">${n.ico}</div><div class="p-lbl">${n.lbl}</div><div class="p-val" title="${H(n.val)}">${H(n.val)}</div>`;
+    bar.appendChild(el);
+    if(i<nodes.length-1){
+      const ar=document.createElement('div');ar.className='p-arr '+(n.on?'p-on':'');ar.textContent='→';bar.appendChild(ar);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// GROUP BY
+// ═══════════════════════════════════════════════════
+function buildGroupByWidget(){
+  const df=dataframes[activeDF]; groupByColumns=[];
+  const wrap=document.getElementById('groupByWrap'); wrap.innerHTML='';
+  const box=document.createElement('div'); box.className='gb-box'; box.id='gbBox';
+  const drop=document.createElement('div'); drop.className='gb-drop';
+  drop.addEventListener('click',e=>e.stopPropagation());
+  let gbQ='';
+  const ph=document.createElement('span'); ph.className='gb-ph'; ph.textContent='Click to add…'; box.appendChild(ph);
+
+  const renderBox=()=>{
+    box.querySelectorAll('.gb-tag').forEach(t=>t.remove());
+    ph.style.display=groupByColumns.length?'none':'';
+    groupByColumns.forEach((col,idx)=>{
+      const tag=document.createElement('div');tag.className='gb-tag';tag.draggable=true;tag.dataset.col=col;
+      tag.innerHTML=`<span class="gb-n">${idx+1}</span>${H(col)}`;
+      const xb=document.createElement('button');xb.className='gb-x';xb.textContent='✕';
+      xb.addEventListener('click',e=>{e.stopPropagation();gbRm(col);});
+      tag.appendChild(xb);
+      tag.addEventListener('dragstart',gbDS);tag.addEventListener('dragover',gbDO);tag.addEventListener('drop',gbDP);tag.addEventListener('dragend',gbDE);
+      box.insertBefore(tag,ph);
+    });
+    updatePipeline();
+  };
+  const renderDrop=()=>{
+    const vis=df.headers.filter(h=>h.toLowerCase().includes(gbQ.toLowerCase()));
+    list.innerHTML=vis.length===0?'<div style="padding:10px;font-size:11px;color:var(--text3)">No columns</div>':
+      vis.map(h=>{
+        const isSel=groupByColumns.includes(h);
+        return `<label class="gb-opt ${isSel?'is-sel':''}" onclick="event.stopPropagation()">
+          <input type="checkbox" ${isSel?'checked':''} data-col="${A(h)}">
+          ${isSel?`<span class="gb-n">${groupByColumns.indexOf(h)+1}</span>`:'<span style="width:13px;display:inline-block"></span>'}
+          ${H(h)}</label>`;
+      }).join('');
+    list.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+      cb.addEventListener('change',e=>{
+        e.stopPropagation();const col=cb.dataset.col;
+        if(cb.checked){if(!groupByColumns.includes(col))groupByColumns.push(col);}
+        else{groupByColumns=groupByColumns.filter(c=>c!==col);}
+        renderBox();renderDrop();
+      });
+      cb.addEventListener('click',e=>e.stopPropagation());
+    });
+  };
+  function gbRm(col){groupByColumns=groupByColumns.filter(c=>c!==col);renderBox();renderDrop();}
+  const top=document.createElement('div');top.className='gb-top';
+  const si=document.createElement('input');si.type='text';si.placeholder='Search…';
+  si.addEventListener('click',e=>e.stopPropagation());
+  si.oninput=()=>{gbQ=si.value;renderDrop();};
+  top.appendChild(si);
+  const list=document.createElement('div');list.className='gb-list';
+  const hint=document.createElement('div');hint.className='gb-hint';hint.textContent='Drag tags to reorder';
+  drop.append(top,list,hint);
+  box.addEventListener('click',e=>{
+    if(e.target.closest('.gb-x')) return;
+    e.stopPropagation();
+    const wasOpen=box.classList.contains('open');
+    closeAllDropdowns();
+    if(!wasOpen){box.classList.add('open');drop.style.display='flex';renderDrop();}
+  });
+  wrap.appendChild(box);wrap.appendChild(drop);
+  window._gbRenderBox=renderBox;window._gbRenderDrop=renderDrop;
+  renderBox();
+}
+let _gbDrag=null;
+function gbDS(){_gbDrag=this;this.classList.add('dragging');}
+function gbDO(e){e.preventDefault();}
+function gbDP(e){
+  e.preventDefault();if(!_gbDrag||_gbDrag===this)return;
+  const fc=_gbDrag.dataset.col,tc=this.dataset.col;
+  const fi=groupByColumns.indexOf(fc),ti=groupByColumns.indexOf(tc);
+  if(fi<0||ti<0)return;
+  groupByColumns.splice(fi,1);groupByColumns.splice(ti,0,fc);
+  if(window._gbRenderBox)window._gbRenderBox();if(window._gbRenderDrop)window._gbRenderDrop();
+}
+function gbDE(){this.classList.remove('dragging');_gbDrag=null;}
+function closeAllDropdowns(){
+  document.querySelectorAll('.gb-box.open').forEach(b=>b.classList.remove('open'));
+  document.querySelectorAll('.gb-drop').forEach(d=>d.style.display='none');
+}
+document.addEventListener('click',()=>closeAllDropdowns());
+
+// ═══════════════════════════════════════════════════
+// AGGREGATION
+// ═══════════════════════════════════════════════════
+function buildAggColumnSelect(){
+  const df=dataframes[activeDF];
+  document.getElementById('aggColumn').innerHTML='<option value="">— Select —</option>'+df.headers.map((h,i)=>`<option value="${i}">${H(h)}</option>`).join('');
+  document.getElementById('aggResultsMain').innerHTML='';
+  document.getElementById('aggSummaryBar').innerHTML='';
+}
+function updateAggMethods(){
+  const ci=parseInt(document.getElementById('aggColumn').value),df=dataframes[activeDF];
+  if(!isNaN(ci)){
+    const vals=df.rows.map(r=>r[ci]).filter(v=>v!=='');
+    const isNum=vals.some(v=>!isNaN(parseFloat(v))&&isFinite(v));
+    [...document.getElementById('aggMethod').options].forEach(o=>{o.disabled=['sum','avg','min','max'].includes(o.value)&&!isNum;});
+  }
+}
+function runAggregation(){
+  const df=dataframes[activeDF];
+  if(!groupByColumns.length){showToast('Select Group By columns first.');return;}
+  const colIdx=document.getElementById('aggColumn').value;
+  const method=document.getElementById('aggMethod').value;
+  const gbi=groupByColumns.map(h=>df.headers.indexOf(h)).filter(i=>i>=0);
+  const vi=colIdx!==''?parseInt(colIdx):null;
+  const groups={};
+  currentData.forEach(row=>{
+    const gk=gbi.map(i=>row[i]).join(' ║ ');
+    if(!groups[gk])groups[gk]=[];groups[gk].push(row);
+  });
+  const results=Object.entries(groups).map(([gk,rows])=>{
+    const vals=vi!==null?rows.map(r=>r[vi]).filter(v=>v!==''):[];
+    let agg;
+    switch(method){
+      case 'count':agg=rows.length;break;
+      case 'unique_count':agg=vi!==null?new Set(vals).size:new Set(rows.map(r=>r.join('|'))).size;break;
+      case 'sum':agg=+(vals.map(v=>parseFloat(v)||0).reduce((a,b)=>a+b,0)).toFixed(4);break;
+      case 'avg':{const ns=vals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));agg=ns.length?+(ns.reduce((a,b)=>a+b,0)/ns.length).toFixed(4):'N/A';break;}
+      case 'min':{const ns=vals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));agg=ns.length?Math.min(...ns):(vals.sort()[0]||'N/A');break;}
+      case 'max':{const ns=vals.map(v=>parseFloat(v)).filter(v=>!isNaN(v));agg=ns.length?Math.max(...ns):(vals.sort().pop()||'N/A');break;}
+      case 'first':agg=vals[0]??'';break;
+      case 'last':agg=vals[vals.length-1]??'';break;
+      case 'concat':agg=[...new Set(vals)].join(', ');break;
+      default:agg=rows.length;
+    }
+    return{parts:gk.split(' ║ '),agg,count:rows.length};
+  }).sort((a,b)=>typeof a.agg==='number'&&typeof b.agg==='number'?b.agg-a.agg:String(b.agg).localeCompare(String(a.agg)));
+
+  const ml=document.getElementById('aggMethod').options[document.getElementById('aggMethod').selectedIndex].text;
+  const al=vi!==null?df.headers[vi]:'rows';
+  const totalRows=currentData.length;
+  const totalAgg=results.reduce((s,r)=>typeof r.agg==='number'?s+r.agg:s,0);
+  const isNumericAgg=results.some(r=>typeof r.agg==='number');
+
+  // Store for export
+  _aggResults=results;
+  _aggMeta={headers:groupByColumns, methodLabel:ml, aggLabel:al, isNumericAgg};
+
+  // Summary KPIs
+  document.getElementById('aggSummaryBar').innerHTML=`
+    <div class="agg-kpi"><div class="agg-kpi-val">${results.length.toLocaleString()}</div><div class="agg-kpi-lbl">Groups</div></div>
+    <div class="agg-kpi"><div class="agg-kpi-val">${totalRows.toLocaleString()}</div><div class="agg-kpi-lbl">Total Rows</div></div>
+    ${isNumericAgg?`<div class="agg-kpi"><div class="agg-kpi-val">${totalAgg.toLocaleString(undefined,{maximumFractionDigits:4})}</div><div class="agg-kpi-lbl">${H(ml)} Total</div></div>`:''}
+    <div class="agg-kpi"><div class="agg-kpi-val">${H(ml)}</div><div class="agg-kpi-lbl">Method</div></div>`;
+
+  // Results table with % column
+  document.getElementById('aggResultsMain').innerHTML=`
+    <div style="font-size:10px;color:var(--text2);margin-bottom:8px;">${results.length} groups · ${H(ml)} of <em>${H(al)}</em> · from ${totalRows.toLocaleString()} filtered rows</div>
+    <div class="agg-table-wrap"><table>
+      <thead><tr>
+        ${groupByColumns.map((h,i)=>`<th><span style="color:var(--accent-alt);margin-right:3px">${i+1}</span>${H(h)}</th>`).join('')}
+        <th style="color:var(--accent-alt)">${H(ml)}: ${H(al)}</th>
+        <th style="color:var(--accent-alt)">Count</th>
+        <th style="color:var(--accent-alt)">% of Total</th>
+      </tr></thead>
+      <tbody>${results.slice(0,500).map(r=>{
+        const pctCount=totalRows>0?((r.count/totalRows)*100).toFixed(1)+'%':'—';
+        const pctAgg=isNumericAgg&&totalAgg>0&&typeof r.agg==='number'?((r.agg/totalAgg)*100).toFixed(1)+'%':'—';
+        return `<tr>
+          ${r.parts.map(v=>`<td>${H(String(v).slice(0,80))}</td>`).join('')}
+          <td style="color:var(--accent-alt);font-weight:600">${H(typeof r.agg==='number'?r.agg.toLocaleString(undefined,{maximumFractionDigits:4}):String(r.agg).slice(0,100))}</td>
+          <td>${r.count.toLocaleString()}</td>
+          <td><span style="font-size:10px;color:var(--text2)">${pctCount}</span>${isNumericAgg?`<span class="agg-pct">${pctAgg}</span>`:''}</td>
+        </tr>`;
+      }).join('')}
+      ${results.length>500?`<tr><td colspan="${groupByColumns.length+3}" class="no-data">Showing top 500 of ${results.length} groups</td></tr>`:''}
+      </tbody></table></div>`;
+
+  // Update agg tab count badge
+  document.getElementById('vtAggCount').textContent=results.length+'g';
+  updatePipeline();
+  // Switch to agg tab
+  switchViewTab('agg');
+}
+
+// ═══════════════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════════════
+function exportCSV(){
+  if(!dataframes.length){showToast('No data loaded.');return;}
+  const df=dataframes[activeDF];
+  const lines=[df.headers.map(h=>`"${String(h).replace(/"/g,'""')}"`).join(',')];
+  currentData.forEach(row=>lines.push(row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')));
+  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='data_export.csv';a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ Exported ${currentData.length.toLocaleString()} rows`);
+}
+
+function exportAggCSV(){
+  if(!_aggResults.length){showToast('Run an aggregation first.');return;}
+  const totalRows=currentData.length;
+  const totalAgg=_aggResults.reduce((s,r)=>typeof r.agg==='number'?s+r.agg:s,0);
+  const headers=[..._aggMeta.headers,`${_aggMeta.methodLabel}: ${_aggMeta.aggLabel}`,'Count','% of Total Rows'];
+  if(_aggMeta.isNumericAgg) headers.push('% of Total Value');
+  const lines=[headers.map(h=>`"${String(h).replace(/"/g,'""')}"`).join(',')];
+  _aggResults.forEach(r=>{
+    const pctCount=totalRows>0?((r.count/totalRows)*100).toFixed(2)+'%':'';
+    const pctAgg=_aggMeta.isNumericAgg&&totalAgg>0&&typeof r.agg==='number'?((r.agg/totalAgg)*100).toFixed(2)+'%':'';
+    const row=[...r.parts, r.agg, r.count, pctCount];
+    if(_aggMeta.isNumericAgg) row.push(pctAgg);
+    lines.push(row.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  });
+  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='agg_results.csv';a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ Exported ${_aggResults.length} agg rows`);
+}
+
+// ═══════════════════════════════════════════════════
+// COMPACT VIEW
+// ═══════════════════════════════════════════════════
+let isCompact=false;
+function toggleCompact(){
+  isCompact=!isCompact;
+  document.body.classList.toggle('compact-view',isCompact);
+  document.getElementById('btnCompact').classList.toggle('active',isCompact);
+}
+
+// ═══════════════════════════════════════════════════
+// AUTO-FIT COLUMNS
+// ═══════════════════════════════════════════════════
+function autoFitColumns(){
+  const df=dataframes[activeDF];
+  const table=document.getElementById('mainTable');
+  const ths=table.querySelectorAll('thead th');
+  const rows=table.querySelectorAll('tbody tr');
+  // Create a hidden canvas to measure text widths
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.font='12px DM Mono, monospace';
+  df.headers.forEach((h,ci)=>{
+    let maxW=ctx.measureText(h).width+60; // header + icons
+    rows.forEach(tr=>{
+      const td=tr.cells[ci];
+      if(td){const w=ctx.measureText(td.textContent||'').width+24;if(w>maxW)maxW=w;}
+    });
+    const cap=Math.min(Math.max(maxW,80),400);
+    if(ths[ci]) ths[ci].style.width=cap+'px';
+  });
+  showToast('✓ Columns auto-fitted');
+}
+
+// ═══════════════════════════════════════════════════
+// COLUMN RESIZE (drag handles)
+// ═══════════════════════════════════════════════════
+let _resizing=null;
+function initColResize(){
+  const ths=document.querySelectorAll('#tableHead th');
+  ths.forEach((th,ci)=>{
+    // Remove old resizer if any
+    const old=th.querySelector('.col-resizer');if(old)old.remove();
+    const r=document.createElement('div');r.className='col-resizer';
+    r.addEventListener('mousedown',e=>{
+      e.preventDefault(); e.stopPropagation();
+      _resizing={th,startX:e.clientX,startW:th.offsetWidth};
+      th.classList.add('resizing');
+      r.classList.add('resizing');
+    });
+    th.appendChild(r);
+  });
+}
+document.addEventListener('mousemove',e=>{
+  if(!_resizing) return;
+  const newW=Math.max(60,_resizing.startW+(e.clientX-_resizing.startX));
+  _resizing.th.style.width=newW+'px';
+});
+document.addEventListener('mouseup',()=>{
+  if(_resizing){
+    _resizing.th.classList.remove('resizing');
+    _resizing.th.querySelector('.col-resizer')?.classList.remove('resizing');
+    _resizing=null;
+  }
+});
+
+// ═══════════════════════════════════════════════════
+// VIEW TABS (Data Table / Agg Results)
+// ═══════════════════════════════════════════════════
+let currentViewTab='data'; // 'data' or 'agg'
+function switchViewTab(tab){
+  currentViewTab=tab;
+  document.getElementById('vtData').classList.toggle('active',tab==='data');
+  document.getElementById('vtAgg').classList.toggle('active',tab==='agg');
+  document.getElementById('tableArea').classList.toggle('hidden',tab!=='data');
+  document.getElementById('paginationBar').classList.toggle('hidden',tab!=='data');
+  document.getElementById('pipelineBar').classList.toggle('hidden',tab!=='data');
+  document.getElementById('aggPane').classList.toggle('hidden',tab!=='agg');
+}
+function showViewTabBar(show){
+  document.getElementById('viewTabBar').style.display=show?'flex':'none';
+}
+
+// ═══════════════════════════════════════════════════
+// STEP INDICATOR
+// ═══════════════════════════════════════════════════
+function setStep(n){
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById(`step${i}`);
+    el.classList.remove('active','done');
+    if(i<n)el.classList.add('done');else if(i===n)el.classList.add('active');
+  }
+}
+function jumpStep(n){
+  if(n===1){openSb('sbUpload');}
+  else if(n===2&&uploadedFiles.length){openSb('sbSheets');}
+  else if(n===3&&selectedSheets.length){openSb('sbConfig');}
+  else if(n===4&&dataframes.length){openSb('sbAgg');}
+}
+
+// ═══════════════════════════════════════════════════
+// MISC
+// ═══════════════════════════════════════════════════
+function showWelcome(show){
+  document.getElementById('welcomePane').classList.toggle('hidden',!show);
+  document.getElementById('dataPane').classList.toggle('hidden',show||!dataframes.length);
+}
+function resetToStart(){
+  uploadedFiles=[];selectedSheets=[];sheetConfigs={};dataframes=[];activeDF=0;
+  currentData=[];groupByColumns=[];colFilterSelections={};colTextFilters={};
+  sortCol=null;sortDir=1;currentPage=1;_aggResults=[];
+  document.getElementById('fileList').innerHTML='';
+  document.getElementById('sheetGrid').innerHTML='';
+  document.getElementById('globalSearch').value='';
+  document.getElementById('aggResultsMain').innerHTML='';
+  document.getElementById('aggSummaryBar').innerHTML='';
+  document.getElementById('vtDataCount').textContent='';
+  document.getElementById('vtAggCount').textContent='';
+  openSb('sbUpload');['sbSheets','sbConfig','sbAgg','sbExport'].forEach(id=>closeSb(id));
+  setStep(1); showWelcome(true); showViewTabBar(false);
+  updBadge('badgeFiles',0);updBadge('badgeSheets',0);updBadge('badgeCfg',0);
+}
+function updBadge(id,n){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.textContent=n;el.classList.toggle('show',n>0);
+}
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';
+  clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',3200);
+}
+function H(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function A(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+</script>
+</body>
+</html>
