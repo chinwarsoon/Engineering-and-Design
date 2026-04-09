@@ -3,21 +3,17 @@ Data I/O utilities for loading Excel and other data sources.
 Extracted from dcc_engine_pipeline.py for reuse across the processor engine.
 """
 
-import builtins
 from pathlib import Path
 from typing import Any, Dict
+
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print
 
 try:
     import pandas as pd
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
-
-
-def status_print(*args: Any, **kwargs: Any) -> None:
-    """Print status messages with flush."""
-    kwargs.setdefault("flush", True)
-    builtins.print(*args, **kwargs)
 
 
 def load_excel_data(

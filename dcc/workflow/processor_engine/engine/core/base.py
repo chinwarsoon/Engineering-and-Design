@@ -5,20 +5,23 @@ will be placed here to be shared across the engine.
 import logging
 from typing import Dict, Any, Optional
 
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print
+
 # Standardized logging configuration used across the engine
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("document_processor")
 
 class BaseProcessor:
     """
-    Abstract base class containing shared properties and logging methods 
+    Abstract base class containing shared properties and logging methods
     for all processing components.
     """
-    
+
     def __init__(self, schema_data: Dict[str, Any]):
         """
         Initialize with the global schema data.
-        
+
         Args:
             schema_data: The full resolved schema containing definitions and reference data.
         """
@@ -26,11 +29,13 @@ class BaseProcessor:
 
     def _print_processing_step(self, phase: str, column_name: str, detail: str):
         """
-        Standardized console and log output for tracking the execution 
+        Standardized console and log output for tracking the execution
         of different processing stages.
+        
+        Uses hierarchical indentation based on call depth.
         """
         message = f"[{phase}] {column_name}: {detail}"
-        print(message)
+        status_print(message)
         logger.info(message)
 
     def _resolve_schema_reference(self, ref_config: Dict[str, Any]) -> Any:

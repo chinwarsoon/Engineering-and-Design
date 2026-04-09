@@ -4,13 +4,13 @@ Extracted from schema_validation.py SchemaLoader class.
 """
 
 import json
-import logging
 from pathlib import Path
 from typing import Dict, Any, Set, List
 
 from ..utils.paths import safe_resolve
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 
 class SchemaLoader:
@@ -71,22 +71,22 @@ class SchemaLoader:
         schema_file = self.base_path / f"{schema_name}.json"
         try:
             schema_data = self.load_json_file(schema_file)
-            logger.info("Loaded schema: %s", schema_name)
+            status_print(f"Loaded schema: {schema_name}")
             self.loaded_schemas[schema_name] = schema_data
             return schema_data
         except FileNotFoundError:
-            logger.warning("Schema file not found: %s", schema_file)
+            status_print(f"WARNING: Schema file not found: {schema_file}")
         except json.JSONDecodeError as exc:
-            logger.error("Invalid JSON in schema file %s: %s", schema_file, exc)
+            status_print(f"ERROR: Invalid JSON in schema file {schema_file}: {exc}")
             if fallback_data is None:
                 raise ValueError(f"Invalid JSON in schema file {schema_file}: {exc}") from exc
         except Exception as exc:
-            logger.error("Error loading schema %s: %s", schema_name, exc)
+            status_print(f"ERROR: Error loading schema {schema_name}: {exc}")
             if fallback_data is None:
                 raise ValueError(f"Error loading schema {schema_name}: {exc}") from exc
 
         if fallback_data is not None:
-            logger.info("Using fallback data for %s", schema_name)
+            status_print(f"Using fallback data for {schema_name}")
             self.loaded_schemas[schema_name] = fallback_data
             return fallback_data
 
@@ -101,22 +101,22 @@ class SchemaLoader:
         schema_file = self._resolve_reference_path(schema_path)
         try:
             schema_data = self.load_json_file(schema_file)
-            logger.info("Loaded schema: %s", schema_file)
+            status_print(f"Loaded schema: {schema_file}")
             self.loaded_schemas[cache_key] = schema_data
             return schema_data
         except FileNotFoundError:
-            logger.warning("Schema file not found: %s", schema_file)
+            status_print(f"WARNING: Schema file not found: {schema_file}")
         except json.JSONDecodeError as exc:
-            logger.error("Invalid JSON in schema file %s: %s", schema_file, exc)
+            status_print(f"ERROR: Invalid JSON in schema file {schema_file}: {exc}")
             if fallback_data is None:
                 raise ValueError(f"Invalid JSON in schema file {schema_file}: {exc}") from exc
         except Exception as exc:
-            logger.error("Error loading schema %s: %s", schema_file, exc)
+            status_print(f"ERROR: Error loading schema {schema_file}: {exc}")
             if fallback_data is None:
                 raise ValueError(f"Error loading schema {schema_file}: {exc}") from exc
 
         if fallback_data is not None:
-            logger.info("Using fallback data for %s", schema_path)
+            status_print(f"Using fallback data for {schema_path}")
             self.loaded_schemas[cache_key] = fallback_data
             return fallback_data
 
@@ -135,7 +135,7 @@ class SchemaLoader:
                 schema_data = self._resolve_schema_dependency(ref_path, visited_paths.copy())
                 resolved_schema[f"{ref_name}_data"] = schema_data
             except Exception as exc:
-                logger.error("Failed to resolve schema reference %s: %s", ref_name, exc)
+                status_print(f"ERROR: Failed to resolve schema reference {ref_name}: {exc}")
         return resolved_schema
 
     def _resolve_schema_dependency(self, schema_path: str | Path, visited_paths: Set[Path]) -> Dict[str, Any]:

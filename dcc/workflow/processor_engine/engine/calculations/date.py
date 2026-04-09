@@ -6,10 +6,10 @@ Extracted from UniversalDocumentProcessor._apply_date_calculation and related me
 
 import pandas as pd
 import numpy as np
-import logging
 from typing import Dict, Any, Optional
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 
 def apply_date_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
@@ -48,7 +48,7 @@ def calculate_working_days(engine, df: pd.DataFrame, column_name: str, calculati
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Working-Days", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     engine._print_processing_step("Working-Days", column_name, f"+{days} days from {source_column}")
 
@@ -61,9 +61,9 @@ def calculate_working_days(engine, df: pd.DataFrame, column_name: str, calculati
     calc_mask = null_mask & source_notna
     if calc_mask.any():
         df.loc[calc_mask, column_name] = df.loc[calc_mask, source_column] + pd.Timedelta(days=days)
-        logger.info(f"Applied working days to {calc_mask.sum()} null rows in {column_name}")
+        engine._print_processing_step("Working-Days", column_name, f"Applied to {calc_mask.sum()} null rows")
     else:
-        logger.info(f"Skipped working days for {column_name}: all values present or no source data")
+        debug_print(f"Skipped working days for {column_name}: all values present or no source data")
 
     return df
 
@@ -86,14 +86,14 @@ def calculate_date_difference(engine, df: pd.DataFrame, column_name: str, calcul
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Date-Diff", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     engine._print_processing_step("Date-Diff", column_name, f"{source_column} to {target_column}")
 
     # Calculate only for null values
     null_mask = df[column_name].isna()
     if not null_mask.any():
-        logger.info(f"Skipped date difference for {column_name}: all values present")
+        debug_print(f"Skipped date difference for {column_name}: all values present")
         return df
 
     # Convert to datetime
@@ -104,7 +104,7 @@ def calculate_date_difference(engine, df: pd.DataFrame, column_name: str, calcul
     diff = (df[target_column] - df[source_column]).dt.days
     df.loc[null_mask, column_name] = diff[null_mask]
 
-    logger.info(f"Applied date difference to {null_mask.sum()} null rows in {column_name}")
+    engine._print_processing_step("Date-Diff", column_name, f"Applied to {null_mask.sum()} null rows")
     return df
 
 
@@ -138,7 +138,7 @@ def apply_resubmission_plan_date(engine, df: pd.DataFrame, column_name: str, cal
     # Get existing non-null values (will be preserved unless Submission_Closed=YES)
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Will preserve {existing_mask.sum()} existing values in {column_name} (except where Submission_Closed=YES)")
+        engine._print_processing_step("Resubmission-Plan", column_name, f"Will preserve {existing_mask.sum()} existing values (except where Submission_Closed=YES)")
 
     # Track which rows have been determined - these skip remaining checks
     determined_mask = pd.Series([False] * len(df), index=df.index)
@@ -149,7 +149,7 @@ def apply_resubmission_plan_date(engine, df: pd.DataFrame, column_name: str, cal
         df.loc[mask_closed, column_name] = pd.NaT
         determined_mask |= mask_closed
         if mask_closed.any():
-            logger.info(f"Overwrote {mask_closed.sum()} rows to null (Submission_Closed=YES) in {column_name}")
+            engine._print_processing_step("Resubmission-Plan", column_name, f"Overwrote {mask_closed.sum()} rows to null (Submission_Closed=YES)")
 
     # Condition 2: If Review_Return_Actual_Date is not null, add duration offset
     if review_return_date_col:
@@ -191,8 +191,8 @@ def apply_resubmission_plan_date(engine, df: pd.DataFrame, column_name: str, cal
             df.loc[mask_subsequent, column_name] = df.loc[mask_subsequent, submission_date_col] + pd.Timedelta(days=total_days)
         determined_mask |= mask_subsequent
 
-    logger.info(f"Applied resubmission_plan_date for {column_name}: "
-                f"{df[column_name].notna().sum()} rows with dates, {df[column_name].isna().sum()} rows null")
+    engine._print_processing_step("Resubmission-Plan", column_name, 
+        f"Applied: {df[column_name].notna().sum()} rows with dates, {df[column_name].isna().sum()} rows null")
     return df
 
 
@@ -209,7 +209,7 @@ def apply_conditional_date_calculation(engine, df: pd.DataFrame, column_name: st
     submission_date_col = 'Submission_Date'
 
     if doc_id_col not in df.columns or submission_date_col not in df.columns:
-        logger.warning(f"Missing required columns for conditional date calculation: {doc_id_col}, {submission_date_col}")
+        engine._print_processing_step("Conditional-Date", column_name, f"ERROR: Missing required columns: {doc_id_col}, {submission_date_col}")
         return df
 
     # Initialize column if not exists
@@ -219,12 +219,12 @@ def apply_conditional_date_calculation(engine, df: pd.DataFrame, column_name: st
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Conditional-Date", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Calculate only for null values
     null_mask = df[column_name].isna()
     if not null_mask.any():
-        logger.info(f"Skipped conditional date for {column_name}: all values present")
+        debug_print(f"Skipped conditional date for {column_name}: all values present")
         return df
 
     first_duration = calculation.get('first_review_duration', 20)
@@ -247,7 +247,7 @@ def apply_conditional_date_calculation(engine, df: pd.DataFrame, column_name: st
 
     df.loc[null_mask, column_name] = pd.to_datetime(results[null_mask])
 
-    logger.info(f"Applied conditional date to {null_mask.sum()} null rows in {column_name}")
+    engine._print_processing_step("Conditional-Date", column_name, f"Applied to {null_mask.sum()} null rows")
     return df
 
 
@@ -269,7 +269,7 @@ def apply_conditional_business_day_calculation(engine, df: pd.DataFrame, column_
     start_col = 'Submission_Date'
 
     if start_col not in df.columns:
-        logger.warning(f"Missing required column for business day calculation: {start_col}")
+        engine._print_processing_step("Business-Day", column_name, f"ERROR: Missing required column: {start_col}")
         return df
 
     # Initialize column if not exists
@@ -279,12 +279,12 @@ def apply_conditional_business_day_calculation(engine, df: pd.DataFrame, column_
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Business-Day", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Calculate only for null values
     null_mask = df[column_name].isna()
     if not null_mask.any():
-        logger.info(f"Skipped business day calc for {column_name}: all values present")
+        debug_print(f"Skipped business day calc for {column_name}: all values present")
         return df
 
     engine._print_processing_step("Business-Day", column_name, f"primary={primary_end}, fallback={fallback_end}")
@@ -308,5 +308,5 @@ def apply_conditional_business_day_calculation(engine, df: pd.DataFrame, column_
     diff = diff.where(diff >= 0, other=np.nan)
     df.loc[null_mask, column_name] = diff[null_mask]
 
-    logger.info(f"Applied business day calc to {null_mask.sum()} null rows in {column_name}")
+    engine._print_processing_step("Business-Day", column_name, f"Applied to {null_mask.sum()} null rows")
     return df

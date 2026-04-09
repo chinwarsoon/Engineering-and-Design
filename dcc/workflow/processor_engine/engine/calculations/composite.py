@@ -5,10 +5,10 @@ Extracted from UniversalDocumentProcessor composite and lookup methods.
 
 import pandas as pd
 import numpy as np
-import logging
 from typing import Dict, Any, List
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 
 def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
@@ -21,14 +21,14 @@ def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calc
     format_string = calculation.get('format', '')
 
     if not format_string:
-        logger.warning(f"No format string provided for composite calculation of {column_name}")
+        engine._print_processing_step("Composite", column_name, "ERROR: No format string provided")
         return df
 
     # Verify which sources exist in df
     available_sources = [col for col in source_columns if col in df.columns]
 
     if not available_sources:
-        logger.warning(f"No available source columns for composite calculation: {column_name}")
+        engine._print_processing_step("Composite", column_name, "ERROR: No available source columns")
         return df
 
     engine._print_processing_step("Composite", column_name, f"Formatting with {len(available_sources)}/{len(source_columns)} sources")
@@ -50,15 +50,15 @@ def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calc
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Composite", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Calculate only for null values
     null_mask = df[column_name].isna()
     if null_mask.any():
         df.loc[null_mask, column_name] = df.loc[null_mask, available_sources].apply(format_row, axis=1)
-        logger.info(f"Applied composite calculation to {null_mask.sum()} null rows in {column_name}")
+        engine._print_processing_step("Composite", column_name, f"Applied to {null_mask.sum()} null rows")
     else:
-        logger.info(f"Skipped composite for {column_name}: all values present")
+        debug_print(f"Skipped composite for {column_name}: all values present")
 
     return df
 
@@ -80,9 +80,9 @@ def apply_row_index(engine, df: pd.DataFrame, column_name: str, calculation: Dic
     null_mask = df[column_name].isna()
     if null_mask.any():
         df.loc[null_mask, column_name] = range(1, null_mask.sum() + 1)
-        logger.info(f"Applied row index to {null_mask.sum()} null rows in {column_name}")
+        engine._print_processing_step("Row-Index", column_name, f"Applied to {null_mask.sum()} null rows")
     else:
-        logger.info(f"Skipped row index for {column_name}: all values present")
+        debug_print(f"Skipped row index for {column_name}: all values present")
 
     # Move column to front
     cols = df.columns.tolist()
@@ -114,7 +114,7 @@ def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calc
     required_cols = [doc_id_col, submission_date_col, plan_date_col, closed_col]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
-        logger.warning(f"Missing required columns for delay calculation: {missing_cols}")
+        engine._print_processing_step("Complex-Lookup", column_name, f"ERROR: Missing columns: {missing_cols}")
         df = df.copy()
         df[column_name] = 0
         return df
@@ -130,7 +130,7 @@ def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calc
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Complex-Lookup", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
     df[plan_date_col] = pd.to_datetime(df[plan_date_col], errors='coerce')
@@ -160,9 +160,9 @@ def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calc
     null_mask = df[column_name].isna()
     if null_mask.any():
         df.loc[null_mask, column_name] = delay[null_mask]
-        logger.info(f"Applied delay_of_resubmission to {null_mask.sum()} null rows in {column_name}: {(delay > 0).sum()} rows with positive delay")
+        engine._print_processing_step("Complex-Lookup", column_name, f"Applied to {null_mask.sum()} null rows: {(delay > 0).sum()} rows with positive delay")
     else:
-        logger.info(f"Skipped delay_of_resubmission for {column_name}: all values present")
+        debug_print(f"Skipped delay_of_resubmission for {column_name}: all values present")
 
     return df
 
@@ -175,7 +175,7 @@ def apply_copy_calculation(engine, df: pd.DataFrame, column_name: str, calculati
     source_column = calculation.get('source_column')
 
     if source_column not in df.columns:
-        logger.warning(f"Copy calculation skipped for {column_name}: source column {source_column} not found")
+        engine._print_processing_step("Copy", column_name, f"ERROR: Source column {source_column} not found")
         return df
 
     engine._print_processing_step("Copy", column_name, f"Copying from {source_column}")
@@ -189,14 +189,14 @@ def apply_copy_calculation(engine, df: pd.DataFrame, column_name: str, calculati
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Copy", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Only copy to null values
     null_mask = df[column_name].isna()
     if null_mask.any():
         df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
-        logger.info(f"Applied copy to {null_mask.sum()} null rows in {column_name}")
+        engine._print_processing_step("Copy", column_name, f"Applied to {null_mask.sum()} null rows")
     else:
-        logger.info(f"Skipped copy for {column_name}: all values present")
+        debug_print(f"Skipped copy for {column_name}: all values present")
 
     return df

@@ -49,6 +49,8 @@ from initiation_engine.engine import (
     resolve_platform_paths,
     resolve_output_paths,
     validate_export_paths,
+    log_context,
+    save_debug_log,
 )
 from schema_engine.engine import (
     SchemaValidator,
@@ -136,115 +138,111 @@ def run_engine_pipeline(
     excel_path = safe_resolve(Path(effective_parameters["upload_file_name"]))
     export_paths = resolve_output_paths(base_path, effective_parameters, safe_resolve)
     validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
-    
-    # Step 1: Initiation Engine - Project Setup Validation
-    status_print("=" * 72)
-    status_print("STEP 1: Initiation Engine - Project Setup Validation")
-    status_print("=" * 72)
-    setup_validator = ProjectSetupValidator(base_path=base_path)
-    setup_results = setup_validator.validate()
-    if not setup_results.get("ready"):
-        raise ValueError(format_setup_report(setup_results))
-    status_print("✓ Project setup validation passed")
-    
-    # Step 2: Schema Engine - Schema Validation
-    status_print("\n" + "=" * 72)
-    status_print("STEP 2: Schema Engine - Schema Validation")
-    status_print("=" * 72)
-    status_print(f"  Main schema: {schema_path}")
 
-    schema_validator = SchemaValidator(schema_path)
-    status_print("  Validating schema and resolving dependencies...")
-    schema_results = schema_validator.validate()
-    write_validation_status(schema_results)
-    if not schema_results.get("ready"):
-        raise ValueError(json.dumps(schema_results, indent=2))
-    status_print("✓ Schema validation passed")
-    # Store schema_results for summary generation
-    pipeline_schema_results = schema_results
-    
+    # Step 1: Initiation Engine - Project Setup Validation
+    with log_context("pipeline", "step1_initiation"):
+        setup_validator = ProjectSetupValidator(base_path=base_path)
+        setup_results = setup_validator.validate()
+        if not setup_results.get("ready"):
+            raise ValueError(format_setup_report(setup_results))
+        status_print("✓ Project setup validation passed")
+
+    # Step 2: Schema Engine - Schema Validation
+    with log_context("pipeline", "step2_schema_validation"):
+        status_print(f"Main schema: {schema_path}")
+
+        schema_validator = SchemaValidator(schema_path)
+        status_print("Validating schema and resolving dependencies...")
+        schema_results = schema_validator.validate()
+        write_validation_status(schema_results)
+        if not schema_results.get("ready"):
+            raise ValueError(json.dumps(schema_results, indent=2))
+        status_print("✓ Schema validation passed")
+        # Store schema_results for summary generation
+        pipeline_schema_results = schema_results
+
     # Step 3: Mapper Engine - Column Mapping
-    status_print("\n" + "=" * 72)
-    status_print("STEP 3: Mapper Engine - Column Mapping")
-    status_print("=" * 72)
-    df_raw = load_excel_data(excel_path, effective_parameters, nrows=nrows)
-    
-    # Flatten MultiIndex/tuple columns
-    import pandas as pd
-    if isinstance(df_raw.columns, pd.MultiIndex):
-        status_print("   ⚠️  Flattening MultiIndex columns before mapping")
-        df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df_raw.columns]
-    elif len(df_raw.columns) > 0 and isinstance(df_raw.columns[0], tuple):
-        status_print("   ⚠️  Converting tuple columns to strings")
-        df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df_raw.columns]
-    
-    # Use mapper engine
-    resolved_schema = schema_validator.load_resolved_schema()
-    mapper = ColumnMapperEngine()
-    mapper.resolved_schema = resolved_schema
-    mapping_result = mapper.detect_columns(df_raw.columns.tolist())
-    df_mapped = mapper.rename_dataframe_columns(df_raw, mapping_result)
-    status_print(f"✓ Column mapping complete: {mapping_result['match_rate']:.1%} match rate")
-    
+    with log_context("pipeline", "step3_column_mapping"):
+        df_raw = load_excel_data(excel_path, effective_parameters, nrows=nrows)
+
+        # Flatten MultiIndex/tuple columns
+        import pandas as pd
+        if isinstance(df_raw.columns, pd.MultiIndex):
+            status_print("⚠️  Flattening MultiIndex columns before mapping")
+            df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df_raw.columns]
+        elif len(df_raw.columns) > 0 and isinstance(df_raw.columns[0], tuple):
+            status_print("⚠️  Converting tuple columns to strings")
+            df_raw.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df_raw.columns]
+
+        # Use mapper engine
+        resolved_schema = schema_validator.load_resolved_schema()
+        mapper = ColumnMapperEngine()
+        mapper.resolved_schema = resolved_schema
+        mapping_result = mapper.detect_columns(df_raw.columns.tolist())
+        df_mapped = mapper.rename_dataframe_columns(df_raw, mapping_result)
+        status_print(f"✓ Column mapping complete: {mapping_result['match_rate']:.1%} match rate")
+
     # Step 4: Processor Engine - Document Processing
-    status_print("\n" + "=" * 72)
-    status_print("STEP 4: Processor Engine - Document Processing")
-    status_print("=" * 72)
-    processor = CalculationEngine(resolved_schema)
-    df_processed = processor.process_data(df_mapped)
+    with log_context("pipeline", "step4_document_processing"):
+        processor = CalculationEngine(resolved_schema)
+        df_processed = processor.process_data(df_mapped)
 
     # Step 5: Reorder columns per schema column_sequence
-    status_print("\n" + "=" * 72)
-    status_print("STEP 5: Reordering columns per schema column_sequence")
-    status_print("=" * 72)
-    schema_processor = SchemaProcessor(resolved_schema)
-    ordered_columns = schema_processor.get_ordered_columns()
-    
-    # Build ordered column list: only columns that exist in processed DataFrame
-    ordered_col_names = [col for col in ordered_columns.keys() if col in df_processed.columns]
-    
-    # Append any columns in DataFrame but not in schema sequence
-    extra_cols = [col for col in df_processed.columns if col not in ordered_col_names]
-    final_col_order = ordered_col_names + extra_cols
-    
-    if extra_cols:
-        status_print(f"  Warning: {len(extra_cols)} column(s) not in column_sequence: {extra_cols}")
-    
-    # Reorder DataFrame
-    df_processed = df_processed[final_col_order]
-    status_print(f"  Columns reordered: {len(ordered_col_names)} columns in schema order")
-    status_print(f"  Total columns: {len(df_processed.columns)}")
+    with log_context("pipeline", "step5_column_reorder"):
+        schema_processor = SchemaProcessor(resolved_schema)
+        ordered_columns = schema_processor.get_ordered_columns()
+
+        # Build ordered column list: only columns that exist in processed DataFrame
+        ordered_col_names = [col for col in ordered_columns.keys() if col in df_processed.columns]
+
+        # Append any columns in DataFrame but not in schema sequence
+        extra_cols = [col for col in df_processed.columns if col not in ordered_col_names]
+        final_col_order = ordered_col_names + extra_cols
+
+        if extra_cols:
+            status_print(f"Warning: {len(extra_cols)} column(s) not in column_sequence: {extra_cols}")
+
+        # Reorder DataFrame
+        df_processed = df_processed[final_col_order]
+        status_print(f"Columns reordered: {len(ordered_col_names)} columns in schema order")
+        status_print(f"Total columns: {len(df_processed.columns)}")
 
     # Export results
-    df_processed.to_excel(export_paths["excel_path"], index=False)
-    df_processed.to_csv(export_paths["csv_path"], index=False)
+    with log_context("pipeline", "step6_export"):
+        df_processed.to_excel(export_paths["excel_path"], index=False)
+        df_processed.to_csv(export_paths["csv_path"], index=False)
 
-    # Write processing summary
-    schema_reference_count = len(resolved_schema.get("schema_references", {}))
-    write_processing_summary(
-        summary_path=export_paths["summary_path"],
-        input_file=excel_path,
-        main_schema_path=schema_path,
-        schema_results=pipeline_schema_results,
-        raw_columns=list(df_raw.columns),
-        mapped_columns=list(df_mapped.columns),
-        processed_columns=list(df_processed.columns),
-        raw_shape=df_raw.shape,
-        mapped_shape=df_mapped.shape,
-        processed_shape=df_processed.shape,
-        df_raw=df_raw,
-        df_mapped=df_mapped,
-        df_processed=df_processed,
-        mapping_result=mapping_result,
-        schema_reference_count=schema_reference_count,
-        csv_path=export_paths["csv_path"],
-        excel_path=export_paths["excel_path"],
-    )
+        # Write processing summary
+        schema_reference_count = len(resolved_schema.get("schema_references", {}))
+        write_processing_summary(
+            summary_path=export_paths["summary_path"],
+            input_file=excel_path,
+            main_schema_path=schema_path,
+            schema_results=pipeline_schema_results,
+            raw_columns=list(df_raw.columns),
+            mapped_columns=list(df_mapped.columns),
+            processed_columns=list(df_processed.columns),
+            raw_shape=df_raw.shape,
+            mapped_shape=df_mapped.shape,
+            processed_shape=df_processed.shape,
+            df_raw=df_raw,
+            df_mapped=df_mapped,
+            df_processed=df_processed,
+            mapping_result=mapping_result,
+            schema_reference_count=schema_reference_count,
+            csv_path=export_paths["csv_path"],
+            excel_path=export_paths["excel_path"],
+        )
 
-    status_print(f"✓ Processing complete")
-    status_print(f"   CSV: {export_paths['csv_path']}")
-    status_print(f"   Excel: {export_paths['excel_path']}")
-    status_print(f"   Summary: {export_paths['summary_path']}")
+        # Save debug log to same output folder as CSV
+        debug_log_path = export_paths["csv_path"].parent / "debug_log.json"
+        save_debug_log(output_path=debug_log_path)
+
+        status_print(f"✓ Processing complete")
+        status_print(f"CSV: {export_paths['csv_path']}")
+        status_print(f"Excel: {export_paths['excel_path']}")
+        status_print(f"Summary: {export_paths['summary_path']}")
+        status_print(f"Debug Log: {debug_log_path}")
 
     return {
         "base_path": str(base_path),

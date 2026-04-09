@@ -137,7 +137,9 @@
       "Bash(grouped *)",
       "Bash(group_by, *)",
       "Bash(traceback.print_exc)",
-      "Bash(old_style *)"
+      "Bash(old_style *)",
+      "Bash(ls *)",
+      "Bash(cat *)"
     ]
   },
   "$version": 3

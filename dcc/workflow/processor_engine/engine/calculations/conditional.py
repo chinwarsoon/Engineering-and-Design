@@ -6,10 +6,10 @@ Extracted from UniversalDocumentProcessor._apply_conditional_calculation and rel
 
 import pandas as pd
 import numpy as np
-import logging
 from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 
 def apply_current_row_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
@@ -34,9 +34,9 @@ def apply_current_row_calculation(engine, df: pd.DataFrame, column_name: str, ca
             df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
         else:
             df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
-        logger.info(f"Applied current_row calculation to {null_mask.sum()} null rows in {column_name}")
+        debug_print(f"Applied current_row calculation to {null_mask.sum()} null rows in {column_name}")
     else:
-        logger.info(f"Skipped current_row calculation for {column_name}: all values present")
+        debug_print(f"Skipped current_row calculation for {column_name}: all values present")
 
     return df
 
@@ -68,7 +68,7 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Initialize null values with default YES
     null_mask = df[column_name].isna()
@@ -76,7 +76,7 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
         df.loc[null_mask, column_name] = 'YES'
     else:
         # All values already present, skip calculation
-        logger.info(f"Skipped update_resubmission_required for {column_name}: all values present")
+        debug_print(f"Skipped update_resubmission_required for {column_name}: all values present")
         return df
 
     # Track which rows have been determined - these skip remaining checks
@@ -116,9 +116,9 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
 
     # Condition 5: Default YES - already set for all remaining undetermined rows
 
-    logger.info(f"Applied update_resubmission_required for {column_name}: "
-                f"{(df[column_name] == 'NO').sum()} NO, {(df[column_name] == 'RESUBMITTED').sum()} RESUBMITTED, "
-                f"{(df[column_name] == 'PEN').sum()} PEN, {(df[column_name] == 'YES').sum()} YES")
+    engine._print_processing_step("Conditional", column_name, 
+        f"Applied: {(df[column_name] == 'NO').sum()} NO, {(df[column_name] == 'RESUBMITTED').sum()} RESUBMITTED, "
+        f"{(df[column_name] == 'PEN').sum()} PEN, {(df[column_name] == 'YES').sum()} YES")
     return df
 
 
@@ -149,7 +149,7 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Preprocessing: convert to uppercase and fill nulls
     preprocessing = calculation.get('preprocessing', {})
@@ -164,7 +164,7 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
     if null_mask.any():
         df.loc[null_mask, column_name] = 'NO'
     else:
-        logger.info(f"Skipped submission_closure_status for {column_name}: all values present")
+        debug_print(f"Skipped submission_closure_status for {column_name}: all values present")
         return df
 
     # Track which rows have been determined - these skip remaining checks
@@ -218,7 +218,7 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     if resubmission_required_col and resubmission_plan_date_col:
         # Convert plan date to datetime
@@ -236,9 +236,10 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
 
         df.loc[mask_overdue, column_name] = 'Overdue'
 
-        logger.info(f"Applied calculate_overdue_status for {column_name}: "
-                    f"{mask_overdue.sum()} rows Overdue, {(~mask_overdue).sum()} rows null")
+        engine._print_processing_step("Conditional", column_name, 
+            f"Applied: {mask_overdue.sum()} rows Overdue, {(~mask_overdue).sum()} rows null")
     else:
-        logger.warning(f"Cannot calculate overdue status: missing required columns")
+        engine._print_processing_step("Conditional", column_name, 
+            "Cannot calculate: missing required columns")
 
     return df

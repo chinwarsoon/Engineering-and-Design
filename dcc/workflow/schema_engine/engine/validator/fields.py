@@ -10,6 +10,9 @@ from typing import Dict, Any, List, Set
 
 from ..utils.paths import safe_resolve
 
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +28,7 @@ def validate_schema_document(
         return
     validated_paths.add(resolved_schema_path)
 
-    print(f"  Validating field_definitions in schema: {resolved_schema_path}")
+    status_print(f"Validating field_definitions in schema: {resolved_schema_path}")
 
     field_definitions = schema_data.get("field_definitions", {})
     if not isinstance(field_definitions, dict) or not field_definitions:

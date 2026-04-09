@@ -4,10 +4,10 @@ Includes index resetting, column flattening, column management, and safe copy op
 """
 
 import pandas as pd
-import logging
 from typing import List, Optional, Set
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 
 def prepare_dataframe_for_processing(df: pd.DataFrame) -> pd.DataFrame:
@@ -20,12 +20,12 @@ def prepare_dataframe_for_processing(df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         DataFrame with RangeIndex and clean state
     """
-    logger.info(f"[PREPARE] Entry - DataFrame index type: {type(df.index)}")
+    debug_print(f"[PREPARE] Entry - DataFrame index type: {type(df.index)}")
     if not isinstance(df.index, pd.RangeIndex):
-        logger.warning(f"DataFrame index is {type(df.index)}, resetting to RangeIndex")
-        logger.warning(f"Current index sample: {df.index[:3].tolist() if hasattr(df.index, 'tolist') else list(df.index)[:3]}")
+        debug_print(f"DataFrame index is {type(df.index)}, resetting to RangeIndex")
+        debug_print(f"Current index sample: {df.index[:3].tolist() if hasattr(df.index, 'tolist') else list(df.index)[:3]}")
         df = df.reset_index(drop=True)
-        logger.info(f"Index reset to RangeIndex, new index sample: {df.index[:3].tolist()}")
+        debug_print(f"Index reset to RangeIndex, new index sample: {df.index[:3].tolist()}")
 
     return df
 
@@ -43,17 +43,17 @@ def flatten_columns(df: pd.DataFrame) -> pd.DataFrame:
     df_copy = df.copy()
 
     if hasattr(pd, 'MultiIndex') and isinstance(df_copy.columns, pd.MultiIndex):
-        logger.warning("Flattening MultiIndex columns")
+        debug_print("Flattening MultiIndex columns")
         df_copy.columns = ['_'.join(str(level) for level in levels).strip('_')
                            for levels in df_copy.columns]
     elif len(df_copy.columns) > 0 and isinstance(df_copy.columns[0], tuple):
-        logger.warning("Flattening tuple columns")
+        debug_print("Flattening tuple columns")
         df_copy.columns = ['_'.join(str(level) for level in levels).strip('_')
                            for levels in df_copy.columns]
 
     # Double-check all columns are strings
     if not all(isinstance(c, str) for c in df_copy.columns):
-        logger.warning("Non-string columns detected, converting all to strings")
+        debug_print("Non-string columns detected, converting all to strings")
         df_copy.columns = ['_'.join(str(level) for level in (c if isinstance(c, tuple) else [c])).strip('_')
                            for c in df_copy.columns]
 
@@ -71,7 +71,7 @@ def ensure_columns_are_strings(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with string column names
     """
     if not all(isinstance(c, str) for c in df.columns):
-        logger.warning("Flattening non-string columns")
+        debug_print("Flattening non-string columns")
         df = df.copy()
         df.columns = ['_'.join(str(level) for level in (c if isinstance(c, tuple) else [c])).strip('_')
                       for c in df.columns]
@@ -127,7 +127,7 @@ def initialize_missing_columns(df: pd.DataFrame, columns_schema: dict,
     for col in submission_session_cols:
         if col in df_init.columns:
             df_init[col] = df_init[col].astype(str)
-            logger.info(f"Cast {col} to string for consistent grouping")
+            debug_print(f"Cast {col} to string for consistent grouping")
 
     for col_name, col_def in columns_schema.items():
         if not isinstance(col_def, dict):
@@ -141,7 +141,7 @@ def initialize_missing_columns(df: pd.DataFrame, columns_schema: dict,
                     default_val = col_def.get('default_value')
 
                 df_init[col_name] = default_val
-                logger.info(f"Created missing column: {col_name} with default '{default_val}'")
+                debug_print(f"Created missing column: {col_name} with default '{default_val}'")
 
     return df_init
 
@@ -190,7 +190,7 @@ def cast_submission_session_columns(df: pd.DataFrame) -> pd.DataFrame:
     for col in submission_session_cols:
         if col in df_copy.columns:
             df_copy[col] = df_copy[col].astype(str)
-            logger.info(f"Cast {col} to string for consistent grouping")
+            debug_print(f"Cast {col} to string for consistent grouping")
     return df_copy
 
 
@@ -220,7 +220,7 @@ def remove_duplicate_columns(df: pd.DataFrame, column_name: str) -> pd.DataFrame
         DataFrame with duplicates removed
     """
     if df.columns.tolist().count(column_name) > 1:
-        logger.error(f"DUPLICATE COLUMNS DETECTED: '{column_name}' appears {df.columns.tolist().count(column_name)} times! Removing duplicates.")
+        debug_print(f"DUPLICATE COLUMNS DETECTED: '{column_name}' appears {df.columns.tolist().count(column_name)} times! Removing duplicates.")
         df = df.loc[:, ~df.columns.duplicated()].copy()
         df.index = pd.RangeIndex(len(df))
     return df

@@ -3,7 +3,6 @@ Registry module for mapping calculation types and null handling strategies
 to their implementing functions in the processor engine.
 """
 
-import logging
 from typing import Callable, Dict, Optional
 
 # Import null handling strategies
@@ -25,7 +24,8 @@ from ..calculations import (
     composite,
 )
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 # --- Registry for Null Handling ---
 
@@ -112,7 +112,7 @@ def get_null_handler(strategy: str) -> Optional[Callable]:
     """
     handler = NULL_HANDLERS.get(strategy)
     if not handler and strategy != "leave_null":
-        logger.warning(f"No handler registered for null strategy: {strategy}")
+        status_print(f"WARNING: No handler registered for null strategy: {strategy}")
     return handler
 
 def get_calculation_handler(calc_type: str, method: str = "default") -> Optional[Callable]:
@@ -133,7 +133,7 @@ def get_calculation_handler(calc_type: str, method: str = "default") -> Optional
     handler = type_map.get(method) or type_map.get("default")
 
     if not handler:
-        logger.warning(f"No handler registered for calculation type: {calc_type}/{method}")
+        status_print(f"WARNING: No handler registered for calculation type: {calc_type}/{method}")
 
     return handler
 
@@ -146,7 +146,7 @@ def register_null_handler(strategy: str, func: Callable):
         func: The handler function
     """
     NULL_HANDLERS[strategy] = func
-    logger.info(f"Registered null handler for strategy: {strategy}")
+    status_print(f"Registered null handler for strategy: {strategy}")
 
 
 def register_calculation_handler(calc_type: str, method: str, func: Callable):
@@ -161,7 +161,7 @@ def register_calculation_handler(calc_type: str, method: str, func: Callable):
     if calc_type not in CALCULATION_HANDLERS:
         CALCULATION_HANDLERS[calc_type] = {}
     CALCULATION_HANDLERS[calc_type][method] = func
-    logger.info(f"Registered calculation handler for {calc_type}/{method}")
+    status_print(f"Registered calculation handler for {calc_type}/{method}")
 
 
 def list_registered_handlers():

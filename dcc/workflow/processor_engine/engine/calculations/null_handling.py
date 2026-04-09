@@ -5,10 +5,9 @@ Extracted from UniversalDocumentProcessor null handling methods.
 
 import pandas as pd
 import numpy as np
-import logging
 from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+from initiation_engine.engine import status_print, debug_print
 
 
 def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
@@ -20,7 +19,7 @@ def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling
 
     # Defensive check: ensure column_name is a string, not a tuple
     if not isinstance(column_name, str):
-        logger.error(f"Invalid column_name type: {type(column_name)} - {column_name}")
+        debug_print(f"Invalid column_name type: {type(column_name)} - {column_name}")
         column_name = str(column_name) if isinstance(column_name, tuple) else column_name
 
     # Resolve fill_value from schema reference if specified
@@ -38,7 +37,7 @@ def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling
 
     # Validate that column exists in DataFrame
     if column_name not in df.columns:
-        logger.error(f"Column '{column_name}' not found in DataFrame. Available columns: {list(df.columns)[:10]}...")
+        debug_print(f"Column '{column_name}' not found in DataFrame. Available columns: {list(df.columns)[:10]}...")
         return df
 
     # FIX: Always work on a local copy; never mutate the caller's DataFrame.
@@ -46,7 +45,7 @@ def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling
 
     # Remove duplicate columns which cause df[col] to return a DataFrame
     if df_copy.columns.tolist().count(column_name) > 1:
-        logger.error(f"DUPLICATE COLUMNS DETECTED: '{column_name}' appears {df_copy.columns.tolist().count(column_name)} times! Removing duplicates.")
+        debug_print(f"DUPLICATE COLUMNS DETECTED: '{column_name}' appears {df_copy.columns.tolist().count(column_name)} times! Removing duplicates.")
         df_copy = df_copy.loc[:, ~df_copy.columns.duplicated()].copy()
         df_copy.index = pd.RangeIndex(len(df_copy))
 
@@ -54,7 +53,7 @@ def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling
         # Validate group_by columns exist
         valid_group_by = [col for col in group_by if col in df_copy.columns]
         if not valid_group_by:
-            logger.warning(f"None of the group_by columns {group_by} found in DataFrame. Skipping forward fill for {column_name}.")
+            debug_print(f"None of the group_by columns {group_by} found in DataFrame. Skipping forward fill for {column_name}.")
             return df_copy
 
         # Cast group keys to str so NaN group keys don't silently split groups
@@ -81,11 +80,11 @@ def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling
             df_copy[column_name] = df_copy[column_name].apply(
                 lambda x: str(int(float(x))).zfill(zero_pad) if pd.notna(x) and x != 'NA' else x
             )
-            logger.info(f"Applied zero-padding ({zero_pad} digits) for {column_name}")
+            debug_print(f"Applied zero-padding ({zero_pad} digits) for {column_name}")
         except Exception as e:
-            logger.warning(f"Could not apply zero-padding for {column_name}: {e}")
+            debug_print(f"Could not apply zero-padding for {column_name}: {e}")
 
-    logger.info(f"Applied forward fill for '{column_name}': group_by={group_by}")
+    debug_print(f"Applied forward fill for '{column_name}': group_by={group_by}")
     return df_copy
 
 
@@ -119,7 +118,7 @@ def apply_multi_level_forward_fill(engine, df: pd.DataFrame, column_name: str, n
     if final_fill is not None and column_name in df_copy.columns:
         df_copy[column_name] = df_copy[column_name].fillna(final_fill)
 
-    logger.info(f"Applied multi_level_forward_fill for {column_name}")
+    debug_print(f"Applied multi_level_forward_fill for {column_name}")
     return df_copy
 
 
@@ -133,10 +132,10 @@ def apply_copy_from(engine, df: pd.DataFrame, column_name: str, null_handling: D
 
     # FIX: guard against missing or unconfigured source_column
     if not source_column:
-        logger.error(f"_apply_copy_from: 'source_column' not specified in null_handling for '{column_name}'. Skipping.")
+        debug_print(f"_apply_copy_from: 'source_column' not specified in null_handling for '{column_name}'. Skipping.")
         return df
     if source_column not in df.columns:
-        logger.error(f"_apply_copy_from: source column '{source_column}' not found in DataFrame for '{column_name}'. Skipping.")
+        debug_print(f"_apply_copy_from: source column '{source_column}' not found in DataFrame for '{column_name}'. Skipping.")
         return df
 
     df = df.copy()
@@ -148,7 +147,7 @@ def apply_copy_from(engine, df: pd.DataFrame, column_name: str, null_handling: D
     # Apply fallback for remaining null values
     df[column_name] = df[column_name].fillna(fallback_value)
 
-    logger.info(f"Applied copy from for {column_name}: source={source_column}, fallback={fallback_value}")
+    debug_print(f"Applied copy from for {column_name}: source={source_column}, fallback={fallback_value}")
     return df
 
 
@@ -169,7 +168,7 @@ def apply_calculate_if_null(engine, df: pd.DataFrame, column_name: str, null_han
     elif calc_type == 'conditional' and method == 'status_based':
         df = _apply_conditional_calculation(engine, df, column_name, calculation)
     else:
-        logger.warning(
+        debug_print(
             f"Unsupported calculation type in calculate_if_null: {calc_type}/{method} for {column_name}. "
             f"Use is_calculated:true with appropriate calculation type instead."
         )
@@ -197,7 +196,7 @@ def _calculate_working_days(engine, df: pd.DataFrame, column_name: str, calculat
     mask = df[column_name].notna() & df[source_column].notna()
     df.loc[mask, column_name] = df.loc[mask, source_column] + pd.Timedelta(days=days)
 
-    logger.info(f"Calculated working days for {column_name}: +{days} days from {source_column}")
+    debug_print(f"Calculated working days for {column_name}: +{days} days from {source_column}")
     return df
 
 
@@ -217,7 +216,7 @@ def _apply_conditional_calculation(engine, df: pd.DataFrame, column_name: str, c
         # Apply default for remaining null values
         df[column_name] = df[column_name].fillna(default_value)
 
-    logger.info(f"Applied conditional calculation for {column_name}: based on {source_column}")
+    debug_print(f"Applied conditional calculation for {column_name}: based on {source_column}")
     return df
 
 
@@ -276,11 +275,11 @@ def apply_default_value(engine, df: pd.DataFrame, column_name: str, null_handlin
                     return x
 
             df[column_name] = df[column_name].apply(pad_if_numeric)
-            logger.info(f"Applied zero-padding ({zero_pad} digits) for {column_name}")
+            debug_print(f"Applied zero-padding ({zero_pad} digits) for {column_name}")
         except Exception as e:
-            logger.warning(f"Could not apply zero-padding for {column_name}: {e}")
+            debug_print(f"Could not apply zero-padding for {column_name}: {e}")
 
-    logger.info(f"Applied default value for {column_name}: {default_value}")
+    debug_print(f"Applied default value for {column_name}: {default_value}")
     return df
 
 
@@ -312,5 +311,5 @@ def apply_lookup_if_null(engine, df: pd.DataFrame, column_name: str, null_handli
         # Apply fallback for remaining null values
         df[column_name] = df[column_name].fillna(fallback_value)
 
-    logger.info(f"Applied lookup if null for {column_name}: lookup_key={lookup_key}")
+    debug_print(f"Applied lookup if null for {column_name}: lookup_key={lookup_key}")
     return df

@@ -6,10 +6,10 @@ Extracted from UniversalDocumentProcessor._apply_aggregate_calculation and relat
 
 import pandas as pd
 import numpy as np
-import logging
 from typing import Dict, Any, List
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 
 def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
@@ -34,12 +34,12 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Aggregate", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Calculate only for null values
     null_mask = df[column_name].isna()
     if not null_mask.any():
-        logger.info(f"Skipped aggregate for {column_name}: all values present")
+        debug_print(f"Skipped aggregate for {column_name}: all values present")
         return df
 
     # Calculate for null rows only
@@ -102,7 +102,7 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
         calculated = grouped[source_column].transform(concat_dates)
         df.loc[null_mask, column_name] = calculated[null_mask]
 
-    logger.info(f"Applied aggregate {method} to {null_mask.sum()} null rows in {column_name}")
+    engine._print_processing_step("Aggregate", column_name, f"Applied {method} to {null_mask.sum()} null rows")
     return df
 
 
@@ -128,12 +128,12 @@ def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str,
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Latest-By-Date", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Calculate only for null values
     null_mask = df[column_name].isna()
     if not null_mask.any():
-        logger.info(f"Skipped latest_by_date for {column_name}: all values present")
+        debug_print(f"Skipped latest_by_date for {column_name}: all values present")
         return df
 
     engine._print_processing_step("Latest-By-Date", column_name, f"Finding latest {source_column} via {sort_by}")
@@ -158,7 +158,7 @@ def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str,
         mapped = pd.merge(df.loc[null_mask, group_by], latest_vals, left_on=group_by, right_index=True, how='left')
         df.loc[null_mask, column_name] = mapped[source_column].fillna(fallback)
 
-    logger.info(f"Applied latest_by_date to {null_mask.sum()} null rows in {column_name}")
+    engine._print_processing_step("Latest-By-Date", column_name, f"Applied to {null_mask.sum()} null rows")
     return df
 
 
@@ -205,13 +205,13 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
     preprocessing = calculation.get('preprocessing', {})
 
     if source_column not in df.columns:
-        logger.warning(f"Source column {source_column} not found for latest_non_pending_status")
+        engine._print_processing_step("Aggregate", column_name, f"ERROR: Source column {source_column} not found")
         return df
 
     required_cols = group_by + sort_by + [source_column]
     missing_cols = [c for c in required_cols if c not in df.columns]
     if missing_cols:
-        logger.warning(f"Missing columns for latest_non_pending_status: {missing_cols}")
+        engine._print_processing_step("Aggregate", column_name, f"ERROR: Missing columns: {missing_cols}")
         return df
 
     engine._print_processing_step("Aggregate", column_name, "Finding latest non-pending status")
@@ -223,12 +223,12 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
     # Get existing non-null values
     existing_mask = df[column_name].notna()
     if existing_mask.any():
-        logger.info(f"Preserving {existing_mask.sum()} existing values in {column_name}")
+        engine._print_processing_step("Aggregate", column_name, f"Preserving {existing_mask.sum()} existing values")
 
     # Calculate only for null values
     null_mask = df[column_name].isna()
     if not null_mask.any():
-        logger.info(f"Skipped latest_non_pending_status for {column_name}: all values present")
+        debug_print(f"Skipped latest_non_pending_status for {column_name}: all values present")
         return df
 
     # Filter to only null rows for calculation
@@ -266,9 +266,9 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
         # Update only null positions
         if len(df_merged) > 0:
             df.loc[df_merged.index, column_name] = df_merged[column_name].values
-            logger.info(f"Applied latest_non_pending_status to {len(df_merged)} null rows in {column_name}")
+            engine._print_processing_step("Aggregate", column_name, f"Applied to {len(df_merged)} null rows")
     else:
         df.loc[null_mask, column_name] = fallback_value
-        logger.info(f"Applied fallback to {null_mask.sum()} null rows in {column_name}")
+        engine._print_processing_step("Aggregate", column_name, f"Applied fallback to {null_mask.sum()} null rows")
 
     return df

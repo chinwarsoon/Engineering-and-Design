@@ -9,7 +9,8 @@ import pandas as pd
 
 from ..matchers.fuzzy import fuzzy_match_column
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 
 def flatten_multiindex_headers(headers: List[Any]) -> List[str]:
@@ -27,7 +28,7 @@ def flatten_multiindex_headers(headers: List[Any]) -> List[str]:
         if isinstance(h, tuple):
             flattened_name = '_'.join(str(level) for level in h).strip('_')
             flattened.append(flattened_name)
-            logger.warning(f"Flattened tuple header {h} to '{flattened_name}'")
+            status_print(f"WARNING: Flattened tuple header {h} to '{flattened_name}'")
         elif isinstance(h, str):
             flattened.append(h)
         else:
@@ -92,7 +93,7 @@ def detect_columns(headers: List[str], columns: Dict[str, Dict], threshold: floa
         is_calculated = col_def.get('is_calculated', False)
         if is_required and not is_calculated and col_name not in matched_column_names:
             missing_required.append(col_name)
-            logger.warning(f"Required input column missing during mapping detection: {col_name}")
+            status_print(f"WARNING: Required input column missing during mapping detection: {col_name}")
     
     return {
         'detected_columns': detected,
@@ -154,14 +155,14 @@ def rename_dataframe_columns(df: pd.DataFrame, mapping_result: Dict) -> pd.DataF
     
     # Flatten MultiIndex/tuple columns if present
     if hasattr(pd, 'MultiIndex') and isinstance(df_renamed.columns, pd.MultiIndex):
-        logger.warning("Flattening MultiIndex columns in rename_dataframe_columns")
+        status_print("WARNING: Flattening MultiIndex columns in rename_dataframe_columns")
         df_renamed.columns = ['_'.join(str(level) for level in levels).strip('_')
                               for levels in df_renamed.columns]
     elif len(df_renamed.columns) > 0 and isinstance(df_renamed.columns[0], tuple):
-        logger.warning("Flattening tuple columns in rename_dataframe_columns")
+        status_print("WARNING: Flattening tuple columns in rename_dataframe_columns")
         df_renamed.columns = ['_'.join(str(level) for level in levels).strip('_')
                               for levels in df_renamed.columns]
-    
+
     # Create rename mapping
     rename_dict = {}
     for header, mapping in mapping_result['detected_columns'].items():
@@ -177,10 +178,10 @@ def rename_dataframe_columns(df: pd.DataFrame, mapping_result: Dict) -> pd.DataF
     duplicate_mask = df_renamed.columns.duplicated(keep='first')
     if duplicate_mask.any():
         duplicate_cols = df_renamed.columns[duplicate_mask].tolist()
-        logger.warning(f"Removing {len(duplicate_cols)} duplicate columns after rename: {duplicate_cols}")
+        status_print(f"WARNING: Removing {len(duplicate_cols)} duplicate columns after rename: {duplicate_cols}")
         df_renamed = df_renamed.loc[:, ~df_renamed.columns.duplicated(keep='first')]
 
-    logger.info(f"Renamed {len(rename_dict)} columns to schema names")
-    logger.info(f"Final DataFrame: {len(df_renamed)} rows × {len(df_renamed.columns)} columns")
+    status_print(f"Renamed {len(rename_dict)} columns to schema names")
+    status_print(f"Final DataFrame: {len(df_renamed)} rows × {len(df_renamed.columns)} columns")
 
     return df_renamed

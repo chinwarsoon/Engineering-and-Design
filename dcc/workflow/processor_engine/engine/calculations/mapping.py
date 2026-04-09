@@ -5,10 +5,10 @@ Extracted from UniversalDocumentProcessor._apply_mapping_calculation.
 """
 
 import pandas as pd
-import logging
 from typing import Dict, Any
 
-logger = logging.getLogger(__name__)
+# Import hierarchical logging functions from initiation_engine (centralized)
+from initiation_engine.engine import status_print, debug_print
 
 
 def apply_mapping_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
@@ -40,7 +40,7 @@ def apply_mapping_calculation(engine, df: pd.DataFrame, column_name: str, calcul
                     mapping[alias] = code
 
     if source_column not in df.columns:
-        logger.warning(f"Mapping skipped for {column_name}: source column {source_column} not found.")
+        engine._print_processing_step("Mapping", column_name, f"ERROR: Source column {source_column} not found")
         return df
 
     engine._print_processing_step("Mapping", column_name, f"Mapping from {source_column} ({len(mapping)} mappings)")
@@ -55,9 +55,9 @@ def apply_mapping_calculation(engine, df: pd.DataFrame, column_name: str, calcul
         # Only map values where target is null
         mapped_values = df.loc[null_mask, source_column].map(mapping)
         df.loc[null_mask, column_name] = mapped_values.fillna(default)
-        logger.info(f"Applied mapping to {null_mask.sum()} rows with null values in {column_name}")
+        engine._print_processing_step("Mapping", column_name, f"Applied to {null_mask.sum()} rows with null values")
     else:
-        logger.info(f"Skipped mapping for {column_name}: all values already present")
+        debug_print(f"Skipped mapping for {column_name}: all values already present")
 
     return df
 
