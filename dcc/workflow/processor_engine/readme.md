@@ -62,35 +62,46 @@ processor_engine/
 
 ## Workflow Overview
 
-The processor engine follows a structured five-step processing pipeline:
+The processor engine follows a structured **phased processing pipeline** (P1→P2→P2.5→P3):
 
 ```mermaid
 flowchart TD
     A["Initialize CalculationEngine<br/>CalculationEngine.__init__()"] --> B["Resolve calculation order<br/>resolve_calculation_order()"]
     B --> C["Load schema and columns<br/>from schema_data"]
-    C --> D["Start process_data()"]
-    D --> E["Apply null handling<br/>apply_null_handling()"]
-    E --> F["Initialize missing columns<br/>initialize_missing_columns()"]
-    F --> G["Apply null strategies<br/>get_null_handler()"]
-    G --> H["Forward fill<br/>apply_forward_fill()"]
-    G --> I["Multi-level fill<br/>apply_multi_level_forward_fill()"]
-    G --> J["Default values<br/>apply_default_value()"]
-    H --> K["Apply calculations<br/>apply_calculations()"]
-    I --> K
-    J --> K
-    K --> L["Execute in dependency order<br/>calculation_order loop"]
-    L --> M{"Calculation type?"}
-    M -->|aggregate| N["apply_aggregate_calculation()"]
-    M -->|conditional| O["apply_current_row_calculation()<br/>apply_update_resubmission_required()"]
-    M -->|date| P["apply_conditional_date_calculation()<br/>apply_resubmission_plan_date()"]
-    M -->|mapping| Q["apply_mapping_calculation()<br/>apply_status_to_code()"]
-    M -->|composite| R["apply_composite_calculation()<br/>apply_row_index()"]
-    N --> S["Return processed DataFrame"]
-    O --> S
-    P --> S
-    Q --> S
-    R --> S
+    C --> D["Start apply_phased_processing()"]
+    
+    D --> E["Phase 1: Meta Data<br/>P1 columns<br/>apply_null_handling()"]
+    E --> F["Forward fill with boundaries<br/>apply_forward_fill()<br/>apply_multi_level_forward_fill()"]
+    
+    F --> G["Phase 2: Transactional<br/>P2 columns<br/>apply_bounded_forward_fill()"]
+    G --> H["Forward fill IF Manual Input=YES<br/>Resubmission_Forecast_Date etc."]
+    
+    H --> I["Phase 2.5: Anomaly<br/>P2.5 columns<br/>_apply_phase_calculated()"]
+    I --> J["Calculation FIRST<br/>Document_ID, Review_Status_Code<br/>Latest_Revision"]
+    J --> K["Null handling LAST DEFENSE"]
+    
+    K --> L["Phase 3: Calculated<br/>P3 columns<br/>_apply_phase_calculated()"]
+    L --> M["Calculations FIRST<br/>apply_calculations()"]
+    M --> N["Null handling LAST DEFENSE<br/>Only fill remaining nulls"]
+    
+    N --> O["Return processed DataFrame"]
 ```
+
+### Processing Phases
+
+| Phase | Columns | Processing Rule | Key Functions |
+|-------|---------|-----------------|---------------|
+| **P1** | Meta Data (11 cols) | Null handling with bounded forward fill | `apply_forward_fill()`, `apply_multi_level_forward_fill()` |
+| **P2** | Transactional (11 cols) | Forward fill IF Manual Input = YES | `apply_bounded_forward_fill()` |
+| **P2.5** | Anomaly (3 cols) | Calculation FIRST, null handling LAST | `_apply_phase_calculated()` |
+| **P3** | Calculated (21 cols) | Calculation FIRST, null handling LAST | `_apply_phase_calculated()` |
+
+### Key Rules Implemented
+
+- **Rule 10**: `Document_ID` - Calculate first, then null_handling
+- **Rule 11**: Calculated columns - Calculation FIRST, null handling as LAST DEFENSE
+- **Rule 12**: Forward fill within boundary for P1 + P2 Manual Input columns
+- **Rule 13**: Process columns in schema `column_sequence` order
 
 ### Function I/O Reference
 
@@ -163,14 +174,50 @@ The main orchestrator class that coordinates all data processing activities.
 | **Function** | Applies designated null-handling strategy to each column |
 | **Workflow** | 1. Prepare DataFrame<br>2. Initialize missing columns<br>3. Get handler for each column's strategy<br>4. Apply handler |
 
-##### `apply_calculations(df)`
+##### `apply_calculations(df)` [Deprecated for direct use]
 
 | Attribute | Details |
 |-----------|---------|
 | **Input** | `df` (pd.DataFrame): DataFrame after null handling |
 | **Output** | DataFrame with calculated columns in dependency order |
 | **Function** | Executes calculated columns in validated dependency order |
-| **Workflow** | 1. Copy DataFrame<br>2. Iterate calculation_order<br>3. Get handler for each calculation<br>4. Apply handler<br>5. Return result |
+| **Note** | Now used internally by `_apply_phase_calculated()` which runs calculations FIRST, then null handling as LAST DEFENSE |
+
+#### New Phased Processing Methods
+
+##### `apply_phased_processing(df)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame): Raw input data |
+| **Output** | Processed DataFrame after P1→P2→P2.5→P3 phases |
+| **Function** | Main orchestrator for phased column processing |
+| **Workflow** | 1. Group columns by processing_phase<br>2. Execute P1 (null handling)<br>3. Execute P2 (transactional with forward fill)<br>4. Execute P2.5 (calculated - anomaly)<br>5. Execute P3 (calculated - standard)<br>6. Return result |
+
+##### `_apply_phase_null_handling(df, column_names)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame), `column_names` (List[str]): P1 columns |
+| **Output** | DataFrame with null handling applied |
+| **Function** | Applies null handling strategies for P1 columns |
+
+##### `_apply_phase_transactional(df, column_names)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame), `column_names` (List[str]): P2 columns |
+| **Output** | DataFrame with forward fill applied for Manual Input columns |
+| **Function** | Applies bounded forward fill for P2 columns with Manual Input = YES |
+
+##### `_apply_phase_calculated(df, column_names)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `df` (pd.DataFrame), `column_names` (List[str]): P2.5 or P3 columns |
+| **Output** | DataFrame with calculations and last-defense null handling |
+| **Function** | **Rule 11**: Calculation FIRST, then null handling as LAST DEFENSE |
+| **Workflow** | 1. Apply calculations in schema sequence order<br>2. Check for remaining nulls<br>3. Apply null handling only to remaining nulls |
 
 ---
 
@@ -680,9 +727,12 @@ The engine provides comprehensive error handling:
 
 ## Notes
 
-- Calculation order is determined by dependency graph analysis
+- **Phased Processing**: Columns are processed in P1→P2→P2.5→P3 order based on `processing_phase` field in schema
+- **Calculation Order**: For P2.5 and P3 columns, calculations run FIRST, then null handling as LAST DEFENSE (Rule 11)
+- **Forward Fill Boundaries**: Level 1 = [Submission_Session, Submission_Session_Revision], Level 2 = [Submission_Session] (Rule 12)
+- **Column Sequence**: Processing respects schema `column_sequence` order within each phase (Rule 13)
+- Dependency graph analysis determines safe execution order within calculated columns
 - Circular dependencies are detected and raise ValueError
 - All handlers follow signature: `(processor, df, column_name, config) -> df`
 - Schema references are resolved at runtime via SchemaProcessor
-- Null handling is applied before calculations in the pipeline
 - The registry system allows dynamic extension without core modifications

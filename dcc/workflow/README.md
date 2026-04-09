@@ -228,3 +228,4 @@ python dcc/workflow/dcc_engine_pipeline.py --start-col A --end-col Z --debug-mod
 - [Mapper Engine README](mapper_engine/readme.md)
 - [Processor Engine README](processor_engine/readme.md)
 - [Reporting Engine README](reporting_engine/readme.md)
+- [Column Priority Reference](explaination/column_priority_reference.md) - Detailed column priority rules (P1/P2/P2.5/P3)
