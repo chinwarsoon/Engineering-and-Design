@@ -125,7 +125,8 @@
             "min_value": 1,
             "description": "Row index must be a positive integer starting from 1"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Submission_Session": {
         "aliases": [
@@ -164,7 +165,8 @@
             "ensure_same": "Submission_Date",
             "description": "Ensures submission_date is the same for the same submission_session and submission_session_revision"
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Submission_Session_Revision": {
         "aliases": [
@@ -196,7 +198,8 @@
             "pattern": "^[0-9]{2}$",
             "description": "Revision for this submission (2-digit zero-padded)"
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Submission_Session_Subject": {
         "aliases": [
@@ -235,7 +238,8 @@
             "min_length": 2,
             "description": "Subject of the submission"
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Project_Code": {
         "aliases": [
@@ -267,7 +271,8 @@
             "field": "code",
             "description": "Validated by _apply_validation against project_schema.project[*].code to ensure Project_Code exists in the approved project code list."
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Facility_Code": {
         "aliases": [
@@ -299,7 +304,8 @@
             "field": "prefix",
             "description": "Validated by _apply_validation against facility_schema.facility[*].prefix to ensure Facility_Code exists in the approved facility prefix list."
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Document_Type": {
         "aliases": [
@@ -326,7 +332,8 @@
             "field": "code",
             "description": "Validated by _apply_validation against document_type_schema.document[*].code to ensure Document_Type exists in the approved document type code list."
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Discipline": {
         "aliases": [
@@ -353,7 +360,8 @@
             "field": "code",
             "description": "Validated by _apply_validation against discipline_schema.discipline[*].code to ensure Discipline exists in the approved discipline code list."
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Document_Sequence_Number": {
         "aliases": [
@@ -371,7 +379,7 @@
           "default_value": "9999",
           "formatting": {
             "zero_pad": 4,
-            "description": "Apply zero-padding to numeric values (e.g., 1 → 0001). Text values remain unchanged."
+            "description": "Apply zero-padding to numeric values (e.g., 1 \u2192 0001). Text values remain unchanged."
           },
           "description": "Processed by _apply_default_value. Fills nulls with '0000' to ensure Document_ID calculation remains valid. Numeric values are zero-padded to 4 digits."
         },
@@ -381,7 +389,8 @@
             "pattern": "^[0-9]{4}$",
             "description": "Validated by _apply_validation using regex pattern matching. Ensures only numeric characters are used."
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "Document_ID": {
         "aliases": [
@@ -426,7 +435,8 @@
             "field": "code",
             "description": "Ensures Document_ID starts with a valid project code from project_schema"
           }
-        ]
+        ],
+        "processing_phase": "P2.5"
       },
       "Document_Revision": {
         "aliases": [
@@ -474,7 +484,8 @@
             "pattern": "^[A-Z0-9.]*$",
             "description": "Revision number or identifier (optional)"
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "Document_Title": {
         "aliases": [
@@ -500,7 +511,8 @@
             "min_length": 2,
             "description": "Document title must be at least 2 characters"
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "Transmittal_Number": {
         "aliases": [
@@ -530,7 +542,8 @@
             "pattern": "^[A-Z0-9-]*$",
             "description": "Transmittal reference number"
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Consolidated_Submission_Session_Subject": {
         "aliases": [
@@ -560,7 +573,8 @@
             "type": "info",
             "description": "Consolidated submission subjects for each document"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Department": {
         "aliases": [
@@ -601,7 +615,8 @@
             "data_section": "choices",
             "description": "Validated by _apply_validation against department_schema.choices to ensure department is valid."
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Submitted_By": {
         "aliases": [
@@ -641,7 +656,8 @@
             "min_length": 2,
             "description": "Name of document submitter"
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "Submission_Date": {
         "aliases": [
@@ -682,7 +698,8 @@
             "format": "YYYY-MM-DD",
             "description": "Date of submission"
           }
-        ]
+        ],
+        "processing_phase": "P1"
       },
       "First_Submission_Date": {
         "aliases": [
@@ -714,7 +731,8 @@
         "processing": {
           "auto_format": true,
           "timezone_aware": false
-        }
+        },
+        "processing_phase": "P3"
       },
       "Latest_Submission_Date": {
         "aliases": [
@@ -745,7 +763,8 @@
         "processing": {
           "auto_format": true,
           "timezone_aware": false
-        }
+        },
+        "processing_phase": "P3"
       },
       "Latest_Revision": {
         "aliases": [
@@ -789,7 +808,8 @@
             "pattern": "^[A-Z0-9.]+$",
             "description": "Latest revision number"
           }
-        ]
+        ],
+        "processing_phase": "P2.5"
       },
       "All_Submission_Sessions": {
         "aliases": [
@@ -816,7 +836,8 @@
             "type": "info",
             "description": "All submission session identifiers"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "All_Submission_Dates": {
         "aliases": [
@@ -847,7 +868,8 @@
             "type": "info",
             "description": "All submission dates"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "All_Submission_Session_Revisions": {
         "aliases": [
@@ -877,7 +899,8 @@
             "type": "info",
             "description": "All revision numbers for submissions"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Count_of_Submissions": {
         "aliases": [
@@ -911,7 +934,8 @@
             "max_value": 100,
             "description": "Total number of submissions"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Reviewer": {
         "aliases": [
@@ -940,7 +964,8 @@
             "min_length": 2,
             "description": "Name of reviewer"
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "Review_Return_Actual_Date": {
         "aliases": [
@@ -984,7 +1009,8 @@
         "processing": {
           "auto_format": true,
           "timezone_aware": false
-        }
+        },
+        "processing_phase": "P2"
       },
       "Review_Return_Plan_Date": {
         "aliases": [
@@ -1052,7 +1078,8 @@
             "parameter": "duration_is_working_day",
             "description": "If enabled, performs day arithmetic using pd.offsets.BDay() to exclude weekends and holidays."
           }
-        }
+        },
+        "processing_phase": "P3"
       },
       "Review_Status": {
         "aliases": [
@@ -1087,7 +1114,8 @@
             "field": "status",
             "description": "Validated by _apply_validation against approval_code_schema.approval[*].status to ensure review status is valid."
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "Review_Status_Code": {
         "aliases": [
@@ -1115,7 +1143,8 @@
             "field": "code",
             "description": "Validated against approval_code_schema codes."
           }
-        ]
+        ],
+        "processing_phase": "P2.5"
       },
       "Approval_Code": {
         "aliases": [
@@ -1144,7 +1173,8 @@
             "field": "code",
             "description": "Validated against approval_code_schema codes."
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Review_Comments": {
         "aliases": [
@@ -1187,7 +1217,8 @@
             "max_length": 500,
             "description": "Review comments and feedback"
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "Latest_Approval_Status": {
         "aliases": [
@@ -1254,7 +1285,8 @@
             ],
             "description": "Validated by _apply_validation against approval_code_schema.approval[*].status (excluding pending) to ensure latest approval status is valid."
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Latest_Approval_Code": {
         "aliases": [
@@ -1291,7 +1323,8 @@
             "field": "code",
             "description": "Validated by _apply_validation against approval_code_schema.approval[*].code to ensure latest approval code is valid."
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "All_Approval_Code": {
         "aliases": [
@@ -1324,7 +1357,8 @@
             "type": "info",
             "description": "Historical approval codes for all revisions"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Duration_of_Review": {
         "aliases": [
@@ -1405,7 +1439,8 @@
             "max_value": 365,
             "description": "Duration of review in days"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Submission_Closed": {
         "aliases": [
@@ -1470,7 +1505,8 @@
             ],
             "description": "Submission closure status"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Resubmission_Required": {
         "aliases": [
@@ -1533,7 +1569,8 @@
             ],
             "description": "Resubmission requirement status"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Resubmission_Plan_Date": {
         "aliases": [
@@ -1600,7 +1637,8 @@
         "processing": {
           "auto_format": true,
           "timezone_aware": false
-        }
+        },
+        "processing_phase": "P3"
       },
       "Resubmission_Forecast_Date": {
         "aliases": [
@@ -1655,7 +1693,8 @@
             "parameter": "duration_is_working_day",
             "description": "Use working days if duration_is_working_day is true"
           }
-        }
+        },
+        "processing_phase": "P2"
       },
       "Resubmission_Overdue_Status": {
         "aliases": [
@@ -1702,7 +1741,8 @@
             ],
             "description": "Resubmission overdue status"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Delay_of_Resubmission": {
         "aliases": [
@@ -1761,7 +1801,8 @@
             "max_value": 365,
             "description": "Number of days delayed for resubmission"
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Notes": {
         "aliases": [
@@ -1787,7 +1828,8 @@
             "max_length": 2000,
             "description": "Additional notes or remarks"
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "Submission_Reference_1": {
         "aliases": [
@@ -1814,7 +1856,8 @@
             "type": "info",
             "description": "Additional submission reference"
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "Internal_Reference": {
         "aliases": [
@@ -1841,7 +1884,8 @@
             "type": "info",
             "description": "Internal reference number"
           }
-        ]
+        ],
+        "processing_phase": "P2"
       },
       "This_Submission_Approval_Code": {
         "aliases": [
@@ -1868,7 +1912,8 @@
             "field": "code",
             "description": "Validated by _apply_validation against approval_code_schema.approval[*].code to ensure approval code is valid."
           }
-        ]
+        ],
+        "processing_phase": "P3"
       },
       "Validation_Errors": {
         "aliases": [
@@ -1885,7 +1930,8 @@
           "type": "error_tracking",
           "method": "aggregate_row_errors",
           "description": "Auto-populated by processor during validation to track row-specific data quality issues."
-        }
+        },
+        "processing_phase": "P3"
       }
     },
     "column_groups": {
@@ -1964,7 +2010,7 @@
         "Notes"
       ],
       "unique_fields": [
-        "Document_ID"
+        "Row_Index"
       ],
       "date_consistency": {
         "Submission_Date": "must_be_before",

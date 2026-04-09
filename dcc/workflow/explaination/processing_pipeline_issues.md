@@ -122,6 +122,108 @@ Based on pipeline output, these columns showed the "Preserving existing values" 
 - [ ] **Option 3:** Keep current behavior (calculations only fill nulls, null handling fills first)
 - [ ] **Other:** Hybrid approach?
 
+---
+
+## 5.1 Continued Discussion (April 9, 2026)
+
+### Key Question: What is the intended behavior?
+
+To decide, we need to clarify the **intent** of each processing stage:
+
+**Scenario A: Input data has column "SO Review Status"**
+- User wants to preserve original value → Calculations should NOT override
+- Null handling should skip this column (leave_null)
+
+**Scenario B: Input data has column but some rows are null**
+- User wants original where present, calculated where null
+- Calculations fill nulls, null handling fills remaining nulls with defaults
+
+**Scenario C: Input data missing column entirely**
+- Column created during processing
+- Calculations should generate values, null handling provides fallback
+
+### Analysis of Each Option:
+
+#### Option 1: Change Order (Calculations First)
+
+```
+Before: Mapping → Null Handling → Calculations → Validation
+After:  Mapping → Calculations → Null Handling → Validation
+```
+
+**Impact:**
+- Calculations run on raw mapped data
+- Null values get calculated first
+- Remaining nulls get defaults from null_handling
+- **Risk:** Columns that previously got "NA" default may now stay null if calculation fails
+
+**Affected files to modify:**
+- `processor_engine/engine/core/engine.py` - swap `apply_null_handling` and `apply_calculations` calls
+
+#### Option 2: Schema Update (leave_null for calculated columns)
+
+**Files to modify:**
+- `config/schemas/dcc_register_enhanced.json` - add `leave_null` strategy to all `is_calculated: true` columns
+
+**How many columns affected?**
+From schema analysis: ~20+ columns have `is_calculated: true`
+
+**Effort:** Medium (one-time schema update)
+
+#### Option 3: Hybrid - Skip null_handling for calculated columns in code
+
+Instead of changing schema or order, modify `apply_null_handling` in `engine.py` to automatically skip columns where `is_calculated: true`.
+
+```python
+# In engine.py apply_null_handling method
+for column_name, column_def in self.columns.items():
+    if column_def.get('is_calculated'):
+        logger.info(f"Skipping null handling for {column_name} (calculated column)")
+        continue
+    # ... rest of null handling logic
+```
+
+**Pros:**
+- No schema changes
+- No order changes
+- Single code change in one place
+- Explicit logic: calculated columns are handled by calculations, not null handling
+
+**Cons:**
+- Implicit behavior (not visible in schema)
+- May surprise users reading schema
+
+---
+
+## 5.2 Recommendation
+
+**Recommended: Option 4 (Hybrid - Code-level skip)**
+
+Modify `apply_null_handling` to skip any column marked `is_calculated: true`.
+
+**Rationale:**
+1. Keeps schema clean (no need to add `leave_null` everywhere)
+2. No processing order changes (less risk)
+3. Logical consistency: if a column is calculated, let the calculation handler manage it
+4. If user wants defaults for calculated columns, they set it in calculation config
+
+**Implementation:**
+```python
+# processor_engine/engine/core/engine.py
+# In apply_null_handling method, add at start of column loop:
+
+if column_def.get('is_calculated'):
+    self._print_processing_step("Null-Handling", column_name, "Skipping - calculated column")
+    continue
+```
+
+**Which option do you prefer?**
+
+- [ ] **Option 1:** Change processing order
+- [ ] **Option 2:** Schema update with `leave_null`
+- [x] **Option 4:** Code-level skip for calculated columns (RECOMMENDED)
+- [ ] **Option 3:** Keep current behavior
+
 ## 6. Additional Context
 
 ### Calculation Handlers Modified (April 8, 2026)

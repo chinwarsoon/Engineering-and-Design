@@ -2,6 +2,26 @@
 1. sort column is not allowed before forward fill.
 2. forward fill shall not overwrite existing values.
 3. always check if there are duplicate columns in data frame.
+4. always check and define data column priority when processing data:
+   - priority 1: meta data columns. These columns must be processed first because they define the "who" and "where" of the data. They are the only columns safe for broad null-handling (like global forward fills) because they represent static metadata that rarely changes within a session.
+     - Project Identification: Project_Code, Project_Name, Project_Number.
+     - Organizational Metadata: Department, Discipline, Section_Category.
+     - Source Tracking: Submission_Session, Submission_Date.
+     - Constraint: Null-handling for these columns must be "Bounded" (e.g., forward fill stops if the row index jumps significantly or a new file starts).
+   - priority 2: Relational Keys & Transactional Data. These columns are the "Live" data points. They must be mapped and cleaned before any logic is applied, but they should not be subject to aggressive forward filling, as their values are unique to specific submission events.
+     - Unique Identifiers: Document_ID, Document_Number, Document_Title.
+     - Revision Control: Document_Revision, Submission_Session_Revision.
+     - Workflow Dates: Review_Return_Actual_Date, Review_Due_Date.
+     - Constraint: If Document_Revision is null, it should trigger a specific lookup against the database or be flagged as a validation error rather than being blindly filled.
+   priority 3: Derived Logic & Status Flags (Calculations). These columns are processed last because they depend entirely on the values established in Priority 1 and 2. They are "is_calculated: true" fields.
+     - Closing Logic: Submission_Closed (Depends on Latest_Approval_Code and Latest_Submission_Date).
+     - Actionable Status: Resubmission_Required (Depends on whether Review_Return_Actual_Date is null and if the row is the latest revision).
+     - Timeline Metrics: Review_Duration, Days_Overdue.
+     - Constraint: These columns must never have manual data; they should be recalculated every time the pipeline runs to ensure the registry reflects the most recent submission history.
+5. Processing Sequence
+  - Impute Priority 1: Fill missing Project/Session info to "anchor" the rows.
+  - Validate Priority 2: Ensure every document has an ID and a Revision.
+  - Calculate Priority 3: Run the logic from submission_closed_schema.json to determine which rows are RESUBMITTED, PEN, or YES/NO.
 
 # Schema:
 1. always check and enure compliance with schema standard.
