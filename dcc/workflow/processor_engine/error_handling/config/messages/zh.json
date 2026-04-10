@@ -1,0 +1,124 @@
+{
+  "version": "1.0",
+  "locale": "zh",
+  "language": "Chinese (Simplified)",
+  "error": {
+    "anchor": {
+      "null_project_code": "项目代码为必填项，不能为空（行 {row}）",
+      "null_facility_code": "设施代码为必填项，不能为空（行 {row}）",
+      "null_document_type": "文档类型为必填项，不能为空（行 {row}）",
+      "null_discipline": "专业为必填项，不能为空（行 {row}）",
+      "invalid_session_format": "提交会话ID '{value}' 必须为6位数字（例如：001234）",
+      "invalid_date_format": "日期 '{value}' 无法解析。期望格式：YYYY-MM-DD（行 {row}）"
+    },
+    "identity": {
+      "id_uncertain": "无法从可用数据确定文档ID（行 {row}）。需要：项目代码、文档类型、文档序号",
+      "rev_missing": "文档 '{document_id}' 缺少文档版本号（行 {row}）",
+      "duplicate_trans": "在会话 '{session}' 中检测到重复的传递单号 '{value}'（行 {rows}）",
+      "duplicate_doc_id": "在提交中发现重复的文档ID '{value}'（行 {rows}）"
+    },
+    "logic": {
+      "date_inversion": "日期倒置：审核返回日期（{return_date}）早于提交日期（{submission_date}），文档 '{document_id}'",
+      "rev_regression": "检测到版本回退：文档 '{document_id}' 的当前版本 '{current_rev}' 看起来比之前的版本 '{previous_rev}' 旧",
+      "status_conflict": "状态冲突：文档 '{document_id}' 的提交标记为已关闭，但审核状态显示仍在审核中",
+      "overdue_pending": "重新提交已逾期。文档 '{document_id}' 预期完成日期为 {expected_date}，当前日期为 {current_date}",
+      "submission_after_closure": "文档 '{document_id}' 的提交日期 {submission_date} 晚于关闭日期 {closure_date}"
+    },
+    "fill": {
+      "limit_exceeded": "前向填充超出限制：列 '{column}' 在组 '{group}' 中填充了 {filled_rows} 行（最大允许：{max_rows}）",
+      "multi_level_fail": "多级前向填充失败：在文档ID '{document_id}' 中无法找到列 '{column}' 的有效值",
+      "default_applied": "为空的列 '{column}' 应用了默认值 '{default_value}'（行 {row}）。原始值为空。",
+      "boundary_cross": "前向填充跨越会话边界：列 '{column}' 不能从提交会话 '{from_session}' 填充到 '{to_session}'"
+    },
+    "validation": {
+      "pattern_mismatch": "字段 '{column}' 的值 '{value}' 不符合期望的模式 '{pattern}'（行 {row}）",
+      "length_exceeded": "字段 '{column}' 的值长度（{actual_length}）超过最大值（{max_length}）（行 {row}）",
+      "invalid_enum": "字段 '{column}' 的值 '{value}' 不在允许的值列表中：{allowed_values}（行 {row}）",
+      "type_mismatch": "字段 '{column}' 期望类型为 '{expected_type}'，但实际为 '{actual_type}'，值为 '{value}'（行 {row}）",
+      "required_missing": "必填字段 '{column}' 缺失（为空或null）（行 {row}）",
+      "foreign_key_fail": "外键引用失败：字段 '{column}' 的值 '{value}' 在引用表中未找到（行 {row}）"
+    },
+    "calculation": {
+      "dependency_fail": "列 '{target_column}' 的计算失败：缺少必需的输入列：{missing_columns}（行 {row}）",
+      "circular_dependency": "计算图中检测到循环依赖，涉及列：{columns}",
+      "division_by_zero": "列 '{column}' 的计算中发生除以零错误（行 {row}）",
+      "aggregate_empty": "列 '{column}' 的聚合产生空结果：没有数据符合筛选条件（行 {row}）",
+      "date_arithmetic_fail": "列 '{column}' 的日期计算失败：{error_detail}（行 {row}）",
+      "mapping_no_match": "列 '{column}' 的映射失败：值 '{value}' 未匹配任何映射规则（行 {row}）"
+    },
+    "mapping": {
+      "no_columns_detected": "无法从输入文件中映射任何列。标题与模式不匹配。",
+      "partial_mapping": "部分映射完成：识别了 {mapped_count}/{total_count} 列。未映射：{unmapped_columns}",
+      "header_mismatch": "期望标题 '{expected}'，但在列位置 {position} 找到 '{actual}'",
+      "ambiguous_mapping": "模糊映射：输入列 '{input_column}' 可能匹配多个模式列：{possible_matches}"
+    },
+    "initiation": {
+      "file_not_found": "在路径找不到输入文件：{file_path}",
+      "invalid_format": "文件格式 '{format}' 不受支持。支持的格式：{supported_formats}",
+      "empty_file": "输入文件为空（0字节）",
+      "encoding_error": "文件编码错误：无法以 {encoding} 解码。请尝试 UTF-8 或 Latin-1。",
+      "permission_denied": "权限被拒绝：无法读取 {file_path} 处的文件"
+    },
+    "historical": {
+      "cross_session_duplicate": "文档ID '{document_id}' 已存在于历史会话 {session_id} 中（提交于 {submission_date}）",
+      "revision_regression": "文档 '{document_id}' 版本回退：当前版本 '{current_rev}' 小于历史版本 '{historical_rev}'",
+      "temporal_inconsistency": "时间不一致：当前会话 {current_session} 日期 {current_date} 早于历史会话 {historical_session} 日期 {historical_date}"
+    },
+    "template": {
+      "version_mismatch": "模式版本不匹配：期望 '{expected_version}'，找到 '{actual_version}'",
+      "signature_invalid": "模板签名验证失败。文件可能已损坏或被篡改。",
+      "config_incompatible": "配置不兼容：模式需要版本 {min_schema_version}，当前配置为 {config_version}"
+    }
+  },
+  "action": {
+    "fix_in_excel": "在Excel源文件中修复此问题并重新上传",
+    "contact_admin": "联系系统管理员寻求帮助",
+    "verify_headers": "验证列标题是否符合期望的模式。检查是否有拼写错误或多余空格。",
+    "convert_format": "将文件转换为支持的格式（.xlsx 或 .csv）然后重试",
+    "check_dependencies": "确保在此计算运行之前所有必需的输入列都有值",
+    "review_null_handling": "审查空值处理配置。考虑调整填充限制或默认值。",
+    "review_source": "审查源数据。空值可能表明上游系统中缺少数据。",
+    "truncate_or_fix": "要么截断值以适应，要么更正源数据",
+    "verify_reference": "验证引用值是否存在于查找表或主数据中",
+    "review_priority": "审查此逾期项目是否应升级或优先处理",
+    "review_mapping": "审查列映射配置。某些列可能需要手动映射。",
+    "verify_history": "验证文档版本历史。这可能是合法的回退。",
+    "check_formula": "审查计算公式是否存在潜在的除以零或无效操作",
+    "check_filter_criteria": "审查聚合的筛选条件。确保指定条件的数据存在"
+  },
+  "status": {
+    "OPEN": "开放 - 需要关注",
+    "SUPPRESSED": "已抑制 - 按原样接受",
+    "RESOLVED": "已解决 - 已修复",
+    "ARCHIVED": "已归档 - 已关闭",
+    "ESCALATED": "已升级 - 专家审查",
+    "PENDING": "待处理 - 等待操作",
+    "REOPEN": "已重新打开 - 问题再次发生"
+  },
+  "severity": {
+    "CRITICAL": "严重 - 处理已停止",
+    "HIGH": "高 - 必须修复",
+    "MEDIUM": "中 - 应该修复",
+    "WARNING": "警告 - 建议审查",
+    "INFO": "信息 - 供参考"
+  },
+  "remediation": {
+    "AUTO_FIX": "已自动更正",
+    "MANUAL_FIX": "用户必须在源文件中修复",
+    "SUPPRESS": "接受并提供理由",
+    "ESCALATE": "已路由给专家",
+    "DERIVE": "从其他字段计算的值",
+    "DEFAULT": "已应用默认值",
+    "FILL_DOWN": "从前一行填充的值",
+    "AGGREGATE": "从相关行计算的值"
+  },
+  "ui": {
+    "error_count_singular": "检测到 {count} 个错误",
+    "error_count_plural": "检测到 {count} 个错误",
+    "clean_run": "干净运行 - 无错误",
+    "health_score": "数据健康度：{score}%（{grade}）",
+    "validation_errors_column": "验证错误",
+    "error_status_column": "错误状态",
+    "data_health_score_column": "数据健康分数"
+  }
+}

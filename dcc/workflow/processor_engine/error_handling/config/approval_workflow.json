@@ -1,0 +1,221 @@
+{
+  "version": "1.0",
+  "description": "Approval Workflow Configuration - Manual overrule and suppression approval process",
+  "workflows": {
+    "standard_approval": {
+      "name": "Standard Approval",
+      "description": "Single approver review for suppression requests",
+      "steps": [
+        {
+          "step": 1,
+          "name": "Request",
+          "actor": "analyst",
+          "action": "submit_suppression_request",
+          "required_fields": ["error_id", "justification", "requested_by"]
+        },
+        {
+          "step": 2,
+          "name": "Review",
+          "actor": "reviewer",
+          "action": "review_request",
+          "sla_hours": 24,
+          "escalation_on_timeout": true
+        },
+        {
+          "step": 3,
+          "name": "Decision",
+          "actor": "reviewer",
+          "action": "approve_or_reject",
+          "outcomes": ["APPROVED", "REJECTED", "ESCALATED"]
+        }
+      ]
+    },
+    "escalated_approval": {
+      "name": "Escalated Approval",
+      "description": "Manager approval for complex or high-impact suppressions",
+      "steps": [
+        {
+          "step": 1,
+          "name": "Request",
+          "actor": "analyst",
+          "action": "submit_suppression_request",
+          "required_fields": ["error_id", "justification", "business_impact", "requested_by"]
+        },
+        {
+          "step": 2,
+          "name": "Initial Review",
+          "actor": "reviewer",
+          "action": "review_and_escalate",
+          "outcomes": ["ESCALATE", "REJECT"]
+        },
+        {
+          "step": 3,
+          "name": "Manager Review",
+          "actor": "manager",
+          "action": "manager_approval",
+          "sla_hours": 48,
+          "required_fields": ["manager_notes"]
+        },
+        {
+          "step": 4,
+          "name": "Final Decision",
+          "actor": "manager",
+          "action": "approve_or_reject",
+          "outcomes": ["APPROVED", "REJECTED", "REQUIRE_CHANGES"]
+        }
+      ]
+    },
+    "emergency_approval": {
+      "name": "Emergency Approval",
+      "description": "Fast-track approval for critical production issues",
+      "steps": [
+        {
+          "step": 1,
+          "name": "Emergency Request",
+          "actor": "analyst",
+          "action": "submit_emergency_request",
+          "required_fields": ["error_id", "justification", "business_impact", "emergency_reason", "requested_by"],
+          "bypass_standard_queue": true
+        },
+        {
+          "step": 2,
+          "name": "Immediate Review",
+          "actor": "admin",
+          "action": "emergency_review",
+          "sla_hours": 4,
+          "notification_channels": ["email", "sms", "slack"]
+        },
+        {
+          "step": 3,
+          "name": "Emergency Decision",
+          "actor": "admin",
+          "action": "approve_or_reject",
+          "outcomes": ["APPROVED", "REJECTED", "REQUIRES_POST_REVIEW"]
+        }
+      ]
+    },
+    "bulk_approval": {
+      "name": "Bulk Approval",
+      "description": "Approve multiple similar errors in one request",
+      "steps": [
+        {
+          "step": 1,
+          "name": "Group Selection",
+          "actor": "analyst",
+          "action": "select_error_group",
+          "required_fields": ["error_codes", "group_criteria", "justification"],
+          "max_errors": 100
+        },
+        {
+          "step": 2,
+          "name": "Pattern Review",
+          "actor": "system",
+          "action": "validate_similarity",
+          "auto_validate": true,
+          "similarity_threshold": 0.85
+        },
+        {
+          "step": 3,
+          "name": "Bulk Approval",
+          "actor": "reviewer",
+          "action": "approve_all_or_individual",
+          "outcomes": ["BULK_APPROVED", "INDIVIDUAL_REVIEW", "REJECTED"]
+        }
+      ]
+    }
+  },
+  "roles": {
+    "analyst": {
+      "name": "Data Analyst",
+      "permissions": ["submit_request", "view_own_requests", "cancel_pending"],
+      "approval_limit": 0
+    },
+    "reviewer": {
+      "name": "Error Reviewer",
+      "permissions": ["submit_request", "review_requests", "approve_standard", "reject", "escalate", "view_all"],
+      "approval_limit": 50
+    },
+    "manager": {
+      "name": "DCC Manager",
+      "permissions": ["submit_request", "review_all", "approve_all", "reject", "override", "view_all", "configure_rules"],
+      "approval_limit": 200
+    },
+    "admin": {
+      "name": "System Admin",
+      "permissions": ["all"],
+      "approval_limit": 9999
+    },
+    "expert": {
+      "name": "Subject Matter Expert",
+      "permissions": ["review_escalated", "approve_escalated", "technical_consultation"],
+      "approval_limit": 100
+    }
+  },
+  "notifications": {
+    "on_submit": {
+      "notify": ["submitter", "assigned_reviewer"],
+      "channels": ["email", "in_app"],
+      "template": "approval_request_submitted"
+    },
+    "on_approve": {
+      "notify": ["submitter", "error_owner"],
+      "channels": ["email", "in_app"],
+      "template": "approval_approved"
+    },
+    "on_reject": {
+      "notify": ["submitter"],
+      "channels": ["email", "in_app"],
+      "template": "approval_rejected",
+      "include_reason": true
+    },
+    "on_escalate": {
+      "notify": ["submitter", "escalation_team"],
+      "channels": ["email", "in_app", "slack"],
+      "template": "approval_escalated",
+      "urgency": "high"
+    },
+    "on_timeout": {
+      "notify": ["submitter", "manager", "admin"],
+      "channels": ["email"],
+      "template": "approval_timeout",
+      "auto_escalate": true
+    },
+    "on_bulk_approve": {
+      "notify": ["submitter"],
+      "channels": ["email", "in_app"],
+      "template": "bulk_approval_completed",
+      "include_count": true
+    }
+  },
+  "sla": {
+    "standard": {
+      "response_hours": 24,
+      "resolution_hours": 72
+    },
+    "escalated": {
+      "response_hours": 48,
+      "resolution_hours": 168
+    },
+    "emergency": {
+      "response_hours": 4,
+      "resolution_hours": 24
+    },
+    "business_hours_only": true,
+    "timezone": "Asia/Hong_Kong"
+  },
+  "audit": {
+    "log_all_events": true,
+    "retention_days": 365,
+    "fields_to_log": [
+      "timestamp",
+      "error_id",
+      "request_id",
+      "actor",
+      "action",
+      "from_status",
+      "to_status",
+      "justification",
+      "approver_notes"
+    ]
+  }
+}

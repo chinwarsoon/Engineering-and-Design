@@ -1,0 +1,310 @@
+{
+  "version": "1.0",
+  "description": "Error Code Taxonomy - E-M-F-U Format (Engine-Module-Function-UniqueID)",
+  "engines": {
+    "P": {
+      "code": "P",
+      "name": "Processor",
+      "description": "Main processing engine for DCC Pipeline",
+      "modules": ["C", "V", "A", "D"],
+      "responsibilities": [
+        "Phased processing (P1, P2, P2.5, P3)",
+        "Null handling and calculations",
+        "Business logic validation",
+        "Error aggregation"
+      ]
+    },
+    "M": {
+      "code": "M",
+      "name": "Mapper",
+      "description": "Column mapping engine for header detection and schema alignment",
+      "modules": ["C", "F"],
+      "responsibilities": [
+        "Fuzzy header detection",
+        "Column mapping to schema",
+        "Alias resolution",
+        "Mapping validation"
+      ]
+    },
+    "I": {
+      "code": "I",
+      "name": "Initiation",
+      "description": "Initiation engine for setup and configuration validation",
+      "modules": ["S", "F"],
+      "responsibilities": [
+        "File format validation",
+        "Environment setup",
+        "Configuration loading",
+        "Pre-flight checks"
+      ]
+    },
+    "S": {
+      "code": "S",
+      "name": "Schema",
+      "description": "Schema engine for validation and dependency management",
+      "modules": ["V", "L"],
+      "responsibilities": [
+        "Schema conformance validation",
+        "Dependency resolution",
+        "Column priority management",
+        "Schema versioning"
+      ]
+    },
+    "R": {
+      "code": "R",
+      "name": "Reporting",
+      "description": "Reporting engine for output generation and analytics",
+      "modules": ["G", "E", "A"],
+      "responsibilities": [
+        "Output generation",
+        "Error reporting",
+        "Analytics and health metrics",
+        "Dashboard data export"
+      ]
+    },
+    "H": {
+      "code": "H",
+      "name": "Historical",
+      "description": "Historical validation engine for cross-session lookups",
+      "modules": ["V"],
+      "responsibilities": [
+        "Cross-session duplicate detection",
+        "Revision history validation",
+        "Temporal consistency checks"
+      ]
+    },
+    "V": {
+      "code": "V",
+      "name": "Validation",
+      "description": "Pre-flight validation engine for template and signature verification",
+      "modules": ["P"],
+      "responsibilities": [
+        "Template version verification",
+        "Signature validation",
+        "Configuration compatibility"
+      ]
+    }
+  },
+  "modules": {
+    "C": {
+      "code": "C",
+      "name": "Core",
+      "description": "Core processing module",
+      "engines": ["P", "M", "I"]
+    },
+    "V": {
+      "code": "V",
+      "name": "Validation",
+      "description": "Validation logic module",
+      "engines": ["P", "S", "H"]
+    },
+    "A": {
+      "code": "A",
+      "name": "Aggregate",
+      "description": "Aggregation and calculation logic",
+      "engines": ["P", "R"]
+    },
+    "D": {
+      "code": "D",
+      "name": "Date",
+      "description": "Date processing module",
+      "engines": ["P"]
+    },
+    "S": {
+      "code": "S",
+      "name": "Setup",
+      "description": "Setup and initialization module",
+      "engines": ["I"]
+    },
+    "F": {
+      "code": "F",
+      "name": "File",
+      "description": "File handling module",
+      "engines": ["M", "I"]
+    },
+    "L": {
+      "code": "L",
+      "name": "Loader",
+      "description": "Schema loading module",
+      "engines": ["S"]
+    },
+    "G": {
+      "code": "G",
+      "name": "Generator",
+      "description": "Report generation module",
+      "engines": ["R"]
+    },
+    "E": {
+      "code": "E",
+      "name": "Export",
+      "description": "Data export module",
+      "engines": ["R"]
+    },
+    "P": {
+      "code": "P",
+      "name": "Preflight",
+      "description": "Pre-flight validation module",
+      "engines": ["V"]
+    }
+  },
+  "functions": {
+    "P": {
+      "code": "P",
+      "name": "Process",
+      "description": "Main processing function",
+      "examples": ["process_data", "apply_transformations"]
+    },
+    "V": {
+      "code": "V",
+      "name": "Validate",
+      "description": "Validation function",
+      "examples": ["validate_field", "check_constraints"]
+    },
+    "C": {
+      "code": "C",
+      "name": "Calculate",
+      "description": "Calculation function",
+      "examples": ["apply_calculations", "compute_derived_values"]
+    },
+    "F": {
+      "code": "F",
+      "name": "Fill",
+      "description": "Null handling function",
+      "examples": ["apply_forward_fill", "apply_default_values"]
+    }
+  },
+  "families": {
+    "1": {
+      "code": "1",
+      "name": "Anchor",
+      "layer": "L3",
+      "description": "Priority column errors - Project_Code, Facility_Code, Document_Type, Discipline",
+      "severity_range": "CRITICAL to HIGH",
+      "fail_fast_eligible": true,
+      "remediation_types": ["MANUAL_FIX", "ESCALATE"]
+    },
+    "2": {
+      "code": "2",
+      "name": "Identity",
+      "layer": "L3",
+      "description": "Document identity errors - Document_ID, Document_Revision, duplicates",
+      "severity_range": "CRITICAL to HIGH",
+      "fail_fast_eligible": false,
+      "remediation_types": ["MANUAL_FIX", "ESCALATE", "DERIVE"]
+    },
+    "3": {
+      "code": "3",
+      "name": "Logic",
+      "layer": "L3",
+      "description": "Business logic errors - date inversions, regressions, conflicts",
+      "severity_range": "HIGH to MEDIUM",
+      "fail_fast_eligible": false,
+      "remediation_types": ["MANUAL_FIX", "SUPPRESS", "ESCALATE"]
+    },
+    "4": {
+      "code": "4",
+      "name": "Fill",
+      "layer": "L3",
+      "description": "Null handling warnings - forward fill limits, defaults applied",
+      "severity_range": "WARNING to INFO",
+      "fail_fast_eligible": false,
+      "remediation_types": ["FILL_DOWN", "DEFAULT", "SUPPRESS", "AGGREGATE"]
+    },
+    "5": {
+      "code": "5",
+      "name": "Validation",
+      "layer": "L2",
+      "description": "Schema validation errors - patterns, types, constraints",
+      "severity_range": "CRITICAL to MEDIUM",
+      "fail_fast_eligible": true,
+      "remediation_types": ["MANUAL_FIX", "AUTO_FIX", "ESCALATE"]
+    },
+    "6": {
+      "code": "6",
+      "name": "Calculation",
+      "layer": "L3",
+      "description": "Calculation errors - dependencies, math errors, circular references",
+      "severity_range": "CRITICAL to MEDIUM",
+      "fail_fast_eligible": true,
+      "remediation_types": ["MANUAL_FIX", "DEFAULT", "ESCALATE"]
+    },
+    "7": {
+      "code": "7",
+      "name": "Mapping",
+      "layer": "L1",
+      "description": "Column mapping errors - headers, partial mappings, no matches",
+      "severity_range": "CRITICAL to HIGH",
+      "fail_fast_eligible": true,
+      "remediation_types": ["ESCALATE", "SUPPRESS"]
+    },
+    "8": {
+      "code": "8",
+      "name": "Initiation",
+      "layer": "L1",
+      "description": "Initiation errors - file not found, invalid format, setup issues",
+      "severity_range": "CRITICAL",
+      "fail_fast_eligible": true,
+      "remediation_types": ["ESCALATE"]
+    },
+    "9": {
+      "code": "9",
+      "name": "Historical",
+      "layer": "L2.5",
+      "description": "Historical validation errors - cross-session duplicates, revision issues",
+      "severity_range": "HIGH to MEDIUM",
+      "fail_fast_eligible": false,
+      "remediation_types": ["ESCALATE", "SUPPRESS", "MANUAL_FIX"]
+    }
+  },
+  "layers": {
+    "L0": {
+      "code": "L0",
+      "name": "Template Guard",
+      "description": "Pre-flight template and configuration validation",
+      "stage": "Before data load",
+      "stop_on_error": true
+    },
+    "L1": {
+      "code": "L1",
+      "name": "Input Validation",
+      "description": "File format, structure, and basic column validation",
+      "stage": "Initiation and Mapping",
+      "stop_on_error": true
+    },
+    "L2": {
+      "code": "L2",
+      "name": "Schema Validation",
+      "description": "Field-level validation against schema definitions",
+      "stage": "Schema Engine and Field Validation",
+      "stop_on_error": false
+    },
+    "L2.5": {
+      "code": "L2.5",
+      "name": "Historical Validation",
+      "description": "Cross-session validation and historical checks",
+      "stage": "Historical Lookup",
+      "stop_on_error": false
+    },
+    "L3": {
+      "code": "L3",
+      "name": "Business Logic Validation",
+      "description": "Cross-column dependencies and business rules",
+      "stage": "Processor Engine Phases P1-P3",
+      "stop_on_error": false
+    },
+    "L4": {
+      "code": "L4",
+      "name": "Approval Hook",
+      "description": "Manual overrule and approval workflow",
+      "stage": "Human-in-the-loop review",
+      "stop_on_error": false
+    },
+    "L5": {
+      "code": "L5",
+      "name": "Metric Aggregation",
+      "description": "Quality metrics calculation and reporting",
+      "stage": "Final output generation",
+      "stop_on_error": false
+    }
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/error-code-anatomy",
+  "title": "Error Code Anatomy Schema",
+  "description": "JSON Schema for validating E-M-F-XXXX error code format (Engine-Module-Function-UniqueID)",
+  "version": "1.0",
+  "definitions": {
+    "engine_code": {
+      "type": "string",
+      "enum": ["P", "M", "I", "S", "R", "H", "V"],
+      "description": "Single letter code representing the processing engine"
+    },
+    "module_code": {
+      "type": "string",
+      "enum": ["C", "V", "A", "D", "S", "F", "L", "G", "E", "P"],
+      "description": "Single letter code representing the module within the engine"
+    },
+    "function_code": {
+      "type": "string",
+      "enum": ["P", "V", "C", "F"],
+      "description": "Single letter code representing the function type"
+    },
+    "unique_id": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$",
+      "description": "4-digit sequential number (0001-9999)"
+    },
+    "error_code_format": {
+      "type": "string",
+      "pattern": "^[A-Z]-[A-Z]-[A-Z]-[0-9]{4}$",
+      "description": "Complete error code in E-M-F-XXXX format"
+    }
+  },
+  "type": "object",
+  "required": ["error_code"],
+  "properties": {
+    "error_code": {
+      "allOf": [
+        { "$ref": "#/definitions/error_code_format" }
+      ]
+    },
+    "components": {
+      "type": "object",
+      "required": ["engine", "module", "function", "unique_id"],
+      "properties": {
+        "engine": {
+          "type": "object",
+          "required": ["code", "name"],
+          "properties": {
+            "code": { "$ref": "#/definitions/engine_code" },
+            "name": {
+              "type": "string",
+              "enum": ["Processor", "Mapper", "Initiation", "Schema", "Reporting", "Historical", "Validation"]
+            },
+            "description": { "type": "string" }
+          }
+        },
+        "module": {
+          "type": "object",
+          "required": ["code", "name"],
+          "properties": {
+            "code": { "$ref": "#/definitions/module_code" },
+            "name": {
+              "type": "string",
+              "enum": ["Core", "Validation", "Aggregate", "Date", "Setup", "File", "Loader", "Generator", "Export", "Preflight"]
+            },
+            "description": { "type": "string" }
+          }
+        },
+        "function": {
+          "type": "object",
+          "required": ["code", "name"],
+          "properties": {
+            "code": { "$ref": "#/definitions/function_code" },
+            "name": {
+              "type": "string",
+              "enum": ["Process", "Validate", "Calculate", "Fill"]
+            },
+            "description": { "type": "string" }
+          }
+        },
+        "unique_id": {
+          "type": "object",
+          "required": ["number", "padded"],
+          "properties": {
+            "number": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9999
+            },
+            "padded": { "$ref": "#/definitions/unique_id" },
+            "family_code": {
+              "type": "string",
+              "pattern": "^[0-9]$",
+              "description": "First digit of unique_id indicates error family"
+            }
+          }
+        }
+      }
+    },
+    "layer": {
+      "type": "string",
+      "enum": ["L0", "L1", "L2", "L2.5", "L3", "L4", "L5"],
+      "description": "Validation layer where error is detected"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["CRITICAL", "HIGH", "MEDIUM", "WARNING", "INFO"],
+      "description": "Error severity level"
+    },
+    "taxonomy": {
+      "type": "object",
+      "required": ["engine", "module", "function", "family"],
+      "properties": {
+        "engine": { "type": "string" },
+        "engine_code": { "$ref": "#/definitions/engine_code" },
+        "module": { "type": "string" },
+        "module_code": { "$ref": "#/definitions/module_code" },
+        "function": { "type": "string" },
+        "function_code": { "$ref": "#/definitions/function_code" },
+        "family": { "type": "string" },
+        "family_code": {
+          "type": "string",
+          "pattern": "^[0-9]$"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "error_code": "P-C-P-0101",
+      "components": {
+        "engine": { "code": "P", "name": "Processor", "description": "Main processing engine" },
+        "module": { "code": "C", "name": "Core", "description": "Core processing module" },
+        "function": { "code": "P", "name": "Process", "description": "Main processing function" },
+        "unique_id": { "number": 101, "padded": "0101", "family_code": "0" }
+      },
+      "layer": "L3",
+      "severity": "CRITICAL",
+      "taxonomy": {
+        "engine": "Processor",
+        "engine_code": "P",
+        "module": "Core",
+        "module_code": "C",
+        "function": "Process",
+        "function_code": "P",
+        "family": "Anchor",
+        "family_code": "1"
+      }
+    }
+  ]
+}

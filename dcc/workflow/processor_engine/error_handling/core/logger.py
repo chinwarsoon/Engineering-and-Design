@@ -1,0 +1,324 @@
+"""
+Structured JSON Logger Module
+
+Provides structured JSON logging for error handling with context preservation.
+Outputs logs in JSON format for parsing and analysis.
+"""
+
+import json
+import logging
+import sys
+from datetime import datetime
+from typing import Dict, Any, Optional
+from pathlib import Path
+
+
+class StructuredLogger:
+    """
+    Structured JSON logger for error handling.
+    
+    Outputs logs in JSON format with:
+    - Timestamps with timezone
+    - Structured context (row, column, phase, layer, error codes)
+    - Severity levels
+    - Machine-parseable format
+    """
+    
+    _instance = None
+    
+    def __new__(cls, name: str = "error_handling"):
+        """Singleton pattern."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+    def __init__(self, name: str = "error_handling"):
+        """Initialize structured logger."""
+        if hasattr(self, '_initialized'):
+            return
+        self._initialized = True
+        
+        self.name = name
+        self._logger = logging.getLogger(name)
+        self._logger.setLevel(logging.DEBUG)
+        
+        # Console handler with JSON formatter
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(JSONFormatter())
+        
+        self._logger.addHandler(handler)
+        self._context: Dict[str, Any] = {}
+    
+    def set_context(self, **kwargs) -> None:
+        """Set global context for all subsequent log entries."""
+        self._context.update(kwargs)
+    
+    def clear_context(self) -> None:
+        """Clear global context."""
+        self._context = {}
+    
+    def log_error(
+        self,
+        error_code: str,
+        message: str,
+        row: Optional[int] = None,
+        column: Optional[str] = None,
+        phase: Optional[str] = None,
+        layer: Optional[str] = None,
+        severity: str = "ERROR",
+        context: Optional[Dict[str, Any]] = None,
+        remediation_type: Optional[str] = None,
+        exception: Optional[Exception] = None
+    ) -> None:
+        """
+        Log an error with full structured context.
+        
+        Args:
+            error_code: Error code (e.g., "P-C-P-0101")
+            message: Human-readable message
+            row: Row index (if applicable)
+            column: Column name (if applicable)
+            phase: Processing phase (P1, P2, P2.5, P3)
+            layer: Validation layer (L1-L5)
+            severity: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+            context: Additional context dict
+            remediation_type: Type of remediation applied
+            exception: Original exception if available
+        """
+        extra = {
+            "error_code": error_code,
+            "error_severity": severity,
+            "row": row,
+            "column": column,
+            "phase": phase,
+            "layer": layer,
+            "remediation_type": remediation_type,
+        }
+        
+        # Merge with global context
+        extra.update(self._context)
+        
+        # Merge with provided context
+        if context:
+            extra.update(context)
+        
+        # Add exception info if provided
+        if exception:
+            extra["exception_type"] = type(exception).__name__
+            extra["exception_message"] = str(exception)
+        
+        # Map severity to logging level
+        level_map = {
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR,
+            "CRITICAL": logging.CRITICAL
+        }
+        level = level_map.get(severity, logging.ERROR)
+        
+        self._logger.log(level, message, extra={"structured": extra})
+    
+    def log_phase_transition(
+        self,
+        from_phase: str,
+        to_phase: str,
+        row_count: Optional[int] = None,
+        error_count: Optional[int] = None
+    ) -> None:
+        """Log a phase transition in the processing pipeline."""
+        extra = {
+            "event_type": "phase_transition",
+            "from_phase": from_phase,
+            "to_phase": to_phase,
+            "row_count": row_count,
+            "error_count": error_count
+        }
+        extra.update(self._context)
+        
+        self._logger.info(
+            f"Phase transition: {from_phase} -> {to_phase}",
+            extra={"structured": extra}
+        )
+    
+    def log_remediation(
+        self,
+        error_code: str,
+        remediation_type: str,
+        success: bool,
+        row: Optional[int] = None,
+        column: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log a remediation attempt."""
+        extra = {
+            "event_type": "remediation",
+            "error_code": error_code,
+            "remediation_type": remediation_type,
+            "remediation_success": success,
+            "row": row,
+            "column": column
+        }
+        
+        if details:
+            extra["remediation_details"] = details
+        
+        extra.update(self._context)
+        
+        level = logging.INFO if success else logging.WARNING
+        status = "succeeded" if success else "failed"
+        
+        self._logger.log(
+            level,
+            f"Remediation {status}: {error_code} -> {remediation_type}",
+            extra={"structured": extra}
+        )
+    
+    def log_status_change(
+        self,
+        error_code: str,
+        from_status: str,
+        to_status: str,
+        actor: Optional[str] = None,
+        reason: Optional[str] = None
+    ) -> None:
+        """Log an error status change."""
+        extra = {
+            "event_type": "status_change",
+            "error_code": error_code,
+            "from_status": from_status,
+            "to_status": to_status,
+            "actor": actor,
+            "reason": reason
+        }
+        extra.update(self._context)
+        
+        self._logger.info(
+            f"Status change: {error_code} {from_status} -> {to_status}",
+            extra={"structured": extra}
+        )
+    
+    def log_fail_fast(
+        self,
+        error_code: str,
+        reason: str,
+        phase: str,
+        row: Optional[int] = None
+    ) -> None:
+        """Log a fail-fast event."""
+        extra = {
+            "event_type": "fail_fast",
+            "error_code": error_code,
+            "fail_reason": reason,
+            "phase": phase,
+            "row": row,
+            "processing_stopped": True
+        }
+        extra.update(self._context)
+        
+        self._logger.critical(
+            f"FAIL FAST triggered: {error_code} - {reason}",
+            extra={"structured": extra}
+        )
+    
+    def log_suppression(
+        self,
+        error_code: str,
+        rule_id: Optional[str],
+        justification: str,
+        approved_by: Optional[str] = None
+    ) -> None:
+        """Log an error suppression."""
+        extra = {
+            "event_type": "suppression",
+            "error_code": error_code,
+            "rule_id": rule_id,
+            "justification": justification,
+            "approved_by": approved_by,
+            "requires_audit": True
+        }
+        extra.update(self._context)
+        
+        self._logger.warning(
+            f"Error suppressed: {error_code} - {justification[:50]}...",
+            extra={"structured": extra}
+        )
+    
+    def log_health_score(
+        self,
+        total_rows: int,
+        critical_errors: int,
+        high_errors: int,
+        health_score: float,
+        grade: str
+    ) -> None:
+        """Log data health KPI."""
+        extra = {
+            "event_type": "health_score",
+            "total_rows": total_rows,
+            "critical_errors": critical_errors,
+            "high_errors": high_errors,
+            "health_score": health_score,
+            "health_grade": grade,
+            "clean_run": health_score == 100.0
+        }
+        extra.update(self._context)
+        
+        self._logger.info(
+            f"Data Health Score: {health_score:.1f}% ({grade})",
+            extra={"structured": extra}
+        )
+    
+    def debug(self, message: str, **context) -> None:
+        """Log debug message with context."""
+        extra = context
+        extra.update(self._context)
+        self._logger.debug(message, extra={"structured": extra})
+    
+    def info(self, message: str, **context) -> None:
+        """Log info message with context."""
+        extra = context
+        extra.update(self._context)
+        self._logger.info(message, extra={"structured": extra})
+    
+    def warning(self, message: str, **context) -> None:
+        """Log warning message with context."""
+        extra = context
+        extra.update(self._context)
+        self._logger.warning(message, extra={"structured": extra})
+    
+    def error(self, message: str, **context) -> None:
+        """Log error message with context."""
+        extra = context
+        extra.update(self._context)
+        self._logger.error(message, extra={"structured": extra})
+    
+    def critical(self, message: str, **context) -> None:
+        """Log critical message with context."""
+        extra = context
+        extra.update(self._context)
+        self._logger.critical(message, extra={"structured": extra})
+
+
+class JSONFormatter(logging.Formatter):
+    """Custom formatter that outputs JSON structured logs."""
+    
+    def format(self, record: logging.LogRecord) -> str:
+        """Format log record as JSON."""
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage()
+        }
+        
+        # Add structured context if available
+        if hasattr(record, "structured"):
+            log_data["context"] = record.structured
+        
+        # Add exception info if present
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+        
+        return json.dumps(log_data, ensure_ascii=False)

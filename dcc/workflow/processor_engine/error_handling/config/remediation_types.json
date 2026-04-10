@@ -1,0 +1,216 @@
+{
+  "version": "1.0",
+  "description": "Remediation Strategy Types - Defines how errors are automatically or manually resolved",
+  "types": {
+    "AUTO_FIX": {
+      "code": "R001",
+      "name": "Auto Fix",
+      "description": "Automatically correct the error without user intervention",
+      "auto_eligible": true,
+      "requires_approval": false,
+      "requires_confirmation": false,
+      "success_rate_threshold": 0.95,
+      "applicable_layers": ["L2", "L3"],
+      "examples": [
+        "zero_pad_sequence_numbers",
+        "trim_whitespace",
+        "standardize_date_format",
+        "correct_case_formatting"
+      ],
+      "implementation": {
+        "class": "AutoFixStrategy",
+        "module": "error_handling.resolution.remediator",
+        "method": "apply_auto_fix"
+      },
+      "audit_level": "INFO",
+      "can_rollback": true
+    },
+    "MANUAL_FIX": {
+      "code": "R002",
+      "name": "Manual Fix",
+      "description": "User must correct the error in the source data",
+      "auto_eligible": false,
+      "requires_approval": false,
+      "requires_confirmation": true,
+      "applicable_layers": ["L1", "L2", "L3"],
+      "examples": [
+        "correct_in_excel",
+        "update_source_system",
+        "provide_missing_documentation"
+      ],
+      "implementation": {
+        "class": "ManualFixStrategy",
+        "module": "error_handling.resolution.remediator",
+        "method": "flag_for_manual_fix"
+      },
+      "audit_level": "WARNING",
+      "can_rollback": false
+    },
+    "SUPPRESS": {
+      "code": "R003",
+      "name": "Suppress",
+      "description": "Accept error as-is with justification (wrong but acceptable)",
+      "auto_eligible": true,
+      "requires_approval": true,
+      "requires_confirmation": true,
+      "requires_justification": true,
+      "justification_min_length": 20,
+      "approval_levels": ["reviewer", "admin"],
+      "applicable_layers": ["L2", "L2.5", "L3", "L4"],
+      "examples": [
+        "legacy_data_format",
+        "known_system_limitation",
+        "business_exception_approved"
+      ],
+      "implementation": {
+        "class": "SuppressStrategy",
+        "module": "error_handling.resolution.suppressor",
+        "method": "apply_suppression"
+      },
+      "audit_level": "WARNING",
+      "can_rollback": true,
+      "expires": true,
+      "default_expiry_days": 90
+    },
+    "ESCALATE": {
+      "code": "R004",
+      "name": "Escalate",
+      "description": "Route to expert/team for complex resolution",
+      "auto_eligible": false,
+      "requires_approval": true,
+      "requires_confirmation": false,
+      "escalation_levels": ["team_lead", "subject_matter_expert", "admin"],
+      "response_time_sla_hours": 24,
+      "applicable_layers": ["L1", "L2", "L2.5", "L3"],
+      "examples": [
+        "circular_dependency",
+        "data_integrity_question",
+        "schema_mismatch"
+      ],
+      "implementation": {
+        "class": "EscalateStrategy",
+        "module": "error_handling.resolution.remediator",
+        "method": "escalate_to_expert"
+      },
+      "audit_level": "ERROR",
+      "can_rollback": false
+    },
+    "DERIVE": {
+      "code": "R005",
+      "name": "Derive",
+      "description": "Calculate correct value from other columns or rules",
+      "auto_eligible": true,
+      "requires_approval": false,
+      "requires_confirmation": false,
+      "confidence_threshold": 0.85,
+      "applicable_layers": ["L2", "L3"],
+      "examples": [
+        "calculate_document_id_from_components",
+        "derive_revision_from_history",
+        "compute_missing_date"
+      ],
+      "implementation": {
+        "class": "DeriveStrategy",
+        "module": "error_handling.resolution.remediator",
+        "method": "apply_derivation"
+      },
+      "audit_level": "INFO",
+      "can_rollback": true
+    },
+    "DEFAULT": {
+      "code": "R006",
+      "name": "Default",
+      "description": "Apply default value from schema or configuration",
+      "auto_eligible": true,
+      "requires_approval": false,
+      "requires_confirmation": false,
+      "applicable_layers": ["L2", "L3"],
+      "examples": [
+        "apply_schema_default",
+        "use_configured_fallback",
+        "set_null_to_empty_string"
+      ],
+      "implementation": {
+        "class": "DefaultStrategy",
+        "module": "error_handling.resolution.remediator",
+        "method": "apply_default"
+      },
+      "audit_level": "INFO",
+      "can_rollback": true
+    },
+    "FILL_DOWN": {
+      "code": "R007",
+      "name": "Fill Down",
+      "description": "Forward fill from previous row or group",
+      "auto_eligible": true,
+      "requires_approval": false,
+      "requires_confirmation": false,
+      "max_fill_distance": 20,
+      "group_by_columns": ["Project_Code", "Facility_Code", "Document_ID"],
+      "applicable_layers": ["L3"],
+      "examples": [
+        "forward_fill_null_values",
+        "propagate_group_value",
+        "interpolate_missing_data"
+      ],
+      "implementation": {
+        "class": "FillDownStrategy",
+        "module": "error_handling.resolution.remediator",
+        "method": "apply_fill_down"
+      },
+      "audit_level": "INFO",
+      "can_rollback": true
+    },
+    "AGGREGATE": {
+      "code": "R008",
+      "name": "Aggregate",
+      "description": "Calculate value from related rows or aggregates",
+      "auto_eligible": true,
+      "requires_approval": false,
+      "requires_confirmation": false,
+      "aggregation_functions": ["SUM", "COUNT", "AVG", "MAX", "MIN", "FIRST", "LAST"],
+      "applicable_layers": ["L3"],
+      "examples": [
+        "count_submissions_per_document",
+        "sum_duration_by_project",
+        "find_latest_date_in_group"
+      ],
+      "implementation": {
+        "class": "AggregateStrategy",
+        "module": "error_handling.resolution.remediator",
+        "method": "apply_aggregation"
+      },
+      "audit_level": "INFO",
+      "can_rollback": true
+    }
+  },
+  "selection_rules": {
+    "by_severity": {
+      "CRITICAL": ["ESCALATE", "MANUAL_FIX"],
+      "HIGH": ["AUTO_FIX", "MANUAL_FIX", "ESCALATE"],
+      "MEDIUM": ["AUTO_FIX", "DERIVE", "DEFAULT", "MANUAL_FIX"],
+      "WARNING": ["SUPPRESS", "DEFAULT", "FILL_DOWN"],
+      "INFO": ["DEFAULT", "AGGREGATE"]
+    },
+    "by_layer": {
+      "L0": ["ESCALATE"],
+      "L1": ["ESCALATE", "MANUAL_FIX"],
+      "L2": ["AUTO_FIX", "DERIVE", "DEFAULT", "MANUAL_FIX", "ESCALATE"],
+      "L2.5": ["ESCALATE", "SUPPRESS", "MANUAL_FIX"],
+      "L3": ["AUTO_FIX", "DERIVE", "DEFAULT", "FILL_DOWN", "AGGREGATE", "SUPPRESS", "MANUAL_FIX"],
+      "L4": ["SUPPRESS"],
+      "L5": []
+    },
+    "by_family": {
+      "Anchor": ["MANUAL_FIX", "ESCALATE"],
+      "Identity": ["DERIVE", "MANUAL_FIX", "ESCALATE"],
+      "Logic": ["SUPPRESS", "MANUAL_FIX", "ESCALATE"],
+      "Fill": ["FILL_DOWN", "DEFAULT", "SUPPRESS", "AGGREGATE"],
+      "Validation": ["AUTO_FIX", "MANUAL_FIX", "ESCALATE"],
+      "Calculation": ["DEFAULT", "MANUAL_FIX", "ESCALATE"],
+      "Mapping": ["ESCALATE", "SUPPRESS"],
+      "Initiation": ["ESCALATE"],
+      "Historical": ["ESCALATE", "SUPPRESS", "MANUAL_FIX"]
+    }
+  }
+}

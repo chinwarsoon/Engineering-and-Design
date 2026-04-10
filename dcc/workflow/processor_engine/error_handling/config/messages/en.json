@@ -1,0 +1,124 @@
+{
+  "version": "1.0",
+  "locale": "en",
+  "language": "English",
+  "error": {
+    "anchor": {
+      "null_project_code": "Project Code is required and cannot be empty (Row {row})",
+      "null_facility_code": "Facility Code is required and cannot be empty (Row {row})",
+      "null_document_type": "Document Type is required and cannot be empty (Row {row})",
+      "null_discipline": "Discipline is required and cannot be empty (Row {row})",
+      "invalid_session_format": "Session ID '{value}' must be exactly 6 digits (e.g., 001234)",
+      "invalid_date_format": "Date '{value}' cannot be parsed. Expected format: YYYY-MM-DD (Row {row})"
+    },
+    "identity": {
+      "id_uncertain": "Document ID could not be determined from available data (Row {row}). Required: Project_Code, Document_Type, Document_Sequence_Number",
+      "rev_missing": "Document Revision is missing for Document ID '{document_id}' (Row {row})",
+      "duplicate_trans": "Duplicate Transmittal Number '{value}' detected in session '{session}' (Rows {rows})",
+      "duplicate_doc_id": "Duplicate Document ID '{value}' found in submission (Rows {rows})"
+    },
+    "logic": {
+      "date_inversion": "Date inversion: Review Return Date ({return_date}) is before Submission Date ({submission_date}) for Document '{document_id}'",
+      "rev_regression": "Revision regression detected: Current revision '{current_rev}' appears older than previous '{previous_rev}' for Document '{document_id}'",
+      "status_conflict": "Status conflict: Submission marked as closed but Review Status indicates active review for Document '{document_id}'",
+      "overdue_pending": "Resubmission is overdue. Expected by {expected_date}, current date is {current_date} for Document '{document_id}'",
+      "submission_after_closure": "Submission date {submission_date} is after closure date {closure_date} for Document '{document_id}'"
+    },
+    "fill": {
+      "limit_exceeded": "Forward fill limit exceeded: Filled {filled_rows} rows (max allowed: {max_rows}) for column '{column}' in group '{group}'",
+      "multi_level_fail": "Multi-level forward fill failed: Could not find valid value within Document_ID '{document_id}' for column '{column}'",
+      "default_applied": "Default value '{default_value}' applied for null column '{column}' (Row {row}). Original value was null.",
+      "boundary_cross": "Forward fill crossed session boundary: Cannot fill across Submission_Session '{from_session}' to '{to_session}' for column '{column}'"
+    },
+    "validation": {
+      "pattern_mismatch": "Field '{column}' value '{value}' does not match expected pattern '{pattern}' (Row {row})",
+      "length_exceeded": "Field '{column}' value length ({actual_length}) exceeds maximum ({max_length}) (Row {row})",
+      "invalid_enum": "Field '{column}' value '{value}' is not in allowed values: {allowed_values} (Row {row})",
+      "type_mismatch": "Field '{column}' expected type '{expected_type}' but got '{actual_type}' with value '{value}' (Row {row})",
+      "required_missing": "Required field '{column}' is missing (null or empty) (Row {row})",
+      "foreign_key_fail": "Foreign key reference failed: '{column}' value '{value}' not found in reference table (Row {row})"
+    },
+    "calculation": {
+      "dependency_fail": "Calculation failed for '{target_column}': Missing required input column(s): {missing_columns} (Row {row})",
+      "circular_dependency": "Circular dependency detected in calculation graph involving columns: {columns}",
+      "division_by_zero": "Division by zero occurred in calculation for column '{column}' (Row {row})",
+      "aggregate_empty": "Aggregation produced empty result for '{column}': No data matched filter criteria (Row {row})",
+      "date_arithmetic_fail": "Date arithmetic failed for column '{column}': {error_detail} (Row {row})",
+      "mapping_no_match": "Mapping failed for column '{column}': Value '{value}' matched no mapping rules (Row {row})"
+    },
+    "mapping": {
+      "no_columns_detected": "No columns could be mapped from input file. Headers do not match schema.",
+      "partial_mapping": "Partial mapping achieved: {mapped_count}/{total_count} columns recognized. Unmapped: {unmapped_columns}",
+      "header_mismatch": "Expected header '{expected}' but found '{actual}' at column position {position}",
+      "ambiguous_mapping": "Ambiguous mapping: Input column '{input_column}' could match multiple schema columns: {possible_matches}"
+    },
+    "initiation": {
+      "file_not_found": "Input file not found at path: {file_path}",
+      "invalid_format": "File format '{format}' is not supported. Supported formats: {supported_formats}",
+      "empty_file": "Input file is empty (0 bytes)",
+      "encoding_error": "File encoding error: Could not decode as {encoding}. Try UTF-8 or Latin-1.",
+      "permission_denied": "Permission denied: Cannot read file at {file_path}"
+    },
+    "historical": {
+      "cross_session_duplicate": "Document ID '{document_id}' already exists in historical session {session_id} (submitted on {submission_date})",
+      "revision_regression": "Document '{document_id}' revision regression: Current '{current_rev}' is less than historical '{historical_rev}'",
+      "temporal_inconsistency": "Temporal inconsistency: Session {current_session} date {current_date} is before historical session {historical_session} date {historical_date}"
+    },
+    "template": {
+      "version_mismatch": "Schema version mismatch: Expected '{expected_version}', found '{actual_version}'",
+      "signature_invalid": "Template signature validation failed. File may be corrupted or tampered.",
+      "config_incompatible": "Configuration incompatible: Schema requires version {min_schema_version}, current config is {config_version}"
+    }
+  },
+  "action": {
+    "fix_in_excel": "Fix this issue in the Excel source file and re-upload",
+    "contact_admin": "Contact system administrator for assistance",
+    "verify_headers": "Verify column headers match expected schema. Check for typos or extra spaces.",
+    "convert_format": "Convert file to supported format (.xlsx or .csv) and retry",
+    "check_dependencies": "Ensure all required input columns have values before this calculation runs",
+    "review_null_handling": "Review null handling configuration. Consider adjusting fill limits or default values.",
+    "review_source": "Review source data. Null values may indicate missing data in upstream systems.",
+    "truncate_or_fix": "Either truncate the value to fit or correct the source data",
+    "verify_reference": "Verify the referenced value exists in the lookup table or master data",
+    "review_priority": "Review if this overdue item should be escalated or given priority handling",
+    "review_mapping": "Review column mapping configuration. Some columns may need manual mapping.",
+    "verify_history": "Verify document revision history. This may be a legitimate rollback.",
+    "check_formula": "Review the calculation formula for potential division by zero or invalid operations",
+    "check_filter_criteria": "Review filter criteria for aggregation. Ensure data exists for the specified conditions"
+  },
+  "status": {
+    "OPEN": "Open - Requires attention",
+    "SUPPRESSED": "Suppressed - Accepted as-is",
+    "RESOLVED": "Resolved - Fixed",
+    "ARCHIVED": "Archived - Closed",
+    "ESCALATED": "Escalated - Expert review",
+    "PENDING": "Pending - Waiting for action",
+    "REOPEN": "Reopened - Issue reoccurred"
+  },
+  "severity": {
+    "CRITICAL": "Critical - Processing stopped",
+    "HIGH": "High - Must fix",
+    "MEDIUM": "Medium - Should fix",
+    "WARNING": "Warning - Review recommended",
+    "INFO": "Info - For awareness"
+  },
+  "remediation": {
+    "AUTO_FIX": "Automatically corrected",
+    "MANUAL_FIX": "User must fix in source",
+    "SUPPRESS": "Accepted with justification",
+    "ESCALATE": "Routed to expert",
+    "DERIVE": "Value calculated from other fields",
+    "DEFAULT": "Default value applied",
+    "FILL_DOWN": "Value filled from previous row",
+    "AGGREGATE": "Value calculated from related rows"
+  },
+  "ui": {
+    "error_count_singular": "{count} error detected",
+    "error_count_plural": "{count} errors detected",
+    "clean_run": "Clean run - No errors",
+    "health_score": "Data Health: {score}% ({grade})",
+    "validation_errors_column": "Validation Errors",
+    "error_status_column": "Error Status",
+    "data_health_score_column": "Data Health Score"
+  }
+}

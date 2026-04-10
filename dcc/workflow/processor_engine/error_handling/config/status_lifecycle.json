@@ -1,0 +1,164 @@
+{
+  "version": "1.0",
+  "description": "Error Status Lifecycle - State Machine Definition",
+  "states": [
+    "OPEN",
+    "SUPPRESSED",
+    "RESOLVED",
+    "ARCHIVED",
+    "ESCALATED",
+    "PENDING",
+    "REOPEN"
+  ],
+  "transitions": {
+    "OPEN": {
+      "to": ["SUPPRESSED", "RESOLVED", "ESCALATED"],
+      "description": "New error can be suppressed, resolved, or escalated"
+    },
+    "SUPPRESSED": {
+      "to": ["RESOLVED", "REOPEN"],
+      "description": "Suppressed error can be resolved or reopened"
+    },
+    "RESOLVED": {
+      "to": ["ARCHIVED", "REOPEN"],
+      "description": "Resolved error can be archived or reopened"
+    },
+    "ESCALATED": {
+      "to": ["RESOLVED", "PENDING"],
+      "description": "Escalated error can be resolved or marked pending"
+    },
+    "PENDING": {
+      "to": ["RESOLVED", "REOPEN"],
+      "description": "Pending error can be resolved or reopened"
+    },
+    "REOPEN": {
+      "to": ["SUPPRESSED", "RESOLVED", "ESCALATED"],
+      "description": "Reopened error returns to OPEN-like transitions"
+    },
+    "ARCHIVED": {
+      "to": ["REOPEN"],
+      "description": "Archived error can only be reopened"
+    }
+  },
+  "initial_state": "OPEN",
+  "terminal_states": ["ARCHIVED"],
+  "descriptions": {
+    "OPEN": {
+      "label": "Open",
+      "description": "Newly detected error, unreviewed",
+      "color": "#FF6B6B",
+      "icon": "alert-circle",
+      "requires_action": true
+    },
+    "SUPPRESSED": {
+      "label": "Suppressed",
+      "description": "Error acknowledged as 'wrong but acceptable' with justification",
+      "color": "#FFD93D",
+      "icon": "shield-check",
+      "requires_action": false,
+      "requires_justification": true
+    },
+    "RESOLVED": {
+      "label": "Resolved",
+      "description": "Error fixed or remediated through auto or manual action",
+      "color": "#6BCB77",
+      "icon": "check-circle",
+      "requires_action": false
+    },
+    "ARCHIVED": {
+      "label": "Archived",
+      "description": "Closed error kept for audit trail",
+      "color": "#95A5A6",
+      "icon": "archive",
+      "requires_action": false,
+      "is_terminal": true
+    },
+    "ESCALATED": {
+      "label": "Escalated",
+      "description": "Critical error requiring manual intervention or expert review",
+      "color": "#E74C3C",
+      "icon": "alert-triangle",
+      "requires_action": true,
+      "escalation_level": "high"
+    },
+    "PENDING": {
+      "label": "Pending",
+      "description": "Waiting for external action (e.g., user input, external system)",
+      "color": "#F39C12",
+      "icon": "clock",
+      "requires_action": true,
+      "timeout_hours": 24
+    },
+    "REOPEN": {
+      "label": "Reopened",
+      "description": "Previously resolved/suppressed error reoccurred or was questioned",
+      "color": "#E67E22",
+      "icon": "refresh-cw",
+      "requires_action": true
+    }
+  },
+  "workflows": {
+    "standard_resolution": {
+      "path": ["OPEN", "RESOLVED", "ARCHIVED"],
+      "description": "Standard workflow: detect → fix → archive"
+    },
+    "suppression_workflow": {
+      "path": ["OPEN", "SUPPRESSED", "ARCHIVED"],
+      "description": "Known issue workflow: detect → justify/approve → archive",
+      "requires_approval": true
+    },
+    "escalation_workflow": {
+      "path": ["OPEN", "ESCALATED", "RESOLVED", "ARCHIVED"],
+      "description": "Critical issue workflow: detect → escalate → expert fix → archive"
+    },
+    "reopen_workflow": {
+      "path": ["ARCHIVED", "REOPEN", "RESOLVED", "ARCHIVED"],
+      "description": "Reopen workflow: archived → reoccurred → re-fix → re-archive"
+    }
+  },
+  "permissions": {
+    "OPEN": {
+      "can_transition": ["analyst", "reviewer", "admin"]
+    },
+    "SUPPRESSED": {
+      "can_transition": ["reviewer", "admin"],
+      "can_create": ["analyst", "reviewer", "admin"]
+    },
+    "RESOLVED": {
+      "can_transition": ["analyst", "reviewer", "admin"]
+    },
+    "ARCHIVED": {
+      "can_transition": ["admin"]
+    },
+    "ESCALATED": {
+      "can_transition": ["expert", "admin"]
+    },
+    "PENDING": {
+      "can_transition": ["analyst", "reviewer", "admin"],
+      "auto_timeout": "ESCALATED"
+    },
+    "REOPEN": {
+      "can_transition": ["analyst", "reviewer", "admin"]
+    }
+  },
+  "notifications": {
+    "on_suppress": {
+      "notify": ["admin", "error_owner"],
+      "message": "Error suppressed - requires audit"
+    },
+    "on_escalate": {
+      "notify": ["expert", "admin"],
+      "message": "Critical error escalated - immediate attention required",
+      "urgency": "high"
+    },
+    "on_pending_timeout": {
+      "notify": ["admin"],
+      "message": "Pending error auto-escalated after timeout",
+      "auto_transition": "ESCALATED"
+    },
+    "on_reopen": {
+      "notify": ["admin", "original_resolver"],
+      "message": "Previously resolved error has reoccurred"
+    }
+  }
+}
