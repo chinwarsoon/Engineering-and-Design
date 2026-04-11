@@ -14,6 +14,13 @@ from typing import Dict, List, Set, Optional, Any
 logger = logging.getLogger(__name__)
 
 from .base import BaseProcessor
+from .calculation_strategy import (
+    StrategyResolver,
+    StrategyExecutor,
+    CalculationStrategy,
+    NullHandlingTiming,
+    get_column_strategy
+)
 
 # Import hierarchical logging functions from initiation_engine (centralized)
 from initiation_engine import log_context, status_print, debug_print
@@ -50,6 +57,43 @@ class CalculationEngine(BaseProcessor):
         # Determine the safe execution order for calculated columns
         from ..schema.dependency import resolve_calculation_order
         self.calculation_order = resolve_calculation_order(self.columns)
+        
+        # Initialize strategy resolver for calculated columns
+        self.strategy_resolver = StrategyResolver()
+        self._column_strategies = {}  # Cache resolved strategies
+        self.strategy_executor = None  # Initialized on first use
+
+    def get_column_strategy(self, column_name: str) -> Optional[CalculationStrategy]:
+        """
+        Get or resolve calculation strategy for a column.
+        
+        Args:
+            column_name: Name of the column
+            
+        Returns:
+            CalculationStrategy if column is calculated, None otherwise
+        """
+        # Return cached strategy if available
+        if column_name in self._column_strategies:
+            return self._column_strategies[column_name]
+        
+        # Get column definition
+        if column_name not in self.columns:
+            return None
+            
+        column_def = self.columns[column_name]
+        
+        # Only calculated columns have strategies
+        if not column_def.get("is_calculated", False):
+            return None
+        
+        # Resolve and cache strategy
+        strategy = self.strategy_resolver.from_schema(column_name, column_def)
+        self._column_strategies[column_name] = strategy
+        
+        status_print(f"Resolved strategy for {column_name}: {strategy}")
+        
+        return strategy
 
     def process_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -171,14 +215,23 @@ class CalculationEngine(BaseProcessor):
 
     def _apply_phase_calculated(self, df: pd.DataFrame, column_names: List[str]) -> pd.DataFrame:
         """
-        Apply Phase 2.5 or P3 calculated processing.
-        Rule 11: Calculation FIRST, then null handling as LAST DEFENSE.
+        Apply Phase 2.5 or P3 calculated processing with strategy support.
+        Rule 11: If is_calculated = true, apply calculation FIRST, then null_handling as last defense.
+        
+        Strategy-aware processing allows each column to define its own:
+        - Data preservation mode (preserve_existing, overwrite_existing)
+        - Processing sequence (calculation timing, null handling timing)
+        - Fallback behavior for values that cannot be calculated
         """
         from .registry import get_calculation_handler, get_null_handler
         
+        # Initialize strategy executor on first use
+        if self.strategy_executor is None:
+            self.strategy_executor = StrategyExecutor(self)
+        
         df_result = df.copy()
         
-        # Step 1: Apply calculations FIRST
+        # Step 1: Apply calculations FIRST (respecting each column's strategy)
         for column_name in column_names:
             if column_name not in self.columns:
                 continue
@@ -187,27 +240,65 @@ class CalculationEngine(BaseProcessor):
             calculation = column_def.get('calculation', {})
             calc_type = calculation.get('type')
             
-            if calc_type:
-                handler = get_calculation_handler(calc_type, calculation.get('method'))
-                if handler:
-                    self._print_processing_step("Calculation", column_name, f"Applying {calc_type}/{calculation.get('method')}")
-                    df_result = handler(self, df_result, column_name, calculation)
+            if not calc_type:
+                continue
+                
+            # Get calculation handler
+            handler = get_calculation_handler(calc_type, calculation.get('method'))
+            if not handler:
+                continue
+            
+            # Get or resolve strategy for this column
+            strategy = self.get_column_strategy(column_name)
+            
+            if strategy:
+                # Strategy-aware calculation
+                self._print_processing_step(
+                    "Strategy-Calc", column_name,
+                    f"Applying {calc_type}/{calculation.get('method')} "
+                    f"with {strategy.preservation_mode.value}"
+                )
+                df_result = self.strategy_executor.apply_calculation_with_strategy(
+                    df_result, column_name, calculation, strategy, handler
+                )
+            else:
+                # Legacy mode: apply handler directly
+                self._print_processing_step("Calculation", column_name, f"Applying {calc_type}/{calculation.get('method')}")
+                df_result = handler(self, df_result, column_name, calculation)
         
-        # Step 2: Apply null handling as LAST DEFENSE (only for remaining nulls)
+        # Step 2: Apply null handling as LAST DEFENSE (only for columns with last_defense timing)
         for column_name in column_names:
             if column_name not in df_result.columns:
                 continue
                 
             column_def = self.columns[column_name]
             null_handling = column_def.get('null_handling', {})
-            strategy = null_handling.get('strategy')
             
-            # Only apply null handling if there are still nulls after calculation
-            if strategy and strategy != 'leave_null' and df_result[column_name].isna().any():
-                handler = get_null_handler(strategy)
+            # Get strategy to check null handling timing
+            strategy = self.get_column_strategy(column_name)
+            
+            # Skip null handling if strategy says BUILT_IN or SKIP
+            if strategy and strategy.null_handling_timing in (NullHandlingTiming.BUILT_IN, NullHandlingTiming.SKIP):
+                self._print_processing_step(
+                    "Strategy-Null", column_name,
+                    f"Skipping null handling ({strategy.null_handling_timing.value})"
+                )
+                continue
+            
+            # Apply standard last-defense null handling
+            strategy_name = null_handling.get('strategy')
+            if strategy_name and strategy_name != 'leave_null' and df_result[column_name].isna().any():
+                handler = get_null_handler(strategy_name)
                 if handler:
-                    self._print_processing_step("Last-Defense", column_name, f"Filling remaining nulls with {strategy}")
-                    df_result = handler(self, df_result, column_name, null_handling)
+                    self._print_processing_step("Last-Defense", column_name, f"Filling remaining nulls with {strategy_name}")
+                    
+                    # If strategy exists, use executor for consistency
+                    if strategy:
+                        df_result = self.strategy_executor.apply_fallback(
+                            df_result, column_name, strategy, null_handling
+                        )
+                    else:
+                        df_result = handler(self, df_result, column_name, null_handling)
                     
         return df_result
 

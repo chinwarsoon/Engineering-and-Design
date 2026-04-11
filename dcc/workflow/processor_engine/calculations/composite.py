@@ -5,16 +5,39 @@ Extracted from UniversalDocumentProcessor composite and lookup methods.
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 # Import hierarchical logging functions from initiation_engine (centralized)
 from initiation_engine import status_print, debug_print
+
+
+def _get_preservation_mode(engine, column_name: str) -> str:
+    """
+    Get data preservation mode from engine strategy if available.
+    Defaults to 'preserve_existing' for backward compatibility.
+    """
+    # Check if engine has strategy resolver (new strategy-aware engine)
+    if hasattr(engine, 'get_column_strategy'):
+        try:
+            strategy = engine.get_column_strategy(column_name)
+            if strategy:
+                return strategy.preservation_mode.value
+        except Exception:
+            pass  # Fall back to default
+    
+    # Check if strategy is in column definition (passed via calculation dict)
+    # This allows strategy to be passed through calculation config
+    return "preserve_existing"  # Default behavior
 
 
 def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
     Apply composite calculation using row-by-row formatting.
     Builds values by combining multiple source columns with a format string.
+    
+    Respects strategy configuration:
+    - preserve_existing: Keep existing values, only calculate for nulls (default)
+    - overwrite_existing: Replace all values with calculated results
     """
     # Support both 'sources' and 'source_columns'
     source_columns = calculation.get('sources') or calculation.get('source_columns', [])
@@ -47,18 +70,27 @@ def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calc
     if column_name not in df.columns:
         df[column_name] = np.nan
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Composite", column_name, f"Preserving {existing_mask.sum()} existing values")
-
-    # Calculate only for null values
-    null_mask = df[column_name].isna()
-    if null_mask.any():
-        df.loc[null_mask, column_name] = df.loc[null_mask, available_sources].apply(format_row, axis=1)
-        engine._print_processing_step("Composite", column_name, f"Applied to {null_mask.sum()} null rows")
+    # Get preservation mode from strategy (respects schema configuration)
+    preservation_mode = _get_preservation_mode(engine, column_name)
+    
+    if preservation_mode == "overwrite_existing":
+        # Strategy: Calculate for ALL rows (overwrite mode)
+        engine._print_processing_step("Composite", column_name, f"Strategy: overwrite_existing - calculating all {len(df)} rows")
+        df[column_name] = df[available_sources].apply(format_row, axis=1)
+        engine._print_processing_step("Composite", column_name, f"Applied to all rows (overwritten)")
     else:
-        debug_print(f"Skipped composite for {column_name}: all values present")
+        # Strategy: preserve_existing (default) - only calculate for nulls
+        existing_mask = df[column_name].notna()
+        if existing_mask.any():
+            engine._print_processing_step("Composite", column_name, f"Preserving {existing_mask.sum()} existing values")
+
+        # Calculate only for null values
+        null_mask = df[column_name].isna()
+        if null_mask.any():
+            df.loc[null_mask, column_name] = df.loc[null_mask, available_sources].apply(format_row, axis=1)
+            engine._print_processing_step("Composite", column_name, f"Applied to {null_mask.sum()} null rows")
+        else:
+            debug_print(f"Skipped composite for {column_name}: all values present")
 
     return df
 

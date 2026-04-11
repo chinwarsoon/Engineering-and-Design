@@ -12,6 +12,18 @@ from typing import Dict, Any, List
 from initiation_engine import status_print, debug_print
 
 
+def _get_preservation_mode(engine, column_name: str) -> str:
+    """Get data preservation mode from engine strategy if available."""
+    if hasattr(engine, 'get_column_strategy'):
+        try:
+            strategy = engine.get_column_strategy(column_name)
+            if strategy:
+                return strategy.preservation_mode.value
+        except Exception:
+            pass
+    return "preserve_existing"
+
+
 def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
     Performs standard grouping and aggregation (Min, Max, Sum, Count, Concatenate, etc.)
@@ -31,18 +43,26 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
     if column_name not in df.columns:
         df[column_name] = None
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Aggregate", column_name, f"Preserving {existing_mask.sum()} existing values")
+    # Respect strategy configuration
+    preservation_mode = _get_preservation_mode(engine, column_name)
+    
+    # Determine which rows to calculate for
+    if preservation_mode == "overwrite_existing":
+        # Calculate for all rows
+        engine._print_processing_step("Aggregate", column_name, f"Strategy: overwrite_existing - calculating all rows")
+        null_mask = pd.Series([True] * len(df), index=df.index)  # All rows
+    else:
+        # Calculate only for null values (default)
+        existing_mask = df[column_name].notna()
+        if existing_mask.any():
+            engine._print_processing_step("Aggregate", column_name, f"Preserving {existing_mask.sum()} existing values")
+        
+        null_mask = df[column_name].isna()
+        if not null_mask.any():
+            debug_print(f"Skipped aggregate for {column_name}: all values present")
+            return df
 
-    # Calculate only for null values
-    null_mask = df[column_name].isna()
-    if not null_mask.any():
-        debug_print(f"Skipped aggregate for {column_name}: all values present")
-        return df
-
-    # Calculate for null rows only
+    # Calculate for target rows
     grouped = df.groupby(group_by, dropna=False)
 
     if method == 'count':
@@ -102,7 +122,10 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
         calculated = grouped[source_column].transform(concat_dates)
         df.loc[null_mask, column_name] = calculated[null_mask]
 
-    engine._print_processing_step("Aggregate", column_name, f"Applied {method} to {null_mask.sum()} null rows")
+    if preservation_mode == "overwrite_existing":
+        engine._print_processing_step("Aggregate", column_name, f"Applied {method} to all rows (overwritten)")
+    else:
+        engine._print_processing_step("Aggregate", column_name, f"Applied {method} to {null_mask.sum()} null rows")
     return df
 
 
@@ -125,16 +148,23 @@ def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str,
     if column_name not in df.columns:
         df[column_name] = None
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Latest-By-Date", column_name, f"Preserving {existing_mask.sum()} existing values")
-
-    # Calculate only for null values
-    null_mask = df[column_name].isna()
-    if not null_mask.any():
-        debug_print(f"Skipped latest_by_date for {column_name}: all values present")
-        return df
+    # Respect strategy configuration
+    preservation_mode = _get_preservation_mode(engine, column_name)
+    
+    # Determine which rows to calculate for
+    if preservation_mode == "overwrite_existing":
+        engine._print_processing_step("Latest-By-Date", column_name, "Strategy: overwrite_existing - calculating all rows")
+        null_mask = pd.Series([True] * len(df), index=df.index)
+    else:
+        # Calculate only for null values (default)
+        existing_mask = df[column_name].notna()
+        if existing_mask.any():
+            engine._print_processing_step("Latest-By-Date", column_name, f"Preserving {existing_mask.sum()} existing values")
+        
+        null_mask = df[column_name].isna()
+        if not null_mask.any():
+            debug_print(f"Skipped latest_by_date for {column_name}: all values present")
+            return df
 
     engine._print_processing_step("Latest-By-Date", column_name, f"Finding latest {source_column} via {sort_by}")
 
@@ -220,16 +250,23 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
     if column_name not in df.columns:
         df[column_name] = None
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Aggregate", column_name, f"Preserving {existing_mask.sum()} existing values")
-
-    # Calculate only for null values
-    null_mask = df[column_name].isna()
-    if not null_mask.any():
-        debug_print(f"Skipped latest_non_pending_status for {column_name}: all values present")
-        return df
+    # Respect strategy configuration
+    preservation_mode = _get_preservation_mode(engine, column_name)
+    
+    # Determine which rows to calculate for
+    if preservation_mode == "overwrite_existing":
+        engine._print_processing_step("Aggregate", column_name, "Strategy: overwrite_existing - calculating all rows")
+        null_mask = pd.Series([True] * len(df), index=df.index)
+    else:
+        # Calculate only for null values (default)
+        existing_mask = df[column_name].notna()
+        if existing_mask.any():
+            engine._print_processing_step("Aggregate", column_name, f"Preserving {existing_mask.sum()} existing values")
+        
+        null_mask = df[column_name].isna()
+        if not null_mask.any():
+            debug_print(f"Skipped latest_non_pending_status for {column_name}: all values present")
+            return df
 
     # Filter to only null rows for calculation
     df_calc = df[null_mask].copy()
@@ -266,9 +303,15 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
         # Update only null positions
         if len(df_merged) > 0:
             df.loc[df_merged.index, column_name] = df_merged[column_name].values
-            engine._print_processing_step("Aggregate", column_name, f"Applied to {len(df_merged)} null rows")
+            if preservation_mode == "overwrite_existing":
+                engine._print_processing_step("Aggregate", column_name, f"Applied to all rows (overwritten)")
+            else:
+                engine._print_processing_step("Aggregate", column_name, f"Applied to {len(df_merged)} null rows")
     else:
         df.loc[null_mask, column_name] = fallback_value
-        engine._print_processing_step("Aggregate", column_name, f"Applied fallback to {null_mask.sum()} null rows")
+        if preservation_mode == "overwrite_existing":
+            engine._print_processing_step("Aggregate", column_name, f"Applied fallback to all rows (overwritten)")
+        else:
+            engine._print_processing_step("Aggregate", column_name, f"Applied fallback to {null_mask.sum()} null rows")
 
     return df

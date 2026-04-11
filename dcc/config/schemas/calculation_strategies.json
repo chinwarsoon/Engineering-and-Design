@@ -1,0 +1,138 @@
+{
+  "description": "Calculation Strategy Definitions for dcc_register_enhanced.json",
+  "version": "1.0.0",
+  "strategies": {
+    "preserve_and_fill_nulls": {
+      "data_preservation": {
+        "mode": "preserve_existing",
+        "description": "Keep existing values unchanged, only calculate for null values"
+      },
+      "processing_sequence": {
+        "calculation_timing": "first",
+        "null_handling_timing": "last_defense",
+        "description": "Apply calculation first, then null handling only for remaining nulls"
+      },
+      "fallback": {
+        "type": "leave_null",
+        "value": null,
+        "description": "If calculation cannot fill a value, leave it as null"
+      },
+      "applies_to": [
+        "Document_ID",
+        "Latest_Revision",
+        "Review_Status_Code",
+        "Approval_Code",
+        "Latest_Approval_Status",
+        "Latest_Approval_Code",
+        "All_Approval_Code",
+        "First_Submission_Date",
+        "Latest_Submission_Date",
+        "All_Submission_Sessions",
+        "All_Submission_Dates",
+        "All_Submission_Session_Revisions",
+        "Count_of_Submissions",
+        "Consolidated_Submission_Session_Subject",
+        "Duration_of_Review",
+        "Resubmission_Plan_Date",
+        "Resubmission_Overdue_Status",
+        "Delay_of_Resubmission",
+        "This_Submission_Approval_Code"
+      ]
+    },
+    "preserve_with_built_in_fallback": {
+      "data_preservation": {
+        "mode": "preserve_existing",
+        "description": "Keep existing values, calculate for nulls with built-in default"
+      },
+      "processing_sequence": {
+        "calculation_timing": "first",
+        "null_handling_timing": "built_in",
+        "description": "Calculation includes its own null handling logic, separate null_handling phase skipped"
+      },
+      "fallback": {
+        "type": "calculated_default",
+        "value_source": "calculation_logic",
+        "description": "Calculation provides its own default (e.g., 'NO' for Submission_Closed)"
+      },
+      "applies_to": [
+        "Submission_Closed",
+        "Resubmission_Required"
+      ]
+    },
+    "overwrite_always": {
+      "data_preservation": {
+        "mode": "overwrite_existing",
+        "description": "Always recalculate and replace existing values"
+      },
+      "processing_sequence": {
+        "calculation_timing": "first",
+        "null_handling_timing": "skip",
+        "description": "Calculate for all rows, skip separate null handling"
+      },
+      "fallback": {
+        "type": "default_value",
+        "value": "",
+        "description": "Initialize with empty/default value then aggregate"
+      },
+      "applies_to": [
+        "Validation_Errors",
+        "Row_Index"
+      ]
+    },
+    "auto_increment": {
+      "data_preservation": {
+        "mode": "preserve_existing",
+        "description": "Preserve existing indices, only generate for new rows"
+      },
+      "processing_sequence": {
+        "calculation_timing": "first",
+        "null_handling_timing": "skip",
+        "description": "Generate indices for null values only"
+      },
+      "fallback": {
+        "type": "auto_generate",
+        "value_source": "sequence",
+        "description": "Generate sequential numbers starting from 1"
+      },
+      "applies_to": [
+        "Row_Index"
+      ]
+    }
+  },
+  "strategy_properties": {
+    "data_preservation": {
+      "preserve_existing": {
+        "description": "Keep existing values, only operate on null values",
+        "implementation": "existing_mask = df[column].notna(); null_mask = df[column].isna()"
+      },
+      "overwrite_existing": {
+        "description": "Replace all values with calculated results",
+        "implementation": "df[column] = calculated_values (no mask)"
+      },
+      "conditional_overwrite": {
+        "description": "Overwrite only when condition is met",
+        "implementation": "mask = condition; df.loc[mask, column] = calculated_values"
+      }
+    },
+    "processing_sequence": {
+      "calculation_timing": {
+        "first": "Calculate before null handling (standard for calculated columns)",
+        "last": "Calculate after null handling (rare, for dependent calculations)",
+        "conditional": "Calculate only if needed based on state"
+      },
+      "null_handling_timing": {
+        "last_defense": "Apply after calculation, only for remaining nulls",
+        "before_calculation": "Prepare data before calculation runs",
+        "built_in": "Handled within calculation logic itself",
+        "skip": "No separate null handling phase"
+      }
+    },
+    "fallback": {
+      "leave_null": "Keep null if calculation fails",
+      "default_value": "Use static default value",
+      "forward_fill": "Use previous non-null value",
+      "calculated_default": "Use alternative calculation result",
+      "auto_generate": "Generate value automatically"
+    }
+  }
+}

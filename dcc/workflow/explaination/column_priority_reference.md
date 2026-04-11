@@ -24,6 +24,7 @@
 11. if column is_calculated is true, apply calculation and then apply null_handling if defined as the last defence
 12. if manual user input is allowed, forward fill with boundary is allowed.
 13. always respect sequence of columns in the schema to process each column.
+14. each column will have own 'Strategy' to handle sequence of preservation of existing data, null_handling, calculation, and fallback behavior. if any contradicting rule is found hereinabove, always refer to 'strategy' key in the schema. log a warning message to user for attention.
 
 ### Forward Fill Boundary Rules (Applies to Priority 1 and Priority 2 with Manual Input)
 
@@ -134,6 +135,96 @@ else:
 > - **² Validation_Errors** is special: it initializes as empty string and aggregates errors (not a traditional calculation)
 >
 > **Reference Implementation**: See `processor_engine/calculations/*.py` - all handlers preserve existing values using `existing_mask` pattern.
+
+---
+
+## Column Handling Strategy Reference
+
+Each calculated column has a defined strategy that controls how it processes data. Strategies are defined in the schema's `strategy` object.
+
+### Strategy Object Structure
+
+```json
+{
+  "strategy": {
+    "data_preservation": {
+      "mode": "preserve_existing",
+      "description": "Keep existing values, only calculate for nulls"
+    },
+    "processing_sequence": {
+      "calculation_timing": "first",
+      "null_handling_timing": "last_defense",
+      "description": "Calculate first, then handle remaining nulls"
+    },
+    "fallback": {
+      "type": "leave_null",
+      "description": "If calculation fails, leave value as null"
+    }
+  }
+}
+```
+
+### Strategy Properties Reference
+
+| Property | Options | Description |
+|----------|---------|-------------|
+| **Data Preservation Mode** | `preserve_existing` | Keep existing values, only operate on null values (default for most columns) |
+| | `overwrite_existing` | Replace all values with calculated results (Validation_Errors) |
+| | `conditional_overwrite` | Overwrite only when condition is met (future use) |
+| **Calculation Timing** | `first` | Calculate before null handling (standard for calculated columns) |
+| | `last` | Calculate after null handling (rare use case) |
+| | `conditional` | Calculate only if needed based on state |
+| **Null Handling Timing** | `last_defense` | Apply after calculation, only for remaining nulls (most common) |
+| | `before_calculation` | Prepare data before calculation runs |
+| | `built_in` | Handled within calculation logic itself (Submission_Closed) |
+| | `skip` | No separate null handling phase (Validation_Errors, Row_Index) |
+| **Fallback Type** | `leave_null` | Keep null if calculation fails (Document_ID default) |
+| | `default_value` | Use static default value from schema |
+| | `forward_fill` | Use previous non-null value |
+| | `calculated_default` | Use alternative calculation result (Submission_Closed → 'NO') |
+| | `auto_generate` | Generate value automatically (Row_Index sequence) |
+
+### Column Strategy Matrix
+
+| Column | Preservation | Calc Timing | Null Timing | Fallback | Notes |
+|--------|--------------|-------------|-------------|----------|-------|
+| `Document_ID` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Composite: keeps existing IDs, calculates if null |
+| `Submission_Closed` | `preserve_existing` | `first` | `built_in` | `calculated_default` | Conditional: defaults to 'NO' in else clause |
+| `Resubmission_Required` | `preserve_existing` | `first` | `built_in` | `calculated_default` | Conditional: preserves user input |
+| `Validation_Errors` | `overwrite_existing` | `first` | `skip` | `default_value` | Error tracking: rebuilds each run |
+| `Row_Index` | `preserve_existing` | `first` | `skip` | `auto_generate` | Auto-increment: preserves existing indices |
+| `First_Submission_Date` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Aggregate: keeps existing dates |
+| `Latest_Submission_Date` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Aggregate: keeps existing dates |
+| `Latest_Revision` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Aggregate: keeps existing revisions |
+| `All_*` aggregates | `preserve_existing` | `first` | `last_defense` | `leave_null` | All aggregate columns preserve existing |
+| `Approval_Code` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Mapping: preserves existing codes |
+| `Latest_Approval_Status` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Latest status: preserves existing |
+| `Duration_of_Review` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Conditional: preserves existing |
+| `Resubmission_Plan_Date` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Conditional date: preserves existing |
+| `Delay_of_Resubmission` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Complex lookup: preserves existing |
+| `This_Submission_Approval_Code` | `preserve_existing` | `first` | `last_defense` | `leave_null` | Conditional: preserves existing |
+
+### Special Handling Notes
+
+**Document_ID (Composite Calculation):**
+- **Rule**: Preserve existing values at all costs
+- **Fallback**: If source columns missing for calculation, leave null (not auto-generated)
+- **User Override**: User can manually enter Document_ID; calculation only fills nulls
+
+**Submission_Closed (Conditional with Built-in Null Handling):**
+- **Preprocessing**: Converts to uppercase, fills nulls with 'NO' before condition evaluation
+- **Logic**: `if existing == 'YES' → 'YES'; else if superseded → 'YES'; else if approved → 'YES'; else → 'NO'`
+- **Result**: Never null after calculation (always YES or NO)
+
+**Resubmission_Forecast_Date (User Estimate):**
+- **is_calculated**: `false`
+- **Manual Input**: YES
+- **Forward Fill**: Allowed within boundary (20-row limit, session boundary)
+
+**Validation_Errors (Error Tracking):**
+- **Overwrite**: Always rebuild from scratch
+- **Skip Null Handling**: No separate null phase; initializes as empty string
+- **Result**: Aggregates all validation errors per row
 
 ---
 

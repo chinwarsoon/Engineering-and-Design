@@ -609,3 +609,15 @@ The engine provides comprehensive error handling:
 - Circular dependencies are detected using DFS with recursion stack tracking
 - Validation status includes file mtimes to detect changes
 - Field validation supports scalar and array types with comprehensive rule checking
+- Column definitions can include a `strategy` object to configure calculation behavior:
+  ```json
+  "strategy": {
+    "data_preservation": {"mode": "preserve_existing"},
+    "processing_sequence": {
+      "calculation_timing": "first",
+      "null_handling_timing": "last_defense"
+    },
+    "fallback": {"type": "leave_null"}
+  }
+  ```
+- The `strategy` field controls how calculated columns preserve or overwrite existing values

@@ -422,6 +422,21 @@
           "strategy": "leave_null",
           "description": "Leave null values as-is; will be populated by is_calculated logic (composite/build_document_id)."
         },
+        "strategy": {
+          "data_preservation": {
+            "mode": "overwrite_existing",
+            "description": "Keep existing Document_ID values, only calculate for null values"
+          },
+          "processing_sequence": {
+            "calculation_timing": "first",
+            "null_handling_timing": "last_defense",
+            "description": "Calculate composite ID first, then apply null handling only for remaining nulls"
+          },
+          "fallback": {
+            "type": "leave_null",
+            "description": "If composite calculation fails, leave Document_ID as null"
+          }
+        },
         "validation": [
           {
             "type": "pattern",
@@ -1495,6 +1510,22 @@
             ]
           },
           "description": "Calculated via status_based conditional mapping. Merges current closure status with Latest_Approval_Code to determine if the document lifecycle has reached a terminal state (APP/VOID/INF)."
+        },
+        "strategy": {
+          "data_preservation": {
+            "mode": "preserve_existing",
+            "description": "Keep existing Submission_Closed values (YES/NO), only calculate for null values"
+          },
+          "processing_sequence": {
+            "calculation_timing": "first",
+            "null_handling_timing": "built_in",
+            "description": "Calculation includes built-in null handling: initialize nulls with 'NO', then apply conditional logic"
+          },
+          "fallback": {
+            "type": "calculated_default",
+            "value_source": "calculation_logic",
+            "description": "Uses 'NO' as default from calculation's else clause"
+          }
         },
         "validation": [
           {

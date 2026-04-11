@@ -12,9 +12,22 @@ from typing import Dict, Any
 from initiation_engine import status_print, debug_print
 
 
+def _get_preservation_mode(engine, column_name: str) -> str:
+    """Get data preservation mode from engine strategy if available."""
+    if hasattr(engine, 'get_column_strategy'):
+        try:
+            strategy = engine.get_column_strategy(column_name)
+            if strategy:
+                return strategy.preservation_mode.value
+        except Exception:
+            pass
+    return "preserve_existing"
+
+
 def apply_current_row_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
     Generic conditional logic based on other columns in the current row.
+    Respects strategy configuration for data preservation.
     """
     source_column = calculation.get('source_column')
     condition = calculation.get('condition')
@@ -24,19 +37,31 @@ def apply_current_row_calculation(engine, df: pd.DataFrame, column_name: str, ca
 
     engine._print_processing_step("Conditional", column_name, f"Evaluating {condition}")
 
-    # Only fill null values in target column - preserve existing data
+    # Respect strategy configuration
+    preservation_mode = _get_preservation_mode(engine, column_name)
+
     if column_name not in df.columns:
         df[column_name] = None
 
-    null_mask = df[column_name].isna()
-    if null_mask.any():
+    if preservation_mode == "overwrite_existing":
+        # Strategy: Calculate for ALL rows
+        engine._print_processing_step("Conditional", column_name, f"Strategy: overwrite_existing - calculating all {len(df)} rows")
         if condition == 'is_current_submission':
-            df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
+            df[column_name] = df[source_column]
         else:
-            df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
-        debug_print(f"Applied current_row calculation to {null_mask.sum()} null rows in {column_name}")
+            df[column_name] = df[source_column]
+        engine._print_processing_step("Conditional", column_name, f"Applied to all rows (overwritten)")
     else:
-        debug_print(f"Skipped current_row calculation for {column_name}: all values present")
+        # Strategy: preserve_existing - only fill null values
+        null_mask = df[column_name].isna()
+        if null_mask.any():
+            if condition == 'is_current_submission':
+                df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
+            else:
+                df.loc[null_mask, column_name] = df.loc[null_mask, source_column]
+            debug_print(f"Applied current_row calculation to {null_mask.sum()} null rows in {column_name}")
+        else:
+            debug_print(f"Skipped current_row calculation for {column_name}: all values present")
 
     return df
 
@@ -50,6 +75,8 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
     3. Set to RESUBMITTED if not the latest submission (resubmission already done)
     4. Set to PEN if latest submission and awaiting review return
     5. Default to YES for remaining rows
+    
+    Respects strategy configuration for data preservation.
     """
     source_column = calculation.get('source_column', 'Resubmission_Required')
 
@@ -61,23 +88,29 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
 
     engine._print_processing_step("Conditional", column_name, f"Checking rejection/resubmission logic from {source_column}")
 
-    # Only calculate where target is null - preserve existing data
+    # Respect strategy configuration
+    preservation_mode = _get_preservation_mode(engine, column_name)
+
     if column_name not in df.columns:
         df[column_name] = None
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
-
-    # Initialize null values with default YES
-    null_mask = df[column_name].isna()
-    if null_mask.any():
-        df.loc[null_mask, column_name] = 'YES'
+    # Determine which rows to process
+    if preservation_mode == "overwrite_existing":
+        engine._print_processing_step("Conditional", column_name, f"Strategy: overwrite_existing - processing all {len(df)} rows")
+        null_mask = pd.Series([True] * len(df), index=df.index)
     else:
-        # All values already present, skip calculation
-        debug_print(f"Skipped update_resubmission_required for {column_name}: all values present")
-        return df
+        # Calculate only for null values (default)
+        existing_mask = df[column_name].notna()
+        if existing_mask.any():
+            engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
+        
+        null_mask = df[column_name].isna()
+        if not null_mask.any():
+            debug_print(f"Skipped update_resubmission_required for {column_name}: all values present")
+            return df
+    
+    # Initialize target values with default YES
+    df.loc[null_mask, column_name] = 'YES'
 
     # Track which rows have been determined - these skip remaining checks
     determined_mask = pd.Series([False] * len(df), index=df.index)
@@ -132,6 +165,7 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
     4. Default to NO for remaining rows
 
     Note: Does NOT depend on Resubmission_Required to avoid circular dependency.
+    Respects strategy configuration for data preservation.
     """
     source_column = calculation.get('source_column', 'Submission_Closed')
 
@@ -142,14 +176,26 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
 
     engine._print_processing_step("Conditional", column_name, "Evaluating closure status")
 
-    # Only calculate where target is null - preserve existing data
+    # Respect strategy configuration
+    preservation_mode = _get_preservation_mode(engine, column_name)
+
     if column_name not in df.columns:
         df[column_name] = None
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
+    # Determine which rows to process
+    if preservation_mode == "overwrite_existing":
+        engine._print_processing_step("Conditional", column_name, f"Strategy: overwrite_existing - processing all {len(df)} rows")
+        null_mask = pd.Series([True] * len(df), index=df.index)
+    else:
+        # Calculate only for null values (default)
+        existing_mask = df[column_name].notna()
+        if existing_mask.any():
+            engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
+        
+        null_mask = df[column_name].isna()
+        if not null_mask.any():
+            debug_print(f"Skipped submission_closure_status for {column_name}: all values present")
+            return df
 
     # Preprocessing: convert to uppercase and fill nulls
     preprocessing = calculation.get('preprocessing', {})
@@ -159,13 +205,8 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
     if text_cleaning.get('fill_nulls') and source_column in df.columns:
         df[source_column] = df[source_column].fillna(text_cleaning['fill_nulls'])
 
-    # Initialize null values with default NO
-    null_mask = df[column_name].isna()
-    if null_mask.any():
-        df.loc[null_mask, column_name] = 'NO'
-    else:
-        debug_print(f"Skipped submission_closure_status for {column_name}: all values present")
-        return df
+    # Initialize target values with default NO
+    df.loc[null_mask, column_name] = 'NO'
 
     # Track which rows have been determined - these skip remaining checks
     determined_mask = pd.Series([False] * len(df), index=df.index)
@@ -204,6 +245,8 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
     Logic:
     1. If Resubmission_Required == 'YES' AND Resubmission_Plan_Date is not null AND Resubmission_Plan_Date < current_date -> 'Overdue'
     2. Otherwise -> null
+    
+    Respects strategy configuration for data preservation.
     """
     # Get required columns
     resubmission_required_col = 'Resubmission_Required' if 'Resubmission_Required' in df.columns else None
@@ -211,14 +254,29 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
 
     engine._print_processing_step("Conditional", column_name, "Calculating Overdue/On-Track")
 
-    # Only calculate where target is null - preserve existing data
+    # Respect strategy configuration
+    preservation_mode = _get_preservation_mode(engine, column_name)
+
     if column_name not in df.columns:
         df[column_name] = pd.NA
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
+    # Determine which rows to process
+    if preservation_mode == "overwrite_existing":
+        engine._print_processing_step("Conditional", column_name, f"Strategy: overwrite_existing - processing all {len(df)} rows")
+        # For overwrite, clear existing values first
+        df[column_name] = pd.NA
+        process_all = True
+    else:
+        # Calculate only for null values (default)
+        existing_mask = df[column_name].notna()
+        if existing_mask.any():
+            engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
+        
+        null_mask = df[column_name].isna()
+        if not null_mask.any():
+            debug_print(f"Skipped overdue calculation for {column_name}: all values present")
+            return df
+        process_all = False
 
     if resubmission_required_col and resubmission_plan_date_col:
         # Convert plan date to datetime
@@ -234,10 +292,16 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
             (df[resubmission_plan_date_col] < current_date)
         )
 
-        df.loc[mask_overdue, column_name] = 'Overdue'
-
-        engine._print_processing_step("Conditional", column_name, 
-            f"Applied: {mask_overdue.sum()} rows Overdue, {(~mask_overdue).sum()} rows null")
+        if process_all:
+            df.loc[mask_overdue, column_name] = 'Overdue'
+            engine._print_processing_step("Conditional", column_name, 
+                f"Applied to all rows: {mask_overdue.sum()} Overdue, {(~mask_overdue).sum()} null (overwritten)")
+        else:
+            # Only apply to null rows
+            null_overdue_mask = mask_overdue & df[column_name].isna()
+            df.loc[null_overdue_mask, column_name] = 'Overdue'
+            engine._print_processing_step("Conditional", column_name, 
+                f"Applied: {null_overdue_mask.sum()} rows Overdue, {df[column_name].isna().sum()} rows null")
     else:
         engine._print_processing_step("Conditional", column_name, 
             "Cannot calculate: missing required columns")

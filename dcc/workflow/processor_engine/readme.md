@@ -37,6 +37,7 @@ processor_engine/
 ├── core/                    # Core engine components
 │   ├── __init__.py          # Core module exports
 │   ├── base.py              # BaseProcessor with shared utilities
+│   ├── calculation_strategy.py  # Strategy resolver and executor
 │   ├── engine.py            # CalculationEngine orchestrator
 │   └── registry.py          # Handler registries
 ├── calculations/            # Calculation implementations
@@ -135,6 +136,8 @@ flowchart TD
 | `df` | `process_data()` input | Modified by `apply_null_handling()`, `apply_calculations()` | All processing functions | Working DataFrame throughout pipeline |
 | `null_handling` | Column definition | Specified per column in schema | `get_null_handler()`, handler functions | Null handling strategy configuration |
 | `calculation` | Column definition | Specified per column in schema | `get_calculation_handler()`, handler functions | Calculation type and method configuration |
+| `strategy` | Column definition (`strategy` key) or inferred | `StrategyResolver.from_schema()` | All calculation handlers via `_get_preservation_mode()` | Data preservation mode, processing sequence, fallback behavior |
+| `_column_strategies` | `CalculationEngine.__init__()` | `get_column_strategy()` | `StrategyExecutor`, calculation handlers | Cache of resolved strategies per column |
 | `dependencies` | Column definition | `_extract_column_dependencies()` | `resolve_calculation_order()`, dependency graph | Cross-column dependencies for ordering |
 
 ---
@@ -219,6 +222,16 @@ The main orchestrator class that coordinates all data processing activities.
 | **Function** | **Rule 11**: Calculation FIRST, then null handling as LAST DEFENSE |
 | **Workflow** | 1. Apply calculations in schema sequence order<br>2. Check for remaining nulls<br>3. Apply null handling only to remaining nulls |
 
+##### `get_column_strategy(column_name)`
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `column_name` (str): Name of the column |
+| **Output** | `CalculationStrategy` if column is calculated, `None` otherwise |
+| **Function** | Gets or resolves calculation strategy for a column |
+| **Caching** | Resolved strategies are cached in `_column_strategies` dict |
+| **Usage** | Called by calculation handlers to determine preservation mode |
+
 ---
 
 ## Registry System
@@ -266,6 +279,87 @@ The registry system provides dynamic handler registration and retrieval for null
 | **Input** | None |
 | **Output** | Dict with all registered null_handlers and calculation_types |
 | **Function** | Returns listing of all registered handlers for debugging |
+
+---
+
+## Calculation Strategy System
+
+**File:** `core/calculation_strategy.py`
+
+The strategy system provides configurable behavior for calculated columns through schema-defined strategies. Each calculated column can specify its own data preservation mode, processing sequence, and fallback behavior.
+
+### CalculationStrategy Class
+
+| Attribute | Details |
+|-----------|---------|
+| **Input** | `column_name` (str): Target column<br>`preservation_mode` (PreservationMode): How to handle existing values<br>`calculation_timing` (CalculationTiming): When to calculate<br>`null_handling_timing` (NullHandlingTiming): When to apply null handling<br>`fallback_type` (FallbackType): What to do when calculation fails<br>`fallback_value` (Any, optional): Static fallback value<br>`fallback_value_source` (str, optional): Source for fallback value |
+| **Output** | Strategy instance defining column processing behavior |
+| **Function** | Encapsulates all processing rules for a calculated column |
+
+#### Strategy Properties
+
+| Property | Options | Description |
+|----------|---------|-------------|
+| **Preservation Mode** | `preserve_existing` | Keep existing values, only calculate for nulls (default) |
+| | `overwrite_existing` | Replace all values with calculated results |
+| | `conditional_overwrite` | Overwrite only when condition is met |
+| **Calculation Timing** | `first` | Calculate before null handling (default) |
+| | `last` | Calculate after null handling |
+| | `conditional` | Calculate only if needed |
+| **Null Handling Timing** | `last_defense` | Apply after calculation, only for remaining nulls (default) |
+| | `before_calculation` | Prepare data before calculation runs |
+| | `built_in` | Handled within calculation logic itself |
+| | `skip` | No separate null handling phase |
+| **Fallback Type** | `leave_null` | Keep null if calculation fails |
+| | `default_value` | Use static default value |
+| | `forward_fill` | Use previous non-null value |
+| | `calculated_default` | Use alternative calculation result |
+| | `auto_generate` | Generate value automatically |
+
+### StrategyResolver Class
+
+Resolves strategy from schema column definition:
+
+```python
+# Explicit strategy in schema
+"strategy": {
+    "data_preservation": {"mode": "preserve_existing"},
+    "processing_sequence": {
+        "calculation_timing": "first",
+        "null_handling_timing": "last_defense"
+    },
+    "fallback": {"type": "leave_null"}
+}
+```
+
+If no explicit strategy is defined, the resolver infers from:
+- Column name patterns (e.g., `Validation_Errors` → `overwrite_existing`)
+- Calculation type and preprocessing config
+- Null handling strategy settings
+
+### StrategyExecutor Class
+
+Executes calculations according to resolved strategy:
+
+```python
+# Handler pattern for respecting strategy
+def _get_preservation_mode(engine, column_name: str) -> str:
+    if hasattr(engine, 'get_column_strategy'):
+        strategy = engine.get_column_strategy(column_name)
+        if strategy:
+            return strategy.preservation_mode.value
+    return "preserve_existing"
+```
+
+### Common Column Strategies
+
+| Column | Preservation | Null Timing | Fallback | Notes |
+|--------|--------------|-------------|----------|-------|
+| `Document_ID` | `preserve_existing` | `last_defense` | `leave_null` | Composite ID calculation |
+| `Submission_Closed` | `preserve_existing` | `built_in` | `calculated_default` | Always YES/NO |
+| `Validation_Errors` | `overwrite_existing` | `skip` | `default_value` | Rebuild each run |
+| `Row_Index` | `preserve_existing` | `skip` | `auto_generate` | Sequential numbering |
+| Aggregates (`All_*`, `Latest_*`) | `preserve_existing` | `last_defense` | `leave_null` | Group-based calculations |
 
 ---
 
@@ -605,6 +699,10 @@ from dcc.workflow.processor_engine import (
     # Core
     CalculationEngine,
     BaseProcessor,
+    CalculationStrategy,
+    StrategyResolver,
+    StrategyExecutor,
+    get_column_strategy,
     
     # Registry
     get_null_handler,
@@ -668,6 +766,10 @@ from dcc.workflow.processor_engine.calculations import (
 from dcc.workflow.processor_engine.core import (
     CalculationEngine,
     BaseProcessor,
+    CalculationStrategy,
+    StrategyResolver,
+    StrategyExecutor,
+    get_column_strategy,
     get_calculation_handler,
     register_calculation_handler,
 )
@@ -731,8 +833,10 @@ The engine provides comprehensive error handling:
 - **Calculation Order**: For P2.5 and P3 columns, calculations run FIRST, then null handling as LAST DEFENSE (Rule 11)
 - **Forward Fill Boundaries**: Level 1 = [Submission_Session, Submission_Session_Revision], Level 2 = [Submission_Session] (Rule 12)
 - **Column Sequence**: Processing respects schema `column_sequence` order within each phase (Rule 13)
+- **Strategy System**: Each calculated column can define a `strategy` object to control data preservation, processing sequence, and fallback behavior
 - Dependency graph analysis determines safe execution order within calculated columns
 - Circular dependencies are detected and raise ValueError
 - All handlers follow signature: `(processor, df, column_name, config) -> df`
 - Schema references are resolved at runtime via SchemaProcessor
 - The registry system allows dynamic extension without core modifications
+- All calculation handlers respect the schema `strategy` configuration (no hardcoded preservation logic)
