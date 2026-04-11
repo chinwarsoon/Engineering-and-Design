@@ -110,15 +110,17 @@ class BusinessDetector(BaseDetector):
         self,
         df: pd.DataFrame,
         context: Optional[Dict[str, Any]] = None,
-        stop_on_first_error: bool = False
+        stop_on_first_error: bool = False,
+        phases: Optional[List[ProcessingPhase]] = None
     ) -> Dict[ProcessingPhase, List[DetectionResult]]:
         """
-        Run all business logic validations across all phases.
+        Run all business logic validations across specific or all phases.
         
         Args:
             df: DataFrame to validate
             context: Additional context
             stop_on_first_error: Stop after first error found
+            phases: Subset of phases to run (optional)
             
         Returns:
             Dict of phase -> list of detection results
@@ -130,7 +132,8 @@ class BusinessDetector(BaseDetector):
             self.set_context(**context)
         
         # Run phases in order
-        for phase in self.phases:
+        target_phases = phases or self.phases
+        for phase in target_phases:
             try:
                 phase_errors = self._run_phase(phase, df, context)
                 self._phase_errors[phase] = phase_errors

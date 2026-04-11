@@ -25,6 +25,9 @@ from .calculation_strategy import (
 # Import hierarchical logging functions from initiation_engine (centralized)
 from initiation_engine import log_context, status_print, debug_print
 
+# Phase 4: Import error handling components
+from ..error_handling.detectors.business import ProcessingPhase
+
 class CalculationEngine(BaseProcessor):
     """
     The orchestrator for the modular calculation engine.
@@ -36,6 +39,28 @@ class CalculationEngine(BaseProcessor):
         Initialize the engine using the resolved schema.
         """
         super().__init__(schema_data)
+        
+        # Phase 4: Initialize error handling
+        from reporting_engine.error_reporter import ErrorReporter
+        from ..error_handling.core.logger import StructuredLogger
+        from ..error_handling.aggregator import ErrorAggregator
+        from ..error_handling.detectors.business import BusinessDetector
+        
+        parameters = schema_data.get('parameters', {})
+        fail_fast = parameters.get('fail_fast', True)
+        
+        self.structured_logger = StructuredLogger()
+        self.error_aggregator = ErrorAggregator()
+        self.business_detector = BusinessDetector(
+            enable_fail_fast=fail_fast,
+            logger=self.structured_logger
+        )
+        
+        # Phase 5: Initialize reporter and metrics
+        from reporting_engine.error_reporter import ErrorReporter
+        self.error_reporter = ErrorReporter(self.error_aggregator)
+        self._last_processed_rows = 0
+        
         enhanced_schema = schema_data.get('enhanced_schema', {})
         raw_columns = enhanced_schema.get('columns', {})
         column_sequence = enhanced_schema.get('column_sequence', [])
@@ -103,6 +128,7 @@ class CalculationEngine(BaseProcessor):
         """
         with log_context("processor", "process_data"):
             debug_print(f"Starting process_data with {len(df.columns)} columns")
+            self._last_processed_rows = len(df)
             
             # Use phased processing (P1 → P2 → P2.5 → P3)
             df = self.apply_phased_processing(df)
@@ -149,21 +175,33 @@ class CalculationEngine(BaseProcessor):
             if phase_columns['P1']:
                 self._print_processing_step("Phase 1", "Meta Data", f"Processing {len(phase_columns['P1'])} columns")
                 df_processed = self._apply_phase_null_handling(df_processed, phase_columns['P1'])
+                # Phase 4: Run Phase 1 detection
+                p1_results = self.business_detector.detect(df_processed, context={"phase": "P1"}, phases=[ProcessingPhase.P1])
+                self.error_aggregator.add_errors(p1_results.get(ProcessingPhase.P1, []))
             
             # Phase 2: Transactional - Forward fill if Manual Input = YES, then validate
             if phase_columns['P2']:
                 self._print_processing_step("Phase 2", "Transactional", f"Processing {len(phase_columns['P2'])} columns")
                 df_processed = self._apply_phase_transactional(df_processed, phase_columns['P2'])
+                # Phase 4: Run Phase 2 detection
+                p2_results = self.business_detector.detect(df_processed, context={"phase": "P2"}, phases=[ProcessingPhase.P2])
+                self.error_aggregator.add_errors(p2_results.get(ProcessingPhase.P2, []))
             
             # Phase 2.5: Anomaly - Calculations FIRST, then null handling
             if phase_columns['P2.5']:
                 self._print_processing_step("Phase 2.5", "Anomaly", f"Processing {len(phase_columns['P2.5'])} columns")
                 df_processed = self._apply_phase_calculated(df_processed, phase_columns['P2.5'])
+                # Phase 4: Run Phase 2.5 detection
+                p25_results = self.business_detector.detect(df_processed, context={"phase": "P2.5"}, phases=[ProcessingPhase.P2_5])
+                self.error_aggregator.add_errors(p25_results.get(ProcessingPhase.P2_5, []))
             
             # Phase 3: Calculated - Calculations FIRST, then null handling (last defense)
             if phase_columns['P3']:
                 self._print_processing_step("Phase 3", "Calculated", f"Processing {len(phase_columns['P3'])} columns")
                 df_processed = self._apply_phase_calculated(df_processed, phase_columns['P3'])
+                # Phase 4: Run Phase 3 detection
+                p3_results = self.business_detector.detect(df_processed, context={"phase": "P3"}, phases=[ProcessingPhase.P3])
+                self.error_aggregator.add_errors(p3_results.get(ProcessingPhase.P3, []))
             
             # Phase 4: Validation - Apply schema validation rules
             self._print_processing_step("Phase 4", "Validation", "Applying all schema validation rules")
@@ -172,7 +210,20 @@ class CalculationEngine(BaseProcessor):
             schema_data_full = self.schema_data
             df_processed = apply_validation(df_processed, self.columns, schema_data_full)
             
+            # Phase 4: Aggregation - Populate Validation_Errors column (Step 46)
+            self._print_processing_step("Phase 4", "Aggregation", "Populating Validation_Errors column")
+            df_processed["Validation_Errors"] = self.error_aggregator.format_validation_errors_column(len(df_processed))
+            
+            # Phase 5: Metrics (Layer 5) - Populate Data_Health_Score column (Step 48)
+            self._print_processing_step("Phase 5", "Metrics", "Calculating Data_Health_Score")
+            from reporting_engine.data_health import calculate_row_health_series
+            df_processed["Data_Health_Score"] = calculate_row_health_series(df_processed, self.error_aggregator)
+            
             return df_processed
+
+    def get_error_summary(self) -> Dict[str, Any]:
+        """Phase 5: Returns structured error summary for reporting."""
+        return self.error_reporter.generate_summary_stats(self._last_processed_rows)
 
     def _apply_phase_null_handling(self, df: pd.DataFrame, column_names: List[str]) -> pd.DataFrame:
         """Apply null handling for a specific phase (P1 or P2)."""

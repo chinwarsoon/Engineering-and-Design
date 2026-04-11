@@ -1,0 +1,71 @@
+Universal Document Processing Summary
+==================================================
+
+Processing Date: 2026-04-11 21:24:06
+
+Input and Output Files:
+  Input Data File: test.xlsx
+  CSV Export: test.csv
+  Excel Export: test.xlsx
+  Summary Report: test_summary.txt
+
+Schema Files Used:
+  - schema.json
+
+Dataset Shapes:
+  Raw Input Shape: (3, 2)
+  Mapped Data Shape: (3, 2)
+  Processed Data Shape: (2, 9)
+
+Data Health Diagnostics:
+  Health Score: 50.0% (F)
+  Total Row-Level Errors: 1
+  Unique Error Types: 1
+  Affected Rows: 1 / 2
+  Severity Breakdown: HIGH: 1
+
+Column Overview:
+  Column Mapping Success Rate: 100.0%
+  Matched Headers: 2 / 2
+  Missing Required Columns: 0
+  Schema References Loaded: 0
+
+Columns Read From Input:
+  01. Project_Code
+  02. Submission_Session
+
+Column Mapping Details:
+  - Project_Code -> NOT MAPPED
+  - Submission_Session -> NOT MAPPED
+
+Mapped Columns After Rename:
+  01. Project_Code
+  02. Submission_Session
+
+Processed Columns:
+  01. Project_Code
+  02. Submission_Session
+  03. Facility_Code [ADDED DURING PROCESSING]
+  04. Document_Type [ADDED DURING PROCESSING]
+  05. Document_Sequence_Number [ADDED DURING PROCESSING]
+  06. Discipline [ADDED DURING PROCESSING]
+  07. First_Submission_Date [ADDED DURING PROCESSING]
+  08. Validation_Errors [ADDED DURING PROCESSING]
+  09. Data_Health_Score [ADDED DURING PROCESSING]
+
+Null Summary:
+  Raw Input Columns With Nulls:
+    - None
+  Mapped Columns With Nulls:
+    - None
+  Processed Columns With Nulls:
+    - None
+
+Warnings and Potential Issues:
+  - Column created during processing: Facility_Code
+  - Column created during processing: Document_Type
+  - Column created during processing: Document_Sequence_Number
+  - Column created during processing: Discipline
+  - Column created during processing: First_Submission_Date
+  - Column created during processing: Validation_Errors
+  - Column created during processing: Data_Health_Score

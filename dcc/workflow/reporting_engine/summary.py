@@ -128,6 +128,22 @@ def write_processing_summary(
         handle.write(f"  Mapped Data Shape: {mapped_shape}\n")
         handle.write(f"  Processed Data Shape: {processed_shape}\n\n")
 
+        # Phase 5: Data Health KPI (Layer 5)
+        error_summary = schema_results.get("error_summary", {})
+        health_kpi = error_summary.get("health_kpi", {})
+        if health_kpi:
+            handle.write("Data Health Diagnostics:\n")
+            handle.write(f"  Health Score: {health_kpi.get('score', 0):.1f}% ({health_kpi.get('grade', 'N/A')})\n")
+            handle.write(f"  Total Row-Level Errors: {error_summary.get('total_errors', 0)}\n")
+            handle.write(f"  Unique Error Types: {error_summary.get('unique_errors', 0)}\n")
+            handle.write(f"  Affected Rows: {error_summary.get('affected_rows', 0)} / {processed_shape[0]}\n")
+            
+            counts = health_kpi.get("detailed_counts", {})
+            if counts:
+                severity_str = ", ".join([f"{k}: {v}" for k, v in counts.items() if v > 0])
+                handle.write(f"  Severity Breakdown: {severity_str}\n")
+            handle.write("\n")
+
         handle.write("Column Overview:\n")
         handle.write(f"  Column Mapping Success Rate: {mapping_result['match_rate']:.1%}\n")
         handle.write(f"  Matched Headers: {mapping_result['matched_count']} / {mapping_result['total_headers']}\n")

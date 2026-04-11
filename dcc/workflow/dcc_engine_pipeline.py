@@ -129,9 +129,51 @@ def run_engine_pipeline(
         status_print(f"✓ Column mapping complete: {mapping_result['match_rate']:.1%} match rate")
 
     # Step 4: Processor Engine - Document Processing
-    with log_context("pipeline", "step4_document_processing"):
-        processor = CalculationEngine(resolved_schema)
-        df_processed = processor.process_data(df_mapped)
+    try:
+        with log_context("pipeline", "step4_document_processing"):
+            processor = CalculationEngine(resolved_schema)
+            df_processed = processor.process_data(df_mapped)
+            
+            # Phase 5: Get structured error summary for reporting
+            status_print("Generating data health diagnostics...")
+            pipeline_schema_results["error_summary"] = processor.get_error_summary()
+            
+            # Phase 5: Export JSON for UI Dashboard
+            processor.error_reporter.output_dir = export_paths["csv_path"].parent
+            dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
+            status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}")
+    except Exception as exc:
+        # Check if it's a FailFastError to generate partial diagnostics
+        is_fail_fast = "FAIL FAST" in str(exc)
+        if is_fail_fast:
+            status_print(f"⚠ {exc}")
+            status_print("Generating diagnostic report for captured errors...")
+            pipeline_schema_results["error_summary"] = processor.get_error_summary()
+            processor.error_reporter.output_dir = export_paths["csv_path"].parent
+            processor.error_reporter.export_dashboard_json(len(df_mapped))
+            
+            # Write final summary before re-raising
+            schema_reference_count = len(resolved_schema.get("schema_references", {}))
+            write_processing_summary(
+                summary_path=export_paths["summary_path"],
+                input_file=excel_path,
+                main_schema_path=schema_path,
+                schema_results=pipeline_schema_results,
+                raw_columns=list(df_raw.columns),
+                mapped_columns=list(df_mapped.columns),
+                processed_columns=list(df_mapped.columns),
+                raw_shape=df_raw.shape,
+                mapped_shape=df_mapped.shape,
+                processed_shape=df_mapped.shape,
+                df_raw=df_raw,
+                df_mapped=df_mapped,
+                df_processed=df_mapped,
+                mapping_result=mapping_result,
+                schema_reference_count=schema_reference_count,
+                csv_path=export_paths["csv_path"],
+                excel_path=export_paths["excel_path"],
+            )
+        raise exc
 
     # Step 5: Reorder columns per schema column_sequence
     with log_context("pipeline", "step5_column_reorder"):

@@ -14,6 +14,7 @@
     "approval_code_schema": "../config/schemas/approval_code_schema.json"
   },
   "parameters": {
+    "fail_fast": false,
     "debug_dev_mode": false,
     "is_colab": false,
     "overwrite_existing_downloads": true,

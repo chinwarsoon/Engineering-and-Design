@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCC Log Explorer Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --accent: #38bdf8;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --border: #334155;
+            --danger: #f43f5e;
+            --warning: #fbbf24;
+            --success: #10b981;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        aside {
+            width: 320px;
+            background: #0b1120;
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .filter-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        select,
+        input {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 0.6rem;
+            border-radius: 8px;
+            width: 100%;
+        }
+
+        .stats-list {
+            list-style: none;
+            margin-top: auto;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        /* Main Content */
+        main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--panel-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-container {
+            flex-grow: 1;
+            max-width: 600px;
+            margin: 0 2rem;
+        }
+
+        .log-viewport {
+            flex-grow: 1;
+            overflow: auto;
+            padding: 1rem;
+            background: #020617;
+        }
+
+        .log-entry {
+            font-family: 'JetBrains Mono', monospace;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            margin-bottom: 2px;
+            display: grid;
+            grid-template-columns: 180px 100px 120px 1fr;
+            gap: 1rem;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--border);
+        }
+
+        .entry-time {
+            color: var(--text-dim);
+        }
+
+        .entry-level {
+            font-weight: 700;
+        }
+
+        .entry-code {
+            color: var(--accent);
+        }
+
+        .entry-msg {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .LEVEL-CRITICAL {
+            color: var(--danger);
+            background: rgba(244, 63, 94, 0.05);
+        }
+
+        .LEVEL-HIGH {
+            color: #fb7185;
+        }
+
+        .LEVEL-MEDIUM {
+            color: var(--warning);
+        }
+
+        .LEVEL-INFO {
+            color: var(--success);
+        }
+
+        /* Detail Modal */
+        #detail-view {
+            width: 450px;
+            background: #111827;
+            border-left: 1px solid var(--border);
+            padding: 2rem;
+            display: none;
+            overflow-y: auto;
+        }
+
+        .detail-header {
+            margin-bottom: 2rem;
+        }
+
+        .detail-row {
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-label {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            margin-bottom: 0.25rem;
+        }
+
+        .detail-value {
+            font-size: 1rem;
+            word-wrap: break-word;
+        }
+
+        .json-box {
+            background: #000;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            overflow: auto;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <aside>
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M2 12h20"></path>
+            </svg>
+            LogExplorer <span style="font-weight: 300">PRO</span>
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-label">Input Source</label>
+            <button class="btn" onclick="document.getElementById('file-input').click()">Load log_debug.json</button>
+            <input type="file" id="file-input" accept=".json" onchange="loadLogs(event)">
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-label">Severity Filter</label>
+            <select id="severity-filter" onchange="filterLogs()">
+                <option value="all">All Severities</option>
+                <option value="CRITICAL">Critical Only</option>
+                <option value="HIGH">High + Critical</option>
+                <option value="WARNING">Warning + Above</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label class="filter-label">Phase Filter</label>
+            <select id="phase-filter" onchange="filterLogs()">
+                <option value="all">All Phases</option>
+                <option value="P1">Phase 1 (Anchor)</option>
+                <option value="P2">Phase 2 (Identity)</option>
+                <option value="P2.5">Phase 2.5 (Anomaly)</option>
+                <option value="P3">Phase 3 (Calculation)</option>
+            </select>
+        </div>
+
+        <ul class="stats-list" id="stats-list">
+            <!-- Dynamic stats -->
+        </ul>
+    </aside>
+
+    <main>
+        <header>
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search by error code, row, or message..."
+                    onkeyup="filterLogs()">
+            </div>
+            <div id="results-count" style="color: var(--text-dim); font-size: 0.9rem;">0 entries found</div>
+        </header>
+
+        <div class="log-viewport" id="log-viewport">
+            <div
+                style="height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-dim);">
+                Please load a structured JSON log file to begin exploration.
+            </div>
+        </div>
+    </main>
+
+    <div id="detail-view">
+        <div class="detail-header">
+            <h2 id="detail-code" style="color: var(--accent);">P-C-P-0101</h2>
+            <p id="detail-title" style="margin-top: 0.5rem;">Null Anchor Detected</p>
+        </div>
+
+        <div class="detail-row">
+            <div class="detail-label">Severity</div>
+            <div id="detail-severity"><span class="badge">CRITICAL</span></div>
+        </div>
+
+        <div class="detail-row">
+            <div class="detail-label">Location</div>
+            <div id="detail-location">Row 42, Column: Project_Code</div>
+        </div>
+
+        <div class="detail-row">
+            <div class="detail-label">Context Payload</div>
+            <pre class="json-box" id="detail-context">{}</pre>
+        </div>
+
+        <div class="detail-row">
+            <div class="detail-label">Stack Trace</div>
+            <pre class="json-box" style="color: #64748b;" id="detail-stack">No trace available</pre>
+        </div>
+
+        <button class="btn" style="width: 100%"
+            onclick="document.getElementById('detail-view').style.display='none'">Close Inspector</button>
+    </div>
+
+    <script>
+        let allLogs = [];
+
+        function loadLogs(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    // Handle different JSON structures (list or wrapped object)
+                    allLogs = Array.isArray(data) ? data : data.logs || [];
+                    processStats();
+                    filterLogs();
+                } catch (err) {
+                    alert("Error: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function processStats() {
+            const counts = {
+                CRITICAL: 0,
+                HIGH: 0,
+                WARNING: 0,
+                TOTAL: allLogs.length
+            };
+            allLogs.forEach(l => {
+                const s = l.severity || l.level;
+                if (counts[s] !== undefined) counts[s]++;
+            });
+
+            const list = document.getElementById('stats-list');
+            list.innerHTML = `
+                <li class="stat-item"><span>Total Logs</span> <span>${counts.TOTAL}</span></li>
+                <li class="stat-item"><span style="color: var(--danger)">Critical</span> <span>${counts.CRITICAL}</span></li>
+                <li class="stat-item"><span style="color: #fb7185">High</span> <span>${counts.HIGH}</span></li>
+            `;
+        }
+
+        function filterLogs() {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            const severity = document.getElementById('severity-filter').value;
+            const phase = document.getElementById('phase-filter').value;
+
+            const filtered = allLogs.filter(log => {
+                const textMatch = !search ||
+                    JSON.stringify(log).toLowerCase().includes(search);
+
+                const sevLevel = log.severity || log.level;
+                let sevMatch = true;
+                if (severity === 'CRITICAL') sevMatch = sevLevel === 'CRITICAL';
+                if (severity === 'HIGH') sevMatch = ['CRITICAL', 'HIGH'].includes(sevLevel);
+                if (severity === 'WARNING') sevMatch = ['CRITICAL', 'HIGH', 'WARNING', 'MEDIUM'].includes(sevLevel);
+
+                const phaseMatch = phase === 'all' || log.phase === phase || (log.context && log.context.phase === phase);
+
+                return textMatch && sevMatch && phaseMatch;
+            });
+
+            renderLogs(filtered);
+            document.getElementById('results-count').textContent = `${filtered.length} entries found`;
+        }
+
+        function renderLogs(logs) {
+            const viewport = document.getElementById('log-viewport');
+            viewport.innerHTML = '';
+
+            logs.forEach((log, idx) => {
+                const div = document.createElement('div');
+                const sev = log.severity || log.level || 'INFO';
+                div.className = `log-entry LEVEL-${sev}`;
+                div.onclick = () => showDetail(log);
+
+                const time = log.timestamp ? log.timestamp.split('T')[1].split('.')[0] : '--:--:--';
+                const code = log.error_code || log.code || 'N/A';
+                const msg = log.message || log.msg || 'No message';
+
+                div.innerHTML = `
+                    <div class="entry-time">${time}</div>
+                    <div class="entry-level">${sev}</div>
+                    <div class="entry-code">${code}</div>
+                    <div class="entry-msg">${msg}</div>
+                `;
+                viewport.appendChild(div);
+            });
+        }
+
+        function showDetail(log) {
+            const detail = document.getElementById('detail-view');
+            detail.style.display = 'block';
+
+            document.getElementById('detail-code').textContent = log.error_code || log.code || 'UNKNOWN';
+            document.getElementById('detail-title').textContent = log.message || 'Error Event';
+            document.getElementById('detail-severity').innerHTML = `<span class="badge LEVEL-${log.severity || log.level}">${log.severity || log.level}</span>`;
+
+            const row = log.row || log.row_index || 'N/A';
+            const col = log.column || 'Global';
+            document.getElementById('detail-location').textContent = `Row ${row}, Column: ${col}`;
+
+            document.getElementById('detail-context').textContent = JSON.stringify(log.context || {}, null, 2);
+            document.getElementById('detail-stack').textContent = log.stack_trace || 'No detailed trace available.';
+        }
+    </script>
+</body>
+
+</html>
