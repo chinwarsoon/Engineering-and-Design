@@ -84,50 +84,56 @@ else:
 
 ### Priority 2: Relational Keys & Transactional Data (Validate Second)
 
-| Column | is_calculated | Data Type | Category | Constraint | Notes | Manual Input by User |
-|--------|---------------|-----------|----------|------------|-------|---|
-| `Document_ID` | ✅ **ANOMALY** | string | Unique Identifier | **PRIMARY KEY** | Calculated then null_handling applied, can use as a foreign key | NO |
-| `Document_Sequence_Number` | ❌ | string (4-digit) | Unique Identifier | Required, pattern validation | Document numbering | YES |
-| `Document_Revision` | ❌ | string | Revision Control | Required | Specific revision | YES |
-| `Document_Title` | ❌ | string | Unique Identifier | Required, min_length | Document description | YES |
-| `Reviewer` | ❌ | string | Workflow Participant | Allow null | Assigned reviewer | YES |
-| `Review_Return_Actual_Date` | ❌ | date | Workflow Date | Allow null | Actual return date | YES |
-| `Review_Status` | ❌ | categorical | Workflow Status | Allow null | Current review state | YES |
-| `Review_Status_Code` | ✅ **ANOMALY** | categorical | Workflow Status | Mapped from Review_Status | Calculated but transactional | NO |
-| `Review_Comments` | ❌ | string | Workflow Data | Allow null | Review feedback | YES |
-| `Resubmission_Forecast_Date` | ❌ | date | Workflow Date | Allow null | User estimate input | YES |
-| `Notes` | ❌ | string | Transactional Data | Allow null | Additional notes | YES |
-| `Submission_Reference_1` | ❌ | string | Transactional Data | Allow null | External reference | YES |
-| `Internal_Reference` | ❌ | string | Transactional Data | Allow null | Internal tracking | YES 
+| Column | is_calculated | Data Type | Category | Constraint | Notes | Manual Input by User | Overwrites Existing¹ |
+|--------|---------------|-----------|----------|------------|-------|---|---|
+| `Document_ID` | ✅ **ANOMALY** | string | Unique Identifier | **PRIMARY KEY** | Calculated then null_handling applied, can use as a foreign key | NO | YES |
+| `Document_Sequence_Number` | ❌ | string (4-digit) | Unique Identifier | Required, pattern validation | Document numbering | YES | NA |
+| `Document_Revision` | ❌ | string | Revision Control | Required | Specific revision | YES | NA |
+| `Document_Title` | ❌ | string | Unique Identifier | Required, min_length | Document description | YES | NA |
+| `Reviewer` | ❌ | string | Workflow Participant | Allow null | Assigned reviewer | YES | NA |
+| `Review_Return_Actual_Date` | ❌ | date | Workflow Date | Allow null | Actual return date | YES | NA |
+| `Review_Status` | ❌ | categorical | Workflow Status | Allow null | Current review state | YES | NA |
+| `Review_Status_Code` | ✅ **ANOMALY** | categorical | Workflow Status | Mapped from Review_Status | Calculated but transactional | NO | YES |
+| `Review_Comments` | ❌ | string | Workflow Data | Allow null | Review feedback | YES | NO |
+| `Resubmission_Forecast_Date` | ❌ | date | Workflow Date | Allow null | User estimate input | YES | NO |
+| `Notes` | ❌ | string | Transactional Data | Allow null | Additional notes | YES | NO |
+| `Submission_Reference_1` | ❌ | string | Transactional Data | Allow null | External reference | YES | NO |
+| `Internal_Reference` | ❌ | string | Transactional Data | Allow null | Internal tracking | YES | NO |
 
 ---
 
 ### Priority 3: Derived Logic & Status Flags (Calculate Last)
 
-| Column | is_calculated | Calculation Type | Dependencies | Notes | Manual Input by User |
-|--------|---------------|------------------|--------------|-------|---|
-| `Row_Index` | ✅ | auto_increment | None | Auto-generated row number | NO |
-| `First_Submission_Date` | ✅ | aggregate/min | `Submission_Date`, `Document_ID` | First submission per document | NO |
-| `Latest_Submission_Date` | ✅ | aggregate/max | `Submission_Date`, `Document_ID` | Latest submission per document | NO |
-| `Latest_Revision` | ✅ **ANOMALY** | aggregate/max | `Document_Revision`, `Document_ID` | Calculated revision control | NO |
-| `All_Submission_Sessions` | ✅ | aggregate/concatenate_unique | `Submission_Session`, `Document_ID` | All sessions per document | NO |
-| `All_Submission_Dates` | ✅ | aggregate/concatenate_dates | `Submission_Date`, `Document_ID` | All dates per document | NO |
-| `All_Submission_Session_Revisions` | ✅ | aggregate/concatenate_unique | `Submission_Session_Revision`, `Document_ID` | All revisions per document | NO |
-| `Count_of_Submissions` | ✅ | aggregate/count | `Document_ID` | Total submissions count | NO |
-| `Review_Return_Plan_Date` | ✅ | conditional_date | `Submission_Date`, submission count | First/second review duration | NO |
-| `Approval_Code` | ✅ | mapping/status_to_code | `Review_Status` | Mapped approval code | NO |
-| `Latest_Approval_Status` | ✅ | aggregate/latest_non_pending | `Review_Status`, `Document_ID`, `Submission_Date` | Latest non-PEN status | NO |
-| `Latest_Approval_Code` | ✅ | mapping/status_to_code | `Latest_Approval_Status` | Mapped latest code | NO |
-| `All_Approval_Code` | ✅ | aggregate/concatenate_unique | `Approval_Code`, `Document_ID` | All approval codes per document | NO |
-| `Consolidated_Submission_Session_Subject` | ✅ | aggregate/concatenate_unique_quoted | `Submission_Session_Subject`, `Document_ID` | Consolidated subjects | NO |
-| `Duration_of_Review` | ✅ | conditional_business_day | `Submission_Date`, `Review_Return_Actual_Date` | Business days calculation | NO |
-| `Submission_Closed` | ✅ | conditional | `Latest_Approval_Code`, `Latest_Submission_Date` | YES/NO/PEN closure | YES |
-| `Resubmission_Required` | ✅ | conditional | `Review_Return_Actual_Date`, `Latest_Revision` | YES/NO/RESUBMITTED/PEN | NO |
-| `Resubmission_Plan_Date` | ✅ | conditional_date | `Submission_Date`, `Review_Return_Actual_Date`, `Submission_Closed` | Due date for resubmission | NO |
-| `Resubmission_Overdue_Status` | ✅ | conditional | `Resubmission_Plan_Date`, current date | Overdue/On-Track | NO |
-| `Delay_of_Resubmission` | ✅ | complex_lookup | Previous submission history | Days delayed | NO |
-| `This_Submission_Approval_Code` | ✅ | conditional | `Latest_Approval_Code`, `Submission_Date`, `Latest_Submission_Date` | Current submission approval | NO |
-| `Validation_Errors` | ✅ | error_tracking | All columns | Aggregated validation errors | NO |
+| Column | is_calculated | Calculation Type | Dependencies | Overwrites Existing¹ | Notes | Manual Input by User |
+|--------|---------------|------------------|--------------|---------------------|-------|---|
+| `Row_Index` | ✅ | auto_increment | None | ❌ **Preserves** | Auto-generated row number | NO |
+| `First_Submission_Date` | ✅ | aggregate/min | `Submission_Date`, `Document_ID` | ❌ **Preserves** | First submission per document | NO |
+| `Latest_Submission_Date` | ✅ | aggregate/max | `Submission_Date`, `Document_ID` | ❌ **Preserves** | Latest submission per document | NO |
+| `Latest_Revision` | ✅ **ANOMALY** | aggregate/max | `Document_Revision`, `Document_ID` | ❌ **Preserves** | Calculated revision control | NO |
+| `All_Submission_Sessions` | ✅ | aggregate/concatenate_unique | `Submission_Session`, `Document_ID` | ❌ **Preserves** | All sessions per document | NO |
+| `All_Submission_Dates` | ✅ | aggregate/concatenate_dates | `Submission_Date`, `Document_ID` | ❌ **Preserves** | All dates per document | NO |
+| `All_Submission_Session_Revisions` | ✅ | aggregate/concatenate_unique | `Submission_Session_Revision`, `Document_ID` | ❌ **Preserves** | All revisions per document | NO |
+| `Count_of_Submissions` | ✅ | aggregate/count | `Document_ID` | ❌ **Preserves** | Total submissions count | NO |
+| `Review_Return_Plan_Date` | ✅ | conditional_date | `Submission_Date`, submission count | ❌ **Preserves** | First/second review duration | NO |
+| `Approval_Code` | ✅ | mapping/status_to_code | `Review_Status` | ❌ **Preserves** | Mapped approval code | NO |
+| `Latest_Approval_Status` | ✅ | aggregate/latest_non_pending | `Review_Status`, `Document_ID`, `Submission_Date` | ❌ **Preserves** | Latest non-PEN status | NO |
+| `Latest_Approval_Code` | ✅ | mapping/status_to_code | `Latest_Approval_Status` | ❌ **Preserves** | Mapped latest code | NO |
+| `All_Approval_Code` | ✅ | aggregate/concatenate_unique | `Approval_Code`, `Document_ID` | ❌ **Preserves** | All approval codes per document | NO |
+| `Consolidated_Submission_Session_Subject` | ✅ | aggregate/concatenate_unique_quoted | `Submission_Session_Subject`, `Document_ID` | ❌ **Preserves** | Consolidated subjects | NO |
+| `Duration_of_Review` | ✅ | conditional_business_day | `Submission_Date`, `Review_Return_Actual_Date` | ❌ **Preserves** | Business days calculation | NO |
+| `Submission_Closed` | ✅ | conditional | `Latest_Approval_Code`, `Latest_Submission_Date` | ❌ **Preserves** | YES/NO/PEN closure | YES |
+| `Resubmission_Required` | ✅ | conditional | `Review_Return_Actual_Date`, `Latest_Revision` | ❌ **Preserves** | YES/NO/RESUBMITTED/PEN | NO |
+| `Resubmission_Plan_Date` | ✅ | conditional_date | `Submission_Date`, `Review_Return_Actual_Date`, `Submission_Closed` | ❌ **Preserves** | Due date for resubmission | NO |
+| `Resubmission_Overdue_Status` | ✅ | conditional | `Resubmission_Plan_Date`, current date | ❌ **Preserves** | Overdue/On-Track | NO |
+| `Delay_of_Resubmission` | ✅ | complex_lookup | Previous submission history | ❌ **Preserves** | Days delayed | NO |
+| `This_Submission_Approval_Code` | ✅ | conditional | `Latest_Approval_Code`, `Submission_Date`, `Latest_Submission_Date` | ❌ **Preserves** | Current submission approval | NO |
+| `Validation_Errors` | ✅ | error_tracking | All columns | ✅ **Overwrites²** | Aggregated validation errors (rebuilt each run) | NO |
+
+> **¹ Overwrites Existing**: Indicates whether the calculation handler replaces existing values or only fills null values.
+> - All calculations use `null_mask = df[column_name].isna()` and only apply to null rows
+> - **² Validation_Errors** is special: it initializes as empty string and aggregates errors (not a traditional calculation)
+>
+> **Reference Implementation**: See `processor_engine/calculations/*.py` - all handlers preserve existing values using `existing_mask` pattern.
 
 ---
 
@@ -135,11 +141,11 @@ else:
 
 These columns are marked `is_calculated: true` but serve functions that overlap with lower priorities:
 
-| Column | Current Priority | Issue | Recommended Handling |
-|--------|------------------|-------|---------------------|
-| `Document_ID` | 3 (Calculated) | Acts as PRIMARY KEY | Process in Priority 2 phase, or between P1 and P2 |
-| `Latest_Revision` | 3 (Calculated) | Revision control data | Process after Priority 2, before other Priority 3 |
-| `Review_Status_Code` | 3 (Calculated) | Tightly coupled to `Review_Status` | Process immediately after `Review_Status` validation |
+| Column | Current Priority | Issue | Overwrites Existing | Recommended Handling |
+|--------|------------------|-------|---------------------|---------------------|
+| `Document_ID` | 3 (Calculated) | Acts as PRIMARY KEY | ❌ **Preserves** | Process in Priority 2 phase, or between P1 and P2 |
+| `Latest_Revision` | 3 (Calculated) | Revision control data | ❌ **Preserves** | Process after Priority 2, before other Priority 3 |
+| `Review_Status_Code` | 3 (Calculated) | Tightly coupled to `Review_Status` | ❌ **Preserves** | Process immediately after `Review_Status` validation |
 
 ---
 
@@ -179,30 +185,32 @@ validate_required([
 ### Phase 2.5: Process Anomaly Columns
 ```python
 # These calculated columns must complete before Phase 3
+# NOTE: All calculations preserve existing values (only fill nulls)
 calculate_anomalies([
-    Document_ID,              # Generate if missing
-    Review_Status_Code,     # Map from Review_Status
-    Latest_Revision          # Aggregate if needed
+    Document_ID,              # Composite: preserves existing, calculates if null
+    Review_Status_Code,       # Mapping: preserves existing, maps if null
+    Latest_Revision           # Aggregate: preserves existing, calculates if null
 ])
 ```
 
 ### Phase 3: Calculate Derived Fields (Priority 3) - Process in Schema Column Sequence
 ```python
-# IMPORTANT: Process columns in the exact order defined in schema column_sequence
+# IMPORTANT: Process columns in the exact order defined in schema_column_sequence
 # This ensures dependencies are resolved correctly
+# NOTE: All calculations preserve existing values (only fill nulls)
 
-# Step 3a: Apply calculations (calculations run FIRST)
+# Step 3a: Apply calculations (calculations run FIRST, preserve existing values)
 apply_calculations([
-    First_Submission_Date, Latest_Submission_Date,
-    All_Submission_Sessions, All_Submission_Dates,
-    Latest_Approval_Status, Latest_Approval_Code,
-    Submission_Closed, Resubmission_Required,
-    Duration_of_Review, Resubmission_Plan_Date,
-    Resubmission_Overdue_Status, Delay_of_Resubmission,
-    This_Submission_Approval_Code,
-    # ... all other is_calculated: true columns
+    First_Submission_Date, Latest_Submission_Date,      # Preserves existing
+    All_Submission_Sessions, All_Submission_Dates,      # Preserves existing
+    Latest_Approval_Status, Latest_Approval_Code,       # Preserves existing
+    Submission_Closed, Resubmission_Required,             # Preserves existing
+    Duration_of_Review, Resubmission_Plan_Date,         # Preserves existing
+    Resubmission_Overdue_Status, Delay_of_Resubmission, # Preserves existing
+    This_Submission_Approval_Code,                       # Preserves existing
+    # ... all other is_calculated: true columns (all preserve existing)
 ])
-# Rule: Calculations run FIRST, then null handling as last defense
+# Rule: Calculations run FIRST, preserve existing values, then null handling as last defense
 
 # Step 3b: Apply null handling as LAST DEFENSE for calculated columns
 apply_null_handling_for_calculated([
