@@ -165,6 +165,13 @@ class CalculationEngine(BaseProcessor):
                 self._print_processing_step("Phase 3", "Calculated", f"Processing {len(phase_columns['P3'])} columns")
                 df_processed = self._apply_phase_calculated(df_processed, phase_columns['P3'])
             
+            # Phase 4: Validation - Apply schema validation rules
+            self._print_processing_step("Phase 4", "Validation", "Applying all schema validation rules")
+            from ..calculations.validation import apply_validation
+            # Get full schema data including references for reference checks
+            schema_data_full = self.schema_data
+            df_processed = apply_validation(df_processed, self.columns, schema_data_full)
+            
             return df_processed
 
     def _apply_phase_null_handling(self, df: pd.DataFrame, column_names: List[str]) -> pd.DataFrame:

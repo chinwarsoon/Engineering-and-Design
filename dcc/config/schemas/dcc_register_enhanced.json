@@ -126,7 +126,19 @@
             "description": "Row index must be a positive integer starting from 1"
           }
         ],
-        "processing_phase": "P3"
+        "processing_phase": "P3",
+        "strategy": {
+          "data_preservation": {
+            "mode": "overwrite_existing"
+          },
+          "processing_sequence": {
+            "calculation_timing": "first",
+            "null_handling_timing": "skip"
+          },
+          "fallback": {
+            "type": "auto_generate"
+          }
+        }
       },
       "Submission_Session": {
         "aliases": [
@@ -439,9 +451,16 @@
         },
         "validation": [
           {
-            "type": "pattern",
-            "pattern": "^[A-Z0-9-]+$",
-            "description": "Validated by _apply_validation using regex pattern matching. Ensures the final ID contains only uppercase, numeric, and hyphen characters."
+            "type": "derived_pattern",
+            "source_columns": [
+              "Project_Code",
+              "Facility_Code",
+              "Document_Type",
+              "Discipline",
+              "Document_Sequence_Number"
+            ],
+            "separator": "-",
+            "description": "Dynamic pattern validation derived from source columns: Project_Code, Facility_Code, Document_Type, Discipline, and Document_Sequence_Number."
           },
           {
             "type": "starts_with_schema_reference",

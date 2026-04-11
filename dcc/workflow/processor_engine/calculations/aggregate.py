@@ -185,7 +185,12 @@ def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str,
         calculated = df.loc[null_mask, group_by[0]].map(latest_vals)
         df.loc[null_mask, column_name] = calculated.fillna(fallback)
     else:
-        mapped = pd.merge(df.loc[null_mask, group_by], latest_vals, left_on=group_by, right_index=True, how='left')
+        # Use a join that preserves the index
+        subset = df.loc[null_mask, group_by].copy()
+        # Merge by columns but keep index
+        mapped = subset.merge(latest_vals, left_on=group_by, right_index=True, how='left')
+        # Restore index alignment before assignment
+        mapped.index = subset.index
         df.loc[null_mask, column_name] = mapped[source_column].fillna(fallback)
 
     engine._print_processing_step("Latest-By-Date", column_name, f"Applied to {null_mask.sum()} null rows")
@@ -300,9 +305,11 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
         result_df.columns = group_by + [column_name]
         # Merge only for originally null rows
         df_merged = pd.merge(df_calc[group_by], result_df, on=group_by, how='left')
+        # FIX: Ensure df_merged index matches df_calc index to avoid positional overwrite at top of DF
+        df_merged.index = df_calc.index
         # Update only null positions
         if len(df_merged) > 0:
-            df.loc[df_merged.index, column_name] = df_merged[column_name].values
+            df.loc[df_merged.index, column_name] = df_merged[column_name]
             if preservation_mode == "overwrite_existing":
                 engine._print_processing_step("Aggregate", column_name, f"Applied to all rows (overwritten)")
             else:

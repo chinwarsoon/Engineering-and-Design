@@ -5,7 +5,24 @@
 
 ---
 
-## Data Soruce and Rules for Columns
+## Table of Contents
+
+- [Section 1. Data Source and Rules for Columns](#section-1-data-source-and-rules-for-columns)
+- [Section 2. Priority Definitions](#section-2-priority-definitions)
+- [Section 3. Complete Column Priority Table](#section-3-complete-column-priority-table)
+- [Section 4. Column Handling Strategy Reference](#section-4-column-handling-strategy-reference)
+- [Section 5. Anomaly Columns Requiring Special Handling](#section-5-anomaly-columns-requiring-special-handling)
+- [Section 6. Processing Sequence by Phase](#section-6-processing-sequence-by-phase)
+- [Section 7. Key Rules Summary](#section-7-key-rules-summary)
+- [Section 8. Schema Configuration Status](#section-8-schema-configuration-status)
+- [Section 9. Column Regrouping Analysis](#section-9-column-regrouping-analysis-april-9-2026)
+- [Section 10. Resolved Decisions](#section-10-resolved-decisions-from-rules-1-13)
+- [Section 11. Pending Implementation Approvals](#section-11-pending-implementation-approvals)
+- [Section 12. Enhanced Strategy Workflow Summary](#section-12-enhanced-strategy-workflow-summary)
+
+---
+
+## Section 1. Data Soruce and Rules for Columns
 
 1. The Excel file to be processed is a submission register file which record the history and status of documents submitted for review.
 2. This is a dimensional table that contains metadata and transactional data for each submission.
@@ -21,7 +38,7 @@
 8. Submission_Closed can be overwritten by the user if needed. Calcualtion must look for existing user input and preserve it. When user input is present, forward fill will applied within the boundary before calculation can be processed.
 9. Resubmission_Forecast_Date is a user estimate which will not be calculated by the pipeline.
 10. Document_ID should be calculated and then apply null_hanlding.
-11. if column is_calculated is true, apply calculation and then apply null_handling if defined as the last defence
+11. if column is_calculated is true, refer to strategy key in the schema for detailed instructions.
 12. if manual user input is allowed, forward fill with boundary is allowed.
 13. always respect sequence of columns in the schema to process each column.
 14. each column will have own 'Strategy' to handle sequence of preservation of existing data, null_handling, calculation, and fallback behavior. if any contradicting rule is found hereinabove, always refer to 'strategy' key in the schema. log a warning message to user for attention.
@@ -53,7 +70,7 @@ else:
 ```
 
 
-## Priority Definitions
+## Section 2. Priority Definitions
 
 | Priority | Name | Description | Processing Rule |
 |----------|------|-------------|---------------|
@@ -63,7 +80,7 @@ else:
 
 ---
 
-## Complete Column Priority Table
+## Section 3. Complete Column Priority Table
 
 ### Priority 1: Meta Data Columns (Impute First)
 
@@ -107,7 +124,7 @@ else:
 
 | Column | is_calculated | Calculation Type | Dependencies | Overwrites Existing¹ | Notes | Manual Input by User |
 |--------|---------------|------------------|--------------|---------------------|-------|---|
-| `Row_Index` | ✅ | auto_increment | None | ❌ **Preserves** | Auto-generated row number | NO |
+| `Row_Index` | ✅ | auto_increment | None | YES | Auto-generated row number | NO |
 | `First_Submission_Date` | ✅ | aggregate/min | `Submission_Date`, `Document_ID` | ❌ **Preserves** | First submission per document | NO |
 | `Latest_Submission_Date` | ✅ | aggregate/max | `Submission_Date`, `Document_ID` | ❌ **Preserves** | Latest submission per document | NO |
 | `Latest_Revision` | ✅ **ANOMALY** | aggregate/max | `Document_Revision`, `Document_ID` | ❌ **Preserves** | Calculated revision control | NO |
@@ -138,7 +155,7 @@ else:
 
 ---
 
-## Column Handling Strategy Reference
+## Section 4. Column Handling Strategy Reference
 
 Each calculated column has a defined strategy that controls how it processes data. Strategies are defined in the schema's `strategy` object.
 
@@ -228,7 +245,7 @@ Each calculated column has a defined strategy that controls how it processes dat
 
 ---
 
-## Anomaly Columns Requiring Special Handling
+## Section 5. Anomaly Columns Requiring Special Handling
 
 These columns are marked `is_calculated: true` but serve functions that overlap with lower priorities:
 
@@ -240,7 +257,7 @@ These columns are marked `is_calculated: true` but serve functions that overlap 
 
 ---
 
-## Processing Sequence by Phase
+## Section 6. Processing Sequence by Phase
 
 ### Phase 1: Impute Meta Data (Priority 1)
 ```python
@@ -312,7 +329,7 @@ apply_null_handling_for_calculated([
 
 ---
 
-## Key Rules Summary
+## Section 7. Key Rules Summary
 
 | Rule # | Description | Applies To |
 |--------|-------------|------------|
@@ -334,7 +351,7 @@ apply_null_handling_for_calculated([
 
 ---
 
-## Schema Configuration Status
+## Section 8. Schema Configuration Status
 
 | Setting | Current Value | Recommended |
 |---------|---------------|-------------|
@@ -344,7 +361,7 @@ apply_null_handling_for_calculated([
 
 ---
 
-## Column Regrouping Analysis (April 9, 2026)
+## Section 9. Column Regrouping Analysis (April 9, 2026)
 
 Based on the "Manual Input by User" column and boundary rules analysis:
 
@@ -368,7 +385,7 @@ The current priority assignments are **CORRECT** with these clarifications:
 
 ---
 
-## Resolved Decisions (From Rules 1-13)
+## Section 10. Resolved Decisions (From Rules 1-13)
 
 | Decision | Resolution | Rule # |
 |----------|------------|--------|
@@ -377,7 +394,7 @@ The current priority assignments are **CORRECT** with these clarifications:
 | Forward fill for Priority 2? | **YES, if Manual Input = YES** | Rule 12 |
 | Row_Index vs Document_ID unique? | **Row_Index is unique** (Document_ID = foreign key) | Rule 3 |
 
-## Pending Implementation Approvals
+## Section 11. Pending Implementation Approvals
 
 1. **Schema updates await your approval** (as requested)
    - No schema changes will be made until you approve
@@ -392,3 +409,40 @@ The current priority assignments are **CORRECT** with these clarifications:
 
 **Status:** All 13 rules established and documented  
 **Next Step:** Your approval to proceed with implementation
+
+---
+
+## Section 12. Enhanced Strategy Workflow Summary
+
+This section provides a high-level visualization and summary of the **Document Processor Engine's** strategy workflow, integrating rules 1-14.
+
+### Summary Workflow Diagram
+
+```mermaid
+flowchart LR
+    Start([Input Data]) --> P1[Phase 1: Meta-Data\nNull Handling Only]
+    P1 --> P2[Phase 2: Transactional\nConditional FFill]
+    P2 --> P25[Phase 2.5: Identifiers\nCalc -> Null Handling]
+    P25 --> P3[Phase 3: Aggregates\nCalc -> Null Handling]
+    P3 --> End([Processed DataFrame])
+
+    subgraph "Rule 11/14 Execution (P2.5 & P3)"
+        direction TB
+        C1[Apply Calculation] --> Q{Result is Null?}
+        Q -- No --> Done[Keep Value]
+        Q -- Yes --> FS[Apply Fallback Strategy]
+    end
+```
+
+### Core Strategy Dimensions
+
+| Dimension | Primary Options | Role |
+| :--- | :--- | :--- |
+| **Data Preservation** | `preserve_existing`, `overwrite_existing` | Controls if calculations replace user data. |
+| **Processing Sequence** | `calculation_first`, `null_handling_first` | Defines the relative timing of logic steps. |
+| **Null Handling Timing** | `last_defense`, `before_calculation`, `built_in` | Determines when fallbacks activate. |
+| **Fallback Behavior** | `leave_null`, `default_value`, `auto_generate` | Final state if primary logic fails. |
+
+> [!TIP]
+> Always cross-reference the `strategy` key in `dcc_register_enhanced.json` with this reference to ensure consistent implementation of Rule 14.
+

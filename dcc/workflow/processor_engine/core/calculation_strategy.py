@@ -123,15 +123,6 @@ class StrategyResolver:
                 fallback_value=""
             )
         
-        if column_name == "Row_Index":
-            return CalculationStrategy(
-                column_name=column_name,
-                preservation_mode=PreservationMode.PRESERVE_EXISTING,
-                calculation_timing=CalculationTiming.FIRST,
-                null_handling_timing=NullHandlingTiming.SKIP,
-                fallback_type=FallbackType.AUTO_GENERATE
-            )
-        
         # Check for built-in null handling in calculation
         calc_type = calculation.get("type", "")
         calc_method = calculation.get("method", "")

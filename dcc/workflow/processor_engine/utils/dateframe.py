@@ -136,12 +136,16 @@ def initialize_missing_columns(df: pd.DataFrame, columns_schema: dict,
             create_missing = col_def.get('create_if_missing', False)
 
             if create_missing and enabled:
+                # Calculated columns should be initialized as None to ensure 
+                # they are processed by the calculation engine later.
+                is_calculated = col_def.get('is_calculated', False)
                 default_val = default
                 if 'default_value' in col_def:  # Top level overrides global
                     default_val = col_def.get('default_value')
-
-                df_init[col_name] = default_val
-                debug_print(f"Created missing column: {col_name} with default '{default_val}'")
+                
+                final_val = None if is_calculated else default_val
+                df_init[col_name] = final_val
+                debug_print(f"Created missing column: {col_name} with value '{final_val}' (calculated={is_calculated})")
 
     return df_init
 
