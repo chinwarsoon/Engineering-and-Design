@@ -106,7 +106,18 @@
    - Validates base Document_ID (without affix) in Phase 4
 5. Related to [Issue #16](issue_log.md#issue-16): Pipeline bug fix complete.
 
-<a id="issue-13"></a>
+<a id="issue-10"></a>
+## 2026-04-12 18:30:00
+1. Code fix: Fixed DataFrame sorting operations in `aggregate.py` to prevent index misalignment.
+2. Problems identified: `concatenate_unique`, `concatenate_unique_quoted`, and `concatenate_dates` methods were sorting the original DataFrame without using `.copy()` or reindexing results back to original index.
+3. Changes made:
+   - [aggregate.py](../workflow/processor_engine/calculations/aggregate.py):
+     - `concatenate_unique` (line 91-135): Added `.copy()` to `df.sort_values(sort_by)` and `calculated.reindex(df.index)`
+     - `concatenate_unique_quoted` (line 137-175): Same fixes applied
+     - `concatenate_dates` (line 177-200): Same fixes applied
+4. Impact: Original DataFrame row order is now preserved throughout all calculations. Calculated values are properly aligned with original row indices, enabling reliable null handling error detection.
+5. Related to [Issue #10](issue_log.md#issue-10): Sorting operations analysis and fixes complete.
+
 ## 2026-04-12 11:10:00
 1. Schema update: [dcc_register_enhanced.json](../config/schemas/dcc_register_enhanced.json) - Added `strategy.validation_context` to `Transmittal_Number` column with `is_fact_attribute: true` and `skip_duplicate_check: true`.
 2. This configuration informs the duplicate detection logic in `identity.py` to skip P2-I-V-0203 validation for fact tables where one transmittal can legitimately contain multiple documents.

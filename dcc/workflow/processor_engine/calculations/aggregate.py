@@ -89,9 +89,12 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
         calculated = grouped[source_column].transform(method)
         df.loc[null_mask, column_name] = calculated[null_mask]
     elif method == 'concatenate_unique':
+        # FIX: Use copy for sorting to avoid modifying original DataFrame index
         if sort_by:
-            df_sorted = df.sort_values(sort_by)
+            df_sorted = df.sort_values(sort_by).copy()
             grouped = df_sorted.groupby(group_by, dropna=False)
+        else:
+            grouped = df.groupby(group_by, dropna=False)
 
         def concat_unique(series):
             # If we're operating on multiple columns, we need a different approach
@@ -126,12 +129,18 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
             )
         else:
             calculated = grouped[source_column].transform(concat_unique)
+            # FIX: Reindex to original DataFrame index to ensure proper alignment
+            if sort_by:
+                calculated = calculated.reindex(df.index)
             df.loc[null_mask, column_name] = calculated[null_mask]
 
     elif method == 'concatenate_unique_quoted':
+        # FIX: Use copy for sorting to avoid modifying original DataFrame index
         if sort_by:
-            df_sorted = df.sort_values(sort_by)
+            df_sorted = df.sort_values(sort_by).copy()
             grouped = df_sorted.groupby(group_by, dropna=False)
+        else:
+            grouped = df.groupby(group_by, dropna=False)
 
         quote_each = calculation.get('quote_each', True)
         
@@ -160,12 +169,18 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
                 return separator.join(sorted_vals)
 
             calculated = grouped[source_column].transform(concat_unique_quoted)
+            # FIX: Reindex to original DataFrame index to ensure proper alignment
+            if sort_by:
+                calculated = calculated.reindex(df.index)
             df.loc[null_mask, column_name] = calculated[null_mask]
 
     elif method == 'concatenate_dates':
+        # FIX: Use copy for sorting to avoid modifying original DataFrame index
         if sort_by:
-            df_sorted = df.sort_values(sort_by)
+            df_sorted = df.sort_values(sort_by).copy()
             grouped = df_sorted.groupby(group_by, dropna=False)
+        else:
+            grouped = df.groupby(group_by, dropna=False)
 
         date_fmt = calculation.get('date_format', 'YYYY-MM-DD')
         py_date_fmt = date_fmt.replace('YYYY', '%Y').replace('MM', '%m').replace('DD', '%d')
@@ -179,6 +194,9 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
             return separator.join(formatted)
 
         calculated = grouped[source_column].transform(concat_dates)
+        # FIX: Reindex to original DataFrame index to ensure proper alignment
+        if sort_by:
+            calculated = calculated.reindex(df.index)
         df.loc[null_mask, column_name] = calculated[null_mask]
 
     if preservation_mode == "overwrite_existing":

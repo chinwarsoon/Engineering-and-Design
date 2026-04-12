@@ -47,6 +47,159 @@
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-150000)
 
+## 2026-04-12 18:00:00
+[Issue # 10]: DataFrame Sorting Operations Analysis - Impact on Row Index Tracking for Null Handling Error Detection
+- `[Status]`: Analysis Complete - Action Required
+- `[Link to changes in update_log.md]`:
+
+**Summary:**
+Multiple functions in the DCC pipeline use `DataFrame.sort_values()` operations that occur AFTER null handling phases. This can invalidate row index-based tracking (e.g., fill history), making it impossible to accurately correlate errors with specific rows.
+
+**Affected Functions - Detailed Analysis:**
+
+### 1. `apply_delay_of_resubmission()` (composite.py:174)
+**Purpose:** Calculate delay for resubmission by comparing current row with previous submission of same Document_ID
+**Input:** 
+- `df` (DataFrame): Full dataset
+- `doc_id_col` (str): "Document_ID"
+- `submission_date_col` (str): "Submission_Date"
+- `plan_date_col` (str): "Resubmission_Plan_Date"
+**Sort Operation:** `df.sort_values([doc_id_col, submission_date_col])`
+**Output:** DataFrame with calculated delay values
+**Potential Issues:**
+- Sorts by Document_ID then Submission_Date for vectorized calculation
+- Original row order is NOT preserved (no index reset or sort restoration)
+- Fill history recorded in Phase 2 will have mismatched row indices
+
+### 2. `apply_aggregate_calculation()` - concatenate_unique (aggregate.py:93)
+**Purpose:** Concatenate unique values from grouped data in sorted order
+**Input:**
+- `df` (DataFrame): Full dataset
+- `sort_by` (list): User-defined sort columns from schema
+- `group_by` (list): Grouping columns
+- `source_column` (str): Column to aggregate
+**Sort Operation:** `df.sort_values(sort_by)` (conditional on sort_by being defined)
+**Output:** DataFrame with concatenated string values
+**Potential Issues:**
+- Sorts entire DataFrame if `sort_by` is defined in schema
+- Used by columns: All_Submission_Sessions, All_Submission_Dates, All_Approval_Code
+- Row index alignment may break for subsequent operations
+
+### 3. `apply_aggregate_calculation()` - concatenate_unique_quoted (aggregate.py:133)
+**Purpose:** Same as concatenate_unique but with quoted values
+**Input:** Same as concatenate_unique
+**Sort Operation:** `df.sort_values(sort_by)` (conditional)
+**Output:** DataFrame with quoted concatenated strings
+**Potential Issues:**
+- Same row index concerns as concatenate_unique
+- Used by columns requiring quoted unique values
+
+### 4. `apply_aggregate_calculation()` - concatenate_dates (aggregate.py:167)
+**Purpose:** Concatenate unique dates in chronological order
+**Input:**
+- `df` (DataFrame): Full dataset
+- `sort_by` (list): Date sort columns
+- `group_by` (list): Grouping columns
+- `source_column` (str): Date column to aggregate
+**Sort Operation:** `df.sort_values(sort_by)` (conditional)
+**Output:** DataFrame with formatted date strings
+**Potential Issues:**
+- Date sorting ensures chronological order but may disrupt row alignment
+- Used by: All_Submission_Dates column
+
+### 5. `apply_latest_by_date_calculation()` (aggregate.py:239)
+**Purpose:** Find latest value per group based on date column
+**Input:**
+- `df` (DataFrame): Full dataset
+- `sort_by` (list): Date columns for sorting
+- `sort_dir` (list): Ascending/descending flags
+- `group_by` (list): Grouping columns
+- `source_column` (str): Column to find latest value
+**Sort Operation:** `filtered_df.sort_values(sort_by, ascending=asc_flags)`
+**Output:** DataFrame with latest values applied to null positions
+**Potential Issues:**
+- Sorts filtered DataFrame (subset) - working on copy, so less risky
+- Used by: Latest_Approval_Status, Latest_Submission_Date
+- Map back to original index correctly preserves alignment
+
+### 6. `apply_latest_non_pending_status()` - get_latest_non_pending (aggregate.py:350)
+**Purpose:** Find latest non-pending status within each group
+**Input:**
+- `group_df` (DataFrame): Group subset
+- `sort_by` (list): Usually ["Submission_Date"]
+- `source_column` (str): Status column
+- `exclude_values` (list): Values to exclude (e.g., ["Pending"])
+**Sort Operation:** `group_df.sort_values(by=sort_by[0], ascending=False)`
+**Output:** Single value per group (latest non-pending status)
+**Potential Issues:**
+- Works on group subset (via groupby().apply()), not full DataFrame
+- Sorts each group independently - row indices from original DataFrame preserved
+- Used by: Latest_Approval_Status
+
+### 7. `LogicDetector._detect_revision_regression()` (logic.py:144, 435)
+**Purpose:** Detect revision number regressions within document sequences
+**Input:**
+- `group` (DataFrame): Document_ID group subset
+- "Submission_Date" column (optional)
+**Sort Operation:** `group.sort_values("Submission_Date")` (conditional)
+**Output:** Error codes appended to detection results
+**Potential Issues:**
+- Works on group subset from `df.groupby(id_col)`
+- Sorts each document group by submission date
+- Original row indices preserved (group is a view/copy of subset)
+
+**Impact Assessment:**
+
+| Function | Sorts Full DF? | Preserves Index? | Risk Level | Phase |
+|----------|---------------|------------------|------------|-------|
+| apply_delay_of_resubmission | YES | NO | HIGH | P2.5 |
+| concatenate_unique | YES (conditional) | NO | MEDIUM | P2.5 |
+| concatenate_unique_quoted | YES (conditional) | NO | MEDIUM | P2.5 |
+| concatenate_dates | YES (conditional) | NO | MEDIUM | P2.5 |
+| latest_by_date | NO (subset) | YES | LOW | P2.5 |
+| latest_non_pending | NO (group) | YES | LOW | P2.5 |
+| revision_regression | NO (group) | YES | LOW | Detection |
+
+**Root Cause Analysis:**
+1. Functions 1-4 sort the FULL DataFrame without preserving/restoring original index order
+2. Null handling in Phase 2 uses row indices to track fill operations
+3. After sorting in Phase 2.5, row indices no longer correspond to original positions
+4. FillDetector in Phase 2.5/4 cannot accurately map fill history to data
+
+**Recommended Solutions:**
+
+**Option 1: Row Key-Based Tracking (RECOMMENDED)**
+- Replace integer row indices with compound keys (Document_ID + Submission_Date)
+- Resilient to sorting operations
+- Implementation: Modify fill_history to store `{'Document_ID': 'xxx', 'Submission_Date': 'yyy', 'row_index': N}`
+
+**Option 2: Preserve Index Through Sorting**
+- Add `df.sort_index()` after each sort operation to restore original order
+- Risk: May affect calculation results that depend on sorted order
+
+**Option 3: Post-Processing Detection**
+- Run FillDetector at Phase 4 after all calculations complete
+- Analyze data state rather than tracking operations
+- Requires different detection approach
+
+**Option 4: Copy-on-Sort**
+- Ensure calculations work on DataFrame copies
+- Sort copy, calculate, then merge results back to original
+- Higher memory usage but preserves original DataFrame order
+- **SELECTED APPROACH** - Implemented for concatenate methods
+
+**Status Update:**
+- `[Status]`: RESOLVED (Fixes applied - see [update_log.md](update_log.md#issue-10))
+- Concatenate methods now use copy + reindex pattern
+- Original DataFrame order preserved throughout calculations
+
+**Next Steps:**
+- [ ] Optimize `latest_by_date` to use `max()` instead of sort (optional)
+- [ ] Update Phase A of Null Handling Error Detection plan
+- [ ] Implement fill history tracking with row key approach
+- [ ] Add integration tests with sorting scenarios
+- [ ] Update technical documentation
+
 ## 2026-04-11 15:45:00
 [Issue # 11]: Incorrect null reporting in `error_dashboard_data.json` for `First_Submission_Date` and `Document_Sequence_Number`. These were being flagged as CRITICAL null errors in Phase 1 (AnchorDetector) because they were mistakenly included in the `ANCHOR_COLUMNS` list, despite being calculated or populated in later phases.
 - `[Status]`: Resolved

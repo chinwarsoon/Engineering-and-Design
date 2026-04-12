@@ -42,6 +42,7 @@
 12. if manual user input is allowed, forward fill with boundary is allowed.
 13. always respect sequence of columns in the schema to process each column.
 14. each column will have own 'Strategy' to handle sequence of preservation of existing data, null_handling, calculation, and fallback behavior. if any contradicting rule is found hereinabove, always refer to 'strategy' key in the schema. log a warning message to user for attention.
+15. never sort original data set, using min, max if applicable, if not, choose a copy set for sort operation and then map result back to original data set.
 
 ### Forward Fill Boundary Rules (Applies to Priority 1 and Priority 2 with Manual Input)
 
