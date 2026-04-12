@@ -5,9 +5,174 @@ Extracted from UniversalDocumentProcessor null handling methods.
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from initiation_engine import status_print, debug_print
+
+
+def _get_row_key(df: pd.DataFrame, idx: int) -> Dict[str, Any]:
+    """
+    Generate a stable row key for tracking purposes.
+    Uses Document_ID and Submission_Date if available, falls back to index.
+    """
+    row_key = {'row_index': idx}
+    
+    if 'Document_ID' in df.columns and idx < len(df):
+        row_key['Document_ID'] = str(df.iloc[idx].get('Document_ID', ''))
+    
+    if 'Submission_Date' in df.columns and idx < len(df):
+        submission_date = df.iloc[idx].get('Submission_Date', '')
+        if pd.notna(submission_date):
+            row_key['Submission_Date'] = str(submission_date)
+    
+    if 'Submission_Session' in df.columns and idx < len(df):
+        session = df.iloc[idx].get('Submission_Session', '')
+        if pd.notna(session):
+            row_key['Submission_Session'] = str(session)
+    
+    return row_key
+
+
+def _record_fill_history(
+    engine,
+    operation_type: str,
+    column: str,
+    df: pd.DataFrame,
+    filled_indices: List[int],
+    group_by: List[str] = None,
+    fill_value: Any = None,
+    levels_applied: int = None,
+    all_levels_failed: bool = False,
+    default_applied: bool = False
+):
+    """
+    Record fill operation to engine.fill_history for error detection.
+    
+    Args:
+        engine: The processing engine with fill_history attribute
+        operation_type: Type of fill (forward_fill, multi_level_fill, default_value, etc.)
+        column: Target column being filled
+        df: DataFrame for row key extraction
+        filled_indices: List of row indices that were filled
+        group_by: Grouping columns used (if any)
+        fill_value: The value used to fill
+        levels_applied: Number of levels tried (for multi-level fill)
+        all_levels_failed: Whether all levels failed to find a value
+        default_applied: Whether a default value was applied
+    """
+    # Initialize fill_history if not exists
+    if not hasattr(engine, 'fill_history'):
+        engine.fill_history = []
+    
+    if not filled_indices:
+        return
+    
+    # Group consecutive filled indices to detect row jumps
+    from_idx = None
+    to_idx = None
+    prev_idx = None
+    
+    for idx in sorted(filled_indices):
+        if from_idx is None:
+            from_idx = idx
+            to_idx = idx
+        elif idx == prev_idx + 1:
+            # Consecutive - extend range
+            to_idx = idx
+        else:
+            # Gap detected - record previous range and start new
+            row_jump = to_idx - from_idx if to_idx > from_idx else 0
+            
+            # Check for session boundary crossing
+            session_boundary_crossed = False
+            source_session = None
+            target_session = None
+            
+            if group_by and 'Submission_Session' in group_by:
+                # With group_by, we don't cross sessions
+                session_boundary_crossed = False
+            elif from_idx < len(df) and to_idx < len(df):
+                if 'Submission_Session' in df.columns:
+                    source_session = str(df.iloc[from_idx].get('Submission_Session', ''))
+                    target_session = str(df.iloc[to_idx].get('Submission_Session', ''))
+                    session_boundary_crossed = source_session != target_session and source_session and target_session
+            
+            # Get row keys
+            from_row_key = _get_row_key(df, from_idx)
+            to_row_key = _get_row_key(df, to_idx)
+            
+            # Determine filled value for this range
+            actual_fill_value = fill_value
+            if to_idx < len(df) and column in df.columns:
+                actual_fill_value = df.iloc[to_idx].get(column, fill_value)
+            
+            fill_record = {
+                'operation_type': operation_type,
+                'column': column,
+                'from_row': from_row_key,
+                'to_row': to_row_key,
+                'row_jump': row_jump,
+                'group_by': group_by or [],
+                'filled_value': actual_fill_value,
+                'session_boundary_crossed': session_boundary_crossed,
+                'source_session': source_session,
+                'target_session': target_session,
+                'levels_applied': levels_applied,
+                'all_levels_failed': all_levels_failed,
+                'default_applied': default_applied,
+                'timestamp': pd.Timestamp.now().isoformat()
+            }
+            
+            engine.fill_history.append(fill_record)
+            
+            # Start new range
+            from_idx = idx
+            to_idx = idx
+        
+        prev_idx = idx
+    
+    # Record the last range
+    if from_idx is not None:
+        row_jump = to_idx - from_idx if to_idx > from_idx else 0
+        
+        # Check for session boundary crossing
+        session_boundary_crossed = False
+        source_session = None
+        target_session = None
+        
+        if group_by and 'Submission_Session' in group_by:
+            session_boundary_crossed = False
+        elif from_idx < len(df) and to_idx < len(df):
+            if 'Submission_Session' in df.columns:
+                source_session = str(df.iloc[from_idx].get('Submission_Session', ''))
+                target_session = str(df.iloc[to_idx].get('Submission_Session', ''))
+                session_boundary_crossed = source_session != target_session and source_session and target_session
+        
+        from_row_key = _get_row_key(df, from_idx)
+        to_row_key = _get_row_key(df, to_idx)
+        
+        actual_fill_value = fill_value
+        if to_idx < len(df) and column in df.columns:
+            actual_fill_value = df.iloc[to_idx].get(column, fill_value)
+        
+        fill_record = {
+            'operation_type': operation_type,
+            'column': column,
+            'from_row': from_row_key,
+            'to_row': to_row_key,
+            'row_jump': row_jump,
+            'group_by': group_by or [],
+            'filled_value': actual_fill_value,
+            'session_boundary_crossed': session_boundary_crossed,
+            'source_session': source_session,
+            'target_session': target_session,
+            'levels_applied': levels_applied,
+            'all_levels_failed': all_levels_failed,
+            'default_applied': default_applied,
+            'timestamp': pd.Timestamp.now().isoformat()
+        }
+        
+        engine.fill_history.append(fill_record)
 
 
 def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling: Dict) -> pd.DataFrame:
@@ -49,6 +214,9 @@ def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling
         df_copy = df_copy.loc[:, ~df_copy.columns.duplicated()].copy()
         df_copy.index = pd.RangeIndex(len(df_copy))
 
+    # Track which rows had nulls before fill (for history tracking)
+    null_mask_before = df_copy[column_name].isna()
+    
     if group_by:
         # Validate group_by columns exist
         valid_group_by = [col for col in group_by if col in df_copy.columns]
@@ -69,6 +237,22 @@ def apply_forward_fill(engine, df: pd.DataFrame, column_name: str, null_handling
         df_copy[column_name] = df_copy[column_name].ffill()
         # Apply fill_value for any remaining NaN at start of series
         df_copy[column_name] = df_copy[column_name].fillna(fill_value)
+    
+    # Track filled rows for error detection (Phase A: Fill History Tracking)
+    null_mask_after = df_copy[column_name].isna()
+    filled_mask = null_mask_before & ~null_mask_after
+    filled_indices = df_copy[filled_mask].index.tolist()
+    
+    if filled_indices:
+        _record_fill_history(
+            engine=engine,
+            operation_type='forward_fill',
+            column=column_name,
+            df=df_copy,
+            filled_indices=filled_indices,
+            group_by=group_by,
+            fill_value=fill_value
+        )
 
     if na_fallback:
         # Replace remaining NaN with 'NA' if fill_value was NaN
@@ -100,6 +284,11 @@ def apply_multi_level_forward_fill(engine, df: pd.DataFrame, column_name: str, n
     # FIX: work on a single copy throughout; never write back into input df
     df_copy = df.copy()
 
+    # Track which rows had nulls before fill
+    null_mask_before = df_copy[column_name].isna()
+    levels_applied = 0
+    last_group_by = []
+
     # Optionally perform datetime conversion beforehand
     if datetime_conversion and column_name in df_copy.columns:
         errors = datetime_conversion.get('errors', 'coerce')
@@ -114,11 +303,36 @@ def apply_multi_level_forward_fill(engine, df: pd.DataFrame, column_name: str, n
 
             # FIX: assign ffill result directly - no mask+.values juggling.
             df_copy[column_name] = df_copy.groupby(group_by, sort=False)[column_name].ffill()
+            levels_applied += 1
+            last_group_by = group_by
 
+    # Check if final_fill was applied (all levels failed to fill remaining nulls)
+    null_mask_after_levels = df_copy[column_name].isna()
+    all_levels_failed = null_mask_after_levels.any()
+    
     if final_fill is not None and column_name in df_copy.columns:
         df_copy[column_name] = df_copy[column_name].fillna(final_fill)
+    
+    # Track filled rows for error detection
+    null_mask_after = df_copy[column_name].isna()
+    filled_mask = null_mask_before & ~null_mask_after
+    filled_indices = df_copy[filled_mask].index.tolist()
+    
+    if filled_indices:
+        _record_fill_history(
+            engine=engine,
+            operation_type='multi_level_forward_fill',
+            column=column_name,
+            df=df_copy,
+            filled_indices=filled_indices,
+            group_by=last_group_by,
+            fill_value=final_fill,
+            levels_applied=levels_applied,
+            all_levels_failed=all_levels_failed,
+            default_applied=all_levels_failed and final_fill is not None
+        )
 
-    debug_print(f"Applied multi_level_forward_fill for {column_name}")
+    debug_print(f"Applied multi_level_forward_fill for {column_name}: levels={levels_applied}, final_fill_applied={all_levels_failed}")
     return df_copy
 
 
@@ -233,6 +447,9 @@ def apply_default_value(engine, df: pd.DataFrame, column_name: str, null_handlin
 
     df = df.copy()
 
+    # Track which rows had nulls before applying default
+    null_mask_before = df[column_name].isna() if column_name in df.columns else pd.Series([False] * len(df), index=df.index)
+
     # FIX: Apply text replacements only on non-null values to avoid converting NaN
     # to the string "nan" which then escapes fillna() downstream.
     if text_replacements and column_name in df.columns:
@@ -259,6 +476,23 @@ def apply_default_value(engine, df: pd.DataFrame, column_name: str, null_handlin
     # Fill null values with default
     if column_name in df.columns:
         df[column_name] = df[column_name].fillna(default_value)
+    
+    # Track which rows received the default value
+    null_mask_after = df[column_name].isna() if column_name in df.columns else pd.Series([False] * len(df), index=df.index)
+    filled_mask = null_mask_before & ~null_mask_after
+    filled_indices = df[filled_mask].index.tolist()
+    
+    if filled_indices:
+        _record_fill_history(
+            engine=engine,
+            operation_type='default_value',
+            column=column_name,
+            df=df,
+            filled_indices=filled_indices,
+            group_by=[],
+            fill_value=default_value,
+            default_applied=True
+        )
 
     # Apply zero-padding formatting if specified
     if zero_pad and column_name in df.columns:

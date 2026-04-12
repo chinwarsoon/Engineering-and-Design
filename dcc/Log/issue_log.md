@@ -9,8 +9,25 @@
 
 ## 2026-04-12 00:00:00
 [Issue # 1]: to consider a recursive schema loader for all schemas. Instead of writing custom code every time adding a new sub-schema, to create a loader that "walks" through all JSON schema files and automatically pulls in any file referenced by a $ref key. This will help to reduce the maintenance effort and improve the maintainability of the code.
-- `[Status]`: Open
-- `[Link to changes in update_log.md]`:
+- `[Status]`: In Progress (Workplan Created)
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-1-workplan)
+- `[Workplan Location]`: [recursive_schema_loader_workplan.md](../workplan/schema_processing/recursive_schema_loader_workplan.md)
+- `[Key Requirements]`:
+  - Multi-directory schema discovery (`config/schemas/` + `workflow/processor_engine/error_handling/config/`)
+  - Main entry point: `project_setup.json` for drill-down discovery
+  - Support JSON Schema standard `$ref` and DCC custom `$ref` formats
+  - Cross-directory `$ref` resolution
+  - Circular reference detection
+  - Smart caching with TTL support
+- `[Implementation Phases]`: 8 phases (A-H), estimated 23 hours / 3 days
+  - Phase A: Analysis & Design (scanning both directories)
+  - Phase B: RefResolver Module (new `ref_resolver.py`)
+  - Phase C: Dependency Graph Builder (new `dependency_graph.py`)
+  - Phase D: SchemaLoader Enhancement (multi-directory support)
+  - Phase E: Circular Reference Handling
+  - Phase F: Caching & Performance
+  - Phase G: Integration & Testing
+  - Phase H: Documentation
 
 ## 2026-04-12 00:00:00
 [Issue # 2]: For preserve esixting data per certain conditions, the current implementation is to add a new rule in the schema. This approach is not scalable and maintainable. To consider a more scalable and maintainable approach. 
@@ -192,11 +209,11 @@ Multiple functions in the DCC pipeline use `DataFrame.sort_values()` operations 
 - `[Status]`: RESOLVED (Fixes applied - see [update_log.md](update_log.md#issue-10))
 - Concatenate methods now use copy + reindex pattern
 - Original DataFrame order preserved throughout calculations
+- Null Handling Phase A: Fill History Tracking - COMPLETE ([update_log.md](update_log.md#null-handling-phase-a))
+- Null Handling Phase B: FillDetector Enhancement - COMPLETE ([update_log.md](update_log.md#null-handling-phase-b))
 
 **Next Steps:**
 - [ ] Optimize `latest_by_date` to use `max()` instead of sort (optional)
-- [ ] Update Phase A of Null Handling Error Detection plan
-- [ ] Implement fill history tracking with row key approach
 - [ ] Add integration tests with sorting scenarios
 - [ ] Update technical documentation
 

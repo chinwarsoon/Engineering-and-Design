@@ -184,6 +184,9 @@ class CalculationEngine(BaseProcessor):
                 self.error_aggregator.add_errors(p1_results.get(ProcessingPhase.P1, []))
             
             # Phase 2: Transactional - Forward fill if Manual Input = YES, then validate
+            # Phase C: Initialize fill history tracking for error detection
+            self.fill_history = []
+            
             if phase_columns['P2']:
                 self._print_processing_step("Phase 2", "Transactional", f"Processing {len(phase_columns['P2'])} columns")
                 df_processed = self._apply_phase_transactional(df_processed, phase_columns['P2'])
@@ -200,12 +203,19 @@ class CalculationEngine(BaseProcessor):
                 self._print_processing_step("Phase 2.5", "Anomaly", f"Processing {len(phase_columns['P2.5'])} columns")
                 df_processed = self._apply_phase_calculated(df_processed, phase_columns['P2.5'])
                 # Phase 4: Run Phase 2.5 detection
+                # Phase C: Include fill_history in context for FillDetector
                 p25_results = self.business_detector.detect(
                     df_processed, 
-                    context={"phase": "P2.5", "schema_data": self.schema_data}, 
+                    context={
+                        "phase": "P2.5", 
+                        "schema_data": self.schema_data,
+                        "fill_history": getattr(self, 'fill_history', [])
+                    }, 
                     phases=[ProcessingPhase.P2_5]
                 )
                 self.error_aggregator.add_errors(p25_results.get(ProcessingPhase.P2_5, []))
+                # Phase C: Clear fill history after detection to prevent memory bloat
+                self.fill_history = []
             
             # Phase 3: Calculated - Calculations FIRST, then null handling (last defense)
             if phase_columns['P3']:

@@ -15,6 +15,7 @@ from enum import Enum
 from .base import BaseDetector, DetectionResult, CompositeDetector, FailFastError
 from .anchor import AnchorDetector
 from .identity import IdentityDetector
+from .fill import FillDetector
 
 
 class ProcessingPhase(Enum):
@@ -96,6 +97,17 @@ class BusinessDetector(BaseDetector):
                 logger=self._logger,
                 enable_fail_fast=self._enable_fail_fast,
                 required_identities=["Document_ID"]
+            )
+        )
+        
+        # Phase C: P2.5 - Fill detector for null handling error detection
+        self.register_phase_detector(
+            ProcessingPhase.P2_5,
+            FillDetector(
+                logger=self._logger,
+                enable_fail_fast=self._enable_fail_fast,
+                jump_limit=20,
+                max_fill_percentage=80.0
             )
         )
     
