@@ -52,12 +52,17 @@ class StructuredLogger:
         self._logger = logging.getLogger(name)
         self._logger.setLevel(logging.DEBUG)
         
-        # Console handler with JSON formatter
-        handler = logging.StreamHandler(sys.stdout)
-        handler.setLevel(logging.DEBUG)
-        handler.setFormatter(JSONFormatter())
+        # Prevent propagation to root logger to avoid duplicate messages
+        self._logger.propagate = False
         
-        self._logger.addHandler(handler)
+        # Only add handler if not already added
+        if not self._logger.handlers:
+            # Console handler with simple formatter for clean output
+            handler = logging.StreamHandler(sys.stdout)
+            handler.setLevel(logging.WARNING)  # Only WARNING and above to console
+            handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
+            self._logger.addHandler(handler)
+        
         self._context: Dict[str, Any] = {}
     
     def set_context(self, **kwargs) -> None:

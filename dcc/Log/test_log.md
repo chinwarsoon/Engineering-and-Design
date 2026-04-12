@@ -7,6 +7,63 @@
 
 # Section 2. Test log entries
 
+## 2026-04-12 12:50:00
+1. Test: Derived Pattern Refactoring - Phase 2 & 4 Consistency (Issue #15)
+   - Purpose: Verify both Phase 2 (identity) and Phase 4 (validation) use same schema-driven pattern
+   - Method: Full `dcc_engine_pipeline.py` run with 11,099 rows
+   - Result: Success. Phase 2 now uses `get_derived_pattern_regex()` from validation module
+   - Verification:
+     - Valid Document_IDs like '131242-WSD11-CL-P-0009' no longer trigger P2-I-V-0204
+     - Invalid Document_IDs like '#000002.0_ Reply...' correctly trigger P2-I-V-0204
+     - Both phases use identical `derived_pattern` from `dcc_register_enhanced.json`
+   - Pattern source logged: "schema_derived" in error context when validation fails
+- `Status: Resolved (Ref: [Issue #15](issue_log.md)).`
+
+## 2026-04-12 12:48:00
+1. Test: Document_ID Pattern Alignment (Issue #15)
+   - Purpose: Verify that single-letter discipline codes no longer trigger P2-I-V-0204
+   - Method: Regex pattern test with sample Document_IDs
+   - Test cases:
+     - '131242-WSD11-CL-P-0009': PASS (was failing before fix)
+     - 'PRJ-FAC-DWG-ARC-0001': PASS (standard format)
+     - 'TEST-PROJ-TYPE-DISC-1234': PASS (standard format)
+   - Result: Success. Pattern now allows 1-10 alphanumeric chars for Document_Type and Discipline
+   - Verification: Discipline codes "A", "B", "C", "D", "P" from schema now accepted
+- `Status: Resolved (Ref: [Issue #15](issue_log.md)).`
+
+## 2026-04-12 12:32:00
+1. Test: Pipeline Output Format Cleanup (Issue #14)
+   - Purpose: Verify clean console output after logging fixes
+   - Method: Full `dcc_engine_pipeline.py` run with 11,099 rows
+   - Result: Success. Output now shows clean structured status messages
+   - Verification:
+     - Pipeline banner prints only once at start
+     - No JSON log messages mixed with status output
+     - No duplicate log entries
+     - Status messages clearly formatted with `[pipeline]` and `✓` indicators
+   - Files verified: Console output readable, `processed_dcc_universal.xlsx` generated successfully
+- `Status: Resolved (Ref: [Issue #14](issue_log.md)).`
+
+## 2026-04-12 11:28:00
+1. Test: Transmittal_Number Strategy Configuration - Full Pipeline Verification (Issue #13)
+   - Purpose: Verify that code fix prevents P2-I-V-0203 errors in complete pipeline run
+   - Data: 11,099 rows from `Submittal and RFI Tracker Lists.xlsx` with duplicate transmittal numbers
+   - Method: Full `dcc_engine_pipeline.py` run with `identity.py` and `engine.py` code fixes
+   - Result: Success. 0 P2-I-V-0203 errors in both CSV and Excel output files
+   - Log confirmation: "Skipping duplicate check for Transmittal_Number (skip_duplicate_check: true in schema strategy)"
+   - Files verified: `processed_dcc_universal.csv`, `processed_dcc_universal.xlsx`
+- `Status: Resolved (Ref: [Issue #13](issue_log.md)).`
+
+## 2026-04-12 11:15:00
+1. Test: Transmittal_Number Strategy Configuration (Issue #13)
+   - Purpose: Verify that `skip_duplicate_check: true` in schema strategy prevents P2-I-V-0203 errors for fact tables
+   - Data: 77 rows from `Submittal and RFI Tracker Lists.xlsx` with duplicate transmittal numbers
+   - Method: Processed through `CalculationEngine` with enhanced schema configuration
+   - Result: Success. No P2-I-V-0203 (Duplicate Transmittal_Number) errors found in Validation_Errors column
+   - Verification: Schema strategy `validation_context.skip_duplicate_check: true` correctly applied
+   - Impact: Fact table attributes with duplicate values (one transmittal → N documents) are now properly allowed
+- `Status: Resolved (Ref: [Issue #13](issue_log.md)).`
+
 ## 2026-04-12 00:00:00
 1. Test: Document_ID Pattern Validation
    - Result: Success. Dynamic regex correctly identifies non-conforming IDs (e.g., "Reply" documents).

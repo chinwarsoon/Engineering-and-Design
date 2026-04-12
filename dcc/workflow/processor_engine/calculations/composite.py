@@ -232,3 +232,63 @@ def apply_copy_calculation(engine, df: pd.DataFrame, column_name: str, calculati
         debug_print(f"Skipped copy for {column_name}: all values present")
 
     return df
+
+
+def apply_extract_affixes(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
+    """
+    Extract affixes from Document_ID and store in Document_ID_Affixes column.
+    
+    Issue #16: Document_ID affix handling
+    
+    Reads schema parameters:
+    - delimiter: from Document_ID.validation.derived_pattern.separator
+    - sequence_length: from Document_Sequence_Number.validation.pattern
+    
+    Args:
+        engine: The processing engine
+        df: DataFrame with Document_ID column
+        column_name: Target column (Document_ID_Affixes)
+        calculation: Calculation configuration with source_column
+        
+    Returns:
+        DataFrame with Document_ID_Affixes column populated
+    """
+    # Import affix extractor
+    try:
+        from .affix_extractor import extract_document_id_affixes
+    except ImportError:
+        engine._print_processing_step("Extract Affixes", column_name, "ERROR: affix_extractor not available")
+        return df
+    
+    # Get source column (usually Document_ID)
+    source_column = calculation.get('source_column', 'Document_ID')
+    
+    if source_column not in df.columns:
+        engine._print_processing_step("Extract Affixes", column_name, f"ERROR: Source column {source_column} not found")
+        return df
+    
+    # Get schema parameters
+    delimiter = calculation.get('delimiter', '-')
+    sequence_length = calculation.get('sequence_length', 4)
+    
+    # Extract affixes
+    engine._print_processing_step("Extract Affixes", column_name, f"Extracting from {source_column}")
+    
+    df = df.copy()
+    
+    # Apply affix extraction to each row
+    affix_results = df[source_column].apply(
+        lambda x: extract_document_id_affixes(
+            str(x) if pd.notna(x) else '',
+            delimiter=delimiter,
+            sequence_length=sequence_length
+        ) if pd.notna(x) else ('', '')
+    )
+    
+    # Extract affix part (second element of tuple)
+    df[column_name] = affix_results.apply(lambda x: x[1])
+    
+    affix_count = df[column_name].ne('').sum()
+    engine._print_processing_step("Extract Affixes", column_name, f"Extracted {affix_count} affixes")
+    
+    return df

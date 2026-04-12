@@ -176,7 +176,11 @@ class CalculationEngine(BaseProcessor):
                 self._print_processing_step("Phase 1", "Meta Data", f"Processing {len(phase_columns['P1'])} columns")
                 df_processed = self._apply_phase_null_handling(df_processed, phase_columns['P1'])
                 # Phase 4: Run Phase 1 detection
-                p1_results = self.business_detector.detect(df_processed, context={"phase": "P1"}, phases=[ProcessingPhase.P1])
+                p1_results = self.business_detector.detect(
+                    df_processed, 
+                    context={"phase": "P1", "schema_data": self.schema_data}, 
+                    phases=[ProcessingPhase.P1]
+                )
                 self.error_aggregator.add_errors(p1_results.get(ProcessingPhase.P1, []))
             
             # Phase 2: Transactional - Forward fill if Manual Input = YES, then validate
@@ -184,7 +188,11 @@ class CalculationEngine(BaseProcessor):
                 self._print_processing_step("Phase 2", "Transactional", f"Processing {len(phase_columns['P2'])} columns")
                 df_processed = self._apply_phase_transactional(df_processed, phase_columns['P2'])
                 # Phase 4: Run Phase 2 detection
-                p2_results = self.business_detector.detect(df_processed, context={"phase": "P2"}, phases=[ProcessingPhase.P2])
+                p2_results = self.business_detector.detect(
+                    df_processed, 
+                    context={"phase": "P2", "schema_data": self.schema_data}, 
+                    phases=[ProcessingPhase.P2]
+                )
                 self.error_aggregator.add_errors(p2_results.get(ProcessingPhase.P2, []))
             
             # Phase 2.5: Anomaly - Calculations FIRST, then null handling
@@ -192,7 +200,11 @@ class CalculationEngine(BaseProcessor):
                 self._print_processing_step("Phase 2.5", "Anomaly", f"Processing {len(phase_columns['P2.5'])} columns")
                 df_processed = self._apply_phase_calculated(df_processed, phase_columns['P2.5'])
                 # Phase 4: Run Phase 2.5 detection
-                p25_results = self.business_detector.detect(df_processed, context={"phase": "P2.5"}, phases=[ProcessingPhase.P2_5])
+                p25_results = self.business_detector.detect(
+                    df_processed, 
+                    context={"phase": "P2.5", "schema_data": self.schema_data}, 
+                    phases=[ProcessingPhase.P2_5]
+                )
                 self.error_aggregator.add_errors(p25_results.get(ProcessingPhase.P2_5, []))
             
             # Phase 3: Calculated - Calculations FIRST, then null handling (last defense)
@@ -200,7 +212,11 @@ class CalculationEngine(BaseProcessor):
                 self._print_processing_step("Phase 3", "Calculated", f"Processing {len(phase_columns['P3'])} columns")
                 df_processed = self._apply_phase_calculated(df_processed, phase_columns['P3'])
                 # Phase 4: Run Phase 3 detection
-                p3_results = self.business_detector.detect(df_processed, context={"phase": "P3"}, phases=[ProcessingPhase.P3])
+                p3_results = self.business_detector.detect(
+                    df_processed, 
+                    context={"phase": "P3", "schema_data": self.schema_data}, 
+                    phases=[ProcessingPhase.P3]
+                )
                 self.error_aggregator.add_errors(p3_results.get(ProcessingPhase.P3, []))
             
             # Phase 4: Validation - Apply schema validation rules

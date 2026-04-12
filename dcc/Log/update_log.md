@@ -7,6 +7,145 @@
 
 # Section 2. Log entries
 
+<a id="issue-16"></a>
+## 2026-04-12 13:30:00
+1. Schema update (Phase 1): [dcc_register_enhanced.json](../config/schemas/dcc_register_enhanced.json) - Added new column `Document_ID_Affixes` immediately after `Document_ID`.
+2. Column configuration:
+   - `data_type`: `string`
+   - `is_calculated`: `true` with calculation type `extract_affixes`
+   - `processing_phase`: `P2.5` (same as Document_ID validation)
+   - `null_handling`: `default_value` with empty string `""` as default
+3. Added `Document_ID_Affixes` to `column_sequence` array immediately after `Document_ID`.
+4. Purpose: Store affixes/suffixes (e.g., `_ST607`, `_Withdrawn`, `-V1`) extracted from Document_ID before validation.
+5. Enables Phase 2.5 validation to strip affixes before pattern matching, preventing P2-I-V-0204 false positives.
+6. Related to [Issue #16](issue_log.md#issue-16): Document_ID affix handling.
+7. See [document_id_handling_workplan.md](../workplan/document_id_handling/document_id_handling_workplan.md) for full implementation plan.
+
+## 2026-04-12 13:40:00
+1. Logic implementation (Phase 2): Created [affix_extractor.py](../workflow/processor_engine/calculations/affix_extractor.py) with core extraction functions.
+2. Functions implemented:
+   - `extract_document_id_affixes(document_id, delimiter, sequence_length)`: Main extraction with schema-driven parameters
+   - `has_affix()`: Check if Document_ID contains affix
+   - `strip_affix()`: Remove affix returning base only
+   - `extract_affixes_series()`: Vectorized extraction for pandas DataFrames
+3. Algorithm:
+   - Splits Document_ID by delimiter (from schema, default: "-")
+   - Extracts sequence number from last segment (length from schema, default: 4)
+   - Remaining chars in last segment = affix
+   - Fallback: searches for last separator if not enough segments
+4. Schema-driven parameters:
+   - `delimiter`: From `Document_ID.validation.derived_pattern.separator` (default: "-")
+   - `sequence_length`: From `Document_Sequence_Number.validation.pattern` parsing (default: 4)
+5. Returns empty string `""` for affix if none found or invalid Document_ID
+6. Handles edge cases: null input, empty strings, no affix, invalid base format
+7. Related to [Issue #16](issue_log.md#issue-16): Phase 2 complete.
+
+## 2026-04-12 16:10:00
+1. Integration update (Phase 3): [identity.py](../workflow/processor_engine/error_handling/detectors/identity.py) - Modified `_detect_invalid_id_format()` to integrate affix extraction.
+2. Changes implemented:
+   - Added import for `extract_document_id_affixes` with `HAS_AFFIX_EXTRACTOR` flag for graceful fallback
+   - Added `_get_affix_extraction_params()` method to read schema configuration:
+     - Extracts `delimiter` from `Document_ID.validation.derived_pattern.separator` (default: "-")
+     - Parses `sequence_length` from `Document_Sequence_Number.validation.pattern` like `^[0-9]{4}$` → 4
+   - Modified `_detect_invalid_id_format()` workflow:
+     - Extracts affix before validation using schema-driven parameters
+     - Validates base ID (without affix) against `derived_pattern`
+     - Includes affix and base_id in error context for debugging
+3. Validation flow with affix handling:
+   ```
+   Document_ID with affix → Extract (base, affix) → Validate base only → Store affix separately
+   ```
+4. Error context now includes:
+   - `base_id`: Document_ID without affix (what was validated)
+   - `affix`: Extracted affix string (e.g., "_ST607", "-V1")
+   - `affix_extraction`: "applied" flag
+   - `note`: Clarifies validation performed on base ID
+5. Prevents P2-I-V-0204 false positives for Document_IDs with valid affixes like `_ST607`, `_Withdrawn`, `-V1`.
+6. Schema-driven design ensures automatic adaptation if delimiter or sequence_length changes in schema.
+7. Related to [Issue #16](issue_log.md#issue-16): Phase 3 complete.
+
+## 2026-04-12 16:40:00
+1. Column calculation update (Phase 4): [validation.py](../workflow/processor_engine/calculations/validation.py) - Modified `derived_pattern` validation to extract and store Document_ID affixes.
+2. Changes implemented:
+   - Added import for `extract_document_id_affixes` with `HAS_AFFIX_EXTRACTOR` flag for graceful fallback
+   - Added helper function `_get_sequence_length_from_schema()` to extract sequence length from schema pattern
+   - Modified `derived_pattern` validation block to:
+     - Check if affix extraction enabled: Document_ID column with Document_ID_Affixes in DataFrame
+     - Extract affixes using `extract_document_id_affixes()` with schema-driven parameters
+     - Store extracted affixes in `Document_ID_Affixes` column
+     - Validate base ID (without affix) against `derived_pattern` regex
+     - Cleanup temp columns after validation
+   - Enhanced error logging includes sample bases and affixes for debugging failed validations
+3. Affix extraction flow:
+   ```
+   Document_ID values → Extract affixes (base, affix) → Store affixes in column → Validate bases
+   ```
+4. Integration with schema:
+   - `delimiter` from `Document_ID.validation.derived_pattern.separator`
+   - `sequence_length` from `Document_Sequence_Number.validation.pattern` parsing
+5. Related to [Issue #16](issue_log.md#issue-16): Phase 4 complete.
+
+<a id="2026-04-12-164500"></a>
+## 2026-04-12 16:45:00
+1. Bug fix: Pipeline error when processing `Document_ID_Affixes` column
+2. Problems identified and fixed:
+   - **Error 1**: `'recalculate_always' is not a valid PreservationMode`
+     - Root cause: Schema used invalid value `recalculate_always`
+     - Fix: Changed to valid `overwrite_existing` in `dcc_register_enhanced.json`
+   - **Error 2**: `WARNING: No handler registered for calculation type: extract_affixes/extract_document_id_affixes`
+     - Root cause: Missing calculation handler in `registry.py`
+     - Fix: Added `apply_extract_affixes()` function to `composite.py`
+     - Fix: Registered handler under `CALCULATION_HANDLERS["extract_affixes"]` in `registry.py`
+3. Changes made:
+   - [dcc_register_enhanced.json](../config/schemas/dcc_register_enhanced.json): Fixed `Document_ID_Affixes.strategy.data_preservation.mode` from `recalculate_always` to `overwrite_existing`
+   - [composite.py](../workflow/processor_engine/calculations/composite.py): Added `apply_extract_affixes()` function for affix extraction in Phase 2.5
+   - [registry.py](../workflow/processor_engine/core/registry.py): Added `extract_affixes` calculation handler
+4. Pipeline now successfully:
+   - Extracts affixes from Document_ID in Phase 2.5
+   - Stores affixes in Document_ID_Affixes column
+   - Validates base Document_ID (without affix) in Phase 4
+5. Related to [Issue #16](issue_log.md#issue-16): Pipeline bug fix complete.
+
+<a id="issue-13"></a>
+## 2026-04-12 11:10:00
+1. Schema update: [dcc_register_enhanced.json](../config/schemas/dcc_register_enhanced.json) - Added `strategy.validation_context` to `Transmittal_Number` column with `is_fact_attribute: true` and `skip_duplicate_check: true`.
+2. This configuration informs the duplicate detection logic in `identity.py` to skip P2-I-V-0203 validation for fact tables where one transmittal can legitimately contain multiple documents.
+3. The `consistency_group` setting ensures consistency checks apply only when value is not NA/null.
+4. Related to [Issue #13](issue_log.md#issue-13): Duplicate transmittal_number in fact tables is not an error.
+5. Test verified: [test_log.md](test_log.md#2026-04-12-111500) - No P2-I-V-0203 errors found with 77 rows of test data.
+
+## 2026-04-12 11:25:00
+1. Code fix: [identity.py](../workflow/processor_engine/error_handling/detectors/identity.py) - Updated `_detect_duplicate_transmittal()` to check `strategy.validation_context.skip_duplicate_check` from schema before detecting duplicates.
+2. Code fix: [engine.py](../workflow/processor_engine/core/engine.py) - Updated all phase detection calls to pass `schema_data` in context, enabling detectors to access schema configuration.
+3. Verification: Pipeline run with 11,099 rows confirmed 0 P2-I-V-0203 errors in output file.
+4. Log confirmation: "Skipping duplicate check for Transmittal_Number (skip_duplicate_check: true in schema strategy)" message observed.
+
+<a id="issue-14"></a>
+## 2026-04-12 12:30:00
+1. Code fix: [dcc_engine_pipeline.py](../workflow/dcc_engine_pipeline.py) - Moved module-level `print()` statements into `main()` function to prevent execution on import.
+2. Code fix: [logger.py](../workflow/processor_engine/error_handling/core/logger.py) - Changed console handler from JSON formatter to simple `[LEVEL] message` format for readable output.
+3. Code fix: [logger.py](../workflow/processor_engine/error_handling/core/logger.py) - Set console handler level to WARNING+ and added `propagate = False` to eliminate duplicate log entries.
+4. Result: Clean pipeline output with structured status messages instead of mixed JSON/print chaos.
+5. Related to [Issue #14](issue_log.md#issue-14): Pipeline output cleanup for better user experience.
+
+<a id="issue-15"></a>
+## 2026-04-12 12:45:00
+1. Code fix: [identity.py](../workflow/processor_engine/error_handling/detectors/identity.py) - Updated `DOC_ID_PATTERN` to align with discipline schema.
+2. Pattern change: Document_Type segment changed from `[A-Z]{2,10}` to `[A-Z0-9]{1,10}` (allows 1-10 alphanumeric).
+3. Pattern change: Discipline segment changed from `[A-Z]{2,10}` to `[A-Z0-9]{1,10}` (allows 1-10 alphanumeric).
+4. Reason: Discipline schema allows codes like "A", "B", "C", "D", "P" (1-3 chars per `^[A-Z0-9]{1,3}$`).
+5. Impact: Document_IDs like '131242-WSD11-CL-P-0009' no longer incorrectly trigger P2-I-V-0204 errors.
+6. Verification: Tested pattern against sample Document_IDs - '131242-WSD11-CL-P-0009' now passes validation.
+7. Related to [Issue #15](issue_log.md#issue-15): P2-I-V-0204 false positives for valid single-letter discipline codes.
+
+## 2026-04-12 12:48:00
+1. Refactoring: [validation.py](../workflow/processor_engine/calculations/validation.py) - Created public function `get_derived_pattern_regex()` for reuse by both Phase 2 and Phase 4.
+2. Refactoring: [identity.py](../workflow/processor_engine/error_handling/detectors/identity.py) - Added `_get_schema_pattern()` method to use schema-driven `derived_pattern` instead of hardcoded regex.
+3. Implementation: Phase 2 (identity detector) now calls same `get_derived_pattern_regex()` function as Phase 4 (schema validation).
+4. Fallback: Hardcoded pattern retained for backward compatibility when schema context not available.
+5. Result: Both phases now use identical pattern generation logic from `dcc_register_enhanced.json` schema configuration.
+6. Related to [Issue #15](issue_log.md#issue-15): Ensures consistency between Phase 2 identity detection and Phase 4 schema validation.
+
 ## 2026-04-12 00:00:00
 1. Schema update: Modified {} dcc_register_enhanced.json to change the validation of Document_ID from a fixed regex to a dynamic regex based on the document type. derive_pattern is now used to generate the regex based on source columns.
 2. Logic update: validation.py to handel the derived_pattern rule type. Implemented a helper function _get_derived_pattern() to generate the regex based on source columns dynamically.

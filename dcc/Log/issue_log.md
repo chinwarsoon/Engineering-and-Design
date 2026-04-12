@@ -58,6 +58,95 @@
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-163500)
 
 ## 2026-04-11 16:35:00
-[Issue # 13]: Error code 0203 for duplicate transmittal_number should not apply since tranmittal_number can be duplicate in dimensional tables. data loaded from dcc_engine_pipeline.py is a dimensional table.
+[Issue # 13]: Error code P2-I-V-0203 (Duplicate Transmittal_Number) should not apply to fact tables.
+
+**Analysis:**
+- The data from `dcc_engine_pipeline.py` is a fact table structure
+- In fact tables, `transmittal_number` can legitimately be duplicated across multiple rows
+- This occurs when one transmittal contains multiple documents (1 transmittal → N documents)
+- Error P2-I-V-0203 is designed for transactional data where transmittal_number should be unique per submission
+- **Conclusion:** Duplicate transmittal_number in the final data table is NOT an error for fact table data
+
+**Resolution:**
+- Schema configuration added to skip duplicate validation for fact table attributes.
+- Code fix: `identity.py` `_detect_duplicate_transmittal()` now checks `strategy.validation_context.skip_duplicate_check` before flagging duplicates.
+- Code fix: `engine.py` now passes `schema_data` in context to all phase detectors.
+- See [update_log.md](update_log.md#issue-13) for detailed changes.
+
+**Note:** This is a business logic clarification, not a code bug. The validation rule is context-dependent.
+ - `[Status]`: Resolved (Schema Configuration + Tested)
+ - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-13)
+ - `[Link to test results]`: [test_log.md](test_log.md#2026-04-12-111500)
+
+## 2026-04-12 12:30:00
+[Issue # 14]: Pipeline output is messy with mixed JSON logs and print statements causing unreadable console output.
+
+**Analysis:**
+- Module-level `print()` statements in `dcc_engine_pipeline.py` executed on import, not just on run
+- `StructuredLogger` using JSON formatter outputting to stdout, creating mixed format output
+- Logger propagation causing duplicate messages
+- Console overwhelmed with unstructured debug logs
+
+**Resolution:**
+- Moved pipeline banner prints from module level into `main()` function
+- Changed `logger.py` to use simple `[LEVEL] message` formatter instead of JSON
+- Set console handler to WARNING+ only to reduce noise
+- Added `propagate = False` to prevent duplicate log entries
+- See [update_log.md](update_log.md#issue-14) for detailed changes.
+
+**Note:** This is a code quality improvement for better user experience.
+ - `[Status]`: Resolved (Code Quality)
+ - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-14)
+
+## 2026-04-12 12:45:00
+[Issue # 15]: "[P2-I-V-0204] Invalid Document_ID format: '131242-WSD11-CL-P-0009' (Document_ID)" are reported as errors but they are not.
+
+**Analysis:**
+- Document_ID '131242-WSD11-CL-P-0009' was flagged as invalid by P2-I-V-0204
+- The `identity.py` detector uses hardcoded `DOC_ID_PATTERN` requiring 2-10 uppercase letters for discipline: `[A-Z]{2,10}`
+- Discipline schema allows 1-3 alphanumeric characters per pattern `^[A-Z0-9]{1,3}$`
+- Valid discipline codes include single letters: "A", "B", "C", "D", "P" (from discipline_schema.json)
+- The discipline "P" in the example is valid per schema but rejected by the detector's pattern
+
+**Resolution:**
+- Initial fix: Updated `identity.py` `DOC_ID_PATTERN` to allow 1-10 alphanumeric characters for Document_Type and Discipline segments
+- Refactoring: Created shared `get_derived_pattern_regex()` function in `validation.py` for both Phase 2 and Phase 4
+- Phase 2 (identity detector) now uses schema-driven `derived_pattern` from `dcc_register_enhanced.json` via `_get_schema_pattern()`
+- Hardcoded pattern retained as fallback for backward compatibility
+- Both phases now use identical pattern generation logic from schema configuration
+- See [update_log.md](update_log.md#issue-15) for detailed changes.
+
+**Note:** This is a pattern alignment fix to make the detector consistent with the schema.
+ - `[Status]`: Resolved (Pattern Alignment)
+ - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-15)
+
+ ## 2026-04-12 12:55:00
+[Issue # 16]: "Document_ID" sometimes may contain affixes like "_ST607", "_ST608_BCA", "_MS2", "_Withdrawn" etc. When document_id contains these affixes, the detector should still be able to validate the document_id. May consider to strip these affixes before validation. Separate the affixes from the document_id and store in another new data field.
+
+**Note:** This is a pattern alignment fix to make the detector consistent with the schema.
  - `[Status]`: open
  - `[Link to changes in update_log.md]`:
+
+## 2026-04-12 16:45:00
+[Bug Fix]: Pipeline error when processing Document_ID_Affixes column
+
+**Error:**
+```
+'Recalculate_always' is not a valid PreservationMode
+WARNING: No handler registered for calculation type: extract_affixes/extract_document_id_affixes
+```
+
+**Analysis:**
+- `Document_ID_Affixes` schema configuration used invalid `PreservationMode` value `recalculate_always`
+- Valid values are: `preserve_existing`, `overwrite_existing`, `conditional_overwrite`
+- Missing calculation handler for `extract_affixes` type in `registry.py`
+
+**Resolution:**
+- Fixed schema: Changed `mode` from `recalculate_always` to `overwrite_existing` in `dcc_register_enhanced.json`
+- Added `apply_extract_affixes()` function to `composite.py` for affix extraction calculation
+- Registered handler in `registry.py` under `CALCULATION_HANDLERS["extract_affixes"]`
+- Pipeline now successfully processes affix extraction in Phase 2.5
+
+**Related to:** Issue #16 implementation
+ - `[Status]`: Fixed
+ - `[Link to changes in update_log.md]`: See update_log.md#2026-04-12-164500

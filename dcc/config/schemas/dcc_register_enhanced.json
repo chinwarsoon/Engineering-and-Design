@@ -70,6 +70,7 @@
       "Discipline",
       "Document_Sequence_Number",
       "Document_ID",
+      "Document_ID_Affixes",
       "Document_Revision",
       "Document_Title",
       "Reviewer",
@@ -473,6 +474,40 @@
         ],
         "processing_phase": "P2.5"
       },
+      "Document_ID_Affixes": {
+        "aliases": [
+          "Document ID Affixes",
+          "Doc ID Suffix",
+          "Document Suffix"
+        ],
+        "data_type": "string",
+        "required": false,
+        "allow_null": true,
+        "is_calculated": true,
+        "create_if_missing": true,
+        "calculation": {
+          "type": "extract_affixes",
+          "method": "extract_document_id_affixes",
+          "source_column": "Document_ID",
+          "description": "Extracts affixes/suffixes from Document_ID after the standard 5-segment format. Stores affixes like '_ST607', '_Withdrawn', '-V1' etc. as a string."
+        },
+        "null_handling": {
+          "strategy": "default_value",
+          "default_value": "",
+          "description": "If no affixes found, store empty string"
+        },
+        "strategy": {
+          "data_preservation": {
+            "mode": "overwrite_existing",
+            "description": "Always recalculate affixes from Document_ID to ensure consistency"
+          },
+          "processing_sequence": {
+            "calculation_timing": "last",
+            "description": "Calculate after Document_ID is populated"
+          }
+        },
+        "processing_phase": "P2.5"
+      },
       "Document_Revision": {
         "aliases": [
           "Rev ",
@@ -578,7 +613,18 @@
             "description": "Transmittal reference number"
           }
         ],
-        "processing_phase": "P1"
+        "processing_phase": "P1",
+        "strategy": {
+          "validation_context": {
+            "is_fact_attribute": true,
+            "skip_duplicate_check": true,
+            "consistency_group": {
+              "check_if_valid": true,
+              "valid_values": ["NA"],
+              "description": "Skip duplicate validation for fact tables where one transmittal can contain multiple documents. Consistency group check applies only when value is not NA/null."
+            }
+          }
+        }
       },
       "Consolidated_Submission_Session_Subject": {
         "aliases": [

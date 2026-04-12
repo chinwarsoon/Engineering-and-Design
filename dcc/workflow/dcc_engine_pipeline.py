@@ -20,15 +20,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-print("DCC Register Universal Processing Pipeline")
-print("=" * 80)
-print("Enhanced Features:")
-print("- Universal Column Mapper: Fuzzy header detection with schema integration")
-print("- Universal Document Processor: Schema-driven calculations and null handling")
-print("- Enhanced Schema System: Modular configuration with external references")
-print("- Multi-format Export: Excel, CSV, JSON with comprehensive reporting")
-print("=" * 80)
-
 # Insert workflow path for engine imports
 workflow_path = Path(__file__).parent
 if str(workflow_path) not in sys.path:
@@ -239,6 +230,16 @@ def run_engine_pipeline(
 
 def main() -> int:
     """Main entry point for DCC Engine Pipeline."""
+    
+    # Print pipeline banner
+    print("DCC Register Universal Processing Pipeline")
+    print("=" * 80)
+    print("Enhanced Features:")
+    print("- Universal Column Mapper: Fuzzy header detection with schema integration")
+    print("- Universal Document Processor: Schema-driven calculations and null handling")
+    print("- Enhanced Schema System: Modular configuration with external references")
+    print("- Multi-format Export: Excel, CSV, JSON with comprehensive reporting")
+    print("=" * 80)
     
     # 1. Centrally manage base_path
     args, cli_args = parse_cli_args() # default_base_path is called inside parse_cli_args if not provided

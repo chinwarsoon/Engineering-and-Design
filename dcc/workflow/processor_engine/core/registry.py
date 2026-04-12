@@ -91,6 +91,10 @@ CALCULATION_HANDLERS: Dict[str, Dict[str, Callable]] = {
         "build_document_id": composite.apply_composite_calculation,
         "default": composite.apply_composite_calculation,
     },
+    "extract_affixes": {
+        "extract_document_id_affixes": composite.apply_extract_affixes,
+        "default": composite.apply_extract_affixes,
+    },
     "auto_increment": {
         "generate_row_index": composite.apply_row_index,
         "default": composite.apply_row_index,

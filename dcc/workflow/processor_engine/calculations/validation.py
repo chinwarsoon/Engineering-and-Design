@@ -1,13 +1,22 @@
 """
 Validation module for schema-based data validation.
 Extracted from UniversalDocumentProcessor validation methods.
+
+Related to Issue #16: Document_ID affix handling
 """
 
 import pandas as pd
 import numpy as np
 import logging
 import re
-from typing import Dict, Any, List, Optional, Any as TypingAny
+from typing import Dict, Any, List, Optional, Any as TypingAny, Tuple
+
+# Import affix extractor for Document_ID affix handling (Issue #16)
+try:
+    from .affix_extractor import extract_document_id_affixes
+    HAS_AFFIX_EXTRACTOR = True
+except ImportError:
+    HAS_AFFIX_EXTRACTOR = False
 
 logger = logging.getLogger(__name__)
 
@@ -262,6 +271,40 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 source_cols = validation.get('source_columns', [])
                 separator = validation.get('separator', '-')
                 
+                # Issue #16: Affix extraction for Document_ID
+                affix_extraction_enabled = (
+                    HAS_AFFIX_EXTRACTOR and 
+                    column_name == 'Document_ID' and
+                    'Document_ID_Affixes' in df_validated.columns
+                )
+                
+                if affix_extraction_enabled:
+                    # Get sequence length from Document_Sequence_Number pattern
+                    seq_length = _get_sequence_length_from_schema(columns_schema)
+                    
+                    # Extract affixes for each Document_ID
+                    affix_results = df_validated[column_name].apply(
+                        lambda x: extract_document_id_affixes(
+                            str(x) if pd.notna(x) else '',
+                            delimiter=separator,
+                            sequence_length=seq_length
+                        ) if pd.notna(x) else ('', '')
+                    )
+                    
+                    # Split into base and affix
+                    df_validated['__temp_base'] = affix_results.apply(lambda x: x[0])
+                    df_validated['__temp_affix'] = affix_results.apply(lambda x: x[1])
+                    
+                    # Store affixes in Document_ID_Affixes column
+                    df_validated['Document_ID_Affixes'] = df_validated['__temp_affix']
+                    
+                    # Use base for pattern validation
+                    df_str = df_validated['__temp_base'].astype(str)
+                    
+                    logger.info(f"Document_ID affix extraction complete: {df_validated['__temp_affix'].ne('').sum()} affixes extracted")
+                else:
+                    df_str = df_validated[column_name].astype(str)
+                
                 regex_parts = []
                 for src_col in source_cols:
                     if src_col in columns_schema:
@@ -272,16 +315,33 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                         regex_parts.append(r"[^ \-]+")
                 
                 combined_pattern = f"^{re.escape(separator).join(regex_parts)}$"
-                df_str = df_validated[column_name].astype(str)
                 mask = ~df_str.str.match(combined_pattern, na=False)
                 if allow_null:
-                    mask &= df_validated[column_name].notna()
+                    if affix_extraction_enabled:
+                        mask &= df_validated[column_name].notna()
+                    else:
+                        mask &= df_validated[column_name].notna()
                     
                 if mask.any():
                     code = ERROR_CODES.get('derived_pattern', 'P-V-V-0501')
                     msg = f"{column_name} dynamic pattern mismatch"
-                    logger.warning(f"Derived pattern validation failed for {column_name}: {mask.sum()} invalid values (Target pattern: {combined_pattern})")
+                    
+                    # Include affix info in error context for debugging
+                    if affix_extraction_enabled:
+                        bad_affixes = df_validated.loc[mask, '__temp_affix'].head(5).tolist()
+                        bad_bases = df_validated.loc[mask, '__temp_base'].head(5).tolist()
+                        logger.warning(
+                            f"Derived pattern validation failed for {column_name}: {mask.sum()} invalid values. "
+                            f"Sample bases: {bad_bases}, Sample affixes: {bad_affixes}"
+                        )
+                    else:
+                        logger.warning(f"Derived pattern validation failed for {column_name}: {mask.sum()} invalid values (Target pattern: {combined_pattern})")
+                    
                     record_errors(mask, msg, code=code)
+                
+                # Cleanup temp columns
+                if affix_extraction_enabled:
+                    df_validated = df_validated.drop(columns=['__temp_base', '__temp_affix'])
 
         # Backward-compatible default schema_reference validation when no
         # explicit schema_reference_check rule is declared.
@@ -475,6 +535,82 @@ def _get_schema_reference_allowed_codes(
                     return [str(item) for item in value if item is not None]
 
     return None
+
+
+def get_derived_pattern_regex(
+    column_name: str,
+    columns_schema: dict,
+    schema_data: dict,
+    separator: str = '-'
+) -> Optional[str]:
+    """
+    Public API: Generate derived pattern regex for a column from schema.
+    
+    Used by both Phase 2 (identity detection) and Phase 4 (schema validation)
+    to ensure consistent pattern validation.
+    
+    Args:
+        column_name: Target column to validate (e.g., "Document_ID")
+        columns_schema: Schema columns configuration
+        schema_data: Full schema data including reference schemas
+        separator: Separator used between segments (default: '-')
+        
+    Returns:
+        Combined regex pattern string or None if no derived_pattern rule found
+    """
+    if column_name not in columns_schema:
+        return None
+    
+    column_def = columns_schema[column_name]
+    validation_rules = _normalize_validation_rules(column_def.get('validation', {}))
+    
+    # Find derived_pattern rule
+    for validation in validation_rules:
+        if validation.get('type') == 'derived_pattern':
+            source_cols = validation.get('source_columns', [])
+            sep = validation.get('separator', separator)
+            
+            regex_parts = []
+            for src_col in source_cols:
+                if src_col in columns_schema:
+                    src_def = columns_schema[src_col]
+                    src_regex = _get_column_representative_regex(src_col, src_def, schema_data)
+                    regex_parts.append(src_regex)
+                else:
+                    regex_parts.append(r"[^ \-]+")
+            
+            combined_pattern = f"^{re.escape(sep).join(regex_parts)}$"
+            return combined_pattern
+    
+    return None
+
+
+def _get_sequence_length_from_schema(columns_schema: dict) -> int:
+    """
+    Extract sequence length from Document_Sequence_Number validation pattern.
+    
+    Looks for pattern like '^[0-9]{4}$' and returns the length (4).
+    
+    Args:
+        columns_schema: Schema columns configuration
+        
+    Returns:
+        Sequence length integer (default: 4)
+    """
+    default_length = 4
+    
+    seq_config = columns_schema.get('Document_Sequence_Number', {})
+    validations = _normalize_validation_rules(seq_config.get('validation', {}))
+    
+    for validation in validations:
+        if validation.get('type') == 'pattern':
+            pattern = validation.get('pattern', '')
+            # Extract length from pattern like "^[0-9]{4}$"
+            match = re.search(r'\{(\d+)\}', pattern)
+            if match:
+                return int(match.group(1))
+    
+    return default_length
 
 
 def _get_column_representative_regex(column_name: str, column_def: dict, schema_data: dict) -> str:
