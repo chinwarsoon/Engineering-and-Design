@@ -58,6 +58,6 @@
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-163500)
 
 ## 2026-04-11 16:35:00
-[Issue # 13]: Error code 0203 for duplicate transmittal_number should not apply since tranmittal_number can be duplicate in dimensional tables.
+[Issue # 13]: Error code 0203 for duplicate transmittal_number should not apply since tranmittal_number can be duplicate in dimensional tables. data loaded from dcc_engine_pipeline.py is a dimensional table.
  - `[Status]`: open
  - `[Link to changes in update_log.md]`:
