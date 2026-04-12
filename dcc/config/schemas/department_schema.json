@@ -29,6 +29,8 @@
     "Electrical",
     "ICA",
     "Mechanical",
+    "PMT",
+    "BIM",
     "NA"
   ],
   "description": "Standard department classifications for document management",

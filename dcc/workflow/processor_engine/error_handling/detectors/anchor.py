@@ -33,9 +33,7 @@ class AnchorDetector(BaseDetector):
         "Facility_Code", 
         "Document_Type",
         "Discipline",
-        "Document_Sequence_Number",
-        "Submission_Session",
-        "First_Submission_Date"
+        "Submission_Session"
     ]
     
     # Error codes

@@ -10,11 +10,21 @@ Provides functions for:
 
 from typing import List, Dict, Any, Optional, Set
 import pandas as pd
+import re
+from datetime import datetime
 from .detectors.base import DetectionResult
+
+# Import initiation logging for synchronization
+try:
+    from initiation_engine import get_debug_object
+    HAS_INITIATION_LOGGING = True
+except ImportError:
+    HAS_INITIATION_LOGGING = False
 
 class ErrorAggregator:
     """
     Aggregates errors from multiple detectors and phases.
+    Now supports syncing with initiation_engine's DEBUG_OBJECT for early errors.
     """
     
     def __init__(self):
@@ -29,6 +39,70 @@ class ErrorAggregator:
         """Add a single error to aggregation."""
         if error:
             self._errors.append(error)
+
+    def sync_with_initiation_logging(self) -> int:
+        """
+        Pull errors from initiation_engine's DEBUG_OBJECT.
+        Returns the number of new errors synced.
+        """
+        if not HAS_INITIATION_LOGGING:
+            return 0
+            
+        debug_obj = get_debug_object()
+        debug_errors = debug_obj.get("errors", [])
+        
+        # Track already synced messages to avoid duplicates
+        existing_msgs = {e.message for e in self._errors}
+        synced_count = 0
+        
+        for err in debug_errors:
+            # Skip errors that came from StructuredLogger (bridged logs)
+            # they are already in the aggregator via detector.detect()
+            context_str = err.get("context", "")
+            if "source:StructuredLogger" in context_str:
+                continue
+                
+            msg = err.get("message", "")
+            if msg in existing_msgs:
+                continue
+                
+            # Attempt to parse E-M-F-U code from message [P-C-P-0101]
+            code_match = re.search(r'\[([A-Z]-[A-Z]-[A-Z]-\d{4})\]', msg)
+            error_code = code_match.group(1) if code_match else "G-L-O-0000"
+            
+            # Extract column if present (Col: Name)
+            col_match = re.search(r'\(Col: ([^)]+)\)', msg)
+            column = col_match.group(1) if col_match else None
+            
+            # Extract row if present (Row: N)
+            row_match = re.search(r'\(Row: (\d+)\)', msg)
+            row = int(row_match.group(1)) - 1 if row_match else None
+            
+            # Extract layer from context
+            context_str = err.get("context", "")
+            layer_match = re.search(r'layer:([^,]+)', context_str)
+            layer = layer_match.group(1) if layer_match else "L1"
+            
+            # Clean up message (remove code prefix)
+            clean_msg = msg
+            if code_match:
+                clean_msg = msg.replace(code_match.group(0), "").strip()
+            
+            result = DetectionResult(
+                error_code=error_code,
+                message=clean_msg,
+                row=row,
+                column=column,
+                severity=err.get("severity", "ERROR"),
+                layer=layer,
+                detected_at=datetime.fromisoformat(err.get("timestamp")) if err.get("timestamp") else datetime.utcnow(),
+                context={"module": err.get("module"), "source": "initiation_sync"}
+            )
+            
+            self._errors.append(result)
+            synced_count += 1
+            
+        return synced_count
         
     def get_all_errors(self) -> List[DetectionResult]:
         """Get all aggregated errors."""

@@ -16,7 +16,7 @@ from ..mappers.detection import (
 from ..utils.columns import get_column_bounds
 
 # Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+from initiation_engine import status_print, debug_print, log_error
 
 
 class ColumnMapperEngine:
@@ -57,7 +57,7 @@ class ColumnMapperEngine:
             status_print("Schema dependencies resolved")
 
         except Exception as e:
-            status_print(f"ERROR: Error loading main schema {schema_file}: {e}")
+            log_error(f"Error loading main schema {schema_file}: {e}", module="mapper_engine")
             raise
     
     def detect_columns(self, headers: List[Any], threshold: float = 0.6) -> Dict[str, Any]:

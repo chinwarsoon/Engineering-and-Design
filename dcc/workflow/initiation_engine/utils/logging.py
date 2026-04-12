@@ -218,7 +218,7 @@ def log_trace(message: str, module: str = "", context: str = "") -> None:
     })
 
 
-def log_error(message: str, module: str = "", context: str = "", fatal: bool = False) -> None:
+def log_error(message: str, module: str = "", context: str = "", fatal: bool = False, severity: Optional[str] = None) -> None:
     """
     Log errors. Always shown regardless of debug level.
 
@@ -227,12 +227,17 @@ def log_error(message: str, module: str = "", context: str = "", fatal: bool = F
         module: Module name for context.
         context: Additional calling context.
         fatal: If True, raises exception (fail-fast).
+        severity: Error severity (CRITICAL, HIGH, MEDIUM, WARNING, INFO).
+                  Defaults to CRITICAL if fatal=True, else ERROR.
 
     Breadcrumb Comments:
         - DEBUG_LEVEL: Errors always output regardless of level.
         - DEBUG_OBJECT: Appends to 'errors' list.
         - If fatal=True, raises RuntimeError immediately (fail-fast).
     """
+    if severity is None:
+        severity = "CRITICAL" if fatal else "ERROR"
+        
     prefix = _get_indent()
     if module:
         prefix += f"[{module}] "
@@ -246,6 +251,7 @@ def log_error(message: str, module: str = "", context: str = "", fatal: bool = F
         "context": context,
         "message": message,
         "fatal": fatal,
+        "severity": severity
     }
     DEBUG_OBJECT["errors"].append(error_entry)
 

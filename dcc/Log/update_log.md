@@ -38,8 +38,7 @@
 4. Pipeline update: [dcc_engine_pipeline.py](../workflow/dcc_engine_pipeline.py) - Integrated automatic dashboard JSON export and health KPI generation.
 5. This update completes the Error Handling Module (Phase 5), providing a complete 6-layer validation, analytics, and visualization suite for document processing.
 
-<a id="issue-6-resilience"></a>
-## 2026-04-12 21:45:00
-1. Logic update: [dcc_engine_pipeline.py](../workflow/dcc_engine_pipeline.py) - Wrapped processing in a robust try-except block to handle `FailFastError`. Pipeline now ensures telemetry and diagnostic JSON are exported even if a critical error stops processing.
-2. Logic update: [engine.py](../workflow/processor_engine/core/engine.py) - Added `fail_fast` parameter support to `CalculationEngine`, allowing behavior to be toggled via schema configuration.
-3. Schema update: [dcc_register_enhanced.json](../config/schemas/dcc_register_enhanced.json) - Added `fail_fast: false` to parameters to enable comprehensive dataset analysis.
+## 2026-04-11 16:35:00
+1. Logic update: [identity.py](../workflow/processor_engine/error_handling/detectors/identity.py) - Updated `detect()` method to filter validations based on `required_identities` list.
+2. Logic update: [business.py](../workflow/processor_engine/error_handling/detectors/business.py) - Reconfigured `BusinessDetector` to split identity validation. `Document_Revision`, `Document_Title`, and `Transmittal_Number` are now validated in Phase 2, while `Document_ID` is validated in Phase 2.5.
+3. Fixed Issue #12: This prevents `Document_ID uncertain (P2-I-P-0201)` false positives from being reported in Phase 2 before the `Document_ID` has been calculated via the composite strategy.

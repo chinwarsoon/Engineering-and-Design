@@ -28,6 +28,9 @@ class ErrorReporter:
         """
         Generate overall error statistics and Health KPIs.
         """
+        # Sync with early-stage errors before calculating stats
+        self.aggregator.sync_with_initiation_logging()
+        
         errors = self.aggregator.get_all_errors()
         kpi = HealthCalculator.get_kpi(total_rows, errors)
         

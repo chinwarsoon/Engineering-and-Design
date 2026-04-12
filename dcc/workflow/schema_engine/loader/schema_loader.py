@@ -135,7 +135,7 @@ class SchemaLoader:
                 schema_data = self._resolve_schema_dependency(ref_path, visited_paths.copy())
                 resolved_schema[f"{ref_name}_data"] = schema_data
             except Exception as exc:
-                status_print(f"ERROR: Failed to resolve schema reference {ref_name}: {exc}")
+                log_error(f"Failed to resolve schema reference {ref_name}: {exc}", module="schema_loader")
         return resolved_schema
 
     def _resolve_schema_dependency(self, schema_path: str | Path, visited_paths: Set[Path]) -> Dict[str, Any]:

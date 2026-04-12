@@ -22,6 +22,7 @@ from ..calculations import (
     date,
     mapping,
     composite,
+    error_tracking,
 )
 
 # Import hierarchical logging functions from initiation_engine (centralized)
@@ -97,6 +98,10 @@ CALCULATION_HANDLERS: Dict[str, Dict[str, Callable]] = {
     "complex_lookup": {
         "calculate_delay_of_resubmission": composite.apply_delay_of_resubmission,
         "default": composite.apply_delay_of_resubmission,
+    },
+    "error_tracking": {
+        "aggregate_row_errors": error_tracking.apply_aggregate_row_errors,
+        "default": error_tracking.apply_aggregate_row_errors,
     },
 }
 

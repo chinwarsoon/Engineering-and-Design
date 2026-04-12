@@ -43,9 +43,10 @@ class IdentityDetector(BaseDetector):
     ERROR_ID_FORMAT_INVALID = "P2-I-V-0204"
     
     # Validation patterns
-    # Document_ID: PROJECT-FACILITY-TYPE-SEQUENCE (e.g., PRJ-FAC-DWG-0001)
+    # Document_ID: PROJECT-FACILITY-TYPE-DISCIPLINE-SEQUENCE (e.g., PRJ-FAC-DWG-ARC-0001)
+    # Also supports optional suffix (e.g., -0, -1, -5.1)
     DOC_ID_PATTERN = re.compile(
-        r'^[A-Z0-9]{3,6}-[A-Z0-9]{2,4}-[A-Z]{2,6}-\d{4}$'
+        r'^[A-Z0-9]{3,10}-[A-Z0-9]{2,10}-[A-Z]{2,10}-[A-Z]{2,10}-\d{4}(?:-[A-Z0-9.]+)?$'
     )
     
     def __init__(
@@ -75,25 +76,23 @@ class IdentityDetector(BaseDetector):
         context: Optional[Dict[str, Any]] = None
     ) -> List[DetectionResult]:
         """
-        Run all P2 identity validations.
-        
-        Args:
-            df: DataFrame to validate
-            context: Additional context
-            
-        Returns:
-            List of detection results
+        Run P2 identity validations for required columns.
         """
         self.clear_errors()
         
         if context:
             self.set_context(**context)
         
-        # Run detection methods
-        self._detect_uncertain_document_id(df)
-        self._detect_missing_revision(df)
-        self._detect_duplicate_transmittal(df)
-        self._detect_invalid_id_format(df)
+        # Run detection methods only for required columns
+        if "Document_ID" in self.required_identities:
+            self._detect_uncertain_document_id(df)
+            self._detect_invalid_id_format(df)
+            
+        if "Document_Revision" in self.required_identities:
+            self._detect_missing_revision(df)
+            
+        if "Transmittal_Number" in self.required_identities:
+            self._detect_duplicate_transmittal(df)
         
         return self.get_errors()
     

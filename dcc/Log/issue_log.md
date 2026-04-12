@@ -32,7 +32,27 @@
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-5-row-alignment)
 
-## 2026-04-12 21:40:00
-[Issue # 6]: Pipeline crashes with `FailFastError` when anchor columns (e.g., `Document_Sequence_Number`) contain null values. This prevents the generation of the diagnostic summary and dashboard JSON, making it harder for users to identify all problematic rows.
+## 2026-04-11 14:30:00
+[Issue # 7]: `aggregate/concatenate_unique` (and related) calculation handler in `aggregate.py` only supports `source_column` (singular), while the enhanced schema for `All_Approval_Code` uses `source_columns` (plural), causing the calculation to be skipped.
 - `[Status]`: Resolved
-- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-6-resilience)
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-150000)
+
+## 2026-04-11 14:30:00
+[Issue # 8]: Missing calculation handler for `error_tracking/aggregate_row_errors`. The `Validation_Errors` column is not being populated with the aggregated error messages because the handler is not registered in `registry.py`.
+- `[Status]`: Resolved
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-150000)
+
+## 2026-04-11 14:30:00
+[Issue # 9]: `Document_ID` format validation (P2-I-V-0204) fails for values like `131242-WST00-PP-PM-0001-0` because the expected pattern `PROJECT-FACILITY-TYPE-SEQUENCE` does not account for the optional revision suffix (e.g., `-0`) found in the source data.
+- `[Status]`: Resolved
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-150000)
+
+## 2026-04-11 15:45:00
+[Issue # 11]: Incorrect null reporting in `error_dashboard_data.json` for `First_Submission_Date` and `Document_Sequence_Number`. These were being flagged as CRITICAL null errors in Phase 1 (AnchorDetector) because they were mistakenly included in the `ANCHOR_COLUMNS` list, despite being calculated or populated in later phases.
+- `[Status]`: Resolved
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-155000)
+
+## 2026-04-11 16:30:00
+[Issue # 12]: `Document_ID uncertain (P2-I-P-0201)` errors reported prematurely in Phase 2. `Document_ID` is a P2.5 calculated column in the enhanced schema, but `IdentityDetector` was validating it during Phase 2 before the calculation was performed.
+- `[Status]`: Resolved
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-163500)

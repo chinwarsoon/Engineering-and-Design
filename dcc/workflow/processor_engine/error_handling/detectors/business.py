@@ -78,12 +78,24 @@ class BusinessDetector(BaseDetector):
             )
         )
         
-        # P2: Identity detector
+        # P2: Identity detector (Primary source columns)
+        # Exclude Document_ID if it is calculated in later phases
         self.register_phase_detector(
             ProcessingPhase.P2,
             IdentityDetector(
                 logger=self._logger,
-                enable_fail_fast=self._enable_fail_fast
+                enable_fail_fast=self._enable_fail_fast,
+                required_identities=["Document_Revision", "Document_Title", "Transmittal_Number"]
+            )
+        )
+
+        # P2.5: Identity detector (Calculated Document_ID)
+        self.register_phase_detector(
+            ProcessingPhase.P2_5,
+            IdentityDetector(
+                logger=self._logger,
+                enable_fail_fast=self._enable_fail_fast,
+                required_identities=["Document_ID"]
             )
         )
     

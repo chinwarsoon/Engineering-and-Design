@@ -28,16 +28,33 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
     """
     Performs standard grouping and aggregation (Min, Max, Sum, Count, Concatenate, etc.)
     """
+    # Support both singular and plural source columns
     source_column = calculation.get('source_column')
+    source_columns = calculation.get('source_columns', [])
+    
+    # If source_columns is provided but not source_column, use the first one as primary
+    # (for methods that only support one) or all of them for concatenation
+    if not source_column and source_columns:
+        source_column = source_columns[0]
+        
     method = calculation.get('method')
     group_by = calculation.get('group_by', [])
     sort_by = calculation.get('sort_by', [])
     separator = calculation.get('separator', ', ')
 
     if not source_column or source_column not in df.columns or not group_by:
-        return df
+        # Check if we have multiple valid source columns for concatenation
+        if method not in ['concatenate_unique', 'concatenate_unique_quoted'] or not source_columns:
+            return df
+        
+        # Ensure at least one source column exists
+        valid_sources = [c for c in source_columns if c in df.columns]
+        if not valid_sources:
+            return df
+        # Use first valid source as anchor for transformation
+        source_column = valid_sources[0]
 
-    engine._print_processing_step("Aggregate", column_name, f"{method} of {source_column} grouped by {group_by}")
+    engine._print_processing_step("Aggregate", column_name, f"{method} of {source_column if not source_columns else source_columns} grouped by {group_by}")
 
     # Initialize column if not exists
     if column_name not in df.columns:
@@ -77,6 +94,10 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
             grouped = df_sorted.groupby(group_by, dropna=False)
 
         def concat_unique(series):
+            # If we're operating on multiple columns, we need a different approach
+            # But transform() passes a Series. 
+            # If we have source_columns, we should have used apply() or handled it differently.
+            # For now, let's assume we want to concatenate values from ALL source_columns if provided.
             unique_vals = [str(val) for val in series.dropna().unique() if pd.notna(val)]
             try:
                 sorted_vals = sorted(unique_vals, key=lambda x: float(x))
@@ -84,8 +105,28 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
                 sorted_vals = sorted(unique_vals)
             return separator.join(sorted_vals)
 
-        calculated = grouped[source_column].transform(concat_unique)
-        df.loc[null_mask, column_name] = calculated[null_mask]
+        # If source_columns is plural, we need to handle it per group
+        if len(source_columns) > 1:
+            def group_concat_unique(group):
+                all_vals = []
+                for col in source_columns:
+                    if col in group.columns:
+                        all_vals.extend(group[col].dropna().unique())
+                unique_vals = [str(val) for val in set(all_vals) if pd.notna(val)]
+                try:
+                    sorted_vals = sorted(unique_vals, key=lambda x: float(x))
+                except (ValueError, TypeError):
+                    sorted_vals = sorted(unique_vals)
+                return separator.join(sorted_vals)
+            
+            # Map back to rows
+            calculated_map = grouped.apply(group_concat_unique)
+            df.loc[null_mask, column_name] = df.loc[null_mask, group_by].apply(
+                lambda row: calculated_map.get(tuple(row) if len(group_by) > 1 else row[group_by[0]]), axis=1
+            )
+        else:
+            calculated = grouped[source_column].transform(concat_unique)
+            df.loc[null_mask, column_name] = calculated[null_mask]
 
     elif method == 'concatenate_unique_quoted':
         if sort_by:
@@ -93,15 +134,33 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
             grouped = df_sorted.groupby(group_by, dropna=False)
 
         quote_each = calculation.get('quote_each', True)
-        def concat_unique_quoted(series):
-            unique_vals = [str(val) for val in series.dropna().unique() if pd.notna(val)]
-            sorted_vals = sorted(unique_vals)
-            if quote_each:
-                return separator.join(f'"{val}"' for val in sorted_vals)
-            return separator.join(sorted_vals)
+        
+        if len(source_columns) > 1:
+            def group_concat_quoted(group):
+                all_vals = []
+                for col in source_columns:
+                    if col in group.columns:
+                        all_vals.extend(group[col].dropna().unique())
+                unique_vals = [str(val) for val in set(all_vals) if pd.notna(val)]
+                sorted_vals = sorted(unique_vals)
+                if quote_each:
+                    return separator.join(f'"{val}"' for val in sorted_vals)
+                return separator.join(sorted_vals)
+            
+            calculated_map = grouped.apply(group_concat_quoted)
+            df.loc[null_mask, column_name] = df.loc[null_mask, group_by].apply(
+                lambda row: calculated_map.get(tuple(row) if len(group_by) > 1 else row[group_by[0]]), axis=1
+            )
+        else:
+            def concat_unique_quoted(series):
+                unique_vals = [str(val) for val in series.dropna().unique() if pd.notna(val)]
+                sorted_vals = sorted(unique_vals)
+                if quote_each:
+                    return separator.join(f'"{val}"' for val in sorted_vals)
+                return separator.join(sorted_vals)
 
-        calculated = grouped[source_column].transform(concat_unique_quoted)
-        df.loc[null_mask, column_name] = calculated[null_mask]
+            calculated = grouped[source_column].transform(concat_unique_quoted)
+            df.loc[null_mask, column_name] = calculated[null_mask]
 
     elif method == 'concatenate_dates':
         if sort_by:

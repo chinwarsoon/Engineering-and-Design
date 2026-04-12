@@ -50,6 +50,7 @@ from initiation_engine import (
     resolve_output_paths,
     validate_export_paths,
     log_context,
+    log_error,
     save_debug_log,
     build_native_defaults,
     resolve_effective_parameters,
@@ -305,7 +306,7 @@ def main() -> int:
         if args.json:
             print(json.dumps(payload, indent=2))
         else:
-            status_print(f"PIPELINE ERROR: {exc}")
+            log_error(f"PIPELINE ERROR: {exc}", module="pipeline")
             import traceback
             if debug_mode:
                 traceback.print_exc()

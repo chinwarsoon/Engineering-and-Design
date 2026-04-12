@@ -401,11 +401,14 @@ def _apply_schema_reference_validation(
                     if entry.get('status'):
                         excluded_values.add(entry.get('status'))
 
-            allowed_codes = [c for c in allowed_codes if c not in excluded_values]
+                allowed_codes = [str(c) for c in allowed_codes if c is not None]
 
-        mask = ~df[column_name].isin(allowed_codes)
+        mask = ~df[column_name].astype(str).isin(allowed_codes)
         if allow_null:
             mask &= df[column_name].notna()
+        
+        # Exclude 'NA' from being flagged as invalid if it's the standard placeholder
+        mask &= (df[column_name].astype(str) != 'NA')
         invalid_count = mask.sum()
         if invalid_count > 0:
             logger.warning(
@@ -439,6 +442,7 @@ def _get_schema_reference_allowed_codes(
     1. The explicitly requested `data_section` and `field_name`
     2. The schema's own `data_section` using the explicit field or `code`
     3. The first list containing dict rows with the explicit field or `code`
+    4. If the section is a list of scalars (not dicts), return it directly.
     """
     target_field = field_name or 'code'
     target_section = data_section or ref_data.get('data_section')
@@ -446,11 +450,29 @@ def _get_schema_reference_allowed_codes(
     if isinstance(target_section, str):
         rows = ref_data.get(target_section)
         if isinstance(rows, list):
-            return [
-                item.get(target_field)
-                for item in rows
-                if isinstance(item, dict) and item.get(target_field)
-            ]
+            # Case 1: List of dicts
+            if rows and isinstance(rows[0], dict):
+                return [
+                    str(item.get(target_field))
+                    for item in rows
+                    if isinstance(item, dict) and item.get(target_field) is not None
+                ]
+            # Case 2: List of scalars (e.g., department_schema choices)
+            else:
+                return [str(item) for item in rows if item is not None]
+
+    # Fallback: if no section specified, look for 'choices' or any list
+    if not target_section:
+        if isinstance(ref_data.get('choices'), list):
+            return [str(item) for item in ref_data['choices'] if item is not None]
+        
+        # Look for the first list in ref_data
+        for key, value in ref_data.items():
+            if isinstance(value, list) and value:
+                if isinstance(value[0], dict):
+                    return [str(item.get(target_field)) for item in value if isinstance(item, dict) and item.get(target_field) is not None]
+                else:
+                    return [str(item) for item in value if item is not None]
 
     return None
 

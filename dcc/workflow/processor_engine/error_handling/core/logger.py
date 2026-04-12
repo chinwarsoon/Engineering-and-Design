@@ -12,6 +12,14 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from pathlib import Path
 
+# Import centralized logging from initiation_engine
+try:
+    from initiation_engine import log_error as init_log_error
+    from initiation_engine import log_status as init_log_status
+    from initiation_engine import log_warning as init_log_warning
+    HAS_INITIATION_LOGGING = True
+except ImportError:
+    HAS_INITIATION_LOGGING = False
 
 class StructuredLogger:
     """
@@ -22,6 +30,8 @@ class StructuredLogger:
     - Structured context (row, column, phase, layer, error codes)
     - Severity levels
     - Machine-parseable format
+    
+    Bridges to initiation_engine's DEBUG_OBJECT for debug_log.json support.
     """
     
     _instance = None
@@ -73,18 +83,6 @@ class StructuredLogger:
     ) -> None:
         """
         Log an error with full structured context.
-        
-        Args:
-            error_code: Error code (e.g., "P-C-P-0101")
-            message: Human-readable message
-            row: Row index (if applicable)
-            column: Column name (if applicable)
-            phase: Processing phase (P1, P2, P2.5, P3)
-            layer: Validation layer (L1-L5)
-            severity: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-            context: Additional context dict
-            remediation_type: Type of remediation applied
-            exception: Original exception if available
         """
         extra = {
             "error_code": error_code,
@@ -118,7 +116,23 @@ class StructuredLogger:
         }
         level = level_map.get(severity, logging.ERROR)
         
+        # 1. Log to standard logger (stdout JSON)
         self._logger.log(level, message, extra={"structured": extra})
+        
+        # 2. Bridge to initiation_engine for debug_log.json
+        if HAS_INITIATION_LOGGING:
+            msg_with_code = f"[{error_code}] {message}"
+            if row is not None:
+                msg_with_code += f" (Row: {row+1})"
+            if column:
+                msg_with_code += f" (Col: {column})"
+                
+            init_log_error(
+                msg_with_code, 
+                module=extra.get("module", "processor"),
+                context=f"phase:{phase}, layer:{layer}, source:StructuredLogger",
+                fatal=False # Fail-fast is handled by the detector
+            )
     
     def log_phase_transition(
         self,
@@ -141,6 +155,12 @@ class StructuredLogger:
             f"Phase transition: {from_phase} -> {to_phase}",
             extra={"structured": extra}
         )
+        
+        if HAS_INITIATION_LOGGING:
+            init_log_status(
+                f"Phase transition: {from_phase} -> {to_phase}",
+                module="processor"
+            )
     
     def log_remediation(
         self,
