@@ -56,3 +56,8 @@
 [Issue # 12]: `Document_ID uncertain (P2-I-P-0201)` errors reported prematurely in Phase 2. `Document_ID` is a P2.5 calculated column in the enhanced schema, but `IdentityDetector` was validating it during Phase 2 before the calculation was performed.
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-163500)
+
+## 2026-04-11 16:35:00
+[Issue # 13]: Error code 0203 for duplicate transmittal_number should not apply since tranmittal_number can be duplicate in dimensional tables.
+ - `[Status]`: open
+ - `[Link to changes in update_log.md]`:
