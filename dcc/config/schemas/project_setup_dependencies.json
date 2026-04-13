@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project-setup-dependencies",
+  "title": "DCC Project Setup Dependencies Fragment",
+  "description": "Dependencies specification fragment for project setup",
+  "version": "2.0.0",
+  "type": "object",
+  "definitions": {
+    "engine_dependency": {
+      "type": "object",
+      "description": "Engine module dependency with required members",
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "Python module name"
+        },
+        "members": {
+          "type": "array",
+          "description": "Required classes/functions from this module",
+          "items": {"type": "string"}
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "Whether this dependency is optional",
+          "default": false
+        }
+      },
+      "required": ["module"]
+    },
+    "dependencies_config": {
+      "type": "object",
+      "description": "Complete dependencies configuration",
+      "properties": {
+        "required": {
+          "type": "array",
+          "description": "Required Python packages",
+          "items": {"type": "string"}
+        },
+        "optional": {
+          "type": "array",
+          "description": "Optional Python packages",
+          "items": {"type": "string"}
+        },
+        "engines": {
+          "type": "array",
+          "description": "Engine modules with their exports",
+          "items": {"$ref": "#/definitions/engine_dependency"}
+        }
+      }
+    }
+  },
+  "properties": {
+    "dependencies": {
+      "$ref": "#/definitions/dependencies_config"
+    }
+  }
+}

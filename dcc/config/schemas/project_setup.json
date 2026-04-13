@@ -1,565 +1,187 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project-setup",
   "title": "DCC Project Setup Validation Schema",
-  "description": "Schema for validating required folders and files for DCC project distribution and setup",
-  "version": "1.0.0",
+  "description": "Schema for validating required folders and files for DCC project distribution and setup. Optimized using fragment pattern per agent_rule.md Section 2.",
+  "version": "2.0.0",
   "type": "object",
+  "allOf": [
+    {"$ref": "project_setup_base.json"}
+  ],
+  "definitions": {
+    "folder_entry": {"$ref": "project_setup_structure.json#/definitions/folder_entry"},
+    "root_file_entry": {"$ref": "project_setup_structure.json#/definitions/root_file_entry"},
+    "file_entry": {"$ref": "project_setup_base.json#/definitions/file_entry"},
+    "typed_file_entry": {"$ref": "project_setup_base.json#/definitions/typed_file_entry"},
+    "python_module_entry": {"$ref": "project_setup_base.json#/definitions/python_module_entry"},
+    "path_entry": {"$ref": "project_setup_base.json#/definitions/path_entry"},
+    "pattern_rule": {"$ref": "project_setup_base.json#/definitions/pattern_rule"},
+    "validation_rule": {"$ref": "project_setup_base.json#/definitions/validation_rule"},
+    "environment_entry": {"$ref": "project_setup_environment.json#/definitions/environment_entry"},
+    "validation_rule_entry": {"$ref": "project_setup_validation.json#/definitions/validation_rule_entry"},
+    "dependencies_config": {"$ref": "project_setup_dependencies.json#/definitions/dependencies_config"}
+  },
   "properties": {
     "folders": {
-      "type": "array",
-      "description": "All required and optional directories for the DCC project",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Relative path of the folder from project root"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this folder is mandatory"
-          },
-          "purpose": {
-            "type": "string",
-            "description": "Description of the folder's purpose"
-          },
-          "auto_created": {
-            "type": "boolean",
-            "description": "Whether this folder is auto-created on first run"
-          }
-        },
-        "required": [
-          "name",
-          "required",
-          "purpose"
-        ]
-      }
+      "$ref": "project_setup_structure.json#/properties/folders"
     },
     "root_files": {
-      "type": "array",
-      "description": "Files required at the project root level",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Filename at root level"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this file is mandatory"
-          },
-          "purpose": {
-            "type": "string",
-            "description": "Description of the file's purpose"
-          },
-          "extension": {
-            "type": "string",
-            "enum": [
-              "yml",
-              "yaml",
-              "md",
-              "txt",
-              "py",
-              "json",
-              "other"
-            ],
-            "description": "File type extension"
-          }
-        },
-        "required": [
-          "name",
-          "required",
-          "purpose"
-        ]
-      }
+      "$ref": "project_setup_structure.json#/properties/root_files"
     },
     "schema_files": {
       "type": "array",
-      "description": "Required JSON schema definition files (located in config/schemas)",
-      "items": {
-        "type": "object",
-        "properties": {
-          "filename": {
-            "type": "string",
-            "description": "Schema filename"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this schema file is mandatory"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this schema file"
-          },
-          "approximate_size": {
-            "type": "string",
-            "description": "Expected approximate file size"
-          }
+      "description": "Required JSON schema definition files (located in config/schemas). Supports auto-discovery via discovery_rules.",
+      "items": {"$ref": "#/definitions/file_entry"}
+    },
+    "discovery_rules": {
+      "type": "array",
+      "description": "Pattern-based rules for auto-discovering schema files. See agent_rule.md Section 2.8",
+      "items": {"$ref": "#/definitions/pattern_rule"},
+      "default": [
+        {
+          "pattern": "*_schema.json",
+          "directory": "config/schemas",
+          "auto_register": true,
+          "category": "validation_schema",
+          "exclude_patterns": ["**/backup/**"]
         },
-        "required": [
-          "filename",
-          "required",
-          "description"
-        ]
-      }
+        {
+          "pattern": "**/error_handling/config/*.json",
+          "directory": "workflow",
+          "recursive": true,
+          "auto_register": true,
+          "category": "engine_schema"
+        }
+      ]
     },
     "workflow_files": {
       "type": "array",
       "description": "Required workflow notebooks and Python modules (located in workflow)",
       "items": {
+        "allOf": [
+          {"$ref": "#/definitions/typed_file_entry"}
+        ],
         "type": "object",
         "properties": {
-          "filename": {
-            "type": "string",
-            "description": "Workflow filename"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this workflow file is mandatory"
-          },
           "type": {
-            "type": "string",
-            "enum": [
-              "notebook",
-              "python_module",
-              "documentation"
-            ],
-            "description": "Type of workflow file"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this workflow file"
-          },
-          "approximate_size": {
-            "type": "string",
-            "description": "Expected approximate file size"
+            "enum": ["notebook", "python_module", "documentation"]
           }
-        },
-        "required": [
-          "filename",
-          "required",
-          "type",
-          "description"
-        ]
+        }
       }
     },
     "tool_files": {
       "type": "array",
       "description": "Required utility and setup script files (located in tools)",
       "items": {
+        "allOf": [
+          {"$ref": "#/definitions/python_module_entry"}
+        ],
         "type": "object",
         "properties": {
-          "filename": {
-            "type": "string",
-            "description": "Tool filename"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this tool file is mandatory"
-          },
           "type": {
-            "type": "string",
-            "enum": [
-              "python_script",
-              "shell_script",
-              "other"
-            ],
-            "description": "Type of tool file"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this tool file"
-          },
-          "main_functions": {
-            "type": "array",
-            "description": "Key functions provided by this tool",
-            "items": {
-              "type": "string"
-            }
+            "enum": ["python_script", "shell_script", "other"]
           }
-        },
-        "required": [
-          "filename",
-          "required",
-          "type",
-          "description"
-        ]
+        }
       }
     },
     "processor_engine": {
       "type": "array",
       "description": "Document processor engine modules (located in workflow/processor_engine)",
       "items": {
+        "allOf": [
+          {"$ref": "#/definitions/path_entry"}
+        ],
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "Relative path from workflow/processor_engine"
-          },
           "type": {
-            "type": "string",
-            "enum": [
-              "folder",
-              "python_module",
-              "documentation",
-              "init_file",
-              "test_file"
-            ],
-            "description": "Type of processor engine item"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this item is mandatory"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this module/file"
-          },
-          "main_functions": {
-            "type": "array",
-            "description": "Key functions/classes provided (for modules)",
-            "items": {
-              "type": "string"
-            }
+            "enum": ["folder", "python_module", "documentation", "init_file", "test_file"]
           }
-        },
-        "required": [
-          "path",
-          "type",
-          "required",
-          "description"
-        ]
+        }
       }
     },
     "mapper_engine": {
       "type": "array",
       "description": "Column mapper engine modules (located in workflow/mapper_engine)",
       "items": {
+        "allOf": [
+          {"$ref": "#/definitions/path_entry"}
+        ],
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "Relative path from workflow/mapper_engine"
-          },
           "type": {
-            "type": "string",
-            "enum": [
-              "folder",
-              "python_module",
-              "documentation",
-              "init_file"
-            ],
-            "description": "Type of mapper engine item"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this item is mandatory"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this module/file"
-          },
-          "main_functions": {
-            "type": "array",
-            "description": "Key functions/classes provided (for modules)",
-            "items": {
-              "type": "string"
-            }
+            "enum": ["folder", "python_module", "documentation", "init_file"]
           }
-        },
-        "required": [
-          "path",
-          "type",
-          "required",
-          "description"
-        ]
+        }
       }
     },
     "schema_validation": {
       "type": "array",
       "description": "Schema validation modules (located in workflow)",
       "items": {
+        "allOf": [
+          {"$ref": "#/definitions/python_module_entry"}
+        ],
         "type": "object",
         "properties": {
-          "filename": {
-            "type": "string",
-            "description": "Schema validation filename"
-          },
           "type": {
-            "type": "string",
-            "enum": [
-              "python_module"
-            ],
-            "description": "Type of schema validation item"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this item is mandatory"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this module"
-          },
-          "main_functions": {
-            "type": "array",
-            "description": "Key functions/classes provided",
-            "items": {
-              "type": "string"
-            }
+            "enum": ["python_module"]
           }
-        },
-        "required": [
-          "filename",
-          "type",
-          "required",
-          "description"
-        ]
+        }
       }
     },
     "schema_engine": {
       "type": "array",
       "description": "Schema engine modules (located in workflow/schema_engine)",
       "items": {
+        "allOf": [
+          {"$ref": "#/definitions/path_entry"}
+        ],
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "Relative path from workflow/schema_engine"
-          },
           "type": {
-            "type": "string",
-            "enum": [
-              "folder",
-              "python_module",
-              "documentation",
-              "init_file"
-            ],
-            "description": "Type of schema engine item"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this item is mandatory"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this module/file"
-          },
-          "main_functions": {
-            "type": "array",
-            "description": "Key functions/classes provided (for modules)",
-            "items": {
-              "type": "string"
-            }
+            "enum": ["folder", "python_module", "documentation", "init_file"]
           }
-        },
-        "required": [
-          "path",
-          "type",
-          "required",
-          "description"
-        ]
+        }
       }
     },
     "initiation_engine": {
       "type": "array",
       "description": "Initiation engine modules (located in workflow/initiation_engine)",
       "items": {
+        "allOf": [
+          {"$ref": "#/definitions/path_entry"}
+        ],
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "Relative path from workflow/initiation_engine"
-          },
           "type": {
-            "type": "string",
-            "enum": [
-              "folder",
-              "python_module",
-              "documentation",
-              "init_file"
-            ],
-            "description": "Type of initiation engine item"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this initiation engine item is required"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this initiation engine item"
-          },
-          "main_functions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Main functions/classes exposed by this module"
+            "enum": ["folder", "python_module", "documentation", "init_file"]
           }
-        },
-        "required": [
-          "path",
-          "type",
-          "required",
-          "description"
-        ]
+        }
       }
     },
     "reporting_engine": {
       "type": "array",
       "description": "Reporting engine modules (located in workflow/reporting_engine)",
       "items": {
+        "allOf": [
+          {"$ref": "#/definitions/path_entry"}
+        ],
         "type": "object",
         "properties": {
-          "path": {
-            "type": "string",
-            "description": "Relative path from workflow/reporting_engine"
-          },
           "type": {
-            "type": "string",
-            "enum": [
-              "folder",
-              "python_module",
-              "documentation",
-              "init_file"
-            ],
-            "description": "Type of reporting engine item"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this reporting engine item is required"
-          },
-          "description": {
-            "type": "string",
-            "description": "Purpose of this reporting engine item"
-          },
-          "main_functions": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Main functions/classes exposed by this module"
+            "enum": ["folder", "python_module", "documentation", "init_file"]
           }
-        },
-        "required": [
-          "path",
-          "type",
-          "required",
-          "description"
-        ]
+        }
       }
     },
     "environment": {
-      "type": "array",
-      "description": "Environment specifications for the project",
-      "items": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "Environment spec name or identifier"
-          },
-          "required": {
-            "type": "boolean",
-            "description": "Whether this environment spec is mandatory"
-          },
-          "file": {
-            "type": "string",
-            "description": "Environment specification filename"
-          },
-          "location": {
-            "type": "string",
-            "description": "Location relative to project root"
-          },
-          "setup_commands": {
-            "type": "array",
-            "description": "Commands to set up the environment",
-            "items": {
-              "type": "string"
-            }
-          },
-          "key_dependencies": {
-            "type": "array",
-            "description": "Key Python packages required",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "required": [
-          "name",
-          "required",
-          "file"
-        ]
-      }
+      "$ref": "project_setup_environment.json#/properties/environment"
     },
     "validation_rules": {
-      "type": "array",
-      "description": "Validation rule toggles for project setup checks",
-      "items": {
-        "type": "object",
-        "properties": {
-          "rule": {
-            "type": "string",
-            "description": "Name of the validation rule"
-          },
-          "enabled": {
-            "type": "boolean",
-            "description": "Whether this rule is active"
-          },
-          "description": {
-            "type": "string",
-            "description": "What this rule checks"
-          }
-        },
-        "required": [
-          "rule",
-          "enabled"
-        ]
-      }
+      "$ref": "project_setup_validation.json#/properties/validation_rules"
     },
     "dependencies": {
-      "type": "object",
-      "description": "Required and optional Python modules for the project",
-      "properties": {
-        "required": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "optional": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "engines": {
-          "type": "array",
-          "description": "Engine modules to verify",
-          "items": {
-            "type": "object",
-            "properties": {
-              "module": {
-                "type": "string"
-              },
-              "members": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                }
-              }
-            },
-            "required": [
-              "module",
-              "members"
-            ]
-          }
-        }
-      },
-      "required": [
-        "required"
-      ]
+      "$ref": "project_setup_dependencies.json#/properties/dependencies"
     }
   },
   "required": [
@@ -656,6 +278,84 @@
           "required": true,
           "description": "Status code definition and mappings (APP, REJ, PEN, etc.)",
           "approximate_size": "~1316B"
+        },
+        {
+          "filename": "facility_schema.json",
+          "required": true,
+          "description": "Facility code validation rules and mappings",
+          "approximate_size": "~350B"
+        },
+        {
+          "filename": "project_schema.json",
+          "required": true,
+          "description": "Project code definitions and validation rules",
+          "approximate_size": "~300B"
+        },
+        {
+          "filename": "calculation_strategies.json",
+          "required": true,
+          "description": "Column calculation strategies and formulas for derived fields",
+          "approximate_size": "~2KB"
+        },
+        {
+          "filename": "master_registry.json",
+          "required": true,
+          "description": "Master registry tracking all project submissions and document versions",
+          "approximate_size": "~5KB"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/taxonomy.json",
+          "required": true,
+          "description": "Error taxonomy - engine/module/function classification",
+          "approximate_size": "~311B"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/error_codes.json",
+          "required": true,
+          "description": "Error code registry with severity and remediation mappings",
+          "approximate_size": "~602B"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/anatomy_schema.json",
+          "required": true,
+          "description": "Error code anatomy validation (E-M-F-XXXX format)",
+          "approximate_size": "~153B"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/approval_workflow.json",
+          "required": true,
+          "description": "Suppression and overrule approval workflow definitions",
+          "approximate_size": "~222B"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/remediation_types.json",
+          "required": true,
+          "description": "Remediation strategy types (AUTO_FIX, MANUAL_FIX, etc.)",
+          "approximate_size": "~217B"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/status_lifecycle.json",
+          "required": true,
+          "description": "Error status state machine (OPEN, RESOLVED, ARCHIVED, etc.)",
+          "approximate_size": "~165B"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/suppression_rules.json",
+          "required": true,
+          "description": "Suppression rules for 'wrong but acceptable' scenarios",
+          "approximate_size": "~144B"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/messages/en.json",
+          "required": true,
+          "description": "English error messages and templates",
+          "approximate_size": "~125B"
+        },
+        {
+          "filename": "workflow/processor_engine/error_handling/config/messages/zh.json",
+          "required": false,
+          "description": "Chinese error messages and templates (i18n)",
+          "approximate_size": "~125B"
         }
       ],
       "workflow_files": [

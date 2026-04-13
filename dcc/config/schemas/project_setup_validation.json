@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project-setup-validation",
+  "title": "DCC Project Setup Validation Rules Fragment",
+  "description": "Validation rules fragment for project setup",
+  "version": "2.0.0",
+  "type": "object",
+  "definitions": {
+    "validation_rule_entry": {
+      "type": "object",
+      "description": "Individual validation rule configuration",
+      "properties": {
+        "rule": {
+          "type": "string",
+          "description": "Validation rule identifier"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this rule is active",
+          "default": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose of this validation rule"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"],
+          "default": "error",
+          "description": "Validation failure severity level"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Rule-specific configuration parameters"
+        }
+      },
+      "required": ["rule", "description"]
+    }
+  },
+  "properties": {
+    "validation_rules": {
+      "type": "array",
+      "description": "Validation rules for project setup",
+      "items": {"$ref": "#/definitions/validation_rule_entry"}
+    }
+  }
+}

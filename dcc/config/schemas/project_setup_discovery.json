@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project-setup-discovery",
+  "title": "DCC Project Setup Discovery Rules",
+  "description": "Pattern-based discovery rules for auto-registering schema files",
+  "version": "2.0.0",
+  "type": "object",
+  "allOf": [
+    {"$ref": "project_setup_base.json"}
+  ],
+  "properties": {
+    "discovery_rules": {
+      "type": "array",
+      "description": "Pattern-based rules for auto-discovering and registering schema files",
+      "items": {"$ref": "project_setup_base.json#/definitions/pattern_rule"},
+      "default": [
+        {
+          "pattern": "*_schema.json",
+          "directory": "config/schemas",
+          "recursive": false,
+          "auto_register": true,
+          "category": "validation_schema",
+          "exclude_patterns": ["**/backup/**"]
+        },
+        {
+          "pattern": "*_types.json",
+          "directory": "config/schemas",
+          "recursive": false,
+          "auto_register": true,
+          "category": "type_definition"
+        },
+        {
+          "pattern": "**/error_handling/config/*.json",
+          "directory": "workflow",
+          "recursive": true,
+          "auto_register": true,
+          "category": "engine_schema",
+          "exclude_patterns": ["**/messages/**"]
+        },
+        {
+          "pattern": "**/messages/*.json",
+          "directory": "workflow",
+          "recursive": true,
+          "auto_register": false,
+          "category": "i18n_messages"
+        },
+        {
+          "pattern": "calculation_*.json",
+          "directory": "config/schemas",
+          "recursive": false,
+          "auto_register": true,
+          "category": "calculation_strategy"
+        },
+        {
+          "pattern": "master_*.json",
+          "directory": "config/schemas",
+          "recursive": false,
+          "auto_register": true,
+          "category": "registry"
+        }
+      ]
+    },
+    "discovery_settings": {
+      "type": "object",
+      "description": "Global settings for pattern-based discovery",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether auto-discovery is enabled",
+          "default": true
+        },
+        "strict_mode": {
+          "type": "boolean",
+          "description": "Fail if discovered file doesn't match expected structure",
+          "default": false
+        },
+        "cache_discovered": {
+          "type": "boolean",
+          "description": "Cache discovered files to avoid re-scanning",
+          "default": true
+        },
+        "discovery_ttl_seconds": {
+          "type": "integer",
+          "description": "Time-to-live for discovery cache",
+          "default": 3600
+        }
+      }
+    }
+  }
+}

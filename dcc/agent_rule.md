@@ -1,4 +1,4 @@
-# data columns:
+# Section 1. data columns:
 1. sort column is not allowed before forward fill.
 2. forward fill shall not overwrite existing values.
 3. always check if there are duplicate columns in data frame.
@@ -23,23 +23,30 @@
   - Validate Priority 2: Ensure every document has an ID and a Revision.
   - Calculate Priority 3: Run the logic from submission_closed_schema.json to determine which rows are RESUBMITTED, PEN, or YES/NO.
 
-# Schema:
+# Section 2. Schema:
 1. always check and enure compliance with schema standard.
-2. when create a schema, alway consider a flat schema structure, use array of objects, and do not use array of list.
+2. when create a schema, alway consider a flat schema structure, use array of objects, and avoid using array of list.
+3. use project_setup.json as main entry point for schema configuration. all schema files should be referenced in project_setup.json.
+4. schema loader must support different types of $ref (string, object, nested object, recursive, etc.)
+5. adopt schema fragment pattern for better maintainability and reusability always.
+6. implement inheritance (base + project) pattern for better maintainability and reusability always.
+7. use 'Definitions' for repetitive objects.
+8. use pattern-based discovery rule for organizing schema files.
 
-# files and context:
+
+# Section 3. files and context:
 1. ignore files under any backup folder.
 2. ignore dot .folders and dot .files.
 3. ignore md files.
 4. ignore test folders
 
-# Moudle design:
+# Section 4. Moudle design:
 1. always consider module design for functions and classes.
 
-# Function coding:
+# Section 5. Function coding:
 1. For each function, add standardized docstrings explianing the function, and breadcrumb comments tracing parameters.
 
-# Debug and logging:
+# Section 6. Debug and logging:
 1. Always use tiered logging strategy.
    - categorized logging for different severity levels
    - level 0: silent / only errors; level 1: status/info, level 2: warning, level 3: error
