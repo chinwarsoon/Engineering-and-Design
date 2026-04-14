@@ -12,12 +12,39 @@ from typing import Dict, Any, Set, List, Optional
 
 from ..utils.paths import safe_resolve
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print, log_error
-
 # Import RefResolver and SchemaDependencyGraph for enhanced functionality
 from .ref_resolver import RefResolver, SchemaNotRegisteredError, RefResolutionError
 from .dependency_graph import SchemaDependencyGraph, CircularDependencyError
+
+# Lazy imports to break circular dependency with initiation_engine
+# These wrapper functions only import when actually called
+_status_print = None
+_debug_print = None
+_log_error = None
+
+def status_print(msg: str) -> None:
+    """Print status message (lazy import)."""
+    global _status_print
+    if _status_print is None:
+        from initiation_engine import status_print as sp
+        _status_print = sp
+    _status_print(msg)
+
+def debug_print(msg: str, level: int = 1) -> None:
+    """Print debug message (lazy import)."""
+    global _debug_print
+    if _debug_print is None:
+        from initiation_engine import debug_print as dp
+        _debug_print = dp
+    _debug_print(msg, level)
+
+def log_error(msg: str, module: str = "", function: str = "", fatal: bool = True):
+    """Log error message (lazy import)."""
+    global _log_error
+    if _log_error is None:
+        from initiation_engine import log_error as le
+        _log_error = le
+    _log_error(msg, module, function, fatal)
 
 
 class SchemaLoader:

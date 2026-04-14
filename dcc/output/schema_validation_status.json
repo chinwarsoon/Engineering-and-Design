@@ -1,36 +1,14 @@
 {
   "main_schema_path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json",
-  "ready": true,
-  "errors": [],
+  "ready": false,
+  "errors": [
+    "Referenced schema file not found: object"
+  ],
   "dependency_cycle": [],
   "tracked_files": [
     {
       "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json",
-      "mtime_ns": 1775983007727377481
-    },
-    {
-      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/project_schema.json",
-      "mtime_ns": 1775378432461145268
-    },
-    {
-      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/facility_schema.json",
-      "mtime_ns": 1775294551416176073
-    },
-    {
-      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/department_schema.json",
-      "mtime_ns": 1775917671382841549
-    },
-    {
-      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/discipline_schema.json",
-      "mtime_ns": 1775294513843972383
-    },
-    {
-      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/document_type_schema.json",
-      "mtime_ns": 1775294518618010466
-    },
-    {
-      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/approval_code_schema.json",
-      "mtime_ns": 1775294258221915385
+      "mtime_ns": 1776175797716597577
     }
   ]
 }

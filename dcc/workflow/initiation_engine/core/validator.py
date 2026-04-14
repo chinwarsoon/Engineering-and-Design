@@ -19,7 +19,7 @@ from .reports import format_report
 from ..utils.logging import log_context, log_status, log_error, trace_parameter, status_print
 
 # Import RefResolver for schema $ref resolution (Phase F)
-from ...schema_engine.loader.ref_resolver import RefResolver, RefResolutionError
+from workflow.schema_engine.loader.ref_resolver import RefResolver, RefResolutionError
 
 
 class ProjectSetupValidator:
@@ -166,10 +166,9 @@ class ProjectSetupValidator:
             if resolver:
                 try:
                     # Resolve registry $ref to get configuration from master_registry.json
-                    registry_config = resolver.resolve_ref(
-                        "https://dcc-pipeline.internal/schemas/master-registry",
-                        document,
-                        ""
+                    registry_config = resolver.resolve(
+                        {"$ref": "https://dcc-pipeline.internal/schemas/master-registry"},
+                        document
                     )
                     if registry_config and "default" in registry_config:
                         defaults = registry_config["default"]

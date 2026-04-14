@@ -10,8 +10,8 @@
     {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base"}
   ],
   "definitions": {
-    "folder_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/definitions/folder_entry"},
-    "root_file_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/definitions/root_file_entry"},
+    "folder_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/folder_entry"},
+    "root_file_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/root_file_entry"},
     "file_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/file_entry"},
     "typed_file_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/typed_file_entry"},
     "python_module_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/python_module_entry"},
@@ -23,171 +23,22 @@
     "dependencies_config": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-dependencies#/definitions/dependencies_config"}
   },
   "properties": {
-    "folders": {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/folders"
-    },
-    "root_files": {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/root_files"
-    },
-    "schema_files": {
-      "type": "array",
-      "description": "Required JSON schema definition files (located in config/schemas). Supports auto-discovery via discovery_rules.",
-      "items": {"$ref": "#/definitions/file_entry"}
-    },
-    "discovery_rules": {
-      "type": "array",
-      "description": "Pattern-based rules for auto-discovering schema files. See agent_rule.md Section 2.8",
-      "items": {"$ref": "#/definitions/pattern_rule"},
-      "default": [
-        {
-          "pattern": "*_schema.json",
-          "directory": "config/schemas",
-          "auto_register": true,
-          "category": "validation_schema",
-          "exclude_patterns": ["**/backup/**"]
-        },
-        {
-          "pattern": "**/error_handling/config/*.json",
-          "directory": "workflow",
-          "recursive": true,
-          "auto_register": true,
-          "category": "engine_schema"
-        }
-      ]
-    },
-    "workflow_files": {
-      "type": "array",
-      "description": "Required workflow notebooks and Python modules (located in workflow)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/typed_file_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["notebook", "python_module", "documentation"]
-          }
-        }
-      }
-    },
-    "tool_files": {
-      "type": "array",
-      "description": "Required utility and setup script files (located in tools)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/python_module_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["python_script", "shell_script", "other"]
-          }
-        }
-      }
-    },
-    "processor_engine": {
-      "type": "array",
-      "description": "Document processor engine modules (located in workflow/processor_engine)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/path_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["folder", "python_module", "documentation", "init_file", "test_file"]
-          }
-        }
-      }
-    },
-    "mapper_engine": {
-      "type": "array",
-      "description": "Column mapper engine modules (located in workflow/mapper_engine)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/path_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["folder", "python_module", "documentation", "init_file"]
-          }
-        }
-      }
-    },
-    "schema_validation": {
-      "type": "array",
-      "description": "Schema validation modules (located in workflow)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/python_module_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["python_module"]
-          }
-        }
-      }
-    },
-    "schema_engine": {
-      "type": "array",
-      "description": "Schema engine modules (located in workflow/schema_engine)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/path_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["folder", "python_module", "documentation", "init_file"]
-          }
-        }
-      }
-    },
-    "initiation_engine": {
-      "type": "array",
-      "description": "Initiation engine modules (located in workflow/initiation_engine)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/path_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["folder", "python_module", "documentation", "init_file"]
-          }
-        }
-      }
-    },
-    "reporting_engine": {
-      "type": "array",
-      "description": "Reporting engine modules (located in workflow/reporting_engine)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/path_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["folder", "python_module", "documentation", "init_file"]
-          }
-        }
-      }
-    },
-    "environment": {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-environment#/properties/environment"
-    },
-    "validation_rules": {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-validation#/properties/validation_rules"
-    },
-    "dependencies": {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-dependencies#/properties/dependencies"
-    },
-    "registry": {
-      "description": "Master registry reference containing project configuration, document types, tools, and workflows",
-      "$ref": "https://dcc-pipeline.internal/schemas/master-registry"
-    }
+    "folders": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/folders"},
+    "root_files": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/root_files"},
+    "schema_files": {"$ref": "https://dcc-pipeline.internal/schemas/project#/definitions/schema_files_config"},
+    "discovery_rules": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-discovery#/properties/discovery_rules"},
+    "workflow_files": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/workflow_files"},
+    "tool_files": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/tool_files"},
+    "processor_engine": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/processor_engine"},
+    "mapper_engine": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/mapper_engine"},
+    "schema_validation": {"$ref": "https://dcc-pipeline.internal/schemas/project#/properties/schema_validation"},
+    "schema_engine": {"$ref": "https://dcc-pipeline.internal/schemas/project#/properties/schema_engine"},
+    "initiation_engine": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/initiation_engine"},
+    "reporting_engine": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/reporting_engine"},
+    "environment": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-environment#/properties/environment"},
+    "validation_rules": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-validation#/properties/validation_rules"},
+    "dependencies": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-dependencies#/properties/dependencies"},
+    "registry": {"$ref": "https://dcc-pipeline.internal/schemas/master-registry#/properties/registry"}
   },
   "required": [
     "version",

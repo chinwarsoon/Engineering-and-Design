@@ -13,8 +13,25 @@ from typing import Dict, Any, Set, List, Optional, Iterator
 
 from .ref_resolver import RefResolver, RefResolutionError
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+# Lazy imports to break circular dependency with initiation_engine
+_status_print = None
+_debug_print = None
+
+def status_print(msg: str) -> None:
+    """Print status message (lazy import)."""
+    global _status_print
+    if _status_print is None:
+        from initiation_engine import status_print as sp
+        _status_print = sp
+    _status_print(msg)
+
+def debug_print(msg: str, level: int = 1) -> None:
+    """Print debug message (lazy import)."""
+    global _debug_print
+    if _debug_print is None:
+        from initiation_engine import debug_print as dp
+        _debug_print = dp
+    _debug_print(msg, level)
 
 
 class CircularDependencyError(Exception):

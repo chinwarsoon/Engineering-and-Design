@@ -3,7 +3,109 @@
   "$id": "https://dcc-pipeline.internal/schemas/project",
   "type": "object",
   "additionalProperties": false,
+  "definitions": {
+    "file_entry": {
+      "type": "object",
+      "description": "Generic file entry with common metadata",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "description": "Filename or relative path"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this file is mandatory"
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose of this file"
+        },
+        "approximate_size": {
+          "type": "string",
+          "description": "Expected approximate file size"
+        }
+      },
+      "required": ["filename", "required", "description"]
+    },
+    "schema_files_config": {
+      "type": "array",
+      "description": "Required JSON schema definition files (located in config/schemas). Supports auto-discovery via discovery_rules.",
+      "items": {"$ref": "#/definitions/file_entry"},
+      "default": [
+        {
+          "filename": "master_registry.json",
+          "required": true,
+          "description": "Master registry containing project configuration, document types, tools, workflows, and environment settings"
+        },
+        {
+          "filename": "project_setup.json",
+          "required": true,
+          "description": "Main project setup schema - universal entry point for all configuration"
+        },
+        {
+          "filename": "project_setup_base.json",
+          "required": true,
+          "description": "Base fragment schema with reusable definitions"
+        },
+        {
+          "filename": "project_setup_structure.json",
+          "required": true,
+          "description": "Fragment schema for project structure (folders and root files)"
+        },
+        {
+          "filename": "project_setup_discovery.json",
+          "required": true,
+          "description": "Fragment schema for pattern-based discovery rules"
+        },
+        {
+          "filename": "project_setup_environment.json",
+          "required": true,
+          "description": "Fragment schema for environment specifications"
+        },
+        {
+          "filename": "project_setup_validation.json",
+          "required": true,
+          "description": "Fragment schema for validation rules"
+        },
+        {
+          "filename": "project_setup_dependencies.json",
+          "required": true,
+          "description": "Fragment schema for dependency management"
+        }
+      ]
+    }
+  },
   "properties": {
+    "schema_validation": {
+      "type": "array",
+      "description": "Schema validation modules (located in workflow)",
+      "items": {
+        "allOf": [
+          {"$ref": "#/definitions/python_module_entry"}
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": ["python_module"]
+          }
+        }
+      }
+    },
+    "schema_engine": {
+      "type": "array",
+      "description": "Schema engine modules (located in workflow/schema_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": ["folder", "python_module", "documentation", "init_file"]
+          }
+        }
+      }
+    },
     "schema_name": {"type": "string"},
     "type": {"type": "string"},
     "data_section": {"type": "string"},

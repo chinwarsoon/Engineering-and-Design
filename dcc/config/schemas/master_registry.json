@@ -6,6 +6,10 @@
   "description": "Master registry containing project configuration, document types, tools, workflows, and environment settings. Provides default configuration for project_setup.json.",
   "additionalProperties": false,
   "properties": {
+    "registry": {
+      "description": "Master registry reference containing project configuration, document types, tools, and workflows",
+      "$ref": "#"
+    },
     "version": {
       "type": "string",
       "description": "Registry version",
@@ -261,9 +265,9 @@
                 {"file": "approval_code_schema.json", "description": "Status code mapping", "required": true}
             ],
             "workflow": [
-                {"file": "universal_document_processor.py", "description": "Schema-driven processing engine", "required": true},
-                {"file": "universal_column_mapper.py", "description": "Column name mapping utility", "required": true},
-                {"file": "dcc_register_main.ipynb", "description": "Main orchestration notebook", "required": true}
+                {"file": "universal_document_processor.py", "description": "Schema-driven processing engine", "required": false},
+                {"file": "universal_column_mapper.py", "description": "Column name mapping utility", "required": false},
+                {"file": "dcc_register_main.ipynb", "description": "Main orchestration notebook", "required": false}
             ]
         },
         "optional_patterns": {

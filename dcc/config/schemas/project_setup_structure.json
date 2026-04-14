@@ -2,72 +2,113 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dcc-pipeline.internal/schemas/project-setup-structure",
   "title": "DCC Project Setup Structure Fragment",
-  "description": "Project structure fragment for folders and root files",
+  "description": "Project structure fragment for folders and root files. References definitions from project_setup_base.json",
   "version": "2.0.0",
   "type": "object",
+  "allOf": [
+    {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base"}
+  ],
   "additionalProperties": false,
-  "definitions": {
-    "folder_entry": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "Folder/directory entry",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Relative path of the folder from project root"
-        },
-        "required": {
-          "type": "boolean",
-          "description": "Whether this folder is mandatory"
-        },
-        "purpose": {
-          "type": "string",
-          "description": "Description of the folder's purpose"
-        },
-        "auto_created": {
-          "type": "boolean",
-          "description": "Whether this folder is auto-created on first run",
-          "default": false
-        }
-      },
-      "required": ["name", "required", "purpose"]
-    },
-    "root_file_entry": {
-      "type": "object",
-      "additionalProperties": false,
-      "description": "File at project root level",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Filename at root level"
-        },
-        "required": {
-          "type": "boolean",
-          "description": "Whether this file is mandatory"
-        },
-        "purpose": {
-          "type": "string",
-          "description": "Description of the file's purpose"
-        },
-        "extension": {
-          "type": "string",
-          "enum": ["yml", "yaml", "md", "txt", "py", "json", "other"],
-          "description": "File type extension"
-        }
-      },
-      "required": ["name", "required", "purpose"]
-    }
-  },
   "properties": {
     "folders": {
       "type": "array",
       "description": "All required and optional directories for the DCC project",
-      "items": {"$ref": "#/definitions/folder_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/folder_entry"}
     },
     "root_files": {
       "type": "array",
       "description": "Files required at the project root level",
-      "items": {"$ref": "#/definitions/root_file_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/root_file_entry"}
+    },
+    "workflow_files": {
+      "type": "array",
+      "description": "Required workflow notebooks and Python modules (located in workflow)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/typed_file_entry"}
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": ["notebook", "python_module", "documentation"]
+          }
+        }
+      }
+    },
+    "tool_files": {
+      "type": "array",
+      "description": "Required utility and setup script files (located in tools)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/python_module_entry"}
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": ["python_script", "shell_script", "other"]
+          }
+        }
+      }
+    },
+    "processor_engine": {
+      "type": "array",
+      "description": "Document processor engine modules (located in workflow/processor_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": ["folder", "python_module", "documentation", "init_file", "test_file"]
+          }
+        }
+      }
+    },
+    "mapper_engine": {
+      "type": "array",
+      "description": "Column mapper engine modules (located in workflow/mapper_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": ["folder", "python_module", "documentation", "init_file"]
+          }
+        }
+      }
+    },
+    "initiation_engine": {
+      "type": "array",
+      "description": "Initiation engine modules (located in workflow/initiation_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": ["folder", "python_module", "documentation", "init_file"]
+          }
+        }
+      }
+    },
+    "reporting_engine": {
+      "type": "array",
+      "description": "Reporting engine modules (located in workflow/reporting_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": ["folder", "python_module", "documentation", "init_file"]
+          }
+        }
+      }
     }
   }
 }

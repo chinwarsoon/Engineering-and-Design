@@ -162,6 +162,56 @@
         }
       },
       "required": ["module"]
+    },
+    "folder_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Folder/directory entry",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Relative path of the folder from project root"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this folder is mandatory"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Description of the folder's purpose"
+        },
+        "auto_created": {
+          "type": "boolean",
+          "description": "Whether this folder is auto-created on first run",
+          "default": false
+        }
+      },
+      "required": ["name", "required", "purpose"]
+    },
+    "root_file_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "File at project root level",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Filename at root level"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this file is mandatory"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Description of the file's purpose"
+        },
+        "extension": {
+          "type": "string",
+          "enum": ["yml", "yaml", "md", "txt", "py", "json", "other"],
+          "description": "File type extension"
+        }
+      },
+      "required": ["name", "required", "purpose"]
     }
   },
   "properties": {

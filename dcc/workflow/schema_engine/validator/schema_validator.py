@@ -94,6 +94,13 @@ class SchemaValidator:
         recursion_stack.append(resolved_current_path)
 
         for ref_name, ref_path in current_schema.get("schema_references", {}).items():
+            # Skip schema definition metadata (type, additionalProperties, properties, etc.)
+            # These are keys that define the schema structure, not actual schema references
+            if ref_name in ("type", "additionalProperties", "properties", "description", "title"):
+                continue
+            # Skip non-string ref_paths (e.g., complex schema definitions)
+            if not isinstance(ref_path, str):
+                continue
             resolved_path = self.loader._resolve_reference_path(ref_path)
             reference_result: Dict[str, Any] = {
                 "reference": ref_name,

@@ -17,6 +17,19 @@
 6. **Structural Integrity**: Resolved structural errors in `project_setup.json` and ensured consistent Draft 7 compliance across the entire schema ecosystem.
 7. **Documentation**: Regenerated `dcc/config/README.md` with comprehensive schema framework details, dependency correlations, and developer policies.
 
+<a id="schema-definitions-consolidation"></a>
+## 2026-04-14 22:55:00
+1. **Schema Definitions Consolidation** - Moved all common definitions to `project_setup_base.json`
+2. **Added to project_setup_base.json:**
+   - `folder_entry` - Folder/directory entry definition (moved from project_setup_structure.json)
+   - `root_file_entry` - Root file entry definition (moved from project_setup_structure.json)
+3. **Updated project_setup_structure.json:**
+   - Removed local `folder_entry` and `root_file_entry` definitions
+   - Added `allOf` reference to `project-setup-base` for inheritance
+   - Updated `$ref` pointers to use base definitions
+4. **Compliance:** Follows agent_rule.md Section 2.6 inheritance pattern (base + fragments)
+5. **Impact:** Single source of truth for common definitions, reduced duplication across fragment schemas
+
 <a id="issue-1-phase-f"></a>
 ## 2026-04-14 21:10:00
 1. Phase F (master_registry.json Integration) **COMPLETED** for [Issue #1](issue_log.md#issue-1): Recursive Schema Loader.

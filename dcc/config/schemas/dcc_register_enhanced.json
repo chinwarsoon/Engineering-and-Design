@@ -11,8 +11,8 @@
       "type": {"type": "string"},
       "path": {"type": "string"},
       "cell_id": {"type": "string"}
-    },
-...
+    }
+  },
   "schema_references": {
     "type": "object",
     "additionalProperties": false,
@@ -23,12 +23,11 @@
       "discipline_schema": {"type": "string"},
       "document_type_schema": {"type": "string"},
       "approval_code_schema": {"type": "string"}
-    },
-...
+    }
+  },
   "parameters": {
     "type": "object",
     "additionalProperties": false,
-...
     "fail_fast": false,
     "debug_dev_mode": false,
     "is_colab": false,

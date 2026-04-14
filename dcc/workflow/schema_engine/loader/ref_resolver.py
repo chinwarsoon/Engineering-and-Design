@@ -18,8 +18,25 @@ from collections import deque
 
 from ..utils.paths import safe_resolve
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+# Lazy imports to break circular dependency with initiation_engine
+_status_print = None
+_debug_print = None
+
+def status_print(msg: str) -> None:
+    """Print status message (lazy import)."""
+    global _status_print
+    if _status_print is None:
+        from initiation_engine import status_print as sp
+        _status_print = sp
+    _status_print(msg)
+
+def debug_print(msg: str, level: int = 1) -> None:
+    """Print debug message (lazy import)."""
+    global _debug_print
+    if _debug_print is None:
+        from initiation_engine import debug_print as dp
+        _debug_print = dp
+    _debug_print(msg, level)
 
 
 class SchemaNotRegisteredError(Exception):
@@ -138,7 +155,11 @@ class RefResolver:
         """
         Extract schema catalog from project_setup.json.
         
-        Breadcrumb: project_setup → schema_files → normalized_registry
+        Handles both:
+        1. Instance files: {"schema_files": [{"filename": "..."}]}
+        2. Schema files: {"properties": {"schema_files": {"default": [{"filename": "..."}]}}}
+        
+        Breadcrumb: project_setup → schema_files|properties.schema_files.default → normalized_registry
         
         Returns:
             Dict mapping schema name (stem) to registration metadata
@@ -147,7 +168,15 @@ class RefResolver:
         in project_setup.json.
         """
         registry = {}
+        
+        # Case 1: Direct schema_files array (instance file)
         schema_files = self.project_setup.get("schema_files", [])
+        
+        # Case 2: Schema with default values (schema file)
+        if not schema_files and "$schema" in self.project_setup:
+            properties = self.project_setup.get("properties", {})
+            schema_files_def = properties.get("schema_files", {})
+            schema_files = schema_files_def.get("default", [])
         
         for entry in schema_files:
             filename = entry.get("filename", "")

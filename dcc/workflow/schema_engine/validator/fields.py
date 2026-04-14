@@ -10,8 +10,16 @@ from typing import Dict, Any, List, Set
 
 from ..utils.paths import safe_resolve
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print
+# Lazy import to break circular dependency with initiation_engine
+_status_print = None
+
+def status_print(msg: str) -> None:
+    """Print status message (lazy import)."""
+    global _status_print
+    if _status_print is None:
+        from initiation_engine import status_print as sp
+        _status_print = sp
+    _status_print(msg)
 
 logger = logging.getLogger(__name__)
 
