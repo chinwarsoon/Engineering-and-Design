@@ -6,13 +6,13 @@
   "version": "2.0.0",
   "type": "object",
   "allOf": [
-    {"$ref": "project_setup_base.json"}
+    {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base"}
   ],
   "properties": {
     "discovery_rules": {
       "type": "array",
       "description": "Pattern-based rules for auto-discovering and registering schema files",
-      "items": {"$ref": "project_setup_base.json#/definitions/pattern_rule"},
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/pattern_rule"},
       "default": [
         {
           "pattern": "*_schema.json",

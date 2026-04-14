@@ -5,28 +5,29 @@
   "description": "Schema for validating required folders and files for DCC project distribution and setup. Optimized using fragment pattern per agent_rule.md Section 2.",
   "version": "2.0.0",
   "type": "object",
+  "additionalProperties": false,
   "allOf": [
-    {"$ref": "project_setup_base.json"}
+    {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base"}
   ],
   "definitions": {
-    "folder_entry": {"$ref": "project_setup_structure.json#/definitions/folder_entry"},
-    "root_file_entry": {"$ref": "project_setup_structure.json#/definitions/root_file_entry"},
-    "file_entry": {"$ref": "project_setup_base.json#/definitions/file_entry"},
-    "typed_file_entry": {"$ref": "project_setup_base.json#/definitions/typed_file_entry"},
-    "python_module_entry": {"$ref": "project_setup_base.json#/definitions/python_module_entry"},
-    "path_entry": {"$ref": "project_setup_base.json#/definitions/path_entry"},
-    "pattern_rule": {"$ref": "project_setup_base.json#/definitions/pattern_rule"},
-    "validation_rule": {"$ref": "project_setup_base.json#/definitions/validation_rule"},
-    "environment_entry": {"$ref": "project_setup_environment.json#/definitions/environment_entry"},
-    "validation_rule_entry": {"$ref": "project_setup_validation.json#/definitions/validation_rule_entry"},
-    "dependencies_config": {"$ref": "project_setup_dependencies.json#/definitions/dependencies_config"}
+    "folder_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/definitions/folder_entry"},
+    "root_file_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/definitions/root_file_entry"},
+    "file_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/file_entry"},
+    "typed_file_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/typed_file_entry"},
+    "python_module_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/python_module_entry"},
+    "path_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"},
+    "pattern_rule": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/pattern_rule"},
+    "validation_rule": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_rule"},
+    "environment_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-environment#/definitions/environment_entry"},
+    "validation_rule_entry": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-validation#/definitions/validation_rule_entry"},
+    "dependencies_config": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-dependencies#/definitions/dependencies_config"}
   },
   "properties": {
     "folders": {
-      "$ref": "project_setup_structure.json#/properties/folders"
+      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/folders"
     },
     "root_files": {
-      "$ref": "project_setup_structure.json#/properties/root_files"
+      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/root_files"
     },
     "schema_files": {
       "type": "array",
@@ -175,13 +176,13 @@
       }
     },
     "environment": {
-      "$ref": "project_setup_environment.json#/properties/environment"
+      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-environment#/properties/environment"
     },
     "validation_rules": {
-      "$ref": "project_setup_validation.json#/properties/validation_rules"
+      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-validation#/properties/validation_rules"
     },
     "dependencies": {
-      "$ref": "project_setup_dependencies.json#/properties/dependencies"
+      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-dependencies#/properties/dependencies"
     }
   },
   "required": [

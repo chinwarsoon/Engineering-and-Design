@@ -5,9 +5,11 @@
   "description": "Dependencies specification fragment for project setup",
   "version": "2.0.0",
   "type": "object",
+  "additionalProperties": false,
   "definitions": {
     "engine_dependency": {
       "type": "object",
+      "additionalProperties": false,
       "description": "Engine module dependency with required members",
       "properties": {
         "module": {
@@ -29,6 +31,7 @@
     },
     "dependencies_config": {
       "type": "object",
+      "additionalProperties": false,
       "description": "Complete dependencies configuration",
       "properties": {
         "required": {

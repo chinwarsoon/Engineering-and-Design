@@ -7,6 +7,14 @@
 
 # Section 2. Log entries
 
+<a id="unified-schema-registry"></a>
+## 2026-04-14 11:30:00
+1. **Unified Schema Registry**: Applied `$schema` and URI-based `$id` (e.g., `https://dcc-pipeline.internal/schemas/...`) to 15+ JSON schema files across `config/schemas/` and `error_handling/config/`.
+2. **Schema Reference Refactoring**: Updated all `$ref` pointers to use absolute URIs instead of relative file paths, enabling centralized schema resolution and improving portability.
+3. **Strict Validation Control**: Applied `additionalProperties: false` to all key object definitions in base schemas, fragment schemas, data lookup schemas, and error handling configurations.
+4. **Data Schema Alignment**: Standardized `type: "object"` and explicit `properties` definitions for data lookup schemas (Department, Discipline, Facility, etc.) to support both instance data and schema-level validation.
+5. **Structural Integrity**: Resolved structural errors in `project_setup.json` and ensured consistent Draft 7 compliance across the entire schema ecosystem.
+
 <a id="error-code-reference"></a>
 ## 2026-04-12 21:15:00
 1. Documentation: Created comprehensive [error_code_reference.md](../docs/error_handling/error_code_reference.md) with full error code traceability.

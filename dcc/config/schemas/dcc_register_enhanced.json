@@ -1,19 +1,34 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/dcc-register-enhanced",
+  "type": "object",
+  "additionalProperties": false,
   "register_name": "dcc_register_enhanced",
   "source": {
-    "type": "notebook",
-    "path": "dcc/dcc_mdl.ipynb",
-    "cell_id": "17c02c0e"
-  },
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "type": {"type": "string"},
+      "path": {"type": "string"},
+      "cell_id": {"type": "string"}
+    },
+...
   "schema_references": {
-    "project_schema": "../config/schemas/project_schema.json",
-    "facility_schema": "../config/schemas/facility_schema.json",
-    "department_schema": "../config/schemas/department_schema.json",
-    "discipline_schema": "../config/schemas/discipline_schema.json",
-    "document_type_schema": "../config/schemas/document_type_schema.json",
-    "approval_code_schema": "../config/schemas/approval_code_schema.json"
-  },
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "project_schema": {"type": "string"},
+      "facility_schema": {"type": "string"},
+      "department_schema": {"type": "string"},
+      "discipline_schema": {"type": "string"},
+      "document_type_schema": {"type": "string"},
+      "approval_code_schema": {"type": "string"}
+    },
+...
   "parameters": {
+    "type": "object",
+    "additionalProperties": false,
+...
     "fail_fast": false,
     "debug_dev_mode": false,
     "is_colab": false,
@@ -55,6 +70,8 @@
     }
   },
   "enhanced_schema": {
+    "type": "object",
+    "additionalProperties": false,
     "column_sequence": [
       "Row_Index",
       "Transmittal_Number",

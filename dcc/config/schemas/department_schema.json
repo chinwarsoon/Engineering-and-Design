@@ -1,4 +1,28 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/department",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_name": {"type": "string"},
+    "type": {"type": "string"},
+    "data_section": {"type": "string"},
+    "data_item_type": {"type": "string"},
+    "field_definitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "value": {"type": "object"}
+      }
+    },
+    "choices": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "description": {"type": "string"},
+    "created": {"type": "string"},
+    "version": {"type": ["string", "number"]}
+  },
   "schema_name": "department_choices",
   "type": "standard_choices",
   "data_section": "choices",

@@ -5,9 +5,11 @@
   "description": "Validation rules fragment for project setup",
   "version": "2.0.0",
   "type": "object",
+  "additionalProperties": false,
   "definitions": {
     "validation_rule_entry": {
       "type": "object",
+      "additionalProperties": false,
       "description": "Individual validation rule configuration",
       "properties": {
         "rule": {

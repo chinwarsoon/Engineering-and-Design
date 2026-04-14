@@ -9,27 +9,29 @@
 
 ## 2026-04-12 00:00:00
 [Issue # 1]: to consider a recursive schema loader for all schemas. Instead of writing custom code every time adding a new sub-schema, to create a loader that "walks" through all JSON schema files and automatically pulls in any file referenced by a $ref key. This will help to reduce the maintenance effort and improve the maintainability of the code.
-- `[Status]`: In Progress (Phase B Complete)
-- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-1-phase-b)
+- `[Status]`: In Progress (Phase C Complete)
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#unified-schema-registry)
 - `[Phase A Report]`: [phase_a_analysis_report.md](../workplan/schema_processing/phase_a_analysis_report.md)
 - `[Phase B Module]`: [ref_resolver.py](../../workflow/schema_engine/loader/ref_resolver.py)
+- `[Phase C Optimization]`: Completed schema URI refactoring and strict validation (additionalProperties: false)
 - `[Workplan Location]`: [recursive_schema_loader_workplan.md](../workplan/schema_processing/recursive_schema_loader_workplan.md)
 - `[Key Requirements]`:
   - Multi-directory schema discovery (`config/schemas/` + `workflow/processor_engine/error_handling/config/`)
   - Main entry point: `project_setup.json` for drill-down discovery
-  - Support JSON Schema standard `$ref` and DCC custom `$ref` formats
-  - Cross-directory `$ref` resolution
+  - Support JSON Schema standard `$ref` and absolute URI-based resolution
+  - Cross-directory `$ref` resolution via internal internal internal protocol
   - Circular reference detection
   - Smart caching with TTL support
-- `[Implementation Phases]`: 8 phases (A-H), estimated 23 hours / 3 days
-  - Phase A: Analysis & Design (scanning both directories)
-  - Phase B: RefResolver Module (new `ref_resolver.py`)
-  - Phase C: Dependency Graph Builder (new `dependency_graph.py`)
-  - Phase D: SchemaLoader Enhancement (multi-directory support)
-  - Phase E: Circular Reference Handling
-  - Phase F: Caching & Performance
-  - Phase G: Integration & Testing
-  - Phase H: Documentation
+- `[Implementation Phases]`: 9 phases (A-I), estimated 26 hours
+  - Phase A: Analysis & Design (scanning both directories) - DONE
+  - Phase B: RefResolver Module (new `ref_resolver.py`) - DONE
+  - Phase C: Schema Registry & Optimization (URI refactoring + strict validation) - DONE
+  - Phase D: Dependency Graph Builder (new `dependency_graph.py`)
+  - Phase E: SchemaLoader Enhancement (multi-directory support)
+  - Phase F: Circular Reference Handling
+  - Phase G: Caching & Performance
+  - Phase H: Integration & Testing
+  - Phase I: Documentation
 
 ## 2026-04-12 00:00:00
 [Issue # 2]: For preserve esixting data per certain conditions, the current implementation is to add a new rule in the schema. This approach is not scalable and maintainable. To consider a more scalable and maintainable approach. 

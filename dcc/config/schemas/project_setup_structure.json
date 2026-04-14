@@ -5,9 +5,11 @@
   "description": "Project structure fragment for folders and root files",
   "version": "2.0.0",
   "type": "object",
+  "additionalProperties": false,
   "definitions": {
     "folder_entry": {
       "type": "object",
+      "additionalProperties": false,
       "description": "Folder/directory entry",
       "properties": {
         "name": {
@@ -32,6 +34,7 @@
     },
     "root_file_entry": {
       "type": "object",
+      "additionalProperties": false,
       "description": "File at project root level",
       "properties": {
         "name": {

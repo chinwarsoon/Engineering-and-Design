@@ -1,5 +1,17 @@
 {
-    "document_types": {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/master-registry",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "document_types": {"type": "object"},
+    "tools": {"type": "object"},
+    "workflows": {"type": "object"},
+    "documentation": {"type": "object"},
+    "project_structure": {"type": "object"},
+    "environment": {"type": "object"}
+  },
+  "document_types": {
         "DCC_SUBMITTAL": {
             "schema_file": "config/dcc_register.json",
             "description": "DCC Submittal Register"
@@ -99,7 +111,7 @@
             "description": "Common JSON processing tools and utilities"
         },
         "EXCEL_EXPLORER": {
-            "workflow_file": "workflow/excel-explorer-workflow.md",
+            "notebook": "workflow/excel-explorer-workflow.md",
             "description": "Excel data exploration and analysis workflow"
         },
         "STAGE_BASED_PROCESSING": {

@@ -1,4 +1,40 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/approval-code",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_name": {"type": "string"},
+    "type": {"type": "string"},
+    "data_section": {"type": "string"},
+    "field_definitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {"type": "object"},
+        "status": {"type": "object"},
+        "aliases": {"type": "object"}
+      }
+    },
+    "approval": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {"type": "string"},
+          "status": {"type": "string"},
+          "aliases": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "description": {"type": "string"},
+    "created": {"type": "string"},
+    "version": {"type": ["string", "number"]}
+  },
   "schema_name": "approval_code_schema",
   "type": "status_to_code_mapping",
   "data_section": "approval",

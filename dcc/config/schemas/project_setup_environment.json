@@ -5,9 +5,11 @@
   "description": "Environment specification fragment for project setup",
   "version": "2.0.0",
   "type": "object",
+  "additionalProperties": false,
   "definitions": {
     "environment_entry": {
       "type": "object",
+      "additionalProperties": false,
       "description": "Environment specification (conda, pip, etc.)",
       "properties": {
         "name": {

@@ -146,6 +146,7 @@
     },
     "dependency_entry": {
       "type": "object",
+      "additionalProperties": false,
       "description": "Python module dependency",
       "properties": {
         "module": {"type": "string"},

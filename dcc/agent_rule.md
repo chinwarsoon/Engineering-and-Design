@@ -27,11 +27,13 @@
 1. always check and enure compliance with schema standard.
 2. when create a schema, alway consider a flat schema structure, use array of objects, and avoid using array of list.
 3. use project_setup.json as main entry point for schema configuration. all schema files should be referenced in project_setup.json.
-4. schema loader must support different types of $ref (string, object, nested object, recursive, etc.)
+4. schema loader must support different types of $ref (string, object, nested object, recursive, etc.). also use Unified Schema Registry (URIs) giving every schema a unique, permanent "Digital ID" that the engine can find regardless of where the file actually sits on the drive.
 5. adopt schema fragment pattern for better maintainability and reusability always.
 6. implement inheritance (base + project) pattern for better maintainability and reusability always.
 7. use 'Definitions' for repetitive objects.
 8. use pattern-based discovery rule for organizing schema files.
+9. set additional property false for important property control.
+10. define 'required' for properties if applicable.
 
 
 # Section 3. files and context:

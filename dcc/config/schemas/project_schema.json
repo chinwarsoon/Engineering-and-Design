@@ -1,34 +1,63 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project",
+  "type": "object",
+  "additionalProperties": false,
   "schema_name": "project_choices",
   "type": "standard_choices",
   "data_section": "project",
   "field_definitions": {
-    "code": {
-      "data_type": "string",
-      "required": true,
-      "validation": {
-        "pattern": "^\\d{6}$",
-        "min_length": 6,
-        "max_length": 6,
-        "unique": true
-      }
-    },
-    "description": {
-      "data_type": "string",
-      "required": true,
-      "validation": {
-        "min_length": 1,
-        "max_length": 100,
-        "unique": true
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "code": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data_type": {"type": "string"},
+          "required": {"type": "boolean"},
+          "validation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "pattern": {"type": "string"},
+              "min_length": {"type": "integer"},
+              "max_length": {"type": "integer"},
+              "unique": {"type": "boolean"}
+            }
+          }
+        }
+      },
+      "description": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data_type": {"type": "string"},
+          "required": {"type": "boolean"},
+          "validation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min_length": {"type": "integer"},
+              "max_length": {"type": "integer"},
+              "unique": {"type": "boolean"}
+            }
+          }
+        }
       }
     }
   },
-  "project": [
-    {
-      "code": "131242",
-      "description": "TWRP"
+  "project": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {"type": "string"},
+        "description": {"type": "string"}
+      }
     }
-  ],
+  },
   "description": "Standard project codes",
   "created": "2026/04/02",
   "version": 1

@@ -1,4 +1,28 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/error-suppression-rules",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "version": {"type": "string"},
+    "description": {"type": "string"},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "last_updated": {"type": "string"},
+        "approved_by": {"type": "string"},
+        "rule_count": {"type": "integer"}
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "rule_types": {"type": "object"},
+    "condition_operators": {"type": "object"},
+    "approval_workflow": {"type": "object"}
+  },
   "version": "1.0",
   "description": "Suppression Rules Configuration - Define 'wrong but acceptable' error scenarios",
   "metadata": {
@@ -33,111 +57,6 @@
       "created_by": "admin",
       "created_at": "2026-01-15T10:00:00Z"
     },
-    {
-      "rule_id": "SUP-002",
-      "name": "Known Missing References for Memos",
-      "description": "Memo and Notes document types don't require full discipline list",
-      "status": "ACTIVE",
-      "priority": 200,
-      "error_codes": ["P-V-V-0506"],
-      "conditions": {
-        "document_type": ["MEM", "NTS", "MIN"],
-        "column": "Discipline",
-        "is_null": true
-      },
-      "justification_template": "{document_type} documents don't require discipline assignment per business rule BR-2024-003",
-      "approved_by": "dcc_manager",
-      "approved_at": "2026-02-01T14:30:00Z",
-      "scope": {
-        "type": "GLOBAL",
-        "project_codes": [],
-        "facilities": []
-      },
-      "severity_override": "INFO",
-      "audit_required": false,
-      "created_by": "dcc_manager",
-      "created_at": "2026-02-01T14:30:00Z"
-    },
-    {
-      "rule_id": "SUP-003",
-      "name": "Test Environment Forward Fill Warnings",
-      "description": "Suppress forward fill limit warnings in test environments",
-      "status": "ACTIVE",
-      "priority": 50,
-      "error_codes": ["P-C-F-0401"],
-      "conditions": {
-        "environment": "TEST",
-        "forward_fill_rows": "> 20"
-      },
-      "justification_template": "Test data often has gaps - forward fill warnings expected",
-      "approved_by": "system_admin",
-      "approved_at": "2026-03-01T09:00:00Z",
-      "scope": {
-        "type": "GLOBAL",
-        "environments": ["TEST", "DEV"],
-        "project_codes": [],
-        "facilities": []
-      },
-      "severity_override": "INFO",
-      "audit_required": false,
-      "created_by": "qa_lead",
-      "created_at": "2026-03-01T09:00:00Z"
-    }
-  ],
-  "rule_types": {
-    "GLOBAL": {
-      "description": "Apply across all files/projects",
-      "requires_approval": "admin",
-      "audit_level": "INFO"
-    },
-    "PROJECT": {
-      "description": "Apply to specific project code",
-      "requires_approval": "manager",
-      "audit_level": "WARNING"
-    },
-    "FACILITY": {
-      "description": "Apply to specific facility code",
-      "requires_approval": "manager",
-      "audit_level": "WARNING"
-    },
-    "DOCUMENT": {
-      "description": "Apply to specific document type",
-      "requires_approval": "reviewer",
-      "audit_level": "INFO"
-    },
-    "TEMPORARY": {
-      "description": "Time-bound suppression (e.g., migration period)",
-      "requires_approval": "admin",
-      "audit_level": "WARNING",
-      "max_duration_days": 90
-    }
-  },
-  "condition_operators": {
-    "equals": { "description": "Exact match", "applies_to": ["string", "number", "boolean"] },
-    "not_equals": { "description": "Not equal", "applies_to": ["string", "number", "boolean"] },
-    "contains": { "description": "String contains", "applies_to": ["string"] },
-    "in": { "description": "Value in list", "applies_to": ["string", "number", "array"] },
-    "not_in": { "description": "Value not in list", "applies_to": ["string", "number", "array"] },
-    "matches": { "description": "Regex pattern match", "applies_to": ["string"] },
-    "greater_than": { "description": "Numeric greater than", "applies_to": ["number"] },
-    "less_than": { "description": "Numeric less than", "applies_to": ["number"] },
-    "before": { "description": "Date before", "applies_to": ["date"] },
-    "after": { "description": "Date after", "applies_to": ["date"] },
-    "is_null": { "description": "Value is null/empty", "applies_to": ["any"] },
-    "is_not_null": { "description": "Value is not null", "applies_to": ["any"] }
-  },
-  "approval_workflow": {
-    "reviewer": {
-      "can_approve": ["DOCUMENT"],
-      "max_rules": 10
-    },
-    "manager": {
-      "can_approve": ["DOCUMENT", "PROJECT", "FACILITY"],
-      "max_rules": 50
-    },
-    "admin": {
-      "can_approve": ["DOCUMENT", "PROJECT", "FACILITY", "GLOBAL", "TEMPORARY"],
-      "max_rules": 999
-    }
-  }
+...
+  ]
 }
