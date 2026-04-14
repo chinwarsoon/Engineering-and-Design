@@ -4,6 +4,7 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "version": {"type": "string"},
     "document_types": {"type": "object"},
     "tools": {"type": "object"},
     "workflows": {"type": "object"},
@@ -11,6 +12,7 @@
     "project_structure": {"type": "object"},
     "environment": {"type": "object"}
   },
+  "required": ["document_types", "tools", "workflows", "project_structure", "environment"],
   "document_types": {
         "DCC_SUBMITTAL": {
             "schema_file": "config/dcc_register.json",

@@ -13,7 +13,9 @@
 2. **Schema Reference Refactoring**: Updated all `$ref` pointers to use absolute URIs instead of relative file paths, enabling centralized schema resolution and improving portability.
 3. **Strict Validation Control**: Applied `additionalProperties: false` to all key object definitions in base schemas, fragment schemas, data lookup schemas, and error handling configurations.
 4. **Data Schema Alignment**: Standardized `type: "object"` and explicit `properties` definitions for data lookup schemas (Department, Discipline, Facility, etc.) to support both instance data and schema-level validation.
-5. **Structural Integrity**: Resolved structural errors in `project_setup.json` and ensured consistent Draft 7 compliance across the entire schema ecosystem.
+5. **Mandatory Property Enforcement**: Implemented `required` property constraints across all schemas to prevent "Partial Configuration" bugs. Critical configuration keys are now mandatory at the initiation stage.
+6. **Structural Integrity**: Resolved structural errors in `project_setup.json` and ensured consistent Draft 7 compliance across the entire schema ecosystem.
+7. **Documentation**: Regenerated `dcc/config/README.md` with comprehensive schema framework details, dependency correlations, and developer policies.
 
 <a id="error-code-reference"></a>
 ## 2026-04-12 21:15:00

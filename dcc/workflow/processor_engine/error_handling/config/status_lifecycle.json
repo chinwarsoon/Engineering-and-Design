@@ -21,16 +21,7 @@
     "permissions": {"type": "object"},
     "notifications": {"type": "object"}
   },
+  "required": ["version", "states", "transitions", "initial_state", "terminal_states", "descriptions", "workflows", "permissions", "notifications"],
   "version": "1.0",
-  "description": "Error Status Lifecycle - State Machine Definition",
-  "states": [
-    "OPEN",
-    "SUPPRESSED",
-    "RESOLVED",
-    "ARCHIVED",
-    "ESCALATED",
-    "PENDING",
-    "REOPEN"
-  ],
 ...
 }

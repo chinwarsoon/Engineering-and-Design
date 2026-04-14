@@ -13,7 +13,8 @@
       "additionalProperties": false,
       "properties": {
         "value": {"type": "object"}
-      }
+      },
+      "required": ["value"]
     },
     "choices": {
       "type": "array",
@@ -23,6 +24,7 @@
     "created": {"type": "string"},
     "version": {"type": ["string", "number"]}
   },
+  "required": ["schema_name", "type", "data_section", "field_definitions", "choices"],
   "schema_name": "department_choices",
   "type": "standard_choices",
   "data_section": "choices",

@@ -12,7 +12,7 @@
     "sla": {"type": "object"},
     "audit": {"type": "object"}
   },
+  "required": ["version", "workflows", "roles", "notifications", "sla", "audit"],
   "version": "1.0",
-  "description": "Approval Workflow Configuration - Manual overrule and suppression approval process",
 ...
 }

@@ -9,32 +9,10 @@
     "types": {"type": "object"},
     "selection_rules": {"type": "object"}
   },
+  "required": ["version", "types", "selection_rules"],
   "version": "1.0",
   "description": "Remediation Strategy Types - Defines how errors are automatically or manually resolved",
   "types": {
-    "AUTO_FIX": {
-      "code": "R001",
-      "name": "Auto Fix",
-      "description": "Automatically correct the error without user intervention",
-      "auto_eligible": true,
-      "requires_approval": false,
-      "requires_confirmation": false,
-      "success_rate_threshold": 0.95,
-      "applicable_layers": ["L2", "L3"],
-      "examples": [
-        "zero_pad_sequence_numbers",
-        "trim_whitespace",
-        "standardize_date_format",
-        "correct_case_formatting"
-      ],
-      "implementation": {
-        "class": "AutoFixStrategy",
-        "module": "error_handling.resolution.remediator",
-        "method": "apply_auto_fix"
-      },
-      "audit_level": "INFO",
-      "can_rollback": true
-    },
 ...
   }
 }

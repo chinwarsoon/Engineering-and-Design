@@ -3,55 +3,68 @@
   "$id": "https://dcc-pipeline.internal/schemas/calculation-strategies",
   "type": "object",
   "additionalProperties": false,
-  "description": "Calculation Strategy Definitions for dcc_register_enhanced.json",
-  "version": "1.0.0",
-  "strategies": {
-    "type": "object",
-    "additionalProperties": {
+  "properties": {
+    "description": {"type": "string"},
+    "version": {"type": "string"},
+    "strategies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "data_preservation": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "mode": {"type": "string"},
+              "description": {"type": "string"}
+            },
+            "required": ["mode"]
+          },
+          "processing_sequence": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "calculation_timing": {"type": "string"},
+              "null_handling_timing": {"type": "string"},
+              "description": {"type": "string"}
+            },
+            "required": ["calculation_timing", "null_handling_timing"]
+          },
+          "fallback": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {"type": "string"},
+              "value": {},
+              "value_source": {"type": "string"},
+              "description": {"type": "string"}
+            },
+            "required": ["type"]
+          },
+          "applies_to": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        },
+        "required": ["data_preservation", "processing_sequence", "fallback", "applies_to"]
+      }
+    },
+    "strategy_properties": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "data_preservation": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "mode": {"type": "string"},
-            "description": {"type": "string"}
-          }
-        },
-        "processing_sequence": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "calculation_timing": {"type": "string"},
-            "null_handling_timing": {"type": "string"},
-            "description": {"type": "string"}
-          }
-        },
-        "fallback": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "type": {"type": "string"},
-            "value": {},
-            "value_source": {"type": "string"},
-            "description": {"type": "string"}
-          }
-        },
-        "applies_to": {
-          "type": "array",
-          "items": {"type": "string"}
-        }
-      }
+        "data_preservation": {"type": "object"},
+        "processing_sequence": {"type": "object"},
+        "fallback": {"type": "object"}
+      },
+      "required": ["data_preservation", "processing_sequence", "fallback"]
     }
   },
-  "strategy_properties": {
-    "type": "object",
-    "additionalProperties": false,
-    "properties": {
-      "data_preservation": {"type": "object"},
-      "processing_sequence": {"type": "object"},
-      "fallback": {"type": "object"}
-    }
+  "required": ["strategies", "strategy_properties"],
+  "description": "Calculation Strategy Definitions for dcc_register_enhanced.json",
+  "version": "1.0.0",
+  "strategies": {
+...
   }
 }

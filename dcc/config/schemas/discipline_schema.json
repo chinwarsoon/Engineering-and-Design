@@ -13,7 +13,8 @@
       "properties": {
         "code": {"type": "object"},
         "description": {"type": "object"}
-      }
+      },
+      "required": ["code", "description"]
     },
     "discipline": {
       "type": "array",
@@ -23,13 +24,15 @@
         "properties": {
           "code": {"type": "string"},
           "description": {"type": "string"}
-        }
+        },
+        "required": ["code", "description"]
       }
     },
     "description": {"type": "string"},
     "created": {"type": "string"},
     "version": {"type": ["string", "number"]}
   },
+  "required": ["schema_name", "type", "data_section", "field_definitions", "discipline"],
   "schema_name": "discipline_choices",
   "type": "standard_choices",
   "data_section": "discipline",
@@ -59,166 +62,7 @@
       "code": "PUB",
       "description": "Reserved for Client Use"
     },
-    {
-      "code": "PMO",
-      "description": "Reserved for Programme"
-    },
-    {
-      "code": "A",
-      "description": "Architecture"
-    },
-    {
-      "code": "AGC",
-      "description": "Agencies Consultation/ Permitting"
-    },
-    {
-      "code": "B",
-      "description": "Building Services"
-    },
-    {
-      "code": "BF",
-      "description": "Fire Protection"
-    },
-    {
-      "code": "BH",
-      "description": "HVAC"
-    },
-    {
-      "code": "BP",
-      "description": "Plumbing"
-    },
-    {
-      "code": "BS",
-      "description": "Sanitary"
-    },
-    {
-      "code": "BE",
-      "description": "Building Electrical"
-    },
-    {
-      "code": "BM",
-      "description": "Building Management System"
-    },
-    {
-      "code": "BI",
-      "description": "Building Management System - Schematics"
-    },
-    {
-      "code": "C",
-      "description": "Civil"
-    },
-    {
-      "code": "D",
-      "description": "Design Management"
-    },
-    {
-      "code": "E",
-      "description": "Electrical"
-    },
-    {
-      "code": "EK",
-      "description": "Lightning Protection"
-    },
-    {
-      "code": "EL",
-      "description": "Electrical Lighting"
-    },
-    {
-      "code": "EP",
-      "description": "Electrical Power"
-    },
-    {
-      "code": "EI",
-      "description": "Electrical Schematic"
-    },
-    {
-      "code": "ET",
-      "description": "Electrical Cable Tray"
-    },
-    {
-      "code": "G",
-      "description": "Geotechnical"
-    },
-    {
-      "code": "HS",
-      "description": "Environmental, Health, Safety & Security"
-    },
-    {
-      "code": "I",
-      "description": "Instrument, Control & Automation (ICA)"
-    },
-    {
-      "code": "IC",
-      "description": "Instrumentation, Monitoring & Control"
-    },
-    {
-      "code": "II",
-      "description": "MCS related drawing"
-    },
-    {
-      "code": "IP",
-      "description": "Panel"
-    },
-    {
-      "code": "IL",
-      "description": "Loop Drawing"
-    },
-    {
-      "code": "IT",
-      "description": "Cable Tray - Instrument"
-    },
-    {
-      "code": "IM",
-      "description": "Information Management/IT"
-    },
-    {
-      "code": "K",
-      "description": "Construction Management"
-    },
-    {
-      "code": "M",
-      "description": "Mechanical"
-    },
-    {
-      "code": "MP",
-      "description": "Mechanical Process"
-    },
-    {
-      "code": "MQ",
-      "description": "Mechanical - Equipment Detail"
-    },
-    {
-      "code": "P",
-      "description": "Process PID, PFD & Hydraulic"
-    },
-    {
-      "code": "PC",
-      "description": "Project Controls"
-    },
-    {
-      "code": "PE",
-      "description": "Public Engagement"
-    },
-    {
-      "code": "PM",
-      "description": "Project Management"
-    },
-    {
-      "code": "Q",
-      "description": "Quantity Survey/Estimating"
-    },
-    {
-      "code": "S",
-      "description": "Structural"
-    },
-    {
-      "code": "W",
-      "description": "Procurement, Contract"
-    },
-    {
-      "code": "Z",
-      "description": "General (non-specific)"
-    }
+...
   ],
   "description": "Standard engineering discipline classifications",
   "created": "2026/04/02",

@@ -13,7 +13,8 @@
         "last_updated": {"type": "string"},
         "approved_by": {"type": "string"},
         "rule_count": {"type": "integer"}
-      }
+      },
+      "required": ["last_updated", "approved_by"]
     },
     "rules": {
       "type": "array",
@@ -23,40 +24,7 @@
     "condition_operators": {"type": "object"},
     "approval_workflow": {"type": "object"}
   },
+  "required": ["version", "metadata", "rules", "rule_types", "condition_operators", "approval_workflow"],
   "version": "1.0",
-  "description": "Suppression Rules Configuration - Define 'wrong but acceptable' error scenarios",
-  "metadata": {
-    "last_updated": "2026-04-10",
-    "approved_by": "system_admin",
-    "rule_count": 0
-  },
-  "rules": [
-    {
-      "rule_id": "SUP-001",
-      "name": "Legacy Date Format Tolerance",
-      "description": "Accept dates in old format (DD/MM/YYYY) for legacy submissions before 2024-01-01",
-      "status": "ACTIVE",
-      "priority": 100,
-      "error_codes": ["P-V-V-0504"],
-      "conditions": {
-        "submission_session_before": "20240101",
-        "column": "Submission_Date",
-        "pattern_match": "^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[012])/[0-9]{4}$"
-      },
-      "justification_template": "Historical data uses DD/MM/YYYY format from legacy system",
-      "approved_by": "system_admin",
-      "approved_at": "2026-01-15T10:00:00Z",
-      "expires_at": "2026-12-31T23:59:59Z",
-      "scope": {
-        "type": "GLOBAL",
-        "project_codes": [],
-        "facilities": []
-      },
-      "severity_override": "WARNING",
-      "audit_required": true,
-      "created_by": "admin",
-      "created_at": "2026-01-15T10:00:00Z"
-    },
 ...
-  ]
 }

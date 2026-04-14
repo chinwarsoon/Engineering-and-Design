@@ -12,21 +12,10 @@
     "families": {"type": "object"},
     "layers": {"type": "object"}
   },
+  "required": ["version", "engines", "modules", "functions", "families", "layers"],
   "version": "1.0",
   "description": "Error Code Taxonomy - E-M-F-U Format (Engine-Module-Function-UniqueID)",
   "engines": {
-    "P": {
-      "code": "P",
-      "name": "Processor",
-      "description": "Main processing engine for DCC Pipeline",
-      "modules": ["C", "V", "A", "D"],
-      "responsibilities": [
-        "Phased processing (P1, P2, P2.5, P3)",
-        "Null handling and calculations",
-        "Business logic validation",
-        "Error aggregation"
-      ]
-    },
 ...
   }
 }

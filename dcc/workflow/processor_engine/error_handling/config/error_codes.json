@@ -28,7 +28,8 @@
               "function_code": {"type": "string"},
               "family": {"type": "string"},
               "family_code": {"type": "string"}
-            }
+            },
+            "required": ["engine", "engine_code", "module", "module_code", "function", "function_code", "family", "family_code"]
           },
           "message_key": {"type": "string"},
           "description": {"type": "string"},
@@ -37,36 +38,12 @@
           "log_level": {"type": "string"},
           "auto_remediation": {"type": "boolean"},
           "remediation_type": {"type": "string"}
-        }
+        },
+        "required": ["layer", "severity", "taxonomy", "message_key", "description", "action_key", "fail_fast", "log_level", "auto_remediation", "remediation_type"]
       }
     }
   },
+  "required": ["version", "errors"],
   "version": "2.0",
-  "last_updated": "2026-04-10",
-  "description": "DCC Column Data Error Registry - E-M-F-U Format (Engine-Module-Function-UniqueID)",
-  "errors": {
-    "P-C-P-0101": {
-      "legacy_code": "P101",
-      "layer": "L3",
-      "severity": "CRITICAL",
-      "taxonomy": {
-        "engine": "Processor",
-        "engine_code": "P",
-        "module": "Core",
-        "module_code": "C",
-        "function": "Process",
-        "function_code": "P",
-        "family": "Anchor",
-        "family_code": "1"
-      },
-      "message_key": "error.anchor.null_project_code",
-      "description": "Priority 1 column (Project_Code, Facility_Code, Document_Type, or Discipline) is null and cannot be forward-filled",
-      "action_key": "action.fix_in_excel",
-      "fail_fast": true,
-      "log_level": "ERROR",
-      "auto_remediation": false,
-      "remediation_type": "MANUAL_FIX"
-    },
 ...
-  }
 }

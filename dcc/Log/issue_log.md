@@ -13,7 +13,7 @@
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#unified-schema-registry)
 - `[Phase A Report]`: [phase_a_analysis_report.md](../workplan/schema_processing/phase_a_analysis_report.md)
 - `[Phase B Module]`: [ref_resolver.py](../../workflow/schema_engine/loader/ref_resolver.py)
-- `[Phase C Optimization]`: Completed schema URI refactoring and strict validation (additionalProperties: false)
+- `[Phase C Optimization]`: Completed schema URI refactoring, strict validation (additionalProperties: false), and mandatory property enforcement (required) to prevent partial configuration bugs.
 - `[Workplan Location]`: [recursive_schema_loader_workplan.md](../workplan/schema_processing/recursive_schema_loader_workplan.md)
 - `[Key Requirements]`:
   - Multi-directory schema discovery (`config/schemas/` + `workflow/processor_engine/error_handling/config/`)

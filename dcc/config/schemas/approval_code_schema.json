@@ -14,7 +14,8 @@
         "code": {"type": "object"},
         "status": {"type": "object"},
         "aliases": {"type": "object"}
-      }
+      },
+      "required": ["code", "status", "aliases"]
     },
     "approval": {
       "type": "array",
@@ -28,13 +29,15 @@
             "type": "array",
             "items": {"type": "string"}
           }
-        }
+        },
+        "required": ["code", "status", "aliases"]
       }
     },
     "description": {"type": "string"},
     "created": {"type": "string"},
     "version": {"type": ["string", "number"]}
   },
+  "required": ["schema_name", "type", "data_section", "field_definitions", "approval"],
   "schema_name": "approval_code_schema",
   "type": "status_to_code_mapping",
   "data_section": "approval",
