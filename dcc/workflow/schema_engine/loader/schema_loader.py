@@ -1,34 +1,254 @@
 """
 Schema loading and dependency resolution.
 Extracted from schema_validation.py SchemaLoader class.
+
+Phase E Enhancement: Integrated RefResolver and SchemaDependencyGraph
+for recursive loading, strict registration validation, and universal $ref resolution.
 """
 
 import json
 from pathlib import Path
-from typing import Dict, Any, Set, List
+from typing import Dict, Any, Set, List, Optional
 
 from ..utils.paths import safe_resolve
 
 # Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+from initiation_engine import status_print, debug_print, log_error
+
+# Import RefResolver and SchemaDependencyGraph for enhanced functionality
+from .ref_resolver import RefResolver, SchemaNotRegisteredError, RefResolutionError
+from .dependency_graph import SchemaDependencyGraph, CircularDependencyError
 
 
 class SchemaLoader:
-    """Load JSON schemas, resolve references, and expand dependencies."""
+    """
+    Load JSON schemas, resolve references, and expand dependencies.
+    
+    Phase E: Enhanced with recursive loading, strict registration validation,
+    and universal $ref resolution via RefResolver and SchemaDependencyGraph.
+    
+    Complies with agent_rule.md Section 2.3: project_setup.json as mandatory
+    main entry point for strict schema registration.
+    """
 
-    def __init__(self, base_path: str | Path | None = None):
+    def __init__(
+        self,
+        base_path: str | Path | None = None,
+        project_setup_path: str | Path | None = None,
+        auto_resolve_refs: bool = True,
+        max_recursion_depth: int = 100
+    ):
+        """
+        Initialize SchemaLoader with optional project_setup.json integration.
+        
+        Breadcrumb: base_path → project_setup_path → resolver → dependency_graph → initialized
+        
+        Args:
+            base_path: Base directory for schema files (optional if project_setup_path provided)
+            project_setup_path: Path to project_setup.json for strict registration (optional)
+            auto_resolve_refs: Whether to auto-resolve $refs when loading schemas
+            max_recursion_depth: Maximum depth for recursive reference resolution
+            
+        Complies with agent_rule.md Section 2.3: Use project_setup.json as main entry point.
+        """
+        # Breadcrumb: Set base path for schema resolution
         if base_path is None:
             base_path = safe_resolve(Path(__file__).parent.parent.parent / "config" / "schemas")
         self.base_path = safe_resolve(Path(base_path))
         self.main_schema_path: Path | None = None
         self.loaded_schemas: Dict[str, Dict[str, Any]] = {}
+        
+        # Breadcrumb: Initialize RefResolver and DependencyGraph if project_setup provided
+        self._resolver: Optional[RefResolver] = None
+        self._dependency_graph: Optional[SchemaDependencyGraph] = None
+        self._registered_schemas: Set[str] = set()
+        self.auto_resolve_refs = auto_resolve_refs
+        self.max_recursion_depth = max_recursion_depth
+        
+        if project_setup_path is not None:
+            self._init_with_project_setup(project_setup_path)
+        
+        debug_print(f"SchemaLoader initialized (auto_resolve={auto_resolve_refs})", level=2)
 
+    def _init_with_project_setup(self, project_setup_path: str | Path) -> None:
+        """
+        Initialize with project_setup.json for strict registration validation.
+        
+        Breadcrumb: project_setup_path → resolver → dependency_graph → registered_schemas
+        
+        Args:
+            project_setup_path: Path to project_setup.json
+            
+        Complies with agent_rule.md Section 2.3: Strict registration enforcement.
+        """
+        resolved_path = safe_resolve(Path(project_setup_path))
+        
+        # Breadcrumb: Initialize RefResolver with project_setup.json
+        self._resolver = RefResolver(
+            project_setup_path=resolved_path,
+            schema_directories=[self.base_path],
+            cache=self.loaded_schemas
+        )
+        
+        # Breadcrumb: Extract registered schemas for quick lookup
+        self._registered_schemas = set(self._resolver.registered_schemas.keys())
+        
+        # Breadcrumb: Initialize dependency graph
+        self._dependency_graph = SchemaDependencyGraph(self._resolver)
+        self._dependency_graph.build_graph()
+        
+        status_print(f"SchemaLoader initialized with project_setup.json ({len(self._registered_schemas)} schemas registered)")
+    
     def set_main_schema_path(self, schema_file: str | Path) -> Path:
         """Set the main schema path so relative references resolve correctly."""
         self.main_schema_path = safe_resolve(Path(schema_file))
         if self.main_schema_path.parent.exists():
             self.base_path = self.main_schema_path.parent
         return self.main_schema_path
+    
+    def _validate_registration(self, schema_name: str) -> None:
+        """
+        Validate that a schema is registered in project_setup.json.
+        
+        Breadcrumb: schema_name → registered_schemas → validation_result
+        
+        Args:
+            schema_name: Name of schema to validate
+            
+        Raises:
+            SchemaNotRegisteredError: If schema not in registry and strict mode enabled
+            
+        Complies with agent_rule.md Section 2.3: Strict registration enforcement.
+        """
+        if self._resolver is not None:
+            self._resolver.validate_registration(schema_name)
+        # If no resolver (legacy mode), allow loading without validation
+    
+    def get_schema_dependencies(self, schema_name: str) -> Set[str]:
+        """
+        Get all dependencies for a registered schema.
+        
+        Breadcrumb: schema_name → dependency_graph → dependencies
+        
+        Args:
+            schema_name: Name of the schema to analyze
+            
+        Returns:
+            Set of schema names that are dependencies
+            
+        Raises:
+            SchemaNotRegisteredError: If schema not registered and strict mode enabled
+        """
+        self._validate_registration(schema_name)
+        
+        if self._dependency_graph is not None:
+            return self._dependency_graph.get_all_dependencies(schema_name)
+        
+        # Fallback: return empty set if no dependency graph
+        return set()
+    
+    def load_recursive(
+        self,
+        schema_name: str,
+        auto_resolve: bool = True,
+        max_depth: int = 100
+    ) -> Dict[str, Any]:
+        """
+        Load schema with all dependencies, validating registration.
+        
+        Breadcrumb: schema_name → validate_registration → get_resolution_order → load_all
+        
+        Args:
+            schema_name: Name of the schema to load
+            auto_resolve: Whether to resolve $refs after loading
+            max_depth: Maximum recursion depth for $ref resolution
+            
+        Returns:
+            Dictionary containing the loaded schema
+            
+        Raises:
+            SchemaNotRegisteredError: If schema not in project_setup.json
+            CircularDependencyError: If circular dependency detected
+            RefResolutionError: If $ref resolution fails
+            
+        Complies with agent_rule.md Section 2.3, 2.4, 2.5.
+        """
+        # Breadcrumb: Validate schema is registered
+        self._validate_registration(schema_name)
+        
+        # Breadcrumb: Check for circular dependencies
+        if self._dependency_graph is not None:
+            cycle = self._dependency_graph.detect_cycles()
+            if cycle:
+                raise CircularDependencyError(cycle)
+        
+        # Breadcrumb: Get optimal loading order (topological sort)
+        if self._dependency_graph is not None:
+            load_order = self._dependency_graph.get_resolution_order()
+            deps = self._dependency_graph.get_all_dependencies(schema_name)
+            deps.add(schema_name)
+            
+            # Load dependencies in order
+            for dep_name in load_order:
+                if dep_name in deps and dep_name not in self.loaded_schemas:
+                    self._load_schema_internal(dep_name)
+        else:
+            # Fallback: just load the requested schema
+            self._load_schema_internal(schema_name)
+        
+        # Breadcrumb: Return loaded schema
+        result = self.loaded_schemas.get(schema_name, {})
+        
+        # Breadcrumb: Resolve $refs if requested
+        if auto_resolve and self._resolver is not None:
+            result = self.resolve_all_refs(result, result, max_depth=max_depth)
+        
+        return result
+    
+    def _load_schema_internal(self, schema_name: str) -> Dict[str, Any]:
+        """
+        Internal method to load a single schema without dependency resolution.
+        
+        Breadcrumb: schema_name → load_from_disk → cache → return
+        """
+        if schema_name in self.loaded_schemas:
+            return self.loaded_schemas[schema_name]
+        
+        schema_data = self.load_schema(schema_name)
+        return schema_data
+    
+    def resolve_all_refs(
+        self,
+        value: Any,
+        current_schema: Dict[str, Any],
+        path: str = "",
+        max_depth: int = 100
+    ) -> Any:
+        """
+        Recursively resolve ALL JSON types with $ref.
+        
+        Breadcrumb: value → type_check → resolver.resolve → resolved_value
+        
+        Args:
+            value: Any JSON value (primitive, dict, list)
+            current_schema: The schema currently being processed
+            path: Current JSON path for error reporting
+            max_depth: Maximum recursion depth
+            
+        Returns:
+            Resolved value with all $refs expanded
+            
+        Raises:
+            RefResolutionError: If resolution fails
+            RecursionError: If max_depth exceeded
+            
+        Complies with agent_rule.md Section 2.4: Universal JSON support.
+        """
+        if self._resolver is None:
+            # Fallback: return value as-is if no resolver
+            return value
+        
+        return self._resolver.resolve(value, current_schema, path, max_depth)
 
     def load_json_file(self, path: str | Path) -> Dict[str, Any]:
         """Load and return a JSON document from disk."""

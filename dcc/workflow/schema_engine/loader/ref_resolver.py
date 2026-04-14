@@ -125,8 +125,12 @@ class RefResolver:
         self.cache = cache or {}
         self._resolution_stack: Set[str] = set()  # For circular reference detection
         
+        # Breadcrumb: Build URI-to-file registry for $id resolution
+        self.uri_registry = self._build_uri_registry()
+        
         debug_print(
-            f"RefResolver initialized with {len(self.registered_schemas)} registered schemas",
+            f"RefResolver initialized with {len(self.registered_schemas)} registered schemas, "
+            f"{len(self.uri_registry)} URI mappings",
             level=2
         )
     
@@ -157,6 +161,64 @@ class RefResolver:
                 }
         
         return registry
+    
+    def _build_uri_registry(self) -> Dict[str, Path]:
+        """
+        Build URI-to-file registry by scanning schema directories for $id declarations.
+        
+        Breadcrumb: schema_directories → scan_files → extract_$id → uri_registry
+        
+        Returns:
+            Dict mapping $id URI (e.g., https://dcc-pipeline.internal/schemas/name)
+            to resolved file path
+            
+        Complies with agent_rule.md Section 2.4: Unified Schema Registry (URIs).
+        """
+        uri_registry: Dict[str, Path] = {}
+        
+        for directory in self.schema_directories:
+            if not directory.exists():
+                continue
+                
+            # Scan all JSON files in directory
+            for schema_file in directory.glob("*.json"):
+                try:
+                    with schema_file.open('r', encoding='utf-8') as f:
+                        schema_data = json.load(f)
+                    
+                    # Extract $id if present
+                    schema_id = schema_data.get("$id")
+                    if schema_id:
+                        uri_registry[schema_id] = safe_resolve(schema_file)
+                        debug_print(
+                            f"Registered URI '{schema_id}' → {schema_file.name}",
+                            level=3
+                        )
+                        
+                except (json.JSONDecodeError, IOError) as exc:
+                    debug_print(
+                        f"Skipping {schema_file.name}: {exc}",
+                        level=3
+                    )
+                    continue
+        
+        return uri_registry
+    
+    def _resolve_uri_to_file(self, uri: str) -> Optional[Path]:
+        """
+        Resolve a schema URI to its file path.
+        
+        Breadcrumb: uri → uri_registry → file_path
+        
+        Args:
+            uri: Schema $id URI (e.g., https://dcc-pipeline.internal/schemas/name)
+            
+        Returns:
+            Resolved file path or None if URI not registered
+            
+        Complies with agent_rule.md Section 2.4: URI-based schema resolution.
+        """
+        return self.uri_registry.get(uri)
     
     def validate_registration(self, schema_name: str) -> None:
         """
@@ -367,10 +429,15 @@ class RefResolver:
         """
         Resolve an external file reference.
         
-        Breadcrumb: ref_path → file_path → json_pointer → load → resolve_pointer
+        Breadcrumb: ref_path → uri_check|file_check → load → resolve_pointer
+        
+        Supports:
+        - URI references: https://dcc-pipeline.internal/schemas/name#/pointer
+        - File references: schema.json#/definitions/Type
         
         Args:
-            ref_path: External ref like "schema.json#/definitions/Type"
+            ref_path: External ref like "schema.json#/definitions/Type" 
+                      or "https://.../schemas/name#/pointer"
             path: JSON path for error reporting
             
         Returns:
@@ -378,6 +445,8 @@ class RefResolver:
             
         Raises:
             RefResolutionError: If file not found or path invalid
+            
+        Complies with agent_rule.md Section 2.4: URI-based schema resolution.
         """
         # Breadcrumb: Split file path and JSON pointer
         if "#" in ref_path:
@@ -387,15 +456,30 @@ class RefResolver:
             file_part = ref_path
             pointer = ""
         
-        # Breadcrumb: Find and load schema file
-        schema_name = Path(file_part).stem
-        
-        # Breadcrumb: Validate registration before loading
-        self.validate_registration(schema_name)
+        # Breadcrumb: Check if file_part is a URI (starts with http/https)
+        if file_part.startswith(("http://", "https://")):
+            # Breadcrumb: Resolve URI to file path
+            schema_path = self._resolve_uri_to_file(file_part)
+            if schema_path is None:
+                raise RefResolutionError(
+                    ref_path,
+                    f"URI '{file_part}' not found in registry. "
+                    f"Ensure the schema has a matching $id.",
+                    path
+                )
+            schema_name = schema_path.stem
+            # Breadcrumb: Validate registration
+            self.validate_registration(schema_name)
+        else:
+            # Breadcrumb: Traditional file-based reference
+            schema_name = Path(file_part).stem
+            self.validate_registration(schema_name)
+            schema_path = None  # Will be resolved by _find_schema_file
         
         # Breadcrumb: Load schema (with caching)
         if schema_name not in self.cache:
-            schema_path = self._find_schema_file(file_part)
+            if schema_path is None:
+                schema_path = self._find_schema_file(file_part)
             with schema_path.open('r', encoding='utf-8') as f:
                 self.cache[schema_name] = json.load(f)
         

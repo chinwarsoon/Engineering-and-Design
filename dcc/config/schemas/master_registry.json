@@ -2,18 +2,111 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dcc-pipeline.internal/schemas/master-registry",
   "type": "object",
+  "title": "DCC Master Registry",
+  "description": "Master registry containing project configuration, document types, tools, workflows, and environment settings. Provides default configuration for project_setup.json.",
   "additionalProperties": false,
   "properties": {
-    "version": {"type": "string"},
-    "document_types": {"type": "object"},
-    "tools": {"type": "object"},
-    "workflows": {"type": "object"},
-    "documentation": {"type": "object"},
-    "project_structure": {"type": "object"},
-    "environment": {"type": "object"}
+    "version": {
+      "type": "string",
+      "description": "Registry version",
+      "default": "1.0.0"
+    },
+    "document_types": {
+      "type": "object",
+      "description": "Document type definitions and their associated schemas",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "schema_file": {"type": "string"},
+          "description": {"type": "string"}
+        },
+        "required": ["schema_file"]
+      }
+    },
+    "tools": {
+      "type": "object",
+      "description": "Available tools and their functions",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "tool_file": {"type": "string"},
+          "description": {"type": "string"},
+          "functions": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["tool_file"]
+      }
+    },
+    "workflows": {
+      "type": "object",
+      "description": "Workflow definitions and documentation",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "notebook": {"type": "string"},
+          "workflow_file": {"type": "string"},
+          "workflow_files": {"type": "array", "items": {"type": "string"}},
+          "description": {"type": "string"},
+          "steps": {"type": "array", "items": {"type": "string"}},
+          "tool_file": {"type": "string"},
+          "functions": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "documentation": {
+      "type": "object",
+      "description": "Documentation references",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "file": {"type": "string"},
+          "description": {"type": "string"}
+        },
+        "required": ["file"]
+      }
+    },
+    "project_structure": {
+      "type": "object",
+      "description": "Project folder and file structure requirements",
+      "properties": {
+        "required_folders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "purpose": {"type": "string"},
+              "required": {"type": "boolean"}
+            },
+            "required": ["name", "purpose", "required"]
+          }
+        },
+        "required_files": {"type": "object"},
+        "optional_patterns": {"type": "object"}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "description": "Environment and dependency configuration",
+      "properties": {
+        "conda_environment_file": {
+          "type": "object",
+          "properties": {
+            "file": {"type": "string"},
+            "path": {"type": "string"},
+            "description": {"type": "string"},
+            "required": {"type": "boolean"},
+            "setup_command": {"type": "string"},
+            "activate_command": {"type": "string"},
+            "key_dependencies": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    }
   },
   "required": ["document_types", "tools", "workflows", "project_structure", "environment"],
-  "document_types": {
+  "default": {
+    "version": "1.0.0",
+    "document_types": {
         "DCC_SUBMITTAL": {
             "schema_file": "config/dcc_register.json",
             "description": "DCC Submittal Register"
@@ -199,4 +292,5 @@
             ]
         }
     }
+  }
 }

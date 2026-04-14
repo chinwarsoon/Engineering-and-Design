@@ -1,0 +1,25 @@
+name: Franklin Hybrid
+version: 1.0.0
+schema: v1
+
+# Define your models simply
+models:
+  - title: "Gemini 2.5 Flash"
+    provider: "gemini"
+    model: "gemini-2.5-flash"
+    apiKey: "AIzaSyB4Or_LQu82UjkYOO8imt-hNuICmOH-n8Y"
+  - title: "Gemini 2.5 Pro"
+    provider: "gemini"
+    model: "gemini-2.5-pro"
+    apiKey: "AIzaSyB4Or_LQu82UjkYOO8imt-hNuICmOH-n8Y"
+
+# Essential for saving your 8.4GB disk space
+indexing:
+  enableIndexing: false
+
+# Autocomplete using the same key
+tabAutocompleteModel:
+  title: "Gemini Autocomplete"
+  provider: "gemini"
+  model: "gemini-2.5-flash"
+  apiKey: "AIzaSyB4Or_LQu82UjkYOO8imt-hNuICmOH-n8Y"

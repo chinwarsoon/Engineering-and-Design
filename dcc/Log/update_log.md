@@ -17,6 +17,54 @@
 6. **Structural Integrity**: Resolved structural errors in `project_setup.json` and ensured consistent Draft 7 compliance across the entire schema ecosystem.
 7. **Documentation**: Regenerated `dcc/config/README.md` with comprehensive schema framework details, dependency correlations, and developer policies.
 
+<a id="issue-1-phase-f"></a>
+## 2026-04-14 21:10:00
+1. Phase F (master_registry.json Integration) **COMPLETED** for [Issue #1](issue_log.md#issue-1): Recursive Schema Loader.
+2. **Prerequisite Fixes Completed:**
+   - **Fix 1 - URI Registry:** Added `_build_uri_registry()` and `_resolve_uri_to_file()` to RefResolver (85 lines)
+   - **Fix 2 - Schema Reference:** Added `registry` property to project_setup.json with `$ref` to master-registry
+3. **Phase 1 Completed:** Converted master_registry.json to proper JSON Schema with `default` property containing all configuration values
+4. **Phase 2 Completed:** Added registry link from project_setup.json to master_registry.json via `$ref`
+5. **Phase 3 Completed:** Updated validator with `_init_ref_resolver()`, `_map_registry_to_project_setup()`, enhanced `_extract_project_setup()`
+6. **Phase 4 Completed:** Verified `get_schema_path` points to correct location, pipeline now resolves $ref chain
+7. **Files Updated:**
+   - `workflow/schema_engine/loader/ref_resolver.py` - URI-to-file mapping
+   - `config/schemas/project_setup.json` - Added registry property with $ref
+   - `config/schemas/master_registry.json` - Restructured as JSON Schema with defaults
+   - `workflow/initiation_engine/core/validator.py` - Added RefResolver integration
+8. **Compliance Achieved:**
+   - Section 2.3: project_setup.json as main entry point
+   - Section 2.4: URI-based schema resolution
+   - Section 2.6: Inheritance pattern
+   - Single entry point drills down via $ref to get all configuration
+
+<a id="issue-1-phase-e"></a>
+## 2026-04-14 19:35:00
+1. Phase E (SchemaLoader Enhancement) completed for [Issue #1](issue_log.md#issue-1): Recursive Schema Loader.
+2. **File Updated:** [schema_loader.py](../../workflow/schema_engine/loader/schema_loader.py) - Enhanced from 170 to 338 lines
+3. **Integration Complete:**
+   - **RefResolver Integration:** `__init__` accepts `project_setup_path`, initializes `RefResolver`
+   - **SchemaDependencyGraph Integration:** Builds graph on init, provides topological sort for loading
+4. **New Methods Added:**
+   - `load_recursive()` - Loads schema with all dependencies, validates registration
+   - `resolve_all_refs()` - Universal JSON traversal for $ref resolution
+   - `get_schema_dependencies()` - Returns all dependencies for a schema
+   - `_validate_registration()` - Validates against project_setup.json
+   - `_init_with_project_setup()` - Initializes resolver and dependency graph
+   - `_load_schema_internal()` - Internal loading method
+5. **New Parameters:**
+   - `project_setup_path` - Path to project_setup.json for strict registration
+   - `auto_resolve_refs` - Boolean to auto-resolve $refs when loading
+   - `max_recursion_depth` - Maximum depth for recursive resolution
+6. **Compliance:**
+   - Section 2.3: Strict registration via project_setup.json
+   - Section 2.4: Universal JSON $ref resolution
+   - Section 2.5: Schema fragment pattern support
+   - Section 4: Module design with clean separation
+   - Section 5: Breadcrumb comments throughout
+7. **Backward Compatibility:** Works in legacy mode without project_setup.json
+8. **Status:** Ready for Phase F (Circular Reference Handling)
+
 <a id="issue-1-phase-d"></a>
 ## 2026-04-14 19:00:00
 1. Phase D (Dependency Graph Builder) completed for [Issue #1](issue_log.md#issue-1): Recursive Schema Loader.

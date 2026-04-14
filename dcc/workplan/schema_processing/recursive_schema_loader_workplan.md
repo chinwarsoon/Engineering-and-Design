@@ -268,51 +268,128 @@ Enhance the SchemaLoader to automatically discover and resolve all schema depend
 
 ---
 
-### Phase E: SchemaLoader Enhancement (3-4 hours)
-**File:** `workflow/schema_engine/loader/schema_loader.py`
+### Phase E: SchemaLoader Enhancement (3-4 hours) ✅ COMPLETE
+**Completed:** 2026-04-14
 
-**Tasks:**
-1. [ ] Extend `SchemaLoader` with recursive loading
-2. [ ] Integrate `RefResolver` into loading workflow
-3. [ ] Integrate `SchemaDependencyGraph` for batch loading
-4. [ ] Add `load_recursive()` method with registration check
-5. [ ] Add `auto_resolve_refs` parameter
-6. [ ] Implement universal JSON traversal for $ref resolution
-7. [ ] Add strict registration validation
-8. [ ] Enhance error messages with ref context
-9. [ ] Update existing tests
+**File Updated:** `workflow/schema_engine/loader/schema_loader.py`
 
-**New Methods:**
+**Tasks Completed:**
+1. ✅ [x] Extend `SchemaLoader` with recursive loading
+2. ✅ [x] Integrate `RefResolver` into loading workflow
+3. ✅ [x] Integrate `SchemaDependencyGraph` for batch loading
+4. ✅ [x] Add `load_recursive()` method with registration check
+5. ✅ [x] Add `auto_resolve_refs` parameter
+6. ✅ [x] Implement universal JSON traversal for $ref resolution
+7. ✅ [x] Add strict registration validation
+8. ✅ [x] Enhance error messages with ref context
+9. ⏳ [ ] Update existing tests (deferred to Phase H)
+
+**New Methods Added:**
 ```python
 class SchemaLoader:
-    def __init__(self, project_setup_path: Path = None):
-        """Initialize with mandatory project_setup.json."""
-        self.project_setup = self._load_project_setup(project_setup_path)
-        self.registered_schemas = self._extract_registered_schemas()
+    def __init__(self, base_path=None, project_setup_path=None, 
+                 auto_resolve_refs=True, max_recursion_depth=100):
+        """Initialize with optional project_setup.json for strict registration."""
+    
+    def _init_with_project_setup(self, project_setup_path: Path) -> None:
+        """Initialize RefResolver and SchemaDependencyGraph."""
     
     def load_recursive(self, schema_name: str,
-                       auto_resolve: bool = True) -> Dict:
+                       auto_resolve: bool = True,
+                       max_depth: int = 100) -> Dict:
         """Load schema with all dependencies, validating registration."""
-        if schema_name not in self.registered_schemas:
-            raise SchemaNotRegisteredError(schema_name, self.registered_schemas)
-        # ... load and resolve
+        # Uses topological sort from dependency graph
     
-    def resolve_all_refs(self, value: Any, 
+    def resolve_all_refs(self, value: Any,
                          current_schema: Dict,
-                         path: str = "") -> Any:
-        """Recursively resolve ALL JSON types with $ref."""
-        # Handle primitives, lists, dicts with/without $ref
+                         path: str = "",
+                         max_depth: int = 100) -> Any:
+        """Recursively resolve ALL JSON types with $ref via RefResolver."""
         
     def get_schema_dependencies(self, schema_name: str) -> Set[str]:
         """Get all dependencies for a registered schema."""
         
     def _validate_registration(self, schema_name: str) -> None:
-        """Check if schema is registered in project_setup.json."""
+        """Validate schema is registered in project_setup.json."""
+        # Delegates to RefResolver.validate_registration()
+    
+    def _load_schema_internal(self, schema_name: str) -> Dict[str, Any]:
+        """Internal method to load a single schema."""
 ```
+
+**Integration Details:**
+- **RefResolver Integration:** Initialized with project_setup_path, handles all $ref types
+- **SchemaDependencyGraph Integration:** Builds graph on init, provides topological sort
+- **Strict Registration:** Validates against project_setup.json before loading (when configured)
+- **Backward Compatibility:** Works in legacy mode without project_setup.json
+- **Error Handling:** Enhanced with ref context via RefResolutionError and CircularDependencyError
 
 ---
 
-### Phase F: Circular Reference Handling (2 hours)
+### Phase F: master_registry.json Integration (2-3 hours)
+**Purpose:** Link master_registry.json as configuration source per agent_rule.md Section 2.3
+
+**Design Decision:** Per agent_rule.md - all schema files must be referenced in project_setup.json (Option B)
+
+**Prerequisite Fixes (Audit Findings from Phases A-E):** ✅ COMPLETE
+
+**Fix 1: Add URI-to-File Mapping to RefResolver (Phase B Gap)** ✅
+- **Issue:** `RefResolver._find_schema_file()` only resolves filenames, not URIs (`https://dcc-pipeline.internal/schemas/...`)
+- **Location:** `workflow/schema_engine/loader/ref_resolver.py`
+- **Solution Implemented:**
+  - ✅ [x] Added `uri_registry` dictionary mapping `$id` URIs to file paths
+  - ✅ [x] Build registry by scanning `config/schemas/` for all `$id` declarations via `_build_uri_registry()`
+  - ✅ [x] Updated `_resolve_external_ref()` to check URI registry before file search
+  - ✅ [x] Added `_resolve_uri_to_file()` method for URI resolution
+  - **Example:** `https://dcc-pipeline.internal/schemas/master-registry` → `config/schemas/master_registry.json`
+
+**Fix 2: Explicitly Reference master_registry.json (Phase C Gap)** ✅
+- **Issue:** `project_setup.json` does NOT list `master_registry.json` in `schema_files` array
+- **Location:** `config/schemas/project_setup.json`
+- **Solution Implemented:**
+  - ✅ [x] Added `registry` property with `$ref` to master-registry schema
+  - ✅ [x] Also auto-discovered via `master_*.json` pattern in discovery_rules
+  - ✅ [x] Required for strict registration validation (agent_rule.md Section 2.3)
+
+**Phase 1: Convert master_registry.json to Proper JSON Schema** ✅ COMPLETE
+- ✅ [x] Added `$schema: http://json-schema.org/draft-07/schema#`
+- ✅ [x] Added `$id: https://dcc-pipeline.internal/schemas/master-registry`
+- ✅ [x] Added `type: "object"`, `additionalProperties: false`
+- ✅ [x] Wrapped existing content in `properties` with proper structure
+- ✅ [x] Moved data values to `default` property for configuration extraction
+- ✅ [x] Defined `required` properties per agent_rule.md Section 2.10
+
+**Phase 2: Reference master_registry.json in project_setup.json** ✅ COMPLETE
+- ✅ [x] Added `registry` property with `$ref` to master-registry schema
+- ✅ [x] Uses inheritance pattern (base + project) per agent_rule.md Section 2.6
+
+**Phase 3: Update Validator for Schema Loading** ✅ COMPLETE
+- ✅ [x] Added `_init_ref_resolver()` to initialize RefResolver with URI support
+- ✅ [x] Updated `_extract_project_setup()` to resolve `$ref` to master_registry.json
+- ✅ [x] Added `_map_registry_to_project_setup()` to extract config from registry defaults
+- ✅ [x] Added `_extract_from_schema()` for extracting defaults from schema properties
+- ✅ [x] Extracts `project_structure.required_folders` → `folders` configuration
+
+**Phase 4: Update Calling Functions** ✅ COMPLETE
+- ✅ [x] `get_schema_path` points to `config/schemas/project_setup.json` (verified)
+- ✅ [x] Validator now resolves registry $ref using RefResolver
+- ✅ [x] Pipeline flow: `project_setup.json` → resolve `$ref` → load `master_registry.json` → extract defaults → get config
+
+**Files Affected:**
+- `config/schemas/master_registry.json` - Convert to proper JSON Schema
+- `config/schemas/project_setup.json` - Add registry reference
+- `workflow/initiation_engine/core/validator.py` - Update extraction logic
+- `workflow/initiation_engine/utils/paths.py` - Ensure path points to project_setup.json
+
+**Compliance:**
+- Section 2.3: project_setup.json as main entry point, all schemas referenced
+- Section 2.5: Fragment pattern for maintainability
+- Section 2.6: Inheritance (base + project) pattern
+- Section 2.10: Required properties defined
+
+---
+
+### Phase G: Circular Reference Handling (2 hours)
 **File:** `workflow/schema_engine/loader/schema_loader.py`
 
 **Tasks:**
