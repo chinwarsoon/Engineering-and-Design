@@ -20,8 +20,56 @@ All schemas follow a standardized metadata pattern:
 
 ## 2. Comprehensive Schema Catalog
 
-The following table provides a detailed mapping of the DCC Pipeline's schema ecosystem, including their types, primary functional calls, and core responsibilities.
+The following table and flow chart provide a detailed mapping of the DCC Pipeline's schema ecosystem, including their types, primary functional calls, and core responsibilities.
 
+### 2.1 Schema Relationship & Workflow Flowchart
+
+```mermaid
+graph TD
+    subgraph Initiation_Phase [Level 1: Initiation & Setup]
+        PS[project_setup.json] --> |Calls| PSV[ProjectSetupValidator.validate]
+        PSV --> |Includes| PSB[project_setup_base.json]
+        PSV --> |Includes| PSS[project_setup_structure.json]
+        PSV --> |Includes| PSE[project_setup_environment.json]
+        PSV --> |Includes| PSDp[project_setup_dependencies.json]
+        PSV --> |Calls| SL[SchemaLoader.load_all]
+    end
+
+    subgraph Discovery_Phase [Level 2: Discovery & Registry]
+        SL --> |Uses| PSDi[project_setup_discovery.json]
+        PSDi --> |Scans| CS[config/schemas/*.json]
+        MR[master_registry.json] --> |Maps| WT[Workflows & Tools]
+    end
+
+    subgraph Processing_Phase [Level 3: Mapping & Processing]
+        CS --> |Loads| DRE[dcc_register_enhanced.json]
+        DRE --> |Calls| CME[ColumnMapperEngine.map_dataframe]
+        DRE --> |Calls| CE[CalculationEngine.process_data]
+        DRE --> |Calls| SP[SchemaProcessor.reorder_dataframe]
+    end
+
+    subgraph Validation_Phase [Level 4: Categorical Validation]
+        CE --> |References| PRS[project_schema.json]
+        CE --> |References| FAS[facility_schema.json]
+        CE --> |References| DES[department_schema.json]
+        CE --> |References| DIS[discipline_schema.json]
+        CE --> |References| ACS[approval_code_schema.json]
+        ACS --> |Calls| VAL[Validator.validate_field]
+    end
+
+    subgraph Error_Phase [Level 5: Error & Lifecycle]
+        VAL --> |Triggers| EC[error_codes.json]
+        EC --> |Uses| TX[taxonomy.json]
+        EC --> |Uses| SLM[status_lifecycle.json]
+        EC --> |Calls| ET[ErrorTracker / RemediationEngine]
+    end
+
+    style PS fill:#f9f,stroke:#333,stroke-width:2px
+    style DRE fill:#bbf,stroke:#333,stroke-width:2px
+    style MR fill:#dfd,stroke:#333,stroke-width:2px
+```
+
+### 2.2 Schema Catalog Table
 | Schema Name | Type | Primary Function(s) | Core Responsibility |
 | :--- | :--- | :--- | :--- |
 | `dcc_register_enhanced.json` | **Process Definition** | `UniversalDocumentProcessor.load_schema`<br>`UniversalColumnMapper.load_main_schema` | Core "Brain" defining column sequences, fuzzy-matching aliases, calculations (composite/aggregate), and multi-phase validation. |
