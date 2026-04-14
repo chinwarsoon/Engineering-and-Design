@@ -247,30 +247,24 @@ Enhance the SchemaLoader to automatically discover and resolve all schema depend
 
 ---
 
-### Phase D: Dependency Graph Builder (2-3 hours)
-**New File:** `workflow/schema_engine/loader/dependency_graph.py`
+### Phase D: Dependency Graph Builder (2-3 hours) ✅ COMPLETE
+**Completed:** 2026-04-14
 
-**Tasks:**
-1. [ ] Create `SchemaDependencyGraph` class
-2. [ ] Implement `build_graph()` - Scan all schemas
-3. [ ] Implement `detect_cycles()` - Circular ref detection
-4. [ ] Implement `get_resolution_order()` - Topological sort
-5. [ ] Add visualization/debug methods
-6. [ ] Unit tests for cycle detection
+**New File:** [dependency_graph.py](../../workflow/schema_engine/loader/dependency_graph.py)
 
-**Interface:**
-```python
-class SchemaDependencyGraph:
-    def __init__(self, schema_dir: Path)
-    
-    def build_graph(self) -> Dict[str, Set[str]]
-    
-    def detect_cycles(self) -> Optional[List[str]]
-    
-    def get_resolution_order(self) -> List[str]
-    
-    def get_dependencies(self, schema_name: str) -> Set[str]
-```
+**Tasks Completed:**
+1. ✅ [x] Create `SchemaDependencyGraph` class
+2. ✅ [x] Implement `build_graph()` - Scan all schemas
+3. ✅ [x] Implement `detect_cycles()` - Circular ref detection
+4. ✅ [x] Implement `get_resolution_order()` - Topological sort
+5. ✅ [x] Add visualization/debug methods (transitive dependencies)
+6. ✅ [x] Unit tests for cycle detection and topological sort: [test_dependency_graph.py](../../test/test_dependency_graph.py)
+
+**Implementation Details:**
+- **Recursive extraction**: Scans all JSON types for $ref and schema_references
+- **Cycle detection**: DFS-based algorithm with full path reporting
+- **Topological sort**: Provides optimal loading order where dependencies come first
+- **Transitive resolution**: Can retrieve all recursive dependencies for any schema
 
 ---
 
@@ -457,14 +451,15 @@ schema_engine/
 
 ## Status
 
-- [ ] Phase A: Analysis & Design
-- [ ] Phase B: RefResolver Module
-- [ ] Phase C: Dependency Graph Builder
-- [ ] Phase D: SchemaLoader Enhancement
-- [ ] Phase E: Circular Reference Handling
-- [ ] Phase F: Caching & Performance
-- [ ] Phase G: Integration & Testing
-- [ ] Phase H: Documentation
+- [x] Phase A: Analysis & Design
+- [x] Phase B: RefResolver Module
+- [x] Phase C: project_setup.json Schema Optimization
+- [x] Phase D: Dependency Graph Builder
+- [ ] Phase E: SchemaLoader Enhancement
+- [ ] Phase F: Circular Reference Handling
+- [ ] Phase G: Caching & Performance
+- [ ] Phase H: Integration & Testing
+- [ ] Phase I: Documentation
 
 ---
 

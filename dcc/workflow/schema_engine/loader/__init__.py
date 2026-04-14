@@ -11,10 +11,16 @@ from .ref_resolver import (
     SchemaNotRegisteredError,
     RefResolutionError
 )
+from .dependency_graph import (
+    SchemaDependencyGraph,
+    CircularDependencyError
+)
 
 __all__ = [
     'SchemaLoader',
     'RefResolver',
+    'SchemaDependencyGraph',
+    'CircularDependencyError',
     'SchemaNotRegisteredError',
     'RefResolutionError',
     'load_schema_parameters',
