@@ -17,12 +17,12 @@
     "type": "object",
     "additionalProperties": false,
     "properties": {
-      "project_schema": {"type": "string"},
-      "facility_schema": {"type": "string"},
-      "department_schema": {"type": "string"},
-      "discipline_schema": {"type": "string"},
-      "document_type_schema": {"type": "string"},
-      "approval_code_schema": {"type": "string"}
+      "project_schema": { "$ref": "https://dcc-pipeline.internal/schemas/project" },
+      "facility_schema": { "$ref": "https://dcc-pipeline.internal/schemas/facility" },
+      "department_schema": { "$ref": "https://dcc-pipeline.internal/schemas/department" },
+      "discipline_schema": { "$ref": "https://dcc-pipeline.internal/schemas/discipline" },
+      "document_type_schema": { "$ref": "https://dcc-pipeline.internal/schemas/document-type" },
+      "approval_code_schema": { "$ref": "https://dcc-pipeline.internal/schemas/approval-code" }
     }
   },
   "parameters": {

@@ -1,171 +1,60 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dcc-pipeline.internal/schemas/project",
+  "title": "DCC Project Schema",
+  "description": "Standardized project code definitions and validation rules for the DCC pipeline.",
+  "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "definitions": {
-    "file_entry": {
-      "type": "object",
-      "description": "Generic file entry with common metadata",
-      "properties": {
-        "filename": {
-          "type": "string",
-          "description": "Filename or relative path"
-        },
-        "required": {
-          "type": "boolean",
-          "description": "Whether this file is mandatory"
-        },
-        "description": {
-          "type": "string",
-          "description": "Purpose of this file"
-        },
-        "approximate_size": {
-          "type": "string",
-          "description": "Expected approximate file size"
-        }
-      },
-      "required": ["filename", "required", "description"]
-    },
-    "schema_files_config": {
-      "type": "array",
-      "description": "Required JSON schema definition files (located in config/schemas). Supports auto-discovery via discovery_rules.",
-      "items": {"$ref": "#/definitions/file_entry"},
-      "default": [
-        {
-          "filename": "master_registry.json",
-          "required": true,
-          "description": "Master registry containing project configuration, document types, tools, workflows, and environment settings"
-        },
-        {
-          "filename": "project_setup.json",
-          "required": true,
-          "description": "Main project setup schema - universal entry point for all configuration"
-        },
-        {
-          "filename": "project_setup_base.json",
-          "required": true,
-          "description": "Base fragment schema with reusable definitions"
-        },
-        {
-          "filename": "project_setup_structure.json",
-          "required": true,
-          "description": "Fragment schema for project structure (folders and root files)"
-        },
-        {
-          "filename": "project_setup_discovery.json",
-          "required": true,
-          "description": "Fragment schema for pattern-based discovery rules"
-        },
-        {
-          "filename": "project_setup_environment.json",
-          "required": true,
-          "description": "Fragment schema for environment specifications"
-        },
-        {
-          "filename": "project_setup_validation.json",
-          "required": true,
-          "description": "Fragment schema for validation rules"
-        },
-        {
-          "filename": "project_setup_dependencies.json",
-          "required": true,
-          "description": "Fragment schema for dependency management"
-        }
-      ]
-    }
-  },
+  "required": [
+    "version",
+    "projects"
+  ],
   "properties": {
-    "schema_validation": {
-      "type": "array",
-      "description": "Schema validation modules (located in workflow)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/python_module_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["python_module"]
-          }
-        }
-      }
+    "version": {
+      "type": "string",
+      "description": "Schema version"
     },
-    "schema_engine": {
-      "type": "array",
-      "description": "Schema engine modules (located in workflow/schema_engine)",
-      "items": {
-        "allOf": [
-          {"$ref": "#/definitions/path_entry"}
-        ],
-        "type": "object",
-        "properties": {
-          "type": {
-            "enum": ["folder", "python_module", "documentation", "init_file"]
-          }
-        }
-      }
+    "description": {
+      "type": "string"
     },
-    "schema_name": {"type": "string"},
-    "type": {"type": "string"},
-    "data_section": {"type": "string"},
-    "field_definitions": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "code": {"type": "object"},
-        "description": {"type": "object"}
-      },
-      "required": ["code", "description"]
+    "created": {
+      "type": "string",
+      "format": "date"
     },
-    "project": {
+    "projects": {
       "type": "array",
+      "description": "List of active project codes and human-readable descriptions",
       "items": {
         "type": "object",
         "additionalProperties": false,
+        "required": [
+          "code",
+          "description"
+        ],
         "properties": {
-          "code": {"type": "string"},
-          "description": {"type": "string"}
-        },
-        "required": ["code", "description"]
-      }
-    },
-    "description": {"type": "string"},
-    "created": {"type": "string"},
-    "version": {"type": ["string", "number"]}
-  },
-  "required": ["schema_name", "type", "data_section", "field_definitions", "project"],
-  "schema_name": "project_choices",
-  "type": "standard_choices",
-  "data_section": "project",
-  "field_definitions": {
-    "code": {
-      "data_type": "string",
-      "required": true,
-      "validation": {
-        "pattern": "^\\d{6}$",
-        "min_length": 6,
-        "max_length": 6,
-        "unique": true
-      }
-    },
-    "description": {
-      "data_type": "string",
-      "required": true,
-      "validation": {
-        "min_length": 1,
-        "max_length": 100,
-        "unique": true
-      }
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "minLength": 6,
+            "maxLength": 6,
+            "description": "Standardized 6-digit numerical project code"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Full project name or description"
+          }
+        }
+      },
+      "uniqueItems": true
     }
   },
-  "project": [
+  "projects": [
     {
       "code": "131242",
       "description": "TWRP"
     }
-  ],
-  "description": "Standard project codes",
-  "created": "2026/04/02",
-  "version": 1
+  ]
 }

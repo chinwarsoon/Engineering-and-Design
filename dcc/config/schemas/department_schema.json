@@ -34,7 +34,7 @@
       "uniqueItems": true
     }
   },
-  "department": [
+  "departments": [
     "Project",
     "QAQC",
     "Contract",
