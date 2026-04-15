@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project-config",
+  "title": "DCC Project Configuration Data",
+  "description": "Actual configuration items for DCC project setup. Follows agent_rule.md Section 2.3 flat structure with array of objects.",
+  "version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "project_metadata": {
+    "project_id": "dcc-engineering-design",
+    "project_name": "DCC Engineering and Design Pipeline",
+    "version": "1.0.0",
+    "created_date": "2026-04-15",
+    "last_modified": "2026-04-15"
+  },
+  "folders": [
+        {"name": "config/schemas", "purpose": "Schema definitions and categorical lookups", "required": true},
+        {"name": "data", "purpose": "Input Excel data files and trackers", "required": true},
+        {"name": "output", "purpose": "Processed data exports (Excel, CSV, JSON)", "required": true},
+        {"name": "workflow", "purpose": "Core processing engines and orchestration notebooks", "required": true},
+        {"name": "tools", "purpose": "Utility scripts and setup helpers", "required": true},
+        {"name": "Log", "purpose": "System, issue, and update logs", "required": true},
+        {"name": "ui", "purpose": "Diagnostic dashboards and HTML explorers", "required": true}
+  ],
+  "root_files": [
+        {"name": "dcc.yml", "purpose": "Conda environment specification", "required": true, "extension": "yml"},
+        {"name": "README.md", "purpose": "Project documentation and setup instructions", "required": true, "extension": "md"},
+        {"name": "agent_rule.md", "purpose": "Agent rules and compliance guidelines", "required": true, "extension": "md"}
+  ],
+  "schema_files": [
+        {"filename": "project_setup_base.json", "required": true, "description": "Base schema with reusable definitions", "category": "base_schema"},
+        {"filename": "project_setup.json", "required": true, "description": "Project setup validation schema", "category": "project_schema"},
+        {"filename": "project_config.json", "required": true, "description": "Project configuration data", "category": "config_data"},
+        {"filename": "dcc_master_registry.json", "required": true, "description": "Central registry of registers and validation schemas", "category": "master_registry"},
+        {"filename": "project_schema.json", "required": true, "description": "Defines project codes and descriptions", "category": "data_schema"}
+  ],
+  "discovery_rules": [
+        {"pattern": "*_schema.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "validation_schema", "exclude_patterns": ["**/backup/**"]},
+        {"pattern": "*_types.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "type_definition"},
+        {"pattern": "calculation_*.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "calculation_schema"},
+        {"pattern": "**/error_handling/config/*.json", "directory": "workflow", "recursive": true, "auto_register": true, "category": "engine_schema", "exclude_patterns": ["**/messages/**"]}
+  ],
+  "workflow_files": [
+        {"filename": "dcc_engine_pipeline.py", "required": true, "description": "Main pipeline orchestration", "type": "python_module"},
+        {"filename": "universal_document_processor.py", "required": true, "description": "Document processing engine", "type": "python_module"},
+        {"filename": "submission_closed_schema.json", "required": true, "description": "Submission status calculation rules", "type": "documentation"}
+  ],
+  "tool_files": [
+        {"filename": "setup_environment.py", "required": true, "description": "Environment setup and validation", "type": "python_script"},
+        {"filename": "schema_validator.py", "required": true, "description": "Schema validation utilities", "type": "python_script"}
+  ],
+  "environment": [
+        {
+          "name": "conda",
+          "required": true,
+          "file": "dcc.yml",
+          "location": "root",
+          "setup_commands": ["conda env create -f dcc.yml", "conda activate dcc"],
+          "key_dependencies": ["python=3.13", "pandas", "numpy", "matplotlib", "seaborn", "jupyter", "duckdb", "openpyxl"]
+        }
+  ],
+  "dependencies": {
+      "required": ["pandas", "numpy", "matplotlib", "seaborn", "jupyter", "duckdb", "openpyxl", "jsonschema"],
+      "optional": ["plotly", "dash", "streamlit", "pytest", "black", "flake8"],
+      "engines": [
+            {"module": "workflow.initiation_engine.core.validator", "members": ["Validator", "ProjectSetupValidator"], "optional": false},
+            {"module": "workflow.schema_engine.loader.schema_loader", "members": ["SchemaLoader"], "optional": false},
+            {"module": "workflow.schema_engine.validator.schema_validator", "members": ["SchemaValidator"], "optional": false}
+      ]
+  },
+  "required": ["folders", "root_files", "schema_files", "environment", "dependencies", "project_metadata"]
+}

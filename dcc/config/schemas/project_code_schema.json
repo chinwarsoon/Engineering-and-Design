@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project",
+  "title": "DCC Project Schema",
+  "description": "Standardized project code definitions and validation rules for the DCC pipeline.",
+  "version": "2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/project_entry"
+    }
+  ],
+  "projects": [
+    {"code": "131242", "description": "TWRP"},
+    {"code": "999999", "description": "Unknown Project"}
+  ]
+}

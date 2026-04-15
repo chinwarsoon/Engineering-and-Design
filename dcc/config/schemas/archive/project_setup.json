@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project-setup",
+  "title": "DCC Project Setup Validation Schema",
+  "description": "Schema for validating required folders, files, schemas, engines, instructions, tools for DCC project distribution and setup.",
+  "version": "3.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base"}
+  ],
+  "folders": [
+        { "name": "config/schemas", "purpose": "Schema definitions and categorical lookups", "required": true },
+        { "name": "data", "purpose": "Input Excel data files and trackers", "required": true },
+        { "name": "output", "purpose": "Processed data exports (Excel, CSV, JSON)", "required": true },
+        { "name": "workflow", "purpose": "Core processing engines and orchestration notebooks", "required": true },
+        { "name": "tools", "purpose": "Utility scripts and setup helpers", "required": true },
+        { "name": "Log", "purpose": "System, issue, and update logs", "required": true },
+        { "name": "ui", "purpose": "Diagnostic dashboards and HTML explorers", "required": true }
+  ],
+  "schema_files": [
+        { "filename": "project_schema.json", "required": true, "description": "Defines project codes and descriptions" },
+        { "filename": "dcc_master_registry.json", "required": true, "description": "Central registry of registers and validation schemas" },
+        { "filename": "project_setup_structure.json", "required": true, "description": "Defines required folders, files, and engines for project setup" },
+        { "filename": "project_setup_validation.json", "required": true, "description": "Defines validation rules for project setup" },
+        { "filename": "project_setup_environment.json", "required": true, "description": "Defines environment variable requirements for project setup" },
+        { "filename": "project_setup_dependencies.json", "required": true, "description": "Defines external dependencies and their versions for project setup" }
+  ],
+  "required": [
+    "version",
+    "required_folders",
+    "root_files",
+    "schema_files",
+    "workflow_files",
+    "approval_codes"
+  ]
+}

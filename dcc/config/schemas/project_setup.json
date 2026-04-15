@@ -2,36 +2,287 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dcc-pipeline.internal/schemas/project-setup",
   "title": "DCC Project Setup Validation Schema",
-  "description": "Schema for validating required folders, files, schemas, engines, instructions, tools for DCC project distribution and setup.",
-  "version": "3.0.0",
+  "description": "Schema for validating required folders, files, schemas, engines, instructions, tools for DCC project distribution and setup. Follows agent_rule.md Section 2.3 inheritance pattern.",
+  "version": "4.0.0",
   "type": "object",
   "additionalProperties": false,
   "allOf": [
     {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base"}
   ],
-  "folders": [
-        { "name": "config/schemas", "purpose": "Schema definitions and categorical lookups", "required": true },
-        { "name": "data", "purpose": "Input Excel data files and trackers", "required": true },
-        { "name": "output", "purpose": "Processed data exports (Excel, CSV, JSON)", "required": true },
-        { "name": "workflow", "purpose": "Core processing engines and orchestration notebooks", "required": true },
-        { "name": "tools", "purpose": "Utility scripts and setup helpers", "required": true },
-        { "name": "Log", "purpose": "System, issue, and update logs", "required": true },
-        { "name": "ui", "purpose": "Diagnostic dashboards and HTML explorers", "required": true }
-  ],
-  "schema_files": [
-        { "filename": "project_schema.json", "required": true, "description": "Defines project codes and descriptions" },
-        { "filename": "dcc_master_registry.json", "required": true, "description": "Central registry of registers and validation schemas" },
-        { "filename": "project_setup_structure.json", "required": true, "description": "Defines required folders, files, and engines for project setup" },
-        { "filename": "project_setup_validation.json", "required": true, "description": "Defines validation rules for project setup" },
-        { "filename": "project_setup_environment.json", "required": true, "description": "Defines environment variable requirements for project setup" },
-        { "filename": "project_setup_dependencies.json", "required": true, "description": "Defines external dependencies and their versions for project setup" }
-  ],
-  "required": [
-    "version",
-    "required_folders",
-    "root_files",
-    "schema_files",
-    "workflow_files",
-    "approval_codes"
-  ]
+  "properties": {
+    "folders": {
+      "type": "array",
+      "description": "All required and optional directories for the DCC project",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/folder_entry"}
+    },
+    "root_files": {
+      "type": "array",
+      "description": "Files required at the project root level",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/root_file_entry"}
+    },
+    "schema_files": {
+      "type": "array",
+      "description": "Required JSON schema definition files (located in config/schemas). Supports auto-discovery via discovery_rules.",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/file_entry"}
+    },
+    "discovery_rules": {
+      "type": "array",
+      "description": "Pattern-based rules for auto-discovering schema files. See agent_rule.md Section 2.8",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/pattern_rule"}
+    },
+    "workflow_files": {
+      "type": "array",
+      "description": "Required workflow notebooks and Python modules (located in workflow)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/typed_file_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["notebook", "python_module", "documentation"],
+            "description": "Type of workflow file"
+          }
+        },
+        "required": ["filename", "required", "type", "description"]
+      }
+    },
+    "tool_files": {
+      "type": "array",
+      "description": "Required utility and setup script files (located in tools)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/python_module_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["python_script", "shell_script", "other"],
+            "description": "Type of tool file"
+          }
+        },
+        "required": ["filename", "required", "type", "description"]
+      }
+    },
+    "processor_engine": {
+      "type": "array",
+      "description": "Document processor engine modules (located in workflow/processor_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file", "test_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "mapper_engine": {
+      "type": "array",
+      "description": "Column mapper engine modules (located in workflow/mapper_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "schema_validation": {
+      "type": "array",
+      "description": "Schema validation modules (located in workflow)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/python_module_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["python_module"],
+            "description": "Type of validation module"
+          }
+        },
+        "required": ["filename", "required", "type", "description"]
+      }
+    },
+    "schema_engine": {
+      "type": "array",
+      "description": "Schema engine modules (located in workflow/schema_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "initiation_engine": {
+      "type": "array",
+      "description": "Initiation engine modules (located in workflow/initiation_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "reporting_engine": {
+      "type": "array",
+      "description": "Reporting engine modules (located in workflow/reporting_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "environment": {
+      "type": "array",
+      "description": "Environment specifications for the project",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/environment_entry"}
+    },
+    "validation_rules": {
+      "type": "array",
+      "description": "Validation rules for project setup",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_rule_entry"}
+    },
+    "dependencies": {
+      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/dependencies_config"
+    },
+    "registry": {
+      "description": "Master registry reference containing project configuration, document types, tools, and workflows",
+      "$ref": "https://dcc-pipeline.internal/schemas/master-registry"
+    },
+    "dcc_register_enhanced": {
+      "description": "Enhanced DCC register with comprehensive data processing rules and column definitions",
+      "$ref": "https://dcc-pipeline.internal/schemas/dcc-register-enhanced"
+    },
+    "project_metadata": {
+      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/project_metadata"
+    },
+    "global_parameters": {
+      "type": "array",
+      "description": "Global pipeline parameters configuration for DCC processing",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/global_parameters"}
+    },
+    "departments": {
+      "type": "array",
+      "description": "Department classifications for the project",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/department_entry"}
+    },
+    "disciplines": {
+      "type": "array",
+      "description": "Engineering discipline classifications",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/discipline_entry"}
+    },
+    "facilities": {
+      "type": "array",
+      "description": "Facility classifications and codes",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/facility_entry"}
+    },
+    "document_types": {
+      "type": "array",
+      "description": "Document type classifications",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/document_type_entry"}
+    },
+    "projects": {
+      "type": "array",
+      "description": "Project classifications and codes",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/project_entry"}
+    },
+    "column_types": {
+      "type": "array",
+      "description": "Available column type definitions for use in dcc_register_enhanced",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/column_types"}
+    },
+    "column_patterns": {
+      "type": "array", 
+      "description": "Reusable validation patterns for column definitions",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_patterns"}
+    },
+    "column_strategies": {
+      "type": "array",
+      "description": "Reusable null handling strategies for columns",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/null_handling_strategies"}
+    },
+    "column_groups": {
+      "type": "object",
+      "description": "Logical groupings of columns for processing and reporting",
+      "additionalProperties": false,
+      "properties": {
+        "document_info": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Document identification columns"
+        },
+        "submission_info": {
+          "type": "array", 
+          "items": {"type": "string"},
+          "description": "Submission tracking columns"
+        },
+        "review_info": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Review process columns"
+        },
+        "metadata": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Metadata and reference columns"
+        }
+      }
+    },
+    "column_sequence": {
+      "type": "array",
+      "description": "Processing sequence for columns in dcc_register_enhanced",
+      "items": {"type": "string"}
+    }
+  },
+  "required": ["project_id", "project_name", "version", "folders", "root_files", "schema_files", "discovery_rules", "workflow_files", "tool_files", "environment", "dependencies", "validation_rules", "registry", "project_metadata"]
 }

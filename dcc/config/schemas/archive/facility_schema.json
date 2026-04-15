@@ -6,11 +6,77 @@
   "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "allOf": [
-    {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/facility_entry"
-    }
+  "required": [
+    "version",
+    "facilities"
   ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version"
+    },
+    "description": {
+      "type": "string"
+    },
+    "created": {
+      "type": "string"
+    },
+    "facilities": {
+      "type": "array",
+      "description": "List of standardized facility codes and area mappings",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "prefix",
+          "building_description",
+          "project_prefix_sort_order",
+          "plant_area_name",
+          "plant_area_order",
+          "work_area",
+          "used_for_pid",
+          "sort_number"
+        ],
+        "properties": {
+          "prefix": {
+            "type": ["string", "null"],
+            "pattern": "^[A-Z]{3}\\d{2}$",
+            "minLength": 5,
+            "maxLength": 5,
+            "description": "Standardized 5-character facility prefix"
+          },
+          "building_description": {
+            "type": ["string", "null"]
+          },
+          "project_prefix_sort_order": {
+            "type": "number"
+          },
+          "plant_area_name": {
+            "type": ["string", "null"]
+          },
+          "plant_area_order": {
+            "type": "number"
+          },
+          "work_area": {
+            "type": ["string", "null"]
+          },
+          "contract": {
+            "type": ["string", "null"]
+          },
+          "Contract_MEICA": {
+            "type": ["string", "null"]
+          },
+          "used_for_pid": {
+            "type": "boolean"
+          },
+          "sort_number": {
+            "type": "number"
+          }
+        }
+      },
+      "uniqueItems": true
+    }
+  },
   "facilities": [
     {
       "prefix": "WDP00",

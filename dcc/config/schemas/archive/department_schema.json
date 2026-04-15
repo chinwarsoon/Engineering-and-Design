@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/department",
+  "title": "DCC Department Schema",
+  "description": "Standard department classifications for document management with built-in validation rules.",
+  "version": "2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "choices"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version"
+    },
+    "description": {
+      "type": "string"
+    },
+    "created": {
+      "type": "string",
+      "format": "date"
+    },
+    "department": {
+      "type": "array",
+      "description": "List of valid department names",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 50,
+        "description": "Individual department name constraint"
+      },
+      "uniqueItems": true
+    }
+  },
+  "departments": [
+    "Project",
+    "QAQC",
+    "Contract",
+    "Procurement",
+    "Process",
+    "Piping",
+    "CSA",
+    "Architechture",
+    "Civil",
+    "Structural",
+    "Building Service",
+    "Electrical",
+    "ICA",
+    "Mechanical",
+    "PMT",
+    "BIM",
+    "NA"
+  ]
+}

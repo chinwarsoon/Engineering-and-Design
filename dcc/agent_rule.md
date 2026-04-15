@@ -26,7 +26,7 @@
 # Section 2. Schema:
 1. always check and enure compliance with schema standard.
 2. when create a schema, alway consider a flat schema structure, use array of objects, and avoid using array of list.
-3. use project_setup.json as main entry point for schema configuration. all schema files should be referenced in project_setup.json. drill down path will be 'the key' to ' the blueprint' to 'the fact'
+3. use project_setup_base.json as base schema to store "definitions", project_setup.json to store "properties", and use project_config.json to store actual items. 
 4. schema loader must support different types of $ref (string, object, nested object, recursive, etc.). also use Unified Schema Registry (URIs) giving every schema a unique, permanent "Digital ID" that the engine can find regardless of where the file actually sits on the drive.
 5. adopt schema fragment pattern for better maintainability and reusability always.
 6. implement inheritance (base + project) pattern for better maintainability and reusability always.

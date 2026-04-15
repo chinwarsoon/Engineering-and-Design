@@ -6,51 +6,24 @@
   "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "version",
-    "choices"
-  ],
-  "properties": {
-    "version": {
-      "type": "string",
-      "description": "Schema version"
-    },
-    "description": {
-      "type": "string"
-    },
-    "created": {
-      "type": "string",
-      "format": "date"
-    },
-    "department": {
-      "type": "array",
-      "description": "List of valid department names",
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 50,
-        "description": "Individual department name constraint"
-      },
-      "uniqueItems": true
-    }
-  },
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/department_entry"}],
   "departments": [
-    "Project",
-    "QAQC",
-    "Contract",
-    "Procurement",
-    "Process",
-    "Piping",
-    "CSA",
-    "Architechture",
-    "Civil",
-    "Structural",
-    "Building Service",
-    "Electrical",
-    "ICA",
-    "Mechanical",
-    "PMT",
-    "BIM",
-    "NA"
+    {"code": "PRJ", "description": "Project"},
+    {"code": "QAQC", "description": "Quality Assurance and Quality Control"},
+    {"code": "CNT", "description": "Contract"},
+    {"code": "PRC", "description": "Procurement"},
+    {"code": "PRC", "description": "Process"},
+    {"code": "PIP", "description": "Piping"},
+    {"code": "CSA", "description": "Civil, Structural, and Architectural"},
+    {"code": "ARC", "description": "Architecture"},
+    {"code": "CIV", "description": "Civil"},
+    {"code": "STR", "description": "Structural"},
+    {"code": "BSV", "description": "Building Service"},
+    {"code": "ELE", "description": "Electrical"},
+    {"code": "ICA", "description": "Instrumentation and Control"},
+    {"code": "MEC", "description": "Mechanical"},
+    {"code": "PMT", "description": "Project Management"},
+    {"code": "BIM", "description": "Building Information Modeling"},
+    {"code": "NA", "description": "Not Applicable"}
   ]
 }

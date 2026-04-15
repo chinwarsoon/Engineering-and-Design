@@ -6,110 +6,22 @@
   "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "version",
-    "disciplines"
-  ],
-  "properties": {
-    "version": {
-      "type": "string",
-      "description": "Schema version"
-    },
-    "description": {
-      "type": "string"
-    },
-    "created": {
-      "type": "string"
-    },
-    "disciplines": {
-      "type": "array",
-      "description": "List of standardized engineering disciplines and their descriptions",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "code",
-          "description"
-        ],
-        "properties": {
-          "code": {
-            "type": "string",
-            "pattern": "^[A-Z0-9]{1,3}$",
-            "minLength": 1,
-            "maxLength": 3,
-            "description": "Standardized 1-3 character alphanumeric discipline code"
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100,
-            "description": "Full name of the engineering discipline"
-          }
-        }
-      },
-      "uniqueItems": true
-    }
-  },
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/discipline_entry"}],
   "disciplines": [
-    {
-      "code": "PUB",
-      "description": "Reserved for Client Use"
-    },
-    {
-      "code": "G",
-      "description": "General"
-    },
-    {
-      "code": "A",
-      "description": "Architectural"
-    },
-    {
-      "code": "C",
-      "description": "Civil"
-    },
-    {
-      "code": "S",
-      "description": "Structural"
-    },
-    {
-      "code": "M",
-      "description": "Mechanical"
-    },
-    {
-      "code": "P",
-      "description": "Process"
-    },
-    {
-      "code": "PL",
-      "description": "Pipeline"
-    },
-    {
-      "code": "E",
-      "description": "Electrical"
-    },
-    {
-      "code": "I",
-      "description": "Instrumentation & Control"
-    },
-    {
-      "code": "T",
-      "description": "Telecommunications"
-    },
-    {
-      "code": "Q",
-      "description": "QA/QC"
-    },
-    {
-      "code": "H",
-      "description": "HSE"
-    },
-    {
-      "code": "X",
-      "description": "Commissioning"
-    },
-    {
-      "code": "NA",
-      "description": "Not Applicable"
-    }
+    {"code": "PUB","description": "Reserved for Client Use"},
+    {"code": "G","description": "General"},
+    {"code": "A","description": "Architectural"},
+    {"code": "C","description": "Civil"},
+    {"code": "S","description": "Structural"},
+    {"code": "M","description": "Mechanical"},
+    {"code": "P","description": "Process"},
+    {"code": "PL","description": "Pipeline"},
+    {"code": "E","description": "Electrical"},
+    {"code": "I","description": "Instrumentation & Control"},
+    {"code": "T","description": "Telecommunications"},
+    {"code": "Q","description": "QA/QC"},
+    {"code": "H","description": "HSE"},
+    {"code": "X","description": "Commissioning"},
+    {"code": "NA","description": "Not Applicable"}
   ]
 }
