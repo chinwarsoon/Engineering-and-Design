@@ -1,48 +1,42 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dcc-pipeline.internal/schemas/department",
+  "title": "DCC Department Schema",
+  "description": "Standard department classifications for document management with built-in validation rules.",
+  "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "version",
+    "choices"
+  ],
   "properties": {
-    "schema_name": {"type": "string"},
-    "type": {"type": "string"},
-    "data_section": {"type": "string"},
-    "data_item_type": {"type": "string"},
-    "field_definitions": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "value": {"type": "object"}
-      },
-      "required": ["value"]
+    "version": {
+      "type": "string",
+      "description": "Schema version"
     },
-    "choices": {
+    "description": {
+      "type": "string"
+    },
+    "created": {
+      "type": "string",
+      "format": "date"
+    },
+    "department": {
       "type": "array",
-      "items": {"type": "string"}
-    },
-    "description": {"type": "string"},
-    "created": {"type": "string"},
-    "version": {"type": ["string", "number"]}
-  },
-  "required": ["schema_name", "type", "data_section", "field_definitions", "choices"],
-  "schema_name": "department_choices",
-  "type": "standard_choices",
-  "data_section": "choices",
-  "data_item_type": "scalar",
-  "field_definitions": {
-    "value": {
-      "data_type": "string",
-      "required": true,
-      "validation": {
-        "min_length": 1,
-        "max_length": 50,
-        "unique": true
-      }
+      "description": "List of valid department names",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 50,
+        "description": "Individual department name constraint"
+      },
+      "uniqueItems": true
     }
   },
-  "choices": [
+  "department": [
     "Project",
-    "QAQC", 
+    "QAQC",
     "Contract",
     "Procurement",
     "Process",
@@ -58,8 +52,5 @@
     "PMT",
     "BIM",
     "NA"
-  ],
-  "description": "Standard department classifications for document management",
-  "created": "2026-03-28",
-  "version": "1.0"
+  ]
 }

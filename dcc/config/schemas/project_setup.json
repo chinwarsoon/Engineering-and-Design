@@ -23,6 +23,7 @@
     "dependencies_config": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-dependencies#/definitions/dependencies_config"}
   },
   "properties": {
+    
     "folders": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/folders"},
     "root_files": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-structure#/properties/root_files"},
     "schema_files": {"$ref": "https://dcc-pipeline.internal/schemas/project#/definitions/schema_files_config"},
@@ -38,13 +39,14 @@
     "environment": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-environment#/properties/environment"},
     "validation_rules": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-validation#/properties/validation_rules"},
     "dependencies": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-dependencies#/properties/dependencies"},
-    "registry": {"$ref": "https://dcc-pipeline.internal/schemas/master-registry#/properties/registry"}
+    "dcc_master_registry": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-master-registry#/properties/registry"}
   },
   "required": [
     "version",
     "folders",
     "root_files",
     "schema_files",
-    "workflow_files"
+    "workflow_files",
+    "approval_codes"
   ]
 }

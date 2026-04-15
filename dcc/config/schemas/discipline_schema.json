@@ -1,70 +1,115 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dcc-pipeline.internal/schemas/discipline",
+  "title": "DCC Discipline Schema",
+  "description": "Standard engineering discipline classifications with built-in validation rules.",
+  "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
+  "required": [
+    "version",
+    "disciplines"
+  ],
   "properties": {
-    "schema_name": {"type": "string"},
-    "type": {"type": "string"},
-    "data_section": {"type": "string"},
-    "field_definitions": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "code": {"type": "object"},
-        "description": {"type": "object"}
-      },
-      "required": ["code", "description"]
+    "version": {
+      "type": "string",
+      "description": "Schema version"
     },
-    "discipline": {
+    "description": {
+      "type": "string"
+    },
+    "created": {
+      "type": "string"
+    },
+    "disciplines": {
       "type": "array",
+      "description": "List of standardized engineering disciplines and their descriptions",
       "items": {
         "type": "object",
         "additionalProperties": false,
+        "required": [
+          "code",
+          "description"
+        ],
         "properties": {
-          "code": {"type": "string"},
-          "description": {"type": "string"}
-        },
-        "required": ["code", "description"]
-      }
-    },
-    "description": {"type": "string"},
-    "created": {"type": "string"},
-    "version": {"type": ["string", "number"]}
-  },
-  "required": ["schema_name", "type", "data_section", "field_definitions", "discipline"],
-  "schema_name": "discipline_choices",
-  "type": "standard_choices",
-  "data_section": "discipline",
-  "field_definitions": {
-    "code": {
-      "data_type": "string",
-      "required": true,
-      "validation": {
-        "pattern": "^[A-Z0-9]{1,3}$",
-        "min_length": 1,
-        "max_length": 3,
-        "unique": true
-      }
-    },
-    "description": {
-      "data_type": "string",
-      "required": true,
-      "validation": {
-        "min_length": 1,
-        "max_length": 100,
-        "unique": true
-      }
+          "code": {
+            "type": "string",
+            "pattern": "^[A-Z0-9]{1,3}$",
+            "minLength": 1,
+            "maxLength": 3,
+            "description": "Standardized 1-3 character alphanumeric discipline code"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Full name of the engineering discipline"
+          }
+        }
+      },
+      "uniqueItems": true
     }
   },
-  "discipline": [
+  "disciplines": [
     {
       "code": "PUB",
       "description": "Reserved for Client Use"
     },
-...
-  ],
-  "description": "Standard engineering discipline classifications",
-  "created": "2026/04/02",
-  "version": 2
+    {
+      "code": "G",
+      "description": "General"
+    },
+    {
+      "code": "A",
+      "description": "Architectural"
+    },
+    {
+      "code": "C",
+      "description": "Civil"
+    },
+    {
+      "code": "S",
+      "description": "Structural"
+    },
+    {
+      "code": "M",
+      "description": "Mechanical"
+    },
+    {
+      "code": "P",
+      "description": "Process"
+    },
+    {
+      "code": "PL",
+      "description": "Pipeline"
+    },
+    {
+      "code": "E",
+      "description": "Electrical"
+    },
+    {
+      "code": "I",
+      "description": "Instrumentation & Control"
+    },
+    {
+      "code": "T",
+      "description": "Telecommunications"
+    },
+    {
+      "code": "Q",
+      "description": "QA/QC"
+    },
+    {
+      "code": "H",
+      "description": "HSE"
+    },
+    {
+      "code": "X",
+      "description": "Commissioning"
+    },
+    {
+      "code": "NA",
+      "description": "Not Applicable"
+    }
+  ]
 }

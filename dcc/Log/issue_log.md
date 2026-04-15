@@ -324,3 +324,9 @@ WARNING: No handler registered for calculation type: extract_affixes/extract_doc
 **Related to:** Issue #16 implementation
  - `[Status]`: Fixed
  - `[Link to changes in update_log.md]`: See update_log.md#2026-04-12-164500
+
+## 2026-04-15 09:40:00
+[issue #17] tools/project_setup_tools.py should be updated to establish a new project folder, copies all necessary files, and configure schemas
+
+- `[status]`: open
+- `[Link to changes in update_log.md]`: 

@@ -40,8 +40,8 @@ class SchemaValidationTest(unittest.TestCase):
     def _build_lookup_schema_with_field_definitions(self, records: list[dict]) -> dict:
         return {
             "schema_name": "approval_code_schema",
-            "type": "status_to_code_mapping",
             "data_section": "approval",
+            "data_item_type": "object",
             "field_definitions": {
                 "code": {
                     "data_type": "string",
