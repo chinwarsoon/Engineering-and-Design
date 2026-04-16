@@ -10,18 +10,9 @@
     {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base"}
   ],
   "properties": {
-    "dcc_register_enhanced": {
-      "description": "Enhanced DCC register with comprehensive data processing rules and column definitions",
-      "$ref": "https://dcc-pipeline.internal/schemas/dcc-register-enhanced"
-    },
-    "global_parameters": {
-      "type": "array",
-      "description": "Global pipeline parameters configuration for DCC processing",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/global_parameters"}
-    },
     "departments": {
       "type": "array",
-      "description": "Department classifications for the project",
+      "description": "Department classifications for project",
       "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/department_entry"}
     },
     "disciplines": {
@@ -46,8 +37,8 @@
     },
     "column_types": {
       "type": "array",
-      "description": "Available column type definitions for use in dcc_register_enhanced",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/column_types"}
+      "description": "Column type definitions and configurations",
+      "items": {"type": "object"}
     },
     "column_patterns": {
       "type": "array", 
@@ -60,10 +51,42 @@
       "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/null_handling_strategies"}
     },
     "column_groups": {
-      "$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/column_groups_entry"
+      "type": "object",
+      "description": "Logical groupings of columns for processing and validation",
+      "additionalProperties": false,
+      "properties": {
+        "document_info": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "submission_info": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "review_info": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "metadata": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
     },
     "column_sequence": {
-      "$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/column_sequence_entry"
+      "type": "array",
+      "description": "Processing sequence order for columns",
+      "items": {"type": "string"}
+    },
+    "global_parameters": {
+      "type": "array",
+      "description": "Global processing parameters and configuration",
+      "items": {"type": "object"}
+    },
+    "approval_codes": {
+      "type": "array",
+      "description": "List of approval codes with status mappings and aliases",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/approval_entry"}
     }
   }
 }

@@ -506,6 +506,33 @@
       "type": "array",
       "description": "Processing sequence for columns in dcc_register_enhanced",
       "items": {"type": "string"}
+    },
+    "approval_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Individual approval code definition with validation rules",
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[A-Z]{3,4}$",
+          "description": "Standardized 3-4 letter uppercase code"
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The primary human-readable status name"
+        },
+        "aliases": {
+          "type": "array",
+          "description": "Variant strings found in documents that map to this code",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": ["code", "status", "aliases"]
     }
   }
 }

@@ -1,6 +1,7 @@
 # Phase A Analysis Report: Schema Discovery and $ref Patterns
 
 **Date:** 2026-04-13
+**Updated:** 2026-04-16 - Schema Architecture Realignment
 **Workplan:** [recursive_schema_loader_workplan.md](recursive_schema_loader_workplan.md)
 **Phase:** A - Analysis & Design
 
@@ -15,7 +16,7 @@
 
 | Schema File | Size | Type | $ref Usage | Registration Status |
 |-------------|------|------|-------------|---------------------|
-| `project_setup.json` | 1,486 bytes | **Master Entry** | Catalogs all schemas | **REQUIRED - Root** |
+| `project_setup.json` | 7,964 bytes | **Master Entry** | Catalogs all schemas | **REQUIRED - Root** |
 
 **Strict Registration Requirement:**
 - All schemas MUST be declared in `project_setup.json["schema_files"]` array
@@ -57,38 +58,50 @@ class SchemaNotRegisteredError(SchemaLoaderError):
 
 | Schema File | Size | Type | $ref Usage |
 |-------------|------|------|-------------|
-| `dcc_register_enhanced.json` | 2,183 bytes | Main Schema | `schema_references`, custom `$ref` |
-| `project_schema.json` | TBD | Reference Data | To be scanned |
-| `facility_schema.json` | TBD | Reference Data | To be scanned |
-| `department_schema.json` | TBD | Reference Data | To be scanned |
-| `discipline_schema.json` | TBD | Reference Data | To be scanned |
-| `document_type_schema.json` | TBD | Reference Data | To be scanned |
-| `approval_code_schema.json` | TBD | Reference Data | To be scanned |
-| `calculation_strategies.json` | TBD | Strategy Config | To be scanned |
-| `master_registry.json` | TBD | Registry | To be scanned |
+| `dcc_register_base.json` | 18,948 bytes | Base Definitions | Internal $ref to definitions |
+| `dcc_register_setup.json` | 3,436 bytes | Setup Structure | $ref to base definitions |
+| `dcc_register_config.json` | 70,631 bytes | Configuration Data | URI-based $ref to external schemas |
+| `project_code_schema.json` | 579 bytes | Reference Data | None (standalone) |
+| `facility_schema.json` | 34,152 bytes | Reference Data | $ref to base definitions |
+| `department_schema.json` | 1,420 bytes | Reference Data | $ref to base definitions |
+| `discipline_schema.json` | 1,195 bytes | Reference Data | $ref to base definitions |
+| `document_type_schema.json` | 1,211 bytes | Reference Data | $ref to base definitions |
+| `approval_code_schema.json` | 1,212 bytes | Reference Data | Standalone with actual data |
+| `global_parameters.json` | 2,317 bytes | Global Parameters | None (standalone) |
+| `project_config.json` | 5,033 bytes | Project Config | None (standalone) |
 
 **Subdirectories:**
-- `backup/` - 4 backup schema files (not active)
+- `archive/` - 18 archived schema files (not active)
+- `backup/` - 7 backup schema files (not active)
 
-### 1.3 Registration Gap Analysis (2026-04-13)
+### 1.3 Registration Gap Analysis (2026-04-16 Updated)
 
-**Discovery:** Phase A analysis revealed significant registration gaps in `project_setup.json`.
+**Discovery:** Phase A analysis revealed significant registration gaps in `project_setup.json`. Updated after schema architecture realignment.
 
-**Gap Summary:**
+**Gap Summary (Current State):**
 
 | Category | Registered | Missing | Total |
 |----------|-----------|---------|-------|
-| Config Schemas | 5 | 4 | 9 |
+| Config Schemas | 11 | 0 | 11 |
 | Engine Schemas | 0 | 9 | 9 |
-| **Total** | **5** | **13** | **18** |
+| **Total** | **11** | **9** | **20** |
 
-**Missing Config Schemas (4):**
-| Schema | Reason for Registration |
-|--------|------------------------|
-| `facility_schema.json` | Referenced in `schema_references`, required for validation |
-| `project_schema.json` | Referenced in `schema_references`, required for validation |
-| `calculation_strategies.json` | Column calculation definitions, required for processing |
-| `master_registry.json` | Document tracking, required for resubmission detection |
+**Active Config Schemas (11):**
+| Schema | Type | Registration Status |
+|--------|------|---------------------|
+| `project_setup.json` | Master Entry | ✅ REQUIRED - Root |
+| `project_setup_base.json` | Base Definitions | ✅ Registered |
+| `project_code_schema.json` | Reference Data | ✅ Registered |
+| `project_config.json` | Project Config | ✅ Registered |
+| `facility_schema.json` | Reference Data | ✅ Registered |
+| `department_schema.json` | Reference Data | ✅ Registered |
+| `discipline_schema.json` | Reference Data | ✅ Registered |
+| `document_type_schema.json` | Reference Data | ✅ Registered |
+| `approval_code_schema.json` | Reference Data | ✅ Registered |
+| `global_parameters.json` | Global Parameters | ✅ Registered |
+| `dcc_register_base.json` | Base Definitions | ✅ Registered |
+| `dcc_register_setup.json` | Setup Structure | ✅ Registered |
+| `dcc_register_config.json` | Configuration Data | ✅ Registered |
 
 **Missing Engine Schemas (9):**
 | Schema | Purpose | Required? |
@@ -103,7 +116,7 @@ class SchemaNotRegisteredError(SchemaLoaderError):
 | `messages/en.json` | English error messages | Yes |
 | `messages/zh.json` | Chinese error messages | No (optional i18n) |
 
-**Resolution:** All 13 missing schemas added to `project_setup.json["schema_files"]` array. See `project_setup.json` lines 660-737 for full registration entries.
+**Resolution:** All config schemas now registered. Engine schemas pending integration. See `project_setup.json` for full registration entries.
 
 **Registration Enforcement:**
 - Schemas listed in `project_setup.json["schema_files"]` are considered "registered"
@@ -130,30 +143,41 @@ class SchemaNotRegisteredError(SchemaLoaderError):
 
 ## 2. $ref Pattern Analysis
 
-### 2.1 Pattern Type 1: `schema_references` (Custom DCC)
-**Found in:** `dcc_register_enhanced.json`
+### 2.1 Pattern Type 1: URI-Based $ref (Primary Pattern)
+**Found in:** `dcc_register_config.json`, `facility_schema.json`, `department_schema.json`, etc.
 
 ```json
-"schema_references": {
-  "project_schema": "../config/schemas/project_schema.json",
-  "facility_schema": "../config/schemas/facility_schema.json",
-  "department_schema": "../config/schemas/department_schema.json",
-  "discipline_schema": "../config/schemas/discipline_schema.json",
-  "document_type_schema": "../config/schemas/document_type_schema.json",
-  "approval_code_schema": "../config/schemas/approval_code_schema.json"
+// dcc_register_config.json
+"departments": {
+  "$ref": "https://dcc-pipeline.internal/schemas/department#/departments"
+},
+"disciplines": {
+  "$ref": "https://dcc-pipeline.internal/schemas/discipline#/disciplines"
+},
+"approval_codes": {
+  "$ref": "https://dcc-pipeline.internal/schemas/approval-code#/approval"
+}
+
+// dcc_register_setup.json
+"departments": {
+  "type": "array",
+  "description": "Department classifications for project",
+  "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/department_entry"}
 }
 ```
 
 **Characteristics:**
-- Top-level key in schema object
-- Dictionary mapping logical names to relative file paths
-- Paths use `../` notation for cross-directory references
-- Current loader: `resolve_schema_dependencies()` method handles this
+- Primary $ref pattern used across all schemas
+- Uses Unified Schema Registry URIs (https://dcc-pipeline.internal/schemas/...)
+- Supports both external schema references and internal definitions
+- Requires URI registry for file path resolution
+- Current loader: RefResolver handles this with URI registry
 
-### 2.2 Pattern Type 2: Custom DCC `$ref` Object
-**Found in:** `dcc_register_enhanced.json` (parameters section)
+### 2.2 Pattern Type 2: Custom DCC `$ref` Object (Legacy)
+**Found in:** Legacy `dcc_register_enhanced.json` (DELETED 2026-04-16)
 
 ```json
+// Legacy pattern - NO LONGER IN USE
 "pending_status": {
   "$ref": {
     "schema": "approval_code_schema",
@@ -168,47 +192,33 @@ class SchemaNotRegisteredError(SchemaLoaderError):
 - Located within `parameters` sections
 - Object format with keys: `schema`, `code`, `field`
 - References data within another schema (not entire file)
-- Requires lookup: find item in array where `code == "PEN"`, then extract `status` field
-- **Current loader:** NOT implemented - requires custom resolver
+- **Status:** DEPRECATED - dcc_register_enhanced.json deleted on 2026-04-16
+- **Current loader:** NOT required for new architecture
 
-### 2.3 Pattern Type 3: Universal JSON Support (ALL Types)
-**Requirement:** Support ALL JSON reference types universally:
+### 2.3 Pattern Type 3: Internal $ref (Same-File References)
+**Found in:** `dcc_register_base.json`, `dcc_register_setup.json`
 
-| JSON Type | Example | Resolution Strategy |
-|-----------|---------|---------------------|
-| **Simple String** | `"status": "PENDING"` | Direct value, no resolution needed |
-| **Nested Object** | `{"$ref": {"schema": "X", "code": "Y"}}` | Custom DCC resolver (Type 2) |
-| **Recursive Object** | Self-referencing schema definitions | Circular reference detection |
-| **Array References** | `{"$ref": [{"schema": "A"}, {"schema": "B"}]}` | Iterate and resolve each element |
-| **Deeply Nested** | `{"level1": {"level2": {"$ref": {...}}}}` | Recursive traversal with path tracking |
-| **Mixed Types** | `{"field": "value", "ref": {"$ref": ...}}` | Resolve $ref fields, preserve others |
+```json
+// dcc_register_base.json
+{
+  "definitions": {
+    "department_entry": {...},
+    "discipline_entry": {...}
+  }
+}
 
-**Universal Resolver Interface:**
-```python
-def resolve_json_value(value: Any, 
-                      current_schema: Dict,
-                      path: str = "") -> Any:
-    """
-    Recursively resolve ANY JSON value.
-    - Primitive: return as-is
-    - Dict with $ref: resolve reference
-    - Dict without $ref: recurse into values
-    - List: recurse into each element
-    """
-    if isinstance(value, (str, int, float, bool)):
-        return value
-    elif isinstance(value, list):
-        return [resolve_json_value(item, current_schema, f"{path}[i]") 
-                for i, item in enumerate(value)]
-    elif isinstance(value, dict):
-        if "$ref" in value:
-            return resolve_ref_object(value["$ref"], current_schema, path)
-        else:
-            return {k: resolve_json_value(v, current_schema, f"{path}.{k}") 
-                   for k, v in value.items()}
+// dcc_register_setup.json
+"departments": {
+  "type": "array",
+  "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/department_entry"}
+}
 ```
 
-**Status:** Need to scan remaining schemas to identify all $ref patterns used.
+**Characteristics:**
+- References definitions within the same file or base schema
+- Uses `#/definitions/Name` format
+- Supports inheritance and reusability
+- Current loader: RefResolver handles this with internal resolution
 
 ### 2.4 Pattern Type 4: JSON Schema `$schema` Declaration
 **Found in:** `project_setup.json`
@@ -390,71 +400,97 @@ def generate_cache_key(schema_path: Path, content: Dict) -> str:
 
 ## 7. Findings Summary
 
-### 7.1 Discovered $ref Patterns
+### 7.1 Discovered $ref Patterns (Updated 2026-04-16)
 
 | Pattern | Location | Frequency | Implementation Priority |
 |---------|----------|-----------|------------------------|
-| `schema_references` | dcc_register_enhanced.json | 6 references | P1 - Already supported |
-| Custom DCC `$ref` | dcc_register_enhanced.json parameters | 1 reference | P2 - Needs new resolver |
-| Standard JSON $ref | Unknown | Unknown | P3 - Scan remaining schemas |
+| URI-Based $ref | dcc_register_config.json, facility_schema.json, etc. | 15+ references | P1 - Primary pattern, RefResolver handles |
+| Internal $ref | dcc_register_base.json, dcc_register_setup.json | 12+ references | P1 - RefResolver handles |
+| Custom DCC `$ref` | Legacy dcc_register_enhanced.json | DELETED | N/A - No longer in use |
 
-### 7.2 Schema Count by Directory
+### 7.2 Schema Count by Directory (Updated 2026-04-16)
 
 | Directory | Active Schemas | Backup Schemas | Subdirectories |
 |-----------|-----------------|----------------|----------------|
-| `config/schemas/` | 10 | 4 | 1 (backup/) |
+| `config/schemas/` | 11 | 25 | 2 (archive/, backup/) |
 | `engine/config/` | 9 | 0 | 1 (messages/) |
-| **Total** | **19** | **4** | **2** |
+| **Total** | **20** | **25** | **3** |
 
-### 7.3 Implementation Recommendations
+### 7.3 Implementation Recommendations (Updated 2026-04-16)
 
 1. **Immediate (Phase B):**
-   - Create `RefResolver` class supporting Type 1 and Type 2 $ref patterns
-   - Add multi-directory path resolution
+   - ✅ `RefResolver` class created with URI registry support
+   - ✅ Multi-directory path resolution implemented
+   - ✅ URI-based $ref resolution (primary pattern) supported
 
 2. **Short-term (Phase C):**
-   - Build `SchemaDependencyGraph` for all 19 schemas
-   - Validate no circular dependencies exist
+   - ✅ `SchemaDependencyGraph` built for all schemas
+   - ✅ Circular dependency detection implemented
+   - ✅ Topological sort for loading order
 
 3. **Medium-term (Phase D):**
-   - Integrate recursive discovery into `SchemaLoader`
-   - Support automatic walking of both directories
+   - ✅ Recursive discovery integrated into `SchemaLoader`
+   - ✅ Automatic walking of both directories supported
+   - ✅ Strict registration validation implemented
 
 4. **Long-term (Phase F):**
-   - Implement L1/L2/L3 caching strategy
-   - Add file modification monitoring
+   - ✅ `master_registry.json` integration completed
+   - ⏳ L1/L2/L3 caching strategy (Phase G - pending)
+   - ⏳ File modification monitoring (Phase G - pending)
+
+5. **Current Architecture:**
+   - DCC Register: base → setup → config architecture implemented
+   - URI-based $ref as primary pattern
+   - approval_code_schema.json integrated with dcc_register
+   - All schemas using Unified Schema Registry URIs
 
 ---
 
-## 8. Next Steps (Phase B Preparation)
+## 8. Next Steps (Current State - 2026-04-16)
 
-1. [ ] Scan remaining 17 schemas for additional $ref patterns
-2. [ ] Design `RefResolver` interface to handle both Type 1 and Type 2
-3. [ ] Identify any cross-directory dependencies between engine and config schemas
-4. [ ] Create test cases for each $ref pattern discovered
+**Phase A Status:** ✅ COMPLETE (Updated 2026-04-16)
+
+**Completed Tasks:**
+1. ✅ Scanned all schemas in `config/schemas/` for $ref patterns
+2. ✅ Identified 3 $ref patterns (URI-based, Internal, Legacy Custom)
+3. ✅ Analyzed dcc_register architecture (base → setup → config)
+4. ✅ Documented current $ref usage locations and formats
+5. ✅ Analyzed schema_loader.py current implementation
+6. ✅ Designed dependency graph data structure
+7. ✅ Defined caching strategy
+
+**Current Status:**
+- Phases A-F: ✅ COMPLETE
+- Phase G: ⏳ PENDING (Circular Reference Handling & Caching)
+- Phase H: ⏳ PENDING (Integration & Testing)
+- Phase I: ⏳ PENDING (Documentation)
+
+**Next Phase:** Phase G - Circular Reference Handling & Caching
 
 ---
 
 ## Appendix A: File Paths
 
-### Config Schemas
+### Config Schemas (Updated 2026-04-16)
 ```
 /home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/
 ├── project_setup.json
-├── dcc_register_enhanced.json
-├── project_schema.json
+├── project_setup_base.json
+├── project_code_schema.json
+├── project_config.json
 ├── facility_schema.json
 ├── department_schema.json
 ├── discipline_schema.json
 ├── document_type_schema.json
 ├── approval_code_schema.json
-├── calculation_strategies.json
-├── master_registry.json
+├── global_parameters.json
+├── dcc_register_base.json
+├── dcc_register_setup.json
+├── dcc_register_config.json
+├── archive/
+│   └── 18 archived schema files
 └── backup/
-    ├── dcc_register.json
-    ├── discipline_schema_backup.json
-    ├── document_type_schema_backup.json
-    └── enhanced_schema_example.json
+    └── 7 backup schema files
 ```
 
 ### Engine Schemas
@@ -475,5 +511,6 @@ def generate_cache_key(schema_path: Path, content: Dict) -> str:
 ---
 
 *Report Generated: 2026-04-13*
+*Updated: 2026-04-16 - Schema Architecture Realignment*
 *Analyst: Cascade AI*
-*Status: Phase A Complete - Ready for Phase B*
+*Status: Phase A Complete - Phases A-F Complete, Phase G Pending*
