@@ -6,7 +6,7 @@
   "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/discipline_entry"}],
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/discipline_entry"}],
   "disciplines": [
     {"code": "PUB","description": "Reserved for Client Use"},
     {"code": "G","description": "General"},

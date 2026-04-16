@@ -6,7 +6,7 @@
   "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/department_entry"}],
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/department_entry"}],
   "departments": [
     {"code": "PRJ", "description": "Project"},
     {"code": "QAQC", "description": "Quality Assurance and Quality Control"},

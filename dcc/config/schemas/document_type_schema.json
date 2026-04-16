@@ -6,7 +6,7 @@
   "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/document_type_entry"}],
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/document_type_entry"}],
   "document_types": [
     {"code": "AD", "description": "Addendum"},
     {"code": "AL", "description": "Approval Letter"},
