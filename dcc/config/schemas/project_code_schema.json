@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "allOf": [
     {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/project_entry"
+      "$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/project_entry"
     }
   ],
   "projects": [

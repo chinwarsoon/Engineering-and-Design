@@ -1,0 +1,41 @@
+name: Franklin Hybrid
+version: 1.0.0
+schema: v1
+
+models:
+  - name: "Gemini 2.5 Flash"
+    provider: "gemini"
+    model: "gemini-2.5-flash"
+    apiKey: "AIzaSyB4Or_LQu82UjkYOO8imt-hNuICmOH-n8Y"
+    roles:
+      - chat
+      - edit
+  
+  - name: "Gemini 2.5 Pro"
+    provider: "gemini"
+    model: "gemini-2.5-pro"
+    apiKey: "AIzaSyB4Or_LQu82UjkYOO8imt-hNuICmOH-n8Y"
+    roles:
+      - chat
+  
+  - name: "Gemma 4 (Local)"
+    provider: "ollama"
+    model: "gemma4:e2b"
+    roles:
+      - chat
+      - edit
+
+  - name: "Gemini Autocomplete"
+    provider: "gemini"
+    model: "gemini-2.5-flash"
+    apiKey: "AIzaSyB4Or_LQu82UjkYOO8imt-hNuICmOH-n8Y"
+    roles:
+      - autocomplete
+
+# DISK PROTECTION: Prevent duplicate indexing on your 8.4GB drive
+indexing:
+  enableIndexing: false
+
+# MCP Servers
+mcpServers:
+  - uses: anthropic/memory-mcp
