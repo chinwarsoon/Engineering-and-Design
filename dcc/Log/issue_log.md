@@ -1,9 +1,29 @@
-# Section 1. Rule for updating issue log:
+# Instructions for updating issue log:
 1. Always log new issues immediately after the issue is identified.
-2. Add a time stamp at the beginning of the log entry.
+2. Add a time stamp at the beginning of the log entry. 
 3. Summarize the issue identified either from existing code or changes applied to the code. This will help to analysis issues, such as potential conflicts, any new issues, and any improvements that can be made.
 4. when future updates are made to resolve the issue, update the log entry to update thes status of the issue and any other relevant information.
-5. Link the issue log to the change log for what have been done to resolve the issue.
+5. always record updates to the issues in update log.
+6. Link the issue log to the change log for what have been done to resolve the issue.
+7. when an issues is resolved, update status, provide high level summary for cause, context, resollution, files changed, and link to the update and test log.
+8. template as below:
+
+## Issue # 000
+  - [Date:]
+  - [status:]
+  - [Context:]
+  - [Root Cause:]
+  - [File Changes:]
+  - [Resolution]
+  - [Link to Update Log:]
+
+# Section 2. Pending Issues
+
+
+
+# Section 3. Closed Issues
+
+
 
 ## 2026-04-17 15:30:00
 [Issue #22]: `test_environment()` fails with "Environment test failed" when `workflow/` is not pre-loaded in `sys.path` — blocks pipeline startup.

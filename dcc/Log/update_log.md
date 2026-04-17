@@ -1,4 +1,4 @@
-# Section 1. Rules to update this log
+# Instruction for updating this log
 1. Always log changes immediately after the change is made.
 2. Add a time stamp at the beginning of the log entry
 3. Summarize the changes made in the log entry, what was changed, why it was changed, and what was the impact of the change. This will help to analysis changes, such as potential conflicts, any new issues, and any improvements that can be made.

@@ -1,4 +1,4 @@
-# Section 1. Rule for updating test log:
+# Instruction for updating test log:
 1. always log new test results immediately after the test is completed.
 2. Add a time stamp at the beginning of the log entry.
 3. Summarize the test results, including any issues identified.
