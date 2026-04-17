@@ -77,8 +77,9 @@ class ColumnMapperEngine:
         # Flatten tuple headers
         flattened_headers = flatten_multiindex_headers(headers)
         
-        enhanced_schema = self.resolved_schema.get('enhanced_schema', {})
-        columns = enhanced_schema.get('columns', {})
+        # Support new top-level 'columns' key and legacy 'enhanced_schema.columns'
+        _schema_root = self.resolved_schema if 'columns' in self.resolved_schema else self.resolved_schema.get('enhanced_schema', {})
+        columns = _schema_root.get('columns', {})
         
         # Detect columns using the mapper module
         result = detect_columns(flattened_headers, columns, threshold)

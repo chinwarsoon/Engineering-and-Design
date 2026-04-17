@@ -22,10 +22,10 @@
 
 ---
 
-## Section 1. Data Soruce and Rules for Columns
+## Section 1. Data Soruce and Rules for dcc_register Columns
 
 1. The Excel file to be processed is a submission register file which record the history and status of documents submitted for review.
-2. This is a dimensional table that contains metadata and transactional data for each submission.
+2. This is a fact table that contains metadata and transactional data for each submission.
 3. Only Row_Index is unique.
 4. All meta data, relational keys and transactional data can be repeated across different rows.
 5. Submission_Session and Submission_Session_Revision are used to group submissions. This is a container for a group of documents to be submitted together, by the same Submitted_By, from same Department, at the same Submission_Time.

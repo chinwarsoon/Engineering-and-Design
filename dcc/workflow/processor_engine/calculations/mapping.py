@@ -36,20 +36,27 @@ def apply_mapping_calculation(engine, df: pd.DataFrame, column_name: str, calcul
 
     # Load external mapping if reference provided
     if mapping_ref and not mapping:
-        ref_data = engine.schema_data.get(f'{mapping_ref}_data', {})
-        if ref_data:
-            # approval_code_schema stores rows under approval[] with
-            # {code, status, aliases}. Invert aliases/status to {text: code}.
+        # New architecture: top-level 'approval_codes' list
+        # Legacy architecture: '{mapping_ref}_data'.approval list
+        _new_key_map = {
+            'approval_code_schema': 'approval_codes',
+        }
+        top_key = _new_key_map.get(mapping_ref)
+        if top_key and isinstance(engine.schema_data.get(top_key), list):
+            approval_rows = engine.schema_data[top_key]
+        else:
+            ref_data = engine.schema_data.get(f'{mapping_ref}_data', {})
             approval_rows = ref_data.get('approval', [])
-            for row in approval_rows:
-                code = row.get('code')
-                if not code:
-                    continue
-                status = row.get('status')
-                if status:
-                    mapping[status] = code
-                for alias in row.get('aliases', []):
-                    mapping[alias] = code
+
+        for row in approval_rows:
+            code = row.get('code')
+            if not code:
+                continue
+            status = row.get('status')
+            if status:
+                mapping[status] = code
+            for alias in row.get('aliases', []):
+                mapping[alias] = code
 
     if source_column not in df.columns:
         engine._print_processing_step("Mapping", column_name, f"ERROR: Source column {source_column} not found")

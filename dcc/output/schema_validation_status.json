@@ -1,14 +1,12 @@
 {
-  "main_schema_path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json",
-  "ready": false,
-  "errors": [
-    "Referenced schema file not found: object"
-  ],
+  "main_schema_path": "/workspaces/Engineering-and-Design/dcc/config/schemas/dcc_register_config.json",
+  "ready": true,
+  "errors": [],
   "dependency_cycle": [],
   "tracked_files": [
     {
-      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_enhanced.json",
-      "mtime_ns": 1776175797716597577
+      "path": "/workspaces/Engineering-and-Design/dcc/config/schemas/dcc_register_config.json",
+      "mtime_ns": 1776401765362431480
     }
   ]
 }

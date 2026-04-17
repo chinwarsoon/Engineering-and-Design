@@ -40,7 +40,7 @@
       "second_review_duration": 14,
       "resubmission_duration": 14,
       "progress_stage": "not_start",
-      "upload_sheet_name": "Prolog Submittals",
+      "upload_sheet_name": "Prolog Submittals ",
       "win_upload_file": "data/Submittal and RFI Tracker Lists.xlsx",
       "win_download_path": "output",
       "linux_upload_file": "data/Submittal and RFI Tracker Lists.xlsx",

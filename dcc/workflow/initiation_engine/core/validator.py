@@ -19,7 +19,10 @@ from .reports import format_report
 from ..utils.logging import log_context, log_status, log_error, trace_parameter, status_print
 
 # Import RefResolver for schema $ref resolution (Phase F)
-from workflow.schema_engine.loader.ref_resolver import RefResolver, RefResolutionError
+try:
+    from schema_engine.loader.ref_resolver import RefResolver, RefResolutionError
+except ImportError:
+    from workflow.schema_engine.loader.ref_resolver import RefResolver, RefResolutionError
 
 
 class ProjectSetupValidator:
@@ -134,57 +137,43 @@ class ProjectSetupValidator:
     def _extract_project_setup(self, document: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extract project_setup configuration from schema document.
-        
-        Handles schema restructuring from Phase C (fragment pattern) and Phase F
-        (master_registry.json integration):
-        1. Old: "project_setup": {} - Direct configuration object
-        2. New: JSON Schema with properties/$ref (extract defaults from schema)
-        3. New: Resolve $ref to master_registry.json for configuration values
-        
-        Breadcrumb: document → schema_check → resolve_refs → extract_defaults → config
-        
-        Complies with:
-        - agent_rule.md Section 2.3: project_setup.json as main entry point
-        - agent_rule.md Section 2.4: URI-based schema resolution
-        - agent_rule.md Section 2.5: Schema fragment pattern
+
+        Handles three formats:
+        1. Legacy: "project_setup": {} key directly in document
+        2. Instance data: top-level 'folders' key present (project_config.json style)
+        3. JSON Schema: '$schema' key present → load project_config.json as instance data
         """
         # Case 1: Legacy format - direct project_setup object
         if "project_setup" in document:
             config = document["project_setup"]
             if isinstance(config, list) and config:
                 first_item = config[0]
-                if isinstance(first_item, dict):
-                    return first_item
-                return {}
+                return first_item if isinstance(first_item, dict) else {}
             if isinstance(config, dict):
                 return config
             return {}
-        
-        # Case 2: New schema format with $ref to registry (Phase F)
-        if "$schema" in document and "registry" in document.get("properties", {}):
-            resolver = self._init_ref_resolver()
-            if resolver:
-                try:
-                    # Resolve registry $ref to get configuration from master_registry.json
-                    registry_config = resolver.resolve(
-                        {"$ref": "https://dcc-pipeline.internal/schemas/master-registry"},
-                        document
-                    )
-                    if registry_config and "default" in registry_config:
-                        defaults = registry_config["default"]
-                        # Map project_structure to folders/root_files format
-                        return self._map_registry_to_project_setup(defaults)
-                except RefResolutionError as exc:
-                    log_error(f"Failed to resolve registry $ref: {exc}", "validator", "_extract_project_setup", fatal=False)
-        
-        # Case 3: New schema format - JSON Schema with $schema key (extract defaults)
+
+        # Case 2: Instance data format - top-level 'folders' key (project_config.json)
+        if "folders" in document:
+            return document
+
+        # Case 3: JSON Schema format - load project_config.json as instance data
         if "$schema" in document:
+            config_path = self.base_path / "config" / "schemas" / "project_config.json"
+            if config_path.is_file():
+                try:
+                    config_doc = self._load_json(config_path)
+                    if "folders" in config_doc:
+                        return config_doc
+                except Exception:
+                    pass
+            # Fallback: extract defaults from schema properties
             return self._extract_from_schema(document)
-        
-        # Case 4: Properties-based config (direct properties without $schema)
+
+        # Case 4: Properties-based config without $schema
         if "properties" in document and isinstance(document["properties"], dict):
             return self._extract_from_schema(document)
-            
+
         return {}
     
     def _map_registry_to_project_setup(self, registry_defaults: Dict[str, Any]) -> Dict[str, Any]:

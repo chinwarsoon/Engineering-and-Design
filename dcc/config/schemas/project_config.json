@@ -42,13 +42,10 @@
         {"pattern": "*.json", "directory": "workflow/processor_engine/error_handling/config", "recursive": true, "auto_register": true, "category": "engine_schema", "exclude_patterns": ["**/messages/**"]}
   ],
   "workflow_files": [
-        {"filename": "dcc_engine_pipeline.py", "required": true, "description": "Main pipeline orchestration", "type": "python_module"},
-        {"filename": "universal_document_processor.py", "required": true, "description": "Document processing engine", "type": "python_module"},
-        {"filename": "submission_closed_schema.json", "required": true, "description": "Submission status calculation rules", "type": "documentation"}
+        {"filename": "dcc_engine_pipeline.py", "required": true, "description": "Main pipeline orchestration", "type": "python_module"}
   ],
   "tool_files": [
-        {"filename": "setup_environment.py", "required": true, "description": "Environment setup and validation", "type": "python_script"},
-        {"filename": "schema_validator.py", "required": true, "description": "Schema validation utilities", "type": "python_script"}
+        {"filename": "project_setup_tools.py", "required": true, "description": "Project setup utilities", "type": "python_script"}
   ],
   "environment": [
         {
@@ -61,12 +58,12 @@
         }
   ],
   "dependencies": {
-      "required": ["pandas", "numpy", "matplotlib", "seaborn", "jupyter", "duckdb", "openpyxl", "jsonschema"],
-      "optional": ["plotly", "dash", "streamlit", "pytest", "black", "flake8"],
+      "required": ["pandas", "numpy", "openpyxl", "jsonschema"],
+      "optional": ["matplotlib", "seaborn", "duckdb", "plotly", "pytest"],
       "engines": [
-            {"module": "workflow.initiation_engine.core.validator", "members": ["Validator", "ProjectSetupValidator"], "optional": false},
-            {"module": "workflow.schema_engine.loader.schema_loader", "members": ["SchemaLoader"], "optional": false},
-            {"module": "workflow.schema_engine.validator.schema_validator", "members": ["SchemaValidator"], "optional": false}
+            {"module": "initiation_engine.core.validator", "members": ["ProjectSetupValidator"], "optional": false},
+            {"module": "schema_engine.loader.schema_loader", "members": ["SchemaLoader"], "optional": false},
+            {"module": "schema_engine.validator.schema_validator", "members": ["SchemaValidator"], "optional": false}
       ]
   },
   "required": ["folders", "root_files", "schema_files", "environment", "dependencies", "project_metadata"]

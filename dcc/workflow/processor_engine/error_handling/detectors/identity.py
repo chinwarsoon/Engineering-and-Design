@@ -196,7 +196,8 @@ class IdentityDetector(BaseDetector):
         # Check schema strategy configuration
         context = self._context or {}
         schema_data = context.get('schema_data', {})
-        columns_config = schema_data.get('enhanced_schema', {}).get('columns', {})
+        # Support new top-level 'columns' and legacy 'enhanced_schema.columns'
+        columns_config = schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})
         transmittal_config = columns_config.get(trans_col, {})
         strategy = transmittal_config.get('strategy', {})
         validation_context = strategy.get('validation_context', {})
@@ -258,7 +259,8 @@ class IdentityDetector(BaseDetector):
             return None
         
         schema_data = context.get('schema_data', {})
-        columns_config = schema_data.get('enhanced_schema', {}).get('columns', {})
+        # Support new top-level 'columns' and legacy 'enhanced_schema.columns'
+        columns_config = schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})
         
         if 'Document_ID' not in columns_config:
             return None
@@ -296,7 +298,8 @@ class IdentityDetector(BaseDetector):
             return (delimiter, sequence_length)
         
         schema_data = context.get('schema_data', {})
-        columns_config = schema_data.get('enhanced_schema', {}).get('columns', {})
+        # Support new top-level 'columns' and legacy 'enhanced_schema.columns'
+        columns_config = schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})
         
         # Get delimiter from Document_ID derived_pattern
         doc_id_config = columns_config.get('Document_ID', {})

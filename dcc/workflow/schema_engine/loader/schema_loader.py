@@ -430,13 +430,29 @@ class SchemaLoader:
 
 def load_schema_parameters(schema_path: Path) -> Dict[str, Any]:
     """
-    Load parameters section from schema file.
-    
+    Load parameters from schema file.
+
+    Supports two schema architectures:
+    - New: top-level 'global_parameters' array  -> returns global_parameters[0]
+    - Legacy: top-level 'parameters' dict        -> returns parameters
+
     Args:
         schema_path: Path to the JSON schema file
-        
+
     Returns:
-        Dictionary containing the 'parameters' section, or empty dict if not present
+        Flattened parameters dict, or empty dict if not present
     """
     with schema_path.open("r", encoding="utf-8") as handle:
-        return json.load(handle).get("parameters", {})
+        data = json.load(handle)
+
+    # New architecture: global_parameters is an array
+    gp = data.get("global_parameters")
+    if isinstance(gp, list) and gp and isinstance(gp[0], dict):
+        return gp[0]
+
+    # Legacy architecture: parameters is a dict
+    params = data.get("parameters", {})
+    if isinstance(params, dict):
+        return params
+
+    return {}

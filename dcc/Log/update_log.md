@@ -7,7 +7,31 @@
 
 # Section 2. Log entries
 
-<a id="recursive-schema-loader-completion"></a>
+<a id="issue-22"></a>
+## 2026-04-17 15:30:00
+1. **Bug fix**: [system.py](../workflow/initiation_engine/utils/system.py) — Fixed `test_environment()` to always pass regardless of run context.
+2. **Bug fix**: [dcc.yml](../dcc.yml) — Added missing `openpyxl==3.1.5` and `jsonschema==4.23.0` to pip dependencies.
+3. **Improvement**: [system.py](../workflow/initiation_engine/utils/system.py) — Improved failure message to show exactly which packages are missing and the `pip install` command to fix them.
+4. **Three changes made:**
+   - `sys.path` insert for `workflow/` added at the start of `test_environment()`, derived from `base_path` or `__file__`. Ensures engine module imports resolve from any run context (IDE, notebook, conda env, unit test).
+   - Engine module import failures demoted from `errors` (pipeline-blocking) to `warnings` (non-blocking). Internal engine modules depend on `sys.path` setup, not the external environment.
+   - Failure message now shows: `✗ <module>: <error>` per missing package, plus `Run: pip install <packages>` command.
+5. **Verification**: Simulated missing `openpyxl` — message correctly shows `✗ openpyxl: No module named openpyxl` and `Run: pip install openpyxl`. Full pipeline passes with `Environment test passed.`
+6. **Related to**: [Issue #22](issue_log.md#issue-22)
+
+<a id="issue-21"></a>
+## 2026-04-17 15:00:00
+1. **Bug fix**: [identity.py](../workflow/processor_engine/error_handling/detectors/identity.py) — Fixed `enhanced_schema` wrapper regression in three methods after pipeline schema migration.
+2. **Problem**: After migrating from `dcc_register_enhanced.json` to `dcc_register_config.json` (new top-level `columns` architecture), `identity.py` still read column config via the legacy `schema_data.get('enhanced_schema', {}).get('columns', {})` path. Since `enhanced_schema` key no longer exists, `columns_config` was always `{}`, causing `skip_duplicate_check` to never be found and P2-I-V-0203 errors to always fire.
+3. **Methods fixed** (all in `identity.py`):
+   - `_detect_duplicate_transmittal()`: Now reads `schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})`
+   - `_get_schema_pattern()`: Same fix applied
+   - `_get_affix_extraction_params()`: Same fix applied
+4. **Result**: `skip_duplicate_check: true` in `dcc_register_config.json` `Transmittal_Number.strategy.validation_context` is now correctly respected. P2-I-V-0203 errors no longer appear in `Validation_Errors` column.
+5. **Verification**: Pipeline re-run confirmed 0 P2-I-V-0203 errors. Remaining errors are legitimate: P2-I-V-0204 (Document_ID format), F4-C-F-04xx (fill detection).
+6. **Related to**: [Issue #21](issue_log.md#issue-21), [Issue #13](issue_log.md#issue-13)
+
+
 ## 2026-04-17 14:30:00
 1. **Recursive Schema Loader Project COMPLETED** - Final delivery of Issue #1 including multi-level caching, universal resolution, and full documentation.
 2. **Phase G (Caching & Performance) COMPLETED:**

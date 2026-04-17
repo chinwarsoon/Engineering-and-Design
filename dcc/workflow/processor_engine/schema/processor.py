@@ -19,9 +19,10 @@ class SchemaProcessor(BaseProcessor):
         Initialize the processor with the full schema.
         """
         super().__init__(schema_data)
-        self.enhanced_schema = schema_data.get('enhanced_schema', {})
-        self.column_definitions = self.enhanced_schema.get('columns', {})
-        self.column_sequence = self.enhanced_schema.get('column_sequence', [])
+        # Support new top-level 'columns' key and legacy 'enhanced_schema.columns'
+        _schema_root = schema_data if 'columns' in schema_data else schema_data.get('enhanced_schema', {})
+        self.column_definitions = _schema_root.get('columns', {})
+        self.column_sequence = _schema_root.get('column_sequence', [])
 
     def get_ordered_columns(self) -> Dict[str, Dict]:
         """

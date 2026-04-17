@@ -5,6 +5,52 @@
 4. when future updates are made to resolve the issue, update the log entry to update thes status of the issue and any other relevant information.
 5. Link the issue log to the change log for what have been done to resolve the issue.
 
+## 2026-04-17 15:30:00
+[Issue #22]: `test_environment()` fails with "Environment test failed" when `workflow/` is not pre-loaded in `sys.path` — blocks pipeline startup.
+
+**Context:**
+- `test_environment()` in `system.py` calls `importlib.import_module()` on internal engine modules (`initiation_engine.core.validator`, etc.).
+- These modules are only importable when `workflow/` is in `sys.path`.
+- `dcc_engine_pipeline.py` inserts `workflow/` into `sys.path` at module level, so the pipeline itself works.
+- However, if `test_environment()` is called from any other context (IDE runner, unit test, notebook, or before the pipeline's `sys.path` insert executes), the engine imports fail and `errors` list is populated, causing `ready: False`.
+- Additionally, engine module import failures were treated as hard errors (blocking the pipeline) even though they are internal modules — not external dependencies.
+
+**Root Cause:**
+- `system.py` did not ensure `workflow/` was in `sys.path` before calling `importlib.import_module()` on engine modules.
+- Engine module failures were appended to `results['errors']`, which sets `ready: False` and halts the pipeline.
+- `dcc.yml` conda environment was missing `openpyxl` and `jsonschema` from its pip dependencies, causing the required module check to fail when running from the conda `dcc` env.
+- The failure message only said "Environment test failed" with no indication of which package was missing.
+
+**Resolution:**
+- `system.py` `test_environment()`: Added `sys.path` insert for `workflow/` at the start of the function.
+- Engine module failures demoted from `errors` (pipeline-blocking) to `warnings` (non-blocking).
+- `system.py`: Improved failure message to show exactly which packages are missing and the `pip install` command to fix it.
+- `dcc.yml`: Added `openpyxl==3.1.5` and `jsonschema==4.23.0` to pip dependencies.
+- `[Status]`: Resolved
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-22)
+
+## 2026-04-17 15:00:00
+[Issue #21]: `skip_duplicate_check: true` not respected — P2-I-V-0203 errors still reported for `Transmittal_Number` after pipeline integration with new schema architecture.
+
+**Context:**
+- DCC register is a fact table: one transmittal can legitimately contain multiple documents, so `Transmittal_Number` duplicates are expected and valid.
+- `Transmittal_Number` column in `dcc_register_config.json` has `strategy.validation_context.skip_duplicate_check: true` to suppress P2-I-V-0203.
+- Issue #13 previously resolved this for the old `dcc_register_enhanced.json` schema. After migration to the new schema architecture (Phases 1–9), the fix regressed.
+
+**Root Cause:**
+- `identity.py` `_detect_duplicate_transmittal()` read column config via:
+  `schema_data.get('enhanced_schema', {}).get('columns', {})` — the legacy wrapper.
+- After schema migration, `columns` is now at the top level of `resolved_schema`, not under `enhanced_schema`.
+- `enhanced_schema` key is absent → `columns_config` is always `{}` → `transmittal_config` is always `{}` → `skip_duplicate_check` is never found → duplicate check always runs.
+- Same bug also affected `_get_schema_pattern()` and `_get_affix_extraction_params()` in `identity.py`.
+
+**Resolution:**
+- Fixed all three methods in `identity.py` to use:
+  `schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})`
+- This supports both new top-level `columns` key and legacy `enhanced_schema.columns` wrapper.
+- `[Status]`: Resolved
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-21)
+
 # Section 2. Log entries   
 
 ## 2026-04-15 23:15:00

@@ -53,12 +53,10 @@ class SchemaValidator:
             results["ready"] = False
             return results
 
-        enhanced_schema = main_schema.get("enhanced_schema", {})
-        columns = enhanced_schema.get("columns", {})
-        if not isinstance(enhanced_schema, dict):
-            results["errors"].append("Main schema is missing a valid 'enhanced_schema' object")
+        # Support both new top-level 'columns' and legacy 'enhanced_schema.columns'
+        columns = main_schema.get("columns") or main_schema.get("enhanced_schema", {}).get("columns", {})
         if not isinstance(columns, dict):
-            results["errors"].append("Main schema is missing a valid 'enhanced_schema.columns' object")
+            results["errors"].append("Main schema is missing a valid 'columns' object")
 
         visited_paths: Set[Path] = set()
         validated_paths: Set[Path] = set()
@@ -157,6 +155,96 @@ class SchemaValidator:
         return self.loader.load_json_file(self.schema_file)
 
     def load_resolved_schema(self) -> Dict[str, Any]:
-        """Load the main schema and resolve all configured dependencies."""
+        """
+        Load and resolve the main schema.
+
+        For new-architecture schemas (URI $ref, top-level 'columns'):
+          - Loads each fragment schema referenced via URI $ref
+          - Normalizes the result to the canonical shape expected by all engines
+        For legacy schemas (schema_references dict):
+          - Falls back to resolve_schema_dependencies()
+        """
         main_schema = self.load_main_schema()
+        # New architecture: top-level 'columns' key present
+        if "columns" in main_schema:
+            return self._load_resolved_schema_v2(main_schema)
+        # Legacy architecture: schema_references dict
         return self.loader.resolve_schema_dependencies(main_schema)
+
+    def _load_resolved_schema_v2(self, main_schema: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Load fragment schemas referenced via URI $ref and normalize to engine-expected shape.
+
+        Breadcrumb: main_schema → resolve URI $refs → normalize → resolved_schema
+        """
+        schema_dir = self.schema_file.parent
+        resolved = main_schema.copy()
+
+        # URI stem → filename mapping for fragment schemas
+        uri_stem_map = {
+            "department_schema": "department_schema.json",
+            "discipline_schema": "discipline_schema.json",
+            "facility_schema": "facility_schema.json",
+            "document_type_schema": "document_type_schema.json",
+            "project_code_schema": "project_code_schema.json",
+            "approval_code_schema": "approval_code_schema.json",
+        }
+
+        # Top-level keys that hold URI $ref objects — resolve each
+        ref_keys = [
+            "departments", "disciplines", "facilities",
+            "document_types", "projects", "approval_codes",
+        ]
+        for key in ref_keys:
+            value = main_schema.get(key)
+            if isinstance(value, dict) and "$ref" in value:
+                ref_uri = value["$ref"]
+                # Extract stem from URI (before any # fragment)
+                uri_base = ref_uri.split("#")[0]
+                fragment = ref_uri.split("#")[1].lstrip("/") if "#" in ref_uri else ""
+                stem = uri_base.rstrip("/").split("/")[-1].replace("-", "_")
+                filename = uri_stem_map.get(stem, f"{stem}.json")
+                frag_path = schema_dir / filename
+                if frag_path.is_file():
+                    try:
+                        frag_data = self.loader.load_json_file(frag_path)
+                        # Resolve fragment pointer if present
+                        if fragment:
+                            for seg in fragment.split("/"):
+                                if seg:
+                                    frag_data = frag_data.get(seg, frag_data)
+                        resolved[key] = frag_data
+                    except Exception:
+                        pass  # Keep original $ref object on failure
+
+        return self._normalize_resolved_schema(resolved)
+
+    @staticmethod
+    def _normalize_resolved_schema(raw: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Normalize a loaded dcc_register_config schema to the canonical shape
+        expected by CalculationEngine, SchemaProcessor, and ColumnMapperEngine.
+
+        Canonical shape:
+          columns          - dict of column definitions (47 cols)
+          column_sequence  - list of ordered column names
+          column_groups    - dict of column group lists
+          parameters       - flattened global parameters dict
+          approval_codes   - list of approval code entries
+          departments      - list of department entries
+          disciplines      - list of discipline entries
+          facilities       - list of facility entries
+          document_types   - list of document type entries
+          projects         - list of project entries
+        """
+        normalized = raw.copy()
+
+        # Flatten global_parameters array → parameters dict
+        if "parameters" not in normalized or not normalized["parameters"]:
+            gp = raw.get("global_parameters", [])
+            if isinstance(gp, list) and gp:
+                normalized["parameters"] = gp[0]
+            elif isinstance(gp, dict):
+                normalized["parameters"] = gp
+
+        return normalized

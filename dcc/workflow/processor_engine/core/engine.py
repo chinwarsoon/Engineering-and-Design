@@ -61,9 +61,10 @@ class CalculationEngine(BaseProcessor):
         self.error_reporter = ErrorReporter(self.error_aggregator)
         self._last_processed_rows = 0
         
-        enhanced_schema = schema_data.get('enhanced_schema', {})
-        raw_columns = enhanced_schema.get('columns', {})
-        column_sequence = enhanced_schema.get('column_sequence', [])
+        # Support new top-level 'columns' key and legacy 'enhanced_schema.columns'
+        _schema_root = schema_data if 'columns' in schema_data else schema_data.get('enhanced_schema', {})
+        raw_columns = _schema_root.get('columns', {})
+        column_sequence = _schema_root.get('column_sequence', [])
 
         # Build the column definition dictionary based on schema sequence
         if column_sequence:
@@ -158,8 +159,9 @@ class CalculationEngine(BaseProcessor):
             df_processed = initialize_missing_columns(df_processed, self.columns, parameters)
             
             # Get column sequence from schema (Rule 13)
-            enhanced_schema = self.schema_data.get('enhanced_schema', {})
-            column_sequence = enhanced_schema.get('column_sequence', [])
+            # Support new top-level 'column_sequence' and legacy 'enhanced_schema.column_sequence'
+            _schema_root = self.schema_data if 'column_sequence' in self.schema_data else self.schema_data.get('enhanced_schema', {})
+            column_sequence = _schema_root.get('column_sequence', [])
             
             # Group columns by processing phase
             phase_columns = {'P1': [], 'P2': [], 'P2.5': [], 'P3': []}

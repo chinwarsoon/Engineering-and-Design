@@ -20,6 +20,35 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Mapping from schema_reference name to new top-level key in resolved_schema
+_SCHEMA_REF_KEY_MAP = {
+    'approval_code_schema': 'approval_codes',
+    'department_schema':    'departments',
+    'discipline_schema':    'disciplines',
+    'facility_schema':      'facilities',
+    'document_type_schema': 'document_types',
+    'project_code_schema':  'projects',
+    'project_schema':       'projects',
+}
+
+
+def _get_ref_data(schema_ref: str, schema_data: dict) -> dict:
+    """
+    Resolve reference data for a schema_ref name.
+
+    New architecture: returns {'<section>': [entries]} built from top-level list.
+    Legacy architecture: returns schema_data['{schema_ref}_data'].
+    """
+    top_key = _SCHEMA_REF_KEY_MAP.get(schema_ref)
+    if top_key and isinstance(schema_data.get(top_key), list):
+        # Wrap the list under a predictable section key so downstream
+        # _get_schema_reference_allowed_codes can find it.
+        section = 'approval' if 'approval' in schema_ref else top_key
+        return {section: schema_data[top_key]}
+    # Legacy fallback
+    return schema_data.get(f'{schema_ref}_data', {})
+
+
 # Error codes mapping based on error_handling/config/error_codes.json
 ERROR_CODES = {
     'required': 'P-V-V-0505',
@@ -249,7 +278,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
             if rule_type == 'starts_with_schema_reference':
                 schema_ref = validation.get('reference') or column_def.get('schema_reference')
                 if schema_ref:
-                    ref_data = schema_data.get(f'{schema_ref}_data', {})
+                    ref_data = _get_ref_data(schema_ref, schema_data)
                     allowed_codes = _get_schema_reference_allowed_codes(
                         ref_data,
                         data_section=validation.get('data_section'),
@@ -442,7 +471,7 @@ def _apply_schema_reference_validation(
     exclude_codes: Optional[List[str]] = None,
 ) -> Optional[pd.Series]:
     """Validate a column against allowed values from a referenced schema."""
-    ref_data = schema_data.get(f'{schema_ref}_data', {})
+    ref_data = _get_ref_data(schema_ref, schema_data)
     if not ref_data:
         return None
 
@@ -636,7 +665,7 @@ def _get_column_representative_regex(column_name: str, column_def: dict, schema_
         if rule.get('type') in ['schema_reference_check', 'starts_with_schema_reference']:
             schema_ref = rule.get('reference') or column_def.get('schema_reference')
             if schema_ref:
-                ref_data = schema_data.get(f'{schema_ref}_data', {})
+                ref_data = _get_ref_data(schema_ref, schema_data)
                 allowed_codes = _get_schema_reference_allowed_codes(
                     ref_data,
                     data_section=rule.get('data_section'),
@@ -649,7 +678,7 @@ def _get_column_representative_regex(column_name: str, column_def: dict, schema_
     # Fallback to general schema_reference if no explicit validation rule found
     schema_ref = column_def.get('schema_reference')
     if schema_ref:
-        ref_data = schema_data.get(f'{schema_ref}_data', {})
+        ref_data = _get_ref_data(schema_ref, schema_data)
         allowed_codes = _get_schema_reference_allowed_codes(ref_data)
         if allowed_codes:
             codes_regex = "|".join([re.escape(str(c)) for c in allowed_codes if c is not None])

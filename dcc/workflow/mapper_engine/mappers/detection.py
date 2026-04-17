@@ -108,36 +108,62 @@ def detect_columns(headers: List[str], columns: Dict[str, Dict], threshold: floa
 def extract_categorical_choices(detected_columns: Dict[str, Dict], resolved_schema: Dict) -> None:
     """
     Add schema choices for categorical columns in-place.
-    
+
     Args:
         detected_columns: Dictionary of detected column mappings (modified in-place)
         resolved_schema: Resolved schema with all dependencies
     """
+    # New architecture: map schema_reference name to top-level key
+    _ref_key_map = {
+        'approval_code_schema': 'approval_codes',
+        'department_schema':    'departments',
+        'discipline_schema':    'disciplines',
+        'facility_schema':      'facilities',
+        'document_type_schema': 'document_types',
+        'project_code_schema':  'projects',
+    }
+
     for header, mapping in detected_columns.items():
         col_def = mapping['column_definition']
         if col_def.get('data_type') == 'categorical':
             schema_ref = col_def.get('schema_reference')
-            if schema_ref:
-                schema_data = resolved_schema.get(f'{schema_ref}_data')
-                if schema_data:
-                    # Find array key containing code/description objects
-                    array_key = None
-                    for key in schema_data.keys():
-                        if isinstance(schema_data[key], list) and len(schema_data[key]) > 0:
-                            if isinstance(schema_data[key][0], dict) and 'code' in schema_data[key][0]:
-                                array_key = key
-                                break
-                    
-                    if array_key:
-                        # Handle new format: array with code/description objects
-                        mapping['choices'] = [item.get('code') for item in schema_data[array_key] if item.get('code')]
-                        mapping['choice_descriptions'] = {
-                            item.get('code'): item.get('description')
-                            for item in schema_data[array_key] if item.get('code')
-                        }
-                    # Handle old format: choices array
-                    elif 'choices' in schema_data:
-                        mapping['choices'] = schema_data.get('choices', [])
+            if not schema_ref:
+                continue
+
+            # New architecture: top-level list
+            top_key = _ref_key_map.get(schema_ref)
+            if top_key and isinstance(resolved_schema.get(top_key), list):
+                entries = resolved_schema[top_key]
+                # Determine code field (facilities use 'prefix', others use 'code')
+                code_field = 'prefix' if schema_ref == 'facility_schema' else 'code'
+                mapping['choices'] = [
+                    item.get(code_field) for item in entries
+                    if isinstance(item, dict) and item.get(code_field)
+                ]
+                mapping['choice_descriptions'] = {
+                    item.get(code_field): item.get('description', item.get('building_description', ''))
+                    for item in entries
+                    if isinstance(item, dict) and item.get(code_field)
+                }
+                continue
+
+            # Legacy fallback: _data suffix
+            schema_data = resolved_schema.get(f'{schema_ref}_data')
+            if schema_data:
+                array_key = None
+                for key in schema_data.keys():
+                    if isinstance(schema_data[key], list) and len(schema_data[key]) > 0:
+                        if isinstance(schema_data[key][0], dict) and 'code' in schema_data[key][0]:
+                            array_key = key
+                            break
+                if array_key:
+                    mapping['choices'] = [item.get('code') for item in schema_data[array_key] if item.get('code')]
+                    mapping['choice_descriptions'] = {
+                        item.get('code'): item.get('description')
+                        for item in schema_data[array_key] if item.get('code')
+                    }
+                elif 'choices' in schema_data:
+                    mapping['choices'] = schema_data.get('choices', [])
 
 
 def rename_dataframe_columns(df: pd.DataFrame, mapping_result: Dict) -> pd.DataFrame:

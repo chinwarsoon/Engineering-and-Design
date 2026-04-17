@@ -119,7 +119,7 @@ def default_schema_path(base_path: Path) -> Path:
     """
     Return default data register schema path.
     """
-    return base_path / "config" / "schemas" / "dcc_register_enhanced.json"
+    return base_path / "config" / "schemas" / "dcc_register_config.json"
 
 
 def resolve_platform_paths(
