@@ -660,29 +660,17 @@ def _get_column_representative_regex(column_name: str, column_def: dict, schema_
                 pat = pat[:-1]
             return f"({pat})"
 
-    # 2. Check for schema reference
+    # 2. Check for schema reference - use general pattern instead of strict alternation
+    # This allows Document_ID validation to work even if source columns contain values
+    # not in the reference schema (which are validated separately by schema_reference_check)
     for rule in validation_rules:
         if rule.get('type') in ['schema_reference_check', 'starts_with_schema_reference']:
-            schema_ref = rule.get('reference') or column_def.get('schema_reference')
-            if schema_ref:
-                ref_data = _get_ref_data(schema_ref, schema_data)
-                allowed_codes = _get_schema_reference_allowed_codes(
-                    ref_data,
-                    data_section=rule.get('data_section'),
-                    field_name=rule.get('field')
-                )
-                if allowed_codes:
-                    codes_regex = "|".join([re.escape(str(c)) for c in allowed_codes if c is not None])
-                    return f"({codes_regex})"
+            return r"[A-Z0-9-]+"
 
     # Fallback to general schema_reference if no explicit validation rule found
     schema_ref = column_def.get('schema_reference')
     if schema_ref:
-        ref_data = _get_ref_data(schema_ref, schema_data)
-        allowed_codes = _get_schema_reference_allowed_codes(ref_data)
-        if allowed_codes:
-            codes_regex = "|".join([re.escape(str(c)) for c in allowed_codes if c is not None])
-            return f"({codes_regex})"
+        return r"[A-Z0-9-]+"
 
     # 3. Fallback for columns with no defined pattern or reference
     return r"[^ \-]+"

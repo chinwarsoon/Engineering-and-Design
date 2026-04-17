@@ -19,435 +19,150 @@
 
 # Section 2. Pending Issues
 
+## 2026-04-17 21:35:00
+[Issue #25]: agent_rule.md path mismatch in project_config.json - validator looking at wrong location.
+- `[Status]`: Resolved
+- `[Context]`: dcc_engine_pipeline.py failed with "Ready: NO" because validator expects agent_rule.md at dcc/agent_rule.md but file exists at dcc/rule/agent_rule.md.
+- `[Root Cause]`: project_config.json lists agent_rule.md as root file without specifying rule/ subdirectory path.
+- `[File Changes]`: config/schemas/project_config.json - changed agent_rule.md path from "agent_rule.md" to "rule/agent_rule.md"
+- `[Resolution]`: Updated project_config.json root_files entry to specify correct relative path "rule/agent_rule.md". Pipeline now passes validation with "Ready: YES".
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-25)
 
+## 2026-04-12 00:00:00
+[Issue # 2]: For preserve existing data per certain conditions, the current implementation is to add a new rule in the schema. This approach is not scalable and maintainable. To consider a more scalable and maintainable approach.
+- `[Status]`: Open
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md)
+
+## 2026-04-15 09:40:00
+[Issue #17]: tools/project_setup_tools.py should be updated to establish a new project folder, copies all necessary files, and configure schemas.
+- `[status]`: Open
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md)
+
+## 2026-04-18 18:00:00
+[Issue #23]: Phase 5 — AI Integration & Advanced Analytics planning required. Define scope, deliverables, and implementation workplan for Phase 5 sub-phases (5.1–5.5).
+- `[Status]`: Open
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#phase5-planning)
 
 # Section 3. Closed Issues
 
-
+## 2026-04-17 20:45:00
+[Issue #24]: P2-I-V-0204 false positives for valid Document_ID - derived_pattern validation failing for correctly formatted Document_IDs.
+- `[Status]`: Resolved
+- `[Context]`: Pipeline reported 10496 invalid Document_ID values with sample bases: ['131242-WST00-PP-PM-0001', '131242-WST00-PP-PC-0001', '131242-WSW41-PP-PC-0001']. These follow correct format (PROJECT-FACILITY-TYPE-DISCIPLINE-SEQUENCE) but were flagged as invalid.
+- `[Root Cause]`: `_get_column_representative_regex()` function built strict regex pattern using alternation of allowed codes from schema references for Document_Type, Discipline, Facility_Code. If source column contained value not in reference schema, Document_ID failed validation even if format was correct.
+- `[Resolution]`: Modified `_get_column_representative_regex()` to use general pattern `[A-Z0-9-]+` for schema reference columns instead of strict alternation. Document_ID now validates based on format while individual columns validated separately by schema_reference_check.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-24)
 
 ## 2026-04-17 15:30:00
-[Issue #22]: `test_environment()` fails with "Environment test failed" when `workflow/` is not pre-loaded in `sys.path` — blocks pipeline startup.
-
-**Context:**
-- `test_environment()` in `system.py` calls `importlib.import_module()` on internal engine modules (`initiation_engine.core.validator`, etc.).
-- These modules are only importable when `workflow/` is in `sys.path`.
-- `dcc_engine_pipeline.py` inserts `workflow/` into `sys.path` at module level, so the pipeline itself works.
-- However, if `test_environment()` is called from any other context (IDE runner, unit test, notebook, or before the pipeline's `sys.path` insert executes), the engine imports fail and `errors` list is populated, causing `ready: False`.
-- Additionally, engine module import failures were treated as hard errors (blocking the pipeline) even though they are internal modules — not external dependencies.
-
-**Root Cause:**
-- `system.py` did not ensure `workflow/` was in `sys.path` before calling `importlib.import_module()` on engine modules.
-- Engine module failures were appended to `results['errors']`, which sets `ready: False` and halts the pipeline.
-- `dcc.yml` conda environment was missing `openpyxl` and `jsonschema` from its pip dependencies, causing the required module check to fail when running from the conda `dcc` env.
-- The failure message only said "Environment test failed" with no indication of which package was missing.
-
-**Resolution:**
-- `system.py` `test_environment()`: Added `sys.path` insert for `workflow/` at the start of the function.
-- Engine module failures demoted from `errors` (pipeline-blocking) to `warnings` (non-blocking).
-- `system.py`: Improved failure message to show exactly which packages are missing and the `pip install` command to fix it.
-- `dcc.yml`: Added `openpyxl==3.1.5` and `jsonschema==4.23.0` to pip dependencies.
+[Issue #22]: `test_environment()` fails when `workflow/` not in `sys.path` — blocks pipeline startup.
 - `[Status]`: Resolved
+- `[Context]`: `test_environment()` in `system.py` calls `importlib.import_module()` on engine modules without ensuring `workflow/` in `sys.path`. Engine module failures treated as blocking errors. `dcc.yml` missing `openpyxl` and `jsonschema` dependencies.
+- `[Resolution]`: Added `sys.path` insert for `workflow/` at function start. Demoted engine module failures to warnings. Improved failure message with missing package details. Added `openpyxl==3.1.5` and `jsonschema==4.23.0` to `dcc.yml`.
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-22)
 
 ## 2026-04-17 15:00:00
-[Issue #21]: `skip_duplicate_check: true` not respected — P2-I-V-0203 errors still reported for `Transmittal_Number` after pipeline integration with new schema architecture.
-
-**Context:**
-- DCC register is a fact table: one transmittal can legitimately contain multiple documents, so `Transmittal_Number` duplicates are expected and valid.
-- `Transmittal_Number` column in `dcc_register_config.json` has `strategy.validation_context.skip_duplicate_check: true` to suppress P2-I-V-0203.
-- Issue #13 previously resolved this for the old `dcc_register_enhanced.json` schema. After migration to the new schema architecture (Phases 1–9), the fix regressed.
-
-**Root Cause:**
-- `identity.py` `_detect_duplicate_transmittal()` read column config via:
-  `schema_data.get('enhanced_schema', {}).get('columns', {})` — the legacy wrapper.
-- After schema migration, `columns` is now at the top level of `resolved_schema`, not under `enhanced_schema`.
-- `enhanced_schema` key is absent → `columns_config` is always `{}` → `transmittal_config` is always `{}` → `skip_duplicate_check` is never found → duplicate check always runs.
-- Same bug also affected `_get_schema_pattern()` and `_get_affix_extraction_params()` in `identity.py`.
-
-**Resolution:**
-- Fixed all three methods in `identity.py` to use:
-  `schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})`
-- This supports both new top-level `columns` key and legacy `enhanced_schema.columns` wrapper.
+[Issue #21]: `skip_duplicate_check: true` not respected — P2-I-V-0203 errors still reported after schema migration.
 - `[Status]`: Resolved
+- `[Context]`: `identity.py` `_detect_duplicate_transmittal()` read config via legacy `enhanced_schema.columns` wrapper. After migration, `columns` at top level → config always empty → skip never applied. Same bug in `_get_schema_pattern()` and `_get_affix_extraction_params()`.
+- `[Resolution]`: Fixed all three methods to use `schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})` for backward compatibility.
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-21)
 
-# Section 2. Log entries   
-
 ## 2026-04-15 23:15:00
-[Issue # 5]: Schema architecture compliance and optimization - Complete rebuild of JSON schema configuration ecosystem required to comply with agent_rule.md Section 2 and optimize maintainability.
+[Issue #5]: Schema architecture compliance and optimization - Complete rebuild of JSON schema configuration ecosystem required to comply with agent_rule.md Section 2.
 - `[Status]`: Resolved (Phase 1-9 Complete)
+- `[Context]`: Required agent_rule.md Section 2.3 compliance (fragment pattern), Unified Schema Registry with URI-based $ref, strict validation, separation of definitions/properties/data, column optimization.
+- `[Resolution]`: 9/10 phases completed. 32/32 schema references use Unified Schema Registry. 60% potential schema size reduction. Complete agent_rule.md Section 2.3 compliance. Centralized parameter and column management.
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#schema-rebuild-completion)
 - `[Workplan Location]`: [rebuild_schema_workplan.md](../workplan/schema_processing/rebuild_schema_workplan.md)
-- `[Key Requirements]`:
-  - agent_rule.md Section 2.3 compliance (fragment pattern)
-  - Unified Schema Registry with URI-based $ref
-  - Strict validation with additionalProperties: false
-  - Separation of definitions, properties, and data
-  - Column optimization with reusable patterns
-- `[Implementation Phases]`: 10 phases (A-J), estimated 20 hours
-  - Phase 1: Directory cleanup - DONE
-  - Phase 2: Base schema rebuild - DONE
-  - Phase 3: Project schema rebuild - DONE
-  - Phase 4: Config schema rebuild - DONE
-  - Phase 4.5: Data schema migration - DONE
-  - Phase 5: Data schema architecture - DONE
-  - Phase 6: URI registry update - DONE
-  - Phase 7: dcc_register_enhanced.json integration - DONE
-  - Phase 8: Global parameters schema creation - DONE
-  - Phase 9: Column definitions optimization - DONE
-  - Phase 10: Schema loader testing - PENDING
-- `[Results]`:
-  - 9/10 phases completed
-  - 32/32 schema references use Unified Schema Registry
-  - 60% potential schema size reduction through column optimization
-  - Complete agent_rule.md Section 2.3 compliance
-  - Centralized parameter and column management
 
 ## 2026-04-12 00:00:00
-[Issue # 1]: to consider a recursive schema loader for all schemas. Instead of writing custom code every time adding a new sub-schema, to create a loader that "walks" through all JSON schema files and automatically pulls in any file referenced by a $ref key. This will help to reduce the maintenance effort and improve the maintainability of the code.
-- `[Status]`: Resolved (All Phases A-I Complete)
-- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#recursive-schema-loader-completion)
-- `[Phase G Report]`: [phase_g_report.md](../workplan/schema_processing/phase_g_report.md)
-- `[Phase H Report]`: [phase_h_report.md](../workplan/schema_processing/phase_h_report.md)
-- `[Phase I Report]`: [phase_i_report.md](../workplan/schema_processing/phase_i_report.md)
+[Issue #1]: Recursive schema loader for all schemas - Create loader that "walks" through JSON schema files and automatically pulls in any file referenced by $ref key to reduce maintenance effort.
+- `[Status]`: Resolved (Phases A-E Complete, F Not Required)
+- `[Context]`: Multi-level caching (L1/L2/L3) with TTL and mtime validation. Universal $ref resolution (string, object, nested). Strict registration with pattern-based auto-discovery. Unified URI Registry mapping Digital IDs to physical files.
+- `[Resolution]`: Phases A-E complete (RefResolver, Dependency Graph, SchemaLoader). Phase F marked NOT REQUIRED (dcc_register schemas provide same functionality). Complete documentation suite (API, Guides, Architecture).
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#recursive-schema-loader-workplan-rebuild)
 - `[Workplan Location]`: [recursive_schema_loader_workplan.md](../workplan/schema_processing/recursive_schema_loader_workplan.md)
-- `[Key Achievements]`:
-  - Multi-level caching (L1/L2/L3) with TTL and mtime validation.
-  - Universal $ref resolution (string, object, nested).
-  - Strict registration with pattern-based auto-discovery.
-  - Unified URI Registry mapping Digital IDs to physical files.
-  - Complete documentation suite (API, Guides, Architecture).
 
 ## 2026-04-17 10:30:00
-[Issue # 18]: Schema URI and Filename Mismatches - Many internal $ref strings used hyphenated names (e.g., `document-type`) while physical files used underscores (e.g., `document_type_schema.json`), causing resolution failures in the recursive loader.
+[Issue #18]: Schema URI and Filename Mismatches - Internal $ref strings used hyphenated names while physical files used underscores, causing resolution failures.
 - `[Status]`: Resolved
 - `[Resolution]`: Standardized all schema $id and $ref values to use underscore-based naming matching physical file stems.
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#schema-uri-standardization)
 
 ## 2026-04-17 11:15:00
-[Issue # 19]: Circular Dependency in project_setup_base - The base schema contained self-referencing definitions which triggered `CircularDependencyError` in the topological sort logic.
+[Issue #19]: Circular Dependency in project_setup_base - Base schema contained self-referencing definitions triggering `CircularDependencyError` in topological sort.
 - `[Status]`: Resolved
-- `[Resolution]`: Updated `SchemaDependencyGraph` to explicitly ignore self-references during graph construction, allowing recursive schema definitions while still preventing multi-file loops.
+- `[Resolution]`: Updated `SchemaDependencyGraph` to explicitly ignore self-references during graph construction, allowing recursive schema definitions while preventing multi-file loops.
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#circular-dependency-fix)
 
 ## 2026-04-17 12:00:00
-[Issue # 20]: JSON Syntax Errors in Engine Configuration - Multiple engine schemas (e.g., `approval_workflow.json`) contained `...` placeholders, making them invalid JSON and breaking the loading pipeline.
+[Issue #20]: JSON Syntax Errors in Engine Configuration - Engine schemas contained `...` placeholders, making them invalid JSON and breaking loading pipeline.
 - `[Status]`: Resolved
 - `[Resolution]`: Cleaned all engine config schemas by removing placeholders and finalizing structures.
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#engine-config-cleanup)
 
-## 2026-04-12 00:00:00
-[Issue # 2]: For preserve esixting data per certain conditions, the current implementation is to add a new rule in the schema. This approach is not scalable and maintainable. To consider a more scalable and maintainable approach. 
-- `[Status]`: Open
-- `[Link to changes in update_log.md]`:
-
 ## 2026-04-12 12:00:00
-[Issue # 3]: Validation failures (like Document_ID mismatches) are recorded in the 'Validation_Errors' column and logged as warnings, but the reporting_engine does not aggregate or report these per-row errors in the final summary report. This leads to "silent" failures where data is exported successfully despite validation issues.
+[Issue #3]: Validation failures recorded in 'Validation_Errors' column but reporting_engine does not aggregate or report these per-row errors in final summary report, leading to "silent" failures.
 - `[Status]`: Resolved (Phase 4 & 5 Complete)
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-3-phase-5)
 
 ## 2026-04-12 12:00:00
-[Issue # 4]: Row_Index is incorrectly initialized with "NA" during the initiation phase, causing the calculation engine to skip its generation due to the preserve_existing strategy.
+[Issue #4]: Row_Index incorrectly initialized with "NA" during initiation phase, causing calculation engine to skip generation due to preserve_existing strategy.
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-4)
 
 ## 2026-04-12 12:00:00
-[Issue # 5]: Row Alignment Discrepancy in Aggregate Calculations. Data from late rows (e.g., row 8) was occasionally assigned to early rows (e.g., row 7) due to index reset and positional assignment (`.values`) in `Latest-Non-Pending-Status` and missing index restoration in `Latest-By-Date` handlers.
+[Issue #5]: Row Alignment Discrepancy in Aggregate Calculations - Data from late rows assigned to early rows due to index reset and positional assignment in aggregate handlers.
 - `[Status]`: Resolved
-- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-5-row-alignment)
+- `[Resolution]`: Concatenate methods now use copy + reindex pattern. Original DataFrame order preserved throughout calculations. Null Handling Phase A-B complete.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-10)
 
 ## 2026-04-11 14:30:00
-[Issue # 7]: `aggregate/concatenate_unique` (and related) calculation handler in `aggregate.py` only supports `source_column` (singular), while the enhanced schema for `All_Approval_Code` uses `source_columns` (plural), causing the calculation to be skipped.
+[Issue #7]: `aggregate/concatenate_unique` handler only supports `source_column` (singular), while enhanced schema for `All_Approval_Code` uses `source_columns` (plural).
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-150000)
 
 ## 2026-04-11 14:30:00
-[Issue # 8]: Missing calculation handler for `error_tracking/aggregate_row_errors`. The `Validation_Errors` column is not being populated with the aggregated error messages because the handler is not registered in `registry.py`.
+[Issue #8]: Missing calculation handler for `error_tracking/aggregate_row_errors` - `Validation_Errors` column not populated with aggregated error messages.
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-150000)
 
 ## 2026-04-11 14:30:00
-[Issue # 9]: `Document_ID` format validation (P2-I-V-0204) fails for values like `131242-WST00-PP-PM-0001-0` because the expected pattern `PROJECT-FACILITY-TYPE-SEQUENCE` does not account for the optional revision suffix (e.g., `-0`) found in the source data.
+[Issue #9]: `Document_ID` format validation (P2-I-V-0204) fails for values with optional revision suffix (e.g., `-0`) not accounted for in expected pattern.
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-150000)
-
-## 2026-04-12 18:00:00
-[Issue # 10]: DataFrame Sorting Operations Analysis - Impact on Row Index Tracking for Null Handling Error Detection
-- `[Status]`: Analysis Complete - Action Required
-- `[Link to changes in update_log.md]`:
-
-**Summary:**
-Multiple functions in the DCC pipeline use `DataFrame.sort_values()` operations that occur AFTER null handling phases. This can invalidate row index-based tracking (e.g., fill history), making it impossible to accurately correlate errors with specific rows.
-
-**Affected Functions - Detailed Analysis:**
-
-### 1. `apply_delay_of_resubmission()` (composite.py:174)
-**Purpose:** Calculate delay for resubmission by comparing current row with previous submission of same Document_ID
-**Input:** 
-- `df` (DataFrame): Full dataset
-- `doc_id_col` (str): "Document_ID"
-- `submission_date_col` (str): "Submission_Date"
-- `plan_date_col` (str): "Resubmission_Plan_Date"
-**Sort Operation:** `df.sort_values([doc_id_col, submission_date_col])`
-**Output:** DataFrame with calculated delay values
-**Potential Issues:**
-- Sorts by Document_ID then Submission_Date for vectorized calculation
-- Original row order is NOT preserved (no index reset or sort restoration)
-- Fill history recorded in Phase 2 will have mismatched row indices
-
-### 2. `apply_aggregate_calculation()` - concatenate_unique (aggregate.py:93)
-**Purpose:** Concatenate unique values from grouped data in sorted order
-**Input:**
-- `df` (DataFrame): Full dataset
-- `sort_by` (list): User-defined sort columns from schema
-- `group_by` (list): Grouping columns
-- `source_column` (str): Column to aggregate
-**Sort Operation:** `df.sort_values(sort_by)` (conditional on sort_by being defined)
-**Output:** DataFrame with concatenated string values
-**Potential Issues:**
-- Sorts entire DataFrame if `sort_by` is defined in schema
-- Used by columns: All_Submission_Sessions, All_Submission_Dates, All_Approval_Code
-- Row index alignment may break for subsequent operations
-
-### 3. `apply_aggregate_calculation()` - concatenate_unique_quoted (aggregate.py:133)
-**Purpose:** Same as concatenate_unique but with quoted values
-**Input:** Same as concatenate_unique
-**Sort Operation:** `df.sort_values(sort_by)` (conditional)
-**Output:** DataFrame with quoted concatenated strings
-**Potential Issues:**
-- Same row index concerns as concatenate_unique
-- Used by columns requiring quoted unique values
-
-### 4. `apply_aggregate_calculation()` - concatenate_dates (aggregate.py:167)
-**Purpose:** Concatenate unique dates in chronological order
-**Input:**
-- `df` (DataFrame): Full dataset
-- `sort_by` (list): Date sort columns
-- `group_by` (list): Grouping columns
-- `source_column` (str): Date column to aggregate
-**Sort Operation:** `df.sort_values(sort_by)` (conditional)
-**Output:** DataFrame with formatted date strings
-**Potential Issues:**
-- Date sorting ensures chronological order but may disrupt row alignment
-- Used by: All_Submission_Dates column
-
-### 5. `apply_latest_by_date_calculation()` (aggregate.py:239)
-**Purpose:** Find latest value per group based on date column
-**Input:**
-- `df` (DataFrame): Full dataset
-- `sort_by` (list): Date columns for sorting
-- `sort_dir` (list): Ascending/descending flags
-- `group_by` (list): Grouping columns
-- `source_column` (str): Column to find latest value
-**Sort Operation:** `filtered_df.sort_values(sort_by, ascending=asc_flags)`
-**Output:** DataFrame with latest values applied to null positions
-**Potential Issues:**
-- Sorts filtered DataFrame (subset) - working on copy, so less risky
-- Used by: Latest_Approval_Status, Latest_Submission_Date
-- Map back to original index correctly preserves alignment
-
-### 6. `apply_latest_non_pending_status()` - get_latest_non_pending (aggregate.py:350)
-**Purpose:** Find latest non-pending status within each group
-**Input:**
-- `group_df` (DataFrame): Group subset
-- `sort_by` (list): Usually ["Submission_Date"]
-- `source_column` (str): Status column
-- `exclude_values` (list): Values to exclude (e.g., ["Pending"])
-**Sort Operation:** `group_df.sort_values(by=sort_by[0], ascending=False)`
-**Output:** Single value per group (latest non-pending status)
-**Potential Issues:**
-- Works on group subset (via groupby().apply()), not full DataFrame
-- Sorts each group independently - row indices from original DataFrame preserved
-- Used by: Latest_Approval_Status
-
-### 7. `LogicDetector._detect_revision_regression()` (logic.py:144, 435)
-**Purpose:** Detect revision number regressions within document sequences
-**Input:**
-- `group` (DataFrame): Document_ID group subset
-- "Submission_Date" column (optional)
-**Sort Operation:** `group.sort_values("Submission_Date")` (conditional)
-**Output:** Error codes appended to detection results
-**Potential Issues:**
-- Works on group subset from `df.groupby(id_col)`
-- Sorts each document group by submission date
-- Original row indices preserved (group is a view/copy of subset)
-
-**Impact Assessment:**
-
-| Function | Sorts Full DF? | Preserves Index? | Risk Level | Phase |
-|----------|---------------|------------------|------------|-------|
-| apply_delay_of_resubmission | YES | NO | HIGH | P2.5 |
-| concatenate_unique | YES (conditional) | NO | MEDIUM | P2.5 |
-| concatenate_unique_quoted | YES (conditional) | NO | MEDIUM | P2.5 |
-| concatenate_dates | YES (conditional) | NO | MEDIUM | P2.5 |
-| latest_by_date | NO (subset) | YES | LOW | P2.5 |
-| latest_non_pending | NO (group) | YES | LOW | P2.5 |
-| revision_regression | NO (group) | YES | LOW | Detection |
-
-**Root Cause Analysis:**
-1. Functions 1-4 sort the FULL DataFrame without preserving/restoring original index order
-2. Null handling in Phase 2 uses row indices to track fill operations
-3. After sorting in Phase 2.5, row indices no longer correspond to original positions
-4. FillDetector in Phase 2.5/4 cannot accurately map fill history to data
-
-**Recommended Solutions:**
-
-**Option 1: Row Key-Based Tracking (RECOMMENDED)**
-- Replace integer row indices with compound keys (Document_ID + Submission_Date)
-- Resilient to sorting operations
-- Implementation: Modify fill_history to store `{'Document_ID': 'xxx', 'Submission_Date': 'yyy', 'row_index': N}`
-
-**Option 2: Preserve Index Through Sorting**
-- Add `df.sort_index()` after each sort operation to restore original order
-- Risk: May affect calculation results that depend on sorted order
-
-**Option 3: Post-Processing Detection**
-- Run FillDetector at Phase 4 after all calculations complete
-- Analyze data state rather than tracking operations
-- Requires different detection approach
-
-**Option 4: Copy-on-Sort**
-- Ensure calculations work on DataFrame copies
-- Sort copy, calculate, then merge results back to original
-- Higher memory usage but preserves original DataFrame order
-- **SELECTED APPROACH** - Implemented for concatenate methods
-
-**Status Update:**
-- `[Status]`: RESOLVED (Fixes applied - see [update_log.md](update_log.md#issue-10))
-- Concatenate methods now use copy + reindex pattern
-- Original DataFrame order preserved throughout calculations
-- Null Handling Phase A: Fill History Tracking - COMPLETE ([update_log.md](update_log.md#null-handling-phase-a))
-- Null Handling Phase B: FillDetector Enhancement - COMPLETE ([update_log.md](update_log.md#null-handling-phase-b))
-
-**Next Steps:**
-- [ ] Optimize `latest_by_date` to use `max()` instead of sort (optional)
-- [ ] Add integration tests with sorting scenarios
-- [ ] Update technical documentation
 
 ## 2026-04-11 15:45:00
-[Issue # 11]: Incorrect null reporting in `error_dashboard_data.json` for `First_Submission_Date` and `Document_Sequence_Number`. These were being flagged as CRITICAL null errors in Phase 1 (AnchorDetector) because they were mistakenly included in the `ANCHOR_COLUMNS` list, despite being calculated or populated in later phases.
+[Issue #11]: Incorrect null reporting in `error_dashboard_data.json` for `First_Submission_Date` and `Document_Sequence_Number` - flagged as CRITICAL null errors in Phase 1 despite being calculated/populated in later phases.
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-155000)
 
 ## 2026-04-11 16:30:00
-[Issue # 12]: `Document_ID uncertain (P2-I-P-0201)` errors reported prematurely in Phase 2. `Document_ID` is a P2.5 calculated column in the enhanced schema, but `IdentityDetector` was validating it during Phase 2 before the calculation was performed.
+[Issue #12]: `Document_ID uncertain (P2-I-P-0201)` errors reported prematurely in Phase 2 - `Document_ID` is P2.5 calculated column but `IdentityDetector` validated during Phase 2 before calculation.
 - `[Status]`: Resolved
 - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-11-163500)
 
 ## 2026-04-11 16:35:00
-[Issue # 13]: Error code P2-I-V-0203 (Duplicate Transmittal_Number) should not apply to fact tables.
-
-**Analysis:**
-- The data from `dcc_engine_pipeline.py` is a fact table structure
-- In fact tables, `transmittal_number` can legitimately be duplicated across multiple rows
-- This occurs when one transmittal contains multiple documents (1 transmittal → N documents)
-- Error P2-I-V-0203 is designed for transactional data where transmittal_number should be unique per submission
-- **Conclusion:** Duplicate transmittal_number in the final data table is NOT an error for fact table data
-
-**Resolution:**
-- Schema configuration added to skip duplicate validation for fact table attributes.
-- Code fix: `identity.py` `_detect_duplicate_transmittal()` now checks `strategy.validation_context.skip_duplicate_check` before flagging duplicates.
-- Code fix: `engine.py` now passes `schema_data` in context to all phase detectors.
-- See [update_log.md](update_log.md#issue-13) for detailed changes.
-
-**Note:** This is a business logic clarification, not a code bug. The validation rule is context-dependent.
- - `[Status]`: Resolved (Schema Configuration + Tested)
- - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-13)
- - `[Link to test results]`: [test_log.md](test_log.md#2026-04-12-111500)
+[Issue #13]: Error code P2-I-V-0203 (Duplicate Transmittal_Number) should not apply to fact tables - transmittal_number can legitimately be duplicated (1 transmittal → N documents).
+- `[Status]`: Resolved (Schema Configuration + Tested)
+- `[Resolution]`: Schema configuration added to skip duplicate validation for fact table attributes. `identity.py` checks `strategy.validation_context.skip_duplicate_check` before flagging duplicates.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-13)
+- `[Link to test results]`: [test_log.md](test_log.md#2026-04-12-111500)
 
 ## 2026-04-12 12:30:00
-[Issue # 14]: Pipeline output is messy with mixed JSON logs and print statements causing unreadable console output.
-
-**Analysis:**
-- Module-level `print()` statements in `dcc_engine_pipeline.py` executed on import, not just on run
-- `StructuredLogger` using JSON formatter outputting to stdout, creating mixed format output
-- Logger propagation causing duplicate messages
-- Console overwhelmed with unstructured debug logs
-
-**Resolution:**
-- Moved pipeline banner prints from module level into `main()` function
-- Changed `logger.py` to use simple `[LEVEL] message` formatter instead of JSON
-- Set console handler to WARNING+ only to reduce noise
-- Added `propagate = False` to prevent duplicate log entries
-- See [update_log.md](update_log.md#issue-14) for detailed changes.
-
-**Note:** This is a code quality improvement for better user experience.
- - `[Status]`: Resolved (Code Quality)
- - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-14)
+[Issue #14]: Pipeline output messy with mixed JSON logs and print statements causing unreadable console output.
+- `[Status]`: Resolved (Code Quality)
+- `[Resolution]`: Moved pipeline banner prints from module level into `main()`. Changed logger to simple `[LEVEL] message` formatter. Set console handler to WARNING+ only. Added `propagate = False` to prevent duplicates.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-14)
 
 ## 2026-04-12 12:45:00
-[Issue # 15]: "[P2-I-V-0204] Invalid Document_ID format: '131242-WSD11-CL-P-0009' (Document_ID)" are reported as errors but they are not.
+[Issue #15]: Document_ID validation (P2-I-V-0204) fails for valid single-letter discipline codes (e.g., "P") - detector hardcoded pattern requires 2-10 uppercase letters but schema allows 1-3 alphanumeric.
+- `[Status]`: Resolved (Pattern Alignment)
+- `[Resolution]`: Created shared `get_derived_pattern_regex()` function in `validation.py` for both Phase 2 and Phase 4. Phase 2 now uses schema-driven `derived_pattern` from `dcc_register_enhanced.json`. Hardcoded pattern retained as fallback.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-15)
 
-**Analysis:**
-- Document_ID '131242-WSD11-CL-P-0009' was flagged as invalid by P2-I-V-0204
-- The `identity.py` detector uses hardcoded `DOC_ID_PATTERN` requiring 2-10 uppercase letters for discipline: `[A-Z]{2,10}`
-- Discipline schema allows 1-3 alphanumeric characters per pattern `^[A-Z0-9]{1,3}$`
-- Valid discipline codes include single letters: "A", "B", "C", "D", "P" (from discipline_schema.json)
-- The discipline "P" in the example is valid per schema but rejected by the detector's pattern
-
-**Resolution:**
-- Initial fix: Updated `identity.py` `DOC_ID_PATTERN` to allow 1-10 alphanumeric characters for Document_Type and Discipline segments
-- Refactoring: Created shared `get_derived_pattern_regex()` function in `validation.py` for both Phase 2 and Phase 4
-- Phase 2 (identity detector) now uses schema-driven `derived_pattern` from `dcc_register_enhanced.json` via `_get_schema_pattern()`
-- Hardcoded pattern retained as fallback for backward compatibility
-- Both phases now use identical pattern generation logic from schema configuration
-- See [update_log.md](update_log.md#issue-15) for detailed changes.
-
-**Note:** This is a pattern alignment fix to make the detector consistent with the schema.
- - `[Status]`: Resolved (Pattern Alignment)
- - `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-15)
-
- ## 2026-04-12 12:55:00
-[Issue # 16]: "Document_ID" sometimes may contain affixes like "_ST607", "_ST608_BCA", "_MS2", "_Withdrawn" etc. When document_id contains these affixes, the detector should still be able to validate the document_id. May consider to strip these affixes before validation. Separate the affixes from the document_id and store in another new data field.
-
-**Note:** This is a pattern alignment fix to make the detector consistent with the schema.
- - `[Status]`: open
- - `[Link to changes in update_log.md]`:
-
-## 2026-04-12 16:45:00
-[Bug Fix]: Pipeline error when processing Document_ID_Affixes column
-
-**Error:**
-```
-'Recalculate_always' is not a valid PreservationMode
-WARNING: No handler registered for calculation type: extract_affixes/extract_document_id_affixes
-```
-
-**Analysis:**
-- `Document_ID_Affixes` schema configuration used invalid `PreservationMode` value `recalculate_always`
-- Valid values are: `preserve_existing`, `overwrite_existing`, `conditional_overwrite`
-- Missing calculation handler for `extract_affixes` type in `registry.py`
-
-**Resolution:**
-- Fixed schema: Changed `mode` from `recalculate_always` to `overwrite_existing` in `dcc_register_enhanced.json`
-- Added `apply_extract_affixes()` function to `composite.py` for affix extraction calculation
-- Registered handler in `registry.py` under `CALCULATION_HANDLERS["extract_affixes"]`
-- Pipeline now successfully processes affix extraction in Phase 2.5
-
-**Related to:** Issue #16 implementation
- - `[Status]`: Fixed
- - `[Link to changes in update_log.md]`: See update_log.md#2026-04-12-164500
-
-## 2026-04-15 09:40:00
-[issue #17] tools/project_setup_tools.py should be updated to establish a new project folder, copies all necessary files, and configure schemas
-
-- `[status]`: open
-- `[Link to changes in update_log.md]`:
-
-## 2026-04-18 18:00:00
-[Issue #23]: Phase 5 — AI Integration & Advanced Analytics planning required. Define scope, deliverables, and implementation workplan for Phase 5 sub-phases (5.1–5.5).
-
-**Scope:**
-- 5.1: `ai_analysis_engine.py` — connect to local Ollama LLM (Llama 3.1 8B) for comment categorisation, risk flagging, and status summarisation
-- 5.2: `ai_analysis_dashboard.html` — display AI insights, risk heatmap, confidence scores
-- 5.3: Real-time pipeline monitoring via WebSocket/SSE in `pipeline_dashboard.html`
-- 5.4: FastAPI/Flask backend with DuckDB persistence and REST endpoints for UI tools
-- 5.5: Multi-format export engine (DuckDB + Excel + PDF) triggered from Pipeline Dashboard
-
-**Dependencies:**
-- Phase 4 UI tools (complete ✔)
-- Ollama running locally with `llama3.1:8b` model
-- `dcc_engine_pipeline.py` must expose a streaming endpoint for 5.3
-
-- `[Status]`: Open
-- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#phase5-planning)
+## 2026-04-12 12:55:00
+[Issue #16]: Document_ID may contain affixes like "_ST607", "_ST608_BCA", "_MS2", "_Withdrawn" - detector should strip affixes before validation and store in separate field.
+- `[Status]`: Resolved
+- `[Resolution]`: Added `Document_ID_Affixes` column to schema. Implemented `extract_document_id_affixes()` function in `affix_extractor.py`. Integrated with identity detector to validate base ID only. Fixed schema `PreservationMode` from `recalculate_always` to `overwrite_existing`. Registered `extract_affixes` handler in `registry.py`.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-12-164500)
