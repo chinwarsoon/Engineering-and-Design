@@ -1,9 +1,24 @@
+"""
+Schema Registration and Recursive Loading Audit Tool.
+
+Verifies:
+1. Strict registration compliance for all JSON schema files.
+2. Auto-discovery rules for engine-specific schemas.
+3. Universal $ref resolution for the entire schema catalog.
+4. Recursive loading performance and cache metrics.
+"""
+
 import json
 from pathlib import Path
 from dcc.workflow.schema_engine.loader.schema_loader import SchemaLoader
 from dcc.workflow.schema_engine.loader.ref_resolver import SchemaNotRegisteredError
 
 def check_strict_registration():
+    """
+    Perform a complete audit of schema registration and resolution.
+    
+    Breadcrumb: list_files → compare_with_project_config → recursive_load_all → report
+    """
     # Paths
     project_root = Path("/workspaces/Engineering-and-Design/dcc")
     schema_dir = project_root / "config" / "schemas"

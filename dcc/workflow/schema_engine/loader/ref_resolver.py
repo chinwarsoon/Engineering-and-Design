@@ -87,11 +87,17 @@ class RefResolver:
     """
     Universal reference resolver for JSON schemas.
     
-    Supports all $ref types per agent_rule.md Section 2.4:
-    - String refs: "#/definitions/Type" or "file.json#/field"
-    - Object refs: {"schema": "name", "code": "X", "field": "Y"}
-    - Nested refs: Deeply nested within objects and arrays
-    - Recursive refs: Self-referencing schemas with cycle detection
+    This class implements the Unified Schema Registry pattern (agent_rule.md Section 2.4).
+    It translates permanent internal URIs to physical file system paths and performs
+    deep, recursive resolution of all standard and custom DCC reference types.
+    
+    Capabilities:
+    - URI-to-Path mapping via $id registry.
+    - String-based refs: "#/definitions/Type" or "file.json#/field".
+    - Object-based refs: {"schema": "name", "code": "X", "field": "Y"}.
+    - Recursive resolution of nested structures (objects and arrays).
+    - Multi-directory search for schema fragments.
+    - Integrated multi-level caching (L1/L2).
     
     Complies with agent_rule.md Section 4: Module design for functions and classes.
     """

@@ -43,10 +43,13 @@ from .schema_cache import SchemaCache
 
 class SchemaLoader:
     """
-    Load JSON schemas, resolve references, and expand dependencies.
+    Primary interface for loading, resolving, and validating JSON schemas.
     
-    Phase E: Enhanced with recursive loading, strict registration validation,
-    and universal $ref resolution via RefResolver and SchemaDependencyGraph.
+    The SchemaLoader orchestrates the loading pipeline:
+    1. Registration Check: Enforces strict cataloging via project_setup.json.
+    2. Dependency Analysis: Uses SchemaDependencyGraph to determine loading order.
+    3. Multi-Level Caching: Utilizes SchemaCache (L1/L2/L3) to maximize performance.
+    4. Universal Resolution: Uses RefResolver for deep, recursive $ref expansion.
     
     Complies with agent_rule.md Section 2.3: project_setup.json as mandatory
     main entry point for strict schema registration.
