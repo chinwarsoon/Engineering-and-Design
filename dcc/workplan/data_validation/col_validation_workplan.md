@@ -10,6 +10,17 @@
 Column-level validation ensures each column adheres to data type, format, and business rule constraints.
 Pipeline execution revealed: 1,238 row-level errors (HIGH: 172, WARNING: 1,066), 98.5% health score.
 
+### Critical Requirement
+**ALL validations in this workplan MUST be performed AFTER the complete data processing pipeline has finished.**
+
+Validations are executed on the **fully processed dataset** (not raw input data), which includes:
+- All column mappings applied (26 raw → 44 processed columns)
+- All null handling completed (forward fill, default values, multi-level fill)
+- All calculated columns computed (18 derived columns like Document_ID, Latest_Revision, All_Submission_Sessions)
+- All data transformations finished (zero-padding, date formatting, concatenations)
+
+**Validation Phase:** Phase 4 of the pipeline executes only after Phases 1-3 (Mapping, Null Handling, Calculations) are complete.
+
 ---
 
 ## Gate 1: Integrity Gate (Data Type & Structure)

@@ -15,6 +15,18 @@ Row-level validation checks internal consistency across columns within each row.
 - 997 rows affected (9% error rate)
 - Data Health Score: 98.5% (Grade A)
 
+### Critical Requirement
+**ALL validations in this workplan MUST be performed AFTER the complete data processing pipeline has finished.**
+
+Row validations require the **fully processed dataset** including:
+- All 44 columns available (26 mapped + 18 calculated)
+- All forward fill operations completed (group-based fills for Submission_Session, Transmittal_Number)
+- All composite identities computed (Document_ID from 5 constituent fields)
+- All aggregate columns populated (All_Submission_Sessions, Count_of_Submissions, etc.)
+- All date calculations finished (Duration_of_Review, Delay_of_Resubmission)
+
+**Validation Timing:** These validations execute in Phase 4, AFTER column mapping (Phase 1), null handling (Phase 2), and calculations (Phase 3) are complete.
+
 ---
 
 ## Category 1: Anchor Completeness (Critical Fields)
