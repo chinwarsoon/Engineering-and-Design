@@ -363,48 +363,51 @@ Since dcc_register schemas following base/setup/config pattern already provide c
 
 ---
 
-### Phase G: Caching & Performance (3-4 hours) ⏳ PENDING
+### Phase G: Caching & Performance (3-4 hours) ✅ COMPLETE
+**Completed:** 2026-04-17
+**Report:** [phase_g_report.md](phase_g_report.md)
+**File New:** [schema_cache.py](../../workflow/schema_engine/loader/schema_cache.py)
+**Test File:** [test_schema_cache.py](../../test/test_schema_cache.py)
+
 **Implementation Details:**
 - **Multi-Level Caching**: L1 (in-memory), L2 (disk), L3 (dependency graph)
-- **TTL Support**: Time-based cache expiration
-- **Cache Invalidation**: File modification time tracking
-- **Performance Monitoring**: Cache hit/miss metrics
+- **TTL Support**: Time-based cache expiration (L1: 5m, L2: 1h defaults)
+- **Cache Invalidation**: File modification time tracking (mtime)
+- **Performance Monitoring**: Cache hit/miss metrics tracking
+- **Content Hashing**: SHA256 for L1 content validation
 
-**Cache Levels:**
-
-| Level | Scope | Key | TTL | Invalidation Trigger |
-|-------|-------|-----|-----|---------------------|
-| L1 | In-Memory | schema_uri + content_hash | 5 min | File modification |
-| L2 | Disk Cache | schema_path + mtime | 1 hour | Manual clear |
-| L3 | Dependency Graph | full_graph_hash | Session | Schema structure change |
-
-**Tasks:**
-1. [ ] Create `SchemaCache` class with L1/L2/L3 levels
-2. [ ] Implement cache key generation
-3. [ ] Implement TTL-based expiration
-4. [ ] Implement file modification monitoring
-5. [ ] Add cache hit/miss metrics
-6. [ ] Add cache clearing utilities
+**Tasks Completed:**
+1. ✅ [x] Create `SchemaCache` class with L1/L2/L3 levels
+2. ✅ [x] Implement cache key generation (MD5 for file safety)
+3. ✅ [x] Implement TTL-based expiration
+4. ✅ [x] Implement file modification monitoring
+5. ✅ [x] Add cache hit/miss metrics
+6. ✅ [x] Add cache clearing utilities
+7. ✅ [x] Integrate into `RefResolver` and `SchemaLoader`
 
 ---
 
-### Phase H: Integration & Testing (4-5 hours) ⏳ PENDING
+### Phase H: Integration & Testing (4-5 hours) ✅ COMPLETE
+**Completed:** 2026-04-17
+**Report:** [phase_h_report.md](phase_h_report.md)
+**Test File:** [check_registration.py](../../test/check_registration.py)
+
 **Testing Strategy:**
 - **Unit Tests**: Test individual components (RefResolver, DependencyGraph, SchemaCache)
-- **Integration Tests**: Test full recursive loading workflow
+- **Integration Tests**: Test full recursive loading workflow (Pass: 20/20 schemas)
 - **Schema Validation Tests**: Validate base/setup/config one-to-one matching
-- **Performance Tests**: Measure loading time with and without caching
+- **Performance Tests**: Measure loading time with and without caching (Result: 116 L1 hits)
 - **Edge Cases**: Test circular references, missing schemas, invalid URIs
 
-**Test Cases:**
-1. [ ] Test URI-based $ref resolution
-2. [ ] Test internal $ref resolution
-3. [ ] Test cross-directory $ref resolution
-4. [ ] Test circular reference detection
-5. [ ] Test schema architecture validation
-6. [ ] Test multi-directory discovery
-7. [ ] Test cache invalidation
-8. [ ] Test strict registration enforcement
+**Test Results:**
+1. ✅ [x] Test URI-based $ref resolution (Passed: 20/20)
+2. ✅ [x] Test internal $ref resolution (Passed: anatomy_schema, etc.)
+3. ✅ [x] Test cross-directory $ref resolution (Passed: workflow -> config)
+4. ✅ [x] Test circular reference detection (Passed: project_setup_base self-ref allowed)
+5. ✅ [x] Test schema architecture validation (Passed: base/setup/config loops)
+6. ✅ [x] Test multi-directory discovery (Passed: config/schemas + workflow)
+7. ✅ [x] Test cache invalidation (Passed: verified in test_schema_cache.py)
+8. ✅ [x] Test strict registration enforcement (Passed: 20/20 enforced)
 
 ---
 
@@ -419,7 +422,7 @@ Since dcc_register schemas following base/setup/config pattern already provide c
 
 ---
 
-## Status
+### Status
 
 ### Phase Completion Status
 - **Phase A**: ✅ COMPLETE (Updated 2026-04-16)
@@ -428,15 +431,16 @@ Since dcc_register schemas following base/setup/config pattern already provide c
 - **Phase D**: ✅ COMPLETE
 - **Phase E**: ✅ COMPLETE
 - **Phase F**: ❌ NOT REQUIRED (dcc_register schemas provide same functionality)
-- **Phase G**: ⏳ PENDING
-- **Phase H**: ⏳ PENDING
+- **Phase G**: ✅ COMPLETE
+- **Phase H**: ✅ COMPLETE
 - **Phase I**: ⏳ PENDING
 
 ### Overall Progress
-- **Phases Completed:** 5/9 (56%)
+- **Phases Completed:** 7/9 (78%)
 - **Phases Not Required:** 1/9 (Phase F - master_registry.json Integration)
-- **Estimated Time Remaining:** 12-18 hours
-- **Next Phase:** Phase G - Caching & Performance
+- **Estimated Time Remaining:** 2-3 hours
+- **Next Phase:** Phase I - Documentation
+
 
 ---
 

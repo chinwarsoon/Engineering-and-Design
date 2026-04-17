@@ -23,20 +23,12 @@ _status_print = None
 _debug_print = None
 
 def status_print(msg: str) -> None:
-    """Print status message (lazy import)."""
-    global _status_print
-    if _status_print is None:
-        from initiation_engine import status_print as sp
-        _status_print = sp
-    _status_print(msg)
+    """Print status message."""
+    print(f"STATUS: {msg}")
 
 def debug_print(msg: str, level: int = 1) -> None:
-    """Print debug message (lazy import)."""
-    global _debug_print
-    if _debug_print is None:
-        from initiation_engine import debug_print as dp
-        _debug_print = dp
-    _debug_print(msg, level)
+    """Print debug message."""
+    print(f"DEBUG[{level}]: {msg}")
 
 
 class SchemaNotRegisteredError(Exception):
@@ -89,6 +81,8 @@ class RefResolutionError(Exception):
         self.reason = reason
 
 
+from .schema_cache import SchemaCache
+
 class RefResolver:
     """
     Universal reference resolver for JSON schemas.
@@ -106,7 +100,7 @@ class RefResolver:
         self,
         project_setup_path: Path,
         schema_directories: List[Path],
-        cache: Optional[Dict[str, Any]] = None
+        cache: Optional[SchemaCache] = None
     ):
         """
         Initialize resolver with mandatory project_setup.json and schema directories.
@@ -116,7 +110,7 @@ class RefResolver:
         Args:
             project_setup_path: Path to project_setup.json (mandatory root)
             schema_directories: List of directories to search for schemas
-            cache: Optional cache dict for loaded schemas
+            cache: Optional SchemaCache instance for loaded schemas
             
         Raises:
             FileNotFoundError: If project_setup_path does not exist
@@ -137,9 +131,9 @@ class RefResolver:
             self.project_setup = json.load(f)
         
         # Breadcrumb: Extract registered schema catalog
-        self.registered_schemas = self._extract_registered_schemas()
         self.schema_directories = [safe_resolve(d) for d in schema_directories]
-        self.cache = cache or {}
+        self.registered_schemas = self._extract_registered_schemas()
+        self.cache = cache or SchemaCache()
         self._resolution_stack: Set[str] = set()  # For circular reference detection
         
         # Breadcrumb: Build URI-to-file registry for $id resolution
@@ -153,23 +147,24 @@ class RefResolver:
     
     def _extract_registered_schemas(self) -> Dict[str, Dict[str, Any]]:
         """
-        Extract schema catalog from project_setup.json.
+        Extract schema catalog from project_setup.json, including discovery_rules.
         
-        Handles both:
+        Handles:
         1. Instance files: {"schema_files": [{"filename": "..."}]}
         2. Schema files: {"properties": {"schema_files": {"default": [{"filename": "..."}]}}}
+        3. Discovery rules: {"discovery_rules": [{"pattern": "*.json", "directory": "...", ...}]}
         
-        Breadcrumb: project_setup → schema_files|properties.schema_files.default → normalized_registry
+        Breadcrumb: project_setup → schema_files → discovery_rules → normalized_registry
         
         Returns:
             Dict mapping schema name (stem) to registration metadata
             
         Complies with agent_rule.md Section 2.3: All schema files must be referenced
-        in project_setup.json.
+        in project_setup.json (manually or via discovery rules).
         """
         registry = {}
         
-        # Case 1: Direct schema_files array (instance file)
+        # Breadcrumb: Process explicit schema_files
         schema_files = self.project_setup.get("schema_files", [])
         
         # Case 2: Schema with default values (schema file)
@@ -186,8 +181,61 @@ class RefResolver:
                     "filename": filename,
                     "required": entry.get("required", False),
                     "description": entry.get("description", ""),
-                    "registered": True
+                    "registered": True,
+                    "source": "explicit"
                 }
+        
+        # Breadcrumb: Process discovery_rules (agent_rule.md Section 2.8)
+        discovery_rules = self.project_setup.get("discovery_rules", [])
+        
+        project_root = self.project_setup_path.parent.parent.parent # Root of DCC
+        
+        for rule in discovery_rules:
+            pattern = rule.get("pattern")
+            directory_rel = rule.get("directory", ".")
+            recursive = rule.get("recursive", False)
+            auto_register = rule.get("auto_register", True)
+            exclude_patterns = rule.get("exclude_patterns", [])
+            
+            if not pattern or not auto_register:
+                continue
+                
+            # Breadcrumb: Locate discovery directory
+            # Directory is relative to project root or absolute
+            search_dir = safe_resolve(project_root / directory_rel)
+            
+            if not search_dir.exists():
+                debug_print(f"Discovery directory not found: {search_dir}", level=2)
+                continue
+            
+            # Add to schema_directories if not already present
+            if search_dir not in self.schema_directories:
+                self.schema_directories.append(search_dir)
+                
+            # Breadcrumb: Scan for matching files
+            glob_pattern = f"**/{pattern}" if recursive else pattern
+            for schema_file in search_dir.glob(glob_pattern):
+                # Check exclude patterns
+                is_excluded = False
+                for exclude in exclude_patterns:
+                    if schema_file.match(exclude) or any(schema_file.match(p) for p in exclude_patterns):
+                        is_excluded = True
+                        break
+                
+                if is_excluded:
+                    continue
+                    
+                schema_name = schema_file.stem
+                if schema_name not in registry:
+                    registry[schema_name] = {
+                        "filename": schema_file.name,
+                        "path": str(schema_file),
+                        "required": False,
+                        "description": rule.get("category", "discovered"),
+                        "registered": True,
+                        "source": "discovery"
+                    }
+                    debug_print(f"Auto-registered schema: {schema_name} (via {pattern})", level=3)
         
         return registry
     
@@ -506,13 +554,13 @@ class RefResolver:
             schema_path = None  # Will be resolved by _find_schema_file
         
         # Breadcrumb: Load schema (with caching)
-        if schema_name not in self.cache:
+        target_schema = self.cache.get(schema_name, schema_path)
+        if target_schema is None:
             if schema_path is None:
                 schema_path = self._find_schema_file(file_part)
             with schema_path.open('r', encoding='utf-8') as f:
-                self.cache[schema_name] = json.load(f)
-        
-        target_schema = self.cache[schema_name]
+                target_schema = json.load(f)
+            self.cache.set(schema_name, target_schema, schema_path)
         
         # Breadcrumb: If no pointer, return entire schema
         if not pointer:
@@ -567,12 +615,12 @@ class RefResolver:
         self.validate_registration(schema_name)
         
         # Breadcrumb: Load target schema
-        if schema_name not in self.cache:
+        target_schema = self.cache.get(schema_name)
+        if target_schema is None:
             schema_path = self._find_schema_file(f"{schema_name}.json")
             with schema_path.open('r', encoding='utf-8') as f:
-                self.cache[schema_name] = json.load(f)
-        
-        target_schema = self.cache[schema_name]
+                target_schema = json.load(f)
+            self.cache.set(schema_name, target_schema, schema_path)
         
         # Breadcrumb: Query target schema by code
         # Assumes schema has array of objects with 'code' field
@@ -682,12 +730,14 @@ class RefResolver:
             self.validate_registration(schema_name)
             
             # Breadcrumb: Load referenced schema
-            if schema_name not in self.cache:
+            schema_data = self.cache.get(schema_name)
+            if schema_data is None:
                 full_path = self._find_schema_file(f"{schema_name}.json")
                 with full_path.open('r', encoding='utf-8') as f:
-                    self.cache[schema_name] = json.load(f)
+                    schema_data = json.load(f)
+                self.cache.set(schema_name, schema_data, full_path)
             
-            resolved[ref_name] = self.cache[schema_name]
+            resolved[ref_name] = schema_data
             debug_print(f"Resolved schema_reference: {ref_name}", level=2)
         
         return resolved

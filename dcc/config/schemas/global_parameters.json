@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/global-parameters",
+  "$id": "https://dcc-pipeline.internal/schemas/global_parameters",
   "title": "DCC Global Parameters Schema",
   "description": "Global pipeline parameters with default values for DCC processing pipeline",
   "version": "1.0.0",
@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "allOf": [
     {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/global_parameters"
+      "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/global_parameters"
     }
   ],
   "parameters": [

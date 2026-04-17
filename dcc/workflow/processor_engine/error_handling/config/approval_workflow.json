@@ -13,6 +13,5 @@
     "audit": {"type": "object"}
   },
   "required": ["version", "workflows", "roles", "notifications", "sla", "audit"],
-  "version": "1.0",
-...
+  "version": "1.0"
 }

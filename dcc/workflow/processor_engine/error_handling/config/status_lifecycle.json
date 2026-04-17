@@ -5,23 +5,26 @@
   "additionalProperties": false,
   "properties": {
     "version": {"type": "string"},
-    "description": {"type": "string"},
     "states": {
-      "type": "array",
-      "items": {"type": "string"}
+      "type": "object",
+      "additionalProperties": {"type": "object"}
     },
-    "transitions": {"type": "object"},
-    "initial_state": {"type": "string"},
-    "terminal_states": {
+    "transitions": {
       "type": "array",
-      "items": {"type": "string"}
-    },
-    "descriptions": {"type": "object"},
-    "workflows": {"type": "object"},
-    "permissions": {"type": "object"},
-    "notifications": {"type": "object"}
+      "items": {"type": "object"}
+    }
   },
-  "required": ["version", "states", "transitions", "initial_state", "terminal_states", "descriptions", "workflows", "permissions", "notifications"],
+  "required": ["version", "states", "transitions"],
   "version": "1.0",
-...
+  "states": {
+    "NEW": {"description": "Error just identified"},
+    "IN_PROGRESS": {"description": "Being remediated"},
+    "RESOLVED": {"description": "Fix applied"},
+    "CLOSED": {"description": "Verified and closed"}
+  },
+  "transitions": [
+    {"from": "NEW", "to": "IN_PROGRESS"},
+    {"from": "IN_PROGRESS", "to": "RESOLVED"},
+    {"from": "RESOLVED", "to": "CLOSED"}
+  ]
 }

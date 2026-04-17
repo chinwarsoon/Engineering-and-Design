@@ -1,12 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/discipline",
+  "$id": "https://dcc-pipeline.internal/schemas/discipline_schema",
   "title": "DCC Discipline Schema",
   "description": "Standard engineering discipline classifications with built-in validation rules.",
   "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/discipline_entry"}],
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/discipline_entry"}],
   "disciplines": [
     {"code": "PUB","description": "Reserved for Client Use"},
     {"code": "G","description": "General"},

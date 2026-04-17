@@ -1,18 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/error-remediation-types",
+  "$id": "https://dcc-pipeline.internal/schemas/remediation-types",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "version": {"type": "string"},
-    "description": {"type": "string"},
-    "types": {"type": "object"},
-    "selection_rules": {"type": "object"}
+    "types": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
+    }
   },
-  "required": ["version", "types", "selection_rules"],
+  "required": ["version", "types"],
   "version": "1.0",
-  "description": "Remediation Strategy Types - Defines how errors are automatically or manually resolved",
   "types": {
-...
+    "MANUAL": "User must manually correct data",
+    "AUTOMATIC": "System can automatically fix data",
+    "IGNORE": "Error can be safely ignored",
+    "RETRY": "Task can be retried"
   }
 }

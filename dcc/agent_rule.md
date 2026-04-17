@@ -1,3 +1,7 @@
+# Important:
+1. always plan and wait for approval to make changes.
+2. when delete any files, always archive them into respectie archive folders first.
+
 # Section 1. data columns:
 1. sort column is not allowed before forward fill.
 2. forward fill shall not overwrite existing values.

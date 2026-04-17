@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/project-config",
+  "$id": "https://dcc-pipeline.internal/schemas/project_config",
   "title": "DCC Project Configuration Data",
   "description": "Actual configuration items for DCC project setup. Follows agent_rule.md Section 2.3 flat structure with array of objects.",
   "version": "1.0.0",
@@ -31,14 +31,15 @@
         {"filename": "project_setup_base.json", "required": true, "description": "Base schema with reusable definitions", "category": "base_schema"},
         {"filename": "project_setup.json", "required": true, "description": "Project setup validation schema", "category": "project_schema"},
         {"filename": "project_config.json", "required": true, "description": "Project configuration data", "category": "config_data"},
-        {"filename": "dcc_master_registry.json", "required": true, "description": "Central registry of registers and validation schemas", "category": "master_registry"},
-        {"filename": "project_schema.json", "required": true, "description": "Defines project codes and descriptions", "category": "data_schema"}
+        {"filename": "dcc_register_base.json", "required": true, "description": "DCC register base definitions", "category": "base_schema"},
+        {"filename": "project_code_schema.json", "required": true, "description": "Defines project codes and descriptions", "category": "data_schema"},
+        {"filename": "global_parameters.json", "required": true, "description": "Global parameters configuration", "category": "config_data"}
   ],
   "discovery_rules": [
         {"pattern": "*_schema.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "validation_schema", "exclude_patterns": ["**/backup/**"]},
-        {"pattern": "*_types.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "type_definition"},
-        {"pattern": "calculation_*.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "calculation_schema"},
-        {"pattern": "**/error_handling/config/*.json", "directory": "workflow", "recursive": true, "auto_register": true, "category": "engine_schema", "exclude_patterns": ["**/messages/**"]}
+        {"pattern": "*_config.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "config_data"},
+        {"pattern": "dcc_register_*.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "register_schema"},
+        {"pattern": "*.json", "directory": "workflow/processor_engine/error_handling/config", "recursive": true, "auto_register": true, "category": "engine_schema", "exclude_patterns": ["**/messages/**"]}
   ],
   "workflow_files": [
         {"filename": "dcc_engine_pipeline.py", "required": true, "description": "Main pipeline orchestration", "type": "python_module"},

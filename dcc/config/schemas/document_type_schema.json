@@ -1,12 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/document-type",
+  "$id": "https://dcc-pipeline.internal/schemas/document_type_schema",
   "title": "DCC Document Type Schema",
   "description": "Standard document type classifications with built-in validation rules.",
   "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/document_type_entry"}],
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/document_type_entry"}],
   "document_types": [
     {"code": "AD", "description": "Addendum"},
     {"code": "AL", "description": "Approval Letter"},

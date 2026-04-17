@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/dcc-register-base",
+  "$id": "https://dcc-pipeline.internal/schemas/dcc_register_base",
   "title": "DCC Register Base Schema",
   "description": "Base schema for document control register column definitions and data classifications",
   "version": "1.0.0",
@@ -149,7 +149,7 @@
             "create_if_missing": {"type": "boolean", "default": true},
             "validation": {
               "type": "array",
-              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_rule_entry"}
+              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/validation_rule_entry"}
             }
           }
         },
@@ -161,10 +161,10 @@
             "data_type": {"type": "string", "enum": ["categorical"]},
             "is_calculated": {"type": "boolean", "default": false},
             "schema_reference": {"type": "string"},
-            "null_handling": {"$ref": "#/definitions/null_handling_strategies/properties/forward_fill_with_padding"},
+            "null_handling": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/null_handling_strategies/properties/forward_fill_with_padding"},
             "validation": {
               "type": "array",
-              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_rule_entry"}
+              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/validation_rule_entry"}
             }
           }
         },
@@ -175,10 +175,10 @@
           "properties": {
             "data_type": {"type": "string", "enum": ["date"]},
             "is_calculated": {"type": "boolean", "default": false},
-            "null_handling": {"$ref": "#/definitions/null_handling_strategies/properties/multi_level_forward_fill"},
+            "null_handling": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/null_handling_strategies/properties/multi_level_forward_fill"},
             "validation": {
               "type": "array",
-              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_rule_entry"}
+              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/validation_rule_entry"}
             }
           }
         },
@@ -189,10 +189,10 @@
           "properties": {
             "data_type": {"type": "string"},
             "is_calculated": {"type": "boolean", "default": false},
-            "null_handling": {"$ref": "#/definitions/null_handling_strategies/properties/forward_fill_with_padding"},
+            "null_handling": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/null_handling_strategies/properties/forward_fill_with_padding"},
             "validation": {
               "type": "array",
-              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_rule_entry"}
+              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/validation_rule_entry"}
             }
           }
         },
@@ -206,7 +206,7 @@
             "schema_reference": {"type": "string"},
             "validation": {
               "type": "array",
-              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_rule_entry"}
+              "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/validation_rule_entry"}
             }
           }
         }

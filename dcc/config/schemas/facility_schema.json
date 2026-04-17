@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/facility",
+  "$id": "https://dcc-pipeline.internal/schemas/facility_schema",
   "title": "DCC Facility Schema",
   "description": "Standard facility codes and building descriptions with built-in validation rules.",
   "version": "2.0.0",
@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "allOf": [
     {
-      "$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/facility_entry"
+      "$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/facility_entry"
     }
   ],
   "facilities": [

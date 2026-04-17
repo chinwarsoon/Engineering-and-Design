@@ -1,39 +1,39 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/dcc-register-setup",
+  "$id": "https://dcc-pipeline.internal/schemas/dcc_register_setup",
   "title": "DCC Register Setup Schema",
   "description": "Schema for defining register-specific structures, classifications, and column rules. Decoupled from project infrastructure setup.",
   "version": "1.0.0",
   "type": "object",
   "additionalProperties": false,
   "allOf": [
-    {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base"}
+    {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base"}
   ],
   "properties": {
     "departments": {
       "type": "array",
       "description": "Department classifications for project",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/department_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/department_entry"}
     },
     "disciplines": {
       "type": "array",
       "description": "Engineering discipline classifications",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/discipline_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/discipline_entry"}
     },
     "facilities": {
       "type": "array",
       "description": "Facility classifications and codes",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/facility_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/facility_entry"}
     },
     "document_types": {
       "type": "array",
       "description": "Document type classifications",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/document_type_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/document_type_entry"}
     },
     "projects": {
       "type": "array",
       "description": "Project classifications and codes",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/project_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/project_entry"}
     },
     "column_types": {
       "type": "array",
@@ -43,12 +43,12 @@
     "column_patterns": {
       "type": "array", 
       "description": "Reusable validation patterns for column definitions",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/validation_patterns"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/validation_patterns"}
     },
     "column_strategies": {
       "type": "array",
       "description": "Reusable null handling strategies for columns",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/null_handling_strategies"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/null_handling_strategies"}
     },
     "column_groups": {
       "type": "object",
@@ -86,7 +86,7 @@
     "approval_codes": {
       "type": "array",
       "description": "List of approval codes with status mappings and aliases",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc-register-base#/definitions/approval_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/approval_entry"}
     }
   }
 }

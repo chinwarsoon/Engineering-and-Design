@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/approval-code",
+  "$id": "https://dcc-pipeline.internal/schemas/approval_code_schema",
   "title": "DCC Approval Code Schema",
   "description": "Standardized mapping of approval status variations to codes with built-in validation rules.",
   "version": "2.0.0",

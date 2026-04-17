@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/dcc-register-config",
+  "$id": "https://dcc-pipeline.internal/schemas/dcc_register_config",
   "title": "DCC Register Configuration Data",
   "description": "Actual configuration items for DCC register column processing and parameters. References fragment schemas for categorical data.",
   "version": "1.0.0",
@@ -23,7 +23,7 @@
     }
   },
   "parameters": {
-    "$ref": "https://dcc-pipeline.internal/schemas/global-parameters"
+    "$ref": "https://dcc-pipeline.internal/schemas/global_parameters"
   },
   "global_parameters": [
     {
@@ -64,22 +64,22 @@
     }
   ],
   "departments": {
-    "$ref": "https://dcc-pipeline.internal/schemas/department#/departments"
+    "$ref": "https://dcc-pipeline.internal/schemas/department_schema#/departments"
   },
   "disciplines": {
-    "$ref": "https://dcc-pipeline.internal/schemas/discipline#/disciplines"
+    "$ref": "https://dcc-pipeline.internal/schemas/discipline_schema#/disciplines"
   },
   "facilities": {
-    "$ref": "https://dcc-pipeline.internal/schemas/facility#/facilities"
+    "$ref": "https://dcc-pipeline.internal/schemas/facility_schema#/facilities"
   },
   "document_types": {
-    "$ref": "https://dcc-pipeline.internal/schemas/document-type#/document_types"
+    "$ref": "https://dcc-pipeline.internal/schemas/document_type_schema#/document_types"
   },
   "projects": {
-    "$ref": "https://dcc-pipeline.internal/schemas/project#/projects"
+    "$ref": "https://dcc-pipeline.internal/schemas/project_code_schema#/projects"
   },
   "approval_codes": {
-    "$ref": "https://dcc-pipeline.internal/schemas/approval-code#/approval"
+    "$ref": "https://dcc-pipeline.internal/schemas/approval_code_schema#/approval"
   },
   "column_types": [
     {
@@ -381,7 +381,7 @@
       "allow_null": false,
       "is_calculated": false,
       "create_if_missing": true,
-      "schema_reference": "project_schema",
+      "schema_reference": "project_code_schema",
       "null_handling": {
         "strategy": "default_value",
         "default_value": "NA",
@@ -395,10 +395,10 @@
         },
         {
           "type": "schema_reference_check",
-          "reference": "project_schema",
+          "reference": "project_code_schema",
           "data_section": "project",
           "field": "code",
-          "description": "Validated by _apply_validation against project_schema.project[*].code to ensure Project_Code exists in the approved project code list."
+          "description": "Validated by _apply_validation against project_code_schema.project[*].code to ensure Project_Code exists in the approved project code list."
         }
       ],
       "processing_phase": "P1"

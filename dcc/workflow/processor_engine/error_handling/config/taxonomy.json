@@ -16,6 +16,33 @@
   "version": "1.0",
   "description": "Error Code Taxonomy - E-M-F-U Format (Engine-Module-Function-UniqueID)",
   "engines": {
-...
+    "PR": "Processor Engine",
+    "MA": "Mapper Engine",
+    "SC": "Schema Engine",
+    "IN": "Initiation Engine",
+    "RE": "Reporting Engine"
+  },
+  "modules": {
+    "EH": "Error Handling",
+    "LD": "Loader",
+    "VL": "Validator",
+    "CP": "Column Processing"
+  },
+  "functions": {
+    "LD": "Load",
+    "SV": "Save",
+    "VL": "Validate",
+    "EX": "Extract"
+  },
+  "families": {
+    "VAL": "Validation Errors",
+    "SYS": "System Errors",
+    "DAT": "Data Errors",
+    "IOE": "I/O Errors"
+  },
+  "layers": {
+    "L1": "Input Layer",
+    "L2": "Transformation Layer",
+    "L3": "Output Layer"
   }
 }

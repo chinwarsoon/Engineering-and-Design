@@ -5,45 +5,34 @@
   "additionalProperties": false,
   "properties": {
     "version": {"type": "string"},
-    "last_updated": {"type": "string"},
-    "description": {"type": "string"},
-    "errors": {
-      "type": "object",
-      "additionalProperties": {
+    "codes": {
+      "type": "array",
+      "items": {
         "type": "object",
-        "additionalProperties": false,
         "properties": {
-          "legacy_code": {"type": "string"},
-          "layer": {"type": "string"},
-          "severity": {"type": "string"},
-          "taxonomy": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "engine": {"type": "string"},
-              "engine_code": {"type": "string"},
-              "module": {"type": "string"},
-              "module_code": {"type": "string"},
-              "function": {"type": "string"},
-              "function_code": {"type": "string"},
-              "family": {"type": "string"},
-              "family_code": {"type": "string"}
-            },
-            "required": ["engine", "engine_code", "module", "module_code", "function", "function_code", "family", "family_code"]
-          },
-          "message_key": {"type": "string"},
-          "description": {"type": "string"},
-          "action_key": {"type": "string"},
-          "fail_fast": {"type": "boolean"},
-          "log_level": {"type": "string"},
-          "auto_remediation": {"type": "boolean"},
-          "remediation_type": {"type": "string"}
+          "code": {"type": "string"},
+          "message": {"type": "string"},
+          "severity": {"type": "string", "enum": ["fatal", "error", "warning", "info"]},
+          "remediation": {"type": "string"}
         },
-        "required": ["layer", "severity", "taxonomy", "message_key", "description", "action_key", "fail_fast", "log_level", "auto_remediation", "remediation_type"]
+        "required": ["code", "message", "severity"]
       }
     }
   },
-  "required": ["version", "errors"],
-  "version": "2.0",
-...
+  "required": ["version", "codes"],
+  "version": "1.0",
+  "codes": [
+    {
+      "code": "VAL-001",
+      "message": "Required field missing",
+      "severity": "error",
+      "remediation": "Check for missing values in the input data"
+    },
+    {
+      "code": "SYS-001",
+      "message": "File not found",
+      "severity": "fatal",
+      "remediation": "Ensure the required file exists at the specified path"
+    }
+  ]
 }

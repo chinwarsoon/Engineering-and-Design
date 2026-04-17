@@ -18,20 +18,12 @@ _status_print = None
 _debug_print = None
 
 def status_print(msg: str) -> None:
-    """Print status message (lazy import)."""
-    global _status_print
-    if _status_print is None:
-        from initiation_engine import status_print as sp
-        _status_print = sp
-    _status_print(msg)
+    """Print status message."""
+    print(f"STATUS: {msg}")
 
 def debug_print(msg: str, level: int = 1) -> None:
-    """Print debug message (lazy import)."""
-    global _debug_print
-    if _debug_print is None:
-        from initiation_engine import debug_print as dp
-        _debug_print = dp
-    _debug_print(msg, level)
+    """Print debug message."""
+    print(f"DEBUG[{level}]: {msg}")
 
 
 class CircularDependencyError(Exception):
@@ -125,7 +117,9 @@ class SchemaDependencyGraph:
             # Breadcrumb: Scan for dependencies
             dependencies = self._extract_dependencies(data)
             for dep in dependencies:
-                self.graph[schema_name].add(dep)
+                # Breadcrumb: Allow self-references (agent_rule.md Section 2.4 recursive refs)
+                if dep != schema_name:
+                    self.graph[schema_name].add(dep)
                 
         except (FileNotFoundError, json.JSONDecodeError) as e:
             debug_print(f"Error processing schema '{schema_name}': {e}", level=1)

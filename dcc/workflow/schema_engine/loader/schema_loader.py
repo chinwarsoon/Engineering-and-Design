@@ -23,20 +23,12 @@ _debug_print = None
 _log_error = None
 
 def status_print(msg: str) -> None:
-    """Print status message (lazy import)."""
-    global _status_print
-    if _status_print is None:
-        from initiation_engine import status_print as sp
-        _status_print = sp
-    _status_print(msg)
+    """Print status message."""
+    print(f"STATUS: {msg}")
 
 def debug_print(msg: str, level: int = 1) -> None:
-    """Print debug message (lazy import)."""
-    global _debug_print
-    if _debug_print is None:
-        from initiation_engine import debug_print as dp
-        _debug_print = dp
-    _debug_print(msg, level)
+    """Print debug message."""
+    print(f"DEBUG[{level}]: {msg}")
 
 def log_error(msg: str, module: str = "", function: str = "", fatal: bool = True):
     """Log error message (lazy import)."""
@@ -46,6 +38,8 @@ def log_error(msg: str, module: str = "", function: str = "", fatal: bool = True
         _log_error = le
     _log_error(msg, module, function, fatal)
 
+
+from .schema_cache import SchemaCache
 
 class SchemaLoader:
     """
@@ -63,7 +57,8 @@ class SchemaLoader:
         base_path: str | Path | None = None,
         project_setup_path: str | Path | None = None,
         auto_resolve_refs: bool = True,
-        max_recursion_depth: int = 100
+        max_recursion_depth: int = 100,
+        cache: Optional[SchemaCache] = None
     ):
         """
         Initialize SchemaLoader with optional project_setup.json integration.
@@ -75,6 +70,7 @@ class SchemaLoader:
             project_setup_path: Path to project_setup.json for strict registration (optional)
             auto_resolve_refs: Whether to auto-resolve $refs when loading schemas
             max_recursion_depth: Maximum depth for recursive reference resolution
+            cache: Optional SchemaCache instance
             
         Complies with agent_rule.md Section 2.3: Use project_setup.json as main entry point.
         """
@@ -83,7 +79,9 @@ class SchemaLoader:
             base_path = safe_resolve(Path(__file__).parent.parent.parent / "config" / "schemas")
         self.base_path = safe_resolve(Path(base_path))
         self.main_schema_path: Path | None = None
-        self.loaded_schemas: Dict[str, Dict[str, Any]] = {}
+        
+        # Breadcrumb: Initialize Cache
+        self.cache = cache or SchemaCache()
         
         # Breadcrumb: Initialize RefResolver and DependencyGraph if project_setup provided
         self._resolver: Optional[RefResolver] = None
@@ -114,17 +112,22 @@ class SchemaLoader:
         self._resolver = RefResolver(
             project_setup_path=resolved_path,
             schema_directories=[self.base_path],
-            cache=self.loaded_schemas
+            cache=self.cache
         )
         
         # Breadcrumb: Extract registered schemas for quick lookup
         self._registered_schemas = set(self._resolver.registered_schemas.keys())
         
         # Breadcrumb: Initialize dependency graph
-        self._dependency_graph = SchemaDependencyGraph(self._resolver)
-        self._dependency_graph.build_graph()
+        # Check L3 cache for dependency graph
+        self._dependency_graph = self.cache.get_l3("dependency_graph")
+        if self._dependency_graph is None:
+            self._dependency_graph = SchemaDependencyGraph(self._resolver)
+            self._dependency_graph.build_graph()
+            self.cache.set_l3("dependency_graph", self._dependency_graph)
         
         status_print(f"SchemaLoader initialized with project_setup.json ({len(self._registered_schemas)} schemas registered)")
+
     
     def set_main_schema_path(self, schema_file: str | Path) -> Path:
         """Set the main schema path so relative references resolve correctly."""
@@ -217,14 +220,14 @@ class SchemaLoader:
             
             # Load dependencies in order
             for dep_name in load_order:
-                if dep_name in deps and dep_name not in self.loaded_schemas:
+                if dep_name in deps and self.cache.get(dep_name) is None:
                     self._load_schema_internal(dep_name)
         else:
             # Fallback: just load the requested schema
             self._load_schema_internal(schema_name)
         
         # Breadcrumb: Return loaded schema
-        result = self.loaded_schemas.get(schema_name, {})
+        result = self.cache.get(schema_name) or {}
         
         # Breadcrumb: Resolve $refs if requested
         if auto_resolve and self._resolver is not None:
@@ -238,8 +241,9 @@ class SchemaLoader:
         
         Breadcrumb: schema_name → load_from_disk → cache → return
         """
-        if schema_name in self.loaded_schemas:
-            return self.loaded_schemas[schema_name]
+        cached = self.cache.get(schema_name)
+        if cached is not None:
+            return cached
         
         schema_data = self.load_schema(schema_name)
         return schema_data
@@ -312,14 +316,31 @@ class SchemaLoader:
 
     def load_schema(self, schema_name: str, fallback_data: Any = None) -> Dict[str, Any]:
         """Load a schema by stem name relative to the configured schema directory."""
-        if schema_name in self.loaded_schemas:
-            return self.loaded_schemas[schema_name]
+        # Breadcrumb: Try to find schema in any registered directory
+        search_directories = [self.base_path]
+        if self._resolver is not None:
+            # Include all discovered directories
+            search_directories = self._resolver.schema_directories
+            
+        schema_file = None
+        for directory in search_directories:
+            candidate = directory / f"{schema_name}.json"
+            if candidate.exists():
+                schema_file = candidate
+                break
+                
+        if schema_file is None:
+            # Last resort: just use base_path (will fail and raise below)
+            schema_file = self.base_path / f"{schema_name}.json"
+        
+        cached = self.cache.get(schema_name, schema_file)
+        if cached is not None:
+            return cached
 
-        schema_file = self.base_path / f"{schema_name}.json"
         try:
             schema_data = self.load_json_file(schema_file)
             status_print(f"Loaded schema: {schema_name}")
-            self.loaded_schemas[schema_name] = schema_data
+            self.cache.set(schema_name, schema_data, schema_file)
             return schema_data
         except FileNotFoundError:
             status_print(f"WARNING: Schema file not found: {schema_file}")
@@ -341,15 +362,17 @@ class SchemaLoader:
 
     def load_schema_from_path(self, schema_path: str | Path, fallback_data: Dict[str, Any] | None = None) -> Dict[str, Any]:
         """Load a schema by path, resolving it relative to the main schema when needed."""
-        cache_key = str(safe_resolve(Path(schema_path))) if Path(schema_path).is_absolute() else str(schema_path)
-        if cache_key in self.loaded_schemas:
-            return self.loaded_schemas[cache_key]
-
         schema_file = self._resolve_reference_path(schema_path)
+        cache_key = str(schema_file)
+        
+        cached = self.cache.get(cache_key, schema_file)
+        if cached is not None:
+            return cached
+
         try:
             schema_data = self.load_json_file(schema_file)
             status_print(f"Loaded schema: {schema_file}")
-            self.loaded_schemas[cache_key] = schema_data
+            self.cache.set(cache_key, schema_data, schema_file)
             return schema_data
         except FileNotFoundError:
             status_print(f"WARNING: Schema file not found: {schema_file}")

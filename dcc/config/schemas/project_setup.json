@@ -1,41 +1,41 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/project-setup",
+  "$id": "https://dcc-pipeline.internal/schemas/project_setup",
   "title": "DCC Project Setup Validation Schema",
   "description": "Schema for validating required folders, files, schemas, engines, instructions, tools for DCC project distribution and setup. Follows agent_rule.md Section 2.3 inheritance pattern.",
   "version": "4.0.0",
   "type": "object",
   "additionalProperties": false,
   "allOf": [
-    {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base"}
+    {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base"}
   ],
   "properties": {
     "folders": {
       "type": "array",
       "description": "All required and optional directories for the DCC project",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/folder_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/folder_entry"}
     },
     "root_files": {
       "type": "array",
       "description": "Files required at the project root level",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/root_file_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/root_file_entry"}
     },
     "schema_files": {
       "type": "array",
       "description": "Required JSON schema definition files (located in config/schemas). Supports auto-discovery via discovery_rules.",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/file_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/file_entry"}
     },
     "discovery_rules": {
       "type": "array",
       "description": "Pattern-based rules for auto-discovering schema files. See agent_rule.md Section 2.8",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/pattern_rule"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/pattern_rule"}
     },
     "workflow_files": {
       "type": "array",
       "description": "Required workflow notebooks and Python modules (located in workflow)",
       "items": {
         "allOf": [
-          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/typed_file_entry"}
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/typed_file_entry"}
         ],
         "type": "object",
         "additionalProperties": false,
@@ -54,7 +54,7 @@
       "description": "Required utility and setup script files (located in tools)",
       "items": {
         "allOf": [
-          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/python_module_entry"}
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/python_module_entry"}
         ],
         "type": "object",
         "additionalProperties": false,
@@ -73,7 +73,7 @@
       "description": "Document processor engine modules (located in workflow/processor_engine)",
       "items": {
         "allOf": [
-          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
         ],
         "type": "object",
         "additionalProperties": false,
@@ -92,7 +92,7 @@
       "description": "Column mapper engine modules (located in workflow/mapper_engine)",
       "items": {
         "allOf": [
-          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
         ],
         "type": "object",
         "additionalProperties": false,
@@ -111,7 +111,7 @@
       "description": "Schema validation modules (located in workflow)",
       "items": {
         "allOf": [
-          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/python_module_entry"}
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/python_module_entry"}
         ],
         "type": "object",
         "additionalProperties": false,
@@ -130,7 +130,7 @@
       "description": "Schema engine modules (located in workflow/schema_engine)",
       "items": {
         "allOf": [
-          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
         ],
         "type": "object",
         "additionalProperties": false,
@@ -149,7 +149,7 @@
       "description": "Initiation engine modules (located in workflow/initiation_engine)",
       "items": {
         "allOf": [
-          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
         ],
         "type": "object",
         "additionalProperties": false,
@@ -168,7 +168,7 @@
       "description": "Reporting engine modules (located in workflow/reporting_engine)",
       "items": {
         "allOf": [
-          {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/path_entry"}
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
         ],
         "type": "object",
         "additionalProperties": false,
@@ -185,18 +185,18 @@
     "environment": {
       "type": "array",
       "description": "Environment specifications for the project",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/environment_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/environment_entry"}
     },
     "validation_rules": {
       "type": "array",
       "description": "Validation rules for project setup",
-      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/validation_rule_entry"}
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/validation_rule_entry"}
     },
     "dependencies": {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/dependencies_config"
+      "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/dependencies_config"
     },
     "project_metadata": {
-      "$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/project_metadata"
+      "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/project_metadata"
     }
   },
   "required": ["project_id", "project_name", "version", "folders", "root_files", "schema_files", "discovery_rules", "workflow_files", "tool_files", "environment", "dependencies", "validation_rules", "project_metadata"]

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://dcc-pipeline.internal/schemas/project-setup-base",
+  "$id": "https://dcc-pipeline.internal/schemas/project_setup_base",
   "title": "DCC Project Setup Base Schema",
   "description": "Base schema with reusable definitions for project setup validation",
   "version": "3.0.0",
@@ -33,7 +33,7 @@
     },
     "typed_file_entry": {
       "allOf": [
-        {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/file_entry"}
+        {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/file_entry"}
       ],
       "type": "object",
       "additionalProperties": false,
@@ -49,7 +49,7 @@
     },
     "python_module_entry": {
       "allOf": [
-        {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/typed_file_entry"}
+        {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/typed_file_entry"}
       ],
       "type": "object",
       "additionalProperties": false,
@@ -291,7 +291,7 @@
         "engines": {
           "type": "array",
           "description": "Engine modules with their exports",
-          "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/engine_dependency"}
+          "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/engine_dependency"}
         }
       },
       "required": ["required"]
@@ -398,7 +398,7 @@
         "schema_files": {
           "type": "array",
           "description": "List of schema files",
-          "items": {"$ref": "https://dcc-pipeline.internal/schemas/project-setup-base#/definitions/file_entry"}
+          "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/file_entry"}
         },
         "discovery_enabled": {
           "type": "boolean",
@@ -412,6 +412,36 @@
         }
       },
       "required": ["schema_files"]
+    },
+    "global_parameters": {
+      "type": "object",
+      "description": "Global processing parameters",
+      "properties": {
+        "fail_fast": {"type": "boolean", "default": false},
+        "debug_dev_mode": {"type": "boolean", "default": false},
+        "is_colab": {"type": "boolean", "default": false},
+        "duration_is_working_day": {"type": "boolean", "default": true}
+      }
+    },
+    "null_handling_strategies": {
+      "type": "object",
+      "description": "Reusable null handling strategy definitions",
+      "properties": {
+        "forward_fill_with_padding": {
+          "type": "object",
+          "properties": {
+            "strategy": {"type": "string", "const": "forward_fill"},
+            "formatting": {"type": "object"}
+          }
+        },
+        "multi_level_forward_fill": {
+          "type": "object",
+          "properties": {
+            "strategy": {"type": "string", "const": "multi_level_forward_fill"},
+            "levels": {"type": "array"}
+          }
+        }
+      }
     }
   }
 }

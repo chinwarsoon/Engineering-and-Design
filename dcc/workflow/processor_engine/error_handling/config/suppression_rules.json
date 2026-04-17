@@ -5,26 +5,18 @@
   "additionalProperties": false,
   "properties": {
     "version": {"type": "string"},
-    "description": {"type": "string"},
-    "metadata": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "last_updated": {"type": "string"},
-        "approved_by": {"type": "string"},
-        "rule_count": {"type": "integer"}
-      },
-      "required": ["last_updated", "approved_by"]
-    },
     "rules": {
       "type": "array",
       "items": {"type": "object"}
-    },
-    "rule_types": {"type": "object"},
-    "condition_operators": {"type": "object"},
-    "approval_workflow": {"type": "object"}
+    }
   },
-  "required": ["version", "metadata", "rules", "rule_types", "condition_operators", "approval_workflow"],
+  "required": ["version", "rules"],
   "version": "1.0",
-...
+  "rules": [
+    {
+      "id": "SUP-001",
+      "description": "Ignore warnings during early development",
+      "active": false
+    }
+  ]
 }
