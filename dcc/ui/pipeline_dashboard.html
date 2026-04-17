@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCC Pipeline Dashboard</title>
+  <link rel="stylesheet" href="dcc-design-system.css">
+  <style>
+    .content-scroll { flex: 1; overflow-y: auto; padding: 16px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stage-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+    .stage-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .stage-icon { font-size: 18px; }
+    .stage-name { font-size: 12px; font-weight: 600; color: var(--text); }
+    .stage-status { font-size: 10px; color: var(--text3); text-transform: uppercase; }
+    .stage-progress { width: 100%; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+    .stage-progress-bar { height: 100%; background: var(--accent); transition: width 0.3s; }
+    .output-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+    .output-link { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; text-align: center; cursor: pointer; transition: all 0.15s; text-decoration: none; color: var(--text2); }
+    .output-link:hover { border-color: var(--accent-alt); color: var(--accent-alt); background: var(--surface2); }
+    .output-icon { font-size: 20px; margin-bottom: 4px; }
+    .output-name { font-size: 11px; font-weight: 500; }
+    .health-gauge { width: 100%; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+    .health-bar { height: 100%; background: linear-gradient(90deg, var(--danger), var(--warning), var(--success)); transition: width 0.3s; }
+    .run-btn { width: 100%; padding: 10px; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class="dcc-titlebar">
+    <div class="dcc-titlebar-logo">
+      <span class="logo-icon">📊</span>
+      <span class="logo-name">DCC <span class="logo-accent">Pipeline</span></span>
+    </div>
+    <div class="dcc-titlebar-breadcrumb">
+      <span class="bc-active">Dashboard</span>
+    </div>
+    <div class="dcc-titlebar-actions">
+      <div class="theme-picker">
+        <button class="theme-btn" id="themeBtn">
+          <span class="theme-dot" id="themeDot"></span>
+          <span id="themeName">Dark</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-opt active" data-theme="dark">
+            <span class="theme-dot" style="background: #0d1117;"></span> Dark
+          </div>
+          <div class="theme-opt" data-theme="light">
+            <span class="theme-dot" style="background: #f0f4f8;"></span> Light
+          </div>
+          <div class="theme-opt" data-theme="sky">
+            <span class="theme-dot" style="background: #e0f2fe;"></span> Sky
+          </div>
+          <div class="theme-opt" data-theme="ocean">
+            <span class="theme-dot" style="background: #071520;"></span> Ocean
+          </div>
+          <div class="theme-opt" data-theme="presentation">
+            <span class="theme-dot" style="background: #f8fafc;"></span> Presentation
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dcc-shell">
+    <div class="dcc-iconbar">
+      <button class="dcc-iconbar-btn active" title="Dashboard">📊</button>
+      <button class="dcc-iconbar-btn" title="Refresh">🔄</button>
+      <button class="dcc-iconbar-btn" title="Settings">⚙️</button>
+      <div class="dcc-iconbar-spacer"></div>
+      <div class="dcc-iconbar-bottom">
+        <button class="dcc-iconbar-btn" title="Help">❓</button>
+      </div>
+    </div>
+
+    <div class="dcc-sidebar">
+      <div class="dcc-sidebar-header">
+        <span>Pipeline Info</span>
+      </div>
+      <div class="dcc-sidebar-body">
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>📋 Status</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body">
+            <div style="font-size: 11px; color: var(--text2); line-height: 1.6;">
+              <div><strong>Last Run:</strong> <span id="lastRun">—</span></div>
+              <div><strong>Duration:</strong> <span id="duration">—</span></div>
+              <div><strong>Schema:</strong> <span id="schemaVer">v1.0</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>📁 Output Files</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body">
+            <div style="font-size: 11px; color: var(--text2); line-height: 1.8;">
+              <div>📄 processed_dcc_universal.csv</div>
+              <div>📊 processed_dcc_universal.xlsx</div>
+              <div>📋 processing_summary.txt</div>
+              <div>🐛 debug_log.json</div>
+              <div>📈 error_dashboard_data.json</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>⚡ Quick Actions</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body">
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 6px;">▶ Run Pipeline</button>
+            <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;">🔄 Refresh Data</button>
+            <button class="btn btn-secondary" style="width: 100%;">📥 Load Files</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcc-content">
+      <div class="toolbar">
+        <span style="font-weight: 600; color: var(--text);">Pipeline Execution Monitor</span>
+        <div class="toolbar-spacer"></div>
+        <button class="btn btn-sm btn-secondary">🔄 Refresh</button>
+        <button class="btn btn-sm btn-primary">▶ Run</button>
+      </div>
+
+      <div class="content-scroll">
+        <!-- KPI Tiles -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Key Performance Indicators</div>
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-value" id="kpiRows">—</div>
+              <div class="kpi-label">Rows Processed</div>
+              <div class="kpi-sub" id="kpiRowsChange">+0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-value" id="kpiMatch">—</div>
+              <div class="kpi-label">Match Rate</div>
+              <div class="kpi-sub" id="kpiMatchChange">100%</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-value" id="kpiColumns">—</div>
+              <div class="kpi-label">Columns Created</div>
+              <div class="kpi-sub" id="kpiColumnsChange">+0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-value" id="kpiErrors">—</div>
+              <div class="kpi-label">Errors Found</div>
+              <div class="kpi-sub" id="kpiErrorsChange">0</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-value" id="kpiHealth">—</div>
+              <div class="kpi-label">Data Health</div>
+              <div class="health-gauge">
+                <div class="health-bar" id="healthBar" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pipeline Stages -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Pipeline Stages</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+            <div class="stage-card">
+              <div class="stage-header">
+                <span class="stage-icon">1️⃣</span>
+                <div>
+                  <div class="stage-name">File Upload</div>
+                  <div class="stage-status" id="stage1Status">pending</div>
+                </div>
+              </div>
+              <div class="stage-progress">
+                <div class="stage-progress-bar" id="stage1Bar" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <div class="stage-card">
+              <div class="stage-header">
+                <span class="stage-icon">2️⃣</span>
+                <div>
+                  <div class="stage-name">Sheet Selection</div>
+                  <div class="stage-status" id="stage2Status">pending</div>
+                </div>
+              </div>
+              <div class="stage-progress">
+                <div class="stage-progress-bar" id="stage2Bar" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <div class="stage-card">
+              <div class="stage-header">
+                <span class="stage-icon">3️⃣</span>
+                <div>
+                  <div class="stage-name">Column Mapping</div>
+                  <div class="stage-status" id="stage3Status">pending</div>
+                </div>
+              </div>
+              <div class="stage-progress">
+                <div class="stage-progress-bar" id="stage3Bar" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <div class="stage-card">
+              <div class="stage-header">
+                <span class="stage-icon">4️⃣</span>
+                <div>
+                  <div class="stage-name">Data Validation</div>
+                  <div class="stage-status" id="stage4Status">pending</div>
+                </div>
+              </div>
+              <div class="stage-progress">
+                <div class="stage-progress-bar" id="stage4Bar" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <div class="stage-card">
+              <div class="stage-header">
+                <span class="stage-icon">5️⃣</span>
+                <div>
+                  <div class="stage-name">Processing</div>
+                  <div class="stage-status" id="stage5Status">pending</div>
+                </div>
+              </div>
+              <div class="stage-progress">
+                <div class="stage-progress-bar" id="stage5Bar" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <div class="stage-card">
+              <div class="stage-header">
+                <span class="stage-icon">6️⃣</span>
+                <div>
+                  <div class="stage-name">Export</div>
+                  <div class="stage-status" id="stage6Status">pending</div>
+                </div>
+              </div>
+              <div class="stage-progress">
+                <div class="stage-progress-bar" id="stage6Bar" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output Files -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Output Files</div>
+          <div class="output-grid">
+            <a href="#" class="output-link" title="Download CSV">
+              <div class="output-icon">📄</div>
+              <div class="output-name">CSV Export</div>
+            </a>
+            <a href="#" class="output-link" title="Download Excel">
+              <div class="output-icon">📊</div>
+              <div class="output-name">Excel Export</div>
+            </a>
+            <a href="#" class="output-link" title="View Summary">
+              <div class="output-icon">📋</div>
+              <div class="output-name">Summary</div>
+            </a>
+            <a href="#" class="output-link" title="View Debug Log">
+              <div class="output-icon">🐛</div>
+              <div class="output-name">Debug Log</div>
+            </a>
+            <a href="#" class="output-link" title="View Error Dashboard">
+              <div class="output-icon">📈</div>
+              <div class="output-name">Error Data</div>
+            </a>
+            <a href="#" class="output-link" title="View Validation Report">
+              <div class="output-icon">✓</div>
+              <div class="output-name">Validation</div>
+            </a>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div>
+          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Recent Activity</div>
+          <div class="card">
+            <table class="dcc-table" style="font-size: 11px;">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Event</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="mono">2026-04-18 14:32:15</td>
+                  <td>Pipeline completed</td>
+                  <td><span class="badge badge-success">✓ Pass</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">2026-04-18 14:31:45</td>
+                  <td>Export stage finished</td>
+                  <td><span class="badge badge-success">✓ Pass</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">2026-04-18 14:31:20</td>
+                  <td>Processing stage finished</td>
+                  <td><span class="badge badge-success">✓ Pass</span></td>
+                </tr>
+                <tr>
+                  <td class="mono">2026-04-18 14:30:55</td>
+                  <td>Validation stage finished</td>
+                  <td><span class="badge badge-warning">⚠ 3 warnings</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dcc-statusbar status-ok">
+    <div class="sb-item">✓ Pipeline Ready</div>
+    <div class="sb-item">Last run: 2026-04-18 14:32:15</div>
+    <div class="sb-item-right">v1.0.0</div>
+  </div>
+
+  <script>
+    // Theme switching
+    const themeBtn = document.getElementById('themeBtn');
+    const themeMenu = document.getElementById('themeMenu');
+    const themeName = document.getElementById('themeName');
+    const themeDot = document.getElementById('themeDot');
+    const themeOpts = document.querySelectorAll('.theme-opt');
+
+    const themeColors = {
+      dark: '#0d1117',
+      light: '#f0f4f8',
+      sky: '#0a1628',
+      ocean: '#071520',
+      presentation: '#12082a'
+    };
+
+    themeBtn.addEventListener('click', () => {
+      themeMenu.classList.toggle('open');
+    });
+
+    themeOpts.forEach(opt => {
+      opt.addEventListener('click', () => {
+        const theme = opt.dataset.theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        themeName.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+        themeDot.style.background = themeColors[theme];
+        themeMenu.classList.remove('open');
+        localStorage.setItem('dcc-theme', theme);
+        themeOpts.forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+      });
+    });
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    themeName.textContent = savedTheme.charAt(0).toUpperCase() + savedTheme.slice(1);
+    themeDot.style.background = themeColors[savedTheme];
+    document.querySelector(`[data-theme="${savedTheme}"]`).classList.add('active');
+
+    // Sidebar toggle
+    document.querySelectorAll('.sb-section-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('closed');
+      });
+    });
+
+    // Mock data loading
+    function loadDashboardData() {
+      document.getElementById('kpiRows').textContent = '1,247';
+      document.getElementById('kpiMatch').textContent = '100%';
+      document.getElementById('kpiColumns').textContent = '47';
+      document.getElementById('kpiErrors').textContent = '0';
+      document.getElementById('kpiHealth').textContent = '98%';
+      document.getElementById('healthBar').style.width = '98%';
+      document.getElementById('lastRun').textContent = '2026-04-18 14:32:15';
+      document.getElementById('duration').textContent = '2m 15s';
+    }
+
+    loadDashboardData();
+  </script>
+</body>
+</html>

@@ -1,1170 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JSON Schema Inspector</title>
-  <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap"
-    rel="stylesheet">
+  <title>DCC Common JSON Tools</title>
+  <link rel="stylesheet" href="dcc-design-system.css">
   <style>
-    :root {
-      --bg: #0d0f14;
-      --surface: #13161d;
-      --surface2: #1a1e28;
-      --border: #252a38;
-      --accent: #4fffb0;
-      --accent2: #ff6b35;
-      --accent3: #7b8cde;
-      --text: #e8ecf4;
-      --muted: #6b7591;
-      --tag-bg: #1e2535;
-      --danger: #ff4757;
-      --warn: #ffa502;
-      --success: #2ed573;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html,
-    body {
-      height: 100%;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Syne', sans-serif;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(79, 255, 176, 0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(79, 255, 176, 0.025) 1px, transparent 1px);
-      background-size: 36px 36px;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    header {
-      position: relative;
-      z-index: 10;
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px;
-      height: 52px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: rgba(13, 15, 20, 0.9);
-      backdrop-filter: blur(12px);
-      flex-shrink: 0;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-weight: 800;
-      font-size: 14px;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .logo-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 10px var(--accent);
-      animation: blink 2.5s ease-in-out infinite;
-    }
-
-    @keyframes blink {
-
-      0%,
-      100% {
-        opacity: 1
-      }
-
-      50% {
-        opacity: .3
-      }
-    }
-
-    .logo span {
-      color: var(--muted);
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .chip {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      padding: 3px 9px;
-      background: var(--tag-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--muted);
-    }
-
-    .chip.ok {
-      color: var(--success);
-      border-color: rgba(46, 213, 115, .3);
-      background: rgba(46, 213, 115, .06);
-    }
-
-    .layout {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    .sidebar {
-      width: 272px;
-      min-width: 272px;
-      border-right: 1px solid var(--border);
-      background: var(--surface);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .sidebar-top {
-      padding: 16px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-
-    .file-list {
-      overflow-y: auto;
-      padding: 8px 0;
-      min-height: 140px;
-      flex-shrink: 0;
-    }
-
-    .key-tree-container {
-      border-top: 1px solid var(--border);
-      display: none;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      max-height: none;
-    }
-
-    .key-tree-container.visible {
-      display: flex;
-    }
-
-    .key-tree-header {
-      padding: 10px 16px;
-      background: var(--surface2);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .key-tree-title {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--muted);
-      letter-spacing: .15em;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
-
-    .key-tree-actions {
-      display: flex;
-      gap: 5px;
-    }
-
-    .key-tree-btn {
-      background: var(--tag-bg);
-      border: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 10px;
-      padding: 3px 7px;
-      border-radius: 3px;
-      cursor: pointer;
-      transition: all .12s;
-    }
-
-    .key-tree-btn:hover {
-      color: var(--text);
-      border-color: var(--accent);
-    }
-
-    .key-tree {
-      padding: 8px 0;
-      overflow-y: auto;
-      flex: 1;
-      min-height: 0;
-    }
-
-    .tree-node {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .tree-node-inner {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 16px 5px 12px;
-      cursor: pointer;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: var(--text);
-      border-left: 2px solid transparent;
-      transition: all .12s;
-      user-select: none;
-    }
-
-    .tree-node-inner:hover {
-      background: var(--surface2);
-      border-left-color: rgba(79, 255, 176, .4);
-    }
-
-    .tree-node-inner.selected {
-      background: rgba(79, 255, 176, .07);
-      border-left-color: var(--accent);
-    }
-
-    .tree-toggle {
-      width: 16px;
-      height: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 9px;
-      color: var(--muted);
-      flex-shrink: 0;
-      transition: transform .15s;
-    }
-
-    .tree-toggle.expanded {
-      transform: rotate(90deg);
-    }
-
-    .tree-toggle.hidden-node {
-      visibility: hidden;
-    }
-
-    .tree-key {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .tree-type {
-      font-size: 9px;
-      padding: 1px 4px;
-      border-radius: 3px;
-      flex-shrink: 0;
-      opacity: .7;
-    }
-
-    .tree-type.object {
-      background: rgba(123, 140, 222, .2);
-      color: var(--accent3);
-    }
-
-    .tree-type.array {
-      background: rgba(255, 165, 2, .2);
-      color: var(--warn);
-    }
-
-    .tree-children {
-      display: none;
-      padding-left: 14px;
-    }
-
-    .tree-children.expanded {
-      display: block;
-    }
-
-    .kv-header {
-      padding: 8px 18px;
-      background: var(--surface2);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .kv-title {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--muted);
-      letter-spacing: .15em;
-      text-transform: uppercase;
-      font-weight: 700;
-    }
-
-    .kv-path {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--accent3);
-      background: var(--tag-bg);
-      padding: 2px 8px;
-      border-radius: 3px;
-      max-width: 60%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .kv-content {
-      padding: 12px 18px;
-      overflow-y: auto;
-      flex: 1;
-      min-height: 0;
-    }
-
-    .kv-empty {
-      color: var(--muted);
-      font-size: 12px;
-      text-align: center;
-      padding: 20px 0;
-    }
-
-    .kv-table {
-      width: 100%;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      border-collapse: collapse;
-    }
-
-    .kv-table th {
-      text-align: left;
-      padding: 6px 10px;
-      color: var(--accent);
-      font-size: 9px;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      font-weight: 700;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-
-    .kv-table td {
-      padding: 7px 10px;
-      border-bottom: 1px solid rgba(37, 42, 56, .45);
-      vertical-align: top;
-      word-break: break-word;
-    }
-
-    .kv-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .kv-table tr:hover td {
-      background: rgba(79, 255, 176, .016);
-    }
-
-    .kv-key {
-      color: var(--accent);
-      font-weight: 600;
-      min-width: 140px;
-    }
-
-    .kv-value {
-      color: var(--text);
-    }
-
-    .kv-type {
-      font-size: 9px;
-      padding: 1px 5px;
-      border-radius: 3px;
-      margin-left: 6px;
-      display: inline-block;
-    }
-
-    /* ── Breadcrumbs ──────────────────────────────────────────────────────────── */
-    .breadcrumb-bar {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      flex-wrap: wrap;
-      padding: 8px 12px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .breadcrumb-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      background: var(--tag-bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--muted);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      cursor: pointer;
-      transition: all .12s;
-      user-select: none;
-    }
-
-    .breadcrumb-chip:hover {
-      border-color: var(--accent);
-      color: var(--text);
-      background: rgba(79, 255, 176, .05);
-    }
-
-    .breadcrumb-chip.active {
-      color: var(--accent);
-      border-color: rgba(79, 255, 176, .4);
-      background: rgba(79, 255, 176, .07);
-    }
-
-    .breadcrumb-sep {
-      color: var(--muted);
-      opacity: .4;
-      font-size: 10px;
-    }
-
-    .fi-type-icon {
-      font-size: 12px;
-      margin-right: 8px;
-      opacity: .7;
-    }
-
-    .sidebar-label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--muted);
-      letter-spacing: .15em;
-      text-transform: uppercase;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      padding: 8px 14px;
-      border-radius: 5px;
-      border: none;
-      cursor: pointer;
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 12px;
-      letter-spacing: .04em;
-      transition: all .15s;
-    }
-
-    .btn-primary {
-      background: var(--accent);
-      color: #0d0f14;
-      box-shadow: 0 0 18px rgba(79, 255, 176, .2);
-      width: 100%;
-    }
-
-    .btn-primary:hover {
-      background: #5fffc0;
-    }
-
-    .btn-primary:active {
-      transform: scale(.97);
-    }
-
-    .btn-secondary {
-      background: var(--tag-bg);
-      color: var(--muted);
-      border: 1px solid var(--border);
-      width: 100%;
-    }
-
-    .btn-secondary:hover {
-      color: var(--text);
-      border-color: var(--accent);
-    }
-
-    .folder-path {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--accent3);
-      word-break: break-all;
-      line-height: 1.5;
-      padding: 5px 8px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      display: none;
-    }
-
-    .file-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 9px 16px;
-      cursor: pointer;
-      border: none;
-      background: none;
-      width: 100%;
-      text-align: left;
-      color: var(--text);
-      border-left: 2px solid transparent;
-      transition: all .12s;
-    }
-
-    .file-item:hover {
-      background: var(--surface2);
-      border-left-color: rgba(79, 255, 176, .4);
-    }
-
-    .file-item.active {
-      background: rgba(79, 255, 176, .07);
-      border-left-color: var(--accent);
-    }
-
-    .file-item .fi-icon {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: var(--accent);
-      opacity: .6;
-      flex-shrink: 0;
-    }
-
-    .file-item .fi-name {
-      font-size: 12px;
-      font-weight: 600;
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .file-item .fi-size {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      color: var(--muted);
-      flex-shrink: 0;
-    }
-
-    .sidebar-empty {
-      padding: 20px 16px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.9;
-    }
-
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .welcome-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .welcome-panel.hidden {
-      display: none;
-    }
-
-    .welcome-icon {
-      font-size: 44px;
-    }
-
-    .welcome-panel h2 {
-      font-size: 18px;
-      font-weight: 800;
-      color: var(--text);
-    }
-
-    .welcome-panel code {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: var(--accent3);
-      background: var(--tag-bg);
-      padding: 3px 8px;
-      border-radius: 4px;
-    }
-
-    #file-view {
-      display: none;
-      flex-direction: column;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    #file-view.visible {
-      display: flex;
-    }
-
-    .stats-strip {
-      display: flex;
-      flex-shrink: 0;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface2);
-      overflow-x: auto;
-    }
-
-    .stat-item {
-      padding: 10px 18px;
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      flex-shrink: 0;
-    }
-
-    .stat-label {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 9px;
-      color: var(--muted);
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-
-    .stat-value {
-      font-size: 17px;
-      font-weight: 800;
-      color: var(--text);
-    }
-
-    .stat-value.acc {
-      color: var(--accent);
-    }
-
-    .stat-value.warn {
-      color: var(--warn);
-    }
-
-    .stat-value.err {
-      color: var(--danger);
-    }
-
-    .toolbar {
-      border-bottom: 1px solid var(--border);
-      padding: 9px 18px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--surface);
-      flex-shrink: 0;
-      flex-wrap: wrap;
-    }
-
-    .toolbar-info {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-      flex: 1;
-      min-width: 0;
-    }
-
-    .toolbar-info strong {
-      color: var(--accent3);
-    }
-
-    .search-box {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 5px;
-      padding: 6px 11px;
-      transition: border-color .15s;
-    }
-
-    .search-box:focus-within {
-      border-color: var(--accent);
-    }
-
-    .search-box input {
-      background: none;
-      border: none;
-      outline: none;
-      color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      width: 160px;
-    }
-
-    .search-box input::placeholder {
-      color: var(--muted);
-    }
-
-    .filter-btns {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-    }
-
-    .flt {
-      padding: 4px 9px;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-      background: var(--tag-bg);
-      color: var(--muted);
-      font-size: 11px;
-      font-family: 'Syne', sans-serif;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all .12s;
-      white-space: nowrap;
-    }
-
-    .flt:hover {
-      color: var(--text);
-    }
-
-    .flt.on {
-      background: rgba(79, 255, 176, .1);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface2);
-      flex-shrink: 0;
-      padding: 0 18px;
-      overflow-x: auto;
-    }
-
-    .tab {
-      padding: 9px 15px;
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--muted);
-      font-family: 'Syne', sans-serif;
-      font-weight: 700;
-      font-size: 12px;
-      letter-spacing: .04em;
-      cursor: pointer;
-      transition: all .15s;
-      white-space: nowrap;
-    }
-
-    .tab.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-
-    .tab:hover:not(.active) {
-      color: var(--text);
-    }
-
-    .tab-badge {
-      display: inline-block;
-      margin-left: 5px;
-      padding: 1px 5px;
-      border-radius: 9px;
-      background: var(--tag-bg);
-      color: var(--muted);
-      font-size: 10px;
-    }
-
-    .tab.active .tab-badge {
-      background: rgba(79, 255, 176, .15);
-      color: var(--accent);
-    }
-
-    .tab-close {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      margin-left: 6px;
-      padding: 0 4px;
-      border-radius: 4px;
-      font-size: 14px;
-      line-height: 1;
-      color: var(--muted);
-      opacity: .6;
-      transition: all .12s;
-    }
-
-    .tab-close:hover {
-      opacity: 1;
-      color: var(--danger);
-      background: rgba(255, 71, 87, .1);
-    }
-
-    .tab.active .tab-close {
-      opacity: .8;
-    }
-
-    .tab.active .tab-close:hover {
-      opacity: 1;
-    }
-
-    .panels-container {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-
-    .panels {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-
-    .panel {
-      display: none;
-      flex: 1;
-      overflow: auto;
-      min-height: 0;
-    }
-
-    .panel.active {
-      display: block;
-    }
-
-    .kv-detail-panel {
-      border-top: 1px solid var(--border);
-      background: var(--surface);
-      display: none;
-      flex-direction: column;
-      flex-shrink: 0;
-      min-height: 120px;
-    }
-
-    .kv-detail-panel.visible {
-      display: flex;
-    }
-
-    .kv-resize-handle {
-      height: 8px;
-      cursor: ns-resize;
-      background: var(--surface2);
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .kv-resize-handle:hover {
-      background: var(--border);
-    }
-
-    .kv-resize-handle::after {
-      content: '⋮⋮';
-      color: var(--muted);
-      font-size: 10px;
-      letter-spacing: 2px;
-    }
-
-    /* Tables */
-    .tbl-wrap {}
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-    }
-
-    thead {
-      position: sticky;
-      top: 0;
-      z-index: 5;
-    }
-
-    thead tr {
-      background: #0f111a;
-    }
-
-    th {
-      padding: 10px 13px;
-      text-align: left;
-      color: var(--accent);
-      font-size: 10px;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      font-weight: 700;
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-
-    td {
-      padding: 8px 13px;
-      border-bottom: 1px solid rgba(37, 42, 56, .45);
-      vertical-align: top;
-      word-break: break-word;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    tr:hover td {
-      background: rgba(79, 255, 176, .016);
-    }
-
-    .c-path {
-      color: var(--accent3);
-      font-size: 11px;
-      word-break: break-all;
-    }
-
-    .c-key {
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    .c-pkey {
-      color: var(--muted);
-      font-size: 11px;
-    }
-
-    .c-num {
-      color: var(--accent2);
-    }
-
-    .val-str {
-      color: #ffd93d;
-    }
-
-    .val-num {
-      color: var(--accent2);
-    }
-
-    .val-bool-t {
-      color: var(--success);
-    }
-
-    .val-bool-f {
-      color: var(--danger);
-    }
-
-    .val-null {
-      color: var(--muted);
-      font-style: italic;
-    }
-
-    .val-arr {
-      color: var(--accent3);
-    }
-
-    .tag {
-      display: inline-block;
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-size: 10px;
-      font-weight: 700;
-    }
-
-    .tag-object {
-      background: rgba(123, 140, 222, .15);
-      color: var(--accent3);
-    }
-
-    .tag-array {
-      background: rgba(255, 165, 2, .12);
-      color: var(--warn);
-    }
-
-    .tag-string {
-      background: rgba(255, 211, 61, .1);
-      color: #ffd93d;
-    }
-
-    .tag-number {
-      background: rgba(255, 107, 53, .12);
-      color: var(--accent2);
-    }
-
-    .tag-boolean {
-      background: rgba(46, 213, 115, .1);
-      color: var(--success);
-    }
-
-    .tag-null {
-      background: rgba(107, 117, 145, .15);
-      color: var(--muted);
-    }
-
-    /* JSON raw */
-    .json-raw {
-      padding: 20px 24px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      line-height: 1.75;
-      white-space: pre-wrap;
-      word-break: break-word;
-      color: var(--muted);
-    }
-
-    .jk {
-      color: var(--accent3);
-    }
-
-    .jv {
-      color: #ffd93d;
-    }
-
-    .jn {
-      color: var(--accent2);
-    }
-
-    .jb {
-      color: var(--success);
-    }
-
-    .jx {
-      color: var(--muted);
-      font-style: italic;
-    }
-
-    .info-box {
-      margin: 20px 24px;
-      padding: 14px 18px;
-      border-radius: 6px;
-      font-size: 13px;
-      line-height: 1.7;
-    }
-
-    .info-box.warn {
-      background: rgba(255, 165, 2, .08);
-      border: 1px solid rgba(255, 165, 2, .2);
-      color: var(--warn);
-    }
-
-    .info-box.err {
-      background: rgba(255, 71, 87, .08);
-      border: 1px solid rgba(255, 71, 87, .2);
-      color: var(--danger);
-    }
-
-    .info-box.info {
-      background: rgba(79, 255, 176, .06);
-      border: 1px solid rgba(79, 255, 176, .2);
-      color: var(--accent);
-    }
-
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--bg);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 3px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--muted);
-    }
+    .content-scroll { flex: 1; overflow-y: auto; }
+    .editor-area { display: flex; flex-direction: column; flex: 1; }
+    .editor-toolbar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+    .editor-pane { display: flex; flex: 1; overflow: hidden; }
+    .editor-input { flex: 1; padding: 12px; font-family: var(--font-mono); font-size: 11px; background: var(--surface3); border: 1px solid var(--border); color: var(--text); resize: none; outline: none; }
+    .tree-view { flex: 1; padding: 12px; font-family: var(--font-mono); font-size: 11px; overflow-y: auto; }
+    .tree-item { padding: 2px 0; }
+    .tree-toggle { cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px; }
+    .tree-toggle:hover { color: var(--accent-alt); }
+    .tree-arrow { display: inline-block; width: 12px; text-align: center; transition: transform 0.2s; }
+    .tree-item.closed .tree-arrow { transform: rotate(-90deg); }
+    .tree-children { display: none; margin-left: 16px; }
+    .tree-item.open .tree-children { display: block; }
+    .tree-key { color: var(--accent-alt); font-weight: 500; }
+    .tree-value { color: var(--text2); }
+    .tree-string { color: var(--success); }
+    .tree-number { color: var(--warning); }
+    .tree-boolean { color: var(--info); }
+    .tree-null { color: var(--text3); }
+    .split-divider { width: 1px; background: var(--border); cursor: col-resize; }
+    .output-panel { flex: 1; padding: 12px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; font-family: var(--font-mono); font-size: 11px; }
+    .output-line { padding: 2px 0; }
+    .output-error { color: var(--danger); }
+    .output-success { color: var(--success); }
+    .output-info { color: var(--info); }
+    .file-item:hover { background: var(--surface2); }
+    .file-item .file-remove:hover { opacity: 1; }
   </style>
 </head>
-
 <body>
-
-  <header>
-    <div class="logo">
-      <div class="logo-dot"></div>
-      UNIVERSAL <span>·</span> JSON Schema Inspector
+  <!-- Title bar spans full width -->
+  <div class="dcc-titlebar">
+    <div class="dcc-titlebar-logo">
+      <span class="logo-icon">{ }</span>
+      <span class="logo-name">JSON <span class="logo-accent">Tools</span></span>
     </div>
-    <div class="header-right">
-      <span class="chip" id="api-chip">Checking…</span>
-      <span class="chip" id="folder-chip">No folder loaded</span>
+    <div class="dcc-titlebar-breadcrumb">
+      <span class="bc-active">Inspector & Validator</span>
     </div>
-  </header>
-
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="sidebar-top">
-        <div class="sidebar-label">.. / config / schemas</div>
-        <button class="btn btn-primary" id="open-folder-btn">📂 Open schemas folder</button>
-        <button class="btn btn-secondary" id="open-file-btn">📄 Open single JSON file</button>
-        <div class="folder-path" id="folder-path"></div>
-      </div>
-      <div class="file-list" id="file-list">
-        <div class="sidebar-empty">
-          Open <strong>config/schemas</strong> folder or a single JSON file to begin.
-        </div>
-      </div>
-      <div class="key-tree-container" id="key-tree-container">
-        <div class="key-tree-header">
-          <span class="key-tree-title">Key Explorer</span>
-          <div class="key-tree-actions">
-            <button class="key-tree-btn" id="expand-all-btn" title="Expand all">⤢</button>
-            <button class="key-tree-btn" id="collapse-all-btn" title="Collapse all">⤡</button>
+    <div class="dcc-titlebar-actions">
+      <div class="theme-picker">
+        <button class="theme-btn" id="themeBtn">
+          <span class="theme-dot" id="themeDot"></span>
+          <span id="themeName">Dark</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-opt active" data-theme="dark">
+            <span class="theme-dot" style="background: #0d1117;"></span> Dark
+          </div>
+          <div class="theme-opt" data-theme="light">
+            <span class="theme-dot" style="background: #f0f4f8;"></span> Light
+          </div>
+          <div class="theme-opt" data-theme="sky">
+            <span class="theme-dot" style="background: #e0f2fe;"></span> Sky
+          </div>
+          <div class="theme-opt" data-theme="ocean">
+            <span class="theme-dot" style="background: #071520;"></span> Ocean
+          </div>
+          <div class="theme-opt" data-theme="presentation">
+            <span class="theme-dot" style="background: #f8fafc;"></span> Presentation
           </div>
         </div>
-        <div class="key-tree" id="key-tree"></div>
       </div>
-    </aside>
+    </div>
+  </div>
 
-    <div class="main">
-      <div class="welcome-panel" id="welcome-panel">
-        <div class="welcome-icon">🗂️</div>
-        <h2>No file selected</h2>
-        <p>Open the <code>config/schemas</code> folder from the sidebar,</p>
-        <p>then click any <code>.json</code> file to inspect it.</p>
+  <div class="dcc-shell">
+    <div class="dcc-iconbar">
+      <button class="dcc-iconbar-btn" id="sidebarToggle" title="Toggle Sidebar">☰</button>
+      <div class="dcc-iconbar-sep"></div>
+      <button class="dcc-iconbar-btn active" data-panel="inspector" title="Inspector">{ }</button>
+      <button class="dcc-iconbar-btn" data-panel="formatter" title="Formatter">📋</button>
+      <button class="dcc-iconbar-btn" data-panel="validator" title="Validator">✓</button>
+      <div class="dcc-iconbar-spacer"></div>
+      <div class="dcc-iconbar-bottom">
+        <button class="dcc-iconbar-btn" data-panel="help" title="Help">❓</button>
       </div>
+    </div>
 
-      <div id="file-view">
-        <div class="stats-strip" id="stats-strip"></div>
-        <div class="toolbar">
-          <div class="toolbar-info" id="toolbar-info"></div>
-          <div class="search-box">
-            <span style="color:var(--muted)">⌕</span>
-            <input type="text" id="search-input" placeholder="Filter rows…">
-          </div>
-          <div class="filter-btns" id="filter-btns"></div>
+    <div class="dcc-sidebar" id="mainSidebar">
+      <!-- Inspector Panel (default) -->
+      <div id="panel-inspector" class="sidebar-panel">
+        <div class="dcc-sidebar-header">
+          <span>Inspector</span>
         </div>
-        <div class="tabs" id="tabs"></div>
-        <div class="panels-container">
-          <div class="panels" id="panels"></div>
-          <div class="kv-resize-handle" id="kv-resize-handle"></div>
-          <div class="kv-detail-panel" id="kv-detail-panel">
-            <div class="kv-header">
-              <span class="kv-title">Key-Value Details</span>
-              <span class="kv-path" id="kv-path"></span>
+        <div class="dcc-sidebar-body">
+          <!-- File Tree Section -->
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>📁 Files</span>
+              <span class="sb-section-arrow">▼</span>
             </div>
-            <div class="kv-content" id="kv-content">
-              <div class="kv-empty">Select a key from the Key Explorer to view details</div>
+            <div class="sb-section-body" style="max-height: 200px; overflow-y: auto;">
+              <div id="fileTree"></div>
+              <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" id="loadFilesBtn">📂 Load Files</button>
+              <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
+            </div>
+          </div>
+
+          <!-- Current File Tree -->
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>🌳 Structure</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body" style="max-height: 300px; overflow-y: auto;" id="sidebarTree">
+              <div style="color: var(--text3); font-size: 11px; padding: 8px;">Load files to view structure</div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>⚡ Actions</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body">
+              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="sampleBtn">📄 Sample Data</button>
+              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="clearBtn">🗑️ Clear All</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formatter Panel -->
+      <div id="panel-formatter" class="sidebar-panel" style="display: none;">
+        <div class="dcc-sidebar-header">
+          <span>Formatter</span>
+        </div>
+        <div class="dcc-sidebar-body">
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>✨ Actions</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body">
+              <button class="btn btn-primary" style="width: 100%; margin-bottom: 6px;" id="formatBtn">✨ Format</button>
+              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="minifyBtn">📦 Minify</button>
+              <button class="btn btn-secondary" style="width: 100%;" id="copyBtn">📋 Copy</button>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>⚙️ Options</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body">
+              <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <input type="checkbox" id="sortKeys" checked> Sort keys alphabetically
+              </label>
+              <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <input type="checkbox" id="indentEnabled" checked> Enable indentation
+              </label>
+              <select id="indentSize" style="width: 100%;">
+                <option value="2">Indent: 2 spaces</option>
+                <option value="4">Indent: 4 spaces</option>
+                <option value="tab">Indent: tabs</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Validator Panel -->
+      <div id="panel-validator" class="sidebar-panel" style="display: none;">
+        <div class="dcc-sidebar-header">
+          <span>Validator</span>
+        </div>
+        <div class="dcc-sidebar-body">
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>✓ Schema</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body">
+              <select id="schemaSelect" style="width: 100%; margin-bottom: 6px;">
+                <option value="">No Schema</option>
+                <option value="dcc">DCC Register</option>
+                <option value="department">Department</option>
+                <option value="discipline">Discipline</option>
+              </select>
+              <button class="btn btn-primary" style="width: 100%;" id="validateBtn">✓ Validate</button>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>📊 Results</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body">
+              <div id="validationResults" style="font-size: 11px; color: var(--text2);">
+                No validation run yet
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Help Panel -->
+      <div id="panel-help" class="sidebar-panel" style="display: none;">
+        <div class="dcc-sidebar-header">
+          <span>Help</span>
+        </div>
+        <div class="dcc-sidebar-body">
+          <div style="padding: 12px; font-size: 11px; color: var(--text2);">
+            <p><strong>📁 Inspector:</strong> Load & view JSON files</p>
+            <p><strong>✨ Formatter:</strong> Format/minify JSON</p>
+            <p><strong>✓ Validator:</strong> Validate against schema</p>
+            <hr style="margin: 12px 0; border-color: var(--border);">
+            <p><strong>Keyboard:</strong></p>
+            <p>Ctrl+Enter: Format</p>
+            <p>Ctrl+Shift+C: Copy</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcc-content">
+      <div class="editor-area">
+        <div class="editor-toolbar">
+          <span style="font-weight: 600; color: var(--text);">JSON Editor</span>
+          <div style="margin-left: auto; display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-secondary">📥 Import</button>
+            <button class="btn btn-sm btn-secondary">📤 Export</button>
+          </div>
+        </div>
+
+        <div class="editor-pane">
+          <textarea id="jsonInput" class="editor-input" placeholder="Paste JSON here or use the tools on the left..."></textarea>
+          <div class="split-divider"></div>
+          <div class="tree-view" id="treeView">
+            <div style="color: var(--text3); text-align: center; padding: 20px;">
+              Load JSON to view tree
             </div>
           </div>
         </div>
@@ -1172,1306 +248,349 @@
     </div>
   </div>
 
-  <input type="file" id="file-input" accept=".json" style="display:none">
-  <input type="file" id="folder-input" webkitdirectory directory style="display:none">
+  <div class="dcc-statusbar status-ok">
+    <div class="sb-item" id="statusText">Ready</div>
+    <div class="sb-item-right" id="statusSize">—</div>
+  </div>
 
   <script>
-    // ── State ─────────────────────────────────────────────────────────────────────
-    let activeFilter = 'all';
-    let allFlatRows = [];
-    let currentJsonData = null;
-    let selectedKeyPath = null;
-    let selectedKeyValue = null;
-    let dynamicTabs = new Map(); // Map<pathStr, {id, label, count}>
-    let dynamicTabCounter = 0;
-    let activeDynamicTabId = null; // Track currently active dynamic tab
+    const themeColors = {
+      dark: '#0d1117', light: '#f0f4f8', sky: '#0a1628', ocean: '#071520', presentation: '#12082a'
+    };
 
-    // ── Resize Handler ────────────────────────────────────────────────────────────
-    let isResizing = false;
-    let resizeStartY = 0;
-    let resizeStartHeight = 0;
-
-    document.getElementById('kv-resize-handle').addEventListener('mousedown', (e) => {
-      isResizing = true;
-      resizeStartY = e.clientY;
-      const kvPanel = document.getElementById('kv-detail-panel');
-      resizeStartHeight = kvPanel.offsetHeight;
-      document.body.style.cursor = 'ns-resize';
-      document.body.style.userSelect = 'none';
-      e.preventDefault();
+    // Theme switching
+    document.getElementById('themeBtn').addEventListener('click', () => {
+      document.getElementById('themeMenu').classList.toggle('open');
     });
 
-    document.addEventListener('mousemove', (e) => {
-      if (!isResizing) return;
-      const deltaY = resizeStartY - e.clientY;
-      const newHeight = Math.max(120, Math.min(resizeStartHeight + deltaY, window.innerHeight * 0.6));
-      const kvPanel = document.getElementById('kv-detail-panel');
-      kvPanel.style.height = newHeight + 'px';
+    document.querySelectorAll('.theme-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const theme = opt.dataset.theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        document.getElementById('themeName').textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+        document.getElementById('themeDot').style.background = themeColors[theme];
+        document.getElementById('themeMenu').classList.remove('open');
+        localStorage.setItem('dcc-theme', theme);
+        document.querySelectorAll('.theme-opt').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+      });
     });
 
-    document.addEventListener('mouseup', () => {
-      if (isResizing) {
-        isResizing = false;
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-      }
+    const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.getElementById('themeName').textContent = savedTheme.charAt(0).toUpperCase() + savedTheme.slice(1);
+    document.getElementById('themeDot').style.background = themeColors[savedTheme];
+    document.querySelector(`[data-theme="${savedTheme}"]`).classList.add('active');
+
+    // State
+    const loadedFiles = new Map();
+    let currentFileName = null;
+
+    // Sidebar section toggle
+    document.querySelectorAll('.sb-section-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('closed');
+      });
     });
 
-    // ── Init ──────────────────────────────────────────────────────────────────────
-    const hasFS = 'showDirectoryPicker' in window;
-    const apiChip = document.getElementById('api-chip');
-    apiChip.textContent = hasFS ? 'File System API ✓' : 'Folder Support (Compatible) ✓';
-    apiChip.classList.add('ok');
+    // Sidebar toggle
+    const sidebar = document.getElementById('mainSidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    sidebarToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      sidebarToggle.classList.toggle('active');
+    });
 
-    // ── Open folder ───────────────────────────────────────────────────────────────
-    document.getElementById('open-folder-btn').addEventListener('click', async () => {
-      if (hasFS) {
-        try {
-          const dir = await window.showDirectoryPicker({ mode: 'read' });
-          const files = [];
-          for await (const [name, handle] of dir.entries()) {
-            if (handle.kind === 'file' && name.endsWith('.json')) {
-              const f = await handle.getFile();
-              files.push({ name, handle, size: f.size });
-            }
-          }
-          files.sort((a, b) => a.name.localeCompare(b.name));
-
-          document.getElementById('folder-path').style.display = 'block';
-          document.getElementById('folder-path').textContent = '📁 ' + dir.name + '/';
-          document.getElementById('folder-chip').textContent = dir.name;
-          document.getElementById('folder-chip').classList.add('ok');
-
-          buildSidebar(files);
-        } catch (e) {
-          if (e.name !== 'AbortError') alert('Error: ' + e.message);
+    // Icon bar panel switching
+    document.querySelectorAll('.dcc-iconbar-btn[data-panel]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const panelId = btn.dataset.panel;
+        document.querySelectorAll('.dcc-iconbar-btn[data-panel]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.sidebar-panel').forEach(p => p.style.display = 'none');
+        if (panelId) {
+          const panel = document.getElementById('panel-' + panelId);
+          if (panel) panel.style.display = 'block';
         }
-      } else {
-        // Fallback for Firefox/Safari
-        document.getElementById('folder-input').click();
-      }
+        sidebar.classList.remove('collapsed');
+        sidebarToggle.classList.add('active');
+      });
     });
 
-    document.getElementById('folder-input').addEventListener('change', async e => {
-      const selectedFiles = Array.from(e.target.files);
-      const jsonFiles = selectedFiles.filter(f => f.name.endsWith('.json'));
+    const jsonInput = document.getElementById('jsonInput');
+    const treeView = document.getElementById('treeView');
+    const sidebarTree = document.getElementById('sidebarTree');
+    const fileTree = document.getElementById('fileTree');
+    const fileInput = document.getElementById('fileInput');
+
+    // Render file tree in sidebar
+    function renderFileTree() {
+      if (loadedFiles.size === 0) {
+        fileTree.innerHTML = '<div style="color: var(--text3); font-size: 11px; padding: 8px;">No files loaded</div>';
+        return;
+      }
       
-      if (!jsonFiles.length) {
-        alert('No .json files found in the selected folder.');
-        return;
+      let html = '<div style="font-size: 11px;">';
+      let index = 0;
+      for (const [name, data] of loadedFiles) {
+        const isActive = name === currentFileName;
+        html += `<div class="file-item ${isActive ? 'active' : ''}" data-file="${name}" style="padding: 6px 8px; cursor: pointer; border-radius: 4px; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; ${isActive ? 'background: var(--accent); color: #fff;' : ''}">
+          <span>📄</span>
+          <span style="flex: 1; overflow: hidden; text-overflow: ellipsis;">${name}</span>
+          <span class="file-remove" data-file="${name}" style="opacity: 0.5; cursor: pointer;">✕</span>
+        </div>`;
+        index++;
       }
+      html += '</div>';
+      fileTree.innerHTML = html;
 
-      const files = jsonFiles.map(f => ({ name: f.name, file: f, size: f.size }));
-      files.sort((a, b) => a.name.localeCompare(b.name));
-
-      // Attempt to get relative path for the folder name
-      const folderPath = jsonFiles[0].webkitRelativePath || '';
-      const folderName = folderPath.split('/')[0] || 'Selected Folder';
-
-      document.getElementById('folder-path').style.display = 'block';
-      document.getElementById('folder-path').textContent = '📁 ' + folderName + '/';
-      document.getElementById('folder-chip').textContent = folderName;
-      document.getElementById('folder-chip').classList.add('ok');
-
-      buildSidebar(files);
-      e.target.value = '';
-    });
-
-    // ── Open single file ──────────────────────────────────────────────────────────
-    document.getElementById('open-file-btn').addEventListener('click', () => {
-      document.getElementById('file-input').click();
-    });
-    document.getElementById('file-input').addEventListener('change', async e => {
-      const f = e.target.files[0];
-      if (!f) return;
-      const entry = { name: f.name, file: f, size: f.size };
-      buildSidebar([entry]);
-      loadEntry(entry);
-      e.target.value = '';
-    });
-
-    // ── Sidebar ───────────────────────────────────────────────────────────────────
-    function buildSidebar(files) {
-      const list = document.getElementById('file-list');
-      list.innerHTML = '';
-      if (!files.length) {
-        list.innerHTML = '<div class="sidebar-empty">No .json files found.</div>';
-        return;
-      }
-      files.forEach(entry => {
-        const btn = document.createElement('button');
-        btn.className = 'file-item';
-        btn.innerHTML = `<span class="fi-icon">{}</span><span class="fi-name">${esc(entry.name)}</span><span class="fi-size">${fmtSize(entry.size)}</span>`;
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.file-item').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          loadEntry(entry);
-        });
-        list.appendChild(btn);
-      });
-    }
-
-    // ── Load file ─────────────────────────────────────────────────────────────────
-    async function loadEntry(entry) {
-      try {
-        const file = entry.handle ? await entry.handle.getFile() : entry.file;
-        const text = await file.text();
-        const data = JSON.parse(text);
-        renderAll(data, entry);
-      } catch (e) {
-        showErr('Failed to parse: ' + e.message);
-      }
-    }
-
-    // ── Master render ─────────────────────────────────────────────────────────────
-    function renderAll(data, entry) {
-      document.getElementById('welcome-panel').classList.add('hidden');
-      const view = document.getElementById('file-view');
-      view.classList.add('visible');
-
-      // Store current data
-      currentJsonData = data;
-      selectedKeyPath = null;
-
-      // Flatten everything
-      allFlatRows = [];
-      flatten(data, '(root)', [], allFlatRows, 0);
-
-      // Build key tree
-      buildKeyTree(data);
-
-      renderStats(data, entry, allFlatRows);
-      renderToolbar(entry, allFlatRows);
-      renderFilters(allFlatRows);
-      renderTabs(data, allFlatRows);
-      document.getElementById('search-input').value = '';
-      activeFilter = 'all';
-    }
-
-    // ── Stats ─────────────────────────────────────────────────────────────────────
-    function renderStats(data, entry, rows) {
-      const leaves = rows.filter(r => r.vtype !== 'object' && r.vtype !== 'array').length;
-      const objects = rows.filter(r => r.vtype === 'object').length;
-      const arrays = rows.filter(r => r.vtype === 'array').length;
-      const nulls = rows.filter(r => r.vtype === 'null').length;
-      const maxDepth = Math.max(0, ...rows.map(r => r.depth));
-
-      document.getElementById('stats-strip').innerHTML = `
-    <div class="stat-item"><span class="stat-label">Total Rows</span><span class="stat-value acc">${rows.length}</span></div>
-    <div class="stat-item"><span class="stat-label">Leaf Values</span><span class="stat-value">${leaves}</span></div>
-    <div class="stat-item"><span class="stat-label">Objects</span><span class="stat-value">${objects}</span></div>
-    <div class="stat-item"><span class="stat-label">Arrays</span><span class="stat-value warn">${arrays}</span></div>
-    <div class="stat-item"><span class="stat-label">Nulls</span><span class="stat-value ${nulls ? 'err' : ''}">${nulls}</span></div>
-    <div class="stat-item"><span class="stat-label">Max Depth</span><span class="stat-value">${maxDepth}</span></div>
-    <div class="stat-item"><span class="stat-label">File Size</span><span class="stat-value" style="font-size:14px">${fmtSize(entry.size)}</span></div>
-  `;
-    }
-
-    // ── Toolbar ───────────────────────────────────────────────────────────────────
-    function renderToolbar(entry, rows) {
-      document.getElementById('toolbar-info').innerHTML =
-        `<strong>${esc(entry.name)}</strong>&nbsp; · &nbsp;${rows.length} entries &nbsp; · &nbsp;${fmtSize(entry.size)}`;
-
-      const inp = document.getElementById('search-input');
-      inp.oninput = applyFilters;
-    }
-
-    // ── Filters ───────────────────────────────────────────────────────────────────
-    function renderFilters(rows) {
-      const types = ['all', ...new Set(rows.map(r => r.vtype))];
-      const container = document.getElementById('filter-btns');
-      container.innerHTML = '';
-      types.forEach(t => {
-        const count = t === 'all' ? rows.length : rows.filter(r => r.vtype === t).length;
-        const btn = document.createElement('button');
-        btn.className = 'flt' + (t === 'all' ? ' on' : '');
-        btn.textContent = t + ' (' + count + ')';
-        btn.dataset.f = t;
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.flt').forEach(b => b.classList.remove('on'));
-          btn.classList.add('on');
-          activeFilter = t;
-          applyFilters();
-        });
-        container.appendChild(btn);
-      });
-    }
-
-    // ── Key Tree ──────────────────────────────────────────────────────────────────
-    function buildKeyTree(data) {
-      const container = document.getElementById('key-tree-container');
-      const treeEl = document.getElementById('key-tree');
-
-      if (typeof data !== 'object' || data === null) {
-        container.classList.remove('visible');
-        return;
-      }
-
-      container.classList.add('visible');
-      treeEl.innerHTML = '';
-
-      const rootNode = buildTreeNode(data, [], '(root)', true);
-      treeEl.appendChild(rootNode);
-
-      // Setup expand/collapse buttons
-      document.getElementById('expand-all-btn').onclick = () => expandCollapseAll(treeEl, true);
-      document.getElementById('collapse-all-btn').onclick = () => expandCollapseAll(treeEl, false);
-    }
-
-    function buildTreeNode(node, pathArr, pathStr, isRoot = false) {
-      const t = vtype(node);
-      const li = document.createElement('li');
-      li.className = 'tree-node';
-
-      const hasChildren = t === 'object' || t === 'array';
-
-      // Create node inner
-      const inner = document.createElement('div');
-      inner.className = 'tree-node-inner';
-      if (isRoot) inner.classList.add('selected');
-
-      // Toggle arrow
-      const toggle = document.createElement('span');
-      toggle.className = 'tree-toggle' + (hasChildren ? '' : ' hidden-node');
-      toggle.textContent = '▶';
-      inner.appendChild(toggle);
-
-      // Key name
-      const keySpan = document.createElement('span');
-      keySpan.className = 'tree-key';
-      keySpan.textContent = isRoot ? '(root)' : pathArr[pathArr.length - 1];
-      inner.appendChild(keySpan);
-
-      // Type badge (only for objects and arrays)
-      if (t === 'object' || t === 'array') {
-        const typeBadge = document.createElement('span');
-        typeBadge.className = 'tree-type ' + t;
-        typeBadge.textContent = t === 'object' ? '{}' : '[]';
-        inner.appendChild(typeBadge);
-      }
-
-      li.appendChild(inner);
-
-      // Create children container
-      if (hasChildren) {
-        const childrenContainer = document.createElement('div');
-        childrenContainer.className = 'tree-children';
-
-        if (t === 'object') {
-          Object.entries(node).forEach(([key, value]) => {
-            const childPath = [...pathArr, key];
-            const childPathStr = pathStr === '(root)' ? key : pathStr + '.' + key;
-            const childNode = buildTreeNode(value, childPath, childPathStr);
-            childrenContainer.appendChild(childNode);
-          });
-        } else if (t === 'array') {
-          node.forEach((value, index) => {
-            const childPath = [...pathArr, '[' + index + ']'];
-            const childPathStr = pathStr + '[' + index + ']';
-            const childNode = buildTreeNode(value, childPath, childPathStr);
-            childrenContainer.appendChild(childNode);
-          });
-        }
-
-        li.appendChild(childrenContainer);
-
-        // Toggle expand/collapse on toggle click only
-        toggle.addEventListener('click', (e) => {
-          e.stopPropagation();
-
-          if (hasChildren) {
-            const isExpanded = childrenContainer.classList.contains('expanded');
-            if (isExpanded) {
-              childrenContainer.classList.remove('expanded');
-              toggle.classList.remove('expanded');
-            } else {
-              childrenContainer.classList.add('expanded');
-              toggle.classList.add('expanded');
-            }
-          }
-        });
-
-        // Handle selection and detail panel on key click
-        inner.addEventListener('click', (e) => {
-          // Don't trigger if clicking the toggle
-          if (e.target === toggle || toggle.contains(e.target)) {
-            return;
-          }
-
-          e.stopPropagation();
-
-          // Handle selection
-          document.querySelectorAll('.tree-node-inner').forEach(n => n.classList.remove('selected'));
-          inner.classList.add('selected');
-
-          // Update key-value detail panel
-          selectedKeyPath = pathStr;
-          selectedKeyValue = node;
-          updateKVDetailPanel(pathStr, node, t);
-
-          // Create new dynamic tab for objects/arrays
-          if (t === 'object' || t === 'array') {
-            createOrUpdateDynamicTab(pathStr, node, t);
-          }
-        });
-
-        // Auto-expand root
-        if (isRoot) {
-          childrenContainer.classList.add('expanded');
-          toggle.classList.add('expanded');
-        }
-      } else {
-        // Leaf node click handler
-        inner.addEventListener('click', (e) => {
-          e.stopPropagation();
-          document.querySelectorAll('.tree-node-inner').forEach(n => n.classList.remove('selected'));
-          inner.classList.add('selected');
-
-          // Update key-value detail panel
-          selectedKeyPath = pathStr;
-          selectedKeyValue = node;
-          updateKVDetailPanel(pathStr, node, t);
-        });
-      }
-
-      return li;
-    }
-
-    function updateKVDetailPanel(path, value, valueType) {
-      const panel = document.getElementById('kv-detail-panel');
-      const pathEl = document.getElementById('kv-path');
-      const contentEl = document.getElementById('kv-content');
-
-      panel.classList.add('visible');
-      pathEl.textContent = path;
-
-      // Build detail table
-      contentEl.innerHTML = '';
-      const table = document.createElement('table');
-      table.className = 'kv-table';
-
-      table.innerHTML = `
-    <thead>
-      <tr>
-        <th style="min-width:100px">Property</th>
-        <th>Value</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="kv-key">Key / Path</td>
-        <td class="kv-value">${esc(path)}</td>
-      </tr>
-      <tr>
-        <td class="kv-key">Type</td>
-        <td class="kv-value"><span class="tag tag-${valueType}">${valueType}</span></td>
-      </tr>
-      <tr>
-        <td class="kv-key">Value</td>
-        <td class="kv-value">${renderVal(value, valueType, 200, path.split('.').pop().split('[').pop().replace(/\]$/, ''))}</td>
-      </tr>
-    </tbody>
-  `;
-
-      // Add extra info for objects and arrays
-      if (valueType === 'object' && value !== null) {
-        const keys = Object.keys(value);
-        const extraRow = document.createElement('tr');
-        extraRow.innerHTML = `
-      <td class="kv-key">Keys (${keys.length})</td>
-      <td class="kv-value">${keys.length ? keys.map(k => `<span class="tag tag-string" style="margin:1px 3px;display:inline-block">${esc(k)}</span>`).join('') : '<span class="kv-type" style="color:var(--muted)">none</span>'}</td>
-    `;
-        table.querySelector('tbody').appendChild(extraRow);
-      }
-
-      if (valueType === 'array') {
-        const len = value.length;
-        const preview = value.slice(0, 10);
-        const extraRow = document.createElement('tr');
-        extraRow.innerHTML = `
-      <td class="kv-key">Length</td>
-      <td class="kv-value"><span class="tag tag-number">${len} items</span>${len > 10 ? ' <span class="kv-type" style="color:var(--muted)">(showing first 10)</span>' : ''}</td>
-    `;
-        table.querySelector('tbody').appendChild(extraRow);
-
-        const previewRow = document.createElement('tr');
-        previewRow.innerHTML = `
-      <td class="kv-key">Preview</td>
-      <td class="kv-value">${preview.map((v, i) => `[${i}]: ${renderVal(v, vtype(v), 80)}`).join('<br>')}</td>
-    `;
-        table.querySelector('tbody').appendChild(previewRow);
-      }
-
-      // Add raw JSON for complex types
-      if (valueType === 'object' || valueType === 'array') {
-        const rawRow = document.createElement('tr');
-        const rawJson = JSON.stringify(value, null, 2);
-        const previewJson = rawJson.length > 500 ? rawJson.substring(0, 500) + '...' : rawJson;
-        rawRow.innerHTML = `
-      <td class="kv-key">Raw JSON</td>
-      <td class="kv-value"><pre style="margin:0;padding:8px;background:var(--tag-bg);border-radius:4px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-word">${esc(previewJson)}</pre></td>
-    `;
-        table.querySelector('tbody').appendChild(rawRow);
-      }
-
-      contentEl.appendChild(table);
-    }
-
-    function expandCollapseAll(treeEl, expand) {
-      treeEl.querySelectorAll('.tree-children').forEach(el => {
-        el.classList.toggle('expanded', expand);
-      });
-      treeEl.querySelectorAll('.tree-toggle:not(.hidden-node)').forEach(el => {
-        el.classList.toggle('expanded', expand);
-      });
-    }
-
-    function getValueByPath(data, pathStr) {
-      if (pathStr === '(root)') return { value: data, type: vtype(data) };
-      const parts = pathStr.split(/\.|\[/).filter(p => p !== '');
-      let current = data;
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i].replace(']', '');
-        if (current === null || current === undefined) return null;
-        if (!isNaN(part)) {
-          current = current[parseInt(part)];
-        } else {
-          current = current[part];
-        }
-      }
-      return { value: current, type: vtype(current) };
-    }
-
-    function highlightTreeNode(pathStr) {
-      // Find and highlight the matching tree node
-      document.querySelectorAll('.tree-node-inner').forEach(inner => {
-        const keySpan = inner.querySelector('.tree-key');
-        if (keySpan && keySpan.textContent === pathStr) {
-          document.querySelectorAll('.tree-node-inner').forEach(n => n.classList.remove('selected'));
-          inner.classList.add('selected');
-
-          // Scroll into view
-          inner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      });
-    }
-
-    // ── Tabs ──────────────────────────────────────────────────────────────────────
-    function renderTabs(data, rows) {
-      const tabsEl = document.getElementById('tabs');
-      const panelsEl = document.getElementById('panels');
-      tabsEl.innerHTML = '';
-      panelsEl.innerHTML = '';
-
-      // Clear dynamic tabs on new file load
-      dynamicTabs.clear();
-      dynamicTabCounter = 0;
-      activeDynamicTabId = null;
-
-      const addTab = (id, label, count, builder, isDynamic = false) => {
-        const tab = document.createElement('button');
-        tab.className = 'tab';
-        tab.dataset.id = id;
-
-        const badgeHtml = count != null ? `<span class="tab-badge">${count}</span>` : '';
-        const closeHtml = isDynamic ? `<span class="tab-close" title="Close tab">×</span>` : '';
-        tab.innerHTML = label + badgeHtml + closeHtml;
-
-        const panel = document.createElement('div');
-        panel.className = 'panel';
-        panel.dataset.id = id;
-
-        tab.addEventListener('click', (e) => {
-          // Handle close button click
-          if (e.target.classList.contains('tab-close')) {
+      // Add click handlers for file selection
+      document.querySelectorAll('.file-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.classList.contains('file-remove')) {
             e.stopPropagation();
-            if (isDynamic) {
-              removeDynamicTab(id);
-            }
-            return;
-          }
-
-          tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-          panelsEl.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-          tab.classList.add('active');
-          panel.classList.add('active');
-
-          // Track active dynamic tab
-          if (isDynamic) {
-            activeDynamicTabId = id;
+            const fileName = e.target.dataset.file;
+            removeFile(fileName);
           } else {
-            activeDynamicTabId = null;
+            selectFile(item.dataset.file);
           }
-
-          if (!panel._built) { panel.appendChild(builder()); panel._built = true; }
-          applyFilters();
         });
-
-        tabsEl.appendChild(tab);
-        panelsEl.appendChild(panel);
-      };
-
-      // 1. Full inspection (every node)
-      addTab('full', 'Full Inspection', rows.length - 1, () => buildFullTable(rows));
-
-      // 2. Top-level keys
-      const topCount = typeof data === 'object' && data !== null ? Object.keys(data).length : 0;
-      addTab('top', 'Top-Level Keys', topCount, () => buildTopTable(data));
-
-      // Raw JSON
-      addTab('raw', 'Raw JSON', null, () => buildRaw(data));
-
-      // Activate first tab
-      tabsEl.querySelector('.tab').click();
+      });
     }
 
-    // ── Dynamic Tabs for Nested Keys ─────────────────────────────────────────────
-    function createOrUpdateDynamicTab(pathStr, value, valueType) {
-      if (pathStr === '(root)' || valueType === 'null') return;
-      if (valueType !== 'object' && valueType !== 'array') return;
-
-      const tabsEl = document.getElementById('tabs');
-      const panelsEl = document.getElementById('panels');
-
-      // Check if tab already exists
-      if (dynamicTabs.has(pathStr)) {
-        // Activate existing tab
-        const existingTab = tabsEl.querySelector(`.tab[data-path="${pathStr}"]`);
-        if (existingTab) {
-          existingTab.click();
-        }
+    // Render structure tree in sidebar
+    function renderSidebarTree() {
+      if (!currentFileName || !loadedFiles.has(currentFileName)) {
+        sidebarTree.innerHTML = '<div style="color: var(--text3); font-size: 11px; padding: 8px;">Select a file to view structure</div>';
         return;
       }
-
-      // Create new dynamic tab
-      dynamicTabCounter++;
-      const tabId = 'dynamic-' + dynamicTabCounter;
-      const shortPath = pathStr.length > 30 ? '...' + pathStr.slice(-27) : pathStr;
-      const itemCount = valueType === 'object' ? Object.keys(value).length : value.length;
-
-      const tab = document.createElement('button');
-      tab.className = 'tab';
-      tab.dataset.id = tabId;
-      tab.dataset.path = pathStr;
-      tab.dataset.dynamic = 'true';
-      tab.innerHTML = `📑 ${shortPath}<span class="tab-badge">${itemCount}</span><span class="tab-close" title="Close tab">×</span>`;
-
-      const panel = document.createElement('div');
-      panel.className = 'panel';
-      panel.dataset.id = tabId;
-
-      tab.addEventListener('click', (e) => {
-        if (e.target.classList.contains('tab-close')) {
-          e.stopPropagation();
-          removeDynamicTab(tabId);
-          return;
-        }
-
-        tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        panelsEl.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-        tab.classList.add('active');
-        panel.classList.add('active');
-
-        // Track active dynamic tab
-        activeDynamicTabId = tabId;
-
-        if (!panel._built) {
-          panel.appendChild(buildNestedKeyTable(pathStr, value, valueType));
-          panel._built = true;
-        }
-        applyFilters();
-      });
-
-      tabsEl.appendChild(tab);
-      panelsEl.appendChild(panel);
-
-      // Store in map
-      dynamicTabs.set(pathStr, { id: tabId, label: shortPath, count: itemCount });
-
-      // Activate the new tab (which sets activeDynamicTabId)
-      tab.click();
-    }
-
-    function removeDynamicTab(tabId) {
-      const tabsEl = document.getElementById('tabs');
-      const panelsEl = document.getElementById('panels');
-
-      // Find and remove tab
-      const tabToRemove = tabsEl.querySelector(`.tab[data-id="${tabId}"]`);
-      const panelToRemove = panelsEl.querySelector(`.panel[data-id="${tabId}"]`);
-
-      if (tabToRemove) tabToRemove.remove();
-      if (panelToRemove) panelToRemove.remove();
-
-      // Remove from map
-      const pathToRemove = [...dynamicTabs.entries()].find(([_, v]) => v.id === tabId);
-      if (pathToRemove) {
-        dynamicTabs.delete(pathToRemove[0]);
-      }
-
-      // If removed tab was active, activate first tab
-      if (tabToRemove && tabToRemove.classList.contains('active')) {
-        const firstTab = tabsEl.querySelector('.tab');
-        if (firstTab) firstTab.click();
-      }
-    }
-
-    function updateActiveDynamicTab(pathStr, value, valueType) {
-      if (!activeDynamicTabId) return;
-
-      const tabsEl = document.getElementById('tabs');
-      const panelsEl = document.getElementById('panels');
-
-      // Find the active dynamic tab
-      const activeTab = tabsEl.querySelector(`.tab[data-id="${activeDynamicTabId}"]`);
-      const activePanel = panelsEl.querySelector(`.panel[data-id="${activeDynamicTabId}"]`);
-
-      if (!activeTab || !activePanel) return;
-
-      // Update tab label and badge
-      const shortPath = pathStr.length > 30 ? '...' + pathStr.slice(-27) : pathStr;
-      const itemCount = valueType === 'object' ? Object.keys(value).length : value.length;
-      activeTab.dataset.path = pathStr;
-      activeTab.innerHTML = `📑 ${shortPath}<span class="tab-badge">${itemCount}</span><span class="tab-close" title="Close tab">×</span>`;
-
-      // Update the map
-      const oldEntry = [...dynamicTabs.entries()].find(([_, v]) => v.id === activeDynamicTabId);
-      if (oldEntry) {
-        dynamicTabs.delete(oldEntry[0]);
-      }
-      dynamicTabs.set(pathStr, { id: activeDynamicTabId, label: shortPath, count: itemCount });
-
-      // Rebuild panel content
-      activePanel.innerHTML = '';
-      activePanel.appendChild(buildNestedKeyTable(pathStr, value, valueType));
-      activePanel._built = true;
-    }
-
-    function jumpToPath(path) {
-      if (!currentJsonData) return;
-      const data = getValueByPath(currentJsonData, path);
-      if (data && data.value !== undefined) {
-        selectedKeyPath = path;
-        selectedKeyValue = data.value;
-        updateKVDetailPanel(path, data.value, data.type);
-        highlightTreeNode(path);
-        updateActiveDynamicTab(path, data.value, data.type);
-      }
-    }
-
-    function buildNestedKeyTable(pathStr, value, valueType) {
-      const wrap = document.createElement('div');
-      wrap.className = 'tbl-wrap';
-      wrap.dataset.tabPath = pathStr;
-
-      // ── 1. Breadcrumb Header ───────────────────────────────────────────────
-      const breadcrumbBar = document.createElement('div');
-      breadcrumbBar.className = 'breadcrumb-bar';
-
-      // Split path into interactive segments
-      // (root).users[0].profile -> [(root), users, [0], profile]
-      const fragments = [];
-      if (pathStr === '(root)') {
-        fragments.push({ label: '(root)', path: '(root)', isRoot: true });
-      } else {
-        fragments.push({ label: '(root)', path: '(root)', isRoot: true });
+      
+      try {
+        const obj = JSON.parse(loadedFiles.get(currentFileName));
+        sidebarTree.innerHTML = renderTree(obj, true);
         
-        // Complex split regex to handle dots and brackets
-        const segments = pathStr.split(/(?=\[)|\./).filter(s => s !== '' && s !== '(root)');
-        let currentPath = '';
-        
-        segments.forEach((seg, idx) => {
-          if (seg.startsWith('[')) {
-            currentPath += seg;
+        // Add click handlers for tree toggles
+        sidebarTree.querySelectorAll('.tree-toggle').forEach(toggle => {
+          toggle.addEventListener('click', () => {
+            toggle.closest('.tree-item').classList.toggle('closed');
+            toggle.closest('.tree-item').classList.toggle('open');
+          });
+        });
+      } catch (e) {
+        sidebarTree.innerHTML = `<div class="output-error" style="padding: 8px;">Invalid JSON</div>`;
+      }
+    }
+
+    // Select file
+    function selectFile(name) {
+      currentFileName = name;
+      jsonInput.value = loadedFiles.get(name);
+      parseAndRender();
+      renderFileTree();
+      renderSidebarTree();
+    }
+
+    // Remove file
+    function removeFile(name) {
+      loadedFiles.delete(name);
+      if (currentFileName === name) {
+        const remaining = Array.from(loadedFiles.keys());
+        currentFileName = remaining.length > 0 ? remaining[0] : null;
+        if (currentFileName) {
+          jsonInput.value = loadedFiles.get(currentFileName);
+        } else {
+          jsonInput.value = '';
+        }
+        parseAndRender();
+      }
+      renderFileTree();
+      renderSidebarTree();
+      updateStatus();
+    }
+
+    // Load multiple files
+    document.getElementById('loadFilesBtn').addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          loadedFiles.set(file.name, evt.target.result);
+          if (!currentFileName) {
+            selectFile(file.name);
           } else {
-            currentPath += (currentPath === '' ? '' : '.') + seg;
+            renderFileTree();
+            renderSidebarTree();
           }
-          fragments.push({ label: seg.replace(/^\[|\]$/g, ''), path: currentPath });
-        });
-      }
+        };
+        reader.readAsText(file);
+      });
+      e.target.value = '';
+    });
 
-      fragments.forEach((frag, idx) => {
-        if (idx > 0) {
-          const sep = document.createElement('span');
-          sep.className = 'breadcrumb-sep';
-          sep.innerText = '›';
-          breadcrumbBar.appendChild(sep);
+    // Sample data
+    document.getElementById('sampleBtn').addEventListener('click', () => {
+      const sampleData = {
+        "name": "DCC Register",
+        "version": "1.0.0",
+        "columns": 47,
+        "files": ["submittals.xlsx", "rfis.xlsx"],
+        "schema": {
+          "Project_Code": { "type": "string", "required": true },
+          "Facility_Code": { "type": "string", "required": true },
+          "Document_ID": { "type": "string", "required": true }
         }
+      };
+      loadedFiles.set('sample.json', JSON.stringify(sampleData, null, 2));
+      selectFile('sample.json');
+    });
 
-        const chip = document.createElement('span');
-        chip.className = 'breadcrumb-chip' + (idx === fragments.length - 1 ? ' active' : '');
-        chip.innerHTML = `${frag.isRoot ? '📂' : '📁'} ${esc(frag.label)}`;
-        chip.title = `Jump to ${frag.path}`;
-        chip.addEventListener('click', () => jumpToPath(frag.path));
-        breadcrumbBar.appendChild(chip);
-      });
+    // Clear all
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      loadedFiles.clear();
+      currentFileName = null;
+      jsonInput.value = '';
+      renderFileTree();
+      renderSidebarTree();
+      treeView.innerHTML = '<div style="color: var(--text3); text-align: center; padding: 20px;">Load files to view</div>';
+      updateStatus();
+    });
 
-      // Details Sub-header
-      const subHeader = document.createElement('div');
-      subHeader.style.cssText = 'padding:10px 16px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:15px; font-family:"JetBrains Mono",monospace; font-size:10px;';
-      subHeader.innerHTML = `
-        <span style="color:var(--muted)">TYPE: <span class="tag tag-${valueType}" style="font-size:9px">${valueType}</span></span>
-        <span style="color:var(--muted)">SIZE: <span class="tag tag-number" style="font-size:9px">${valueType === 'object' ? Object.keys(value).length : value.length} ${valueType === 'object' ? 'keys' : 'items'}</span></span>
-      `;
-
-      wrap.appendChild(breadcrumbBar);
-      wrap.appendChild(subHeader);
-
-      // ── 2. Data Table ──────────────────────────────────────────────────────
-      const table = document.createElement('table');
-      table.innerHTML = `<thead><tr>
-        <th style="min-width:38px">#</th>
-        <th style="min-width:200px">Key / Index</th>
-        <th style="min-width:100px">Type</th>
-        <th style="min-width:80px">Size</th>
-        <th style="min-width:200px">Value / Preview</th>
-        <th style="min-width:200px">Sub-keys</th>
-      </tr></thead>`;
-
-      const tbody = document.createElement('tbody');
-      const entries = valueType === 'object' ? Object.entries(value) : value.map((v, i) => [`[${i}]`, v]);
-
-      entries.forEach(([key, val], i) => {
-        const t = vtype(val);
-        const fullPath = pathStr === '(root)' ? key : (key.startsWith('[') ? pathStr + key : pathStr + '.' + key);
-        const isComplex = (t === 'object' || t === 'array');
-        
-        const size = t === 'object' ? Object.keys(val).length + ' keys'
-          : t === 'array' ? val.length + ' items'
-            : t === 'string' ? val.length + ' chars' : '—';
-            
-        const preview = t === 'string' ? val.substring(0, 100) + (val.length > 100 ? '…' : '')
-          : t === 'number' || t === 'boolean' || t === 'null' ? String(val)
-            : t === 'array' ? val.slice(0, 4).map(x => typeof x === 'object' ? '{…}' : String(x)).join(', ') + (val.length > 4 ? '…' : '')
-              : Object.keys(val).slice(0, 4).join(', ') + (Object.keys(val).length > 4 ? '…' : '');
-              
-        const subkeys = t === 'object'
-          ? Object.keys(val).slice(0, 5).map(sk => `<span class="tag tag-string" style="margin:1px 2px;display:inline-block">${esc(sk)}</span>`).join('')
-          : '—';
-
-        const tr = document.createElement('tr');
-        tr.className = 'data-row';
-        tr.dataset.vtype = t;
-        tr.dataset.search = (key + ' ' + preview).toLowerCase();
-        tr.dataset.path = fullPath;
-        
-        const icon = isComplex ? '📁' : '📄';
-        
-        tr.innerHTML = `
-          <td class="c-pkey">${i + 1}</td>
-          <td class="c-key"><span class="fi-type-icon">${icon}</span>${esc(String(key))}</td>
-          <td><span class="tag tag-${t}">${t}</span></td>
-          <td class="c-num">${size}</td>
-          <td style="max-width:260px;word-break:break-word">${renderVal(val, t, 120, key)}</td>
-          <td style="max-width:300px;line-height:1.9">${subkeys}</td>
-        `;
-
-        tr.addEventListener('click', () => {
-          tbody.querySelectorAll('.data-row').forEach(r => r.style.background = '');
-          tr.style.background = 'rgba(79,255,176,.07)';
-
-          selectedKeyPath = fullPath;
-          selectedKeyValue = val;
-          updateKVDetailPanel(fullPath, val, t);
-          highlightTreeNode(fullPath);
-
-          if (isComplex) {
-            updateActiveDynamicTab(fullPath, val, t);
-          }
-        });
-
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-
-      return wrap;
-    }
-
-    function getParentPath(pathStr) {
-      if (pathStr === '(root)' || !pathStr) return null;
-
-      // Handle array indices like [0], [1], etc.
-      const lastDotIndex = pathStr.lastIndexOf('.');
-      const lastBracketIndex = pathStr.lastIndexOf('[');
-
-      if (lastDotIndex === -1 && lastBracketIndex === -1) {
-        // Top-level key, parent is root
-        return '(root)';
+    // Format
+    document.getElementById('formatBtn').addEventListener('click', () => {
+      if (!currentFileName) return;
+      try {
+        const obj = JSON.parse(jsonInput.value);
+        const indent = document.getElementById('indentSize').value;
+        const spaces = indent === 'tab' ? '\t' : parseInt(indent);
+        jsonInput.value = JSON.stringify(obj, null, spaces);
+        loadedFiles.set(currentFileName, jsonInput.value);
+        parseAndRender();
+        renderSidebarTree();
+      } catch (e) {
+        alert('Invalid JSON: ' + e.message);
       }
+    });
 
-      if (lastDotIndex > lastBracketIndex) {
-        // Last segment is object property (after a dot)
-        const parent = pathStr.substring(0, lastDotIndex);
-        return parent || '(root)';
+    // Minify
+    document.getElementById('minifyBtn').addEventListener('click', () => {
+      if (!currentFileName) return;
+      try {
+        const obj = JSON.parse(jsonInput.value);
+        jsonInput.value = JSON.stringify(obj);
+        loadedFiles.set(currentFileName, jsonInput.value);
+        parseAndRender();
+        renderSidebarTree();
+      } catch (e) {
+        alert('Invalid JSON: ' + e.message);
+      }
+    });
+
+    // Copy
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      jsonInput.select();
+      document.execCommand('copy');
+      alert('Copied to clipboard');
+    });
+
+    // Update status bar
+    function updateStatus() {
+      if (loadedFiles.size === 0) {
+        document.getElementById('statusText').textContent = 'Ready';
+        document.getElementById('statusSize').textContent = '—';
       } else {
-        // Last segment is array index
-        const parent = pathStr.substring(0, lastBracketIndex);
-        // Remove trailing dot if present
-        return parent.endsWith('.') ? parent.slice(0, -1) : (parent || '(root)');
+        document.getElementById('statusText').textContent = `✓ ${loadedFiles.size} file(s) loaded`;
+        document.getElementById('statusSize').textContent = currentFileName || '—';
       }
     }
 
-    // ── Flatten JSON ──────────────────────────────────────────────────────────────
-    function flatten(node, path, pathArr, out, depth) {
-      const t = vtype(node);
-      const childCount = t === 'object' ? Object.keys(node).length : t === 'array' ? node.length : null;
-
-      out.push({
-        path, pathArr: [...pathArr],
-        key: pathArr.length ? pathArr[pathArr.length - 1] : '(root)',
-        parentPath: pathArr.length > 1 ? pathArr.slice(0, -1).join('.') : '',
-        depth, vtype: t, value: node, childCount
-      });
-
-      if (t === 'object') {
-        for (const [k, v] of Object.entries(node)) {
-          flatten(v, (path !== '(root)' ? path + '.' : '') + k, [...pathArr, k], out, depth + 1);
-        }
-      } else if (t === 'array') {
-        node.forEach((v, i) => {
-          flatten(v, path + '[' + i + ']', [...pathArr, '[' + i + ']'], out, depth + 1);
+    // Parse and render tree
+    function parseAndRender() {
+      if (!jsonInput.value.trim()) {
+        treeView.innerHTML = '<div style="color: var(--text3); text-align: center; padding: 20px;">Load files to view tree</div>';
+        document.getElementById('statusText').textContent = 'Ready';
+        document.getElementById('statusSize').textContent = '—';
+        return;
+      }
+      
+      try {
+        const obj = JSON.parse(jsonInput.value);
+        treeView.innerHTML = renderTree(obj, true);
+        
+        // Add click handlers
+        treeView.querySelectorAll('.tree-toggle').forEach(toggle => {
+          toggle.addEventListener('click', () => {
+            toggle.closest('.tree-item').classList.toggle('closed');
+            toggle.closest('.tree-item').classList.toggle('open');
+          });
         });
+        
+        updateStatus();
+      } catch (e) {
+        treeView.innerHTML = `<div class="output-error">✗ ${e.message}</div>`;
+        document.getElementById('statusText').textContent = '✗ Invalid JSON';
       }
     }
 
-    function vtype(v) {
-      if (v === null) return 'null';
-      if (Array.isArray(v)) return 'array';
-      return typeof v;
-    }
+    function renderTree(obj, isRoot = false, depth = 0) {
+      if (obj === null) return '<span class="tree-null">null</span>';
+      if (typeof obj === 'boolean') return `<span class="tree-boolean">${obj}</span>`;
+      if (typeof obj === 'number') return `<span class="tree-number">${obj}</span>`;
+      if (typeof obj === 'string') return `<span class="tree-string">"${obj}"</span>`;
 
-    // ── 1. Full inspection table ──────────────────────────────────────────────────
-    function buildFullTable(rows) {
-      const wrap = div('tbl-wrap');
-      const table = el('table');
-      table.id = 'tbl-full';
-      table.innerHTML = `<thead><tr>
-    <th style="min-width:38px">#</th>
-    <th style="min-width:200px">JSON Path</th>
-    <th style="min-width:140px">Key / Index</th>
-    <th style="min-width:120px">Parent Path</th>
-    <th style="width:56px;text-align:center">Depth</th>
-    <th style="min-width:78px">Value Type</th>
-    <th style="min-width:200px;max-width:420px">Value</th>
-    <th style="width:76px;text-align:center">Children</th>
-  </tr></thead>`;
-      const tbody = el('tbody');
-
-      rows.forEach((row, i) => {
-        if (row.path === '(root)') return; // skip synthetic root row
-        const tr = el('tr');
-        tr.className = 'data-row';
-        tr.dataset.vtype = row.vtype;
-        tr.dataset.search = (row.path + ' ' + row.key + ' ' + valText(row)).toLowerCase();
-        tr.dataset.path = row.path;
-
-        tr.innerHTML = `
-      <td class="c-pkey">${i}</td>
-      <td class="c-path">${esc(row.path)}</td>
-      <td class="c-key">${esc(String(row.key))}</td>
-      <td class="c-pkey" style="max-width:140px;word-break:break-all">${esc(row.parentPath)}</td>
-      <td class="c-num" style="text-align:center">${row.depth}</td>
-      <td><span class="tag tag-${row.vtype}">${row.vtype}</span></td>
-      <td style="max-width:420px">${renderVal(row.value, row.vtype, null, row.key)}</td>
-      <td class="c-num" style="text-align:center">${row.childCount !== null ? row.childCount : '—'}</td>
-    `;
-        tr.addEventListener('click', () => {
-          // Highlight in table
-          tbody.querySelectorAll('.data-row').forEach(r => r.style.background = '');
-          tr.style.background = 'rgba(79,255,176,.07)';
-
-          // Update key-value detail panel
-          selectedKeyPath = row.path;
-          selectedKeyValue = row.value;
-          updateKVDetailPanel(row.path, row.value, row.vtype);
-
-          // Highlight in tree
-          highlightTreeNode(row.path);
-        });
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-    // ── 2. Top-level keys ─────────────────────────────────────────────────────────
-    function buildTopTable(data) {
-      const wrap = div('tbl-wrap');
-      if (typeof data !== 'object' || !data) {
-        wrap.appendChild(infoBox('Root is not an object.', 'info'));
-        return wrap;
+      if (Array.isArray(obj)) {
+        const items = obj.map((item, i) => 
+          `<div class="tree-item"><span class="tree-value">[${i}]:</span> ${renderTree(item, false, depth + 1)}</div>`
+        ).join('');
+        return `<div class="tree-item open"><div class="tree-toggle"><span class="tree-arrow">▼</span><span class="tree-value">Array(${obj.length})</span></div><div class="tree-children">${items}</div></div>`;
       }
-      const table = el('table');
-      table.innerHTML = `<thead><tr>
-    <th>#</th><th style="min-width:160px">Key</th><th style="min-width:80px">Type</th>
-    <th style="min-width:90px">Size</th><th style="min-width:200px">Value / Preview</th>
-    <th style="min-width:200px">Sub-keys (if object)</th>
-  </tr></thead>`;
-      const tbody = el('tbody');
 
-      Object.entries(data).forEach(([k, v], i) => {
-        const t = vtype(v);
-        const size = t === 'object' ? Object.keys(v).length + ' keys'
-          : t === 'array' ? v.length + ' items'
-            : t === 'string' ? v.length + ' chars' : '—';
-        const preview = t === 'string' ? v.substring(0, 150) + (v.length > 150 ? '…' : '')
-          : t === 'number' || t === 'boolean' || t === 'null' ? String(v)
-            : t === 'array' ? v.slice(0, 6).map(x => typeof x === 'object' ? '{…}' : String(x)).join(', ') + (v.length > 6 ? '…' : '')
-              : Object.keys(v).slice(0, 6).join(', ') + (Object.keys(v).length > 6 ? '…' : '');
-        const subkeys = t === 'object'
-          ? Object.keys(v).map(sk => `<span class="tag tag-string" style="margin:1px 2px;display:inline-block">${esc(sk)}</span>`).join('')
-          : '—';
-
-        const tr = el('tr');
-        tr.className = 'data-row';
-        tr.dataset.vtype = t;
-        tr.dataset.search = (k + ' ' + preview).toLowerCase();
-        tr.innerHTML = `
-      <td class="c-pkey">${i + 1}</td>
-      <td class="c-key">${esc(k)}</td>
-      <td><span class="tag tag-${t}">${t}</span></td>
-      <td class="c-num">${size}</td>
-      <td style="max-width:260px;word-break:break-word">${renderVal(v, t, 120, d.key)}</td>
-      <td style="max-width:300px;line-height:1.9">${subkeys}</td>
-    `;
-        tr.addEventListener('click', () => {
-          tbody.querySelectorAll('.data-row').forEach(r => r.style.background = '');
-          tr.style.background = 'rgba(79,255,176,.07)';
-
-          selectedKeyPath = k;
-          selectedKeyValue = v;
-          updateKVDetailPanel(k, v, t);
-          highlightTreeNode(k);
-        });
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-    // ── 3. Enhanced schema columns ────────────────────────────────────────────────
-    function buildColumnsTable(cols) {
-      const wrap = div('tbl-wrap');
-      const table = el('table');
-      table.innerHTML = `<thead><tr>
-    <th>#</th>
-    <th style="min-width:180px">Column Name</th>
-    <th style="min-width:90px">Data Type</th>
-    <th style="text-align:center">Required</th>
-    <th style="text-align:center">Allow Null</th>
-    <th style="text-align:center">Is Calculated</th>
-    <th style="text-align:center">Create If Missing</th>
-    <th style="min-width:80px">Default Value</th>
-    <th style="min-width:130px">Null Strategy</th>
-    <th style="min-width:130px">Calc Method</th>
-    <th style="min-width:160px">Calc Source / Format</th>
-    <th style="min-width:180px">Aliases</th>
-    <th style="min-width:160px">Validation Rules</th>
-    <th style="min-width:120px">Schema Reference</th>
-    <th style="min-width:200px">Null Handling Detail</th>
-    <th style="min-width:200px">Calculation Detail</th>
-  </tr></thead>`;
-      const tbody = el('tbody');
-
-      cols.forEach(([name, c], i) => {
-        const aliases = (c.aliases || []).join(' | ');
-        const nullStrat = c.null_handling ? c.null_handling.strategy || '—' : (c.default_value !== undefined ? 'default_value' : '—');
-        const calcMethod = c.calculation ? (c.calculation.method || c.calculation.type || '—') : '—';
-        const calcSrc = c.calculation ? (c.calculation.format || (c.calculation.source_column ? c.calculation.source_column : '') || (Array.isArray(c.calculation.source_columns) ? c.calculation.source_columns.join(', ') : '')) : '—';
-        const defVal = c.default_value !== undefined ? String(c.default_value)
-          : (c.null_handling && c.null_handling.default_value !== undefined ? String(c.null_handling.default_value) : '—');
-
-        // Validation rules
-        const val = c.validation ? Object.entries(c.validation)
-          .map(([k, v]) => `<span class="c-pkey">${esc(k)}:</span> <span class="val-str">${esc(String(v))}</span>`)
-          .join('<br>') : '—';
-
-        // Null handling detail
-        const nhd = c.null_handling
-          ? (c.null_handling.description || '') + (c.null_handling.group_by ? '<br><span class="c-pkey">group_by:</span> ' + esc(JSON.stringify(c.null_handling.group_by)) : '')
-          + (c.null_handling.fill_value !== undefined ? '<br><span class="c-pkey">fill_value:</span> ' + esc(String(c.null_handling.fill_value)) : '')
-          : '—';
-
-        // Calculation detail
-        const cd = c.calculation
-          ? (c.calculation.description || '') + (c.calculation.group_by ? '<br><span class="c-pkey">group_by:</span> ' + esc(JSON.stringify(c.calculation.group_by)) : '')
-          : '—';
-
-        const tr = el('tr');
-        tr.className = 'data-row';
-        tr.dataset.vtype = 'object';
-        tr.dataset.search = (name + ' ' + aliases + ' ' + nullStrat + ' ' + calcMethod).toLowerCase();
-        tr.innerHTML = `
-      <td class="c-pkey">${i + 1}</td>
-      <td class="c-key" style="white-space:nowrap">${esc(name)}</td>
-      <td><span class="tag tag-${c.data_type || 'string'}">${esc(c.data_type || '—')}</span></td>
-      <td style="text-align:center">${c.required ? '<span style="color:var(--danger)">✓</span>' : '<span class="c-pkey">—</span>'}</td>
-      <td style="text-align:center">${c.allow_null === false ? '<span style="color:var(--danger)">no</span>' : '<span style="color:var(--muted)">yes</span>'}</td>
-      <td style="text-align:center">${c.is_calculated ? '<span style="color:var(--warn)">⟳</span>' : '<span class="c-pkey">—</span>'}</td>
-      <td style="text-align:center">${c.create_if_missing ? '<span style="color:var(--success)">yes</span>' : '<span class="c-pkey">—</span>'}</td>
-      <td class="val-str">${esc(defVal)}</td>
-      <td><span style="color:var(--accent3);font-size:11px">${esc(nullStrat)}</span></td>
-      <td><span style="color:var(--accent2);font-size:11px">${esc(calcMethod)}</span></td>
-      <td class="c-pkey" style="font-size:11px;word-break:break-all">${esc(String(calcSrc || '—'))}</td>
-      <td class="c-pkey" style="font-size:11px;max-width:220px;word-break:break-word">${esc(aliases) || '—'}</td>
-      <td style="font-size:11px;line-height:1.8">${val}</td>
-      <td style="font-size:11px;color:var(--accent3)">${c.schema_reference ? esc(c.schema_reference) : '—'}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:240px;line-height:1.7">${nhd}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:240px;line-height:1.7">${cd}</td>
-    `;
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-    // ── 4. Mappings ───────────────────────────────────────────────────────────────
-    function buildMappingsTable(mappings) {
-      const wrap = div('tbl-wrap');
-      const table = el('table');
-      table.innerHTML = `<thead><tr><th>#</th><th style="min-width:120px">Code / Key</th><th style="min-width:260px">Alias / Mapped Value</th><th style="text-align:center">Alias #</th></tr></thead>`;
-      const tbody = el('tbody');
-      let idx = 1;
-
-      Object.entries(mappings).forEach(([code, vals]) => {
-        const aliases = Array.isArray(vals) ? vals : [vals];
-        aliases.forEach((alias, ai) => {
-          const tr = el('tr');
-          tr.className = 'data-row';
-          tr.dataset.vtype = 'string';
-          tr.dataset.search = (code + ' ' + alias).toLowerCase();
-          tr.innerHTML = `
-        <td class="c-pkey">${idx++}</td>
-        <td class="c-key">${esc(code)}</td>
-        <td class="val-str">${esc(String(alias))}</td>
-        <td class="c-num" style="text-align:center">${ai + 1} / ${aliases.length}</td>
-      `;
-          tbody.appendChild(tr);
-        });
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-    // ── 5. Choices ────────────────────────────────────────────────────────────────
-    function buildChoicesTable(choices) {
-      const wrap = div('tbl-wrap');
-      const table = el('table');
-      table.innerHTML = `<thead><tr><th>#</th><th style="min-width:200px">Choice Value</th><th>Char Length</th><th style="text-align:center">Has Spaces</th><th style="text-align:center">All Uppercase</th><th style="text-align:center">All Lowercase</th></tr></thead>`;
-      const tbody = el('tbody');
-
-      choices.forEach((c, i) => {
-        const s = String(c);
-        const tr = el('tr');
-        tr.className = 'data-row';
-        tr.dataset.vtype = 'string';
-        tr.dataset.search = s.toLowerCase();
-        tr.innerHTML = `
-      <td class="c-pkey">${i + 1}</td>
-      <td class="val-str">${esc(s)}</td>
-      <td class="c-num">${s.length}</td>
-      <td style="text-align:center">${/\s/.test(s) ? '<span style="color:var(--warn)">yes</span>' : '<span class="c-pkey">no</span>'}</td>
-      <td style="text-align:center">${s === s.toUpperCase() && /[A-Z]/.test(s) ? '<span style="color:var(--success)">yes</span>' : '<span class="c-pkey">no</span>'}</td>
-      <td style="text-align:center">${s === s.toLowerCase() ? '<span style="color:var(--accent3)">yes</span>' : '<span class="c-pkey">no</span>'}</td>
-    `;
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-    // ── 6. Generic dict (document_types / tools / workflows) ─────────────────────
-    function buildDictTable(dict) {
-      const wrap = div('tbl-wrap');
-      const allSubKeys = new Set();
-      Object.values(dict).forEach(v => {
-        if (v && typeof v === 'object' && !Array.isArray(v)) Object.keys(v).forEach(k => allSubKeys.add(k));
-      });
-      const subKeys = [...allSubKeys];
-
-      const table = el('table');
-      table.innerHTML = `<thead><tr><th>#</th><th style="min-width:180px">ID / Name</th>${subKeys.map(k => `<th style="min-width:140px">${esc(k)}</th>`).join('')}</tr></thead>`;
-      const tbody = el('tbody');
-
-      Object.entries(dict).forEach(([id, entry], i) => {
-        const tr = el('tr');
-        tr.className = 'data-row';
-        tr.dataset.vtype = 'object';
-        tr.dataset.search = id.toLowerCase();
-        tr.innerHTML = `
-      <td class="c-pkey">${i + 1}</td>
-      <td class="c-key">${esc(id)}</td>
-      ${subKeys.map(k => {
-          const v = entry ? entry[k] : undefined;
-          if (v === undefined) return `<td class="c-pkey">—</td>`;
-          if (Array.isArray(v)) return `<td style="font-size:11px;color:var(--muted);line-height:1.7">${v.map(x => esc(String(x))).join('<br>')}</td>`;
-          if (typeof v === 'object') return `<td style="font-size:11px;color:var(--accent3)">${esc(Object.keys(v).join(', '))}</td>`;
-          return `<td class="val-str" style="font-size:12px">${esc(String(v))}</td>`;
-        }).join('')}
-    `;
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-    // ── 7. Schema map ─────────────────────────────────────────────────────────────
-    function buildSchemaMap(schema) {
-      const wrap = div('tbl-wrap');
-      const table = el('table');
-      table.innerHTML = `<thead><tr><th>#</th><th style="min-width:200px">Standard Column Name</th><th style="min-width:260px">Source Alias</th><th style="text-align:center">Alias Index</th></tr></thead>`;
-      const tbody = el('tbody');
-      let idx = 1;
-
-      Object.entries(schema).forEach(([std, aliases]) => {
-        const list = Array.isArray(aliases) ? aliases : [aliases];
-        list.forEach((alias, ai) => {
-          const tr = el('tr');
-          tr.className = 'data-row';
-          tr.dataset.vtype = 'string';
-          tr.dataset.search = (std + ' ' + alias).toLowerCase();
-          tr.innerHTML = `
-        <td class="c-pkey">${idx++}</td>
-        <td class="c-key">${esc(std)}</td>
-        <td class="val-str">${esc(String(alias))}</td>
-        <td class="c-num" style="text-align:center">${ai}</td>
-      `;
-          tbody.appendChild(tr);
-        });
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-    // ── 8. Parameters ─────────────────────────────────────────────────────────────
-    function buildParamsTable(params) {
-      const wrap = div('tbl-wrap');
-      const table = el('table');
-      table.innerHTML = `<thead><tr><th>#</th><th style="min-width:220px">Parameter</th><th style="min-width:80px">Type</th><th style="min-width:300px">Value</th></tr></thead>`;
-      const tbody = el('tbody');
-
-      Object.entries(params).forEach(([k, v], i) => {
-        const t = vtype(v);
-        const tr = el('tr');
-        tr.className = 'data-row';
-        tr.dataset.vtype = t;
-        tr.dataset.search = (k + ' ' + String(v)).toLowerCase();
-        tr.innerHTML = `
-      <td class="c-pkey">${i + 1}</td>
-      <td class="c-key">${esc(k)}</td>
-      <td><span class="tag tag-${t}">${t}</span></td>
-      <td>${renderVal(v, t, null, k)}</td>
-    `;
-        tbody.appendChild(tr);
-      });
-
-      table.appendChild(tbody);
-      wrap.appendChild(table);
-      return wrap;
-    }
-
-    // ── 9. Raw JSON ───────────────────────────────────────────────────────────────
-    function buildRaw(data) {
-      const wrap = div('json-raw');
-      wrap.innerHTML = syntaxHL(JSON.stringify(data, null, 2));
-      return wrap;
-    }
-
-    function syntaxHL(json) {
-      return esc(json)
-        .replace(/"((?:[^"\\]|\\.)*)"\s*:/g, '<span class="jk">"$1"</span>:')
-        .replace(/:\s*"((?:[^"\\]|\\.)*)"/g, ': <span class="jv">"$1"</span>')
-        .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="jn">$1</span>')
-        .replace(/:\s*(true|false)/g, ': <span class="jb">$1</span>')
-        .replace(/:\s*(null)/g, ': <span class="jx">$1</span>');
-    }
-
-    // ── Filter / search ───────────────────────────────────────────────────────────
-    function applyFilters() {
-      const q = (document.getElementById('search-input').value || '').toLowerCase();
-      const panel = document.querySelector('.panel.active');
-      if (!panel) return;
-      panel.querySelectorAll('.data-row').forEach(tr => {
-        const typeMatch = activeFilter === 'all' || tr.dataset.vtype === activeFilter;
-        const searchMatch = !q || (tr.dataset.search || tr.textContent.toLowerCase()).includes(q);
-        tr.style.display = typeMatch && searchMatch ? '' : 'none';
-      });
-    }
-
-    // ── Value renderers ───────────────────────────────────────────────────────────
-    function renderVal(v, t, maxLen, k) {
-      if (t === 'null') return `<span class="val-null">null</span>`;
-      if (t === 'boolean') return `<span class="${v ? 'val-bool-t' : 'val-bool-f'}">${v}</span>`;
-      if (t === 'number') return `<span class="val-num">${v}</span>`;
-      if (t === 'string') {
-        const isDesc = k && String(k).toLowerCase() === 'description';
-        const s = (!isDesc && maxLen && v.length > maxLen) ? v.substring(0, maxLen) + '…' : v;
-        return `<span class="val-str">${esc(s)}</span>`;
+      if (typeof obj === 'object') {
+        const items = Object.entries(obj).map(([key, val]) => 
+          `<div class="tree-item"><span class="tree-key">"${key}"</span>: ${renderTree(val, false, depth + 1)}</div>`
+        ).join('');
+        return `<div class="tree-item open"><div class="tree-toggle"><span class="tree-arrow">▼</span><span class="tree-value">Object</span></div><div class="tree-children">${items}</div></div>`;
       }
-      if (t === 'array') {
-        if (!v.length) return `<span class="val-arr">[] empty</span>`;
-        const prim = v.every(x => typeof x !== 'object' || x === null);
-        if (prim && v.length <= 10)
-          return `<span class="val-arr">[</span> ` + v.map(x => `<span class="val-str">${esc(String(x))}</span>`).join(', ') + ` <span class="val-arr">]</span>`;
-        return `<span class="tag tag-array">[${v.length} items]</span>`;
-      }
-      if (t === 'object') {
-        const keys = Object.keys(v);
-        if (!keys.length) return `<span class="val-arr">{} empty</span>`;
-        return `<span class="tag tag-object">{${keys.length} keys}</span> <span class="c-pkey" style="font-size:11px">${keys.slice(0, 5).map(esc).join(', ')}${keys.length > 5 ? '…' : ''}</span>`;
-      }
-      return esc(String(v));
+
+      return String(obj);
     }
 
-    function valText(row) {
-      const v = row.value, t = row.vtype;
-      if (t === 'null' || t === 'boolean' || t === 'number') return String(v);
-      if (t === 'string') return v;
-      if (t === 'array') return v.join(' ');
-      if (t === 'object') return Object.keys(v).join(' ');
-      return '';
-    }
+    jsonInput.addEventListener('input', () => {
+      if (currentFileName) {
+        loadedFiles.set(currentFileName, jsonInput.value);
+      }
+      parseAndRender();
+      renderSidebarTree();
+    });
 
-    // ── Utils ─────────────────────────────────────────────────────────────────────
-    function el(tag) { return document.createElement(tag); }
-    function div(cls) { const d = el('div'); d.className = cls; return d; }
-    function esc(s) {
-      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-    function fmtSize(b) {
-      if (!b && b !== 0) return '?';
-      if (b < 1024) return b + ' B';
-      if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
-      return (b / 1048576).toFixed(2) + ' MB';
-    }
-    function infoBox(msg, type) {
-      const d = div('info-box ' + type);
-      d.textContent = msg;
-      return d;
-    }
-    function showErr(msg) {
-      document.getElementById('welcome-panel').classList.add('hidden');
-      document.getElementById('file-view').classList.add('visible');
-      document.getElementById('panels').innerHTML = '';
-      document.getElementById('panels').appendChild(infoBox(msg, 'err'));
-    }
+    // Validate
+    document.getElementById('validateBtn').addEventListener('click', () => {
+      const resultsEl = document.getElementById('validationResults');
+      try {
+        const obj = JSON.parse(jsonInput.value);
+        resultsEl.innerHTML = '<span class="output-success">✓ JSON is valid</span><br>Schema: ' + 
+          (document.getElementById('schemaSelect').value || 'None');
+      } catch (e) {
+        resultsEl.innerHTML = '<span class="output-error">✗ Validation failed</span><br>' + e.message;
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'Enter') {
+        document.getElementById('formatBtn').click();
+      }
+      if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+        document.getElementById('copyBtn').click();
+      }
+    });
+
+    // Initialize
+    renderFileTree();
+    renderSidebarTree();
+    updateStatus();
   </script>
 </body>
-
 </html>

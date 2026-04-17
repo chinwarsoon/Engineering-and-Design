@@ -1,528 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DCC Error & Health Diagnostic Dashboard</title>
-    <!-- Modern Typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
-    <!-- Chart.js for data visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root {
-            --bg-dark: #0a0a0c;
-            --panel-bg: rgba(26, 26, 31, 0.7);
-            --accent-primary: #6366f1;
-            --accent-secondary: #ec4899;
-            --text-main: #e2e8f0;
-            --text-dim: #94a3b8;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --border: rgba(255, 255, 255, 0.1);
-            --glass-blur: blur(12px);
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Outfit', sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-dark);
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%);
-            color: var(--text-main);
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 3rem;
-        }
-
-        .title-group h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            background: linear-gradient(to right, #818cf8, #f472b6);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            letter-spacing: -1px;
-        }
-
-        .title-group p {
-            color: var(--text-dim);
-            font-size: 1rem;
-            margin-top: 0.5rem;
-        }
-
-        .controls {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .btn {
-            background: var(--accent-primary);
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 12px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            opacity: 0.9;
-            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
-        }
-
-        .btn-outline {
-            background: transparent;
-            border: 1px solid var(--border);
-            color: var(--text-main);
-        }
-
-        /* KPI Cards */
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .card {
-            background: var(--panel-bg);
-            backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 1.5rem;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .card:hover {
-            border-color: rgba(255, 255, 255, 0.2);
-            transform: translateY(-5px);
-        }
-
-        .card-label {
-            color: var(--text-dim);
-            font-size: 0.875rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .card-value {
-            font-size: 3rem;
-            font-weight: 700;
-            letter-spacing: -2px;
-            line-height: 1;
-        }
-
-        .card-footer {
-            margin-top: 1rem;
-            font-size: 0.875rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .grade {
-            position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
-            font-size: 3rem;
-            font-weight: 800;
-            opacity: 0.2;
-            font-family: 'Outfit';
-        }
-
-        /* Charts Section */
-        .chart-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-
-        .chart-container {
-            min-height: 400px;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-        }
-
-        .chart-header h3 {
-            font-size: 1.25rem;
-            font-weight: 600;
-        }
-
-        /* Table Section */
-        .table-card {
-            padding: 0;
-            overflow: hidden;
-        }
-
-        .table-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th {
-            background: rgba(255, 255, 255, 0.03);
-            padding: 1rem 1.5rem;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            color: var(--text-dim);
-            font-weight: 600;
-        }
-
-        td {
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.9rem;
-        }
-
-        tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .badge {
-            padding: 0.25rem 0.625rem;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .badge-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
-        .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-
-        .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        #empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 60vh;
-            text-align: center;
-        }
-
-        #empty-state i {
-            font-size: 4rem;
-            margin-bottom: 1rem;
-            color: var(--text-dim);
-        }
-
-        #dashboard-content {
-            display: none;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .animate-fade {
-            animation: fadeIn 0.6s ease forwards;
-        }
-
-        canvas {
-            max-width: 100% !important;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCC Error Diagnostic Dashboard</title>
+  <link rel="stylesheet" href="dcc-design-system.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    .content-scroll { flex: 1; overflow-y: auto; padding: 16px; }
+    .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; position: relative; height: 300px; }
+    .chart-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .error-table { font-size: 11px; }
+    .error-table td { padding: 6px 8px; }
+    .severity-critical { color: var(--danger); font-weight: 600; }
+    .severity-warning { color: var(--warning); font-weight: 600; }
+    .severity-info { color: var(--info); font-weight: 600; }
+    .heatmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 4px; }
+    .heatmap-cell { padding: 8px; border-radius: var(--radius-sm); text-align: center; font-size: 10px; font-weight: 600; }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="title-group">
-                <h1>DCC Diagnostic Studio</h1>
-                <p>Advanced Data Health KPI & Error Telemetry</p>
-            </div>
-            <div class="controls">
-                <button class="btn btn-outline" onclick="document.getElementById('file-input').click()">Load JSON Report</button>
-                <input type="file" id="file-input" accept=".json" onchange="handleFileUpload(event)">
-                <button class="btn">Export Summary</button>
-            </div>
-        </header>
-
-        <div id="empty-state">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 2rem; color: var(--text-dim);">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            <h2>Ready to Analyze</h2>
-            <p style="color: var(--text-dim); margin-top: 1rem; margin-bottom: 2rem;">Please load the `error_dashboard_data.json` file generated by the Reporting Engine.</p>
-            <button class="btn" onclick="document.getElementById('file-input').click()">Select Data File</button>
+  <div class="dcc-titlebar">
+    <div class="dcc-titlebar-logo">
+      <span class="logo-icon">🔍</span>
+      <span class="logo-name">Error <span class="logo-accent">Diagnostics</span></span>
+    </div>
+    <div class="dcc-titlebar-breadcrumb">
+      <span class="bc-active">Dashboard</span>
+    </div>
+    <div class="dcc-titlebar-actions">
+      <div class="theme-picker">
+        <button class="theme-btn" id="themeBtn">
+          <span class="theme-dot" id="themeDot"></span>
+          <span id="themeName">Dark</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-opt active" data-theme="dark">
+            <span class="theme-dot" style="background: #0d1117;"></span> Dark
+          </div>
+          <div class="theme-opt" data-theme="light">
+            <span class="theme-dot" style="background: #f0f4f8;"></span> Light
+          </div>
+          <div class="theme-opt" data-theme="sky">
+            <span class="theme-dot" style="background: #e0f2fe;"></span> Sky
+          </div>
+          <div class="theme-opt" data-theme="ocean">
+            <span class="theme-dot" style="background: #071520;"></span> Ocean
+          </div>
+          <div class="theme-opt" data-theme="presentation">
+            <span class="theme-dot" style="background: #f8fafc;"></span> Presentation
+          </div>
         </div>
+      </div>
+    </div>
+  </div>
 
-        <div id="dashboard-content">
-            <!-- KPI Section -->
-            <div class="kpi-grid">
-                <div class="card animate-fade" style="animation-delay: 0.1s">
-                    <div class="card-label">Overall Health</div>
-                    <div class="card-value" id="kpi-score">99.2%</div>
-                    <div class="card-footer" id="kpi-status-container">
-                        <span class="badge badge-success" id="kpi-status">HEALTHY</span>
-                        <span style="color: var(--text-dim)" id="kpi-rows">1,200 Rows Checked</span>
-                    </div>
-                    <div class="grade" id="kpi-grade">A+</div>
-                </div>
-                <div class="card animate-fade" style="animation-delay: 0.2s">
-                    <div class="card-label">Critical Issues</div>
-                    <div class="card-value" style="color: var(--danger)" id="kpi-critical">0</div>
-                    <div class="card-footer">
-                        <span style="color: var(--text-dim)">Total critical errors requiring attention</span>
-                    </div>
-                </div>
-                <div class="card animate-fade" style="animation-delay: 0.3s">
-                    <div class="card-label">Error Density</div>
-                    <div class="card-value" id="kpi-density">0.02</div>
-                    <div class="card-footer">
-                        <span style="color: var(--text-dim)">Average errors per row</span>
-                    </div>
-                </div>
-                <div class="card animate-fade" style="animation-delay: 0.4s">
-                    <div class="card-label">Clean Run Rate</div>
-                    <div class="card-value" id="kpi-clean">98%</div>
-                    <div class="card-footer">
-                        <span style="color: var(--text-dim)">% of rows with zero errors</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Section -->
-            <div class="chart-row">
-                <div class="card chart-container animate-fade" style="animation-delay: 0.5s">
-                    <div class="chart-header">
-                        <h3>Column Health Analysis</h3>
-                        <p style="font-size: 0.8rem; color: var(--text-dim)">Error distribution across dataset schema</p>
-                    </div>
-                    <div style="flex-grow: 1; position: relative;">
-                        <canvas id="columnChart"></canvas>
-                    </div>
-                </div>
-                <div class="card chart-container animate-fade" style="animation-delay: 0.6s">
-                    <div class="chart-header">
-                        <h3>Processing Phases</h3>
-                        <p style="font-size: 0.8rem; color: var(--text-dim)">Error occurrence by workflow step</p>
-                    </div>
-                    <div style="flex-grow: 1; position: relative;">
-                        <canvas id="phaseChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Detailed Log Section -->
-            <div class="card table-card animate-fade" style="animation-delay: 0.7s">
-                <div class="table-header">
-                    <h3>Diagnostic Instance Log (Top 50)</h3>
-                    <div class="controls">
-                        <span style="font-size: 0.8rem; color: var(--text-dim)">Filter by Severity:</span>
-                        <select style="background: var(--bg-dark); border: 1px solid var(--border); color: white; border-radius: 4px; padding: 2px 8px;">
-                            <option>All Severities</option>
-                            <option>Critical</option>
-                            <option>High</option>
-                            <option>Medium</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="max-height: 500px; overflow-y: auto;">
-                    <table id="error-table">
-                        <thead>
-                            <tr>
-                                <th>Row</th>
-                                <th>Column</th>
-                                <th>Code</th>
-                                <th>Severity</th>
-                                <th>Message</th>
-                            </tr>
-                        </thead>
-                        <tbody id="error-body">
-                            <!-- Injected by JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+  <div class="dcc-shell">
+    <div class="dcc-iconbar">
+      <button class="dcc-iconbar-btn active" title="Dashboard">📊</button>
+      <button class="dcc-iconbar-btn" title="Errors">✗</button>
+      <button class="dcc-iconbar-btn" title="Health">❤️</button>
+      <div class="dcc-iconbar-spacer"></div>
+      <div class="dcc-iconbar-bottom">
+        <button class="dcc-iconbar-btn" title="Help">❓</button>
+      </div>
     </div>
 
-    <script>
-        let columnChart = null;
-        let phaseChart = null;
+    <div class="dcc-sidebar">
+      <div class="dcc-sidebar-header">
+        <span>Filters</span>
+      </div>
+      <div class="dcc-sidebar-body">
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>🔍 Error Code</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body">
+            <select id="errorCodeFilter" style="width: 100%; margin-bottom: 8px;">
+              <option value="">All Errors</option>
+              <option value="E001">E001 - Missing Value</option>
+              <option value="E002">E002 - Invalid Format</option>
+              <option value="E003">E003 - Out of Range</option>
+              <option value="W001">W001 - Warning</option>
+            </select>
+          </div>
+        </div>
 
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>📋 Column</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body">
+            <select id="columnFilter" style="width: 100%; margin-bottom: 8px;">
+              <option value="">All Columns</option>
+              <option value="Document_ID">Document_ID</option>
+              <option value="Approval_Date">Approval_Date</option>
+              <option value="Review_Status">Review_Status</option>
+            </select>
+          </div>
+        </div>
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    renderDashboard(data);
-                } catch (err) {
-                    alert("Error parsing JSON file: " + err.message);
-                }
-            };
-            reader.readAsText(file);
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>⚠️ Severity</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body">
+            <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; cursor: pointer; font-size: 11px;">
+              <input type="checkbox" checked> Critical
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; cursor: pointer; font-size: 11px;">
+              <input type="checkbox" checked> Warning
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px;">
+              <input type="checkbox" checked> Info
+            </label>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; margin-top: 12px;">📥 Export Report</button>
+      </div>
+    </div>
+
+    <div class="dcc-content">
+      <div class="toolbar">
+        <span style="font-weight: 600; color: var(--text);">Error Analysis & Data Health</span>
+        <div class="toolbar-spacer"></div>
+        <button class="btn btn-sm btn-secondary">🔄 Refresh</button>
+      </div>
+
+      <div class="content-scroll">
+        <!-- Summary KPIs -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Summary</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;">
+            <div class="kpi-card">
+              <div class="kpi-value" style="color: var(--danger);">247</div>
+              <div class="kpi-label">Total Errors</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-value" style="color: var(--warning);">89</div>
+              <div class="kpi-label">Warnings</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-value" style="color: var(--success);">98%</div>
+              <div class="kpi-label">Data Health</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-value" style="color: var(--info);">12</div>
+              <div class="kpi-label">Affected Rows</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="grid-2">
+          <div class="chart-container">
+            <div class="chart-title">Error Code Frequency</div>
+            <canvas id="errorCodeChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <div class="chart-title">Data Health Distribution</div>
+            <canvas id="healthChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Error Heatmap -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Error Heatmap by Column</div>
+          <div class="card">
+            <div class="heatmap">
+              <div class="heatmap-cell" style="background: rgba(63,185,80,0.2); color: var(--success);">Document_ID<br>0</div>
+              <div class="heatmap-cell" style="background: rgba(210,153,34,0.2); color: var(--warning);">Approval_Date<br>12</div>
+              <div class="heatmap-cell" style="background: rgba(248,81,73,0.2); color: var(--danger);">Review_Status<br>45</div>
+              <div class="heatmap-cell" style="background: rgba(210,153,34,0.2); color: var(--warning);">Submitted_By<br>8</div>
+              <div class="heatmap-cell" style="background: rgba(63,185,80,0.2); color: var(--success);">Department<br>0</div>
+              <div class="heatmap-cell" style="background: rgba(248,81,73,0.2); color: var(--danger);">Discipline<br>34</div>
+              <div class="heatmap-cell" style="background: rgba(210,153,34,0.2); color: var(--warning);">Facility_Code<br>15</div>
+              <div class="heatmap-cell" style="background: rgba(63,185,80,0.2); color: var(--success);">Project_Code<br>0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Details Table -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Error Details</div>
+          <div class="card">
+            <table class="dcc-table error-table">
+              <thead>
+                <tr>
+                  <th>Row</th>
+                  <th>Column</th>
+                  <th>Error Code</th>
+                  <th>Message</th>
+                  <th>Severity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>42</td>
+                  <td>Review_Status</td>
+                  <td>E001</td>
+                  <td>Missing required value</td>
+                  <td><span class="severity-critical">Critical</span></td>
+                </tr>
+                <tr>
+                  <td>87</td>
+                  <td>Approval_Date</td>
+                  <td>E002</td>
+                  <td>Invalid date format</td>
+                  <td><span class="severity-warning">Warning</span></td>
+                </tr>
+                <tr>
+                  <td>156</td>
+                  <td>Discipline</td>
+                  <td>E003</td>
+                  <td>Value not in allowed list</td>
+                  <td><span class="severity-critical">Critical</span></td>
+                </tr>
+                <tr>
+                  <td>203</td>
+                  <td>Facility_Code</td>
+                  <td>W001</td>
+                  <td>Unusual value detected</td>
+                  <td><span class="severity-info">Info</span></td>
+                </tr>
+                <tr>
+                  <td>289</td>
+                  <td>Review_Status</td>
+                  <td>E001</td>
+                  <td>Missing required value</td>
+                  <td><span class="severity-critical">Critical</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Phase Summary -->
+        <div style="margin-bottom: 20px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Error Summary by Phase</div>
+          <div class="card">
+            <table class="dcc-table" style="font-size: 11px;">
+              <thead>
+                <tr>
+                  <th>Phase</th>
+                  <th>Errors</th>
+                  <th>Warnings</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>P1 - File Upload</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td><span class="badge badge-success">✓ Pass</span></td>
+                </tr>
+                <tr>
+                  <td>P2 - Sheet Selection</td>
+                  <td>0</td>
+                  <td>0</td>
+                  <td><span class="badge badge-success">✓ Pass</span></td>
+                </tr>
+                <tr>
+                  <td>P3 - Column Mapping</td>
+                  <td>0</td>
+                  <td>3</td>
+                  <td><span class="badge badge-warning">⚠ Warnings</span></td>
+                </tr>
+                <tr>
+                  <td>P4 - Validation</td>
+                  <td>247</td>
+                  <td>89</td>
+                  <td><span class="badge badge-danger">✗ Failed</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dcc-statusbar status-warn">
+    <div class="sb-item">⚠ 247 errors found</div>
+    <div class="sb-item">89 warnings</div>
+    <div class="sb-item-right">Data Health: 98%</div>
+  </div>
+
+  <script>
+    const themeColors = {
+      dark: '#0d1117', light: '#f0f4f8', sky: '#0a1628', ocean: '#071520', presentation: '#12082a'
+    };
+
+    // Theme switching
+    document.getElementById('themeBtn').addEventListener('click', () => {
+      document.getElementById('themeMenu').classList.toggle('open');
+    });
+
+    document.querySelectorAll('.theme-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const theme = opt.dataset.theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        document.getElementById('themeName').textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+        document.getElementById('themeDot').style.background = themeColors[theme];
+        document.getElementById('themeMenu').classList.remove('open');
+        localStorage.setItem('dcc-theme', theme);
+        document.querySelectorAll('.theme-opt').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+      });
+    });
+
+    const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.getElementById('themeName').textContent = savedTheme.charAt(0).toUpperCase() + savedTheme.slice(1);
+    document.getElementById('themeDot').style.background = themeColors[savedTheme];
+    document.querySelector(`[data-theme="${savedTheme}"]`).classList.add('active');
+
+    // Sidebar toggle
+    document.querySelectorAll('.sb-section-header').forEach(header => {
+      header.addEventListener('click', () => {
+        header.parentElement.classList.toggle('closed');
+      });
+    });
+
+    // Get theme colors for charts
+    const getChartColors = () => {
+      const style = getComputedStyle(document.documentElement);
+      return {
+        text: style.getPropertyValue('--text').trim(),
+        text2: style.getPropertyValue('--text2').trim(),
+        accent: style.getPropertyValue('--accent').trim(),
+        danger: style.getPropertyValue('--danger').trim(),
+        warning: style.getPropertyValue('--warning').trim(),
+        success: style.getPropertyValue('--success').trim(),
+        surface: style.getPropertyValue('--surface').trim(),
+        border: style.getPropertyValue('--border').trim()
+      };
+    };
+
+    // Error Code Chart
+    const errorCodeCtx = document.getElementById('errorCodeChart').getContext('2d');
+    const colors = getChartColors();
+    new Chart(errorCodeCtx, {
+      type: 'bar',
+      data: {
+        labels: ['E001', 'E002', 'E003', 'W001', 'W002'],
+        datasets: [{
+          label: 'Count',
+          data: [89, 67, 45, 34, 12],
+          backgroundColor: [colors.danger, colors.danger, colors.warning, colors.warning, colors.info],
+          borderColor: colors.border,
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { color: colors.text2 }, grid: { color: colors.border } },
+          x: { ticks: { color: colors.text2 }, grid: { color: colors.border } }
         }
+      }
+    });
 
-        function renderDashboard(data) {
-            document.getElementById('empty-state').style.display = 'none';
-            document.getElementById('dashboard-content').style.display = 'block';
-
-            const summary = data.summary;
-            const healthKpi = summary.health_kpi;
-
-            // Update KPIs
-            document.getElementById('kpi-score').textContent = healthKpi.score.toFixed(1) + '%';
-            document.getElementById('kpi-grade').textContent = healthKpi.grade;
-            document.getElementById('kpi-critical').textContent = healthKpi.critical_errors;
-            document.getElementById('kpi-density').textContent = summary.error_density;
-            document.getElementById('kpi-rows').textContent = healthKpi.total_rows.toLocaleString() + ' Rows Checked';
-            
-            const cleanRate = ((healthKpi.total_rows - summary.affected_rows) / healthKpi.total_rows * 100);
-            document.getElementById('kpi-clean').textContent = cleanRate.toFixed(1) + '%';
-
-            // Status Badge
-            const statusEl = document.getElementById('kpi-status');
-            statusEl.textContent = summary.status;
-            statusEl.className = 'badge ' + (summary.status === 'PASS' ? 'badge-success' : summary.status === 'WARNING' ? 'badge-warning' : 'badge-danger');
-
-            // Render Error Table
-            const body = document.getElementById('error-body');
-            body.innerHTML = '';
-            data.recent_errors.forEach(err => {
-                const tr = document.createElement('tr');
-                const badgeClass = err.severity === 'CRITICAL' || err.severity === 'HIGH' ? 'badge-danger' : 
-                                   err.severity === 'MEDIUM' ? 'badge-warning' : 'badge-success';
-                
-                tr.innerHTML = `
-                    <td class="mono">#${err.row}</td>
-                    <td style="font-weight: 600">${err.column || '-'}</td>
-                    <td class="mono">${err.code}</td>
-                    <td><span class="badge ${badgeClass}">${err.severity}</span></td>
-                    <td style="color: var(--text-dim)">${err.message}</td>
-                `;
-                body.appendChild(tr);
-            });
-
-            // Column Chart
-            const colLabels = data.column_health.slice(0, 10).map(i => i.column);
-            const colValues = data.column_health.slice(0, 10).map(i => i.error_count);
-
-            if (columnChart) columnChart.destroy();
-            columnChart = new Chart(document.getElementById('columnChart'), {
-                type: 'bar',
-                data: {
-                    labels: colLabels,
-                    datasets: [{
-                        label: 'Error Count',
-                        data: colValues,
-                        backgroundColor: 'rgba(99, 102, 241, 0.5)',
-                        borderColor: '#6366f1',
-                        borderWidth: 2,
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { 
-                            beginAtZero: true, 
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#94a3b8' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#94a3b8' }
-                        }
-                    }
-                }
-            });
-
-            // Phase Chart
-            const phaseLabels = data.phase_breakdown.map(p => p.Phase);
-            const phaseTotal = data.phase_breakdown.map(p => p.Total);
-            const phaseCritical = data.phase_breakdown.map(p => p.Critical);
-
-            if (phaseChart) phaseChart.destroy();
-            phaseChart = new Chart(document.getElementById('phaseChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: phaseLabels,
-                    datasets: [{
-                        data: phaseTotal,
-                        backgroundColor: [
-                            '#6366f1',
-                            '#ec4899',
-                            '#f59e0b',
-                            '#10b981'
-                        ],
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: { color: '#94a3b8', padding: 20, usePointStyle: true }
-                        }
-                    },
-                    cutout: '70%'
-                }
-            });
+    // Health Distribution Chart
+    const healthCtx = document.getElementById('healthChart').getContext('2d');
+    new Chart(healthCtx, {
+      type: 'line',
+      data: {
+        labels: ['60%', '70%', '80%', '90%', '95%', '98%', '99%', '100%'],
+        datasets: [{
+          label: 'Rows',
+          data: [2, 5, 12, 34, 89, 156, 234, 715],
+          borderColor: colors.accent,
+          backgroundColor: colors.accent + '20',
+          tension: 0.4,
+          fill: true,
+          pointBackgroundColor: colors.accent,
+          pointBorderColor: colors.surface
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { color: colors.text2 }, grid: { color: colors.border } },
+          x: { ticks: { color: colors.text2 }, grid: { color: colors.border } }
         }
-    </script>
+      }
+    });
+  </script>
 </body>
 </html>

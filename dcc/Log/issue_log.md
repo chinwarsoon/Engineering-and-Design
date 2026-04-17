@@ -412,4 +412,22 @@ WARNING: No handler registered for calculation type: extract_affixes/extract_doc
 [issue #17] tools/project_setup_tools.py should be updated to establish a new project folder, copies all necessary files, and configure schemas
 
 - `[status]`: open
-- `[Link to changes in update_log.md]`: 
+- `[Link to changes in update_log.md]`:
+
+## 2026-04-18 18:00:00
+[Issue #23]: Phase 5 — AI Integration & Advanced Analytics planning required. Define scope, deliverables, and implementation workplan for Phase 5 sub-phases (5.1–5.5).
+
+**Scope:**
+- 5.1: `ai_analysis_engine.py` — connect to local Ollama LLM (Llama 3.1 8B) for comment categorisation, risk flagging, and status summarisation
+- 5.2: `ai_analysis_dashboard.html` — display AI insights, risk heatmap, confidence scores
+- 5.3: Real-time pipeline monitoring via WebSocket/SSE in `pipeline_dashboard.html`
+- 5.4: FastAPI/Flask backend with DuckDB persistence and REST endpoints for UI tools
+- 5.5: Multi-format export engine (DuckDB + Excel + PDF) triggered from Pipeline Dashboard
+
+**Dependencies:**
+- Phase 4 UI tools (complete ✔)
+- Ollama running locally with `llama3.1:8b` model
+- `dcc_engine_pipeline.py` must expose a streaming endpoint for 5.3
+
+- `[Status]`: Open
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#phase5-planning)
