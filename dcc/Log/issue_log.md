@@ -19,6 +19,37 @@
 
 # Section 2. Pending Issues
 
+<a id="issue32-verbose-levels"></a>
+## 2026-04-19 11:30:00
+[Issue #32]: Pipeline output too verbose for user-facing messages
+- [Status]: RESOLVED
+- [Context]: dcc_engine_pipeline.py outputs debug trees, full paths, internal tracking - not simplified for end users
+- [Root Cause]: No --verbose argument with level control; all status/debug prints shown regardless
+- [File Changes]: 
+  - initiation_engine/utils/cli.py
+  - initiation_engine/utils/logging.py
+  - initiation_engine/__init__.py
+  - dcc_engine_pipeline.py
+  - schema_engine/loader/*.py
+- [Resolution]: Added --verbose argument with 4 levels (quiet/normal/debug/trace), framework banner visible at all levels
+- [Link to Update Log]: See update_log.md
+
+---
+
+<a id="issue31-json-output"></a>
+## 2026-04-19 10:30:00
+[Issue #31]: JSON type columns still have string output in Excel
+- [Status]: RESOLVED
+- [Context]: dcc_register_config.json defines columns with column_type: "json_column", but calculated output is still string/CSV format instead of JSON arrays
+- [Root Cause]: In aggregate.py line 86, code checks `data_type == 'json'` but schema uses `column_type: 'json_column'`. The wrong attribute is checked.
+- [File Changes]: 
+  - dcc/workflow/processor_engine/calculations/aggregate.py
+- [Resolution]: Changed line 86 to also check column_type == 'json_column'
+  - is_json = engine.columns.get(column_name, {}).get('data_type') == 'json' → is_json = engine.columns.get(column_name, {}).get('column_type') == 'json_column'
+- [Link to Update Log]: See update_log.md
+
+---
+
 ## 2026-04-12 00:00:00
 [Issue # 2]: For preserve existing data per certain conditions, the current implementation is to add a new rule in the schema. This approach is not scalable and maintainable. To consider a more scalable and maintainable approach.
 - [Status]: Open

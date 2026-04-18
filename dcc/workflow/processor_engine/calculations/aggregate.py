@@ -83,7 +83,8 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
     # Calculate for target rows
     grouped = df.groupby(group_by, dropna=False)
 
-    is_json = engine.columns.get(column_name, {}).get('data_type') == 'json'
+    col_def = engine.columns.get(column_name, {})
+    is_json = col_def.get('data_type') == 'json' or col_def.get('column_type') == 'json_column'
 
     if method == 'count':
         calculated = grouped[source_column].transform('count')

@@ -7,6 +7,81 @@
 
 # Section 2. Log entries
 
+<a id="issue32-verbose-levels"></a>
+## 2026-04-19 11:45:00
+
+### Issue #32 — Pipeline output verbosity control
+
+**Status:** RESOLVED
+
+**Problem:** Pipeline outputs debug trees, full paths, internal tracking - not simplified for end users.
+
+**Root Cause:** No --verbose argument with level control; all status/debug prints shown regardless.
+
+**Fix:** Added 4-level verbosity control:
+- Added `--verbose` argument (quiet/normal/debug/trace)
+- Changes set DEBUG_LEVEL globally
+- Added `print_framework_banner()` visible at ALL levels
+- Added `get_verbose_mode()` helper
+- Updated schema_engine loaders to respect DEBUG_LEVEL
+
+**CLI usage:**
+```bash
+python dcc_engine_pipeline.py --verbose quiet    # Errors + final summary only
+python dcc_engine_pipeline.py --verbose normal # Milestones + KPIs (default)
+python dcc_engine_pipeline.py --verbose debug   # Warnings + context
+python dcc_engine_pipeline.py -v trace      # All details + stack traces
+```
+
+**Framework banner (visible at ALL levels):**
+```
+╔ DCC Pipeline v3.0 | Input: file.xlsx | Mode: normal ═╗
+║  Mode: normal                                       ║
+╚═══════════════════════════════════════════════════════╝
+```
+
+**Files Changed:**
+- initiation_engine/utils/cli.py
+- initiation_engine/utils/logging.py
+- initiation_engine/__init__.py
+- dcc_engine_pipeline.py
+- schema_engine/loader/schema_loader.py
+- schema_engine/loader/schema_cache.py
+- schema_engine/loader/ref_resolver.py
+- schema_engine/loader/dependency_graph.py
+
+---
+
+<a id="issue31-json-output"></a>
+## 2026-04-19 10:45:00
+
+### Issue #31 — JSON type columns still have string output in Excel
+
+**Status:** RESOLVED
+
+**Problem:** Columns defined with `column_type: "json_column"` in schema produce CSV-style string output instead of JSON arrays.
+
+**Root Cause:** In `aggregate.py` line 86, code checks `data_type == 'json'` but schema uses `column_type: 'json_column'`.
+
+**Fix:** Changed to check both attributes:
+```python
+# Before:
+is_json = engine.columns.get(column_name, {}).get('data_type') == 'json'
+
+# After:
+col_def = engine.columns.get(column_name, {})
+is_json = col_def.get('data_type') == 'json' or col_def.get('column_type') == 'json_column'
+```
+
+**Verification:** JSON columns now output proper JSON arrays:
+- All_Submission_Sessions: ["000001"]
+- All_Submission_Dates: ["2023-05-15", "2024-05-13"]
+- All_Submission_Session_Revisions: ["00", "01"]
+
+**File Changed:** dcc/workflow/processor_engine/calculations/aggregate.py
+
+---
+
 <a id="issue30-env-fix"></a>
 ## 2026-04-19 03:00:00
 

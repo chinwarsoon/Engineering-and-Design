@@ -407,3 +407,51 @@ def set_debug_mode(enabled: bool) -> None:
     Kept for backward compatibility.
     """
     set_debug_level(2 if enabled else 1)
+
+
+# =============================================================================
+# FRAMEWORK BANNER (ALWAYS VISIBLE)
+# =============================================================================
+
+def print_framework_banner(
+    input_file: str = None,
+    output_dir: str = None,
+    version: str = "3.0",
+) -> None:
+    """
+    Print default framework banner (visible at ALL verbosity levels).
+    
+    Args:
+        input_file: Input Excel filename
+        output_dir: Output directory path
+        version: Pipeline version
+    """
+    mode = {0: "quiet", 1: "normal", 2: "debug", 3: "trace"}.get(DEBUG_LEVEL, "normal")
+    
+    # Simplify paths to basenames
+    input_name = Path(input_file).name if input_file else "stdin"
+    output_name = Path(output_dir).name if output_dir else "output"
+    
+    if DEBUG_LEVEL == 0:
+        # Quiet mode - minimal single line
+        banner = f"╔ DCC Pipeline v{version} | Input: {input_name} | Mode: quiet ═╗"
+    elif DEBUG_LEVEL == 1:
+        # Normal mode - clean milestone
+        banner = f"""╔═══════════════════════════════════════════════════════╗
+║  DCC Pipeline v{version} | Input: {input_name}     ║
+║  Mode: {mode:^43}║
+╚═══════════════════════════════════════════════════════╝"""
+    else:
+        # Debug/trace mode - with context
+        banner = f"""╔═══════════════════════════════════════════════════════════════╗
+║  DCC Pipeline v{version} | Input: {input_name} | Mode: {mode} ═╗
+║  Output: {output_name:<49}║
+║  DEBUG {'ENABLED' if DEBUG_LEVEL >= 2 else 'DISABLED':<49}║
+╚═══════════════════════════════════════════════════════════════════════╝"""
+    
+    builtins.print(banner, flush=True)
+
+
+def get_verbose_mode() -> str:
+    """Get current verbosity mode as string."""
+    return {0: "quiet", 1: "normal", 2: "debug", 3: "trace"}.get(DEBUG_LEVEL, "normal")

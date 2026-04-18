@@ -2,9 +2,14 @@ import argparse
 from pathlib import Path
 from typing import Tuple, Dict, Any
 
-# Assuming these are your custom logger functions
-# Use relative imports since it's inside the package
-from .logging import status_print, debug_print 
+from .logging import status_print, debug_print, set_debug_level
+
+VERBOSE_LEVELS = {
+    "quiet": 0,
+    "normal": 1,
+    "debug": 2,
+    "trace": 3,
+}
 
 def create_parser(base_path: Path) -> argparse.ArgumentParser:
     """Create CLI argument parser."""
@@ -18,7 +23,8 @@ def create_parser(base_path: Path) -> argparse.ArgumentParser:
     parser.add_argument("--end-col", default=None, help="Input Excel end column.")
     parser.add_argument("--header-row", type=int, default=None, help="Header row index.")
     parser.add_argument("--overwrite", choices=["True", "False"], default=None, help="Overwrite output file.")
-    parser.add_argument("--debug-mode", choices=["True", "False"], default=None, help="Enable debug output.")
+    parser.add_argument("--verbose", "-v", choices=["quiet", "normal", "debug", "trace"], default="normal", help="Output verbosity level.")
+    parser.add_argument("--debug-mode", choices=["True", "False"], default=None, help="(DEPRECATED) Use --verbose debug instead.")
     parser.add_argument("--nrows", type=int, default=None, help="Optional row limit.")
     parser.add_argument("--json", action="store_true", help="Print final result as JSON.")
     return parser
@@ -30,11 +36,16 @@ def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, D
     if base_path is None:
         base_path = default_base_path()
         
-    status_print("Reading CLI arguments...")
+    # Create parser and parse BEFORE setting level to capture --verbose
     parser = create_parser(base_path)
     args, unknown_args = parser.parse_known_args()
     
-    cli_args: Dict[str, Any] = {}
+    # Set verbosity level FIRST (before any status prints)
+    verbose_level = VERBOSE_LEVELS.get(args.verbose, 1)
+    set_debug_level(verbose_level)
+    
+    cli_args: Dict[str, Any] = {"verbose_level": args.verbose}
+    
     if args.schema_file:
         cli_args["schema_register_file"] = args.schema_file
     if args.excel_file:
@@ -43,7 +54,7 @@ def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, D
         cli_args["upload_sheet_name"] = args.upload_sheet
     if args.output_file:
         cli_args["output_file"] = args.output_file
-        cli_args["download_file_path"] = str(safe_resolve(Path(args.output_file)).parent)
+        cli_args["download_file_path"] = str(Path(args.output_file).resolve().parent)
     if args.start_col:
         cli_args["start_col"] = args.start_col
     if args.end_col:
@@ -58,9 +69,11 @@ def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, D
     if unknown_args:
         debug_print(f"Ignoring unknown CLI arguments: {unknown_args}")
     
-    if cli_args:
-        status_print(f"CLI overrides detected. CLI values: {cli_args}")
-    else:
-        status_print("No CLI overrides provided.")
+    # Only show CLI status at level >= 1
+    if args.verbose in ["normal", "debug", "trace"]:
+        if cli_args:
+            status_print(f"CLI overrides detected. CLI values: {cli_args}")
+        else:
+            status_print("No CLI overrides provided.")
     
     return args, cli_args

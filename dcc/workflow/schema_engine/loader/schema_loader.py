@@ -17,18 +17,30 @@ from .ref_resolver import RefResolver, SchemaNotRegisteredError, RefResolutionEr
 from .dependency_graph import SchemaDependencyGraph, CircularDependencyError
 
 # Lazy imports to break circular dependency with initiation_engine
-# These wrapper functions only import when actually called
 _status_print = None
 _debug_print = None
 _log_error = None
+_DEBUG_LEVEL = 1  # Default, matches initiation_engine
+
+def _get_debug_level() -> int:
+    """Get debug level from initiation_engine if available."""
+    global _DEBUG_LEVEL
+    try:
+        from initiation_engine.utils.logging import DEBUG_LEVEL
+        _DEBUG_LEVEL = DEBUG_LEVEL
+    except ImportError:
+        pass
+    return _DEBUG_LEVEL
 
 def status_print(msg: str) -> None:
     """Print status message."""
-    print(f"STATUS: {msg}")
+    if _get_debug_level() >= 1:
+        print(f"STATUS: {msg}")
 
 def debug_print(msg: str, level: int = 1) -> None:
     """Print debug message."""
-    print(f"DEBUG[{level}]: {msg}")
+    if _get_debug_level() >= level:
+        print(f"DEBUG[{level}]: {msg}")
 
 def log_error(msg: str, module: str = "", function: str = "", fatal: bool = True):
     """Log error message (lazy import)."""

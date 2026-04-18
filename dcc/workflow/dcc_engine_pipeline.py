@@ -45,6 +45,8 @@ from initiation_engine import (
     save_debug_log,
     build_native_defaults,
     resolve_effective_parameters,
+    print_framework_banner,
+    get_verbose_mode,
 )
 from schema_engine import (
     SchemaValidator,
@@ -250,34 +252,24 @@ def run_engine_pipeline(
 def main() -> int:
     """Main entry point for DCC Engine Pipeline."""
     
-    # Print pipeline banner
-    print("DCC Register Universal Processing Pipeline")
-    print("=" * 80)
-    print("Enhanced Features:")
-    print("- Universal Column Mapper: Fuzzy header detection with schema integration")
-    print("- Universal Document Processor: Schema-driven calculations and null handling")
-    print("- Enhanced Schema System: Modular configuration with external references")
-    print("- Multi-format Export: Excel, CSV, JSON with comprehensive reporting")
-    print("=" * 80)
+    # 1. Parse CLI args (this also sets debug level via --verbose)
+    args, cli_args = parse_cli_args()
     
-    # 1. Centrally manage base_path
-    args, cli_args = parse_cli_args() # default_base_path is called inside parse_cli_args if not provided
+    # 2. Print framework banner (visible at ALL levels)
+    input_file = cli_args.get("upload_file_name", "Submittal and RFI Tracker Lists.xlsx")
     base_path = safe_resolve(Path(args.base_path))
-    status_print(f"  Project root path: {base_path}")
+    output_dir = base_path / "output"
+    print_framework_banner(input_file=input_file, output_dir=str(output_dir))
     
-    # Handle Windows HOME env issues
+    # 3. Handle Windows HOME env issues
     local_home = get_homedir()
-    status_print(f"  Resolved home directory: {local_home}")
+    if get_verbose_mode() in ["debug", "trace"]:
+        status_print(f"  Resolved home directory: {local_home}")
     
-    # 2. Build parameters using the central base_path
+    # 4. Build parameters using the central base_path
     native_defaults = build_native_defaults(base_path)
 
-    # Set debug mode
-    debug_mode = bool(cli_args.get("debug_dev_mode", native_defaults.get("debug_dev_mode", False)))
-    status_print(f"Debug mode: {debug_mode}")
-    set_debug_mode(debug_mode)
-
-    # 3. Test environment using central base_path
+    # 5. Test environment using central base_path
     environment = test_environment(base_path=base_path)
     if not environment["ready"]:
         payload = {
@@ -289,7 +281,7 @@ def main() -> int:
         if args.json:
             print(json.dumps(payload, indent=2))
         else:
-            status_print("Environment test failed.")
+            log_error("Environment test failed", module="pipeline")
         return 1
 
     # 4. Resolve the main schema path
@@ -313,7 +305,6 @@ def main() -> int:
             schema_path=schema_path,
             effective_parameters=effective_parameters,
             nrows=args.nrows,
-            debug_mode=debug_mode,
         )
     except Exception as exc:
         payload = {
@@ -327,9 +318,6 @@ def main() -> int:
             print(json.dumps(payload, indent=2))
         else:
             log_error(f"PIPELINE ERROR: {exc}", module="pipeline")
-            import traceback
-            if debug_mode:
-                traceback.print_exc()
         return 1
     
     results["environment"] = environment
