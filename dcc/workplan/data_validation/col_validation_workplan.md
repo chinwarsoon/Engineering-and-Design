@@ -115,7 +115,7 @@ The final phase aggregates all detected errors and computes the overall data qua
 
 ## Final Phase Reports (Summary)
 
-Each phase will produce a report within the `dcc/output/` directory:
-1. `col_validation_p1_integrity.json`: Statistics on nulls and pattern failures.
-2. `col_validation_p2_domain.json`: Schema match rates and range violations.
-3. `col_validation_p3_final.json`: Final health scores and aggregated error summary.
+Each phase will produce a report within the `dcc/workplan/data_validation` directory:
+1. `col_validation_p1_integrity.md`: Statistics on nulls and pattern failures.
+2. `col_validation_p2_domain.md`: Schema match rates and range violations.
+3. `col_validation_p3_final.md`: Final health scores and aggregated error summary.

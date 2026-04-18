@@ -73,7 +73,7 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
     1. Keep NO if already NO
     2. Set to NO if submission is closed
     3. Set to RESUBMITTED if not the latest submission (resubmission already done)
-    4. Set to PEN if latest submission and awaiting review return
+    4. Set to PENDING if latest submission and awaiting review return
     5. Default to YES for remaining rows
     
     Respects strategy configuration for data preservation.
@@ -135,7 +135,7 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
         df.loc[mask_not_latest, column_name] = 'RESUBMITTED'
         determined_mask |= mask_not_latest
 
-    # Condition 4: Set to PEN if latest submission and awaiting review return
+    # Condition 4: Set to PENDING if latest submission and awaiting review return
     if review_return_col and submission_date_col and document_id_col:
         df[review_return_col] = pd.to_datetime(df[review_return_col], errors='coerce')
         latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
@@ -144,14 +144,14 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
             df[review_return_col].isna() &
             ~determined_mask
         )
-        df.loc[mask_pending, column_name] = 'PEN'
+        df.loc[mask_pending, column_name] = 'PENDING'
         determined_mask |= mask_pending
 
     # Condition 5: Default YES - already set for all remaining undetermined rows
 
     engine._print_processing_step("Conditional", column_name, 
         f"Applied: {(df[column_name] == 'NO').sum()} NO, {(df[column_name] == 'RESUBMITTED').sum()} RESUBMITTED, "
-        f"{(df[column_name] == 'PEN').sum()} PEN, {(df[column_name] == 'YES').sum()} YES")
+        f"{(df[column_name] == 'PENDING').sum()} PENDING, {(df[column_name] == 'YES').sum()} YES")
     return df
 
 

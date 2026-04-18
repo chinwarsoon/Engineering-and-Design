@@ -169,87 +169,87 @@
     }
   ],
   "column_sequence": [
-      "Row_Index",
-      "Transmittal_Number",
-      "Submission_Session",
-      "Submission_Session_Revision",
-      "Submission_Session_Subject",
-      "Department",
-      "Submitted_By",
-      "Submission_Date",
+    "Row_Index",
+    "Transmittal_Number",
+    "Submission_Session",
+    "Submission_Session_Revision",
+    "Submission_Session_Subject",
+    "Department",
+    "Submitted_By",
+    "Submission_Date",
+    "Project_Code",
+    "Facility_Code",
+    "Document_Type",
+    "Discipline",
+    "Document_Sequence_Number",
+    "Document_ID",
+    "Document_ID_Affixes",
+    "Document_Revision",
+    "Document_Title",
+    "Reviewer",
+    "Review_Return_Actual_Date",
+    "Review_Return_Plan_Date",
+    "Review_Status",
+    "Review_Status_Code",
+    "Review_Comments",
+    "Duration_of_Review",
+    "Approval_Code",
+    "First_Submission_Date",
+    "Latest_Submission_Date",
+    "Latest_Revision",
+    "All_Submission_Sessions",
+    "All_Submission_Dates",
+    "All_Submission_Session_Revisions",
+    "Count_of_Submissions",
+    "Latest_Approval_Status",
+    "Latest_Approval_Code",
+    "All_Approval_Code",
+    "Consolidated_Submission_Session_Subject",
+    "Submission_Closed",
+    "Resubmission_Required",
+    "Resubmission_Plan_Date",
+    "Resubmission_Forecast_Date",
+    "Resubmission_Overdue_Status",
+    "Delay_of_Resubmission",
+    "Notes",
+    "Submission_Reference_1",
+    "Internal_Reference",
+    "This_Submission_Approval_Code",
+    "Validation_Errors",
+    "Data_Health_Score"
+  ],
+  "column_groups": {
+    "document_info": [
       "Project_Code",
       "Facility_Code",
       "Document_Type",
       "Discipline",
       "Document_Sequence_Number",
       "Document_ID",
-      "Document_ID_Affixes",
       "Document_Revision",
-      "Document_Title",
-      "Reviewer",
-      "Review_Return_Actual_Date",
-      "Review_Return_Plan_Date",
-      "Review_Status",
-      "Review_Status_Code",
-      "Review_Comments",
-      "Duration_of_Review",
-      "Approval_Code",
-      "First_Submission_Date",
-      "Latest_Submission_Date",
-      "Latest_Revision",
-      "All_Submission_Sessions",
-      "All_Submission_Dates",
-      "All_Submission_Session_Revisions",
-      "Count_of_Submissions",
-      "Latest_Approval_Status",
-      "Latest_Approval_Code",
-      "All_Approval_Code",
-      "Consolidated_Submission_Session_Subject",
-      "Submission_Closed",
-      "Resubmission_Required",
-      "Resubmission_Plan_Date",
-      "Resubmission_Forecast_Date",
-      "Resubmission_Overdue_Status",
-      "Delay_of_Resubmission",
-      "Notes",
-      "Submission_Reference_1",
-      "Internal_Reference",
-      "This_Submission_Approval_Code",
-      "Validation_Errors",
-      "Data_Health_Score"
+      "Document_Title"
     ],
-  "column_groups": {
-      "document_info": [
-        "Project_Code",
-        "Facility_Code",
-        "Document_Type",
-        "Discipline",
-        "Document_Sequence_Number",
-        "Document_ID",
-        "Document_Revision",
-        "Document_Title"
-      ],
-      "submission_info": [
-        "Transmittal_Number",
-        "Submission_Session",
-        "Submission_Session_Revision",
-        "Submission_Session_Subject",
-        "Department",
-        "Submitted_By",
-        "Submission_Date"
-      ],
-      "review_info": [
-        "Review_Status",
-        "Approval_Code",
-        "Review_Return_Actual_Date"
-      ],
-      "metadata": [
-        "Department",
-        "Discipline",
-        "Project_Code",
-        "Facility_Code"
-      ]
-    },
+    "submission_info": [
+      "Transmittal_Number",
+      "Submission_Session",
+      "Submission_Session_Revision",
+      "Submission_Session_Subject",
+      "Department",
+      "Submitted_By",
+      "Submission_Date"
+    ],
+    "review_info": [
+      "Review_Status",
+      "Approval_Code",
+      "Review_Return_Actual_Date"
+    ],
+    "metadata": [
+      "Department",
+      "Discipline",
+      "Project_Code",
+      "Facility_Code"
+    ]
+  },
   "columns": {
     "Row_Index": {
       "aliases": [
@@ -1920,7 +1920,19 @@
         "auto_format": true,
         "timezone_aware": false
       },
-      "processing_phase": "P3"
+      "processing_phase": "P3",
+      "strategy": {
+        "data_preservation": {
+          "mode": "overwrite_existing"
+        },
+        "processing_sequence": {
+          "calculation_timing": "first",
+          "null_handling_timing": "skip"
+        },
+        "fallback": {
+          "type": "leave_null"
+        }
+      }
     },
     "Resubmission_Forecast_Date": {
       "aliases": [

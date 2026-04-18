@@ -420,60 +420,191 @@ The foundation is in place. Implementation will follow a modular approach to ens
 
 ---
 
-## 🗓️ Phase 5: AI Integration & Advanced Analytics (Weeks 9-10) ⏳ PLANNING
+## 🗓️ Phase 5: AI Operations, Workplan Engine & Live Monitoring (Weeks 9-10) ⏳ PLANNING
 
 ### Overview
-Extend the universal processing system with AI-powered analysis, server-side persistence, and real-time pipeline monitoring. Build on the Phase 4 UI foundation to deliver intelligent document insights.
+Phase 5 will extend the current pipeline with a new AI-oriented engine designed under the `dcc/workplan/` domain first, so the workplan, scope, architecture, and phase deliverables are reviewed before implementation begins. This phase builds on the existing diagnostics baseline already available in the pipeline, including `Validation_Errors`, `Data_Health_Score`, `processing_summary.txt`, and `error_dashboard_data.json`.
 
-### 5.1 AI Analysis Engine
-**Status:** ⏳ Planned
-**File:** `dcc/ai_analysis_engine.py`
-- Connect to local LLM via Ollama (Llama 3.1 8B)
-- Automated comment categorisation and risk flagging
-- Document status summarisation
-- Anomaly detection in submission timelines
+### Planning Principles
+- The new engine shall be defined under a dedicated `dcc/workplan/` phase workplan before any production module is created under `dcc/workflow/`.
+- The workplan must define scope, inputs, outputs, dependencies, success criteria, and test strategy for each sub-phase.
+- The implementation must remain compatible with the current DCC engine pipeline and existing reporting outputs.
+- Each completed sub-phase must produce a phase report under a dedicated report folder before the next sub-phase is marked complete.
 
-### 5.2 AI Dashboard Integration
-**Status:** ⏳ Planned
-**File:** `dcc/ui/ai_analysis_dashboard.html`
-- Display AI-generated insights alongside pipeline data
-- Risk heatmap by discipline and document type
-- Comment sentiment and category breakdown
-- Confidence scores per AI prediction
+### Existing Baseline (Already Implemented)
+**Status:** ✅ Available in current pipeline
+- Structured row-level diagnostics through `Validation_Errors`
+- Row-level quality scoring through `Data_Health_Score`
+- Text summary reporting through `processing_summary.txt`
+- JSON telemetry export through `error_dashboard_data.json`
+- Diagnostic UI support through existing dashboard and log explorer tools
 
-### 5.3 Real-Time Pipeline Monitoring
+### 5.1 Phase 5 Workplan & Engine Architecture
 **Status:** ⏳ Planned
-- WebSocket or SSE connection from Pipeline Dashboard to `dcc_engine_pipeline.py`
-- Live step progress, log streaming, and error alerts
-- Replace current static JSON polling
+**Primary Planning Area:** `dcc/workplan/`
+- Create the Phase 5 workplan package and define the new engine architecture before coding
+- Define engine purpose, module boundaries, I/O contracts, and integration points
+- Specify where the eventual production engine should live under `dcc/workflow/` after approval
+- Define archive, report, and test output locations for this phase
 
-### 5.4 Server-Side Persistence
-**Status:** ⏳ Planned
-- Lightweight FastAPI or Flask backend
-- Persist processed outputs and schema versions to DuckDB
-- REST endpoints for UI tools to query data without file I/O
+**Planned Workplan Files and Folders**
+- `dcc/workplan/ai_operations/` — new Phase 5 planning folder
+- `dcc/workplan/ai_operations/ai_operations_workplan.md` — master Phase 5 workplan
+- `dcc/workplan/ai_operations/phase5_engine_design.md` — engine/module design and dependency map
+- `dcc/workplan/ai_operations/phase5_io_contract.md` — input/output contract, schemas, and interfaces
+- `dcc/workplan/ai_operations/phase5_test_strategy.md` — planned tests, sample data, and acceptance criteria
+- `dcc/workplan/ai_operations/reports/` — required phase reports after each completed sub-phase
 
-### 5.5 Multi-Format Export
+**Planned New Engine**
+- `AI Operations Engine` — a new engine planned after approval, aligned with existing `dcc/workflow/*_engine` structure
+- Planned production folder: `dcc/workflow/ai_ops_engine/`
+- Role: transform deterministic pipeline outputs into structured AI-ready insights, live run events, and governed reporting artifacts
+
+**Planned Core Modules**
+- `dcc/workflow/ai_ops_engine/__init__.py` — engine exports and package entry point
+- `dcc/workflow/ai_ops_engine/core/engine.py` — main orchestrator for AI operations flow
+- `dcc/workflow/ai_ops_engine/core/contracts.py` — typed request/response contracts for engine inputs and outputs
+- `dcc/workflow/ai_ops_engine/core/context_builder.py` — prepare model-ready context from processed data, error JSON, and summaries
+- `dcc/workflow/ai_ops_engine/core/evidence.py` — link AI findings back to row, column, phase, and source file evidence
+- `dcc/workflow/ai_ops_engine/providers/ollama_provider.py` — local LLM adapter for Ollama
+- `dcc/workflow/ai_ops_engine/providers/base.py` — provider interface and fallback behavior
+- `dcc/workflow/ai_ops_engine/analyzers/risk_analyzer.py` — compute risk clusters and severity bands
+- `dcc/workflow/ai_ops_engine/analyzers/trend_analyzer.py` — compare runs and detect recurring issue patterns
+- `dcc/workflow/ai_ops_engine/analyzers/summary_generator.py` — produce structured executive summaries
+- `dcc/workflow/ai_ops_engine/persistence/run_store.py` — save and load run metadata and insight payloads
+- `dcc/workflow/ai_ops_engine/streaming/event_stream.py` — standard event payloads for SSE/WebSocket updates
+- `dcc/workflow/ai_ops_engine/utils/logging.py` — tiered logging helpers for the new engine
+- `dcc/workflow/ai_ops_engine/utils/serializers.py` — normalize JSON-safe outputs for UI and persistence
+
+**Planned Key Functions**
+- `build_ai_context()` — combine processed dataset, diagnostics, and summary into a model-ready context object
+- `generate_ai_insights()` — call provider and return structured insights
+- `validate_ai_output()` — verify response structure and required fields before downstream use
+- `attach_evidence_links()` — map each insight back to deterministic pipeline evidence
+- `summarize_operational_risk()` — build dataset-level risk summary for dashboard/report use
+- `store_run_snapshot()` — persist run outputs, schema version, and insight metadata
+- `stream_pipeline_event()` — emit live step/update events for dashboard consumption
+- `build_reporting_pack_manifest()` — define all report artifacts produced for one run
+
+### 5.2 AI Insight Engine
 **Status:** ⏳ Planned
-- Simultaneous export to DuckDB, Excel, and PDF summary
-- Scheduled export triggers from Pipeline Dashboard
-- PDF report template with KPI tiles and charts
+**Planned Production Area:** `dcc/workflow/` (after workplan approval)
+- Consume processed outputs and diagnostic telemetry
+- Generate structured AI insight objects instead of free-form text only
+- Classify risks, recurring issues, and likely root causes
+- Provide explainable recommendations with confidence and evidence links
+
+**Planned AI Insight Inputs**
+- `dcc/output/error_dashboard_data.json`
+- `dcc/output/processing_summary.txt`
+- Processed CSV / Excel output files from the main pipeline
+- Resolved schema metadata and selected rule context where required
+
+**Planned AI Insight Output Files**
+- `dcc/output/ai_insight_summary.json` — structured insight payload for UI and downstream processing
+- `dcc/output/ai_insight_report.md` — human-readable insight summary
+- `dcc/output/ai_insight_trace.json` — traceability map between AI findings and deterministic evidence
+
+### 5.3 AI Dashboard Integration
+**Status:** ⏳ Planned
+**Planned UI Area:** `dcc/ui/`
+- Display AI-generated insight cards beside deterministic pipeline metrics
+- Show anomaly summaries, risk clusters, and issue trend views
+- Allow drill-down from insight to row, column, phase, and error code evidence
+- Clearly separate AI-generated interpretation from rule-based pipeline facts
+
+**Planned UI Files**
+- `dcc/ui/ai_analysis_dashboard.html` — main AI insight dashboard
+- `dcc/ui/ai_analysis_dashboard_data_example.json` — sample UI data for offline testing
+- `dcc/ui/ai_analysis_dashboard_readme.md` or equivalent documentation entry under `dcc/docs/`
+
+**Planned UI Modules / Functions**
+- `loadAiInsightData()` — load AI and deterministic diagnostic outputs
+- `renderInsightCards()` — render summary and priority findings
+- `renderEvidencePanel()` — show linked row/column/error evidence for each finding
+- `renderTrendView()` — show recurring issue patterns across runs
+- `applyInsightFilters()` — filter by severity, phase, discipline, and source
+- `exportAiReport()` — export filtered AI findings for review
+
+### 5.4 Live Pipeline Monitoring
+**Status:** ⏳ Planned
+- Add SSE or WebSocket-based live execution progress for the existing pipeline
+- Stream step status, warnings, fail-fast events, and export completion
+- Preserve the current file-based reporting flow as fallback mode
+- Reuse existing tiered logging and structured debug outputs
+
+**Planned Monitoring Files**
+- `dcc/workflow/ai_ops_engine/streaming/event_stream.py`
+- `dcc/workflow/ai_ops_engine/streaming/sse_bridge.py`
+- `dcc/workflow/dcc_engine_pipeline.py` — planned integration points only after approval
+
+**Planned Monitoring Functions**
+- `emit_pipeline_status()` — publish step-level progress updates
+- `emit_pipeline_warning()` — publish warnings with context and severity
+- `emit_pipeline_error()` — publish fail-fast and runtime error events
+- `emit_pipeline_artifact()` — publish export completion and artifact paths
+- `start_sse_stream()` — provide a stream endpoint or generator for dashboard clients
+
+### 5.5 Persistence & Governed Reporting Pack
+**Status:** ⏳ Planned
+- Persist run metadata, outputs, schema version, and health metrics to DuckDB
+- Define a governed reporting pack for each run: CSV, Excel, JSON, DuckDB snapshot, PDF summary
+- Support report retrieval and comparison across runs
+- Require a formal phase report after completion of each implemented Phase 5 sub-phase
+
+**Planned Persistence Files**
+- `dcc/workflow/ai_ops_engine/persistence/run_store.py`
+- `dcc/workflow/ai_ops_engine/persistence/duckdb_repository.py`
+- `dcc/config/schemas/ai_insight_schema.json`
+- `dcc/config/schemas/pipeline_run_schema.json`
+
+**Planned Reporting Pack Files**
+- `dcc/output/ai_reporting_pack/` — generated output folder per approved run design
+- `dcc/docs/workplan/phase5_reporting_pack_spec.md` — governed artifact definition
+- `dcc/workplan/ai_operations/reports/phase5_subphase_report_template.md` — report template for each completed sub-phase
+
+**Planned Persistence / Reporting Functions**
+- `save_pipeline_run()` — persist run metadata and artifact references
+- `load_pipeline_run_history()` — retrieve prior runs for comparison
+- `save_ai_insight_payload()` — persist AI output using approved schema
+- `generate_pdf_summary()` — create printable executive report
+- `build_reporting_pack()` — assemble all artifacts for a run
+- `archive_phase5_report()` — copy completed phase report into the proper archive/report location
+
+### Planned Test and Documentation Additions
+- `dcc/test/test_ai_ops_engine.py` — engine-level tests
+- `dcc/test/test_ai_reporting_pack.py` — reporting pack verification
+- `dcc/test/test_ai_dashboard_contract.py` — UI data contract tests
+- `dcc/docs/ai_ops_engine/` — new engine documentation folder after approval
+- `dcc/docs/workplan/` — Phase 5 design, traceability, and completion documentation
+
+### Phase 5 Required Workplan Structure
+| Item | Requirement | Status |
+|---|---|---|
+| 5.0 | Create approved workplan before implementation | ⏳ Required |
+| 5.1 | Define engine architecture and module boundaries | ⏳ Planned |
+| 5.2 | Define AI insight processing contract | ⏳ Planned |
+| 5.3 | Define dashboard integration scope | ⏳ Planned |
+| 5.4 | Define live monitoring approach | ⏳ Planned |
+| 5.5 | Define persistence and governed reporting pack | ⏳ Planned |
 
 ### Phase 5 Delivery Sequence
-| Step | Deliverable | Priority |
-|---|---|---|
-| 5.1 | `ai_analysis_engine.py` | High |
-| 5.2 | `ai_analysis_dashboard.html` | High |
-| 5.3 | Real-time pipeline WebSocket/SSE | Medium |
-| 5.4 | FastAPI/Flask persistence backend | Medium |
-| 5.5 | Multi-format export engine | Low |
+| Step | Deliverable | Depends On | Priority |
+|---|---|---|---|
+| 5.0 | Phase 5 workplan and architecture review | Existing pipeline baseline | High |
+| 5.1 | New engine definition under `dcc/workplan/` | 5.0 | High |
+| 5.2 | AI insight engine design and output schema | 5.1 | High |
+| 5.3 | AI dashboard integration workplan | 5.2 | Medium |
+| 5.4 | Live pipeline monitoring design | 5.1 | Medium |
+| 5.5 | Persistence and governed reporting pack design | 5.1 | Medium |
 
 ### Phase 5 Completion Criteria
-- [ ] AI engine connects to local Ollama LLM and returns structured results
-- [ ] AI dashboard displays risk flags and comment categories
-- [ ] Pipeline Dashboard streams live progress via WebSocket/SSE
-- [ ] Backend persists processed data to DuckDB with REST API
-- [ ] Multi-format export (DuckDB + Excel + PDF) runs from single trigger
+- [ ] Phase 5 workplan is reviewed and approved before implementation
+- [ ] New engine scope, module design, and I/O are defined under `dcc/workplan/`
+- [ ] AI insight outputs are structured, explainable, and traceable to source evidence
+- [ ] Live monitoring design supports current pipeline workflow without breaking fallback reporting
+- [ ] Persistence and governed reporting pack requirements are defined for implementation
+- [ ] A phase report is created and archived after completion of each implemented Phase 5 sub-phase
 
 ---
 

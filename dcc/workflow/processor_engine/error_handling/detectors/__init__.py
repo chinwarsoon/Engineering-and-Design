@@ -22,6 +22,7 @@ from .logic import LogicDetector
 from .fill import FillDetector
 from .validation import ValidationDetector, ValidationRule
 from .calculation import CalculationDetector
+from .row_validator import RowValidator, ROW_ERROR_WEIGHTS
 
 __all__ = [
     # Base classes
@@ -43,4 +44,6 @@ __all__ = [
     "ValidationDetector",
     "ValidationRule",
     "CalculationDetector",
+    "RowValidator",
+    "ROW_ERROR_WEIGHTS",
 ]

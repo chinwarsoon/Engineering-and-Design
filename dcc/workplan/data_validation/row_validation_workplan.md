@@ -107,7 +107,7 @@ This phase validates the consistency of data within logical groups, such as Subm
 
 ## Final Phase Reports (Summary)
 
-Each phase will produce a report within the `dcc/output/` directory:
-1. `row_validation_p1_identity.json`: Results of composite key and anchor checks.
-2. `row_validation_p2_logic.json`: Results of date sequence and status transition checks.
-3. `row_validation_p3_relational.json`: Results of group consistency and revision checks.
+Each phase will produce a report within the `dcc/workplan/data_validation` directory:
+1. `row_validation_p1_identity.md`: Results of composite key and anchor checks.
+2. `row_validation_p2_logic.md`: Results of date sequence and status transition checks.
+3. `row_validation_p3_relational.md`: Results of group consistency and revision checks.

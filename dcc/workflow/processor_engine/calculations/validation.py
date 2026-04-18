@@ -152,6 +152,23 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
             continue
 
         allow_null = column_def.get('allow_null', True)
+
+        # Issue #27: Apply zero-padding before pattern validation if schema specifies it
+        zero_pad = column_def.get('null_handling', {}).get('formatting', {}).get('zero_pad')
+        if zero_pad and column_name in df_validated.columns:
+            non_null_mask = df_validated[column_name].notna()
+            if non_null_mask.any():
+                def _safe_zfill(x, pad):
+                    try:
+                        return str(int(float(x))).zfill(pad)
+                    except (ValueError, TypeError):
+                        return x
+                df_validated.loc[non_null_mask, column_name] = (
+                    df_validated.loc[non_null_mask, column_name]
+                    .apply(lambda x: _safe_zfill(x, zero_pad)
+                           if pd.notna(x) and str(x).strip() not in ('', 'NA') else x)
+                )
+
         mask_null = df_validated[column_name].isna()
         if not allow_null and mask_null.any():
             code = ERROR_CODES.get('allow_null', 'P-V-V-0505')

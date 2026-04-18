@@ -7,7 +7,82 @@
 
 # Section 2. Test log entries
 
-## 2026-04-18 18:00:00
+## 2026-04-19 03:00:00
+1. **Issue #30 — dcc Conda Env Missing jsonschema & rapidfuzz**
+   - **Method**: `conda run -n dcc python dcc_engine_pipeline.py`
+   - **Error reproduced**: `Environment test failed. Missing required packages: ✗ jsonschema: No module named 'jsonschema'`
+   - **Root cause**: `dcc/dcc.yml` and root `dcc.yml` pip sections missing `jsonschema` and `rapidfuzz`
+   - **Fix**: `conda run -n dcc pip install jsonschema==4.23.0 rapidfuzz==3.13.0` + updated both yml files
+   - **Verification**: `conda run -n dcc python dcc_engine_pipeline.py` → EXIT 0, `Environment test passed`, Ready: YES
+   - **Pipeline result**: 11,099 rows × 44 columns, 2,184 row-level errors, Mean Health Score 95.7
+- `Status: PASS — Issue #30 Resolved`
+
+ — Full Pipeline Verification**
+   - **Method**: `python dcc_engine_pipeline.py` — full 11,099 row dataset
+   - **Result**: EXIT 0, Ready: YES
+   - **Issue #27 — Submission_Session pattern:**
+     - Before: 11,099 failures (100%)
+     - After: 0 failures ✅
+     - Validation: `Submission_Session` correctly zero-padded to `000001` format in pipeline
+     - Note: Excel output shows `int64` (Excel re-casts) — pipeline validation is correct
+   - **Issue #29 — CLOSED_WITH_PLAN_DATE:**
+     - Before: 4,674 rows with plan date when closed
+     - After: 0 rows ✅
+     - `Resubmission_Plan_Date` non-null: 9,389 → 4,715 (correct — closed rows nullified)
+   - **Pipeline crash fix — zero-pad on non-numeric Submission_Session:**
+     - Error: `could not convert string to float: '  Reply to Comment Sheet_#000017'`
+     - Fix: `_safe_zfill()` with `try/except` — non-numeric values pass through unchanged
+   - **Overall improvement:**
+     - Rows with errors: 6,459 (58.2%) → 2,862 (25.8%) ↓ 55.7%
+     - Row-level errors: 6,858 → 2,184 ↓ 68.2%
+     - Mean Data_Health_Score: 87.2 → **95.7** (Grade A)
+     - Grade A+ rows: 4,640 (41.8%) → **8,237 (74.2%)**
+     - Grade F rows: 912 (8.2%) → 144 (1.3%)
+- `Status: PASS — EXIT 0, Issues #27 and #29 Resolved`
+
+ — Full Pipeline Run**
+   - **Method**: `python dcc_engine_pipeline.py` — full 11,099 row dataset
+   - **Result**: EXIT 0, Ready: YES, 18.6s processing time
+   - **Phase 1 — Integrity:**
+     - Document_ID nulls: 0 ✅
+     - Project_Code nulls: 4 (0.04%) ⚠️
+     - Document_Type nulls: 71 (0.64%) ⚠️
+     - Submission_Session pattern: 11,099 failures ❌ Issue #27 (int64 not zero-padded)
+     - Document_Sequence_Number pattern: 1,638 failures (affixes in source)
+   - **Phase 2 — Domain:**
+     - Resubmission_Required: 0 invalid after PEN→PENDING fix ✅
+     - Submission_Closed: 0 invalid ✅
+     - Delay_of_Resubmission: 239 negative, 347 > 365
+     - Duration_of_Review: 4 > 365 days
+   - **Phase 3 — Health Score:**
+     - Mean Data_Health_Score: 87.2 (Grade B+)
+     - Rows with errors: 6,459 / 11,099 (58.2%)
+     - Grade A+: 4,640 (41.8%), Grade F: 912 (8.2%)
+     - Dashboard JSON exported: `output/error_dashboard_data.json`
+   - **Bugs Fixed:** Issue #28 (PEN→PENDING), row_validator NA revision skip, OVERDUE_MISMATCH null/Resubmitted false positives
+   - **New Issues:** #27 (Submission_Session int64), #29 (CLOSED_WITH_PLAN_DATE 4,674 rows)
+- `Status: Pipeline PASS — EXIT 0`
+
+ — Module Creation & Integration Test (Pending Pipeline Run)**
+   - **Method**: Code review + static analysis of `row_validator.py` and `engine.py` integration
+   - **Checklist**:
+     - `RowValidator` extends `BaseDetector`: PASS
+     - All 9 checks implemented per `row_validation_workplan.md`: PASS
+     - Error codes match `dcc_register_rule.md` Section 5: PASS
+     - Health score weights match Section 5.4: PASS
+     - `__init__.py` exports `RowValidator`, `ROW_ERROR_WEIGHTS`: PASS
+     - `engine.py` Phase 4 integration (after `apply_validation`, before aggregation): PASS
+     - Affix stripping in composite identity check (uses `Document_ID_Affixes`): PASS
+     - `_parse_date` / `_parse_revision` helpers handle NA/NaT/empty: PASS
+   - **Targets from workplan (to verify on pipeline run):**
+     - Phase 1: ~100 composite mismatches, anchor nulls < 0.1%
+     - Phase 2: 239 negative Delay_of_Resubmission rows flagged, 241 Overdue mismatches
+     - Phase 3: Group consistency violations, revision gaps
+   - **Result**: Static review PASS — full pipeline run pending
+   - **Related Issue**: [Issue #26](issue_log.md#issue-26)
+- `Status: Pending pipeline run`
+
+
 1. **Phase 4 UI Tools — Final Acceptance Test**
    - **Method**: Manual browser testing of all 8 tools across Chrome, Firefox, Safari, Edge
    - **Checklist**:

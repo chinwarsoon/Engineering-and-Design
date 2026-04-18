@@ -19,7 +19,59 @@
 
 # Section 2. Pending Issues
 
-## 2026-04-17 21:35:00
+## 2026-04-19 03:00:00
+[Issue #30]: `dcc` conda env missing `jsonschema` — `Environment test failed. Missing required packages: ✗ jsonschema: No module named 'jsonschema'`.
+- `[Status]`: **Resolved**
+- `[Context]`: Pipeline passes in base conda env (has `jsonschema==4.26.0`) but fails in `dcc` env. `dcc.yml` pip section was missing `jsonschema` and `rapidfuzz`.
+- `[Root Cause]`: Both `dcc/dcc.yml` and root `dcc.yml` pip sections did not include `jsonschema` or `rapidfuzz`. Env created from yml would always be missing these packages.
+- `[Resolution]`: Installed `jsonschema==4.23.0` and `rapidfuzz==3.13.0` into `dcc` env. Updated both yml files to include all required pip packages including dependencies (`attrs`, `jsonschema-specifications`, `referencing`, `rpds-py`).
+- `[File Changes]`: `dcc/dcc.yml`, `dcc.yml` (root)
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue30-env-fix)
+
+## 2026-04-19 02:00:00
+[Issue #27]: `Submission_Session` pattern `^[0-9]{6}$` fails for all 11,099 rows.
+- `[Status]`: **Resolved**
+- `[Root Cause]`: Column stored as `int64`/`float64` from source Excel. Zero-padding applied during null-fill only. Pattern validation ran on raw integer values (e.g. `1` instead of `000001`).
+- `[Resolution]`: Added `_safe_zfill()` in `apply_validation` to cast numeric values to zero-padded strings before pattern check. Non-numeric values (e.g. reply sheet IDs) pass through unchanged via `try/except`.
+- `[File Changes]`: `processor_engine/calculations/validation.py` — added zero-pad pre-processing block before null check loop.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue27-issue29-fix)
+
+## 2026-04-19 02:00:00
+[Issue #29]: `CLOSED_WITH_PLAN_DATE` fires on 4,674 rows — `Resubmission_Plan_Date` not nullified when `Submission_Closed=YES`.
+- `[Status]`: **Resolved**
+- `[Root Cause]`: `Resubmission_Plan_Date` had no explicit strategy in schema — `StrategyResolver._infer_strategy()` defaulted to `preserve_existing`. The `StrategyExecutor` only ran the handler on null rows (`df_to_calc = df_result[null_mask]`), so existing source values for closed rows were never nullified by `apply_resubmission_plan_date` condition 1.
+- `[Resolution]`: Added explicit `strategy: {data_preservation: {mode: overwrite_existing}}` to `Resubmission_Plan_Date` in `dcc_register_config.json`. Handler now runs on ALL rows, correctly nullifying 6,381 closed rows.
+- `[File Changes]`: `config/schemas/dcc_register_config.json` — added `strategy` key to `Resubmission_Plan_Date` column definition.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue27-issue29-fix)
+
+ `Submission_Session` stored as `int64` — pattern `^[0-9]{6}$` fails for all 11,099 rows because zero-padding is not applied before pattern validation.
+- `[Status]`: Open
+- `[Context]`: `Submission_Session` values are integers (1, 2, 3…). Schema pattern requires 6-digit zero-padded string. Validation layer does not cast to `str.zfill(6)` before matching.
+- `[Root Cause]`: Zero-padding calculation runs in Phase 1 but column remains `int64` dtype at validation time.
+- `[Action Required]`: Cast `Submission_Session` to zero-padded string before pattern validation in `apply_validation()`.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#col-validation-implementation)
+
+## 2026-04-19 01:00:00
+[Issue #28]: `Resubmission_Required` outputting `'PEN'` instead of `'PENDING'` — 816 rows with invalid categorical value.
+- `[Status]`: Resolved
+- `[Context]`: `conditional.py` used abbreviated string `'PEN'` instead of full value `'PENDING'` defined in `dcc_register_rule.md` allowed values.
+- `[Root Cause]`: String literal typo in `conditional.py` line 147.
+- `[Resolution]`: Changed `'PEN'` → `'PENDING'` in `conditional.py`. 816 rows now correctly categorised. 0 invalid values after fix.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#col-validation-implementation)
+
+## 2026-04-19 01:00:00
+[Issue #29]: `CLOSED_WITH_PLAN_DATE` error fires on 4,674 rows — `Resubmission_Plan_Date` not nullified when `Submission_Closed=YES`.
+- `[Status]`: Open
+- `[Context]`: Row validator correctly detects that `Submission_Closed=YES` rows have a non-null `Resubmission_Plan_Date`. This is a Phase 3 calculation order issue — the plan date nullification step may not be running after the closure flag is set.
+- `[Action Required]`: Review Phase 3 calculation order for `Resubmission_Plan_Date` conditional logic. Ensure nullification runs after `Submission_Closed` is finalised.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#col-validation-implementation)
+
+ Row validation — pending pipeline run to confirm error counts match workplan targets (100+ composite mismatches, 239 negative Delay_of_Resubmission, 241 Overdue rows).
+- `[Status]`: Open — awaiting pipeline test run
+- `[Context]`: RowValidator implemented and integrated. Targets from row_validation_workplan.md: Phase 1 (100 composite mismatches), Phase 2 (239 negative delay, 241 overdue), Phase 3 (group consistency, revision gaps).
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#row-validation-implementation)
+
+
 [Issue #25]: agent_rule.md path mismatch in project_config.json - validator looking at wrong location.
 - `[Status]`: Resolved
 - `[Context]`: dcc_engine_pipeline.py failed with "Ready: NO" because validator expects agent_rule.md at dcc/agent_rule.md but file exists at dcc/rule/agent_rule.md.
@@ -165,4 +217,34 @@
 [Issue #16]: Document_ID may contain affixes like "_ST607", "_ST608_BCA", "_MS2", "_Withdrawn" - detector should strip affixes before validation and store in separate field.
 - `[Status]`: Resolved
 - `[Resolution]`: Added `Document_ID_Affixes` column to schema. Implemented `extract_document_id_affixes()` function in `affix_extractor.py`. Integrated with identity detector to validate base ID only. Fixed schema `PreservationMode` from `recalculate_always` to `overwrite_existing`. Registered `extract_affixes` handler in `registry.py`.
-- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#2026-04-12-164500)
+
+## 2026-04-12 12:55:00
+[Issue #16]: Document_ID may contain affixes like "_ST607", "_ST608_BCA", "_MS2", "_Withdrawn" - detector should strip affixes before validation and store in separate field.
+- `[Status]`: Resolved
+- `[Resolution]`: Added `Document_ID_Affixes` column to schema. Implemented `extract_document_id_affixes()` function in `affix_extractor.py`. Integrated with identity detector to validate base ID only. Fixed schema `PreservationMode` from `recalculate_always` to `overwrite_existing`. Registered `extract_affixes` handler in `registry.py`.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-15)
+
+## 2026-04-15 09:40:00
+[Issue #17]: tools/project_setup_tools.py should be updated to establish a new project folder, copies all necessary files, and configure schemas.
+- `[status]`: Open
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md)
+
+## 2026-04-18 18:00:00
+[Issue #23]: Phase 5 — AI Integration & Advanced Analytics planning required. Define scope, deliverables, and implementation workplan for Phase 5 sub-phases (5.1–5.5).
+- `[Status]`: Open
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#phase5-planning)
+
+## 2026-04-17 20:45:00
+[Issue #24]: P2-I-V-0204 false positives for valid Document_ID - derived_pattern validation failing for complex IDs.
+- `[Status]`: Resolved
+- `[Resolution]`: Updated `derived_pattern` generation logic to handle alphanumeric segments correctly.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#issue-24)
+
+## 2026-04-18 20:30:00
+[Issue #31]: Aggregate columns (e.g., All_Submission_Dates) outputting plain strings instead of JSON arrays.
+- [Status]: Resolved
+- [Context]: Aggregate columns are defined as 'json' data type in the dcc_register schema, but were being output as comma-separated strings.
+- [Root Cause]: `aggregate.py` used `separator.join()` exclusively without checking the target column's `data_type`.
+- [File Changes]: `processor_engine/calculations/aggregate.py`
+- [Resolution]: Modified aggregate handlers to check `engine.columns` for `data_type == 'json'` and use `json.dumps()` for serialization when required.
+- [Link to changes in update_log.md]: [update_log.md](update_log.md#issue31-aggregate-json-fix)

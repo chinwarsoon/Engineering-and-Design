@@ -7,7 +7,163 @@
 
 # Section 2. Log entries
 
-<a id="column-sequence-reorder"></a>
+<a id="issue30-env-fix"></a>
+## 2026-04-19 03:00:00
+
+### Issue #30 — dcc Conda Env Missing jsonschema & rapidfuzz
+
+**Status:** RESOLVED
+
+**Problem:** Running `dcc_engine_pipeline.py` in the `dcc` conda environment failed with:
+```
+Environment test failed. Missing required packages:
+  ✗ jsonschema: No module named 'jsonschema'
+```
+
+**Root Cause:** The `dcc` conda env was created from `dcc.yml` which was missing `jsonschema` and `rapidfuzz` from its pip section. The base conda env had `jsonschema==4.26.0` installed, masking the issue when running from base.
+
+**Fix:**
+1. Installed missing packages into `dcc` env: `pip install jsonschema==4.23.0 rapidfuzz==3.13.0`
+2. Updated both `dcc/dcc.yml` and root `dcc.yml` pip sections to include all required packages
+
+**Packages added to both yml files:**
+- `jsonschema==4.23.0` + its dependencies (`attrs`, `jsonschema-specifications`, `referencing`, `rpds-py`)
+- `rapidfuzz==3.13.0`
+- `xlsxwriter==3.2.9` (already in root yml via conda, added to dcc/dcc.yml pip)
+
+**Verification:** `conda run -n dcc python dcc_engine_pipeline.py` → EXIT 0, Environment test passed, Ready: YES
+
+**Files Updated:**
+- `dcc/dcc.yml` — added 6 pip packages
+- `dcc.yml` (root) — added 6 pip packages
+
+---
+
+
+## 2026-04-19 02:00:00
+
+### Issue #27 & #29 Fixes + Pipeline Stabilisation
+
+**Status:** COMPLETE — Pipeline EXIT 0, Ready: YES
+
+**Bugs Fixed:**
+
+| Issue | Root Cause | Fix | Files Changed |
+|-------|-----------|-----|---------------|
+| **#27** `Submission_Session` pattern fails (11,099 rows) | Column stored as `int64`/`float64` from source; zero-padding applied during null-fill only, not before pattern validation | Added safe zero-pad cast in `apply_validation` before pattern check; `_safe_zfill()` handles non-numeric values gracefully | `calculations/validation.py` |
+| **#29** `CLOSED_WITH_PLAN_DATE` 4,674 rows | `Resubmission_Plan_Date` had `preserve_existing` strategy (inferred default) — handler only ran on null rows, so existing source values for closed rows were never nullified | Added explicit `overwrite_existing` strategy to `Resubmission_Plan_Date` in schema config | `config/schemas/dcc_register_config.json` |
+| **Pipeline crash** `could not convert string to float: '  Reply to Comment Sheet_#000017'` | Zero-pad fix used `int(float(x))` which fails on non-numeric `Submission_Session` values (e.g. reply sheet IDs) | Wrapped in `try/except (ValueError, TypeError)` — non-numeric values pass through unchanged | `calculations/validation.py` |
+
+**Before vs After:**
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| `Submission_Session` pattern failures | 11,099 (100%) | 0 | ✅ Fixed |
+| `CLOSED_WITH_PLAN_DATE` errors | 4,674 rows | 0 | ✅ Fixed |
+| `Resubmission_Plan_Date` non-null | 9,389 | 4,715 | Correct (closed rows nullified) |
+| Rows with Validation_Errors | 6,459 (58.2%) | 2,862 (25.8%) | ↓ 55.7% reduction |
+| Row-level errors | 6,858 | 2,184 | ↓ 68.2% reduction |
+| Mean Data_Health_Score | 87.2 | **95.7** | ↑ Grade A |
+| Grade A+ rows | 4,640 (41.8%) | **8,237 (74.2%)** | ↑ +3,597 rows |
+| Grade F rows | 912 (8.2%) | 144 (1.3%) | ↓ -768 rows |
+
+**Remaining known issues (data quality, not bugs):**
+- `Submission_Session` dtype `int64` in Excel output (Excel re-casts zero-padded strings) — validation correctly passes in pipeline
+- `VERSION_REGRESSION` 213 rows — legitimate data (voided/withdrawn revisions in source)
+- `GROUP_INCONSISTENT` 112 rows — source data entry inconsistencies
+- `RESUBMISSION_MISMATCH` 141 rows — source data not updated after rejection
+- `P2-I-V-0204` 1,683 rows — non-standard Document_IDs (reply sheets, supporting docs)
+
+---
+
+
+## 2026-04-19 01:00:00
+
+### Column Validation All Phases — Pipeline Run & Bug Fixes
+
+**Status:** COMPLETE
+
+**Pipeline Run:** EXIT 0, Ready: YES, 11,099 rows × 44 columns, 18.6s
+
+**Bug Fixes:**
+
+| Issue | File | Change | Impact |
+|-------|------|--------|--------|
+| **#28** `Resubmission_Required` value `'PEN'` → `'PENDING'` | `processor_engine/calculations/conditional.py` line 147 | String literal fix | 816 rows now correctly categorised |
+| **Row validator false positives** `'NA'` treated as revision | `detectors/row_validator.py` | Skip `curr_rev_str.upper() == 'NA'` | Eliminates false VERSION_REGRESSION |
+| **OVERDUE_MISMATCH** fires on null `Resubmission_Overdue_Status` | `detectors/row_validator.py` | Skip `pd.isna(raw_status)` rows | Eliminates false positives for rows with no plan date |
+| **OVERDUE_MISMATCH** fires on `Resubmission_Overdue_Status='Resubmitted'` | `detectors/row_validator.py` | Accept `'resubmitted'` as valid | Correct — resubmitted docs are not overdue |
+
+**Phase Reports Created:**
+- `dcc/workplan/data_validation/col_validation_p1_integrity.md`
+- `dcc/workplan/data_validation/col_validation_p2_domain.md`
+- `dcc/workplan/data_validation/col_validation_p3_final.md`
+
+**Key Pipeline Findings:**
+
+| Metric | Value |
+|--------|-------|
+| Rows processed | 11,099 |
+| Columns output | 44 |
+| Rows with errors | 6,459 (58.2%) |
+| Mean Data_Health_Score | 87.2 (Grade B+) |
+| Grade A+ rows | 4,640 (41.8%) |
+| Grade F rows | 912 (8.2%) |
+| Top error | CLOSED_WITH_PLAN_DATE: 4,674 rows |
+| VERSION_REGRESSION | 213 rows |
+| GROUP_INCONSISTENT | 112 rows |
+
+**Open Issues Logged:** #27 (Submission_Session int64 pattern), #28 (fixed), #29 (CLOSED_WITH_PLAN_DATE 4,674 rows)
+
+---
+
+
+## 2026-04-19 00:00:00
+
+### Row Validation — Phase 4 Cross-Field Business Logic
+
+**Status:** COMPLETE
+
+**Change:** Implemented `RowValidator` module and integrated it into `engine.py` Phase 4.
+
+**Files Created:**
+- `workflow/processor_engine/error_handling/detectors/row_validator.py` — New module (3 phases, 9 checks)
+
+**Files Modified:**
+- `workflow/processor_engine/error_handling/detectors/__init__.py` — Exported `RowValidator`, `ROW_ERROR_WEIGHTS`
+- `workflow/processor_engine/core/engine.py` — Wired RowValidator into Phase 4 between schema validation and error aggregation
+
+**Validation Phases Implemented:**
+
+| Phase | Check | Error Code | Severity |
+|-------|-------|------------|----------|
+| 1 | Anchor null check (5 columns) | P1-A-P-0101 | HIGH |
+| 1 | Document_ID composite segment match | P2-I-V-0204 | HIGH |
+| 2 | Date inversion (Submission_Date > Review_Return_Actual_Date) | L3-L-P-0301 | HIGH |
+| 2 | Closed with plan date (Submission_Closed=YES + Resubmission_Plan_Date set) | CLOSED_WITH_PLAN_DATE | HIGH |
+| 2 | Resubmission mismatch (REJ status without YES/RESUBMITTED) | RESUBMISSION_MISMATCH | MEDIUM |
+| 2 | Overdue status mismatch (past plan date but not marked Overdue) | OVERDUE_MISMATCH | MEDIUM |
+| 3 | Group consistency (Submission_Date, Transmittal_Number, Subject within session) | GROUP_INCONSISTENT / INCONSISTENT_SUBJECT | MEDIUM |
+| 3 | Revision progression (Document_Revision must not decrease per Document_ID) | VERSION_REGRESSION | HIGH |
+| 3 | Session revision sequence (Submission_Session_Revision continuity) | REVISION_GAP | LOW |
+
+**Health Score Weights (per dcc_register_rule.md Section 5.4):**
+- ANCHOR_NULL: 25, COMPOSITE_MISMATCH: 20, GROUP_INCONSISTENT: 15, VERSION_REGRESSION: 15
+- INCONSISTENT_CLOSURE: 10, CLOSED_WITH_PLAN_DATE: 10, INCONSISTENT_SUBJECT: 5
+- OVERDUE_MISMATCH: 5, REVISION_GAP: 5
+
+**Integration Point:** `engine.py` `apply_phased_processing()` — runs after `apply_validation()`, before `format_validation_errors_column()`.
+
+**Rationale:** Implements row_validation_workplan.md Phases 1–3. Errors feed into existing `error_aggregator` → `Validation_Errors` column → `Data_Health_Score`.
+
+**Phase Reports Created:**
+- `dcc/workplan/data_validation/row_validation_p1_identity.md`
+- `dcc/workplan/data_validation/row_validation_p2_logic.md`
+- `dcc/workplan/data_validation/row_validation_p3_relational.md`
+
+---
+
+
 ## 2026-04-18 15:50:00
 
 ### Reorder: Master Column Table Now Follows column_sequence from Config
@@ -1103,3 +1259,11 @@ Foreign Key Dependencies:
 1. Logic update: [identity.py](../workflow/processor_engine/error_handling/detectors/identity.py) - Updated `detect()` method to filter validations based on `required_identities` list.
 2. Logic update: [business.py](../workflow/processor_engine/error_handling/detectors/business.py) - Reconfigured `BusinessDetector` to split identity validation. `Document_Revision`, `Document_Title`, and `Transmittal_Number` are now validated in Phase 2, while `Document_ID` is validated in Phase 2.5.
 3. Fixed Issue #12: This prevents `Document_ID uncertain (P2-I-P-0201)` false positives from being reported in Phase 2 before the `Document_ID` has been calculated via the composite strategy.
+
+<a id="issue31-aggregate-json-fix"></a>
+## 2026-04-18 20:35:00
+1. Logic Update: [aggregate.py](../workflow/processor_engine/calculations/aggregate.py) - Added JSON serialization support for aggregate columns.
+2. Implementation: handlers for `concatenate_unique`, `concatenate_unique_quoted`, and `concatenate_dates` now check if the target column's `data_type` is `json`.
+3. Serialization: If `json` type is detected, the results are serialized using `json.dumps()` to produce structured JSON array strings instead of separator-joined strings.
+4. Testing: Created [test_aggregate_json.py](../workflow/processor_engine/test/test_aggregate_json.py) and verified that both plain string and JSON output modes function correctly based on schema definition.
+5. Related to [Issue #31](issue_log.md#issue-31): Ensures aggregate data conforms to schema-defined data types for downstream system ingestion.

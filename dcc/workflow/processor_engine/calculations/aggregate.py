@@ -4,6 +4,7 @@ latest non-pending status, concatenate unique values, and date concatenation.
 Extracted from UniversalDocumentProcessor._apply_aggregate_calculation and related methods.
 """
 
+import json
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List
@@ -82,6 +83,8 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
     # Calculate for target rows
     grouped = df.groupby(group_by, dropna=False)
 
+    is_json = engine.columns.get(column_name, {}).get('data_type') == 'json'
+
     if method == 'count':
         calculated = grouped[source_column].transform('count')
         df.loc[null_mask, column_name] = calculated[null_mask]
@@ -106,6 +109,9 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
                 sorted_vals = sorted(unique_vals, key=lambda x: float(x))
             except (ValueError, TypeError):
                 sorted_vals = sorted(unique_vals)
+            
+            if is_json:
+                return json.dumps(sorted_vals)
             return separator.join(sorted_vals)
 
         # If source_columns is plural, we need to handle it per group
@@ -120,6 +126,9 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
                     sorted_vals = sorted(unique_vals, key=lambda x: float(x))
                 except (ValueError, TypeError):
                     sorted_vals = sorted(unique_vals)
+                
+                if is_json:
+                    return json.dumps(sorted_vals)
                 return separator.join(sorted_vals)
             
             # Map back to rows
@@ -152,6 +161,10 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
                         all_vals.extend(group[col].dropna().unique())
                 unique_vals = [str(val) for val in set(all_vals) if pd.notna(val)]
                 sorted_vals = sorted(unique_vals)
+                
+                if is_json:
+                    return json.dumps(sorted_vals)
+                
                 if quote_each:
                     return separator.join(f'"{val}"' for val in sorted_vals)
                 return separator.join(sorted_vals)
@@ -164,6 +177,10 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
             def concat_unique_quoted(series):
                 unique_vals = [str(val) for val in series.dropna().unique() if pd.notna(val)]
                 sorted_vals = sorted(unique_vals)
+                
+                if is_json:
+                    return json.dumps(sorted_vals)
+                
                 if quote_each:
                     return separator.join(f'"{val}"' for val in sorted_vals)
                 return separator.join(sorted_vals)
@@ -188,9 +205,12 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
         def concat_dates(series):
             valid_dates = pd.to_datetime(series, errors='coerce').dropna()
             if valid_dates.empty:
-                return ""
+                return "[]" if is_json else ""
             unique_sorted_dates = sorted(valid_dates.unique())
             formatted = [pd.Timestamp(d).strftime(py_date_fmt) for d in unique_sorted_dates]
+            
+            if is_json:
+                return json.dumps(formatted)
             return separator.join(formatted)
 
         calculated = grouped[source_column].transform(concat_dates)

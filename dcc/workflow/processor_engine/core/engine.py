@@ -234,10 +234,25 @@ class CalculationEngine(BaseProcessor):
             # Phase 4: Validation - Apply schema validation rules
             self._print_processing_step("Phase 4", "Validation", "Applying all schema validation rules")
             from ..calculations.validation import apply_validation
-            # Get full schema data including references for reference checks
             schema_data_full = self.schema_data
             df_processed = apply_validation(df_processed, self.columns, schema_data_full)
-            
+
+            # Phase 4: Row Validation - Cross-field business logic
+            self._print_processing_step("Phase 4", "RowValidation", "Running row-level cross-field checks")
+            from ..error_handling.detectors.row_validator import RowValidator
+            row_validator = RowValidator(
+                logger_inst=self.structured_logger,
+                enable_fail_fast=False,
+            )
+            row_errors = row_validator.detect(
+                df_processed,
+                context={"phase": "P4", "schema_data": self.schema_data},
+            )
+            self.error_aggregator.add_errors(row_errors)
+            status_print(
+                f"✓ Row validation complete: {len(row_errors)} cross-field issues found"
+            )
+
             # Phase 4: Aggregation - Populate Validation_Errors column (Step 46)
             self._print_processing_step("Phase 4", "Aggregation", "Populating Validation_Errors column")
             df_processed["Validation_Errors"] = self.error_aggregator.format_validation_errors_column(len(df_processed))
