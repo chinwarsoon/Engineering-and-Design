@@ -123,6 +123,16 @@
       "json_column": {
         "data_type": "string",
         "is_calculated": true
+      },
+      "revision_column": {
+        "data_type": "string",
+        "is_calculated": false,
+        "description": "Revision tracking column (any string format), supports monotonic validation. Note: Submission_Session_Revision uses 2-digit pattern ^[0-9]{2}$"
+      },
+      "file_path_column": {
+        "data_type": "string",
+        "is_calculated": false,
+        "description": "Reserved for future file path tracking (document attachments, transmittal references)"
       }
     }
   ],

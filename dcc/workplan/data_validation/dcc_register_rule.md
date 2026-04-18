@@ -12,56 +12,56 @@ All 48 columns consolidated in one view. **Click column type** for details, **Se
 
 ### Consolidated Column Reference
 
-| # | Column | Priority | Calc | Data Type | Category | Phase | Group | Constraint | Business Logic | Null Handling | Manual | Overwrites | Dependencies | Foreign Key | Notes |
-|---|--------|----------|------|-----------|----------|-------|-------|------------|----------------|---------------|--------|------------|--------------|-------------|-------|
-| 1 | [Project_Code](#code-columns) | P1 | ❌ | categorical | Project ID | P1 | Meta | `^[A-Z0-9-]*$` / schema | Defines project context | default: "NA" | YES | N/A | - | **PK Component** | Safe for bounded forward fill |
-| 2 | [Facility_Code](#code-columns) | P1 | ❌ | categorical | Org Metadata | P1 | Meta | `^[A-Z0-9-]*$` / schema | Facility location | default: "NA" | YES | N/A | - | **PK Component** | Safe for bounded forward fill |
-| 3 | [Document_Type](#code-columns) | P1 | ❌ | categorical | Org Metadata | P1 | Meta | document_type_schema | Document category | default: "NA" | YES | N/A | - | **PK Component** | Safe for bounded forward fill |
-| 4 | [Discipline](#code-columns) | P1 | ❌ | categorical | Org Metadata | P1 | Meta | discipline_schema | Engineering discipline | default: "NA" | YES | N/A | - | **PK Component** | Safe for bounded forward fill |
-| 5 | [Document_Sequence_Number](#sequence-columns) | P2 | ❌ | string(4-digit) | Unique ID | P2 | Identity | Required, pattern `^[0-9]{4}$` | Document numbering | zero_pad: 4 | YES | N/A | - | **PK Component** | Document_ID component |
-| 6 | [Document_ID](#id-columns) | P2.5 | ✅ | string | **PRIMARY KEY** | P2.5 | Anomaly | Composite pattern `{P}-{F}-{T}-{D}-{S}` | **Calculated PRIMARY KEY** | composite calc | NO | Preserves | P,F,T,D,S | **PRIMARY KEY** (5 components) | Processed P2.5 between P2 and P3 |
-| 7 | [Document_Revision](#sequence-columns) | P2 | ❌ | string(2-digit) | Revision Control | P2 | Identity | Required, pattern `^[0-9]{2}$` | Specific revision | forward_fill | YES | N/A | - | - | Must not decrease per Document_ID |
-| 8 | [Document_Title](#text-columns) | P2 | ❌ | string | Unique ID | P2 | Identity | Required, min_length | Document description | leave_null | YES | N/A | - | - | Missing in source data |
-| 9 | [Transmittal_Number](#id-columns) | P1 | ❌ | string | Source Tracking | P1 | Meta | `^[A-Z0-9-]*$` | Transmittal reference | default: "NA" | YES | N/A | - | - | Safe for bounded forward fill |
-| 10 | [Submission_Session](#sequence-columns) | P1 | ❌ | string(6-digit) | Source Tracking | P1 | Meta | `^[0-9]{6}$`, Group consistency | Submission container | forward_fill | YES | N/A | - | - | Groups documents together |
-| 11 | [Submission_Session_Revision](#sequence-columns) | P1 | ❌ | string(2-digit) | Source Tracking | P1 | Meta | `^[0-9]{2}$` | Revision within session | forward_fill | YES | N/A | - | - | Sequential within session |
-| 12 | [Submission_Session_Subject](#text-columns) | P1 | ❌ | string | Source Tracking | P1 | Meta | min_length: 2 | Session description | multi_level_ff | YES | N/A | - | - | Two-level forward fill |
-| 13 | [Consolidated_Submission_Session_Subject](#text-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concatenated | Consolidated subjects | calculated | NO | Preserves | Session_Subject, Doc_ID | **FK → Document_ID** | Aggregate unique subjects |
-| 14 | [Department](#code-columns) | P1 | ❌ | categorical | Org Metadata | P1/P2.5 | Meta | department_schema | Originating department | multi_level_ff | YES | N/A | - | - | 8,132 nulls (81%) in pipeline |
-| 15 | [Submitted_By](#code-columns) | P1 | ❌ | string | Source Tracking | P2.5 | Meta | department_schema | Submitter identity | forward_fill | YES | N/A | - | - | 8,167 nulls (74%) in pipeline |
-| 16 | [Submission_Date](#date-columns) | P1 | ❌ | date | Source Tracking | P1 | Meta | **Required**, YYYY-MM-DD | Transaction timestamp | required | YES | N/A | - | - | **Cannot be null** - temporal anchor |
-| 17 | [First_Submission_Date](#date-columns) | P3 | ✅ | date | Aggregate | P3 | Derived | Aggregate MIN | First submission per document | calculated | NO | Preserves | Submission_Date, Doc_ID | **FK → Document_ID** | MIN(Submission_Date) |
-| 18 | [Latest_Submission_Date](#date-columns) | P3 | ✅ | date | Aggregate | P3 | Derived | Aggregate MAX | Latest submission per document | calculated | NO | Preserves | Submission_Date, Doc_ID | **FK → Document_ID** | MAX(Submission_Date) |
-| 19 | [Latest_Revision](#sequence-columns) | P2.5 | ✅ | string | **ANOMALY** | P2.5 | Anomaly | `^[A-Z0-9.]*$` | **Calculated revision control** | calculated | NO | Preserves | Document_Revision, Doc_ID | **FK → Document_ID** | Aggregate: MAX revision |
-| 20 | [All_Submission_Sessions](#json-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concat `&&` | All sessions per document | calculated | NO | Preserves | Submission_Session, Doc_ID | **FK → Document_ID** | Unique concatenation |
-| 21 | [All_Submission_Dates](#json-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concat `,` sorted | All dates per document | calculated | NO | Preserves | Submission_Date, Doc_ID | **FK → Document_ID** | Sorted concatenation |
-| 22 | [All_Submission_Session_Revisions](#json-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concat `,` unique | All revisions per document | calculated | NO | Preserves | Revision, Doc_ID | **FK → Document_ID** | Unique sorted |
-| 23 | [Count_of_Submissions](#numeric-columns) | P3 | ✅ | numeric | Aggregate | P3 | Derived | Range: 1-100 | Total submissions count | calculated | NO | Preserves | Doc_ID | **FK → Document_ID** | COUNT per Document_ID |
-| 24 | [Reviewer](#code-columns) | P2 | ❌ | string | Workflow | P2 | Transactional | department_schema, Allow null | Assigned reviewer | forward_fill | YES | N/A | - | - | Missing in source data |
-| 25 | [Review_Return_Actual_Date](#date-columns) | P1 | ❌ | date | Workflow Date | P1 | Transactional | **Required**, >= Submission_Date | Actual return date | required | YES | N/A | - | - | Business days calculation source |
-| 26 | [Review_Return_Plan_Date](#date-columns) | P3 | ✅ | date | Workflow Date | P3 | Derived | >= Submission_Date | First/second review duration | calculated | NO | Preserves | Submission_Date, count | - | Conditional date logic |
-| 27 | [Review_Status](#status-columns) | P2 | ❌ | categorical | Workflow Status | P2.5 | Transactional | approval_code_schema, Allow null | Current review state | forward_fill | YES | N/A | - | - | 20 values not in schema |
-| 28 | [Review_Status_Code](#status-columns) | P2.5 | ✅ | categorical | **ANOMALY** | P2.5 | Anomaly | Mapped from Review_Status | **Calculated but transactional** | derived | NO | Preserves | Review_Status | - | Process immediately after Review_Status |
-| 29 | [Approval_Code](#status-columns) | P2.5 | ✅ | categorical | Workflow Status | P2.5 | Derived | approval_code_schema | Mapped approval code | forward_fill | NO | Preserves | Review_Status | - | Status → Code mapping |
-| 30 | [Review_Comments](#text-columns) | P2 | ❌ | string | Workflow Data | P2.5 | Transactional | Allow null | Review feedback | multi_level_ff | YES | NO | - | - | Multi-level forward fill |
-| 31 | [Latest_Approval_Status](#status-columns) | P3 | ✅ | categorical | Aggregate | P3 | Derived | approval_code_schema | Latest non-PEN status | calculated | NO | Preserves | Review_Status, Doc_ID, Date | **FK → Document_ID** | 14 values not in schema |
-| 32 | [Latest_Approval_Code](#status-columns) | P3 | ✅ | categorical | Mapping | P3 | Derived | approval_code_schema | Mapped latest code | calculated | NO | Preserves | Latest_Approval_Status | **FK → Document_ID** | Last non-null per Doc_ID |
-| 33 | [All_Approval_Code](#json-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concat `,` unique | All approval codes | calculated | NO | Preserves | Approval_Code, Doc_ID | **FK → Document_ID** | Unique per Document_ID |
-| 34 | [Duration_of_Review](#numeric-columns) | P3 | ✅ | numeric | Conditional | P3 | Derived | Range: 0-365 business days | Business days calculation | calculated | NO | Preserves | Sub_Date, Review_Date | - | 4 values > 365 flagged |
-| 35 | [Resubmission_Required](#status-columns) | P3 | ✅ | categorical | Conditional | P3 | Derived | YES/NO/RESUBMITTED/PENDING | Resubmission evaluation | calculated | NO | Preserves | Review_Date, Revision | - | Based on REJ in Review_Status |
-| 36 | [Submission_Closed](#status-columns) | P3 | ✅ | categorical | Conditional | P3 | Derived | YES/NO | **ONLY Priority 3 with Manual Input** | conditional | **YES** | Preserves | Latest_Approval_Code, Date | **FK → Document_ID** | 2-step: fill if user value, else calc |
-| 37 | [Resubmission_Plan_Date](#date-columns) | P3 | ✅ | date | Conditional | P3 | Derived | NULL if Submission_Closed=YES | Due date for resubmission | calculated | NO | Preserves | Sub_Date, Review_Date, Closed | **FK → Document_ID** | 1,707 → null (closed) |
-| 38 | [Resubmission_Forecast_Date](#date-columns) | P2 | ❌ | date | **User Estimate** | P1 | Transactional | YYYY-MM-DD, Allow null | User estimate input | user_provided | YES | NO | - | - | **Forward fill within boundary allowed** |
-| 39 | [Resubmission_Overdue_Status](#status-columns) | P3 | ✅ | categorical | Conditional | P3 | Derived | Overdue/Resubmitted/NO | Overdue evaluation | calculated | NO | Preserves | Plan_Date, today | **FK → Document_ID** | 241 rows marked Overdue |
-| 40 | [Delay_of_Resubmission](#numeric-columns) | P3 | ✅ | numeric | Complex Lookup | P3 | Derived | Range: 0-365 | Days delayed calculation | calculated | NO | Preserves | Previous submission history | **FK → Document_ID** | **239 negative values = ERROR** |
-| 41 | [Notes](#text-columns) | P1 | ❌ | string | Transactional | P1 | Meta | Allow null | Additional notes | leave_null | YES | NO | - | - | Optional field |
-| 42 | [Submission_Reference_1](#text-columns) | P1 | ❌ | string | Transactional | P1 | Meta | Allow null | External reference | leave_null | YES | NO | - | - | Optional field |
-| 43 | [Internal_Reference](#text-columns) | P1 | ❌ | string | Transactional | P1 | Meta | Allow null | Internal tracking | leave_null | YES | NO | - | - | Optional field |
-| 44 | [This_Submission_Approval_Code](#status-columns) | P3 | ✅ | categorical | Conditional | P3 | Derived | approval_code_schema | Current submission approval | calculated | NO | Preserves | Latest_Code, Sub_Date, Latest_Date | **FK → Document_ID** | If is_current_submission |
-| 45 | [Row_Index](#id-columns) | P1 | ✅ | numeric | **UNIQUE** | P1 | Meta | Auto-increment >= 1 | **UNIQUE row identifier** | auto_gen | NO | YES | Auto-increment | **ALTERNATE KEY** | **Only unique field** (per Rule 3) |
-| 46 | [Document_ID_Affixes](#text-columns) | P3 | ✅ | string | Extracted | P3 | Derived | Suffix extraction | Document_ID suffixes | extracted | NO | Preserves | Document_ID | **FK → Document_ID** | 1,638 affixes extracted |
-| 47 | [Validation_Errors](#json-columns) | P4 | ✅ | string | Error Tracking | P4 | Validation | Concat `;` all errors | Aggregated validation errors | aggregated | NO | **YES** | All columns | **FK → Document_ID** | **Rebuilds each run** |
-| 48 | [Data_Health_Score](#score-columns) | P4 | ✅ | numeric | Score | P4 | Validation | Range: 0-100 | Weighted error sum | calculated | NO | Preserves | Validation_Errors | **FK → Document_ID** | 98.5% avg (Grade A) |
+| # | Column | Priority | Calc | Data Type | Category | Phase | Group | Constraint | Business Logic | Null Handling | Manual | Overwrites | Dependencies | Foreign Key | Allow Duplicates | Notes |
+|---|--------|----------|------|-----------|----------|-------|-------|------------|----------------|---------------|--------|------------|--------------|-------------|------------------|-------|
+| 1 | [Row_Index](#id-columns) | P1 | ✅ | numeric | **PRIMARY KEY** | P1 | Meta | Auto-increment >= 1 | **SURROGATE PRIMARY KEY** | auto_gen | NO | YES | Auto-increment | **PRIMARY KEY** | **NO** | **ONLY unique field in fact table** |
+| 2 | [Transmittal_Number](#id-columns) | P1 | ❌ | string | Source Tracking | P1 | Meta | `^[A-Z0-9-]*$` | Transmittal reference | default: "NA" | YES | N/A | - | - | YES | Safe for bounded forward fill |
+| 3 | [Submission_Session](#sequence-columns) | P1 | ❌ | string(6-digit) | Source Tracking | P1 | Meta | `^[0-9]{6}$`, Group consistency | Submission container | forward_fill | YES | N/A | - | - | YES | Groups documents together |
+| 4 | [Submission_Session_Revision](#revision-columns) | P1 | ❌ | string(2-digit) | Source Tracking | P1 | Meta | `^[0-9]{2}$` | Revision within session | forward_fill | YES | N/A | - | - | YES | Sequential within session |
+| 5 | [Submission_Session_Subject](#text-columns) | P1 | ❌ | string | Source Tracking | P1 | Meta | min_length: 2 | Session description | multi_level_ff | YES | N/A | - | - | YES | Two-level forward fill |
+| 6 | [Department](#code-columns) | P1 | ❌ | categorical | Org Metadata | P1/P2.5 | Meta | department_schema | Originating department | multi_level_ff | YES | N/A | - | - | YES | 8,132 nulls (81%) in pipeline |
+| 7 | [Submitted_By](#code-columns) | P1 | ❌ | string | Source Tracking | P2.5 | Meta | department_schema | Submitter identity | forward_fill | YES | N/A | - | - | YES | 8,167 nulls (74%) in pipeline |
+| 8 | [Submission_Date](#date-columns) | P1 | ❌ | date | Source Tracking | P1 | Meta | **Required**, YYYY-MM-DD | Transaction timestamp | required | YES | N/A | - | - | YES | **Cannot be null** - temporal anchor |
+| 9 | [Project_Code](#code-columns) | P1 | ❌ | categorical | Project ID | P1 | Meta | `^[A-Z0-9-]*$` / schema | Defines project context | default: "NA" | YES | N/A | - | **PK Component** | YES | Safe for bounded forward fill |
+| 10 | [Facility_Code](#code-columns) | P1 | ❌ | categorical | Org Metadata | P1 | Meta | `^[A-Z0-9-]*$` / schema | Facility location | default: "NA" | YES | N/A | - | **PK Component** | YES | Safe for bounded forward fill |
+| 11 | [Document_Type](#code-columns) | P1 | ❌ | categorical | Org Metadata | P1 | Meta | document_type_schema | Document category | default: "NA" | YES | N/A | - | **PK Component** | YES | Safe for bounded forward fill |
+| 12 | [Discipline](#code-columns) | P1 | ❌ | categorical | Org Metadata | P1 | Meta | discipline_schema | Engineering discipline | default: "NA" | YES | N/A | - | **PK Component** | YES | Safe for bounded forward fill |
+| 13 | [Document_Sequence_Number](#sequence-columns) | P2 | ❌ | string(4-digit) | Unique ID | P2 | Identity | Required, pattern `^[0-9]{4}$` | Document numbering | zero_pad: 4 | YES | N/A | - | **PK Component** | YES | Document_ID component |
+| 14 | [Document_ID](#id-columns) | P2.5 | ✅ | string | **FOREIGN KEY** | P2.5 | Anomaly | Composite pattern `{P}-{F}-{T}-{D}-{S}` | **Composite Foreign Key** | composite calc | NO | Preserves | P,F,T,D,S | **FK → Document** | **YES** | Groups submissions per document |
+| 15 | [Document_ID_Affixes](#text-columns) | P3 | ✅ | string | Extracted | P3 | Derived | Suffix extraction | Document_ID suffixes | extracted | NO | Preserves | Document_ID | **FK → Document_ID** | YES | 1,638 affixes extracted |
+| 16 | [Document_Revision](#revision-columns) | P2 | ❌ | string | Revision Control | P2 | Identity | Required, any string | Specific revision | forward_fill | YES | N/A | - | - | YES | Must not decrease per Document_ID |
+| 17 | [Document_Title](#text-columns) | P2 | ❌ | string | Unique ID | P2 | Identity | Required, min_length | Document description | leave_null | YES | N/A | - | - | YES | Missing in source data |
+| 18 | [Reviewer](#code-columns) | P2 | ❌ | string | Workflow | P2 | Transactional | department_schema, Allow null | Assigned reviewer | forward_fill | YES | N/A | - | - | YES | Missing in source data |
+| 19 | [Review_Return_Actual_Date](#date-columns) | P1 | ❌ | date | Workflow Date | P1 | Transactional | **Required**, >= Submission_Date | Actual return date | required | YES | N/A | - | - | YES | Business days calculation source |
+| 20 | [Review_Return_Plan_Date](#date-columns) | P3 | ✅ | date | Workflow Date | P3 | Derived | >= Submission_Date | First/second review duration | calculated | NO | Preserves | Submission_Date, count | - | YES | Conditional date logic |
+| 21 | [Review_Status](#status-columns) | P2 | ❌ | categorical | Workflow Status | P2.5 | Transactional | approval_code_schema, Allow null | Current review state | forward_fill | YES | N/A | - | - | YES | 20 values not in schema |
+| 22 | [Review_Status_Code](#status-columns) | P2.5 | ✅ | categorical | **ANOMALY** | P2.5 | Anomaly | Mapped from Review_Status | **Calculated but transactional** | derived | NO | Preserves | Review_Status | - | YES | Process immediately after Review_Status |
+| 23 | [Review_Comments](#text-columns) | P2 | ❌ | string | Workflow Data | P2.5 | Transactional | Allow null | Review feedback | multi_level_ff | YES | NO | - | - | YES | Multi-level forward fill |
+| 24 | [Duration_of_Review](#numeric-columns) | P3 | ✅ | numeric | Conditional | P3 | Derived | Range: 0-365 business days | Business days calculation | calculated | NO | Preserves | Sub_Date, Review_Date | - | YES | 4 values > 365 flagged |
+| 25 | [Approval_Code](#status-columns) | P2.5 | ✅ | categorical | Workflow Status | P2.5 | Derived | approval_code_schema | Mapped approval code | forward_fill | NO | Preserves | Review_Status | - | YES | Status → Code mapping |
+| 26 | [First_Submission_Date](#date-columns) | P3 | ✅ | date | Aggregate | P3 | Derived | Aggregate MIN | First submission per document | calculated | NO | Preserves | Submission_Date, Doc_ID | **FK → Document_ID** | YES | MIN(Submission_Date) |
+| 27 | [Latest_Submission_Date](#date-columns) | P3 | ✅ | date | Aggregate | P3 | Derived | Aggregate MAX | Latest submission per document | calculated | NO | Preserves | Submission_Date, Doc_ID | **FK → Document_ID** | YES | MAX(Submission_Date) |
+| 28 | [Latest_Revision](#revision-columns) | P2.5 | ✅ | string | **ANOMALY** | P2.5 | Anomaly | `^[A-Z0-9.]*$` | **Calculated revision control** | calculated | NO | Preserves | Document_Revision, Doc_ID | **FK → Document_ID** | YES | Aggregate: MAX revision |
+| 29 | [All_Submission_Sessions](#json-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concat `&&` | All sessions per document | calculated | NO | Preserves | Submission_Session, Doc_ID | **FK → Document_ID** | YES | Unique concatenation |
+| 30 | [All_Submission_Dates](#json-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concat `,` sorted | All dates per document | calculated | NO | Preserves | Submission_Date, Doc_ID | **FK → Document_ID** | YES | Sorted concatenation |
+| 31 | [All_Submission_Session_Revisions](#json-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concat `,` unique | All revisions per document | calculated | NO | Preserves | Revision, Doc_ID | **FK → Document_ID** | YES | Unique sorted |
+| 32 | [Count_of_Submissions](#numeric-columns) | P3 | ✅ | numeric | Aggregate | P3 | Derived | Range: 1-100 | Total submissions count | calculated | NO | Preserves | Doc_ID | **FK → Document_ID** | YES | COUNT per Document_ID |
+| 33 | [Latest_Approval_Status](#status-columns) | P3 | ✅ | categorical | Aggregate | P3 | Derived | approval_code_schema | Latest non-PEN status | calculated | NO | Preserves | Review_Status, Doc_ID, Date | **FK → Document_ID** | YES | 14 values not in schema |
+| 34 | [Latest_Approval_Code](#status-columns) | P3 | ✅ | categorical | Mapping | P3 | Derived | approval_code_schema | Mapped latest code | calculated | NO | Preserves | Latest_Approval_Status | **FK → Document_ID** | YES | Last non-null per Doc_ID |
+| 35 | [All_Approval_Code](#json-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concat `,` unique | All approval codes | calculated | NO | Preserves | Approval_Code, Doc_ID | **FK → Document_ID** | YES | Unique per Document_ID |
+| 36 | [Consolidated_Submission_Session_Subject](#text-columns) | P3 | ✅ | string | Aggregate | P3 | Derived | Concatenated | Consolidated subjects | calculated | NO | Preserves | Session_Subject, Doc_ID | **FK → Document_ID** | YES | Aggregate unique subjects |
+| 37 | [Submission_Closed](#status-columns) | P3 | ✅ | categorical | Conditional | P3 | Derived | YES/NO | **ONLY Priority 3 with Manual Input** | conditional | **YES** | Preserves | Latest_Approval_Code, Date | **FK → Document_ID** | YES | 2-step: fill if user value, else calc |
+| 38 | [Resubmission_Required](#status-columns) | P3 | ✅ | categorical | Conditional | P3 | Derived | YES/NO/RESUBMITTED/PENDING | Resubmission evaluation | calculated | NO | Preserves | Review_Date, Revision | - | YES | Based on REJ in Review_Status |
+| 39 | [Resubmission_Plan_Date](#date-columns) | P3 | ✅ | date | Conditional | P3 | Derived | NULL if Submission_Closed=YES | Due date for resubmission | calculated | NO | Preserves | Sub_Date, Review_Date, Closed | **FK → Document_ID** | YES | 1,707 → null (closed) |
+| 40 | [Resubmission_Forecast_Date](#date-columns) | P2 | ❌ | date | **User Estimate** | P1 | Transactional | YYYY-MM-DD, Allow null | User estimate input | user_provided | YES | NO | - | - | YES | **Forward fill within boundary allowed** |
+| 41 | [Resubmission_Overdue_Status](#status-columns) | P3 | ✅ | categorical | Conditional | P3 | Derived | Overdue/Resubmitted/NO | Overdue evaluation | calculated | NO | Preserves | Plan_Date, today | **FK → Document_ID** | YES | 241 rows marked Overdue |
+| 42 | [Delay_of_Resubmission](#numeric-columns) | P3 | ✅ | numeric | Complex Lookup | P3 | Derived | Range: 0-365 | Days delayed calculation | calculated | NO | Preserves | Previous submission history | **FK → Document_ID** | YES | **239 negative values = ERROR** |
+| 43 | [Notes](#text-columns) | P1 | ❌ | string | Transactional | P1 | Meta | Allow null | Additional notes | leave_null | YES | NO | - | - | YES | Optional field |
+| 44 | [Submission_Reference_1](#text-columns) | P1 | ❌ | string | Transactional | P1 | Meta | Allow null | External reference | leave_null | YES | NO | - | - | YES | Optional field |
+| 45 | [Internal_Reference](#text-columns) | P1 | ❌ | string | Transactional | P1 | Meta | Allow null | Internal tracking | leave_null | YES | NO | - | - | YES | Optional field |
+| 46 | [This_Submission_Approval_Code](#status-columns) | P3 | ✅ | categorical | Conditional | P3 | Derived | approval_code_schema | Current submission approval | calculated | NO | Preserves | Latest_Code, Sub_Date, Latest_Date | **FK → Document_ID** | YES | If is_current_submission |
+| 47 | [Validation_Errors](#json-columns) | P4 | ✅ | string | Error Tracking | P4 | Validation | Concat `;` all errors | Aggregated validation errors | aggregated | NO | **YES** | All columns | **FK → Document_ID** | YES | **Rebuilds each run** |
+| 48 | [Data_Health_Score](#score-columns) | P4 | ✅ | numeric | Score | P4 | Validation | Range: 0-100 | Weighted error sum | calculated | NO | Preserves | Validation_Errors | **FK → Document_ID** | YES | 98.5% avg (Grade A) |
 
 ### Date Requirements Summary
 
@@ -92,26 +92,33 @@ All 48 columns consolidated in one view. **Click column type** for details, **Se
 | **Overwrites** | Data preservation: Preserves = Only fills nulls, YES = Rebuilds each run, N/A = Not applicable |
 | **Dependencies** | Column dependencies for calculated fields |
 | **Foreign Key** | Key relationship: **PK Component** (part of composite PK), **PRIMARY KEY**, **FK → Document_ID**, **ALTERNATE KEY**, or "-" |
+| **Allow Dup** | Duplicate values allowed: YES = duplicates OK, NO = must be unique |
 | **Notes** | Additional notes, pipeline findings, special handling |
 
-**Abbreviations:** P=Project_Code, F=Facility_Code, T=Document_Type, D=Discipline, S=Document_Sequence_Number
+**Abbreviations:** P=Project_Code, F=Facility_Code, T=Document_Type, D=Discipline, S=Document_Sequence_Number  
+**Key Rule:** Row_Index = PRIMARY KEY (surrogate, unique), Document_ID = FOREIGN KEY (composite, allows duplicates)
 
 ---
 
 ## Key Relationships & Data Model
 
-### Primary Key Structure
+### Key Structure
 
-The DCC Register uses a **composite primary key** pattern:
+The DCC Register uses a **star schema** pattern with surrogate PK and composite FK:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    DOCUMENT_ID COMPOSITE KEY                            │
+│                    FACT TABLE KEY STRUCTURE                             │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ Document_ID = {Project_Code}-{Facility_Code}-{Document_Type}-{Discipline}-{Document_Sequence_Number} │
-│                      ↑              ↑              ↑            ↑                  ↑              │
-│                   PK Comp         PK Comp        PK Comp      PK Comp             PK Comp           │
-│                   (P1)            (P1)           (P1)         (P1)                (P2)              │
+│                                                                         │
+│  ┌──────────────┐         ┌─────────────────────────────────────────┐  │
+│  │  PRIMARY KEY │         │           FOREIGN KEY (Document_ID)      │  │
+│  │   Row_Index  │         │  = {P}-{F}-{T}-{D}-{S}                  │  │
+│  │   (surrogate)│         │     ↑    ↑    ↑    ↑    ↑               │  │
+│  └──────────────┘         │   PKComp PKComp PKComp PKComp PKComp    │  │
+│         ↓                 │   (P1)   (P1)   (P1)   (P1)   (P2)     │  │
+│    UNIQUE ONLY            └─────────────────────────────────────────┘  │
+│                           REFERENCES Document Dimension (allows dups)│
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -119,9 +126,9 @@ The DCC Register uses a **composite primary key** pattern:
 
 | Key Type | Column(s) | Description |
 |----------|-----------|-------------|
-| **PK Components** (5) | Project_Code, Facility_Code, Document_Type, Discipline, Document_Sequence_Number | Components that constitute Document_ID |
-| **PRIMARY KEY** (1) | Document_ID | Calculated composite key (can have duplicates per submission) |
-| **ALTERNATE KEY** (1) | Row_Index | **ONLY truly unique field** per Rule 3 (auto-increment) |
+| **PRIMARY KEY** (1) | **Row_Index** | **SURROGATE PRIMARY KEY** - Only unique field in fact table (auto-increment) |
+| **FOREIGN KEY** (1) | **Document_ID** | Composite FK referencing Document dimension (allows duplicates per submission) |
+| **PK Components** (5) | Project_Code, Facility_Code, Document_Type, Discipline, Document_Sequence_Number | Components that constitute Document_ID (FK) |
 | **Foreign Keys** (16) | All aggregate columns | Reference Document_ID for GROUP BY operations |
 
 ### Foreign Key Relationships
@@ -145,10 +152,20 @@ The DCC Register uses a **composite primary key** pattern:
 
 ### Important Notes
 
-1. **Document_ID is NOT unique** - Multiple rows can have same Document_ID (resubmissions)
-2. **Row_Index IS unique** - Auto-generated sequential number, true primary key
-3. **All aggregates GROUP BY Document_ID** - Document history aggregation point
-4. **FK relationships are implicit** - Calculations reference Document_ID for grouping
+1. **Row_Index IS PRIMARY KEY** - Surrogate PK, auto-increment, truly unique
+2. **Document_ID IS FOREIGN KEY** - References Document dimension, allows duplicates (resubmissions)
+3. **All other 46 columns allow duplicates** - Including PK Components (they constitute the FK)
+4. **All aggregates GROUP BY Document_ID** - Document history aggregation point
+5. **FK relationships are implicit** - Calculations reference Document_ID for grouping
+
+### Key Structure Summary
+
+| Level | Field | Key Type | Notes |
+|-------|-------|----------|-------|
+| **Fact Table** | **Row_Index** | **PRIMARY KEY** | Surrogate key, auto-increment, only unique field |
+| | Document_ID | **FOREIGN KEY** | References Document dimension (composite key) |
+| | All other 46 columns | N/A | All allow duplicates |
+| **Document Dimension** | Document_ID | **PRIMARY KEY** | Composite: P-F-T-D-S (in dimension table) |
 
 ---
 
@@ -156,6 +173,17 @@ The DCC Register uses a **composite primary key** pattern:
 
 1. [Data Processing Pipeline Rules](#1-data-processing-pipeline-rules)
 2. [Column Rules by Type](#2-column-rules-by-type) (Consolidated)
+   - 2.1 [ID Columns](#id-columns)
+   - 2.2 [Code Columns](#code-columns)
+   - 2.3 [Date Columns](#date-columns)
+   - 2.4 [Sequence Columns](#sequence-columns)
+   - 2.5 [Revision Columns](#revision-columns) ⭐ NEW
+   - 2.6 [File Path Columns](#file-path-columns) ⭐ NEW
+   - 2.7 [Status Columns](#status-columns)
+   - 2.8 [Numeric Columns](#numeric-columns)
+   - 2.9 [Text Columns](#text-columns)
+   - 2.10 [Score Column](#score-columns)
+   - 2.11 [JSON Columns](#json-columns)
 3. [Validation Rules by Category](#3-validation-rules-by-category)
 4. [Row-Level Integrity Rules](#4-row-level-integrity-rules)
 5. [Error Codes & Severity](#5-error-codes--severity)
@@ -195,8 +223,8 @@ The DCC Register uses a **composite primary key** pattern:
 | Document_Sequence_Number | 4 | Must be 4-digit zero-padded (0001-9999) |
 | Submission_Session | 6 | Must be 6-digit zero-padded (000001-999999) |
 | Submission_Session_Revision | 2 | Must be 2-digit zero-padded (00-99) |
-| Document_Revision | 2 | Must be 2-digit zero-padded (00-99) |
-| Latest_Revision | 2 | Must be 2-digit zero-padded (00-99) |
+| Document_Revision | N/A | No zero-padding - any string format |
+| Latest_Revision | N/A | No zero-padding - inherits from Document_Revision |
 
 ---
 
@@ -256,23 +284,44 @@ Consolidated rules by column type. **See Master Table** above for column-to-type
 - Closure rule: If Submission_Closed = YES then Resubmission_Plan_Date = NULL
 
 <a id="sequence-columns"></a>
-### 2.4 Sequence Columns (5 columns)
+### 2.4 Sequence Columns (2 columns)
 
 | Column | Pattern | Zero-Pad | Validation |
 |--------|---------|----------|------------|
 | Document_Sequence_Number | `^[0-9]{4}$` | 4 digits | Must be numeric 4-digit |
 | Submission_Session | `^[0-9]{6}$` | 6 digits | Group consistency with Submission_Date |
-| Submission_Session_Revision | `^[0-9]{2}$` | 2 digits | Sequential within session |
-| Document_Revision | `^[0-9]{2}$` | 2 digits | Pattern validation |
-| Latest_Revision | `^[A-Z0-9.]*$` | N/A | Pattern validation |
 
 **Critical Rules:**
 - Document_Sequence_Number: Document_ID component (segment 4)
 - Submission_Session: 6-digit zero-padded
 - All sequence columns: Must match pattern after zero-padding
 
+<a id="revision-columns"></a>
+### 2.5 Revision Columns (3 columns)
+
+| Column | Pattern | Zero-Pad | Type | Validation |
+|--------|---------|----------|------|------------|
+| Document_Revision | Any string | N/A | Input | Must not decrease per Document_ID |
+| Submission_Session_Revision | `^[0-9]{2}$` | 2 digits | Input | Sequential within session |
+| Latest_Revision | Any string | N/A | Calculated | MAX aggregate per Document_ID |
+
+**Critical Rules:**
+- Document_Revision: Input revision, any string format allowed, forward fill allowed, must increase for resubmissions
+- Submission_Session_Revision: Session-level revision, 2-digit format (00-99)
+- Latest_Revision: **ANOMALY** - Calculated aggregate (MAX) but appears transactional
+- Monotonic constraint: Revision must never decrease within same Document_ID (lexicographic comparison)
+
+<a id="file-path-columns"></a>
+### 2.6 File Path Columns (0 columns - Reserved)
+
+| Column | Pattern | Validation | Purpose |
+|--------|---------|------------|---------|
+| *Reserved* | - | - | Future file path tracking |
+
+**Note:** No file path columns currently defined in schema. Reserved for future expansion (e.g., document attachment paths, transmittal file references).
+
 <a id="status-columns"></a>
-### 2.5 Status Columns (6 columns)
+### 2.7 Status Columns (6 columns)
 
 | Column | Allowed Values | Default | Rule |
 |--------|----------------|---------|------|
@@ -289,7 +338,7 @@ Consolidated rules by column type. **See Master Table** above for column-to-type
 - Resubmission_Overdue_Status: 241 rows marked Overdue
 
 <a id="numeric-columns"></a>
-### 2.6 Numeric Columns (3 columns)
+### 2.8 Numeric Columns (3 columns)
 
 | Column | Min | Max | Calculation |
 |--------|-----|-----|-------------|
@@ -302,7 +351,7 @@ Consolidated rules by column type. **See Master Table** above for column-to-type
 - Delay_of_Resubmission: Negative values impossible (239 found = ERROR)
 
 <a id="text-columns"></a>
-### 2.7 Text Columns (8 columns)
+### 2.9 Text Columns (8 columns)
 
 | Column | Min Length | Null Handling |
 |--------|------------|---------------|
@@ -320,7 +369,7 @@ Consolidated rules by column type. **See Master Table** above for column-to-type
 - Submission_Session_Subject: min_length 2, two-level forward fill
 
 <a id="score-columns"></a>
-### 2.8 Score Column (1 column)
+### 2.10 Score Column (1 column)
 
 | Column | Min | Max | Calculation |
 |--------|-----|-----|-------------|
@@ -332,7 +381,7 @@ Consolidated rules by column type. **See Master Table** above for column-to-type
 - Pipeline: 98.5% average (Grade A)
 
 <a id="json-columns"></a>
-### 2.9 JSON Columns (5 columns)
+### 2.11 JSON Columns (5 columns)
 
 | Column | Format | Separator | Calculation |
 |--------|--------|-----------|-------------|
@@ -375,7 +424,7 @@ Consolidated rules by column type. **See Master Table** above for column-to-type
 | Project_Code | `^[A-Z0-9-]+$` | 43 invalid values |
 | Document_Sequence_Number | `^[0-9]{4}$` | 1,638 invalid values |
 | Submission_Session | `^[0-9]{6}$` | Group consistency check |
-| Document_Revision | `^[0-9]{2}$` | 80 invalid values |
+| Document_Revision | Any string | No pattern validation |
 | Document_ID | Dynamic from 5 fields | 100 invalid values |
 
 ### 3.2 Domain Gate Rules
@@ -644,7 +693,7 @@ Complete validation rules for all 48 columns. **See Master Table** at document s
 |--------|-----------|----------|---------------|------------|------------|
 | Document_Sequence_Number | string | Yes | zero_pad: 4 | Pattern: `^[0-9]{4}$` | P2-I-P-0202 |
 | Document_ID | string | Yes | composite | Pattern: `{P}-{F}-{T}-{D}-{S}` | P2-I-P-0201 |
-| Document_Revision | string | Yes | forward_fill | Pattern: `^[0-9]{2}$` | P2-I-P-0202 |
+| Document_Revision | string | Yes | forward_fill | Any string format | P2-I-P-0202 |
 | Document_Title | string | No | leave_null | Required (missing in source) | - |
 | Row_Index | numeric | Yes | auto_gen | Min: 1 | - |
 
@@ -666,7 +715,7 @@ Complete validation rules for all 48 columns. **See Master Table** at document s
 |--------|-----------|-------------|------------|-----------------|
 | First_Submission_Date | date | MIN(Submission_Date) per Document_ID | YYYY-MM-DD | - |
 | Latest_Submission_Date | date | MAX(Submission_Date) per Document_ID | YYYY-MM-DD | - |
-| Latest_Revision | string | MAX(Document_Revision) per Document_ID | Pattern: `^[A-Z0-9.]*$` | 63 pattern failures |
+| Latest_Revision | string | MAX(Document_Revision) per Document_ID | Any string format | 63 pattern failures |
 | All_Submission_Sessions | string | Concatenate unique `&&` | Concatenated | - |
 | All_Submission_Dates | string | Concatenate sorted `,` | Concatenated | - |
 | All_Submission_Session_Revisions | string | Concatenate unique sorted `,` | Concatenated | - |

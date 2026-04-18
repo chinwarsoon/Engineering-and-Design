@@ -29,6 +29,8 @@ To achieve higher pattern coverage, add the following column types to `column_ty
 - **boolean_column**: For boolean flags (Resubmission_Required, Submission_Closed)
 - **score_column**: For calculated scores (Data_Health_Score)
 - **json_column**: For JSON array fields (All_Submission_Sessions, All_Submission_Dates, All_Approval_Code)
+- **revision_column**: For revision tracking (Document_Revision, Submission_Session_Revision, Latest_Revision)
+- **file_path_column**: Reserved for future file path tracking
 
 ### Root Cause
 Columns in `dcc_register_config.json` lack nested pattern reference keys to the reusable patterns defined in `column_types`, `column_patterns`, and `column_strategies`.
@@ -104,7 +106,7 @@ Based on column characteristics, map columns to appropriate patterns:
 | Column Type | Columns | Pattern Key |
 |-------------|---------|-------------|
 | **code_column** | Project_Code, Facility_Code, Document_Type, Discipline, Department, Approval_Code, Review_Status_Code, Submitted_By, Reviewer | `column_type: "code_column"` |
-| **sequence_column** | Document_Sequence_Number, Submission_Session, Submission_Session_Revision, Document_Revision, Latest_Revision | `column_type: "sequence_column"` |
+| **sequence_column** | Document_Sequence_Number, Submission_Session | `column_type: "sequence_column"` |
 | **date_column** | Submission_Date, First_Submission_Date, Latest_Submission_Date, Review_Return_Actual_Date, Review_Return_Plan_Date, Resubmission_Plan_Date, Resubmission_Forecast_Date | `column_type: "date_column"` |
 | **status_column** | Review_Status, Latest_Approval_Status, Resubmission_Required, Submission_Closed, Resubmission_Overdue_Status, This_Submission_Approval_Code | `column_type: "status_column"` |
 | **id_column** | Document_ID, Row_Index, Transmittal_Number | `column_type: "id_column"` |
@@ -113,6 +115,8 @@ Based on column characteristics, map columns to appropriate patterns:
 | **boolean_column** | Resubmission_Required, Submission_Closed (can be mapped from status_column) | `column_type: "boolean_column"` |
 | **score_column** | Data_Health_Score | `column_type: "score_column"` |
 | **json_column** | All_Submission_Sessions, All_Submission_Dates, All_Submission_Session_Revisions, All_Approval_Code, Validation_Errors | `column_type: "json_column"` |
+| **revision_column** | Document_Revision, Submission_Session_Revision, Latest_Revision | `column_type: "revision_column"` |
+| **file_path_column** | *Reserved for future use* | `column_type: "file_path_column"` |
 
 **Expected Coverage:** 41/48 columns (85.4%) - significantly exceeds target of 25/48 (52.1%)
 
@@ -123,7 +127,7 @@ Based on column characteristics, map columns to appropriate patterns:
 | Row_Index | numeric | - | id_column | min_value | P1 | create_if_missing |
 | Transmittal_Number | string | submission_info | id_column | pattern | P1 | forward_fill |
 | Submission_Session | string | submission_info | sequence_column | pattern | P1 | forward_fill_with_padding |
-| Submission_Session_Revision | string | submission_info | sequence_column | pattern | P1 | forward_fill_with_padding |
+| Submission_Session_Revision | string | submission_info | revision_column | pattern | P1 | forward_fill_with_padding |
 | Submission_Session_Subject | string | submission_info | text_column | pattern | P1 | forward_fill |
 | Department | categorical | submission_info, metadata | code_column | schema_reference_check | P1 | forward_fill |
 | Submitted_By | categorical | submission_info | code_column | pattern | P1 | forward_fill |
@@ -135,7 +139,7 @@ Based on column characteristics, map columns to appropriate patterns:
 | Document_Sequence_Number | string | document_info | sequence_column | pattern | P1 | forward_fill_with_padding |
 | Document_ID | string | document_info | id_column | pattern, derived_pattern, starts_with_schema_reference | P2.5 | default_value |
 | Document_ID_Affixes | string | - | text_column | pattern | P2.5 | default_value |
-| Document_Revision | string | document_info | sequence_column | pattern | P2 | forward_fill |
+| Document_Revision | string | document_info | revision_column | pattern | P2 | forward_fill |
 | Document_Title | text | document_info | text_column | pattern | P2 | leave_null |
 | Reviewer | categorical | - | code_column | pattern | P2 | forward_fill |
 | Review_Return_Actual_Date | date | review_info | date_column | pattern | P2 | leave_null |
@@ -147,7 +151,7 @@ Based on column characteristics, map columns to appropriate patterns:
 | Approval_Code | categorical | review_info | code_column | schema_reference_check | P2 | forward_fill |
 | First_Submission_Date | date | - | date_column | pattern | P2 | leave_null |
 | Latest_Submission_Date | date | - | date_column | pattern | P2 | leave_null |
-| Latest_Revision | string | - | sequence_column | pattern | P2 | forward_fill |
+| Latest_Revision | string | - | revision_column | pattern | P2 | forward_fill |
 | All_Submission_Sessions | string | - | json_column | pattern | P3 | leave_null |
 | All_Submission_Dates | string | - | json_column | pattern | P3 | leave_null |
 | All_Submission_Session_Revisions | string | - | json_column | pattern | P3 | leave_null |
@@ -177,12 +181,14 @@ Based on column characteristics, map columns to appropriate patterns:
 
 ### Step 1: Expand column_types Array
 
-Update the `column_types` array in `dcc_register_config.json` to include 5 new column types:
+Update the `column_types` array in `dcc_register_config.json` to include 7 new column types:
 - numeric_column
 - text_column
 - boolean_column
 - score_column
 - json_column
+- revision_column
+- file_path_column
 
 ### Step 2: Add Nested Keys to Code Columns (9 columns)
 
@@ -217,13 +223,17 @@ Add `column_type: "code_column"` to:
 }
 ```
 
-### Step 3: Add Nested Keys to Sequence Columns (5 columns)
+### Step 3: Add Nested Keys to Sequence Columns (2 columns)
 
 Add `column_type: "sequence_column"` to:
 - Document_Sequence_Number
 - Submission_Session
-- Submission_Session_Revision
+
+### Step 3b: Add Nested Keys to Revision Columns (3 columns) ⭐ NEW
+
+Add `column_type: "revision_column"` to:
 - Document_Revision
+- Submission_Session_Revision
 - Latest_Revision
 
 ### Step 4: Add Nested Keys to Date Columns (7 columns)

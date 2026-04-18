@@ -7,6 +7,168 @@
 
 # Section 2. Log entries
 
+<a id="column-sequence-reorder"></a>
+## 2026-04-18 15:50:00
+
+### Reorder: Master Column Table Now Follows column_sequence from Config
+
+**Status:** COMPLETE
+
+**Change:** Master Column Table reordered to match `column_sequence` array in `dcc_register_config.json`.
+
+**Before:** Columns ordered logically by category (PK Components first, then Identity, etc.)
+**After:** Columns ordered by processing sequence (Row_Index #1, Data_Health_Score #48)
+
+**New Sequence (first 10 / last 5):**
+| # | Column | # | Column |
+|---|--------|---|--------|
+| 1 | Row_Index | 44 | Submission_Reference_1 |
+| 2 | Transmittal_Number | 45 | Internal_Reference |
+| 3 | Submission_Session | 46 | This_Submission_Approval_Code |
+| 4 | Submission_Session_Revision | 47 | Validation_Errors |
+| 5 | Submission_Session_Subject | 48 | Data_Health_Score |
+| 6 | Department | | |
+| 7 | Submitted_By | | |
+| 8 | Submission_Date | | |
+| 9 | Project_Code | | |
+| 10 | Facility_Code | | |
+
+**Files Updated:**
+- `dcc_register_rule.md` - Master Column Table (all 48 rows renumbered)
+
+**Rationale:** Aligns documentation with actual processing pipeline order for easier debugging and reference.
+
+---
+
+<a id="key-structure-correction"></a>
+## 2026-04-18 15:45:00
+
+### CRITICAL Correction: Key Structure - Row_Index PK, Document_ID FK
+
+**Status:** COMPLETE
+
+**1. Key Structure Correction:**
+
+| Before | After |
+|--------|-------|
+| Document_ID = PRIMARY KEY | **Document_ID = FOREIGN KEY** |
+| Row_Index = ALTERNATE KEY | **Row_Index = PRIMARY KEY** |
+
+**Correct Structure:**
+```
+┌─────────────────────────────────────────┐
+│           FACT TABLE KEYS               │
+├─────────────────────────────────────────┤
+│ PRIMARY KEY: Row_Index (surrogate)      │
+│ FOREIGN KEY: Document_ID (composite)    │
+│   └─ Components: P-F-T-D-S            │
+└─────────────────────────────────────────┘
+```
+
+**Reason:** In a fact table with multiple submissions per document:
+- **Row_Index** must be unique (surrogate PK, auto-increment)
+- **Document_ID** groups submissions and references Document dimension (FK allows duplicates)
+
+**2. Files Updated:**
+- `dcc_register_rule.md`:
+  - Master Table: Row_Index → PRIMARY KEY, Document_ID → FOREIGN KEY
+  - Key Relationships section: Updated diagram, Key Types Summary, Important Notes
+  - Legend: Added Key Rule clarification
+
+---
+
+<a id="document-revision-pattern-fix"></a>
+## 2026-04-18 15:30:00
+
+### Correction: Document_Revision Pattern + Aggregated JSON Type Issue
+
+**Status:** PARTIAL - Pattern Fixed, JSON Type Issue Logged for Future
+
+**1. Document_Revision Pattern Correction:**
+
+| Before | After | Reason |
+|--------|-------|--------|
+| Pattern: `^[0-9]{2}$` (2-digit) | Any string format | Document revision can be any string value |
+| Zero-pad: 2 digits | N/A | No zero-padding for free-form strings |
+
+**Files Updated:**
+- `dcc_register_rule.md`:
+  - Master Column Table: Updated Document_Revision data type from "string(2-digit)" to "string"
+  - Zero-padding rules: Document_Revision, Latest_Revision → N/A
+  - Revision columns section: Pattern changed to "Any string"
+  - Appendix A: Updated validation entries
+  - Validation Gate: Removed pattern check for Document_Revision
+- `dcc_register_config.json`:
+  - revision_column type: Removed `^[0-9]{2}$` pattern, updated description
+
+**2. Aggregated Value Columns → JSON Type Issue:**
+
+**Issue Identified:** Aggregated columns currently store concatenated strings but should use JSON type for structured data.
+
+| Column | Current Type | Should Be | Current Format |
+|--------|--------------|-----------|----------------|
+| All_Submission_Sessions | string | **json** | Concat `&&` |
+| All_Submission_Dates | string | **json** | Concat `,` sorted |
+| All_Submission_Session_Revisions | string | **json** | Concat `,` unique |
+| All_Approval_Code | string | **json** | Concat `,` unique |
+| Validation_Errors | string | **json** | Concat `;` all errors |
+
+**Impact:** Current string concatenation limits queryability and structured access.
+**Resolution:** Logged for future work (not addressed in this update).
+
+---
+
+<a id="new-column-types-allow-dup"></a>
+## 2026-04-18 15:15:00
+
+### Enhancement: New Column Types (revision_column, file_path_column) + Allow Dup
+
+**Status:** COMPLETE
+
+**1. Changes Made:**
+
+| Change | Description | Impact |
+|--------|-------------|--------|
+| **revision_column** type | New column type for revision tracking | 3 columns: Document_Revision, Submission_Session_Revision, Latest_Revision |
+| **file_path_column** type | Reserved type for future use | 0 columns currently (placeholder) |
+| **Allow Dup** column | Added to Master Table | 15 columns total (14 YES, 2 NO) |
+| Section renumbering | Updated 2.4→2.11 numbering | All section references updated |
+
+**2. Column Type Redistribution:**
+
+| Type | Before | After | Columns |
+|------|--------|-------|---------|
+| sequence-columns | 5 | 2 | Document_Sequence_Number, Submission_Session |
+| revision-columns | 0 | 3 | Document_Revision, Submission_Session_Revision, Latest_Revision |
+| file-path-columns | 0 | 0 | *Reserved for future* |
+
+**3. Allow Duplicate Analysis:**
+
+| Allow Dup | Columns | Notes |
+|-----------|---------|-------|
+| **NO** (unique) | Row_Index | **ONLY** truly unique field in fact table (per Rule 3) |
+| **YES** (duplicates OK) | All other 47 columns | Including Document_ID, Document_Sequence_Number, all PK components |
+
+**Correction Applied:** Document_Sequence_Number changed from NO → YES. Sequence columns allow duplicates in fact table (same document appears in multiple submission rows).
+
+**4. Revision Column Rules Documented:**
+- Document_Revision: Input, must not decrease per Document_ID
+- Submission_Session_Revision: Input, sequential within session
+- Latest_Revision: **ANOMALY** - Calculated aggregate but appears transactional
+- Monotonic constraint: Revisions must never decrease
+
+**5. Files Updated:**
+- `dcc/workplan/data_validation/dcc_register_rule.md`
+  - Master Table: +Allow Dup column (15 columns total)
+  - Legend: +Allow Dup description
+  - Section 2.4: Sequence Columns reduced to 2 columns
+  - Section 2.5: **NEW** Revision Columns (3 columns)
+  - Section 2.6: **NEW** File Path Columns (reserved)
+  - Sections 2.7-2.11: Renumbered (was 2.5-2.9)
+  - Table of Contents: Added subsections 2.1-2.11
+
+---
+
 <a id="foreign-key-missing-issue"></a>
 ## 2026-04-18 10:55:00
 
