@@ -1,399 +1,113 @@
-# Row Validation Workplan
+# Row Validation Workplan (Finalized)
 
-**Based on:** dcc_register_config.json schema, pipeline execution results (11,099 rows, 44 columns)
-**Last Updated:** 2026-04-17
+**Based on:** dcc_register_rule.md, dcc_engine_pipeline.py, and processor_engine implementation.
+**Last Updated:** 2026-04-18
 
 ---
 
 ## Overview
 
-Row-level validation checks internal consistency across columns within each row. Unlike column validation which inspects values in isolation, row validation ensures relationships between columns are valid.
+Row-level validation ensures internal consistency across columns within each row. This workplan defines the implementation of cross-field business logic, temporal sequence checks, and relational invariants for the DCC Register.
 
-**Pipeline Context:**
-- 11,099 rows processed
-- 1,238 row-level errors identified (HIGH: 172, WARNING: 1,066)
-- 997 rows affected (9% error rate)
-- Data Health Score: 98.5% (Grade A)
-
-### Critical Requirement
-**ALL validations in this workplan MUST be performed AFTER the complete data processing pipeline has finished.**
-
-Row validations require the **fully processed dataset** including:
-- All 44 columns available (26 mapped + 18 calculated)
-- All forward fill operations completed (group-based fills for Submission_Session, Transmittal_Number)
-- All composite identities computed (Document_ID from 5 constituent fields)
-- All aggregate columns populated (All_Submission_Sessions, Count_of_Submissions, etc.)
-- All date calculations finished (Duration_of_Review, Delay_of_Resubmission)
-
-**Validation Timing:** These validations execute in Phase 4, AFTER column mapping (Phase 1), null handling (Phase 2), and calculations (Phase 3) are complete.
+**Validation Strategy:**
+- **Execution Timing:** Phase 4 (Validation), performed after all columns are mapped and calculated.
+- **Engine Integration:** Logic resides in `processor_engine/calculations/validation.py` and specialized detectors in `processor_engine/error_handling/detectors/`.
+- **Integrity Level:** Focuses on relationships (e.g., "If A then B") rather than individual values.
 
 ---
 
-## Category 1: Anchor Completeness (Critical Fields)
+## Phase 1: Anchor & Composite Integrity
 
-### Purpose
-Ensure critical identity and tracking fields are never null. These fields form the foundation for all other validations.
+This phase validates the fundamental relationships that define a document's identity and its place in the project.
 
-### Anchor Fields
-| Field | Required | Pipeline Nulls | Impact |
-|-------|----------|----------------|--------|
-| Document_ID | Yes | 41 (0.4%) | Composite identity anchor |
-| Project_Code | Yes | 4 (0.04%) | Project classification |
-| Document_Type | Yes | 71 (0.6%) | Document categorization |
-| Submission_Date | Yes | 3 (0.03%) | Temporal anchor |
-| Document_Sequence_Number | Yes | 63 (0.6%) | Sequential identifier |
+### 1.1 Scope & Functions
+- **Functions to Review/Update:**
+  - `validate_document_id`: Verify the composite match between `Document_ID` and its 5 constituent fields.
+  - `extract_document_id_affixes`: Ensure suffixes are correctly extracted and stored in `Document_ID_Affixes`.
+- **Validation Rules:**
+  - **Composite Identity:** `Document_ID` segments MUST match `Project`, `Facility`, `Type`, `Discipline`, and `Sequence`.
+  - **Anchor Completeness:** Ensure no "Anchor" row is missing its primary relationship keys.
 
-### Validation Rules
-```python
-anchor_fields = ['Document_ID', 'Project_Code', 'Document_Type', 'Submission_Date']
-for row in dataset:
-    for field in anchor_fields:
-        if pd.isnull(row[field]):
-            flag_error(row, field, 'ANCHOR_NULL', severity='CRITICAL')
-```
+### 1.2 Target Achievement & Success Factors
+- **Target:** 100% agreement between composite keys and their segments.
+- **Success Factors:**
+  - Correct handling of 1,600+ extracted affixes without flagging them as errors.
+  - Identification of all 100+ legacy format mismatches in `Document_ID`.
 
-### Pipeline Findings
-- 3 rows missing Submission_Date (group consistency violation)
-- Group consistency validation failed: Submission_Date must be same within (Submission_Session, Submission_Session_Revision)
+### 1.3 Deliverables
+- Robust `Document_ID` cross-validation logic.
+- Affix-aware pattern matcher.
+- Phase 1 integrity report (Row-level mismatches).
 
----
-
-## Category 2: Composite Identity Integrity
-
-### Purpose
-Validate that Document_ID matches its constituent fields exactly. Document_ID is a composite key built from 5 segments.
-
-### Document_ID Structure
-```
-Format: {Project_Code}-{Facility_Code}-{Document_Type}-{Discipline}-{Document_Sequence_Number}
-Example: 131242-WSW41-LT-PM-0001
-         |Proj|-|Fac|-|Type|-|Disc|-|Seq|
-```
-
-### Validation Rules
-1. **Segment Extraction**: Split Document_ID by "-" delimiter
-2. **Segment Count**: Must have exactly 5 segments (or 4+ with affix handling)
-3. **Field Matching**: Each segment must match corresponding column value
-4. **Affix Handling**: Document_ID_Affixes column stores suffixes (e.g., "_Reply", "_ST607")
-
-### Implementation
-```python
-def validate_document_id(row):
-    segments = row['Document_ID'].split('-')
-    expected = [
-        row['Project_Code'],
-        row['Facility_Code'],
-        row['Document_Type'],
-        row['Discipline'],
-        row['Document_Sequence_Number']
-    ]
-    
-    mismatches = []
-    for i, (actual, exp) in enumerate(zip(segments[:5], expected)):
-        if actual != exp:
-            mismatches.append(f"Segment {i}: {actual} != {exp}")
-    
-    if mismatches:
-        flag_error(row, 'Document_ID', 'COMPOSITE_MISMATCH', 
-                   details='; '.join(mismatches), severity='HIGH')
-```
-
-### Pipeline Findings
-- 100 invalid Document_ID values detected
-- Sample issues: "#000002.0_ Reply_2023 08 31-NA-NA-NA-9999" (invalid format)
-- Sample affixes extracted: "_Reply", "_ST607", "_Withdrawn"
-- 1,638 Document_ID affixes extracted successfully
+### 1.4 Potential Issues
+- Varied delimiters in legacy `Document_ID` values (e.g., `_` vs `-`).
+- Leading/trailing whitespace in constituent columns causing mismatch.
 
 ---
 
-## Category 3: Temporal (Date) Sequence Logic
+## Phase 2: Temporal & Logical Sequence
 
-### Purpose
-Ensure date fields follow logical chronological order. No future dates should precede past dates in the workflow.
+This phase ensures the document workflow follows a logical chronological and status-based progression.
 
-### Date Fields
-| Field | Meaning | Constraints |
-|-------|---------|-------------|
-| First_Submission_Date | Initial submission | MIN(Submission_Date) per Document_ID |
-| Submission_Date | Current submission | Must be >= First_Submission_Date |
-| Review_Return_Plan_Date | Expected response | Must be >= Submission_Date |
-| Review_Return_Actual_Date | Actual response | Must be >= Submission_Date |
-| Resubmission_Plan_Date | Resubmission target | NULL if Submission_Closed = YES |
-| Resubmission_Forecast_Date | Forecast date | User provided (305 format errors) |
-| Latest_Submission_Date | Most recent | MAX(Submission_Date) per Document_ID |
+### 2.1 Scope & Functions
+- **Functions to Review/Update:**
+  - `validate_date_sequence`: Check for "Date Inversion" (e.g., Review Date < Submission Date).
+  - `validate_status_closure`: Verify `Submission_Closed` logic against `Approval_Code`.
+- **Validation Rules:**
+  - **Temporal Logic:** `Submission_Date <= Review_Return_Actual_Date`.
+  - **Conditional Closure:** `Resubmission_Plan_Date` MUST be NULL if `Submission_Closed=YES`.
+  - **Status Inter-dependency:** `Review_Status` containing "REJ" must trigger `Resubmission_Required=YES`.
 
-### Validation Rules
+### 2.2 Target Achievement & Success Factors
+- **Target:** Zero logical contradictions in date and status fields.
+- **Success Factors:**
+  - Detection of all 239 negative `Delay_of_Resubmission` values.
+  - Validation of 241 `Overdue` status flags against current date.
 
-#### 3.1 Date Ordering
-```
-First_Submission_Date <= Submission_Date <= Review_Return_Plan_Date
-Submission_Date <= Review_Return_Actual_Date
-Submission_Date <= Resubmission_Plan_Date (if not closed)
-```
+### 2.3 Deliverables
+- Logic-gate validation module in `validation.py`.
+- Suite of "Business Rule" test cases (Positive/Negative).
+- Phase 2 logical consistency report.
 
-#### 3.2 Business Day Calculation
-- Duration_of_Review = Business days between Submission_Date and Review_Return_Actual_Date
-- Delay_of_Resubmission = Days between Resubmission_Plan_Date and actual resubmission
-
-#### 3.3 Group Consistency
-Pipeline Warning: "Group consistency validation failed for Submission_Session: Column Submission_Date must be the same within groups ['Submission_Session', 'Submission_Session_Revision']"
-
-```python
-def validate_group_consistency(df):
-    grouped = df.groupby(['Submission_Session', 'Submission_Session_Revision'])
-    for (session, revision), group in grouped:
-        unique_dates = group['Submission_Date'].nunique()
-        if unique_dates > 1:
-            flag_error(group.index, 'Submission_Date', 
-                      'GROUP_INCONSISTENT', 
-                      details=f"Session {session}/{revision} has {unique_dates} different dates",
-                      severity='HIGH')
-```
-
-### Pipeline Findings
-- 305 invalid date formats in Resubmission_Forecast_Date
-- 4 Duration_of_Review values > 365 days (suspicious)
-- 239 Delay_of_Resubmission values < 0 (impossible)
+### 2.4 Potential Issues
+- Handling of "NA" or placeholder dates in temporal calculations.
+- Timezone discrepancies between `today()` and historical date strings.
 
 ---
 
-## Category 4: Categorical Inter-Dependency
+## Phase 3: Relational Invariants & Aggregation
 
-### Purpose
-Validate logical relationships between categorical fields. Status transitions must follow business rules.
+This phase validates the consistency of data within logical groups, such as Submission Sessions and Document Histories.
 
-### Validation Rules
+### 3.1 Scope & Functions
+- **Functions to Review/Update:**
+  - `validate_group_consistency`: Ensure `Submission_Date` and `Transmittal_Number` are uniform within a `Submission_Session`.
+  - `validate_revision_progression`: Check for version regression per `Document_ID`.
+- **Validation Rules:**
+  - **Group Invariants:** All rows in a `Submission_Session` must share the same `Subject` and `Date`.
+  - **Version Integrity:** `Document_Revision` must not decrease for subsequent submissions of the same `Document_ID`.
+  - **Aggregate Accuracy:** Verify `Count_of_Submissions` matches the actual row count per `Document_ID`.
 
-#### 4.1 Approval Status → Submission Closure
-```python
-# Rule: If Approval_Code is APP/REJ, Submission_Closed should be YES
-if row['Approval_Code'] in ['APP', 'REJ'] and row['Submission_Closed'] != 'YES':
-    flag_error(row, 'Submission_Closed', 'INCONSISTENT_CLOSURE',
-               details=f"Approval={row['Approval_Code']} but Closed={row['Submission_Closed']}",
-               severity='WARNING')
-```
+### 3.2 Target Achievement & Success Factors
+- **Target:** 100% consistency within submission packages and document histories.
+- **Success Factors:**
+  - Identifying `REVISION_GAP` or `VERSION_REGRESSION` in historical data.
+  - Successful validation of all 11,099 rows against group-level rules.
 
-#### 4.2 Review Status → Resubmission Required
-```python
-# Rule: If Review_Status indicates rejection, Resubmission_Required should be YES/RESUBMITTED
-if 'REJ' in str(row['Review_Status']) and row['Resubmission_Required'] not in ['YES', 'RESUBMITTED']:
-    flag_error(row, 'Resubmission_Required', 'RESUBMISSION_MISMATCH',
-               severity='WARNING')
-```
+### 3.3 Deliverables
+- Group-based validation logic (using Pandas `groupby` and `transform`).
+- History-aware revision validator.
+- Phase 3 relational integrity report.
 
-#### 4.3 Submission Closed → Resubmission Plan Date
-```python
-# Rule: If Submission_Closed = YES, Resubmission_Plan_Date must be NULL
-if row['Submission_Closed'] == 'YES' and pd.notnull(row['Resubmission_Plan_Date']):
-    flag_error(row, 'Resubmission_Plan_Date', 'CLOSED_WITH_PLAN_DATE',
-               severity='HIGH')
-```
-
-Pipeline confirmed: "[Resubmission-Plan] Resubmission_Plan_Date: Overwrote 1707 rows to null (Submission_Closed=YES)"
-
-#### 4.4 Resubmission Plan Date → Overdue Status
-```python
-# Rule: If today > Resubmission_Plan_Date and not closed, mark Overdue
-if (pd.notnull(row['Resubmission_Plan_Date']) and 
-    row['Submission_Closed'] != 'YES' and 
-    today > row['Resubmission_Plan_Date']):
-    expected_status = 'Overdue'
-    if row['Resubmission_Overdue_Status'] != expected_status:
-        flag_error(row, 'Resubmission_Overdue_Status', 'OVERDUE_MISMATCH',
-                   severity='WARNING')
-```
-
-Pipeline confirmed: "[Conditional] Resubmission_Overdue_Status: Applied: 241 rows Overdue"
-
-### Pipeline Findings
-- 20 Review_Status values not in approval_code_schema
-- 14 Latest_Approval_Status values not in approval_code_schema
+### 3.4 Potential Issues
+- Performance hit when performing multiple `groupby` operations on large datasets.
+- Ambiguous revision formats (e.g., `A` vs `01`) complicating comparison logic.
 
 ---
 
-## Category 5: Status & Version Regression
+## Final Phase Reports (Summary)
 
-### Purpose
-Ensure revision numbers increment and status transitions follow workflow rules.
-
-### Validation Rules
-
-#### 5.1 Revision Incrementing
-```python
-def validate_revision_progression(df):
-    grouped = df.groupby('Document_ID').sort_values('Submission_Date')
-    for doc_id, group in grouped:
-        revisions = group['Document_Revision'].astype(int).tolist()
-        for i in range(1, len(revisions)):
-            if revisions[i] < revisions[i-1]:
-                flag_error(group.index[i], 'Document_Revision', 
-                          'VERSION_REGRESSION',
-                          details=f"Revision decreased from {revisions[i-1]} to {revisions[i]}",
-                          severity='HIGH')
-            elif revisions[i] == revisions[i-1]:
-                # Same revision allowed if different submission sessions
-                pass
-```
-
-#### 5.2 Submission Session Revision Tracking
-```python
-# Within a Submission_Session, Submission_Session_Revision should increment
-for session, group in df.groupby('Submission_Session'):
-    revs = group['Submission_Session_Revision'].astype(int).unique()
-    if len(revs) > 1 and max(revs) - min(revs) + 1 != len(revs):
-        flag_error(group.index, 'Submission_Session_Revision',
-                  'REVISION_GAP',
-                  severity='WARNING')
-```
-
-### Pipeline Findings
-- 63 Latest_Revision values with pattern validation failures
-- All_Submission_Session_Revisions aggregates unique revisions per Document_ID
-
----
-
-## Category 6: Relational Invariants (Fact Table Rules)
-
-### Purpose
-Ensure data consistency within logical groupings (Submission_Session packages).
-
-### Validation Rules
-
-#### 6.1 Submission Session Subject Consistency
-```python
-# Rule: Submission_Session_Subject should be same for all rows in same Submission_Session
-for session, group in df.groupby('Submission_Session'):
-    subjects = group['Submission_Session_Subject'].dropna().unique()
-    if len(subjects) > 1:
-        flag_error(group.index, 'Submission_Session_Subject',
-                  'INCONSISTENT_SUBJECT',
-                  details=f"Session {session} has {len(subjects)} different subjects",
-                  severity='WARNING')
-```
-
-#### 6.2 Transmittal Number Consistency
-```python
-# Rule: Transmittal_Number should be same within Submission_Session
-for session, group in df.groupby('Submission_Session'):
-    transmittals = group['Transmittal_Number'].dropna().unique()
-    if len(transmittals) > 1:
-        flag_error(group.index, 'Transmittal_Number',
-                  'INCONSISTENT_TRANSMITTAL',
-                  severity='WARNING')
-```
-
-Pipeline confirmed: Forward fill strategy synchronizes Transmittal_Number across Document_ID
-
-#### 6.3 Multi-Level Forward Fill Boundaries
-```python
-# Rule: Review_Comments should propagate within (Submission_Session, Submission_Session_Revision)
-# Then fill to Submission_Session level only
-# Implementation: _apply_multi_level_forward_fill
-```
-
----
-
-## Row Health Score Integration
-
-### Scoring Algorithm
-```python
-def calculate_row_health_score(row_errors):
-    """
-    Weighted scoring based on error severity and category
-    """
-    weights = {
-        'ANCHOR_NULL': 25,        # Critical missing data
-        'COMPOSITE_MISMATCH': 20, # Identity integrity
-        'GROUP_INCONSISTENT': 15, # Temporal consistency
-        'INCONSISTENT_CLOSURE': 10, # Business rule
-        'VERSION_REGRESSION': 15, # Version integrity
-        'INCONSISTENT_SUBJECT': 5, # Relational invariant
-        'OVERDUE_MISMATCH': 5,   # Status logic
-        'CLOSED_WITH_PLAN_DATE': 10, # Date logic
-        'REVISION_GAP': 5         # Version gap
-    }
-    
-    total_weight = sum(weights.get(err['type'], 1) for err in row_errors)
-    score = max(0, 100 - total_weight)
-    
-    # Grade mapping
-    if score >= 95: grade = 'A'
-    elif score >= 85: grade = 'B'
-    elif score >= 70: grade = 'C'
-    else: grade = 'F'
-    
-    return score, grade
-```
-
-### Severity Flags
-| Flag | Condition | Action |
-|------|-----------|--------|
-| 🚨 CRITICAL | Any ANCHOR_NULL error | Block processing, require manual fix |
-| ⚠️ HIGH | COMPOSITE_MISMATCH or GROUP_INCONSISTENT | Flag for review, allow with warning |
-| ⚡ WARNING | Business rule violations | Log and continue |
-| ℹ️ INFO | Minor inconsistencies | Log only |
-
----
-
-## Implementation Priority
-
-### Phase 1: Critical (Data Integrity)
-1. Anchor completeness validation
-2. Document_ID composite integrity
-3. Group consistency (Submission_Date within Session/Revision)
-
-### Phase 2: High (Business Logic)
-1. Temporal sequence validation
-2. Categorical inter-dependency (Approval → Closure)
-3. Revision progression checking
-
-### Phase 3: Standard (Quality Assurance)
-1. Relational invariants (Subject/Transmittal consistency)
-2. Status regression detection
-3. Overdue calculation verification
-
-### Phase 4: Monitoring (Health Tracking)
-1. Row health score calculation
-2. Error trend analysis
-3. Validation dashboard integration
-
----
-
-## Success Metrics
-
-| Metric | Target | Current (Pipeline) |
-|--------|--------|-------------------|
-| Rows with critical errors | < 0.1% | 0.04% (41 Document_ID nulls) |
-| Composite identity match rate | > 99% | ~99% (100 mismatches / 11,099) |
-| Group consistency pass rate | > 99% | ~99.9% (1 group inconsistency) |
-| Temporal sequence violations | < 1% | < 0.1% |
-| Overall row health score | > 95% | 98.5% |
-
----
-
-## Integration with Column Validation
-
-Row validation builds on column validation results:
-1. **Column validation** identifies individual field issues (pattern, range, schema)
-2. **Row validation** identifies cross-field inconsistencies
-3. **Combined results** populate Validation_Errors column
-4. **Aggregate scoring** produces Data_Health_Score
-
-### Processing Order
-```
-Phase 1: Column Mapping & Null Handling
-Phase 2: Column Validation (pattern, range, schema)
-Phase 3: Row Validation (cross-field consistency)
-Phase 4: Error Aggregation & Health Scoring
-Phase 5: Reporting & Dashboard Export
-```
-
----
-
-## Files Affected
-
-- **Schema:** `dcc/config/schemas/dcc_register_config.json` (validation rules per column)
-- **Pipeline:** `dcc/workflow/dcc_engine_pipeline.py` (phase P4 validation)
-- **Processor:** `dcc/workflow/processor_engine/calculations/validation.py`
-- **Output:** `dcc/output/processing_summary.txt` (row-level validation results)
-- **Dashboard:** `dcc/output/error_dashboard_data.json` (aggregated errors)
+Each phase will produce a report within the `dcc/output/` directory:
+1. `row_validation_p1_identity.json`: Results of composite key and anchor checks.
+2. `row_validation_p2_logic.json`: Results of date sequence and status transition checks.
+3. `row_validation_p3_relational.json`: Results of group consistency and revision checks.
