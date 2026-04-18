@@ -7,6 +7,80 @@
 
 # Section 2. Log entries
 
+<a id="foreign-key-missing-issue"></a>
+## 2026-04-18 10:55:00
+
+### Issue: Foreign Key Column Missing in Master Table
+
+**Status:** RESOLVED
+
+**1. Issue Identified:**
+- Foreign key relationships not documented in dcc_register_rule.md Master Column Table
+- Missing critical data model context for understanding column relationships
+
+**2. Analysis & Evaluation:**
+
+| Key Type | Columns | Count | Impact |
+|----------|---------|-------|--------|
+| **PK Components** | Project_Code, Facility_Code, Document_Type, Discipline, Document_Sequence_Number | 5 | Constitute Document_ID |
+| **PRIMARY KEY** | Document_ID | 1 | Composite key from 5 components |
+| **ALTERNATE KEY** | Row_Index | 1 | Only truly unique field (per Rule 3) |
+| **FK → Document_ID** | All aggregate/derived columns (All_*, Latest_*, Count_*, etc.) | 16 | Group by Document_ID for calculations |
+
+**3. Key Relationships Discovered:**
+
+```
+Composite PK Structure:
+┌─────────────────────────────────────────────────────────┐
+│ Document_ID = {Project_Code}-{Facility_Code}-{Document_Type}-{Discipline}-{Sequence} │
+└─────────────────────────────────────────────────────────┘
+         ↑         ↑           ↑              ↑            ↑
+    PK Comp   PK Comp     PK Comp        PK Comp      PK Comp
+    (P1)      (P1)        (P1)           (P1)         (P2)
+
+Foreign Key Dependencies:
+• 16 columns → FK references Document_ID (all aggregates)
+• All aggregate calculations GROUP BY Document_ID
+• Document_ID_Affixes extracted FROM Document_ID
+```
+
+**4. Resolution:**
+- Added **Foreign Key** column to Master Table (14 columns total)
+- Documented PK Components, PRIMARY KEY, ALTERNATE KEY, and FK relationships
+- Updated Legend with Foreign Key definitions
+
+**5. Impact Assessment:**
+- **Data Integrity**: Document_ID composite key enforces referential integrity
+- **Calculations**: 16 aggregate columns depend on Document_ID as grouping key
+- **Validation**: Row_Index is true unique identifier (surrogate key)
+- **Risk**: Document_ID can have duplicates (multiple submissions per document)
+
+**6. Files Updated:**
+- `dcc/workplan/data_validation/dcc_register_rule.md` - Added Foreign Key column
+- `dcc/Log/update_log.md` - This entry
+
+---
+
+<a id="dcc-register-rule-compilation"></a>
+## 2026-04-18 10:09:00
+1. **Master Column Table Complete**: Comprehensive 13-column reference table for all 48 columns.
+2. **Table Columns** (14 total after FK addition):
+   - #, Column, Priority, Calc, Data Type, Category, Phase, Group, Constraint, Business Logic, Null Handling, Manual, Overwrites, Dependencies, Foreign Key, Notes
+3. **Key Attributes Captured:**
+   - **Priority Group** (P1/P2/P2.5/P3/P4) from column_priority_reference.md
+   - **Group** (Meta/Identity/Anomaly/Transactional/Derived/Validation)
+   - **Constraint** (Pattern, Required, Schema, Range, Allow null)
+   - **Business Logic** (Rule description for each column)
+   - **Pipeline Findings** embedded in Notes (null counts, failures, anomalies)
+4. **Special Markers:**
+   - **PRIMARY KEY** - Document_ID (calculated but acts as key)
+   - **UNIQUE** - Row_Index (only unique field per Rule 3)
+   - **ANOMALY** - Document_ID, Latest_Revision, Review_Status_Code
+   - **User Estimate** - Resubmission_Forecast_Date (forward fill allowed)
+5. **Date Requirements Summary**: Separate table with 7 date columns, phases, constraints, logic
+6. **File Location:** `dcc/workplan/data_validation/dcc_register_rule.md`
+7. **Purpose:** Single comprehensive cross-reference with all possible column attributes for easy lookup.
+
 <a id="phase10-test5-remedy"></a>
 ## 2026-04-17 22:56:00
 1. **Phase 10 Test 5 Remedy Complete**: Column optimization pattern coverage improved from 0% to 97.9%.
