@@ -63,6 +63,7 @@ from reporting_engine import (
     write_processing_summary,
     print_summary,
 )
+from ai_ops_engine import run_ai_ops
 
 
 def run_engine_pipeline(
@@ -208,6 +209,24 @@ def run_engine_pipeline(
         status_print(f"Excel: {export_paths['excel_path']}")
         status_print(f"Summary: {export_paths['summary_path']}")
         status_print(f"Debug Log: {debug_log_path}")
+
+    # Step 7: AI Operations (non-blocking)
+    with log_context("pipeline", "step7_ai_ops"):
+        status_print("Running AI operations analysis...")
+        ai_insight = run_ai_ops(
+            pipeline_results={
+                "excel_path": str(excel_path),
+                "csv_output_path": str(export_paths["csv_path"]),
+                "excel_output_path": str(export_paths["excel_path"]),
+                "schema_path": str(schema_path),
+            },
+            output_dir=export_paths["csv_path"].parent,
+        )
+        if ai_insight:
+            status_print(f"✓ AI analysis complete — Risk: {ai_insight.risk_level}, Provider: {ai_insight.provider}")
+            status_print(f"AI Insight: {export_paths['csv_path'].parent / 'ai_insight_summary.json'}")
+        else:
+            status_print("⚠ AI analysis skipped or failed (non-blocking)")
 
     return {
         "base_path": str(base_path),

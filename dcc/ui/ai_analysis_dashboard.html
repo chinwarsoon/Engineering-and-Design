@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DCC AI Analysis Dashboard</title>
+    <link rel="stylesheet" href="dcc-design-system.css">
+    <style>
+        .risk-card {
+            border-left: 4px solid var(--border);
+            margin-bottom: var(--space-md);
+        }
+        .risk-CRITICAL { border-left-color: var(--danger); }
+        .risk-HIGH { border-left-color: var(--warning); }
+        .risk-MEDIUM { border-left-color: var(--info); }
+        .risk-LOW { border-left-color: var(--success); }
+        
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: var(--text-xs);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-CRITICAL { background: var(--danger); color: white; }
+        .badge-HIGH { background: var(--warning); color: black; }
+        .badge-MEDIUM { background: var(--info); color: white; }
+        .badge-LOW { background: var(--success); color: white; }
+
+        .summary-box {
+            background: var(--surface2);
+            padding: var(--space-md);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            font-style: italic;
+            color: var(--accent-alt);
+        }
+    </style>
+</head>
+<body>
+    <nav style="background: var(--surface); height: 48px; display: flex; align-items: center; padding: 0 var(--space-lg); border-bottom: 1px solid var(--border);">
+        <div style="font-weight: 800; color: var(--accent); margin-right: var(--space-md);">DCC</div>
+        <div style="font-weight: 600; flex-grow: 1;">AI Analysis Dashboard</div>
+        <div id="status-badge" class="badge badge-LOW">System Ready</div>
+    </nav>
+
+    <main style="padding: var(--space-lg); max-width: 1200px; margin: 0 auto;">
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-lg);">
+            <!-- Left Column: Summary and Risks -->
+            <div>
+                <section class="card" style="margin-bottom: var(--space-lg);">
+                    <h3>Executive Summary</h3>
+                    <p id="executive-summary" class="summary-box">Loading AI analysis...</p>
+                </section>
+
+                <section>
+                    <h3>Top Risk Findings</h3>
+                    <div id="risks-container">
+                        <!-- Risks populated by JS -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column: Metadata and Trends -->
+            <div>
+                <section class="card" style="margin-bottom: var(--space-lg);">
+                    <h3>Run Metadata</h3>
+                    <div style="font-size: var(--text-sm);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="color: var(--text2);">Run ID:</span>
+                            <span id="run-id" style="font-family: var(--font-mono);">---</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="color: var(--text2);">Timestamp:</span>
+                            <span id="timestamp">---</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="color: var(--text2);">Model:</span>
+                            <span id="model-used">---</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text2);">Overall Risk:</span>
+                            <span id="overall-risk" class="badge">---</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h3>Recurring Trends</h3>
+                    <div id="trends-container">
+                        <!-- Trends populated by JS -->
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function loadData() {
+            try {
+                // In production, this would be fetched from ../output/ai_insight_summary.json
+                const response = await fetch('../output/ai_insight_summary.json');
+                const data = await response.json();
+                renderDashboard(data);
+            } catch (err) {
+                console.error("Error loading AI insight data:", err);
+                document.getElementById('executive-summary').innerText = "Unable to load AI insight data. Ensure the pipeline has been run with AI operations enabled.";
+            }
+        }
+
+        function renderDashboard(data) {
+            document.getElementById('executive-summary').innerText = data.executive_summary;
+            document.getElementById('run-id').innerText = data.run_id.substring(0, 8);
+            document.getElementById('timestamp').innerText = new Date(data.timestamp).toLocaleString();
+            document.getElementById('model-used').innerText = data.model_used || data.provider;
+            
+            const riskBadge = document.getElementById('overall-risk');
+            riskBadge.innerText = data.risk_level;
+            riskBadge.className = 'badge badge-' + data.risk_level;
+
+            const risksContainer = document.getElementById('risks-container');
+            risksContainer.innerHTML = data.top_risks.map(risk => `
+                <div class="card risk-card risk-${risk.severity}">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <h4 style="margin: 0 0 var(--space-xs) 0;">${risk.title}</h4>
+                        <span class="badge badge-${risk.severity}">${risk.severity}</span>
+                    </div>
+                    <p style="font-size: var(--text-sm); margin-bottom: var(--space-md);">${risk.description}</p>
+                    <div style="background: var(--surface3); padding: var(--space-sm); border-radius: var(--radius-sm); font-size: var(--text-xs);">
+                        <strong>Recommendation:</strong> ${risk.recommendation}
+                    </div>
+                    <div style="margin-top: var(--space-sm); font-size: var(--text-xs); color: var(--text2);">
+                        Affected Rows: ${risk.affected_rows} | Codes: ${risk.error_codes.join(', ')}
+                    </div>
+                </div>
+            `).join('');
+
+            const trendsContainer = document.getElementById('trends-container');
+            trendsContainer.innerHTML = data.trends.map(trend => `
+                <div style="border-bottom: 1px solid var(--border); padding: var(--space-sm) 0;">
+                    <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);">
+                        <strong>${trend.error_code}</strong>
+                        <span style="color: var(--accent);">${trend.frequency} occurrences</span>
+                    </div>
+                    <div style="font-size: var(--text-xs); color: var(--text2);">${trend.pattern}</div>
+                </div>
+            `).join('');
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
