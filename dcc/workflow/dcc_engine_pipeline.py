@@ -206,11 +206,23 @@ def run_engine_pipeline(
         debug_log_path = export_paths["csv_path"].parent / "debug_log.json"
         save_debug_log(output_path=debug_log_path)
 
+        # Get error summary for display from processor
+        error_summary = processor.get_error_summary() if 'processor' in dir() else {}
+        total_errors = error_summary.get("total_errors", 0)
+
         status_print(f"✓ Processing complete")
-        status_print(f"CSV: {export_paths['csv_path']}")
-        status_print(f"Excel: {export_paths['excel_path']}")
-        status_print(f"Summary: {export_paths['summary_path']}")
-        status_print(f"Debug Log: {debug_log_path}")
+        status_print(f"CSV: {export_paths['csv_path'].name}")
+        status_print(f"Excel: {export_paths['excel_path'].name}")
+        
+        if total_errors > 0:
+            # Show abbreviated error summary
+            health_kpi = error_summary.get("health_kpi", {})
+            affected = error_summary.get("affected_rows", 0)
+            status_print(f"⚠ Validation: {total_errors} errors ({health_kpi.get('critical_errors',0)} critical, {health_kpi.get('high_errors',0)} high, {health_kpi.get('medium_errors',0)} medium) — {affected} rows affected")
+            status_print(f"  Details: {export_paths['csv_path'].parent.name}/error_diagnostic_log.csv")
+            status_print(f"  Run with --verbose debug for full error list")
+        else:
+            status_print(f"✓ Validation: No errors detected")
 
     # Step 7: AI Operations (non-blocking)
     with log_context("pipeline", "step7_ai_ops"):

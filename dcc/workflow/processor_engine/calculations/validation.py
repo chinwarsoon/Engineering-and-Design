@@ -20,6 +20,23 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Filter validation logs based on DEBUG_LEVEL (import lazily to avoid circular import)
+def _should_log_validation():
+    try:
+        from initiation_engine.utils.logging import DEBUG_LEVEL
+        return DEBUG_LEVEL >= 2
+    except ImportError:
+        return True
+
+# Create filter for validation logger
+class ValidationLogFilter(logging.Filter):
+    def filter(self, record):
+        if record.levelno >= logging.ERROR:
+            return True
+        return _should_log_validation()
+
+logger.addFilter(ValidationLogFilter())
+
 # Mapping from schema_reference name to new top-level key in resolved_schema
 _SCHEMA_REF_KEY_MAP = {
     'approval_code_schema': 'approval_codes',

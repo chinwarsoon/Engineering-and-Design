@@ -16,42 +16,19 @@ from ..utils.paths import safe_resolve
 from .ref_resolver import RefResolver, SchemaNotRegisteredError, RefResolutionError
 from .dependency_graph import SchemaDependencyGraph, CircularDependencyError
 
-# Lazy imports to break circular dependency with initiation_engine
-_status_print = None
-_debug_print = None
-_log_error = None
-_DEBUG_LEVEL = 1  # Default, matches initiation_engine
-
-def _get_debug_level() -> int:
-    """Get debug level from initiation_engine if available."""
-    global _DEBUG_LEVEL
-    try:
-        from initiation_engine.utils.logging import DEBUG_LEVEL
-        _DEBUG_LEVEL = DEBUG_LEVEL
-    except ImportError:
-        pass
-    return _DEBUG_LEVEL
-
-def status_print(msg: str) -> None:
-    """Print status message."""
-    if _get_debug_level() >= 1:
-        print(f"STATUS: {msg}")
-
-def debug_print(msg: str, level: int = 1) -> None:
-    """Print debug message."""
-    if _get_debug_level() >= level:
-        print(f"DEBUG[{level}]: {msg}")
-
-def log_error(msg: str, module: str = "", function: str = "", fatal: bool = True):
-    """Log error message (lazy import)."""
-    global _log_error
-    if _log_error is None:
-        from initiation_engine import log_error as le
-        _log_error = le
-    _log_error(msg, module, function, fatal)
-
+from initiation_engine.utils.logging import log_error
 
 from .schema_cache import SchemaCache
+
+# Lazy imports for debug printing (breaks circular dependency)
+_debug_print = None
+
+def _get_debug_print():
+    global _debug_print
+    if _debug_print is None:
+        from .dependency_graph import debug_print as dp
+        _debug_print = dp
+    return _debug_print
 
 class SchemaLoader:
     """
@@ -108,7 +85,7 @@ class SchemaLoader:
         if project_setup_path is not None:
             self._init_with_project_setup(project_setup_path)
         
-        debug_print(f"SchemaLoader initialized (auto_resolve={auto_resolve_refs})", level=2)
+        _get_debug_print()(f"SchemaLoader initialized (auto_resolve={auto_resolve_refs})", level=2)
 
     def _init_with_project_setup(self, project_setup_path: str | Path) -> None:
         """
@@ -360,11 +337,11 @@ class SchemaLoader:
         except FileNotFoundError:
             status_print(f"WARNING: Schema file not found: {schema_file}")
         except json.JSONDecodeError as exc:
-            status_print(f"ERROR: Invalid JSON in schema file {schema_file}: {exc}")
+            log_error(f"Invalid JSON in schema file {schema_file}: {exc}", module="schema_loader", severity="HIGH")
             if fallback_data is None:
                 raise ValueError(f"Invalid JSON in schema file {schema_file}: {exc}") from exc
         except Exception as exc:
-            status_print(f"ERROR: Error loading schema {schema_name}: {exc}")
+            log_error(f"Error loading schema {schema_name}: {exc}", module="schema_loader", severity="HIGH")
             if fallback_data is None:
                 raise ValueError(f"Error loading schema {schema_name}: {exc}") from exc
 

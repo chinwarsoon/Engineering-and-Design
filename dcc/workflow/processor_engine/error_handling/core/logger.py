@@ -21,6 +21,13 @@ try:
 except ImportError:
     HAS_INITIATION_LOGGING = False
 
+# Check DEBUG_LEVEL at import time (will be correct once all modules loaded)
+try:
+    from initiation_engine.utils.logging import DEBUG_LEVEL
+    _INIT_LOG_LEVEL = DEBUG_LEVEL
+except ImportError:
+    _INIT_LOG_LEVEL = 1
+
 class StructuredLogger:
     """
     Structured JSON logger for error handling.
@@ -88,7 +95,34 @@ class StructuredLogger:
     ) -> None:
         """
         Log an error with full structured context.
+        Suppresses non-critical errors at default verbosity level (1).
         """
+        # Check DEBUG_LEVEL at runtime to get current value
+        current_level = 1
+        try:
+            from initiation_engine.utils.logging import DEBUG_LEVEL
+            current_level = DEBUG_LEVEL
+        except ImportError:
+            pass
+        
+        # Suppress at level 1 (default) - only CRITICAL shows
+        if current_level <= 1 and severity != "CRITICAL":
+            # Still bridge to init_log_error for debug_log.json persistence
+            if HAS_INITIATION_LOGGING:
+                msg_with_code = f"[{error_code}] {message}"
+                if row is not None:
+                    msg_with_code += f" (Row: {row+1})"
+                if column:
+                    msg_with_code += f" (Col: {column})"
+                init_log_error(
+                    msg_with_code,
+                    module="processor",
+                    context=f"phase:{phase}, layer:{layer}, source:StructuredLogger",
+                    fatal=False,
+                    show_summary=False  # Don't print, just store
+                )
+            return
+        
         extra = {
             "error_code": error_code,
             "error_severity": severity,

@@ -24,6 +24,7 @@ from .calculation_strategy import (
 
 # Import hierarchical logging functions from initiation_engine (centralized)
 from initiation_engine import log_context, status_print, debug_print
+from initiation_engine.utils.logging import DEBUG_LEVEL
 
 # Phase 4: Import error handling components
 from ..error_handling.detectors.business import ProcessingPhase
@@ -470,6 +471,12 @@ class CalculationEngine(BaseProcessor):
             return df_calculated
 
     def _print_processing_step(self, phase: str, column_name: str, detail: str):
-        """Standardized logging for processing progress."""
+        """Standardized logging for processing progress.
+        
+        Suppresses ERROR messages at level 1 (default) - they appear in final summary.
+        """
+        # Suppress ERROR messages at default level (1)
+        if detail.startswith("ERROR:") and DEBUG_LEVEL <= 1:
+            return
         message = f"[{phase}] {column_name}: {detail}"
         status_print(message)

@@ -677,3 +677,78 @@ textarea { resize: vertical; min-height: 80px; font-family: var(--font-mono); fo
    Include this at end of each tool's body:
    <script src="dcc-design-system.js"></script>
 ══════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════
+   TREE / KEY EXPLORER STYLES (JSON Tools)
+   ══════════════════════════════════════════ */
+.key-tree-container {
+  border-top: 1px solid var(--border);
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.key-tree-container.visible { display: flex; }
+
+.key-tree-header {
+  padding: 10px 16px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.key-tree-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.key-tree-actions { display: flex; gap: 5px; }
+.key-tree-btn {
+  background: var(--tag-bg);
+  border: 1px solid var(--tag-border);
+  color: var(--text3);
+  font-size: 10px;
+  padding: 3px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all .12s;
+}
+.key-tree-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.key-tree {
+  padding: 8px 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.tree-node {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.tree-node-inner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px 5px 12px;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+  border-left: 2px solid transparent;
+  transition: all .12s;
+  user-select: none;
+}
+.tree-node-inner:hover {
+  background: var(--surface2);
+  border-left-color: rgba(79, 255, 176, .4);
+}
+.tree-node-inner.selected {
+  background: rgba(79, 255, 176, .07);
+  border-left-color: var(--accent);
+}

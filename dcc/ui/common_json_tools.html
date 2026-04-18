@@ -11,21 +11,81 @@
     .editor-toolbar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
     .editor-pane { display: flex; flex: 1; overflow: hidden; }
     .editor-input { flex: 1; padding: 12px; font-family: var(--font-mono); font-size: 11px; background: var(--surface3); border: 1px solid var(--border); color: var(--text); resize: none; outline: none; }
-    .tree-view { flex: 1; padding: 12px; font-family: var(--font-mono); font-size: 11px; overflow-y: auto; }
-    .tree-item { padding: 2px 0; }
-    .tree-toggle { cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 4px; }
+    .tree-view { flex: 1; padding: 8px; font-family: var(--font-mono); font-size: 11px; overflow-y: auto; background: var(--surface); }
+    .tree-item { padding: 2px 0; border-left: 2px solid transparent; transition: all .12s; }
+    .tree-item:hover { background: var(--surface2); border-left-color: rgba(79, 255, 176, .4); }
+    .tree-toggle { cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 6px; }
     .tree-toggle:hover { color: var(--accent-alt); }
-    .tree-arrow { display: inline-block; width: 12px; text-align: center; transition: transform 0.2s; }
+    .tree-arrow { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; font-size: 9px; color: var(--muted); flex-shrink: 0; transition: transform .15s; }
     .tree-item.closed .tree-arrow { transform: rotate(-90deg); }
-    .tree-children { display: none; margin-left: 16px; }
+    .tree-children { display: none; padding-left: 14px; }
     .tree-item.open .tree-children { display: block; }
-    .tree-key { color: var(--accent-alt); font-weight: 500; }
+    .tree-key { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); font-weight: 600; }
     .tree-value { color: var(--text2); }
-    .tree-string { color: var(--success); }
-    .tree-number { color: var(--warning); }
-    .tree-boolean { color: var(--info); }
-    .tree-null { color: var(--text3); }
-    .split-divider { width: 1px; background: var(--border); cursor: col-resize; }
+    .tree-string { color: #ffd93d; }
+    .tree-number { color: var(--accent2); }
+    .tree-boolean { color: var(--success); }
+    .tree-null { color: var(--muted); font-style: italic; }
+    .tree-type { font-size: 9px; padding: 1px 4px; border-radius: 3px; flex-shrink: 0; opacity: .7; margin-left: 6px; }
+    .tree-type.object { background: rgba(123, 140, 222, .2); color: var(--accent3); }
+    .tree-type.array { background: rgba(255, 165, 2, .2); color: var(--warn); }
+    .tree-node { list-style: none; padding: 0; margin: 0; }
+    .tree-node-inner { display: flex; align-items: center; gap: 6px; padding: 5px 16px 5px 12px; cursor: pointer; font-family: var(--font-mono); font-size: 11px; color: var(--text); border-left: 2px solid transparent; transition: all .12s; user-select: none; }
+    .tree-node-inner:hover { background: var(--surface2); border-left-color: rgba(79, 255, 176, .4); }
+    .tree-node-inner.selected { background: rgba(79, 255, 176, .07); border-left-color: var(--accent); }
+    .tree-toggle { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: var(--text3); flex-shrink: 0; transition: transform .15s; cursor: pointer; }
+    .tree-toggle.expanded { transform: rotate(90deg); }
+    .tree-children { display: none; padding-left: 14px; }
+    .tree-children.expanded { display: block; }
+    .dcc-content-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+    .content-tabs { display: flex; gap: 4px; }
+    .content-tab { padding: 6px 12px; background: none; border: 1px solid transparent; border-radius: 4px; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .content-tab:hover { color: var(--text); }
+    .content-tab.active { background: var(--accent); color: #0d0f14; }
+    .panels-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .content-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .content-panel.active { display: flex; }
+    .full-stats { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--surface2); overflow-x: auto; }
+    .full-stats .stat-item { padding: 10px 18px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+    .full-stats .stat-label { font-family: var(--font-mono); font-size: 9px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+    .full-stats .stat-value { font-size: 17px; font-weight: 800; color: var(--text); }
+    .full-stats .stat-value.acc { color: var(--accent); }
+    .full-stats .stat-value.warn { color: var(--warn); }
+    .full-stats .stat-value.err { color: var(--danger); }
+    .full-toolbar { display: flex; align-items: center; gap: 10px; padding: 9px 18px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; flex-wrap: wrap; }
+    .search-box { display: flex; align-items: center; gap: 7px; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 6px 11px; }
+    .search-box input { background: none; border: none; outline: none; color: var(--text); font-family: var(--font-mono); font-size: 12px; width: 160px; }
+    .search-box input::placeholder { color: var(--muted); }
+    .filter-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+    .filter-btn { padding: 4px 9px; border-radius: 4px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; transition: all .12s; white-space: nowrap; }
+    .filter-btn:hover { color: var(--text); }
+    .filter-btn.active { background: rgba(79, 255, 176, .1); border-color: var(--accent); color: var(--accent); }
+    .full-table-wrap { flex: 1; overflow: auto; }
+    .full-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 12px; }
+    .full-table th { position: sticky; top: 0; z-index: 5; padding: 10px 13px; text-align: left; color: var(--accent); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--border); white-space: nowrap; background: #0f111a; }
+    .full-table td { padding: 7px 13px; border-bottom: 1px solid rgba(37, 42, 56, .45); vertical-align: top; word-break: break-word; }
+    .full-table tr:hover td { background: rgba(79, 255, 176, .016); }
+    .full-table .c-path { color: var(--accent3); font-size: 11px; word-break: break-all; }
+    .full-table .c-key { color: var(--accent); font-weight: 600; }
+    .kv-detail-panel { display: none; flex-direction: column; flex-shrink: 0; min-height: 120px; border-top: 1px solid var(--border); background: var(--surface); }
+    .kv-detail-panel.visible { display: flex; }
+    .kv-detail-header { padding: 8px 18px; background: var(--surface2); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .kv-detail-title { font-family: var(--font-mono); font-size: 10px; color: var(--muted); letter-spacing: .15em; text-transform: uppercase; font-weight: 700; }
+    .kv-detail-path { font-family: var(--font-mono); font-size: 10px; color: var(--accent3); background: var(--tag-bg); padding: 2px 8px; border-radius: 3px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kv-detail-content { padding: 12px 18px; overflow-y: auto; flex: 1; }
+    .kv-detail-content .kv-empty { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 0; }
+    .kv-detail-content .kv-table { width: 100%; font-family: var(--font-mono); font-size: 11px; border-collapse: collapse; }
+    .kv-detail-content .kv-table th { text-align: left; padding: 6px 10px; color: var(--accent); font-size: 9px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .kv-detail-content .kv-table td { padding: 7px 10px; border-bottom: 1px solid rgba(37, 42, 56, .45); vertical-align: top; }
+    .kv-detail-content .kv-key { color: var(--accent); font-weight: 600; min-width: 140px; }
+    .kv-detail-content .kv-val { color: var(--text); }
+    .kv-detail-content .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+    .kv-detail-content .tag-object { background: rgba(123, 140, 222, .15); color: var(--accent3); }
+    .kv-detail-content .tag-array { background: rgba(255, 165, 2, .12); color: var(--warn); }
+    .kv-detail-content .tag-string { background: rgba(255, 211, 61, .1); color: #ffd93d; }
+    .kv-detail-content .tag-number { background: rgba(255, 107, 53, .12); color: var(--accent2); }
+    .kv-detail-content .tag-boolean { background: rgba(46, 213, 115, .1); color: var(--success); }
+    .kv-detail-content .tag-null { background: rgba(107, 117, 145, .15); color: var(--muted); }
     .output-panel { flex: 1; padding: 12px; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; font-family: var(--font-mono); font-size: 11px; }
     .output-line { padding: 2px 0; }
     .output-error { color: var(--danger); }
@@ -76,87 +136,118 @@
     <div class="dcc-iconbar">
       <button class="dcc-iconbar-btn" id="sidebarToggle" title="Toggle Sidebar">☰</button>
       <div class="dcc-iconbar-sep"></div>
-      <button class="dcc-iconbar-btn active" data-panel="inspector" title="Inspector">{ }</button>
-      <button class="dcc-iconbar-btn" data-panel="formatter" title="Formatter">📋</button>
-      <button class="dcc-iconbar-btn" data-panel="validator" title="Validator">✓</button>
+      <button class="dcc-iconbar-btn active" data-panel="files" title="Files">📁</button>
+      <button class="dcc-iconbar-btn" data-panel="structure" title="Structure">🌳</button>
+      <button class="dcc-iconbar-btn" data-panel="actions" title="Actions">⚡</button>
+      <button class="dcc-iconbar-btn" data-panel="options" title="Options">⚙️</button>
       <div class="dcc-iconbar-spacer"></div>
       <div class="dcc-iconbar-bottom">
         <button class="dcc-iconbar-btn" data-panel="help" title="Help">❓</button>
       </div>
     </div>
 
-    <div class="dcc-sidebar" id="mainSidebar">
-      <!-- Inspector Panel (default) -->
-      <div id="panel-inspector" class="sidebar-panel">
+<div class="dcc-sidebar" id="mainSidebar">
+      <!-- Files Panel -->
+      <div id="panel-files" class="sidebar-panel">
         <div class="dcc-sidebar-header">
-          <span>Inspector</span>
+          <span>📁 Files</span>
         </div>
         <div class="dcc-sidebar-body">
-          <!-- File Tree Section -->
           <div class="sb-section">
-            <div class="sb-section-header">
-              <span>📁 Files</span>
-              <span class="sb-section-arrow">▼</span>
-            </div>
-            <div class="sb-section-body" style="max-height: 200px; overflow-y: auto;">
-              <div id="fileTree"></div>
-              <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" id="loadFilesBtn">📂 Load Files</button>
-              <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
-            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 6px;" id="loadFilesBtn">📂 Load Files</button>
+            <input type="file" id="fileInput" accept=".json" multiple style="display: none;">
           </div>
-
-          <!-- Current File Tree -->
-          <div class="sb-section">
-            <div class="sb-section-header">
-              <span>🌳 Structure</span>
-              <span class="sb-section-arrow">▼</span>
-            </div>
-            <div class="sb-section-body" style="max-height: 300px; overflow-y: auto;" id="sidebarTree">
-              <div style="color: var(--text3); font-size: 11px; padding: 8px;">Load files to view structure</div>
-            </div>
+          <div class="sb-section-body" style="max-height: 200px; overflow-y: auto;">
+            <div id="fileTree"></div>
           </div>
+        </div>
+      </div>
 
-          <!-- Quick Actions -->
+      <!-- Structure Panel (Key Explorer) -->
+      <div id="panel-structure" class="sidebar-panel" style="display: none;">
+        <div class="key-tree-header">
+          <span class="key-tree-title">Key Explorer</span>
+          <div class="key-tree-actions">
+            <button class="key-tree-btn" id="expandAllBtn" title="Expand all">⤢</button>
+            <button class="key-tree-btn" id="collapseAllBtn" title="Collapse all">⤡</button>
+          </div>
+        </div>
+        <div class="key-tree" id="sidebarTree">
+          <div style="color: var(--text3); font-size: 11px; padding: 8px;">Load files to view structure</div>
+        </div>
+      </div>
+
+      <!-- Actions Panel -->
+      <div id="panel-actions" class="sidebar-panel" style="display: none;">
+        <div class="dcc-sidebar-header">
+          <span>⚡ Actions</span>
+        </div>
+        <div class="dcc-sidebar-body">
           <div class="sb-section">
             <div class="sb-section-header">
-              <span>⚡ Actions</span>
+              <span>✨ Format</span>
               <span class="sb-section-arrow">▼</span>
             </div>
             <div class="sb-section-body">
-              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="sampleBtn">📄 Sample Data</button>
-              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="clearBtn">🗑️ Clear All</button>
+              <button class="btn btn-primary" style="width: 100%; margin-bottom: 6px;" id="formatBtn">Format JSON</button>
+              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="minifyBtn">Minify JSON</button>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>📋 Clipboard</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body">
+              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="copyBtn">Copy to Clipboard</button>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>📄 Data</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body">
+              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="sampleBtn">Sample Data</button>
+              <button class="btn btn-secondary" style="width: 100%;" id="clearBtn">Clear All</button>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-header">
+              <span>✓ Validate</span>
+              <span class="sb-section-arrow">▼</span>
+            </div>
+            <div class="sb-section-body">
+              <select id="schemaSelect" style="width: 100%; margin-bottom: 6px;">
+                <option value="">No Schema</option>
+                <option value="dcc">DCC Register</option>
+                <option value="department">Department</option>
+                <option value="discipline">Discipline</option>
+              </select>
+              <button class="btn btn-primary" style="width: 100%;" id="validateBtn">Validate</button>
+              <div id="validationResults" style="font-size: 11px; color: var(--text2); margin-top: 8px;">
+                No validation run yet
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Formatter Panel -->
-      <div id="panel-formatter" class="sidebar-panel" style="display: none;">
+      <!-- Options Panel -->
+      <div id="panel-options" class="sidebar-panel" style="display: none;">
         <div class="dcc-sidebar-header">
-          <span>Formatter</span>
+          <span>⚙️ Options</span>
         </div>
         <div class="dcc-sidebar-body">
           <div class="sb-section">
             <div class="sb-section-header">
-              <span>✨ Actions</span>
+              <span>Indentation</span>
               <span class="sb-section-arrow">▼</span>
             </div>
             <div class="sb-section-body">
-              <button class="btn btn-primary" style="width: 100%; margin-bottom: 6px;" id="formatBtn">✨ Format</button>
-              <button class="btn btn-secondary" style="width: 100%; margin-bottom: 6px;" id="minifyBtn">📦 Minify</button>
-              <button class="btn btn-secondary" style="width: 100%;" id="copyBtn">📋 Copy</button>
-            </div>
-          </div>
-
-          <div class="sb-section">
-            <div class="sb-section-header">
-              <span>⚙️ Options</span>
-              <span class="sb-section-arrow">▼</span>
-            </div>
-            <div class="sb-section-body">
-              <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-                <input type="checkbox" id="sortKeys" checked> Sort keys alphabetically
-              </label>
               <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
                 <input type="checkbox" id="indentEnabled" checked> Enable indentation
               </label>
@@ -167,40 +258,16 @@
               </select>
             </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Validator Panel -->
-      <div id="panel-validator" class="sidebar-panel" style="display: none;">
-        <div class="dcc-sidebar-header">
-          <span>Validator</span>
-        </div>
-        <div class="dcc-sidebar-body">
-          <div class="sb-section">
-            <div class="sb-section-header">
-              <span>✓ Schema</span>
-              <span class="sb-section-arrow">▼</span>
-            </div>
-            <div class="sb-section-body">
-              <select id="schemaSelect" style="width: 100%; margin-bottom: 6px;">
-                <option value="">No Schema</option>
-                <option value="dcc">DCC Register</option>
-                <option value="department">Department</option>
-                <option value="discipline">Discipline</option>
-              </select>
-              <button class="btn btn-primary" style="width: 100%;" id="validateBtn">✓ Validate</button>
-            </div>
-          </div>
 
           <div class="sb-section">
             <div class="sb-section-header">
-              <span>📊 Results</span>
+              <span>Sorting</span>
               <span class="sb-section-arrow">▼</span>
             </div>
             <div class="sb-section-body">
-              <div id="validationResults" style="font-size: 11px; color: var(--text2);">
-                No validation run yet
-              </div>
+              <label style="font-size: 11px; display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="sortKeys" checked> Sort keys alphabetically
+              </label>
             </div>
           </div>
         </div>
@@ -213,9 +280,10 @@
         </div>
         <div class="dcc-sidebar-body">
           <div style="padding: 12px; font-size: 11px; color: var(--text2);">
-            <p><strong>📁 Inspector:</strong> Load & view JSON files</p>
-            <p><strong>✨ Formatter:</strong> Format/minify JSON</p>
-            <p><strong>✓ Validator:</strong> Validate against schema</p>
+            <p><strong>📁 Files:</strong> Load JSON files</p>
+            <p><strong>🌳 Structure:</strong> View JSON tree</p>
+            <p><strong>⚡ Actions:</strong> Format, validate, copy</p>
+            <p><strong>⚙️ Options:</strong> Configure options</p>
             <hr style="margin: 12px 0; border-color: var(--border);">
             <p><strong>Keyboard:</strong></p>
             <p>Ctrl+Enter: Format</p>
@@ -226,23 +294,57 @@
     </div>
 
     <div class="dcc-content">
-      <div class="editor-area">
-        <div class="editor-toolbar">
-          <span style="font-weight: 600; color: var(--text);">JSON Editor</span>
-          <div style="margin-left: auto; display: flex; gap: 8px;">
-            <button class="btn btn-sm btn-secondary">📥 Import</button>
-            <button class="btn btn-sm btn-secondary">📤 Export</button>
+      <div class="dcc-content-toolbar">
+        <div class="content-tabs" id="contentTabs">
+          <button class="content-tab active" data-tab="editor">JSON Editor</button>
+          <button class="content-tab" data-tab="full">Full Inspection</button>
+        </div>
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+          <button class="btn btn-sm btn-secondary">📥 Import</button>
+          <button class="btn btn-sm btn-secondary">📤 Export</button>
+        </div>
+      </div>
+
+      <div class="panels-container" id="panelsContainer">
+        <!-- JSON Editor Panel -->
+        <div class="content-panel active" id="panel-editor">
+          <div class="editor-pane">
+            <textarea id="jsonInput" class="editor-input" placeholder="Paste JSON here or use the tools on the left..."></textarea>
+            <div class="split-divider"></div>
+            <div class="tree-view" id="treeView">
+              <div style="color: var(--text3); text-align: center; padding: 20px;">
+                Load JSON to view tree
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="editor-pane">
-          <textarea id="jsonInput" class="editor-input" placeholder="Paste JSON here or use the tools on the left..."></textarea>
-          <div class="split-divider"></div>
-          <div class="tree-view" id="treeView">
-            <div style="color: var(--text3); text-align: center; padding: 20px;">
-              Load JSON to view tree
+        <!-- Full Inspection Panel -->
+        <div class="content-panel" id="panel-full">
+          <div class="full-stats" id="fullStats"></div>
+          <div class="full-toolbar">
+            <div class="search-box">
+              <span style="color:var(--muted)">⌕</span>
+              <input type="text" id="searchInput" placeholder="Filter rows…">
             </div>
+            <div class="filter-btns" id="filterBtns"></div>
           </div>
+          <div class="full-table-wrap">
+            <table class="full-table" id="fullTable">
+              <thead><tr><th>Path</th><th>Key</th><th>Value</th><th>Type</th></tr></thead>
+              <tbody id="fullTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="kv-detail-panel" id="kvDetailPanel">
+        <div class="kv-detail-header">
+          <span class="kv-detail-title">Key-Value Details</span>
+          <span class="kv-detail-path" id="kvDetailPath"></span>
+        </div>
+        <div class="kv-detail-content" id="kvDetailContent">
+          <div class="kv-empty">Select a key from the tree to view details</div>
         </div>
       </div>
     </div>
@@ -285,6 +387,21 @@
     // State
     const loadedFiles = new Map();
     let currentFileName = null;
+    let currentJsonData = null;
+    let allFlatRows = [];
+    let activeFilter = 'all';
+
+    // Content tab switching
+    document.querySelectorAll('.content-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabId = tab.dataset.tab;
+        document.querySelectorAll('.content-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + tabId).classList.add('active');
+        if (tabId === 'full') buildFullPanel();
+      });
+    });
 
     // Sidebar section toggle
     document.querySelectorAll('.sb-section-header').forEach(header => {
@@ -359,7 +476,7 @@
       });
     }
 
-    // Render structure tree in sidebar
+    // Render structure tree in sidebar (Key Explorer)
     function renderSidebarTree() {
       if (!currentFileName || !loadedFiles.has(currentFileName)) {
         sidebarTree.innerHTML = '<div style="color: var(--text3); font-size: 11px; padding: 8px;">Select a file to view structure</div>';
@@ -368,15 +485,41 @@
       
       try {
         const obj = JSON.parse(loadedFiles.get(currentFileName));
+        currentJsonData = obj;
+        allFlatRows = [];
+        flatten(obj, '(root)', [], allFlatRows, 0);
         sidebarTree.innerHTML = renderTree(obj, true);
         
         // Add click handlers for tree toggles
         sidebarTree.querySelectorAll('.tree-toggle').forEach(toggle => {
-          toggle.addEventListener('click', () => {
-            toggle.closest('.tree-item').classList.toggle('closed');
-            toggle.closest('.tree-item').classList.toggle('open');
+          toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const children = toggle.closest('.tree-node').querySelector('.tree-children');
+            if (children) children.classList.toggle('expanded');
+            toggle.classList.toggle('expanded');
           });
         });
+
+        // Click on tree node to show details
+        sidebarTree.querySelectorAll('.tree-node-inner').forEach(inner => {
+          inner.addEventListener('click', (e) => {
+            const keyEl = inner.querySelector('.tree-key, .tree-value');
+            if (!keyEl) return;
+            const keyText = keyEl.textContent;
+            const row = allFlatRows.find(r => r.key === keyText || r.path === keyText);
+            if (row) showKvDetail(row.path, row.value, row.vtype);
+          });
+        });
+
+        // Expand/Collapse all buttons
+        document.getElementById('expandAllBtn').onclick = () => {
+          sidebarTree.querySelectorAll('.tree-children').forEach(child => child.classList.add('expanded'));
+          sidebarTree.querySelectorAll('.tree-toggle').forEach(toggle => toggle.classList.add('expanded'));
+        };
+        document.getElementById('collapseAllBtn').onclick = () => {
+          sidebarTree.querySelectorAll('.tree-children').forEach(child => child.classList.remove('expanded'));
+          sidebarTree.querySelectorAll('.tree-toggle').forEach(toggle => toggle.classList.remove('expanded'));
+        };
       } catch (e) {
         sidebarTree.innerHTML = `<div class="output-error" style="padding: 8px;">Invalid JSON</div>`;
       }
@@ -512,18 +655,28 @@
         treeView.innerHTML = '<div style="color: var(--text3); text-align: center; padding: 20px;">Load files to view tree</div>';
         document.getElementById('statusText').textContent = 'Ready';
         document.getElementById('statusSize').textContent = '—';
+        currentJsonData = null;
+        allFlatRows = [];
         return;
       }
       
       try {
         const obj = JSON.parse(jsonInput.value);
+        currentJsonData = obj;
+        allFlatRows = [];
+        flatten(obj, '(root)', [], allFlatRows, 0);
+        
         treeView.innerHTML = renderTree(obj, true);
         
-        // Add click handlers
+        // Add click handlers for tree toggles in treeView
         treeView.querySelectorAll('.tree-toggle').forEach(toggle => {
           toggle.addEventListener('click', () => {
-            toggle.closest('.tree-item').classList.toggle('closed');
-            toggle.closest('.tree-item').classList.toggle('open');
+            const parent = toggle.closest('.tree-node');
+            if (parent) {
+              const children = parent.querySelector('.tree-children');
+              if (children) children.classList.toggle('expanded');
+              toggle.classList.toggle('expanded');
+            }
           });
         });
         
@@ -534,6 +687,142 @@
       }
     }
 
+    function vtype(v) {
+      if (v === null) return 'null';
+      if (Array.isArray(v)) return 'array';
+      return typeof v;
+    }
+
+    function flatten(node, path, pathArr, out, depth) {
+      const t = vtype(node);
+      const childCount = t === 'object' ? Object.keys(node).length : t === 'array' ? node.length : null;
+      out.push({ path, pathArr: [...pathArr], key: pathArr.length ? pathArr[pathArr.length - 1] : '(root)', parentPath: pathArr.length > 1 ? pathArr.slice(0, -1).join('.') : '', depth, vtype: t, value: node, childCount });
+      if (t === 'object') {
+        for (const [k, v] of Object.entries(node)) flatten(v, (path !== '(root)' ? path + '.' : '') + k, [...pathArr, k], out, depth + 1);
+      } else if (t === 'array') {
+        node.forEach((v, i) => flatten(v, path + '[' + i + ']', [...pathArr, '[' + i + ']'], out, depth + 1));
+      }
+    }
+
+    function buildFullPanel() {
+      if (!currentJsonData) {
+        document.getElementById('fullStats').innerHTML = '<div class="kv-empty">Load JSON to view inspection</div>';
+        return;
+      }
+      
+      const leaves = allFlatRows.filter(r => r.vtype !== 'object' && r.vtype !== 'array').length;
+      const objects = allFlatRows.filter(r => r.vtype === 'object').length;
+      const arrays = allFlatRows.filter(r => r.vtype === 'array').length;
+      const nulls = allFlatRows.filter(r => r.vtype === 'null').length;
+      const maxDepth = Math.max(0, ...allFlatRows.map(r => r.depth));
+      
+      document.getElementById('fullStats').innerHTML = `
+        <div class="stat-item"><span class="stat-label">Total Rows</span><span class="stat-value acc">${allFlatRows.length}</span></div>
+        <div class="stat-item"><span class="stat-label">Leaf Values</span><span class="stat-value">${leaves}</span></div>
+        <div class="stat-item"><span class="stat-label">Objects</span><span class="stat-value">${objects}</span></div>
+        <div class="stat-item"><span class="stat-label">Arrays</span><span class="stat-value warn">${arrays}</span></div>
+        <div class="stat-item"><span class="stat-label">Nulls</span><span class="stat-value ${nulls ? 'err' : ''}">${nulls}</span></div>
+        <div class="stat-item"><span class="stat-label">Max Depth</span><span class="stat-value">${maxDepth}</span></div>
+      `;
+      
+      renderFilters(allFlatRows);
+      buildFullTable(allFlatRows);
+    }
+
+    function renderFilters(rows) {
+      const types = ['all', ...new Set(rows.map(r => r.vtype))];
+      const container = document.getElementById('filterBtns');
+      container.innerHTML = '';
+      types.forEach(t => {
+        const count = t === 'all' ? rows.length : rows.filter(r => r.vtype === t).length;
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn' + (t === 'all' ? ' active' : '');
+        btn.textContent = t + ' (' + count + ')';
+        btn.dataset.f = t;
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          activeFilter = t;
+          applyFilters();
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    function applyFilters() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      document.querySelectorAll('#fullTableBody tr').forEach(tr => {
+        const matchFilter = activeFilter === 'all' || tr.dataset.vtype === activeFilter;
+        const matchSearch = !search || tr.dataset.search.includes(search);
+        tr.style.display = matchFilter && matchSearch ? '' : 'none';
+      });
+    }
+
+    function buildFullTable(rows) {
+      const tbody = document.getElementById('fullTableBody');
+      tbody.innerHTML = '';
+      rows.forEach((row, i) => {
+        if (row.path === '(root)') return;
+        const tr = document.createElement('tr');
+        tr.className = 'data-row';
+        tr.dataset.vtype = row.vtype;
+        tr.dataset.search = (row.path + ' ' + row.key + ' ' + valText(row.value)).toLowerCase();
+        tr.dataset.path = row.path;
+        tr.addEventListener('click', () => showKvDetail(row.path, row.value, row.vtype));
+        tr.innerHTML = `
+          <td class="c-path">${esc(row.path)}</td>
+          <td class="c-key">${esc(String(row.key))}</td>
+          <td>${valHtml(row.value, row.vtype)}</td>
+          <td><span class="tag tag-${row.vtype}">${row.vtype}</span></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('searchInput').oninput = applyFilters;
+    }
+
+    function valText(v) { return v === null ? 'null' : typeof v === 'object' ? JSON.stringify(v) : String(v); }
+    function valHtml(v, t) {
+      if (t === 'null') return '<span class="val-null">null</span>';
+      if (t === 'boolean') return '<span class="val-bool-' + v + '">' + v + '</span>';
+      if (t === 'number') return '<span class="val-num">' + v + '</span>';
+      if (t === 'string') return '<span class="val-str">' + esc(v.substring(0, 100)) + (v.length > 100 ? '...' : '') + '</span>';
+      if (t === 'array') return '<span class="val-arr">[' + v.length + ' items]</span>';
+      if (t === 'object') return '<span class="tag tag-object">{ ' + Object.keys(v).length + ' keys }</span>';
+      return esc(String(v));
+    }
+
+    function showKvDetail(path, value, valueType) {
+      const panel = document.getElementById('kvDetailPanel');
+      const pathEl = document.getElementById('kvDetailPath');
+      const contentEl = document.getElementById('kvDetailContent');
+      panel.classList.add('visible');
+      pathEl.textContent = path;
+      contentEl.innerHTML = `<table class="kv-table">
+        <thead><tr><th style="min-width:100px">Property</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td class="kv-key">Key / Path</td><td class="kv-val">${esc(path)}</td></tr>
+          <tr><td class="kv-key">Type</td><td class="kv-val"><span class="tag tag-${valueType}">${valueType}</span></td></tr>
+          <tr><td class="kv-key">Value</td><td class="kv-val">${valHtml(value, valueType)}</td></tr>
+        </tbody>
+      </table>`;
+      if (valueType === 'object' && value !== null) {
+        contentEl.querySelector('tbody').innerHTML += `<tr><td class="kv-key">Keys (${Object.keys(value).length})</td><td class="kv-val">${Object.keys(value).map(k => `<span class="tag tag-string" style="margin:1px 3px;display:inline-block">${esc(k)}</span>`).join('')}</td></tr>`;
+      }
+      if (valueType === 'array') {
+        const len = value.length;
+        const preview = value.slice(0, 10);
+        contentEl.querySelector('tbody').innerHTML += `<tr><td class="kv-key">Length</td><td class="kv-val"><span class="tag tag-number">${len} items</span>${len > 10 ? ' (showing first 10)' : ''}</td></tr>`;
+        contentEl.querySelector('tbody').innerHTML += `<tr><td class="kv-key">Preview</td><td class="kv-val">${preview.map((v, i) => '[' + i + ']: ' + valHtml(v, vtype(v))).join('<br>')}</td></tr>`;
+      }
+      if (valueType === 'object' || valueType === 'array') {
+        const rawJson = JSON.stringify(value, null, 2);
+        const previewJson = rawJson.length > 500 ? rawJson.substring(0, 500) + '...' : rawJson;
+        contentEl.querySelector('tbody').innerHTML += `<tr><td class="kv-key">Raw JSON</td><td class="kv-val"><pre style="margin:0;padding:8px;background:var(--tag-bg);border-radius:4px;overflow-x:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-word">${esc(previewJson)}</pre></td></tr>`;
+      }
+    }
+
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
     function renderTree(obj, isRoot = false, depth = 0) {
       if (obj === null) return '<span class="tree-null">null</span>';
       if (typeof obj === 'boolean') return `<span class="tree-boolean">${obj}</span>`;
@@ -542,16 +831,17 @@
 
       if (Array.isArray(obj)) {
         const items = obj.map((item, i) => 
-          `<div class="tree-item"><span class="tree-value">[${i}]:</span> ${renderTree(item, false, depth + 1)}</div>`
+          `<li class="tree-node"><div class="tree-node-inner"><span class="tree-value">[${i}]:</span> ${renderTree(item, false, depth + 1)}</div></li>`
         ).join('');
-        return `<div class="tree-item open"><div class="tree-toggle"><span class="tree-arrow">▼</span><span class="tree-value">Array(${obj.length})</span></div><div class="tree-children">${items}</div></div>`;
+        return `<ul class="tree-node open"><li class="tree-node"><div class="tree-node-inner"><span class="tree-toggle">▶</span><span class="tree-key">Array</span><span class="tree-type array">${obj.length}</span></div><ul class="tree-children">${items}</ul></li></ul>`;
       }
 
       if (typeof obj === 'object') {
+        const keys = Object.keys(obj);
         const items = Object.entries(obj).map(([key, val]) => 
-          `<div class="tree-item"><span class="tree-key">"${key}"</span>: ${renderTree(val, false, depth + 1)}</div>`
+          `<li class="tree-node"><div class="tree-node-inner"><span class="tree-key">"${key}"</span>: ${renderTree(val, false, depth + 1)}</div></li>`
         ).join('');
-        return `<div class="tree-item open"><div class="tree-toggle"><span class="tree-arrow">▼</span><span class="tree-value">Object</span></div><div class="tree-children">${items}</div></div>`;
+        return `<ul class="tree-node open"><li class="tree-node"><div class="tree-node-inner"><span class="tree-toggle">▶</span><span class="tree-key">Object</span><span class="tree-type object">${keys.length}</span></div><ul class="tree-children">${items}</ul></li></ul>`;
       }
 
       return String(obj);

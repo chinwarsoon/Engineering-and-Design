@@ -328,7 +328,7 @@ dcc_engine_pipeline.py
 **Summary:**
 All 4 verbosity levels implemented and tested:
 - `--verbose quiet` → Errors + final summary only
-- `--verbose normal` → Milestones + KPIs (default)  
+- `--verbose normal` → Milestones + KPIs (default)
 - `--verbose debug` → Warnings + context
 - `--verbose trace` → All details + deep tracking
 
@@ -337,16 +337,75 @@ All 4 verbosity levels implemented and tested:
 
 ---
 
-## 5. Files to Modify
+## 6. Error Suppression Implementation
+
+**Status:** COMPLETE
+**Date:** 2026-04-19
+
+### 6.1 Error Output Behavior
+
+At default level (1), individual errors are now suppressed:
+
+| Level | Error Output |
+|-------|-----------|
+| 0 | CRITICAL errors only |
+| 1 | No output (summary only) ✅ DEFAULT |
+| 2 | Abbreviated (truncated > 100 chars) |
+| 3 | Full error messages |
+
+### 6.2 Implementation Details
+
+**Files Modified:**
+
+1. **initiation_engine/utils/logging.py:**
+   - `log_error()` checks DEBUG_LEVEL at runtime
+   - Level 1: No print, only stores in DEBUG_OBJECT
+   - Added `show_summary` parameter
+
+2. **processor_engine/error_handling/core/logger.py:**
+   - `StructuredLogger.log_error()` checks DEBUG_LEVEL at runtime
+   - Suppresses non-CRITICAL at level 1
+   - Still persists to debug_log.json
+
+3. **processor_engine/calculations/validation.py:**
+   - Added `ValidationLogFilter` to suppress warnings at level 1
+   - Filters based on current DEBUG_LEVEL
+
+4. **processor_engine/core/engine.py:**
+   - `_print_processing_step()` suppresses "ERROR:" messages at level 1
+
+### 6.3 Final Error Summary
+
+At pipeline end (level 1), shows abbreviated summary:
+
+```
+✓ Processing complete
+CSV: processed_dcc_universal.csv
+Excel: processed_dcc_universal.xlsx
+⚠ Validation: 127 errors (3 critical, 45 high, 79 medium) — 92 rows affected
+  Details: output_error_diagnostic_log/error_diagnostic_log.csv
+  Run with --verbose debug for full error list
+```
+
+Or if no errors:
+
+```
+✓ Validation: No errors detected
+```
+
+---
+
+## 7. Files Modified
 
 | File | Purpose |
 |------|---------|
 | `initiation_engine/utils/cli.py` | Add --verbose argument |
-| `initiation_engine/utils/logging.py` | Add level control |
-| `dcc_engine_pipeline.py` | Simplify status output |
-| `processor_engine/*` | Simplified print calls |
-| `mapper_engine/*` | Simplified print calls |
-| `schema_engine/*` | Simplified print calls |
+| `initiation_engine/utils/logging.py` | Level-based error output |
+| `dcc_engine_pipeline.py` | Error summary display |
+| `processor_engine/core/engine.py` | Suppress ERROR in processing step |
+| `processor_engine/calculations/validation.py` | Validation log filter |
+| `processor_engine/error_handling/core/logger.py` | Runtime level check |
+| `schema_engine/loader/schema_loader.py` | Lazy import fix |
 
 ---
 

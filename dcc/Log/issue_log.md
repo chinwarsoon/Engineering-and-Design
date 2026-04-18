@@ -19,6 +19,25 @@
 
 # Section 2. Pending Issues
 
+<a id="issue33-json-tools-ui"></a>
+## 2026-04-18 21:45:00
+[Issue #33]: JSON Tools UI - restructure sidebar panels and integrate backup features
+- [Status]: RESOLVED
+- [Context]: common_json_tools.html needed restructuring to separate Files, Structure, Actions, Options as distinct sidebar icons (matching backup file layout).
+- [Root Cause]: Original HTML combined all functions into 3 panels (Inspector/Formatter/Validator) instead of 4 separate panels.
+- [File Changes]: 
+  - ui/common_json_tools.html - Added 4 new icon bar buttons, restructured sidebar panels
+  - ui/dcc-design-system.css - Added tree/key-explorer CSS classes
+  - ui/common_json_tools_backup.html - Referenced for style comparison
+- [Resolution]: 
+  1. Updated icon bar with separate buttons: Files 📁, Structure 🌳, Actions ⚡, Options ⚙️
+  2. Restructured sidebar into 4 panels matching new icons
+  3. Added structure panel with Key Explorer (copied style from backup)
+  4. Integrated Full Inspection tab with stats, filters, full table
+  5. Added Key-Value Details panel (bottom)
+  6. CSS added for tree-node styling in design system
+- [Link to Update Log]: [update_log.md](#issue33-json-tools-ui)
+
 <a id="issue32-verbose-levels"></a>
 ## 2026-04-19 11:30:00
 [Issue #32]: Pipeline output too verbose for user-facing messages

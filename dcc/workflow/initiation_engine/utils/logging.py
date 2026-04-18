@@ -218,7 +218,7 @@ def log_trace(message: str, module: str = "", context: str = "") -> None:
     })
 
 
-def log_error(message: str, module: str = "", context: str = "", fatal: bool = False, severity: Optional[str] = None) -> None:
+def log_error(message: str, module: str = "", context: str = "", fatal: bool = False, severity: Optional[str] = None, show_summary: bool = True) -> None:
     """
     Log errors. Always shown regardless of debug level.
 
@@ -229,6 +229,7 @@ def log_error(message: str, module: str = "", context: str = "", fatal: bool = F
         fatal: If True, raises exception (fail-fast).
         severity: Error severity (CRITICAL, HIGH, MEDIUM, WARNING, INFO).
                   Defaults to CRITICAL if fatal=True, else ERROR.
+        show_summary: If True, show abbreviated error + reference to report file.
 
     Breadcrumb Comments:
         - DEBUG_LEVEL: Errors always output regardless of level.
@@ -243,7 +244,30 @@ def log_error(message: str, module: str = "", context: str = "", fatal: bool = F
         prefix += f"[{module}] "
     if context:
         prefix += f"({context}) "
-    builtins.print(f"{prefix}[ERROR] {message}", flush=True, file=sys.stderr)
+
+    # Show errors based on verbosity level
+    # Level 0: Silent (no error output)
+    # Level 1: Summary only (no individual errors)
+    # Level 2: Abbreviated errors (truncated)
+    # Level 3: Full errors
+    if DEBUG_LEVEL >= 3:
+        # Level 3: Show full error
+        builtins.print(f"{prefix}[ERROR] {message}", flush=True, file=sys.stderr)
+    elif DEBUG_LEVEL == 2:
+        # Level 2: Truncate long messages
+        if len(message) > 100:
+            short_msg = message[:97] + "..."
+        else:
+            short_msg = message
+        builtins.print(f"{prefix}[ERROR] {short_msg}", flush=True, file=sys.stderr)
+    elif DEBUG_LEVEL == 1:
+        # Level 1: No individual errors - they appear in final summary
+        # Only log to DEBUG_OBJECT, don't print
+        pass
+    else:
+        # Level 0: Silent - only critical/fatal errors
+        if severity == "CRITICAL" or fatal:
+            builtins.print(f"{prefix}[ERROR] {message}", flush=True, file=sys.stderr)
 
     error_entry = {
         "timestamp": datetime.now().isoformat(),

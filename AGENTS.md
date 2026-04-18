@@ -3,29 +3,34 @@
 ## Run the App
 
 ```bash
-python3 serve.py
-# Serves on port 5000, serves dcc/Excel Explorer Pro working.html at /
+cd dcc && python3 serve.py
+# Serves on port 5000, serves ui/Excel Explorer Pro working.html at /
 ```
 
 ## Key Directories
 
 - `dcc/` — Main application
-- `dcc/data/` — Excel datasets (document_type.xlsx, discipline_type.xlsx, etc.)
+- `dcc/workflow/` — Core processing logic (schema_engine, processor_engine, initiation_engine)
+- `dcc/data/` — Excel datasets
 - `dcc/config/schemas/` — JSON schemas
-- `dcc/tools/` — Python processing scripts
-- `dcc/test/` — Test scripts and outputs
+- `dcc/test/` — Test scripts
+- `dcc/output/` — Processing outputs and logs
+- `dcc/docs/` — Architecture documentation
+- `dcc/workplan/` — Implementation plans and reports
 
 ## Testing
 
-```bash
-# Run tests via pytest
-cd dcc && python -m pytest test/ -v
+Tests are standalone Python scripts using unittest, not pytest:
 
-# Or run specific test
-python dcc/test/test_column_mapper.py
+```bash
+cd dcc && python3 test/test_column_mapper.py
+cd dcc && python3 test/test_schema_validation.py
+cd dcc && python3 test/test_universal_document_processor_document_type_validation.py
 ```
 
-## Critical Conventions (from agent_rule.md)
+All test files add `workflow/` to sys.path.
+
+## Critical Conventions
 
 1. **Always plan and wait for approval before making changes**
 2. **Before deleting files, archive to respective archive folders first**
@@ -47,7 +52,7 @@ python dcc/test/test_column_mapper.py
 ## Debug/Logging
 
 - Tiered logging: level 0 (silent), level 1 (status), level 2 (warning), level 3 (trace)
-- Use Debug Object, save to debug_log.json, pass to format_report
+- Use Debug Object, save to output/debug_log.json, pass to format_report
 - Include function name in all print messages
 
 ## File Patterns to Ignore
@@ -57,3 +62,7 @@ python dcc/test/test_column_mapper.py
 - Dot files (.*)
 - Test output files (*.txt in test folders)
 - Markdown docs (*.md)
+
+## Dependencies
+
+Managed via `dcc.yml` (Conda format). Key packages: pandas, openpyxl, numpy, jsonschema, matplotlib, seaborn.

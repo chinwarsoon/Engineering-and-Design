@@ -1343,6 +1343,44 @@ Foreign Key Dependencies:
 4. Testing: Created [test_aggregate_json.py](../workflow/processor_engine/test/test_aggregate_json.py) and verified that both plain string and JSON output modes function correctly based on schema definition.
 5. Related to [Issue #31](issue_log.md#issue-31): Ensures aggregate data conforms to schema-defined data types for downstream system ingestion.
 
+<a id="issue33-json-tools-ui"></a>
+## 2026-04-18 21:45:00
+### Issue #33 — JSON Tools UI Restructure
+**Summary:** Restructured common_json_tools.html sidebar panels and integrated backup features
+
+**Changes:**
+1. **Icon Bar:** Replaced 3-panel icons (Inspector/Formatter/Validator) with 4 separate:
+   - Files 📁 - Load JSON files
+   - Structure 🌳 - Key Explorer tree
+   - Actions ⚡ - Format, validate, copy, sample data
+   - Options ⚙️ - Indentation, sorting settings
+
+2. **Sidebar Panels:** 
+   - Files: Load files, file list
+   - Structure (Key Explorer): Tree view of JSON keys with expand/collapse all
+   - Actions: Format, minify, copy, validate, sample data, clear
+   - Options: Indentation (2/4/tab), sort keys toggle
+
+3. **Content Area:**
+   - Added tab bar: "JSON Editor" | "Full Inspection"
+   - Full Inspection tab shows: stats strip, search/filter, full table of all nodes
+   - Key-Value Details panel at bottom (shows when clicking any key)
+
+4. **CSS Updates (dcc-design-system.css):**
+   - Added `.key-tree-container`, `.key-tree-header`, `.key-tree-title`
+   - Added `.key-tree-actions`, `.key-tree-btn`
+   - Added `.tree-node`, `.tree-node-inner` with hover/selected states
+
+5. **Key Explorer Features:**
+   - Click any key → shows details in bottom panel
+   - Expand/Collapse all buttons (⤢ / ⤡)
+   - Full inspection table with filters by type
+   - Stats: total rows, leaf values, objects, arrays, nulls, max depth
+
+**Files Changed:**
+- ui/common_json_tools.html
+- ui/dcc-design-system.css
+
 <a id="phase5-completion"></a>
 ## 2026-04-19 04:05:00
 1. Documentation: [workplan/ai_operations/reports/](../workplan/ai_operations/reports/) - Generated 5 formal phase reports (5.1-5.5) detailing engine architecture, insight engine, dashboard integration, live monitoring, and persistence.
