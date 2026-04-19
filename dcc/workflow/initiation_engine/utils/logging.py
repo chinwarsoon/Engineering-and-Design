@@ -523,10 +523,11 @@ def print_framework_banner(
         banner = f"╔ DCC Pipeline v{version} | Input: {input_name} | Mode: quiet ═╗"
     elif DEBUG_LEVEL == 1:
         # Normal mode - clean milestone
-        banner = f"""╔═══════════════════════════════════════════════════════╗
-║  DCC Pipeline v{version} | Input: {input_name}     ║
-║  Mode: {mode:^43}║
-╚═══════════════════════════════════════════════════════╝"""
+        banner = f"""═══════════════════════════════════════════════════════
+  DCC Pipeline v{version}
+  Input: {input_name}
+  Mode: {mode}
+═══════════════════════════════════════════════════════"""
     else:
         # Debug/trace mode - with context
         banner = f"""╔═══════════════════════════════════════════════════════════════╗
