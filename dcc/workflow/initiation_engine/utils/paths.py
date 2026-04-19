@@ -156,7 +156,7 @@ def resolve_platform_paths(
     """
     from typing import Dict, Any
     
-    status_print_fn("Resolving platform paths...")
+    status_print_fn("Resolving platform paths...", min_level=3)
     params = effective_parameters.copy()
     system_name = platform.system().lower()
     
@@ -167,7 +167,7 @@ def resolve_platform_paths(
             params["upload_file_name"] = win_upload
             if win_download:
                 params["download_file_path"] = win_download
-            status_print_fn(f"Using Windows path: {win_upload}")
+            status_print_fn(f"Using Windows path: {win_upload}", min_level=3)
     else:
         linux_upload = params.get("linux_upload_file", "")
         linux_download = params.get("linux_download_path", "")
@@ -182,7 +182,7 @@ def resolve_platform_paths(
                     if not ld.is_absolute():
                         ld = base_path / ld
                     params["download_file_path"] = str(ld)
-                status_print_fn(f"Using Linux path: {lp}")
+                status_print_fn(f"Using Linux path: {lp}", min_level=3)
     
     # Resolve any remaining relative paths
     active_upload = Path(params.get("upload_file_name", ""))
@@ -193,7 +193,7 @@ def resolve_platform_paths(
         params["download_file_path"] = str(base_path / active_download)
     
     Path(params["download_file_path"]).mkdir(parents=True, exist_ok=True)
-    status_print_fn(f"Current system detected: {system_name}")
+    status_print_fn(f"Current system detected: {system_name}", min_level=3)
     return params
 
 
@@ -240,10 +240,10 @@ def resolve_output_paths(
     output_dir = base_output.parent
     stem = base_output.stem or "processed_dcc_universal"
 
-    status_print(f"Output directory: {output_dir}")
-    status_print(f"CSV path: {output_dir / f'{stem}.csv'}")
-    status_print(f"Excel path: {output_dir / f'{stem}.xlsx'}")
-    status_print(f"Summary path: {output_dir / 'processing_summary.txt'}")
+    status_print(f"Output directory: {output_dir}", min_level=3)
+    status_print(f"CSV path: {output_dir / f'{stem}.csv'}", min_level=3)
+    status_print(f"Excel path: {output_dir / f'{stem}.xlsx'}", min_level=3)
+    status_print(f"Summary path: {output_dir / 'processing_summary.txt'}", min_level=3)
     
     return {
         "output_dir": output_dir,

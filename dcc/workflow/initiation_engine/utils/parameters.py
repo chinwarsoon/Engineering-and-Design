@@ -13,7 +13,7 @@ def build_native_defaults(base_path: Path) -> Dict[str, Any]:
     Build native default parameters for the DCC processing pipeline.
     Precedence: CLI args → Schema params → Native defaults
     """
-    status_print("Building native default parameters...")
+    status_print("Building native default parameters...", min_level=3)
     return {
         "debug_dev_mode": False,
         "overwrite_existing_downloads": True,
@@ -54,16 +54,16 @@ def resolve_effective_parameters(
         native_defaults: Dictionary of native default parameters.
         load_schema_params_fn: Function to load schema parameters (optional).
     """
-    status_print("Resolving effective parameters...")
+    status_print("Resolving effective parameters...", min_level=3)
     effective_parameters = native_defaults.copy()
     
     if load_schema_params_fn:
         try:
             schema_parameters = load_schema_params_fn(schema_path)
             effective_parameters.update(schema_parameters)
-            status_print(f"Loaded schema parameters from {schema_path}")
+            status_print(f"Loaded schema parameters from {schema_path}", min_level=3)
         except Exception as exc:
-            status_print(f"WARNING: Could not load schema parameters: {exc}")
+            status_print(f"WARNING: Could not load schema parameters: {exc}", min_level=2)
     
     effective_parameters.update(cli_args)
     effective_parameters["schema_register_file"] = str(schema_path)

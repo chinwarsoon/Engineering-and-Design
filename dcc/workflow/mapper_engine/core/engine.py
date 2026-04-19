@@ -54,7 +54,7 @@ class ColumnMapperEngine:
             self.schema_loader.set_main_schema_path(schema_file)
             self.main_schema = self.schema_loader.load_json_file(schema_file)
             self.resolved_schema = self.schema_loader.resolve_schema_dependencies(self.main_schema)
-            status_print("Schema dependencies resolved")
+            status_print("Schema dependencies resolved", min_level=2)
 
         except Exception as e:
             log_error(f"Error loading main schema {schema_file}: {e}", module="mapper_engine")

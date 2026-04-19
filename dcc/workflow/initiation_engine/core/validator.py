@@ -77,7 +77,7 @@ class ProjectSetupValidator:
         self._ref_resolver: Optional[RefResolver] = None
 
         if self.schema_path.is_file():
-            status_print(f"Loading schema from: {self.schema_path} for validation")
+            status_print(f"Loading schema from: {self.schema_path} for validation", min_level=3)
             self.schema_document = self._load_json(self.schema_path)
             self.project_setup = self._extract_project_setup(self.schema_document)
             self.validation_rules = {
@@ -333,23 +333,23 @@ class ProjectSetupValidator:
             results["ready"] = False
             return results
 
-        log_status(f"OS: {self.os_info['system']} ({self.os_info['normalized']})", "validator")
+        log_status(f"OS: {self.os_info['system']} ({self.os_info['normalized']})", "validator", min_level=3)
 
         if self._rule_enabled("check_folders"):
             folders = self.project_setup.get("folders", [])
-            log_status(f"Validating {len(folders)} folders...", "validator")
+            log_status(f"Validating {len(folders)} folders...", "validator", min_level=3)
             validate_folders(
                 results,
                 folders,
                 self.base_path,
                 self.os_info,
             )
-            log_status(f"Folders: {sum(1 for f in results['folders'] if f['exists'])} exist", "validator")
+            log_status(f"Folders: {sum(1 for f in results['folders'] if f['exists'])} exist", "validator", min_level=3)
 
         if self._rule_enabled("check_files"):
             with log_context("validator", "validate_files"):
                 root_files = self.project_setup.get("root_files", [])
-                log_status(f"Validating {len(root_files)} root files...", "validator")
+                log_status(f"Validating {len(root_files)} root files...", "validator", min_level=3)
                 validate_named_files(
                     results,
                     "root_files",
@@ -360,7 +360,7 @@ class ProjectSetupValidator:
                 )
 
                 schema_files = self.project_setup.get("schema_files", [])
-                log_status(f"Validating {len(schema_files)} schema files...", "validator")
+                log_status(f"Validating {len(schema_files)} schema files...", "validator", min_level=3)
                 validate_named_files(
                     results,
                     "schema_files",
@@ -371,7 +371,7 @@ class ProjectSetupValidator:
                 )
 
                 workflow_files = self.project_setup.get("workflow_files", [])
-                log_status(f"Validating {len(workflow_files)} workflow files...", "validator")
+                log_status(f"Validating {len(workflow_files)} workflow files...", "validator", min_level=3)
                 validate_named_files(
                     results,
                     "workflow_files",
@@ -382,7 +382,7 @@ class ProjectSetupValidator:
                 )
 
                 tool_files = self.project_setup.get("tool_files", [])
-                log_status(f"Validating {len(tool_files)} tool files...", "validator")
+                log_status(f"Validating {len(tool_files)} tool files...", "validator", min_level=3)
                 validate_named_files(
                     results,
                     "tool_files",
@@ -393,7 +393,7 @@ class ProjectSetupValidator:
                 )
 
                 env_items = self.project_setup.get("environment", [])
-                log_status(f"Validating {len(env_items)} environment items...", "validator")
+                log_status(f"Validating {len(env_items)} environment items...", "validator", min_level=3)
                 validate_environment(
                     results,
                     env_items,
@@ -401,7 +401,7 @@ class ProjectSetupValidator:
                 )
 
         results["ready"] = check_ready(results)
-        log_status(f"Ready: {'YES' if results['ready'] else 'NO'}", "validator")
+        log_status(f"Ready: {'YES' if results['ready'] else 'NO'}", "validator", min_level=3)
         return results
 
     def format_report(self, results: Dict[str, Any]) -> str:

@@ -444,15 +444,47 @@ def debug_print(*args: Any, **kwargs: Any) -> None:
 def setup_logger(debug_mode: bool = False) -> None:
     """
     Legacy setup - configures standard Python logging.
-    Kept for backward compatibility.
+    Respects DEBUG_LEVEL for tiered output control.
     """
-    level = logging.DEBUG if debug_mode else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-        stream=sys.stdout,
-    )
+    global DEBUG_LEVEL
+    # Map DEBUG_LEVEL to Python logging levels
+    # 0=quiet: ERROR only, 1=normal: WARNING+ (filtered), 2=debug: INFO+, 3=trace: DEBUG+
+    if DEBUG_LEVEL >= 3:
+        level = logging.DEBUG
+    elif DEBUG_LEVEL >= 2:
+        level = logging.INFO
+    elif DEBUG_LEVEL >= 1:
+        level = logging.WARNING
+    else:  # quiet mode - only errors
+        level = logging.ERROR
+    
+    # Forcefully set root logger level (handles cases where handlers already exist)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    
+    # Set levels for engine loggers
+    engine_loggers = ['ai_ops_engine', 'processor_engine', 'schema_engine', 'mapper_engine']
+    for logger_name in engine_loggers:
+        logging.getLogger(logger_name).setLevel(level)
+    
+    # Suppress optional dependency warnings (duckdb, etc.) at normal and quiet levels
+    # These are non-critical and don't affect pipeline functionality
+    if DEBUG_LEVEL <= 1:
+        logging.getLogger('ai_ops_engine.persistence').setLevel(logging.ERROR)
+        # Suppress non-critical detector registration warnings
+        logging.getLogger('processor_engine.error_handling.detectors').setLevel(logging.ERROR)
+    if DEBUG_LEVEL == 0:
+        # At quiet level, also suppress non-critical validation errors (they appear in final summary)
+        logging.getLogger('processor_engine.calculations.validation').setLevel(logging.CRITICAL)
+    
+    # Only configure basicConfig if no handlers exist yet
+    if not root_logger.handlers:
+        logging.basicConfig(
+            level=level,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+            stream=sys.stdout,
+        )
 
 
 def set_debug_mode(enabled: bool) -> None:

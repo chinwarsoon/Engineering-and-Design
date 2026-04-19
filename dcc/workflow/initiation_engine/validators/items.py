@@ -106,7 +106,7 @@ def validate_folders(
     """
     auto_create_enabled = should_auto_create_folders(os_info)
     if auto_create_enabled:
-        log_warning("Auto-creation enabled for this OS", "validators", "validate_folders")
+        log_warning("Auto-creation enabled for this OS", "validators", "validate_folders")  # Already min_level=2
 
     for folder in folders:
         if not isinstance(folder, dict):
@@ -139,7 +139,7 @@ def validate_folders(
         symbol = "[OK]" if exists else ("[MISS]" if required else "[WARN]")
         req_text = "required" if required else "optional"
         auto_text = " [created]" if auto_created else ""
-        log_status(f"{symbol} {name} ({req_text}) -> {path}{auto_text}", "validators")
+        log_status(f"{symbol} {name} ({req_text}) -> {path}{auto_text}", "validators", min_level=3)
 
 
 def validate_named_files(
@@ -174,7 +174,7 @@ def validate_named_files(
         - parent_dir: Resolved from base_path in validate() for each category.
                       root_files -> base_path, others -> base_path / subdir.
     """
-    log_warning(f"Validating {category} in {parent_dir}", "validators", "validate_named_files")
+    log_warning(f"Validating {category} in {parent_dir}", "validators", "validate_named_files")  # Already min_level=2
 
     for item in items:
         if not isinstance(item, dict):
@@ -199,7 +199,7 @@ def validate_named_files(
         # Log file status with indentation
         symbol = "[OK]" if exists else ("[MISS]" if required else "[WARN]")
         req_text = "required" if required else "optional"
-        log_status(f"{symbol} {name} ({req_text}) -> {path}", "validators")
+        log_status(f"{symbol} {name} ({req_text}) -> {path}", "validators", min_level=3)
 
 
 def validate_environment(
@@ -225,7 +225,7 @@ def validate_environment(
         - base_path: Initialized in __init__ via normalize_path().
                      Used to resolve 'root' and subdirectory paths.
     """
-    log_warning(f"Validating environment files in {base_path}", "validators", "validate_environment")
+    log_warning(f"Validating environment files in {base_path}", "validators", "validate_environment")  # Already min_level=2
 
     for item in environment:
         if not isinstance(item, dict):
@@ -256,7 +256,7 @@ def validate_environment(
 
         # Log environment file status
         symbol = "[OK]" if exists else ("[MISS]" if required else "[WARN]")
-        log_status(f"{symbol} {filename} ({location})", "validators")
+        log_status(f"{symbol} {filename} ({location})", "validators", min_level=3)
 
 
 def check_ready(results: Dict[str, Any]) -> bool:

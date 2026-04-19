@@ -13,13 +13,13 @@ from ..utils.paths import safe_resolve
 # Lazy import to break circular dependency with initiation_engine
 _status_print = None
 
-def status_print(msg: str) -> None:
+def status_print(msg: str, min_level: int = 1) -> None:
     """Print status message (lazy import)."""
     global _status_print
     if _status_print is None:
         from initiation_engine import status_print as sp
         _status_print = sp
-    _status_print(msg)
+    _status_print(msg, min_level=min_level)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def validate_schema_document(
         return
     validated_paths.add(resolved_schema_path)
 
-    status_print(f"Validating field_definitions in schema: {resolved_schema_path}")
+    status_print(f"Validating field_definitions in schema: {resolved_schema_path}", min_level=3)
 
     field_definitions = schema_data.get("field_definitions", {})
     if not isinstance(field_definitions, dict) or not field_definitions:

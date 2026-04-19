@@ -67,7 +67,7 @@ def resolve_calculation_order(columns: Dict[str, Dict]) -> List[str]:
             + " | ".join(schema_order_violations)
         )
 
-    status_print(f"Validated calculation sequence for {len(calculated_columns)} columns.")
+    status_print(f"Validated calculation sequence for {len(calculated_columns)} columns.", min_level=3)
     return calculated_columns
 
 def _extract_column_dependencies(column_name: str, column_def: Dict, all_columns: Dict) -> Set[str]:

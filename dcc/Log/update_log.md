@@ -7,6 +7,48 @@
 
 # Section 2. Log entries
 
+<a id="pipeline-messaging-complete"></a>
+## 2026-04-19 16:00:00
+
+### COMPLETED: Pipeline Messaging Workplan Implementation
+
+**Status:** COMPLETE
+
+**Summary:** Implemented 4-level verbosity control per workplan requirements.
+
+**Changes Made:**
+
+| Level | Mode | Output |
+|-------|------|--------|
+| 0 | quiet | Banner only |
+| 1 | normal | Milestones + KPIs (clean) |
+| 2 | debug | Warnings + context |
+| 3 | trace | All details + stack traces |
+
+**Files Updated (12):**
+- `workflow/dcc_engine_pipeline.py` - milestone_print for milestones, min_level for paths
+- `workflow/initiation_engine/__init__.py` - Added milestone_print export
+- `workflow/initiation_engine/core/validator.py` - min_level=3 for validation details
+- `workflow/initiation_engine/validators/items.py` - min_level=3 for [validators] messages
+- `workflow/initiation_engine/utils/paths.py` - min_level=3 for path messages
+- `workflow/initiation_engine/utils/system.py` - min_level=2 for environment tests
+- `workflow/initiation_engine/utils/parameters.py` - min_level=3 for parameter resolution
+- `workflow/schema_engine/loader/schema_loader.py` - min_level=3 for schema loading
+- `workflow/schema_engine/validator/fields.py` - min_level=3 for field validation
+- `workflow/mapper_engine/core/engine.py` - min_level=2 for dependency resolution
+- `workflow/mapper_engine/mappers/detection.py` - min_level=2 for warnings/details
+- `workflow/processor_engine/core/engine.py` - min_level=3 for strategy resolution
+
+**Verification:**
+```bash
+python dcc_engine_pipeline.py --verbose quiet    # Banner only
+python dcc_engine_pipeline.py --verbose normal   # Milestones only
+python dcc_engine_pipeline.py --verbose debug    # Warnings + context
+python dcc_engine_pipeline.py --verbose trace    # All details
+```
+
+---
+
 <a id="issue32-verbose-levels"></a>
 ## 2026-04-19 11:45:00
 

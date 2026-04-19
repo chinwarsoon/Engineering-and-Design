@@ -53,6 +53,7 @@ from .utils.logging import (
     log_context,
     # Legacy compatibility
     status_print,
+    milestone_print,
     debug_print,
     setup_logger,
     set_debug_mode,
@@ -114,6 +115,7 @@ __all__ = [
     'log_context',
     # Legacy logging
     'status_print',
+    'milestone_print',
     'debug_print',
     'setup_logger',
     'set_debug_mode',

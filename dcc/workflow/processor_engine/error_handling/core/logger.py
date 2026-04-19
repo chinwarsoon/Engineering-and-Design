@@ -66,7 +66,9 @@ class StructuredLogger:
         if not self._logger.handlers:
             # Console handler with simple formatter for clean output
             handler = logging.StreamHandler(sys.stdout)
-            handler.setLevel(logging.WARNING)  # Only WARNING and above to console
+            # Respect DEBUG_LEVEL: quiet(0)=ERROR, normal(1)=ERROR, debug(2+)=WARNING
+            handler_level = logging.WARNING if _INIT_LOG_LEVEL >= 2 else logging.ERROR
+            handler.setLevel(handler_level)
             handler.setFormatter(logging.Formatter('[%(levelname)s] %(message)s'))
             self._logger.addHandler(handler)
         

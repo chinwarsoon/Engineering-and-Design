@@ -118,7 +118,7 @@ class CalculationEngine(BaseProcessor):
         strategy = self.strategy_resolver.from_schema(column_name, column_def)
         self._column_strategies[column_name] = strategy
         
-        status_print(f"Resolved strategy for {column_name}: {strategy}")
+        status_print(f"Resolved strategy for {column_name}: {strategy}", min_level=3)
         
         return strategy
 
@@ -251,7 +251,7 @@ class CalculationEngine(BaseProcessor):
             )
             self.error_aggregator.add_errors(row_errors)
             status_print(
-                f"✓ Row validation complete: {len(row_errors)} cross-field issues found"
+                f"✓ Row validation complete: {len(row_errors)} cross-field issues found", min_level=2
             )
 
             # Phase 4: Aggregation - Populate Validation_Errors column (Step 46)
@@ -466,7 +466,7 @@ class CalculationEngine(BaseProcessor):
                     debug_print(f"Applying {calc_type}/{calculation.get('method')} to {column_name}")
                     df_calculated = handler(self, df_calculated, column_name, calculation)
                 else:
-                    status_print(f"WARNING: No handler found for calculation type: {calc_type}")
+                    status_print(f"WARNING: No handler found for calculation type: {calc_type}", min_level=2)
 
             return df_calculated
 
@@ -479,4 +479,4 @@ class CalculationEngine(BaseProcessor):
         if detail.startswith("ERROR:") and DEBUG_LEVEL <= 1:
             return
         message = f"[{phase}] {column_name}: {detail}"
-        status_print(message)
+        status_print(message, min_level=3)

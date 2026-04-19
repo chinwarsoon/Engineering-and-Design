@@ -118,7 +118,7 @@ class SchemaLoader:
             self._dependency_graph.build_graph()
             self.cache.set_l3("dependency_graph", self._dependency_graph)
         
-        status_print(f"SchemaLoader initialized with project_setup.json ({len(self._registered_schemas)} schemas registered)")
+        status_print(f"SchemaLoader initialized with project_setup.json ({len(self._registered_schemas)} schemas registered)", min_level=3)
 
     
     def set_main_schema_path(self, schema_file: str | Path) -> Path:
@@ -331,11 +331,11 @@ class SchemaLoader:
 
         try:
             schema_data = self.load_json_file(schema_file)
-            status_print(f"Loaded schema: {schema_name}")
+            status_print(f"Loaded schema: {schema_name}", min_level=3)
             self.cache.set(schema_name, schema_data, schema_file)
             return schema_data
         except FileNotFoundError:
-            status_print(f"WARNING: Schema file not found: {schema_file}")
+            status_print(f"WARNING: Schema file not found: {schema_file}", min_level=2)
         except json.JSONDecodeError as exc:
             log_error(f"Invalid JSON in schema file {schema_file}: {exc}", module="schema_loader", severity="HIGH")
             if fallback_data is None:
@@ -346,7 +346,7 @@ class SchemaLoader:
                 raise ValueError(f"Error loading schema {schema_name}: {exc}") from exc
 
         if fallback_data is not None:
-            status_print(f"Using fallback data for {schema_name}")
+            status_print(f"Using fallback data for {schema_name}", min_level=3)
             self.loaded_schemas[schema_name] = fallback_data
             return fallback_data
 
@@ -363,22 +363,22 @@ class SchemaLoader:
 
         try:
             schema_data = self.load_json_file(schema_file)
-            status_print(f"Loaded schema: {schema_file}")
+            status_print(f"Loaded schema: {schema_file}", min_level=3)
             self.cache.set(cache_key, schema_data, schema_file)
             return schema_data
         except FileNotFoundError:
-            status_print(f"WARNING: Schema file not found: {schema_file}")
+            status_print(f"WARNING: Schema file not found: {schema_file}", min_level=2)
         except json.JSONDecodeError as exc:
-            status_print(f"ERROR: Invalid JSON in schema file {schema_file}: {exc}")
+            status_print(f"ERROR: Invalid JSON in schema file {schema_file}: {exc}", min_level=2)
             if fallback_data is None:
                 raise ValueError(f"Invalid JSON in schema file {schema_file}: {exc}") from exc
         except Exception as exc:
-            status_print(f"ERROR: Error loading schema {schema_file}: {exc}")
+            status_print(f"ERROR: Error loading schema {schema_file}: {exc}", min_level=2)
             if fallback_data is None:
                 raise ValueError(f"Error loading schema {schema_file}: {exc}") from exc
 
         if fallback_data is not None:
-            status_print(f"Using fallback data for {schema_path}")
+            status_print(f"Using fallback data for {schema_path}", min_level=3)
             self.loaded_schemas[cache_key] = fallback_data
             return fallback_data
 

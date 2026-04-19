@@ -121,7 +121,7 @@ def get_null_handler(strategy: str) -> Optional[Callable]:
     """
     handler = NULL_HANDLERS.get(strategy)
     if not handler and strategy != "leave_null":
-        status_print(f"WARNING: No handler registered for null strategy: {strategy}")
+        status_print(f"WARNING: No handler registered for null strategy: {strategy}", min_level=2)
     return handler
 
 def get_calculation_handler(calc_type: str, method: str = "default") -> Optional[Callable]:
@@ -142,7 +142,7 @@ def get_calculation_handler(calc_type: str, method: str = "default") -> Optional
     handler = type_map.get(method) or type_map.get("default")
 
     if not handler:
-        status_print(f"WARNING: No handler registered for calculation type: {calc_type}/{method}")
+        status_print(f"WARNING: No handler registered for calculation type: {calc_type}/{method}", min_level=2)
 
     return handler
 
@@ -155,7 +155,7 @@ def register_null_handler(strategy: str, func: Callable):
         func: The handler function
     """
     NULL_HANDLERS[strategy] = func
-    status_print(f"Registered null handler for strategy: {strategy}")
+    status_print(f"Registered null handler for strategy: {strategy}", min_level=3)
 
 
 def register_calculation_handler(calc_type: str, method: str, func: Callable):
@@ -170,7 +170,7 @@ def register_calculation_handler(calc_type: str, method: str, func: Callable):
     if calc_type not in CALCULATION_HANDLERS:
         CALCULATION_HANDLERS[calc_type] = {}
     CALCULATION_HANDLERS[calc_type][method] = func
-    status_print(f"Registered calculation handler for {calc_type}/{method}")
+    status_print(f"Registered calculation handler for {calc_type}/{method}", min_level=3)
 
 
 def list_registered_handlers():

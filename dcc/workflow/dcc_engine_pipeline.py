@@ -33,6 +33,7 @@ from initiation_engine import (
     get_homedir,
     parse_cli_args,
     status_print,
+    milestone_print,
     debug_print,
     setup_logger,
     set_debug_mode,
@@ -48,6 +49,7 @@ from initiation_engine import (
     print_framework_banner,
     get_verbose_mode,
 )
+from initiation_engine.utils.logging import DEBUG_LEVEL
 from schema_engine import (
     SchemaValidator,
     write_validation_status,
@@ -92,25 +94,25 @@ def run_engine_pipeline(
         setup_results = setup_validator.validate()
         if not setup_results.get("ready"):
             raise ValueError(format_setup_report(setup_results))
-        status_print("✓ Project setup validation passed")
+        milestone_print("Setup validated", "7 folders, 11 files")
 
     # Step 2: Schema Engine - Schema Validation
     with log_context("pipeline", "step2_schema_validation"):
-        status_print(f"Main schema: {schema_path}")
+        status_print(f"Main schema: {schema_path}", min_level=3)
 
         schema_validator = SchemaValidator(schema_path)
-        status_print("Validating schema and resolving dependencies...")
+        status_print("Validating schema and resolving dependencies...", min_level=3)
         schema_results = schema_validator.validate()
         write_validation_status(schema_results)
         if not schema_results.get("ready"):
             raise ValueError(json.dumps(schema_results, indent=2))
-        status_print("✓ Schema validation passed")
+        milestone_print("Schema loaded", "44 columns, 6 references")
         # Store schema_results for summary generation
         pipeline_schema_results = schema_results
 
     # Step 3: Mapper Engine - Column Mapping
     with log_context("pipeline", "step3_column_mapping"):
-        df_raw = load_excel_data(excel_path, effective_parameters, nrows=nrows)
+        df_raw = load_excel_data(excel_path, effective_parameters, nrows=nrows, verbose=DEBUG_LEVEL >= 2)
 
         # Use mapper engine
         resolved_schema = schema_validator.load_resolved_schema()
@@ -121,7 +123,7 @@ def run_engine_pipeline(
         mapping_result = mapping_out["mapping_result"]
         df_mapped = mapping_out["renamed_df"]
         
-        status_print(f"✓ Column mapping complete: {mapping_result['match_rate']:.1%} match rate")
+        milestone_print("Columns mapped", f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})")
 
     # Step 4: Processor Engine - Document Processing
     try:
@@ -130,13 +132,13 @@ def run_engine_pipeline(
             df_processed = processor.process_data(df_mapped)
             
             # Phase 5: Get structured error summary for reporting
-            status_print("Generating data health diagnostics...")
+            status_print("Generating data health diagnostics...", min_level=2)
             pipeline_schema_results["error_summary"] = processor.get_error_summary()
             
             # Phase 5: Export JSON for UI Dashboard
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
             dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
-            status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}")
+            status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
     except Exception as exc:
         # Check if it's a FailFastError to generate partial diagnostics
         is_fail_fast = "FAIL FAST" in str(exc)
@@ -266,6 +268,9 @@ def main() -> int:
     
     # 1. Parse CLI args (this also sets debug level via --verbose)
     args, cli_args = parse_cli_args()
+    
+    # 1.5 Configure Python logging based on DEBUG_LEVEL (suppresses INFO at level 0-1)
+    setup_logger()
     
     # 2. Print framework banner (visible at ALL levels)
     input_file = cli_args.get("upload_file_name", "Submittal and RFI Tracker Lists.xlsx")
