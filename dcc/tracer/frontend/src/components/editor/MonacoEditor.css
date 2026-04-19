@@ -1,0 +1,106 @@
+.monaco-editor-container {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+.editor-info {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.file-path {
+  font-family: 'Courier New', monospace;
+  font-weight: 500;
+}
+
+.separator {
+  color: #6c757d;
+  margin: 0 0.5rem;
+}
+
+.language {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  background-color: #e9ecef;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.validation-status {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.validating {
+  color: #ffc107;
+  font-size: 1.1rem;
+  animation: pulse 1.5s infinite;
+}
+
+.validation-error {
+  color: #dc3545;
+  font-size: 1.2rem;
+}
+
+.validation-success {
+  color: #28a745;
+  font-size: 1.2rem;
+}
+
+.validation-details {
+  padding: 1rem;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin: 1rem;
+}
+
+.validation-details h4 {
+  margin-top: 0;
+  color: #721c24;
+}
+
+.validation-details p {
+  margin: 0.5rem 0;
+}
+
+.monaco-editor {
+  flex: 1;
+  min-height: 200px;
+  width: 100%;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}

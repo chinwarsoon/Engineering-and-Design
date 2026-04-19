@@ -1,11 +1,11 @@
 {
-  "main_schema_path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_config.json",
+  "main_schema_path": "/home/franklin/dsai/Engineering-and-Design/dcc/tracer/../tracer/backend/../../config/schemas/dcc_register_config.json",
   "ready": true,
   "errors": [],
   "dependency_cycle": [],
   "tracked_files": [
     {
-      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas/dcc_register_config.json",
+      "path": "/home/franklin/dsai/Engineering-and-Design/dcc/tracer/../tracer/backend/../../config/schemas/dcc_register_config.json",
       "mtime_ns": 1776503266481968586
     }
   ]
