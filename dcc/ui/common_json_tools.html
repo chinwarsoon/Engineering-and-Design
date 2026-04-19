@@ -6,12 +6,6 @@
   <title>DCC Common JSON Tools</title>
   <link rel="stylesheet" href="dcc-design-system.css">
   <style>
-    .content-scroll { flex: 1; overflow-y: auto; }
-    .editor-area { display: flex; flex-direction: column; flex: 1; }
-    .editor-toolbar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
-    .editor-pane { display: flex; flex: 1; overflow: hidden; }
-    .editor-input { flex: 1; padding: 12px; font-family: var(--font-mono); font-size: 11px; background: var(--surface3); border: 1px solid var(--border); color: var(--text); resize: none; outline: none; }
-    .tree-view { flex: 1; padding: 8px; font-family: var(--font-mono); font-size: 11px; overflow-y: auto; background: var(--surface); }
     .tree-item { padding: 2px 0; border-left: 2px solid transparent; transition: all .12s; }
     .tree-item:hover { background: var(--surface2); border-left-color: rgba(79, 255, 176, .4); }
     .tree-toggle { cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 6px; }
@@ -35,16 +29,20 @@
     .tree-node-inner.selected { background: rgba(79, 255, 176, .07); border-left-color: var(--accent); }
     .tree-toggle { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; color: var(--text3); flex-shrink: 0; transition: transform .15s; cursor: pointer; }
     .tree-toggle.expanded { transform: rotate(90deg); }
+    .tree-toggle.invisible { visibility: hidden; }
     .tree-children { display: none; padding-left: 14px; }
     .tree-children.expanded { display: block; }
+    .tree-node.leaf > .tree-node-inner { padding-left: 24px; }
     .dcc-content-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
     .content-tabs { display: flex; gap: 4px; }
     .content-tab { padding: 6px 12px; background: none; border: 1px solid transparent; border-radius: 4px; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
     .content-tab:hover { color: var(--text); }
     .content-tab.active { background: var(--accent); color: #0d0f14; }
     .panels-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-    .content-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
-    .content-panel.active { display: flex; }
+    .content-scroll { flex: 1; overflow-y: auto; }
+    .editor-area { display: flex; flex-direction: column; flex: 1; }
+    .editor-toolbar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+    .editor-pane { display: flex; flex: 1; overflow: hidden; }
     .full-stats { display: flex; flex-shrink: 0; border-bottom: 1px solid var(--border); background: var(--surface2); overflow-x: auto; }
     .full-stats .stat-item { padding: 10px 18px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
     .full-stats .stat-label { font-family: var(--font-mono); font-size: 9px; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
@@ -148,7 +146,7 @@
 
 <div class="dcc-sidebar" id="mainSidebar">
       <!-- Files Panel -->
-      <div id="panel-files" class="sidebar-panel">
+      <div id="panel-files" class="sidebar-panel visible">
         <div class="dcc-sidebar-header">
           <span>📁 Files</span>
         </div>
@@ -164,9 +162,9 @@
       </div>
 
       <!-- Structure Panel (Key Explorer) -->
-      <div id="panel-structure" class="sidebar-panel" style="display: none;">
-        <div class="key-tree-header">
-          <span class="key-tree-title">Key Explorer</span>
+      <div id="panel-structure" class="sidebar-panel sidebar-panel-stretch">
+        <div class="dcc-sidebar-header">
+          <span>🌳 Key Explorer</span>
           <div class="key-tree-actions">
             <button class="key-tree-btn" id="expandAllBtn" title="Expand all">⤢</button>
             <button class="key-tree-btn" id="collapseAllBtn" title="Collapse all">⤡</button>
@@ -178,7 +176,7 @@
       </div>
 
       <!-- Actions Panel -->
-      <div id="panel-actions" class="sidebar-panel" style="display: none;">
+      <div id="panel-actions" class="sidebar-panel">
         <div class="dcc-sidebar-header">
           <span>⚡ Actions</span>
         </div>
@@ -237,7 +235,7 @@
       </div>
 
       <!-- Options Panel -->
-      <div id="panel-options" class="sidebar-panel" style="display: none;">
+      <div id="panel-options" class="sidebar-panel">
         <div class="dcc-sidebar-header">
           <span>⚙️ Options</span>
         </div>
@@ -274,7 +272,7 @@
       </div>
 
       <!-- Help Panel -->
-      <div id="panel-help" class="sidebar-panel" style="display: none;">
+      <div id="panel-help" class="sidebar-panel">
         <div class="dcc-sidebar-header">
           <span>Help</span>
         </div>
@@ -298,6 +296,8 @@
         <div class="content-tabs" id="contentTabs">
           <button class="content-tab active" data-tab="editor">JSON Editor</button>
           <button class="content-tab" data-tab="full">Full Inspection</button>
+          <button class="content-tab" data-tab="details">Key Details</button>
+          <button class="content-tab" data-tab="schema">Schema Map</button>
         </div>
         <div style="margin-left: auto; display: flex; gap: 8px;">
           <button class="btn btn-sm btn-secondary">📥 Import</button>
@@ -336,15 +336,23 @@
             </table>
           </div>
         </div>
-      </div>
 
-      <div class="kv-detail-panel" id="kvDetailPanel">
-        <div class="kv-detail-header">
-          <span class="kv-detail-title">Key-Value Details</span>
-          <span class="kv-detail-path" id="kvDetailPath"></span>
+        <!-- Key Details Panel -->
+        <div class="content-panel" id="panel-details">
+          <div class="kv-detail-header" style="flex-shrink: 0;">
+            <span class="kv-detail-title">Key-Value Details</span>
+            <span class="kv-detail-path" id="kvDetailPath"></span>
+          </div>
+          <div class="kv-detail-content" id="kvDetailContent">
+            <div class="kv-empty">Select a key from the tree to view details</div>
+          </div>
         </div>
-        <div class="kv-detail-content" id="kvDetailContent">
-          <div class="kv-empty">Select a key from the tree to view details</div>
+
+        <!-- Schema Map Panel -->
+        <div class="content-panel" id="panel-schema">
+          <div class="schema-map-content" id="schemaMapContent">
+            <div class="kv-empty">Load JSON schema files to view $ref relationships</div>
+          </div>
         </div>
       </div>
     </div>
@@ -400,6 +408,7 @@
         document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
         document.getElementById('panel-' + tabId).classList.add('active');
         if (tabId === 'full') buildFullPanel();
+        if (tabId === 'schema') buildSchemaMap();
       });
     });
 
@@ -425,10 +434,10 @@
         const panelId = btn.dataset.panel;
         document.querySelectorAll('.dcc-iconbar-btn[data-panel]').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        document.querySelectorAll('.sidebar-panel').forEach(p => p.style.display = 'none');
+        document.querySelectorAll('.sidebar-panel').forEach(p => p.classList.remove('visible'));
         if (panelId) {
           const panel = document.getElementById('panel-' + panelId);
-          if (panel) panel.style.display = 'block';
+          if (panel) panel.classList.add('visible');
         }
         sidebar.classList.remove('collapsed');
         sidebarToggle.classList.add('active');
@@ -488,7 +497,7 @@
         currentJsonData = obj;
         allFlatRows = [];
         flatten(obj, '(root)', [], allFlatRows, 0);
-        sidebarTree.innerHTML = renderTree(obj, true);
+        sidebarTree.innerHTML = renderTreeRoot(obj);
         
         // Add click handlers for tree toggles
         sidebarTree.querySelectorAll('.tree-toggle').forEach(toggle => {
@@ -503,11 +512,15 @@
         // Click on tree node to show details
         sidebarTree.querySelectorAll('.tree-node-inner').forEach(inner => {
           inner.addEventListener('click', (e) => {
-            const keyEl = inner.querySelector('.tree-key, .tree-value');
-            if (!keyEl) return;
-            const keyText = keyEl.textContent;
-            const row = allFlatRows.find(r => r.key === keyText || r.path === keyText);
-            if (row) showKvDetail(row.path, row.value, row.vtype);
+            if (e.target.classList.contains('tree-toggle')) return;
+            const pathText = inner.dataset.path;
+            const keyText = inner.dataset.key;
+            const typeText = inner.dataset.type;
+            let valueText = inner.dataset.value;
+            if (valueText) {
+              try { valueText = decodeURIComponent(valueText); } catch (e) {}
+            }
+            showKvDetail(pathText, valueText, typeText);
           });
         });
 
@@ -532,6 +545,10 @@
       parseAndRender();
       renderFileTree();
       renderSidebarTree();
+      const activeTab = document.querySelector('.content-tab.active');
+      if (activeTab && activeTab.dataset.tab === 'full') {
+        buildFullPanel();
+      }
     }
 
     // Remove file
@@ -546,6 +563,10 @@
           jsonInput.value = '';
         }
         parseAndRender();
+        const activeTab = document.querySelector('.content-tab.active');
+        if (activeTab && activeTab.dataset.tab === 'full') {
+          buildFullPanel();
+        }
       }
       renderFileTree();
       renderSidebarTree();
@@ -666,7 +687,7 @@
         allFlatRows = [];
         flatten(obj, '(root)', [], allFlatRows, 0);
         
-        treeView.innerHTML = renderTree(obj, true);
+        treeView.innerHTML = renderTreeRoot(obj);
         
         // Add click handlers for tree toggles in treeView
         treeView.querySelectorAll('.tree-toggle').forEach(toggle => {
@@ -677,6 +698,21 @@
               if (children) children.classList.toggle('expanded');
               toggle.classList.toggle('expanded');
             }
+          });
+        });
+        
+        // Click on tree node to show details
+        treeView.querySelectorAll('.tree-node-inner').forEach(inner => {
+          inner.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tree-toggle')) return;
+            const pathText = inner.dataset.path;
+            const keyText = inner.dataset.key;
+            const typeText = inner.dataset.type;
+            let valueText = inner.dataset.value;
+            if (valueText) {
+              try { valueText = decodeURIComponent(valueText); } catch (e) {}
+            }
+            showKvDetail(pathText, valueText, typeText);
           });
         });
         
@@ -791,34 +827,146 @@
       return esc(String(v));
     }
 
+    function clearSelection() {
+      document.querySelectorAll('.tree-node-inner.selected').forEach(el => el.classList.remove('selected'));
+    }
+
+    function highlightSelection(path) {
+      clearSelection();
+      const escapedPath = path.replace(/[[\]]/g, '\\$&');
+      const el = document.querySelector(`.tree-node-inner[data-path="${escapedPath}"]`);
+      if (el) el.classList.add('selected');
+    }
+
+    function parsePath(path) {
+      const parts = [];
+      let current = '';
+      for (let i = 0; i < path.length; i++) {
+        if (path[i] === '.') {
+          if (current) parts.push(current);
+          current = '';
+        } else if (path[i] === '[') {
+          if (current) parts.push(current);
+          current = '';
+          let closeIdx = path.indexOf(']', i);
+          if (closeIdx > i) {
+            parts.push(path.substring(i, closeIdx + 1));
+            i = closeIdx;
+            current = '';
+          }
+        } else {
+          current += path[i];
+        }
+      }
+      if (current) parts.push(current);
+      return parts;
+    }
+
+    function getParentPath(path) {
+      const parts = parsePath(path);
+      if (parts.length <= 1) return null;
+      return parts.slice(0, -1).join('.');
+    }
+
     function showKvDetail(path, value, valueType) {
-      const panel = document.getElementById('kvDetailPanel');
+      let parsedValue = value;
+      let actualType = valueType;
+      if (typeof value === 'string') {
+        try {
+          parsedValue = JSON.parse(value);
+          actualType = vtype(parsedValue);
+        } catch (e) {
+          parsedValue = value;
+          actualType = 'string';
+        }
+      }
+      highlightSelection(path);
+      const detailTab = document.querySelector('.content-tab[data-tab="details"]');
+      if (detailTab) {
+        document.querySelectorAll('.content-tab').forEach(t => t.classList.remove('active'));
+        detailTab.classList.add('active');
+        document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-details').classList.add('active');
+      }
       const pathEl = document.getElementById('kvDetailPath');
       const contentEl = document.getElementById('kvDetailContent');
-      panel.classList.add('visible');
       pathEl.textContent = path;
-      contentEl.innerHTML = `<table class="kv-table">
+      
+      const pathParts = parsePath(path);
+      const keyName = pathParts[pathParts.length - 1];
+      
+      let parentValue = null;
+      let parentType = '';
+      let siblings = null;
+      if (path !== '(root)' && pathParts.length > 1) {
+        const parentPath = getParentPath(path);
+        const parentRow = parentPath ? allFlatRows.find(r => r.path === parentPath) : null;
+        if (parentRow) {
+          parentValue = parentRow.value;
+          parentType = parentRow.vtype;
+          if (parentType === 'object' && parentValue !== null) {
+            siblings = Object.keys(parentValue);
+          } else if (parentType === 'array') {
+            siblings = parentValue.map((_, i) => i);
+          }
+        }
+      }
+      
+      let html = `<table class="kv-table">
         <thead><tr><th style="min-width:100px">Property</th><th>Value</th></tr></thead>
         <tbody>
-          <tr><td class="kv-key">Key / Path</td><td class="kv-val">${esc(path)}</td></tr>
-          <tr><td class="kv-key">Type</td><td class="kv-val"><span class="tag tag-${valueType}">${valueType}</span></td></tr>
-          <tr><td class="kv-key">Value</td><td class="kv-val">${valHtml(value, valueType)}</td></tr>
+          <tr><td class="kv-key">Key</td><td class="kv-val"><span class="tag tag-string">${esc(keyName)}</span></td></tr>
+          <tr><td class="kv-key">Path</td><td class="kv-val">${esc(path)}</td></tr>
+          <tr><td class="kv-key">Type</td><td class="kv-val"><span class="tag tag-${actualType}">${actualType}</span></td></tr>
+          <tr><td class="kv-key">Value</td><td class="kv-val">${valHtml(parsedValue, actualType)}</td></tr>
         </tbody>
       </table>`;
-      if (valueType === 'object' && value !== null) {
-        contentEl.querySelector('tbody').innerHTML += `<tr><td class="kv-key">Keys (${Object.keys(value).length})</td><td class="kv-val">${Object.keys(value).map(k => `<span class="tag tag-string" style="margin:1px 3px;display:inline-block">${esc(k)}</span>`).join('')}</td></tr>`;
+      
+      if (siblings !== null) {
+        html += `<table class="kv-table" style="margin-top:12px">
+          <thead><tr><th style="min-width:100px">Related Keys</th><th>Values</th></tr></thead>
+          <tbody>
+            <tr><td class="kv-key">Parent Path</td><td class="kv-val">${esc(pathParts.slice(0, -1).join('.'))}</td></tr>
+            <tr><td class="kv-key">Parent Type</td><td class="kv-val"><span class="tag tag-${parentType}">${parentType}</span></td></tr>
+            <tr><td class="kv-key">Siblings (${siblings.length})</td><td class="kv-val">${siblings.slice(0, 20).map(k => `<span class="tag tag-string" style="margin:1px 3px;display:inline-block">${esc(String(k))}</span>`).join('')}${siblings.length > 20 ? ' ...' : ''}</td></tr>
+          </tbody>
+        </table>`;
       }
-      if (valueType === 'array') {
-        const len = value.length;
-        const preview = value.slice(0, 10);
-        contentEl.querySelector('tbody').innerHTML += `<tr><td class="kv-key">Length</td><td class="kv-val"><span class="tag tag-number">${len} items</span>${len > 10 ? ' (showing first 10)' : ''}</td></tr>`;
-        contentEl.querySelector('tbody').innerHTML += `<tr><td class="kv-key">Preview</td><td class="kv-val">${preview.map((v, i) => '[' + i + ']: ' + valHtml(v, vtype(v))).join('<br>')}</td></tr>`;
-      }
-      if (valueType === 'object' || valueType === 'array') {
-        const rawJson = JSON.stringify(value, null, 2);
+      
+      if (actualType === 'object' && parsedValue !== null) {
+        html += `<table class="kv-table" style="margin-top:12px">
+          <thead><tr><th style="min-width:100px">Child Keys</th><th>Values</th></tr></thead>
+          <tbody>
+            <tr><td class="kv-key">Keys (${Object.keys(parsedValue).length})</td><td class="kv-val">${Object.keys(value).map(k => `<span class="tag tag-string" style="margin:1px 3px;display:inline-block">${esc(k)}</span>`).join('')}</td></tr>
+          </tbody>
+        </table>`;
+        const rawJson = JSON.stringify(parsedValue, null, 2);
         const previewJson = rawJson.length > 500 ? rawJson.substring(0, 500) + '...' : rawJson;
-        contentEl.querySelector('tbody').innerHTML += `<tr><td class="kv-key">Raw JSON</td><td class="kv-val"><pre style="margin:0;padding:8px;background:var(--tag-bg);border-radius:4px;overflow-x:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-word">${esc(previewJson)}</pre></td></tr>`;
+        html += `<table class="kv-table" style="margin-top:12px">
+          <thead><tr><th>Raw JSON</th></tr></thead>
+          <tbody><tr><td><pre style="margin:0;padding:8px;background:var(--tag-bg);border-radius:4px;overflow-x:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break_word">${esc(previewJson)}</pre></td></tr></tbody>
+        </table>`;
       }
+      
+      if (actualType === 'array') {
+        const len = parsedValue.length;
+        const preview = value.slice(0, 10);
+        html += `<table class="kv-table" style="margin-top:12px">
+          <thead><tr><th style="min-width:100px">Array Items</th><th>Values</th></tr></thead>
+          <tbody>
+            <tr><td class="kv-key">Length</td><td class="kv-val"><span class="tag tag-number">${len} items</span>${len > 10 ? ' (showing first 10)' : ''}</td></tr>
+            <tr><td class="kv-key">Preview</td><td class="kv-val">${parsedValue.slice(0, 10).map((v, i) => '[' + i + ']: ' + valHtml(v, vtype(v))).join('<br>')}</td></tr>
+          </tbody>
+        </table>`;
+        const rawJson = JSON.stringify(parsedValue, null, 2);
+        const previewJson = rawJson.length > 500 ? rawJson.substring(0, 500) + '...' : rawJson;
+        html += `<table class="kv-table" style="margin-top:12px">
+          <thead><tr><th>Raw JSON</th></tr></thead>
+          <tbody><tr><td><pre style="margin:0;padding:8px;background:var(--tag-bg);border-radius:4px;overflow-x:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break_word">${esc(previewJson)}</pre></td></tr></tbody>
+        </table>`;
+      }
+      
+      contentEl.innerHTML = html;
     }
 
     function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -830,21 +978,368 @@
       if (typeof obj === 'string') return `<span class="tree-string">"${obj}"</span>`;
 
       if (Array.isArray(obj)) {
-        const items = obj.map((item, i) => 
-          `<li class="tree-node"><div class="tree-node-inner"><span class="tree-value">[${i}]:</span> ${renderTree(item, false, depth + 1)}</div></li>`
-        ).join('');
-        return `<ul class="tree-node open"><li class="tree-node"><div class="tree-node-inner"><span class="tree-toggle">▶</span><span class="tree-key">Array</span><span class="tree-type array">${obj.length}</span></div><ul class="tree-children">${items}</ul></li></ul>`;
+        const prefix = depth === 0 ? '(root)' : '';
+        const items = obj.map((item, i) => {
+          const itemPath = prefix ? prefix + '[' + i + ']' : '[' + i + ']';
+          const arrayKey = '[' + i + ']';
+          const v = vtype(item);
+          const nested = renderTree(item, false, depth + 1, itemPath);
+          const isExpandable = typeof item === 'object' && item !== null;
+          return `<li class="tree-node ${isExpandable ? '' : 'leaf'}"><div class="tree-node-inner" data-path="${itemPath}" data-key="${arrayKey}" data-type="${v}" data-value="${encodeURIComponent(JSON.stringify(item).substring(0, 500))}"><span class="tree-toggle ${isExpandable ? '' : 'invisible'}">▶</span><span class="tree-key">[${i}]</span></div>${isExpandable ? '<ul class="tree-children">' + nested + '</ul>' : ''}</li>`;
+        }).join('');
+        return items;
       }
 
       if (typeof obj === 'object') {
         const keys = Object.keys(obj);
-        const items = Object.entries(obj).map(([key, val]) => 
-          `<li class="tree-node"><div class="tree-node-inner"><span class="tree-key">"${key}"</span>: ${renderTree(val, false, depth + 1)}</div></li>`
-        ).join('');
-        return `<ul class="tree-node open"><li class="tree-node"><div class="tree-node-inner"><span class="tree-toggle">▶</span><span class="tree-key">Object</span><span class="tree-type object">${keys.length}</span></div><ul class="tree-children">${items}</ul></li></ul>`;
+        const prefix = depth === 0 ? '(root)' : '';
+        const items = Object.keys(obj).map(key => {
+          const val = obj[key];
+          const itemPath = prefix ? prefix + '.' + key : key;
+          const v = vtype(val);
+          const nested = renderTree(val, false, depth + 1, itemPath);
+          const isExpandable = typeof val === 'object' && val !== null;
+          return `<li class="tree-node ${isExpandable ? '' : 'leaf'}"><div class="tree-node-inner" data-path="${itemPath}" data-key="${key}" data-type="${v}" data-value="${encodeURIComponent(JSON.stringify(val).substring(0, 500))}"><span class="tree-toggle ${isExpandable ? '' : 'invisible'}">▶</span><span class="tree-key">${key}</span></div>${isExpandable ? '<ul class="tree-children">' + nested + '</ul>' : ''}</li>`;
+        }).join('');
+        return items;
       }
 
+      if (obj === null) return '<span class="tree-null">null</span>';
+      if (typeof obj === 'boolean') return `<span class="tree-boolean">${obj}</span>`;
+      if (typeof obj === 'number') return `<span class="tree-number">${obj}</span>`;
+      if (typeof obj === 'string') return `<span class="tree-string">"${obj}"</span>`;
       return String(obj);
+    }
+
+    function renderTreeRoot(obj) {
+      if (typeof obj !== 'object' || obj === null) return renderTree(obj, true, 0, '(root)');
+      const keys = Object.keys(obj);
+      const rootPath = '(root)';
+      const items = Object.keys(obj).map(key => {
+        const val = obj[key];
+        const v = vtype(val);
+        const nested = renderTree(val, false, 1, rootPath + '.' + key);
+        const isExpandable = typeof val === 'object' && val !== null;
+        return `<li class="tree-node ${isExpandable ? '' : 'leaf'}"><div class="tree-node-inner" data-path="${rootPath}.${key}" data-key="${key}" data-type="${v}" data-value="${encodeURIComponent(JSON.stringify(val).substring(0, 500))}"><span class="tree-toggle ${isExpandable ? '' : 'invisible'}">▶</span><span class="tree-key">${key}</span></div>${isExpandable ? '<ul class="tree-children">' + nested + '</ul>' : ''}</li>`;
+      }).join('');
+      return items;
+    }
+
+    function findRefs(obj, path = '', results = []) {
+      if (!obj || typeof obj !== 'object') return results;
+      for (const [key, val] of Object.entries(obj)) {
+        const currentPath = path ? path + '.' + key : key;
+        if (key === '$ref' && typeof val === 'string') {
+          results.push({ path: currentPath, ref: val });
+        } else if (typeof val === 'object' && val !== null) {
+          findRefs(val, currentPath, results);
+        }
+      }
+      return results;
+    }
+
+    function hasRefs(obj) {
+      if (!obj || typeof obj !== 'object') return false;
+      for (const val of Object.values(obj)) {
+        if (val && typeof val === 'object') {
+          if (val.$ref) return true;
+          if (hasRefs(val)) return true;
+        }
+      }
+      return false;
+    }
+
+    function buildSchemaMap() {
+      const content = document.getElementById('schemaMapContent');
+
+      if (loadedFiles.size === 0) {
+        content.innerHTML = '<div class="sm-empty"><div class="sm-empty-icon">🗂️</div><div>Load JSON schema files to view the definition → property → value relationship</div></div>';
+        return;
+      }
+
+      // ── Parse all loaded files ──────────────────────────────────────────
+      const parsed = [];
+      for (const [name, raw] of loadedFiles) {
+        try {
+          const obj = JSON.parse(raw);
+          parsed.push({ name, obj });
+        } catch (e) { /* skip invalid */ }
+      }
+      if (!parsed.length) {
+        content.innerHTML = '<div class="sm-empty"><div class="sm-empty-icon">⚠️</div><div>No valid JSON files loaded</div></div>';
+        return;
+      }
+
+      // ── Classify each file into tier ────────────────────────────────────
+      // Tier 1 (DEF)  : has "definitions" key
+      // Tier 2 (PROP) : has "properties" key (and refs to definitions)
+      // Tier 3 (VAL)  : has neither — actual config/data values
+      function classifyTier(obj) {
+        if (obj.definitions && Object.keys(obj.definitions).length) return 'def';
+        if (obj.properties  && Object.keys(obj.properties).length)  return 'prop';
+        return 'val';
+      }
+
+      // ── Collect $refs recursively ───────────────────────────────────────
+      function collectRefs(obj, path, out) {
+        if (!obj || typeof obj !== 'object') return;
+        if (Array.isArray(obj)) { obj.forEach((v,i) => collectRefs(v, path+'['+i+']', out)); return; }
+        for (const [k, v] of Object.entries(obj)) {
+          const p = path ? path+'.'+k : k;
+          if (k === '$ref' && typeof v === 'string') { out.push({ path, ref: v }); }
+          else collectRefs(v, p, out);
+        }
+      }
+
+      // ── Build node list ─────────────────────────────────────────────────
+      const nodes = parsed.map(f => {
+        const tier = classifyTier(f.obj);
+        const refs = [];
+        collectRefs(f.obj, '', refs);
+        const defs  = tier === 'def'  ? Object.keys(f.obj.definitions || {}) : [];
+        const props = tier === 'prop' ? Object.keys(f.obj.properties  || {}) : [];
+        const vals  = tier === 'val'  ? Object.keys(f.obj).filter(k => !k.startsWith('$') && !['title','description','version','type','additionalProperties'].includes(k)) : [];
+        return { name: f.name, obj: f.obj, tier, refs, defs, props, vals };
+      });
+
+      // Sort: def → prop → val
+      const tierOrder = { def: 0, prop: 1, val: 2 };
+      nodes.sort((a, b) => tierOrder[a.tier] - tierOrder[b.tier]);
+
+      const defNodes  = nodes.filter(n => n.tier === 'def');
+      const propNodes = nodes.filter(n => n.tier === 'prop');
+      const valNodes  = nodes.filter(n => n.tier === 'val');
+
+      // ── Build edges from $refs ──────────────────────────────────────────
+      // Each ref: { from: nodeName, to: nodeName, defName, propName, type }
+      const edges = [];
+      nodes.forEach(src => {
+        src.refs.forEach(r => {
+          const refUri = r.ref;
+          // Find target node by matching $id or name
+          let targetNode = null;
+          let defName = '';
+          let edgeType = 'ref';
+
+          if (refUri.includes('#/definitions/')) {
+            defName = refUri.split('#/definitions/')[1];
+            // Find the node whose $id matches the URI prefix
+            const uriBase = refUri.split('#/')[0];
+            targetNode = nodes.find(n =>
+              n.obj.$id === uriBase ||
+              n.name.replace('.json','') === uriBase.split('/').pop() ||
+              n.name === uriBase.split('/').pop() + '.json'
+            );
+            edgeType = src.tier === 'prop' ? 'prop-to-def' : 'ref';
+          } else if (refUri.startsWith('#/')) {
+            defName = refUri.split('#/')[1].split('/').pop();
+            targetNode = src; // self-reference
+            edgeType = 'self';
+          } else {
+            // allOf / plain URI ref to another schema
+            const uriBase = refUri.split('#')[0];
+            targetNode = nodes.find(n =>
+              n.obj.$id === uriBase ||
+              n.name.replace('.json','') === uriBase.split('/').pop() ||
+              n.name === uriBase.split('/').pop() + '.json'
+            );
+            edgeType = 'inherit';
+          }
+
+          if (targetNode && targetNode.name !== src.name) {
+            const exists = edges.some(e => e.from === src.name && e.to === targetNode.name && e.defName === defName);
+            if (!exists) edges.push({ from: src.name, to: targetNode.name, defName, edgeType, refPath: r.path });
+          }
+        });
+      });
+
+      // ── SVG layout ──────────────────────────────────────────────────────
+      const NW = 170, NH = 44, HGAP = 100, VGAP = 16, PAD = 24;
+      const colW = NW + HGAP;
+      const pos = {};
+
+      // 3 columns: col0=def, col1=prop, col2=val
+      [defNodes, propNodes, valNodes].forEach((col, ci) => {
+        col.forEach((n, ri) => {
+          pos[n.name] = { x: PAD + ci * colW, y: PAD + 20 + ri * (NH + VGAP) };
+        });
+      });
+
+      const allH = Math.max(defNodes.length, propNodes.length, valNodes.length);
+      const svgW = PAD * 2 + colW * 3 - HGAP + 20;
+      const svgH = PAD * 2 + 20 + allH * (NH + VGAP) + 20;
+
+      // Tier colours (matching CSS vars resolved to hex for SVG)
+      const tierFill   = { def: '#1c2333', prop: '#1a2030', val: '#1f1a10' };
+      const tierStroke = { def: '#2f81f7', prop: '#3fb950', val: '#d29922' };
+      const tierBadge  = { def: '#2f81f7', prop: '#3fb950', val: '#d29922' };
+      const tierLabel  = { def: 'DEFINITIONS', prop: 'PROPERTIES', val: 'VALUES' };
+      const edgeStroke = { 'prop-to-def': '#2f81f7', 'inherit': '#3fb950', 'ref': '#8b949e', 'self': '#484f58' };
+      const edgeDash   = { 'prop-to-def': '', 'inherit': '6,3', 'ref': '3,3', 'self': '2,4' };
+
+      let svg = `<svg width="${svgW}" height="${svgH}" xmlns="http://www.w3.org/2000/svg" style="display:block;font-family:'JetBrains Mono',monospace;">`;
+
+      // Arrow markers for each edge type
+      const markerDefs = [
+        { id: 'arr-def',  color: '#2f81f7' },
+        { id: 'arr-prop', color: '#3fb950' },
+        { id: 'arr-ref',  color: '#8b949e' },
+      ];
+      svg += '<defs>';
+      markerDefs.forEach(m => {
+        svg += `<marker id="${m.id}" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+          <path d="M0,0 L0,6 L8,3 z" fill="${m.color}"/>
+        </marker>`;
+      });
+      svg += '</defs>';
+
+      // Column header labels
+      ['def','prop','val'].forEach((tier, ci) => {
+        const cx = PAD + ci * colW + NW / 2;
+        svg += `<text x="${cx}" y="${PAD + 12}" text-anchor="middle" fill="${tierBadge[tier]}"
+          font-size="9" font-weight="700" letter-spacing="1">${tierLabel[tier]}</text>`;
+        // Vertical divider
+        if (ci < 2) {
+          const lx = PAD + (ci + 1) * colW - HGAP / 2;
+          svg += `<line x1="${lx}" y1="${PAD}" x2="${lx}" y2="${svgH - PAD}"
+            stroke="#30363d" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>`;
+        }
+      });
+
+      // ── Draw edges ──────────────────────────────────────────────────────
+      edges.forEach(edge => {
+        const fp = pos[edge.from], tp = pos[edge.to];
+        if (!fp || !tp) return;
+
+        // Right-centre of source → left-centre of target
+        const x1 = fp.x + NW, y1 = fp.y + NH / 2;
+        const x2 = tp.x,      y2 = tp.y + NH / 2;
+        const cx1 = x1 + (x2 - x1) * 0.45;
+        const cx2 = x1 + (x2 - x1) * 0.55;
+
+        const col  = edgeStroke[edge.edgeType] || '#8b949e';
+        const dash = edgeDash[edge.edgeType]   || '';
+        const markerId = edge.edgeType === 'prop-to-def' ? 'arr-def'
+                       : edge.edgeType === 'inherit'     ? 'arr-prop'
+                       : 'arr-ref';
+
+        svg += `<path d="M${x1},${y1} C${cx1},${y1} ${cx2},${y2} ${x2},${y2}"
+          fill="none" stroke="${col}" stroke-width="1.5"
+          ${dash ? `stroke-dasharray="${dash}"` : ''}
+          marker-end="url(#${markerId})" opacity="0.7"/>`;
+
+        // Edge label (definition name) at midpoint
+        if (edge.defName) {
+          const mx = (x1 + x2) / 2;
+          const my = (y1 + y2) / 2 - 6;
+          const lbl = edge.defName.length > 20 ? edge.defName.slice(0,18)+'..' : edge.defName;
+          const lw  = lbl.length * 5.2 + 8;
+          svg += `<rect x="${mx - lw/2}" y="${my - 9}" width="${lw}" height="13" rx="2" fill="#0d1117" opacity="0.9"/>`;
+          svg += `<text x="${mx}" y="${my}" text-anchor="middle" fill="${col}"
+            font-size="9" opacity="0.9">${lbl}</text>`;
+        }
+      });
+
+      // ── Draw nodes ──────────────────────────────────────────────────────
+      nodes.forEach(nd => {
+        const p = pos[nd.name];
+        if (!p) return;
+        const fill   = tierFill[nd.tier]   || '#1c2333';
+        const stroke = tierStroke[nd.tier] || '#8b949e';
+        const badge  = tierBadge[nd.tier]  || '#8b949e';
+        const cx = p.x + NW / 2;
+
+        // Node box
+        svg += `<rect x="${p.x}" y="${p.y}" width="${NW}" height="${NH}" rx="5"
+          fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+
+        // Tier badge top-left
+        const bt = nd.tier.toUpperCase();
+        svg += `<rect x="${p.x+4}" y="${p.y+4}" width="${bt.length*6+4}" height="12" rx="2"
+          fill="${badge}" opacity="0.18"/>`;
+        svg += `<text x="${p.x + bt.length*3 + 6}" y="${p.y+13}" text-anchor="middle"
+          fill="${badge}" font-size="8" font-weight="700">${bt}</text>`;
+
+        // File name label
+        let lbl = nd.name.replace('.json','');
+        if (lbl.length > 20) lbl = lbl.slice(0,18)+'..';
+        svg += `<text x="${cx}" y="${p.y + 28}" text-anchor="middle"
+          fill="#e6edf3" font-size="11" font-weight="600">${lbl}</text>`;
+
+        // Sub-label: count of defs/props/vals
+        let sub = '';
+        if (nd.tier === 'def'  && nd.defs.length)  sub = `${nd.defs.length} defs`;
+        if (nd.tier === 'prop' && nd.props.length) sub = `${nd.props.length} props`;
+        if (nd.tier === 'val'  && nd.vals.length)  sub = `${nd.vals.length} keys`;
+        if (sub) {
+          svg += `<text x="${cx}" y="${p.y + 39}" text-anchor="middle"
+            fill="${badge}" font-size="9" opacity="0.8">${sub}</text>`;
+        }
+      });
+
+      svg += '</svg>';
+
+      // ── Legend ──────────────────────────────────────────────────────────
+      const legendHtml = `
+        <div class="sm-legend">
+          <div class="sm-legend-item"><span class="sm-legend-dot" style="background:#2f81f7"></span>Definitions (base schema)</div>
+          <div class="sm-legend-item"><span class="sm-legend-dot" style="background:#3fb950"></span>Properties (setup schema)</div>
+          <div class="sm-legend-item"><span class="sm-legend-dot" style="background:#d29922"></span>Values (config schema)</div>
+          <div class="sm-legend-item"><span class="sm-legend-line" style="background:#2f81f7"></span>$ref to definition</div>
+          <div class="sm-legend-item"><span class="sm-legend-line" style="background:#3fb950;height:2px;border-top:2px dashed #3fb950;background:none;"></span>allOf / inherit</div>
+          <div class="sm-legend-item"><span class="sm-legend-line" style="border-top:2px dashed #8b949e;background:none;"></span>other $ref</div>
+        </div>`;
+
+      // ── Tier detail tables ───────────────────────────────────────────────
+      function tierDetailTable(nodeList, tierKey, keyList, keyLabel) {
+        if (!nodeList.length) return '';
+        let html = `<div class="sm-section-title">${tierLabel[tierKey]} — ${keyLabel}</div>`;
+        html += '<div style="padding:0 16px 12px;overflow-x:auto;">';
+        html += '<table class="sm-ref-table"><thead><tr><th>File</th><th>Key</th><th>Type / $ref</th></tr></thead><tbody>';
+        nodeList.forEach(nd => {
+          const keys = nd[keyList];
+          if (!keys.length) return;
+          keys.forEach((k, i) => {
+            const obj = nd.obj[tierKey === 'def' ? 'definitions' : tierKey === 'prop' ? 'properties' : ''] || nd.obj;
+            const val = obj[k] || {};
+            const typeStr = val.type || (val.$ref ? '' : typeof val === 'object' ? 'object' : String(val));
+            const refStr  = val.$ref || (val.items && val.items.$ref) || '';
+            const refShort = refStr ? refStr.split('/').pop() : '';
+            html += `<tr>
+              <td class="td-source">${i === 0 ? nd.name : ''}</td>
+              <td class="td-path">${k}</td>
+              <td class="td-target">${typeStr ? `<span style="color:var(--text2)">${typeStr}</span>` : ''}${refShort ? ` <span class="sm-tier-badge ref">→ ${refShort}</span>` : ''}</td>
+            </tr>`;
+          });
+        });
+        html += '</tbody></table></div>';
+        return html;
+      }
+
+      // ── All $refs table ──────────────────────────────────────────────────
+      let refTableHtml = '<div class="sm-section-title">All $ref Mappings</div>';
+      refTableHtml += '<div style="padding:0 16px 16px;overflow-x:auto;">';
+      refTableHtml += '<table class="sm-ref-table"><thead><tr><th>Source File</th><th>Tier</th><th>JSON Path</th><th>$ref Target</th></tr></thead><tbody>';
+      nodes.forEach(nd => {
+        nd.refs.forEach(r => {
+          const defName = r.ref.includes('#/definitions/') ? r.ref.split('#/definitions/')[1] : r.ref.split('/').pop();
+          refTableHtml += `<tr>
+            <td class="td-source">${nd.name}</td>
+            <td class="td-tier"><span class="sm-tier-badge ${nd.tier}">${nd.tier.toUpperCase()}</span></td>
+            <td class="td-path">${r.path || '(root)'}</td>
+            <td class="td-target">${r.ref}</td>
+          </tr>`;
+        });
+      });
+      refTableHtml += '</tbody></table></div>';
+
+      content.innerHTML =
+        '<div style="padding:16px 20px 8px;overflow-x:auto;">' + svg + '</div>' +
+        legendHtml +
+        tierDetailTable(defNodes,  'def',  'defs',  'Definition Keys') +
+        tierDetailTable(propNodes, 'prop', 'props', 'Property Keys') +
+        tierDetailTable(valNodes,  'val',  'vals',  'Value Keys') +
+        refTableHtml;
     }
 
     jsonInput.addEventListener('input', () => {

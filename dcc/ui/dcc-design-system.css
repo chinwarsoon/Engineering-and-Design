@@ -313,7 +313,24 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
   background: var(--bg);
+}
+
+/* Editor pane */
+.editor-pane {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Panels container */
+.panels-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 /* Status bar */
@@ -691,6 +708,22 @@ textarea { resize: vertical; min-height: 80px; font-family: var(--font-mono); fo
 }
 .key-tree-container.visible { display: flex; }
 
+.sidebar-panel {
+  display: none;
+}
+.sidebar-panel.visible {
+  display: block;
+}
+.sidebar-panel-stretch {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.sidebar-panel-stretch.visible {
+  display: flex;
+}
+
 .key-tree-header {
   padding: 10px 16px;
   background: var(--surface2);
@@ -722,6 +755,7 @@ textarea { resize: vertical; min-height: 80px; font-family: var(--font-mono); fo
 .key-tree {
   padding: 8px 0;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   min-height: 0;
 }
@@ -752,3 +786,199 @@ textarea { resize: vertical; min-height: 80px; font-family: var(--font-mono); fo
   background: rgba(79, 255, 176, .07);
   border-left-color: var(--accent);
 }
+
+/* JSON Editor scrollable areas */
+.editor-input {
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  resize: none;
+  outline: none;
+  overflow-y: auto;
+}
+.tree-view {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow-y: auto;
+  background: var(--surface);
+}
+.content-panel {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+.content-panel.active {
+  display: flex;
+}
+
+/* ══════════════════════════════════════════
+   SCHEMA MAP FLOWCHART
+   3-tier: definitions → properties → values
+══════════════════════════════════════════ */
+.schema-map-content {
+  flex: 1;
+  overflow: auto;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+.schema-map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.schema-map-toolbar .sm-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.schema-map-body {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+}
+/* Tier header strip */
+.sm-tier-header {
+  display: flex;
+  gap: 0;
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.sm-tier-cell {
+  flex: 1;
+  padding: 7px 14px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+.sm-tier-cell:last-child { border-right: none; }
+.sm-tier-def   { background: rgba(47,129,247,.12);  color: var(--accent); }
+.sm-tier-prop  { background: rgba(63,185,80,.10);   color: var(--success); }
+.sm-tier-val   { background: rgba(210,153,34,.10);  color: var(--warning); }
+/* SVG node classes (used via CSS class on SVG elements) */
+.sm-node-def   { fill: #1c2333; stroke: var(--accent);  stroke-width: 2; }
+.sm-node-prop  { fill: #1a2030; stroke: var(--success); stroke-width: 1.5; }
+.sm-node-val   { fill: #1f1a10; stroke: var(--warning); stroke-width: 1.5; }
+.sm-node-ref   { fill: #1a1a2e; stroke: var(--text3);   stroke-width: 1; }
+.sm-edge-def   { stroke: var(--accent);  stroke-width: 1.5; fill: none; }
+.sm-edge-prop  { stroke: var(--success); stroke-width: 1.5; fill: none; stroke-dasharray: 5,3; }
+.sm-edge-ref   { stroke: var(--text3);   stroke-width: 1;   fill: none; stroke-dasharray: 3,3; }
+/* Ref table below chart */
+.sm-ref-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.sm-ref-table th {
+  text-align: left;
+  padding: 5px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+}
+.sm-ref-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid rgba(48,54,61,.4);
+  vertical-align: top;
+  word-break: break-all;
+}
+.sm-ref-table .td-source { color: var(--text2); }
+.sm-ref-table .td-path   { color: var(--accent); }
+.sm-ref-table .td-target { color: var(--warning); }
+.sm-ref-table .td-tier   { white-space: nowrap; }
+.sm-tier-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.sm-tier-badge.def  { background: rgba(47,129,247,.15);  color: var(--accent); }
+.sm-tier-badge.prop { background: rgba(63,185,80,.12);   color: var(--success); }
+.sm-tier-badge.val  { background: rgba(210,153,34,.12);  color: var(--warning); }
+.sm-tier-badge.ref  { background: rgba(139,148,158,.12); color: var(--text3); }
+/* Legend row */
+.sm-legend {
+  display: flex;
+  gap: 18px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  background: var(--surface);
+  flex-shrink: 0;
+}
+.sm-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text2);
+}
+.sm-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.sm-legend-line {
+  width: 24px;
+  height: 2px;
+  flex-shrink: 0;
+}
+/* Empty state */
+.sm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px;
+  color: var(--text3);
+  font-size: 12px;
+  text-align: center;
+  flex: 1;
+}
+.sm-empty-icon { font-size: 32px; }
+/* Section divider */
+.sm-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: 12px 16px 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+

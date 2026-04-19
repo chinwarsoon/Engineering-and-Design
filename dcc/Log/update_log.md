@@ -82,7 +82,73 @@ is_json = col_def.get('data_type') == 'json' or col_def.get('column_type') == 'j
 
 ---
 
-<a id="issue30-env-fix"></a>
+<a id="pipeline-messaging-redesign"></a>
+## 2026-04-19 05:00:00
+
+### Pipeline Messaging Workplan Redesigned — Awaiting Approval
+
+**Status:** AWAITING APPROVAL
+
+**Problem:** Default level (normal/level 1) still outputs internal function call trees, full absolute paths, step bracket notation, CLI override messages, third-party library warnings, and WARNING messages. Previous workplan was marked COMPLETE but implementation was not done.
+
+**Workplan redesigned:** `dcc/workplan/error_handling/pipeline_messaging_plan.md`
+
+**Key changes in redesign:**
+- Added precise message samples for all 4 levels (0/1/2/3)
+- Defined exact list of messages that must NOT appear at level 1
+- Introduced `milestone_print()` function design
+- Specified `min_level` parameter for `status_print()`
+- Added third-party warning suppression at levels 0/1
+- Fixed banner design (misaligned box-drawing → clean `━` separator)
+- Listed all 7 files to modify with specific changes
+- 12 completion criteria defined
+
+**Awaiting approval before implementation.**
+
+---
+
+
+## 2026-04-19 04:00:00
+
+### Schema Map Flowchart — 3-Tier Relationship View
+
+**Status:** COMPLETE
+
+**Problem:** Schema Map tab in `common_json_tools.html` showed nodes in a flat grid with no connecting arrows. Did not reflect the 3-tier schema architecture (definitions → properties → values).
+
+**Root Cause (original):** `buildSchemaMap()` built a `nodes` dict and `links` array but never used `links` to draw SVG edges. Nodes were placed in a 4-column grid with no layout awareness.
+
+**Root Cause (previous fix):** Replaced with a 3-column layout with arrows, but still treated all files as generic `$ref` sources — did not classify files by their role (base/setup/config) or show the semantic 3-tier relationship.
+
+**Fix Applied:**
+
+| Area | Change |
+|------|--------|
+| `common_json_tools.html` | Rewrote `buildSchemaMap()` with 3-tier classification and SVG flowchart |
+| `dcc-design-system.css` | Replaced old schema map CSS with full `.sm-*` component system |
+
+**New `buildSchemaMap()` features:**
+- `classifyTier()` — auto-classifies each file: `def` (has `definitions`), `prop` (has `properties`), `val` (neither)
+- 3-column SVG layout: DEFINITIONS | PROPERTIES | VALUES with column headers and dividers
+- Typed arrow markers: solid blue (`$ref` to def), dashed green (allOf/inherit), dashed grey (other)
+- Edge labels showing definition name at curve midpoint
+- Node badges (DEF / PROP / VAL) with count sub-labels
+- `tierDetailTable()` — expandable tables below chart showing all keys per tier
+- Full `$ref` mapping table with tier badge, source file, JSON path, and target URI
+- Empty state with icon when no files loaded
+
+**New CSS classes in `dcc-design-system.css`:**
+`.sm-legend`, `.sm-legend-item`, `.sm-legend-dot`, `.sm-legend-line`,
+`.sm-ref-table`, `.sm-tier-badge`, `.sm-section-title`, `.sm-tier-cell`,
+`.sm-node-def/prop/val`, `.sm-edge-def/prop/ref`, `.sm-empty`, `.sm-map-toolbar`
+
+**Files Updated:**
+- `dcc/ui/common_json_tools.html`
+- `dcc/ui/dcc-design-system.css`
+
+---
+
+
 ## 2026-04-19 03:00:00
 
 ### Issue #30 — dcc Conda Env Missing jsonschema & rapidfuzz
@@ -1387,3 +1453,104 @@ Foreign Key Dependencies:
 2. UI Implementation: [ai_analysis_dashboard.html](../ui/ai_analysis_dashboard.html) - Built a self-contained AI insight visualization tool conforming to the DCC UI Design System.
 3. Architecture: Finalized Step 7 (AI Operations) integration in the main pipeline, ensuring non-blocking execution and deterministic fallback support.
 4. Related to [Issue #23](issue_log.md#issue-23): Marks Phase 5 as fully complete with all required documentation and UI artifacts.
+
+<a id="issue34-kv-detail-panel"></a>
+## 2026-04-19 16:30:00
+
+### Issue #34 — Key-Value Detail Panel
+
+**Status:** RESOLVED
+
+**Problem:** When selecting a key in tree view, kv-detail-panel should show related keys and values.
+
+**Root Cause:** Tree nodes only showed keys without values.
+
+**Fix:**
+1. Updated renderTree() to only show keys (no inline values)
+2. Added nested keys expansion on click
+3. Created kv-detail-panel as content-tab "Key Details"
+4. showKvDetail() now shows key, type, value, related keys, siblings, parent path
+
+**Files Changed:** ui/common_json_tools.html
+
+<a id="issue35-tree-scroll"></a>
+## 2026-04-19 17:00:00
+
+### Issue #35 — Sidebar Key-Tree Scrollbar
+
+**Status:** RESOLVED
+
+**Problem:** Key-tree in sidebar should show scrollbar when tree nodes overflow.
+
+**Root Cause:** Parent flex containers missing min-height: 0 for flex scrolling.
+
+**Fix:**
+1. Added sidebar-panel-stretch class in CSS for flexible panels
+2. Added min-height: 0 to editor-pane, panels-container, content-panel, tree-view, editor-input, key-tree
+3. Created CSS classes in dcc-design-system.css for scrollable areas
+
+**Files Changed:** ui/common_json_tools.html, ui/dcc-design-system.css
+
+<a id="issue36-sidebar-panels"></a>
+## 2026-04-19 17:30:00
+
+### Issue #36 — Sidebar Panel Switching
+
+**Status:** RESOLVED
+
+**Problem:** Clicking sidebar icons should show related panels.
+
+**Root Cause:** Inline display:none styles overriding CSS class switching.
+
+**Fix:**
+1. Removed all inline style="display: none;" from sidebar panels
+2. Used CSS class .visible for panel switching via JavaScript
+3. Added initial .visible class on panel-files
+4. Added sidebar-panel and sidebar-panel-stretch CSS classes
+
+**Files Changed:** ui/common_json_tools.html, ui/dcc-design-system.css
+
+<a id="issue37-array-keys"></a>
+## 2026-04-19 18:00:00
+
+### Issue #37 — Array Key Details
+
+**Status:** RESOLVED
+
+**Problem:** Key-details not showing values for array elements [0], [1], etc.
+
+**Root Cause:** Path mismatch between tree nodes and allFlatRows. Tree used numeric keys, allFlatRows used bracketed keys like [0].
+
+**Fix:**
+1. Added data-type and data-value attributes to renderTree() tree nodes
+2. data-value stores JSON-encoded value (URL-safe encoded)
+3. Click handlers now read directly from DOM data attributes
+4. showKvDetail() parses string values back to objects using vtype() and JSON.parse()
+
+**Files Changed:** ui/common_json_tools.html
+
+<a id="issue38-schema-map"></a>
+## 2026-04-19 19:00:00
+
+### Issue #38 — Schema Map Flowchart
+
+**Status:** RESOLVED
+
+**Problem:** Create schema map content-tab showing $ref relationships as flowchart.
+
+**Root Cause:** Need to parse $ref from loaded JSON files and display as SVG flowchart.
+
+**Fix:**
+1. Added "Schema Map" tab in content tabs
+2. Uses loaded JSON files from Load Files button
+3. Parses $ref patterns:
+   - `#/definitions/XYZ` → local definition
+   - `http://...#/definitions/XYZ` → external schema
+4. Shows SVG flowchart with colored nodes:
+   - Green = schema files
+   - Orange = external schema refs
+   - Gray = local definitions
+5. Added CSS styles in dcc-design-system.css
+6. Uses hex colors instead of CSS variables for SVG compatibility
+
+**Files Changed:** ui/common_json_tools.html, ui/dcc-design-system.css

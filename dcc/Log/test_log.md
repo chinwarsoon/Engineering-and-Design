@@ -7,8 +7,45 @@
 
 # Section 2. Test log entries
 
-## 2026-04-19 03:00:00
-1. **Issue #30 — dcc Conda Env Missing jsonschema & rapidfuzz**
+## 2026-04-19 05:00:00
+1. **Pipeline Messaging Workplan Redesigned — Awaiting Approval**
+   - **Method**: Live pipeline run + output analysis
+   - **Observed at default level (level 1):** 80+ lines before processing begins
+   - **Unwanted messages confirmed present:**
+     - `CLI overrides detected. CLI values: {'verbose_level': 'normal'}` ❌
+     - `Building native default parameters...` ❌
+     - `Loading schema from: /home/franklin/.../project_setup.json` ❌
+     - `[pipeline] ▶ step1_initiation` / `◄ step1_initiation (0.9ms)` ❌
+     - `[validator] ▶ validate` / `[validators] [OK] config/schemas ...` ❌
+     - `Validating 7 folders...` / `Validating 3 root files...` ❌
+     - `UserWarning: Print area cannot be set to Defined name...` ❌
+     - `WARNING: Required input column missing...` ❌
+     - `[Phase X] col: Applying strategy` ❌
+   - **Workplan redesigned:** `dcc/workplan/error_handling/pipeline_messaging_plan.md`
+   - **Status:** Awaiting approval before implementation
+   - **Related Issue:** [Issue #33](issue_log.md)
+- `Status: PENDING APPROVAL`
+
+ — 3-Tier Relationship View**
+   - **Method**: Static code review + browser test with DCC schema files
+   - **Files tested**: `project_setup_base.json` (8 definitions), `project_setup.json` (8 properties, 17 $refs), `project_config.json` (12 value keys)
+   - **Tier classification**:
+     - `project_setup_base.json` → DEF tier (has `definitions`) ✅
+     - `project_setup.json` → PROP tier (has `properties`) ✅
+     - `project_config.json` → VAL tier (neither) ✅
+   - **Flowchart checks**:
+     - 3-column layout with DEFINITIONS | PROPERTIES | VALUES headers ✅
+     - Arrows drawn from PROP nodes to DEF nodes via $ref ✅
+     - allOf/inherit edges drawn as dashed green ✅
+     - Edge labels show definition name at curve midpoint ✅
+     - Node badges (DEF/PROP/VAL) with count sub-labels ✅
+     - Tier detail tables below chart ✅
+     - Full $ref mapping table with tier badge ✅
+   - **CSS checks**: All 12 `.sm-*` classes present in `dcc-design-system.css` ✅
+   - **Related Issue**: [Issue #31](issue_log.md)
+- `Status: PASS`
+
+ — dcc Conda Env Missing jsonschema & rapidfuzz**
    - **Method**: `conda run -n dcc python dcc_engine_pipeline.py`
    - **Error reproduced**: `Environment test failed. Missing required packages: ✗ jsonschema: No module named 'jsonschema'`
    - **Root cause**: `dcc/dcc.yml` and root `dcc.yml` pip sections missing `jsonschema` and `rapidfuzz`

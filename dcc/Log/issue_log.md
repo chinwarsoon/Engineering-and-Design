@@ -48,6 +48,14 @@
   - initiation_engine/utils/cli.py
   - initiation_engine/utils/logging.py
   - initiation_engine/__init__.py
+
+## 2026-04-19 05:00:00
+[Issue #33]: Default pipeline output (level 1/normal) still shows internal function call trees, full absolute paths, step bracket notation, CLI override messages, third-party library warnings, and WARNING messages. Previous workplan was marked COMPLETE but implementation was not done.
+- `[Status]`: Open — awaiting approval for implementation
+- `[Context]`: Running `python dcc_engine_pipeline.py` at default level shows 80+ lines of internal detail before any processing begins. User expects clean milestone-level output only.
+- `[Root Cause]`: `status_print()` calls throughout all engine modules print regardless of level. Only `StructuredLogger.log_error()` was suppressed in the previous fix. The general `status_print()` in validators, schema loaders, and engine steps was never gated by level.
+- `[Action Required]`: Approve redesigned workplan, then implement `milestone_print()`, `min_level` parameter for `status_print()`, warning suppression, and banner fix across 7 files.
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#pipeline-messaging-redesign)
   - dcc_engine_pipeline.py
   - schema_engine/loader/*.py
 - [Resolution]: Added --verbose argument with 4 levels (quiet/normal/debug/trace), framework banner visible at all levels
@@ -99,8 +107,16 @@
 - [Resolution]: Generated 5 phase reports (5.1-5.5) detailing engine architecture, insight logic, UI integration, live monitoring, and persistence. Created the self-contained AI Analysis Dashboard conforming to the DCC UI Design System.
 - [Link to changes in update_log.md]: [update_log.md](update_log.md#phase5-completion)
 
-## 2026-04-19 03:00:00
-[Issue #30]: `dcc` conda env missing `jsonschema` — `Environment test failed. Missing required packages: ✗ jsonschema: No module named 'jsonschema'`.
+## 2026-04-19 04:00:00
+[Issue #31]: Schema Map flowchart in `common_json_tools.html` does not show 3-tier definition→property→value relationship. Nodes shown in flat grid with no arrows or semantic layout.
+- `[Status]`: **Resolved**
+- `[Context]`: Schema Map tab showed boxes in a grid. Previous fix added arrows but still treated all files as generic nodes without classifying them by role (base/setup/config). Did not reflect the actual 3-tier schema architecture.
+- `[Root Cause]`: `buildSchemaMap()` had no tier classification logic. All files placed in a flat layout regardless of whether they contained `definitions`, `properties`, or actual values.
+- `[Resolution]`: Rewrote `buildSchemaMap()` with `classifyTier()` auto-classification, 3-column SVG layout (DEFINITIONS | PROPERTIES | VALUES), typed arrow markers, edge labels, tier detail tables, and full $ref mapping table. Added full `.sm-*` CSS component system to `dcc-design-system.css`.
+- `[File Changes]`: `dcc/ui/common_json_tools.html`, `dcc/ui/dcc-design-system.css`
+- `[Link to changes in update_log.md]`: [update_log.md](update_log.md#schema-map-flowchart-fix)
+
+ `dcc` conda env missing `jsonschema` — `Environment test failed. Missing required packages: ✗ jsonschema: No module named 'jsonschema'`.
 - [Status]: Resolved
 - [Context]: Pipeline passes in base conda env (has `jsonschema==4.26.0`) but fails in `dcc` env. `dcc.yml` pip section was missing `jsonschema` and `rapidfuzz`.
 - [Root Cause]: Both `dcc/dcc.yml` and root `dcc.yml` pip sections did not include `jsonschema` or `rapidfuzz`. Env created from yml would always be missing these packages.
@@ -155,3 +171,58 @@
 - [File Changes]: `config/schemas/dcc_register_config.json`
 - [Resolution]: Updated schema definitions for `All_Submission_Sessions`, `All_Submission_Dates`, `All_Submission_Session_Revisions`, `All_Approval_Code`, and `Consolidated_Submission_Session_Subject` to use `data_type: "json"`.
 - [Link to changes in update_log.md]: [update_log.md](update_log.md#issue32-schema-json-fix)
+
+# Section 3. New Issues
+
+<a id="issue34-kv-detail-panel"></a>
+## 2026-04-19
+[Issue #34]: Key-Value Detail Panel - shows related keys/values when selecting key in tree
+- [Status]: RESOLVED
+- [Context]: When selecting a key in the tree view, kv-detail-panel should show related keys and values.
+- [Root Cause]: Tree nodes only showed keys without values. Need to add click handlers and update kv-detail-panel.
+- [File Changes]: ui/common_json_tools.html
+- [Resolution]: Added data attributes to tree nodes, updated click handlers to showKvDetail function. tree-node now shows only keys (not values), nested keys expand on click. kv-detail-content shows key, type, value, related keys, siblings.
+- [Link to Update Log]: [update_log.md](#issue34-kv-detail-panel)
+
+<a id="issue35-tree-scroll"></a>
+## 2026-04-19
+[Issue #35]: Sidebar Key-Tree scrollbar not visible
+- [Status]: RESOLVED
+- [Context]: Key-tree in sidebar should show scrollbar when tree nodes overflow.
+- [Root Cause]: Parent flex containers missing min-height: 0 for flex scrolling.
+- [File Changes]: ui/common_json_tools.html, ui/dcc-design-system.css
+- [Resolution]: Added min-height: 0 to editor-pane, panels-container, content-panel, tree-view, editor-input, key-tree. Added sidebar-panel-stretch class for flexible panels.
+- [Link to Update Log]: [update_log.md](#issue35-tree-scroll)
+
+<a id="issue36-sidebar-panels"></a>
+## 2026-04-19
+[Issue #36]: Sidebar panels not switching on icon bar clicks
+- [Status]: RESOLVED
+- [Context]: Clicking sidebar icons should show related panels.
+- [Root Cause]: Inline display:none styles overriding CSS class switching.
+- [File Changes]: ui/common_json_tools.html, ui/dcc-design-system.css
+- [Resolution]: Removed inline display:none, used CSS class .visible for panel switching. Added initial .visible on panel-files.
+- [Link to Update Log]: [update_log.md](#issue36-sidebar-panels)
+
+<a id="issue37-array-keys"></a>
+## 2026-04-19
+[Issue #37]: Key-details not showing values for array elements [0], [1], etc
+- [Status]: RESOLVED
+- [Context]: Selecting array items like files[0], files[1] should show key-value details.
+- [Root Cause]: Path mismatch between tree nodes and allFlatRows. Tree used numeric keys like 0, allFlatRows used bracketed keys like [0].
+- [File Changes]: ui/common_json_tools.html
+- [Resolution]: Added data-value attribute to tree nodes storing JSON-encoded value. Click handlers read directly from DOM data attributes instead of allFlatRows lookup. showKvDetail parses string values back to objects.
+- [Link to Update Log]: [update_log.md](#issue37-array-keys)
+
+<a id="issue38-schema-map"></a>
+## 2026-04-19
+[Issue #38]: Schema Map - flowchart showing $ref relationships
+- [Status]: RESOLVED
+- [Context]: Create schema map content-tab showing $ref relationships as flowchart diagram.
+- [Root Cause]: Need to parse $ref from loaded JSON files and display as SVG flowchart.
+- [File Changes]: ui/common_json_tools.html, ui/dcc-design-system.css
+- [Resolution]: Added Schema Map tab, uses files from Load Files button. Parses $ref patterns (#/definitions/, http://...#/definitions/). Displays nodes:
+  - Green = schema files
+  - Orange = external schema refs
+  - Gray = local definitions
+- [Link to Update Log]: [update_log.md](#issue38-schema-map)

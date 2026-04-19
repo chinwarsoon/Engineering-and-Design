@@ -121,6 +121,12 @@ def set_debug_level(level: int) -> None:
     """
     global DEBUG_LEVEL
     DEBUG_LEVEL = max(0, min(3, level))
+    # Suppress third-party library warnings at levels 0 and 1
+    import warnings
+    if DEBUG_LEVEL < 2:
+        warnings.filterwarnings("ignore")
+    else:
+        warnings.resetwarnings()
 
 
 def _get_indent() -> str:
@@ -128,7 +134,7 @@ def _get_indent() -> str:
     return "  " * CALL_DEPTH
 
 
-def log_status(message: str, module: str = "", context: str = "") -> None:
+def log_status(message: str, module: str = "", context: str = "", min_level: int = 1) -> None:
     """
     Level 1: Milestone progress / high-level workflow status.
 
@@ -136,12 +142,14 @@ def log_status(message: str, module: str = "", context: str = "") -> None:
         message: Status message to display.
         module: Module name for context.
         context: Additional calling context.
+        min_level: Minimum DEBUG_LEVEL required to print (default 1).
+                   Use min_level=2 for step detail, min_level=3 for internal calls.
 
     Breadcrumb Comments:
-        - DEBUG_LEVEL: Checked here - only outputs if level >= 1.
+        - DEBUG_LEVEL: Checked here - only outputs if level >= min_level.
         - DEBUG_OBJECT: Appends message to 'messages' list.
     """
-    if DEBUG_LEVEL >= 1:
+    if DEBUG_LEVEL >= min_level:
         prefix = _get_indent()
         if module:
             prefix += f"[{module}] "
@@ -150,7 +158,7 @@ def log_status(message: str, module: str = "", context: str = "") -> None:
         builtins.print(f"{prefix}{message}", flush=True)
 
     DEBUG_OBJECT["messages"].append({
-        "level": 1,
+        "level": min_level,
         "timestamp": datetime.now().isoformat(),
         "module": module,
         "context": context,
@@ -357,24 +365,21 @@ def track_global_param(name: str, value: Any, stage: str = "") -> None:
 # =============================================================================
 
 @contextmanager
-def log_context(module: str, context: str):
+def log_context(module: str, context: str, min_level: int = 3):
     """
     Context manager for hierarchical logging with automatic indentation.
-
-    Usage:
-        with log_context("validator", "validate_folders"):
-            log_status("Checking folders...")
 
     Args:
         module: Module name.
         context: Function or operation name.
+        min_level: Minimum level to print enter/exit markers (default 3 = trace only).
 
     Breadcrumb Comments:
         - CALL_DEPTH: Incremented on entry, decremented on exit.
                      Used by _get_indent() for visual hierarchy.
     """
     global CALL_DEPTH
-    log_status(f"▶ {context}", module)
+    log_status(f"▶ {context}", module, min_level=min_level)
     CALL_DEPTH += 1
     start_time = time.time()
 
@@ -386,7 +391,7 @@ def log_context(module: str, context: str):
     finally:
         duration = (time.time() - start_time) * 1000
         CALL_DEPTH -= 1
-        log_status(f"◀ {context} ({duration:.1f}ms)", module)
+        log_status(f"◀ {context} ({duration:.1f}ms)", module, min_level=min_level)
 
 
 # =============================================================================
@@ -396,10 +401,35 @@ def log_context(module: str, context: str):
 def status_print(*args: Any, **kwargs: Any) -> None:
     """
     Legacy status print - maps to level 1 logging.
-    Kept for backward compatibility.
+    Accepts optional min_level kwarg (default 1).
     """
     message = " ".join(str(a) for a in args)
-    log_status(message)
+    min_level = kwargs.get("min_level", 1)
+    log_status(message, min_level=min_level)
+
+
+def milestone_print(step: str, detail: str, ok: bool = True) -> None:
+    """
+    Print a clean pipeline milestone line — always visible at level 1+.
+
+    Args:
+        step: Step label (e.g. 'Setup validated')
+        detail: Detail string (e.g. '7 folders, 11 files')
+        ok: True for ✓, False for ✗
+
+    Breadcrumb Comments:
+        - DEBUG_LEVEL: Prints at level >= 1 only.
+    """
+    if DEBUG_LEVEL >= 1:
+        icon = "✓" if ok else "✗"
+        builtins.print(f"  {icon}  {step:<22} {detail}", flush=True)
+    DEBUG_OBJECT["messages"].append({
+        "level": 1,
+        "timestamp": datetime.now().isoformat(),
+        "module": "milestone",
+        "context": step,
+        "message": detail,
+    })
 
 
 def debug_print(*args: Any, **kwargs: Any) -> None:
