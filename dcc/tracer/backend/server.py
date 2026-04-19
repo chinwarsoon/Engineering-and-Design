@@ -16,9 +16,13 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 import uvicorn
+import time
+import uuid
 
 # Add project root to path for tracer imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 from tracer import start_trace, stop_trace, get_trace_data, format_trace_for_display
 from tracer.utils.trace_filters import should_trace_file, filter_trace_data
@@ -285,328 +289,366 @@ async def validate_file_syntax(file_data: dict):
         raise HTTPException(status_code=500, detail=f"Failed to validate file syntax: {str(e)}")
 
 
-        @app.post("/file/write")
-        async def write_file(file_data: dict):
-            """Write file contents."""
-            try:
-                path = file_data.get("path")
-                content = file_data.get("content")
-                
-                if not path:
-                    raise HTTPException(status_code=400, detail="Path parameter required")
-                if content is None:
-                    raise HTTPException(status_code=400, detail="Content parameter required")
-                
-                # Security check: restrict to project directory for safety
-                project_root = Path(__file__).parent.parent.parent
-                full_path = (project_root / path).resolve()
-                
-                # Ensure the file is within project directory
-                if not str(full_path).startswith(str(project_root)):
-                    raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
-                
-                # Create parent directories if they don't exist
-                full_path.parent.mkdir(parents=True, exist_ok=True)
-                
-                # Write file
-                full_path.write_text(content, encoding='utf-8')
-                
-                return {
-                    "path": str(path), 
-                    "size": len(content),
-                    "message": "File written successfully"
-                }
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to write file: {str(e)}")
+@app.post("/file/write")
+async def write_file(file_data: dict):
+    """Write file contents."""
+    try:
+        path = file_data.get("path")
+        content = file_data.get("content")
+        
+        if not path:
+            raise HTTPException(status_code=400, detail="Path parameter required")
+        if content is None:
+            raise HTTPException(status_code=400, detail="Content parameter required")
+        
+        # Security check: restrict to project directory for safety
+        project_root = Path(__file__).parent.parent.parent
+        full_path = (project_root / path).resolve()
+        
+        # Ensure the file is within project directory
+        if not str(full_path).startswith(str(project_root)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
+        
+        # Create parent directories if they don't exist
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Write file
+        full_path.write_text(content, encoding='utf-8')
+        
+        return {
+            "path": str(path), 
+            "size": len(content),
+            "message": "File written successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write file: {str(e)}")
 
-        @app.post("/hot-reload")
-        async def hot_reload(module_info: dict):
-            """Hot-reload system to overwrite files and clear sys.modules cache for immediate re-tracing."""
-            try:
-                path = module_info.get("path")
-                if not path:
-                    raise HTTPException(status_code=400, detail="Path parameter required")
-                
-                # Security check: restrict to project directory for safety
-                project_root = Path(__file__).parent.parent.parent
-                full_path = (project_root / path).resolve()
-                
-                # Ensure the file is within project directory
-                if not str(full_path).startswith(str(project_root)):
-                    raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
-                
-                if not full_path.exists():
-                    raise HTTPException(status_code=404, detail="File not found")
-                
-                # Import importlib for module reloading
-                import importlib
-                import sys
-                
-                # Convert file path to module name
-                # Remove .py extension and convert path separators to dots
-                relative_path = full_path.relative_to(project_root)
-                module_name = str(relative_path.with_suffix('')).replace('/', '.').replace('\\', '.')
-                
-                # Remove module from sys.modules cache if it exists
-                modules_to_remove = []
-                for module in sys.modules:
-                    if module == module_name or module.startswith(module_name + '.'):
-                        modules_to_remove.append(module)
-                
-                for module in modules_to_remove:
-                    del sys.modules[module]
-                
-                # Note: Actual reloading would happen when the file is next imported
-                # This endpoint prepares the environment for fresh imports
-                
-                return {
-                    "path": str(path),
-                    "modules_cleared": len(modules_to_remove),
-                    "message": "Hot-reload preparation completed. Modules cleared from cache."
-                }
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to perform hot-reload: {str(e)}")
+@app.post("/hot-reload")
+async def hot_reload(module_info: dict):
+    """Hot-reload system to overwrite files and clear sys.modules cache for immediate re-tracing."""
+    try:
+        path = module_info.get("path")
+        if not path:
+            raise HTTPException(status_code=400, detail="Path parameter required")
+        
+        # Security check: restrict to project directory for safety
+        project_root = Path(__file__).parent.parent.parent
+        full_path = (project_root / path).resolve()
+        
+        # Ensure the file is within project directory
+        if not str(full_path).startswith(str(project_root)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
+        
+        if not full_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Import importlib for module reloading
+        import importlib
+        import sys
+        
+        # Convert file path to module name
+        # Remove .py extension and convert path separators to dots
+        relative_path = full_path.relative_to(project_root)
+        module_name = str(relative_path.with_suffix('')).replace('/', '.').replace('\\', '.')
+        
+        # Remove module from sys.modules cache if it exists
+        modules_to_remove = []
+        for module in sys.modules:
+            if module == module_name or module.startswith(module_name + '.'):
+                modules_to_remove.append(module)
+        
+        for module in modules_to_remove:
+            del sys.modules[module]
+        
+        # Note: Actual reloading would happen when the file is next imported
+        # This endpoint prepares the environment for fresh imports
+        
+        return {
+            "path": str(path),
+            "modules_cleared": len(modules_to_remove),
+            "message": "Hot-reload preparation completed. Modules cleared from cache."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to perform hot-reload: {str(e)}")
 
-        @app.post("/environment-map")
-        async def environment_map(path_info: dict):
-            """Environment Mapping: Resolve WSL/Ubuntu paths to ensure file-system parity."""
-            try:
-                path = path_info.get("path")
-                if not path:
-                    raise HTTPException(status_code=400, detail="Path parameter required")
-                
-                # Convert path to Path object
-                input_path = Path(path)
-                
-                # Get current platform info
-                current_platform = platform.system()
-                is_windows = current_platform == "Windows"
-                is_linux = current_platform == "Linux"
-                
-                # Resolve the path to absolute
-                if input_path.is_absolute():
-                    resolved_path = input_path.resolve()
-                else:
-                    # Relative to project root for safety
-                    project_root = Path(__file__).parent.parent.parent
-                    resolved_path = (project_root / path).resolve()
-                
-                # Ensure the file is within project directory for security
-                project_root = Path(__file__).parent.parent.parent
-                if not str(resolved_path).startswith(str(project_root)):
-                    raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
-                
-                # Generate mapping information
-                mapping_info = {
-                    "original_path": path,
-                    "resolved_path": str(resolved_path),
-                    "platform": current_platform,
-                    "is_windows": is_windows,
-                    "is_linux": is_linux,
-                    "exists": resolved_path.exists(),
-                    "is_file": resolved_path.is_file() if resolved_path.exists() else None,
-                    "is_directory": resolved_path.is_dir() if resolved_path.exists() else None,
-                    "permissions": {
-                        "readable": os.access(resolved_path, os.R_OK) if resolved_path.exists() else None,
-                        "writable": os.access(resolved_path, os.W_OK) if resolved_path.exists() else None,
-                        "executable": os.access(resolved_path, os.X_OK) if resolved_path.exists() else None
-                    }
-                }
-                
-                # If on Windows, also provide WSL path equivalent (conceptual)
-                if is_windows:
-                    # Convert Windows path to conceptual WSL path
-                    wsl_path = str(resolved_path).replace('\\', '/')
-                    if len(wsl_path) >= 2 and wsl_path[1] == ':':
-                        drive_letter = wsl_path[0].lower()
-                        wsl_path = f"/mnt/{drive_letter}{wsl_path[2:]}"
-                    mapping_info["wsl_equivalent"] = wsl_path
-                
-                # If on Linux, also provide Windows path equivalent (conceptual)
-                elif is_linux:
-                    # Check if path is in /mnt/ for potential Windows drive
-                    path_str = str(resolved_path)
-                    if path_str.startswith("/mnt/") and len(path_str) > 5:
-                        potential_drive = path_str[5].upper()
-                        if potential_drive.isalpha():
-                            windows_path = f"{potential_drive}:{path_str[6:].replace('/', '\\')}"
-                            mapping_info["windows_equivalent"] = windows_path
-                
-                return mapping_info
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to map environment: {str(e)}")
+@app.post("/environment-map")
+async def environment_map(path_info: dict):
+    """Environment Mapping: Resolve WSL/Ubuntu paths to ensure file-system parity."""
+    try:
+        path = path_info.get("path")
+        if not path:
+            raise HTTPException(status_code=400, detail="Path parameter required")
+        
+        # Convert path to Path object
+        input_path = Path(path)
+        
+        # Get current platform info
+        current_platform = platform.system()
+        is_windows = current_platform == "Windows"
+        is_linux = current_platform == "Linux"
+        
+        # Resolve the path to absolute
+        if input_path.is_absolute():
+            resolved_path = input_path.resolve()
+        else:
+            # Relative to project root for safety
+            project_root = Path(__file__).parent.parent.parent
+            resolved_path = (project_root / path).resolve()
+        
+        # Ensure the file is within project directory for security
+        project_root = Path(__file__).parent.parent.parent
+        if not str(resolved_path).startswith(str(project_root)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
+        
+        # Generate mapping information
+        mapping_info = {
+            "original_path": path,
+            "resolved_path": str(resolved_path),
+            "platform": current_platform,
+            "is_windows": is_windows,
+            "is_linux": is_linux,
+            "exists": resolved_path.exists(),
+            "is_file": resolved_path.is_file() if resolved_path.exists() else None,
+            "is_directory": resolved_path.is_dir() if resolved_path.exists() else None,
+            "permissions": {
+                "readable": os.access(resolved_path, os.R_OK) if resolved_path.exists() else None,
+                "writable": os.access(resolved_path, os.W_OK) if resolved_path.exists() else None,
+                "executable": os.access(resolved_path, os.X_OK) if resolved_path.exists() else None
+            }
+        }
+        
+        # If on Windows, also provide WSL path equivalent (conceptual)
+        if is_windows:
+            # Convert Windows path to conceptual WSL path
+            wsl_path = str(resolved_path).replace('\\', '/')
+            if len(wsl_path) >= 2 and wsl_path[1] == ':':
+                drive_letter = wsl_path[0].lower()
+                wsl_path = f"/mnt/{drive_letter}{wsl_path[2:]}"
+            mapping_info["wsl_equivalent"] = wsl_path
+        
+        # If on Linux, also provide Windows path equivalent (conceptual)
+        elif is_linux:
+            # Check if path is in /mnt/ for potential Windows drive
+            path_str = str(resolved_path)
+            if path_str.startswith("/mnt/") and len(path_str) > 5:
+                potential_drive = path_str[5].upper()
+                if potential_drive.isalpha():
+                    windows_path = f"{potential_drive}:{path_str[6:].replace('/', '\\')}"
+                    mapping_info["windows_equivalent"] = windows_path
+        
+        return mapping_info
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to map environment: {str(e)}")
 
-        @app.post("/mock-data-injector")
-        async def mock_data_injector(injector_data: dict):
-            """Mock Data Injector: UI for users to define a set of input parameters and trigger the pipeline."""
-            try:
-                # Extract parameters
-                parameters = injector_data.get("parameters", {})
-                pipeline_target = injector_data.get("pipeline_target", "")
-                trigger_immediate = injector_data.get("trigger_immediate", False)
-                
-                # Validate parameters
-                if not isinstance(parameters, dict):
-                    raise HTTPException(status_code=400, detail="Parameters must be a dictionary")
-                
-                # In a full implementation, this would store the mock data and optionally trigger the pipeline
-                # For now, we'll return the received data with a processing ID
-                import uuid
-                import time
-                
-                injection_id = str(uuid.uuid4())
-                timestamp = time.time()
-                
-                # Prepare response
-                response = {
-                    "injection_id": injection_id,
-                    "timestamp": timestamp,
-                    "parameters_received": parameters,
-                    "pipeline_target": pipeline_target,
-                    "status": "ready",
-                    "message": "Mock data injected successfully"
-                }
-                
-                # If immediate triggering is requested, we could trigger tracing here
-                if trigger_immediate and pipeline_target:
-                    # In a full implementation, this would start tracing on the specified pipeline
-                    response["triggered_tracing"] = True
-                    response["message"] += " and tracing triggered"
-                else:
-                    response["triggered_tracing"] = False
-                
-                return response
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to inject mock data: {str(e)}")
+@app.post("/mock-data-injector")
+async def mock_data_injector(injector_data: dict):
+    """Mock Data Injector: UI for users to define a set of input parameters and trigger the pipeline."""
+    try:
+        # Extract parameters
+        parameters = injector_data.get("parameters", {})
+        pipeline_target = injector_data.get("pipeline_target", "")
+        trigger_immediate = injector_data.get("trigger_immediate", False)
+        
+        # Validate parameters
+        if not isinstance(parameters, dict):
+            raise HTTPException(status_code=400, detail="Parameters must be a dictionary")
+        
+        # In a full implementation, this would store the mock data and optionally trigger the pipeline
+        # For now, we'll return the received data with a processing ID
+        import uuid
+        import time
+        
+        injection_id = str(uuid.uuid4())
+        timestamp = time.time()
+        
+        # Prepare response
+        response = {
+            "injection_id": injection_id,
+            "timestamp": timestamp,
+            "parameters_received": parameters,
+            "pipeline_target": pipeline_target,
+            "status": "ready",
+            "message": "Mock data injected successfully"
+        }
+        
+        # If immediate triggering is requested, we could trigger tracing here
+        if trigger_immediate and pipeline_target:
+            # In a full implementation, this would start tracing on the specified pipeline
+            response["triggered_tracing"] = True
+            response["message"] += " and tracing triggered"
+        else:
+            response["triggered_tracing"] = False
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to inject mock data: {str(e)}")
 
-        @app.post("/truth-table-generator")
-        async def truth_table_generator(truth_data: dict):
-            """Truth Table Generator: Automated logic tracing for 'Calculated Columns'."""
-            try:
-                # Extract inputs
-                column_name = truth_data.get("column_name", "")
-                expression = truth_data.get("expression", "")
-                input_variables = truth_data.get("input_variables", {})
-                test_cases = truth_data.get("test_cases", [])
-                
-                # Validate inputs
-                if not column_name:
-                    raise HTTPException(status_code=400, detail="Column name is required")
-                if not expression:
-                    raise HTTPException(status_code=400, detail="Expression is required")
-                if not isinstance(input_variables, dict):
-                    raise HTTPException(status_code=400, detail="Input variables must be a dictionary")
-                
-                # Generate truth table by evaluating expression with different input combinations
-                # For security, we'll use a limited evaluation approach
-                # In production, you might want to use a proper expression evaluator like numexpr or simpleeval
-                
-                truth_table = []
-                
-                # If test cases are provided, use those
-                if test_cases and isinstance(test_cases, list):
-                    for i, test_case in enumerate(test_cases):
-                        if not isinstance(test_case, dict):
-                            continue
-                            
-                        # Merge input variables with test case values
-                        eval_vars = {**input_variables, **test_case}
-                        
-                        try:
-                            # Safe expression evaluation (limited to basic arithmetic and comparisons)
-                            # NOTE: In production, use a proper safe evaluator
-                            result = None
-                            # For demonstration, we'll handle simple cases
-                            # A real implementation would use a safe expression library
-                            
-                            truth_table.append({
-                                "test_case_id": i + 1,
-                                "inputs": eval_vars,
-                                "expression": expression,
-                                "result": result,
-                                "status": "evaluated"
-                            })
-                        except Exception as eval_error:
-                            truth_table.append({
-                                "test_case_id": i + 1,
-                                "inputs": eval_vars,
-                                "expression": expression,
-                                "error": str(eval_error),
-                                "status": "error"
-                            })
-                else:
-                    # Generate some default test cases based on input variables
-                    # For simplicity, we'll create a few basic combinations
-                    default_test_cases = [
-                        {},  # Empty/as-is
-                        {"test_flag": True},
-                        {"test_flag": False},
-                        {"count": 0},
-                        {"count": 1},
-                        {"count": 10}
-                    ]
+@app.post("/truth-table-generator")
+async def truth_table_generator(truth_data: dict):
+    """Truth Table Generator: Automated logic tracing for 'Calculated Columns'."""
+    try:
+        # Extract inputs
+        column_name = truth_data.get("column_name", "")
+        expression = truth_data.get("expression", "")
+        input_variables = truth_data.get("input_variables", {})
+        test_cases = truth_data.get("test_cases", [])
+        
+        # Validate inputs
+        if not column_name:
+            raise HTTPException(status_code=400, detail="Column name is required")
+        if not expression:
+            raise HTTPException(status_code=400, detail="Expression is required")
+        if not isinstance(input_variables, dict):
+            raise HTTPException(status_code=400, detail="Input variables must be a dictionary")
+        
+        # Generate truth table by evaluating expression with different input combinations
+        # For security, we'll use a limited evaluation approach
+        # In production, you might want to use a proper expression evaluator like numexpr or simpleeval
+        
+        truth_table = []
+        
+        # If test cases are provided, use those
+        if test_cases and isinstance(test_cases, list):
+            for i, test_case in enumerate(test_cases):
+                if not isinstance(test_case, dict):
+                    continue
                     
-                    for i, test_case in enumerate(default_test_cases):
-                        eval_vars = {**input_variables, **test_case}
-                        
-                        try:
-                            # Safe expression evaluation (limited to basic arithmetic and comparisons)
-                            # NOTE: In production, use a proper safe evaluator
-                            result = None
-                            # For demonstration, we'll handle simple cases
-                            # A real implementation would use a safe expression library
-                            
-                            truth_table.append({
-                                "test_case_id": i + 1,
-                                "inputs": eval_vars,
-                                "expression": expression,
-                                "result": result,
-                                "status": "evaluated"
-                            })
-                        except Exception as eval_error:
-                            truth_table.append({
-                                "test_case_id": i + 1,
-                                "inputs": eval_vars,
-                                "expression": expression,
-                                "error": str(eval_error),
-                                "status": "error"
-                            })
+                # Merge input variables with test case values
+                eval_vars = {**input_variables, **test_case}
                 
-                # Prepare response
-                response = {
-                    "column_name": column_name,
-                    "expression": expression,
-                    "input_variables": input_variables,
-                    "truth_table": truth_table,
-                    "total_cases": len(truth_table),
-                    "successful_evaluations": len([t for t in truth_table if t.get("status") == "evaluated"]),
-                    "failed_evaluations": len([t for t in truth_table if t.get("status") == "error"]),
-                    "generated_at": time.time()
-                }
+                try:
+                    # Safe expression evaluation (limited to basic arithmetic and comparisons)
+                    # NOTE: In production, use a proper safe evaluator
+                    result = None
+                    # For demonstration, we'll handle simple cases
+                    # A real implementation would use a safe expression library
+                    
+                    truth_table.append({
+                        "test_case_id": i + 1,
+                        "inputs": eval_vars,
+                        "expression": expression,
+                        "result": result,
+                        "status": "evaluated"
+                    })
+                except Exception as eval_error:
+                    truth_table.append({
+                        "test_case_id": i + 1,
+                        "inputs": eval_vars,
+                        "expression": expression,
+                        "error": str(eval_error),
+                        "status": "error"
+                    })
+        else:
+            # Generate some default test cases based on input variables
+            # For simplicity, we'll create a few basic combinations
+            default_test_cases = [
+                {},  # Empty/as-is
+                {"test_flag": True},
+                {"test_flag": False},
+                {"count": 0},
+                {"count": 1},
+                {"count": 10}
+            ]
+            
+            for i, test_case in enumerate(default_test_cases):
+                eval_vars = {**input_variables, **test_case}
                 
-                return response
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to generate truth table: {str(e)}")
+                try:
+                    # Safe expression evaluation (limited to basic arithmetic and comparisons)
+                    # NOTE: In production, use a proper safe evaluator
+                    result = None
+                    # For demonstration, we'll handle simple cases
+                    # A real implementation would use a safe expression library
+                    
+                    truth_table.append({
+                        "test_case_id": i + 1,
+                        "inputs": eval_vars,
+                        "expression": expression,
+                        "result": result,
+                        "status": "evaluated"
+                    })
+                except Exception as eval_error:
+                    truth_table.append({
+                        "test_case_id": i + 1,
+                        "inputs": eval_vars,
+                        "expression": expression,
+                        "error": str(eval_error),
+                        "status": "error"
+                    })
+        
+        # Prepare response
+        response = {
+            "column_name": column_name,
+            "expression": expression,
+            "input_variables": input_variables,
+            "truth_table": truth_table,
+            "total_cases": len(truth_table),
+            "successful_evaluations": len([t for t in truth_table if t.get("status") == "evaluated"]),
+            "failed_evaluations": len([t for t in truth_table if t.get("status") == "error"]),
+            "generated_at": time.time()
+        }
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate truth table: {str(e)}")
 
-        @app.get("/health")
-        async def health_check():
-            """Health check endpoint."""
-            return {
+@app.post("/pipeline/run")
+async def run_pipeline(run_data: dict):
+    """Dynamically load and trace a pipeline file."""
+    try:
+        path = run_data.get("path")
+        function_name = run_data.get("function", "main")
+        args = run_data.get("args", [])
+        kwargs = run_data.get("kwargs", {})
+        
+        if not path:
+            raise HTTPException(status_code=400, detail="Path parameter required")
+            
+        # Security check: restrict to project directory
+        project_root = Path(__file__).parent.parent.parent
+        full_path = (project_root / path).resolve()
+        
+        if not str(full_path).startswith(str(project_root)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
+            
+        if not full_path.exists():
+            raise HTTPException(status_code=404, detail="File not found")
+            
+        # Import the runner
+        from tracer.pipeline_sandbox.runner import load_and_trace_script
+        
+        # Run and trace
+        result = load_and_trace_script(
+            str(full_path),
+            function_name=function_name,
+            args=args,
+            kwargs=kwargs
+        )
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to run pipeline: {str(e)}")
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {
         "status": "healthy",
         "service": "Universal Interactive Python Code Tracer Backend",
         "version": "0.2.0",

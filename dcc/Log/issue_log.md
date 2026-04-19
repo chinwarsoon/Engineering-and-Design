@@ -226,3 +226,46 @@
   - Orange = external schema refs
   - Gray = local definitions
 - [Link to Update Log]: [update_log.md](#issue38-schema-map)
+
+<a id="issue39-tracer-indent"></a>
+## 2026-04-19 21:55:00
+[Issue #39]: Tracer backend server indentation errors
+- [Status]: RESOLVED
+- [Context]: Backend server for code tracing module failed to start due to IndentationError.
+- [Root Cause]: Multiple endpoint decorators and functions (lines 288-616) were incorrectly indented by 8 spaces.
+- [File Changes]: dcc/tracer/backend/server.py
+- [Resolution]: Fixed indentation for all affected endpoints and functions. Cleaned up redundant inline imports.
+- [Link to Update Log]: [update_log.md](#issue39-tracer-indent)
+
+<a id="issue40-serve-root"></a>
+## 2026-04-19 21:50:00
+[Issue #40]: Webpage server (serve.py) root directory mismatch
+- [Status]: RESOLVED
+- [Context]: Webpage server failed to load the expected HTML file (404 Error).
+- [Root Cause]: `DIRECTORY` was set to "dcc" which caused a nested path issue when run from the `dcc` folder. Default path was also missing the `ui/` subdirectory.
+- [File Changes]: dcc/serve.py
+- [Resolution]: Updated `DIRECTORY` to "." and fixed the default path to "/ui/Excel Explorer Pro working.html".
+- [Link to Update Log]: [update_log.md](#issue40-serve-root)
+
+<a id="issue41-tracer-deps"></a>
+## 2026-04-19 22:05:00
+[Issue #41]: Missing tracer dependencies in conda environments
+- [Status]: RESOLVED
+- [Context]: Tracer backend failed to import `fastapi` and `uvicorn`.
+- [Root Cause]: Dependencies were listed in README but missing from `dcc.yml` files.
+- [File Changes]: dcc.yml, dcc/dcc.yml
+- [Resolution]: Added `fastapi` and `uvicorn` to both `dcc.yml` dependency files and installed them in the current environment.
+- [Link to Update Log]: [update_log.md](#issue41-tracer-deps)
+
+<a id="issue42-pipeline-runner"></a>
+## 2026-04-19 22:15:00
+[Issue #42]: Lack of generic pipeline loading and tracing functionality
+- [Status]: RESOLVED
+- [Context]: Tracer lacked a way to dynamically load and trace arbitrary pipeline scripts without code modification.
+- [Root Cause]: Standard import-based tracing required manual wrapper scripts (e.g., `trace_pipeline.py`).
+- [File Changes]: 
+  - tracer/pipeline_sandbox/runner.py (Added)
+  - tracer/backend/server.py
+  - tracer/README.md
+- [Resolution]: Implemented `PipelineSandbox` runner using `importlib.util` and added a `/pipeline/run` endpoint to the backend API.
+- [Link to Update Log]: [update_log.md](#issue42-pipeline-runner)

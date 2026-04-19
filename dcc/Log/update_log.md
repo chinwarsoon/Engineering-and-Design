@@ -7,6 +7,61 @@
 
 # Section 2. Log entries
 
+<a id="issue42-pipeline-runner"></a>
+## 2026-04-19 22:15:00
+
+### RESOLVED: Generic Pipeline Loading and Tracing
+**Status:** COMPLETE
+**Summary:** Implemented dynamic module loading to allow the tracer to execute and instrument any Python script without source changes.
+**Changes Made:**
+- Created `tracer/pipeline_sandbox/runner.py` using `importlib.util`
+- Added `@app.post("/pipeline/run")` endpoint to `tracer/backend/server.py`
+- Updated `tracer/README.md` with usage instructions for all three loading methods (Manual, CLI, API)
+**Files Modified:**
+- `/home/franklin/dsai/Engineering-and-Design/dcc/tracer/pipeline_sandbox/runner.py` (New)
+- `/home/franklin/dsai/Engineering-and-Design/dcc/tracer/backend/server.py`
+- `/home/franklin/dsai/Engineering-and-Design/dcc/tracer/README.md`
+
+<a id="issue41-tracer-deps"></a>
+## 2026-04-19 22:05:00
+
+### RESOLVED: Missing Tracer Dependencies
+**Status:** COMPLETE
+**Summary:** Added `fastapi` and `uvicorn` to conda/pip dependency files and installed them in the environment.
+**Changes Made:**
+- Modified `dcc.yml` (root) to include `fastapi` and `uvicorn`
+- Modified `dcc/dcc.yml` to include `fastapi` and `uvicorn`
+- Installed packages via `pip`
+**Files Modified:**
+- `/home/franklin/dsai/Engineering-and-Design/dcc.yml`
+- `/home/franklin/dsai/Engineering-and-Design/dcc/dcc.yml`
+
+<a id="issue39-tracer-indent"></a>
+## 2026-04-19 21:55:00
+
+### RESOLVED: Tracer Backend Indentation and Path Issues
+**Status:** COMPLETE
+**Summary:** Fixed syntax errors in `tracer/backend/server.py` and improved path resolution for module imports.
+**Changes Made:**
+- Removed 8-space indentation from endpoints in `server.py`
+- Corrected `sys.path` insertion to include project root for proper package discovery
+- Moved `time` and `uuid` imports to top level
+- Removed duplicate inline imports in `truth_table_generator`
+**Files Modified:**
+- `/home/franklin/dsai/Engineering-and-Design/dcc/tracer/backend/server.py`
+
+<a id="issue40-serve-root"></a>
+## 2026-04-19 21:50:00
+
+### RESOLVED: Serve.py Root Directory Fix
+**Status:** COMPLETE
+**Summary:** Fixed `serve.py` to correctly serve the Excel Explorer Pro UI when run from the `dcc` folder.
+**Changes Made:**
+- Changed `DIRECTORY` from "dcc" to "."
+- Updated default path to `/ui/Excel Explorer Pro working.html`
+**Files Modified:**
+- `/home/franklin/dsai/Engineering-and-Design/dcc/serve.py`
+
 <a id="code-tracing-phase6-report"></a>
 ## 2026-04-19 20:25:00
 

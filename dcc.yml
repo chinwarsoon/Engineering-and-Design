@@ -93,4 +93,6 @@ dependencies:
       - rpds-py==0.30.0
       - seaborn==0.13.2
       - widgetsnbextension==4.0.15
+      - fastapi
+      - uvicorn
 prefix: /home/franklin/miniconda3/envs/dcc

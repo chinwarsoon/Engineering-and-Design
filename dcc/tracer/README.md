@@ -141,10 +141,41 @@ The tracer consists of several key components:
 - Configuration options for filtering and output
 - Integration with standard Python tools
 
-### 5. Public Interface (`__init__.py`)
-- Exposes the main functions and classes
-- Handles conditional imports for optional components
-- Provides version and metadata information
+### 5. Pipeline Sandbox Runner (`pipeline_sandbox/runner.py`) - Phase 5
+- Dynamic module loading using `importlib.util`
+- Trace execution of specific functions in arbitrary script files
+- Clean environment handling for traced runs
+
+## Pipeline Tracing
+
+The tracer provides three ways to load and trace a pipeline file:
+
+### Method 1: Manual Integration (Recommended for existing scripts)
+Add the start/stop calls directly around your code:
+```python
+from tracer import start_trace, stop_trace, get_trace_data
+
+start_trace()
+try:
+    from workflow.dcc_engine_pipeline import main
+    main()
+finally:
+    stop_trace()
+```
+
+### Method 2: CLI Sandbox Runner
+Use the generic runner to trace any script file without modifying its source:
+```bash
+python3 tracer/pipeline_sandbox/runner.py workflow/dcc_engine_pipeline.py main
+```
+
+### Method 3: Backend API (Web interface)
+Send a POST request to the backend server:
+```bash
+curl -X POST http://localhost:8000/pipeline/run \
+     -H "Content-Type: application/json" \
+     -d '{"path": "workflow/dcc_engine_pipeline.py", "function": "main"}'
+```
 
 ## API Reference
 

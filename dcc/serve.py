@@ -4,7 +4,7 @@ import socket
 import os
 
 PORT = 5000
-DIRECTORY = "dcc"
+DIRECTORY = "."
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -12,7 +12,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/" or self.path == "":
-            self.path = "/Excel Explorer Pro working.html"
+            self.path = "/ui/Excel Explorer Pro working.html"
+        elif self.path == "/tracer":
+            self.path = "/ui/tracer_pro.html"
         super().do_GET()
 
     def log_message(self, format, *args):
