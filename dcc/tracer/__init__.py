@@ -31,9 +31,23 @@ try:
 except ImportError:
     _cli_available = False
 
-__version__ = "0.6.0"
+__version__ = "1.0.0"
 __author__ = "Engineering-and-Design Team"
-__description__ = "Phase 1-6: Complete Implementation of Universal Interactive Python Code Tracer"
+__description__ = "Phase 1-6 + Phase 1b Static Analysis: Universal Interactive Python Code Tracer"
+
+# Phase 1b: Static analysis components
+try:
+    try:
+        from .static import FileCrawler, crawl, ModuleParser, ModuleInfo, FunctionInfo
+        from .static import cyclomatic_complexity, count_try_except, count_loops
+        from .static import CallGraph, GraphVisualizer
+    except ImportError:
+        from static import FileCrawler, crawl, ModuleParser, ModuleInfo, FunctionInfo
+        from static import cyclomatic_complexity, count_try_except, count_loops
+        from static import CallGraph, GraphVisualizer
+    _static_available = True
+except ImportError:
+    _static_available = False
 
 # Public API
 __all__ = [

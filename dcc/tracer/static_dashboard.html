@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCC Static Analyser</title>
+  <link rel="stylesheet" href="../ui/dcc-design-system.css">
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    /* ── layout overrides ── */
+    #network-container { flex: 1; position: relative; overflow: hidden; }
+    #vis-network { width: 100%; height: 100%; }
+    .content-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+
+    /* ── metrics table ── */
+    .cc-badge {
+      display: inline-block; padding: 1px 7px; border-radius: 10px;
+      font-size: 10px; font-weight: 700;
+    }
+    .cc-low    { background: rgba(63,185,80,.15);  color: #3fb950; }
+    .cc-med    { background: rgba(210,153,34,.15); color: #d29922; }
+    .cc-high   { background: rgba(240,136,62,.15); color: #f0883e; }
+    .cc-vhigh  { background: rgba(248,81,73,.15);  color: #f85149; }
+
+    /* ── detail panel ── */
+    #detail-panel {
+      position: absolute; right: 14px; top: 14px; width: 270px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px; display: none; z-index: 50;
+    }
+    .dp-row { display: grid; grid-template-columns: 100px 1fr; gap: 4px; margin-bottom: 5px; font-size: 11px; }
+    .dp-key { color: var(--text3); }
+    .dp-val { color: var(--text); word-break: break-all; font-family: var(--font-mono); }
+
+    /* ── drop zone ── */
+    #drop-zone-wrap { padding: 14px; }
+  </style>
+</head>
+<body>
+<!-- ── Title Bar ── -->
+<div class="dcc-titlebar">
+  <div class="dcc-titlebar-logo">
+    <span class="logo-icon">⚙️</span>
+    <span class="logo-name">Static <span class="logo-accent">Analyser</span></span>
+  </div>
+  <div class="dcc-titlebar-breadcrumb">
+    <span id="bc-root" class="bc-active">No directory loaded</span>
+  </div>
+  <div class="dcc-titlebar-actions">
+    <!-- Theme picker -->
+    <div class="theme-picker">
+      <button class="theme-btn" id="themeBtn">
+        <span class="theme-dot" id="themeDot" style="background:#0d1117"></span>
+        <span id="themeName">Dark</span>
+      </button>
+      <div class="theme-menu" id="themeMenu">
+        <div class="theme-opt active" data-theme="dark"><span class="theme-dot" style="background:#0d1117"></span> Dark</div>
+        <div class="theme-opt" data-theme="light"><span class="theme-dot" style="background:#f0f4f8"></span> Light</div>
+        <div class="theme-opt" data-theme="sky"><span class="theme-dot" style="background:#0a1628"></span> Sky</div>
+        <div class="theme-opt" data-theme="ocean"><span class="theme-dot" style="background:#071520"></span> Ocean</div>
+        <div class="theme-opt" data-theme="presentation"><span class="theme-dot" style="background:#12082a"></span> Presentation</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Shell ── -->
+<div class="dcc-shell">
+
+  <!-- Icon Bar -->
+  <div class="dcc-iconbar">
+    <button class="dcc-iconbar-btn active" id="icon-graph"    title="Call Graph"    onclick="switchPanel('graph')">🕸️</button>
+    <button class="dcc-iconbar-btn"        id="icon-metrics"  title="Metrics Table" onclick="switchPanel('metrics')">📊</button>
+    <button class="dcc-iconbar-btn"        id="icon-heatmap"  title="Heatmap"       onclick="switchPanel('heatmap')">🔥</button>
+    <button class="dcc-iconbar-btn"        id="icon-entries"  title="Entry Points"  onclick="switchPanel('entries')">🎯</button>
+    <div class="dcc-iconbar-spacer"></div>
+    <div class="dcc-iconbar-bottom">
+      <button class="dcc-iconbar-btn" title="Help" onclick="alert('DCC Static Analyser v1.0\n\nUpload a directory via the sidebar or call POST /static/analyze from the backend.')">❓</button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="dcc-sidebar">
+    <div class="dcc-sidebar-header"><span>Analysis Controls</span></div>
+    <div class="dcc-sidebar-body">
+
+      <!-- Load -->
+      <div class="sb-section">
+        <div class="sb-section-header"><span>📁 Load</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body">
+          <label class="form-label">Backend Root Path</label>
+          <input id="root-path" type="text" placeholder="e.g. dcc/workflow" style="margin-bottom:8px">
+          <button class="btn btn-primary" style="width:100%;margin-bottom:6px" onclick="runAnalysis()">▶ Analyse</button>
+          <button class="btn btn-secondary" style="width:100%" onclick="loadSavedGraph()">📂 Load Saved</button>
+          <div id="load-status" style="margin-top:8px;font-size:10px;color:var(--text3)"></div>
+          <div style="margin-top:6px;font-size:9px;color:var(--text3)">API: <span id="api-url-display"></span></div>
+        </div>
+      </div>
+
+      <!-- Filter -->
+      <div class="sb-section">
+        <div class="sb-section-header"><span>🔍 Filter</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body">
+          <label class="form-label">Min Complexity (CC)</label>
+          <input id="cc-filter" type="number" value="0" min="0" max="50" style="margin-bottom:8px">
+          <label class="form-label">Search Function</label>
+          <input id="search-fn" type="text" placeholder="name..." style="margin-bottom:8px">
+          <button class="btn btn-secondary" style="width:100%;margin-bottom:6px" onclick="applyFilter()">Apply</button>
+          <button class="btn btn-ghost"     style="width:100%" onclick="resetFilter()">Reset</button>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="sb-section">
+        <div class="sb-section-header"><span>🎨 Legend</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body" style="font-size:11px;line-height:1.8">
+          <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#3fb950;display:inline-block"></span>CC 1–4 Low</div>
+          <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#d29922;display:inline-block"></span>CC 5–9 Medium</div>
+          <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#f0883e;display:inline-block"></span>CC 10–19 High</div>
+          <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#f85149;display:inline-block"></span>CC 20+ Very High</div>
+          <div style="display:flex;align-items:center;gap:6px">★ Entry Point (no callers)</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="dcc-content">
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <div class="tab active" id="tab-graph"   onclick="switchPanel('graph')">🕸️ Call Graph</div>
+      <div class="tab"        id="tab-metrics" onclick="switchPanel('metrics')">📊 Metrics</div>
+      <div class="tab"        id="tab-heatmap" onclick="switchPanel('heatmap')">🔥 Heatmap</div>
+      <div class="tab"        id="tab-entries" onclick="switchPanel('entries')">🎯 Entry Points</div>
+    </div>
+
+    <!-- ── Panel: Call Graph ── -->
+    <div id="panel-graph" style="flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative">
+      <div id="network-container">
+        <div id="vis-network"></div>
+      </div>
+      <!-- Detail panel (absolute overlay) -->
+      <div id="detail-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:12px;font-weight:600;color:var(--accent-alt)" id="dp-title">Function</span>
+          <span style="cursor:pointer;color:var(--text3)" onclick="document.getElementById('detail-panel').style.display='none'">✕</span>
+        </div>
+        <div id="dp-body"></div>
+      </div>
+      <!-- Welcome overlay -->
+      <div id="graph-welcome" class="welcome-pane">
+        <div class="welcome-icon">⚙️</div>
+        <div class="welcome-title">Static Code Analyser</div>
+        <div class="welcome-sub">Enter a backend root path and click Analyse, or load a saved graph.</div>
+        <div class="welcome-steps">
+          <div class="welcome-step"><strong>1</strong> Enter path</div>
+          <div class="welcome-step"><strong>2</strong> Analyse</div>
+          <div class="welcome-step"><strong>3</strong> Explore</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Panel: Metrics ── -->
+    <div id="panel-metrics" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="toolbar">
+        <span style="font-weight:600;color:var(--text)">Function Metrics</span>
+        <div class="toolbar-spacer"></div>
+        <button class="btn btn-sm btn-secondary" onclick="exportMetricsCSV()">📥 Export CSV</button>
+      </div>
+      <div class="table-scroll" style="flex:1;overflow:auto;padding:0 14px 14px">
+        <table class="dcc-table" id="metrics-table">
+          <thead><tr>
+            <th>Function</th><th>Module</th><th>Lines</th>
+            <th>CC</th><th>Loops</th><th>Try/Except</th><th>Args</th><th>Entry</th>
+          </tr></thead>
+          <tbody id="metrics-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Panel: Heatmap ── -->
+    <div id="panel-heatmap" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="toolbar">
+        <span style="font-weight:600;color:var(--text)">Complexity Heatmap</span>
+        <div class="toolbar-spacer"></div>
+        <label style="font-size:11px;color:var(--text2)">Min CC:</label>
+        <input id="heatmap-filter" type="number" value="1" min="1" style="width:60px">
+        <button class="btn btn-sm btn-secondary" onclick="renderHeatmap()">Apply</button>
+      </div>
+      <div class="content-scroll" id="heatmap-grid"></div>
+    </div>
+
+    <!-- ── Panel: Entry Points ── -->
+    <div id="panel-entries" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="toolbar">
+        <span style="font-weight:600;color:var(--text)">Entry Points</span>
+        <div class="toolbar-spacer"></div>
+        <span id="entry-count" style="font-size:11px;color:var(--text2)"></span>
+      </div>
+      <div class="content-scroll">
+        <table class="dcc-table" id="entry-table">
+          <thead><tr><th>Function</th><th>Module</th><th>Line</th><th>CC</th><th>Args</th></tr></thead>
+          <tbody id="entry-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /dcc-content -->
+</div><!-- /dcc-shell -->
+
+<!-- Status Bar -->
+<div class="dcc-statusbar status-info" id="statusbar">
+  <div class="sb-item" id="status-text">Ready</div>
+  <div class="sb-item-right" id="status-stats">—</div>
+</div>
+
+<script>
+// ── Theme ──────────────────────────────────────────────────────────────────
+const THEME_COLORS = {dark:'#0d1117',light:'#f0f4f8',sky:'#0a1628',ocean:'#071520',presentation:'#12082a'};
+document.getElementById('themeBtn').addEventListener('click', () => document.getElementById('themeMenu').classList.toggle('open'));
+document.querySelectorAll('.theme-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const t = opt.dataset.theme;
+    document.documentElement.setAttribute('data-theme', t);
+    document.getElementById('themeName').textContent = t[0].toUpperCase()+t.slice(1);
+    document.getElementById('themeDot').style.background = THEME_COLORS[t];
+    document.getElementById('themeMenu').classList.remove('open');
+    localStorage.setItem('dcc-theme', t);
+    document.querySelectorAll('.theme-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+  });
+});
+const _st = localStorage.getItem('dcc-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', _st);
+document.getElementById('themeName').textContent = _st[0].toUpperCase()+_st.slice(1);
+document.getElementById('themeDot').style.background = THEME_COLORS[_st];
+document.querySelector(`[data-theme="${_st}"]`).classList.add('active');
+
+// ── Sidebar accordion ──────────────────────────────────────────────────────
+document.querySelectorAll('.sb-section-header').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('closed')));
+
+// ── Panel switching ────────────────────────────────────────────────────────
+const PANELS = ['graph','metrics','heatmap','entries'];
+function switchPanel(name) {
+  PANELS.forEach(p => {
+    document.getElementById('panel-'+p).style.display = 'none';
+    document.getElementById('tab-'+p).classList.remove('active');
+    document.getElementById('icon-'+p).classList.remove('active');
+  });
+  document.getElementById('panel-'+name).style.display = 'flex';
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('icon-'+name).classList.add('active');
+  if (name === 'heatmap') renderHeatmap();
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let ALL_NODES = [], ALL_EDGES = [], ENTRY_POINTS = [], HOTSPOTS = [];
+let network = null;
+
+// ── Complexity helpers ─────────────────────────────────────────────────────
+function ccColour(cc) {
+  if (cc <= 4)  return '#3fb950';
+  if (cc <= 9)  return '#d29922';
+  if (cc <= 19) return '#f0883e';
+  return '#f85149';
+}
+function ccBadge(cc) {
+  const cls = cc<=4?'cc-low':cc<=9?'cc-med':cc<=19?'cc-high':'cc-vhigh';
+  return `<span class="cc-badge ${cls}">${cc}</span>`;
+}
+function nodeSize(cc) { return Math.min(10 + cc*2, 40); }
+
+// ── Build vis-network ──────────────────────────────────────────────────────
+function buildNetwork(nodes, edges) {
+  const container = document.getElementById('vis-network');
+  const entrySet = new Set(ENTRY_POINTS);
+  const visNodes = new vis.DataSet(nodes.map(n => ({
+    id: n.id, label: n.label,
+    color: { background: ccColour(n.cyclomatic_complexity), border: '#30363d',
+             highlight: { background: '#58a6ff', border: '#2f81f7' } },
+    size: nodeSize(n.cyclomatic_complexity),
+    shape: entrySet.has(n.id) ? 'star' : 'dot',
+    title: `<b>${n.label}</b><br>Module: ${n.module}<br>CC: ${n.cyclomatic_complexity} | Loops: ${n.loop_count} | Try: ${n.try_except_count}<br>Args: ${n.arg_count}`,
+    font: { color: '#e6edf3', size: 11 },
+  })));
+  const visEdges = new vis.DataSet(edges.map(e => ({
+    from: e.source, to: e.target, arrows: 'to',
+    color: { color: '#30363d', highlight: '#58a6ff' },
+    smooth: { type: 'dynamic' },
+  })));
+  const options = {
+    physics: { stabilization: { iterations: 200 }, barnesHut: { gravitationalConstant: -8000 } },
+    interaction: { hover: true, tooltipDelay: 100 },
+  };
+  if (network) network.destroy();
+  network = new vis.Network(container, { nodes: visNodes, edges: visEdges }, options);
+  network.on('click', p => { if (p.nodes.length) showDetail(p.nodes[0]); });
+  document.getElementById('status-text').textContent = `${nodes.length} functions · ${edges.length} edges`;
+}
+
+// ── Detail panel ───────────────────────────────────────────────────────────
+function showDetail(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) return;
+  document.getElementById('dp-title').textContent = n.label;
+  const rows = [
+    ['Module', n.module], ['File', n.id.split('::')[0]],
+    ['Lines', `${n.start_line}–${n.end_line}`],
+    ['CC', n.cyclomatic_complexity], ['Loops', n.loop_count],
+    ['Try/Except', n.try_except_count], ['Args', n.arg_count],
+    ['Entry Point', ENTRY_POINTS.includes(n.id) ? '★ Yes' : 'No'],
+    ['Async', n.is_async ? 'Yes' : 'No'],
+  ];
+  document.getElementById('dp-body').innerHTML = rows.map(([k,v]) =>
+    `<div class="dp-row"><span class="dp-key">${k}</span><span class="dp-val">${v}</span></div>`
+  ).join('');
+  document.getElementById('detail-panel').style.display = 'block';
+}
+
+// ── Metrics table ──────────────────────────────────────────────────────────
+function renderMetrics(nodes) {
+  const entrySet = new Set(ENTRY_POINTS);
+  const tbody = document.getElementById('metrics-body');
+  tbody.innerHTML = nodes.map(n => `
+    <tr>
+      <td style="font-family:var(--font-mono)">${n.label}</td>
+      <td style="color:var(--text2)">${n.module}</td>
+      <td>${n.start_line}–${n.end_line}</td>
+      <td>${ccBadge(n.cyclomatic_complexity)}</td>
+      <td>${n.loop_count}</td>
+      <td>${n.try_except_count}</td>
+      <td>${n.arg_count}</td>
+      <td>${entrySet.has(n.id) ? '<span class="badge badge-accent">★ Entry</span>' : ''}</td>
+    </tr>`).join('');
+}
+
+// ── Heatmap ────────────────────────────────────────────────────────────────
+function renderHeatmap() {
+  const minCC = parseInt(document.getElementById('heatmap-filter').value) || 1;
+  const filtered = ALL_NODES.filter(n => n.cyclomatic_complexity >= minCC)
+    .sort((a,b) => b.cyclomatic_complexity - a.cyclomatic_complexity);
+  const grid = document.getElementById('heatmap-grid');
+  if (!filtered.length) { grid.innerHTML = '<div style="padding:20px;color:var(--text3)">No functions match the filter.</div>'; return; }
+  grid.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px">` +
+    filtered.map(n => {
+      const bg = ccColour(n.cyclomatic_complexity) + '22';
+      const border = ccColour(n.cyclomatic_complexity);
+      return `<div style="background:${bg};border:1px solid ${border};border-radius:6px;padding:10px;cursor:pointer"
+                   onclick="switchPanel('graph');if(network)network.focus('${n.id}',{scale:1.5,animation:true});showDetail('${n.id}')">
+        <div style="font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.label}</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.module}</div>
+        <div style="font-size:18px;font-weight:700;color:${border};font-family:var(--font-mono)">${n.cyclomatic_complexity}</div>
+        <div style="font-size:9px;color:var(--text3)">CC</div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+// ── Entry Points table ─────────────────────────────────────────────────────
+function renderEntries() {
+  const entrySet = new Set(ENTRY_POINTS);
+  const entries = ALL_NODES.filter(n => entrySet.has(n.id));
+  document.getElementById('entry-count').textContent = `${entries.length} entry points`;
+  document.getElementById('entry-body').innerHTML = entries.map(n => `
+    <tr style="cursor:pointer" onclick="switchPanel('graph');if(network)network.focus('${n.id}',{scale:1.5,animation:true});showDetail('${n.id}')">
+      <td style="font-family:var(--font-mono)">${n.label}</td>
+      <td style="color:var(--text2)">${n.module}</td>
+      <td>${n.start_line}</td>
+      <td>${ccBadge(n.cyclomatic_complexity)}</td>
+      <td>${n.arg_count}</td>
+    </tr>`).join('');
+}
+
+// ── Load graph data ────────────────────────────────────────────────────────
+function loadGraphData(data) {
+  ALL_NODES = data.nodes || [];
+  ALL_EDGES = data.edges || [];
+  ENTRY_POINTS = data.entry_points || [];
+  HOTSPOTS = data.hotspots || [];
+  const stats = data.stats || {};
+
+  document.getElementById('graph-welcome').style.display = 'none';
+  document.getElementById('status-stats').textContent =
+    `${stats.total_functions||0} functions · ${stats.total_edges||0} edges · ${stats.modules_analyzed||0} modules`;
+
+  buildNetwork(ALL_NODES, ALL_EDGES);
+  renderMetrics(ALL_NODES);
+  renderEntries();
+}
+
+// ── Backend URL ──────────────────────────────────────────────────────────────
+// Always use /api/* so requests go through serve.py proxy on the same
+// origin — works in Codespaces, Gitpod, and local without any port issues.
+const API = '/api';
+document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('api-url-display');
+  if (el) el.textContent = window.location.origin + API;
+});
+
+// ── API calls ──────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const root = document.getElementById('root-path').value.trim();
+  if (!root) { alert('Enter a root path'); return; }
+  const status = document.getElementById('load-status');
+  status.textContent = '⏳ Analysing…';
+  document.getElementById('bc-root').textContent = root;
+  try {
+    const res = await fetch(`${API}/static/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ root, complexity_filter: 0 }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    loadGraphData(data);
+    status.textContent = `✓ Done — ${data.stats?.total_functions||0} functions`;
+  } catch (e) {
+    status.textContent = `✗ ${e.message}`;
+  }
+}
+
+async function loadSavedGraph() {
+  const status = document.getElementById('load-status');
+  status.textContent = '⏳ Loading…';
+  try {
+    const res = await fetch(`${API}/static/graph`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    loadGraphData(data);
+    status.textContent = `✓ Loaded saved graph`;
+  } catch (e) {
+    status.textContent = `✗ ${e.message}`;
+  }
+}
+
+// ── Filter ─────────────────────────────────────────────────────────────────
+function applyFilter() {
+  const minCC = parseInt(document.getElementById('cc-filter').value) || 0;
+  const search = document.getElementById('search-fn').value.toLowerCase();
+  const filtered = ALL_NODES.filter(n =>
+    n.cyclomatic_complexity >= minCC && (!search || n.label.toLowerCase().includes(search))
+  );
+  const ids = new Set(filtered.map(n => n.id));
+  const filteredEdges = ALL_EDGES.filter(e => ids.has(e.source) && ids.has(e.target));
+  buildNetwork(filtered, filteredEdges);
+  renderMetrics(filtered);
+}
+
+function resetFilter() {
+  document.getElementById('cc-filter').value = '0';
+  document.getElementById('search-fn').value = '';
+  buildNetwork(ALL_NODES, ALL_EDGES);
+  renderMetrics(ALL_NODES);
+}
+
+// ── Export CSV ─────────────────────────────────────────────────────────────
+function exportMetricsCSV() {
+  const header = 'function,module,start_line,end_line,cc,loops,try_except,args,entry_point';
+  const entrySet = new Set(ENTRY_POINTS);
+  const rows = ALL_NODES.map(n =>
+    [n.label, n.module, n.start_line, n.end_line,
+     n.cyclomatic_complexity, n.loop_count, n.try_except_count, n.arg_count,
+     entrySet.has(n.id) ? 'yes' : 'no'].join(',')
+  );
+  const blob = new Blob([[header, ...rows].join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'static_analysis_metrics.csv';
+  a.click();
+}
+</script>
+</body>
+</html>

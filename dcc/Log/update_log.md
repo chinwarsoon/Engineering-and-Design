@@ -7,6 +7,137 @@
 
 # Section 2. Log entries
 
+<a id="issue47-serve-proxy"></a>
+## 2026-04-20
+
+### RESOLVED: serve.py API Proxy — "Failed to fetch" in Codespaces
+**Status:** COMPLETE
+
+**Problem:** `static_dashboard.html` showed "Failed to fetch" in GitHub Codespaces. The dashboard was calling `http://localhost:8000/static/analyze` which the browser cannot reach because Codespaces port 8000 was Private (redirects to GitHub OAuth login).
+
+**Root Cause Chain:**
+1. `localhost:8000` unreachable from browser in Codespaces — each port gets a unique public URL
+2. Switching to `https://{name}-8000.app.github.dev` still failed — port was Private
+3. Backend was not running at all — system `python3` lacks `fastapi` (see Issue #45)
+4. Even after fixing backend startup, `networkx` missing in dcc env — edges = 0 (see Issue #46)
+
+**Fix:** Added `/api/*` reverse proxy to `serve.py`. Browser calls same-origin `/api/static/analyze` on port 5000; `serve.py` forwards to `localhost:8000` server-side. No cross-port or CORS issues in any environment.
+
+**Files Changed:**
+- `dcc/serve.py` — added `_proxy()` function, `do_POST()`, `do_OPTIONS()`, `/api/*` routing in `do_GET()`; rewrote cleanly to fix syntax corruption from earlier edits
+- `tracer/static_dashboard.html` — replaced `http://localhost:8000` with `const API = '/api'`; removed complex Codespaces URL detection logic; added API URL display in sidebar
+- `ui/tracer_pro.html` — replaced hardcoded `API_BASE` and `WS_BASE` with `getBackendUrl()` / `getWsUrl()` helpers
+
+**Verification:**
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health          # 200
+curl -s -X POST http://localhost:5000/api/static/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"root":"workflow","complexity_filter":0}' | python3 -c \
+  "import sys,json; d=json.load(sys.stdin); s=d['stats']; print('nodes:',s['total_functions'],'edges:',s['total_edges'])"
+# nodes: 754 edges: 737
+```
+
+---
+
+<a id="issue46-networkx-dcc-env"></a>
+## 2026-04-20
+
+### RESOLVED: networkx / pyvis Missing in dcc Conda Env — Edges = 0 via Backend
+**Status:** COMPLETE
+
+**Problem:** Calling `/static/analyze` through the FastAPI backend returned 0 edges and 0 entry points, even though running the same analysis directly with system Python produced 737 edges.
+
+**Root Cause:** `networkx` and `pyvis` were installed into the system Python during development but not into `/opt/conda/envs/dcc/`. The backend runs under the dcc env, so `_NX_AVAILABLE = False` and all edge-building code was silently skipped.
+
+**Fix:**
+```bash
+/opt/conda/envs/dcc/bin/pip install networkx pyvis
+```
+Backend restarted. Analysis now returns correct results.
+
+**Files Changed:** None (runtime package install only). `dcc/dcc.yml` already had `networkx>=3.0` and `pyvis>=0.3.2` in pip section from Issue #43 — packages just needed to be installed into the running env.
+
+**Result:** 754 nodes, 737 edges, 383 entry points, 233 hotspots (CC ≥ 5).
+
+---
+
+<a id="issue45-backend-wrong-python"></a>
+## 2026-04-20
+
+### RESOLVED: FastAPI Backend Fails to Start — Wrong Python
+**Status:** COMPLETE
+
+**Problem:** `python3 tracer/backend/server.py` failed with `ModuleNotFoundError: No module named 'fastapi'`.
+
+**Root Cause:** Default `python3` in Codespaces is `/home/codespace/.python/current/bin/python3` (system Python 3.12) which has no `fastapi`. The `dcc` conda env at `/opt/conda/envs/dcc/` has `fastapi` but is not on `PATH`.
+
+**Fix:** Always start backend with the full conda env path:
+```bash
+/opt/conda/envs/dcc/bin/python3 tracer/backend/server.py
+```
+
+**Files Changed:** `workplan/code_tracing/code_tracing_workplan.md` — added Deployment & Runtime Notes section documenting correct startup commands.
+
+---
+
+<a id="issue44-server-uvicorn-string"></a>
+## 2026-04-20
+
+### RESOLVED: `ModuleNotFoundError: No module named 'backend'` from server.py
+**Status:** COMPLETE
+
+**Problem:** Running `python server.py` from `tracer/backend/` raised `ModuleNotFoundError: No module named 'backend'`.
+
+**Root Cause:** `uvicorn.run("backend.server:app", ...)` — string app reference requires Python to import `backend` as a top-level package. Only works when cwd is `tracer/`. Running from `tracer/backend/` makes `backend` unresolvable.
+
+**Fix:** Replaced string reference with direct app object:
+```python
+# Before
+uvicorn.run("backend.server:app", host="0.0.0.0", port=8000, reload=True)
+
+# After
+uvicorn.run(app, host=cli_args.host, port=cli_args.port, log_level="info")
+```
+Also added `--port` and `--host` CLI arguments.
+
+**Files Changed:** `tracer/backend/server.py` — `__main__` block.
+
+---
+
+<a id="issue43-static-analysis"></a>
+## 2026-04-20
+
+### COMPLETED: Phase 1b — Static Analysis Module
+**Status:** COMPLETE
+
+**Summary:** Implemented full static analysis sub-module for the Universal Interactive Python Code Tracer. Crawls `.py` files, parses AST, builds call-dependency graph, renders interactive HTML network, exposes FastAPI endpoints, and provides VS Code-layout dashboard.
+
+**Analysis Results (DCC workflow):**
+- 137 modules, 754 functions, 0 parse errors
+- 737 call edges, 383 entry points, 233 hotspots (CC ≥ 5)
+- Top hotspot: `apply_validation` CC=100
+
+**Bug Fixed:** networkx not installed — edges were 0. Added `_SKIP_CALLS` filter for generic names. Installed `networkx` and `pyvis`.
+
+**Files Created:**
+- `tracer/static/__init__.py`
+- `tracer/static/crawler.py` (108 lines)
+- `tracer/static/metrics.py` (87 lines)
+- `tracer/static/parser.py` (248 lines)
+- `tracer/static/graph.py` (260 lines)
+- `tracer/static/visualizer.py` (280 lines)
+- `tracer/static_dashboard.html` (420 lines)
+- `tracer/output/call_graph.json` (1,184 KB)
+- `tracer/output/call_graph.html` (439 KB)
+- `workplan/code_tracing/reports/phase1b_completion_report.md`
+
+**Files Modified:**
+- `tracer/backend/server.py` — added `/static/analyze`, `/static/graph`, `/static/report`
+- `tracer/__init__.py` — version 1.0.0, static sub-package exposed
+- `dcc.yml` — added `networkx>=3.0`, `pyvis>=0.3.2`
+- `workplan/code_tracing/code_tracing_workplan.md` — Phase 1b marked complete
+
 <a id="issue42-pipeline-runner"></a>
 ## 2026-04-19 22:15:00
 

@@ -19,6 +19,65 @@
 
 # Section 2. Pending Issues
 
+<a id="issue47-serve-proxy"></a>
+## 2026-04-20
+[Issue #47]: static_dashboard.html shows "Failed to fetch" in GitHub Codespaces
+- [Status]: RESOLVED
+- [Context]: Dashboard called `http://localhost:8000/static/analyze` which is unreachable from the browser in Codespaces (private port, redirects to GitHub login).
+- [Root Cause]: Three compounding problems:
+  1. `localhost:8000` is not reachable from the browser in Codespaces — each port gets a unique public URL (`https://{name}-{port}.app.github.dev`) and port 8000 was Private.
+  2. Switching to the public URL still failed because Private ports redirect to GitHub OAuth.
+  3. FastAPI backend was started with system `python3` which lacks `fastapi` — backend was not running at all.
+- [File Changes]:
+  - `dcc/serve.py` — added `/api/*` reverse proxy to FastAPI backend; browser only needs port 5000
+  - `tracer/static_dashboard.html` — replaced `http://localhost:8000` with `/api` (same-origin relative path)
+  - `ui/tracer_pro.html` — same relative path fix
+- [Resolution]: `serve.py` now proxies `/api/*` → `localhost:8000` server-side. Browser calls same-origin `/api/static/analyze` on port 5000; no cross-port or CORS issues in any environment. Backend must be started with `/opt/conda/envs/dcc/bin/python3`.
+- [Link to Update Log]: [update_log.md](#issue47-serve-proxy)
+
+<a id="issue46-networkx-dcc-env"></a>
+## 2026-04-20
+[Issue #46]: Static analysis returns 0 edges when run through FastAPI backend
+- [Status]: RESOLVED
+- [Context]: Direct Python run produced 737 edges; calling `/static/analyze` via the backend returned 0 edges.
+- [Root Cause]: `networkx` and `pyvis` were installed into the system Python environment during development but not into the `dcc` conda environment. The FastAPI backend runs under `/opt/conda/envs/dcc/bin/python3`, which had no `networkx`, so `_NX_AVAILABLE = False` and all edge-building code was skipped.
+- [File Changes]:
+  - `dcc/dcc.yml` — `networkx>=3.0` and `pyvis>=0.3.2` already added to pip section (from Issue #43); packages now also installed into dcc env
+- [Resolution]: Ran `/opt/conda/envs/dcc/bin/pip install networkx pyvis`. Restarted backend. Analysis now returns 754 nodes, 737 edges, 383 entry points.
+- [Link to Update Log]: [update_log.md](#issue46-networkx-dcc-env)
+
+<a id="issue45-backend-wrong-python"></a>
+## 2026-04-20
+[Issue #45]: FastAPI backend fails to start — `ModuleNotFoundError: No module named 'fastapi'`
+- [Status]: RESOLVED
+- [Context]: Running `python3 tracer/backend/server.py` from the dcc directory failed immediately.
+- [Root Cause]: The system Python at `/home/codespace/.python/current/bin/python3` does not have `fastapi` installed. The `dcc` conda environment at `/opt/conda/envs/dcc/` has `fastapi` but is not the default `python3`.
+- [File Changes]: None — runtime invocation change only.
+- [Resolution]: Backend must be started with the full conda env path: `/opt/conda/envs/dcc/bin/python3 tracer/backend/server.py`. Documented in workplan Deployment Notes section.
+- [Link to Update Log]: [update_log.md](#issue45-backend-wrong-python)
+
+<a id="issue44-server-uvicorn-string"></a>
+## 2026-04-20
+[Issue #44]: `ModuleNotFoundError: No module named 'backend'` when running server.py from `tracer/backend/` directory
+- [Status]: RESOLVED
+- [Context]: Running `python server.py` from inside `tracer/backend/` raised `ModuleNotFoundError: No module named 'backend'`.
+- [Root Cause]: The `__main__` block used `uvicorn.run("backend.server:app", ...)` — a string app reference that requires Python to import `backend` as a top-level package. This only works when cwd is `tracer/`. Running from `tracer/backend/` makes `backend` unresolvable.
+- [File Changes]: `tracer/backend/server.py` — replaced string reference with direct `app` object: `uvicorn.run(app, host=..., port=...)`. Added `--port` and `--host` CLI arguments.
+- [Resolution]: Server now starts correctly from any working directory.
+- [Link to Update Log]: [update_log.md](#issue44-server-uvicorn-string)
+
+<a id="issue43-static-analysis"></a>
+## 2026-04-20
+[Issue #43]: Phase 1b Static Analysis Module — networkx edges were 0 on first run
+- [Status]: RESOLVED
+- [Context]: After building CallGraph, edge count was 0 despite 737 resolvable edges.
+- [Root Cause]: `networkx` was not installed in the `dcc` conda environment. Additionally, `_resolve_call` had no skip-list for generic names (`get`, `sort`, `info`, etc.) causing noisy/wrong edge resolution.
+- [File Changes]:
+  - `tracer/static/graph.py` — added `_SKIP_CALLS` class attribute (40+ generic names)
+  - `dcc/dcc.yml` — added `networkx>=3.0` and `pyvis>=0.3.2` to pip section
+- [Resolution]: Installed `networkx` and `pyvis` via pip. Added `_SKIP_CALLS` filter. Re-run produced 737 edges, 383 entry points.
+- [Link to Update Log]: [update_log.md](#issue43-static-analysis)
+
 <a id="issue33-json-tools-ui"></a>
 ## 2026-04-18 21:45:00
 [Issue #33]: JSON Tools UI - restructure sidebar panels and integrate backup features

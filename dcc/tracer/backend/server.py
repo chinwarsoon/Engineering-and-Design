@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import time
 import uuid
@@ -62,6 +63,14 @@ app = FastAPI(
 
 # Initialize connection manager
 manager = ConnectionManager()
+
+# Allow all origins so the static dashboard (served on any port) can call the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Global trace engine reference (will be imported when needed)
 _trace_engine = None
@@ -645,6 +654,99 @@ async def run_pipeline(run_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to run pipeline: {str(e)}")
 
+# ── Static Analysis Endpoints (Phase 1b) ────────────────────────────────────
+
+@app.post("/static/analyze")
+async def static_analyze(req: dict):
+    """Run full static analysis on a directory and return graph JSON.
+
+    Body: {"root": "<path>", "complexity_filter": 0}
+    Returns: graph JSON (nodes, edges, entry_points, hotspots, stats).
+    """
+    try:
+        root = req.get("root")
+        cc_filter = int(req.get("complexity_filter", 0))
+        if not root:
+            raise HTTPException(status_code=400, detail="root path required")
+
+        project_root = Path(__file__).parent.parent.parent  # Engineering-and-Design/
+        dcc_root = project_root / "dcc"                      # Engineering-and-Design/dcc/
+        # Accept paths relative to dcc/ first, then project root
+        full_root = (dcc_root / root).resolve()
+        if not full_root.exists():
+            full_root = (project_root / root).resolve()
+        if not str(full_root).startswith(str(project_root)):
+            raise HTTPException(status_code=403, detail="Path outside project directory")
+        if not full_root.exists():
+            raise HTTPException(status_code=404, detail="Directory not found")
+
+        from tracer.static.crawler import crawl
+        from tracer.static.parser import parse_all
+        from tracer.static.graph import CallGraph
+
+        records = crawl(full_root)
+        modules = parse_all(records)
+        cg = CallGraph(modules).build()
+        data = cg.to_json()
+
+        # Persist output
+        output_dir = project_root / "tracer" / "output"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        import json as _json
+        (output_dir / "call_graph.json").write_text(
+            _json.dumps(data, indent=2, default=str), encoding="utf-8"
+        )
+
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/static/graph")
+async def static_graph():
+    """Return the last saved call_graph.json from tracer/output/."""
+    try:
+        import json as _json
+        graph_path = Path(__file__).parent.parent / "output" / "call_graph.json"
+        if not graph_path.exists():
+            raise HTTPException(status_code=404, detail="No graph found. Run /static/analyze first.")
+        return _json.loads(graph_path.read_text(encoding="utf-8"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/static/report")
+async def static_report():
+    """Return per-function metrics table from the last analysis."""
+    try:
+        import json as _json
+        graph_path = Path(__file__).parent.parent / "output" / "call_graph.json"
+        if not graph_path.exists():
+            raise HTTPException(status_code=404, detail="No graph found. Run /static/analyze first.")
+        data = _json.loads(graph_path.read_text(encoding="utf-8"))
+        report = [{
+            "function": n["label"],
+            "module": n["module"],
+            "start_line": n["start_line"],
+            "end_line": n["end_line"],
+            "cyclomatic_complexity": n["cyclomatic_complexity"],
+            "try_except_count": n["try_except_count"],
+            "loop_count": n["loop_count"],
+            "arg_count": n["arg_count"],
+            "is_entry_point": n["id"] in data.get("entry_points", []),
+        } for n in data.get("nodes", [])]
+        report.sort(key=lambda x: x["cyclomatic_complexity"], reverse=True)
+        return {"functions": report, "total": len(report)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -657,10 +759,16 @@ async def health_check():
 
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="DCC Tracer Backend")
+    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--reload", action="store_true")
+    cli_args = parser.parse_args()
+
     uvicorn.run(
-        "backend.server:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
+        app,
+        host=cli_args.host,
+        port=cli_args.port,
+        log_level="info",
     )

@@ -90,4 +90,6 @@ dependencies:
       - xlsxwriter==3.2.9
       - fastapi
       - uvicorn
+      - networkx>=3.0
+      - pyvis>=0.3.2
 prefix: /home/franklin/miniconda3/envs/dcc
