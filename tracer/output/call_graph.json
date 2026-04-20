@@ -28,6 +28,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[RiskItem]",
       "raw_calls": [
         "risks.sort",
         "logger.info",
@@ -71,6 +72,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "ctx.error_summary.get",
         "get",
@@ -113,6 +115,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "recs.get"
       ],
@@ -153,6 +156,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "enumerate",
         "output_path.write_text",
@@ -198,6 +202,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "insight.to_dict",
         "output_path.write_text",
@@ -241,6 +246,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "output_path.write_text",
         "logger.info",
@@ -280,6 +286,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[TrendItem]",
       "raw_calls": [
         "sum",
         "next",
@@ -323,6 +330,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "AiContext",
       "raw_calls": [
         "AiContext",
         "dashboard_path.exists",
@@ -366,6 +374,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "join",
         "ctx.error_summary.get",
@@ -398,6 +407,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [],
       "docstring": "Serialize to JSON-safe dict.",
       "decorators": []
@@ -448,6 +458,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path",
         "RiskAnalyzer",
@@ -492,6 +503,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "AiInsight",
       "raw_calls": [
         "emit_pipeline_status",
         "logger.info",
@@ -540,6 +552,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "AiInsight",
       "raw_calls": [
         "RuleBasedProvider",
         "fallback.generate",
@@ -579,6 +592,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._summary_generator.generate_json_summary",
         "emit_pipeline_artifact",
@@ -630,6 +644,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "PipelineRunRecord",
         "self._run_store.save_run",
@@ -674,6 +689,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[AiInsight]",
       "raw_calls": [
         "AiOpsEngine",
         "engine.run",
@@ -710,6 +726,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "AiInsight",
       "raw_calls": [
         "dashboard_data.get",
         "logger.info",
@@ -754,6 +771,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self._init_db"
       ],
@@ -782,6 +800,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "duckdb.connect",
         "str",
@@ -812,6 +831,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._get_conn",
         "conn.execute",
@@ -848,6 +868,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._get_conn",
         "conn.execute",
@@ -885,6 +906,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._get_conn",
         "conn.execute",
@@ -924,6 +946,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[dict]",
       "raw_calls": [
         "self._get_conn",
         "fetchall",
@@ -963,6 +986,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[dict]",
       "raw_calls": [
         "self._get_conn",
         "fetchone",
@@ -995,6 +1019,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._conn.close"
       ],
@@ -1029,6 +1054,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "AiInsight",
       "raw_calls": [],
       "docstring": "Generate structured AI insight from context.\n\nArgs:\n    ctx: Populated AiContext\n\nReturns:\n    AiInsight with risk analysis and recommendations",
       "decorators": [
@@ -1063,6 +1089,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "AiInsight",
       "raw_calls": [
         "self._score_to_risk",
         "self._build_risks",
@@ -1103,6 +1130,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Map health score to risk level.",
       "decorators": []
@@ -1135,6 +1163,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "list",
       "raw_calls": [
         "et.get",
         "risks.append",
@@ -1172,6 +1201,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "list",
       "raw_calls": [
         "phase.get",
         "trends.append",
@@ -1214,6 +1244,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "list",
       "raw_calls": [
         "recs.append",
         "get"
@@ -1261,6 +1292,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "RuleBasedProvider"
       ],
@@ -1295,6 +1327,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "AiInsight",
       "raw_calls": [
         "format_context_for_prompt",
         "self._call_ollama",
@@ -1334,6 +1367,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "encode",
         "urllib.request.Request",
@@ -1383,6 +1417,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "AiInsight",
       "raw_calls": [
         "re.search",
         "data.get",
@@ -1424,6 +1459,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "urllib.request.Request",
         "urllib.request.urlopen",
@@ -1465,6 +1501,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "json.dumps",
         "isoformat",
@@ -1507,6 +1544,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_make_event",
         "_event_queue.append",
@@ -1549,6 +1587,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_make_event",
         "_event_queue.append",
@@ -1591,6 +1630,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_make_event",
         "_event_queue.append",
@@ -1627,6 +1667,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_make_event",
         "_event_queue.append",
@@ -1650,6 +1691,7 @@
       "loop_count": 1,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Generator[str, None, None]",
       "raw_calls": [
         "_event_queue.pop"
       ],
@@ -1671,6 +1713,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "None",
       "raw_calls": [
         "_event_queue.clear"
       ],
@@ -1692,6 +1735,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "list",
       "raw_calls": [
         "list"
       ],
@@ -1720,6 +1764,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "logging.Logger",
       "raw_calls": [
         "logging.getLogger"
       ],
@@ -1766,6 +1811,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "logger.info",
         "logger.debug"
@@ -1795,6 +1841,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "isinstance",
         "math.isnan",
@@ -1833,6 +1880,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "json.dumps",
         "to_json_safe"
@@ -1886,6 +1934,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "safe_resolve",
         "resolve_output_paths",
@@ -1948,6 +1997,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "int",
       "raw_calls": [
         "parse_cli_args",
         "setup_logger",
@@ -1996,6 +2046,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "lines.append",
         "section_titles.items",
@@ -2041,6 +2092,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "detect_os",
         "self.schema_path.is_file",
@@ -2086,6 +2138,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "path.open",
         "json.load"
@@ -2115,6 +2168,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[RefResolver]",
       "raw_calls": [
         "RefResolver",
         "project_setup_path.exists",
@@ -2151,6 +2205,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "isinstance",
         "config_path.is_file",
@@ -2188,6 +2243,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "registry_defaults.get",
         "folder.get"
@@ -2223,6 +2279,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "schema.get",
         "properties.items",
@@ -2263,6 +2320,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.validation_rules.get"
       ],
@@ -2291,6 +2349,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "log_context",
         "self._do_validate"
@@ -2320,6 +2379,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "trace_parameter",
         "log_status",
@@ -2368,6 +2428,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "format_report"
       ],
@@ -2389,6 +2450,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Dict[str, str]",
       "raw_calls": [
         "get",
         "strip",
@@ -2420,6 +2482,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [],
       "docstring": "Check if folders should be auto-created on this OS.\n\nDetermines if the current operating system supports auto-creating\nfolders during validation. Currently enabled for Windows, Linux, and macOS.\n\nArgs:\n    os_info: Dictionary containing 'normalized' OS name from detect_os().\n\nReturns:\n    True if folders can be auto-created on this OS, False otherwise.\n\nBreadcrumb Comments:\n    - os_info: Initialized in ProjectSetupValidator.__init__ via detect_os().\n               Passed from validate_folders() to check auto-creation eligibility.\n    - Checks 'normalized' key for 'windows', 'linux', or 'macos'.\n    - If True, validate_folders() calls ensure_folder() to create missing dirs.",
       "decorators": []
@@ -2446,6 +2509,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "argparse.ArgumentParser",
       "raw_calls": [
         "argparse.ArgumentParser",
         "parser.add_argument",
@@ -2476,6 +2540,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[argparse.Namespace, Dict[str, Any]]",
       "raw_calls": [
         "create_parser",
         "parser.parse_known_args",
@@ -2506,6 +2571,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "None",
       "raw_calls": [
         "isoformat",
         "_get_system_snapshot",
@@ -2529,6 +2595,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "platform.system",
         "platform.release",
@@ -2556,6 +2623,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [],
       "docstring": "Get the current debug object.",
       "decorators": []
@@ -2582,6 +2650,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "_calculate_duration",
         "Path",
@@ -2606,6 +2675,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "float",
       "raw_calls": [
         "DEBUG_OBJECT.get",
         "datetime.fromisoformat",
@@ -2637,6 +2707,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "max",
         "min",
@@ -2661,6 +2732,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Get indentation based on call depth.",
       "decorators": []
@@ -2705,6 +2777,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "append",
         "_get_indent",
@@ -2749,6 +2822,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "append",
         "_get_indent",
@@ -2793,6 +2867,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "append",
         "_get_indent",
@@ -2855,6 +2930,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_get_indent",
         "append",
@@ -2913,6 +2989,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "append",
         "isoformat",
@@ -2957,6 +3034,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "isoformat",
         "log_warning",
@@ -3000,6 +3078,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "log_status",
         "time.time",
@@ -3038,6 +3117,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "join",
         "kwargs.get",
@@ -3081,6 +3161,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "append",
         "builtins.print",
@@ -3118,6 +3199,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "join",
         "log_warning",
@@ -3148,6 +3230,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "logging.getLogger",
         "root_logger.setLevel",
@@ -3179,6 +3262,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "set_debug_level"
       ],
@@ -3219,6 +3303,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "get",
         "builtins.print",
@@ -3242,6 +3327,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "str",
       "raw_calls": [
         "get"
       ],
@@ -3270,6 +3356,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "status_print",
         "str",
@@ -3318,6 +3405,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "status_print",
         "native_defaults.copy",
@@ -3344,6 +3432,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Path",
       "raw_calls": [
         "os.environ.get",
         "Path.home",
@@ -3377,6 +3466,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "absolute",
         "Path"
@@ -3399,6 +3489,7 @@
       "loop_count": 1,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Path",
       "raw_calls": [
         "Path",
         "parent.name.lower"
@@ -3428,6 +3519,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [],
       "docstring": "Return default project setup schema path.",
       "decorators": []
@@ -3454,6 +3546,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [],
       "docstring": "Return default data register schema path.",
       "decorators": []
@@ -3492,6 +3585,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "dict[str, Any]",
       "raw_calls": [
         "status_print_fn",
         "effective_parameters.copy",
@@ -3545,6 +3639,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "dict[str, Path]",
       "raw_calls": [
         "effective_parameters.get",
         "status_print",
@@ -3583,6 +3678,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "mkdir",
         "target_path.exists",
@@ -3613,6 +3709,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "status_print",
         "debug_print",
@@ -3698,6 +3795,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "append",
         "str"
@@ -3727,6 +3825,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "path.mkdir",
         "path.is_dir"
@@ -3774,6 +3873,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "should_auto_create_folders",
         "log_warning",
@@ -3840,6 +3940,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "log_warning",
         "item.get",
@@ -3886,6 +3987,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "log_warning",
         "item.get",
@@ -3921,6 +4023,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "results.get",
         "item.get"
@@ -3962,6 +4065,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self.load_main_schema"
       ],
@@ -4002,6 +4106,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self.schema_loader.set_main_schema_path",
         "self.schema_loader.load_json_file",
@@ -4046,6 +4151,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "flatten_multiindex_headers",
         "_schema_root.get",
@@ -4091,6 +4197,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "rename_dataframe_columns"
       ],
@@ -4131,6 +4238,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "mapping_result.get",
         "get_column_bounds"
@@ -4172,6 +4280,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "df.columns.tolist",
         "self.detect_columns",
@@ -4202,6 +4311,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "isinstance",
         "strip",
@@ -4247,6 +4357,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "set",
         "columns.items",
@@ -4291,6 +4402,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "detected_columns.items",
         "col_def.get",
@@ -4333,6 +4445,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "items",
@@ -4373,6 +4486,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "strip",
         "re.sub",
@@ -4418,6 +4532,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[str, float]",
       "raw_calls": [
         "normalize_string",
         "ratio",
@@ -4460,6 +4575,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[str, float]",
       "raw_calls": [
         "fuzzy_match_column"
       ],
@@ -4500,6 +4616,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[str, str, float]]",
       "raw_calls": [
         "fuzzy_match_column",
         "results.append"
@@ -4535,6 +4652,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Tuple[int, int]]",
       "raw_calls": [
         "detected_columns.items",
         "hasattr",
@@ -4572,6 +4690,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "bounds.items",
         "coverages.append",
@@ -4617,6 +4736,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[str, str]",
       "raw_calls": [
         "document_id.strip",
         "document_id.split",
@@ -4652,6 +4772,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "extract_document_id_affixes",
         "bool"
@@ -4681,6 +4802,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "extract_document_id_affixes"
       ],
@@ -4709,6 +4831,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "isinstance",
         "extract_document_id_affixes",
@@ -4747,6 +4870,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "hasattr",
         "engine.get_column_strategy"
@@ -4794,6 +4918,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -4880,6 +5005,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "mapping.get",
@@ -4951,6 +5077,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "engine.schema_data.get",
         "parameters.get",
@@ -5014,6 +5141,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "hasattr",
         "engine.get_column_strategy"
@@ -5061,6 +5189,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -5122,6 +5251,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "isna",
@@ -5176,6 +5306,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "engine._print_processing_step",
         "df.copy",
@@ -5242,6 +5373,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -5297,6 +5429,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -5340,6 +5473,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "hasattr",
         "engine.get_column_strategy"
@@ -5387,6 +5521,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -5440,6 +5575,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -5500,6 +5636,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -5564,6 +5701,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "engine._print_processing_step",
         "_get_preservation_mode",
@@ -5624,6 +5762,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -5673,6 +5812,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "parameters.get",
@@ -5730,6 +5870,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "notna",
@@ -5785,6 +5926,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "parameters.get",
@@ -5845,6 +5987,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "notna",
         "existing_mask.any",
@@ -5904,6 +6047,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "end_date_logic.get",
@@ -5965,6 +6109,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "engine._print_processing_step",
         "df.copy",
@@ -6006,6 +6151,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "hasattr",
         "engine.get_column_strategy"
@@ -6053,6 +6199,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -6113,6 +6260,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "engine._print_processing_step",
@@ -6157,6 +6305,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "str",
         "get",
@@ -6242,6 +6391,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "sorted",
         "hasattr",
@@ -6296,6 +6446,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "null_handling.get",
         "formatting.get",
@@ -6369,6 +6520,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "null_handling.get",
         "df.copy",
@@ -6428,6 +6580,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "null_handling.get",
         "df.copy",
@@ -6478,6 +6631,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "null_handling.get",
         "calculation.get",
@@ -6528,6 +6682,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "parameters.get",
@@ -6580,6 +6735,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "calculation.get",
         "df.copy",
@@ -6631,6 +6787,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "null_handling.get",
         "formatting.get",
@@ -6699,6 +6856,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "null_handling.get",
         "calculation.get",
@@ -6728,6 +6886,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -6760,6 +6919,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "_should_log_validation"
       ],
@@ -6794,6 +6954,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "dict",
       "raw_calls": [
         "_SCHEMA_REF_KEY_MAP.get",
         "schema_data.get",
@@ -6830,6 +6991,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.Series",
       "raw_calls": [
         "pd.Series",
         "columns_schema.items",
@@ -6895,6 +7057,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "columns_schema.items",
@@ -6982,6 +7145,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, TypingAny]]",
       "raw_calls": [
         "isinstance",
         "validation.get",
@@ -7054,6 +7218,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[pd.Series]",
       "raw_calls": [
         "_get_ref_data",
         "_get_schema_reference_allowed_codes",
@@ -7106,6 +7271,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[List[str]]",
       "raw_calls": [
         "isinstance",
         "ref_data.get",
@@ -7156,6 +7322,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[str]",
       "raw_calls": [
         "_normalize_validation_rules",
         "column_def.get",
@@ -7190,6 +7357,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "int",
       "raw_calls": [
         "columns_schema.get",
         "_normalize_validation_rules",
@@ -7236,6 +7404,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "_normalize_validation_rules",
         "column_def.get",
@@ -7274,6 +7443,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "Initialize with the global schema data.\n\nArgs:\n    schema_data: The full resolved schema containing definitions and reference data.",
       "decorators": []
@@ -7318,6 +7488,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "status_print",
         "logger.info"
@@ -7353,6 +7524,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "ref_config.get",
         "_new_key_map.get",
@@ -7388,6 +7560,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -7420,6 +7593,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "CalculationStrategy",
       "raw_calls": [
         "column_def.get",
         "StrategyResolver._infer_strategy",
@@ -7458,6 +7632,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "CalculationStrategy",
       "raw_calls": [
         "config.get",
         "CalculationStrategy",
@@ -7502,6 +7677,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "CalculationStrategy",
       "raw_calls": [
         "column_def.get",
         "calculation.get",
@@ -7545,6 +7721,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -7601,6 +7778,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "notna",
@@ -7661,6 +7839,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "isna",
@@ -7701,6 +7880,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "CalculationStrategy",
       "raw_calls": [
         "StrategyResolver.from_schema"
       ],
@@ -7735,6 +7915,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "pd.isna"
       ],
@@ -7769,6 +7950,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "schema_data.get",
@@ -7815,6 +7997,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[CalculationStrategy]",
       "raw_calls": [
         "self.strategy_resolver.from_schema",
         "status_print",
@@ -7851,6 +8034,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "log_context",
         "debug_print",
@@ -7888,6 +8072,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "log_context",
         "prepare_dataframe_for_processing",
@@ -7941,6 +8126,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.error_reporter.generate_summary_stats"
       ],
@@ -7981,6 +8167,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "column_def.get",
@@ -8025,6 +8212,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "column_def.get",
@@ -8070,6 +8258,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "StrategyExecutor",
@@ -8117,6 +8306,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "log_context",
         "debug_print",
@@ -8161,6 +8351,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "log_context",
         "debug_print",
@@ -8214,6 +8405,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "status_print",
         "detail.startswith"
@@ -8243,6 +8435,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Callable]",
       "raw_calls": [
         "NULL_HANDLERS.get",
         "status_print"
@@ -8278,6 +8471,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Callable]",
       "raw_calls": [
         "CALCULATION_HANDLERS.get",
         "type_map.get",
@@ -8314,6 +8508,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "status_print"
       ],
@@ -8354,6 +8549,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "status_print"
       ],
@@ -8375,6 +8571,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": null,
       "raw_calls": [
         "list",
         "NULL_HANDLERS.keys",
@@ -8406,6 +8603,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -8438,6 +8636,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._errors.extend"
       ],
@@ -8472,6 +8671,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._errors.append"
       ],
@@ -8500,6 +8700,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "int",
       "raw_calls": [
         "get_debug_object",
         "debug_obj.get",
@@ -8542,6 +8743,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self._errors.copy"
       ],
@@ -8570,6 +8772,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[int, List[DetectionResult]]",
       "raw_calls": [
         "append"
       ],
@@ -8598,6 +8801,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, List[DetectionResult]]",
       "raw_calls": [
         "error.context.get",
         "append"
@@ -8627,6 +8831,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "set",
         "seen.add",
@@ -8663,6 +8868,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.Series",
       "raw_calls": [
         "self.aggregate_row_errors",
         "range",
@@ -8699,6 +8905,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.deduplicate_errors",
         "len",
@@ -8731,6 +8938,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[int, List[DetectionResult]]",
       "raw_calls": [
         "ErrorAggregator",
         "agg.add_errors",
@@ -8761,6 +8969,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, List[DetectionResult]]",
       "raw_calls": [
         "ErrorAggregator",
         "agg.add_errors",
@@ -8797,6 +9006,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -8832,6 +9042,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path",
         "self._load_schema"
@@ -8861,6 +9072,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._schema_data.get",
         "self.config_path.exists",
@@ -8893,6 +9105,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._load_schema"
       ],
@@ -8921,6 +9134,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._definitions.get",
         "engine_def.get"
@@ -8950,6 +9164,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._definitions.get",
         "module_def.get"
@@ -8979,6 +9194,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._definitions.get",
         "function_def.get"
@@ -9014,6 +9230,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.get_valid_engine_codes"
       ],
@@ -9048,6 +9265,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.get_valid_module_codes"
       ],
@@ -9082,6 +9300,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.get_valid_function_codes"
       ],
@@ -9116,6 +9335,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "bool",
         "re.match"
@@ -9151,6 +9371,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "error_code.split",
         "re.match",
@@ -9190,6 +9411,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, str]]",
       "raw_calls": [
         "error_code.split",
         "self.is_valid_error_code_format"
@@ -9219,6 +9441,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self._definitions.get",
         "pattern_def.get"
@@ -9272,6 +9495,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.is_valid_engine_code",
         "self.get_valid_engine_codes",
@@ -9306,6 +9530,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self._schema_data.copy"
       ],
@@ -9334,6 +9559,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Get schema version.",
       "decorators": []
@@ -9366,6 +9592,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[str]",
       "raw_calls": [
         "self.is_valid_unique_id"
       ],
@@ -9400,6 +9627,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "tuple",
       "raw_calls": [
         "int",
         "family_code.isdigit",
@@ -9430,6 +9658,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "len",
         "self.get_valid_engine_codes",
@@ -9467,6 +9696,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.error_codes.append"
       ],
@@ -9495,6 +9725,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[float]",
       "raw_calls": [
         "total_seconds"
       ],
@@ -9525,6 +9756,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -9554,6 +9786,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "hasattr"
       ],
@@ -9588,6 +9821,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Callable",
       "raw_calls": [
         "self._before_handlers.append"
       ],
@@ -9622,6 +9856,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Callable",
       "raw_calls": [
         "self._after_handlers.append"
       ],
@@ -9656,6 +9891,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Callable",
       "raw_calls": [
         "self._around_handlers.append"
       ],
@@ -9690,6 +9926,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Callable",
       "raw_calls": [
         "self._error_handlers.append"
       ],
@@ -9742,6 +9979,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "functools.wraps",
         "InterceptionContext",
@@ -9787,6 +10025,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "chain",
         "handler",
@@ -9818,6 +10057,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._before_handlers.clear",
         "self._after_handlers.clear",
@@ -9849,6 +10089,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, int]",
       "raw_calls": [
         "len"
       ],
@@ -9895,6 +10136,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "_interceptor.intercept"
       ],
@@ -9923,6 +10165,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Callable",
       "raw_calls": [
         "_interceptor.before"
       ],
@@ -9951,6 +10194,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Callable",
       "raw_calls": [
         "_interceptor.after"
       ],
@@ -9979,6 +10223,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Callable",
       "raw_calls": [
         "_interceptor.around"
       ],
@@ -10007,6 +10252,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Callable",
       "raw_calls": [
         "_interceptor.on_error"
       ],
@@ -10028,6 +10274,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Interceptor",
       "raw_calls": [],
       "docstring": "Get the global interceptor instance.",
       "decorators": []
@@ -10060,6 +10307,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -10095,6 +10343,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "hasattr",
         "logging.getLogger",
@@ -10136,6 +10385,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._context.update"
       ],
@@ -10164,6 +10414,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Clear global context.",
       "decorators": []
@@ -10250,6 +10501,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "level_map.get",
@@ -10308,6 +10560,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.info",
@@ -10374,6 +10627,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.log"
@@ -10433,6 +10687,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.info"
@@ -10486,6 +10741,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.critical"
@@ -10539,6 +10795,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.warning"
@@ -10598,6 +10855,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.info"
@@ -10639,6 +10897,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.debug"
@@ -10680,6 +10939,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.info"
@@ -10721,6 +10981,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.warning"
@@ -10762,6 +11023,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.error"
@@ -10803,6 +11065,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "extra.update",
         "self._logger.critical"
@@ -10838,6 +11101,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "hasattr",
         "json.dumps",
@@ -10877,6 +11141,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -10912,6 +11177,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path",
         "self._load_registry"
@@ -10941,6 +11207,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._registry_data.get",
         "self.config_path.exists",
@@ -10973,6 +11240,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._load_registry"
       ],
@@ -11007,6 +11275,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._errors.get"
       ],
@@ -11041,6 +11310,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [],
       "docstring": "Check if an error code exists in the registry.",
       "decorators": []
@@ -11073,6 +11343,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._errors.items",
         "error.get"
@@ -11108,6 +11379,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._errors.items",
         "error.get"
@@ -11143,6 +11415,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._errors.items",
         "get",
@@ -11179,6 +11452,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._errors.items",
         "get",
@@ -11209,6 +11483,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._errors.items",
         "error.get"
@@ -11238,6 +11513,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._errors.items",
         "error.get"
@@ -11273,6 +11549,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[str]",
       "raw_calls": [
         "self._errors.get",
         "error.get"
@@ -11308,6 +11585,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[str]",
       "raw_calls": [
         "self._errors.get",
         "error.get"
@@ -11343,6 +11621,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[str]",
       "raw_calls": [
         "self._errors.get",
         "error.get"
@@ -11372,6 +11651,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Set[str]",
       "raw_calls": [
         "set",
         "self._errors.keys"
@@ -11401,6 +11681,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "int",
       "raw_calls": [
         "len"
       ],
@@ -11429,6 +11710,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self._errors.values",
         "len",
@@ -11466,6 +11748,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "bool",
         "re.match"
@@ -11501,6 +11784,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "query.lower",
         "self._errors.items",
@@ -11540,6 +11824,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -11575,6 +11860,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path",
         "self._load_remediation"
@@ -11604,6 +11890,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._remediation_data.get",
         "self.config_path.exists",
@@ -11636,6 +11923,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._load_remediation"
       ],
@@ -11670,6 +11958,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._types.get"
       ],
@@ -11698,6 +11987,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [
         "self._types.copy"
       ],
@@ -11726,6 +12016,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Set[str]",
       "raw_calls": [
         "set",
         "self._types.keys"
@@ -11761,6 +12052,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self._types.get",
         "type_def.get"
@@ -11796,6 +12088,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self._types.get",
         "type_def.get"
@@ -11831,6 +12124,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self._types.get",
         "type_def.get"
@@ -11866,6 +12160,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._types.get",
         "type_def.get"
@@ -11907,6 +12202,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.get_applicable_layers"
       ],
@@ -11941,6 +12237,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._selection_rules.get",
         "severity_rules.get"
@@ -11976,6 +12273,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._selection_rules.get",
         "layer_rules.get"
@@ -12011,6 +12309,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._selection_rules.get",
         "family_rules.get"
@@ -12064,6 +12363,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self.get_selection_rules_by_severity",
         "self.get_selection_rules_by_layer",
@@ -12107,6 +12407,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, str]]",
       "raw_calls": [
         "self._types.get",
         "type_def.get"
@@ -12142,6 +12443,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self._types.get",
         "type_def.get"
@@ -12177,6 +12479,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self._types.get",
         "type_def.get"
@@ -12212,6 +12515,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self._types.get",
         "type_def.get"
@@ -12241,6 +12545,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "sum",
         "len",
@@ -12278,6 +12583,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -12313,6 +12619,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path",
         "self._load_status"
@@ -12342,6 +12649,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._status_data.get",
         "set",
@@ -12375,6 +12683,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._load_status"
       ],
@@ -12403,6 +12712,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._states.copy"
       ],
@@ -12437,6 +12747,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [],
       "docstring": "Check if a state is valid.",
       "decorators": []
@@ -12469,6 +12780,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [],
       "docstring": "Check if a state is terminal (cannot transition out except reopen).",
       "decorators": []
@@ -12501,6 +12813,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [],
       "docstring": "Check if a state is the initial state.",
       "decorators": []
@@ -12527,6 +12840,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Get the initial state for new errors.",
       "decorators": []
@@ -12559,6 +12873,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._transitions.get",
         "transition.get"
@@ -12600,6 +12915,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.get_valid_transitions"
       ],
@@ -12634,6 +12950,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._descriptions.get"
       ],
@@ -12668,6 +12985,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self._descriptions.get",
         "desc.get"
@@ -12703,6 +13021,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self._descriptions.get",
         "desc.get"
@@ -12738,6 +13057,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self._descriptions.get",
         "desc.get"
@@ -12773,6 +13093,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._workflows.get"
       ],
@@ -12801,6 +13122,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [
         "self._workflows.copy"
       ],
@@ -12835,6 +13157,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._workflows.get",
         "workflow.get"
@@ -12870,6 +13193,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._permissions.get"
       ],
@@ -12910,6 +13234,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self._permissions.get",
         "perms.get"
@@ -12945,6 +13270,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._notifications.get"
       ],
@@ -12985,6 +13311,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self._transitions.get",
         "transition.get",
@@ -13027,6 +13354,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self.get_valid_transitions",
         "self._descriptions.get",
@@ -13061,6 +13389,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "len"
       ],
@@ -13095,6 +13424,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -13130,6 +13460,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path",
         "self._load_taxonomy"
@@ -13159,6 +13490,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._taxonomy_data.get",
         "self.config_path.exists",
@@ -13191,6 +13523,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._load_taxonomy"
       ],
@@ -13225,6 +13558,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._engines.get"
       ],
@@ -13259,6 +13593,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._modules.get"
       ],
@@ -13293,6 +13628,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._functions.get"
       ],
@@ -13327,6 +13663,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._families.get"
       ],
@@ -13361,6 +13698,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._layers.get"
       ],
@@ -13389,6 +13727,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [
         "self._engines.copy"
       ],
@@ -13417,6 +13756,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [
         "self._modules.copy"
       ],
@@ -13445,6 +13785,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [
         "self._functions.copy"
       ],
@@ -13473,6 +13814,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [
         "self._families.copy"
       ],
@@ -13501,6 +13843,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [
         "self._layers.copy"
       ],
@@ -13535,6 +13878,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "name.lower",
         "self._engines.items",
@@ -13572,6 +13916,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._families.items",
         "family.get"
@@ -13607,6 +13952,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._engines.get",
         "engine.get",
@@ -13661,6 +14007,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Build a complete error code from components.\n\nArgs:\n    engine: Engine code (e.g., \"P\")\n    module: Module code (e.g., \"C\")\n    function: Function code (e.g., \"P\")\n    unique_id: 4-digit unique ID (e.g., \"0101\")\n\nReturns:\n    Complete error code (e.g., \"P-C-P-0101\")",
       "decorators": []
@@ -13693,6 +14040,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, str]]",
       "raw_calls": [
         "error_code.split",
         "len"
@@ -13728,6 +14076,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self.parse_error_code",
         "self.get_engine",
@@ -13766,6 +14115,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.parse_error_code"
       ],
@@ -13794,6 +14144,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, int]",
       "raw_calls": [
         "len"
       ],
@@ -13822,6 +14173,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -13851,6 +14203,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "hasattr"
       ],
@@ -13891,6 +14244,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "error_data.get",
         "self._validation_errors.append",
@@ -13928,6 +14282,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "bool",
         "re.match"
@@ -13975,6 +14330,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "error_code.split",
         "error_data.get",
@@ -14016,6 +14372,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "Path",
         "file_path.exists",
@@ -14048,6 +14405,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self._validation_errors.copy"
       ],
@@ -14076,6 +14434,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Clear validation errors.",
       "decorators": []
@@ -14108,6 +14467,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "registry_data.get",
         "errors.items",
@@ -14150,6 +14510,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "functools.wraps",
         "func"
@@ -14185,6 +14546,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "functools.wraps",
         "func"
@@ -14220,6 +14582,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "functools.wraps",
         "func"
@@ -14261,6 +14624,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "functools.wraps",
         "func"
@@ -14296,6 +14660,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "functools.wraps",
         "func"
@@ -14343,6 +14708,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -14384,6 +14750,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "self._detect_null_anchors",
@@ -14423,6 +14790,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "null_mask.sum",
         "self.detect_error",
@@ -14464,6 +14832,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "notna",
         "str",
@@ -14501,6 +14870,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "notna",
         "self._is_valid_date",
@@ -14538,6 +14908,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "isinstance",
         "pd.isna",
@@ -14581,6 +14952,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[int]",
       "raw_calls": [
         "index.tolist",
         "isna"
@@ -14616,6 +14988,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[int, str]]",
       "raw_calls": [
         "notna",
         "str",
@@ -14659,6 +15032,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[int]",
       "raw_calls": [
         "notna",
         "self._is_valid_date",
@@ -14689,6 +15063,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.detected_at.isoformat"
       ],
@@ -14735,6 +15110,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "Initialize base detector.\n\nArgs:\n    layer: Validation layer (L1, L2, L3, etc.)\n    logger: StructuredLogger instance (optional)\n    enable_fail_fast: Whether to enable fail-fast behavior",
       "decorators": []
@@ -14767,6 +15143,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._context.update"
       ],
@@ -14795,6 +15172,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Clear detection context.",
       "decorators": []
@@ -14827,6 +15205,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Set logger instance.",
       "decorators": []
@@ -14859,6 +15238,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._on_error_callbacks.append"
       ],
@@ -14935,6 +15315,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "DetectionResult",
       "raw_calls": [
         "self._context.copy",
         "DetectionResult",
@@ -14971,6 +15352,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self._errors.copy"
       ],
@@ -15005,6 +15387,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [],
       "docstring": "Get errors filtered by severity.",
       "decorators": []
@@ -15031,6 +15414,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [],
       "docstring": "Get all fail-fast errors.",
       "decorators": []
@@ -15057,6 +15441,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "any"
       ],
@@ -15085,6 +15470,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "int",
       "raw_calls": [
         "len"
       ],
@@ -15113,6 +15499,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, int]",
       "raw_calls": [
         "counts.get"
       ],
@@ -15141,6 +15528,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._errors.clear"
       ],
@@ -15169,6 +15557,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "len",
         "severities.get",
@@ -15212,6 +15601,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [],
       "docstring": "Abstract method for detection logic.\n\nArgs:\n    data: Data to analyze (DataFrame, dict, etc.)\n    context: Additional context\n\nReturns:\n    List of DetectionResult objects",
       "decorators": [
@@ -15246,6 +15636,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -15275,6 +15666,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.result.to_dict",
         "str"
@@ -15328,6 +15720,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -15363,6 +15756,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._detectors.append"
       ],
@@ -15403,6 +15797,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "detector.detect",
         "all_results.extend",
@@ -15454,6 +15849,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "self._init_default_detectors",
@@ -15485,6 +15881,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.register_phase_detector",
         "AnchorDetector",
@@ -15528,6 +15925,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "append",
         "self._logger.debug"
@@ -15581,6 +15979,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[ProcessingPhase, List[DetectionResult]]",
       "raw_calls": [
         "self.clear_errors",
         "self._phase_errors.values",
@@ -15634,6 +16033,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self._phase_detectors.get",
         "self._logger.info",
@@ -15676,6 +16076,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self._phase_errors.get"
       ],
@@ -15710,6 +16111,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self._phase_errors.values",
         "all_errors.extend"
@@ -15739,6 +16141,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "len",
         "self.get_errors_by_severity"
@@ -15768,6 +16171,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self._phase_errors.items",
         "len"
@@ -15809,6 +16213,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "valid_transitions.get"
       ],
@@ -15843,6 +16248,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "list",
         "phase_order.index",
@@ -15886,6 +16292,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "BusinessDetector",
       "raw_calls": [
         "BusinessDetector",
         "ProcessingPhase"
@@ -15927,6 +16334,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -15968,6 +16376,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "self._detect_division_by_zero",
@@ -16015,6 +16424,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "calc.get",
         "self.detect_error",
@@ -16053,6 +16463,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "set",
         "visited.add",
@@ -16103,6 +16514,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "calc.get",
         "pd.isna",
@@ -16148,6 +16560,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "calc.get",
         "self._parse_date",
@@ -16186,6 +16599,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "pd.notna",
         "float",
@@ -16223,6 +16637,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "pd.notna",
         "strip",
@@ -16260,6 +16675,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "pd.isna",
         "isinstance",
@@ -16298,6 +16714,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[datetime]",
       "raw_calls": [
         "isinstance",
         "pd.isna",
@@ -16342,6 +16759,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [],
       "docstring": "Public API: Check for missing input columns.\n\nArgs:\n    df: DataFrame\n    input_columns: Required input columns\n    \nReturns:\n    List of missing column names",
       "decorators": []
@@ -16374,6 +16792,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[List[str]]",
       "raw_calls": [
         "set",
         "visited.add",
@@ -16429,6 +16848,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[int, str]]",
       "raw_calls": [
         "pd.isna",
         "str",
@@ -16483,6 +16903,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -16524,6 +16945,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "self.get_errors",
@@ -16565,6 +16987,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._detect_excessive_nulls_from_stats",
         "record.get",
@@ -16604,6 +17027,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "record.get",
         "isinstance",
@@ -16645,6 +17069,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "record.get",
         "isinstance",
@@ -16682,6 +17107,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "pd.notna",
         "self.detect_error",
@@ -16718,6 +17144,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "pd.notna",
         "self.detect_error",
@@ -16754,6 +17181,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "inferred_columns.items",
         "any",
@@ -16806,6 +17234,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[int, int, int]]",
       "raw_calls": [
         "pd.notna",
         "range",
@@ -16855,6 +17284,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[int, str, str]]",
       "raw_calls": [
         "str",
         "pd.notna",
@@ -16895,6 +17325,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "record.get",
         "self.detect_error",
@@ -16938,6 +17369,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "max",
         "column_fill_stats.items",
@@ -16980,6 +17412,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "record.get",
         "self.detect_error",
@@ -17030,6 +17463,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -17071,6 +17505,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "self.get_errors",
@@ -17111,6 +17546,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "lower",
         "pd.isna",
@@ -17149,6 +17585,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "isna",
         "self.detect_error"
@@ -17184,6 +17621,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "context.get",
         "columns_config.get",
@@ -17231,6 +17669,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[re.Pattern]",
       "raw_calls": [
         "context.get",
         "get_derived_pattern_regex",
@@ -17269,6 +17708,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[str, int]",
       "raw_calls": [
         "context.get",
         "columns_config.get",
@@ -17312,6 +17752,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._get_schema_pattern",
         "self._get_affix_extraction_params",
@@ -17355,6 +17796,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[int, str]]",
       "raw_calls": [
         "lower",
         "pd.isna",
@@ -17393,6 +17835,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[int]",
       "raw_calls": [
         "index.tolist",
         "isna"
@@ -17434,6 +17877,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, List[int]]",
       "raw_calls": [
         "df.groupby",
         "duplicated",
@@ -17495,6 +17939,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -17536,6 +17981,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "isinstance",
@@ -17580,6 +18026,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "file_path.exists",
         "self.detect_error",
@@ -17616,6 +18063,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "file_path.suffix.lower",
         "self.detect_error",
@@ -17652,6 +18100,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.detect_error",
         "file_path.stat",
@@ -17688,6 +18137,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "open",
         "f.read",
@@ -17725,6 +18175,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "file_path.suffix.lower",
         "self.detect_error",
@@ -17771,6 +18222,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.get_errors",
         "self.set_context",
@@ -17814,6 +18266,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -17855,6 +18308,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "self._detect_date_inversion",
@@ -17895,6 +18349,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._parse_date",
         "notna",
@@ -17932,6 +18387,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "df.groupby",
         "len",
@@ -17972,6 +18428,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "isin",
         "self.detect_error",
@@ -18008,6 +18465,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "isin",
         "datetime.now",
@@ -18048,6 +18506,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[datetime]",
       "raw_calls": [
         "isinstance",
         "pd.isna",
@@ -18086,6 +18545,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "float",
       "raw_calls": [
         "upper",
         "float",
@@ -18128,6 +18588,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[int, str, str]]",
       "raw_calls": [
         "self._parse_date",
         "inversions.append",
@@ -18165,6 +18626,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, List[Tuple[str, str, int]]]",
       "raw_calls": [
         "df.groupby",
         "len",
@@ -18211,6 +18673,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -18252,6 +18715,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "self._validate_anchor_completeness",
@@ -18293,6 +18757,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, int]",
       "raw_calls": [
         "ROW_ERROR_WEIGHTS.copy"
       ],
@@ -18327,6 +18792,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "isna",
         "self.detect_error",
@@ -18364,6 +18830,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "len",
         "logger.warning",
@@ -18409,6 +18876,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "notna",
         "_parse_date",
@@ -18448,6 +18916,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "str.upper",
         "notna",
@@ -18487,6 +18956,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "str.contains",
         "isin",
@@ -18526,6 +18996,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "datetime.now",
         "pd.Series",
@@ -18572,6 +19043,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "transform",
         "self.detect_error",
@@ -18611,6 +19083,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "df.groupby",
         "len",
@@ -18652,6 +19125,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "df.groupby",
         "unique",
@@ -18691,6 +19165,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[datetime]",
       "raw_calls": [
         "isinstance",
         "pd.isna",
@@ -18724,6 +19199,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "float",
       "raw_calls": [
         "upper",
         "float",
@@ -18772,6 +19248,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -18819,6 +19296,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "re.compile"
       ],
@@ -18859,6 +19337,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "hasattr",
@@ -18900,6 +19379,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._patterns.items",
         "items",
@@ -18945,6 +19425,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._patterns.items",
         "self._validate_pattern",
@@ -18988,6 +19469,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "bool",
         "pattern.match",
@@ -19048,6 +19530,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "str",
         "len",
@@ -19108,6 +19591,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "str",
         "self.detect_error",
@@ -19163,6 +19647,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "isinstance",
         "self.detect_error",
@@ -19212,6 +19697,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[bool]",
       "raw_calls": [
         "rule.get",
         "results.append",
@@ -19280,6 +19766,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -19318,6 +19805,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -19359,6 +19847,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "self._rules.items",
@@ -19409,6 +19898,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._validate_pattern",
         "self._validate_length",
@@ -19460,6 +19950,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "rule.params.get",
         "re.compile",
@@ -19511,6 +20002,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "rule.params.get",
         "str",
@@ -19561,6 +20053,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "rule.params.get",
         "str",
@@ -19613,6 +20106,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "rule.params.get",
         "type_mapping.get",
@@ -19669,6 +20163,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "pd.isna",
         "self.detect_error"
@@ -19716,6 +20211,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "rule.params.get",
         "self._foreign_keys.get",
@@ -19755,6 +20251,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "append"
       ],
@@ -19795,6 +20292,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "set",
         "str"
@@ -19842,6 +20340,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[DetectionResult]",
       "raw_calls": [
         "self.clear_errors",
         "self.get_errors",
@@ -19893,6 +20392,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[int]",
       "raw_calls": [
         "re.compile",
         "pd.notna",
@@ -19943,6 +20443,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[int]",
       "raw_calls": [
         "pd.notna",
         "len",
@@ -20028,6 +20529,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "traceback.format_exc",
@@ -20058,6 +20560,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "str"
       ],
@@ -20092,6 +20595,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "json.dumps",
         "self.to_dict"
@@ -20127,6 +20631,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "messages_path.exists",
         "messages.get",
@@ -20165,6 +20670,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[str]",
       "raw_calls": [
         "messages_path.exists",
         "messages.get",
@@ -20198,6 +20704,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.context.get"
       ],
@@ -20226,6 +20733,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "join",
         "parts.append"
@@ -20255,6 +20763,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Detailed representation.",
       "decorators": []
@@ -20299,6 +20808,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super",
@@ -20347,6 +20857,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super",
@@ -20395,6 +20906,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super",
@@ -20443,6 +20955,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super",
@@ -20497,6 +21010,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super",
@@ -20527,6 +21041,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -20556,6 +21071,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "hasattr"
       ],
@@ -20590,6 +21106,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "Set structured logger instance.",
       "decorators": []
@@ -20622,6 +21139,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Enable or disable fail-fast behavior.",
       "decorators": []
@@ -20654,6 +21172,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._on_error_callbacks.append"
       ],
@@ -20688,6 +21207,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "exception_map.items",
         "isinstance"
@@ -20723,6 +21243,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "isinstance",
         "message_map.get",
@@ -20789,6 +21310,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "DCCError",
       "raw_calls": [
         "isinstance",
         "self._errors.append",
@@ -20833,6 +21355,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "wraps",
         "func",
@@ -20867,6 +21390,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "error.get",
         "by_code.get",
@@ -20897,6 +21421,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._errors.clear"
       ],
@@ -20918,6 +21443,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "ExceptionHandler",
       "raw_calls": [],
       "docstring": "Get global exception handler instance.",
       "decorators": []
@@ -20944,6 +21470,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "_handler.handle"
       ],
@@ -20972,6 +21499,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_handler.register_error_callback"
       ],
@@ -21000,6 +21528,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_handler.enable_fail_fast"
       ],
@@ -21034,6 +21563,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Localizer",
         "ErrorRegistry"
@@ -21069,6 +21599,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.localizer.set_locale"
       ],
@@ -21103,6 +21634,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "error_def.get",
         "result.context.copy",
@@ -21145,6 +21677,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Formats error for structured logging.",
       "decorators": []
@@ -21177,6 +21710,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self.format_for_ui"
       ],
@@ -21211,6 +21745,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self.format_for_ui"
       ],
@@ -21245,6 +21780,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__new__",
         "super"
@@ -21280,6 +21816,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -21312,6 +21849,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._load_locale"
       ],
@@ -21346,6 +21884,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "Path",
         "locale_path.exists",
@@ -21400,6 +21939,7 @@
           "kind": "kwarg"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self._messages.get",
         "key.split",
@@ -21446,6 +21986,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self.get_message",
         "action_key.startswith"
@@ -21475,6 +22016,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "asdict",
         "self.requested_at.isoformat",
@@ -21511,6 +22053,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path",
         "self._load_approvals"
@@ -21540,6 +22083,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.storage_path.exists",
         "open",
@@ -21576,6 +22120,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.storage_path.parent.mkdir",
         "req.to_dict",
@@ -21657,6 +22202,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "ApprovalRequest",
       "raw_calls": [
         "ApprovalRequest",
         "self._save_approvals"
@@ -21704,6 +22250,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "datetime.utcnow",
         "self._save_approvals"
@@ -21751,6 +22298,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "datetime.utcnow",
         "self._save_approvals"
@@ -21786,6 +22334,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[ApprovalRequest]",
       "raw_calls": [
         "self._approvals.values"
       ],
@@ -21838,6 +22387,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self._approvals.values",
         "str"
@@ -21873,6 +22423,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "to_dict"
       ],
@@ -21913,6 +22464,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self.archive_path.mkdir",
         "self._load_index",
@@ -21943,6 +22495,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "index_file.exists",
         "print",
@@ -21974,6 +22527,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "open",
         "json.dump",
@@ -22022,6 +22576,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "error.get",
         "self.archive_index.append",
@@ -22059,6 +22614,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[str]",
       "raw_calls": [
         "retention_date.isoformat",
         "datetime.now",
@@ -22095,6 +22651,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "Path",
         "archive_file.exists",
@@ -22135,6 +22692,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "Path",
         "archive_file.exists",
@@ -22167,6 +22725,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "datetime.now",
         "self._save_index",
@@ -22202,6 +22761,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "Path",
         "archive_file.exists",
@@ -22246,6 +22806,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self._build_severity_map",
         "self._build_layer_map"
@@ -22275,6 +22836,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Build severity level mapping based on error code patterns.",
       "decorators": []
@@ -22301,6 +22863,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Build layer mapping based on error code patterns.",
       "decorators": []
@@ -22339,6 +22902,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self._parse_error_code",
         "self._determine_severity",
@@ -22378,6 +22942,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, str]",
       "raw_calls": [
         "error_code.split",
         "len"
@@ -22413,6 +22978,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self.severity_map.get"
       ],
@@ -22447,6 +23013,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self.layer_map.get"
       ],
@@ -22487,6 +23054,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self._determine_severity",
         "context.get"
@@ -22534,6 +23102,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Determine routing category based on severity and business impact.\n\nBreadcrumb: severity \u2192 business_impact \u2192 category_rules \u2192 category\n\nArgs:\n    parsed: Parsed error code components\n    severity: Severity level\n    business_impact: Business impact level\n\nReturns:\n    Routing category (auto_fix, manual_fix, suppress, escalate, info)",
       "decorators": []
@@ -22572,6 +23141,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "routing_map.get"
       ],
@@ -22606,6 +23176,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self.categorize",
         "e.get"
@@ -22641,6 +23212,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "PriorityQueue"
       ],
@@ -22681,6 +23253,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Register a handler for a specific error category.\n\nBreadcrumb: category \u2192 handler \u2192 handlers_dict\n\nArgs:\n    category: Error category (auto_fix, manual_fix, suppress, escalate, info)\n    handler: Handler function to call for this category",
       "decorators": []
@@ -22713,6 +23286,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Register a fallback handler for unknown categories.\n\nBreadcrumb: handler \u2192 fallback_handler\n\nArgs:\n    handler: Fallback handler function",
       "decorators": []
@@ -22745,6 +23319,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.categorizer.categorize",
         "self.handlers.get",
@@ -22784,6 +23359,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.categorizer.categorize",
         "get",
@@ -22815,6 +23391,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "Thread",
         "self.dispatch_thread.start"
@@ -22844,6 +23421,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.dispatch_thread.join"
       ],
@@ -22872,6 +23450,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.queue.get",
         "self.handlers.get",
@@ -22917,6 +23496,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "zip",
         "self.categorizer.categorize",
@@ -22949,6 +23529,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.queue.qsize",
         "self.dispatch_thread.is_alive"
@@ -22978,6 +23559,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.queue.empty",
         "self.queue.get_nowait",
@@ -23008,6 +23590,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self._build_decision_matrix",
         "self._build_strategy_handlers"
@@ -23037,6 +23620,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [],
       "docstring": "Build remediation decision matrix.\n\nBreadcrumb: error_codes \u2192 strategies \u2192 matrix\n\nReturns:\n    Dict mapping error codes to remediation strategies",
       "decorators": []
@@ -23063,6 +23647,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Callable]",
       "raw_calls": [],
       "docstring": "Build strategy handler functions.\n\nBreadcrumb: strategies \u2192 handler_functions \u2192 handlers_dict\n\nReturns:\n    Dict mapping strategy codes to handler functions",
       "decorators": []
@@ -23107,6 +23692,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "error.get",
         "self.strategy_handlers.get",
@@ -23152,6 +23738,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "categorized.get",
         "category_defaults.get"
@@ -23193,6 +23780,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "get"
       ],
@@ -23233,6 +23821,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "error.get",
         "context.get",
@@ -23277,6 +23866,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [],
       "docstring": "Apply MANUAL_FIX strategy (flag for user correction).\n\nBreadcrumb: error \u2192 context \u2192 manual_fix_flag \u2192 result\n\nArgs:\n    error: Error dict\n    categorized: Categorized error\n\nReturns:\n    Dict with remediation result",
       "decorators": []
@@ -23315,6 +23905,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [],
       "docstring": "Apply SUPPRESS strategy (accept as-is with justification).\n\nBreadcrumb: error \u2192 categorized \u2192 suppress \u2192 result\n\nArgs:\n    error: Error dict\n    categorized: Categorized error\n\nReturns:\n    Dict with remediation result",
       "decorators": []
@@ -23353,6 +23944,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [],
       "docstring": "Apply ESCALATE strategy (route to expert/team).\n\nBreadcrumb: error \u2192 categorized \u2192 escalate \u2192 result\n\nArgs:\n    error: Error dict\n    categorized: Categorized error\n\nReturns:\n    Dict with remediation result",
       "decorators": []
@@ -23391,6 +23983,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "error.get",
         "context.get",
@@ -23435,6 +24028,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "error.get",
         "context.get",
@@ -23477,6 +24071,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [],
       "docstring": "Apply FILL_DOWN strategy (forward fill from previous row).\n\nBreadcrumb: error \u2192 context \u2192 fill_down \u2192 result\n\nArgs:\n    error: Error dict\n    categorized: Categorized error\n\nReturns:\n    Dict with remediation result",
       "decorators": []
@@ -23515,6 +24110,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "error.get",
         "context.get"
@@ -23556,6 +24152,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self._load_history"
       ],
@@ -23584,6 +24181,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "open",
         "json.load",
@@ -23614,6 +24212,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "open",
         "json.dump",
@@ -23674,6 +24273,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.error_history.append",
         "self._save_history",
@@ -23719,6 +24319,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "self.valid_transitions.get"
       ],
@@ -23753,6 +24354,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self.valid_transitions.get"
       ],
@@ -23787,6 +24389,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [],
       "docstring": "Check if status is a terminal state.\n\nBreadcrumb: status \u2192 terminal_states \u2192 is_terminal\n\nArgs:\n    status: Status to check\n\nReturns:\n    True if terminal, False otherwise",
       "decorators": []
@@ -23825,6 +24428,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "sorted",
         "e.get"
@@ -23860,6 +24464,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[str]",
       "raw_calls": [
         "self.get_error_history",
         "get"
@@ -23901,6 +24506,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [],
       "docstring": "Persist status to Error_Status column.\n\nBreadcrumb: error_id \u2192 status \u2192 column_persistence \u2192 result\n\nArgs:\n    error_id: Error identifier\n    status: Status to persist\n\nReturns:\n    Dict with persistence result",
       "decorators": []
@@ -23933,6 +24539,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self.load_rules"
       ],
@@ -23967,6 +24574,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "open",
         "json.load",
@@ -24010,6 +24618,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self._matches_rule",
         "self._is_expired",
@@ -24061,6 +24670,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "rule.get",
         "conditions.items",
@@ -24105,6 +24715,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "condition.get"
       ],
@@ -24139,6 +24750,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "rule.get",
         "datetime.fromisoformat",
@@ -24199,6 +24811,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.audit_log.append",
         "isoformat",
@@ -24235,6 +24848,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [],
       "docstring": "Get suppression audit log.\n\nBreadcrumb: audit_log \u2192 limit \u2192 filtered_log\n\nArgs:\n    limit: Maximum number of entries to return (most recent first)\n\nReturns:\n    List of audit entries",
       "decorators": []
@@ -24261,6 +24875,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Clear the suppression audit log.",
       "decorators": []
@@ -24287,6 +24902,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "len"
       ],
@@ -24317,6 +24933,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [
         "any",
         "e.get"
@@ -24360,6 +24977,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path"
       ],
@@ -24400,6 +25018,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[bool, Optional[Dict[str, Any]]]",
       "raw_calls": [
         "int",
         "expected.split",
@@ -24436,6 +25055,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "Path",
         "hashlib.sha256",
@@ -24484,6 +25104,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[bool, Optional[Dict[str, Any]]]",
       "raw_calls": [
         "self.calculate_signature",
         "str"
@@ -24519,6 +25140,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[bool, List[Dict[str, Any]]]",
       "raw_calls": [
         "self.verify_schema_version",
         "errors.append",
@@ -24556,6 +25178,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[bool, List[Dict[str, Any]]]",
       "raw_calls": [
         "Path",
         "path.exists",
@@ -24611,6 +25234,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "TemplateValidationResult",
       "raw_calls": [
         "self.validate_signature",
         "TemplateValidationResult",
@@ -24658,6 +25282,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "len",
         "e.get",
@@ -24694,6 +25319,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "self._build_index"
       ],
@@ -24722,6 +25348,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.historical_data.iterrows",
         "str",
@@ -24772,6 +25399,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[int, str, str]]",
       "raw_calls": [
         "current_df.groupby",
         "current_df.iterrows",
@@ -24826,6 +25454,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Tuple[bool, Optional[str]]",
       "raw_calls": [
         "max",
         "latest_hist.get",
@@ -24875,6 +25504,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "current_df.iterrows",
         "str",
@@ -24926,6 +25556,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Tuple[int, str, str]]",
       "raw_calls": [
         "set",
         "current_df.iterrows",
@@ -24971,6 +25602,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "self._doc_id_index.get"
       ],
@@ -25005,6 +25637,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "bool",
       "raw_calls": [],
       "docstring": "Check if document exists in history.\n\nArgs:\n    document_id: Document ID to check\n    \nReturns:\n    True if document exists",
       "decorators": []
@@ -25037,6 +25670,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[datetime]",
       "raw_calls": [
         "isinstance",
         "pd.isna",
@@ -25075,6 +25709,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "float",
       "raw_calls": [
         "upper",
         "float",
@@ -25111,6 +25746,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "HistoricalLookup",
       "raw_calls": [
         "HistoricalLookup"
       ],
@@ -25139,6 +25775,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "_find_cycle_path",
         "dependency_graph.items",
@@ -25193,6 +25830,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Set[str]",
       "raw_calls": [
         "set",
         "column_def.get",
@@ -25227,6 +25865,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "set",
         "visiting.add",
@@ -25269,6 +25908,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "_schema_root.get",
@@ -25300,6 +25940,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict]",
       "raw_calls": [
         "self.column_definitions.items",
         "isinstance"
@@ -25335,6 +25976,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "ref_config.get",
         "self.schema_data.get",
@@ -25375,6 +26017,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict]",
       "raw_calls": [
         "self.column_definitions.get",
         "col_def.get"
@@ -25416,6 +26059,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "self.get_ordered_columns",
         "status_print_fn",
@@ -25465,6 +26109,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "effective_parameters.get",
         "pd.read_excel",
@@ -25507,6 +26152,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "debug_print",
         "isinstance",
@@ -25541,6 +26187,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "hasattr",
@@ -25577,6 +26224,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "all",
         "debug_print",
@@ -25617,6 +26265,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.columns.tolist",
         "cols.remove"
@@ -25670,6 +26319,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "ensure_columns_are_strings",
@@ -25712,6 +26362,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "columns_schema.items",
         "col_def.get",
@@ -25743,6 +26394,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "df.copy",
         "astype",
@@ -25773,6 +26425,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "copy",
         "df.copy",
@@ -25810,6 +26463,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "count",
         "debug_print",
@@ -25844,6 +26498,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [],
       "docstring": "Convert to dictionary for API/JSON output.",
       "decorators": []
@@ -25882,6 +26537,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "float",
       "raw_calls": [
         "max",
         "round"
@@ -25913,6 +26569,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [],
       "docstring": "Converts score to a letter grade based on industry standards.",
       "decorators": [
@@ -25953,6 +26610,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "DataHealthKPI",
       "raw_calls": [
         "len",
         "cls.calculate_dataset_score",
@@ -25992,6 +26650,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.Series",
       "raw_calls": [
         "len",
         "error_aggregator.aggregate_row_errors",
@@ -26038,6 +26697,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "Path"
       ],
@@ -26072,6 +26732,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.aggregator.sync_with_initiation_logging",
         "self.aggregator.get_all_errors",
@@ -26107,6 +26768,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "self.aggregator.deduplicate_errors",
         "lines.append",
@@ -26140,6 +26802,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "pd.DataFrame",
       "raw_calls": [
         "self.aggregator.aggregate_phase_errors",
         "phase_errors.items",
@@ -26178,6 +26841,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "self.aggregator.get_all_errors",
         "pd.DataFrame",
@@ -26225,6 +26889,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "self.generate_summary_stats",
         "self.aggregator.deduplicate_errors",
@@ -26365,6 +27030,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "mapping_result.get",
         "summary_path.parent.mkdir",
@@ -26425,6 +27091,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "status_print_fn",
         "results.get",
@@ -26455,6 +27122,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "lines.append",
         "results.get",
@@ -26479,6 +27147,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "int",
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -26505,6 +27174,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_get_debug_level",
         "print"
@@ -26540,6 +27210,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_get_debug_level",
         "print"
@@ -26575,6 +27246,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "join",
@@ -26611,6 +27283,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "debug_print"
       ],
@@ -26639,6 +27312,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Set[str]]",
       "raw_calls": [
         "list",
         "debug_print",
@@ -26677,6 +27351,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.resolver._find_schema_file",
         "set",
@@ -26717,6 +27392,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Set[str]",
       "raw_calls": [
         "set",
         "isinstance",
@@ -26754,6 +27430,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[List[str]]",
       "raw_calls": [
         "set",
         "visited.add",
@@ -26790,6 +27467,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[str]",
       "raw_calls": [
         "self.detect_cycles",
         "set",
@@ -26830,6 +27508,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Set[str]",
       "raw_calls": [
         "self.graph.get",
         "set"
@@ -26865,6 +27544,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Set[str]",
       "raw_calls": [
         "set",
         "list",
@@ -26891,6 +27571,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "int",
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -26917,6 +27598,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_get_debug_level",
         "print"
@@ -26952,6 +27634,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_get_debug_level",
         "print"
@@ -26993,6 +27676,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "join",
@@ -27041,6 +27725,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "__init__",
         "super"
@@ -27088,6 +27773,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "safe_resolve",
         "self._extract_registered_schemas",
@@ -27126,6 +27812,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Dict[str, Any]]",
       "raw_calls": [
         "self.project_setup.get",
         "properties.get",
@@ -27167,6 +27854,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Path]",
       "raw_calls": [
         "directory.glob",
         "directory.exists",
@@ -27207,6 +27895,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Path]",
       "raw_calls": [
         "self.uri_registry.get"
       ],
@@ -27241,6 +27930,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "debug_print",
         "list",
@@ -27296,6 +27986,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "isinstance",
         "len",
@@ -27348,6 +28039,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "isinstance",
         "RefResolutionError",
@@ -27398,6 +28090,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "ref_path.startswith",
         "self._resolve_external_ref",
@@ -27446,6 +28139,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "lstrip",
         "debug_print",
@@ -27491,6 +28185,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "file_part.startswith",
         "self.cache.get",
@@ -27549,6 +28244,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "ref_obj.get",
         "self.validate_registration",
@@ -27596,6 +28292,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "FileNotFoundError",
         "candidate.exists",
@@ -27640,6 +28337,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "schema.get",
         "schema_refs.items",
@@ -27670,6 +28368,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "int",
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -27696,6 +28395,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_get_debug_level",
         "print"
@@ -27731,6 +28431,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_get_debug_level",
         "print"
@@ -27778,6 +28479,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "debug_print",
         "Path",
@@ -27817,6 +28519,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "hexdigest",
         "hashlib.md5",
@@ -27853,6 +28556,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "str",
       "raw_calls": [
         "json.dumps",
         "hexdigest",
@@ -27896,6 +28600,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "time.time",
         "self._check_l2_cache",
@@ -27941,6 +28646,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Optional[Dict[str, Any]]",
       "raw_calls": [
         "self._generate_key",
         "cache_file.exists",
@@ -27995,6 +28701,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.set_l1",
         "self.set_l2"
@@ -28036,6 +28743,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._get_content_hash",
         "time.time"
@@ -28077,6 +28785,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._generate_key",
         "debug_print",
@@ -28114,6 +28823,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self.l1_cache.clear",
         "debug_print",
@@ -28152,6 +28862,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "self.l3_cache.get"
       ],
@@ -28192,6 +28903,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [],
       "docstring": "Set L3 session cache.",
       "decorators": []
@@ -28218,6 +28930,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, int]",
       "raw_calls": [
         "self.metrics.copy"
       ],
@@ -28239,6 +28952,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": null,
       "raw_calls": [],
       "docstring": "",
       "decorators": []
@@ -28295,6 +29009,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "safe_resolve",
         "set",
@@ -28334,6 +29049,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "safe_resolve",
         "RefResolver",
@@ -28378,6 +29094,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "safe_resolve",
         "self.main_schema_path.parent.exists",
@@ -28414,6 +29131,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "self._resolver.validate_registration"
       ],
@@ -28448,6 +29166,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Set[str]",
       "raw_calls": [
         "self._validate_registration",
         "set",
@@ -28496,6 +29215,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self._validate_registration",
         "self._dependency_graph.detect_cycles",
@@ -28538,6 +29258,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.cache.get",
         "self.load_schema"
@@ -28591,6 +29312,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Any",
       "raw_calls": [
         "self._resolver.resolve"
       ],
@@ -28625,6 +29347,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "safe_resolve",
         "Path",
@@ -28662,6 +29385,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "Path",
         "candidate.is_absolute",
@@ -28707,6 +29431,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.cache.get",
         "FileNotFoundError",
@@ -28754,6 +29479,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self._resolve_reference_path",
         "str",
@@ -28795,6 +29521,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "main_schema.copy",
         "set",
@@ -28842,6 +29569,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self._resolve_reference_path",
         "self.load_schema_from_path",
@@ -28878,6 +29606,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "data.get",
         "isinstance",
@@ -28909,6 +29638,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "safe_resolve",
         "Path",
@@ -28939,6 +29669,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]]",
       "raw_calls": [
         "safe_resolve",
         "main_schema_path.exists",
@@ -28983,6 +29714,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "destination.parent.mkdir",
         "destination.write_text",
@@ -29025,6 +29757,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "safe_resolve",
         "get_validation_status_path",
@@ -29063,6 +29796,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "tuple[bool, str]",
       "raw_calls": [
         "safe_resolve",
         "status.get",
@@ -29097,6 +29831,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "absolute",
         "Path"
@@ -29119,6 +29854,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Path",
       "raw_calls": [
         "parent.absolute",
         "absolute",
@@ -29144,6 +29880,7 @@
       "loop_count": 0,
       "arg_count": 0,
       "args": [],
+      "return_annotation": "Path",
       "raw_calls": [
         "safe_resolve",
         "Path"
@@ -29173,6 +29910,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Path",
       "raw_calls": [
         "safe_resolve",
         "Path"
@@ -29208,6 +29946,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "_status_print"
       ],
@@ -29254,6 +29993,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "safe_resolve",
         "validated_paths.add",
@@ -29316,6 +30056,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "next",
         "validation.get",
@@ -29353,6 +30094,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Dict[str, Any]] | None",
       "raw_calls": [
         "schema_data.items",
         "isinstance"
@@ -29424,6 +30166,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "field_def.get",
         "validate_scalar_rules",
@@ -29499,6 +30242,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "bool",
         "record.get",
@@ -29566,6 +30310,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "validation.get",
         "append",
@@ -29633,6 +30378,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "unique_trackers.setdefault",
         "validation.get",
@@ -29699,6 +30445,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "None",
       "raw_calls": [
         "validation.get",
         "append",
@@ -29737,6 +30484,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": null,
       "raw_calls": [
         "safe_resolve",
         "SchemaLoader",
@@ -29768,6 +30516,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "set",
         "validate_schema_document",
@@ -29842,6 +30591,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "List[Path]",
       "raw_calls": [
         "safe_resolve",
         "visited_paths.add",
@@ -29884,6 +30634,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.loader.load_json_file"
       ],
@@ -29912,6 +30663,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "self.load_main_schema",
         "self.loader.resolve_schema_dependencies",
@@ -29948,6 +30700,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "main_schema.copy",
         "self._normalize_resolved_schema",
@@ -29989,6 +30742,7 @@
           "kind": "positional"
         }
       ],
+      "return_annotation": "Dict[str, Any]",
       "raw_calls": [
         "raw.copy",
         "raw.get",

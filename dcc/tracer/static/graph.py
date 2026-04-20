@@ -19,6 +19,7 @@ from typing import List, Dict, Any, Optional
 
 try:
     import networkx as nx
+
     _NX_AVAILABLE = True
 except ImportError:
     _NX_AVAILABLE = False
@@ -48,8 +49,8 @@ class CallGraph:
     def __init__(self, modules: List[ModuleInfo]):
         # Breadcrumb: store modules and build lookup tables on init
         self.modules = modules
-        self._func_map: Dict[str, FunctionInfo] = {}   # qualified_name -> FunctionInfo
-        self._name_index: Dict[str, List[str]] = {}    # short_name -> [qualified_names]
+        self._func_map: Dict[str, FunctionInfo] = {}  # qualified_name -> FunctionInfo
+        self._name_index: Dict[str, List[str]] = {}  # short_name -> [qualified_names]
         self.graph = nx.DiGraph() if _NX_AVAILABLE else None
         self._built = False
 
@@ -70,8 +71,7 @@ class CallGraph:
         self._add_nodes()
         self._add_edges()
         self._built = True
-        log.info("[graph] Built: %d nodes, %d edges",
-                 self.node_count, self.edge_count)
+        log.info("[graph] Built: %d nodes, %d edges", self.node_count, self.edge_count)
         return self
 
     def _build_index(self) -> None:
@@ -95,20 +95,23 @@ class CallGraph:
         if not _NX_AVAILABLE:
             return
         for qname, fn in self._func_map.items():
-            self.graph.add_node(qname, **{
-                "name": fn.name,
-                "module": fn.module,
-                "file": fn.file_path,
-                "start_line": fn.start_line,
-                "end_line": fn.end_line,
-                "is_method": fn.is_method,
-                "class_name": fn.class_name or "",
-                "is_async": fn.is_async,
-                "cyclomatic_complexity": fn.cyclomatic_complexity,
-                "try_except_count": fn.try_except_count,
-                "loop_count": fn.loop_count,
-                "arg_count": len(fn.args),
-            })
+            self.graph.add_node(
+                qname,
+                **{
+                    "name": fn.name,
+                    "module": fn.module,
+                    "file": fn.file_path,
+                    "start_line": fn.start_line,
+                    "end_line": fn.end_line,
+                    "is_method": fn.is_method,
+                    "class_name": fn.class_name or "",
+                    "is_async": fn.is_async,
+                    "cyclomatic_complexity": fn.cyclomatic_complexity,
+                    "try_except_count": fn.try_except_count,
+                    "loop_count": fn.loop_count,
+                    "arg_count": len(fn.args),
+                },
+            )
 
     def _add_edges(self) -> None:
         """Resolve raw_calls to qualified names and add directed edges.
@@ -128,15 +131,59 @@ class CallGraph:
 
     # Generic names that are too ambiguous to resolve as meaningful edges
     _SKIP_CALLS = {
-        "get", "set", "add", "pop", "append", "extend", "update", "remove",
-        "sort", "sorted", "items", "keys", "values", "copy", "clear",
-        "join", "split", "strip", "format", "encode", "decode",
-        "read", "write", "open", "close", "flush",
-        "print", "len", "range", "enumerate", "zip", "map", "filter",
-        "str", "int", "float", "bool", "list", "dict", "tuple",
-        "isinstance", "hasattr", "getattr", "setattr", "super",
-        "info", "debug", "warning", "error", "critical",
-        "__init__", "__str__", "__repr__",
+        "get",
+        "set",
+        "add",
+        "pop",
+        "append",
+        "extend",
+        "update",
+        "remove",
+        "sort",
+        "sorted",
+        "items",
+        "keys",
+        "values",
+        "copy",
+        "clear",
+        "join",
+        "split",
+        "strip",
+        "format",
+        "encode",
+        "decode",
+        "read",
+        "write",
+        "open",
+        "close",
+        "flush",
+        "print",
+        "len",
+        "range",
+        "enumerate",
+        "zip",
+        "map",
+        "filter",
+        "str",
+        "int",
+        "float",
+        "bool",
+        "list",
+        "dict",
+        "tuple",
+        "isinstance",
+        "hasattr",
+        "getattr",
+        "setattr",
+        "super",
+        "info",
+        "debug",
+        "warning",
+        "error",
+        "critical",
+        "__init__",
+        "__str__",
+        "__repr__",
     }
 
     def _resolve_call(self, raw: str, caller_module: str) -> Optional[str]:
@@ -216,14 +263,16 @@ class CallGraph:
         hotspots = []
         for qname, fn in self._func_map.items():
             if fn.cyclomatic_complexity >= threshold:
-                hotspots.append({
-                    "qualified_name": qname,
-                    "name": fn.name,
-                    "module": fn.module,
-                    "complexity": fn.cyclomatic_complexity,
-                    "file": fn.file_path,
-                    "start_line": fn.start_line,
-                })
+                hotspots.append(
+                    {
+                        "qualified_name": qname,
+                        "name": fn.name,
+                        "module": fn.module,
+                        "complexity": fn.cyclomatic_complexity,
+                        "file": fn.file_path,
+                        "start_line": fn.start_line,
+                    }
+                )
         return sorted(hotspots, key=lambda x: x["complexity"], reverse=True)
 
     # ── Serialisation ─────────────────────────────────────────────────────────
@@ -239,27 +288,36 @@ class CallGraph:
         """
         nodes = []
         for qname, fn in self._func_map.items():
-            nodes.append({
-                "id": qname,
-                "label": fn.name,
-                "module": fn.module,
-                "file": fn.file_path,
-                "start_line": fn.start_line,
-                "end_line": fn.end_line,
-                "is_method": fn.is_method,
-                "class_name": fn.class_name or "",
-                "is_async": fn.is_async,
-                "cyclomatic_complexity": fn.cyclomatic_complexity,
-                "try_except_count": fn.try_except_count,
-                "loop_count": fn.loop_count,
-                "arg_count": len(fn.args),
-                "args": [{"name": a.name, "annotation": a.annotation,
-                           "default": a.default, "kind": a.kind}
-                          for a in fn.args],
-                "raw_calls": fn.raw_calls,
-                "docstring": fn.docstring or "",
-                "decorators": fn.decorators,
-            })
+            nodes.append(
+                {
+                    "id": qname,
+                    "label": fn.name,
+                    "module": fn.module,
+                    "file": fn.file_path,
+                    "start_line": fn.start_line,
+                    "end_line": fn.end_line,
+                    "is_method": fn.is_method,
+                    "class_name": fn.class_name or "",
+                    "is_async": fn.is_async,
+                    "cyclomatic_complexity": fn.cyclomatic_complexity,
+                    "try_except_count": fn.try_except_count,
+                    "loop_count": fn.loop_count,
+                    "arg_count": len(fn.args),
+                    "args": [
+                        {
+                            "name": a.name,
+                            "annotation": a.annotation,
+                            "default": a.default,
+                            "kind": a.kind,
+                        }
+                        for a in fn.args
+                    ],
+                    "return_annotation": fn.return_annotation,
+                    "raw_calls": fn.raw_calls,
+                    "docstring": fn.docstring or "",
+                    "decorators": fn.decorators,
+                }
+            )
 
         edges = []
         if _NX_AVAILABLE and self._built:
@@ -296,6 +354,8 @@ class CallGraph:
         """
         out = Path(path).resolve()
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(self.to_json(), indent=2, default=str), encoding="utf-8")
+        out.write_text(
+            json.dumps(self.to_json(), indent=2, default=str), encoding="utf-8"
+        )
         log.info("[graph] Saved JSON → %s", out)
         return out

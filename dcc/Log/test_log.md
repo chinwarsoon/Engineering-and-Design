@@ -7,7 +7,22 @@
 
 # Section 2. Test log entries
 
-## 2026-04-19 05:00:00
+## 2026-04-20
+1. **Static Dashboard UI Enhancements — Manual Browser Verification**
+   - **Method**: Static code review + manual browser test against live backend (754 nodes, 737 edges)
+   - **Checklist**:
+     - Flow View tab: callers → selected → callees rendered correctly, each node navigable ✓
+     - Seq tab: rows ordered callers first, selected row highlighted blue, params and outcome columns populated ✓
+     - Errors tab: severity cards rendered, CC/try/loop/unreachable rules fire correctly ✓
+     - Flow Tree sidebar: updates only on file tree selection, frozen on flow tree node click ✓
+     - Parameters section: name, type annotation, default, return type displayed correctly ✓
+     - Section resizers: drag handles between all three sidebar sections, min 80px enforced ✓
+     - Inspector tab preserved: switching nodes from file tree, flow tree, graph, and inspector links all retain active tab ✓
+     - Right sidebar width: resizable up to 50% of screen width ✓
+   - **Result**: All features functional. No regressions observed in existing tabs (Info, Sig, Trace, Code) or graph interactions.
+   - **Related**: [Issue #50](issue_log.md#issue50-static-dashboard-ui), [update_log.md](#static-dashboard-ui-enhancements)
+- `Status: PASS`
+
 1. **Pipeline Messaging Workplan Redesigned — Awaiting Approval**
    - **Method**: Live pipeline run + output analysis
    - **Observed at default level (level 1):** 80+ lines before processing begins

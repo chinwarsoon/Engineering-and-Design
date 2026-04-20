@@ -19,6 +19,16 @@
 
 # Section 2. Pending Issues
 
+<a id="issue50-static-dashboard-ui"></a>
+## 2026-04-20
+[Issue #50]: Static Dashboard — inspector tab resets to Info on every node selection
+- [Status]: RESOLVED
+- [Context]: Every time a node was selected (from file tree, flow tree, graph, or inspector links), the inspector panel always switched back to the Info tab, losing the user’s current tab context.
+- [Root Cause]: `openInspector()` unconditionally called `switchInsTab('info')` on every invocation.
+- [File Changes]: `dcc/tracer/static_dashboard.html` — added `currentInspectorTab` state variable; `switchInsTab` saves to it; `openInspector` restores from it.
+- [Resolution]: Inspector tab selection is now preserved across all node navigation sources.
+- [Link to Update Log]: [update_log.md](#static-dashboard-ui-enhancements)
+
 <a id="issue49-tree-collapsible"></a>
 ## 2026-04-20
 [Issue #49]: static_dashboard.html file tree is not collapsible

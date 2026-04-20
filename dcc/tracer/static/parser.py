@@ -22,21 +22,24 @@ log = logging.getLogger(__name__)
 
 # ── Data classes ─────────────────────────────────────────────────────────────
 
+
 @dataclass
 class ArgInfo:
     """Metadata for a single function argument."""
+
     name: str
-    annotation: Optional[str] = None   # type hint as string, if present
-    default: Optional[str] = None      # default value as string, if present
-    kind: str = "positional"           # positional | keyword | vararg | kwarg
+    annotation: Optional[str] = None  # type hint as string, if present
+    default: Optional[str] = None  # default value as string, if present
+    kind: str = "positional"  # positional | keyword | vararg | kwarg
 
 
 @dataclass
 class FunctionInfo:
     """Extracted metadata for one function or method."""
+
     name: str
-    qualified_name: str          # module::class.method or module::function
-    module: str                  # dot-separated module name
+    qualified_name: str  # module::class.method or module::function
+    module: str  # dot-separated module name
     file_path: str
     start_line: int
     end_line: int
@@ -44,7 +47,8 @@ class FunctionInfo:
     class_name: Optional[str] = None
     is_async: bool = False
     args: List[ArgInfo] = field(default_factory=list)
-    raw_calls: List[str] = field(default_factory=list)   # unresolved callee names
+    return_annotation: Optional[str] = None
+    raw_calls: List[str] = field(default_factory=list)  # unresolved callee names
     docstring: Optional[str] = None
     decorators: List[str] = field(default_factory=list)
     # Logic metrics (populated by metrics.logic_summary)
@@ -60,17 +64,19 @@ class FunctionInfo:
 @dataclass
 class ModuleInfo:
     """Extracted metadata for one .py file."""
+
     module_name: str
     file_path: str
     rel_path: str
     package: str
     lines: int
     functions: List[FunctionInfo] = field(default_factory=list)
-    imports: List[str] = field(default_factory=list)   # imported module names
+    imports: List[str] = field(default_factory=list)  # imported module names
     parse_error: Optional[str] = None
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _annotation_str(node: Optional[ast.expr]) -> Optional[str]:
     """Convert an annotation AST node to a readable string.
@@ -117,39 +123,53 @@ def _extract_args(func_node: ast.FunctionDef | ast.AsyncFunctionDef) -> List[Arg
 
     for i, arg in enumerate(pos_args):
         default_idx = i - default_offset
-        default = _default_str(args_obj.defaults[default_idx]) if default_idx >= 0 else None
-        result.append(ArgInfo(
-            name=arg.arg,
-            annotation=_annotation_str(arg.annotation),
-            default=default,
-            kind="positional",
-        ))
+        default = (
+            _default_str(args_obj.defaults[default_idx]) if default_idx >= 0 else None
+        )
+        result.append(
+            ArgInfo(
+                name=arg.arg,
+                annotation=_annotation_str(arg.annotation),
+                default=default,
+                kind="positional",
+            )
+        )
 
     # *args
     if args_obj.vararg:
-        result.append(ArgInfo(
-            name=args_obj.vararg.arg,
-            annotation=_annotation_str(args_obj.vararg.annotation),
-            kind="vararg",
-        ))
+        result.append(
+            ArgInfo(
+                name=args_obj.vararg.arg,
+                annotation=_annotation_str(args_obj.vararg.annotation),
+                kind="vararg",
+            )
+        )
 
     # keyword-only args
     for i, arg in enumerate(args_obj.kwonlyargs):
-        default = _default_str(args_obj.kw_defaults[i]) if i < len(args_obj.kw_defaults) else None
-        result.append(ArgInfo(
-            name=arg.arg,
-            annotation=_annotation_str(arg.annotation),
-            default=default,
-            kind="keyword",
-        ))
+        default = (
+            _default_str(args_obj.kw_defaults[i])
+            if i < len(args_obj.kw_defaults)
+            else None
+        )
+        result.append(
+            ArgInfo(
+                name=arg.arg,
+                annotation=_annotation_str(arg.annotation),
+                default=default,
+                kind="keyword",
+            )
+        )
 
     # **kwargs
     if args_obj.kwarg:
-        result.append(ArgInfo(
-            name=args_obj.kwarg.arg,
-            annotation=_annotation_str(args_obj.kwarg.annotation),
-            kind="kwarg",
-        ))
+        result.append(
+            ArgInfo(
+                name=args_obj.kwarg.arg,
+                annotation=_annotation_str(args_obj.kwarg.annotation),
+                kind="kwarg",
+            )
+        )
 
     return result
 
@@ -228,6 +248,7 @@ def _decorator_names(func_node: ast.FunctionDef | ast.AsyncFunctionDef) -> List[
 
 # ── Main parser class ─────────────────────────────────────────────────────────
 
+
 class ModuleParser:
     """Parses a single .py file and extracts structured metadata.
 
@@ -298,7 +319,9 @@ class ModuleParser:
             elif isinstance(node, ast.ClassDef):
                 for item in ast.iter_child_nodes(node):
                     if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        functions.append(self._build_func_info(item, module, class_name=node.name))
+                        functions.append(
+                            self._build_func_info(item, module, class_name=node.name)
+                        )
 
         return functions
 
@@ -320,7 +343,11 @@ class ModuleParser:
         Returns:
             Populated FunctionInfo.
         """
-        qualified = f"{module}::{class_name}.{node.name}" if class_name else f"{module}::{node.name}"
+        qualified = (
+            f"{module}::{class_name}.{node.name}"
+            if class_name
+            else f"{module}::{node.name}"
+        )
         metrics = logic_summary(node)
 
         return FunctionInfo(
@@ -334,6 +361,7 @@ class ModuleParser:
             class_name=class_name,
             is_async=isinstance(node, ast.AsyncFunctionDef),
             args=_extract_args(node),
+            return_annotation=_annotation_str(node.returns),
             raw_calls=_extract_calls(node),
             docstring=ast.get_docstring(node),
             decorators=_decorator_names(node),
@@ -342,6 +370,7 @@ class ModuleParser:
 
 
 # ── Convenience functions ─────────────────────────────────────────────────────
+
 
 def parse_file(path: str | Path) -> ModuleInfo:
     """Parse a single .py file by path (no FileRecord needed).
@@ -355,6 +384,7 @@ def parse_file(path: str | Path) -> ModuleInfo:
         ModuleInfo.
     """
     from .crawler import FileRecord, _count_lines
+
     p = Path(path).resolve()
     record = FileRecord(
         path=p,

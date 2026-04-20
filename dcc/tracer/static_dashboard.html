@@ -39,7 +39,7 @@
 
     /* ── sidebar overrides ── */
     .dcc-sidebar { width: 260px; min-width: 150px; max-width: 500px; transition: none; display: flex; flex-direction: column; overflow: hidden; }
-    #inspector-panel { width: 320px; min-width: 200px; max-width: 600px; border-left: none; transition: none; display: none; flex-direction: column; flex-shrink: 0; z-index: 100; background: var(--surface); height: 100%; }
+    #inspector-panel { width: 320px; min-width: 200px; max-width: 50%; border-left: none; transition: none; display: none; flex-direction: column; flex-shrink: 0; z-index: 100; background: var(--surface); height: 100%; }
     
     .dcc-sidebar.collapsed { display: none; }
     #inspector-panel.collapsed { display: none; }
@@ -127,6 +127,115 @@
 
     /* ── search highlight ── */
     .match { background: rgba(255, 255, 0, 0.2); }
+
+    /* ── flow view ── */
+    #ins-panel-flow { gap: 0; }
+    .flow-lane {
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 10px 14px;
+    }
+    .flow-lane-label {
+      font-size: 9px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;
+    }
+    .flow-node {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 4px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface2);
+      font-size: 11px; transition: background 0.1s;
+    }
+    .flow-node:hover { background: var(--surface3); }
+    .flow-node.flow-selected {
+      border-color: #58a6ff; background: rgba(88,166,255,0.08);
+      font-weight: 700; color: var(--accent-alt);
+    }
+    .flow-arrow {
+      text-align: center; color: var(--text3); font-size: 14px;
+      line-height: 1; padding: 2px 0;
+    }
+    .flow-divider {
+      border: none; border-top: 1px solid var(--border); margin: 6px 14px;
+    }
+
+    /* ── trace table ── */
+    .trace-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .trace-table th {
+      position: sticky; top: 0; background: var(--surface2);
+      padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 700;
+      color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+    .trace-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text); }
+    .trace-table tr:hover td { background: var(--surface2); cursor: pointer; }
+    .trace-table tr.trace-selected td { background: rgba(88,166,255,0.08); }
+    .trace-seq { color: var(--text3); font-family: var(--font-mono); }
+    .trace-fn  { font-family: var(--font-mono); color: var(--accent-alt); }
+    .trace-params { color: var(--text2); font-family: var(--font-mono); font-size: 10px; word-break: break-all; }
+    .trace-outcome { font-size: 10px; }
+    .outcome-ok   { color: #3fb950; }
+    .outcome-warn { color: #d29922; }
+    .outcome-risk { color: #f0883e; }
+    .outcome-err  { color: #f85149; }
+
+    /* ── error tab ── */
+    .err-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 8px 10px; border-radius: 4px; margin-bottom: 6px;
+      border: 1px solid var(--border); background: var(--surface2); font-size: 11px;
+    }
+    .err-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .err-body { flex: 1; }
+    .err-title { font-weight: 700; margin-bottom: 2px; }
+    .err-desc  { color: var(--text2); font-size: 10px; line-height: 1.4; }
+    .err-sev-high   { border-left: 3px solid #f85149; }
+    .err-sev-med    { border-left: 3px solid #f0883e; }
+    .err-sev-low    { border-left: 3px solid #d29922; }
+    .err-sev-ok     { border-left: 3px solid #3fb950; }
+    /* ── flow tree (sidebar) ── */
+    #flow-tree-section { display: flex; flex-direction: column; border-top: 1px solid var(--border); flex: 1; min-height: 80px; }
+    #flow-tree-section .sb-panel-header { flex-shrink: 0; }
+    #flow-tree-scroll { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .ft-group-label {
+      padding: 4px 12px 2px; font-size: 9px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.6px;
+    }
+    .ft-item {
+      display: flex; align-items: center; gap: 6px; padding: 3px 12px 3px 20px;
+      font-size: 11px; color: var(--text2); cursor: pointer; transition: background 0.1s;
+      white-space: nowrap; overflow: hidden;
+    }
+    .ft-item:hover { background: var(--surface2); color: var(--text); }
+    .ft-item.ft-root { padding-left: 12px; color: var(--accent-alt); font-weight: 600; background: rgba(88,166,255,0.06); }
+    .ft-item.ft-active { background: var(--surface3); color: var(--accent-alt); font-weight: 600; }
+    .ft-arrow { color: var(--text3); font-size: 10px; padding: 1px 12px; }
+    .ft-empty { padding: 12px; font-size: 11px; color: var(--text3); text-align: center; }
+
+    /* ── params section (sidebar) ── */
+    #params-section { display: flex; flex-direction: column; border-top: 1px solid var(--border); flex: 1; min-height: 80px; }
+    #params-section .sb-panel-header { flex-shrink: 0; }
+    #params-scroll { flex: 1; overflow-y: auto; padding: 8px 12px; }
+    .param-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 11px;
+    }
+    .param-row:last-child { border-bottom: none; }
+    .param-name { font-family: var(--font-mono); color: var(--text); font-weight: 600; }
+    .param-type { font-family: var(--font-mono); color: var(--text3); font-size: 10px; }
+    .param-default { color: var(--text2); font-size: 10px; font-style: italic; }
+    .param-return {
+      margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+      font-size: 11px; display: flex; justify-content: space-between;
+    }
+    .param-return-label { color: var(--text2); font-weight: 700; }
+    .param-return-val { font-family: var(--font-mono); color: var(--accent-alt); }
+
+    /* ── section resizers ── */
+    .section-resizer {
+      height: 4px; cursor: row-resize; background: transparent;
+      border-top: 1px solid var(--border); transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .section-resizer:hover, .section-resizer.dragging { background: var(--accent-alt); }
   </style>
 </head>
 <body>
@@ -184,12 +293,34 @@
           <button class="btn btn-ghost btn-icon" title="Collapse All" onclick="expandCollapseAllTree(false)" style="padding:2px">📁</button>
         </div>
       </div>
-      <div id="file-tree-container">
+      <div id="file-tree-container" style="flex:1;display:flex;flex-direction:column;min-height:80px;overflow:hidden">
         <div class="tree-search">
           <input id="tree-search-input" type="text" placeholder="Search files/functions..." oninput="filterFileTree()">
         </div>
-        <div class="tree-scroll" id="tree-body">
+        <div class="tree-scroll" id="tree-body" style="flex:1;overflow-y:auto">
           <div style="padding:20px;color:var(--text3);text-align:center">No data loaded</div>
+        </div>
+      </div>
+      <!-- Section Resizer 1 -->
+      <div class="section-resizer" id="section-resizer-1"></div>
+      <!-- Flow Tree Section -->
+      <div id="flow-tree-section">
+        <div class="sb-panel-header" style="padding:6px 14px">
+          <span>Flow Tree</span>
+        </div>
+        <div id="flow-tree-scroll">
+          <div class="ft-empty">Select a function above</div>
+        </div>
+      </div>
+      <!-- Section Resizer 2 -->
+      <div class="section-resizer" id="section-resizer-2"></div>
+      <!-- Parameters Section -->
+      <div id="params-section">
+        <div class="sb-panel-header" style="padding:6px 14px">
+          <span>Parameters</span>
+        </div>
+        <div id="params-scroll">
+          <div class="ft-empty">Select a function above</div>
         </div>
       </div>
     </div>
@@ -324,6 +455,9 @@
       <div class="sb-tab active" id="ins-tab-btn-info"   onclick="switchInsTab('info')">Info</div>
       <div class="sb-tab"        id="ins-tab-btn-sig"    onclick="switchInsTab('sig')">Sig</div>
       <div class="sb-tab"        id="ins-tab-btn-trace"  onclick="switchInsTab('trace')">Trace</div>
+      <div class="sb-tab"        id="ins-tab-btn-flow"   onclick="switchInsTab('flow')">Flow</div>
+      <div class="sb-tab"        id="ins-tab-btn-seq"    onclick="switchInsTab('seq')">Seq</div>
+      <div class="sb-tab"        id="ins-tab-btn-errors" onclick="switchInsTab('errors')">Errors</div>
       <div class="sb-tab"        id="ins-tab-btn-source" onclick="switchInsTab('source')">Code</div>
     </div>
 
@@ -334,6 +468,10 @@
         <div class="ins-section">
           <div class="ins-title">Overview</div>
           <div id="ins-overview"></div>
+        </div>
+        <div class="ins-section">
+          <div class="ins-title">Parameters</div>
+          <div id="ins-parameters"></div>
         </div>
         <div class="ins-section">
           <div class="ins-title">Metrics</div>
@@ -365,6 +503,26 @@
         </div>
       </div>
 
+      <!-- Tab: Flow -->
+      <div class="ins-tab-content" id="ins-panel-flow">
+        <div id="ins-flow-content"></div>
+      </div>
+
+      <!-- Tab: Seq (Trace Table) -->
+      <div class="ins-tab-content" id="ins-panel-seq" style="padding:0;overflow-x:auto">
+        <table class="trace-table" id="ins-trace-table">
+          <thead><tr>
+            <th>#</th><th>Function</th><th>Inputs</th><th>Outcome</th>
+          </tr></thead>
+          <tbody id="ins-trace-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Tab: Errors -->
+      <div class="ins-tab-content" id="ins-panel-errors">
+        <div id="ins-errors-content"></div>
+      </div>
+
       <!-- Tab: Source -->
       <div class="ins-tab-content" id="ins-panel-source" style="padding:0">
         <div class="ins-source-wrap" style="border:none; border-radius:0; margin:0">
@@ -389,6 +547,7 @@ let ALL_NODES = [], ALL_EDGES = [], ENTRY_POINTS = [], HOTSPOTS = [];
 let network = null;
 let visNodes = null, visEdges = null;
 let edgeIndex = { callers: {}, callees: {} };
+let currentInspectorTab = 'info'; // Track current tab
 const API = '/api';
 
 // ── Theme ──────────────────────────────────────────────────────────────────
@@ -505,7 +664,9 @@ function initResizers() {
     const doDrag = (e) => {
       const delta = isLeft ? e.clientX - startX : startX - e.clientX;
       const newWidth = startWidth + delta;
-      if (newWidth > 150 && newWidth < 600) {
+      const minWidth = 150;
+      const maxWidth = target === inspector ? window.innerWidth * 0.5 : 600;
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
         target.style.width = newWidth + 'px';
       }
     };
@@ -525,6 +686,41 @@ function initResizers() {
 
   initDrag(leftResizer, sidebar, true);
   initDrag(rightResizer, inspector, false);
+
+  // Section resizers for file tree / flow tree / params
+  const initSectionResizer = (resizerId, topSectionId, bottomSectionId) => {
+    const resizer = document.getElementById(resizerId);
+    const topSection = document.getElementById(topSectionId);
+    const bottomSection = document.getElementById(bottomSectionId);
+    if (!resizer || !topSection || !bottomSection) return;
+
+    let startY, startTopHeight, startBottomHeight;
+    const doDrag = (e) => {
+      const delta = e.clientY - startY;
+      const newTopHeight = startTopHeight + delta;
+      const newBottomHeight = startBottomHeight - delta;
+      if (newTopHeight >= 80 && newBottomHeight >= 80) {
+        topSection.style.flex = `0 0 ${newTopHeight}px`;
+        bottomSection.style.flex = `0 0 ${newBottomHeight}px`;
+      }
+    };
+    const stopDrag = () => {
+      resizer.classList.remove('dragging');
+      document.documentElement.removeEventListener('mousemove', doDrag);
+      document.documentElement.removeEventListener('mouseup', stopDrag);
+    };
+    resizer.addEventListener('mousedown', (e) => {
+      startY = e.clientY;
+      startTopHeight = topSection.offsetHeight;
+      startBottomHeight = bottomSection.offsetHeight;
+      resizer.classList.add('dragging');
+      document.documentElement.addEventListener('mousemove', doDrag);
+      document.documentElement.addEventListener('mouseup', stopDrag);
+    });
+  };
+
+  initSectionResizer('section-resizer-1', 'file-tree-container', 'flow-tree-section');
+  initSectionResizer('section-resizer-2', 'flow-tree-section', 'params-section');
 }
 
 function ccColour(cc) {
@@ -766,6 +962,13 @@ function renderFileTree(node, container, depth = 0) {
                      (ENTRY_POINTS.includes(f.id)?'<span style="margin-left:auto;font-size:10px">★</span>':'');
       el.onclick = (e) => {
         e.stopPropagation();
+        // Mark active in file tree
+        document.querySelectorAll('#tree-body .tree-item.active').forEach(x => x.classList.remove('active'));
+        el.classList.add('active');
+        // Update flow tree (only on file tree selection)
+        renderFlowTree(f.id);
+        renderParamsSection(f.id);
+        // Update graph + inspector
         focusNode(f.id);
         openInspector(f.id);
         if (network) {
@@ -793,6 +996,7 @@ function expandCollapseAllTree(expand) {
 }
 
 function switchInsTab(tabName) {
+  currentInspectorTab = tabName; // Save current tab
   document.querySelectorAll('.ins-tab-content').forEach(p => p.classList.remove('visible'));
   document.querySelectorAll('#inspector-panel .sb-tab').forEach(t => t.classList.remove('active'));
   
@@ -814,8 +1018,8 @@ async function openInspector(nodeId) {
   resizer.style.display = 'block';
   btn.classList.add('active');
   
-  // Default to Info tab when opening new function
-  switchInsTab('info');
+  // Preserve current tab selection (don't reset to 'info')
+  switchInsTab(currentInspectorTab);
   
   document.getElementById('ins-head-title').textContent = n.label;
   
@@ -829,7 +1033,8 @@ async function openInspector(nodeId) {
 
   // Signature
   const args = n.args.map(a => `${a.name}${a.annotation?': '+a.annotation:''}${a.default?'='+a.default:''}`).join(', ');
-  document.getElementById('ins-signature').textContent = `def ${n.label}(${args}):`;
+  const ret = n.return_annotation ? ` -> ${n.return_annotation}` : '';
+  document.getElementById('ins-signature').textContent = `def ${n.label}(${args})${ret}:`;
 
   // Docstring
   const docSec = document.getElementById('ins-section-doc');
@@ -839,6 +1044,23 @@ async function openInspector(nodeId) {
   } else {
     docSec.style.display = 'none';
   }
+
+  // Parameters (I/O)
+  let paramHtml = n.args.map(a => `
+    <div class="ins-row">
+      <span class="ins-key">${a.name}</span>
+      <span class="ins-val" style="color:var(--text3)">${a.annotation || 'any'}${a.default ? ' = '+a.default : ''}</span>
+    </div>
+  `).join('');
+  if (n.return_annotation) {
+    paramHtml += `
+      <div class="ins-row" style="margin-top:8px; border-top:1px solid var(--border); padding-top:4px">
+        <span class="ins-key">Returns</span>
+        <span class="ins-val" style="color:var(--accent-alt)">${n.return_annotation}</span>
+      </div>
+    `;
+  }
+  document.getElementById('ins-parameters').innerHTML = paramHtml || '<div class="text-muted" style="font-size:11px">No parameters</div>';
 
   // Metrics
   document.getElementById('ins-metrics').innerHTML = `
@@ -871,6 +1093,9 @@ async function openInspector(nodeId) {
   };
   renderLinks(edgeIndex.callers[nodeId], 'ins-callers');
   renderLinks(edgeIndex.callees[nodeId], 'ins-callees');
+  renderFlowView(nodeId);
+  renderTraceTable(nodeId);
+  renderErrorTab(nodeId);
 
   // Source Code
   const sourceEl = document.getElementById('ins-source');
@@ -898,6 +1123,220 @@ async function openInspector(nodeId) {
   } catch (e) {
     sourceEl.innerHTML = `<span style="color:var(--danger)">Failed to load source: ${e.message}</span>`;
   }
+}
+
+function renderFlowView(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) return;
+  const callers = (edgeIndex.callers[nodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+  const callees = (edgeIndex.callees[nodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+
+  const flowNode = (node, selected = false) => {
+    const cls = selected ? 'flow-node flow-selected' : 'flow-node';
+    return `<div class="${cls}" onclick="focusNode('${node.id}');openInspector('${node.id}');network&&(network.selectNodes(['${node.id}']),network.focus('${node.id}',{scale:1.2,animation:true}))">
+      <span class="cc-dot" style="background:${ccColour(node.cyclomatic_complexity)};width:6px;height:6px;border-radius:50%;flex-shrink:0"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${node.label}</span>
+      <span style="color:var(--text3);font-size:10px;flex-shrink:0">${node.module.split('.').pop()}</span>
+    </div>`;
+  };
+
+  let html = '';
+
+  if (callers.length) {
+    html += `<div class="flow-lane"><div class="flow-lane-label">Callers</div>${callers.map(c => flowNode(c)).join('<div class="flow-arrow">↓</div>')}</div>`;
+    html += `<div class="flow-arrow" style="padding:4px 0;text-align:center;font-size:18px">↓</div>`;
+    html += '<hr class="flow-divider">';
+  }
+
+  html += `<div class="flow-lane"><div class="flow-lane-label">Selected</div>${flowNode(n, true)}</div>`;
+
+  if (callees.length) {
+    html += '<hr class="flow-divider">';
+    html += `<div class="flow-arrow" style="padding:4px 0;text-align:center;font-size:18px">↓</div>`;
+    html += `<div class="flow-lane"><div class="flow-lane-label">Callees</div>${callees.map(c => flowNode(c)).join('<div class="flow-arrow">↓</div>')}</div>`;
+  }
+
+  document.getElementById('ins-flow-content').innerHTML = html;
+}
+
+function traceOutcome(n) {
+  if (n.try_except_count > 0 && n.cyclomatic_complexity >= 10)
+    return `<span class="trace-outcome outcome-err">⛔ High risk (CC ${n.cyclomatic_complexity}, ${n.try_except_count} try)</span>`;
+  if (n.try_except_count > 0)
+    return `<span class="trace-outcome outcome-warn">⚠ Handled (${n.try_except_count} try/except)</span>`;
+  if (n.cyclomatic_complexity >= 10)
+    return `<span class="trace-outcome outcome-risk">🔶 Complex (CC ${n.cyclomatic_complexity})</span>`;
+  if (n.loop_count > 0)
+    return `<span class="trace-outcome outcome-warn">↻ Iterative (${n.loop_count} loop${n.loop_count>1?'s':''})</span>`;
+  return `<span class="trace-outcome outcome-ok">✓ Simple</span>`;
+}
+
+function traceParams(n) {
+  if (!n.args || !n.args.length) return '<span style="color:var(--text3)">—</span>';
+  return n.args.map(a => {
+    const type = a.annotation ? `<span style="color:var(--text3)">:${a.annotation}</span>` : '';
+    const def  = a.default    ? `<span style="color:var(--text3)">=${a.default}</span>` : '';
+    return `${a.name}${type}${def}`;
+  }).join(', ');
+}
+
+function renderTraceTable(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) return;
+  const callers = (edgeIndex.callers[nodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+  const callees = (edgeIndex.callees[nodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+
+  const rows = [
+    ...callers.map((c, i) => ({ seq: i + 1, node: c, role: 'caller' })),
+    { seq: callers.length + 1, node: n, role: 'selected' },
+    ...callees.map((c, i) => ({ seq: callers.length + 2 + i, node: c, role: 'callee' }))
+  ];
+
+  document.getElementById('ins-trace-body').innerHTML = rows.map(r => {
+    const sel = r.role === 'selected' ? ' class="trace-selected"' : '';
+    const click = r.node.id !== nodeId
+      ? `onclick="focusNode('${r.node.id}');openInspector('${r.node.id}');network&&(network.selectNodes(['${r.node.id}']),network.focus('${r.node.id}',{scale:1.2,animation:true}))"`
+      : '';
+    return `<tr${sel} ${click}>
+      <td class="trace-seq">${r.seq}</td>
+      <td class="trace-fn">${r.node.label}<br><span style="color:var(--text3);font-size:9px">${r.node.module}</span></td>
+      <td class="trace-params">${traceParams(r.node)}</td>
+      <td>${traceOutcome(r.node)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderErrorTab(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) return;
+  const items = [];
+
+  if (n.cyclomatic_complexity >= 20)
+    items.push({ sev:'high', icon:'🔴', title:`Very High Complexity (CC ${n.cyclomatic_complexity})`,
+      desc:'Cyclomatic complexity ≥ 20. Function is very difficult to test and maintain. Consider splitting.' });
+  else if (n.cyclomatic_complexity >= 10)
+    items.push({ sev:'med', icon:'🟠', title:`High Complexity (CC ${n.cyclomatic_complexity})`,
+      desc:'Cyclomatic complexity ≥ 10. Multiple branching paths increase defect probability.' });
+
+  if (n.try_except_count === 0 && n.cyclomatic_complexity >= 5)
+    items.push({ sev:'med', icon:'⚠️', title:'No Exception Handling',
+      desc:`Function has CC ${n.cyclomatic_complexity} with no try/except blocks. Unhandled exceptions may propagate.` });
+
+  if (n.try_except_count > 3)
+    items.push({ sev:'low', icon:'🟡', title:`Excessive Try/Except (${n.try_except_count})`,
+      desc:'Many exception handlers can mask errors and make control flow hard to follow.' });
+
+  if (n.loop_count > 0 && n.try_except_count === 0)
+    items.push({ sev:'low', icon:'🟡', title:`Unguarded Loop${n.loop_count>1?'s':''} (${n.loop_count})`,
+      desc:'Loop(s) without exception handling. Iteration errors will propagate uncaught.' });
+
+  const callers = (edgeIndex.callers[nodeId] || []);
+  if (callers.length === 0 && !ENTRY_POINTS.includes(nodeId))
+    items.push({ sev:'low', icon:'🔵', title:'Unreachable Function',
+      desc:'No callers detected and not marked as an entry point. May be dead code.' });
+
+  const callees = (edgeIndex.callees[nodeId] || []);
+  const highCallees = callees.map(id => ALL_NODES.find(x => x.id === id)).filter(c => c && c.cyclomatic_complexity >= 10);
+  if (highCallees.length)
+    items.push({ sev:'low', icon:'🟡', title:`Calls ${highCallees.length} High-Complexity Function${highCallees.length>1?'s':''}`,
+      desc: highCallees.map(c => `${c.label} (CC ${c.cyclomatic_complexity})`).join(', ') });
+
+  if (!items.length)
+    items.push({ sev:'ok', icon:'✅', title:'No Issues Detected',
+      desc:'Static analysis found no error-handling concerns for this function.' });
+
+  document.getElementById('ins-errors-content').innerHTML = items.map(it =>
+    `<div class="err-item err-sev-${it.sev}">
+      <span class="err-icon">${it.icon}</span>
+      <div class="err-body"><div class="err-title">${it.title}</div><div class="err-desc">${it.desc}</div></div>
+    </div>`
+  ).join('');
+}
+
+function renderFlowTree(rootNodeId) {
+  const root = ALL_NODES.find(x => x.id === rootNodeId);
+  if (!root) {
+    document.getElementById('flow-tree-scroll').innerHTML = '<div class="ft-empty">Function not found</div>';
+    return;
+  }
+
+  const callers = (edgeIndex.callers[rootNodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+  const callees = (edgeIndex.callees[rootNodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+
+  const ftNode = (n, isRoot = false) => {
+    const cls = isRoot ? 'ft-item ft-root' : 'ft-item';
+    const click = isRoot ? '' : `onclick="selectFlowTreeNode('${n.id}')"`;
+    return `<div class="${cls}" data-id="${n.id}" ${click}>
+      <span class="cc-dot" style="background:${ccColour(n.cyclomatic_complexity)};width:5px;height:5px;border-radius:50%;flex-shrink:0"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis">${n.label}</span>
+      <span style="color:var(--text3);font-size:9px;flex-shrink:0">${n.module.split('.').pop()}</span>
+    </div>`;
+  };
+
+  let html = '';
+  if (callers.length) {
+    html += '<div class="ft-group-label">Callers</div>';
+    html += callers.map(c => ftNode(c)).join('');
+    html += '<div class="ft-arrow">↓</div>';
+  }
+
+  html += ftNode(root, true);
+
+  if (callees.length) {
+    html += '<div class="ft-arrow">↓</div>';
+    html += '<div class="ft-group-label">Callees</div>';
+    html += callees.map(c => ftNode(c)).join('');
+  }
+
+  document.getElementById('flow-tree-scroll').innerHTML = html;
+}
+
+function selectFlowTreeNode(nodeId) {
+  // Mark active in flow tree
+  document.querySelectorAll('#flow-tree-scroll .ft-item').forEach(x => x.classList.remove('ft-active'));
+  const el = document.querySelector(`#flow-tree-scroll .ft-item[data-id="${nodeId}"]`);
+  if (el) el.classList.add('ft-active');
+  
+  // Update graph + inspector (but NOT flow tree)
+  focusNode(nodeId);
+  openInspector(nodeId);
+  if (network) {
+    network.selectNodes([nodeId]);
+    network.focus(nodeId, { scale: 1.2, animation: true });
+  }
+}
+
+function renderParamsSection(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) {
+    document.getElementById('params-scroll').innerHTML = '<div class="ft-empty">Function not found</div>';
+    return;
+  }
+
+  let html = '';
+  if (n.args && n.args.length) {
+    html = n.args.map(a => {
+      const type = a.annotation ? `<span class="param-type">: ${a.annotation}</span>` : '';
+      const def = a.default ? `<div class="param-default">default: ${a.default}</div>` : '';
+      return `<div class="param-row">
+        <div>
+          <span class="param-name">${a.name}</span>${type}
+          ${def}
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    html = '<div class="ft-empty">No parameters</div>';
+  }
+
+  if (n.return_annotation) {
+    html += `<div class="param-return">
+      <span class="param-return-label">Returns:</span>
+      <span class="param-return-val">${n.return_annotation}</span>
+    </div>`;
+  }
+
+  document.getElementById('params-scroll').innerHTML = html;
 }
 
 function escapeHTML(str) {

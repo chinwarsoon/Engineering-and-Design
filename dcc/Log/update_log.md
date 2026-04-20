@@ -7,6 +7,34 @@
 
 # Section 2. Log entries
 
+<a id="static-dashboard-ui-enhancements"></a>
+## 2026-04-20
+
+### COMPLETED: Static Dashboard — Flow View, Trace Table, Error Tab, Flow Tree, Parameters Section, Inspector UX
+**Status:** COMPLETE
+
+**Summary:** Series of incremental UI enhancements to `static_dashboard.html` adding call-flow visualisation, static analysis tabs, a sidebar flow tree, a parameters section, and inspector UX improvements.
+
+**Changes Made:**
+
+| Feature | Description | Impact |
+|---------|-------------|--------|
+| **Flow View tab** | New inspector tab showing callers → selected node → callees as a vertical swimlane. Each node is clickable to navigate graph + inspector. | Immediate call context visible without leaving inspector |
+| **Seq (Trace Table) tab** | Inspector tab with 4-column table: sequence #, function name, input parameters (with type annotations/defaults), logic outcome (inferred from CC/loops/try). Selected row highlighted blue. | Ordered call sequence with static parameter and risk context |
+| **Errors tab** | Inspector tab showing severity-coded static analysis findings: high CC, missing exception handling, excessive try/except, unguarded loops, unreachable functions, calls into high-CC callees. | Surfaces risk signals per function without leaving inspector |
+| **Flow Tree (sidebar)** | Persistent sub-section below File Tree in left sidebar. Updates only when a function is selected in File Tree. Shows callers → root (blue, non-clickable) → callees. Clicking a flow tree node updates graph + inspector without re-rendering the flow tree. | Persistent call context anchored to file tree selection |
+| **Parameters section (sidebar)** | New section below Flow Tree showing parameter names, type annotations, defaults, and return type for the selected function. | Quick parameter reference without opening inspector |
+| **Adjustable section heights** | Two horizontal drag handles between File Tree / Flow Tree / Parameters sections. Min height 80px per section. | User-configurable sidebar layout |
+| **Preserve inspector tab** | `currentInspectorTab` state variable tracks the active inspector tab. `openInspector` restores the last active tab instead of always resetting to Info. | Tab selection survives node navigation from any source |
+| **Right sidebar max width** | Inspector panel `max-width` changed from `600px` to `50%` of screen. Resizer drag limit uses `window.innerWidth * 0.5` dynamically. | Inspector can be expanded to half-screen for wide content |
+
+**Files Changed:**
+- `dcc/tracer/static_dashboard.html` — all changes above (single file)
+
+**Impact:** Inspector panel now has 7 tabs (Info, Sig, Trace, Flow, Seq, Errors, Code). Sidebar has three vertically resizable sections. All navigation sources (file tree, flow tree, graph click, inspector links) preserve the active inspector tab.
+
+---
+
 <a id="issue48-static-dashboard-pro"></a>
 ## 2026-04-20
 
