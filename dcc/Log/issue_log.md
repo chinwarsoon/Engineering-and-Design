@@ -19,6 +19,31 @@
 
 # Section 2. Pending Issues
 
+<a id="issue49-tree-collapsible"></a>
+## 2026-04-20
+[Issue #49]: static_dashboard.html file tree is not collapsible
+- [Status]: RESOLVED
+- [Context]: The file tree implemented in Phase 1c was a flat recursive list, making navigation difficult for large codebases.
+- [Root Cause]: Lack of hierarchical DOM structure and toggle state logic in the `renderFileTree` function.
+- [File Changes]:
+  - `dcc/tracer/static_dashboard.html` — refactored `renderFileTree` to create nested `tree-node` structures; added CSS for `tree-toggle` and `tree-children`.
+- [Resolution]: Implemented a nested, collapsible tree structure. Added toggle arrows (`▶`) for packages and modules. Clicking the toggle arrow expands/collapses children while clicking the label remains functional for filtering.
+- [Link to Update Log]: [update_log.md](#issue49-tree-collapsible)
+
+<a id="issue48-backend-path-resolution"></a>
+## 2026-04-20
+[Issue #48]: static_dashboard.html shows "✗ Invalid response: missing nodes" error
+- [Status]: RESOLVED
+- [Context]: When attempting to analyze a directory (e.g., `dcc/workflow`), the dashboard returned a cryptic "missing nodes" error.
+- [Root Cause]: 
+  1. **Backend:** `project_root` resolution in `server.py` was off by one level (used 3 `.parent` instead of 4), causing path lookups to fail.
+  2. **Frontend:** Error handling in `runAnalysis` swallowed the specific backend error (e.g., "Directory not found") and threw a generic "missing nodes" error instead.
+- [File Changes]:
+  - `dcc/tracer/backend/server.py` — fixed `project_root` resolution using `.resolve()` and 4 parents.
+  - `dcc/tracer/static_dashboard.html` — improved error handling to display specific backend error details.
+- [Resolution]: Fixed backend path resolution and upgraded frontend error reporting. Backend now correctly locates directories regardless of starting context.
+- [Link to Update Log]: [update_log.md](#issue48-backend-path-resolution)
+
 <a id="issue47-serve-proxy"></a>
 ## 2026-04-20
 [Issue #47]: static_dashboard.html shows "Failed to fetch" in GitHub Codespaces

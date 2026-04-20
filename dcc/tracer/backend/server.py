@@ -669,7 +669,7 @@ async def static_analyze(req: dict):
         if not root:
             raise HTTPException(status_code=400, detail="root path required")
 
-        project_root = Path(__file__).parent.parent.parent  # Engineering-and-Design/
+        project_root = Path(__file__).resolve().parent.parent.parent.parent  # Engineering-and-Design/
         dcc_root = project_root / "dcc"                      # Engineering-and-Design/dcc/
         # Accept paths relative to dcc/ first, then project root
         full_root = (dcc_root / root).resolve()

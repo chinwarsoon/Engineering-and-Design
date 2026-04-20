@@ -58,7 +58,7 @@ Development of a standalone, web-based instrumentation tool to visualize, trace,
 - `networkx>=3.0`
 - `pyvis>=0.3.2`
 
-### Phase 1c: Static Dashboard — File Tree & Function Inspector ⏳ PENDING
+### Phase 1c: Static Dashboard — File Tree & Function Inspector ✅ COMPLETED (2026-04-20)
 **Goal:** Upgrade `static_dashboard.html` with a navigable file tree and a rich function inspector panel so users can fully examine code context, relationships, I/O, and source without leaving the dashboard.
 
 #### Layout
@@ -86,17 +86,17 @@ Development of a standalone, web-based instrumentation tool to visualize, trace,
 
 | Component | Description | Status |
 |---|---|---|
-| Left sidebar — Tab A | Existing load/filter/legend controls (unchanged) | ✅ Exists |
-| Left sidebar — Tab B | File tree: 📁 package → 📄 module → ⚡ function | ⏳ Pending |
-| Right inspector panel | Full function detail panel, 320px, collapsible | ⏳ Pending |
-| Graph node click | Opens right inspector (replaces floating overlay) | ⏳ Pending |
-| Tree function click | Selects graph node + opens inspector | ⏳ Pending |
-| Tree file click | Filters graph to that file's functions only | ⏳ Pending |
-| Tree package click | Filters graph to that package's functions | ⏳ Pending |
-| Caller/callee links | Clickable — navigate to that function in graph + inspector | ⏳ Pending |
-| Source code viewer | Read-only, fetched via `/api/file/read`, lines `start_line`–`end_line` | ⏳ Pending |
-| Graph neighbourhood | Double-click node → isolate 1-hop subgraph | ⏳ Pending |
-| 🌳 Tree icon bar btn | Toggles file tree tab in left sidebar | ⏳ Pending |
+| Left sidebar — Tab A | Existing load/filter/legend controls (unchanged) | ✅ Done |
+| Left sidebar — Tab B | File tree: 📁 package → 📄 module → ⚡ function | ✅ Done |
+| Right inspector panel | Full function detail panel, 320px, collapsible | ✅ Done |
+| Graph node click | Opens right inspector (replaces floating overlay) | ✅ Done |
+| Tree function click | Selects graph node + opens inspector | ✅ Done |
+| Tree file click | Filters graph to that file's functions only | ✅ Done |
+| Tree package click | Filters graph to that package's functions | ✅ Done |
+| Caller/callee links | Clickable — navigate to that function in graph + inspector | ✅ Done |
+| Source code viewer | Read-only, fetched via `/api/file/read`, lines `start_line`–`end_line` | ✅ Done |
+| Graph neighbourhood | Double-click node → isolate 1-hop subgraph | ✅ Done |
+| 🌳 Tree icon bar btn | Toggles file tree tab in left sidebar | ✅ Done |
 
 #### Left Sidebar — File Tree (Tab B)
 - Built from `ALL_NODES` grouped by `module` field, split on `.` to reconstruct folder hierarchy

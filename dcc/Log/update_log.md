@@ -7,7 +7,35 @@
 
 # Section 2. Log entries
 
-<a id="issue47-serve-proxy"></a>
+<a id="issue48-static-dashboard-pro"></a>
+## 2026-04-20
+
+### COMPLETED: Phase 1c — Static Dashboard Pro (File Tree & Inspector)
+**Status:** COMPLETE
+
+**Summary:** Upgraded `static_dashboard.html` to a "Pro" version with a 3-column VS Code-style layout. Integrated a hierarchical, collapsible file tree for navigation and a rich function inspector panel for deep code analysis.
+
+**Key Features:**
+- **Hierarchical File Tree (Issue #49):** 📁 Package → 📄 Module → ⚡ Function navigation. Fully collapsible structure using `▶` toggle arrows.
+- **Function Inspector:** Right-side collapsible panel showing Signature, Docstring, Metrics (CC, Loops, Args), and interactive Callers/Callees lists.
+- **Source Code Viewer:** Integrated read-only viewer with line numbering, fetching real-time code via `/api/file/read`.
+- **Interactivity:** Isolate 1-hop subgraphs on double-click; cross-navigate between graph, tree, and inspector; filter graph by clicking packages/modules.
+- **Improved Error Handling (Issue #48):** Rewrote frontend error handlers to capture and display specific backend error messages (e.g., "Directory not found") instead of generic "missing nodes" failures.
+- **UI Design:** Fully aligned with `dcc-design-system.css`, supporting 5 color themes.
+
+**Backend Changes (Issue #48):**
+- **Path Resolution:** Fixed `project_root` resolution in `tracer/backend/server.py` to correctly point to `Engineering-and-Design/` root by using 4 levels of `.parent`.
+- **Process Management:** Terminated orphaned backend processes and restarted the server with the fix in the `dcc` conda environment.
+
+**Files Changed:**
+- `dcc/tracer/static_dashboard.html` — complete rewrite (930+ lines)
+- `dcc/tracer/backend/server.py` — fixed project root path logic
+- `dcc/workplan/code_tracing/reports/phase1c_completion_report.md` — new report
+
+**Impact:** Dramatically improves the usability and robustness of the static analysis tool. The tool now handles path resolution errors gracefully and provides a more intuitive navigation experience for large-scale codebases.
+
+---
+
 ## 2026-04-20
 
 ### RESOLVED: serve.py API Proxy — "Failed to fetch" in Codespaces

@@ -547,32 +547,63 @@ textarea { resize: vertical; min-height: 80px; font-family: var(--font-mono); fo
 .table-scroll { overflow: auto; flex: 1; }
 
 /* ══════════════════════════════════════════
-   TABS
+   TABS & NAVIGATION
 ══════════════════════════════════════════ */
-.tab-bar {
+.tab-bar, .sb-tabs {
   display: flex;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   flex-shrink: 0;
   overflow-x: auto;
-  padding: 0 12px;
+  scrollbar-width: none;
 }
-.tab {
+.tab-bar::-webkit-scrollbar, .sb-tabs::-webkit-scrollbar { display: none; }
+
+.tab, .sb-tab {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
-  font-size: 12px;
-  font-weight: 500;
+  justify-content: center;
+  gap: 6px;
   cursor: pointer;
-  color: var(--text2);
-  border-bottom: 2px solid transparent;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
   white-space: nowrap;
   flex-shrink: 0;
+  border-bottom: 2px solid transparent;
+  user-select: none;
 }
-.tab:hover { color: var(--text); }
-.tab.active { color: var(--accent-alt); border-bottom-color: var(--accent-alt); }
+
+/* Main Content Tabs */
+.tab-bar { padding: 0 12px; }
+.tab {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+}
+.tab:hover { color: var(--text); background: var(--surface2); }
+.tab.active { 
+  color: var(--accent-alt); 
+  border-bottom-color: var(--accent-alt);
+  background: radial-gradient(circle at bottom, rgba(47,129,247,0.08) 0%, transparent 70%);
+}
+
+/* Sidebar Tabs (Full-width, uppercase, compact) */
+.sb-tabs { width: 100%; }
+.sb-tab {
+  flex: 1;
+  padding: 10px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text3);
+}
+.sb-tab:hover { color: var(--text2); background: var(--surface2); }
+.sb-tab.active { 
+  color: var(--accent-alt); 
+  border-bottom-color: var(--accent-alt); 
+  background: var(--surface2);
+}
 
 /* ══════════════════════════════════════════
    TOOLBAR
