@@ -17,6 +17,14 @@
 
 *(none — see dcc/Log/issue_log.md for pre-migration history)*
 
+## 2026-04-21 21:05:00
+
+[Issue #CT-03]: `404 File not found` for `ui/dcc-design-system.css` in dashboard.
+- `[Status]`: **Resolved**
+- `[Root Cause]`: `static_dashboard.html` was in `engine/` but assets were in `ui/`. `serve.py` only served from `engine/`.
+- `[Resolution]`: Moved `serve.py` to root and serve from `code_tracer/` root; moved all HTML to `ui/`. Updated `launch.py` to point to root `serve.py`.
+- `[Link to update_log]`: [update_log.md](update_log.md)
+
 ## 2026-04-19 07:00:00
 
 [Issue #CT-01]: `ModuleNotFoundError: No module named 'tracer'` when running `launch.py` after migration.

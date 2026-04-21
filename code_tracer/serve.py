@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 _HERE = Path(__file__).parent.resolve()
-_DASHBOARD = _HERE / "static_dashboard.html"
+_DASHBOARD = _HERE / "ui" / "static_dashboard.html"
 
 
 def _proxy(handler, method: str, backend_port: int) -> None:

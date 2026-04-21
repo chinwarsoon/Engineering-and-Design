@@ -75,7 +75,7 @@ Examples:
     )
 
     print(f"Starting dashboard → http://localhost:{args.serve_port}")
-    serve_script = tracer_dir / "serve.py"
+    serve_script = tracer_dir.parent / "serve.py"
     file_server = subprocess.Popen(
         [python, str(serve_script), "--port", str(args.serve_port),
          "--backend-port", str(args.port)],

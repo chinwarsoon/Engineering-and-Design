@@ -64,3 +64,23 @@ code_tracer/
 | `engine/backend/server.py` lines 638,680-682 | `from tracer.pipeline_sandbox/static...` → `from pipeline_sandbox/static...` |
 
 **Dependency fix:** `networkx` was not installed — caused `edges=0` in call graph. Installed `networkx==3.6.1`. Added to `dcc/dcc.yml` and root `dcc.yml`.
+
+---
+
+## 2026-04-21 21:05:00
+
+### Reorganization: Standalone Launcher Assets & Serve Logic
+
+**Status:** COMPLETE
+
+**Problem:** CT-03 identified a 404 error for `ui/dcc-design-system.css` because `serve.py` served from `engine/` while assets were in root `ui/`.
+
+**Changes applied:**
+
+| File | New Location | Description |
+|------|--------------|-------------|
+| `engine/serve.py` | `code_tracer/serve.py` | Moved to root; updated to serve from root and use `ui/static_dashboard.html`. |
+| `engine/static_dashboard.html` | `ui/static_dashboard.html` | Moved to `ui/` folder with other frontend assets. |
+| `engine/launch.py` | (same) | Updated `serve_script` path to find root `serve.py`. |
+
+**Impact:** Resolves asset path mismatch. Consolidates frontend/UI logic into the `ui/` folder while keeping the launcher at project root.
