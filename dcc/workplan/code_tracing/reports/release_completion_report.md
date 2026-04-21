@@ -159,6 +159,37 @@ TARGET_DIR=/path/to/project docker compose -f tracer/docker-compose.yml up
 
 ---
 
+### Phase R7 — Windows Distribution Downloader
+
+**Goal:** Provide a single Python script that Windows users can run to pull all files needed for static tracing onto their local drive — no git, no Docker, no dev environment required.
+
+**`tracer/download_release.py`** — new file:
+- Accepts `--dest` argument (default: `~/dcc-tracer` via `Path.home()`, equivalent to `%USERPROFILE%\dcc-tracer` on Windows)
+- Defines a 15-file manifest covering all modules required for static tracing
+- Resolves each file relative to `Path(__file__).parent` — works from repo or any copied location
+- Copies each file with `shutil.copy2`, preserving sub-directory structure
+- Creates `requirements.txt` in destination (`fastapi>=0.100`, `uvicorn>=0.23`, `networkx>=3.0`)
+- Prints concise post-install summary with file count, skipped list, and next-step commands
+- Uses only stdlib (`pathlib`, `shutil`, `argparse`, `sys`) — zero extra dependencies
+
+**Verification (run 2026-05-01):**
+```
+python dcc/tracer/download_release.py --dest /tmp/dcc-tracer-test
+
+Files copied to: /tmp/dcc-tracer-test
+  15 file(s) copied, 0 skipped
+
+Next steps:
+  pip install -r "/tmp/dcc-tracer-test/requirements.txt"
+  python "/tmp/dcc-tracer-test/launch.py" C:\path\to\your\project
+```
+
+Destination verified self-contained: `python /tmp/dcc-tracer-test/launch.py --help` runs correctly with no files outside the destination.
+
+**Files created:** `tracer/download_release.py`
+
+---
+
 ### Phase R6 — External README
 
 **Goal:** Replace the DCC-specific README with one written for external users.
@@ -200,6 +231,9 @@ TARGET_DIR=/path/to/project docker compose -f tracer/docker-compose.yml up
 | Docker: `TARGET_DIR=/any/project docker compose up` works end-to-end | ✅ `Dockerfile` + `docker-compose.yml` |
 | No DCC-specific paths, imports, or assumptions remain in the release files | ✅ Verified — `grep` for `project_root`, `dcc_root`, `Engineering-and-Design` returns empty |
 | README quick-start tested on a clean Python environment with no DCC dependencies | ✅ `README.md` and `USER_GUIDE.md` written for zero DCC context |
+| `python dcc/tracer/download_release.py --dest /tmp/dcc-tracer-test` copies all required files and prints correct next-step instructions | ✅ Verified — 15 files copied, 0 skipped, correct output printed |
+| Destination folder is self-contained: `python launch.py <target>` works with no files outside the destination | ✅ Verified — `python /tmp/dcc-tracer-test/launch.py --help` runs correctly from destination |
+| Script runs on Python 3.10+ with stdlib only (no pip install required to run the downloader itself) | ✅ Verified — only `pathlib`, `shutil`, `argparse`, `sys` used |
 
 ---
 
@@ -213,6 +247,7 @@ TARGET_DIR=/path/to/project docker compose -f tracer/docker-compose.yml up
 | R4 | Docker image | `tracer/Dockerfile`, `tracer/docker-compose.yml` | ✅ |
 | R5 | Dashboard UX for external users | `tracer/static_dashboard.html`, `tracer/ui/dcc-design-system.css` | ✅ |
 | R6 | External README + User Guide | `tracer/README.md`, `tracer/USER_GUIDE.md` | ✅ |
+| R7 | Windows distribution downloader | `tracer/download_release.py` | ✅ |
 
 ---
 

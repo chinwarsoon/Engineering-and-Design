@@ -202,6 +202,42 @@ TARGET_DIR=/path/to/project docker compose up
 
 ---
 
+### Phase R7 — Windows Distribution Downloader
+**Goal:** Provide a single Python script (`tracer/download_release.py`) that Windows users can run to pull all files needed for static tracing onto their local drive — no git, no Docker, no dev environment required.
+**Effort:** ~1.5 hours
+
+#### R7.1 — `tracer/download_release.py`
+The script must:
+1. Accept an optional `--dest` argument (default: `%USERPROFILE%\dcc-tracer` on Windows, `~/dcc-tracer` otherwise).
+2. Define a manifest of all files required for static tracing:
+   - `static_dashboard.html`
+   - `ui/dcc-design-system.css`
+   - `backend/server.py`, `backend/__init__.py`
+   - `static/` module (`crawler.py`, `graph.py`, `metrics.py`, `parser.py`, `visualizer.py`, `__init__.py`)
+   - `launch.py`, `serve.py`
+   - `pyproject.toml`, `MANIFEST.in`, `__init__.py`
+3. Resolve each file relative to the script's own location (`Path(__file__).parent`) so it works whether run from the repo or from a copied location.
+4. Copy each file to the destination, preserving sub-directory structure (`shutil.copy2`).
+5. Create a minimal `requirements.txt` in the destination (`fastapi`, `uvicorn`, `networkx`).
+6. Print a concise post-install summary:
+   ```
+   Files copied to: C:\Users\<user>\dcc-tracer
+   Next steps:
+     pip install fastapi uvicorn networkx
+     python launch.py C:\path\to\your\project
+   ```
+7. Use only stdlib (`pathlib`, `shutil`, `argparse`, `sys`) — zero extra dependencies.
+
+```
+Usage:
+  python dcc/tracer/download_release.py
+  python dcc/tracer/download_release.py --dest D:\tools\dcc-tracer
+```
+
+**Files created:** `tracer/download_release.py`
+
+---
+
 ### Phase R6 — External README
 **Goal:** Replace the DCC-specific README with one written for external users.
 **Effort:** ~1 hour
@@ -231,6 +267,7 @@ Sections:
 | R4 | Docker image | `tracer/Dockerfile`, `tracer/docker-compose.yml` |
 | R5 | Dashboard UX for external users | `tracer/static_dashboard.html` |
 | R6 | External README | `tracer/README.md` |
+| R7 | Windows distribution downloader | `tracer/download_release.py` | ✅ |
 
 ---
 
@@ -243,6 +280,9 @@ Sections:
 - [x] Docker: `TARGET_DIR=/any/project docker compose up` works end-to-end
 - [x] No DCC-specific paths, imports, or assumptions remain in the release files
 - [x] README quick-start tested on a clean Python environment with no DCC dependencies
+- [x] `python dcc/tracer/download_release.py --dest D:\tools\dcc-tracer` copies all required files and prints correct next-step instructions
+- [x] Destination folder is self-contained: `python launch.py <target>` works with no files outside the destination
+- [x] Script runs on Python 3.10+ with stdlib only (no pip install required to run the downloader itself)
 
 ---
 
@@ -256,7 +296,8 @@ Sections:
 | R4 Docker | 1 h |
 | R5 Dashboard UX | 1 h |
 | R6 README | 1 h |
-| **Total** | **~8 h** |
+| R7 Windows downloader | 1.5 h |
+| **Total** | **~9.5 h** |
 
 ---
 

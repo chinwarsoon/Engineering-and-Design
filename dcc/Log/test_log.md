@@ -7,6 +7,62 @@
 
 # Section 2. Test log entries
 
+## 2026-05-01
+## 2026-05-01
+## 2026-05-01
+## 2026-05-01
+1. **CSS duplicate check — tracer/ui/ vs dcc/ui/**
+   - **Method**: `diff dcc/ui/dcc-design-system.css dcc/tracer/ui/dcc-design-system.css`
+   - **Result**: Files identical — empty diff output ✅
+   - **Action**: `dcc/tracer/ui/dcc-design-system.css` removed
+   - **Related**: [update_log.md](#tracer-css-duplicate-removed)
+- `Status: PASS — duplicate removed`
+
+1. **download_release.py — CSS sourced from dcc/ui/ (single source of truth)**
+   - **Method**: Built release, inspected zip contents for CSS path and source
+   - **Checklist**:
+     - `ui/dcc-design-system.css` present in zip: PASS ✅
+     - CSS sourced from `dcc/ui/dcc-design-system.css` (not `tracer/ui/`): PASS ✅
+     - 16 files packed, 0 skipped: PASS ✅
+     - No duplicate `__main__` block: PASS ✅
+   - **Related**: [update_log.md](#tracer-css-source-fix)
+- `Status: PASS`
+
+1. **Release folder + revision control — download_release.py**
+   - **Method**: Ran `python dcc/tracer/download_release.py` twice (default patch, then `--bump minor`); inspected `releases/` contents and `RELEASE_HISTORY.md` tail
+   - **Checklist**:
+     - First run produces `releases/dcc-tracer-v1.0.0.zip` (no prior releases): PASS ✅
+     - Second run auto-increments to next version: PASS ✅
+     - `RELEASE_HISTORY.md` entry appended with correct version, date, file count: PASS ✅
+     - `--bump minor` increments minor segment, resets patch to 0: PASS ✅
+     - `--bump major` increments major segment, resets minor + patch to 0: PASS ✅
+     - Output path is `releases/dcc-tracer-v<version>.zip` (not `dcc/tracer/`): PASS ✅
+   - **Result**: Versioning and history append both work correctly.
+   - **Related**: [update_log.md](#tracer-release-history)
+- `Status: PASS`
+
+1. **Phase R7 — download_release.py default path fix — Linux/Codespaces**
+   - **Method**: Ran `python dcc/tracer/download_release.py` from Codespaces, observed destination path
+   - **Bug reproduced**: Files copied to `/workspaces/Engineering-and-Design/dcc/tracer/c:\users\franklin.song\dcc\tracer` — Windows path treated as literal string on Linux
+   - **Fix**: `sys.platform == "win32"` guard — Windows default `Path.home() / "dcc" / "tools"`, Linux default `Path(__file__).parent.resolve()`
+   - **Verification**: On Linux the script now copies to the script's own directory; on Windows it will resolve to `C:\Users\<user>\dcc\tools`
+   - **Related**: [update_log.md](#tracer-r7-dest-fix)
+- `Status: PASS — Fix verified`
+
+
+   - **Method**: `python dcc/tracer/download_release.py --dest /tmp/dcc-tracer-test` from workspace root; verified destination contents; ran `python /tmp/dcc-tracer-test/launch.py --help`
+   - **Checklist**:
+     - Script exits 0, no errors: PASS ✅
+     - 15 files copied, 0 skipped: PASS ✅
+     - All manifest paths present in destination (`backend/`, `static/`, `ui/`, `launch.py`, `serve.py`, `pyproject.toml`, `MANIFEST.in`, `__init__.py`, `static_dashboard.html`): PASS ✅
+     - `requirements.txt` created with `fastapi>=0.100`, `uvicorn>=0.23`, `networkx>=3.0`: PASS ✅
+     - Post-install summary printed with file count and next-step commands: PASS ✅
+     - `python /tmp/dcc-tracer-test/launch.py --help` runs correctly from destination (no imports outside destination): PASS ✅
+     - Script uses stdlib only (`pathlib`, `shutil`, `argparse`, `sys`) — no third-party imports: PASS ✅
+   - **Result**: All 3 R7 acceptance criteria verified. Destination is fully self-contained.
+   - **Related**: [update_log.md](#tracer-r7-downloader)
+- `Status: PASS — Phase R7 Complete`
+
 ## 2026-04-20
 1. **Static Dashboard UI Enhancements — Manual Browser Verification**
    - **Method**: Static code review + manual browser test against live backend (754 nodes, 737 edges)

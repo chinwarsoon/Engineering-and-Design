@@ -1862,6 +1862,134 @@ Foreign Key Dependencies:
 
 **Files Changed:** ui/common_json_tools.html, ui/dcc-design-system.css
 
+<a id="tracer-css-duplicate-removed"></a>
+## 2026-05-01
+
+### COMPLETED: Removed duplicate CSS from tracer/ui/
+**Status:** COMPLETE
+
+**Summary:** Compared `dcc/ui/dcc-design-system.css` and `dcc/tracer/ui/dcc-design-system.css` — files were identical (`diff` returned empty). Removed the copy from `tracer/ui/`. Release packaging already sources CSS directly from `dcc/ui/` so no functional impact.
+
+**Files Removed:** `dcc/tracer/ui/dcc-design-system.css`
+
+---
+
+<a id="tracer-css-source-fix"></a>
+## 2026-05-01
+
+### COMPLETED: download_release.py — CSS always sourced from dcc/ui/
+**Status:** COMPLETE
+
+**Summary:** CSS file in release zip was being pulled from `tracer/ui/dcc-design-system.css` (a copy). Changed to always source directly from `dcc/ui/dcc-design-system.css` — the single source of truth — so releases always contain the latest CSS without a manual copy step. Also removed a duplicate `if __name__ == "__main__"` block.
+
+**Root Cause:** `ui/dcc-design-system.css` was listed in `MANIFEST` and resolved relative to `tracer/`, picking up the bundled copy rather than the live `dcc/ui/` version.
+
+**Fix:**
+- Removed `ui/dcc-design-system.css` from `MANIFEST`
+- Added `CSS_SRC = Path(__file__).resolve().parents[1] / "ui" / "dcc-design-system.css"` constant
+- CSS packed separately before the manifest loop: `zf.write(CSS_SRC, CSS_DEST)`
+- Removed duplicate `if __name__ == "__main__"` block
+
+**Files Changed:** `dcc/tracer/download_release.py`
+
+---
+
+<a id="tracer-release-history"></a>
+## 2026-05-01
+
+### COMPLETED: Release folder + revision control for DCC Tracer distributions
+**Status:** COMPLETE
+
+**Summary:** Created `releases/` folder at workspace root to store all versioned zip distributions. Added `RELEASE_HISTORY.md` with full v1.0.0 history. Updated `download_release.py` to auto-increment version from existing releases and auto-append an entry to `RELEASE_HISTORY.md` on each run.
+
+**Changes Made:**
+
+| Change | Detail |
+|--------|--------|
+| `releases/` folder created | At `/workspaces/Engineering-and-Design/releases/` — all zip distributions stored here |
+| `releases/RELEASE_HISTORY.md` created | Full v1.0.0 history: change summary per phase (R1–R7), blockers resolved, acceptance criteria, log references |
+| `download_release.py` — output path | Changed from `dcc/tracer/dcc-tracer.zip` to `releases/dcc-tracer-v<version>.zip` |
+| `download_release.py` — version control | Auto-scans `releases/` for existing `dcc-tracer-v*.zip`, takes highest version, increments patch/minor/major via `--bump` flag |
+| `download_release.py` — history append | After each release, auto-appends a new entry to `RELEASE_HISTORY.md` with version, date, file count, and placeholder sections for changes + log links |
+| `download_release.py` — Windows path fix | `sys.platform == "win32"` guard: Windows default `Path.home() / "dcc" / "tools"`, Linux default `Path(__file__).parent.resolve()` |
+
+**Files Created:**
+- `releases/RELEASE_HISTORY.md`
+- `releases/dcc-tracer-v1.0.0.zip`
+
+**Files Changed:**
+- `dcc/tracer/download_release.py` — versioned output, auto-increment, history append, platform-aware default dest
+
+**Usage:**
+```bash
+python dcc/tracer/download_release.py              # patch bump (v1.0.0 → v1.0.1)
+python dcc/tracer/download_release.py --bump minor # → v1.1.0
+python dcc/tracer/download_release.py --bump major # → v2.0.0
+```
+
+---
+
+<a id="tracer-r7-dest-fix"></a>
+## 2026-05-01
+
+### RESOLVED: download_release.py — Windows path used as literal string on Linux/Codespaces
+**Status:** COMPLETE
+
+**Problem:** Running `download_release.py` from Codespaces copied files to a path like `/workspaces/Engineering-and-Design/dcc/tracer/c:\users\franklin.song\dcc\tracer` — the Windows-style default destination was treated as a literal string on Linux.
+
+**Root Cause:** `default_dest = Path.home() / "dcc" / "tracer"` used `Path.home()` unconditionally. On Linux, `Path.home()` returns `/home/codespace` (or similar), and the Windows path segments are appended as literal directory names rather than resolving to a drive path.
+
+**Fix:** Gate the Windows default behind a `sys.platform` check:
+```python
+if sys.platform == "win32":
+    default_dest = Path.home() / "dcc" / "tools"
+else:
+    default_dest = Path(__file__).parent.resolve()
+```
+On Windows: resolves to `C:\Users\<user>\dcc\tools`. On Linux/Codespaces: defaults to the script's own directory (in-place, no unintended paths).
+
+**Files Changed:** `dcc/tracer/download_release.py` — `main()` default_dest logic
+
+---
+
+<a id="tracer-r7-downloader"></a>
+## 2026-05-01
+
+### COMPLETED: Phase R7 — Windows Distribution Downloader
+**Status:** COMPLETE
+
+**Summary:** Verified and completed Phase R7 of the DCC Static Tracer standalone release. `tracer/download_release.py` was already implemented; end-to-end acceptance testing confirmed all 3 R7 criteria pass.
+
+**Verification Run:**
+```
+python dcc/tracer/download_release.py --dest /tmp/dcc-tracer-test
+
+Files copied to: /tmp/dcc-tracer-test
+  15 file(s) copied, 0 skipped
+
+Next steps:
+  pip install -r "/tmp/dcc-tracer-test/requirements.txt"
+  python "/tmp/dcc-tracer-test/launch.py" C:\path\to\your\project
+```
+
+**Acceptance Criteria:**
+
+| Criterion | Result |
+|-----------|--------|
+| `--dest` copies all 15 files and prints correct next-step instructions | ✅ 15 files copied, 0 skipped |
+| Destination is self-contained: `python launch.py <target>` works with no external files | ✅ `launch.py --help` runs correctly from destination |
+| Stdlib only — no pip install required to run the downloader | ✅ Only `pathlib`, `shutil`, `argparse`, `sys` used |
+
+**Files Changed:**
+- `dcc/workplan/code_tracing/code_tracing_release_workplan.md` — R7 acceptance criteria checked, status → COMPLETE
+- `dcc/workplan/code_tracing/reports/release_completion_report.md` — Phase R7 section added, deliverables table updated, all acceptance criteria verified
+- `dcc/Log/update_log.md` — this entry
+- `dcc/Log/test_log.md` — R7 test results added
+
+**Impact:** All 7 phases of the DCC Static Tracer standalone release are now fully complete and verified. The release is ready for distribution.
+
+---
+
 <a id="tracer-standalone-release"></a>
 ## 2026-05-01
 
