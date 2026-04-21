@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DCC Static Analyser Pro</title>
-  <link rel="stylesheet" href="../ui/dcc-design-system.css">
+  <link rel="stylesheet" href="ui/dcc-design-system.css">
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <style>
     /* ── layout overrides ── */
@@ -333,8 +333,8 @@
         <div class="sb-section">
           <div class="sb-section-header"><span>📁 Load</span><span class="sb-section-arrow">▼</span></div>
           <div class="sb-section-body">
-            <label class="form-label">Backend Root Path</label>
-            <input id="root-path" type="text" placeholder="e.g. dcc/workflow" style="margin-bottom:8px">
+            <label class="form-label">Target Directory</label>
+            <input id="root-path" type="text" placeholder="Absolute or relative path" style="margin-bottom:8px">
             <button class="btn btn-primary" style="width:100%;margin-bottom:6px" onclick="runAnalysis()">▶ Analyse</button>
             <button class="btn btn-secondary" style="width:100%" onclick="loadSavedGraph()">📂 Load Saved</button>
             <div id="load-status" style="margin-top:8px;font-size:10px;color:var(--text3)"></div>
@@ -391,7 +391,7 @@
       <div id="graph-welcome" class="welcome-pane">
         <div class="welcome-icon">⚙️</div>
         <div class="welcome-title">Static Code Analyser</div>
-        <div class="welcome-sub">Enter a backend root path and click Analyse, or load a saved graph.</div>
+        <div class="welcome-sub">Enter a directory path and click Analyse, or load a saved graph.</div>
       </div>
     </div>
 
@@ -1346,7 +1346,7 @@ function escapeHTML(str) {
 // ── API Actions ─────────────────────────────────────────────────────────────
 async function runAnalysis() {
   const root = document.getElementById('root-path').value.trim();
-  if (!root) return alert('Enter a path');
+  if (!root) return alert('Enter a directory path');
   const status = document.getElementById('load-status');
   status.textContent = '⏳ Analysing...';
   try {
@@ -1362,6 +1362,21 @@ async function runAnalysis() {
     const data = await res.json();
     if (!data || !data.nodes) throw new Error('Invalid response: missing nodes');
     loadGraphData(data);
+    // Update breadcrumb with resolved path
+    const bcRoot = document.getElementById('bc-root');
+    bcRoot.textContent = root;
+    bcRoot.title = root;
+    // Add copy button if not already present
+    if (!document.getElementById('bc-copy-btn')) {
+      const btn = document.createElement('button');
+      btn.id = 'bc-copy-btn';
+      btn.className = 'btn btn-ghost btn-icon';
+      btn.title = 'Copy path';
+      btn.textContent = '📋';
+      btn.style.cssText = 'padding:1px 4px;font-size:11px;margin-left:6px';
+      btn.onclick = () => { navigator.clipboard.writeText(root); btn.textContent = '✓'; setTimeout(() => btn.textContent = '📋', 1500); };
+      bcRoot.parentElement.appendChild(btn);
+    }
     status.textContent = `✓ Done (${data.nodes.length} fns)`;
   } catch (e) { status.textContent = `✗ ${e.message}`; }
 }

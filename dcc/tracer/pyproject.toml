@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "dcc-tracer"
+version = "1.0.0"
+description = "Static call-graph analyser and interactive dashboard for any Python codebase"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+    "networkx>=3.0",
+]
+
+[project.optional-dependencies]
+pyvis = ["pyvis>=0.3.2"]
+
+[project.scripts]
+dcc-tracer = "tracer.launch:main"
+
+[tool.setuptools.packages.find]
+where = [".."]
+include = ["tracer*"]
+
+[tool.setuptools.package-data]
+"tracer" = ["static_dashboard.html", "ui/dcc-design-system.css"]

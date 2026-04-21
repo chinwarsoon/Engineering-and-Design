@@ -1861,3 +1861,57 @@ Foreign Key Dependencies:
 6. Uses hex colors instead of CSS variables for SVG compatibility
 
 **Files Changed:** ui/common_json_tools.html, ui/dcc-design-system.css
+
+<a id="tracer-standalone-release"></a>
+## 2026-05-01
+
+### COMPLETED: DCC Static Tracer — Standalone Release (Phases R1–R6)
+**Status:** COMPLETE
+
+**Summary:** Packaged the static analysis tracer as a self-contained, independently installable tool that any Python developer can run against their own codebase with no knowledge of the DCC project required. All 5 blockers resolved across 6 phases.
+
+**Blockers Resolved:**
+
+| # | Blocker | Fix |
+|---|---------|-----|
+| B1 | Hard-coded 4× `.parent` + `dcc/` prefix in `/static/analyze` | Replaced with `_resolve_base()` — reads `TRACER_TARGET` env var, `.target` file, or falls back to `cwd` |
+| B2 | `/file/read` restricted to DCC project root | Security boundary now uses `_resolve_base()` — allows reads anywhere under the configured target |
+| B3 | Only relative paths accepted, relative to `dcc/` | Both absolute and relative paths accepted in all endpoints |
+| B4 | `serve.py` was DCC-specific | New `tracer/serve.py` — no DCC paths, serves dashboard + proxies `/api/*` |
+| B5 | No `pyproject.toml` | Created `tracer/pyproject.toml` with `dcc-tracer` CLI entry point |
+
+**Changes Made:**
+
+| Phase | Deliverable | Files |
+|-------|-------------|-------|
+| R1 | Portable path resolution — `_resolve_base()` replaces all hard-coded paths | `tracer/backend/server.py` |
+| R2 | Launcher + standalone file server | `tracer/launch.py` (new), `tracer/serve.py` (new) |
+| R3 | pip package | `tracer/pyproject.toml` (new), `tracer/MANIFEST.in` (new) |
+| R4 | Docker image | `tracer/Dockerfile` (new), `tracer/docker-compose.yml` (new) |
+| R5 | Dashboard UX — CSS path fixed, label updated, breadcrumb + copy button | `tracer/static_dashboard.html`, `tracer/ui/dcc-design-system.css` (copied) |
+| R6 | External README | `tracer/README.md` (rewritten) |
+
+**Key Design Decisions:**
+- `_resolve_base()` priority: `TRACER_TARGET` env → `tracer/output/.target` file → `cwd`. This means the server can be started independently and still pick up the target set by `launch.py`.
+- `tracer/serve.py` is completely independent of `dcc/serve.py` — no shared code, no DCC scan dirs.
+- CSS bundled into `tracer/ui/` so the dashboard renders without the `dcc/ui/` folder.
+- All existing DCC-internal usage (via `dcc/serve.py`) continues to work unchanged.
+
+**Impact:** The tracer can now be run as `python tracer/launch.py /any/python/project` or `dcc-tracer /any/python/project` (after pip install) against any Python codebase. No DCC-specific paths, imports, or assumptions remain in the release files.
+
+**Files Created:**
+- `tracer/launch.py`
+- `tracer/serve.py`
+- `tracer/pyproject.toml`
+- `tracer/MANIFEST.in`
+- `tracer/Dockerfile`
+- `tracer/docker-compose.yml`
+- `tracer/ui/dcc-design-system.css` (copied from `dcc/ui/`)
+
+**Files Modified:**
+- `tracer/backend/server.py` — R1 path portability (all endpoints)
+- `tracer/static_dashboard.html` — R5 CSS path, label, breadcrumb UX
+- `tracer/README.md` — R6 external user README
+- `workplan/code_tracing/code_tracing_release_workplan.md` — status → COMPLETE, acceptance criteria checked
+
+---

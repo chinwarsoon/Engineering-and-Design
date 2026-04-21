@@ -1,5 +1,5 @@
 # Workplan: DCC Static Tracer — Standalone Release
-**Status:** AWAITING APPROVAL
+**Status:** COMPLETE
 **Depends on:** `code_tracing_workplan.md` Phases 1–6 (all complete)
 
 ---
@@ -236,13 +236,13 @@ Sections:
 
 ## Acceptance Criteria
 
-- [ ] `python tracer/launch.py /any/python/project` starts both servers and opens the dashboard
-- [ ] Dashboard analyses the target directory and renders the call graph
-- [ ] Source code viewer shows function source for files in the target directory
-- [ ] `pip install ./tracer && dcc-tracer /any/python/project` works end-to-end
-- [ ] Docker: `TARGET_DIR=/any/project docker compose up` works end-to-end
-- [ ] No DCC-specific paths, imports, or assumptions remain in the release files
-- [ ] README quick-start tested on a clean Python environment with no DCC dependencies
+- [x] `python tracer/launch.py /any/python/project` starts both servers and opens the dashboard
+- [x] Dashboard analyses the target directory and renders the call graph
+- [x] Source code viewer shows function source for files in the target directory
+- [x] `pip install ./tracer && dcc-tracer /any/python/project` works end-to-end
+- [x] Docker: `TARGET_DIR=/any/project docker compose up` works end-to-end
+- [x] No DCC-specific paths, imports, or assumptions remain in the release files
+- [x] README quick-start tested on a clean Python environment with no DCC dependencies
 
 ---
 

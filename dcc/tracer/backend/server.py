@@ -1,7 +1,9 @@
 """
-FastAPI backend server for Universal Interactive Python Code Tracer - Phase 2, 4 & 5
+FastAPI backend server for Universal Interactive Python Code Tracer - Phase 2, 4, 5 & R1
 Provides WebSocket support for real-time trace streaming, file I/O operations,
 syntax validation, hot-reload capabilities, environment mapping, and pipeline integration.
+
+Release R1: Portable path resolution via TRACER_TARGET env var, .target file, or cwd.
 """
 
 import sys
@@ -20,10 +22,26 @@ import uvicorn
 import time
 import uuid
 
-# Add project root to path for tracer imports
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# Add tracer package root to path for imports
+_tracer_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if _tracer_root not in sys.path:
+    sys.path.insert(0, _tracer_root)
+
+
+def _resolve_base() -> Path:
+    """Resolve the analysis target directory.
+
+    Priority:
+      1. TRACER_TARGET environment variable
+      2. tracer/output/.target file written by launch.py
+      3. Current working directory
+    """
+    if os.environ.get('TRACER_TARGET'):
+        return Path(os.environ['TRACER_TARGET']).resolve()
+    target_file = Path(__file__).parent.parent / 'output' / '.target'
+    if target_file.exists():
+        return Path(target_file.read_text().strip()).resolve()
+    return Path.cwd()
 
 from tracer import start_trace, stop_trace, get_trace_data, format_trace_for_display
 from tracer.utils.trace_filters import should_trace_file, filter_trace_data
@@ -213,29 +231,29 @@ async def websocket_trace_endpoint(websocket: WebSocket):
 
 @app.post("/file/read")
 async def read_file(file_path: dict):
-    """Read file contents."""
+    """Read file contents. Accepts absolute paths or paths relative to the analysis target."""
     try:
         path = file_path.get("path")
         if not path:
             raise HTTPException(status_code=400, detail="Path parameter required")
-        
-        # Security check: restrict to project directory for safety
-        project_root = Path(__file__).parent.parent.parent
-        full_path = (project_root / path).resolve()
-        
-        # Ensure the file is within project directory
-        if not str(full_path).startswith(str(project_root)):
-            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
-        
+
+        base = _resolve_base()
+        input_path = Path(path)
+        full_path = (input_path if input_path.is_absolute() else base / path).resolve()
+
+        # Path traversal guard: must stay within the configured target root
+        if not str(full_path).startswith(str(base)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
+
         if not full_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
-        
+
         if not full_path.is_file():
             raise HTTPException(status_code=400, detail="Path is not a file")
-        
+
         content = full_path.read_text(encoding='utf-8')
         return {"path": str(path), "content": content, "size": len(content)}
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -248,19 +266,18 @@ async def validate_file_syntax(file_data: dict):
     try:
         path = file_data.get("path")
         content = file_data.get("content")
-        
+
         if not path:
             raise HTTPException(status_code=400, detail="Path parameter required")
         if content is None:
             raise HTTPException(status_code=400, detail="Content parameter required")
-        
-        # Security check: restrict to project directory for safety
-        project_root = Path(__file__).parent.parent.parent
-        full_path = (project_root / path).resolve()
-        
-        # Ensure the file is within project directory
-        if not str(full_path).startswith(str(project_root)):
-            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
+
+        base = _resolve_base()
+        input_path = Path(path)
+        full_path = (input_path if input_path.is_absolute() else base / path).resolve()
+
+        if not str(full_path).startswith(str(base)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
         
         # Validate Python syntax
         try:
@@ -304,19 +321,18 @@ async def write_file(file_data: dict):
     try:
         path = file_data.get("path")
         content = file_data.get("content")
-        
+
         if not path:
             raise HTTPException(status_code=400, detail="Path parameter required")
         if content is None:
             raise HTTPException(status_code=400, detail="Content parameter required")
-        
-        # Security check: restrict to project directory for safety
-        project_root = Path(__file__).parent.parent.parent
-        full_path = (project_root / path).resolve()
-        
-        # Ensure the file is within project directory
-        if not str(full_path).startswith(str(project_root)):
-            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
+
+        base = _resolve_base()
+        input_path = Path(path)
+        full_path = (input_path if input_path.is_absolute() else base / path).resolve()
+
+        if not str(full_path).startswith(str(base)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
         
         # Create parent directories if they don't exist
         full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -342,39 +358,27 @@ async def hot_reload(module_info: dict):
         path = module_info.get("path")
         if not path:
             raise HTTPException(status_code=400, detail="Path parameter required")
-        
-        # Security check: restrict to project directory for safety
-        project_root = Path(__file__).parent.parent.parent
-        full_path = (project_root / path).resolve()
-        
-        # Ensure the file is within project directory
-        if not str(full_path).startswith(str(project_root)):
-            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
-        
+
+        base = _resolve_base()
+        input_path = Path(path)
+        full_path = (input_path if input_path.is_absolute() else base / path).resolve()
+
+        if not str(full_path).startswith(str(base)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
+
         if not full_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
-        
-        # Import importlib for module reloading
+
         import importlib
         import sys
-        
-        # Convert file path to module name
-        # Remove .py extension and convert path separators to dots
-        relative_path = full_path.relative_to(project_root)
+
+        relative_path = full_path.relative_to(base)
         module_name = str(relative_path.with_suffix('')).replace('/', '.').replace('\\', '.')
-        
-        # Remove module from sys.modules cache if it exists
-        modules_to_remove = []
-        for module in sys.modules:
-            if module == module_name or module.startswith(module_name + '.'):
-                modules_to_remove.append(module)
-        
-        for module in modules_to_remove:
-            del sys.modules[module]
-        
-        # Note: Actual reloading would happen when the file is next imported
-        # This endpoint prepares the environment for fresh imports
-        
+
+        modules_to_remove = [m for m in sys.modules if m == module_name or m.startswith(module_name + '.')]
+        for m in modules_to_remove:
+            del sys.modules[m]
+
         return {
             "path": str(path),
             "modules_cleared": len(modules_to_remove),
@@ -393,27 +397,17 @@ async def environment_map(path_info: dict):
         path = path_info.get("path")
         if not path:
             raise HTTPException(status_code=400, detail="Path parameter required")
-        
-        # Convert path to Path object
+
         input_path = Path(path)
-        
-        # Get current platform info
+        base = _resolve_base()
         current_platform = platform.system()
         is_windows = current_platform == "Windows"
         is_linux = current_platform == "Linux"
-        
-        # Resolve the path to absolute
-        if input_path.is_absolute():
-            resolved_path = input_path.resolve()
-        else:
-            # Relative to project root for safety
-            project_root = Path(__file__).parent.parent.parent
-            resolved_path = (project_root / path).resolve()
-        
-        # Ensure the file is within project directory for security
-        project_root = Path(__file__).parent.parent.parent
-        if not str(resolved_path).startswith(str(project_root)):
-            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
+
+        resolved_path = input_path.resolve() if input_path.is_absolute() else (base / path).resolve()
+
+        if not str(resolved_path).startswith(str(base)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
         
         # Generate mapping information
         mapping_info = {
@@ -624,16 +618,16 @@ async def run_pipeline(run_data: dict):
         function_name = run_data.get("function", "main")
         args = run_data.get("args", [])
         kwargs = run_data.get("kwargs", {})
-        
+
         if not path:
             raise HTTPException(status_code=400, detail="Path parameter required")
-            
-        # Security check: restrict to project directory
-        project_root = Path(__file__).parent.parent.parent
-        full_path = (project_root / path).resolve()
-        
-        if not str(full_path).startswith(str(project_root)):
-            raise HTTPException(status_code=403, detail="Access denied: Path outside project directory")
+
+        base = _resolve_base()
+        input_path = Path(path)
+        full_path = (input_path if input_path.is_absolute() else base / path).resolve()
+
+        if not str(full_path).startswith(str(base)):
+            raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
             
         if not full_path.exists():
             raise HTTPException(status_code=404, detail="File not found")
@@ -654,31 +648,32 @@ async def run_pipeline(run_data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to run pipeline: {str(e)}")
 
-# ── Static Analysis Endpoints (Phase 1b) ────────────────────────────────────
+# ── Static Analysis Endpoints (Phase 1b + R1) ───────────────────────────────
 
 @app.post("/static/analyze")
 async def static_analyze(req: dict):
     """Run full static analysis on a directory and return graph JSON.
 
     Body: {"root": "<path>", "complexity_filter": 0}
+    Accepts absolute paths or paths relative to the configured target base.
     Returns: graph JSON (nodes, edges, entry_points, hotspots, stats).
     """
     try:
         root = req.get("root")
-        cc_filter = int(req.get("complexity_filter", 0))
         if not root:
             raise HTTPException(status_code=400, detail="root path required")
 
-        project_root = Path(__file__).resolve().parent.parent.parent.parent  # Engineering-and-Design/
-        dcc_root = project_root / "dcc"                      # Engineering-and-Design/dcc/
-        # Accept paths relative to dcc/ first, then project root
-        full_root = (dcc_root / root).resolve()
+        base = _resolve_base()
+        input_path = Path(root)
+        full_root = input_path.resolve() if input_path.is_absolute() else (base / root).resolve()
+
         if not full_root.exists():
-            full_root = (project_root / root).resolve()
-        if not str(full_root).startswith(str(project_root)):
-            raise HTTPException(status_code=403, detail="Path outside project directory")
-        if not full_root.exists():
-            raise HTTPException(status_code=404, detail="Directory not found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Directory not found: {full_root}"
+            )
+        if not full_root.is_dir():
+            raise HTTPException(status_code=400, detail="Path is not a directory")
 
         from tracer.static.crawler import crawl
         from tracer.static.parser import parse_all
@@ -689,8 +684,8 @@ async def static_analyze(req: dict):
         cg = CallGraph(modules).build()
         data = cg.to_json()
 
-        # Persist output
-        output_dir = project_root / "tracer" / "output"
+        # Persist output next to this package
+        output_dir = Path(__file__).parent.parent / "output"
         output_dir.mkdir(parents=True, exist_ok=True)
         import json as _json
         (output_dir / "call_graph.json").write_text(
