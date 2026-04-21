@@ -6,9 +6,9 @@ under the workspace releases/ folder. Version is auto-incremented based on
 existing releases (e.g. dcc-tracer-v1.0.0.zip → dcc-tracer-v1.0.1.zip).
 
 Usage:
-    python dcc/tracer/download_release.py
-    python dcc/tracer/download_release.py --bump minor
-    python dcc/tracer/download_release.py --bump major
+    python code_tracer/download_release.py
+    python code_tracer/download_release.py --bump minor
+    python code_tracer/download_release.py --bump major
 """
 
 import argparse
@@ -17,31 +17,30 @@ import sys
 import zipfile
 from pathlib import Path
 
-# CSS is always sourced from dcc/ui/ — single source of truth
-CSS_SRC = Path(__file__).resolve().parents[1] / "ui" / "dcc-design-system.css"
+# CSS is always sourced from ui/ — single source of truth
+CSS_SRC = Path(__file__).resolve().parent / "ui" / "dcc-design-system.css"
 CSS_DEST = "ui/dcc-design-system.css"
 
-# Files required for static tracing, relative to this script's directory
+# Files required for static tracing, relative to code_tracer root
 MANIFEST = [
     "USER_GUIDE.md",
-    "static_dashboard.html",
-    "backend/__init__.py",
-    "backend/server.py",
-    "static/__init__.py",
-    "static/crawler.py",
-    "static/graph.py",
-    "static/metrics.py",
-    "static/parser.py",
-    "static/visualizer.py",
-    "launch.py",
+    "ui/static_dashboard.html",
+    "engine/backend/__init__.py",
+    "engine/backend/server.py",
+    "engine/static/__init__.py",
+    "engine/static/crawler.py",
+    "engine/static/graph.py",
+    "engine/static/metrics.py",
+    "engine/static/parser.py",
+    "engine/static/visualizer.py",
+    "engine/launch.py",
     "serve.py",
-    "pyproject.toml",
-    "MANIFEST.in",
-    "__init__.py",
+    "engine/pyproject.toml",
+    "engine/__init__.py",
 ]
 
 REQUIREMENTS = "fastapi>=0.100\nuvicorn>=0.23\nnetworkx>=3.0\n"
-RELEASES_DIR = Path(__file__).resolve().parents[2] / "releases"
+RELEASES_DIR = Path(__file__).resolve().parent / "releases"
 VERSION_RE = re.compile(r"dcc-tracer-v(\d+)\.(\d+)\.(\d+)\.zip")
 
 
@@ -75,9 +74,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python dcc/tracer/download_release.py              # patch bump (or v1.0.0 if first)
-  python dcc/tracer/download_release.py --bump minor
-  python dcc/tracer/download_release.py --bump major
+  python code_tracer/download_release.py              # patch bump (or v1.0.0 if first)
+  python code_tracer/download_release.py --bump minor
+  python code_tracer/download_release.py --bump major
         """,
     )
     parser.add_argument(
@@ -96,7 +95,7 @@ Examples:
 
     packed, skipped = [], []
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        # CSS always from dcc/ui/ — single source of truth
+        # CSS always from ui/ — single source of truth
         if CSS_SRC.exists():
             zf.write(CSS_SRC, CSS_DEST)
             packed.append(CSS_DEST)
@@ -107,8 +106,13 @@ Examples:
             if not src.exists():
                 skipped.append(rel)
                 continue
-            zf.write(src, rel)
-            packed.append(rel)
+            # In the zip, engine files go to root (for backwards compatibility)
+            if rel.startswith("engine/"):
+                zip_path = rel[7:]  # Strip "engine/" prefix in zip
+            else:
+                zip_path = rel
+            zf.write(src, zip_path)
+            packed.append(zip_path)
         zf.writestr("requirements.txt", REQUIREMENTS)
 
     print(f"\nRelease v{version} created: {out_path}")
@@ -125,15 +129,15 @@ Examples:
         f"## v{version} — {date.today()}\n\n"
         f"**File:** [`dcc-tracer-v{version}.zip`](dcc-tracer-v{version}.zip)\n"
         f"**Type:** {'Major release' if args.bump == 'major' else 'Minor release' if args.bump == 'minor' else 'Patch release'}\n"
-        f"**Packaged from:** `dcc/tracer/`\n\n"
+        f"**Packaged from:** `code_tracer/`\n\n"
         f"{len(packed)} file(s) packed, {len(skipped)} skipped.\n\n"
         "### Changes\n\n"
         "_Update this section with a summary of changes in this release._\n\n"
         "### Log References\n\n"
         "| Log | Entry |\n"
         "|-----|-------|\n"
-        "| `dcc/Log/update_log.md` | _link to relevant entry_ |\n"
-        "| `dcc/Log/test_log.md` | _link to relevant entry_ |\n\n"
+        "| `code_tracer/Log/update_log.md` | _link to relevant entry_ |\n"
+        "| `code_tracer/Log/test_log.md` | _link to relevant entry_ |\n\n"
         "---\n"
     )
     if history_path.exists():

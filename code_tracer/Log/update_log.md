@@ -84,3 +84,187 @@ code_tracer/
 | `engine/launch.py` | (same) | Updated `serve_script` path to find root `serve.py`. |
 
 **Impact:** Resolves asset path mismatch. Consolidates frontend/UI logic into the `ui/` folder while keeping the launcher at project root.
+
+---
+
+## 2026-04-21 21:30:00
+
+### Call Graph Fix: networkx Installation & Data Regeneration
+
+**Status:** COMPLETE
+
+**Problem:** After launching `launch.py`, the dashboard showed no link arrows, entry points, or flow tree. The `call_graph.json` had stale data from when `networkx` was not installed: `nodes: 945, edges: 0, entry_points: 0`.
+
+**Root Cause:**
+1. `networkx==3.6.1` was installed in base conda env but not in the active `dcc` env
+2. The existing `call_graph.json` was generated without networkx (edges=0)
+3. The `.target` file pointed to the wrong path (`/home/franklin/dsai` instead of `code_tracer/engine`)
+
+**Actions:**
+1. Activated `dcc` conda environment: `conda activate dcc`
+2. Installed networkx: `pip install networkx==3.6.1`
+3. Regenerated `call_graph.json` with proper edges using `CallGraph(modules).build()`
+4. Updated `.target` file to correct path
+
+**Results:**
+- Before: `nodes: 945, edges: 0, entry_points: 0`
+- After: `nodes: 106, edges: 93, entry_points: 50`
+
+**Files Updated:**
+- `code_tracer/engine/output/call_graph.json` — regenerated with valid edges
+- `code_tracer/engine/output/.target` — corrected path
+- Environment: `dcc` conda env now has `networkx==3.6.1`
+
+---
+
+## 2026-04-21 23:15:00
+
+### UI Reorganization: Dedicated Load Project Panel
+
+**Status:** COMPLETE
+
+**Problem:** The "Load Directory" functionality was hidden inside the "Controls" panel. Moving it to its own top-level icon improves accessibility and follows standard IDE patterns.
+
+**Changes applied:**
+
+| Component | Change | Description |
+|-----------|--------|-------------|
+| `ui/static_dashboard.html` | New Icon Bar Button | Added `📥 Load Project` as the first icon in the activity bar. |
+| `ui/static_dashboard.html` | New Sidebar Panel | Created `sb-panel-load` to hold project loading inputs independently. |
+| `ui/static_dashboard.html` | Panel Cleanup | Removed the "Load" section from the "Controls" panel. |
+| `ui/static_dashboard.html` | Default State | Set the "Load" panel as the default visible panel on startup. |
+
+**Impact:** Faster access to project loading functionality. Cleaner separation between project management (Load) and analysis tuning (Controls).
+
+---
+
+## 2026-04-21 23:00:00
+
+### UI Refinement: Clean Title Bar (No Vertical Lines)
+
+**Status:** COMPLETE
+
+**Problem:** Title bar contained vertical lines/borders (logo separator, button borders) that cluttered the interface.
+
+**Changes applied:**
+
+| Component | Change | Description |
+|-----------|--------|-------------|
+| `ui/dcc-design-system.css` | Global Title Bar Rule | Added `.dcc-titlebar * { border: none !important; }` to remove all borders from elements inside the title bar. |
+| `dcc/ui/dcc-design-system.css` | Global Title Bar Rule | Applied the same clean-up to the main project CSS for consistency. |
+
+**Impact:** Minimalist, modern title bar without any vertical separators or element borders.
+
+---
+
+## 2026-04-21 22:45:00
+
+### UI Refinement: Breadcrumb Relocation to Status Bar
+
+**Status:** COMPLETE
+
+**Problem:** Breadcrumb was taking up space in the title bar (under the logo). Moving it to the status bar provides a cleaner header and utilizes available space at the bottom.
+
+**Changes applied:**
+
+| Component | Change | Description |
+|-----------|--------|-------------|
+| `ui/static_dashboard.html` | Relocate Breadcrumb | Moved `#bc-root` container from `dcc-titlebar` to `dcc-statusbar`. |
+| `ui/tracer_pro.html` | Relocate Breadcrumb | Moved breadcrumb for consistency with the static dashboard. |
+| `ui/dcc-design-system.css` | `.dcc-statusbar-breadcrumb` | Renamed from `.dcc-titlebar-breadcrumb` and restyled for status bar colors (white/light text). |
+| `ui/dcc-design-system.css` | Remove Logo Stack | Removed `.logo-text-stack` as the title bar logo name is no longer stacked. |
+
+**Impact:** Improved vertical space in the title bar and better information hierarchy by placing path information in the status bar.
+
+---
+
+## 2026-04-21 22:30:00
+
+### UI Refinement: Title Bar Breadcrumb & Logo Layout
+
+**Status:** COMPLETE
+
+**Problem:** Title bar layout had a dividing line and the breadcrumb was side-by-side with the logo, which could be improved for a cleaner look.
+
+**Changes applied:**
+
+| Component | Change | Description |
+|-----------|--------|-------------|
+| `ui/dcc-design-system.css` | Remove Dividing Line | Removed `border-right` from `.dcc-titlebar-logo`. |
+| `ui/dcc-design-system.css` | `.logo-text-stack` | Added a flex-column wrapper to stack logo name and breadcrumb. |
+| `ui/static_dashboard.html` | Restructured Title Bar | Moved `titlebar-breadcrumb` inside the logo div and wrapped it in the new stack. |
+| `ui/dcc-design-system.css` | Breadcrumb Styling | Reduced font size to `10px` and removed padding to fit the new stacked layout. |
+
+**Impact:** Cleaner, more modern header layout that follows a vertical information hierarchy within the logo area.
+
+---
+
+## 2026-04-21 22:15:00
+
+### UX Improvement: Auto-updating Flow Tree on File Selection
+
+**Status:** COMPLETE
+
+**Problem:** Clicking a file (module) in the file tree filtered the graph but did not update the Flow Tree or Inspector, leading to confusion about whether "flow" was detected.
+
+**Changes applied:**
+
+| Component | Change | Description |
+|-----------|--------|-------------|
+| `ui/static_dashboard.html` | `selectNodeUI` helper | Consolidated selection logic (Graph + Inspector + File Tree + Flow Tree) into a single reusable function. |
+| `ui/static_dashboard.html` | Auto-selection | Clicking a file node now automatically selects the first function in that file, triggering a Flow Tree update. |
+| `ui/static_dashboard.html` | Refactored Clicks | Updated Graph and Flow Tree click handlers to use the consolidated selection logic. |
+
+**Impact:** Improved discoverability of "Flow" information. Users now get immediate feedback about a file's contents and call hierarchy when selecting it in the tree.
+
+---
+
+## 2026-04-21 22:00:00
+
+### Dynamic Target Resolution & Path Security Fixes
+
+**Status:** COMPLETE
+
+**Problem:** Issue CT-05 identified a 403 Forbidden error when analyzing a new directory from the dashboard and attempting to read its source code. The security boundary was stuck on the initial directory.
+
+**Changes applied:**
+
+| Component | Change | Description |
+|-----------|--------|-------------|
+| `backend/server.py` (`_resolve_base`) | Priority Swap | Prioritizes `.target` file over `TRACER_TARGET` env var, allowing dynamic root updates. |
+| `backend/server.py` (`static_analyze`) | Persist Root | Now updates the `.target` file upon successful analysis, in sync with `call_graph.json`. |
+| `backend/server.py` (all endpoints) | Robust Validation | Replaced brittle `.startswith()` string checks with `Path.is_relative_to(base)` for security boundaries. |
+
+**Impact:** Fixes source code fetch failure in the dashboard. Allows the tracer backend to dynamically switch between projects without restart or 403 errors. Improves overall security validation reliability.
+
+---
+
+## 2026-04-21 21:45:00
+
+### Moved: download_release.py to code_tracer Root
+
+**Status:** COMPLETE
+
+**Change:** Moved `download_release.py` from `code_tracer/engine/` to `code_tracer/` root folder per workplan R7 requirements.
+
+**Path Updates:**
+
+| Original | Updated | Description |
+|----------|---------|-------------|
+| `parents[1] / "ui"` | `parent / "ui"` | CSS source now relative to code_tracer root |
+| `parents[2] / "releases"` | `parent / "releases"` | Releases directory at code_tracer/releases |
+| `engine/` prefix | Added to MANIFEST entries | All engine files now prefixed with `engine/` |
+| `dcc/tracer/` refs | `code_tracer/` | Updated docstring examples |
+
+**MANIFEST Adjustments:**
+- `USER_GUIDE.md` — moved from `engine/` to root (was already at root)
+- Removed `engine/MANIFEST.in` — file doesn't exist in current structure
+
+**Verification:**
+- Script runs successfully: `python download_release.py --bump patch`
+- Created release: `dcc-tracer-v1.0.4.zip` (16 files, 190KB)
+- All files packed correctly, 0 skipped
+
+**Files Changed:**
+- Created: `code_tracer/download_release.py` (new location)
+- Deleted: `code_tracer/engine/download_release.py` (old location)

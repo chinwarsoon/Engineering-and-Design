@@ -34,15 +34,15 @@ def _resolve_base() -> Path:
     """Resolve the analysis target directory.
 
     Priority:
-      1. TRACER_TARGET environment variable
-      2. tracer/output/.target file written by launch.py
+      1. tracer/output/.target file written by launch.py or static_analyze
+      2. TRACER_TARGET environment variable
       3. Current working directory
     """
-    if os.environ.get('TRACER_TARGET'):
-        return Path(os.environ['TRACER_TARGET']).resolve()
     target_file = Path(__file__).parent.parent / 'output' / '.target'
     if target_file.exists():
         return Path(target_file.read_text().strip()).resolve()
+    if os.environ.get('TRACER_TARGET'):
+        return Path(os.environ['TRACER_TARGET']).resolve()
     return Path.cwd()
 
 from core.trace_engine import start_trace, stop_trace, get_trace_data
@@ -245,7 +245,7 @@ async def read_file(file_path: dict):
         full_path = (input_path if input_path.is_absolute() else base / path).resolve()
 
         # Path traversal guard: must stay within the configured target root
-        if not str(full_path).startswith(str(base)):
+        if not full_path.is_relative_to(base):
             raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
 
         if not full_path.exists():
@@ -279,7 +279,7 @@ async def validate_file_syntax(file_data: dict):
         input_path = Path(path)
         full_path = (input_path if input_path.is_absolute() else base / path).resolve()
 
-        if not str(full_path).startswith(str(base)):
+        if not full_path.is_relative_to(base):
             raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
         
         # Validate Python syntax
@@ -334,7 +334,7 @@ async def write_file(file_data: dict):
         input_path = Path(path)
         full_path = (input_path if input_path.is_absolute() else base / path).resolve()
 
-        if not str(full_path).startswith(str(base)):
+        if not full_path.is_relative_to(base):
             raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
         
         # Create parent directories if they don't exist
@@ -366,7 +366,7 @@ async def hot_reload(module_info: dict):
         input_path = Path(path)
         full_path = (input_path if input_path.is_absolute() else base / path).resolve()
 
-        if not str(full_path).startswith(str(base)):
+        if not full_path.is_relative_to(base):
             raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
 
         if not full_path.exists():
@@ -409,7 +409,7 @@ async def environment_map(path_info: dict):
 
         resolved_path = input_path.resolve() if input_path.is_absolute() else (base / path).resolve()
 
-        if not str(resolved_path).startswith(str(base)):
+        if not resolved_path.is_relative_to(base):
             raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
         
         # Generate mapping information
@@ -629,7 +629,7 @@ async def run_pipeline(run_data: dict):
         input_path = Path(path)
         full_path = (input_path if input_path.is_absolute() else base / path).resolve()
 
-        if not str(full_path).startswith(str(base)):
+        if not full_path.is_relative_to(base):
             raise HTTPException(status_code=403, detail="Access denied: Path outside target directory")
             
         if not full_path.exists():
@@ -690,6 +690,10 @@ async def static_analyze(req: dict):
         # Persist output next to this package
         output_dir = Path(__file__).parent.parent / "output"
         output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Update .target file to match the current analysis root
+        (output_dir / ".target").write_text(str(full_root), encoding="utf-8")
+        
         import json as _json
         (output_dir / "call_graph.json").write_text(
             _json.dumps(data, indent=2, default=str), encoding="utf-8"

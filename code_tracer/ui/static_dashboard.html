@@ -245,9 +245,6 @@
     <span class="logo-icon">⚙️</span>
     <span class="logo-name">Static <span class="logo-accent">Analyser</span></span>
   </div>
-  <div class="dcc-titlebar-breadcrumb">
-    <span id="bc-root" class="bc-active">No directory loaded</span>
-  </div>
   <div class="dcc-titlebar-actions">
     <!-- Theme picker -->
     <div class="theme-picker">
@@ -271,7 +268,8 @@
 
   <!-- Icon Bar (Activity Bar) -->
   <div class="dcc-iconbar">
-    <button class="dcc-iconbar-btn active" id="btn-sb-tree"     title="File Tree"     onclick="toggleSidebarPanel('tree')">📂</button>
+    <button class="dcc-iconbar-btn active" id="btn-sb-load"     title="Load Project"  onclick="toggleSidebarPanel('load')">📥</button>
+    <button class="dcc-iconbar-btn"        id="btn-sb-tree"     title="File Tree"     onclick="toggleSidebarPanel('tree')">📂</button>
     <button class="dcc-iconbar-btn"        id="btn-sb-controls" title="Controls"      onclick="toggleSidebarPanel('controls')">⚙️</button>
     <div class="dcc-iconbar-spacer"></div>
     <div class="dcc-iconbar-sep"></div>
@@ -284,8 +282,25 @@
   <!-- Sidebar -->
   <div class="dcc-sidebar" id="sidebar">
     
+    <!-- Sidebar Panel: Load -->
+    <div class="sb-panel visible" id="sb-panel-load">
+      <div class="sb-panel-header"><span>Load Project</span></div>
+      <div class="dcc-sidebar-body">
+        <div class="sb-section">
+          <div class="sb-section-header"><span>📁 Load Directory</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body">
+            <label class="form-label">Target Directory</label>
+            <input id="root-path" type="text" placeholder="Absolute or relative path" style="margin-bottom:8px">
+            <button class="btn btn-primary" style="width:100%;margin-bottom:6px" onclick="runAnalysis()">▶ Analyse</button>
+            <button class="btn btn-secondary" style="width:100%" onclick="loadSavedGraph()">📂 Load Saved</button>
+            <div id="load-status" style="margin-top:8px;font-size:10px;color:var(--text3)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Sidebar Panel: File Tree -->
-    <div class="sb-panel visible" id="sb-panel-tree">
+    <div class="sb-panel" id="sb-panel-tree">
       <div class="sb-panel-header">
         <span>File Tree</span>
         <div style="display:flex;gap:4px">
@@ -329,18 +344,6 @@
     <div class="sb-panel" id="sb-panel-controls">
       <div class="sb-panel-header"><span>Analysis Controls</span></div>
       <div class="dcc-sidebar-body">
-        <!-- Load -->
-        <div class="sb-section">
-          <div class="sb-section-header"><span>📁 Load</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body">
-            <label class="form-label">Target Directory</label>
-            <input id="root-path" type="text" placeholder="Absolute or relative path" style="margin-bottom:8px">
-            <button class="btn btn-primary" style="width:100%;margin-bottom:6px" onclick="runAnalysis()">▶ Analyse</button>
-            <button class="btn btn-secondary" style="width:100%" onclick="loadSavedGraph()">📂 Load Saved</button>
-            <div id="load-status" style="margin-top:8px;font-size:10px;color:var(--text3)"></div>
-          </div>
-        </div>
-
         <!-- Filter -->
         <div class="sb-section">
           <div class="sb-section-header"><span>🔍 Filter</span><span class="sb-section-arrow">▼</span></div>
@@ -538,6 +541,9 @@
 <!-- Status Bar -->
 <div class="dcc-statusbar status-info" id="statusbar">
   <div class="sb-item" id="status-text">Ready</div>
+  <div class="sb-item dcc-statusbar-breadcrumb">
+    <span id="bc-root" class="bc-active">No directory loaded</span>
+  </div>
   <div class="sb-item-right" id="status-stats">—</div>
 </div>
 
@@ -937,6 +943,10 @@ function renderFileTree(node, container, depth = 0) {
         nodeEl.classList.toggle('expanded');
       } else {
         filterByModule(child.path);
+        // If it's a file (mod), auto-select first function to update Flow Tree
+        if (child.type === 'mod' && child.fns && child.fns.length > 0) {
+          selectNodeUI(child.fns[0].id, true);
+        }
       }
     };
     
@@ -962,22 +972,31 @@ function renderFileTree(node, container, depth = 0) {
                      (ENTRY_POINTS.includes(f.id)?'<span style="margin-left:auto;font-size:10px">★</span>':'');
       el.onclick = (e) => {
         e.stopPropagation();
-        // Mark active in file tree
-        document.querySelectorAll('#tree-body .tree-item.active').forEach(x => x.classList.remove('active'));
-        el.classList.add('active');
-        // Update flow tree (only on file tree selection)
-        renderFlowTree(f.id);
-        renderParamsSection(f.id);
-        // Update graph + inspector
-        focusNode(f.id);
-        openInspector(f.id);
-        if (network) {
-          network.selectNodes([f.id]);
-          network.focus(f.id, { scale: 1.2, animation: true });
-        }
+        selectNodeUI(f.id, true);
       };
       container.appendChild(el);
     });
+  }
+}
+
+function selectNodeUI(nodeId, updateFlowTree = false) {
+  // Mark active in file tree
+  document.querySelectorAll('#tree-body .tree-item.active').forEach(x => x.classList.remove('active'));
+  const treeEl = document.querySelector(`#tree-body .tree-item[data-id="${nodeId}"]`);
+  if (treeEl) treeEl.classList.add('active');
+
+  // Update flow tree if requested
+  if (updateFlowTree) {
+    renderFlowTree(nodeId);
+    renderParamsSection(nodeId);
+  }
+
+  // Update graph + inspector
+  focusNode(nodeId);
+  openInspector(nodeId);
+  if (network) {
+    network.selectNodes([nodeId]);
+    network.focus(nodeId, { scale: 1.2, animation: true });
   }
 }
 
@@ -1292,20 +1311,14 @@ function renderFlowTree(rootNodeId) {
 }
 
 function selectFlowTreeNode(nodeId) {
-  // Mark active in flow tree
+  // Mark active in flow tree (local update)
   document.querySelectorAll('#flow-tree-scroll .ft-item').forEach(x => x.classList.remove('ft-active'));
   const el = document.querySelector(`#flow-tree-scroll .ft-item[data-id="${nodeId}"]`);
   if (el) el.classList.add('ft-active');
-  
-  // Update graph + inspector (but NOT flow tree)
-  focusNode(nodeId);
-  openInspector(nodeId);
-  if (network) {
-    network.selectNodes([nodeId]);
-    network.focus(nodeId, { scale: 1.2, animation: true });
-  }
-}
 
+  // Update rest of UI (Graph, Inspector, File Tree) - don't updateFlowTree to avoid recursion
+  selectNodeUI(nodeId, false);
+}
 function renderParamsSection(nodeId) {
   const n = ALL_NODES.find(x => x.id === nodeId);
   if (!n) {

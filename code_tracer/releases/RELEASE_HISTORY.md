@@ -148,3 +148,66 @@ _Update this section with a summary of changes in this release._
 | `dcc/Log/test_log.md` | _link to relevant entry_ |
 
 ---
+
+## v1.0.2 — 2026-04-21
+
+**File:** [`dcc-tracer-v1.0.2.zip`](dcc-tracer-v1.0.2.zip)
+**Type:** Patch release
+**Packaged from:** `code_tracer/`
+
+15 file(s) packed, 1 skipped.
+
+### Changes
+
+_Update this section with a summary of changes in this release._
+
+### Log References
+
+| Log | Entry |
+|-----|-------|
+| `code_tracer/Log/update_log.md` | _link to relevant entry_ |
+| `code_tracer/Log/test_log.md` | _link to relevant entry_ |
+
+---
+
+## v1.0.3 — 2026-04-21
+
+**File:** [`dcc-tracer-v1.0.3.zip`](dcc-tracer-v1.0.3.zip)
+**Type:** Patch release
+**Packaged from:** `code_tracer/`
+
+14 file(s) packed, 1 skipped.
+
+### Changes
+
+_Update this section with a summary of changes in this release._
+
+### Log References
+
+| Log | Entry |
+|-----|-------|
+| `code_tracer/Log/update_log.md` | _link to relevant entry_ |
+| `code_tracer/Log/test_log.md` | _link to relevant entry_ |
+
+---
+
+## v1.0.4 — 2026-04-21
+
+**File:** [`dcc-tracer-v1.0.4.zip`](dcc-tracer-v1.0.4.zip)
+**Type:** Patch release
+**Packaged from:** `code_tracer/`
+
+15 file(s) packed, 0 skipped.
+
+### Changes
+
+_Update this section with a summary of changes in this release._
+
+### Log References
+
+| Log | Entry |
+|-----|-------|
+| `code_tracer/Log/update_log.md` | _link to relevant entry_ |
+| `code_tracer/Log/test_log.md` | _link to relevant entry_ |
+
+---

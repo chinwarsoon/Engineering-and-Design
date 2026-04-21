@@ -173,6 +173,7 @@ body {
   gap: 0;
   user-select: none;
 }
+.dcc-titlebar * { border: none !important; }
 .dcc-titlebar-logo {
   width: calc(var(--icon-bar-w) + var(--sidebar-w));
   padding: 0 14px;
@@ -183,7 +184,6 @@ body {
   font-size: 13px;
   letter-spacing: -0.2px;
   flex-shrink: 0;
-  border-right: 1px solid var(--border);
   height: 100%;
 }
 .dcc-titlebar-logo .logo-icon { font-size: 16px; }
