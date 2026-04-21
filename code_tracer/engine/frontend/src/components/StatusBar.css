@@ -1,0 +1,42 @@
+.status-bar {
+  display: flex;
+  gap: 2rem;
+  font-size: 0.9rem;
+  color: #ecf0f1;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-label {
+  font-weight: 500;
+}
+
+.status-value {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-value.connected {
+  color: #27ae60;
+}
+
+.status-value.disconnected {
+  color: #e74c3c;
+}
+
+.status-value.active {
+  color: #f39c12;
+}
+
+.status-value.inactive {
+  color: #95a5a6;
+}
+
+.status-message {
+  flex: 1;
+  text-align: right;
+}

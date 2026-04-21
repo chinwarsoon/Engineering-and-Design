@@ -1,0 +1,250 @@
+.mock-data-injector {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  background-color: white;
+  margin-bottom: 2rem;
+}
+
+.mock-data-injector h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  border-bottom: 2px solid #2ecc71;
+  padding-bottom: 0.5rem;
+}
+
+.description {
+  color: #7f8c8d;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.input-section,
+.parameters-section,
+.action-section {
+  margin-bottom: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #2ecc71;
+  box-shadow: 0 0 0 2px rgba(46, 204, 113, 0.2);
+}
+
+.form-group label input[type="checkbox"] {
+  width: auto;
+}
+
+.parameter-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.input-row input {
+  flex: 1;
+  min-width: 150px;
+}
+
+.add-param-btn {
+  padding: 0.75rem 1.5rem;
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.add-param-btn:hover:not(.loading) {
+  background-color: #27ae60;
+  transform: translateY(-1px);
+}
+
+.parameter-list {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #eee;
+}
+
+.parameter-list h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #34495e;
+}
+
+.parameter-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid #eee;
+}
+
+.parameter-item:last-child {
+  border-bottom: none;
+}
+
+.param-name {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.param-value {
+  font-family: 'Courier New', monospace;
+  background-color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+}
+
+.remove-param-btn {
+  padding: 0.25rem 0.5rem;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.remove-param-btn:hover {
+  background-color: #c0392b;
+}
+
+.action-section {
+  text-align: center;
+}
+
+.action-section button {
+  padding: 0.75rem 2rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.action-section button:hover:not(.loading) {
+  background-color: #2980b9;
+  transform: translateY(-1px);
+}
+
+.action-section button.loading {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.action-section button.loading::after {
+  content: '...';
+  animation: dots 1.5s infinite;
+}
+
+@keyframes dots {
+  0%, 20% {
+    content: '';
+  }
+  40% {
+    content: '.';
+  }
+  60% {
+    content: '..';
+  }
+  80%, 100% {
+    content: '...';
+  }
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 1rem;
+  border-radius: 4px;
+  border: 1px solid #f5c6cb;
+  margin-top: 1rem;
+}
+
+.injection-result {
+  background-color: #d4efdf;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid #a9dfbf;
+  margin-top: 1.5rem;
+}
+
+.injection-result h3 {
+  margin-top: 0;
+  color: #27ae60;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 0.5rem;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.result-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.label {
+  font-weight: 600;
+  color: #34495e;
+  min-width: 100px;
+}
+
+.value {
+  font-family: 'Courier New', monospace;
+  background-color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  border: 1px solid #eee;
+  word-break: break-all;
+}
+
+.result-message {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 4px;
+  border: 1px solid #eee;
+  font-style: italic;
+  color: #2c3e50;
+}

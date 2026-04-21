@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCC Static Analyser Pro</title>
+  <link rel="stylesheet" href="ui/dcc-design-system.css">
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    /* ── layout overrides ── */
+    #network-container { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
+    #vis-network { width: 100%; height: 100%; }
+    .content-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+
+    /* ── metrics table ── */
+    .cc-badge {
+      display: inline-block; padding: 1px 7px; border-radius: 10px;
+      font-size: 10px; font-weight: 700;
+    }
+    .cc-low    { background: rgba(63,185,80,.15);  color: #3fb950; }
+    .cc-med    { background: rgba(210,153,34,.15); color: #d29922; }
+    .cc-high   { background: rgba(240,136,62,.15); color: #f0883e; }
+    .cc-vhigh  { background: rgba(248,81,73,.15);  color: #f85149; }
+
+    /* ── resizers ── */
+    .resizer {
+      width: 4px;
+      cursor: col-resize;
+      background: transparent;
+      transition: background 0.2s;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+    .resizer:hover, .resizer.dragging {
+      background: var(--accent-alt);
+    }
+    .resizer-left { border-right: 1px solid var(--border); margin-right: -2px; }
+    .resizer-right { border-left: 1px solid var(--border); margin-left: -2px; }
+
+    /* ── sidebar overrides ── */
+    .dcc-sidebar { width: 260px; min-width: 150px; max-width: 500px; transition: none; display: flex; flex-direction: column; overflow: hidden; }
+    #inspector-panel { width: 320px; min-width: 200px; max-width: 50%; border-left: none; transition: none; display: none; flex-direction: column; flex-shrink: 0; z-index: 100; background: var(--surface); height: 100%; }
+    
+    .dcc-sidebar.collapsed { display: none; }
+    #inspector-panel.collapsed { display: none; }
+
+    .inspector-body { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    .ins-tab-content { display: none; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; padding: 14px; }
+    .ins-tab-content.visible { display: flex; }
+
+    /* ── Sidebar Panels ── */
+    .sb-panel { display: none; flex-direction: column; flex: 1; min-height: 0; }
+    .sb-panel.visible { display: flex; }
+    .sb-panel-header {
+      padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border);
+      font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase;
+      letter-spacing: 0.5px; display: flex; align-items: center; justify-content: space-between;
+    }
+
+    /* ── file tree ── */
+    #file-tree-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .tree-search { padding: 8px; border-bottom: 1px solid var(--border); }
+    .tree-scroll { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .tree-item {
+      display: flex; align-items: center; gap: 6px; padding: 4px 12px; cursor: pointer;
+      font-size: 12px; color: var(--text2); white-space: nowrap; transition: background 0.1s;
+      user-select: none;
+    }
+    .tree-item:hover { background: var(--surface2); color: var(--text); }
+    .tree-item.active { background: var(--surface3); color: var(--accent-alt); font-weight: 500; }
+    .tree-item .icon { font-size: 14px; width: 16px; text-align: center; }
+    .tree-item .cc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .tree-indent { width: 12px; flex-shrink: 0; }
+    .tree-toggle {
+      width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center;
+      font-size: 8px; color: var(--text3); transition: transform 0.15s; margin-left: -4px;
+    }
+    .tree-node.expanded > .tree-item > .tree-toggle { transform: rotate(90deg); }
+    .tree-children { display: none; }
+    .tree-node.expanded > .tree-children { display: block; }
+
+    /* ── inspector panel ── */
+    .inspector-header {
+      padding: 12px 14px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .inspector-body { flex: 1; overflow-y: auto; padding: 14px; }
+    .ins-section { margin-bottom: 20px; }
+    .ins-title {
+      font-size: 10px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .ins-content { font-size: 12px; color: var(--text); }
+    .ins-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .ins-key { color: var(--text2); }
+    .ins-val { font-family: var(--font-mono); font-size: 11px; }
+    .ins-signature {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+      padding: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--accent-alt);
+      margin-bottom: 10px; word-break: break-all;
+    }
+    .ins-doc { font-style: italic; color: var(--text2); margin-bottom: 10px; line-height: 1.4; white-space: pre-wrap; }
+    .ins-list { list-style: none; padding: 0; }
+    .ins-list-item {
+      display: flex; align-items: center; gap: 6px; padding: 4px 8px; margin: 0 -8px;
+      cursor: pointer; border-radius: 4px; transition: background 0.1s;
+    }
+    .ins-list-item:hover { background: var(--surface2); }
+    .ins-source-wrap {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+      overflow-x: auto; margin-top: 8px; position: relative;
+    }
+    .ins-source {
+      font-family: var(--font-mono); font-size: 11px; line-height: 1.5; padding: 10px;
+      margin: 0; counter-reset: line; color: #d1d5db;
+    }
+    .ins-source-line { display: block; }
+    .ins-source-line::before {
+      counter-increment: line; content: counter(line); display: inline-block;
+      width: 24px; margin-right: 12px; text-align: right; color: var(--text3);
+      user-select: none;
+    }
+
+    /* ── source viewer line numbering hack ── */
+    #source-code-viewer { counter-reset: linenumber; }
+
+    /* ── search highlight ── */
+    .match { background: rgba(255, 255, 0, 0.2); }
+
+    /* ── flow view ── */
+    #ins-panel-flow { gap: 0; }
+    .flow-lane {
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 10px 14px;
+    }
+    .flow-lane-label {
+      font-size: 9px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;
+    }
+    .flow-node {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 10px; border-radius: 4px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface2);
+      font-size: 11px; transition: background 0.1s;
+    }
+    .flow-node:hover { background: var(--surface3); }
+    .flow-node.flow-selected {
+      border-color: #58a6ff; background: rgba(88,166,255,0.08);
+      font-weight: 700; color: var(--accent-alt);
+    }
+    .flow-arrow {
+      text-align: center; color: var(--text3); font-size: 14px;
+      line-height: 1; padding: 2px 0;
+    }
+    .flow-divider {
+      border: none; border-top: 1px solid var(--border); margin: 6px 14px;
+    }
+
+    /* ── trace table ── */
+    .trace-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .trace-table th {
+      position: sticky; top: 0; background: var(--surface2);
+      padding: 6px 8px; text-align: left; font-size: 10px; font-weight: 700;
+      color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+    .trace-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text); }
+    .trace-table tr:hover td { background: var(--surface2); cursor: pointer; }
+    .trace-table tr.trace-selected td { background: rgba(88,166,255,0.08); }
+    .trace-seq { color: var(--text3); font-family: var(--font-mono); }
+    .trace-fn  { font-family: var(--font-mono); color: var(--accent-alt); }
+    .trace-params { color: var(--text2); font-family: var(--font-mono); font-size: 10px; word-break: break-all; }
+    .trace-outcome { font-size: 10px; }
+    .outcome-ok   { color: #3fb950; }
+    .outcome-warn { color: #d29922; }
+    .outcome-risk { color: #f0883e; }
+    .outcome-err  { color: #f85149; }
+
+    /* ── error tab ── */
+    .err-item {
+      display: flex; gap: 10px; align-items: flex-start;
+      padding: 8px 10px; border-radius: 4px; margin-bottom: 6px;
+      border: 1px solid var(--border); background: var(--surface2); font-size: 11px;
+    }
+    .err-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .err-body { flex: 1; }
+    .err-title { font-weight: 700; margin-bottom: 2px; }
+    .err-desc  { color: var(--text2); font-size: 10px; line-height: 1.4; }
+    .err-sev-high   { border-left: 3px solid #f85149; }
+    .err-sev-med    { border-left: 3px solid #f0883e; }
+    .err-sev-low    { border-left: 3px solid #d29922; }
+    .err-sev-ok     { border-left: 3px solid #3fb950; }
+    /* ── flow tree (sidebar) ── */
+    #flow-tree-section { display: flex; flex-direction: column; border-top: 1px solid var(--border); flex: 1; min-height: 80px; }
+    #flow-tree-section .sb-panel-header { flex-shrink: 0; }
+    #flow-tree-scroll { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .ft-group-label {
+      padding: 4px 12px 2px; font-size: 9px; font-weight: 700; color: var(--text3);
+      text-transform: uppercase; letter-spacing: 0.6px;
+    }
+    .ft-item {
+      display: flex; align-items: center; gap: 6px; padding: 3px 12px 3px 20px;
+      font-size: 11px; color: var(--text2); cursor: pointer; transition: background 0.1s;
+      white-space: nowrap; overflow: hidden;
+    }
+    .ft-item:hover { background: var(--surface2); color: var(--text); }
+    .ft-item.ft-root { padding-left: 12px; color: var(--accent-alt); font-weight: 600; background: rgba(88,166,255,0.06); }
+    .ft-item.ft-active { background: var(--surface3); color: var(--accent-alt); font-weight: 600; }
+    .ft-arrow { color: var(--text3); font-size: 10px; padding: 1px 12px; }
+    .ft-empty { padding: 12px; font-size: 11px; color: var(--text3); text-align: center; }
+
+    /* ── params section (sidebar) ── */
+    #params-section { display: flex; flex-direction: column; border-top: 1px solid var(--border); flex: 1; min-height: 80px; }
+    #params-section .sb-panel-header { flex-shrink: 0; }
+    #params-scroll { flex: 1; overflow-y: auto; padding: 8px 12px; }
+    .param-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 4px 0; border-bottom: 1px solid var(--border); font-size: 11px;
+    }
+    .param-row:last-child { border-bottom: none; }
+    .param-name { font-family: var(--font-mono); color: var(--text); font-weight: 600; }
+    .param-type { font-family: var(--font-mono); color: var(--text3); font-size: 10px; }
+    .param-default { color: var(--text2); font-size: 10px; font-style: italic; }
+    .param-return {
+      margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+      font-size: 11px; display: flex; justify-content: space-between;
+    }
+    .param-return-label { color: var(--text2); font-weight: 700; }
+    .param-return-val { font-family: var(--font-mono); color: var(--accent-alt); }
+
+    /* ── section resizers ── */
+    .section-resizer {
+      height: 4px; cursor: row-resize; background: transparent;
+      border-top: 1px solid var(--border); transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .section-resizer:hover, .section-resizer.dragging { background: var(--accent-alt); }
+  </style>
+</head>
+<body>
+<!-- ── Title Bar ── -->
+<div class="dcc-titlebar">
+  <div class="dcc-titlebar-logo">
+    <span class="logo-icon">⚙️</span>
+    <span class="logo-name">Static <span class="logo-accent">Analyser</span></span>
+  </div>
+  <div class="dcc-titlebar-breadcrumb">
+    <span id="bc-root" class="bc-active">No directory loaded</span>
+  </div>
+  <div class="dcc-titlebar-actions">
+    <!-- Theme picker -->
+    <div class="theme-picker">
+      <button class="theme-btn" id="themeBtn">
+        <span class="theme-dot" id="themeDot" style="background:#0d1117"></span>
+        <span id="themeName">Dark</span>
+      </button>
+      <div class="theme-menu" id="themeMenu">
+        <div class="theme-opt active" data-theme="dark"><span class="theme-dot" style="background:#0d1117"></span> Dark</div>
+        <div class="theme-opt" data-theme="light"><span class="theme-dot" style="background:#f0f4f8"></span> Light</div>
+        <div class="theme-opt" data-theme="sky"><span class="theme-dot" style="background:#0a1628"></span> Sky</div>
+        <div class="theme-opt" data-theme="ocean"><span class="theme-dot" style="background:#071520"></span> Ocean</div>
+        <div class="theme-opt" data-theme="presentation"><span class="theme-dot" style="background:#12082a"></span> Presentation</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Shell ── -->
+<div class="dcc-shell">
+
+  <!-- Icon Bar (Activity Bar) -->
+  <div class="dcc-iconbar">
+    <button class="dcc-iconbar-btn active" id="btn-sb-tree"     title="File Tree"     onclick="toggleSidebarPanel('tree')">📂</button>
+    <button class="dcc-iconbar-btn"        id="btn-sb-controls" title="Controls"      onclick="toggleSidebarPanel('controls')">⚙️</button>
+    <div class="dcc-iconbar-spacer"></div>
+    <div class="dcc-iconbar-sep"></div>
+    <button class="dcc-iconbar-btn"        id="btn-toggle-inspector" title="Toggle Inspector" onclick="toggleInspector()">📋</button>
+    <div class="dcc-iconbar-bottom">
+      <button class="dcc-iconbar-btn" title="Help" onclick="alert('DCC Static Analyser Pro v1.2\n\nPhase 1c+: Refined Sidebar controls.')">❓</button>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="dcc-sidebar" id="sidebar">
+    
+    <!-- Sidebar Panel: File Tree -->
+    <div class="sb-panel visible" id="sb-panel-tree">
+      <div class="sb-panel-header">
+        <span>File Tree</span>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-ghost btn-icon" title="Expand All" onclick="expandCollapseAllTree(true)" style="padding:2px">📂</button>
+          <button class="btn btn-ghost btn-icon" title="Collapse All" onclick="expandCollapseAllTree(false)" style="padding:2px">📁</button>
+        </div>
+      </div>
+      <div id="file-tree-container" style="flex:1;display:flex;flex-direction:column;min-height:80px;overflow:hidden">
+        <div class="tree-search">
+          <input id="tree-search-input" type="text" placeholder="Search files/functions..." oninput="filterFileTree()">
+        </div>
+        <div class="tree-scroll" id="tree-body" style="flex:1;overflow-y:auto">
+          <div style="padding:20px;color:var(--text3);text-align:center">No data loaded</div>
+        </div>
+      </div>
+      <!-- Section Resizer 1 -->
+      <div class="section-resizer" id="section-resizer-1"></div>
+      <!-- Flow Tree Section -->
+      <div id="flow-tree-section">
+        <div class="sb-panel-header" style="padding:6px 14px">
+          <span>Flow Tree</span>
+        </div>
+        <div id="flow-tree-scroll">
+          <div class="ft-empty">Select a function above</div>
+        </div>
+      </div>
+      <!-- Section Resizer 2 -->
+      <div class="section-resizer" id="section-resizer-2"></div>
+      <!-- Parameters Section -->
+      <div id="params-section">
+        <div class="sb-panel-header" style="padding:6px 14px">
+          <span>Parameters</span>
+        </div>
+        <div id="params-scroll">
+          <div class="ft-empty">Select a function above</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Panel: Controls -->
+    <div class="sb-panel" id="sb-panel-controls">
+      <div class="sb-panel-header"><span>Analysis Controls</span></div>
+      <div class="dcc-sidebar-body">
+        <!-- Load -->
+        <div class="sb-section">
+          <div class="sb-section-header"><span>📁 Load</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body">
+            <label class="form-label">Target Directory</label>
+            <input id="root-path" type="text" placeholder="Absolute or relative path" style="margin-bottom:8px">
+            <button class="btn btn-primary" style="width:100%;margin-bottom:6px" onclick="runAnalysis()">▶ Analyse</button>
+            <button class="btn btn-secondary" style="width:100%" onclick="loadSavedGraph()">📂 Load Saved</button>
+            <div id="load-status" style="margin-top:8px;font-size:10px;color:var(--text3)"></div>
+          </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="sb-section">
+          <div class="sb-section-header"><span>🔍 Filter</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body">
+            <label class="form-label">Min Complexity (CC)</label>
+            <input id="cc-filter" type="number" value="0" min="0" max="50" style="margin-bottom:8px">
+            <label class="form-label">Search Function</label>
+            <input id="search-fn" type="text" placeholder="name..." style="margin-bottom:8px">
+            <button class="btn btn-secondary" style="width:100%;margin-bottom:6px" onclick="applyFilter()">Apply</button>
+            <button class="btn btn-ghost"     style="width:100%" onclick="resetFilter()">Reset</button>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="sb-section">
+          <div class="sb-section-header"><span>🎨 Legend</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body" style="font-size:11px;line-height:1.8">
+            <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#3fb950;display:inline-block"></span>CC 1–4 Low</div>
+            <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#d29922;display:inline-block"></span>CC 5–9 Medium</div>
+            <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#f0883e;display:inline-block"></span>CC 10–19 High</div>
+            <div style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#f85149;display:inline-block"></span>CC 20+ Very High</div>
+            <div style="display:flex;align-items:center;gap:6px">★ Entry Point</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resizer Left -->
+  <div class="resizer resizer-left" id="resizer-left"></div>
+
+  <!-- Content Area -->
+  <div class="dcc-content">
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <div class="tab active" id="tab-graph"   onclick="switchPanel('graph')">🕸️ Call Graph</div>
+      <div class="tab"        id="tab-metrics" onclick="switchPanel('metrics')">📊 Metrics</div>
+      <div class="tab"        id="tab-heatmap" onclick="switchPanel('heatmap')">🔥 Heatmap</div>
+      <div class="tab"        id="tab-entries" onclick="switchPanel('entries')">🎯 Entry Points</div>
+    </div>
+
+    <!-- ── Panel: Call Graph ── -->
+    <div id="panel-graph" style="flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative">
+      <div id="network-container">
+        <div id="vis-network"></div>
+      </div>
+      <!-- Welcome overlay -->
+      <div id="graph-welcome" class="welcome-pane">
+        <div class="welcome-icon">⚙️</div>
+        <div class="welcome-title">Static Code Analyser</div>
+        <div class="welcome-sub">Enter a directory path and click Analyse, or load a saved graph.</div>
+      </div>
+    </div>
+
+    <!-- ── Panel: Metrics ── -->
+    <div id="panel-metrics" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="toolbar">
+        <span style="font-weight:600;color:var(--text)">Function Metrics</span>
+        <div class="toolbar-spacer"></div>
+        <button class="btn btn-sm btn-secondary" onclick="exportMetricsCSV()">📥 Export CSV</button>
+      </div>
+      <div class="table-scroll">
+        <table class="dcc-table" id="metrics-table">
+          <thead><tr>
+            <th>Function</th><th>Module</th><th>Lines</th>
+            <th>CC</th><th>Loops</th><th>Try</th><th>Args</th><th>Entry</th>
+          </tr></thead>
+          <tbody id="metrics-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Panel: Heatmap ── -->
+    <div id="panel-heatmap" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="toolbar">
+        <span style="font-weight:600;color:var(--text)">Complexity Heatmap</span>
+        <div class="toolbar-spacer"></div>
+        <label style="font-size:11px;color:var(--text2)">Min CC:</label>
+        <input id="heatmap-filter" type="number" value="1" min="1" style="width:60px">
+        <button class="btn btn-sm btn-secondary" onclick="renderHeatmap()">Apply</button>
+      </div>
+      <div class="content-scroll" id="heatmap-grid"></div>
+    </div>
+
+    <!-- ── Panel: Entry Points ── -->
+    <div id="panel-entries" style="display:none;flex:1;flex-direction:column;overflow:hidden">
+      <div class="toolbar">
+        <span style="font-weight:600;color:var(--text)">Entry Points</span>
+        <div class="toolbar-spacer"></div>
+        <span id="entry-count" style="font-size:11px;color:var(--text2)"></span>
+      </div>
+      <div class="content-scroll">
+        <table class="dcc-table" id="entry-table">
+          <thead><tr><th>Function</th><th>Module</th><th>Line</th><th>CC</th><th>Args</th></tr></thead>
+          <tbody id="entry-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resizer Right -->
+  <div class="resizer resizer-right" id="resizer-right" style="display:none"></div>
+
+  <!-- Right Inspector Panel -->
+  <div id="inspector-panel">
+    <div class="inspector-header">
+      <span style="font-size:12px;font-weight:700;color:var(--accent-alt)" id="ins-head-title">Function Detail</span>
+      <button class="btn btn-ghost btn-icon" onclick="closeInspector()">✕</button>
+    </div>
+
+    <div class="sb-tabs">
+      <div class="sb-tab active" id="ins-tab-btn-info"   onclick="switchInsTab('info')">Info</div>
+      <div class="sb-tab"        id="ins-tab-btn-sig"    onclick="switchInsTab('sig')">Sig</div>
+      <div class="sb-tab"        id="ins-tab-btn-trace"  onclick="switchInsTab('trace')">Trace</div>
+      <div class="sb-tab"        id="ins-tab-btn-flow"   onclick="switchInsTab('flow')">Flow</div>
+      <div class="sb-tab"        id="ins-tab-btn-seq"    onclick="switchInsTab('seq')">Seq</div>
+      <div class="sb-tab"        id="ins-tab-btn-errors" onclick="switchInsTab('errors')">Errors</div>
+      <div class="sb-tab"        id="ins-tab-btn-source" onclick="switchInsTab('source')">Code</div>
+    </div>
+
+    <div class="inspector-body" id="ins-body" style="padding:0">
+      
+      <!-- Tab: Info -->
+      <div class="ins-tab-content visible" id="ins-panel-info">
+        <div class="ins-section">
+          <div class="ins-title">Overview</div>
+          <div id="ins-overview"></div>
+        </div>
+        <div class="ins-section">
+          <div class="ins-title">Parameters</div>
+          <div id="ins-parameters"></div>
+        </div>
+        <div class="ins-section">
+          <div class="ins-title">Metrics</div>
+          <div id="ins-metrics"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Signature -->
+      <div class="ins-tab-content" id="ins-panel-sig">
+        <div class="ins-section">
+          <div class="ins-title">Signature</div>
+          <div id="ins-signature" class="ins-signature"></div>
+        </div>
+        <div class="ins-section" id="ins-section-doc">
+          <div class="ins-title">Docstring</div>
+          <div id="ins-doc" class="ins-doc"></div>
+        </div>
+      </div>
+
+      <!-- Tab: Trace -->
+      <div class="ins-tab-content" id="ins-panel-trace">
+        <div class="ins-section">
+          <div class="ins-title">Callers</div>
+          <ul id="ins-callers" class="ins-list"></ul>
+        </div>
+        <div class="ins-section">
+          <div class="ins-title">Callees</div>
+          <ul id="ins-callees" class="ins-list"></ul>
+        </div>
+      </div>
+
+      <!-- Tab: Flow -->
+      <div class="ins-tab-content" id="ins-panel-flow">
+        <div id="ins-flow-content"></div>
+      </div>
+
+      <!-- Tab: Seq (Trace Table) -->
+      <div class="ins-tab-content" id="ins-panel-seq" style="padding:0;overflow-x:auto">
+        <table class="trace-table" id="ins-trace-table">
+          <thead><tr>
+            <th>#</th><th>Function</th><th>Inputs</th><th>Outcome</th>
+          </tr></thead>
+          <tbody id="ins-trace-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Tab: Errors -->
+      <div class="ins-tab-content" id="ins-panel-errors">
+        <div id="ins-errors-content"></div>
+      </div>
+
+      <!-- Tab: Source -->
+      <div class="ins-tab-content" id="ins-panel-source" style="padding:0">
+        <div class="ins-source-wrap" style="border:none; border-radius:0; margin:0">
+          <pre id="ins-source" class="ins-source"></pre>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /dcc-shell -->
+
+<!-- Status Bar -->
+<div class="dcc-statusbar status-info" id="statusbar">
+  <div class="sb-item" id="status-text">Ready</div>
+  <div class="sb-item-right" id="status-stats">—</div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let ALL_NODES = [], ALL_EDGES = [], ENTRY_POINTS = [], HOTSPOTS = [];
+let network = null;
+let visNodes = null, visEdges = null;
+let edgeIndex = { callers: {}, callees: {} };
+let currentInspectorTab = 'info'; // Track current tab
+const API = '/api';
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+const THEME_COLORS = {dark:'#0d1117',light:'#f0f4f8',sky:'#0a1628',ocean:'#071520',presentation:'#12082a'};
+document.getElementById('themeBtn').addEventListener('click', () => document.getElementById('themeMenu').classList.toggle('open'));
+document.querySelectorAll('.theme-opt').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const t = opt.dataset.theme;
+    document.documentElement.setAttribute('data-theme', t);
+    document.getElementById('themeName').textContent = t[0].toUpperCase()+t.slice(1);
+    document.getElementById('themeDot').style.background = THEME_COLORS[t];
+    document.getElementById('themeMenu').classList.remove('open');
+    localStorage.setItem('dcc-theme', t);
+    document.querySelectorAll('.theme-opt').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+  });
+});
+const _st = localStorage.getItem('dcc-theme') || 'dark';
+document.documentElement.setAttribute('data-theme', _st);
+document.getElementById('themeName').textContent = _st[0].toUpperCase()+_st.slice(1);
+document.getElementById('themeDot').style.background = THEME_COLORS[_st];
+const activeOpt = document.querySelector(`[data-theme="${_st}"]`);
+if (activeOpt) activeOpt.classList.add('active');
+
+// ── UI Helpers ─────────────────────────────────────────────────────────────
+function switchPanel(name) {
+  ['graph','metrics','heatmap','entries'].forEach(p => {
+    document.getElementById('panel-'+p).style.display = 'none';
+    document.getElementById('tab-'+p).classList.remove('active');
+  });
+  document.getElementById('panel-'+name).style.display = 'flex';
+  document.getElementById('tab-'+name).classList.add('active');
+  if (name === 'heatmap') renderHeatmap();
+}
+
+function toggleSidebarPanel(panelId) {
+  const sidebar = document.getElementById('sidebar');
+  const resizer = document.getElementById('resizer-left');
+  const panel = document.getElementById('sb-panel-' + panelId);
+  const btn = document.getElementById('btn-sb-' + panelId);
+
+  // If clicked panel is already visible, hide it
+  if (panel.classList.contains('visible')) {
+    panel.classList.remove('visible');
+    btn.classList.remove('active');
+  } else {
+    // Show clicked panel, hide others (VS Code style switching)
+    document.querySelectorAll('.sb-panel').forEach(p => p.classList.remove('visible'));
+    document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
+        if(b.id.startsWith('btn-sb-')) b.classList.remove('active');
+    });
+    panel.classList.add('visible');
+    btn.classList.add('active');
+  }
+
+  // Auto-collapse sidebar if no panels visible
+  const anyVisible = document.querySelector('.sb-panel.visible');
+  sidebar.classList.toggle('collapsed', !anyVisible);
+  resizer.style.display = anyVisible ? 'block' : 'none';
+}
+
+function toggleInspector() {
+  const inspector = document.getElementById('inspector-panel');
+  const resizer = document.getElementById('resizer-right');
+  const btn = document.getElementById('btn-toggle-inspector');
+  const isCurrentlyVisible = getComputedStyle(inspector).display !== 'none';
+  
+  if (isCurrentlyVisible) {
+    inspector.style.display = 'none';
+    resizer.style.display = 'none';
+    btn.classList.remove('active');
+  } else {
+    inspector.style.display = 'flex';
+    resizer.style.display = 'block';
+    btn.classList.add('active');
+  }
+}
+
+function closeInspector() {
+  const inspector = document.getElementById('inspector-panel');
+  const resizer = document.getElementById('resizer-right');
+  const btn = document.getElementById('btn-toggle-inspector');
+  inspector.style.display = 'none';
+  resizer.style.display = 'none';
+  btn.classList.remove('active');
+  resetFocus();
+}
+
+// ── Sidebar Logic ──────────────────────────────────────────────────────────
+function initCollapsibleSections() {
+  document.addEventListener('click', e => {
+    const header = e.target.closest('.sb-section-header');
+    if (!header) return;
+    const section = header.parentElement;
+    const arrow = header.querySelector('.sb-section-arrow');
+    const body = section.querySelector('.sb-section-body');
+    
+    if (body) {
+      const isHidden = body.style.display === 'none';
+      body.style.display = isHidden ? 'block' : 'none';
+      if (arrow) arrow.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+    }
+  });
+}
+
+function initResizers() {
+  const leftResizer = document.getElementById('resizer-left');
+  const rightResizer = document.getElementById('resizer-right');
+  const sidebar = document.getElementById('sidebar');
+  const inspector = document.getElementById('inspector-panel');
+
+  const initDrag = (resizer, target, isLeft) => {
+    let startX, startWidth;
+    const doDrag = (e) => {
+      const delta = isLeft ? e.clientX - startX : startX - e.clientX;
+      const newWidth = startWidth + delta;
+      const minWidth = 150;
+      const maxWidth = target === inspector ? window.innerWidth * 0.5 : 600;
+      if (newWidth >= minWidth && newWidth <= maxWidth) {
+        target.style.width = newWidth + 'px';
+      }
+    };
+    const stopDrag = () => {
+      resizer.classList.remove('dragging');
+      document.documentElement.removeEventListener('mousemove', doDrag);
+      document.documentElement.removeEventListener('mouseup', stopDrag);
+    };
+    resizer.addEventListener('mousedown', (e) => {
+      startX = e.clientX;
+      startWidth = parseInt(getComputedStyle(target).width, 10);
+      resizer.classList.add('dragging');
+      document.documentElement.addEventListener('mousemove', doDrag);
+      document.documentElement.addEventListener('mouseup', stopDrag);
+    });
+  };
+
+  initDrag(leftResizer, sidebar, true);
+  initDrag(rightResizer, inspector, false);
+
+  // Section resizers for file tree / flow tree / params
+  const initSectionResizer = (resizerId, topSectionId, bottomSectionId) => {
+    const resizer = document.getElementById(resizerId);
+    const topSection = document.getElementById(topSectionId);
+    const bottomSection = document.getElementById(bottomSectionId);
+    if (!resizer || !topSection || !bottomSection) return;
+
+    let startY, startTopHeight, startBottomHeight;
+    const doDrag = (e) => {
+      const delta = e.clientY - startY;
+      const newTopHeight = startTopHeight + delta;
+      const newBottomHeight = startBottomHeight - delta;
+      if (newTopHeight >= 80 && newBottomHeight >= 80) {
+        topSection.style.flex = `0 0 ${newTopHeight}px`;
+        bottomSection.style.flex = `0 0 ${newBottomHeight}px`;
+      }
+    };
+    const stopDrag = () => {
+      resizer.classList.remove('dragging');
+      document.documentElement.removeEventListener('mousemove', doDrag);
+      document.documentElement.removeEventListener('mouseup', stopDrag);
+    };
+    resizer.addEventListener('mousedown', (e) => {
+      startY = e.clientY;
+      startTopHeight = topSection.offsetHeight;
+      startBottomHeight = bottomSection.offsetHeight;
+      resizer.classList.add('dragging');
+      document.documentElement.addEventListener('mousemove', doDrag);
+      document.documentElement.addEventListener('mouseup', stopDrag);
+    });
+  };
+
+  initSectionResizer('section-resizer-1', 'file-tree-container', 'flow-tree-section');
+  initSectionResizer('section-resizer-2', 'flow-tree-section', 'params-section');
+}
+
+function ccColour(cc) {
+  if (cc <= 4)  return '#3fb950';
+  if (cc <= 9)  return '#d29922';
+  if (cc <= 19) return '#f0883e';
+  return '#f85149';
+}
+function ccBadge(cc) {
+  const cls = cc<=4?'cc-low':cc<=9?'cc-med':cc<=19?'cc-high':'cc-vhigh';
+  return `<span class="cc-badge ${cls}">${cc}</span>`;
+}
+
+// ── Core Logic ─────────────────────────────────────────────────────────────
+async function loadGraphData(data) {
+  ALL_NODES = data.nodes || [];
+  ALL_EDGES = data.edges || [];
+  ENTRY_POINTS = data.entry_points || [];
+  HOTSPOTS = data.hotspots || [];
+  
+  // Build Index
+  edgeIndex = { callers: {}, callees: {} };
+  ALL_EDGES.forEach(e => {
+    if (!edgeIndex.callees[e.source]) edgeIndex.callees[e.source] = [];
+    edgeIndex.callees[e.source].push(e.target);
+    if (!edgeIndex.callers[e.target]) edgeIndex.callers[e.target] = [];
+    edgeIndex.callers[e.target].push(e.source);
+  });
+
+  document.getElementById('graph-welcome').style.display = 'none';
+  document.getElementById('status-stats').textContent = 
+    `${data.stats?.total_functions||0} fns · ${data.stats?.total_edges||0} edges`;
+
+  buildNetwork(ALL_NODES, ALL_EDGES);
+  renderMetrics(ALL_NODES);
+  renderEntries();
+  buildFileTree(ALL_NODES);
+}
+
+function buildNetwork(nodes, edges) {
+  const container = document.getElementById('vis-network');
+  const entrySet = new Set(ENTRY_POINTS);
+  
+  visNodes = new vis.DataSet(nodes.map(n => ({
+    id: n.id, label: n.label,
+    color: { background: ccColour(n.cyclomatic_complexity), border: '#30363d',
+             highlight: { background: '#58a6ff', border: '#2f81f7' } },
+    size: Math.min(12 + n.cyclomatic_complexity*2, 40),
+    shape: entrySet.has(n.id) ? 'star' : 'dot',
+    font: { color: '#e6edf3', size: 11 },
+    originalColor: ccColour(n.cyclomatic_complexity)
+  })));
+  
+  visEdges = new vis.DataSet(edges.map(e => ({
+    id: `${e.source}->${e.target}`,
+    from: e.source, to: e.target, arrows: 'to',
+    color: { color: '#30363d', highlight: '#58a6ff' },
+    smooth: { type: 'cubicBezier' }
+  })));
+  
+  if (network) network.destroy();
+  network = new vis.Network(container, { nodes: visNodes, edges: visEdges }, {
+    physics: { stabilization: { iterations: 150 }, barnesHut: { gravitationalConstant: -5000 } },
+    interaction: { hover: true, tooltipDelay: 100 }
+  });
+
+  network.on('click', p => { 
+    if (p.nodes.length) {
+      focusNode(p.nodes[0]);
+      openInspector(p.nodes[0]); 
+    } else {
+      resetFocus();
+    }
+  });
+  
+  network.on('doubleClick', p => {
+    if (p.nodes.length) isolateNode(p.nodes[0]);
+    else buildNetwork(ALL_NODES, ALL_EDGES);
+  });
+}
+
+function focusNode(nodeId) {
+  // Ensure the selected node and ALL its neighbors (from ALL_EDGES) are in the graph
+  const neighbors = [];
+  const neighborEdges = [];
+  
+  ALL_EDGES.forEach(e => {
+    if (e.source === nodeId) {
+      neighbors.push(e.target);
+      neighborEdges.push(e);
+    } else if (e.target === nodeId) {
+      neighbors.push(e.source);
+      neighborEdges.push(e);
+    }
+  });
+
+  const nodeSet = new Set([nodeId, ...neighbors]);
+  
+  // Add missing nodes to visNodes
+  nodeSet.forEach(id => {
+    if (!visNodes.get(id)) {
+      const n = ALL_NODES.find(x => x.id === id);
+      if (n) {
+        visNodes.add({
+          id: n.id, label: n.label,
+          color: { background: ccColour(n.cyclomatic_complexity), border: '#30363d',
+                   highlight: { background: '#58a6ff', border: '#2f81f7' } },
+          size: Math.min(12 + n.cyclomatic_complexity*2, 40),
+          shape: new Set(ENTRY_POINTS).has(n.id) ? 'star' : 'dot',
+          font: { color: '#e6edf3', size: 11 },
+          originalColor: ccColour(n.cyclomatic_complexity)
+        });
+      }
+    }
+  });
+
+  // Add missing edges to visEdges
+  neighborEdges.forEach(e => {
+    const edgeId = `${e.source}->${e.target}`;
+    if (!visEdges.get(edgeId)) {
+      visEdges.add({
+        id: edgeId, from: e.source, to: e.target, arrows: 'to',
+        color: { color: '#30363d', highlight: '#58a6ff' },
+        smooth: { type: 'cubicBezier' }
+      });
+    }
+  });
+
+  const edgeSet = new Set(neighborEdges.map(e => `${e.source}->${e.target}`));
+
+  // Update nodes: Dim non-neighbors, highlight selected and direct neighbors
+  visNodes.update(visNodes.getIds().map(id => {
+    const isSelected = id === nodeId;
+    const isNeighbor = nodeSet.has(id);
+    return {
+      id: id,
+      color: {
+        background: isNeighbor ? visNodes.get(id).originalColor : 'rgba(48, 54, 61, 0.1)',
+        border: isSelected ? '#58a6ff' : isNeighbor ? '#30363d' : 'rgba(48, 54, 61, 0.1)'
+      },
+      font: { color: isNeighbor ? '#e6edf3' : 'rgba(230, 237, 243, 0.1)' }
+    };
+  }));
+
+  // Update edges: Highlight connected edges, hide others
+  visEdges.update(visEdges.getIds().map(id => ({
+    id: id,
+    color: {
+      color: edgeSet.has(id) ? '#58a6ff' : 'rgba(48, 54, 61, 0.05)',
+      opacity: edgeSet.has(id) ? 1 : 0.1
+    }
+  })));
+}
+
+function resetFocus() {
+  if (!visNodes || !visEdges) return;
+  
+  visNodes.update(visNodes.getIds().map(id => ({
+    id: id,
+    color: { background: visNodes.get(id).originalColor, border: '#30363d' },
+    font: { color: '#e6edf3' }
+  })));
+  
+  visEdges.update(visEdges.getIds().map(id => ({
+    id: id,
+    color: { color: '#30363d', opacity: 1 }
+  })));
+}
+
+function isolateNode(nodeId) {
+  const neighbours = network.getConnectedNodes(nodeId);
+  const nodeSet = new Set([nodeId, ...neighbours]);
+  const filteredNodes = ALL_NODES.filter(n => nodeSet.has(n.id));
+  const filteredEdges = ALL_EDGES.filter(e => nodeSet.has(e.source) && nodeSet.has(e.target));
+  buildNetwork(filteredNodes, filteredEdges);
+}
+
+// ── File Tree ──────────────────────────────────────────────────────────────
+let treeData = [];
+function buildFileTree(nodes) {
+  const root = { name: 'root', children: {}, type: 'pkg' };
+  nodes.forEach(n => {
+    const parts = n.module.split('.');
+    let curr = root;
+    parts.forEach((p, i) => {
+      if (!curr.children[p]) {
+        curr.children[p] = { name: p, children: {}, type: i === parts.length - 1 ? 'mod' : 'pkg', path: parts.slice(0, i+1).join('.') };
+      }
+      curr = curr.children[p];
+    });
+    if (!curr.fns) curr.fns = [];
+    curr.fns.push(n);
+  });
+  renderFileTree(root, document.getElementById('tree-body'));
+}
+
+function renderFileTree(node, container, depth = 0) {
+  if (depth === 0) container.innerHTML = '';
+  
+  const sortedKeys = Object.keys(node.children).sort();
+  sortedKeys.forEach(k => {
+    const child = node.children[k];
+    const nodeEl = document.createElement('div');
+    nodeEl.className = 'tree-node expanded'; // Start expanded
+    
+    const itemEl = document.createElement('div');
+    itemEl.className = 'tree-item';
+    itemEl.innerHTML = `<span class="tree-indent" style="width:${depth*12}px"></span>` +
+                       `<span class="tree-toggle">▶</span>` +
+                       `<span class="icon">${child.type==='pkg'?'📁':'📄'}</span><span>${child.name}</span>`;
+    
+    itemEl.onclick = (e) => {
+      if (e.target.classList.contains('tree-toggle')) {
+        nodeEl.classList.toggle('expanded');
+      } else {
+        filterByModule(child.path);
+      }
+    };
+    
+    const childrenEl = document.createElement('div');
+    childrenEl.className = 'tree-children';
+    
+    nodeEl.appendChild(itemEl);
+    nodeEl.appendChild(childrenEl);
+    container.appendChild(nodeEl);
+    
+    renderFileTree(child, childrenEl, depth + 1);
+  });
+  
+  if (node.fns) {
+    node.fns.sort((a,b) => a.label.localeCompare(b.label)).forEach(f => {
+      const el = document.createElement('div');
+      el.className = 'tree-item';
+      el.dataset.id = f.id;
+      el.innerHTML = `<span class="tree-indent" style="width:${depth*12}px"></span>` +
+                     `<span class="tree-toggle" style="visibility:hidden">▶</span>` +
+                     `<span class="cc-dot" style="background:${ccColour(f.cyclomatic_complexity)}"></span>` +
+                     `<span class="icon">${f.is_async?'⚡':'f'}</span><span>${f.label}</span>` +
+                     (ENTRY_POINTS.includes(f.id)?'<span style="margin-left:auto;font-size:10px">★</span>':'');
+      el.onclick = (e) => {
+        e.stopPropagation();
+        // Mark active in file tree
+        document.querySelectorAll('#tree-body .tree-item.active').forEach(x => x.classList.remove('active'));
+        el.classList.add('active');
+        // Update flow tree (only on file tree selection)
+        renderFlowTree(f.id);
+        renderParamsSection(f.id);
+        // Update graph + inspector
+        focusNode(f.id);
+        openInspector(f.id);
+        if (network) {
+          network.selectNodes([f.id]);
+          network.focus(f.id, { scale: 1.2, animation: true });
+        }
+      };
+      container.appendChild(el);
+    });
+  }
+}
+
+function filterByModule(modulePath) {
+  const filteredNodes = ALL_NODES.filter(n => n.module.startsWith(modulePath));
+  const ids = new Set(filteredNodes.map(n => n.id));
+  const filteredEdges = ALL_EDGES.filter(e => ids.has(e.source) && ids.has(e.target));
+  buildNetwork(filteredNodes, filteredEdges);
+  switchPanel('graph');
+}
+
+function expandCollapseAllTree(expand) {
+  document.querySelectorAll('#tree-body .tree-node').forEach(node => {
+    node.classList.toggle('expanded', expand);
+  });
+}
+
+function switchInsTab(tabName) {
+  currentInspectorTab = tabName; // Save current tab
+  document.querySelectorAll('.ins-tab-content').forEach(p => p.classList.remove('visible'));
+  document.querySelectorAll('#inspector-panel .sb-tab').forEach(t => t.classList.remove('active'));
+  
+  const panel = document.getElementById('ins-panel-' + tabName);
+  const btn = document.getElementById('ins-tab-btn-' + tabName);
+  if (panel) panel.classList.add('visible');
+  if (btn) btn.classList.add('active');
+}
+
+// ── Inspector ──────────────────────────────────────────────────────────────
+async function openInspector(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) return;
+
+  const inspector = document.getElementById('inspector-panel');
+  const resizer = document.getElementById('resizer-right');
+  const btn = document.getElementById('btn-toggle-inspector');
+  inspector.style.display = 'flex';
+  resizer.style.display = 'block';
+  btn.classList.add('active');
+  
+  // Preserve current tab selection (don't reset to 'info')
+  switchInsTab(currentInspectorTab);
+  
+  document.getElementById('ins-head-title').textContent = n.label;
+  
+  // Overview
+  document.getElementById('ins-overview').innerHTML = `
+    <div class="ins-row"><span class="ins-key">Module</span><span class="ins-val">${n.module}</span></div>
+    <div class="ins-row"><span class="ins-key">File</span><span class="ins-val">${n.id.split('::')[0]}</span></div>
+    <div class="ins-row"><span class="ins-key">Lines</span><span class="ins-val">${n.start_line}–${n.end_line}</span></div>
+    <div class="ins-row"><span class="ins-key">Entry</span><span class="ins-val">${ENTRY_POINTS.includes(n.id)?'★ Yes':'No'}</span></div>
+  `;
+
+  // Signature
+  const args = n.args.map(a => `${a.name}${a.annotation?': '+a.annotation:''}${a.default?'='+a.default:''}`).join(', ');
+  const ret = n.return_annotation ? ` -> ${n.return_annotation}` : '';
+  document.getElementById('ins-signature').textContent = `def ${n.label}(${args})${ret}:`;
+
+  // Docstring
+  const docSec = document.getElementById('ins-section-doc');
+  if (n.docstring) {
+    docSec.style.display = 'block';
+    document.getElementById('ins-doc').textContent = n.docstring.trim();
+  } else {
+    docSec.style.display = 'none';
+  }
+
+  // Parameters (I/O)
+  let paramHtml = n.args.map(a => `
+    <div class="ins-row">
+      <span class="ins-key">${a.name}</span>
+      <span class="ins-val" style="color:var(--text3)">${a.annotation || 'any'}${a.default ? ' = '+a.default : ''}</span>
+    </div>
+  `).join('');
+  if (n.return_annotation) {
+    paramHtml += `
+      <div class="ins-row" style="margin-top:8px; border-top:1px solid var(--border); padding-top:4px">
+        <span class="ins-key">Returns</span>
+        <span class="ins-val" style="color:var(--accent-alt)">${n.return_annotation}</span>
+      </div>
+    `;
+  }
+  document.getElementById('ins-parameters').innerHTML = paramHtml || '<div class="text-muted" style="font-size:11px">No parameters</div>';
+
+  // Metrics
+  document.getElementById('ins-metrics').innerHTML = `
+    <div class="ins-row"><span class="ins-key">Complexity (CC)</span><span class="ins-val">${ccBadge(n.cyclomatic_complexity)}</span></div>
+    <div class="ins-row"><span class="ins-key">Loops</span><span class="ins-val">${n.loop_count}</span></div>
+    <div class="ins-row"><span class="ins-key">Try/Except</span><span class="ins-val">${n.try_except_count}</span></div>
+    <div class="ins-row"><span class="ins-key">Arguments</span><span class="ins-val">${n.arg_count}</span></div>
+  `;
+
+  // Callers / Callees
+  const renderLinks = (ids, targetEl) => {
+    const el = document.getElementById(targetEl);
+    el.innerHTML = '';
+    if (!ids || !ids.length) { el.innerHTML = '<li style="color:var(--text3);font-size:11px">None</li>'; return; }
+    ids.forEach(id => {
+      const node = ALL_NODES.find(x => x.id === id);
+      if (!node) return;
+      const li = document.createElement('li');
+      li.className = 'ins-list-item';
+      li.innerHTML = `<span class="cc-dot" style="background:${ccColour(node.cyclomatic_complexity)}"></span>` +
+                     `<span style="flex:1">${node.label}</span><span style="color:var(--text3);font-size:10px">${node.module}</span>`;
+      li.onclick = () => {
+        focusNode(id);
+        openInspector(id);
+        network.selectNodes([id]);
+        network.focus(id, { scale: 1.2, animation: true });
+      };
+      el.appendChild(li);
+    });
+  };
+  renderLinks(edgeIndex.callers[nodeId], 'ins-callers');
+  renderLinks(edgeIndex.callees[nodeId], 'ins-callees');
+  renderFlowView(nodeId);
+  renderTraceTable(nodeId);
+  renderErrorTab(nodeId);
+
+  // Source Code
+  const sourceEl = document.getElementById('ins-source');
+  sourceEl.innerHTML = '<span style="color:var(--text3)">Loading source...</span>';
+  try {
+    const filePath = n.file || n.id.split('::')[0];
+    const res = await fetch(`${API}/file/read`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: filePath })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Failed to fetch file');
+    }
+    const data = await res.json();
+    if (!data || data.content === undefined) throw new Error('File content empty or missing');
+    
+    const lines = data.content.split('\n');
+    const slice = lines.slice(n.start_line - 1, n.end_line);
+    sourceEl.innerHTML = slice.map((line, i) => 
+      `<span class="ins-source-line" data-line="${n.start_line + i}">${escapeHTML(line)}</span>`
+    ).join('');
+    sourceEl.style.counterReset = `line ${n.start_line - 1}`;
+  } catch (e) {
+    sourceEl.innerHTML = `<span style="color:var(--danger)">Failed to load source: ${e.message}</span>`;
+  }
+}
+
+function renderFlowView(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) return;
+  const callers = (edgeIndex.callers[nodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+  const callees = (edgeIndex.callees[nodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+
+  const flowNode = (node, selected = false) => {
+    const cls = selected ? 'flow-node flow-selected' : 'flow-node';
+    return `<div class="${cls}" onclick="focusNode('${node.id}');openInspector('${node.id}');network&&(network.selectNodes(['${node.id}']),network.focus('${node.id}',{scale:1.2,animation:true}))">
+      <span class="cc-dot" style="background:${ccColour(node.cyclomatic_complexity)};width:6px;height:6px;border-radius:50%;flex-shrink:0"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${node.label}</span>
+      <span style="color:var(--text3);font-size:10px;flex-shrink:0">${node.module.split('.').pop()}</span>
+    </div>`;
+  };
+
+  let html = '';
+
+  if (callers.length) {
+    html += `<div class="flow-lane"><div class="flow-lane-label">Callers</div>${callers.map(c => flowNode(c)).join('<div class="flow-arrow">↓</div>')}</div>`;
+    html += `<div class="flow-arrow" style="padding:4px 0;text-align:center;font-size:18px">↓</div>`;
+    html += '<hr class="flow-divider">';
+  }
+
+  html += `<div class="flow-lane"><div class="flow-lane-label">Selected</div>${flowNode(n, true)}</div>`;
+
+  if (callees.length) {
+    html += '<hr class="flow-divider">';
+    html += `<div class="flow-arrow" style="padding:4px 0;text-align:center;font-size:18px">↓</div>`;
+    html += `<div class="flow-lane"><div class="flow-lane-label">Callees</div>${callees.map(c => flowNode(c)).join('<div class="flow-arrow">↓</div>')}</div>`;
+  }
+
+  document.getElementById('ins-flow-content').innerHTML = html;
+}
+
+function traceOutcome(n) {
+  if (n.try_except_count > 0 && n.cyclomatic_complexity >= 10)
+    return `<span class="trace-outcome outcome-err">⛔ High risk (CC ${n.cyclomatic_complexity}, ${n.try_except_count} try)</span>`;
+  if (n.try_except_count > 0)
+    return `<span class="trace-outcome outcome-warn">⚠ Handled (${n.try_except_count} try/except)</span>`;
+  if (n.cyclomatic_complexity >= 10)
+    return `<span class="trace-outcome outcome-risk">🔶 Complex (CC ${n.cyclomatic_complexity})</span>`;
+  if (n.loop_count > 0)
+    return `<span class="trace-outcome outcome-warn">↻ Iterative (${n.loop_count} loop${n.loop_count>1?'s':''})</span>`;
+  return `<span class="trace-outcome outcome-ok">✓ Simple</span>`;
+}
+
+function traceParams(n) {
+  if (!n.args || !n.args.length) return '<span style="color:var(--text3)">—</span>';
+  return n.args.map(a => {
+    const type = a.annotation ? `<span style="color:var(--text3)">:${a.annotation}</span>` : '';
+    const def  = a.default    ? `<span style="color:var(--text3)">=${a.default}</span>` : '';
+    return `${a.name}${type}${def}`;
+  }).join(', ');
+}
+
+function renderTraceTable(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) return;
+  const callers = (edgeIndex.callers[nodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+  const callees = (edgeIndex.callees[nodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+
+  const rows = [
+    ...callers.map((c, i) => ({ seq: i + 1, node: c, role: 'caller' })),
+    { seq: callers.length + 1, node: n, role: 'selected' },
+    ...callees.map((c, i) => ({ seq: callers.length + 2 + i, node: c, role: 'callee' }))
+  ];
+
+  document.getElementById('ins-trace-body').innerHTML = rows.map(r => {
+    const sel = r.role === 'selected' ? ' class="trace-selected"' : '';
+    const click = r.node.id !== nodeId
+      ? `onclick="focusNode('${r.node.id}');openInspector('${r.node.id}');network&&(network.selectNodes(['${r.node.id}']),network.focus('${r.node.id}',{scale:1.2,animation:true}))"`
+      : '';
+    return `<tr${sel} ${click}>
+      <td class="trace-seq">${r.seq}</td>
+      <td class="trace-fn">${r.node.label}<br><span style="color:var(--text3);font-size:9px">${r.node.module}</span></td>
+      <td class="trace-params">${traceParams(r.node)}</td>
+      <td>${traceOutcome(r.node)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderErrorTab(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) return;
+  const items = [];
+
+  if (n.cyclomatic_complexity >= 20)
+    items.push({ sev:'high', icon:'🔴', title:`Very High Complexity (CC ${n.cyclomatic_complexity})`,
+      desc:'Cyclomatic complexity ≥ 20. Function is very difficult to test and maintain. Consider splitting.' });
+  else if (n.cyclomatic_complexity >= 10)
+    items.push({ sev:'med', icon:'🟠', title:`High Complexity (CC ${n.cyclomatic_complexity})`,
+      desc:'Cyclomatic complexity ≥ 10. Multiple branching paths increase defect probability.' });
+
+  if (n.try_except_count === 0 && n.cyclomatic_complexity >= 5)
+    items.push({ sev:'med', icon:'⚠️', title:'No Exception Handling',
+      desc:`Function has CC ${n.cyclomatic_complexity} with no try/except blocks. Unhandled exceptions may propagate.` });
+
+  if (n.try_except_count > 3)
+    items.push({ sev:'low', icon:'🟡', title:`Excessive Try/Except (${n.try_except_count})`,
+      desc:'Many exception handlers can mask errors and make control flow hard to follow.' });
+
+  if (n.loop_count > 0 && n.try_except_count === 0)
+    items.push({ sev:'low', icon:'🟡', title:`Unguarded Loop${n.loop_count>1?'s':''} (${n.loop_count})`,
+      desc:'Loop(s) without exception handling. Iteration errors will propagate uncaught.' });
+
+  const callers = (edgeIndex.callers[nodeId] || []);
+  if (callers.length === 0 && !ENTRY_POINTS.includes(nodeId))
+    items.push({ sev:'low', icon:'🔵', title:'Unreachable Function',
+      desc:'No callers detected and not marked as an entry point. May be dead code.' });
+
+  const callees = (edgeIndex.callees[nodeId] || []);
+  const highCallees = callees.map(id => ALL_NODES.find(x => x.id === id)).filter(c => c && c.cyclomatic_complexity >= 10);
+  if (highCallees.length)
+    items.push({ sev:'low', icon:'🟡', title:`Calls ${highCallees.length} High-Complexity Function${highCallees.length>1?'s':''}`,
+      desc: highCallees.map(c => `${c.label} (CC ${c.cyclomatic_complexity})`).join(', ') });
+
+  if (!items.length)
+    items.push({ sev:'ok', icon:'✅', title:'No Issues Detected',
+      desc:'Static analysis found no error-handling concerns for this function.' });
+
+  document.getElementById('ins-errors-content').innerHTML = items.map(it =>
+    `<div class="err-item err-sev-${it.sev}">
+      <span class="err-icon">${it.icon}</span>
+      <div class="err-body"><div class="err-title">${it.title}</div><div class="err-desc">${it.desc}</div></div>
+    </div>`
+  ).join('');
+}
+
+function renderFlowTree(rootNodeId) {
+  const root = ALL_NODES.find(x => x.id === rootNodeId);
+  if (!root) {
+    document.getElementById('flow-tree-scroll').innerHTML = '<div class="ft-empty">Function not found</div>';
+    return;
+  }
+
+  const callers = (edgeIndex.callers[rootNodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+  const callees = (edgeIndex.callees[rootNodeId] || []).map(id => ALL_NODES.find(x => x.id === id)).filter(Boolean);
+
+  const ftNode = (n, isRoot = false) => {
+    const cls = isRoot ? 'ft-item ft-root' : 'ft-item';
+    const click = isRoot ? '' : `onclick="selectFlowTreeNode('${n.id}')"`;
+    return `<div class="${cls}" data-id="${n.id}" ${click}>
+      <span class="cc-dot" style="background:${ccColour(n.cyclomatic_complexity)};width:5px;height:5px;border-radius:50%;flex-shrink:0"></span>
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis">${n.label}</span>
+      <span style="color:var(--text3);font-size:9px;flex-shrink:0">${n.module.split('.').pop()}</span>
+    </div>`;
+  };
+
+  let html = '';
+  if (callers.length) {
+    html += '<div class="ft-group-label">Callers</div>';
+    html += callers.map(c => ftNode(c)).join('');
+    html += '<div class="ft-arrow">↓</div>';
+  }
+
+  html += ftNode(root, true);
+
+  if (callees.length) {
+    html += '<div class="ft-arrow">↓</div>';
+    html += '<div class="ft-group-label">Callees</div>';
+    html += callees.map(c => ftNode(c)).join('');
+  }
+
+  document.getElementById('flow-tree-scroll').innerHTML = html;
+}
+
+function selectFlowTreeNode(nodeId) {
+  // Mark active in flow tree
+  document.querySelectorAll('#flow-tree-scroll .ft-item').forEach(x => x.classList.remove('ft-active'));
+  const el = document.querySelector(`#flow-tree-scroll .ft-item[data-id="${nodeId}"]`);
+  if (el) el.classList.add('ft-active');
+  
+  // Update graph + inspector (but NOT flow tree)
+  focusNode(nodeId);
+  openInspector(nodeId);
+  if (network) {
+    network.selectNodes([nodeId]);
+    network.focus(nodeId, { scale: 1.2, animation: true });
+  }
+}
+
+function renderParamsSection(nodeId) {
+  const n = ALL_NODES.find(x => x.id === nodeId);
+  if (!n) {
+    document.getElementById('params-scroll').innerHTML = '<div class="ft-empty">Function not found</div>';
+    return;
+  }
+
+  let html = '';
+  if (n.args && n.args.length) {
+    html = n.args.map(a => {
+      const type = a.annotation ? `<span class="param-type">: ${a.annotation}</span>` : '';
+      const def = a.default ? `<div class="param-default">default: ${a.default}</div>` : '';
+      return `<div class="param-row">
+        <div>
+          <span class="param-name">${a.name}</span>${type}
+          ${def}
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    html = '<div class="ft-empty">No parameters</div>';
+  }
+
+  if (n.return_annotation) {
+    html += `<div class="param-return">
+      <span class="param-return-label">Returns:</span>
+      <span class="param-return-val">${n.return_annotation}</span>
+    </div>`;
+  }
+
+  document.getElementById('params-scroll').innerHTML = html;
+}
+
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// ── API Actions ─────────────────────────────────────────────────────────────
+async function runAnalysis() {
+  const root = document.getElementById('root-path').value.trim();
+  if (!root) return alert('Enter a directory path');
+  const status = document.getElementById('load-status');
+  status.textContent = '⏳ Analysing...';
+  try {
+    const res = await fetch(`${API}/static/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ root, complexity_filter: 0 })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Analysis failed');
+    }
+    const data = await res.json();
+    if (!data || !data.nodes) throw new Error('Invalid response: missing nodes');
+    loadGraphData(data);
+    // Update breadcrumb with resolved path
+    const bcRoot = document.getElementById('bc-root');
+    bcRoot.textContent = root;
+    bcRoot.title = root;
+    // Add copy button if not already present
+    if (!document.getElementById('bc-copy-btn')) {
+      const btn = document.createElement('button');
+      btn.id = 'bc-copy-btn';
+      btn.className = 'btn btn-ghost btn-icon';
+      btn.title = 'Copy path';
+      btn.textContent = '📋';
+      btn.style.cssText = 'padding:1px 4px;font-size:11px;margin-left:6px';
+      btn.onclick = () => { navigator.clipboard.writeText(root); btn.textContent = '✓'; setTimeout(() => btn.textContent = '📋', 1500); };
+      bcRoot.parentElement.appendChild(btn);
+    }
+    status.textContent = `✓ Done (${data.nodes.length} fns)`;
+  } catch (e) { status.textContent = `✗ ${e.message}`; }
+}
+
+async function loadSavedGraph() {
+  const status = document.getElementById('load-status');
+  try {
+    const res = await fetch(`${API}/static/graph`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Failed to load graph');
+    }
+    const data = await res.json();
+    if (!data || !data.nodes) throw new Error('Invalid response: missing nodes');
+    loadGraphData(data);
+  } catch (e) { console.error(e); if(status) status.textContent = `✗ ${e.message}`; }
+}
+
+// ── Metrics Table ──────────────────────────────────────────────────────────
+function renderMetrics(nodes) {
+  const entrySet = new Set(ENTRY_POINTS);
+  document.getElementById('metrics-body').innerHTML = nodes.map(n => `
+    <tr onclick="openInspector('${n.id}');switchPanel('graph');network.focus('${n.id}',{scale:1.2,animation:true});focusNode('${n.id}')" style="cursor:pointer">
+      <td class="mono">${n.label}</td>
+      <td class="text-muted">${n.module}</td>
+      <td>${n.start_line}–${n.end_line}</td>
+      <td>${ccBadge(n.cyclomatic_complexity)}</td>
+      <td>${n.loop_count}</td>
+      <td>${n.try_except_count}</td>
+      <td>${n.arg_count}</td>
+      <td>${entrySet.has(n.id)?'★':''}</td>
+    </tr>`).join('');
+}
+
+function renderEntries() {
+  const entries = ALL_NODES.filter(n => ENTRY_POINTS.includes(n.id));
+  document.getElementById('entry-count').textContent = `${entries.length} entry points`;
+  document.getElementById('entry-body').innerHTML = entries.map(n => `
+    <tr onclick="openInspector('${n.id}');switchPanel('graph');network.focus('${n.id}',{scale:1.2,animation:true});focusNode('${n.id}')" style="cursor:pointer">
+      <td class="mono">${n.label}</td>
+      <td>${n.module}</td>
+      <td>${n.start_line}</td>
+      <td>${ccBadge(n.cyclomatic_complexity)}</td>
+      <td>${n.arg_count}</td>
+    </tr>`).join('');
+}
+
+function renderHeatmap() {
+  const minCC = parseInt(document.getElementById('heatmap-filter').value) || 1;
+  const filtered = ALL_NODES.filter(n => n.cyclomatic_complexity >= minCC)
+    .sort((a,b) => b.cyclomatic_complexity - a.cyclomatic_complexity);
+  const grid = document.getElementById('heatmap-grid');
+  grid.innerHTML = `<div style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;display:grid">` +
+    filtered.map(n => {
+      const color = ccColour(n.cyclomatic_complexity);
+      return `<div class="card" style="border-top: 3px solid ${color}; cursor:pointer" onclick="openInspector('${n.id}');switchPanel('graph');network.focus('${n.id}',{scale:1.2,animation:true});focusNode('${n.id}')">
+        <div style="font-weight:700;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis">${n.label}</div>
+        <div style="font-size:10px;color:var(--text3);margin-bottom:8px">${n.module}</div>
+        <div style="font-size:24px;font-weight:700;color:${color}">${n.cyclomatic_complexity}</div>
+        <div style="font-size:9px;color:var(--text3)">CC</div>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+function applyFilter() {
+  const minCC = parseInt(document.getElementById('cc-filter').value) || 0;
+  const search = document.getElementById('search-fn').value.toLowerCase();
+  const filtered = ALL_NODES.filter(n => n.cyclomatic_complexity >= minCC && n.label.toLowerCase().includes(search));
+  const ids = new Set(filtered.map(n => n.id));
+  buildNetwork(filtered, ALL_EDGES.filter(e => ids.has(e.source) && ids.has(e.target)));
+}
+
+function resetFilter() {
+  document.getElementById('cc-filter').value = '0';
+  document.getElementById('search-fn').value = '';
+  buildNetwork(ALL_NODES, ALL_EDGES);
+}
+
+// ── Initialize ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initCollapsibleSections();
+  initResizers();
+  loadSavedGraph();
+});
+</script>
+</body>
+</html>

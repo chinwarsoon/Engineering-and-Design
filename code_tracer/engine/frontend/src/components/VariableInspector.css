@@ -1,0 +1,147 @@
+.variable-inspector-panel {
+  flex: 1;
+  min-width: 250px;
+  padding: 1rem;
+  background-color: white;
+  overflow-y: auto;
+}
+
+.variable-inspector-panel h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  border-bottom: 2px solid #2ecc71;
+  padding-bottom: 0.5rem;
+}
+
+.inspector-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.call-info {
+  text-align: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #eee;
+}
+
+.call-info h3 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+}
+
+.call-location {
+  margin-bottom: 0.5rem;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.call-status {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.status-return {
+  background-color: #d4efdf;
+  color: #27ae60;
+}
+
+.status-active {
+  background-color: #fadbd8;
+  color: #e67e22;
+}
+
+.status-exception {
+  background-color: #f5b7b1;
+  color: #c0392b;
+}
+
+.vars-section {
+  margin-bottom: 1rem;
+}
+
+.vars-section h4 {
+  margin: 0 0 0.5rem 0;
+  color: #34495e;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vars-list {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  overflow: hidden;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.vars-placeholder {
+  padding: 1rem;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.var-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.var-item:last-child {
+  border-bottom: none;
+}
+
+.var-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.var-value {
+  font-family: 'Courier New', monospace;
+  background-color: #f8f9fa;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+}
+
+.return-section, .exception-section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eee;
+}
+
+.return-section h4, .exception-section h4 {
+  margin: 0 0 0.5rem 0;
+  color: #34495e;
+}
+
+.return-value pre, .exception-value pre {
+  margin: 0;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+
+.exception-value {
+  background-color: #fdf2f2;
+  border-left: 4px solid #e74c3c;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: #95a5a6;
+  font-style: italic;
+}
+
+.empty-state p {
+  margin: 0;
+}

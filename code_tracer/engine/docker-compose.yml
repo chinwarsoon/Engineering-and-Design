@@ -1,0 +1,8 @@
+services:
+  tracer:
+    build: .
+    ports:
+      - "5000:5000"
+      - "8000:8000"
+    volumes:
+      - ${TARGET_DIR}:/target:ro

@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tracer Pro | Interactive Python Code Tracer</title>
+  <link rel="stylesheet" href="dcc-design-system.css">
+  <style>
+    :root {
+      --tracer-node-bg: rgba(30, 41, 59, 0.7);
+      --tracer-node-border: rgba(148, 163, 184, 0.2);
+      --tracer-node-active: rgba(56, 189, 248, 0.2);
+      --tracer-node-success: rgba(34, 197, 94, 0.2);
+      --tracer-node-error: rgba(239, 68, 68, 0.2);
+      --tracer-line: rgba(148, 163, 184, 0.3);
+    }
+
+    .tracer-shell {
+      display: grid;
+      grid-template-columns: 240px 1fr 300px;
+      grid-template-rows: 1fr;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Execution Tree Area */
+    .tree-container {
+      position: relative;
+      flex: 1;
+      height: 100%;
+      background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+      overflow: auto;
+      padding: 40px;
+      cursor: grab;
+    }
+
+    .tree-container:active { cursor: grabbing; }
+
+    .tree-node {
+      position: absolute;
+      width: 200px;
+      background: var(--tracer-node-bg);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--tracer-node-border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 11px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .tree-node:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    }
+
+    .tree-node.active { border-color: var(--accent); background: var(--tracer-node-active); }
+    .tree-node.success { border-color: var(--success); background: var(--tracer-node-success); }
+    .tree-node.error { border-color: var(--danger); background: var(--tracer-node-error); }
+
+    .node-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 4px;
+    }
+
+    .node-func { font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+    .node-time { font-size: 9px; color: var(--text3); }
+    .node-file { color: var(--text2); font-size: 9px; opacity: 0.7; }
+
+    /* Controls Surface */
+    .tracer-controls {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 40px;
+      padding: 6px 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+
+    .ctrl-btn {
+      background: transparent;
+      border: none;
+      color: var(--text2);
+      padding: 8px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ctrl-btn:hover { background: rgba(255, 255, 255, 0.1); color: var(--text); }
+    .ctrl-btn.active { color: var(--accent); }
+    .ctrl-btn.record { color: var(--danger); }
+    .ctrl-btn.record.on { animation: pulse 1.5s infinite; }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    /* Variable Inspector */
+    .inspector-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .var-row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 8px;
+      font-size: 11px;
+      padding: 6px 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .var-name { color: var(--accent-alt); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+    .var-val { color: var(--text2); word-break: break-all; }
+    .var-type { font-size: 9px; color: var(--text3); margin-top: 2px; }
+
+    /* Environment Map */
+    .env-map {
+      background: var(--surface2);
+      border-radius: var(--radius);
+      padding: 10px;
+      margin-top: 12px;
+    }
+
+    .env-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      margin-bottom: 4px;
+    }
+
+    .env-key { color: var(--text3); }
+    .env-val { color: var(--text); font-weight: 500; }
+
+    /* Empty State */
+    .empty-state {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: var(--text3);
+    }
+
+    .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+
+    /* SVG Lines */
+    .tree-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <div class="dcc-titlebar">
+    <div class="dcc-titlebar-logo">
+      <span class="logo-icon">🔭</span>
+      <span class="logo-name">Tracer <span class="logo-accent">Pro</span></span>
+    </div>
+    <div class="dcc-titlebar-breadcrumb">
+      <span>Workflow</span>
+      <span>Engine</span>
+      <span class="bc-active">Interactive Trace</span>
+    </div>
+    <div class="dcc-titlebar-actions">
+      <div id="connStatus" class="badge badge-secondary">Disconnected</div>
+    </div>
+  </div>
+
+  <div class="dcc-shell">
+    <div class="dcc-iconbar">
+      <button class="dcc-iconbar-btn active" title="Execution Tree">🌳</button>
+      <button class="dcc-iconbar-btn" title="Source Code">📄</button>
+      <button class="dcc-iconbar-btn" title="Environment">🌍</button>
+      <button class="dcc-iconbar-btn" title="Tools">🛠️</button>
+      <div class="dcc-iconbar-spacer"></div>
+      <button class="dcc-iconbar-btn" title="Settings">⚙️</button>
+    </div>
+
+    <div class="tracer-shell">
+      <!-- File Explorer Sidebar -->
+      <div class="dcc-sidebar">
+        <div class="dcc-sidebar-header">Files</div>
+        <div class="dcc-sidebar-body">
+          <div class="sb-section">
+            <div class="sb-section-header">Project Root</div>
+            <div id="fileList" class="sb-section-body" style="font-size: 11px; cursor: pointer;">
+              <!-- Populated by API -->
+              <div class="loading-spin" style="margin: 20px auto;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Tree Workspace -->
+      <div class="dcc-content" style="padding: 0;">
+        <div class="tree-container" id="treeContainer">
+          <svg class="tree-lines" id="treeLines"></svg>
+          <div id="treeViewport">
+            <div class="empty-state" id="emptyState">
+              <div class="empty-icon">🛰️</div>
+              <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">Waiting for Trace Data</div>
+              <div>Start tracing to see the call execution tree in real-time.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Controls -->
+        <div class="tracer-controls">
+          <button class="ctrl-btn record" id="startBtn" title="Start Tracing">⏺️</button>
+          <button class="ctrl-btn" id="stopBtn" title="Stop Tracing" disabled>⏹️</button>
+          <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1);"></div>
+          <button class="ctrl-btn" id="clearBtn" title="Clear Trace">🧹</button>
+          <button class="ctrl-btn" id="refreshBtn" title="Refresh Data">🔄</button>
+          <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1);"></div>
+          <div style="font-size: 10px; color: var(--text3); font-family: monospace;" id="traceTimer">00:00.00</div>
+        </div>
+      </div>
+
+      <!-- Variable Inspector Sidebar -->
+      <div class="dcc-sidebar">
+        <div class="dcc-sidebar-header">Inspector</div>
+        <div class="inspector-body">
+          <div id="selectedNodeInfo" style="margin-bottom: 16px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px; display: none;">
+            <div id="nodeName" style="font-weight: 700; color: var(--accent); margin-bottom: 4px;">function_name</div>
+            <div id="nodeMeta" style="font-size: 10px; color: var(--text3);">file.py:123</div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-header">Local Variables</div>
+            <div id="localVars" class="sb-section-body">
+              <div style="font-size: 11px; color: var(--text3); padding: 20px text-align: center;">Select a node to inspect</div>
+            </div>
+          </div>
+
+          <div class="sb-section">
+            <div class="sb-section-header">Environment State</div>
+            <div id="envState" class="sb-section-body">
+              <div class="env-item">
+                <span class="env-key">Platform</span>
+                <span class="env-val" id="envPlatform">—</span>
+              </div>
+              <div class="env-item">
+                <span class="env-key">Python</span>
+                <span class="env-val" id="envPython">—</span>
+              </div>
+              <div class="env-item">
+                <span class="env-key">Backend</span>
+                <span class="env-val">FastAPI 0.136.0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dcc-statusbar status-ok">
+    <div class="sb-item" id="apiEndpoint">API: detecting...</div>
+    <div class="sb-item" id="lastUpdate">Last Update: —</div>
+    <div class="sb-item-right">Tracer Pro v0.6.0</div>
+  </div>
+
+  <script>
+    // Configuration
+    function getBackendUrl() {
+      const h = window.location.hostname;
+      if (h.endsWith('.app.github.dev'))
+        return 'https://' + h.replace(/-\d+\.app\.github\.dev$/, '-8000.app.github.dev');
+      if (h.endsWith('.gitpod.io'))
+        return 'https://' + h.replace(/^\d+-/, '8000-');
+      return 'http://localhost:8000';
+    }
+    function getWsUrl() {
+      return getBackendUrl().replace(/^http/, 'ws') + '/ws';
+    }
+    const API_BASE = getBackendUrl();
+    const WS_BASE = getWsUrl();
+    document.getElementById('apiEndpoint').textContent = 'API: ' + API_BASE;
+    
+    // State
+    let socket = null;
+    let traceData = null;
+    let isTracing = false;
+    let selectedCallId = null;
+    let startTime = null;
+    let timerInterval = null;
+
+    // DOM Elements
+    const treeViewport = document.getElementById('treeViewport');
+    const treeLines = document.getElementById('treeLines');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const refreshBtn = document.getElementById('refreshBtn');
+    const connStatus = document.getElementById('connStatus');
+    const emptyState = document.getElementById('emptyState');
+    const traceTimer = document.getElementById('traceTimer');
+
+    // Initialize
+    function init() {
+      connectWebSocket();
+      fetchEnvironment();
+      fetchFiles();
+      startPolling(); // Background health check
+    }
+
+    // WebSocket Connection
+    function connectWebSocket() {
+      socket = new WebSocket(WS_BASE);
+      
+      socket.onopen = () => {
+        connStatus.textContent = 'Connected (Live)';
+        connStatus.className = 'badge badge-success';
+        console.log('Connected to tracer backend');
+      };
+      
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'trace_update') {
+          handleTraceUpdate(data.data);
+        }
+      };
+      
+      socket.onclose = () => {
+        connStatus.textContent = 'Disconnected';
+        connStatus.className = 'badge badge-danger';
+        setTimeout(connectWebSocket, 3000);
+      };
+    }
+
+    // API Calls
+    async function startTracing() {
+      try {
+        const res = await fetch(`${API_BASE}/trace/start`, { method: 'POST' });
+        if (res.ok) {
+          isTracing = true;
+          startBtn.classList.add('on');
+          stopBtn.disabled = false;
+          startBtn.disabled = true;
+          startTimer();
+        }
+      } catch (err) {
+        console.error('Failed to start tracing', err);
+      }
+    }
+
+    async function stopTracing() {
+      try {
+        const res = await fetch(`${API_BASE}/trace/stop`, { method: 'POST' });
+        if (res.ok) {
+          isTracing = false;
+          startBtn.classList.remove('on');
+          stopBtn.disabled = true;
+          startBtn.disabled = false;
+          stopTimer();
+          refreshData();
+        }
+      } catch (err) {
+        console.error('Failed to stop tracing', err);
+      }
+    }
+
+    async function clearTrace() {
+      try {
+        await fetch(`${API_BASE}/trace/clear`, { method: 'POST' });
+        traceData = null;
+        renderTree([]);
+        emptyState.style.display = 'block';
+      } catch (err) {
+        console.error('Failed to clear trace', err);
+      }
+    }
+
+    async function refreshData() {
+      try {
+        const res = await fetch(`${API_BASE}/trace/data`);
+        const data = await res.json();
+        handleTraceUpdate(data);
+      } catch (err) {
+        console.error('Failed to refresh data', err);
+      }
+    }
+
+    async function fetchEnvironment() {
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        const data = await res.json();
+        document.getElementById('envPlatform').textContent = data.platform;
+        document.getElementById('envPython').textContent = data.python;
+      } catch (err) {
+        console.error('Failed to fetch health', err);
+      }
+    }
+
+    async function fetchFiles() {
+      try {
+        // Mocking file list since there's no endpoint, or we can use generic logic
+        const fileList = document.getElementById('fileList');
+        fileList.innerHTML = `
+          <div class="var-row"><span class="var-name">📁 dcc/</span></div>
+          <div class="var-row" style="padding-left: 20px"><span class="var-name">📄 serve.py</span></div>
+          <div class="var-row" style="padding-left: 20px"><span class="var-name">📁 workflow/</span></div>
+          <div class="var-row" style="padding-left: 40px"><span class="var-name">📄 pipeline.py</span></div>
+          <div class="var-row" style="padding-left: 40px"><span class="var-name">📁 core/</span></div>
+        `;
+      } catch (err) {
+        console.error('Failed to fetch files', err);
+      }
+    }
+
+    // Trace Update Handling
+    function handleTraceUpdate(data) {
+      traceData = data;
+      const callTree = data.call_tree || [];
+      if (callTree.length > 0) {
+        emptyState.style.display = 'none';
+        renderTree(callTree);
+        document.getElementById('lastUpdate').textContent = `Last Update: ${new Date().toLocaleTimeString()}`;
+      }
+    }
+
+    // Tree Rendering Logic
+    function renderTree(callTree) {
+      treeViewport.innerHTML = '';
+      if (!callTree || callTree.length === 0) return;
+
+      const nodes = [];
+      const connections = [];
+      
+      let maxDepth = 0;
+      let maxWidth = 0;
+
+      function processNode(node, depth, xOffset) {
+        maxDepth = Math.max(maxDepth, depth);
+        maxWidth = Math.max(maxWidth, xOffset);
+        
+        const nodeData = {
+          ...node,
+          depth,
+          x: xOffset * 250,
+          y: depth * 150
+        };
+        
+        nodes.push(nodeData);
+        
+        if (node.children) {
+          node.children.forEach((child, idx) => {
+            const childNode = processNode(child, depth + 1, xOffset + idx);
+            connections.push({ from: nodeData, to: childNode });
+          });
+        }
+        return nodeData;
+      }
+
+      callTree.forEach((root, idx) => processNode(root, 0, idx));
+
+      // Clear SVG
+      treeLines.innerHTML = '';
+      treeLines.style.width = `${(maxWidth + 1) * 300}px`;
+      treeLines.style.height = `${(maxDepth + 1) * 200}px`;
+
+      // Render Nodes
+      nodes.forEach(node => {
+        const div = document.createElement('div');
+        div.className = `tree-node ${node.exception ? 'error' : (node.end_time ? 'success' : 'active')}`;
+        if (node.call_id === selectedCallId) div.classList.add('active');
+        
+        div.style.left = `${node.x}px`;
+        div.style.top = `${node.y}px`;
+        
+        const duration = node.duration ? (node.duration * 1000).toFixed(2) + 'ms' : 'active';
+        const fileBase = node.filename.split('/').pop();
+
+        div.innerHTML = `
+          <div class="node-header">
+            <span class="node-func">${node.function_name}</span>
+            <span class="node-time">${duration}</span>
+          </div>
+          <div class="node-file">${fileBase}:${node.lineno}</div>
+        `;
+
+        div.addEventListener('click', () => selectNode(node));
+        treeViewport.appendChild(div);
+      });
+
+      // Render Lines
+      connections.forEach(conn => {
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const x1 = conn.from.x + 100;
+        const y1 = conn.from.y + 50;
+        const x2 = conn.to.x + 100;
+        const y2 = conn.to.y;
+        
+        // Bezier curve
+        const d = `M ${x1} ${y1} C ${x1} ${y1 + 50}, ${x2} ${y2 - 50}, ${x2} ${y2}`;
+        
+        line.setAttribute('d', d);
+        line.setAttribute('stroke', 'rgba(148, 163, 184, 0.3)');
+        line.setAttribute('stroke-width', '2');
+        line.setAttribute('fill', 'none');
+        treeLines.appendChild(line);
+      });
+    }
+
+    function selectNode(node) {
+      selectedCallId = node.call_id;
+      
+      // Update UI
+      document.getElementById('selectedNodeInfo').style.display = 'block';
+      document.getElementById('nodeName').textContent = node.function_name + '()';
+      document.getElementById('nodeMeta').textContent = `${node.filename}:${node.lineno}`;
+      
+      // Fetch full details if needed, or use cached data
+      const callDetail = traceData.calls[node.call_id];
+      const localVars = document.getElementById('localVars');
+      localVars.innerHTML = '';
+      
+      if (callDetail && callDetail.locals) {
+        Object.entries(callDetail.locals).forEach(([name, val]) => {
+          const row = document.createElement('div');
+          row.className = 'var-row';
+          
+          let valStr = typeof val === 'object' ? JSON.stringify(val) : String(val);
+          if (valStr.length > 100) valStr = valStr.substring(0, 97) + '...';
+          
+          row.innerHTML = `
+            <div class="var-name">${name}</div>
+            <div class="var-val">
+              ${valStr}
+              <div class="var-type">${typeof val}</div>
+            </div>
+          `;
+          localVars.appendChild(row);
+        });
+      } else {
+        localVars.innerHTML = '<div style="font-size: 11px; color: var(--text3); padding: 20px; text-align: center;">No variables captured</div>';
+      }
+      
+      // Highlight current node
+      renderTree(traceData.call_tree);
+    }
+
+    // Timer functions
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const mins = Math.floor(elapsed / 60000);
+        const secs = Math.floor((elapsed % 60000) / 1000);
+        const ms = Math.floor((elapsed % 1000) / 10);
+        traceTimer.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+      }, 50);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    function startPolling() {
+      setInterval(async () => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+          // Fallback to polling if WS is down
+          if (isTracing) refreshData();
+        }
+      }, 2000);
+    }
+
+    // Event Listeners
+    startBtn.addEventListener('click', startTracing);
+    stopBtn.addEventListener('click', stopTracing);
+    clearBtn.addEventListener('click', clearTrace);
+    refreshBtn.addEventListener('click', refreshData);
+
+    // Zoom and Pan (Simple Implementation)
+    let isDragging = false;
+    let startX, startY, scrollLeft, scrollTop;
+
+    treeContainer.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.pageX - treeContainer.offsetLeft;
+      startY = e.pageY - treeContainer.offsetTop;
+      scrollLeft = treeContainer.scrollLeft;
+      scrollTop = treeContainer.scrollTop;
+    });
+
+    treeContainer.addEventListener('mouseleave', () => { isDragging = false; });
+    treeContainer.addEventListener('mouseup', () => { isDragging = false; });
+
+    treeContainer.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const x = e.pageX - treeContainer.offsetLeft;
+      const y = e.pageY - treeContainer.offsetTop;
+      const walkX = (x - startX) * 1.5;
+      const walkY = (y - startY) * 1.5;
+      treeContainer.scrollLeft = scrollLeft - walkX;
+      treeContainer.scrollTop = scrollTop - walkY;
+    });
+
+    // Handle initial calls
+    init();
+  </script>
+</body>
+</html>

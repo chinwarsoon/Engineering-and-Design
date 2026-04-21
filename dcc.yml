@@ -84,6 +84,7 @@ dependencies:
       - jupyterlab-widgets==3.0.16
       - kiwisolver==1.5.0
       - matplotlib==3.10.8
+      - networkx==3.6.1
       - numpy==2.4.3
       - pandas==3.0.1
       - pillow==12.1.1

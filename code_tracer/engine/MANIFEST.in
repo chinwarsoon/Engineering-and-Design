@@ -1,0 +1,3 @@
+include tracer/static_dashboard.html
+include tracer/ui/dcc-design-system.css
+recursive-include tracer/static *.py

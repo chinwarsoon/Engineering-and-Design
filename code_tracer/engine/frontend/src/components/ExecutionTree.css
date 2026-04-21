@@ -1,0 +1,39 @@
+.execution-tree-panel {
+  flex: 2;
+  min-width: 300px;
+  padding: 1rem;
+  border-right: 1px solid #ddd;
+  background-color: white;
+  overflow: hidden;
+}
+
+.execution-tree-panel h2 {
+  margin-top: 0;
+  color: #2c3e50;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 0.5rem;
+}
+
+.flow-container {
+  flex: 1;
+  min-height: 400px;
+  position: relative;
+}
+
+.tree-stats {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+.tree-stats p {
+  margin: 0.25rem 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.tree-stats p span {
+  font-weight: bold;
+  color: #2c3e50;
+}

@@ -389,7 +389,37 @@ is_json = col_def.get('data_type') == 'json' or col_def.get('column_type') == 'j
 
 ---
 
-<a id="pipeline-messaging-redesign"></a>
+<a id="tracer-migration"></a>
+## 2026-04-19 06:00:00
+
+### Migration: dcc/tracer → code_tracer (standalone project)
+
+**Status:** COMPLETE
+
+**Change:** All tracer-related files migrated from `dcc/` into the standalone `code_tracer/` top-level project folder. `dcc/tracer/` archived to `dcc/archive/tracer/` then safely deleted.
+
+**Verification before deletion:**
+- `diff -rq` between `dcc/tracer/` and `dcc/archive/tracer/`: 0 differences
+- File count: 48,023 files matched exactly
+
+**Files Migrated:**
+
+| Source | Destination |
+|--------|-------------|
+| `dcc/tracer/` (full engine) | `code_tracer/engine/` |
+| `dcc/workplan/code_tracing/` | `code_tracer/workplan/` |
+| `dcc/workplan/code_tracing/reports/` | `code_tracer/workplan/reports/` |
+| `dcc/workflow/code_tracing/archive/` | `code_tracer/workplan/archive/` |
+| `dcc/ui/tracer_pro.html` | `code_tracer/ui/` |
+| `releases/dcc-tracer-v*.zip` | `code_tracer/releases/` |
+| `releases/RELEASE_HISTORY.md` | `code_tracer/releases/` |
+
+**Archive:** `dcc/tracer/` → `dcc/archive/tracer/` (complete, verified)  
+**Deletion:** `dcc/tracer/` removed after archive verification.
+
+---
+
+
 ## 2026-04-19 05:00:00
 
 ### Pipeline Messaging Workplan Redesigned — Awaiting Approval
@@ -2041,5 +2071,20 @@ Next steps:
 - `tracer/static_dashboard.html` — R5 CSS path, label, breadcrumb UX
 - `tracer/README.md` — R6 external user README
 - `workplan/code_tracing/code_tracing_release_workplan.md` — status → COMPLETE, acceptance criteria checked
+
+---
+
+<a id="networkx-dependency"></a>
+## 2026-04-19 07:00:00
+
+### Dependency Fix: networkx added to dcc.yml
+
+**Status:** COMPLETE
+
+**Change:** `networkx==3.6.1` added to pip section of both `dcc/dcc.yml` and root `dcc.yml`.
+
+**Reason:** Required by `code_tracer/engine/static/graph.py` for call graph edge resolution. Was listed in `pyproject.toml` but not in the conda environment yml files.
+
+**Impact:** `code_tracer` call graph now correctly shows edges and entry points (was `edges=0` before fix).
 
 ---
