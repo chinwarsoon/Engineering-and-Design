@@ -11,6 +11,28 @@
 
 *(none — see dcc/Log/test_log.md for pre-migration history)*
 
+## 2026-05-01
+
+### Phase R8 — Single-Port Mode End-to-End Test
+
+**Method:** `python engine/launch.py <target>` from `code_tracer/` root, browser opened automatically.
+
+| # | Test | Result | Detail |
+|---|------|--------|--------|
+| T1 | Single process starts | PASS | Only uvicorn on port 8000, no port 5000 process |
+| T2 | `GET /` serves dashboard | PASS | `http://localhost:8000` loads `static_dashboard.html` |
+| T3 | `GET /ui/dcc-design-system.css` | PASS | CSS loads, dashboard fully styled |
+| T4 | `GET /health` | PASS | `status=healthy` |
+| T5 | `/static/analyze` | PASS | Analysis runs, call graph rendered |
+| T6 | `/file/read` source viewer | PASS | Source code loads in inspector |
+| T7 | Browser auto-opens | PASS | Opens after health-check confirms backend ready |
+
+**Final result:** 7/7 PASS
+- Confirms Phase R8 complete. Single port 8000 serves both API and dashboard.
+- Related: [Issue #CT-14](issue_log.md#issue-CT-14), [Issue #CT-15](issue_log.md#issue-CT-15)
+
+---
+
 ## 2026-04-21 23:15:00
 
 ### UI: Sidebar & Activity Bar Verification

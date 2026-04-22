@@ -11,15 +11,25 @@
 
 ## 2026-05-01
 
+## 2026-05-01
+
+<a id="issue-CT-15"></a>
+[Issue #CT-15]: `GET /` returns 404 after Phase R8 single-port implementation
+- `[Status]`: **RESOLVED**
+- `[Context]`: After mounting `StaticFiles(directory=_UI_DIR, html=True)`, opening `http://localhost:8000` returned 404.
+- `[Root Cause]`: `StaticFiles(html=True)` serves `index.html` automatically — the dashboard file is named `static_dashboard.html`, not `index.html`.
+- `[Resolution]`: Added explicit `@app.get("/")` route returning `FileResponse(static_dashboard.html)`; removed the catch-all `StaticFiles` SPA mount.
+- `[Files Changed]`: `engine/backend/server.py`
+- `[Link to update_log]`: [update_log.md](update_log.md)
+
 <a id="issue-CT-14"></a>
 [Issue #CT-14]: Two-port architecture requires users to manage two processes and two URLs
-- `[Status]`: **PENDING APPROVAL**
-- `[Context]`: `launch.py` currently starts two subprocesses: uvicorn on port 8000 (API) and a Python http.server on port 5000 (dashboard + `/api/*` proxy). Users must open `http://localhost:5000` for the dashboard. The proxy adds latency and a failure point (Bad Gateway if backend is slow to start). FastAPI already imports `StaticFiles` and has a broken `app.mount("/", StaticFiles(directory="dist", html=True))` stub in `server.py` pointing to a non-existent `dist/` directory.
-- `[Root Cause]`: Original design separated concerns across two servers. Now that the project is standalone, a single FastAPI process can serve both the API and the static dashboard with no proxy needed.
-- `[Proposed Resolution]`: Phase R8 — mount `code_tracer/ui/` as FastAPI static files; change `const API = '/api'` to `const API = ''` in the dashboard; remove the file server subprocess from `launch.py`. Full plan in `code_tracing_release_workplan.md` Phase R8.
-- `[Files to Change]`: `engine/backend/server.py`, `ui/static_dashboard.html`, `engine/launch.py`
-- `[Awaiting]`: Approval before implementation
-- `[Link to workplan]`: [code_tracing_release_workplan.md](../workplan/code_tracing_release_workplan.md#phase-r8)
+- `[Status]`: **RESOLVED**
+- `[Context]`: `launch.py` started two subprocesses: uvicorn on port 8000 (API) and a Python http.server on port 5000 (dashboard + `/api/*` proxy).
+- `[Root Cause]`: Original design separated concerns across two servers. FastAPI's `StaticFiles` can serve both API and static files from a single process.
+- `[Resolution]`: Phase R8 implemented. See update_log for details.
+- `[Files Changed]`: `engine/backend/server.py`, `ui/static_dashboard.html`, `engine/launch.py`
+- `[Link to update_log]`: [update_log.md](update_log.md#phase-r8)
 
 ---
 

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import time
@@ -102,56 +102,6 @@ async def startup_event():
     """Initialize server on startup."""
     print("Starting Universal Interactive Python Code Tracer Backend...")
 
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    """Root endpoint serving basic API information."""
-    html_content = """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Universal Interactive Python Code Tracer API</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; }
-            .endpoint { background: #f4f4f4; padding: 10px; margin: 10px 0; border-radius: 5px; }
-            .method { color: #007cba; font-weight: bold; }
-        </style>
-    </head>
-    <body>
-        <h1>Universal Interactive Python Code Tracer API</h1>
-        <p>Phase 2: Communication & File Bridge</p>
-        
-        <div class="endpoint">
-            <span class="method">GET</span> /docs - API documentation
-        </div>
-        
-        <div class="endpoint">
-            <span class="method">GET</span> /trace/start - Start tracing
-        </div>
-        
-        <div class="endpoint">
-            <span class="method">GET</span> /trace/stop - Stop tracing
-        </div>
-        
-        <div class="endpoint">
-            <span class="method">GET</span> /trace/data - Get trace data
-        </div>
-        
-        <div class="endpoint">
-            <span class="method">WS</span> /ws/trace - WebSocket for real-time trace streaming
-        </div>
-        
-        <div class="endpoint">
-            <span class="method">POST</span> /file/read - Read file contents
-        </div>
-        
-        <div class="endpoint">
-            <span class="method">POST</span> /file/write - Write file contents
-        </div>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
 
 
 @app.get("/trace/start")
@@ -759,7 +709,17 @@ async def health_check():
         "tracing_active": False  # Would check actual tracer state in production
     }
 
-app.mount("/", StaticFiles(directory="dist", html=True), name="static")
+# Resolve ui/ directory relative to this file: engine/backend/ -> engine/ -> code_tracer/ -> ui/
+_UI_DIR = str(Path(__file__).parent.parent.parent / "ui")
+_DASHBOARD = Path(_UI_DIR) / "static_dashboard.html"
+
+
+@app.get("/", response_class=FileResponse)
+async def dashboard():
+    return FileResponse(str(_DASHBOARD), media_type="text/html")
+
+
+app.mount("/ui", StaticFiles(directory=_UI_DIR), name="ui")
 
 
 if __name__ == "__main__":

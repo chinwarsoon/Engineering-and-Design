@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DCC Static Analyser Pro</title>
-  <link rel="stylesheet" href="ui/dcc-design-system.css">
+  <link rel="stylesheet" href="/ui/dcc-design-system.css">
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <style>
     /* ── layout overrides ── */
@@ -554,7 +554,7 @@ let network = null;
 let visNodes = null, visEdges = null;
 let edgeIndex = { callers: {}, callees: {} };
 let currentInspectorTab = 'info'; // Track current tab
-const API = '/api';
+const API = '';
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 const THEME_COLORS = {dark:'#0d1117',light:'#f0f4f8',sky:'#0a1628',ocean:'#071520',presentation:'#12082a'};

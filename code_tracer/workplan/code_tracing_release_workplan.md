@@ -274,8 +274,8 @@ Sections:
 ---
 
 ### Phase R8 — Single-Port Mode (Backend serves Frontend)
-**Goal:** Eliminate the separate file server (`serve.py`) so the entire tool runs on a single port (default 8000). Users only need to remember one URL and one process.
-**Status:** PENDING APPROVAL
+**Goal:** Eliminate the separate file server (`serve.py`) so the entire tool runs on a single port (default 8000).
+**Status:** COMPLETE
 **Effort:** ~2 hours
 
 #### Background
@@ -309,12 +309,12 @@ FastAPI's `StaticFiles` mount can serve the dashboard directly, eliminating the 
 - Update docstring and epilog examples
 
 #### Acceptance Criteria
-- [ ] `python engine/launch.py <target>` starts one process on port 8000
-- [ ] `http://localhost:8000` serves the dashboard HTML
-- [ ] `http://localhost:8000/ui/dcc-design-system.css` returns the CSS
-- [ ] All API calls (`/static/analyze`, `/health`, `/file/read`, etc.) work correctly
-- [ ] No second process or port 5000 required
-- [ ] `serve.py` still works standalone (no changes to it)
+- [x] `python engine/launch.py <target>` starts one process on port 8000
+- [x] `http://localhost:8000` serves the dashboard HTML
+- [x] `http://localhost:8000/ui/dcc-design-system.css` returns the CSS
+- [x] All API calls (`/static/analyze`, `/health`, `/file/read`, etc.) work correctly
+- [x] No second process or port 5000 required
+- [x] `serve.py` still works standalone (no changes to it)
 
 **Files changed:**
 - `code_tracer/engine/backend/server.py` — replace static mount stub; remove `root()` endpoint

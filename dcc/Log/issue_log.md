@@ -19,6 +19,31 @@
 
 # Section 2. Pending Issues
 
+<a id="issue-55"></a>
+## 2026-05-01
+
+### Issue #55 — dcc_engine_pipeline.py stops silently with no error message
+- **Status:** OPEN
+- **Context:** Running `python dcc_engine_pipeline.py` exits without printing any error or traceback. The pipeline appears to start (banner prints) but stops at some point before completion with exit code 0 or 1 and no diagnostic output.
+- **Root Cause (identified):** Two compounding issues:
+
+  **1. `run_ai_ops()` swallows all exceptions silently (Step 7)**
+  In `ai_ops_engine/core/engine.py`, `run_ai_ops()` wraps the entire AI engine in a bare `except Exception` that only calls `logger.warning(...)`. Since `setup_logger()` suppresses INFO/WARNING at verbose levels 0–1 (the default), this warning is never shown. If the AI engine crashes before Step 7 completes, the pipeline returns `None` silently and `main()` still prints `print_summary()` and exits 0 — giving the appearance of success.
+
+  **2. `RunStore._init_db()` crashes silently if `duckdb` is not installed**
+  In `ai_ops_engine/persistence/run_store.py`, `_init_db()` calls `_get_conn()` which catches `ImportError` with only a `logger.warning`. If `duckdb` is not installed, `self._conn` stays `None` and `_init_db()` returns silently. However if `duckdb` IS installed but the DB file is locked or corrupt, `duckdb.connect()` raises an unhandled exception that propagates up through `AiOpsEngine.__init__()` → `run_ai_ops()` → caught silently → `None` returned.
+
+  **3. `main()` exception handler uses `log_error()` not `print()`**
+  In `dcc_engine_pipeline.py` `main()`, the outer `except Exception` block calls `log_error(f"PIPELINE ERROR: {exc}", module="pipeline")` when `args.json` is False. `log_error` routes through the structured logger which is suppressed at default verbose level — so the error message is never shown to the user.
+
+- **Impact:** Any exception in Steps 1–7 that is not a `FailFastError` will either be silently swallowed (Step 7) or logged to a suppressed logger (Steps 1–6), leaving the user with no indication of what went wrong.
+- **Files to Change:**
+  - `dcc/workflow/dcc_engine_pipeline.py` — replace `log_error(...)` with `print(f"ERROR: {exc}", file=sys.stderr)` in the outer exception handler in `main()`
+  - `dcc/workflow/ai_ops_engine/core/engine.py` — add `print(f"⚠ AI ops failed: {exc}", file=sys.stderr)` alongside the `logger.warning` in `run_ai_ops()`
+- **Awaiting:** Approval before implementation
+
+---
+
 <a id="issue50-static-dashboard-ui"></a>
 ## 2026-04-20
 [Issue #50]: Static Dashboard — inspector tab resets to Info on every node selection

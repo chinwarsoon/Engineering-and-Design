@@ -2,11 +2,11 @@
 launch.py — DCC Tracer standalone launcher.
 
 Usage:
-    python tracer/launch.py /path/to/any/python/project
-    python tracer/launch.py /path/to/project --port 8000 --serve-port 5000 --no-browser
+    python engine/launch.py /path/to/any/python/project
+    python engine/launch.py /path/to/project --port 8000 --no-browser
 
-Starts the FastAPI backend and a minimal static file server, then opens
-the dashboard in the default browser.
+Starts the FastAPI backend (which also serves the dashboard) on a single port,
+then opens the dashboard in the default browser.
 """
 
 import argparse
@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import time
+import urllib.request
 import webbrowser
 from pathlib import Path
 
@@ -52,8 +53,7 @@ Examples:
         """,
     )
     parser.add_argument("target", help="Path to the Python project to analyse")
-    parser.add_argument("--port", type=int, default=8000, help="Backend API port (default: 8000)")
-    parser.add_argument("--serve-port", type=int, default=5000, help="Dashboard file server port (default: 5000)")
+    parser.add_argument("--port", type=int, default=8000, help="Port for backend + dashboard (default: 8000)")
     parser.add_argument("--no-browser", action="store_true", help="Do not open browser automatically")
     args = parser.parse_args()
 
@@ -74,24 +74,18 @@ Examples:
         env=env,
     )
 
-    print(f"Starting dashboard → http://localhost:{args.serve_port}")
-    # Support both repository layout (../serve.py) and standalone release layout (./serve.py)
-    serve_script = tracer_dir / "serve.py"
-    if not serve_script.exists():
-        serve_script = tracer_dir.parent / "serve.py"
-    
-    file_server = subprocess.Popen(
-        [python, str(serve_script), "--port", str(args.serve_port),
-         "--backend-port", str(args.port)],
-        env=env,
-    )
-
-    dashboard_url = f"http://localhost:{args.serve_port}"
+    dashboard_url = f"http://localhost:{args.port}"
     print(f"\nDashboard ready at {dashboard_url}")
     print("Press Ctrl+C to stop.\n")
 
     if not args.no_browser:
-        time.sleep(2)
+        for _ in range(20):
+            time.sleep(1)
+            try:
+                urllib.request.urlopen(f"http://localhost:{args.port}/health", timeout=2)
+                break
+            except Exception:
+                pass
         webbrowser.open(dashboard_url)
 
     try:
@@ -99,7 +93,6 @@ Examples:
     except KeyboardInterrupt:
         print("\nShutting down...")
         backend.terminate()
-        file_server.terminate()
         sys.exit(0)
 
 

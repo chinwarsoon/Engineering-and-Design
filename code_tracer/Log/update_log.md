@@ -67,6 +67,47 @@ code_tracer/
 
 ---
 
+## 2026-05-01
+
+### Phase R8 — Single-Port Mode (bugfix: dashboard 404)
+
+**Status:** COMPLETE
+
+**Problem:** After initial R8 implementation, `GET /` returned 404. `StaticFiles(html=True)` requires a file named `index.html` — the dashboard is named `static_dashboard.html`.
+
+**Fix:**
+- Added explicit `GET /` route using `FileResponse` to serve `static_dashboard.html` directly
+- Removed the catch-all `StaticFiles` SPA mount (no longer needed)
+- Re-added `FileResponse` import
+
+**Files Changed:** `engine/backend/server.py`
+
+**Verified:** `http://localhost:8000` serves the dashboard correctly. Single-port mode fully operational.
+
+**Related:** [Issue #CT-15](issue_log.md#issue-CT-15)
+
+---
+
+## 2026-05-01
+
+### Phase R8 — Single-Port Mode
+
+**Status:** COMPLETE
+
+**Changes:**
+
+| File | Change |
+|------|--------|
+| `engine/backend/server.py` | Removed `root()` endpoint and broken `StaticFiles(directory="dist")` stub; added `app.mount("/ui", StaticFiles(_UI_DIR))` and `app.mount("/", StaticFiles(_UI_DIR, html=True))`; removed unused `HTMLResponse` import; `_UI_DIR` resolves to `code_tracer/ui/` relative to `server.py` |
+| `ui/static_dashboard.html` | `const API = '/api'` → `const API = ''`; CSS href `ui/dcc-design-system.css` → `/ui/dcc-design-system.css` |
+| `engine/launch.py` | Removed `--serve-port` arg, `serve_script` lookup, `file_server` subprocess, and `file_server.terminate()`; added `urllib.request` import; replaced `time.sleep(2)` with health-check retry loop (20×1s); dashboard URL now points to `args.port` directly |
+
+**Result:** Single process on port 8000 serves both API and dashboard. `serve.py` is no longer invoked by `launch.py` (still available standalone).
+
+**Related:** [Issue #CT-14](issue_log.md#issue-CT-14)
+
+---
+
 ## 2026-04-22 09:30:00
 
 ### Standalone Release Refinement & Path Fixes
