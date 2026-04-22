@@ -1,11 +1,66 @@
-# Instruction for updating this log
+# DCC — Update Log
+
+## Instructions
 1. Always log changes immediately after the change is made.
 2. Add a time stamp at the beginning of the log entry
-3. Summarize the changes made in the log entry, what was changed, why it was changed, and what was the impact of the change. This will help to analysis changes, such as potential conflicts, any new issues, and any improvements that can be made.
-4. Try to make summary as concise as possible, but still capture all the important information.
-5. Provide HTML `<a>` tag with `id="issue-number"` at the beginning of the log entry if the change is related to an issue.
+3. Summarize the changes made in the log entry, what was changed, why it was changed, and what was the impact of the change.
+4. Provide HTML `<a>` tag with `id="issue-number"` at the beginning of the log entry if the change is related to an issue.
 
 # Section 2. Log entries
+
+<a id="system-error-handling-complete"></a>
+## 2026-05-01
+
+### COMPLETED: System Error Handling — Phases SE1–SE4
+**Status:** COMPLETE
+
+**Summary:** Implemented system-level error handling for the DCC pipeline. All pipeline execution failures now produce always-visible, structured error output with system error codes, descriptions, and troubleshooting hints — regardless of verbose level. Resolves Issue #55 (silent stop) and Issue #56 (Windows encoding).
+
+**Changes Made:**
+
+| Phase | Change | Files |
+|-------|--------|-------|
+| SE1 | New `initiation_engine/error_handling/` sub-module with `system_error_print()`, 20 error codes in JSON, user-facing hints | `error_handling/__init__.py`, `system_errors.py`, `config/system_error_codes.json`, `config/messages/system_en.json`, `README.md` |
+| SE1 | Exported `system_error_print` from `initiation_engine` | `initiation_engine/__init__.py` |
+| SE2 | Fixed silent stop: replaced suppressed `log_error()` with `system_error_print()` in `main()` | `dcc_engine_pipeline.py` |
+| SE2 | Fixed silent stop: added `system_error_print('S-A-S-0501')` to `run_ai_ops()` | `ai_ops_engine/core/engine.py` |
+| SE2 | Fixed silent stop: added `system_error_print('S-A-S-0502')` to `_get_conn()` | `ai_ops_engine/persistence/run_store.py` |
+| SE3 | Step-level error wrapping in `run_engine_pipeline()` — each step raises specific code | `dcc_engine_pipeline.py` |
+| SE4 | `milestone_print()` updated with optional `error_code` parameter | `initiation_engine/utils/logging.py` |
+| Fix | Replaced Unicode symbols with ASCII in `system_error_print()` and `milestone_print()` for Windows cp1252 compatibility | `system_errors.py`, `logging.py` |
+
+**Error Code Coverage:**
+
+| Category | Codes | Description |
+|----------|-------|-------------|
+| S-E | 0101–0104 | Environment & dependency failures |
+| S-F | 0201–0205 | File & path errors |
+| S-C | 0301–0305 | Configuration & parameter errors |
+| S-R | 0401–0403 | Runtime & execution errors |
+| S-A | 0501–0503 | AI ops warnings (non-fatal) |
+
+**Output format (fatal):**
+```
+----------------------------------------------------------------------------
+  X  PIPELINE ERROR  [S-F-S-0201]
+     Input File Not Found
+     Detail: data/input.xlsx
+     Hint:   Check that the file exists and the path is correct.
+             If using a relative path, run the pipeline from the dcc/ folder.
+----------------------------------------------------------------------------
+```
+
+**Output format (warning):**
+```
+  !  [S-A-S-0501] AI Ops Failed - connection refused
+     Hint: AI analysis is optional - the pipeline result is unaffected.
+```
+
+**All 10 acceptance criteria: PASS**
+
+**Report:** `dcc/workplan/error_handling/reports/system_error_handling_completion_report.md`
+
+---
 
 <a id="static-dashboard-ui-enhancements"></a>
 ## 2026-04-20

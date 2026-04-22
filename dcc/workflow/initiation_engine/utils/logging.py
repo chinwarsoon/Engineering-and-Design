@@ -408,7 +408,7 @@ def status_print(*args: Any, **kwargs: Any) -> None:
     log_status(message, min_level=min_level)
 
 
-def milestone_print(step: str, detail: str, ok: bool = True) -> None:
+def milestone_print(step: str, detail: str, ok: bool = True, error_code: str = None) -> None:
     """
     Print a clean pipeline milestone line — always visible at level 1+.
 
@@ -416,13 +416,15 @@ def milestone_print(step: str, detail: str, ok: bool = True) -> None:
         step: Step label (e.g. 'Setup validated')
         detail: Detail string (e.g. '7 folders, 11 files')
         ok: True for ✓, False for ✗
+        error_code: Optional system error code shown on failure lines (e.g. 'S-C-S-0305')
 
     Breadcrumb Comments:
         - DEBUG_LEVEL: Prints at level >= 1 only.
     """
     if DEBUG_LEVEL >= 1:
-        icon = "✓" if ok else "✗"
-        builtins.print(f"  {icon}  {step:<22} {detail}", flush=True)
+        icon = "OK" if ok else "X"
+        code_str = f"  [{error_code}]" if (error_code and not ok) else ""
+        builtins.print(f"  {icon}  {step:<22} {detail}{code_str}", flush=True)
     DEBUG_OBJECT["messages"].append({
         "level": 1,
         "timestamp": datetime.now().isoformat(),

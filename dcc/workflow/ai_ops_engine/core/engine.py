@@ -222,4 +222,9 @@ def run_ai_ops(
         return engine.run(pipeline_results)
     except Exception as exc:
         logger.warning(f"[ai_ops_engine] AI operations failed (non-blocking): {exc}")
+        try:
+            from initiation_engine.error_handling import system_error_print
+            system_error_print("S-A-S-0501", detail=str(exc), fatal=False)
+        except Exception:
+            pass
         return None

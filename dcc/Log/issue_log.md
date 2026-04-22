@@ -19,28 +19,27 @@
 
 # Section 2. Pending Issues
 
+<a id="issue-56"></a>
+## 2026-05-01
+
+### Issue #56 — Windows console encoding rejects Unicode symbols in pipeline output
+- **Status:** RESOLVED
+- **Context:** During SE1/SE4 testing, `milestone_print()` and `system_error_print()` raised `UnicodeEncodeError: 'charmap' codec can't encode character` on Windows terminals using cp1252 encoding. Affected characters: `✓` (U+2713), `✗` (U+2717), `⚠` (U+26A0), `━` (U+2501).
+- **Root Cause:** Windows default console encoding is cp1252 which does not include these Unicode characters. The existing `milestone_print()` already used `✓`/`✗` but was not tested on Windows.
+- **Resolution:** Replaced all Unicode symbols with ASCII equivalents in both `system_errors.py` and `logging.py`: `✓`→`OK`, `✗`→`X`, `⚠`→`!`, `━`→`-`.
+- **Files Changed:** `initiation_engine/error_handling/system_errors.py`, `initiation_engine/utils/logging.py`
+- **Link to update_log:** [update_log.md](#system-error-handling-complete)
+
 <a id="issue-55"></a>
 ## 2026-05-01
 
 ### Issue #55 — dcc_engine_pipeline.py stops silently with no error message
-- **Status:** OPEN
-- **Context:** Running `python dcc_engine_pipeline.py` exits without printing any error or traceback. The pipeline appears to start (banner prints) but stops at some point before completion with exit code 0 or 1 and no diagnostic output.
-- **Root Cause (identified):** Two compounding issues:
-
-  **1. `run_ai_ops()` swallows all exceptions silently (Step 7)**
-  In `ai_ops_engine/core/engine.py`, `run_ai_ops()` wraps the entire AI engine in a bare `except Exception` that only calls `logger.warning(...)`. Since `setup_logger()` suppresses INFO/WARNING at verbose levels 0–1 (the default), this warning is never shown. If the AI engine crashes before Step 7 completes, the pipeline returns `None` silently and `main()` still prints `print_summary()` and exits 0 — giving the appearance of success.
-
-  **2. `RunStore._init_db()` crashes silently if `duckdb` is not installed**
-  In `ai_ops_engine/persistence/run_store.py`, `_init_db()` calls `_get_conn()` which catches `ImportError` with only a `logger.warning`. If `duckdb` is not installed, `self._conn` stays `None` and `_init_db()` returns silently. However if `duckdb` IS installed but the DB file is locked or corrupt, `duckdb.connect()` raises an unhandled exception that propagates up through `AiOpsEngine.__init__()` → `run_ai_ops()` → caught silently → `None` returned.
-
-  **3. `main()` exception handler uses `log_error()` not `print()`**
-  In `dcc_engine_pipeline.py` `main()`, the outer `except Exception` block calls `log_error(f"PIPELINE ERROR: {exc}", module="pipeline")` when `args.json` is False. `log_error` routes through the structured logger which is suppressed at default verbose level — so the error message is never shown to the user.
-
-- **Impact:** Any exception in Steps 1–7 that is not a `FailFastError` will either be silently swallowed (Step 7) or logged to a suppressed logger (Steps 1–6), leaving the user with no indication of what went wrong.
-- **Files to Change:**
-  - `dcc/workflow/dcc_engine_pipeline.py` — replace `log_error(...)` with `print(f"ERROR: {exc}", file=sys.stderr)` in the outer exception handler in `main()`
-  - `dcc/workflow/ai_ops_engine/core/engine.py` — add `print(f"⚠ AI ops failed: {exc}", file=sys.stderr)` alongside the `logger.warning` in `run_ai_ops()`
-- **Awaiting:** Approval before implementation
+- **Status:** RESOLVED
+- **Context:** Running `python dcc_engine_pipeline.py` exits without printing any error or traceback.
+- **Root Cause:** Three compounding issues: (1) `main()` outer `except` called `log_error()` which is suppressed at default verbose level. (2) `run_ai_ops()` caught all exceptions with only `logger.warning()`, also suppressed. (3) `RunStore._get_conn()` silently swallowed `ImportError` for duckdb.
+- **Resolution:** Implemented system error handling (Phases SE1–SE4). All three locations now call `system_error_print()` which bypasses `DEBUG_LEVEL` and always prints to stderr. Step-level wrappers added to `run_engine_pipeline()` for precise error codes per failure type.
+- **Files Changed:** `initiation_engine/error_handling/` (new sub-module), `dcc_engine_pipeline.py`, `ai_ops_engine/core/engine.py`, `ai_ops_engine/persistence/run_store.py`, `initiation_engine/utils/logging.py`
+- **Link to update_log:** [update_log.md](#system-error-handling-complete)
 
 ---
 

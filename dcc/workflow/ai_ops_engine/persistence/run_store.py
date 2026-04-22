@@ -39,6 +39,11 @@ class RunStore:
                 self._conn = duckdb.connect(str(self.db_path))
             except ImportError:
                 logger.warning("[run_store] duckdb not installed — persistence disabled")
+                try:
+                    from initiation_engine.error_handling import system_error_print
+                    system_error_print("S-A-S-0502", detail="duckdb not installed", fatal=False)
+                except Exception:
+                    pass
         return self._conn
 
     def _init_db(self) -> None:

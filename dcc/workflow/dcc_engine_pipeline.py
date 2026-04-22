@@ -48,6 +48,7 @@ from initiation_engine import (
     resolve_effective_parameters,
     print_framework_banner,
     get_verbose_mode,
+    system_error_print,
 )
 from initiation_engine.utils.logging import DEBUG_LEVEL
 from schema_engine import (
@@ -89,67 +90,89 @@ def run_engine_pipeline(
     validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
 
     # Step 1: Initiation Engine - Project Setup Validation
-    with log_context("pipeline", "step1_initiation"):
-        setup_validator = ProjectSetupValidator(base_path=base_path)
-        setup_results = setup_validator.validate()
-        if not setup_results.get("ready"):
-            raise ValueError(format_setup_report(setup_results))
-        milestone_print("Setup validated", "7 folders, 11 files")
+    try:
+        with log_context("pipeline", "step1_initiation"):
+            setup_validator = ProjectSetupValidator(base_path=base_path)
+            setup_results = setup_validator.validate()
+            if not setup_results.get("ready"):
+                system_error_print("S-C-S-0305", detail=format_setup_report(setup_results))
+                raise ValueError(format_setup_report(setup_results))
+            milestone_print("Setup validated", "7 folders, 11 files")
+    except ValueError:
+        raise
+    except Exception as exc:
+        system_error_print("S-R-S-0401", detail=f"Step 1 (Initiation): {exc}")
+        raise
 
     # Step 2: Schema Engine - Schema Validation
-    with log_context("pipeline", "step2_schema_validation"):
-        status_print(f"Main schema: {schema_path}", min_level=3)
-
-        schema_validator = SchemaValidator(schema_path)
-        status_print("Validating schema and resolving dependencies...", min_level=3)
-        schema_results = schema_validator.validate()
-        write_validation_status(schema_results)
-        if not schema_results.get("ready"):
-            raise ValueError(json.dumps(schema_results, indent=2))
-        milestone_print("Schema loaded", "44 columns, 6 references")
-        # Store schema_results for summary generation
-        pipeline_schema_results = schema_results
+    try:
+        with log_context("pipeline", "step2_schema_validation"):
+            status_print(f"Main schema: {schema_path}", min_level=3)
+            if not schema_path.exists():
+                system_error_print("S-F-S-0204", detail=str(schema_path))
+                raise FileNotFoundError(f"Schema file not found: {schema_path}")
+            schema_validator = SchemaValidator(schema_path)
+            status_print("Validating schema and resolving dependencies...", min_level=3)
+            schema_results = schema_validator.validate()
+            write_validation_status(schema_results)
+            if not schema_results.get("ready"):
+                system_error_print("S-C-S-0303", detail=str(schema_path))
+                raise ValueError(json.dumps(schema_results, indent=2))
+            milestone_print("Schema loaded", "44 columns, 6 references")
+            pipeline_schema_results = schema_results
+    except (ValueError, FileNotFoundError):
+        raise
+    except json.JSONDecodeError as exc:
+        system_error_print("S-C-S-0302", detail=f"{schema_path}: {exc}")
+        raise
+    except Exception as exc:
+        system_error_print("S-R-S-0401", detail=f"Step 2 (Schema): {exc}")
+        raise
 
     # Step 3: Mapper Engine - Column Mapping
-    with log_context("pipeline", "step3_column_mapping"):
-        df_raw = load_excel_data(excel_path, effective_parameters, nrows=nrows, verbose=DEBUG_LEVEL >= 2)
-
-        # Use mapper engine
-        resolved_schema = schema_validator.load_resolved_schema()
-        mapper = ColumnMapperEngine()
-        mapper.resolved_schema = resolved_schema
-        
-        mapping_out = mapper.map_dataframe(df_raw)
-        mapping_result = mapping_out["mapping_result"]
-        df_mapped = mapping_out["renamed_df"]
-        
-        milestone_print("Columns mapped", f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})")
+    try:
+        with log_context("pipeline", "step3_column_mapping"):
+            if not excel_path.exists():
+                system_error_print("S-F-S-0201", detail=str(excel_path))
+                raise FileNotFoundError(f"Input file not found: {excel_path}")
+            df_raw = load_excel_data(excel_path, effective_parameters, nrows=nrows, verbose=DEBUG_LEVEL >= 2)
+            resolved_schema = schema_validator.load_resolved_schema()
+            mapper = ColumnMapperEngine()
+            mapper.resolved_schema = resolved_schema
+            mapping_out = mapper.map_dataframe(df_raw)
+            mapping_result = mapping_out["mapping_result"]
+            df_mapped = mapping_out["renamed_df"]
+            milestone_print("Columns mapped", f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})")
+    except FileNotFoundError:
+        raise
+    except PermissionError as exc:
+        system_error_print("S-F-S-0202", detail=str(excel_path))
+        raise
+    except Exception as exc:
+        system_error_print("S-R-S-0401", detail=f"Step 3 (Mapping): {exc}")
+        raise
 
     # Step 4: Processor Engine - Document Processing
     try:
         with log_context("pipeline", "step4_document_processing"):
             processor = CalculationEngine(resolved_schema)
             df_processed = processor.process_data(df_mapped)
-            
-            # Phase 5: Get structured error summary for reporting
             status_print("Generating data health diagnostics...", min_level=2)
             pipeline_schema_results["error_summary"] = processor.get_error_summary()
-            
-            # Phase 5: Export JSON for UI Dashboard
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
             dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
             status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
+    except MemoryError as exc:
+        system_error_print("S-R-S-0403", detail=str(exc))
+        raise
     except Exception as exc:
-        # Check if it's a FailFastError to generate partial diagnostics
         is_fail_fast = "FAIL FAST" in str(exc)
         if is_fail_fast:
-            status_print(f"⚠ {exc}")
+            system_error_print("S-R-S-0402", detail=str(exc))
             status_print("Generating diagnostic report for captured errors...")
             pipeline_schema_results["error_summary"] = processor.get_error_summary()
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
             processor.error_reporter.export_dashboard_json(len(df_mapped))
-            
-            # Write final summary before re-raising
             schema_reference_count = len(resolved_schema.get("schema_references", {}))
             write_processing_summary(
                 summary_path=export_paths["summary_path"],
@@ -170,7 +193,9 @@ def run_engine_pipeline(
                 csv_path=export_paths["csv_path"],
                 excel_path=export_paths["excel_path"],
             )
-        raise exc
+        else:
+            system_error_print("S-R-S-0401", detail=f"Step 4 (Processing): {exc}")
+        raise
 
     # Step 5: Reorder columns per schema column_sequence
     with log_context("pipeline", "step5_column_reorder"):
@@ -298,7 +323,8 @@ def main() -> int:
         if args.json:
             print(json.dumps(payload, indent=2))
         else:
-            log_error("Environment test failed", module="pipeline")
+            missing = ", ".join(environment.get("missing_packages", [])) or "see output above"
+            system_error_print("S-E-S-0103", detail=missing)
         return 1
 
     # 4. Resolve the main schema path
@@ -334,7 +360,7 @@ def main() -> int:
         if args.json:
             print(json.dumps(payload, indent=2))
         else:
-            log_error(f"PIPELINE ERROR: {exc}", module="pipeline")
+            system_error_print("S-R-S-0401", detail=str(exc))
         return 1
     
     results["environment"] = environment
