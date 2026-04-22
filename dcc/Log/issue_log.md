@@ -19,6 +19,17 @@
 
 # Section 2. Pending Issues
 
+<a id="issue-57"></a>
+## 2026-05-01
+
+### Issue #57 — Error catalog JSON files are stubs; 38 real codes missing; ErrorRegistry broken
+- **Status:** RESOLVED
+- **Context:** `error_codes.json` contains only 2 placeholder entries (`VAL-001`, `SYS-001`) in the wrong format. `ErrorRegistry` expects `"errors": {}` dict but JSON has `"codes": []` array — `self._errors` is always empty, making lookup, scoring, and aggregation silently broken. 38 real error codes used by detectors have no JSON definition. 10 named string codes in `row_validator.py` bypass the taxonomy. `ROW_ERROR_WEIGHTS` is hardcoded. `taxonomy.json` uses wrong engine codes. `anatomy_schema.json` regex rejects all real codes.
+- **Root Cause:** Error catalog JSON files were created as stubs during initial scaffolding and never populated with the actual codes implemented in the detector modules.
+- **Resolution:** Implemented Error Catalog Consolidation (Phases EC1-EC4). See plan: `dcc/workplan/error_handling/error_catalog_consolidation_plan.md`
+- **Files Changed:** `processor_engine/error_handling/config/error_codes.json`, `taxonomy.json`, `anatomy_schema.json`, `remediation_types.json`, `processor_engine/error_handling/core/registry.py`, `processor_engine/error_handling/detectors/row_validator.py`
+- **Link to update_log:** [update_log.md](#error-catalog-consolidation)
+
 <a id="issue-56"></a>
 ## 2026-05-01
 
