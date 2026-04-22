@@ -934,17 +934,21 @@
       }
       
       if (actualType === 'object' && parsedValue !== null) {
+        const childKeys = Object.keys(parsedValue);
+        const childRows = childKeys.map(k => {
+          const cv = parsedValue[k];
+          const ct = vtype(cv);
+          return `<tr><td class="kv-key">${esc(k)}</td><td class="kv-val">${valHtml(cv, ct)}</td></tr>`;
+        }).join('');
         html += `<table class="kv-table" style="margin-top:12px">
-          <thead><tr><th style="min-width:100px">Child Keys</th><th>Values</th></tr></thead>
-          <tbody>
-            <tr><td class="kv-key">Keys (${Object.keys(parsedValue).length})</td><td class="kv-val">${Object.keys(value).map(k => `<span class="tag tag-string" style="margin:1px 3px;display:inline-block">${esc(k)}</span>`).join('')}</td></tr>
-          </tbody>
+          <thead><tr><th style="min-width:140px">Child Key (${childKeys.length})</th><th>Value</th></tr></thead>
+          <tbody>${childRows}</tbody>
         </table>`;
         const rawJson = JSON.stringify(parsedValue, null, 2);
         const previewJson = rawJson.length > 500 ? rawJson.substring(0, 500) + '...' : rawJson;
         html += `<table class="kv-table" style="margin-top:12px">
           <thead><tr><th>Raw JSON</th></tr></thead>
-          <tbody><tr><td><pre style="margin:0;padding:8px;background:var(--tag-bg);border-radius:4px;overflow-x:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break_word">${esc(previewJson)}</pre></td></tr></tbody>
+          <tbody><tr><td><pre style="margin:0;padding:8px;background:var(--tag-bg);border-radius:4px;overflow-x:auto;font-family:var(--font-mono);font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-word">${esc(previewJson)}</pre></td></tr></tbody>
         </table>`;
       }
       
@@ -955,7 +959,7 @@
           <thead><tr><th style="min-width:100px">Array Items</th><th>Values</th></tr></thead>
           <tbody>
             <tr><td class="kv-key">Length</td><td class="kv-val"><span class="tag tag-number">${len} items</span>${len > 10 ? ' (showing first 10)' : ''}</td></tr>
-            <tr><td class="kv-key">Preview</td><td class="kv-val">${parsedValue.slice(0, 10).map((v, i) => '[' + i + ']: ' + valHtml(v, vtype(v))).join('<br>')}</td></tr>
+            <tr><td class="kv-key">Preview</td><td class="kv-val">${parsedValue.slice(0, 10).map((v, i) => `[${i}]: ` + valHtml(v, vtype(v))).join('<br>')}</td></tr>
           </tbody>
         </table>`;
         const rawJson = JSON.stringify(parsedValue, null, 2);

@@ -18,8 +18,72 @@
 
 
 ## 2026-05-01
+
 ## 2026-05-01
-## 2026-05-01
+
+1. **Issue #58 — kv-detail panel: child keys and values rendering**
+   - **Method**: Code inspection of `showKvDetail()` in `common_json_tools.html` + browser test with sample JSON
+   - **Bug reproduced**: Clicking an object node showed `0`, `1`, `2`... in the Child Keys column — confirmed `Object.keys(value)` on raw string returns char indices
+   - **Checklist**:
+     - `Object.keys(parsedValue)` used for child key enumeration: PASS ✅
+     - `parsedValue.slice(0, 10)` used for array preview: PASS ✅
+     - Each child key renders as its own table row with key name + value: PASS ✅
+     - Object nodes show correct key names (e.g. `type`, `required`, `description`): PASS ✅
+     - Array nodes show `[0]: ...`, `[1]: ...` item previews correctly: PASS ✅
+     - Scalar nodes (string, number, boolean, null) unaffected: PASS ✅
+     - CSS `word-break:break-word` typo fixed: PASS ✅
+   - **Related**: [Issue #58](issue_log.md#issue-58), [update_log.md](#issue-58-kv-detail-fix)
+- `Status: PASS`
+
+1. **System Error Handling — SE1: Sub-module import & code coverage**
+   - **Method**: `python -c "from initiation_engine import system_error_print, get_system_error, get_all_system_codes; ..."` from `dcc/workflow/`
+   - **Checklist**:
+     - Sub-module imports cleanly: PASS ✅
+     - Top-level `from initiation_engine import system_error_print` works: PASS ✅
+     - `get_all_system_codes()` returns 20 codes: PASS ✅
+     - `get_system_error('S-F-S-0201')` returns correct definition dict: PASS ✅
+     - Fatal error block renders with code, title, detail, hint: PASS ✅
+     - Non-fatal warning renders as compact single line: PASS ✅
+   - **Related**: [update_log.md](#system-error-handling-complete), [Issue #55](issue_log.md#issue-55)
+- `Status: PASS`
+
+1. **System Error Handling — SE2: Silent stop fix verification**
+   - **Method**: Source inspection + `py_compile` check on `dcc_engine_pipeline.py`
+   - **Checklist**:
+     - `system_error_print` imported in `dcc_engine_pipeline.py`: PASS ✅
+     - `S-E-S-0103` present in `main()` env test failure path: PASS ✅
+     - `S-R-S-0401` present in `main()` outer except: PASS ✅
+     - `S-A-S-0501` present in `ai_ops_engine/core/engine.py` `run_ai_ops()`: PASS ✅
+     - `S-A-S-0502` present in `ai_ops_engine/persistence/run_store.py` `_get_conn()`: PASS ✅
+     - `dcc_engine_pipeline.py` passes `py_compile` syntax check: PASS ✅
+   - **Related**: [update_log.md](#system-error-handling-complete), [Issue #55](issue_log.md#issue-55)
+- `Status: PASS`
+
+1. **System Error Handling — SE3: Step-level error code coverage**
+   - **Method**: Source grep for all 9 step error codes in `dcc_engine_pipeline.py`
+   - **Checklist**:
+     - `S-C-S-0305` (Step 1 — setup not ready): PASS ✅
+     - `S-F-S-0204` (Step 2 — schema file not found): PASS ✅
+     - `S-C-S-0303` (Step 2 — schema validation failed): PASS ✅
+     - `S-C-S-0302` (Step 2 — JSON parse error): PASS ✅
+     - `S-F-S-0201` (Step 3 — input file not found): PASS ✅
+     - `S-F-S-0202` (Step 3 — input file unreadable): PASS ✅
+     - `S-R-S-0402` (Step 4 — fail-fast triggered): PASS ✅
+     - `S-R-S-0403` (Step 4 — memory error): PASS ✅
+     - `S-R-S-0401` (any step — uncaught exception): PASS ✅
+   - **Related**: [update_log.md](#system-error-handling-complete)
+- `Status: PASS`
+
+1. **System Error Handling — SE4: milestone_print error_code parameter**
+   - **Method**: `inspect.signature(milestone_print)` + backward-compat call test
+   - **Checklist**:
+     - `milestone_print` signature includes `error_code` parameter: PASS ✅
+     - Success line (no `error_code`) unchanged: PASS ✅
+     - Failure line with `ok=False, error_code='S-F-S-0204'` appends `[S-F-S-0204]`: PASS ✅
+     - Existing calls without `error_code` unaffected: PASS ✅
+   - **Related**: [update_log.md](#system-error-handling-complete), [Issue #56](issue_log.md#issue-56)
+- `Status: PASS`
+
 1. **CSS duplicate check — tracer/ui/ vs dcc/ui/**
    - **Method**: `diff dcc/ui/dcc-design-system.css dcc/tracer/ui/dcc-design-system.css`
    - **Result**: Files identical — empty diff output ✅

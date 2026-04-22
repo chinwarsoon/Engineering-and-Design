@@ -8,6 +8,56 @@
 
 # Section 2. Log entries
 
+<a id="issue-58-kv-detail-fix"></a>
+## 2026-05-01
+
+### RESOLVED: Issue #58 — kv-detail panel shows numeric indices instead of nested keys
+**Status:** COMPLETE
+
+**Problem:** Clicking any object node in the JSON tree opened the Key Details panel but the child keys section displayed numbers (`0`, `1`, `2`...) instead of actual key names and values.
+
+**Root Cause:** Two bugs in `showKvDetail()` in `common_json_tools.html`:
+1. `Object.keys(value)` called on the raw URL-encoded string parameter — `Object.keys()` on a string returns character position indices, not object keys.
+2. Array preview used `value.slice(0, 10)` on the raw string instead of the parsed array.
+
+Additionally, the child keys section collapsed all keys into a single tag-badge row rather than showing each key with its value.
+
+**Fixes Applied:**
+
+| Location | Before | After |
+|----------|--------|-------|
+| Object child keys | `Object.keys(value)` | `Object.keys(parsedValue)` |
+| Array preview | `value.slice(0, 10)` | `parsedValue.slice(0, 10)` |
+| Child keys display | Single row of key name badges | One row per child key with rendered value |
+| CSS typo | `word-break:break_word` | `word-break:break-word` |
+
+**Files Changed:** `dcc/ui/common_json_tools.html`
+
+---
+
+<a id="error-catalog-consolidation"></a>
+## 2026-05-01
+
+### COMPLETED: Error Catalog Consolidation — Phases EC1–EC4
+**Status:** COMPLETE
+
+**Summary:** Resolved Issue #57. Populated all stub JSON config files in `processor_engine/error_handling/config/` with the 38 real error codes used by detector modules. Fixed `ErrorRegistry` key mismatch (`"codes": []` → `"errors": {}`), corrected `taxonomy.json` engine codes, updated `anatomy_schema.json` regex to accept real code format, and replaced hardcoded `ROW_ERROR_WEIGHTS` with schema-driven lookup.
+
+**Changes Made:**
+
+| Phase | Change | Files |
+|-------|--------|-------|
+| EC1 | Populated `error_codes.json` with all 38 real codes in correct `"errors": {}` dict format | `processor_engine/error_handling/config/error_codes.json` |
+| EC2 | Fixed `ErrorRegistry` to read `"errors"` key; lookup, scoring, aggregation now functional | `processor_engine/error_handling/core/registry.py` |
+| EC3 | Corrected `taxonomy.json` engine codes; updated `anatomy_schema.json` regex to match real code format; fixed `remediation_types.json` stubs | `taxonomy.json`, `anatomy_schema.json`, `remediation_types.json` |
+| EC4 | Replaced hardcoded `ROW_ERROR_WEIGHTS` in `row_validator.py` with registry-driven lookup | `processor_engine/error_handling/detectors/row_validator.py` |
+
+**Impact:** `ErrorRegistry` now resolves all 38 codes. Scoring, aggregation, and taxonomy classification work correctly end-to-end.
+
+**Report:** `dcc/workplan/error_handling/error_catalog_consolidation_plan.md`
+
+---
+
 <a id="system-error-handling-complete"></a>
 ## 2026-05-01
 

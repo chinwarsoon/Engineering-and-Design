@@ -19,6 +19,19 @@
 
 # Section 2. Pending Issues
 
+<a id="issue-58"></a>
+## 2026-05-01
+
+### Issue #58 — kv-detail panel shows numeric indices instead of nested keys and values
+- **Status:** RESOLVED
+- **Context:** In `common_json_tools.html`, clicking any object node in the tree opened the Key Details panel but the "Child Keys" section displayed numbers (`0`, `1`, `2`...) instead of the actual key names and their values.
+- **Root Cause:** Two bugs in `showKvDetail()`: (1) `Object.keys(value)` was called on the raw URL-encoded string parameter instead of `parsedValue` (the decoded JS object) — `Object.keys()` on a string returns character indices. (2) Array preview used `value.slice(0, 10)` on the raw string instead of `parsedValue.slice(0, 10)`. Additionally, the child keys section collapsed all keys into a single tag-badge row rather than one row per key with its value.
+- **Resolution:** Fixed both `Object.keys(value)` → `Object.keys(parsedValue)` and `value.slice` → `parsedValue.slice`. Replaced the single collapsed "Keys" row with one table row per child key showing the key name and its rendered value. Also fixed CSS typo `word-break:break_word` → `word-break:break-word`.
+- **Files Changed:** `dcc/ui/common_json_tools.html`
+- **Link to update_log:** [update_log.md](#issue-58-kv-detail-fix)
+
+---
+
 <a id="issue-57"></a>
 ## 2026-05-01
 
