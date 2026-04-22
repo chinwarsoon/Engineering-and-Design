@@ -209,3 +209,4 @@ __marimo__/
 # DCC Output Files (large data files and generated outputs)
 dcc/output/
 *.log
+.aider*

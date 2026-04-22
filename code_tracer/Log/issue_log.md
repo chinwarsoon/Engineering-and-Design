@@ -9,7 +9,51 @@
 
 # Section 2. Pending Issues
 
-*(none)*
+## 2026-05-01
+
+<a id="issue-CT-14"></a>
+[Issue #CT-14]: Two-port architecture requires users to manage two processes and two URLs
+- `[Status]`: **PENDING APPROVAL**
+- `[Context]`: `launch.py` currently starts two subprocesses: uvicorn on port 8000 (API) and a Python http.server on port 5000 (dashboard + `/api/*` proxy). Users must open `http://localhost:5000` for the dashboard. The proxy adds latency and a failure point (Bad Gateway if backend is slow to start). FastAPI already imports `StaticFiles` and has a broken `app.mount("/", StaticFiles(directory="dist", html=True))` stub in `server.py` pointing to a non-existent `dist/` directory.
+- `[Root Cause]`: Original design separated concerns across two servers. Now that the project is standalone, a single FastAPI process can serve both the API and the static dashboard with no proxy needed.
+- `[Proposed Resolution]`: Phase R8 — mount `code_tracer/ui/` as FastAPI static files; change `const API = '/api'` to `const API = ''` in the dashboard; remove the file server subprocess from `launch.py`. Full plan in `code_tracing_release_workplan.md` Phase R8.
+- `[Files to Change]`: `engine/backend/server.py`, `ui/static_dashboard.html`, `engine/launch.py`
+- `[Awaiting]`: Approval before implementation
+- `[Link to workplan]`: [code_tracing_release_workplan.md](../workplan/code_tracing_release_workplan.md#phase-r8)
+
+---
+
+## 2026-04-22 09:00:00
+
+[Issue #CT-09]: `launch.py` fails to find `serve.py` in standalone release.
+- `[Status]`: **Resolved**
+- `[Root Cause]`: Hard-coded path `tracer_dir.parent / "serve.py"` assumes repository layout where `launch.py` is in `engine/` and `serve.py` is in root. In ZIP release, both are at root.
+- `[Resolution]`: Updated `launch.py` to check both `.` and `..` for `serve.py`.
+- `[Link to update_log]`: [update_log.md](update_log.md)
+
+[Issue #CT-10]: `pyproject.toml` and `MANIFEST.in` broken for `pip install`.
+- `[Status]`: **Resolved**
+- `[Root Cause]`: Configuration still uses `tracer/` prefix which was removed during migration to `engine/` folder.
+- `[Resolution]`: Updated `pyproject.toml` and `MANIFEST.in` to match current `engine/` layout (root `.`).
+- `[Link to update_log]`: [update_log.md](update_log.md)
+
+[Issue #CT-11]: Filename inconsistency and broken links in `download_release.py`.
+- `[Status]`: **Resolved**
+- `[Root Cause]`: Script creates `pycode-tracer-v*.zip` but links to `py-tracer-v*.zip` in `RELEASE_HISTORY.md`.
+- `[Resolution]`: Standardized on `pycode-tracer` prefix everywhere.
+- `[Link to update_log]`: [update_log.md](update_log.md)
+
+[Issue #CT-12]: Version detection fails to account for legacy `dcc-tracer` prefix.
+- `[Status]`: **Resolved**
+- `[Root Cause]`: Regex only looks for `pycode-tracer`, causing it to ignore existing `dcc-tracer-v1.0.0.zip` and restart versioning at `v1.0.0`.
+- `[Resolution]`: Updated regex to `(pycode|dcc)-tracer-v(\d+)\.(\d+)\.(\d+)\.zip`.
+- `[Link to update_log]`: [update_log.md](update_log.md)
+
+[Issue #CT-13]: `USER_GUIDE.md` contains outdated paths and instructions.
+- `[Status]`: **Resolved**
+- `[Root Cause]`: References to `dcc/tracer/` and `tracer/` subfolders remain after migration to `code_tracer/` and `engine/`.
+- `[Resolution]`: Refreshed documentation to match new standalone structure and naming.
+- `[Link to update_log]`: [update_log.md](update_log.md)
 
 ---
 

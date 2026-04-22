@@ -759,6 +759,8 @@ async def health_check():
         "tracing_active": False  # Would check actual tracer state in production
     }
 
+app.mount("/", StaticFiles(directory="dist", html=True), name="static")
+
 
 if __name__ == "__main__":
     import argparse

@@ -3,6 +3,40 @@ version: 1.0.0
 schema: v1
 
 models:
+  - name: "Qwen Latest"
+    provider: ollama
+    model: qwen:latest
+    roles:
+      - chat
+      - edit
+      - apply
+      - summarize
+    params:
+      num_ctx: 16384  # 16k context is safe with 64GB RAM
+      keep_alive: 3600 # Keep in VRAM for 1 hour
+
+  # Your primary coding model
+  - name: "Qwen 2.5 Coder 14B"
+    provider: ollama
+    model: qwen2.5-coder:14b
+    roles:
+      - chat
+      - edit
+      - apply
+      - summarize
+    params:
+      num_ctx: 16384  # 16k context is safe with 64GB RAM
+      keep_alive: 3600 # Keep in VRAM for 1 hour
+  
+  # Light model for instant autocomplete
+  - name: "Gemma 3 Autocomplete"
+    provider: ollama
+    model: gemma3:4b
+    roles:
+      - autocomplete
+    params:
+      num_ctx: 4096
+
   - name: "Gemini 2.5 Flash"
     provider: "gemini"
     model: "gemini-2.5-flash"
@@ -18,12 +52,14 @@ models:
     roles:
       - chat
   
-  - name: "Gemma 4 (Local)"
+  - name: "Gemma 4 E4B (Local)"
     provider: "ollama"
-    model: "gemma4:e2b"
+    model: "gemma4:e4b"
     roles:
       - chat
       - edit
+      - apply
+      - summarize
 
   - name: "Gemini Autocomplete"
     provider: "gemini"
@@ -31,6 +67,16 @@ models:
     apiKey: "AIzaSyB4Or_LQu82UjkYOO8imt-hNuICmOH-n8Y"
     roles:
       - autocomplete
+
+context:
+  - provider: code
+  - provider: folder
+  - provider: terminal
+  - provider: docs
+  - provider: codebase # Scans your DCC project repo
+
+rules:
+  - "agent_rule.md"
 
 # DISK PROTECTION: Prevent duplicate indexing on your 8.4GB drive
 indexing:

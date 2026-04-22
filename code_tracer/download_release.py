@@ -1,9 +1,9 @@
 """
-download_release.py — DCC Tracer distribution packager.
+download_release.py — PyCode Tracer distribution packager.
 
 Packages all files required for static tracing into a versioned zip archive
 under the workspace releases/ folder. Version is auto-incremented based on
-existing releases (e.g. dcc-tracer-v1.0.0.zip → dcc-tracer-v1.0.1.zip).
+existing releases (e.g. pycode-tracer-v1.0.0.zip → pycode-tracer-v1.0.1.zip).
 
 Usage:
     python code_tracer/download_release.py
@@ -40,18 +40,19 @@ MANIFEST = [
 ]
 
 REQUIREMENTS = "fastapi>=0.100\nuvicorn>=0.23\nnetworkx>=3.0\n"
-RELEASES_DIR = Path(__file__).resolve().parent / "releases"
-VERSION_RE = re.compile(r"dcc-tracer-v(\d+)\.(\d+)\.(\d+)\.zip")
+RELEASES_DIR = Path(__file__).resolve().parent.parent / "releases"
+VERSION_RE = re.compile(r"(pycode|dcc)-tracer-v(\d+)\.(\d+)\.(\d+)\.zip")
 
 
 def _latest_version():
     """Return (major, minor, patch) of the highest existing release, or (1, 0, 0)."""
     versions = []
     if RELEASES_DIR.exists():
-        for f in RELEASES_DIR.glob("dcc-tracer-v*.zip"):
+        for f in RELEASES_DIR.glob("*-tracer-v*.zip"):
             m = VERSION_RE.match(f.name)
             if m:
-                versions.append(tuple(int(x) for x in m.groups()))
+                # Groups: 0=prefix, 1=major, 2=minor, 3=patch
+                versions.append(tuple(int(x) for x in m.groups()[1:]))
     return max(versions) if versions else (1, 0, 0)
 
 
@@ -63,14 +64,14 @@ def _next_version(bump):
         return major, minor + 1, 0
     else:  # patch
         # If no releases exist yet, use 1.0.0 as the first release
-        if not any(RELEASES_DIR.glob("dcc-tracer-v*.zip") if RELEASES_DIR.exists() else []):
+        if not any(RELEASES_DIR.glob("pycode-tracer-v*.zip") if RELEASES_DIR.exists() else []):
             return 1, 0, 0
         return major, minor, patch + 1
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Package DCC Tracer files into a versioned zip in releases/.",
+        description="Package PyCode Tracer files into a versioned zip in releases/.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -91,7 +92,7 @@ Examples:
     version = f"{major}.{minor}.{patch}"
     src_root = Path(__file__).parent.resolve()
     RELEASES_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = RELEASES_DIR / f"dcc-tracer-v{version}.zip"
+    out_path = RELEASES_DIR / f"pycode-tracer-v{version}.zip"
 
     packed, skipped = [], []
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -127,7 +128,7 @@ Examples:
     from datetime import date
     entry = (
         f"## v{version} — {date.today()}\n\n"
-        f"**File:** [`dcc-tracer-v{version}.zip`](dcc-tracer-v{version}.zip)\n"
+        f"**File:** [`pycode-tracer-v{version}.zip`](pycode-tracer-v{version}.zip)\n"
         f"**Type:** {'Major release' if args.bump == 'major' else 'Minor release' if args.bump == 'minor' else 'Patch release'}\n"
         f"**Packaged from:** `code_tracer/`\n\n"
         f"{len(packed)} file(s) packed, {len(skipped)} skipped.\n\n"

@@ -67,6 +67,27 @@ code_tracer/
 
 ---
 
+## 2026-04-22 09:30:00
+
+### Standalone Release Refinement & Path Fixes
+
+**Status:** COMPLETE
+
+**Changes applied:**
+
+| Component | Change | Description |
+|-----------|--------|-------------|
+| `engine/launch.py` | `serve_script` logic | Added fallback to check current directory for `serve.py`, fixing broken launcher in ZIP release. |
+| `engine/pyproject.toml` | Root & Scripts | Updated to use `engine/` as root (`where = ["."]`) and fixed `dcc-tracer` CLI entry point. |
+| `engine/MANIFEST.in` | Asset Paths | Removed outdated `tracer/` prefix from include rules. |
+| `download_release.py` | Version Logic | Updated regex to support both `pycode-tracer` and legacy `dcc-tracer` prefixes. |
+| `download_release.py` | Filename Prefix | Standardized on `pycode-tracer` for ZIP files and `RELEASE_HISTORY.md` entries. |
+| `USER_GUIDE.md` | Refresh | Updated all paths and installation instructions to match the standalone `code_tracer/` structure. |
+
+**Impact:** Ensures a fully functional standalone release. ZIP files now contain correct internal paths, the `pip install` package is valid, and documentation is accurate.
+
+---
+
 ## 2026-04-21 21:05:00
 
 ### Reorganization: Standalone Launcher Assets & Serve Logic

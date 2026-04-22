@@ -148,3 +148,45 @@ _Update this section with a summary of changes in this release._
 | `dcc/Log/test_log.md` | _link to relevant entry_ |
 
 ---
+
+## v1.0.0 — 2026-04-22
+
+**File:** [`py-tracer-v1.0.0.zip`](py-tracer-v1.0.0.zip)
+**Type:** Patch release
+**Packaged from:** `code_tracer/`
+
+15 file(s) packed, 0 skipped.
+
+### Changes
+
+_Update this section with a summary of changes in this release._
+
+### Log References
+
+| Log | Entry |
+|-----|-------|
+| `code_tracer/Log/update_log.md` | _link to relevant entry_ |
+| `code_tracer/Log/test_log.md` | _link to relevant entry_ |
+
+---
+
+## v1.0.1 — 2026-04-22
+
+**File:** [`pycode-tracer-v1.0.1.zip`](pycode-tracer-v1.0.1.zip)
+**Type:** Patch release
+**Packaged from:** `code_tracer/`
+
+15 file(s) packed, 0 skipped.
+
+### Changes
+
+_Update this section with a summary of changes in this release._
+
+### Log References
+
+| Log | Entry |
+|-----|-------|
+| `code_tracer/Log/update_log.md` | _link to relevant entry_ |
+| `code_tracer/Log/test_log.md` | _link to relevant entry_ |
+
+---

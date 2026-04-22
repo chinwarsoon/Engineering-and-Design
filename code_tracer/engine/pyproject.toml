@@ -17,11 +17,11 @@ dependencies = [
 pyvis = ["pyvis>=0.3.2"]
 
 [project.scripts]
-dcc-tracer = "tracer.launch:main"
+dcc-tracer = "launch:main"
 
 [tool.setuptools.packages.find]
-where = [".."]
-include = ["tracer*"]
+where = ["."]
+include = ["*"]
 
 [tool.setuptools.package-data]
-"tracer" = ["static_dashboard.html", "ui/dcc-design-system.css"]
+"*" = ["static_dashboard.html", "ui/dcc-design-system.css"]

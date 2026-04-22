@@ -271,6 +271,58 @@ Sections:
 
 ---
 
+---
+
+### Phase R8 — Single-Port Mode (Backend serves Frontend)
+**Goal:** Eliminate the separate file server (`serve.py`) so the entire tool runs on a single port (default 8000). Users only need to remember one URL and one process.
+**Status:** PENDING APPROVAL
+**Effort:** ~2 hours
+
+#### Background
+Currently `launch.py` starts two processes:
+- Port 8000 → uvicorn / FastAPI (API only)
+- Port 5000 → `serve.py` Python http.server (serves HTML + proxies `/api/*` → 8000)
+
+FastAPI's `StaticFiles` mount can serve the dashboard directly, eliminating the second process entirely. `server.py` already imports `StaticFiles` and has a broken `app.mount("/", StaticFiles(directory="dist", html=True))` stub at the bottom — it just points to the wrong directory.
+
+#### R8.1 — `backend/server.py`: serve dashboard from FastAPI
+
+- Replace the broken `app.mount("/", StaticFiles(directory="dist", html=True))` stub with two mounts:
+  - `app.mount("/ui", StaticFiles(directory=<ui_dir>), name="ui")` — serves CSS and other assets from `code_tracer/ui/`
+  - `app.mount("/", StaticFiles(directory=<ui_dir>, html=True), name="spa")` — serves `static_dashboard.html` as the SPA root
+- The `ui_dir` is resolved relative to `server.py` at startup: `Path(__file__).parent.parent.parent / "ui"`
+- All named API routes (`/health`, `/static/analyze`, `/file/read`, etc.) are registered **before** the static mount, so FastAPI's route priority ensures they always win over the catch-all static handler.
+- Remove the existing `root()` GET `/` endpoint that returns the API info HTML page — the static mount replaces it.
+
+#### R8.2 — `ui/static_dashboard.html`: remove `/api` prefix
+
+- Change `const API = '/api'` → `const API = ''`
+- All fetch calls (`/api/static/analyze`, `/api/health`, etc.) become (`/static/analyze`, `/health`, etc.) — same origin, no proxy needed.
+
+#### R8.3 — `engine/launch.py`: remove file server subprocess
+
+- Remove `--serve-port` argument
+- Remove `file_server = subprocess.Popen(...)` block
+- Remove `serve_script` lookup logic
+- Change dashboard URL from `http://localhost:{args.serve_port}` → `http://localhost:{args.port}`
+- Health-check loop already targets `args.port` — no change needed
+- Update docstring and epilog examples
+
+#### Acceptance Criteria
+- [ ] `python engine/launch.py <target>` starts one process on port 8000
+- [ ] `http://localhost:8000` serves the dashboard HTML
+- [ ] `http://localhost:8000/ui/dcc-design-system.css` returns the CSS
+- [ ] All API calls (`/static/analyze`, `/health`, `/file/read`, etc.) work correctly
+- [ ] No second process or port 5000 required
+- [ ] `serve.py` still works standalone (no changes to it)
+
+**Files changed:**
+- `code_tracer/engine/backend/server.py` — replace static mount stub; remove `root()` endpoint
+- `code_tracer/ui/static_dashboard.html` — `const API = '/api'` → `const API = ''`
+- `code_tracer/engine/launch.py` — remove file server subprocess and `--serve-port`
+
+---
+
 ## Acceptance Criteria
 
 - [x] `python tracer/launch.py /any/python/project` starts both servers and opens the dashboard
