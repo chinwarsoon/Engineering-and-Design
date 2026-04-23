@@ -411,3 +411,16 @@
   - tracer/README.md
 - [Resolution]: Implemented `PipelineSandbox` runner using `importlib.util` and added a `/pipeline/run` endpoint to the backend API.
 - [Link to Update Log]: [update_log.md](#issue42-pipeline-runner)
+
+<a id="issue43-pipeline-initiation-cli"></a>
+## 2026-04-23 23:20:00
+[Issue #43]: Pipeline startup falsely reported CLI overrides and duplicated initiation setup loading
+- [Status]: RESOLVED
+- [Context]: `dcc_engine_pipeline.py` printed CLI override state incorrectly when no user CLI args were passed, and startup instantiated `ProjectSetupValidator` twice across environment bootstrap and initiation validation.
+- [Root Cause]: `parse_cli_args()` always seeded `cli_args` with default verbosity, making the override dictionary non-empty. `test_environment()` also constructed `ProjectSetupValidator` just to read dependency configuration from `project_setup.json`.
+- [File Changes]:
+  - workflow/initiation_engine/utils/cli.py
+  - workflow/initiation_engine/utils/system.py
+  - workflow/dcc_engine_pipeline.py
+- [Resolution]: Changed CLI parsing to only record explicit user overrides, returned an explicit override-status boolean to the pipeline banner path, removed the duplicate validator bootstrap from `test_environment()`, and added an environment-ready milestone after a successful dependency check.
+- [Link to Update Log]: [update_log.md](#issue43-pipeline-initiation-cli)

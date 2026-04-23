@@ -2087,6 +2087,47 @@ On Windows: resolves to `C:\Users\<user>\dcc\tools`. On Linux/Codespaces: defaul
 
 ---
 
+<a id="issue43-pipeline-initiation-cli"></a>
+## 2026-04-23
+
+### COMPLETED: Pipeline Startup Cleanup - CLI Override Detection, Initiation Bootstrap, Environment Milestone
+**Status:** COMPLETE
+
+**Summary:** Cleaned up `dcc_engine_pipeline.py` startup behavior so CLI override reporting reflects actual user input, removed the duplicate initiation bootstrap path from `test_environment()`, and added a milestone message when the environment check passes.
+
+**Problems Addressed:**
+
+| # | Problem | Fix |
+|---|---------|-----|
+| 1 | Pipeline reported `CLI overrides detected` even when no CLI args were passed | `parse_cli_args()` now records `verbose_level` only when `--verbose` or `-v` is explicitly supplied |
+| 2 | Pipeline banner path needed to know whether CLI overrides were actually supplied | `parse_cli_args()` now returns `cli_overrides_provided`, and `dcc_engine_pipeline.py` passes banner override data conditionally |
+| 3 | Startup touched initiation setup twice by constructing `ProjectSetupValidator` inside `test_environment()` and again in step 1 | `test_environment()` now reads `project_setup.json` directly for dependency checks without instantiating the validator |
+| 4 | Environment success had no milestone line in the startup flow | Added `milestone_print("Environment ready", "Required dependencies available")` after a successful environment check |
+
+**Files Changed:**
+
+| File | Change |
+|------|--------|
+| `dcc/workflow/initiation_engine/utils/cli.py` | Added explicit CLI override detection using `sys.argv`; updated return signature to `(args, cli_args, cli_overrides_provided)` |
+| `dcc/workflow/dcc_engine_pipeline.py` | Updated `parse_cli_args()` call site, passed `cli_overrides` conditionally into `print_framework_banner(...)`, and added environment-ready milestone |
+| `dcc/workflow/initiation_engine/utils/system.py` | Replaced validator construction with direct JSON loading of `project_setup.json` dependencies |
+
+**Behavior After Change:**
+- No CLI arguments: startup does not treat default verbosity as a CLI override
+- Explicit CLI arguments: override dictionary still flows into the banner and effective-parameter resolution
+- Environment check: validates required and optional modules without constructing a second `ProjectSetupValidator`
+- Initiation step: remains the single path that performs project setup validation via `ProjectSetupValidator.validate()`
+
+**Verification:**
+```bash
+python3 -m py_compile dcc/workflow/initiation_engine/utils/system.py dcc/workflow/dcc_engine_pipeline.py dcc/workflow/initiation_engine/core/validator.py
+python3 -m py_compile dcc/workflow/dcc_engine_pipeline.py
+```
+
+**Impact:** Startup output is more accurate, initiation setup work is no longer duplicated during environment bootstrap, and the pipeline now surfaces a clear success milestone when the runtime environment is ready.
+
+---
+
 <a id="tracer-r7-downloader"></a>
 ## 2026-05-01
 

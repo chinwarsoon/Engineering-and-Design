@@ -292,7 +292,7 @@ def main() -> int:
     """Main entry point for DCC Engine Pipeline."""
     
     # 1. Parse CLI args (this also sets debug level via --verbose)
-    args, cli_args = parse_cli_args()
+    args, cli_args, cli_overrides_provided = parse_cli_args()
     
     # 1.5 Configure Python logging based on DEBUG_LEVEL (suppresses INFO at level 0-1)
     setup_logger()
@@ -301,7 +301,7 @@ def main() -> int:
     input_file = cli_args.get("upload_file_name", "Submittal and RFI Tracker Lists.xlsx")
     base_path = safe_resolve(Path(args.base_path))
     output_dir = base_path / "output"
-    print_framework_banner(input_file=input_file, output_dir=str(output_dir))
+    print_framework_banner(base_path=base_path, input_file=input_file, output_dir=str(output_dir), cli_overrides=cli_args if cli_overrides_provided else None)
     
     # 3. Handle Windows HOME env issues
     local_home = get_homedir()
@@ -326,6 +326,7 @@ def main() -> int:
             missing = ", ".join(environment.get("missing_packages", [])) or "see output above"
             system_error_print("S-E-S-0103", detail=missing)
         return 1
+    milestone_print("Environment ready", "Required dependencies available")
 
     # 4. Resolve the main schema path
     schema_path = safe_resolve(
@@ -340,6 +341,12 @@ def main() -> int:
         load_schema_params_fn=load_schema_parameters
     )
     effective_parameters = resolve_platform_paths(effective_parameters, base_path, status_print)
+    # milestone print for number of parameters resolved from cli args, schema, and native defaults
+    total_params = len(effective_parameters)
+    cli_params = len(cli_args)
+    schema_params = len(load_schema_parameters(schema_path))
+    native_params = len(native_defaults)
+    milestone_print("Parameters resolved", f"Precedence: {total_params} total (CLI: {cli_params}, Schema: {schema_params}, Defaults: {native_params})")
 
     # 6. Run the engine pipeline
     try:

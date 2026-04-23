@@ -123,6 +123,7 @@ def set_debug_level(level: int) -> None:
     DEBUG_LEVEL = max(0, min(3, level))
     # Suppress third-party library warnings at levels 0 and 1
     import warnings
+    from typing import Dict
     if DEBUG_LEVEL < 2:
         warnings.filterwarnings("ignore")
     else:
@@ -502,17 +503,21 @@ def set_debug_mode(enabled: bool) -> None:
 # =============================================================================
 
 def print_framework_banner(
+    base_path: Path = None,
     input_file: str = None,
     output_dir: str = None,
     version: str = "3.0",
+    cli_overrides: Dict[str, Any] = None,
 ) -> None:
     """
     Print default framework banner (visible at ALL verbosity levels).
     
     Args:
+        base_path: Base directory path
         input_file: Input Excel filename
         output_dir: Output directory path
         version: Pipeline version
+        cli_overrides: Dictionary of CLI overrides to display (only if user explicitly provided any)
     """
     mode = {0: "quiet", 1: "normal", 2: "debug", 3: "trace"}.get(DEBUG_LEVEL, "normal")
     
@@ -520,13 +525,26 @@ def print_framework_banner(
     input_name = Path(input_file).name if input_file else "stdin"
     output_name = Path(output_dir).name if output_dir else "output"
 
-    banner = f"""═══════════════════════════════════════════════════════
-  DCC Pipeline v{version}
+    # define banner content and calculate dynamic width based on content length
+    banner_content = f"""  DCC Pipeline v{version}
   Mode: {mode}
+  base_path: {base_path if base_path else 'N/A'}
   Input: {input_name}
-  Output: {output_name:<49}
+  Output: {output_name}
   DEBUG {'ENABLED' if DEBUG_LEVEL >= 2 else 'DISABLED':<49}
-═══════════════════════════════════════════════════════"""
+  CLI Overrides: {json.dumps(cli_overrides) if cli_overrides else 'None'}  """
+    
+    content_width = max(len(line) for line in banner_content.splitlines())
+    total_width = content_width + 6  # Add padding for borders
+
+    #define banner boader with dynamic width
+    banner_border = "=" * total_width
+
+    # Combine border and content with padding
+    banner = f"{banner_border}\n"
+    for line in banner_content.splitlines():
+        banner += f"  {line.ljust(content_width)}  \n"
+    banner += banner_border
     
     builtins.print(banner, flush=True)
 

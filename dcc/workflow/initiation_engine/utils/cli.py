@@ -1,4 +1,5 @@
 import argparse
+import sys
 from pathlib import Path
 from typing import Tuple, Dict, Any
 
@@ -30,8 +31,8 @@ def create_parser(base_path: Path) -> argparse.ArgumentParser:
     return parser
 
 
-def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, Dict[str, Any]]:
-    """Parse CLI arguments and return as dictionary."""
+def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, Dict[str, Any], bool]:
+    """Parse CLI arguments and return the namespace, override dict, and a status boolean."""
     from .paths import default_base_path
     if base_path is None:
         base_path = default_base_path()
@@ -44,8 +45,14 @@ def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, D
     verbose_level = VERBOSE_LEVELS.get(args.verbose, 1)
     set_debug_level(verbose_level)
     
-    cli_args: Dict[str, Any] = {"verbose_level": args.verbose}
-    
+    # Only treat values as CLI overrides when the user explicitly passed them.
+    raw_argv = sys.argv[1:]
+    verbose_explicitly_set = "--verbose" in raw_argv or "-v" in raw_argv
+
+    cli_args: Dict[str, Any] = {}
+
+    if verbose_explicitly_set:
+        cli_args["verbose_level"] = args.verbose
     if args.schema_file:
         cli_args["schema_register_file"] = args.schema_file
     if args.excel_file:
@@ -69,11 +76,7 @@ def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, D
     if unknown_args:
         debug_print(f"Ignoring unknown CLI arguments: {unknown_args}")
     
-    # Only show CLI status at level >= 1
-    if args.verbose in ["normal", "debug", "trace"]:
-        if cli_args:
-            status_print(f"CLI overrides detected. CLI values: {cli_args}")
-        else:
-            status_print("No CLI overrides provided.")
-    
-    return args, cli_args
+    cli_overrides_provided = bool(cli_args)
+
+    # return both the full args namespace and the filtered CLI overrides dictionary, and if user explicitly provide any cli override (for status printing) 
+    return args, cli_args, cli_overrides_provided

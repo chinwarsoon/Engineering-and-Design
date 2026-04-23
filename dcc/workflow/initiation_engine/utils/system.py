@@ -1,4 +1,5 @@
 import importlib
+import json
 import platform
 import sys
 from pathlib import Path
@@ -8,6 +9,7 @@ from .logging import (
     status_print,
     debug_print,
 )
+from .paths import default_base_path, get_schema_path, normalize_path
 
 def test_environment(base_path: Path | None = None) -> Dict[str, Any]:
     """Test environment and required libraries."""
@@ -22,13 +24,14 @@ def test_environment(base_path: Path | None = None) -> Dict[str, Any]:
     if workflow_dir not in sys.path:
         sys.path.insert(0, workflow_dir)
 
-    # Import inside function to avoid circular imports if any
-    from ..core.validator import ProjectSetupValidator
-
-    # Use ProjectSetupValidator to load dependencies from project_config.json
     try:
-        validator = ProjectSetupValidator(base_path=base_path)
-        project_setup_data = validator.project_setup
+        resolved_base_path = normalize_path(base_path) if base_path else default_base_path()
+        schema_path = get_schema_path(resolved_base_path)
+
+        with schema_path.open("r", encoding="utf-8") as handle:
+            schema_document = json.load(handle)
+
+        project_setup_data = schema_document.get("project_setup", {})
         dependencies = project_setup_data.get("dependencies", {})
 
         required_modules = dependencies.get("required", [])

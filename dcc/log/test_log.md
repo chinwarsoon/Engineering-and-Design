@@ -325,6 +325,30 @@
    - Pattern source logged: "schema_derived" in error context when validation fails
 - `Status: Resolved (Ref: [Issue #15](issue_log.md)).`
 
+## 2026-04-23 23:25:00
+1. Test: CLI Override Detection and Startup Wiring (Issue #43)
+   - Purpose: Verify that pipeline startup no longer reports CLI overrides when the user did not pass any CLI arguments, while still allowing explicit override state to reach the banner path.
+   - Method: Reviewed `parse_cli_args()` return contract and matched it against the `dcc_engine_pipeline.py` call site and banner invocation.
+   - Result: Success. CLI override data is now recorded only for explicitly supplied flags, and the pipeline call site now consumes the returned override-status boolean.
+   - Verification:
+     - Default `--verbose normal` no longer forces `cli_args` to be non-empty
+     - `parse_cli_args()` return shape matches `args, cli_args, cli_overrides_provided`
+     - `print_framework_banner(...)` receives `cli_overrides` only when explicit overrides exist
+- `Status: Resolved (Ref: [Issue #43](issue_log.md)).`
+
+## 2026-04-23 23:30:00
+1. Test: Duplicate Initiation Path Removal and Environment Milestone (Issue #43)
+   - Purpose: Verify that environment checking no longer instantiates `ProjectSetupValidator` before the actual initiation step, and confirm the pipeline still compiles after the logging change.
+   - Method: Replaced validator bootstrap in `test_environment()` with direct `project_setup.json` loading, then ran:
+     - `python3 -m py_compile dcc/workflow/initiation_engine/utils/system.py dcc/workflow/dcc_engine_pipeline.py dcc/workflow/initiation_engine/core/validator.py`
+     - `python3 -m py_compile dcc/workflow/dcc_engine_pipeline.py`
+   - Result: Success. `test_environment()` now reads dependency configuration directly and compilation passed after the new `milestone_print("Environment ready", "Required dependencies available")` change.
+   - Verification:
+     - Only `run_engine_pipeline()` step 1 performs `ProjectSetupValidator(...).validate()`
+     - `test_environment()` loads dependencies from `project_setup.json` without constructing a validator
+     - `dcc_engine_pipeline.py` compiles successfully with the environment-ready milestone
+- `Status: Resolved (Ref: [Issue #43](issue_log.md)).`
+
 ## 2026-04-12 12:48:00
 1. Test: Document_ID Pattern Alignment (Issue #15)
    - Purpose: Verify that single-letter discipline codes no longer trigger P2-I-V-0204
