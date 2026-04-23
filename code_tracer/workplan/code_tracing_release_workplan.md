@@ -133,11 +133,11 @@ dcc-tracer = "tracer.launch:main"
 ```
 
 #### R3.2 — `tracer/MANIFEST.in`
-Ensure `static_dashboard.html` and `dcc-design-system.css` are included in the package.
+Ensure `static_dashboard.html` and `code-tracer.css` are included in the package.
 
 ```
 include tracer/static_dashboard.html
-include tracer/ui/dcc-design-system.css
+include tracer/ui/code-tracer.css
 recursive-include tracer/static *.py
 ```
 
@@ -211,7 +211,7 @@ The script must:
 1. Accept an optional `--dest` argument (default: `%USERPROFILE%\dcc-tracer` on Windows, `~/dcc-tracer` otherwise).
 2. Define a manifest of all files required for static tracing:
    - `static_dashboard.html`
-   - `ui/dcc-design-system.css`
+   - `ui/code-tracer.css`
    - `backend/server.py`, `backend/__init__.py`
    - `static/` module (`crawler.py`, `graph.py`, `metrics.py`, `parser.py`, `visualizer.py`, `__init__.py`)
    - `launch.py`, `serve.py`
@@ -311,7 +311,7 @@ FastAPI's `StaticFiles` mount can serve the dashboard directly, eliminating the 
 #### Acceptance Criteria
 - [x] `python engine/launch.py <target>` starts one process on port 8000
 - [x] `http://localhost:8000` serves the dashboard HTML
-- [x] `http://localhost:8000/ui/dcc-design-system.css` returns the CSS
+- [x] `http://localhost:8000/ui/code-tracer.css` returns the CSS
 - [x] All API calls (`/static/analyze`, `/health`, `/file/read`, etc.) work correctly
 - [x] No second process or port 5000 required
 - [x] `serve.py` still works standalone (no changes to it)
@@ -356,5 +356,5 @@ FastAPI's `StaticFiles` mount can serve the dashboard directly, eliminating the 
 ## Dependencies
 
 - All Phase 1–6 items in `code_tracing_workplan.md` must remain unchanged
-- `dcc-design-system.css` must be copied into `tracer/` (or bundled inline) so the dashboard works without the `dcc/ui/` folder
+- `code-tracer.css` must be copied into `tracer/` (or bundled inline) so the dashboard works without the `dcc/ui/` folder
 - No changes to `dcc/serve.py` or any other DCC project files

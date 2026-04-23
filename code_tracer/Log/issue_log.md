@@ -9,6 +9,17 @@
 
 # Section 2. Pending Issues
 
+## 2026-04-23
+
+<a id="issue-CT-16"></a>
+[Issue #CT-16]: `launch.py` fails with SyntaxError in `server.py` due to backslash in f-string
+- `[Status]`: **RESOLVED**
+- `[Context]`: Running `launch.py` results in `SyntaxError: f-string expression part cannot include a backslash` on line 398 of `engine/backend/server.py`.
+- `[Root Cause]`: Python versions prior to 3.12 do not allow backslashes within the expression part of an f-string.
+- `[Resolution]`: Moved the `.replace('/', '\\')` operation out of the f-string into a separate variable (`win_subpath`).
+- `[Files Changed]`: `engine/backend/server.py`
+- `[Link to update_log]`: [update_log.md](update_log.md)
+
 ## 2026-05-01
 
 ## 2026-05-01
@@ -82,7 +93,7 @@
 [Issue #CT-07]: Title bar visual clutter (unnecessary vertical borders/separators).
 - `[Status]`: **Resolved**
 - `[Root Cause]`: Default component styles included vertical dividers and button borders that conflicted with the desired minimalist aesthetic.
-- `[Resolution]`: Applied a global reset to the title bar scope in `dcc-design-system.css` to suppress all internal borders.
+- `[Resolution]`: Applied a global reset to the title bar scope in `code-tracer.css` to suppress all internal borders.
 - `[Link to update_log]`: [update_log.md](update_log.md)
 
 ---
@@ -130,7 +141,7 @@
 
 ## 2026-04-21 21:05:00
 
-[Issue #CT-03]: `404 File not found` for `ui/dcc-design-system.css` in dashboard.
+[Issue #CT-03]: `404 File not found` for `ui/code-tracer.css` in dashboard.
 - `[Status]`: **Resolved**
 - `[Root Cause]`: `static_dashboard.html` was in `engine/` but assets were in `ui/`. `serve.py` only served from `engine/`.
 - `[Resolution]`: Moved `serve.py` to root and serve from `code_tracer/` root; moved all HTML to `ui/`. Updated `launch.py` to point to root `serve.py`.

@@ -47,9 +47,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python tracer/launch.py /path/to/project
-  python tracer/launch.py /path/to/project --port 8000 --serve-port 5000
-  python tracer/launch.py /path/to/project --no-browser
+  python engine/launch.py /path/to/project
+  python engine/launch.py /path/to/project --port 8000
+  python engine/launch.py /path/to/project --no-browser
         """,
     )
     parser.add_argument("target", help="Path to the Python project to analyse")

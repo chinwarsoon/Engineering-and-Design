@@ -7,7 +7,28 @@
 
 ---
 
-## 2026-04-19 06:00:00
+## 2026-04-23
+
+### launch.py Refinement & Python Compatibility Fix
+
+**Status:** COMPLETE
+
+**Problem:** 
+1. `launch.py` help text contained outdated references to `tracer/` and an invalid `--serve-port` flag.
+2. `server.py` failed with `SyntaxError` on Python versions < 3.12 due to a backslash in an f-string expression.
+
+**Fixes applied:**
+
+| Component | Change | Description |
+|-----------|--------|-------------|
+| `engine/launch.py` | Help Text Update | Updated `argparse` examples to use `engine/` and removed `--serve-port`. |
+| `engine/backend/server.py` | SyntaxError Fix | Moved backslash replacement out of f-string into `win_subpath` variable to ensure compatibility with Python < 3.12. |
+
+**Impact:** Improved CLI documentation accuracy and restored cross-version Python compatibility for the backend server.
+
+**Related:** [Issue #CT-16](issue_log.md#issue-CT-16)
+
+---
 
 ### Migration: dcc/tracer → code_tracer
 
@@ -99,7 +120,7 @@ code_tracer/
 | File | Change |
 |------|--------|
 | `engine/backend/server.py` | Removed `root()` endpoint and broken `StaticFiles(directory="dist")` stub; added `app.mount("/ui", StaticFiles(_UI_DIR))` and `app.mount("/", StaticFiles(_UI_DIR, html=True))`; removed unused `HTMLResponse` import; `_UI_DIR` resolves to `code_tracer/ui/` relative to `server.py` |
-| `ui/static_dashboard.html` | `const API = '/api'` → `const API = ''`; CSS href `ui/dcc-design-system.css` → `/ui/dcc-design-system.css` |
+| `ui/static_dashboard.html` | `const API = '/api'` → `const API = ''`; CSS href `ui/code-tracer.css` → `/ui/code-tracer.css` |
 | `engine/launch.py` | Removed `--serve-port` arg, `serve_script` lookup, `file_server` subprocess, and `file_server.terminate()`; added `urllib.request` import; replaced `time.sleep(2)` with health-check retry loop (20×1s); dashboard URL now points to `args.port` directly |
 
 **Result:** Single process on port 8000 serves both API and dashboard. `serve.py` is no longer invoked by `launch.py` (still available standalone).
@@ -135,7 +156,7 @@ code_tracer/
 
 **Status:** COMPLETE
 
-**Problem:** CT-03 identified a 404 error for `ui/dcc-design-system.css` because `serve.py` served from `engine/` while assets were in root `ui/`.
+**Problem:** CT-03 identified a 404 error for `ui/code-tracer.css` because `serve.py` served from `engine/` while assets were in root `ui/`.
 
 **Changes applied:**
 
@@ -212,8 +233,8 @@ code_tracer/
 
 | Component | Change | Description |
 |-----------|--------|-------------|
-| `ui/dcc-design-system.css` | Global Title Bar Rule | Added `.dcc-titlebar * { border: none !important; }` to remove all borders from elements inside the title bar. |
-| `dcc/ui/dcc-design-system.css` | Global Title Bar Rule | Applied the same clean-up to the main project CSS for consistency. |
+| `ui/code-tracer.css` | Global Title Bar Rule | Added `.dcc-titlebar * { border: none !important; }` to remove all borders from elements inside the title bar. |
+| `dcc/ui/code-tracer.css` | Global Title Bar Rule | Applied the same clean-up to the main project CSS for consistency. |
 
 **Impact:** Minimalist, modern title bar without any vertical separators or element borders.
 
@@ -233,8 +254,8 @@ code_tracer/
 |-----------|--------|-------------|
 | `ui/static_dashboard.html` | Relocate Breadcrumb | Moved `#bc-root` container from `dcc-titlebar` to `dcc-statusbar`. |
 | `ui/tracer_pro.html` | Relocate Breadcrumb | Moved breadcrumb for consistency with the static dashboard. |
-| `ui/dcc-design-system.css` | `.dcc-statusbar-breadcrumb` | Renamed from `.dcc-titlebar-breadcrumb` and restyled for status bar colors (white/light text). |
-| `ui/dcc-design-system.css` | Remove Logo Stack | Removed `.logo-text-stack` as the title bar logo name is no longer stacked. |
+| `ui/code-tracer.css` | `.dcc-statusbar-breadcrumb` | Renamed from `.dcc-titlebar-breadcrumb` and restyled for status bar colors (white/light text). |
+| `ui/code-tracer.css` | Remove Logo Stack | Removed `.logo-text-stack` as the title bar logo name is no longer stacked. |
 
 **Impact:** Improved vertical space in the title bar and better information hierarchy by placing path information in the status bar.
 
@@ -252,10 +273,10 @@ code_tracer/
 
 | Component | Change | Description |
 |-----------|--------|-------------|
-| `ui/dcc-design-system.css` | Remove Dividing Line | Removed `border-right` from `.dcc-titlebar-logo`. |
-| `ui/dcc-design-system.css` | `.logo-text-stack` | Added a flex-column wrapper to stack logo name and breadcrumb. |
+| `ui/code-tracer.css` | Remove Dividing Line | Removed `border-right` from `.dcc-titlebar-logo`. |
+| `ui/code-tracer.css` | `.logo-text-stack` | Added a flex-column wrapper to stack logo name and breadcrumb. |
 | `ui/static_dashboard.html` | Restructured Title Bar | Moved `titlebar-breadcrumb` inside the logo div and wrapped it in the new stack. |
-| `ui/dcc-design-system.css` | Breadcrumb Styling | Reduced font size to `10px` and removed padding to fit the new stacked layout. |
+| `ui/code-tracer.css` | Breadcrumb Styling | Reduced font size to `10px` and removed padding to fit the new stacked layout. |
 
 **Impact:** Cleaner, more modern header layout that follows a vertical information hierarchy within the logo area.
 

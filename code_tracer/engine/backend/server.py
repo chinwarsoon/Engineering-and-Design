@@ -395,7 +395,8 @@ async def environment_map(path_info: dict):
             if path_str.startswith("/mnt/") and len(path_str) > 5:
                 potential_drive = path_str[5].upper()
                 if potential_drive.isalpha():
-                    windows_path = f"{potential_drive}:{path_str[6:].replace('/', '\\')}"
+                    win_subpath = path_str[6:].replace('/', '\\')
+                    windows_path = f"{potential_drive}:{win_subpath}"
                     mapping_info["windows_equivalent"] = windows_path
         
         return mapping_info

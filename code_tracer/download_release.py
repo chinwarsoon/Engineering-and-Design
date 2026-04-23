@@ -18,8 +18,8 @@ import zipfile
 from pathlib import Path
 
 # CSS is always sourced from ui/ — single source of truth
-CSS_SRC = Path(__file__).resolve().parent / "ui" / "dcc-design-system.css"
-CSS_DEST = "ui/dcc-design-system.css"
+CSS_SRC = Path(__file__).resolve().parent / "ui" / "code-tracer.css"
+CSS_DEST = "ui/code-tracer.css"
 
 # Files required for static tracing, relative to code_tracer root
 MANIFEST = [

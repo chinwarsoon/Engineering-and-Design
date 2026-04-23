@@ -133,3 +133,24 @@ First release under the `code_tracer/` standalone project structure. Migrated fr
 | `code_tracer/Log/update_log.md` | Migration: dcc/tracer → code_tracer |
 
 ---
+
+## v1.0.3 — 2026-04-23
+
+**File:** [`pycode-tracer-v1.0.3.zip`](pycode-tracer-v1.0.3.zip)
+**Type:** Patch release
+**Packaged from:** `code_tracer/`
+
+15 file(s) packed, 0 skipped.
+
+### Changes
+
+_Update this section with a summary of changes in this release._
+
+### Log References
+
+| Log | Entry |
+|-----|-------|
+| `code_tracer/Log/update_log.md` | _link to relevant entry_ |
+| `code_tracer/Log/test_log.md` | _link to relevant entry_ |
+
+---

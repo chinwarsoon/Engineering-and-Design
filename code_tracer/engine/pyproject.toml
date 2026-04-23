@@ -24,4 +24,4 @@ where = ["."]
 include = ["*"]
 
 [tool.setuptools.package-data]
-"*" = ["static_dashboard.html", "ui/dcc-design-system.css"]
+"*" = ["static_dashboard.html", "ui/code-tracer.css"]

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DCC Static Analyser Pro</title>
-  <link rel="stylesheet" href="/ui/dcc-design-system.css">
+  <link rel="stylesheet" href="/ui/code-tracer.css">
   <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   <style>
     /* ── layout overrides ── */
@@ -17,10 +17,10 @@
       display: inline-block; padding: 1px 7px; border-radius: 10px;
       font-size: 10px; font-weight: 700;
     }
-    .cc-low    { background: rgba(63,185,80,.15);  color: #3fb950; }
-    .cc-med    { background: rgba(210,153,34,.15); color: #d29922; }
+    .cc-low    { background: rgba(63,185,80,.15);  color: var(--success); }
+    .cc-med    { background: rgba(210,153,34,.15); color: var(--warning); }
     .cc-high   { background: rgba(240,136,62,.15); color: #f0883e; }
-    .cc-vhigh  { background: rgba(248,81,73,.15);  color: #f85149; }
+    .cc-vhigh  { background: rgba(248,81,73,.15);  color: var(--danger); }
 
     /* ── resizers ── */
     .resizer {
@@ -113,7 +113,7 @@
     }
     .ins-source {
       font-family: var(--font-mono); font-size: 11px; line-height: 1.5; padding: 10px;
-      margin: 0; counter-reset: line; color: #d1d5db;
+      margin: 0; counter-reset: line; color: var(--text);
     }
     .ins-source-line { display: block; }
     .ins-source-line::before {

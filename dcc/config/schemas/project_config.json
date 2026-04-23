@@ -24,8 +24,7 @@
   ],
   "root_files": [
         {"name": "dcc.yml", "purpose": "Conda environment specification", "required": true, "extension": "yml"},
-        {"name": "README.md", "purpose": "Project documentation and setup instructions", "required": true, "extension": "md"},
-        {"name": "rule/agent_rule.md", "purpose": "Agent rules and compliance guidelines", "required": true, "extension": "md"}
+        {"name": "README.md", "purpose": "Project documentation and setup instructions", "required": true, "extension": "md"}
   ],
   "schema_files": [
         {"filename": "project_setup_base.json", "required": true, "description": "Base schema with reusable definitions", "category": "base_schema"},

@@ -15,7 +15,7 @@ Resolve 404 errors for CSS assets in `launch.py` and reorganize the dashboard se
 4. **Update `launch.py`** to find the relocated `serve.py`.
 
 ## Success Criteria
-- Running `launch.py` starts the dashboard without 404 errors for `ui/dcc-design-system.css`.
+- Running `launch.py` starts the dashboard without 404 errors for `ui/code-tracer.css`.
 - The dashboard is accessible at `http://localhost:5000`.
 - All HTML files are consolidated in the `ui/` folder.
 

@@ -1,3 +1,3 @@
 include static_dashboard.html
-include ui/dcc-design-system.css
+include ui/code-tracer.css
 recursive-include static *.py

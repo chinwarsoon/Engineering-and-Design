@@ -21,7 +21,7 @@
 |---|------|--------|--------|
 | T1 | Single process starts | PASS | Only uvicorn on port 8000, no port 5000 process |
 | T2 | `GET /` serves dashboard | PASS | `http://localhost:8000` loads `static_dashboard.html` |
-| T3 | `GET /ui/dcc-design-system.css` | PASS | CSS loads, dashboard fully styled |
+| T3 | `GET /ui/code-tracer.css` | PASS | CSS loads, dashboard fully styled |
 | T4 | `GET /health` | PASS | `status=healthy` |
 | T5 | `/static/analyze` | PASS | Analysis runs, call graph rendered |
 | T6 | `/file/read` source viewer | PASS | Source code loads in inspector |
