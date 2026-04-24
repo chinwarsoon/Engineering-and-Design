@@ -36,8 +36,11 @@ class ProjectSetupValidator:
     Attributes:
         base_path: Normalized absolute path to the project root.
         schema_path: Normalized absolute path to project_setup.json.
-        schema_document: Raw parsed JSON document from schema_path.
-        project_setup: Extracted project setup configuration dictionary.
+        schema_document: Raw parsed JSON document from schema_path. Contains the full
+                         unprocessed content of the project setup schema file.
+        project_setup: Extracted project setup configuration dictionary. The normalized
+                       configuration containing 'folders', 'root_files', 'environment',
+                       and other project-specific requirements.
         validation_rules: Dictionary mapping rule names to enabled status.
         os_info: OS detection results with 'system' and 'normalized' keys.
     """
@@ -59,6 +62,11 @@ class ProjectSetupValidator:
                          validate_environment(), resolve_platform_paths().
             - schema_path: Initialized here via normalize_path() or get_schema_path().
                          Consumed by _load_json(), validate().
+            - schema_document: Initialized here from _load_json(). Used as the raw source
+                               for configuration extraction.
+            - project_setup: Initialized here from _extract_project_setup(). Contains normalized
+                             keys: 'folders', 'root_files', 'schema_files', 'workflow_files',
+                             'tool_files', 'environment', 'validation_rules'.
             - os_info: Initialized here via detect_os().
                       Consumed by validate_folders(), should_auto_create_folders().
             - validation_rules: Initialized here from _extract_project_setup().
@@ -70,16 +78,16 @@ class ProjectSetupValidator:
             if schema_path
             else get_schema_path(self.base_path)
         )
-        self.schema_document: Dict[str, Any] = {}
-        self.project_setup: Dict[str, Any] = {}
+        self.schema_document: Dict[str, Any] = {}  # Raw source from project_setup.json
+        self.project_setup: Dict[str, Any] = {}    # Normalized configuration dictionary
         self.validation_rules: Dict[str, bool] = {}
         self.os_info = detect_os()
         self._ref_resolver: Optional[RefResolver] = None
 
         if self.schema_path.is_file():
             status_print(f"Loading schema from: {self.schema_path} for validation", min_level=3)
-            self.schema_document = self._load_json(self.schema_path)
-            self.project_setup = self._extract_project_setup(self.schema_document)
+            self.schema_document = self._load_json(self.schema_path)  # Loads raw content from schema_path
+            self.project_setup = self._extract_project_setup(self.schema_document)  # Extracts normalized 'folders', 'root_files', etc.
             self.validation_rules = {
                 item.get("rule"): bool(item.get("enabled", True))
                 for item in self.project_setup.get("validation_rules", [])
@@ -421,3 +429,28 @@ class ProjectSetupValidator:
                        tool_files, environment sections with status indicators.
         """
         return format_report(results)
+
+    def get_total_folders(self, results: Dict[str, Any]) -> int:
+        """
+        Return the total number of folders checked during validation.
+        
+        Args:
+            results: Validation results dictionary from validate().
+            
+        Returns:
+            Count of folder entries in results.
+        """
+        return len(results.get("folders", []))
+
+    def get_total_files(self, results: Dict[str, Any]) -> int:
+        """
+        Return the total number of files checked across all categories.
+        
+        Args:
+            results: Validation results dictionary from validate().
+            
+        Returns:
+            Sum of root, schema, workflow, and tool files checked.
+        """
+        file_keys = ["root_files", "schema_files", "workflow_files", "tool_files"]
+        return sum(len(results.get(key, [])) for key in file_keys)

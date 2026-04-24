@@ -92,12 +92,15 @@ def run_engine_pipeline(
     # Step 1: Initiation Engine - Project Setup Validation
     try:
         with log_context("pipeline", "step1_initiation"):
-            setup_validator = ProjectSetupValidator(base_path=base_path)
-            setup_results = setup_validator.validate()
+            setup_validator = ProjectSetupValidator(base_path=base_path)  # Initializes validator with project root
+            setup_results = setup_validator.validate()  # Executes full project structure validation. Returns dict with 'ready', 'folders', 'root_files', etc. status.
             if not setup_results.get("ready"):
                 system_error_print("S-C-S-0305", detail=format_setup_report(setup_results))
                 raise ValueError(format_setup_report(setup_results))
-            milestone_print("Setup validated", "7 folders, 11 files")
+            # milestone print to show how many folders and files are validated per schema, get counts from validator
+            total_folders = setup_validator.get_total_folders(setup_results)
+            total_files = setup_validator.get_total_files(setup_results)
+            milestone_print("Setup validated", f"{total_folders} folders, {total_files} files")
     except ValueError:
         raise
     except Exception as exc:
