@@ -1,0 +1,263 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/error-codes",
+  "title": "DCC Unified Error Codes Catalog",
+  "description": "Comprehensive error code registry for system and data/logic errors (v2.0)",
+  "type": "object",
+  "version": "2.0",
+  "last_updated": "2026-04-24",
+  "format_specification": {
+    "data_logic_format": "LL-M-F-XXXX (Layer-Module-Function-ID)",
+    "system_format": "S-C-S-XXXX (System-Category-System-ID)",
+    "total_codes": 37,
+    "system_codes": 20,
+    "data_logic_codes": 17
+  },
+  "system_error_reference": {
+    "location": "initiation_engine/error_handling/config/system_error_codes.json",
+    "description": "System-level pipeline execution errors. These cause an immediate hard stop at all verbose levels.",
+    "namespace": "S",
+    "format": "S-C-S-XXXX",
+    "count": 20,
+    "ranges": {
+      "S-E-S-01xx": "Environment errors (Python, packages, imports) - 4 codes",
+      "S-F-S-02xx": "File/IO errors (not found, unreadable, permissions) - 5 codes",
+      "S-C-S-03xx": "Configuration errors (schema, parameters, setup) - 5 codes",
+      "S-R-S-04xx": "Runtime errors (exceptions, memory, fail-fast) - 5 codes",
+      "S-A-S-05xx": "AI/Optional service errors (non-fatal) - 3 codes"
+    }
+  },
+  "categories": {
+    "data_logic": {
+      "description": "Data validation and logic sequence errors",
+      "format": "LL-M-F-XXXX",
+      "ranges": {
+        "P1-A-P-01xx": "Phase 1 - Anchor column processing",
+        "P2-I-V-02xx": "Phase 2 - Identity/Transaction validation",
+        "L3-L-V-03xx": "Layer 3 - Logic/Temporal validation",
+        "V5-I-V-05xx": "Validation - Schema validation errors",
+        "S1-I-F-08xx": "System Input - File handling",
+        "S1-I-V-05xx": "System Input - Validation"
+      }
+    }
+  },
+  "codes": {
+    "system_error_reference": {
+      "note": "System errors are defined in initiation_engine/error_handling/config/system_error_codes.json",
+      "namespace": "S",
+      "format": "S-C-S-XXXX",
+      "count": 20,
+      "categories": {
+        "S-E-S-01xx": "Environment errors - 4 codes (0101-0104)",
+        "S-F-S-02xx": "File/IO errors - 5 codes (0201-0205)",
+        "S-C-S-03xx": "Configuration errors - 5 codes (0301-0305)",
+        "S-R-S-04xx": "Runtime errors - 5 codes (0401-0406, excluding gaps)",
+        "S-A-S-05xx": "AI/Optional service errors - 3 codes (0501-0503)"
+      },
+      "all_codes": [
+        "S-E-S-0101", "S-E-S-0102", "S-E-S-0103", "S-E-S-0104",
+        "S-F-S-0201", "S-F-S-0202", "S-F-S-0203", "S-F-S-0204", "S-F-S-0205",
+        "S-C-S-0301", "S-C-S-0302", "S-C-S-0303", "S-C-S-0304", "S-C-S-0305",
+        "S-R-S-0401", "S-R-S-0402", "S-R-S-0403", "S-R-S-0404", "S-R-S-0405", "S-R-S-0406",
+        "S-A-S-0501", "S-A-S-0502", "S-A-S-0503"
+      ]
+    },
+    "data_logic_errors": {
+      "P1-A-P-0101": {
+        "name": "ANCHOR_COLUMN_NULL",
+        "message": "Anchor column is null or empty",
+        "severity": "CRITICAL",
+        "layer": "P1",
+        "module": "A",
+        "function": "P",
+        "column": "Project_Code, Facility_Code, Document_Type, Discipline",
+        "source": "processor_engine/error_handling/detectors/row_validator.py:154"
+      },
+      "P2-I-V-0204": {
+        "name": "DOCUMENT_ID_INVALID",
+        "message": "Document_ID has invalid format or composite mismatch",
+        "severity": "HIGH",
+        "layer": "P2",
+        "module": "I",
+        "function": "V",
+        "column": "Document_ID",
+        "source": "processor_engine/error_handling/detectors/row_validator.py:199,219"
+      },
+      "L3-L-P-0301": {
+        "name": "DATE_INVERSION",
+        "message": "Review_Return_Actual_Date is before Submission_Date",
+        "severity": "HIGH",
+        "layer": "L3",
+        "module": "L",
+        "function": "P",
+        "column": "Review_Return_Actual_Date, Submission_Date",
+        "source": "processor_engine/error_handling/detectors/row_validator.py:254"
+      },
+      "L3-L-V-0302": {
+        "name": "CLOSED_WITH_PLAN_DATE",
+        "message": "Submission_Closed=YES but Resubmission_Plan_Date is set",
+        "severity": "HIGH",
+        "layer": "L3",
+        "module": "L",
+        "function": "V",
+        "column": "Submission_Closed, Resubmission_Plan_Date",
+        "source": "processor_engine/error_handling/detectors/row_validator.py:289",
+        "migrated_from": "CLOSED_WITH_PLAN_DATE (string code)"
+      },
+      "L3-L-V-0303": {
+        "name": "RESUBMISSION_MISMATCH",
+        "message": "Review_Status contains REJ but Resubmission_Required is not YES/RESUBMITTED",
+        "severity": "MEDIUM",
+        "layer": "L3",
+        "module": "L",
+        "function": "V",
+        "column": "Review_Status, Resubmission_Required",
+        "source": "processor_engine/error_handling/detectors/row_validator.py:322",
+        "migrated_from": "RESUBMISSION_MISMATCH (string code)"
+      },
+      "L3-L-V-0304": {
+        "name": "OVERDUE_MISMATCH",
+        "message": "Resubmission_Plan_Date is past but Resubmission_Overdue_Status is not overdue/resubmitted",
+        "severity": "MEDIUM",
+        "layer": "L3",
+        "module": "L",
+        "function": "V",
+        "column": "Resubmission_Plan_Date, Resubmission_Overdue_Status",
+        "source": "processor_engine/error_handling/detectors/row_validator.py:369",
+        "migrated_from": "OVERDUE_MISMATCH (string code)"
+      },
+      "L3-L-V-0305": {
+        "name": "VERSION_REGRESSION",
+        "message": "Current revision appears older than previous revision for same Document_ID",
+        "severity": "HIGH",
+        "layer": "L3",
+        "module": "L",
+        "function": "V",
+        "column": "Document_Revision",
+        "source": "processor_engine/error_handling/detectors/row_validator.py:472",
+        "migrated_from": "VERSION_REGRESSION (string code)"
+      },
+      "L3-L-V-0306": {
+        "name": "REVISION_GAP",
+        "message": "Revision gap detected in Submission_Session sequence",
+        "severity": "MEDIUM",
+        "layer": "L3",
+        "module": "L",
+        "function": "V",
+        "column": "Submission_Session, Document_Revision",
+        "source": "processor_engine/error_handling/detectors/row_validator.py:531",
+        "migrated_from": "REVISION_GAP (string code)"
+      },
+      "L3-L-V-0307": {
+        "name": "CLOSED_WITH_RESUBMISSION",
+        "message": "Submission_Closed=YES but Resubmission_Required=YES (should be NO)",
+        "severity": "HIGH",
+        "layer": "L3",
+        "module": "L",
+        "function": "V",
+        "column": "Submission_Closed, Resubmission_Required",
+        "source": "Proposed - Issue #61 fix",
+        "workplan_reference": "row_validation_p2_logic.md Section 3.4",
+        "added_date": "2026-04-24",
+        "status": "NEW"
+      },
+      "S1-I-F-0804": {
+        "name": "FILE_NOT_FOUND",
+        "message": "Input file not found",
+        "severity": "CRITICAL",
+        "layer": "S1",
+        "module": "I",
+        "function": "F",
+        "source": "processor_engine/error_handling/detectors/input.py:109"
+      },
+      "S1-I-F-0805": {
+        "name": "FILE_FORMAT_INVALID",
+        "message": "Unsupported file format or file too large",
+        "severity": "CRITICAL",
+        "layer": "S1",
+        "module": "I",
+        "function": "F",
+        "source": "processor_engine/error_handling/detectors/input.py:125,145"
+      },
+      "S1-I-V-0501": {
+        "name": "ENCODING_ERROR",
+        "message": "File encoding error (expected UTF-8)",
+        "severity": "HIGH",
+        "layer": "S1",
+        "module": "I",
+        "function": "V",
+        "source": "processor_engine/error_handling/detectors/input.py:167"
+      },
+      "S1-I-V-0502": {
+        "name": "MISSING_REQUIRED_COLUMNS",
+        "message": "Required columns are missing from input",
+        "severity": "CRITICAL",
+        "layer": "S1",
+        "module": "I",
+        "function": "V",
+        "source": "processor_engine/error_handling/detectors/input.py:195,212,245"
+      },
+      "V5-I-V-0501": {
+        "name": "PATTERN_MISMATCH",
+        "message": "Field value does not match expected pattern",
+        "severity": "HIGH",
+        "layer": "V5",
+        "module": "I",
+        "function": "V",
+        "source": "processor_engine/error_handling/detectors/schema.py:114,141,358"
+      },
+      "V5-I-V-0502": {
+        "name": "LENGTH_VIOLATION",
+        "message": "Field value length violates min/max constraints",
+        "severity": "HIGH",
+        "layer": "V5",
+        "module": "I",
+        "function": "V",
+        "source": "processor_engine/error_handling/detectors/schema.py:191,209"
+      },
+      "V5-I-V-0503": {
+        "name": "INVALID_ENUM_VALUE",
+        "message": "Field value is not in allowed values list",
+        "severity": "HIGH",
+        "layer": "V5",
+        "module": "I",
+        "function": "V",
+        "source": "processor_engine/error_handling/detectors/schema.py:260"
+      },
+      "V5-I-V-0504": {
+        "name": "TYPE_MISMATCH",
+        "message": "Field value type does not match expected type",
+        "severity": "HIGH",
+        "layer": "V5",
+        "module": "I",
+        "function": "V",
+        "source": "processor_engine/error_handling/detectors/schema.py:301"
+      }
+    }
+  },
+  "migration_log": {
+    "date": "2026-04-24",
+    "description": "Phase 1 - Unified error code standardization",
+    "changes": [
+      "Migrated CLOSED_WITH_PLAN_DATE → L3-L-V-0302",
+      "Migrated RESUBMISSION_MISMATCH → L3-L-V-0303",
+      "Migrated OVERDUE_MISMATCH → L3-L-V-0304",
+      "Migrated VERSION_REGRESSION → L3-L-V-0305",
+      "Migrated REVISION_GAP → L3-L-V-0306",
+      "Added new CLOSED_WITH_RESUBMISSION → L3-L-V-0307",
+      "Added reference to 20 system error codes in initiation_engine/error_handling/config/system_error_codes.json",
+      "Updated anatomy_schema.json to LL-M-F-XXXX format",
+      "Removed duplicate system error definitions - now referenced from canonical source"
+    ],
+    "pending_phase_2": [
+      "Update row_validator.py to use new codes",
+      "Update messages/en.json with new code keys",
+      "Update workplan documentation"
+    ],
+    "references": {
+      "system_errors": "initiation_engine/error_handling/config/system_error_codes.json",
+      "data_logic_errors": "processor_engine/error_handling/config/error_codes.json (this file)",
+      "schema": "processor_engine/error_handling/config/anatomy_schema.json"
+    }
+  }
+}

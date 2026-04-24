@@ -1,0 +1,284 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/error-code/system-config",
+  "title": "System Error Configuration",
+  "description": "Actual system error code values (S-C-S-XXXX format)",
+  "version": "1.0.0",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://dcc-pipeline.internal/schemas/error-code/setup" }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-04-24",
+    "total_codes": 20,
+    "system_codes": 20,
+    "data_logic_codes": 0,
+    "system_format": "S-C-S-XXXX",
+    "data_logic_format": "LL-M-F-XXXX"
+  },
+  "system_error_ranges": {
+    "environment": {
+      "prefix": "S-E-S-01xx",
+      "description": "Environment errors (Python, packages, imports)",
+      "count": 4,
+      "start_id": "S-E-S-0101",
+      "end_id": "S-E-S-0104"
+    },
+    "file_io": {
+      "prefix": "S-F-S-02xx",
+      "description": "File/IO errors (not found, unreadable, permissions)",
+      "count": 5,
+      "start_id": "S-F-S-0201",
+      "end_id": "S-F-S-0205"
+    },
+    "config": {
+      "prefix": "S-C-S-03xx",
+      "description": "Configuration errors (schema, parameters, setup)",
+      "count": 5,
+      "start_id": "S-C-S-0301",
+      "end_id": "S-C-S-0305"
+    },
+    "runtime": {
+      "prefix": "S-R-S-04xx",
+      "description": "Runtime errors (exceptions, memory, fail-fast)",
+      "count": 6,
+      "start_id": "S-R-S-0401",
+      "end_id": "S-R-S-0406"
+    },
+    "ai": {
+      "prefix": "S-A-S-05xx",
+      "description": "AI/Optional service errors (non-fatal)",
+      "count": 3,
+      "start_id": "S-A-S-0501",
+      "end_id": "S-A-S-0503"
+    }
+  },
+  "system_errors": {
+    "S-E-S-0101": {
+      "code": "S-E-S-0101",
+      "name": "MISSING_PACKAGE",
+      "message": "Required Python package is not installed",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0102": {
+      "code": "S-E-S-0102",
+      "name": "WRONG_PYTHON_VERSION",
+      "message": "Python version does not meet requirements",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0103": {
+      "code": "S-E-S-0103",
+      "name": "ENV_TEST_FAILED",
+      "message": "Environment validation test failed",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0104": {
+      "code": "S-E-S-0104",
+      "name": "IMPORT_ERROR",
+      "message": "Failed to import required module",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0201": {
+      "code": "S-F-S-0201",
+      "name": "INPUT_FILE_NOT_FOUND",
+      "message": "Input file not found at specified path",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0202": {
+      "code": "S-F-S-0202",
+      "name": "INPUT_FILE_UNREADABLE",
+      "message": "Input file exists but cannot be read",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0203": {
+      "code": "S-F-S-0203",
+      "name": "OUTPUT_DIR_NOT_WRITABLE",
+      "message": "Output directory is not writable",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0204": {
+      "code": "S-F-S-0204",
+      "name": "SCHEMA_FILE_NOT_FOUND",
+      "message": "Schema configuration file not found",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0205": {
+      "code": "S-F-S-0205",
+      "name": "CONFIG_FILE_NOT_FOUND",
+      "message": "Configuration file not found",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0301": {
+      "code": "S-C-S-0301",
+      "name": "INVALID_PARAMETER",
+      "message": "Invalid parameter provided to pipeline",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0302": {
+      "code": "S-C-S-0302",
+      "name": "SCHEMA_PARSE_ERROR",
+      "message": "Failed to parse schema JSON",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0303": {
+      "code": "S-C-S-0303",
+      "name": "SCHEMA_VALIDATION_FAILED",
+      "message": "Schema validation failed against schema definition",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0304": {
+      "code": "S-C-S-0304",
+      "name": "MISSING_REQUIRED_CONFIG",
+      "message": "Required configuration is missing",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0305": {
+      "code": "S-C-S-0305",
+      "name": "PROJECT_SETUP_FAILED",
+      "message": "Project setup validation failed",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-R-S-0401": {
+      "code": "S-R-S-0401",
+      "name": "STEP_EXCEPTION_INIT",
+      "message": "Exception during initiation step",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 1 (Initiation):"
+    },
+    "S-R-S-0402": {
+      "code": "S-R-S-0402",
+      "name": "FAIL_FAST_TRIGGERED",
+      "message": "Fail-fast condition triggered - stopping pipeline",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-R-S-0403": {
+      "code": "S-R-S-0403",
+      "name": "MEMORY_ERROR",
+      "message": "Memory allocation failed",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-R-S-0404": {
+      "code": "S-R-S-0404",
+      "name": "STEP_EXCEPTION_SCHEMA",
+      "message": "Exception during schema validation step",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 2 (Schema):"
+    },
+    "S-R-S-0405": {
+      "code": "S-R-S-0405",
+      "name": "STEP_EXCEPTION_MAPPING",
+      "message": "Exception during column mapping step",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 3 (Mapping):"
+    },
+    "S-R-S-0406": {
+      "code": "S-R-S-0406",
+      "name": "STEP_EXCEPTION_PROC",
+      "message": "Exception during processing step",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 4 (Processing):"
+    },
+    "S-A-S-0501": {
+      "code": "S-A-S-0501",
+      "name": "AI_OPS_FAILED",
+      "message": "AI operations failed to complete",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-A-S-0502": {
+      "code": "S-A-S-0502",
+      "name": "DUCKDB_UNAVAILABLE",
+      "message": "DuckDB is not available for AI operations",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-A-S-0503": {
+      "code": "S-A-S-0503",
+      "name": "OLLAMA_UNAVAILABLE",
+      "message": "Ollama service is not available",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    }
+  },
+  "migration_log": {
+    "date": "2026-04-24",
+    "description": "Initial system error code configuration following S-C-S-XXXX format",
+    "changes": [
+      "Migrated from initiation_engine/error_handling/config/system_error_codes.json",
+      "Implemented proper separation per agent_rule.md Section 2.3",
+      "Base: error_code_base.json, Properties: error_code_setup.json, Values: this file"
+    ],
+    "references": {
+      "base": "error_code_base.json",
+      "setup": "error_code_setup.json",
+      "original": "initiation_engine/error_handling/config/system_error_codes.json"
+    }
+  }
+}

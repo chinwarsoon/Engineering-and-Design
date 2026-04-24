@@ -2,23 +2,28 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dcc-pipeline.internal/schemas/error-code-anatomy",
   "title": "Error Code Anatomy Schema",
-  "description": "JSON Schema for validating E-M-F-XXXX error code format (Engine-Module-Function-UniqueID)",
-  "version": "1.0",
+  "description": "JSON Schema for validating LL-M-F-XXXX error code format (Layer-Module-Function-UniqueID)",
+  "version": "1.1",
   "definitions": {
+    "layer_code": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]{2}$",
+      "description": "2-character layer/phase code (P1, P2, L3, S1, V5, S-E, S-F, S-C, S-R, S-A)"
+    },
     "engine_code": {
       "type": "string",
-      "enum": ["P", "M", "I", "S", "R", "H", "V"],
-      "description": "Single letter code representing the processing engine"
+      "enum": ["P", "M", "I", "S", "R", "H", "V", "P1", "P2", "L3", "S1", "V5"],
+      "description": "Engine code - single letter or 2-char layer code"
     },
     "module_code": {
       "type": "string",
-      "enum": ["C", "V", "A", "D", "S", "F", "L", "G", "E", "P"],
+      "enum": ["C", "V", "A", "D", "S", "F", "L", "G", "E", "P", "I"],
       "description": "Single letter code representing the module within the engine"
     },
     "function_code": {
       "type": "string",
-      "enum": ["P", "V", "C", "F"],
-      "description": "Single letter code representing the function type"
+      "enum": ["P", "V", "C", "F", "S"],
+      "description": "Single letter code representing the function type (S=System)"
     },
     "unique_id": {
       "type": "string",
@@ -27,8 +32,13 @@
     },
     "error_code_format": {
       "type": "string",
-      "pattern": "^[A-Z]-[A-Z]-[A-Z]-[0-9]{4}$",
-      "description": "Complete error code in E-M-F-XXXX format"
+      "pattern": "^[A-Z0-9]{2}-[A-Z]-[A-Z]-[0-9]{4}$",
+      "description": "Complete error code in LL-M-F-XXXX format (Layer-Module-Function-ID)"
+    },
+    "system_error_code_format": {
+      "type": "string",
+      "pattern": "^S-[A-Z]-S-[0-9]{4}$",
+      "description": "System error code in S-C-S-XXXX format (System-Category-System-ID)"
     }
   },
   "type": "object",
@@ -128,23 +138,40 @@
   },
   "examples": [
     {
-      "error_code": "P-C-P-0101",
+      "error_code": "P1-A-P-0101",
       "components": {
-        "engine": { "code": "P", "name": "Processor", "description": "Main processing engine" },
-        "module": { "code": "C", "name": "Core", "description": "Core processing module" },
+        "layer": { "code": "P1", "name": "Phase 1", "description": "Input/Anchor processing phase" },
+        "module": { "code": "A", "name": "Anchor", "description": "Anchor column validation" },
         "function": { "code": "P", "name": "Process", "description": "Main processing function" },
         "unique_id": { "number": 101, "padded": "0101", "family_code": "0" }
       },
-      "layer": "L3",
+      "layer": "L1",
       "severity": "CRITICAL",
       "taxonomy": {
-        "engine": "Processor",
-        "engine_code": "P",
-        "module": "Core",
-        "module_code": "C",
+        "layer": "Phase 1",
+        "layer_code": "P1",
+        "module": "Anchor",
+        "module_code": "A",
         "function": "Process",
         "function_code": "P",
         "family": "Anchor",
+        "family_code": "1"
+      }
+    },
+    {
+      "error_code": "S-E-S-0101",
+      "components": {
+        "category": { "code": "E", "name": "Environment", "description": "System environment error" },
+        "system": { "code": "S", "name": "System", "description": "System-level error" },
+        "unique_id": { "number": 101, "padded": "0101", "family_code": "0" }
+      },
+      "severity": "FATAL",
+      "taxonomy": {
+        "category": "Environment",
+        "category_code": "E",
+        "system": "System",
+        "system_code": "S",
+        "family": "Environment",
         "family_code": "1"
       }
     }

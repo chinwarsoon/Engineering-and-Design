@@ -9,16 +9,17 @@ Phases:
   Phase 2 - Temporal & Logical Sequence (date inversion, closure logic, status inter-dep)
   Phase 3 - Relational Invariants & Aggregation (group consistency, revision progression)
 
-Error Codes (from dcc_register_rule.md Section 5):
+Error Codes (Standardized per error_code_standardization_proposal.md):
   P1-A-P-0101  : Null anchor column
   P2-I-V-0204  : Document_ID composite mismatch
   L3-L-P-0301  : Date inversion (Submission_Date > Review_Return_Actual_Date)
-  CLOSED_WITH_PLAN_DATE : Resubmission_Plan_Date not null when Submission_Closed=YES
-  RESUBMISSION_MISMATCH : REJ status without Resubmission_Required=YES/RESUBMITTED
-  OVERDUE_MISMATCH      : Overdue status mismatch
+  L3-L-V-0302  : CLOSED_WITH_PLAN_DATE - Resubmission_Plan_Date not null when Submission_Closed=YES
+  L3-L-V-0303  : RESUBMISSION_MISMATCH - REJ status without Resubmission_Required=YES/RESUBMITTED
+  L3-L-V-0304  : OVERDUE_MISMATCH - Overdue status mismatch
+  L3-L-V-0305  : VERSION_REGRESSION - Document_Revision decreases per Document_ID
+  L3-L-V-0306  : REVISION_GAP - Submission_Session_Revision not sequential
+  L3-L-V-0307  : CLOSED_WITH_RESUBMISSION - Submission_Closed=YES but Resubmission_Required=YES
   GROUP_INCONSISTENT    : Submission_Date inconsistent within Submission_Session
-  VERSION_REGRESSION    : Document_Revision decreases per Document_ID
-  REVISION_GAP          : Submission_Session_Revision not sequential
   INCONSISTENT_SUBJECT  : Submission_Session_Subject inconsistent within session
 """
 
@@ -33,16 +34,18 @@ from .base import BaseDetector, DetectionResult
 logger = logging.getLogger(__name__)
 
 # Health score weights per dcc_register_rule.md Section 5.4
+# Updated to use standardized error codes (Phase 2 - 2026-04-24)
 ROW_ERROR_WEIGHTS: Dict[str, int] = {
     "ANCHOR_NULL":            25,
     "COMPOSITE_MISMATCH":     20,
     "GROUP_INCONSISTENT":     15,
-    "VERSION_REGRESSION":     15,
+    "L3-L-V-0305":            15,  # VERSION_REGRESSION
     "INCONSISTENT_CLOSURE":   10,
-    "CLOSED_WITH_PLAN_DATE":  10,
+    "L3-L-V-0302":            10,  # CLOSED_WITH_PLAN_DATE
+    "L3-L-V-0307":            10,  # CLOSED_WITH_RESUBMISSION
     "INCONSISTENT_SUBJECT":    5,
-    "OVERDUE_MISMATCH":        5,
-    "REVISION_GAP":            5,
+    "L3-L-V-0304":             5,  # OVERDUE_MISMATCH
+    "L3-L-V-0306":             5,  # REVISION_GAP
 }
 
 # Anchor columns that must not be null (Section 4.1)
@@ -286,7 +289,7 @@ class RowValidator(BaseDetector):
 
         for idx in df.index[closed_mask & has_plan_mask]:
             self.detect_error(
-                error_code="CLOSED_WITH_PLAN_DATE",
+                error_code="L3-L-V-0302",
                 message=(
                     f"Submission_Closed=YES but Resubmission_Plan_Date is set "
                     f"('{df.at[idx, plan_col]}') at row {idx}"
@@ -319,7 +322,7 @@ class RowValidator(BaseDetector):
 
         for idx in df.index[rej_mask & bad_resub_mask]:
             self.detect_error(
-                error_code="RESUBMISSION_MISMATCH",
+                error_code="L3-L-V-0303",
                 message=(
                     f"Review_Status='{df.at[idx, status_col]}' (REJ) but "
                     f"Resubmission_Required='{df.at[idx, resub_col]}' at row {idx}"
@@ -366,7 +369,7 @@ class RowValidator(BaseDetector):
                 actual_status = str(raw_status).strip()
                 if actual_status.lower() not in ("overdue", "resubmitted"):
                     self.detect_error(
-                        error_code="OVERDUE_MISMATCH",
+                        error_code="L3-L-V-0304",
                         message=(
                             f"Resubmission_Plan_Date ({plan_dt.date()}) is past but "
                             f"Resubmission_Overdue_Status='{actual_status}' at row {idx}"
@@ -469,7 +472,7 @@ class RowValidator(BaseDetector):
                     try:
                         if _parse_revision(curr_rev_str) < _parse_revision(prev_rev_str):
                             self.detect_error(
-                                error_code="VERSION_REGRESSION",
+                                error_code="L3-L-V-0305",
                                 message=(
                                     f"Revision regression for Document_ID '{doc_id}': "
                                     f"'{prev_rev_str}' → '{curr_rev_str}' at row {idx}"
@@ -528,7 +531,7 @@ class RowValidator(BaseDetector):
                     # Flag first row of this session as representative
                     first_idx = group.index[0]
                     self.detect_error(
-                        error_code="REVISION_GAP",
+                        error_code="L3-L-V-0306",
                         message=(
                             f"Revision gap in Submission_Session '{session_id}': "
                             f"{numeric_revs[i-1]} → {numeric_revs[i]}"

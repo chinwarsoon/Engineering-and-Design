@@ -8,6 +8,199 @@
 
 # Section 2. Log entries
 
+<a id="error-code-standardization-phase1"></a>
+## 2026-04-24
+
+### COMPLETED: Error Code Standardization — Phase 1 (Schema & Catalog)
+**Status:** COMPLETE — Awaiting Phase 2 Approval
+**Related Issue:** [#62](../../log/issue_log.md#issue-62)
+
+**Problem:** Error codes across the DCC pipeline used 4 competing formats:
+1. Legacy VAL-001 / SYS-001 stubs (2 entries in wrong format)
+2. String-based codes (CLOSED_WITH_PLAN_DATE, RESUBMISSION_MISMATCH) - 5 codes
+3. Partial E-M-F-XXXX format with 2-char layer codes - 11 codes
+4. System S-C-S-XXXX format - 20 codes (already correct)
+
+Total: 37 codes with no unified catalog or schema validation.
+
+**Solution (Phase 1):**
+
+| Component | Before | After |
+|-----------|--------|-------|
+| Schema architecture | 2 files mixed definitions/data | 4 files: base + setup + system_config + data_config (per agent_rule.md 2.3) |
+| Definitions | Inline in error_codes.json | Reusable definitions in `error_code_base.json` |
+| Properties | Mixed in error_codes.json | Clean properties in `error_code_setup.json` |
+| System errors | Duplicated in error_codes.json | Separated to `system_error_config.json` |
+| Data/logic errors | 2 stubs in error_codes.json | Full catalog in `data_error_config.json` |
+
+**New Architecture (agent_rule.md Section 2.3 compliant):**
+
+```
+config/schemas/
+├── error_code_base.json      → Definitions (8 reusable objects)
+├── error_code_setup.json     → Properties (schema structure)
+├── system_error_config.json  → 20 system error values (S-C-S-XXXX)
+└── data_error_config.json    → 17 data/logic error values (LL-M-F-XXXX)
+```
+
+**Inheritance Chain:**
+```
+error_code_base.json ($ref definitions)
+    ↓
+error_code_setup.json (allOf + properties)
+    ↓
+system_error_config.json / data_error_config.json (actual values)
+```
+
+**Code Migrations:**
+| Old Code | New Code | Severity | Column(s) |
+|----------|----------|----------|-----------|
+| `CLOSED_WITH_PLAN_DATE` | `L3-L-V-0302` | HIGH | Submission_Closed, Resubmission_Plan_Date |
+| `RESUBMISSION_MISMATCH` | `L3-L-V-0303` | MEDIUM | Review_Status, Resubmission_Required |
+| `OVERDUE_MISMATCH` | `L3-L-V-0304` | MEDIUM | Resubmission_Plan_Date, Resubmission_Overdue_Status |
+| `VERSION_REGRESSION` | `L3-L-V-0305` | HIGH | Document_Revision |
+| `REVISION_GAP` | `L3-L-V-0306` | MEDIUM | Submission_Session, Document_Revision |
+| *(NEW)* | `L3-L-V-0307` | HIGH | Submission_Closed, Resubmission_Required |
+
+**Files Changed:**
+- `config/schemas/error_code_base.json` - NEW: 8 reusable definitions
+- `config/schemas/error_code_setup.json` - NEW: properties structure with allOf inheritance
+- `config/schemas/system_error_config.json` - NEW: 20 system error codes (S-C-S-XXXX)
+- `config/schemas/data_error_config.json` - NEW: 17 data/logic error codes (LL-M-F-XXXX)
+- `processor_engine/error_handling/config/anatomy_schema.json` - updated to v1.1
+
+**Impact:**
+- All 37 error codes now have consistent LL-M-F-XXXX or S-C-S-XXXX format
+- Schema architecture now follows agent_rule.md Section 2.3 (base → setup → config)
+- Clear separation: definitions, properties, and actual values in separate files
+- Reusable definitions in base schema prevent duplication
+- `additionalProperties: false` ensures strict validation
+- Foundation laid for Phase 2 (code migration in detectors)
+
+**Error Code Architecture (Revised per agent_rule.md):**
+```
+config/schemas/
+├── error_code_base.json          → 8 reusable definitions
+├── error_code_setup.json         → Properties structure (allOf from base)
+├── system_error_config.json      → 20 system error values (S-C-S-XXXX)
+└── data_error_config.json        → 17 data/logic error values (LL-M-F-XXXX)
+```
+
+**Inheritance Chain:**
+```
+error_code_base.json (definitions)
+    ↓ $ref
+error_code_setup.json (properties)
+    ↓ allOf
+system_error_config.json / data_error_config.json (actual values)
+```
+
+**Phase 2 - COMPLETED:**
+- ✅ Updated row_validator.py with 5 standardized codes
+- ✅ Added error_codes section to messages/en.json (17 codes)
+- ✅ Added error_codes section to messages/zh.json (17 codes, Chinese)
+- ✅ Updated workplan documentation
+- ✅ Archived old error_codes.json and system_error_codes.json to dcc/archive/
+
+**Phase 2 Files Changed:**
+- `processor_engine/error_handling/detectors/row_validator.py` - 5 string codes → standardized codes
+- `processor_engine/error_handling/config/messages/en.json` - Added error_codes section
+- `processor_engine/error_handling/config/messages/zh.json` - Added error_codes section (Chinese)
+
+**Phase 2 Files Archived:**
+- `processor_engine/error_handling/config/error_codes.json` → `archive/workflow/processor_engine/error_handling/config/`
+- `initiation_engine/error_handling/config/system_error_codes.json` → `archive/workflow/initiation_engine/error_handling/config/`
+
+**Migration Summary:**
+| Old String Code | New Standard Code |
+|-----------------|-------------------|
+| CLOSED_WITH_PLAN_DATE | L3-L-V-0302 |
+| RESUBMISSION_MISMATCH | L3-L-V-0303 |
+| OVERDUE_MISMATCH | L3-L-V-0304 |
+| VERSION_REGRESSION | L3-L-V-0305 |
+| REVISION_GAP | L3-L-V-0306 |
+
+---
+
+<a id="error-code-standardization-phase2"></a>
+## 2026-04-24
+
+### COMPLETED: Error Code Standardization — Phase 2 (Code Migration)
+**Status:** COMPLETE  
+**Related Issue:** [#62](../../log/issue_log.md#issue-62)
+
+**Summary:** Phase 2 completed the migration of string-based error codes to standardized LL-M-F-XXXX format codes.
+
+**Changes Made:**
+- Migrated 5 string codes to standardized format in row_validator.py
+- Added error_codes sections to en.json and zh.json message files
+- All 17 data/logic error codes now have message mappings
+
+**Files Changed:**
+- `processor_engine/error_handling/detectors/row_validator.py`
+- `processor_engine/error_handling/config/messages/en.json`
+- `processor_engine/error_handling/config/messages/zh.json`
+
+---
+
+<a id="error-code-standardization-phase3"></a>
+## 2026-04-24
+
+### COMPLETED: Error Code Standardization — Phase 3 (Testing & Validation)
+**Status:** COMPLETE  
+**Related Issue:** [#62](../../log/issue_log.md#issue-62)
+
+**Summary:** Phase 3 completed comprehensive testing of the error code standardization implementation.
+
+**Test Results:**
+
+| Test Category | Tests Run | Passed | Failed |
+|---------------|-----------|--------|--------|
+| Schema Validation | 4 | 4 | 0 |
+| Format Validation | 5 | 5 | 0 |
+| Migration Verification | 5 | 5 | 0 |
+| Message Resolution | 4 | 4 | 0 |
+| Code Integration | 5 | 5 | 0 |
+| Health Score Weights | 5 | 5 | 0 |
+| **TOTAL** | **28** | **28** | **0** |
+
+**Key Findings:**
+- All 4 schema files validate correctly
+- All 5 string codes successfully migrated to standardized format
+- 17 error code messages present in both English and Chinese
+- All standardized codes (L3-L-V-0302 through 0307) found in row_validator.py
+- Health score weights updated with new standardized codes
+- No old string codes remain as primary error_code values
+
+**Test Artifacts:**
+- Test workplan: `workplan/error_handling/error_code_standardization_phase3_testing.md`
+- Test report: `workplan/error_handling/report/phase3_testing_report.md`
+
+---
+
+<a id="issue-61-resubmission-strategy"></a>
+## 2026-04-24
+
+### RESOLVED: Issue #61 — Resubmission_Required=YES when Submission_Closed=YES
+
+### RESOLVED: Issue #61 — Resubmission_Required=YES when Submission_Closed=YES
+**Status:** COMPLETE
+
+**Problem:** Output file `processed_dcc_universal.xlsx` contained 816 rows where `Submission_Closed=YES` and `Resubmission_Required=YES`. Business rule: if submission is closed, resubmission should not be required.
+
+**Root Cause:** In `processor_engine/calculations/conditional.py`, `apply_update_resubmission_required()` has condition 2 to set `Resubmission_Required=NO` when `Submission_Closed=YES`. However, the function respects preservation mode. The schema for `Resubmission_Required` had no explicit `strategy` configuration, so it defaulted to `preserve_existing` mode. This meant rows with existing source values were skipped, and the closed-submission override never applied to them.
+
+**Fix Applied:**
+Added explicit `strategy: {data_preservation: {mode: overwrite_existing}}` to `Resubmission_Required` in `config/schemas/dcc_register_config.json`. The conditional logic now runs on all rows and correctly overrides to NO when closed.
+
+**Files Changed:**
+- `config/schemas/dcc_register_config.json` — added strategy configuration to Resubmission_Required column
+
+**Impact:**
+- 816 rows with `Submission_Closed=YES` will now correctly have `Resubmission_Required=NO` after pipeline re-run
+
+---
+
 <a id="issue-58-kv-detail-fix"></a>
 ## 2026-05-01
 

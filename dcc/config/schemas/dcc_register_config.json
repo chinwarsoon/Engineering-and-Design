@@ -1800,6 +1800,11 @@
       "is_calculated": true,
       "create_if_missing": true,
       "column_type": "status_column",
+      "strategy": {
+        "data_preservation": {
+          "mode": "overwrite_existing"
+        }
+      },
       "calculation": {
         "type": "conditional",
         "method": "update_resubmission_required",

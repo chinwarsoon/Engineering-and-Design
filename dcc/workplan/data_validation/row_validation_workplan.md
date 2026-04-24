@@ -53,9 +53,11 @@ This phase ensures the document workflow follows a logical chronological and sta
 - **Functions to Review/Update:**
   - `validate_date_sequence`: Check for "Date Inversion" (e.g., Review Date < Submission Date).
   - `validate_status_closure`: Verify `Submission_Closed` logic against `Approval_Code`.
+  - `validate_closed_resubmission`: Verify `Resubmission_Required=NO` when `Submission_Closed=YES`.
 - **Validation Rules:**
   - **Temporal Logic:** `Submission_Date <= Review_Return_Actual_Date`.
   - **Conditional Closure:** `Resubmission_Plan_Date` MUST be NULL if `Submission_Closed=YES`.
+  - **Closed Resubmission:** `Resubmission_Required` MUST be NO if `Submission_Closed=YES`.
   - **Status Inter-dependency:** `Review_Status` containing "REJ" must trigger `Resubmission_Required=YES`.
 
 ### 2.2 Target Achievement & Success Factors

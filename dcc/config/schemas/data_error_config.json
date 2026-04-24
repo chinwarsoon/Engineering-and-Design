@@ -1,0 +1,293 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/error-code/data-config",
+  "title": "Data/Logic Error Configuration",
+  "description": "Actual data/logic error code values (LL-M-F-XXXX format)",
+  "version": "1.0.0",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://dcc-pipeline.internal/schemas/error-code/setup" }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-04-24",
+    "total_codes": 17,
+    "system_codes": 0,
+    "data_logic_codes": 17,
+    "system_format": "S-C-S-XXXX",
+    "data_logic_format": "LL-M-F-XXXX"
+  },
+  "data_error_ranges": {
+    "phase_1_anchor": {
+      "prefix": "P1-A-P-01xx",
+      "description": "Phase 1 - Anchor column processing",
+      "count": 1,
+      "start_id": "P1-A-P-0101",
+      "end_id": "P1-A-P-0101"
+    },
+    "phase_2_identity": {
+      "prefix": "P2-I-V-02xx",
+      "description": "Phase 2 - Identity/Transaction validation",
+      "count": 1,
+      "start_id": "P2-I-V-0204",
+      "end_id": "P2-I-V-0204"
+    },
+    "layer_3_logic": {
+      "prefix": "L3-L-V-03xx",
+      "description": "Layer 3 - Logic/Temporal validation",
+      "count": 7,
+      "start_id": "L3-L-P-0301",
+      "end_id": "L3-L-V-0307"
+    },
+    "validation_schema": {
+      "prefix": "V5-I-V-05xx",
+      "description": "Validation - Schema validation errors",
+      "count": 4,
+      "start_id": "V5-I-V-0501",
+      "end_id": "V5-I-V-0504"
+    },
+    "system_input_file": {
+      "prefix": "S1-I-F-08xx",
+      "description": "System Input - File handling",
+      "count": 2,
+      "start_id": "S1-I-F-0804",
+      "end_id": "S1-I-F-0805"
+    },
+    "system_input_validation": {
+      "prefix": "S1-I-V-05xx",
+      "description": "System Input - Validation",
+      "count": 2,
+      "start_id": "S1-I-V-0501",
+      "end_id": "S1-I-V-0502"
+    }
+  },
+  "data_logic_errors": {
+    "P1-A-P-0101": {
+      "code": "P1-A-P-0101",
+      "name": "ANCHOR_COLUMN_NULL",
+      "message": "Anchor column is null or empty",
+      "severity": "CRITICAL",
+      "layer": "P1",
+      "module": "A",
+      "function": "P",
+      "column": "Project_Code, Facility_Code, Document_Type, Discipline",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:154",
+      "health_score_impact": -20
+    },
+    "P2-I-V-0204": {
+      "code": "P2-I-V-0204",
+      "name": "DOCUMENT_ID_INVALID",
+      "message": "Document_ID has invalid format or composite mismatch",
+      "severity": "HIGH",
+      "layer": "P2",
+      "module": "I",
+      "function": "V",
+      "column": "Document_ID",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:199,219",
+      "health_score_impact": -15
+    },
+    "L3-L-P-0301": {
+      "code": "L3-L-P-0301",
+      "name": "DATE_INVERSION",
+      "message": "Review_Return_Actual_Date is before Submission_Date",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "L",
+      "function": "P",
+      "column": "Review_Return_Actual_Date, Submission_Date",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:254",
+      "health_score_impact": -15
+    },
+    "L3-L-V-0302": {
+      "code": "L3-L-V-0302",
+      "name": "CLOSED_WITH_PLAN_DATE",
+      "message": "Submission_Closed=YES but Resubmission_Plan_Date is set",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "L",
+      "function": "V",
+      "column": "Submission_Closed, Resubmission_Plan_Date",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:289",
+      "migrated_from": "CLOSED_WITH_PLAN_DATE (string code)",
+      "health_score_impact": -15
+    },
+    "L3-L-V-0303": {
+      "code": "L3-L-V-0303",
+      "name": "RESUBMISSION_MISMATCH",
+      "message": "Review_Status contains REJ but Resubmission_Required is not YES/RESUBMITTED",
+      "severity": "MEDIUM",
+      "layer": "L3",
+      "module": "L",
+      "function": "V",
+      "column": "Review_Status, Resubmission_Required",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:322",
+      "migrated_from": "RESUBMISSION_MISMATCH (string code)",
+      "health_score_impact": -10
+    },
+    "L3-L-V-0304": {
+      "code": "L3-L-V-0304",
+      "name": "OVERDUE_MISMATCH",
+      "message": "Resubmission_Plan_Date is past but Resubmission_Overdue_Status is not overdue/resubmitted",
+      "severity": "MEDIUM",
+      "layer": "L3",
+      "module": "L",
+      "function": "V",
+      "column": "Resubmission_Plan_Date, Resubmission_Overdue_Status",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:369",
+      "migrated_from": "OVERDUE_MISMATCH (string code)",
+      "health_score_impact": -10
+    },
+    "L3-L-V-0305": {
+      "code": "L3-L-V-0305",
+      "name": "VERSION_REGRESSION",
+      "message": "Current revision appears older than previous revision for same Document_ID",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "L",
+      "function": "V",
+      "column": "Document_Revision",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:472",
+      "migrated_from": "VERSION_REGRESSION (string code)",
+      "health_score_impact": -15
+    },
+    "L3-L-V-0306": {
+      "code": "L3-L-V-0306",
+      "name": "REVISION_GAP",
+      "message": "Revision gap detected in Submission_Session sequence",
+      "severity": "MEDIUM",
+      "layer": "L3",
+      "module": "L",
+      "function": "V",
+      "column": "Submission_Session, Document_Revision",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:531",
+      "migrated_from": "REVISION_GAP (string code)",
+      "health_score_impact": -10
+    },
+    "L3-L-V-0307": {
+      "code": "L3-L-V-0307",
+      "name": "CLOSED_WITH_RESUBMISSION",
+      "message": "Submission_Closed=YES but Resubmission_Required=YES (should be NO)",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "L",
+      "function": "V",
+      "column": "Submission_Closed, Resubmission_Required",
+      "source": "Proposed - Issue #61 fix",
+      "workplan_reference": "row_validation_p2_logic.md Section 3.4",
+      "health_score_impact": -15
+    },
+    "S1-I-F-0804": {
+      "code": "S1-I-F-0804",
+      "name": "FILE_NOT_FOUND",
+      "message": "Input file not found",
+      "severity": "CRITICAL",
+      "layer": "S1",
+      "module": "I",
+      "function": "F",
+      "source": "processor_engine/error_handling/detectors/input.py:109",
+      "health_score_impact": -20
+    },
+    "S1-I-F-0805": {
+      "code": "S1-I-F-0805",
+      "name": "FILE_FORMAT_INVALID",
+      "message": "Unsupported file format or file too large",
+      "severity": "CRITICAL",
+      "layer": "S1",
+      "module": "I",
+      "function": "F",
+      "source": "processor_engine/error_handling/detectors/input.py:125,145",
+      "health_score_impact": -20
+    },
+    "S1-I-V-0501": {
+      "code": "S1-I-V-0501",
+      "name": "ENCODING_ERROR",
+      "message": "File encoding error (expected UTF-8)",
+      "severity": "HIGH",
+      "layer": "S1",
+      "module": "I",
+      "function": "V",
+      "source": "processor_engine/error_handling/detectors/input.py:167",
+      "health_score_impact": -15
+    },
+    "S1-I-V-0502": {
+      "code": "S1-I-V-0502",
+      "name": "MISSING_REQUIRED_COLUMNS",
+      "message": "Required columns are missing from input",
+      "severity": "CRITICAL",
+      "layer": "S1",
+      "module": "I",
+      "function": "V",
+      "source": "processor_engine/error_hand/detectors/input.py:195,212,245",
+      "health_score_impact": -20
+    },
+    "V5-I-V-0501": {
+      "code": "V5-I-V-0501",
+      "name": "PATTERN_MISMATCH",
+      "message": "Field value does not match expected pattern",
+      "severity": "HIGH",
+      "layer": "V5",
+      "module": "I",
+      "function": "V",
+      "source": "processor_engine/error_handling/detectors/schema.py:114,141,358",
+      "health_score_impact": -15
+    },
+    "V5-I-V-0502": {
+      "code": "V5-I-V-0502",
+      "name": "LENGTH_VIOLATION",
+      "message": "Field value length violates min/max constraints",
+      "severity": "HIGH",
+      "layer": "V5",
+      "module": "I",
+      "function": "V",
+      "source": "processor_engine/error_handling/detectors/schema.py:191,209",
+      "health_score_impact": -15
+    },
+    "V5-I-V-0503": {
+      "code": "V5-I-V-0503",
+      "name": "INVALID_ENUM_VALUE",
+      "message": "Field value is not in allowed values list",
+      "severity": "HIGH",
+      "layer": "V5",
+      "module": "I",
+      "function": "V",
+      "source": "processor_engine/error_handling/detectors/schema.py:260",
+      "health_score_impact": -15
+    },
+    "V5-I-V-0504": {
+      "code": "V5-I-V-0504",
+      "name": "TYPE_MISMATCH",
+      "message": "Field value type does not match expected type",
+      "severity": "HIGH",
+      "layer": "V5",
+      "module": "I",
+      "function": "V",
+      "source": "processor_engine/error_handling/detectors/schema.py:301",
+      "health_score_impact": -15
+    }
+  },
+  "migration_log": {
+    "date": "2026-04-24",
+    "description": "Initial data/logic error code configuration following LL-M-F-XXXX format",
+    "changes": [
+      "Migrated 5 string codes to standardized format",
+      "Added new CLOSED_WITH_RESUBMISSION code (L3-L-V-0307)",
+      "Implemented proper separation per agent_rule.md Section 2.3",
+      "Base: error_code_base.json, Properties: error_code_setup.json, Values: this file"
+    ],
+    "migrations": [
+      "CLOSED_WITH_PLAN_DATE → L3-L-V-0302",
+      "RESUBMISSION_MISMATCH → L3-L-V-0303",
+      "OVERDUE_MISMATCH → L3-L-V-0304",
+      "VERSION_REGRESSION → L3-L-V-0305",
+      "REVISION_GAP → L3-L-V-0306"
+    ],
+    "new_codes": [
+      "L3-L-V-0307: CLOSED_WITH_RESUBMISSION (Issue #61)"
+    ],
+    "references": {
+      "base": "error_code_base.json",
+      "setup": "error_code_setup.json",
+      "system_config": "system_error_config.json"
+    }
+  }
+}

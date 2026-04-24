@@ -66,7 +66,20 @@ Phase 2 ensures the document workflow follows a logical chronological and status
 
 ---
 
-### 3.4 Overdue Status — `OVERDUE_MISMATCH` (MEDIUM)
+### 3.4 Closed Submission Resubmission Conflict — `CLOSED_WITH_RESUBMISSION` (HIGH)
+
+**Rule:** If `Submission_Closed = YES` then `Resubmission_Required` must be `NO`.
+
+**Logic:**
+1. Build mask: `Submission_Closed.str.upper() == 'YES'`.
+2. Build mask: `Resubmission_Required.str.upper() == 'YES'`.
+3. Intersection → emit `CLOSED_WITH_RESUBMISSION` per row.
+
+**Pipeline context:** Business rule: if a submission is closed, it should not require resubmission. This check validates that the conditional calculation correctly overrides to NO when closed.
+
+---
+
+### 3.5 Overdue Status — `OVERDUE_MISMATCH` (MEDIUM)
 
 **Rule:** If `today > Resubmission_Plan_Date` AND `Submission_Closed != YES` → `Resubmission_Overdue_Status` must equal `Overdue`.
 
@@ -98,11 +111,13 @@ Phase 2 ensures the document workflow follows a logical chronological and status
 |------------|----------|--------|--------------|
 | `L3-L-P-0301` | HIGH | `Review_Return_Actual_Date` | `submission_date`, `return_date`, `days_inverted` |
 | `CLOSED_WITH_PLAN_DATE` | HIGH | `Resubmission_Plan_Date` | `plan_date` |
+| `CLOSED_WITH_RESUBMISSION` | HIGH | `Resubmission_Required` | `submission_closed`, `resubmission_required` |
 | `RESUBMISSION_MISMATCH` | MEDIUM | `Resubmission_Required` | `review_status`, `resubmission_required` |
 | `OVERDUE_MISMATCH` | MEDIUM | `Resubmission_Overdue_Status` | `plan_date`, `overdue_status`, `days_overdue` |
 
 **Health score deductions:**
 - `CLOSED_WITH_PLAN_DATE`: −10 pts per row
+- `CLOSED_WITH_RESUBMISSION`: −10 pts per row
 - `OVERDUE_MISMATCH`: −5 pts per row
 
 ---

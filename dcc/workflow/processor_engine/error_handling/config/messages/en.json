@@ -70,6 +70,26 @@
       "config_incompatible": "Configuration incompatible: Schema requires version {min_schema_version}, current config is {config_version}"
     }
   },
+  "error_codes": {
+    "_comment": "Standardized error codes per error_code_standardization_proposal.md (Phase 2 - 2026-04-24)",
+    "P1-A-P-0101": "Anchor column is null or empty",
+    "P2-I-V-0204": "Document_ID has invalid format or composite mismatch",
+    "L3-L-P-0301": "Review_Return_Actual_Date is before Submission_Date",
+    "L3-L-V-0302": "Submission_Closed=YES but Resubmission_Plan_Date is set",
+    "L3-L-V-0303": "Review_Status contains REJ but Resubmission_Required is not YES/RESUBMITTED",
+    "L3-L-V-0304": "Resubmission_Plan_Date is past but Resubmission_Overdue_Status is not overdue/resubmitted",
+    "L3-L-V-0305": "Current revision appears older than previous revision for same Document_ID",
+    "L3-L-V-0306": "Revision gap detected in Submission_Session sequence",
+    "L3-L-V-0307": "Submission_Closed=YES but Resubmission_Required=YES (should be NO)",
+    "S1-I-F-0804": "Input file not found",
+    "S1-I-F-0805": "Unsupported file format or file too large",
+    "S1-I-V-0501": "File encoding error (expected UTF-8)",
+    "S1-I-V-0502": "Required columns are missing from input",
+    "V5-I-V-0501": "Field value does not match expected pattern",
+    "V5-I-V-0502": "Field value length violates min/max constraints",
+    "V5-I-V-0503": "Field value is not in allowed values list",
+    "V5-I-V-0504": "Field value type does not match expected type"
+  },
   "action": {
     "fix_in_excel": "Fix this issue in the Excel source file and re-upload",
     "contact_admin": "Contact system administrator for assistance",

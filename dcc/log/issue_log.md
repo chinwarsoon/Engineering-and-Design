@@ -19,6 +19,59 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-62"></a>
+## 2026-04-24
+
+### Issue #62 — Error Code Standardization (COMPLETED)
+- **Status:** ✅ COMPLETE (Phase 1 + Phase 2)
+- **Context:** Error codes across the DCC pipeline use inconsistent formats: legacy VAL/SYS stubs, string-based codes (CLOSED_WITH_PLAN_DATE), and partial E-M-F-XXXX format. The anatomy_schema.json only supported single-letter engine codes, but actual usage includes 2-char layer codes (P1, P2, L3, S1, V5).
+- **Root Cause:** Multiple competing error code systems evolved independently without a unified taxonomy. System errors (initiation_engine) use S-C-S-XXXX format correctly, but data/logic errors (processor_engine) mix formats.
+- **Resolution (Phase 1):**
+  1. Created `error_code_base.json` with 8 reusable definitions (agent_rule.md 2.3)
+  2. Created `error_code_setup.json` with properties structure (references base)
+  3. Created `system_error_config.json` with 20 system error codes (S-X-S-XXXX)
+  4. Created `data_error_config.json` with 17 data/logic error codes (LL-M-F-XXXX)
+  5. Migrated 5 string codes to standardized format:
+     - CLOSED_WITH_PLAN_DATE → L3-L-V-0302
+     - RESUBMISSION_MISMATCH → L3-L-V-0303
+     - OVERDUE_MISMATCH → L3-L-V-0304
+     - VERSION_REGRESSION → L3-L-V-0305
+     - REVISION_GAP → L3-L-V-0306
+  6. Added new code L3-L-V-0307 for CLOSED_WITH_RESUBMISSION (Issue #61 validation)
+- **Files Changed (Phase 1 - Schema):**
+  - `config/schemas/error_code_base.json` - NEW: definitions (8 reusable objects)
+  - `config/schemas/error_code_setup.json` - NEW: properties structure
+  - `config/schemas/system_error_config.json` - NEW: 20 system error codes
+  - `config/schemas/data_error_config.json` - NEW: 17 data/logic error codes
+  - `processor_engine/error_handling/config/anatomy_schema.json` - updated to v1.1
+- **Files Changed (Phase 2 - Code):**
+  - `processor_engine/error_handling/detectors/row_validator.py` - 5 string codes → standardized codes
+  - `processor_engine/error_handling/config/messages/en.json` - Added error_codes section
+  - `processor_engine/error_handling/config/messages/zh.json` - Added error_codes section (Chinese)
+- **Files Archived:**
+  - `processor_engine/error_handling/config/error_codes.json` → `archive/workflow/processor_engine/error_handling/config/`
+  - `initiation_engine/error_handling/config/system_error_codes.json` → `archive/workflow/initiation_engine/error_handling/config/`
+- **Architecture:** agent_rule.md Section 2.3 compliant (base → setup → config)
+- **Links:**
+  - Phase 1: [update_log.md](#error-code-standardization-phase1)
+  - Phase 2: [update_log.md](#error-code-standardization-phase2)
+  - Phase 3: [update_log.md](#error-code-standardization-phase3)
+
+---
+
+<a id="issue-61"></a>
+## 2026-04-24
+
+### Issue #61 — Resubmission_Required=YES when Submission_Closed=YES (816 rows)
+- **Status:** RESOLVED
+- **Context:** Output file `processed_dcc_universal.xlsx` contains 816 rows where `Submission_Closed=YES` and `Resubmission_Required=YES`. Business rule: if submission is closed, resubmission should not be required.
+- **Root Cause:** In `processor_engine/calculations/conditional.py`, `apply_update_resubmission_required()` has condition 2 to set `Resubmission_Required=NO` when `Submission_Closed=YES`. However, the function respects preservation mode. The schema for `Resubmission_Required` has no explicit `strategy` configuration, so it defaults to `preserve_existing` mode. This means rows with existing source values are skipped, and the closed-submission override never applies to them.
+- **Resolution:** Added explicit `strategy: {data_preservation: {mode: overwrite_existing}}` to `Resubmission_Required` in `dcc_register_config.json`. The conditional logic now runs on all rows and correctly overrides to NO when closed.
+- **Files Changed:** `config/schemas/dcc_register_config.json`
+- **Link to Update Log:** [update_log.md](update_log.md)
+
+---
+
 <a id="issue-60"></a>
 ## 2026-04-24
 
