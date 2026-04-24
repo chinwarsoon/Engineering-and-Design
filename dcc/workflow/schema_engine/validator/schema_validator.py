@@ -31,6 +31,7 @@ class SchemaValidator:
     def validate(self) -> Dict[str, Any]:
         results: Dict[str, Any] = {
             "main_schema_path": str(self.schema_file),
+            "column_count": 0,
             "references": [],
             "dependency_cycle": [],
             "errors": [],
@@ -57,6 +58,8 @@ class SchemaValidator:
         columns = main_schema.get("columns") or main_schema.get("enhanced_schema", {}).get("columns", {})
         if not isinstance(columns, dict):
             results["errors"].append("Main schema is missing a valid 'columns' object")
+        else:
+            results["column_count"] = len(columns)
 
         visited_paths: Set[Path] = set()
         validated_paths: Set[Path] = set()
@@ -76,6 +79,14 @@ class SchemaValidator:
 
         results["ready"] = not results["errors"]
         return results
+
+    def get_total_columns(self, results: Dict[str, Any]) -> int:
+        """Return the total number of columns in the main schema."""
+        return results.get("column_count", 0)
+
+    def get_total_references(self, results: Dict[str, Any]) -> int:
+        """Return the total number of unique schema references found."""
+        return len(results.get("references", []))
 
     def _detect_circular_dependencies(
         self,
@@ -188,12 +199,14 @@ class SchemaValidator:
             "document_type_schema": "document_type_schema.json",
             "project_code_schema": "project_code_schema.json",
             "approval_code_schema": "approval_code_schema.json",
+            "global_parameters": "global_parameters.json",
         }
 
         # Top-level keys that hold URI $ref objects — resolve each
         ref_keys = [
             "departments", "disciplines", "facilities",
             "document_types", "projects", "approval_codes",
+            "parameters",
         ]
         for key in ref_keys:
             value = main_schema.get(key)
@@ -239,8 +252,17 @@ class SchemaValidator:
         """
         normalized = raw.copy()
 
-        # Flatten global_parameters array → parameters dict
-        if "parameters" not in normalized or not normalized["parameters"]:
+        # Handle 'parameters' key - could be a direct dict, a list, or a resolved schema object
+        params = normalized.get("parameters")
+        
+        # Case 1: parameters is a resolved schema from global_parameters.json (has a 'parameters' list)
+        if isinstance(params, dict) and "parameters" in params and isinstance(params["parameters"], list) and params["parameters"]:
+            normalized["parameters"] = params["parameters"][0]
+        # Case 2: parameters is already a list (flatten it)
+        elif isinstance(params, list) and params:
+            normalized["parameters"] = params[0]
+        # Case 3: parameters is missing or is just a $ref, fallback to global_parameters
+        elif not params or (isinstance(params, dict) and "$ref" in params):
             gp = raw.get("global_parameters", [])
             if isinstance(gp, list) and gp:
                 normalized["parameters"] = gp[0]

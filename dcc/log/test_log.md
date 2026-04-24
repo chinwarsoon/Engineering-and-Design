@@ -325,6 +325,34 @@
    - Pattern source logged: "schema_derived" in error context when validation fails
 - `Status: Resolved (Ref: [Issue #15](issue_log.md)).`
 
+## 2026-04-24 12:00:00
+1. Test: Dynamic Milestone Counts (Issue #59)
+   - Purpose: Verify that "Setup validated" and "Schema loaded" milestones display real-time statistics instead of hardcoded placeholders.
+   - Method: 
+     - Modified `ProjectSetupValidator` and `SchemaValidator` with count-getter methods.
+     - Updated `dcc_engine_pipeline.py` to call these methods.
+     - Ran the pipeline and inspected the milestone output.
+   - Result: Success. Milestones correctly report dynamic counts (e.g., "Setup validated: 7 folders, 11 files").
+   - Verification:
+     - `ProjectSetupValidator.get_total_folders()` returns count from `results['folders']`
+     - `SchemaValidator.get_total_columns()` returns `results['column_count']`
+     - Pipeline prints match calculated values.
+- `Status: Resolved (Ref: [Issue #59](issue_log.md)).`
+
+## 2026-04-24 12:30:00
+1. Test: Step-Specific System Errors and Promotion (Issue #59)
+   - Purpose: Verify that each pipeline step reports a specific error code and that the error title is "promoted" to a user-friendly step description.
+   - Method: 
+     - Updated `system_error_codes.json` with `S-R-S-0404/05/06` and `promote_detail: true`.
+     - Injected a deliberate `ValueError` into Step 2 (Schema) of `run_engine_pipeline`.
+     - Inspected stderr output format.
+   - Result: Success. The error output showed a descriptive header "Schema Step Exception" instead of the generic "Pipeline Step Exception".
+   - Verification:
+     - Error code `S-R-S-0404` maps to "Schema Step Exception"
+     - `system_errors.py` correctly handles `promotion_text` and `promote_detail` flags
+     - Fatal status and hints are preserved.
+- `Status: Resolved (Ref: [Issue #59](issue_log.md)).`
+
 ## 2026-04-23 23:25:00
 1. Test: CLI Override Detection and Startup Wiring (Issue #43)
    - Purpose: Verify that pipeline startup no longer reports CLI overrides when the user did not pass any CLI arguments, while still allowing explicit override state to reach the banner path.

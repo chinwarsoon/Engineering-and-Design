@@ -104,7 +104,7 @@ def run_engine_pipeline(
     except ValueError:
         raise
     except Exception as exc:
-        system_error_print("S-R-S-0401", detail=f"Step 1 (Initiation): {exc}")
+        system_error_print("S-R-S-0401", detail=str(exc))
         raise
 
     # Step 2: Schema Engine - Schema Validation
@@ -116,12 +116,15 @@ def run_engine_pipeline(
                 raise FileNotFoundError(f"Schema file not found: {schema_path}")
             schema_validator = SchemaValidator(schema_path)
             status_print("Validating schema and resolving dependencies...", min_level=3)
-            schema_results = schema_validator.validate()
+            schema_results = schema_validator.validate()  # Validates fields and references. Returns dict with 'ready', 'column_count', 'references', 'errors'.
             write_validation_status(schema_results)
             if not schema_results.get("ready"):
                 system_error_print("S-C-S-0303", detail=str(schema_path))
                 raise ValueError(json.dumps(schema_results, indent=2))
-            milestone_print("Schema loaded", "44 columns, 6 references")
+            
+            total_columns = schema_validator.get_total_columns(schema_results)
+            total_refs = schema_validator.get_total_references(schema_results)
+            milestone_print("Schema loaded", f"{total_columns} columns, {total_refs} references")
             pipeline_schema_results = schema_results
     except (ValueError, FileNotFoundError):
         raise
@@ -129,7 +132,7 @@ def run_engine_pipeline(
         system_error_print("S-C-S-0302", detail=f"{schema_path}: {exc}")
         raise
     except Exception as exc:
-        system_error_print("S-R-S-0401", detail=f"Step 2 (Schema): {exc}")
+        system_error_print("S-R-S-0404", detail=str(exc))
         raise
 
     # Step 3: Mapper Engine - Column Mapping
@@ -152,7 +155,7 @@ def run_engine_pipeline(
         system_error_print("S-F-S-0202", detail=str(excel_path))
         raise
     except Exception as exc:
-        system_error_print("S-R-S-0401", detail=f"Step 3 (Mapping): {exc}")
+        system_error_print("S-R-S-0405", detail=str(exc))
         raise
 
     # Step 4: Processor Engine - Document Processing
@@ -197,7 +200,7 @@ def run_engine_pipeline(
                 excel_path=export_paths["excel_path"],
             )
         else:
-            system_error_print("S-R-S-0401", detail=f"Step 4 (Processing): {exc}")
+            system_error_print("S-R-S-0406", detail=str(exc))
         raise
 
     # Step 5: Reorder columns per schema column_sequence

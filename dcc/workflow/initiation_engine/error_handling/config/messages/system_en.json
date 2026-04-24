@@ -70,8 +70,23 @@
     "hint": "Check that all required folders and files exist under the base path.\nExpected structure is defined in dcc/config/schemas/project_config.json.\nRun with --verbose debug to see which folders or files are missing."
   },
   "S-R-S-0401": {
-    "title": "Pipeline Step Exception",
-    "description": "An unexpected error occurred in a pipeline step: {detail}",
+    "title": "Initiation Step Exception",
+    "description": "{promotion_text} {detail}",
+    "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
+  },
+  "S-R-S-0404": {
+    "title": "Schema Step Exception",
+    "description": "{promotion_text} {detail}",
+    "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
+  },
+  "S-R-S-0405": {
+    "title": "Mapping Step Exception",
+    "description": "{promotion_text} {detail}",
+    "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
+  },
+  "S-R-S-0406": {
+    "title": "Processing Step Exception",
+    "description": "{promotion_text} {detail}",
     "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
   },
   "S-R-S-0402": {

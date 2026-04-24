@@ -412,6 +412,17 @@
 - [Resolution]: Implemented `PipelineSandbox` runner using `importlib.util` and added a `/pipeline/run` endpoint to the backend API.
 - [Link to Update Log]: [update_log.md](#issue42-pipeline-runner)
 
+<a id="issue59-milestones-errors"></a>
+## 2026-04-24
+
+### Issue #59 — Pipeline milestones used hardcoded strings; system errors lacked step-level precision
+- **Status:** RESOLVED
+- **Context:** Pipeline milestones for "Setup validated" and "Schema loaded" used static strings like "7 folders, 11 files" and "44 columns, 6 references". System errors used a generic `S-R-S-0401` code for all runtime exceptions regardless of the pipeline step.
+- **Root Cause:** Milestone printing logic in `dcc_engine_pipeline.py` did not query the validators for actual result counts. System error framework lacked granular codes for distinct execution phases.
+- **Resolution:** Added count helper methods to `ProjectSetupValidator` and `SchemaValidator`. Updated `dcc_engine_pipeline.py` to use these methods. Introduced `S-R-S-0404/05/06` error codes and enhanced `system_errors.py` to support promoted descriptions and step-specific titles.
+- **Files Changed:** `dcc_engine_pipeline.py`, `initiation_engine/core/validator.py`, `schema_engine/validator/schema_validator.py`, `initiation_engine/error_handling/system_errors.py`, `initiation_engine/error_handling/config/system_error_codes.json`, `initiation_engine/error_handling/config/messages/system_en.json`
+- **Link to update_log:** [update_log.md](#refined-system-errors-milestones)
+
 <a id="issue43-pipeline-initiation-cli"></a>
 ## 2026-04-23 23:20:00
 [Issue #43]: Pipeline startup falsely reported CLI overrides and duplicated initiation setup loading

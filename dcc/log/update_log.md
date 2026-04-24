@@ -2090,7 +2090,7 @@ On Windows: resolves to `C:\Users\<user>\dcc\tools`. On Linux/Codespaces: defaul
 <a id="issue43-pipeline-initiation-cli"></a>
 ## 2026-04-23
 
-### COMPLETED: Pipeline Startup Cleanup - CLI Override Detection, Initiation Bootstrap, Environment Milestone
+### COMPLETED: Pipeline Startup Cleanup - CLI Override Detection, Initiation Bootstrap, Environment Milestone  
 **Status:** COMPLETE
 
 **Summary:** Cleaned up `dcc_engine_pipeline.py` startup behavior so CLI override reporting reflects actual user input, removed the duplicate initiation bootstrap path from `test_environment()`, and added a milestone message when the environment check passes.
@@ -2128,6 +2128,35 @@ python3 -m py_compile dcc/workflow/dcc_engine_pipeline.py
 
 ---
 
+<a id="refined-system-errors-milestones"></a>
+## 2026-04-24
+
+### COMPLETED: Refined System Error Handling & Dynamic Pipeline Milestones
+**Status:** COMPLETE
+
+**Summary:** Enhanced the pipeline milestone output with dynamic statistics and refined the system error handling framework with step-specific error codes and promoted error descriptions.
+
+**Changes Made:**
+
+| Area | Change |
+|------|--------|
+| **Dynamic Milestones** | `ProjectSetupValidator` and `SchemaValidator` now provide helper methods (`get_total_folders()`, `get_total_files()`, `get_total_columns()`, `get_total_references()`) to calculate counts from validation results. |
+| **Milestone Output** | `dcc_engine_pipeline.py` now displays real counts in "Setup validated" and "Schema loaded" milestones instead of hardcoded strings. |
+| **Step-Specific Errors** | Introduced specific runtime error codes for each pipeline step: `S-R-S-0401` (Initiation), `S-R-S-0404` (Schema), `S-R-S-0405` (Mapping), and `S-R-S-0406` (Processing). |
+| **Error Promotion** | Updated `system_errors.py` to support `promote_detail` and `promotion_text` from JSON config, allowing error headers to be more descriptive (e.g., "Mapping Step Exception"). |
+| **Documentation** | Added comprehensive docstrings to `ProjectSetupValidator` attributes and methods. |
+
+**Files Changed:**
+- `dcc/workflow/dcc_engine_pipeline.py`
+- `dcc/workflow/initiation_engine/core/validator.py`
+- `dcc/workflow/schema_engine/validator/schema_validator.py`
+- `dcc/workflow/initiation_engine/error_handling/system_errors.py`
+- `dcc/workflow/initiation_engine/error_handling/config/system_error_codes.json`
+- `dcc/workflow/initiation_engine/error_handling/config/messages/system_en.json`
+
+**Impact:** Pipeline output provides better situational awareness through real-time statistics. System errors are more precise, identifying the failing step directly in the error title and providing better diagnostic hints.
+
+---
 <a id="tracer-r7-downloader"></a>
 ## 2026-05-01
 

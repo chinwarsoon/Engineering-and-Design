@@ -724,7 +724,7 @@
         "Document Title"
       ],
       "data_type": "string",
-      "required": true,
+      "required": false,
       "allow_null": false,
       "is_calculated": false,
       "create_if_missing": true,
@@ -1198,7 +1198,7 @@
         "Reviewed By"
       ],
       "data_type": "string",
-      "required": true,
+      "required": false,
       "allow_null": false,
       "is_calculated": false,
       "create_if_missing": true,

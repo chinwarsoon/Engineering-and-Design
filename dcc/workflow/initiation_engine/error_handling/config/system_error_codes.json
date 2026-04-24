@@ -7,121 +7,166 @@
       "name": "MISSING_PACKAGE",
       "severity": "FATAL",
       "category": "Environment",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-E-S-0102": {
       "name": "WRONG_PYTHON_VERSION",
       "severity": "FATAL",
       "category": "Environment",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-E-S-0103": {
       "name": "ENV_TEST_FAILED",
       "severity": "FATAL",
       "category": "Environment",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-E-S-0104": {
       "name": "IMPORT_ERROR",
       "severity": "FATAL",
       "category": "Environment",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-F-S-0201": {
       "name": "INPUT_FILE_NOT_FOUND",
       "severity": "FATAL",
       "category": "File",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-F-S-0202": {
       "name": "INPUT_FILE_UNREADABLE",
       "severity": "FATAL",
       "category": "File",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-F-S-0203": {
       "name": "OUTPUT_DIR_NOT_WRITABLE",
       "severity": "FATAL",
       "category": "File",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-F-S-0204": {
       "name": "SCHEMA_FILE_NOT_FOUND",
       "severity": "FATAL",
       "category": "File",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-F-S-0205": {
       "name": "CONFIG_FILE_NOT_FOUND",
       "severity": "FATAL",
       "category": "File",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-C-S-0301": {
       "name": "INVALID_PARAMETER",
       "severity": "FATAL",
       "category": "Config",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-C-S-0302": {
       "name": "SCHEMA_PARSE_ERROR",
       "severity": "FATAL",
       "category": "Config",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-C-S-0303": {
       "name": "SCHEMA_VALIDATION_FAILED",
       "severity": "FATAL",
       "category": "Config",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-C-S-0304": {
       "name": "MISSING_REQUIRED_CONFIG",
       "severity": "FATAL",
       "category": "Config",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-C-S-0305": {
       "name": "PROJECT_SETUP_FAILED",
       "severity": "FATAL",
       "category": "Config",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-R-S-0401": {
-      "name": "STEP_EXCEPTION",
+      "name": "STEP_EXCEPTION_INIT",
       "severity": "FATAL",
       "category": "Runtime",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 1 (Initiation):"
+    },
+    "S-R-S-0404": {
+      "name": "STEP_EXCEPTION_SCHEMA",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 2 (Schema):"
+    },
+    "S-R-S-0405": {
+      "name": "STEP_EXCEPTION_MAPPING",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 3 (Mapping):"
+    },
+    "S-R-S-0406": {
+      "name": "STEP_EXCEPTION_PROC",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 4 (Processing):"
     },
     "S-R-S-0402": {
       "name": "FAIL_FAST_TRIGGERED",
       "severity": "FATAL",
       "category": "Runtime",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-R-S-0403": {
       "name": "MEMORY_ERROR",
       "severity": "FATAL",
       "category": "Runtime",
-      "stops_pipeline": true
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-A-S-0501": {
       "name": "AI_OPS_FAILED",
       "severity": "WARNING",
       "category": "AI",
-      "stops_pipeline": false
+      "stops_pipeline": false,
+      "promote_detail": true
     },
     "S-A-S-0502": {
       "name": "DUCKDB_UNAVAILABLE",
       "severity": "WARNING",
       "category": "AI",
-      "stops_pipeline": false
+      "stops_pipeline": false,
+      "promote_detail": true
     },
     "S-A-S-0503": {
       "name": "OLLAMA_UNAVAILABLE",
       "severity": "WARNING",
       "category": "AI",
-      "stops_pipeline": false
+      "stops_pipeline": false,
+      "promote_detail": true
     }
   }
 }

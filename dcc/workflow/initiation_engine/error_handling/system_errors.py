@@ -70,29 +70,52 @@ def system_error_print(
     """
     _load()
 
-    # Determine fatal from JSON definition if available
+    # Determine fatal and promote from JSON definition if available
     code_def = _CODES.get(code, {})
     if code_def:
         fatal = code_def.get("stops_pipeline", fatal)
+    promote = code_def.get("promote_detail", False)
+    promotion_text = code_def.get("promotion_text", "")
 
     msg_def = _MESSAGES.get(code, {})
     title = msg_def.get("title", code_def.get("name", code))
+    description = msg_def.get("description", "")
     hint = msg_def.get("hint", "Run with --verbose trace for more detail.")
 
-    # Substitute {detail} placeholder in hint if present
-    if detail and "{detail}" in hint:
-        hint = hint.replace("{detail}", detail)
+    # Substitute placeholders in description and hint
+    if description:
+        if "{promotion_text}" in description:
+            description = description.replace("{promotion_text}", promotion_text)
+        if detail and "{detail}" in description:
+            description = description.replace("{detail}", str(detail))
+            
+    if hint:
+        if "{promotion_text}" in hint:
+            hint = hint.replace("{promotion_text}", promotion_text)
+        if detail and "{detail}" in hint:
+            hint = hint.replace("{detail}", str(detail))
 
     sep = "-" * 76
 
     if fatal:
-        lines = [
-            sep,
-            f"  X  PIPELINE ERROR  [{code}]",
-            f"     {title}",
-        ]
-        if detail:
-            lines.append(f"     Detail: {detail}")
+        lines = [sep, f"  X  PIPELINE ERROR  [{code}]"]
+        
+        if promote and description:
+            # Show promoted description as the main message
+            desc_lines = description.splitlines()
+            lines.append(f"     {desc_lines[0]}")
+            for dl in desc_lines[1:]:
+                lines.append(f"     {dl}")
+        else:
+            # Classic format: Title + optional Detail line
+            lines.append(f"     {title}")
+            if detail:
+                detail_lines = str(detail).splitlines()
+                lines.append(f"     Detail: {detail_lines[0]}")
+                for dl in detail_lines[1:]:
+                    lines.append(f"             {dl}")
+        
+        # Add Hint
         hint_lines = hint.splitlines()
         lines.append(f"     Hint:   {hint_lines[0]}")
         for hl in hint_lines[1:]:
@@ -100,9 +123,15 @@ def system_error_print(
         lines.append(sep)
         builtins.print("\n".join(lines), file=sys.stderr, flush=True)
     else:
-        detail_str = f" - {detail}" if detail else ""
+        # Compact warning line
+        if promote and description:
+            msg = description.replace("\n", " ")
+        else:
+            detail_str = f" - {detail}" if detail else ""
+            msg = f"{title}{detail_str}".replace("\n", " ")
+            
         builtins.print(
-            f"  !  [{code}] {title}{detail_str}",
+            f"  !  [{code}] {msg}",
             file=sys.stderr,
             flush=True,
         )

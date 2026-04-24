@@ -1,0 +1,1 @@
+To resume this session: gemini --resume '789b368b-6373-415e-95aa-2eb308c1d208'
