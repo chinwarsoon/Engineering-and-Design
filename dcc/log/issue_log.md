@@ -17,7 +17,25 @@
   - [Resolution]
   - [Link to Update Log:]
 
-# Section 2. Pending Issues
+# Section 1. Pending Issues
+
+<a id="issue-60"></a>
+## 2026-04-24
+
+### Issue #60 — Submission_Session and Submission_Session_Revision have NaN after forward fill
+- **Status:** RESOLVED
+- **Context:** When pipeline runs, the output file shows Submission_Session and Submission_Session_Revision columns contain literal 'nan' strings instead of being forward-filled.
+- **Root Cause:** In `processor_engine/utils/dataframe.py`, lines 125-130 converted Submission_Session columns to string **BEFORE** Phase 1 forward fill ran:
+  ```python
+  # This code ran BEFORE forward fill, converting NaN → 'nan' string
+  submission_session_cols = ['Submission_Session', 'Submission_Session_Revision']
+  for col in submission_session_cols:
+      df_init[col] = df_init[col].astype(str)  # NaN becomes 'nan' string!
+  ```
+  Later in forward fill (`null_handling.py`), `pd.isna('nan')` returns `False` because 'nan' is a valid string. So ffill() skips these values, and they remain as 'nan' in output.
+- **Resolution:** Removed the premature string conversion code (lines 125-130) from `dataframe.py`. Forward fill in `null_handling.py` already handles NaN properly, and the zero-padding at the end converts to string correctly.
+- **Files Changed:**
+  - `processor_engine/utils/dataframe.py` - removed lines 125-130
 
 <a id="issue-58"></a>
 ## 2026-05-01

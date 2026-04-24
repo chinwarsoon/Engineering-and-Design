@@ -56,7 +56,7 @@ processor_engine/
 └── utils/                   # Utility functions
     ├── __init__.py          # Utils module exports
     ├── dataio.py            # Data loading utilities
-    └── dateframe.py         # DataFrame manipulation utilities
+    └── dataframe.py         # DataFrame manipulation utilities
 ```
 
 ---
@@ -119,8 +119,8 @@ flowchart TD
 | `get_calculation_handler()` | `core/registry.py` | `calc_type`, `method` | Handler function or None |
 | `register_null_handler()` | `core/registry.py` | `strategy`, `func` | None (registers handler) |
 | `register_calculation_handler()` | `core/registry.py` | `calc_type`, `method`, `func` | None (registers handler) |
-| `prepare_dataframe_for_processing()` | `utils/dateframe.py` | `df` (pd.DataFrame) | Prepared DataFrame |
-| `initialize_missing_columns()` | `utils/dateframe.py` | `df`, `columns`, `parameters` | DataFrame with missing columns initialized |
+| `prepare_dataframe_for_processing()` | `utils/dataframe.py` | `df` (pd.DataFrame) | Prepared DataFrame |
+| `initialize_missing_columns()` | `utils/dataframe.py` | `df`, `columns`, `parameters` | DataFrame with missing columns initialized |
 | `load_excel_data()` | `utils/dataio.py` | `file_path`, `sheet_name`, etc. | DataFrame with loaded data |
 | `SchemaProcessor.__init__()` | `schema/processor.py` | `schema_data` (Dict) | SchemaProcessor instance |
 | `SchemaProcessor.get_ordered_columns()` | `schema/processor.py` | None | Dict of columns in sequence order |
@@ -497,7 +497,7 @@ Handles translation of schema definitions into actionable instructions for the C
 
 ### DataFrame Manipulation
 
-**File:** `utils/dateframe.py`
+**File:** `utils/dataframe.py`
 
 Uses centralized logging from `initiation_engine` (`debug_print`) for all diagnostic output.
 

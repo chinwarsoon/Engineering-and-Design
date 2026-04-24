@@ -3,6 +3,11 @@ version: 1.0.0
 schema: v1
 
 models:
+  - name: "Hermes 3 (Local)"
+    model: "hermes3"
+    provider": "ollama"
+    systemPrompt": "You are a Hermes agent. think step by step to solve enginge coding for document control issues"
+  
   - name: "Qwen Latest"
     provider: ollama
     model: qwen:latest

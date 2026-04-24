@@ -53,6 +53,10 @@ Warning Trigger:  Row jump > 20 rows (session can have 50+ documents)
 Hard Stop:        Session/Revision change only
 Action:           Log warning + Continue fill + Audit trail
 Applies To:       Priority 1 (all) + Priority 2 (Manual Input = YES only)
+
+Special Cases:
+- Submission_Session:    NO group_by - forward fills directly from previous row (acts as its own boundary)
+- Submission_Session_Revision: group_by = [Submission_Session] - boundary within Submission_Session
 ```
 
 ### Special Processing for Submission_Closed (Priority 3 Exception)

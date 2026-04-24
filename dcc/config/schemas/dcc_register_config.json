@@ -305,12 +305,12 @@
       "null_handling": {
         "strategy": "forward_fill",
         "group_by": [],
-        "fill_value": "9",
+        "fill_value": "0",
         "formatting": {
           "zero_pad": 6,
-          "description": "Applied via _apply_forward_fill formatting. Ensures session identifiers are uniformly padded specifically to 6 digits."
+          "description": "Forward fills from previous row. Zero-padding ensures session identifiers are uniformly padded to 6 digits."
         },
-        "description": "Processed by _apply_forward_fill. Leverages sequential filling combined with zfill formatting to create standardized submission containers."
+        "description": "Forward fills from previous row (no group boundary). Zero-padding applied after fill to create standardized submission identifiers."
       },
       "validation": [
         {

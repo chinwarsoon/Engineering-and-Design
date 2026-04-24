@@ -24,7 +24,10 @@ The `CalculationEngine.apply_phased_processing()` method executes these steps in
 ### Phase 1 (P1): Meta Data - 11 columns
 - **Processing**: Null handling with bounded forward fill
 - **Columns**: Project_Code, Facility_Code, Document_Type, Discipline, Department, Submission_Session, Submission_Session_Revision, Submission_Session_Subject, Submission_Date, Submitted_By, Transmittal_Number
-- **Forward Fill Boundaries**: Level 1=[Submission_Session, Submission_Session_Revision], Level 2=[Submission_Session]
+- **Forward Fill Boundaries**: 
+  - Submission_Session: NO group_by (forward fills from previous row, acts as its own boundary)
+  - Submission_Session_Revision: group_by=[Submission_Session] (boundary within Submission_Session)
+  - Other columns: multi_level_forward_fill with [Session+Rev → Session] fallback
 
 ### Phase 2 (P2): Transactional - 11 columns  
 - **Processing**: Forward fill IF Manual Input = YES
@@ -62,8 +65,8 @@ The `CalculationEngine.apply_phased_processing()` method executes these steps in
 | 7 | `Document_Revision` | **P2** | Input | Raw revision column | Multi-level forward fill | `multi_level_forward_fill`: [DocID+Session+Rev → DocID+Session → DocID], final_fill: "NA" |
 | 8 | `Document_Title` | **P2** | Input | Raw title column | Direct mapping | `default_value`: "NA" |
 | 9 | `Transmittal_Number` | **P1** | Input | Raw transmittal column | String conversion, text replacements (N.A.→NA, nan→NA) | `default_value` with text_replacements: "NA" |
-| 10 | `Submission_Session` | **P1** | Input | Raw session column | Forward fill, zero-pad to 6 digits | `forward_fill`: group_by=[], fill_value="0", zero_pad: 6 |
-| 11 | `Submission_Session_Revision` | **P1** | Input | Raw revision column | Forward fill by Session, zero-pad to 2 digits | `forward_fill`: group_by=[Submission_Session], fill_value="0", zero_pad: 2, na_fallback: true |
+| 10 | `Submission_Session` | **P1** | Input | Raw session column | Forward fill from previous row, zero-pad to 6 digits | `forward_fill`: group_by=[], fill_value="0", zero_pad: 6 |
+| 11 | `Submission_Session_Revision` | **P1** | Input | Raw revision column | Forward fill within Session boundary, zero-pad to 2 digits | `forward_fill`: group_by=[Submission_Session], fill_value="0", zero_pad: 2, na_fallback: true |
 | 12 | `Submission_Session_Subject` | **P1** | Input | Raw subject column | Multi-level forward fill | `multi_level_forward_fill`: [Session+Rev → Session] |
 | 13 | `Consolidated_Submission_Session_Subject` | **P3** | Calculated | `Submission_Session_Subject` | **aggregate/concatenate_unique_quoted**: Group by Document_ID, quote each value, join with " && " | Calculation FIRST, null handling LAST if needed |
 | 14 | `Department` | **P1** | Input | Raw department column | Validated against department_schema, multi-level forward fill | `multi_level_forward_fill`: [Session+Rev → Session], final_fill: "NA" |

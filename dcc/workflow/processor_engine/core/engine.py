@@ -152,7 +152,7 @@ class CalculationEngine(BaseProcessor):
         Rule 13: Always respect sequence of columns in the schema
         """
         with log_context("processor", "apply_phased_processing"):
-            from ..utils.dateframe import prepare_dataframe_for_processing, initialize_missing_columns
+            from ..utils.dataframe import prepare_dataframe_for_processing, initialize_missing_columns
             
             # Initialize DataFrame
             df_processed = prepare_dataframe_for_processing(df)
@@ -416,7 +416,7 @@ class CalculationEngine(BaseProcessor):
         after calculations in _apply_phase_calculated().
         """
         with log_context("processor", "apply_null_handling"):
-            from ..utils.dateframe import prepare_dataframe_for_processing, initialize_missing_columns
+            from ..utils.dataframe import prepare_dataframe_for_processing, initialize_missing_columns
             from .registry import get_null_handler
 
             debug_print(f"Entering apply_null_handling")

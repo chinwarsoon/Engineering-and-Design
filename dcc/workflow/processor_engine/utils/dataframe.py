@@ -122,13 +122,6 @@ def initialize_missing_columns(df: pd.DataFrame, columns_schema: dict,
     enabled = dyn_creation.get('enabled', global_enabled)
     default = dyn_creation.get('default_value', global_default)
 
-    # Cast Submission_Session related columns to string for consistent grouping
-    submission_session_cols = ['Submission_Session', 'Submission_Session_Revision']
-    for col in submission_session_cols:
-        if col in df_init.columns:
-            df_init[col] = df_init[col].astype(str)
-            debug_print(f"Cast {col} to string for consistent grouping")
-
     for col_name, col_def in columns_schema.items():
         if not isinstance(col_def, dict):
             continue

@@ -1814,7 +1814,7 @@ Foreign Key Dependencies:
 
 ## 2026-04-12 00:00:00
 <a id="issue-4"></a>
-1. Logic update: [dateframe.py](../workflow/processor_engine/utils/dateframe.py) to ensure `is_calculated` columns are initialized with `None` instead of `"NA"` default. This fixes the bug where `Row_Index` calculation was being skipped.
+1. Logic update: [dataframe.py](../workflow/processor_engine/utils/dataframe.py) to ensure `is_calculated` columns are initialized with `None` instead of `"NA"` default. This fixes the bug where `Row_Index` calculation was being skipped.
 2. Logic update: [validation.py](../workflow/processor_engine/calculations/validation.py) to integrate structured error codes (e.g., `[P-V-V-0501]`) from the error catalog into row-level validation messages. Improving automated error tracking.
 3. Schema & Logic update: Moved `Row_Index` strategy into [dcc_register_enhanced.json](../config/schemas/dcc_register_enhanced.json) and removed hardcoded overrides in [calculation_strategy.py](../workflow/processor_engine/core/calculation_strategy.py). System is now fully schema-driven for this column.
 

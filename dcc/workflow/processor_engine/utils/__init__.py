@@ -2,7 +2,7 @@
 Utility functions for the document processor engine.
 """
 
-from .dateframe import (
+from .dataframe import (
     prepare_dataframe_for_processing,
     flatten_columns,
     ensure_columns_are_strings,
