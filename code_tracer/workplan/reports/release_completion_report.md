@@ -108,7 +108,7 @@ dependencies = ["fastapi>=0.100", "uvicorn>=0.23", "networkx>=3.0"]
 dcc-tracer = "tracer.launch:main"
 ```
 
-**`tracer/MANIFEST.in`** — new file: ensures `static_dashboard.html` and `code-tracer.css` are included in source distributions.
+**`tracer/MANIFEST.in`** — new file: ensures `static_dashboard.html` and `dcc-design-system.css` are included in source distributions.
 
 **Files created:** `tracer/pyproject.toml`, `tracer/MANIFEST.in`
 
@@ -145,17 +145,17 @@ TARGET_DIR=/path/to/project docker compose -f tracer/docker-compose.yml up
 
 | Change | Before | After |
 |--------|--------|-------|
-| CSS path | `../ui/code-tracer.css` | `ui/code-tracer.css` |
+| CSS path | `../ui/dcc-design-system.css` | `ui/dcc-design-system.css` |
 | Controls label | "Backend Root Path" | "Target Directory" |
 | Input placeholder | `e.g. dcc/workflow` | `Absolute or relative path` |
 | Welcome message | "Enter a backend root path and click Analyse..." | "Enter a directory path and click Analyse..." |
 | Breadcrumb | Static "No directory loaded" | Updates with resolved path after analysis |
 | Copy button | Not present | 📋 button appended to breadcrumb after first analysis |
 
-**`tracer/ui/code-tracer.css`** — copied from `dcc/ui/code-tracer.css` so the dashboard renders without the `dcc/ui/` folder present.
+**`tracer/ui/dcc-design-system.css`** — copied from `dcc/ui/dcc-design-system.css` so the dashboard renders without the `dcc/ui/` folder present.
 
 **Files changed:** `tracer/static_dashboard.html`
-**Files created:** `tracer/ui/code-tracer.css`
+**Files created:** `tracer/ui/dcc-design-system.css`
 
 ---
 
@@ -245,7 +245,7 @@ Destination verified self-contained: `python /tmp/dcc-tracer-test/launch.py --he
 | R2 | Launcher + standalone file server | `tracer/launch.py`, `tracer/serve.py` | ✅ |
 | R3 | pip package | `tracer/pyproject.toml`, `tracer/MANIFEST.in` | ✅ |
 | R4 | Docker image | `tracer/Dockerfile`, `tracer/docker-compose.yml` | ✅ |
-| R5 | Dashboard UX for external users | `tracer/static_dashboard.html`, `tracer/ui/code-tracer.css` | ✅ |
+| R5 | Dashboard UX for external users | `tracer/static_dashboard.html`, `tracer/ui/dcc-design-system.css` | ✅ |
 | R6 | External README + User Guide | `tracer/README.md`, `tracer/USER_GUIDE.md` | ✅ |
 | R7 | Windows distribution downloader | `tracer/download_release.py` | ✅ |
 

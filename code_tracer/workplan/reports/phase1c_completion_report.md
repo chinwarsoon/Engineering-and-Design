@@ -45,7 +45,7 @@ Phase 1c focused on upgrading the `static_dashboard.html` to provide a more IDE-
 - **Theme Support:** Preserved support for Dark, Light, Sky, Ocean, and Presentation themes.
 
 ## Technical Details
-- **Frontend:** Pure HTML/CSS/JavaScript using `vis-network` for graph rendering and `code-tracer.css` for consistent styling.
+- **Frontend:** Pure HTML/CSS/JavaScript using `vis-network` for graph rendering and `dcc-design-system.css` for consistent styling.
 - **Backend Integration:** Utilizes `/api/static/analyze` and `/api/static/graph` for data, and `/api/file/read` for fetching source code.
 - **Layout:** 3-column VS Code-style layout (Icon Bar + Sidebar + Main Content + Inspector Panel).
 
