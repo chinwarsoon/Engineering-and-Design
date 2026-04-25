@@ -27,51 +27,51 @@
 
 ### Environment Errors (S-E-S-01xx)
 
-| Code | Name | Severity | Stops Pipeline | Description |
-|------|------|----------|----------------|-------------|
-| S-E-S-0101 | MISSING_PACKAGE | FATAL | Yes | Required Python package not installed |
-| S-E-S-0102 | WRONG_PYTHON_VERSION | FATAL | Yes | Python version does not meet requirements |
-| S-E-S-0103 | ENV_TEST_FAILED | FATAL | Yes | Environment validation test failed |
-| S-E-S-0104 | IMPORT_ERROR | FATAL | Yes | Failed to import required module |
+| Code | Name | Severity | Stops Pipeline | Path/File/Function | Description |
+|------|------|----------|----------------|--------------------|-------------|
+| S-E-S-0101 | MISSING_PACKAGE | FATAL | Yes | `initiation_engine/environment_checker.py::check_packages()` | Required Python package not installed |
+| S-E-S-0102 | WRONG_PYTHON_VERSION | FATAL | Yes | `initiation_engine/environment_checker.py::check_python_version()` | Python version does not meet requirements |
+| S-E-S-0103 | ENV_TEST_FAILED | FATAL | Yes | `initiation_engine/environment_checker.py::run_validation_tests()` | Environment validation test failed |
+| S-E-S-0104 | IMPORT_ERROR | FATAL | Yes | `initiation_engine/error_handling/system_error_handler.py::import_guard()` | Failed to import required module |
 
 ### File/IO Errors (S-F-S-02xx)
 
-| Code | Name | Severity | Stops Pipeline | Description |
-|------|------|----------|----------------|-------------|
-| S-F-S-0201 | INPUT_FILE_NOT_FOUND | FATAL | Yes | Input file not found at path |
-| S-F-S-0202 | INPUT_FILE_UNREADABLE | FATAL | Yes | Input file exists but cannot be read |
-| S-F-S-0203 | OUTPUT_DIR_NOT_WRITABLE | FATAL | Yes | Output directory not writable |
-| S-F-S-0204 | SCHEMA_FILE_NOT_FOUND | FATAL | Yes | Schema configuration file not found |
-| S-F-S-0205 | CONFIG_FILE_NOT_FOUND | FATAL | Yes | Configuration file not found |
+| Code | Name | Severity | Stops Pipeline | Path/File/Function | Description |
+|------|------|----------|----------------|--------------------|-------------|
+| S-F-S-0201 | INPUT_FILE_NOT_FOUND | FATAL | Yes | `initiation_engine/file_handler.py::validate_input_file()` | Input file not found at path |
+| S-F-S-0202 | INPUT_FILE_UNREADABLE | FATAL | Yes | `initiation_engine/file_handler.py::read_input_file()` | Input file exists but cannot be read |
+| S-F-S-0203 | OUTPUT_DIR_NOT_WRITABLE | FATAL | Yes | `initiation_engine/file_handler.py::validate_output_dir()` | Output directory not writable |
+| S-F-S-0204 | SCHEMA_FILE_NOT_FOUND | FATAL | Yes | `initiation_engine/schema_loader.py::load_schema()` | Schema configuration file not found |
+| S-F-S-0205 | CONFIG_FILE_NOT_FOUND | FATAL | Yes | `initiation_engine/config_loader.py::load_config()` | Configuration file not found |
 
 ### Configuration Errors (S-C-S-03xx)
 
-| Code | Name | Severity | Stops Pipeline | Description |
-|------|------|----------|----------------|-------------|
-| S-C-S-0301 | INVALID_PARAMETER | FATAL | Yes | Invalid parameter provided to pipeline |
-| S-C-S-0302 | SCHEMA_PARSE_ERROR | FATAL | Yes | Failed to parse schema JSON |
-| S-C-S-0303 | SCHEMA_VALIDATION_FAILED | FATAL | Yes | Schema validation failed |
-| S-C-S-0304 | MISSING_REQUIRED_CONFIG | FATAL | Yes | Required configuration missing |
-| S-C-S-0305 | PROJECT_SETUP_FAILED | FATAL | Yes | Project setup validation failed |
+| Code | Name | Severity | Stops Pipeline | Path/File/Function | Description |
+|------|------|----------|----------------|--------------------|-------------|
+| S-C-S-0301 | INVALID_PARAMETER | FATAL | Yes | `initiation_engine/pipeline_initiator.py::validate_parameters()` | Invalid parameter provided to pipeline |
+| S-C-S-0302 | SCHEMA_PARSE_ERROR | FATAL | Yes | `initiation_engine/schema_loader.py::parse_schema_json()` | Failed to parse schema JSON |
+| S-C-S-0303 | SCHEMA_VALIDATION_FAILED | FATAL | Yes | `initiation_engine/schema_validator.py::validate_against_schema()` | Schema validation failed |
+| S-C-S-0304 | MISSING_REQUIRED_CONFIG | FATAL | Yes | `initiation_engine/config_loader.py::validate_required()` | Required configuration missing |
+| S-C-S-0305 | PROJECT_SETUP_FAILED | FATAL | Yes | `initiation_engine/project_setup.py::validate_setup()` | Project setup validation failed |
 
 ### Runtime Errors (S-R-S-04xx)
 
-| Code | Name | Severity | Stops Pipeline | Description |
-|------|------|----------|----------------|-------------|
-| S-R-S-0401 | STEP_EXCEPTION_INIT | FATAL | Yes | Exception during initiation step |
-| S-R-S-0402 | FAIL_FAST_TRIGGERED | FATAL | Yes | Fail-fast condition triggered |
-| S-R-S-0403 | MEMORY_ERROR | FATAL | Yes | Memory allocation failed |
-| S-R-S-0404 | STEP_EXCEPTION_SCHEMA | FATAL | Yes | Exception during schema validation |
-| S-R-S-0405 | STEP_EXCEPTION_MAPPING | FATAL | Yes | Exception during column mapping |
-| S-R-S-0406 | STEP_EXCEPTION_PROC | FATAL | Yes | Exception during processing |
+| Code | Name | Severity | Stops Pipeline | Path/File/Function | Description |
+|------|------|----------|----------------|--------------------|-------------|
+| S-R-S-0401 | STEP_EXCEPTION_INIT | FATAL | Yes | `initiation_engine/pipeline_initiator.py::initiate()` | Exception during initiation step |
+| S-R-S-0402 | FAIL_FAST_TRIGGERED | FATAL | Yes | `processor_engine/core/pipeline.py::fail_fast_check()` | Fail-fast condition triggered |
+| S-R-S-0403 | MEMORY_ERROR | FATAL | Yes | `processor_engine/core/memory_manager.py::allocate()` | Memory allocation failed |
+| S-R-S-0404 | STEP_EXCEPTION_SCHEMA | FATAL | Yes | `processor_engine/validators/schema_validator.py::validate()` | Exception during schema validation |
+| S-R-S-0405 | STEP_EXCEPTION_MAPPING | FATAL | Yes | `processor_engine/mappers/column_mapper.py::apply_mapping()` | Exception during column mapping |
+| S-R-S-0406 | STEP_EXCEPTION_PROC | FATAL | Yes | `processor_engine/engine.py::apply_processing()` | Exception during processing |
 
 ### AI/Optional Errors (S-A-S-05xx)
 
-| Code | Name | Severity | Stops Pipeline | Description |
-|------|------|----------|----------------|-------------|
-| S-A-S-0501 | AI_OPS_FAILED | WARNING | No | AI operations failed to complete |
-| S-A-S-0502 | DUCKDB_UNAVAILABLE | WARNING | No | DuckDB not available for AI operations |
-| S-A-S-0503 | OLLAMA_UNAVAILABLE | WARNING | No | Ollama service not available |
+| Code | Name | Severity | Stops Pipeline | Path/File/Function | Description |
+|------|------|----------|----------------|--------------------|-------------|
+| S-A-S-0501 | AI_OPS_FAILED | WARNING | No | `processor_engine/ai/ai_operations.py::execute()` | AI operations failed to complete |
+| S-A-S-0502 | DUCKDB_UNAVAILABLE | WARNING | No | `processor_engine/ai/duckdb_connector.py::connect()` | DuckDB not available for AI operations |
+| S-A-S-0503 | OLLAMA_UNAVAILABLE | WARNING | No | `processor_engine/ai/ollama_client.py::check_availability()` | Ollama service not available |
 
 ---
 
@@ -82,50 +82,53 @@
 
 ### Phase 1 - Anchor (P1-A-P-01xx)
 
-| Code | Name | Severity | Column(s) | Description |
-|------|------|----------|-----------|-------------|
-| P1-A-P-0101 | ANCHOR_COLUMN_NULL | CRITICAL | Project_Code, Facility_Code, Document_Type, Discipline | Anchor column is null or empty |
+| Code | Name | Severity | Column(s) | Path/File/Function | Description |
+|------|------|----------|-----------|--------------------|-------------|
+| P1-A-P-0101 | ANCHOR_COLUMN_NULL | CRITICAL | Project_Code, Facility_Code, Document_Type, Discipline | `processor_engine/validators/row_validator.py::detect_anchor_errors()` | Anchor column is null or empty |
 
 ### Phase 2 - Identity (P2-I-V-02xx)
 
-| Code | Name | Severity | Column(s) | Description |
-|------|------|----------|-----------|-------------|
-| P2-I-V-0204 | DOCUMENT_ID_INVALID | HIGH | Document_ID | Document_ID has invalid format or composite mismatch |
+| Code | Name | Severity | Column(s) | Path/File/Function | Description |
+|------|------|----------|-----------|--------------------|-------------|
+| P2-I-V-0201 | DOCUMENT_ID_UNCERTAIN | CRITICAL | Document_ID | `processor_engine/validators/row_validator.py::detect_identity_errors()` | Document_ID could not be resolved |
+| P2-I-V-0202 | REVISION_MISSING | CRITICAL | Document_Revision | `processor_engine/validators/row_validator.py::detect_identity_errors()` | No Revision found for this row |
+| P2-I-V-0203 | DUPLICATE_TRANSMITTAL | HIGH | Document_ID, Submission_Session | `processor_engine/validators/row_validator.py::detect_identity_errors()` | Multiple identical Document IDs in same session |
+| P2-I-V-0204 | DOCUMENT_ID_INVALID | HIGH | Document_ID | `processor_engine/validators/row_validator.py::detect_identity_errors()` | Document_ID has invalid format or composite mismatch |
 
 ### Layer 3 - Logic (L3-L-V-03xx)
 
-| Code | Name | Severity | Column(s) | Health Impact | Description |
-|------|------|----------|-----------|---------------|-------------|
-| L3-L-P-0301 | DATE_INVERSION | HIGH | Review_Return_Actual_Date, Submission_Date | -15 | Review_Return_Actual_Date before Submission_Date |
-| L3-L-V-0302 | CLOSED_WITH_PLAN_DATE | HIGH | Submission_Closed, Resubmission_Plan_Date | -10 | Submission_Closed=YES but Resubmission_Plan_Date is set |
-| L3-L-V-0303 | RESUBMISSION_MISMATCH | MEDIUM | Review_Status, Resubmission_Required | -10 | REJ status without Resubmission_Required=YES/RESUBMITTED |
-| L3-L-V-0304 | OVERDUE_MISMATCH | MEDIUM | Resubmission_Plan_Date, Resubmission_Overdue_Status | -5 | Past plan date but status not overdue/resubmitted |
-| L3-L-V-0305 | VERSION_REGRESSION | HIGH | Document_Revision | -15 | Current revision older than previous for same Document_ID |
-| L3-L-V-0306 | REVISION_GAP | MEDIUM | Submission_Session, Document_Revision | -5 | Revision gap in Submission_Session sequence |
-| L3-L-V-0307 | CLOSED_WITH_RESUBMISSION | HIGH | Submission_Closed, Resubmission_Required | -10 | Submission_Closed=YES but Resubmission_Required=YES (should be NO) |
+| Code | Name | Severity | Column(s) | Health Impact | Path/File/Function | Description |
+|------|------|----------|-----------|---------------|--------------------|-------------|
+| L3-L-P-0301 | DATE_INVERSION | HIGH | Review_Return_Actual_Date, Submission_Date | -15 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Review_Return_Actual_Date before Submission_Date |
+| L3-L-V-0302 | CLOSED_WITH_PLAN_DATE | HIGH | Submission_Closed, Resubmission_Plan_Date | -10 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Submission_Closed=YES but Resubmission_Plan_Date is set |
+| L3-L-V-0303 | RESUBMISSION_MISMATCH | MEDIUM | Review_Status, Resubmission_Required | -10 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | REJ status without Resubmission_Required=YES/RESUBMITTED |
+| L3-L-V-0304 | OVERDUE_MISMATCH | MEDIUM | Resubmission_Plan_Date, Resubmission_Overdue_Status | -5 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Past plan date but status not overdue/resubmitted |
+| L3-L-V-0305 | VERSION_REGRESSION | HIGH | Document_Revision | -15 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Current revision older than previous for same Document_ID |
+| L3-L-V-0306 | REVISION_GAP | MEDIUM | Submission_Session, Document_Revision | -5 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Revision gap in Submission_Session sequence |
+| L3-L-V-0307 | CLOSED_WITH_RESUBMISSION | HIGH | Submission_Closed, Resubmission_Required | -10 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Submission_Closed=YES but Resubmission_Required=YES (should be NO) |
 
 ### Validation - Schema (V5-I-V-05xx)
 
-| Code | Name | Severity | Description |
-|------|------|----------|-------------|
-| V5-I-V-0501 | PATTERN_MISMATCH | HIGH | Field value does not match expected pattern |
-| V5-I-V-0502 | LENGTH_VIOLATION | HIGH | Field value length violates min/max constraints |
-| V5-I-V-0503 | INVALID_ENUM_VALUE | HIGH | Field value is not in allowed values list |
-| V5-I-V-0504 | TYPE_MISMATCH | HIGH | Field value type does not match expected type |
+| Code | Name | Severity | Path/File/Function | Description |
+|------|------|----------|--------------------|-------------|
+| V5-I-V-0501 | PATTERN_MISMATCH | HIGH | `processor_engine/validators/schema_validator.py::validate_pattern()` | Field value does not match expected pattern |
+| V5-I-V-0502 | LENGTH_VIOLATION | HIGH | `processor_engine/validators/schema_validator.py::validate_length()` | Field value length violates min/max constraints |
+| V5-I-V-0503 | INVALID_ENUM_VALUE | HIGH | `processor_engine/validators/schema_validator.py::validate_enum()` | Field value is not in allowed values list |
+| V5-I-V-0504 | TYPE_MISMATCH | HIGH | `processor_engine/validators/schema_validator.py::validate_type()` | Field value type does not match expected type |
 
 ### System Input - File (S1-I-F-08xx)
 
-| Code | Name | Severity | Description |
-|------|------|----------|-------------|
-| S1-I-F-0804 | FILE_NOT_FOUND | CRITICAL | Input file not found |
-| S1-I-F-0805 | FILE_FORMAT_INVALID | CRITICAL | Unsupported file format or file too large |
+| Code | Name | Severity | Path/File/Function | Description |
+|------|------|----------|--------------------|-------------|
+| S1-I-F-0804 | FILE_NOT_FOUND | CRITICAL | `initiation_engine/file_handler.py::validate_input_file()` | Input file not found |
+| S1-I-F-0805 | FILE_FORMAT_INVALID | CRITICAL | `initiation_engine/file_handler.py::validate_file_format()` | Unsupported file format or file too large |
 
 ### System Input - Validation (S1-I-V-05xx)
 
-| Code | Name | Severity | Description |
-|------|------|----------|-------------|
-| S1-I-V-0501 | ENCODING_ERROR | HIGH | File encoding error (expected UTF-8) |
-| S1-I-V-0502 | MISSING_REQUIRED_COLUMNS | CRITICAL | Required columns are missing from input |
+| Code | Name | Severity | Path/File/Function | Description |
+|------|------|----------|--------------------|-------------|
+| S1-I-V-0501 | ENCODING_ERROR | HIGH | `initiation_engine/file_handler.py::detect_encoding()` | File encoding error (expected UTF-8) |
+| S1-I-V-0502 | MISSING_REQUIRED_COLUMNS | CRITICAL | `initiation_engine/validators/column_validator.py::validate_required()` | Required columns are missing from input |
 
 ---
 
@@ -265,10 +268,10 @@ dcc/archive/workflow/
 - [README](README.md) - Master documentation index
 - [Consolidated Implementation Report](reports/consolidated_implementation_report.md) - All phases summary
 - [Error Catalog Consolidation Plan](error_catalog_consolidation_plan.md) - Master workplan
-- [Data Error Handling](data_error_handling.md) - Implementation guide
+- [Data Error Handling Workplan](data_error_handling_workplan.md) - Implementation guide
 
 ---
 
 **Maintained by:** Engineering Team  
-**Last Updated:** 2026-04-24  
+**Last Updated:** 2026-04-25 (Added Path/File/Function column to all error code tables)  
 **Issue Reference:** #62

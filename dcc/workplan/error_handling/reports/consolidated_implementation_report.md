@@ -228,7 +228,7 @@ dcc/
     ├── README.md                      # Master index
     ├── error_handling_taxonomy.md     # Complete code reference
     ├── error_catalog_consolidation_plan.md  # Master workplan
-    ├── data_error_handling.md         # Implementation guide
+    ├── data_error_handling_workplan.md         # Implementation guide
     ├── system_error_handling_workplan.md
     ├── error_handling_module_workplan.md
     ├── pipeline_messaging_plan.md

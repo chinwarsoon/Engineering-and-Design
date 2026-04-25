@@ -102,7 +102,41 @@
 15. dependencies and environment
 16. coding and programming engineering standard achieved
 
+# Section 8. Workplan
+1. always create workplan file for each given task. workplans will be generated in <project folder>/workplan/ folder.
+2. workplan should consider the following:
+   - Title and description
+   - workplan document ID, revision control (summary of what updated in this workpan) and version history, status
+   - object
+   - scope summary
+   - index of content with links
+   - evaluation and alignment with existing architecture
+   - dependencies with other tasks
+   - what will be updated/created
+   - implementation phase and task breakdown
+   - timeline, milestones, and deliverables
+   - risks and mitigation
+   - potential issues to be addressed in the future
+   - success criteria
+   - references with links to other files, reports, and code files.
+3. always update workplan file when there are changes or updates
+4. always review related others workplan file before starting implementation
+5. always log issues to issue_log.md file under the parent folder of workplan folder
+6. always generate report for each phase in the subfolder reports which is under related workplan file folder
+7. always update logs in log folder which is under parent folder of workplan folder
 
-
-
-
+# Section 9. Reports for workplans
+1. always conduct test after updates per workplan each phase. test reports for workplan phases will be generated in <project folder>/workplan/reports/ folder.
+2. test report for workplan phases should include:
+   - title and description for tests
+   - report document ID, revision control (summary of what udpated in this test report) and version history, status
+   - index of content with links
+   - test objective, scope and execution summary
+   - test methodology, environment, and tools
+   - test phases, steps, cases, status, and detailed results
+   - test success criteria and checklist
+   - file archived, modified, and version controlled
+   - recommendations for future actions
+   - lessons learned
+3. always log issues to issue_log.md file under the parent folder of workplan folder
+4. always update update_log.md in <project folder>/log/ folder.

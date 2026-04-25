@@ -3,7 +3,7 @@
 **Version:** 3.0  
 **Date:** April 12, 2026  
 **Status:** Implementation Phase - Core Operational ✅  
-**Based on:** `data_error_handling.md` and `processing_pipeline_issues.md`
+**Based on:** `data_error_handling_workplan.md` and `processing_pipeline_issues.md`
 **Core Philosophy:** **"Fail Fast, Inform Well, Resolve Smart"**
 **Pattern:** **Decorator/Interceptor Pattern (AOP-style)**
 **Architecture:** **Pure JSON Configuration (Option B)**
@@ -2357,6 +2357,6 @@ processor_engine/error_handling/
   - 5-phase implementation (reduced from 6)
 
 **References:**
-- Error Code Framework: `data_error_handling.md` (24 error codes defined)
+- Error Code Framework: `data_error_handling_workplan.md` (17 data error codes defined)
 - Pipeline Architecture: `processing_pipeline_issues.md` (phased processing P1→P2→P2.5→P3)
 - Schema Definition: `config/schemas/dcc_register_enhanced.json` (46 columns)

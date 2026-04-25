@@ -13,7 +13,7 @@
 | [Error Handling Taxonomy](error_handling_taxonomy.md) | Complete error code reference | NEW |
 | [Consolidated Implementation Report](reports/consolidated_implementation_report.md) | All phases summary | NEW |
 | [Error Catalog Consolidation Plan](error_catalog_consolidation_plan.md) | Master workplan | ACTIVE |
-| [Data Error Handling](data_error_handling.md) | Implementation guide | REFERENCE |
+| [Data Error Handling Workplan](data_error_handling_workplan.md) | Implementation guide | REFERENCE |
 | [System Error Handling Workplan](system_error_handling_workplan.md) | System error details | REFERENCE |
 | [Error Handling Module Workplan](error_handling_module_workplan.md) | Module architecture | REFERENCE |
 | [Pipeline Messaging Plan](pipeline_messaging_plan.md) | Message handling | REFERENCE |

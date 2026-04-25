@@ -1,28 +1,286 @@
-# DCC Pipeline: Error Coding & Validation Framework
+# DCC Pipeline: Data Error Coding & Validation Framework - Workplan
 
-**Version:** 2.0  
-**Status:** Updated per Error Code Standardization (Issue #62)  
-**Scope:** logic for `validation_errors` column and UI tooltips.  
-**Related:** [Error Handling Taxonomy](error_handling_taxonomy.md) | [Consolidated Report](reports/consolidated_implementation_report.md)
+| Field | Value |
+|-------|-------|
+| **Workplan ID** | WP-DCC-EH-DATA-001 |
+| **Version** | 2.0 |
+| **Date** | 2026-04-24 |
+| **Status** | ✅ COMPLETE (Phases 1-4) |
+| **Scope** | **DATA ERRORS ONLY** - Logic errors, validation errors, calculation errors in processed data |
+| **System Errors** | See [system_error_handling_workplan.md](system_error_handling_workplan.md) for environment/pipeline failures |
+| **Issue Ref** | #62 (Error Code Standardization) |
+| **Related** | [Taxonomy](error_handling_taxonomy.md) \| [Consolidated Report](reports/consolidated_implementation_report.md) \| [README](README.md) |
 
 ---
 
-## 1. Error Code Structure (Standardized)
+## 1. Object
 
-All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Function-UniqueID) defined in [Error Handling Taxonomy](error_handling_taxonomy.md). This format enables:
+To establish a comprehensive error coding and validation framework for the DCC pipeline that:
+- Standardizes all error codes using the LL-M-F-XXXX format (Layer-Module-Function-UniqueID)
+- Provides consistent error detection across all pipeline phases (P1, P2, P2.5, P3)
+- Enables health score calculation based on error severity
+- Supports bilingual error messages (English and Chinese)
+- Creates traceability from error codes to detector functions
+- Maintains backward compatibility with legacy error codes
+
+---
+
+## 2. Scope Summary
+
+### In Scope (Data Errors Only)
+- **17 Data/Logic Error Codes** in LL-M-F-XXXX format
+- **6 Data Error Categories:** 
+  - P1-A (Anchor): Column nulls, format errors
+  - P2-I (Identity): Document ID, revision errors
+  - L3-L (Logic): Date inversions, status conflicts
+  - F4-C (Fill): Forward fill warnings
+  - V5-I (Validation): Schema pattern/enum/type errors
+  - C6-C (Calculation): Dependency, circular reference errors
+- **Data Error Schema Files**: `error_code_base.json`, `error_code_setup.json`, `data_error_config.json`
+- **Bilingual Messages** (EN, ZH) for data errors
+- **Health Score Integration** with weighted error impact per data error
+- **Migration Path** from legacy P1xx/P2xx/L3xx codes to LL-M-F-XXXX format
+
+### Out of Scope (See Other Workplans)
+| Topic | Location |
+|-------|----------|
+| **System Errors** (S-C-S-XXXX) | [system_error_handling_workplan.md](system_error_handling_workplan.md) |
+| **Real-time error reporting UI** | [pipeline_messaging_plan.md](pipeline_messaging_plan.md) |
+| **Error remediation workflows** | [error_handling_module_workplan.md](error_handling_module_workplan.md) |
+| **System error messages** | `initiation_engine/error_handling/config/messages/system_en.json` |
+
+---
+
+## 3. Index of Content
+
+| Section | Description | Link |
+|---------|-------------|------|
+| 1 | [Object](#1-object) | Purpose of data error framework |
+| 2 | [Scope Summary](#2-scope-summary) | Data errors only; system errors separate |
+| 3 | [Index of Content](#3-index-of-content) | This table |
+| 4 | [Version History](#4-version-history) | Revision tracking |
+| 5 | [Evaluation & Architecture](#5-evaluation--alignment-with-existing-architecture) | agent_rule.md compliance |
+| 6 | [Dependencies](#6-dependencies-with-other-tasks) | Related workplans & files |
+| 7 | [Implementation Phases](#7-implementation-phases) | Phase 1-4 breakdown |
+| 8 | [Timeline & Deliverables](#8-timeline-milestones-and-deliverables) | Schedule & 11 deliverables |
+| 9 | [Risks & Mitigation](#9-risks-and-mitigation) | 5 risks with status |
+| 10 | [Future Issues](#10-potential-issues-to-be-addressed-in-the-future) | 5 improvement areas |
+| 11 | [Success Criteria](#11-success-criteria) | 8 measurable targets |
+| 12 | [Technical Implementation](#12-technical-implementation-details) | 12.1-12.11 subsections |
+| 13 | [Migration Table](#13-migration-table) | Legacy → Standardized mapping |
+| 14 | [Summary & Status](#14-summary--current-status) | Current state & related docs |
+| 15 | [References](#15-references) | Links to code, reports, schemas |
+
+---
+
+## 4. Version History
+
+| Version | Date | Author | Changes | Status |
+|---------|------|--------|---------|--------|
+| 2.0 | 2026-04-24 | System | Major update to standardized LL-M-F-XXXX format, added Phase 1-3 completion status, migration table | ✅ Complete |
+| 1.2 | 2026-04-09 | System | Added implementation guide and integration specs | ✅ Complete |
+| 1.1 | 2026-04-09 | System | Added V5xx (Validation) and C6xx (Calculation) error codes | ✅ Complete |
+| 1.0 | 2026-04-09 | System | Initial framework with P1xx-P2xx-L3xx-F4xx format | ✅ Complete |
+
+---
+
+## 5. Evaluation & Alignment with Existing Architecture
+
+### Schema Architecture Compliance (agent_rule.md Section 2)
+
+| Requirement | Implementation | Status |
+|-------------|----------------|--------|
+| Base schema for definitions | `error_code_base.json` - 8 reusable definitions | ✅ Compliant |
+| Setup schema for properties | `error_code_setup.json` - allOf inheritance | ✅ Compliant |
+| Config schema for values | `system_error_config.json`, `data_error_config.json` | ✅ Compliant |
+| One-to-one match across files | Properties match, $refs validated | ✅ Compliant |
+| URI Registry | All schemas have unique digital IDs | ✅ Compliant |
+| additionalProperties: false | Set on critical schemas | ✅ Compliant |
+
+### Data Column Priority Alignment (agent_rule.md Section 1)
+
+| Priority | Error Codes | Alignment |
+|----------|-------------|-----------|
+| P1 (Meta Data) | P1-A-P/V-01xx | Detects null anchor columns (Project_Code, Facility_Code, etc.) |
+| P2 (Transactional) | P2-I-P/V-02xx | Validates Document_ID, Revision before logic |
+| P2.5/P3 (Calculated) | L3-L, C6-C, V5-I | Runs after P1/P2 validation |
+
+### Documentation Requirements (agent_rule.md Section 7)
+
+| Requirement | Location | Status |
+|-------------|----------|--------|
+| Overall summary | Section 1 (Object) | ✅ |
+| Content index | Section 3 | ✅ |
+| Quick start | Section 12 (Technical Implementation) | ✅ |
+| Module structure | Section 12 | ✅ |
+| I/O table | Error tables per category | ✅ |
+| Debugging/troubleshooting | Section 9 (Risks) | ✅ |
+| Usage examples | Code samples throughout | ✅ |
+
+---
+
+## 6. Dependencies with Other Tasks
+
+### Internal Dependencies
+
+| Task | Relationship | Status |
+|------|--------------|--------|
+| [System Error Handling](../system_error_handling_workplan.md) | S-C-S-XXXX codes complement LL-M-F-XXXX | ✅ Complete |
+| [Error Handling Taxonomy](../error_handling_taxonomy.md) | Master reference for all codes | ✅ Complete |
+| [Pipeline Messaging](../pipeline_messaging_plan.md) | UI display of error messages | ✅ Complete |
+
+### External Dependencies
+
+| Component | Usage | Status |
+|-----------|-------|--------|
+| `row_validator.py` | Uses L3-L-V-03xx codes | ✅ Implemented |
+| `messages/en.json` | English translations | ✅ Complete |
+| `messages/zh.json` | Chinese translations | ✅ Complete |
+| `core/registry.py` | ErrorRegistry class | ✅ Implemented |
+
+---
+
+## 7. Implementation Phases
+
+### Phase 1: Schema Architecture (COMPLETE)
+**Objective:** Create 4-file schema structure per agent_rule.md
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| EC1.1 | Create `error_code_base.json` (definitions) | ✅ |
+| EC1.2 | Create `error_code_setup.json` (properties) | ✅ |
+| EC1.3 | Create `system_error_config.json` (20 codes) | ✅ |
+| EC1.4 | Create `data_error_config.json` (17 codes) | ✅ |
+| EC1.5 | Validate schema inheritance chain | ✅ |
+
+### Phase 2: Code Migration (COMPLETE)
+**Objective:** Migrate 5 legacy string codes to standardized format
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| EC2.1 | Update `row_validator.py` with new codes | ✅ |
+| EC2.2 | Update `ROW_ERROR_WEIGHTS` dict | ✅ |
+| EC2.3 | Update messages/en.json | ✅ |
+| EC2.4 | Update messages/zh.json | ✅ |
+
+### Phase 3: Testing & Validation (COMPLETE)
+**Objective:** Verify all components work together
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| EC3.1 | Schema validation tests (4) | ✅ 100% |
+| EC3.2 | Format validation tests (5) | ✅ 100% |
+| EC3.3 | Code integration tests (5) | ✅ 100% |
+| EC3.4 | Message resolution tests (4) | ✅ 100% |
+| EC3.5 | Health score calculation tests (5) | ✅ 100% |
+| EC3.6 | Migration verification tests (5) | ✅ 100% |
+
+### Phase 4: Documentation Consolidation (COMPLETE)
+**Objective:** Align documentation with agent_rule.md requirements
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| EC4.1 | Update this workplan per agent_rule.md | ✅ Current task |
+| EC4.2 | Create master README.md | ✅ |
+| EC4.3 | Archive obsolete phase files | ✅ |
+
+---
+
+## 8. Timeline, Milestones, and Deliverables
+
+### Timeline Summary
+
+| Phase | Start | End | Duration | Status |
+|-------|-------|-----|----------|--------|
+| Phase 1 | Apr 20 | Apr 22 | 3 days | ✅ Complete |
+| Phase 2 | Apr 22 | Apr 23 | 2 days | ✅ Complete |
+| Phase 3 | Apr 23 | Apr 24 | 1 day | ✅ Complete |
+| Phase 4 | Apr 24 | Apr 25 | 1 day | ✅ Complete |
+
+### Key Milestones
+
+| Milestone | Date | Deliverable |
+|-----------|------|-------------|
+| M1 | Apr 22 | 4 schema files validated |
+| M2 | Apr 23 | 5 codes migrated, messages updated |
+| M3 | Apr 24 | 28 tests passing (100%) |
+| M4 | Apr 25 | Documentation consolidated |
+
+### Deliverables
+
+| ID | Deliverable | Location | Status |
+|----|-------------|----------|--------|
+| D1 | Error Code Base Schema | `config/schemas/error_code_base.json` | ✅ |
+| D2 | Error Code Setup Schema | `config/schemas/error_code_setup.json` | ✅ |
+| D3 | System Error Config | `config/schemas/system_error_config.json` | ✅ |
+| D4 | Data Error Config | `config/schemas/data_error_config.json` | ✅ |
+| D5 | English Messages | `workflow/processor_engine/error_handling/config/messages/en.json` | ✅ |
+| D6 | Chinese Messages | `workflow/processor_engine/error_handling/config/messages/zh.json` | ✅ |
+| D7 | Updated row_validator.py | `workflow/processor_engine/error_handling/detectors/row_validator.py` | ✅ |
+| D8 | This Workplan | `workplan/error_handling/data_error_handling_workplan.md` | ✅ |
+| D9 | Taxonomy Guide | `workplan/error_handling/error_handling_taxonomy.md` | ✅ |
+| D10 | Consolidated Report | `workplan/error_handling/reports/consolidated_implementation_report.md` | ✅ |
+| D11 | Master README | `workplan/error_handling/README.md` | ✅ |
+
+---
+
+## 9. Risks and Mitigation
+
+| Risk | Probability | Impact | Mitigation | Status |
+|------|-------------|--------|------------|--------|
+| R1 | Legacy code references remain | Medium | Medium | Legacy mapping table, backward compatibility layer | Resolved |
+| R2 | Message lookup performance | Low | Low | Cached registry, O(1) lookup | Resolved |
+| R3 | Schema validation failures | Low | High | 4 schema files, 100% test pass | Resolved |
+| R4 | Health score calculation errors | Low | Medium | Weight validation tests | Resolved |
+| R5 | Missing bilingual messages | Low | Medium | All 37 codes have EN+ZH | Resolved |
+
+---
+
+## 10. Potential Issues to be Addressed in the Future
+
+| Issue | Priority | Description | Proposed Solution |
+|-------|----------|-------------|-------------------|
+| F1 | Low | Add more language support | Extend messages/ folder structure |
+| F2 | Low | Real-time error streaming | WebSocket integration for UI |
+| F3 | Low | Error trend analytics | Time-series database for error rates |
+| F4 | Medium | Auto-remediation for certain errors | Rule-based error correction engine |
+| F5 | Low | Error code versioning | Schema versioning for breaking changes |
+
+---
+
+## 11. Success Criteria
+
+| Criterion | Target | Measurement | Status |
+|-----------|--------|-------------|--------|
+| SC1 | All 37 error codes standardized | LL-M-F-XXXX or S-C-S-XXXX format | ✅ 100% |
+| SC2 | Schema architecture compliant | agent_rule.md Section 2.3 | ✅ Pass |
+| SC3 | 5 legacy codes migrated | row_validator.py updated | ✅ Complete |
+| SC4 | 100% test pass rate | 28/28 tests passing | ✅ 100% |
+| SC5 | Bilingual message support | EN + ZH messages | ✅ Complete |
+| SC6 | Documentation complete | This workplan + taxonomy + README | ✅ Complete |
+| SC7 | Health score integration | Weighted error impact | ✅ Implemented |
+| SC8 | Backward compatibility | LEGACY_TO_STANDARDIZED mapping | ✅ Complete |
+
+---
+
+## 12. Technical Implementation Details
+
+### 12.1 Error Code Structure (Standardized)
+
+All errors follow the standardized **LL-M-F-XXXX** format (Layer-Module-Function-UniqueID) defined in [Error Handling Taxonomy](error_handling_taxonomy.md). This format enables:
 - Rapid SQL filtering by layer/module
 - Categorical dashboarding by function
 - Clear traceability to source code location
 - Consistent health score weighting
 
-### Standardized Format Specification
+#### Format Specification
 
 | Format | Pattern | Example | Used For |
 |--------|---------|---------|----------|
 | **LL-M-F-XXXX** | `^[A-Z0-9]{2}-[A-Z]-[A-Z]-[0-9]{4}$` | `L3-L-V-0302` | Data/Logic errors |
 | **S-C-S-XXXX** | `^S-[A-Z]-S-[0-9]{4}$` | `S-C-S-0301` | System errors |
 
-### Layer/Phase Codes
+#### Layer/Phase Codes
 
 | Code | Name | Criticality | Action Required |
 | :--- | :--- | :--- | :--- |
@@ -36,7 +294,7 @@ All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Func
 
 ---
 
-## 2. Priority 1: Structural Anchor Errors (P1-A-P-01xx)
+### 12.2 Priority 1: Structural Anchor Errors (P1-A-P-01xx)
 *Errors in columns that define the "container" of the data.*
 
 | Standardized Code | Legacy Code | Description | Severity |
@@ -49,7 +307,7 @@ All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Func
 
 ---
 
-## 3. Priority 2: Identity & Transactional Errors (P2-I-V-02xx)
+### 12.3 Priority 2: Identity & Transactional Errors (P2-I-V-02xx)
 *Errors in identifying the specific document or revision.*
 
 | Standardized Code | Legacy Code | Description | Severity |
@@ -63,7 +321,7 @@ All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Func
 
 ---
 
-## 4. Priority 3: Logical & Chronological Errors (L3-L-V-03xx)
+### 12.4 Priority 3: Logical & Chronological Errors (L3-L-V-03xx)
 *Data exists, but the timeline or status is physically impossible.*
 
 | Standardized Code | Legacy Code | Description | Severity | Health Impact |
@@ -80,7 +338,7 @@ All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Func
 
 ---
 
-## 5. Priority 4: Imputation & Boundary Warnings (F4-C-F-04xx)
+### 12.5 Priority 4: Imputation & Boundary Warnings (F4-C-F-04xx)
 *Audit trail codes indicating where the script "guessed" or "filled" values.*
 
 | Standardized Code | Legacy Code | Description | Severity |
@@ -95,7 +353,7 @@ All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Func
 
 ---
 
-## 6. Priority 5: Schema Validation Errors (V5-I-V-05xx)
+### 12.6 Priority 5: Schema Validation Errors (V5-I-V-05xx)
 *Errors detected during schema validation against field definitions.*
 
 | Standardized Code | Legacy Code | Error | Description | Example |
@@ -111,7 +369,7 @@ All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Func
 
 ---
 
-## 7. Priority 6: Calculation & Engine Errors (C6-C-C-06xx)
+### 12.7 Priority 6: Calculation & Engine Errors (C6-C-C-06xx)
 *Errors occurring during phased processing (P1→P2→P2.5→P3).*
 
 | Standardized Code | Legacy Code | Error | Description | Phase |
@@ -127,7 +385,7 @@ All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Func
 
 ---
 
-## 8. Complete Error Code Reference
+### 12.8 Complete Error Code Reference
 
 ### By Processing Phase (Standardized)
 
@@ -152,7 +410,7 @@ All errors now follow the standardized **LL-M-F-XXXX** format (Layer-Module-Func
 
 ---
 
-## 9. Implementation Guide
+### 12.9 Implementation Guide
 
 ### Data Storage
 - Store codes as a **comma-separated string** in the `validation_errors` column (e.g., `P1-A-V-0102, L3-L-V-0302, F4-C-F-0401`).
@@ -336,7 +594,7 @@ LEGACY_TO_STANDARDIZED = {
 
 ---
 
-## 10. UI/Tooltip Integration
+### 12.10 UI/Tooltip Integration
 
 ### Error Display Format (Standardized)
 ```json
@@ -367,7 +625,7 @@ LEGACY_TO_STANDARDIZED = {
 
 ---
 
-## 11. Testing Error Detection
+### 12.11 Testing Error Detection
 
 ### Unit Test Examples
 ```python
@@ -411,7 +669,7 @@ def test_F4_C_F_0401_jump_limit():
 
 ---
 
-## 12. Migration Table
+## 13. Migration Table
 
 ### Legacy → Standardized Code Mapping
 
@@ -446,7 +704,7 @@ def test_F4_C_F_0401_jump_limit():
 
 ---
 
-## 13. Summary & Current Status
+## 14. Summary & Current Status
 
 ### What Was Accomplished (Phases 1-3)
 
@@ -486,15 +744,46 @@ def test_F4_C_F_0401_jump_limit():
 
 ---
 
-## 14. Version History
+## 15. References
 
-| Version | Date | Changes |
-|---------|------|---------|
-| **v2.0** | April 24, 2026 | **Major Update:** Updated to standardized error code format (LL-M-F-XXXX). Added migration table. Updated all code references. Added Phase 1-3 completion status. |
-| v1.2 | April 9, 2026 | Added implementation guide and integration specs |
-| v1.1 | April 9, 2026 | Added V5xx (Validation) and C6xx (Calculation) error codes |
-| v1.0 | April 9, 2026 | Initial framework with P1xx-P2xx-L3xx-F4xx format |
+### Code Files
+
+| File | Purpose | Location |
+|------|---------|----------|
+| `row_validator.py` | Data error detection with L3-L-V-03xx codes | [`workflow/processor_engine/error_handling/detectors/row_validator.py`](../../workflow/processor_engine/error_handling/detectors/row_validator.py) |
+| `error_code_base.json` | Base schema definitions (8 defs) | [`config/schemas/error_code_base.json`](../../config/schemas/error_code_base.json) |
+| `error_code_setup.json` | Properties structure (allOf) | [`config/schemas/error_code_setup.json`](../../config/schemas/error_code_setup.json) |
+| `data_error_config.json` | 17 data error code values | [`config/schemas/data_error_config.json`](../../config/schemas/data_error_config.json) |
+| `system_error_config.json` | 20 system error codes (S-C-S-XXXX) | [`config/schemas/system_error_config.json`](../../config/schemas/system_error_config.json) |
+| `en.json` | English error messages | [`workflow/processor_engine/error_handling/config/messages/en.json`](../../workflow/processor_engine/error_handling/config/messages/en.json) |
+| `zh.json` | Chinese error messages | [`workflow/processor_engine/error_handling/config/messages/zh.json`](../../workflow/processor_engine/error_handling/config/messages/zh.json) |
+
+### Reports
+
+| Report | Description | Location |
+|--------|-------------|----------|
+| Consolidated Implementation Report | All phases summary | [`reports/consolidated_implementation_report.md`](reports/consolidated_implementation_report.md) |
+| System Error Handling Report | System error completion | [`reports/system_error_handling_completion_report.md`](reports/system_error_handling_completion_report.md) |
+
+### Related Workplans
+
+| Workplan | Scope | Location |
+|----------|-------|----------|
+| System Error Handling | S-C-S-XXXX environment/pipeline errors | [system_error_handling_workplan.md](system_error_handling_workplan.md) |
+| Error Handling Taxonomy | Complete error code reference | [error_handling_taxonomy.md](error_handling_taxonomy.md) |
+| Pipeline Messaging Plan | UI/UX error display | [pipeline_messaging_plan.md](pipeline_messaging_plan.md) |
+| Error Handling Module | Remediation workflows | [error_handling_module_workplan.md](error_handling_module_workplan.md) |
+| Error Catalog Consolidation | Master workplan | [error_catalog_consolidation_plan.md](error_catalog_consolidation_plan.md) |
+
+### Logs
+
+| Log | Purpose | Location |
+|-----|---------|----------|
+| Issue Log | Issue #62 tracking | [`../../log/issue_log.md`](../../log/issue_log.md) |
+| Update Log | Phase completion entries | [`../../log/update_log.md`](../../log/update_log.md) |
 
 ---
 
-**Status:** ✅ **UP TO DATE** - All standardized error codes implemented (Issue #62)
+**Status:** ✅ **UP TO DATE** - All standardized error codes implemented (Issue #62)  
+**Last Updated:** 2026-04-25 per agent_rule.md workplan requirements  
+**File:** `data_error_handling_workplan.md` (renamed from `data_error_handling.md`)

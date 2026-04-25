@@ -289,7 +289,7 @@ Update `messages/en.json` to use error codes as keys:
 2. Update `messages/en.json`: Add entries for new codes
 3. Update `messages/system_en.json`: Verify consistency with unified taxonomy
 4. Update `workplan/data_validation/row_validation_p2_logic.md`: Reference standardized codes
-5. Update `workplan/error_handling/data_error_handling.md`: Reference standardized codes
+5. Update `workplan/error_handling/data_error_handling_workplan.md`: Reference standardized codes
 6. Add cross-reference documentation between system and data error codes
 
 ### Phase 3: Testing (1 hour)
@@ -315,7 +315,7 @@ Update `messages/en.json` to use error codes as keys:
 | `processor_engine/error_handling/config/messages/en.json` | Add entries for migrated codes | MEDIUM |
 | `initiation_engine/error_handling/config/messages/system_en.json` | Verify consistency with unified taxonomy | MEDIUM |
 | `workplan/data_validation/row_validation_p2_logic.md` | Update code references | MEDIUM |
-| `workplan/error_handling/data_error_handling.md` | Update code references | MEDIUM |
+| `workplan/error_handling/data_error_handling_workplan.md` | Update code references | MEDIUM |
 
 ---
 
