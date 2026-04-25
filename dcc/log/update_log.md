@@ -8,6 +8,27 @@
 
 # Section 2. Log entries
 
+<a id="wp-maint-001-update"></a>
+## 2026-04-25
+
+### UPDATED: Project Maintenance and Archive Cleanup Workplan (WP-MAINT-001)
+**Status:** IN PROGRESS  
+**Related Task:** [Workplan Maintenance](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/maintenance/archive_cleanup_workplan.md)
+
+**Summary:** Restructured the existing `archive_cleanup_workplan.md` to comply with `agent_rule.md` Section 8 requirements. Expanded the scope from a simple cleanup plan to a comprehensive regular project maintenance workplan.
+
+**Changes Made:**
+- **Standardized Format**: Added Document ID (WP-MAINT-001), Revision Control, Version History, Status, and Implementation Phases.
+- **Scope Expansion**: Added maintenance categories for Codebase Hygiene, Dependency Audit, Log Management, and Security Checks.
+- **Requirement Retention**: Integrated all 11 original requirements into the new structured format.
+- **Phase Definition**: Defined 6 implementation phases for systematic execution of maintenance tasks.
+
+**Impact:**
+- Provides a professional, easy-to-follow roadmap for keeping the DCC codebase clean and efficient.
+- Ensures all maintenance activities are documented, tested, and reported in accordance with project rules.
+- Reduces technical debt by establishing recurring audits for code, schemas, and dependencies.
+
+---
 <a id="error-code-standardization-phase1"></a>
 ## 2026-04-24
 
