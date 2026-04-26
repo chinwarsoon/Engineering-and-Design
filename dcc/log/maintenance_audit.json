@@ -1,0 +1,148 @@
+{
+  "audit_id": "MAINT-AUDIT-2026-04-25",
+  "workplan_id": "WP-MAINT-001",
+  "phase": "Phase 1: Audit & Discovery",
+  "timestamp": "2026-04-25T20:15:00+08:00",
+  "auditor": "System",
+  "summary": {
+    "total_issues": 5,
+    "critical": 0,
+    "high": 3,
+    "medium": 2,
+    "low": 0
+  },
+  "findings": {
+    "nested_archives": {
+      "category": "Archive Structure",
+      "severity": "medium",
+      "description": "Redundant nested archive folders found",
+      "items": [
+        {
+          "path": "dcc/archive/config/schemas/archive/",
+          "item_count": 18,
+          "issue": "Nested archive - schemas archived within archive",
+          "recommended_action": "Flatten structure - move to dcc/archive/schemas/ if needed, or delete if redundant",
+          "files": [
+            "approval_code_schema.json",
+            "calculation_strategies.json",
+            "column_configuration.json",
+            "dcc_master_registry.json",
+            "dcc_register_enhanced.json",
+            "department_schema.json",
+            "discipline_schema.json",
+            "document_type_schema.json",
+            "facility_schema.json",
+            "project_code_schema.json",
+            "project_config.json",
+            "project_setup.json",
+            "project_setup_base.json",
+            "project_setup_dependencies.json",
+            "project_setup_discovery.json",
+            "project_setup_environment.json",
+            "project_setup_structure.json",
+            "project_setup_validation.json"
+          ]
+        },
+        {
+          "path": "dcc/archive/workplan/archive/",
+          "item_count": 1,
+          "issue": "Double-nested archive",
+          "recommended_action": "Move file to dcc/archive/workplan/",
+          "files": ["recursive_schema_loader_workplan.md"]
+        },
+        {
+          "path": "dcc/workflow/code_tracing/archive/",
+          "item_count": 1,
+          "issue": "Should be moved to code_tracer project",
+          "recommended_action": "Move to code_tracer/workplan/archive/",
+          "files": ["code_tracing_workplan.v1.md"]
+        },
+        {
+          "path": "dcc/workplan/error_handling/archive/",
+          "item_count": 7,
+          "issue": "Properly organized phase archives",
+          "recommended_action": "No action needed - structure is correct",
+          "files": [
+            "phase1/error_code_standardization_phase1_revised.md",
+            "phase1/error_code_standardization_proposal.md",
+            "phase1/phase1_completion_report.md",
+            "phase2/phase2_completion_report.md",
+            "phase3/error_code_standardization_phase3_testing.md",
+            "phase3/phase3_testing_report.md",
+            "phase4/error_code_standardization_phase4_consolidation.md"
+          ]
+        }
+      ]
+    },
+    "schema_issues": {
+      "category": "Schema Validation",
+      "severity": "high",
+      "description": "Schema $id and $ref consistency issues",
+      "items": [
+        {
+          "file": "dcc/archive/config/schemas/archive/project_setup_base.json",
+          "issue": "$id mismatch with active schema",
+          "details": {
+            "archived_$id": "https://dcc-pipeline.internal/schemas/project-setup-base",
+            "active_$id": "https://dcc-pipeline.internal/schemas/project_setup_base",
+            "archived_version": "2.0.0",
+            "active_version": "3.0.0"
+          },
+          "impact": "Archived schema uses hyphen instead of underscore in $id",
+          "recommended_action": "Archive is historical - no action needed, but document for reference"
+        }
+      ]
+    },
+    "redundant_files": {
+      "category": "File Redundancy",
+      "severity": "high",
+      "description": "Files that may be redundant or deprecated",
+      "items": [
+        {
+          "file": "dcc/archive/ui_backup_common_json_tools.html",
+          "size_bytes": 82505,
+          "issue": "Backup file in archive root",
+          "recommended_action": "Move to dcc/archive/ui/ folder for consistency"
+        },
+        {
+          "file": "dcc/archive/config/schemas/archive/project_config.json",
+          "size_bytes": 0,
+          "issue": "Empty file",
+          "recommended_action": "Delete empty file"
+        }
+      ]
+    },
+    "code_hygiene": {
+      "category": "Code Quality",
+      "severity": "low",
+      "description": "Code hygiene observations (Phase 4)",
+      "items": [
+        {
+          "file": "dcc/workflow/dcc_engine_pipeline.py",
+          "observation": "Multiple imports from initiation_engine - may have unused imports",
+          "recommended_action": "Review with vulture or similar tool in Phase 4"
+        }
+      ]
+    }
+  },
+  "recommendations": {
+    "immediate": [
+      "Flatten nested archive folders",
+      "Move code_tracing archive to code_tracer project",
+      "Organize backup files consistently"
+    ],
+    "phase_2": [
+      "Validate all schema $ref/$id links",
+      "Check schema file consistency between active and archive"
+    ],
+    "phase_3": [
+      "Consolidate archives to single location",
+      "Update any broken documentation links"
+    ],
+    "phase_4": [
+      "Run import analysis for dead code detection",
+      "Perform linting and formatting"
+    ]
+  },
+  "next_steps": "Proceed to Phase 2: Schema Validation & Repair"
+}

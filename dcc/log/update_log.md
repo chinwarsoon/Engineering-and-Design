@@ -144,6 +144,40 @@ code_tracer/workplan/
 - Reduces technical debt by establishing recurring audits for code, schemas, and dependencies.
 
 ---
+
+<a id="wp-maint-001-phase1"></a>
+## 2026-04-25
+
+### COMPLETED: Maintenance Workplan — Phase 1 Audit & Discovery (WP-MAINT-001)
+**Status:** COMPLETE  
+**Related Task:** [archive_cleanup_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/maintenance/archive_cleanup_workplan.md)
+
+**Summary:** Completed Phase 1 audit identifying dead code, inconsistent schemas, and redundant archive folders.
+
+**Audit Findings:**
+
+| Category | Severity | Count | Description |
+|----------|----------|-------|-------------|
+| Nested Archives | Medium | 3 | Redundant nested archive folders requiring flattening |
+| Schema Issues | High | 1 | $id mismatch in archived schema (hyphen vs underscore) |
+| Redundant Files | High | 2 | Empty file and misplaced backup |
+| Code Hygiene | Low | — | Import patterns to review in Phase 4 |
+
+**Key Issues Identified:**
+1. `dcc/archive/config/schemas/archive/` — 18 files in nested archive
+2. `dcc/archive/workplan/archive/` — Double-nested archive
+3. `dcc/workflow/code_tracing/archive/` — Should move to code_tracer project
+4. `dcc/archive/ui_backup_common_json_tools.html` — Misplaced backup file
+5. `dcc/archive/config/schemas/archive/project_config.json` — Empty file (0 bytes)
+
+**Deliverables:**
+- Audit Log: `dcc/log/maintenance_audit.json`
+- Phase Report: `dcc/workplan/maintenance/reports/phase1_audit_report.md`
+
+**Next Steps:** Proceed to Phase 2 — Schema Validation & Repair
+
+---
+
 <a id="error-code-standardization-phase1"></a>
 ## 2026-04-24
 
