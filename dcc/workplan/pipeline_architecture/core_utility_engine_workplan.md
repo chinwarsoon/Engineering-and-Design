@@ -101,6 +101,7 @@ The current architecture suffers from "God Module" syndrome and "Prop Drilling" 
 - [initiation_engine/__init__.py](file:///home/franklin/dsai/Engineering-and-Design/dcc/workflow/initiation_engine/__init__.py)
 - [Phase 1 Analysis Report](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_1_analysis.md)
 - [Phase 2 & 3 Implementation Report](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_2_3_implementation.md)
+- [Phase 4 & 5 Implementation Report](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_4_5_implementation.md)
 
 ---
 
