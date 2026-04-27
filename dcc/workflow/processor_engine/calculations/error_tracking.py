@@ -5,8 +5,8 @@ Error tracking calculations: aggregating per-row errors into a single column.
 import pandas as pd
 from typing import Dict, Any, List
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+# Import hierarchical logging functions from dcc_utility
+from dcc_utility.console import status_print, debug_print
 
 def apply_aggregate_row_errors(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """

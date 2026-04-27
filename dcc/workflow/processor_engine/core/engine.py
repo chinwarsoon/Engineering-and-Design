@@ -13,7 +13,7 @@ from typing import Dict, List, Set, Optional, Any
 # Configure logging
 logger = logging.getLogger(__name__)
 
-from .base import BaseProcessor
+from dcc_core.base import BaseProcessor
 from .calculation_strategy import (
     StrategyResolver,
     StrategyExecutor,
@@ -22,12 +22,14 @@ from .calculation_strategy import (
     get_column_strategy
 )
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import log_context, status_print, debug_print
-from initiation_engine.utils.logging import DEBUG_LEVEL
+# Import hierarchical logging functions from dcc_utility and dcc_core
+from dcc_utility.console import status_print, debug_print
+from dcc_core.logging import log_context, DEBUG_LEVEL
 
 # Phase 4: Import error handling components
 from ..error_handling.detectors.business import ProcessingPhase
+
+from dcc_core.context import PipelineContext
 
 class CalculationEngine(BaseProcessor):
     """
@@ -35,11 +37,11 @@ class CalculationEngine(BaseProcessor):
     This class manages the sequence of null handling and calculation execution.
     """
 
-    def __init__(self, schema_data: Dict):
+    def __init__(self, context: PipelineContext, schema_data: Dict):
         """
         Initialize the engine using the resolved schema.
         """
-        super().__init__(schema_data)
+        super().__init__(context, schema_data)
         
         # Phase 4: Initialize error handling
         from reporting_engine.error_reporter import ErrorReporter
@@ -122,12 +124,17 @@ class CalculationEngine(BaseProcessor):
         
         return strategy
 
-    def process_data(self, df: pd.DataFrame) -> pd.DataFrame:
+    def process_data(self, df: Optional[pd.DataFrame] = None) -> pd.DataFrame:
         """
         The main entry point for data transformation.
         Uses phased processing: P1 → P2 → P2.5 → P3
         For calculated columns (P2.5, P3): Calculations run FIRST, null handling as LAST DEFENSE
         """
+        if df is None:
+            df = self.context.data.df_mapped
+            if df is None:
+                raise ValueError("No input DataFrame provided in context.data.df_mapped.")
+                
         with log_context("processor", "process_data"):
             debug_print(f"Starting process_data with {len(df.columns)} columns")
             self._last_processed_rows = len(df)
@@ -135,6 +142,9 @@ class CalculationEngine(BaseProcessor):
             # Use phased processing (P1 → P2 → P2.5 → P3)
             df = self.apply_phased_processing(df)
             debug_print(f"Finished phased processing, now has {len(df.columns)} columns")
+
+            # Store in context
+            self.context.data.df_processed = df
 
             return df
 

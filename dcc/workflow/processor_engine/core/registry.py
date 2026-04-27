@@ -25,8 +25,8 @@ from ..calculations import (
     error_tracking,
 )
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+# Import hierarchical logging functions from dcc_utility
+from dcc_utility.console import status_print, debug_print
 
 # --- Registry for Null Handling ---
 

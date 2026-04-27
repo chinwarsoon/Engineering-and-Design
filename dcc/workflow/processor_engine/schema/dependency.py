@@ -6,8 +6,8 @@ which currently handle circular dependency detection, will reside here.
 import logging
 from typing import Dict, List, Set, Optional
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+# Import hierarchical logging functions from dcc_utility
+from dcc_utility.console import status_print, debug_print
 
 def resolve_calculation_order(columns: Dict[str, Dict]) -> List[str]:
     """

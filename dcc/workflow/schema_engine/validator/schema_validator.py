@@ -20,11 +20,15 @@ from .fields import (
 logger = logging.getLogger(__name__)
 
 
-class SchemaValidator:
+from dcc_core.context import PipelineContext
+from dcc_core.base import BaseEngine
+
+class SchemaValidator(BaseEngine):
     """Validate a main schema file and its external references."""
 
-    def __init__(self, schema_file: str | Path):
-        self.schema_file = safe_resolve(Path(schema_file))
+    def __init__(self, context: PipelineContext):
+        super().__init__(context)
+        self.schema_file = safe_resolve(Path(self.context.paths.schema_path))
         self.loader = SchemaLoader()
         self.loader.set_main_schema_path(self.schema_file)
 

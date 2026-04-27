@@ -101,7 +101,7 @@ def default_schema_path(base_path: Path | None = None) -> Path:
                 break
         else:
             base_path = Path(__file__).parent
-    return base_path / "config" / "schemas" / "dcc_register_enhanced.json"
+    return base_path / "config" / "schemas" / "dcc_register_config.json"
 
 
 # --- Pipeline Path Resolvers ---

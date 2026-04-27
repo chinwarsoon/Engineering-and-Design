@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, List
 
-from initiation_engine import status_print, debug_print
+from dcc_utility.console import status_print, debug_print
 
 
 def _get_row_key(df: pd.DataFrame, idx: int) -> Dict[str, Any]:

@@ -15,50 +15,27 @@ from ..mappers.detection import (
 )
 from ..utils.columns import get_column_bounds
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print, log_error
+# Import hierarchical logging functions from dcc_core and dcc_utility
+from dcc_utility.console import status_print, debug_print
+from dcc_core.logging import log_error
 
 
-class ColumnMapperEngine:
+from dcc_core.context import PipelineContext
+from dcc_core.base import BaseEngine
+
+class ColumnMapperEngine(BaseEngine):
     """
     Column mapper engine with fuzzy matching and schema-driven validation.
     Refactored from UniversalColumnMapper class.
     """
     
-    def __init__(self, schema_loader: Any = None, schema_file: str = None):
+    def __init__(self, context: PipelineContext):
         """
         Initialize column mapper engine.
-        
-        Args:
-            schema_loader: Schema loader instance (optional)
-            schema_file: Path to main schema file (optional)
         """
-        self.schema_loader = schema_loader
-        self.schema_file = schema_file
-        self.main_schema = {}
-        self.resolved_schema = {}
-        
-        if schema_file and schema_loader:
-            self.load_main_schema(schema_file, schema_loader)
-    
-    def load_main_schema(self, schema_file: str, schema_loader: Any):
-        """
-        Load main schema file.
-        
-        Args:
-            schema_file: Path to main schema file
-            schema_loader: Schema loader instance with load_json_file and resolve_schema_dependencies methods
-        """
-        try:
-            self.schema_loader = schema_loader
-            self.schema_loader.set_main_schema_path(schema_file)
-            self.main_schema = self.schema_loader.load_json_file(schema_file)
-            self.resolved_schema = self.schema_loader.resolve_schema_dependencies(self.main_schema)
-            status_print("Schema dependencies resolved", min_level=2)
-
-        except Exception as e:
-            log_error(f"Error loading main schema {schema_file}: {e}", module="mapper_engine")
-            raise
+        super().__init__(context)
+        # Fallback to schema property if resolved_schema is not yet populated
+        self.resolved_schema = self.context.state.resolved_schema
     
     def detect_columns(self, headers: List[Any], threshold: float = 0.6) -> Dict[str, Any]:
         """
@@ -116,17 +93,26 @@ class ColumnMapperEngine:
         detected_columns = mapping_result.get('detected_columns', {})
         return get_column_bounds(data, detected_columns)
     
-    def map_dataframe(self, df: Any, threshold: float = 0.6) -> Dict[str, Any]:
+    def map_dataframe(self, df: Optional[Any] = None, threshold: float = 0.6) -> Dict[str, Any]:
         """
         Complete pipeline: detect columns and rename DataFrame.
         
         Args:
-            df: Input DataFrame
+            df: Input DataFrame (optional if context.data.df_raw is set)
             threshold: Minimum similarity score for matching
             
         Returns:
             Dictionary with mapping_result and renamed_df
         """
+        if df is None:
+            df = self.context.data.df_raw
+            if df is None:
+                raise ValueError("No input DataFrame provided in context.data.df_raw.")
+                
+        # Ensure resolved_schema is up to date from context if modified
+        if not self.resolved_schema and self.context.state.resolved_schema:
+            self.resolved_schema = self.context.state.resolved_schema
+            
         # Get headers from DataFrame
         headers = df.columns.tolist()
         
@@ -135,6 +121,10 @@ class ColumnMapperEngine:
         
         # Rename DataFrame
         renamed_df = self.rename_dataframe_columns(df, mapping_result)
+        
+        # Store in context
+        self.context.state.mapping_result = mapping_result
+        self.context.data.df_mapped = renamed_df
         
         return {
             'mapping_result': mapping_result,

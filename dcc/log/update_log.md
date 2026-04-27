@@ -8,6 +8,30 @@
 
 # Section 2. Log entries
 
+<a id="wp-arch-2026-001-phase4-5"></a>
+## 2026-04-28
+
+### COMPLETED: Pipeline Architecture Refactoring — Phase 4 & 5 (WP-ARCH-2026-001)
+**Status:** COMPLETE (Final)  
+**Related Task:** [core_utility_engine_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md)
+
+**Summary:** Successfully migrated all domain engines (`initiation`, `schema`, `mapper`, `processor`, and `ai_ops`) to the modular `dcc_core.base` architecture using the centralized `PipelineContext` object. Conducted end-to-end integration testing via `dcc_engine_pipeline.py` with 100% success rate.
+
+**Changes Made:**
+- **Schema Engine:** `SchemaValidator` inherits from `BaseEngine` and accepts `PipelineContext`.
+- **Mapper Engine:** `ColumnMapperEngine` inherits from `BaseEngine`, accepts `PipelineContext`, and stores results in `context.state` and `context.data`.
+- **Processor Engine:** `CalculationEngine` inherits from `BaseProcessor`, accepts `PipelineContext`, and natively passes state changes back.
+- **AI Ops Engine:** `run_ai_ops` updated to accept `PipelineContext` directly instead of unpacked parameters.
+- **Orchestrator Unification:** Re-wrote `dcc_engine_pipeline.py` to instantiate `PipelineContext` upfront and cleanly pass it sequentially to all domain engines.
+- **Pipeline Integrity Testing:** Successfully executed the pipeline resolving any missing variable references or import errors arising from the refactoring.
+
+**Impact:**
+- Eliminates "God Module" dependency issues globally.
+- Simplifies orchestrator logic, moving toward a pure state-machine or pipeline-pattern structure.
+- The workplan WP-ARCH-2026-001 is now entirely complete.
+
+---
+
 <a id="wp-dcc-doc-001-conversion"></a>
 ## 2026-04-28
 <a id="wp-arch-2026-001-phase2-3"></a>

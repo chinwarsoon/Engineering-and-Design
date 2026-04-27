@@ -6,8 +6,8 @@ Includes index resetting, column flattening, column management, and safe copy op
 import pandas as pd
 from typing import List, Optional, Set
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+# Import hierarchical logging functions from dcc_utility
+from dcc_utility.console import status_print, debug_print
 
 
 def prepare_dataframe_for_processing(df: pd.DataFrame) -> pd.DataFrame:

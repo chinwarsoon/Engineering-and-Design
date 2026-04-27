@@ -12,6 +12,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from dcc_core.context import PipelineContext
+
 from .contracts import AiContext, AiInsight, PipelineRunRecord
 from .context_builder import build_ai_context
 from .evidence import attach_evidence_links
@@ -200,8 +202,7 @@ class AiOpsEngine:
 
 
 def run_ai_ops(
-    pipeline_results: Dict[str, Any],
-    output_dir: Path,
+    context: PipelineContext,
     model: str = "llama3.1:8b",
 ) -> Optional[AiInsight]:
     """
@@ -210,20 +211,25 @@ def run_ai_ops(
     Non-blocking: catches all exceptions so pipeline always completes.
 
     Args:
-        pipeline_results: Results dict from run_engine_pipeline()
-        output_dir: Path to dcc/output/ directory
+        context: Pipeline context
         model: Ollama model name
 
     Returns:
         AiInsight or None if AI ops failed
     """
     try:
-        engine = AiOpsEngine(output_dir=output_dir, model=model)
+        engine = AiOpsEngine(output_dir=context.paths.csv_output_path.parent, model=model)
+        pipeline_results = {
+            "excel_path": str(context.paths.excel_path),
+            "csv_output_path": str(context.paths.csv_output_path),
+            "excel_output_path": str(context.paths.excel_output_path),
+            "schema_path": str(context.paths.schema_path),
+        }
         return engine.run(pipeline_results)
     except Exception as exc:
         logger.warning(f"[ai_ops_engine] AI operations failed (non-blocking): {exc}")
         try:
-            from initiation_engine.error_handling import system_error_print
+            from dcc_utility.errors import system_error_print
             system_error_print("S-A-S-0501", detail=str(exc), fatal=False)
         except Exception:
             pass

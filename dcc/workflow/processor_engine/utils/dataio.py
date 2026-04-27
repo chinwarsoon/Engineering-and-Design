@@ -6,8 +6,8 @@ Extracted from dcc_engine_pipeline.py for reuse across the processor engine.
 from pathlib import Path
 from typing import Any, Dict
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print
+# Import hierarchical logging functions from dcc_utility
+from dcc_utility.console import status_print
 
 try:
     import pandas as pd

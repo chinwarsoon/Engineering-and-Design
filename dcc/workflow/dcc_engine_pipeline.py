@@ -26,35 +26,45 @@ if str(workflow_path) not in sys.path:
     sys.path.insert(0, str(workflow_path))
 
 # Engine imports
-from initiation_engine import (
-    ProjectSetupValidator,
-    format_report as format_setup_report,
+from dcc_core.context import PipelineContext, PipelinePaths, PipelineState, PipelineData
+from dcc_core.paths import (
     default_base_path,
     get_homedir,
-    parse_cli_args,
-    status_print,
-    milestone_print,
-    debug_print,
-    setup_logger,
-    set_debug_mode,
-    test_environment,
     resolve_platform_paths,
     resolve_output_paths,
     validate_export_paths,
+    safe_resolve,
+)
+from dcc_core.logging import (
+    setup_logger,
+    set_debug_mode,
     log_context,
     log_error,
     save_debug_log,
+    get_verbose_mode,
+    DEBUG_LEVEL,
+)
+from dcc_utility.console import (
+    status_print,
+    milestone_print,
+    debug_print,
+    print_framework_banner,
+)
+from dcc_utility.cli import (
+    parse_cli_args,
     build_native_defaults,
     resolve_effective_parameters,
-    print_framework_banner,
-    get_verbose_mode,
-    system_error_print,
 )
-from initiation_engine.utils.logging import DEBUG_LEVEL
+from dcc_utility.errors import system_error_print
+
+from initiation_engine import (
+    ProjectSetupValidator,
+    format_report as format_setup_report,
+    test_environment,
+)
 from schema_engine import (
     SchemaValidator,
     write_validation_status,
-    safe_resolve,
     default_schema_path,
     load_schema_parameters,
 )
@@ -71,13 +81,7 @@ from reporting_engine import (
 from ai_ops_engine import run_ai_ops
 
 
-def run_engine_pipeline(
-    base_path: Path,
-    schema_path: Path,
-    effective_parameters: Dict[str, Any],
-    nrows: int | None = None,
-    debug_mode: bool = False,
-) -> Dict[str, Any]:
+def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
     """
     Run the four-engine pipeline:
     1. initiation_engine - Project setup validation
@@ -85,19 +89,24 @@ def run_engine_pipeline(
     3. mapper_engine - Column mapping
     4. processor_engine - Document processing
     """
-    excel_path = safe_resolve(Path(effective_parameters["upload_file_name"]))
-    export_paths = resolve_output_paths(base_path, effective_parameters, safe_resolve)
-    validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
+    excel_path = context.paths.excel_path
+    schema_path = context.paths.schema_path
+    base_path = context.paths.base_path
+    export_paths = {
+        "csv_path": context.paths.csv_output_path,
+        "excel_path": context.paths.excel_output_path,
+        "summary_path": context.paths.summary_path,
+    }
 
     # Step 1: Initiation Engine - Project Setup Validation
     try:
         with log_context("pipeline", "step1_initiation"):
-            setup_validator = ProjectSetupValidator(base_path=base_path)  # Initializes validator with project root
-            setup_results = setup_validator.validate()  # Executes full project structure validation. Returns dict with 'ready', 'folders', 'root_files', etc. status.
+            setup_validator = ProjectSetupValidator(context)
+            setup_results = setup_validator.validate()
+            context.state.setup_results = setup_results
             if not setup_results.get("ready"):
                 system_error_print("S-C-S-0305", detail=format_setup_report(setup_results))
                 raise ValueError(format_setup_report(setup_results))
-            # milestone print to show how many folders and files are validated per schema, get counts from validator
             total_folders = setup_validator.get_total_folders(setup_results)
             total_files = setup_validator.get_total_files(setup_results)
             milestone_print("Setup validated", f"{total_folders} folders, {total_files} files")
@@ -114,9 +123,10 @@ def run_engine_pipeline(
             if not schema_path.exists():
                 system_error_print("S-F-S-0204", detail=str(schema_path))
                 raise FileNotFoundError(f"Schema file not found: {schema_path}")
-            schema_validator = SchemaValidator(schema_path)
+            schema_validator = SchemaValidator(context)
             status_print("Validating schema and resolving dependencies...", min_level=3)
-            schema_results = schema_validator.validate()  # Validates fields and references. Returns dict with 'ready', 'column_count', 'references', 'errors'.
+            schema_results = schema_validator.validate()
+            context.state.schema_results = schema_results
             write_validation_status(schema_results)
             if not schema_results.get("ready"):
                 system_error_print("S-C-S-0303", detail=str(schema_path))
@@ -125,7 +135,6 @@ def run_engine_pipeline(
             total_columns = schema_validator.get_total_columns(schema_results)
             total_refs = schema_validator.get_total_references(schema_results)
             milestone_print("Schema loaded", f"{total_columns} columns, {total_refs} references")
-            pipeline_schema_results = schema_results
     except (ValueError, FileNotFoundError):
         raise
     except json.JSONDecodeError as exc:
@@ -141,13 +150,16 @@ def run_engine_pipeline(
             if not excel_path.exists():
                 system_error_print("S-F-S-0201", detail=str(excel_path))
                 raise FileNotFoundError(f"Input file not found: {excel_path}")
-            df_raw = load_excel_data(excel_path, effective_parameters, nrows=nrows, verbose=DEBUG_LEVEL >= 2)
+            df_raw = load_excel_data(excel_path, context.parameters, nrows=context.nrows, verbose=DEBUG_LEVEL >= 2)
+            context.data.df_raw = df_raw
+            
             resolved_schema = schema_validator.load_resolved_schema()
-            mapper = ColumnMapperEngine()
-            mapper.resolved_schema = resolved_schema
-            mapping_out = mapper.map_dataframe(df_raw)
-            mapping_result = mapping_out["mapping_result"]
-            df_mapped = mapping_out["renamed_df"]
+            context.state.resolved_schema = resolved_schema
+            
+            mapper = ColumnMapperEngine(context)
+            mapping_out = mapper.map_dataframe()
+            mapping_result = context.state.mapping_result
+            df_mapped = context.data.df_mapped
             milestone_print("Columns mapped", f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})")
     except FileNotFoundError:
         raise
@@ -161,10 +173,13 @@ def run_engine_pipeline(
     # Step 4: Processor Engine - Document Processing
     try:
         with log_context("pipeline", "step4_document_processing"):
-            processor = CalculationEngine(resolved_schema)
-            df_processed = processor.process_data(df_mapped)
+            processor = CalculationEngine(context, context.state.resolved_schema)
+            processor.process_data()
+            df_processed = context.data.df_processed
+            
             status_print("Generating data health diagnostics...", min_level=2)
-            pipeline_schema_results["error_summary"] = processor.get_error_summary()
+            context.state.error_summary = processor.get_error_summary()
+            schema_results["error_summary"] = context.state.error_summary
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
             dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
             status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
@@ -176,7 +191,8 @@ def run_engine_pipeline(
         if is_fail_fast:
             system_error_print("S-R-S-0402", detail=str(exc))
             status_print("Generating diagnostic report for captured errors...")
-            pipeline_schema_results["error_summary"] = processor.get_error_summary()
+            context.state.error_summary = processor.get_error_summary()
+            schema_results["error_summary"] = context.state.error_summary
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
             processor.error_reporter.export_dashboard_json(len(df_mapped))
             schema_reference_count = len(resolved_schema.get("schema_references", {}))
@@ -184,7 +200,7 @@ def run_engine_pipeline(
                 summary_path=export_paths["summary_path"],
                 input_file=excel_path,
                 main_schema_path=schema_path,
-                schema_results=pipeline_schema_results,
+                schema_results=schema_results,
                 raw_columns=list(df_raw.columns),
                 mapped_columns=list(df_mapped.columns),
                 processed_columns=list(df_mapped.columns),
@@ -207,6 +223,7 @@ def run_engine_pipeline(
     with log_context("pipeline", "step5_column_reorder"):
         schema_processor = SchemaProcessor(resolved_schema)
         df_processed = schema_processor.reorder_dataframe(df_processed, status_print_fn=status_print)
+        context.data.df_processed = df_processed
 
     # Export results
     with log_context("pipeline", "step6_export"):
@@ -219,7 +236,7 @@ def run_engine_pipeline(
             summary_path=export_paths["summary_path"],
             input_file=excel_path,
             main_schema_path=schema_path,
-            schema_results=pipeline_schema_results,
+            schema_results=schema_results,
             raw_columns=list(df_raw.columns),
             mapped_columns=list(df_mapped.columns),
             processed_columns=list(df_processed.columns),
@@ -236,11 +253,11 @@ def run_engine_pipeline(
         )
 
         # Save debug log to same output folder as CSV
-        debug_log_path = export_paths["csv_path"].parent / "debug_log.json"
+        debug_log_path = context.paths.debug_log_path
         save_debug_log(output_path=debug_log_path)
 
         # Get error summary for display from processor
-        error_summary = processor.get_error_summary() if 'processor' in dir() else {}
+        error_summary = context.state.error_summary
         total_errors = error_summary.get("total_errors", 0)
 
         status_print(f"✓ Processing complete")
@@ -261,13 +278,7 @@ def run_engine_pipeline(
     with log_context("pipeline", "step7_ai_ops"):
         status_print("Running AI operations analysis...")
         ai_insight = run_ai_ops(
-            pipeline_results={
-                "excel_path": str(excel_path),
-                "csv_output_path": str(export_paths["csv_path"]),
-                "excel_output_path": str(export_paths["excel_path"]),
-                "schema_path": str(schema_path),
-            },
-            output_dir=export_paths["csv_path"].parent,
+            context=context,
         )
         if ai_insight:
             status_print(f"✓ AI analysis complete — Risk: {ai_insight.risk_level}, Provider: {ai_insight.provider}")
@@ -347,6 +358,29 @@ def main() -> int:
         load_schema_params_fn=load_schema_parameters
     )
     effective_parameters = resolve_platform_paths(effective_parameters, base_path, status_print)
+    
+    # Generate export paths and validate them before building PipelineContext
+    export_paths = resolve_output_paths(base_path, effective_parameters, safe_resolve, status_print)
+    validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
+    
+    # Build PipelineContext
+    pipeline_paths = PipelinePaths(
+        base_path=base_path,
+        schema_path=schema_path,
+        excel_path=safe_resolve(Path(effective_parameters["upload_file_name"])),
+        csv_output_path=export_paths["csv_path"],
+        excel_output_path=export_paths["excel_path"],
+        summary_path=export_paths["summary_path"],
+        debug_log_path=export_paths["csv_path"].parent / "debug_log.json"
+    )
+    
+    context = PipelineContext(
+        paths=pipeline_paths,
+        parameters=effective_parameters,
+        nrows=args.nrows,
+        debug_mode=(DEBUG_LEVEL >= 2)
+    )
+
     # milestone print for number of parameters resolved from cli args, schema, and native defaults
     total_params = len(effective_parameters)
     cli_params = len(cli_args)
@@ -356,12 +390,7 @@ def main() -> int:
 
     # 6. Run the engine pipeline
     try:
-        results = run_engine_pipeline(
-            base_path=base_path,
-            schema_path=schema_path,
-            effective_parameters=effective_parameters,
-            nrows=args.nrows,
-        )
+        results = run_engine_pipeline(context)
     except Exception as exc:
         payload = {
             "ready": False,

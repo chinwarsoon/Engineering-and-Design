@@ -40,7 +40,7 @@ class RunStore:
             except ImportError:
                 logger.warning("[run_store] duckdb not installed — persistence disabled")
                 try:
-                    from initiation_engine.error_handling import system_error_print
+                    from dcc_utility.errors import system_error_print
                     system_error_print("S-A-S-0502", detail="duckdb not installed", fatal=False)
                 except Exception:
                     pass

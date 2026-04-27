@@ -25,7 +25,10 @@ except ImportError:
     from workflow.schema_engine.loader.ref_resolver import RefResolver, RefResolutionError
 
 
-class ProjectSetupValidator:
+from dcc_core.context import PipelineContext
+from dcc_core.base import BaseEngine
+
+class ProjectSetupValidator(BaseEngine):
     """
     Validate the DCC project structure from config/schemas/project_setup.json.
 
@@ -45,39 +48,13 @@ class ProjectSetupValidator:
         os_info: OS detection results with 'system' and 'normalized' keys.
     """
 
-    def __init__(self, base_path: str | Path | None = None, schema_path: str | Path | None = None):
+    def __init__(self, context: PipelineContext):
         """
         Initialize the ProjectSetupValidator.
-
-        Validates the DCC project structure by loading the project_setup.json schema
-        and preparing validation rules. Detects OS and normalizes paths.
-
-        Args:
-            base_path: Project root directory. If None, uses default_base_path().
-            schema_path: Path to project_setup.json. If None, uses get_schema_path().
-
-        Breadcrumb Comments:
-            - base_path: Initialized here via normalize_path() or default_base_path().
-                         Consumed by validate_folders(), validate_named_files(),
-                         validate_environment(), resolve_platform_paths().
-            - schema_path: Initialized here via normalize_path() or get_schema_path().
-                         Consumed by _load_json(), validate().
-            - schema_document: Initialized here from _load_json(). Used as the raw source
-                               for configuration extraction.
-            - project_setup: Initialized here from _extract_project_setup(). Contains normalized
-                             keys: 'folders', 'root_files', 'schema_files', 'workflow_files',
-                             'tool_files', 'environment', 'validation_rules'.
-            - os_info: Initialized here via detect_os().
-                      Consumed by validate_folders(), should_auto_create_folders().
-            - validation_rules: Initialized here from _extract_project_setup().
-                               Consumed by _rule_enabled(), validate().
         """
-        self.base_path = normalize_path(base_path) if base_path else default_base_path()
-        self.schema_path = (
-            normalize_path(schema_path)
-            if schema_path
-            else get_schema_path(self.base_path)
-        )
+        super().__init__(context)
+        self.base_path = self.context.paths.base_path
+        self.schema_path = self.context.paths.schema_path
         self.schema_document: Dict[str, Any] = {}  # Raw source from project_setup.json
         self.project_setup: Dict[str, Any] = {}    # Normalized configuration dictionary
         self.validation_rules: Dict[str, bool] = {}

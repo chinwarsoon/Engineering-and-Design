@@ -9,8 +9,8 @@ import pandas as pd
 
 from ..matchers.fuzzy import fuzzy_match_column
 
-# Import hierarchical logging functions from initiation_engine (centralized)
-from initiation_engine import status_print, debug_print
+# Import hierarchical logging functions from dcc_utility
+from dcc_utility.console import status_print, debug_print
 
 
 def flatten_multiindex_headers(headers: List[Any]) -> List[str]:
