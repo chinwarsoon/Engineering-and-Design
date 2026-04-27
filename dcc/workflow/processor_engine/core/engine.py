@@ -13,7 +13,7 @@ from typing import Dict, List, Set, Optional, Any
 # Configure logging
 logger = logging.getLogger(__name__)
 
-from dcc_core.base import BaseProcessor
+from core_engine.base import BaseProcessor
 from .calculation_strategy import (
     StrategyResolver,
     StrategyExecutor,
@@ -22,14 +22,14 @@ from .calculation_strategy import (
     get_column_strategy
 )
 
-# Import hierarchical logging functions from dcc_utility and dcc_core
-from dcc_utility.console import status_print, debug_print
-from dcc_core.logging import log_context, DEBUG_LEVEL
+# Import hierarchical logging functions from utility_engine and core_engine
+from utility_engine.console import status_print, debug_print
+from core_engine.logging import log_context, DEBUG_LEVEL
 
 # Phase 4: Import error handling components
 from ..error_handling.detectors.business import ProcessingPhase
 
-from dcc_core.context import PipelineContext
+from core_engine.context import PipelineContext
 
 class CalculationEngine(BaseProcessor):
     """

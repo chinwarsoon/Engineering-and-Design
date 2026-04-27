@@ -26,8 +26,8 @@ if str(workflow_path) not in sys.path:
     sys.path.insert(0, str(workflow_path))
 
 # Engine imports
-from dcc_core.context import PipelineContext, PipelinePaths, PipelineState, PipelineData
-from dcc_core.paths import (
+from core_engine.context import PipelineContext, PipelinePaths, PipelineState, PipelineData
+from core_engine.paths import (
     default_base_path,
     get_homedir,
     resolve_platform_paths,
@@ -35,7 +35,7 @@ from dcc_core.paths import (
     validate_export_paths,
     safe_resolve,
 )
-from dcc_core.logging import (
+from core_engine.logging import (
     setup_logger,
     set_debug_mode,
     log_context,
@@ -44,18 +44,18 @@ from dcc_core.logging import (
     get_verbose_mode,
     DEBUG_LEVEL,
 )
-from dcc_utility.console import (
+from utility_engine.console import (
     status_print,
     milestone_print,
     debug_print,
     print_framework_banner,
 )
-from dcc_utility.cli import (
+from utility_engine.cli import (
     parse_cli_args,
     build_native_defaults,
     resolve_effective_parameters,
 )
-from dcc_utility.errors import system_error_print
+from utility_engine.errors import system_error_print
 
 from initiation_engine import (
     ProjectSetupValidator,

@@ -1,5 +1,5 @@
 """
-System Error Handling — dcc_utility/errors/__init__.py
+System Error Handling — utility_engine/errors/__init__.py
 
 Provides system_error_print(): always-visible error output for pipeline
 execution failures. Bypasses DEBUG_LEVEL entirely — system errors are

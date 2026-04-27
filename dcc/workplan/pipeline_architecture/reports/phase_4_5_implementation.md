@@ -16,7 +16,7 @@
 - [6. Success Criteria Checklist](#6-success-criteria-checklist)
 
 ## 3. Objective
-To complete the migration of domain-specific processing engines (`initiation_engine`, `schema_engine`, `mapper_engine`, `processor_engine`, `ai_ops_engine`) into the new tier-based architecture. This required enforcing inheritance from `dcc_core.base` and systematically replacing loose variable passing with the centralized `PipelineContext` object. Finally, to ensure the orchestrator seamlessly executed the new pipeline without errors.
+To complete the migration of domain-specific processing engines (`initiation_engine`, `schema_engine`, `mapper_engine`, `processor_engine`, `ai_ops_engine`) into the new tier-based architecture. This required enforcing inheritance from `core_engine.base` and systematically replacing loose variable passing with the centralized `PipelineContext` object. Finally, to ensure the orchestrator seamlessly executed the new pipeline without errors.
 
 ## 4. Execution Summary
 We successfully migrated all 5 main engines and the central orchestrator to the new state-managed architecture. The pipeline was tested via `dcc_engine_pipeline.py` and executed perfectly, returning exit code 0 and producing correct outputs and valid Data Health metrics.

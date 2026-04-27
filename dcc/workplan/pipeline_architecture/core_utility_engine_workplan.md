@@ -7,13 +7,13 @@
 - **Revision History**:
     - v1.0.0 (2026-04-27): Initial draft incorporating modular foundation and UI layer refactoring.
     - v1.1.0 (2026-04-27): Added Pipeline Context Object to encapsulate state management.
-    - v1.2.0 (2026-04-27): Renamed `dcc_ui` to `dcc_utility` to better reflect its role as an interface utility hub.
+    - v1.2.0 (2026-04-27): Renamed `dcc_ui` to `utility_engine` to better reflect its role as an interface utility hub.
 
 ## 2. Objective
 Restructure the `dcc/workflow` directory to separate universal foundation logic and utility components from domain-specific processing engines. This includes implementing a centralized `PipelineContext` object to manage state consistently across all engines.
 
 ## 3. Scope Summary
-The scope covers all six primary engines of the DCC pipeline and the main orchestrator. It involves extracting shared utilities (logging, paths, system checks, data IO) and interface components (console printing, CLI parsing) into dedicated packages (`dcc_core` and `dcc_utility`), and introducing a unified context object to replace loose variable passing.
+The scope covers all six primary engines of the DCC pipeline and the main orchestrator. It involves extracting shared utilities (logging, paths, system checks, data IO) and interface components (console printing, CLI parsing) into dedicated packages (`core_engine` and `utility_engine`), and introducing a unified context object to replace loose variable passing.
 
 ## 4. Index of Content
 - [1. Document Metadata](#1-document-metadata)
@@ -38,13 +38,13 @@ The current architecture suffers from "God Module" syndrome and "Prop Drilling" 
 
 ## 7. Proposed Changes (Updated/Created)
 ### [NEW] Packages & Objects
-- `dcc_core/`: Foundation layer for universal utilities.
+- `core_engine/`: Foundation layer for universal utilities.
 - **`PipelineContext`**: A centralized state object to store parameters, resolved paths, schemas, and processing results.
-- `dcc_utility/`: Interface layer for user interaction and general utilities.
+- `utility_engine/`: Interface layer for user interaction and general utilities.
 
 ### [MODIFY] Existing Engines
 - `initiation_engine/`: Remove utility subfolders; specialize on setup validation.
-- `processor_engine/`: Update to use `dcc_utility` for internal step logging and accept `PipelineContext`.
+- `processor_engine/`: Update to use `utility_engine` for internal step logging and accept `PipelineContext`.
 - `reporting_engine/`: Consolidate all summary and diagnostic reporting using `PipelineContext`.
 - `dcc_engine_pipeline.py`: Update to initialize and pass the `PipelineContext` object.
 
@@ -55,20 +55,20 @@ The current architecture suffers from "God Module" syndrome and "Prop Drilling" 
 - [x] Catalog "Universal" functions (e.g., `status_print`, `load_excel_data`, `DEBUG_OBJECT`).
 - [x] Map all variables currently passed between stages to define the `PipelineContext` schema.
 
-### Phase 2: Foundation Layer (`dcc_core`)
-- [x] Migrate Logging & Debug Object logic to `dcc_core/logging`.
-- [x] Migrate Path resolution and OS detection to `dcc_core/paths`.
-- [x] Migrate Universal Data IO to `dcc_core/io`.
-- [x] **Implement `PipelineContext`**: Define a dataclass in `dcc_core/context.py` to hold execution state.
-- [x] Implement `BaseEngine` and `BaseProcessor` in `dcc_core/base`.
+### Phase 2: Foundation Layer (`core_engine`)
+- [x] Migrate Logging & Debug Object logic to `core_engine/logging`.
+- [x] Migrate Path resolution and OS detection to `core_engine/paths`.
+- [x] Migrate Universal Data IO to `core_engine/io`.
+- [x] **Implement `PipelineContext`**: Define a dataclass in `core_engine/context.py` to hold execution state.
+- [x] Implement `BaseEngine` and `BaseProcessor` in `core_engine/base`.
 
-### Phase 3: Utility Layer (`dcc_utility`)
-- [x] Migrate Console UI functions to `dcc_utility/console`.
-- [x] Migrate CLI argument parsing to `dcc_utility/cli`.
-- [x] Migrate System Error registry to `dcc_utility/errors`.
+### Phase 3: Utility Layer (`utility_engine`)
+- [x] Migrate Console UI functions to `utility_engine/console`.
+- [x] Migrate CLI argument parsing to `utility_engine/cli`.
+- [x] Migrate System Error registry to `utility_engine/errors`.
 
 ### Phase 4: Domain Engine Refactoring
-- [x] Update engines to utilize `dcc_core` and `dcc_utility`.
+- [x] Update engines to utilize `core_engine` and `utility_engine`.
 - [x] **Refactor Engine Signatures**: Update engine methods to accept `PipelineContext` instead of individual arguments.
 - [x] Remove redundant internal utility folders.
 
@@ -78,7 +78,7 @@ The current architecture suffers from "God Module" syndrome and "Prop Drilling" 
 
 ## 9. Timeline and Milestones
 - **Milestone 1**: Phase 1 Analysis Report and `PipelineContext` definition completed.
-- **Milestone 2**: `dcc_core` (including Context) and `dcc_utility` packages established.
+- **Milestone 2**: `core_engine` (including Context) and `utility_engine` packages established.
 - **Milestone 3**: All engines refactored to use `PipelineContext`.
 - **Milestone 4**: Final integration test pass and version v1.2.0 release.
 
@@ -109,21 +109,21 @@ The current architecture suffers from "God Module" syndrome and "Prop Drilling" 
 
 | Function / Resource | Current Provider | Consumer Engines | Target Package |
 | :--- | :--- | :--- | :--- |
-| **`status_print`**, **`milestone_print`** | `initiation_engine` | All Engines | `dcc_utility/console` |
-| **`debug_print`**, **`DEBUG_LEVEL`** | `initiation_engine` | All Engines | `dcc_utility/console` & `dcc_core/logging` |
-| **`log_error`**, **`log_context`** | `initiation_engine` | Mapper, Processor, Schema, AI Ops | `dcc_core/logging` |
-| **`get_debug_object`** | `initiation_engine` | Processor, Reporting | `dcc_core/logging` |
-| **`system_error_print`** | `initiation_engine` | All Engines | `dcc_utility/errors` |
-| **`safe_resolve`** | `schema_engine` | Pipeline, Initiation, Schema | `dcc_core/paths` |
-| **`resolve_platform_paths`** | `initiation_engine` | Pipeline, Initiation | `dcc_core/paths` |
-| **`parse_cli_args`** | `initiation_engine` | Main Orchestrator | `dcc_utility/cli` |
-| **`load_excel_data`** | `processor_engine` | Pipeline, Processor | `dcc_core/io` |
-| **`PipelineContext`** | N/A | All Engines | `dcc_core/context` |
+| **`status_print`**, **`milestone_print`** | `initiation_engine` | All Engines | `utility_engine/console` |
+| **`debug_print`**, **`DEBUG_LEVEL`** | `initiation_engine` | All Engines | `utility_engine/console` & `core_engine/logging` |
+| **`log_error`**, **`log_context`** | `initiation_engine` | Mapper, Processor, Schema, AI Ops | `core_engine/logging` |
+| **`get_debug_object`** | `initiation_engine` | Processor, Reporting | `core_engine/logging` |
+| **`system_error_print`** | `initiation_engine` | All Engines | `utility_engine/errors` |
+| **`safe_resolve`** | `schema_engine` | Pipeline, Initiation, Schema | `core_engine/paths` |
+| **`resolve_platform_paths`** | `initiation_engine` | Pipeline, Initiation | `core_engine/paths` |
+| **`parse_cli_args`** | `initiation_engine` | Main Orchestrator | `utility_engine/cli` |
+| **`load_excel_data`** | `processor_engine` | Pipeline, Processor | `core_engine/io` |
+| **`PipelineContext`** | N/A | All Engines | `core_engine/context` |
 
 ## Appendix B: Reconsolidation Strategy
 
 1. **Extraction**: Identify functions in `initiation_engine/utils` and `processor_engine/utils` that meet the "universal" criteria.
-2. **Standardization**: Move these to `dcc_core` (foundation) or `dcc_utility` (interface).
+2. **Standardization**: Move these to `core_engine` (foundation) or `utility_engine` (interface).
 3. **State Management**: Implement the `PipelineContext` to replace individual variable passing in `run_engine_pipeline`.
 4. **Specialization**: Refactor `initiation_engine` to remove its utility role and focus only on Step 1 validation logic.
-5. **UI Consistency**: Ensure all engines use `dcc_utility/console` for all terminal output to provide a unified user experience.
+5. **UI Consistency**: Ensure all engines use `utility_engine/console` for all terminal output to provide a unified user experience.

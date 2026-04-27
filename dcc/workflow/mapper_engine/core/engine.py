@@ -15,13 +15,13 @@ from ..mappers.detection import (
 )
 from ..utils.columns import get_column_bounds
 
-# Import hierarchical logging functions from dcc_core and dcc_utility
-from dcc_utility.console import status_print, debug_print
-from dcc_core.logging import log_error
+# Import hierarchical logging functions from core_engine and utility_engine
+from utility_engine.console import status_print, debug_print
+from core_engine.logging import log_error
 
 
-from dcc_core.context import PipelineContext
-from dcc_core.base import BaseEngine
+from core_engine.context import PipelineContext
+from core_engine.base import BaseEngine
 
 class ColumnMapperEngine(BaseEngine):
     """

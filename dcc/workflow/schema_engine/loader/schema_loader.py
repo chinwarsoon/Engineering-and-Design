@@ -16,7 +16,7 @@ from ..utils.paths import safe_resolve
 from .ref_resolver import RefResolver, SchemaNotRegisteredError, RefResolutionError
 from .dependency_graph import SchemaDependencyGraph, CircularDependencyError
 
-from dcc_core.logging import log_error
+from core_engine.logging import log_error
 
 from .schema_cache import SchemaCache
 

@@ -16,7 +16,7 @@ from .detectors.base import DetectionResult
 
 # Import initiation logging for synchronization
 try:
-    from dcc_core.logging import get_debug_object
+    from core_engine.logging import get_debug_object
     HAS_INITIATION_LOGGING = True
 except ImportError:
     HAS_INITIATION_LOGGING = False
@@ -42,7 +42,7 @@ class ErrorAggregator:
 
     def sync_with_initiation_logging(self) -> int:
         """
-        Pull errors from dcc_core's DEBUG_OBJECT.
+        Pull errors from core_engine's DEBUG_OBJECT.
         Returns the number of new errors synced.
         """
         if not HAS_INITIATION_LOGGING:

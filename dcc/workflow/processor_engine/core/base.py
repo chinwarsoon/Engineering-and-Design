@@ -5,8 +5,8 @@ will be placed here to be shared across the engine.
 import logging
 from typing import Dict, Any, Optional
 
-# Import hierarchical logging functions from dcc_utility
-from dcc_utility.console import status_print
+# Import hierarchical logging functions from utility_engine
+from utility_engine.console import status_print
 
 # Standardized logging configuration used across the engine
 logging.basicConfig(level=logging.INFO)

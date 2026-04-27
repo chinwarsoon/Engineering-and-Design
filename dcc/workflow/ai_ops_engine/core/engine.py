@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from dcc_core.context import PipelineContext
+from core_engine.context import PipelineContext
 
 from .contracts import AiContext, AiInsight, PipelineRunRecord
 from .context_builder import build_ai_context
@@ -229,7 +229,7 @@ def run_ai_ops(
     except Exception as exc:
         logger.warning(f"[ai_ops_engine] AI operations failed (non-blocking): {exc}")
         try:
-            from dcc_utility.errors import system_error_print
+            from utility_engine.errors import system_error_print
             system_error_print("S-A-S-0501", detail=str(exc), fatal=False)
         except Exception:
             pass

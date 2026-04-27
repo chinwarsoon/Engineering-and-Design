@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 
 from ..context import PipelineContext
 
-logger = logging.getLogger("dcc_core.base")
+logger = logging.getLogger("core_engine.base")
 
 
 class BaseEngine:

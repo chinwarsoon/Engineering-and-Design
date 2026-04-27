@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict
 from datetime import datetime
 
-from dcc_core.logging import log_status, log_warning, DEBUG_OBJECT, DEBUG_LEVEL
+from core_engine.logging import log_status, log_warning, DEBUG_OBJECT, DEBUG_LEVEL
 
 
 def status_print(*args: Any, **kwargs: Any) -> None:

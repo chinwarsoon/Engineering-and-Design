@@ -8,8 +8,8 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional
 
-# Import hierarchical logging functions from dcc_utility
-from dcc_utility.console import status_print, debug_print
+# Import hierarchical logging functions from utility_engine
+from utility_engine.console import status_print, debug_print
 
 
 def apply_date_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:

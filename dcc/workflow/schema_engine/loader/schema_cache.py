@@ -23,7 +23,7 @@ _DEBUG_LEVEL = 1
 def _get_debug_level() -> int:
     global _DEBUG_LEVEL
     try:
-        from dcc_core.logging import DEBUG_LEVEL
+        from core_engine.logging import DEBUG_LEVEL
         _DEBUG_LEVEL = DEBUG_LEVEL
     except ImportError:
         pass

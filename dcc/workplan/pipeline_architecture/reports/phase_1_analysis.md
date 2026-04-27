@@ -41,7 +41,7 @@ A comprehensive audit of the six primary engines (`initiation`, `schema`, `mappe
 Identified "lazy imports" (imports inside functions) in `schema_engine` and `processor_engine` to avoid circularity with `initiation_engine`. This confirms that the current hierarchy is flawed.
 
 ## 6. Recommendations
-- Proceed with Phase 2 immediately to establish `dcc_core`.
+- Proceed with Phase 2 immediately to establish `core_engine`.
 - Prioritize the migration of the `DEBUG_OBJECT` as it is the most entangled stateful component.
 - Implement the `PipelineContext` to eliminate the need for passing 5+ individual variables between stages.
 

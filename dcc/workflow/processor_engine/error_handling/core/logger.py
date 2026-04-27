@@ -12,11 +12,11 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-# Import centralized logging from dcc_core
+# Import centralized logging from core_engine
 try:
-    from dcc_core.logging import log_error as init_log_error
-    from dcc_core.logging import log_status as init_log_status
-    from dcc_core.logging import log_warning as init_log_warning
+    from core_engine.logging import log_error as init_log_error
+    from core_engine.logging import log_status as init_log_status
+    from core_engine.logging import log_warning as init_log_warning
     HAS_INITIATION_LOGGING = True
 except ImportError:
     init_log_error = None
@@ -25,7 +25,7 @@ except ImportError:
     HAS_INITIATION_LOGGING = False
 
 try:
-    from dcc_core.logging import DEBUG_LEVEL
+    from core_engine.logging import DEBUG_LEVEL
     _INIT_LOG_LEVEL = DEBUG_LEVEL
 except ImportError:
     _INIT_LOG_LEVEL = 1
@@ -104,7 +104,7 @@ class StructuredLogger:
         # Check DEBUG_LEVEL at runtime to get current value
         current_level = 1
         try:
-            from dcc_core.logging import DEBUG_LEVEL
+            from core_engine.logging import DEBUG_LEVEL
             current_level = DEBUG_LEVEL
         except ImportError:
             pass

@@ -17,7 +17,7 @@ def status_print(msg: str, min_level: int = 1) -> None:
     """Print status message (lazy import)."""
     global _status_print
     if _status_print is None:
-        from dcc_utility.console import status_print as sp
+        from utility_engine.console import status_print as sp
         _status_print = sp
     _status_print(msg, min_level=min_level)
 

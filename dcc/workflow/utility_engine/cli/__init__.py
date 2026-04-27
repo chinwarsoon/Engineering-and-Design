@@ -6,9 +6,9 @@ import sys
 from pathlib import Path
 from typing import Tuple, Dict, Any
 
-from dcc_core.logging import set_debug_level
-from dcc_utility.console import status_print, debug_print
-from dcc_core.paths import default_base_path, default_schema_path
+from core_engine.logging import set_debug_level
+from utility_engine.console import status_print, debug_print
+from core_engine.paths import default_base_path, default_schema_path
 
 VERBOSE_LEVELS = {
     "quiet": 0,

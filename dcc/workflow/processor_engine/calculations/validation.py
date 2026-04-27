@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # Filter validation logs based on DEBUG_LEVEL (import lazily to avoid circular import)
 def _should_log_validation():
     try:
-        from dcc_core.logging import DEBUG_LEVEL
+        from core_engine.logging import DEBUG_LEVEL
         return DEBUG_LEVEL >= 2
     except ImportError:
         return True

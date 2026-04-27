@@ -20,8 +20,8 @@ from .fields import (
 logger = logging.getLogger(__name__)
 
 
-from dcc_core.context import PipelineContext
-from dcc_core.base import BaseEngine
+from core_engine.context import PipelineContext
+from core_engine.base import BaseEngine
 
 class SchemaValidator(BaseEngine):
     """Validate a main schema file and its external references."""

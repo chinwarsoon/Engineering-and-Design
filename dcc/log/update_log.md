@@ -8,6 +8,25 @@
 
 # Section 2. Log entries
 
+<a id="rename-packages"></a>
+## 2026-04-28
+
+### COMPLETED: Package Rename — Foundation & Utility Packages
+**Status:** COMPLETE
+
+**Summary:** Renamed `dcc_core` to `core_engine` and `dcc_utility` to `utility_engine` to maintain naming consistency across all pipeline modules.
+
+**Changes Made:**
+- **Directory Rename:** Moved `dcc/workflow/dcc_core` to `dcc/workflow/core_engine` and `dcc/workflow/dcc_utility` to `dcc/workflow/utility_engine`.
+- **Import Update:** Replaced all import occurrences of `dcc_core` and `dcc_utility` across Python scripts.
+- **Documentation Update:** Updated references in markdown documents, including workplans and reports.
+
+**Impact:**
+- Unifies the `*_engine` naming convention across the `workflow/` package.
+- The pipeline executes seamlessly with the renamed packages.
+
+---
+
 <a id="wp-arch-2026-001-phase4-5"></a>
 ## 2026-04-28
 
@@ -15,7 +34,7 @@
 **Status:** COMPLETE (Final)  
 **Related Task:** [core_utility_engine_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md)
 
-**Summary:** Successfully migrated all domain engines (`initiation`, `schema`, `mapper`, `processor`, and `ai_ops`) to the modular `dcc_core.base` architecture using the centralized `PipelineContext` object. Conducted end-to-end integration testing via `dcc_engine_pipeline.py` with 100% success rate.
+**Summary:** Successfully migrated all domain engines (`initiation`, `schema`, `mapper`, `processor`, and `ai_ops`) to the modular `core_engine.base` architecture using the centralized `PipelineContext` object. Conducted end-to-end integration testing via `dcc_engine_pipeline.py` with 100% success rate.
 
 **Changes Made:**
 - **Schema Engine:** `SchemaValidator` inherits from `BaseEngine` and accepts `PipelineContext`.
@@ -41,11 +60,11 @@
 **Status:** COMPLETE (Awaiting Phase 4 Approval)  
 **Related Task:** [core_utility_engine_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md)
 
-**Summary:** Successfully established the foundational layer (`dcc_core`) and utility layer (`dcc_utility`), extracting global utilities out of the domain engines to prevent circular dependencies.
+**Summary:** Successfully established the foundational layer (`core_engine`) and utility layer (`utility_engine`), extracting global utilities out of the domain engines to prevent circular dependencies.
 
 **Changes Made:**
-- **`dcc_core` created**: Houses `PipelineContext`, `logging`, `paths`, `io`, and base classes (`BaseEngine`, `BaseProcessor`).
-- **`dcc_utility` created**: Houses console formatting, CLI parsing, and system error registries.
+- **`core_engine` created**: Houses `PipelineContext`, `logging`, `paths`, `io`, and base classes (`BaseEngine`, `BaseProcessor`).
+- **`utility_engine` created**: Houses console formatting, CLI parsing, and system error registries.
 - **Phase 2 & 3 Report**: Created [phase_2_3_implementation.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_2_3_implementation.md) detailing the migrations.
 - **Workplan Updated**: Checked off all Phase 2 and 3 items and linked the completion report.
 
@@ -68,13 +87,13 @@
 
 **Changes Made:**
 - **Workplan Created**: [core_utility_engine_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md) (v1.2.0)
-- **Phase 1 Audit**: Identified 10 core functions/resources to be migrated to `dcc_core` and `dcc_utility`.
+- **Phase 1 Audit**: Identified 10 core functions/resources to be migrated to `core_engine` and `utility_engine`.
 - **Pipeline Context Design**: Included the `PipelineContext` object in the refactoring strategy to resolve prop-drilling issues.
 - **Phase 1 Report**: Created [phase_1_analysis.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_1_analysis.md) documenting the dependency matrix and "lazy import" audit.
 
 **Impact:**
 - Clear roadmap established for eliminating circular dependencies between engines.
-- Foundation laid for `dcc_core` and `dcc_utility` packages.
+- Foundation laid for `core_engine` and `utility_engine` packages.
 - Identified all "lazy import" sites that will be cleaned up in Phase 4.
 
 **Report:** `dcc/workplan/pipeline_architecture/reports/phase_1_analysis.md`
