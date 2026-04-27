@@ -1,0 +1,117 @@
+{
+  "S-E-S-0101": {
+    "title": "Missing Python Package",
+    "description": "The pipeline requires '{detail}' which is not installed in the current environment.",
+    "hint": "Run: pip install {detail}\nOr activate the correct conda environment: conda activate dcc"
+  },
+  "S-E-S-0102": {
+    "title": "Wrong Python Version",
+    "description": "Python 3.10 or higher is required. Current version: {detail}",
+    "hint": "Upgrade Python or activate the correct conda environment:\n  conda activate dcc\n  python --version"
+  },
+  "S-E-S-0103": {
+    "title": "Environment Test Failed",
+    "description": "The pipeline environment check did not pass: {detail}",
+    "hint": "Check the output above for missing packages.\nRun: pip install -r requirements.txt\nOr: conda activate dcc"
+  },
+  "S-E-S-0104": {
+    "title": "Engine Import Error",
+    "description": "A required engine module failed to import: {detail}",
+    "hint": "Check that all engine packages are installed and sys.path includes the workflow/ folder.\nRun with --verbose trace for the full traceback."
+  },
+  "S-F-S-0201": {
+    "title": "Input File Not Found",
+    "description": "Cannot find the input file at: {detail}",
+    "hint": "Check that the file exists and the path is correct.\nIf using a relative path, run the pipeline from the dcc/ folder.\nCheck upload_file_name in config or pass --input on the CLI."
+  },
+  "S-F-S-0202": {
+    "title": "Input File Unreadable",
+    "description": "The input file exists but cannot be opened: {detail}",
+    "hint": "Close the file if it is open in Excel.\nCheck the file is a valid .xlsx file and is not corrupt.\nCheck you have read permission on the file."
+  },
+  "S-F-S-0203": {
+    "title": "Output Directory Not Writable",
+    "description": "Cannot create or write to the output directory: {detail}",
+    "hint": "Check folder permissions.\nEnsure the output path is not read-only.\nTry running as administrator or changing the output path."
+  },
+  "S-F-S-0204": {
+    "title": "Schema File Not Found",
+    "description": "Cannot find the schema file at: {detail}",
+    "hint": "Check that dcc_register_config.json exists in dcc/config/schemas/.\nCheck schema_register_file in project_config.json.\nRun project setup to regenerate missing schema files."
+  },
+  "S-F-S-0205": {
+    "title": "Config File Not Found",
+    "description": "A required configuration file is missing: {detail}",
+    "hint": "Check that all files in dcc/config/schemas/ are present.\nRun project setup or restore from backup."
+  },
+  "S-C-S-0301": {
+    "title": "Invalid Parameter",
+    "description": "A required parameter is missing, wrong type, or out of range: {detail}",
+    "hint": "Check CLI arguments and schema parameter defaults.\nRun with --verbose trace to see all resolved parameters."
+  },
+  "S-C-S-0302": {
+    "title": "Schema Parse Error",
+    "description": "A schema JSON file exists but cannot be parsed (malformed JSON): {detail}",
+    "hint": "Validate the JSON syntax in the schema file.\nUse a JSON validator or run: python -m json.tool <file>"
+  },
+  "S-C-S-0303": {
+    "title": "Schema Validation Failed",
+    "description": "The schema loaded but failed structural validation: {detail}",
+    "hint": "Check dcc/output/schema_validation_status.json for details.\nEnsure all required columns and references are present in dcc_register_config.json."
+  },
+  "S-C-S-0304": {
+    "title": "Missing Required Config Key",
+    "description": "A required configuration key is absent from the resolved parameters: {detail}",
+    "hint": "Check dcc_register_config.json for the missing key.\nRun with --verbose trace to see all resolved parameters."
+  },
+  "S-C-S-0305": {
+    "title": "Project Setup Failed",
+    "description": "Project setup validation did not pass: {detail}",
+    "hint": "Check that all required folders and files exist under the base path.\nExpected structure is defined in dcc/config/schemas/project_config.json.\nRun with --verbose debug to see which folders or files are missing."
+  },
+  "S-R-S-0401": {
+    "title": "Initiation Step Exception",
+    "description": "{promotion_text} {detail}",
+    "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
+  },
+  "S-R-S-0404": {
+    "title": "Schema Step Exception",
+    "description": "{promotion_text} {detail}",
+    "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
+  },
+  "S-R-S-0405": {
+    "title": "Mapping Step Exception",
+    "description": "{promotion_text} {detail}",
+    "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
+  },
+  "S-R-S-0406": {
+    "title": "Processing Step Exception",
+    "description": "{promotion_text} {detail}",
+    "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
+  },
+  "S-R-S-0402": {
+    "title": "Fail-Fast Triggered",
+    "description": "A critical data error stopped the pipeline: {detail}",
+    "hint": "Check the Validation_Errors column in the partial output file.\nFix the critical data errors in the source Excel file and re-run."
+  },
+  "S-R-S-0403": {
+    "title": "Memory Error",
+    "description": "The pipeline ran out of memory: {detail}",
+    "hint": "Reduce the dataset size using --nrows <number> to process a subset.\nClose other applications to free memory.\nConsider increasing system RAM."
+  },
+  "S-A-S-0501": {
+    "title": "AI Ops Failed",
+    "description": "The AI operations step encountered an error: {detail}",
+    "hint": "AI analysis is optional — the pipeline result is unaffected.\nRun with --verbose debug for more detail.\nCheck that Ollama is running if AI analysis is required."
+  },
+  "S-A-S-0502": {
+    "title": "DuckDB Unavailable",
+    "description": "DuckDB is not installed or the database file is locked: {detail}",
+    "hint": "Install DuckDB: pip install duckdb\nOr delete the locked file: dcc/output/dcc_runs.duckdb\nAI run history will not be saved but the pipeline will complete."
+  },
+  "S-A-S-0503": {
+    "title": "Ollama Unavailable",
+    "description": "The Ollama service is not running or unreachable: {detail}",
+    "hint": "Start Ollama: ollama serve\nOr ignore — the rule-based fallback provider will be used automatically."
+  }
+}

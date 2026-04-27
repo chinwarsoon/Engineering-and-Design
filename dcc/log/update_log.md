@@ -9,6 +9,29 @@
 # Section 2. Log entries
 
 <a id="wp-dcc-doc-001-conversion"></a>
+## 2026-04-28
+<a id="wp-arch-2026-001-phase2-3"></a>
+
+### COMPLETED: Pipeline Architecture Refactoring — Phase 2 & 3 (WP-ARCH-2026-001)
+**Status:** COMPLETE (Awaiting Phase 4 Approval)  
+**Related Task:** [core_utility_engine_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md)
+
+**Summary:** Successfully established the foundational layer (`dcc_core`) and utility layer (`dcc_utility`), extracting global utilities out of the domain engines to prevent circular dependencies.
+
+**Changes Made:**
+- **`dcc_core` created**: Houses `PipelineContext`, `logging`, `paths`, `io`, and base classes (`BaseEngine`, `BaseProcessor`).
+- **`dcc_utility` created**: Houses console formatting, CLI parsing, and system error registries.
+- **Phase 2 & 3 Report**: Created [phase_2_3_implementation.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_2_3_implementation.md) detailing the migrations.
+- **Workplan Updated**: Checked off all Phase 2 and 3 items and linked the completion report.
+
+**Impact:**
+- Resolves "God Module" dependency issues by isolating low-level functions into strict foundation and interface layers.
+- Next step (Phase 4) is to update domain engines to import from these new packages and delete the old utility folders.
+
+**Report:** `dcc/workplan/pipeline_architecture/reports/phase_2_3_implementation.md`
+
+---
+
 ## 2026-04-27
 <a id="wp-arch-2026-001-phase1"></a>
 
