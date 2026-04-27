@@ -9,6 +9,30 @@
 # Section 2. Log entries
 
 <a id="wp-dcc-doc-001-conversion"></a>
+## 2026-04-27
+<a id="wp-arch-2026-001-phase1"></a>
+
+### COMPLETED: Pipeline Architecture Refactoring — Phase 1 Analysis (WP-ARCH-2026-001)
+**Status:** COMPLETE (Awaiting Phase 2 Approval)  
+**Related Task:** [core_utility_engine_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md)
+
+**Summary:** Completed Phase 1 of the Core Utility and Foundation Refactoring workplan. Identified all cross-engine dependencies and universal functions to prepare for the tier-based architecture migration.
+
+**Changes Made:**
+- **Workplan Created**: [core_utility_engine_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md) (v1.2.0)
+- **Phase 1 Audit**: Identified 10 core functions/resources to be migrated to `dcc_core` and `dcc_utility`.
+- **Pipeline Context Design**: Included the `PipelineContext` object in the refactoring strategy to resolve prop-drilling issues.
+- **Phase 1 Report**: Created [phase_1_analysis.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_1_analysis.md) documenting the dependency matrix and "lazy import" audit.
+
+**Impact:**
+- Clear roadmap established for eliminating circular dependencies between engines.
+- Foundation laid for `dcc_core` and `dcc_utility` packages.
+- Identified all "lazy import" sites that will be cleaned up in Phase 4.
+
+**Report:** `dcc/workplan/pipeline_architecture/reports/phase_1_analysis.md`
+
+---
+
 ## 2026-04-25
 
 ### COMPLETED: PROJECT_STRUCTURE.md — Workplan Format Conversion (WP-DCC-DOC-001)
