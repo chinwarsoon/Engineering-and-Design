@@ -8,6 +8,7 @@
 - **Summary**: Successfully created `core_engine` (Foundation) and `utility_engine` (Interface) packages, migrating universal logic from initiation and processor engines into isolated layers.
 
 ## 2. Index of Content
+
 - [1. Metadata](#1-metadata)
 - [2. Index of Content](#2-index-of-content)
 - [3. Objective](#3-objective)

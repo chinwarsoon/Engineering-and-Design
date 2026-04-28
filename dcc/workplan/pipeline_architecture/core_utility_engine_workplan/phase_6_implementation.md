@@ -8,6 +8,7 @@
 - **Summary**: Augmented the `PipelineContext` to serve as the Single Source of Truth (SSOT) by implementing the `PipelineBlueprint` and `PipelineTelemetry` objects. Successfully separated static business rules from dynamic execution state, centralized phase management, and integrated performance metrics across the entire pipeline.
 
 ## 2. Index of Content
+
 - [1. Metadata](#1-metadata)
 - [2. Index of Content](#2-index-of-content)
 - [3. Objective](#3-objective)

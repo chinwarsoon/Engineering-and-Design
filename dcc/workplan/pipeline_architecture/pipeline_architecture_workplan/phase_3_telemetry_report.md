@@ -12,7 +12,7 @@
 
 This report documents the implementation and validation of Phase 3: Telemetry and Progress Contract for the DCC pipeline. The phase focused on implementing R17 Telemetry Module requirement - heartbeat logs every 1,000 rows with `rows_processed`, `current_phase`, and `memory_usage`.
 
-**Note**: Due to the vectorized pandas processing architecture, heartbeats emit at **phase checkpoints** (P1, P2, P2.5, P3) rather than true 1,000-row intervals. This is documented as architectural limitation ISS-001.
+**Note**: Due to the vectorized pandas processing architecture, heartbeats emit at **phase checkpoints** (P1, P2, P2.5, P3) rather than true 1,000-row intervals. This is documented as architectural limitation [../../log/issue_log.md](../../log/issue_log.md) — ISS-001.
 
 ---
 
@@ -26,19 +26,17 @@ This report documents the implementation and validation of Phase 3: Telemetry an
 
 ## 3. Index of Content
 
-| Section | Description |
-|:---|:---|
-| 1 | Title and Description |
-| 2 | Revision Control & Version History |
-| 3 | Index of Content |
-| 4 | Test Objective, Scope and Execution Summary |
-| 5 | Test Methodology, Environment, and Tools |
-| 6 | Test Phases, Steps, Cases, Status, and Detailed Results |
-| 7 | Test Success Criteria and Checklist |
-| 8 | Known Issues and Limitations |
-| 9 | Files Archived, Modified, and Version Controlled |
-| 10 | Recommendations for Future Actions |
-| 11 | References |
+- [1. Title and Description](#1-title-and-description)
+- [2. Revision Control & Version History](#2-revision-control--version-history)
+- [3. Index of Content](#3-index-of-content)
+- [4. Test Objective, Scope and Execution Summary](#4-test-objective-scope-and-execution-summary)
+- [5. Test Methodology, Environment, and Tools](#5-test-methodology-environment-and-tools)
+- [6. Test Phases, Steps, Cases, Status, and Detailed Results](#6-test-phases-steps-cases-status-and-detailed-results)
+- [7. Test Success Criteria and Checklist](#7-test-success-criteria-and-checklist)
+- [8. Known Issues and Limitations](#8-known-issues-and-limitations)
+- [9. Files Archived, Modified, and Version Controlled](#9-files-archived-modified-and-version-controlled)
+- [10. Recommendations for Future Actions](#10-recommendations-for-future-actions)
+- [11. References](#11-references)
 
 ---
 

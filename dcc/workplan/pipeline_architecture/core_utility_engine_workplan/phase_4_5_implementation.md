@@ -8,6 +8,7 @@
 - **Summary**: Successfully refactored all domain engines to inherit from foundational base classes and utilize the `PipelineContext` object for state management. Re-wrote `dcc_engine_pipeline.py` to instantiate and pass the context, resolving all circular dependencies and testing pipeline integrity with a 100% success rate.
 
 ## 2. Index of Content
+
 - [1. Metadata](#1-metadata)
 - [2. Index of Content](#2-index-of-content)
 - [3. Objective](#3-objective)
