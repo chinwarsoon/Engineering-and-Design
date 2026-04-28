@@ -2761,3 +2761,55 @@ Next steps:
 **Impact:** `code_tracer` call graph now correctly shows edges and entry points (was `edges=0` before fix).
 
 ---
+
+<a id="wp-arch-2026-001-phase6"></a>
+## 2026-04-28
+
+### COMPLETED: Pipeline Architecture Refactoring — Phase 6 (WP-ARCH-2026-001)
+**Status:** COMPLETE (Final)  
+**Related Task:** [core_utility_engine_workplan.md](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md)
+
+**Summary:** Completed the final phase of the architectural refactoring by augmenting the `PipelineContext` to serve as the Single Source of Truth (SSOT). This involved separating static rules (Blueprint) from dynamic execution state (State), implementing centralized phase management, and integrating performance telemetry.
+
+**Changes Made:**
+- **Context Augmentation (`context.py`):**
+    - **`PipelineBlueprint` (NEW):** Immutable rulebook storing the 48-column schema, pre-calculated phase maps, and centralized error catalog.
+    - **`PipelineTelemetry` (NEW):** Performance tracking container for engine execution times and data KPIs.
+    - **`PipelineState` (UPDATED):** Now strictly for mutable results, including a new `environment` snapshot (OS/Python/Dependencies).
+- **Centralized Phase Management:** Implemented `Blueprint.get_columns_by_phase()` to eliminate redundant phase calculations across engines.
+- **Engine Refactoring (`processor_engine`):** Updated `CalculationEngine` to natively consume the `PipelineContext` blueprint for phased processing (P1-P3).
+- **Telemetry Integration (`dcc_engine_pipeline.py`):** Wrapped all pipeline stages in high-precision timers to populate `context.telemetry.execution_times`.
+- **Environment Persistence:** Captured the full system check result into `context.state.environment` during initiation.
+- **SSOT Verification:** Validated the full 7-engine pipeline with 100% success rate, confirming that `PipelineContext` correctly transports all necessary state and rules without prop-drilling.
+
+**Impact:**
+- **Single Source of Truth:** Engines no longer need to load their own schemas or recalculate processing phases.
+- **Observability:** Pipeline runs now include detailed performance telemetry and environment snapshots.
+- **Maintainability:** Clear separation between "Rules" (Blueprint) and "Results" (State) prevents the context from becoming an unstructured "God Object."
+- **Performance:** Pre-calculated phase maps and centralized schema loading minimize redundant operations.
+
+**Report:** `dcc/workplan/pipeline_architecture/reports/phase_6_implementation.md`
+
+<a id="wp-arch-2026-001-consolidation"></a>
+## 2026-04-28 (Addendum)
+
+### COMPLETED: 100% Consolidation of Universal Logic (WP-ARCH-2026-001)
+**Status:** COMPLETE (Architecture Finalized)
+
+**Summary:** Migrated the remaining "residual" universal functions from domain engines into the foundation tiers (`core_engine` and `utility_engine`). This ensures zero duplication of critical logic and strictly enforces the tiered architectural boundaries.
+
+**Changes Made:**
+- **System Tier (`core_engine/system`):**
+    - Created new module and migrated `test_environment`, `detect_os`, and `should_auto_create_folders` from `initiation_engine`.
+- **Data Tier (`core_engine/data`):**
+    - Created new module and migrated universal Pandas utilities (`prepare_dataframe_for_processing`, `flatten_columns`, `initialize_missing_columns`, `verify_required_columns`) from `processor_engine`.
+- **IO Tier (`core_engine/io`):**
+    - Refactored `load_excel_data` to be context-aware, supporting native telemetry and row-limit resolution from the `PipelineContext`.
+- **Orchestrator Cleanup (`dcc_engine_pipeline.py`):**
+    - Updated all imports to point to the new foundation modules.
+    - Removed redundant logic and standardized the boot sequence.
+
+**Impact:**
+- **Architectural Purity:** Domain engines (`initiation`, `processor`, etc.) no longer contain general-purpose utilities.
+- **Maintenance:** Centralized IO and Data logic means updates to Excel loading or DataFrame cleaning only need to happen in one place.
+- **Reliability:** Eliminated logic duplication (e.g., `detect_os`) which previously existed in multiple engines.

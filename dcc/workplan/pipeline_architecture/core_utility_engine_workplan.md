@@ -3,14 +3,40 @@
 ## 1. Document Metadata
 - **Document ID**: WP-ARCH-2026-001
 - **Status**: Draft (Awaiting Approval)
-- **Version**: 1.2.0
+- **Version**: 1.3.0
 - **Revision History**:
     - v1.0.0 (2026-04-27): Initial draft incorporating modular foundation and UI layer refactoring.
     - v1.1.0 (2026-04-27): Added Pipeline Context Object to encapsulate state management.
     - v1.2.0 (2026-04-27): Renamed `dcc_ui` to `utility_engine` to better reflect its role as an interface utility hub.
+    - v1.3.0 (2026-04-28): Added Phase 6 for Context Augmentation and verification of pending features (get_columns_by_phase, error_catalog).
 
 ## 2. Objective
 Restructure the `dcc/workflow` directory to separate universal foundation logic and utility components from domain-specific processing engines. This includes implementing a centralized `PipelineContext` object to manage state consistently across all engines.
+
+### 2.1 Feature Verification Status
+
+| Feature | Requirement | Status | Note |
+| :--- | :--- | :--- | :--- |
+| Path Normalization | Manage Win/Linux paths | ✅ | Implemented in `core_engine/paths` |
+| DataFrame Container | Store Raw/Mapped/Processed | ✅ | Implemented in `PipelineContext.data` |
+| Parameters/State | Store resolved settings/results | ✅ | Implemented in `PipelineContext.parameters/state` |
+| Phase Helper | `get_columns_by_phase()` | ✅ | Implemented in `PipelineBlueprint` |
+| Error Catalog | Centralized error lookup | ✅ | Integrated into `PipelineBlueprint` |
+| Performance | Fast load times (<10ms) | ✅ | Integrated `PipelineTelemetry` tracking |
+
+**Pending changes to be verified:**
+(rest of the section remains same but shifted to 2.2)
+
+## 2.2 Pipeline Context Design Goals
+`pipelineContext` acts as the "central nervous system" of dcc_engine_pipeline...
+- Normalizes and manages all file system paths for both Windows and Linux, ensuring consistent access to input Excel files, JSON schemas, and output directories.
+- Stores the 48-column blueprint and error catalogs loaded from your JSON files, allowing engines to look up P1–P4 phase logic and standardized error messages without repeated disk reads.
+- Tracks the real-time progress of the run, including setup readiness, schema validation results, and the Data Health Score.
+- Acts as a container for the DataFrames (Raw, Mapped, and Processed), ensuring data integrity as it moves from the Mapper Engine to the Processor Engine.
+- It separates business logic (the code) from business rules (the schemas), allowing to update rules like the 4-digit zero-padding or P3 date logic without touching the Python scripts.
+- It provides helpers like get_columns_by_phase(), which ensures that such as Phase P1 (Anchors) are validated before Phase P3 (Calculations) begin, preventing errors like the negative delay values.
+- By centralizing the error_catalog, it ensures that all total errors found in the pipeline are reported with consistent codes and severity levels across all rows of data.
+- It loads context once, it maintains the high-speed performance (e.g., 6.14ms schema load time) required for analytical processing.
 
 ## 3. Scope Summary
 The scope covers all six primary engines of the DCC pipeline and the main orchestrator. It involves extracting shared utilities (logging, paths, system checks, data IO) and interface components (console printing, CLI parsing) into dedicated packages (`core_engine` and `utility_engine`), and introducing a unified context object to replace loose variable passing.
@@ -37,16 +63,48 @@ The current architecture suffers from "God Module" syndrome and "Prop Drilling" 
 - **System Dependencies**: Relies on existing Python 3.x environment and standard libraries (`dataclasses`, `pathlib`, `logging`, `argparse`).
 
 ## 7. Proposed Changes (Updated/Created)
-### [NEW] Packages & Objects
-- `core_engine/`: Foundation layer for universal utilities.
-- **`PipelineContext`**: A centralized state object to store parameters, resolved paths, schemas, and processing results.
-- `utility_engine/`: Interface layer for user interaction and general utilities.
 
-### [MODIFY] Existing Engines
-- `initiation_engine/`: Remove utility subfolders; specialize on setup validation.
-- `processor_engine/`: Update to use `utility_engine` for internal step logging and accept `PipelineContext`.
-- `reporting_engine/`: Consolidate all summary and diagnostic reporting using `PipelineContext`.
-- `dcc_engine_pipeline.py`: Update to initialize and pass the `PipelineContext` object.
+### 7.1 Object Definition & Purpose
+
+| Object | Status | Purpose | Source Schema |
+| :--- | :--- | :--- | :--- |
+| **`PipelinePaths`** | ✅ Complete | Centralized resolution of all filesystem paths (Input, Output, Config, Logs). | N/A |
+| **`PipelineBlueprint`** | 🏗️ **NEW** | **The Rulebook**: Immutable storage for the 48-column schema, phase maps, and error catalogs. | `dcc_register_config.json`, `data_error_config.json`, `system_error_config.json` |
+| **`PipelineState`** | ✅ Complete | **The Scoreboard**: Mutable storage for execution results, validation errors, and progress. | N/A |
+| **`PipelineTelemetry`** | 🏗️ **NEW** | **Performance Trace**: Tracking execution time, row counts, and data health metrics. | N/A |
+| **`PipelineContext`** | ✅ Complete | **The SSOT**: Unified container passing Blueprint, State, Path, and Data objects. | `project_config.json` |
+| **`PipelineData`** | ✅ Complete | Container for DataFrames (Raw, Mapped, Processed). | N/A |
+
+### 7.2 Comparison: Current vs. Proposed Architecture
+
+| Feature | Current State (v1.2) | Proposed State (v1.3) |
+| :--- | :--- | :--- |
+| **Structure** | Nested dicts inside `PipelineState`. | Split into `Blueprint` (Rules) and `State` (Results). |
+| **Column Rules** | Mixed with state in `resolved_schema`. | Dedicated `Blueprint.columns` (Immutable). |
+| **Phases** | Recalculated locally in engines. | Pre-calculated `Blueprint.phase_map` (Cached). |
+| **Error Definitions** | Loaded per engine from disk. | Centralized `Blueprint.error_catalog`. |
+| **Performance** | Not tracked. | Integrated `PipelineTelemetry` (Timing/KPIs). |
+| **Environment** | Loose checks in `main()`. | Persisted `PipelineState.environment` snapshot. |
+| **SSOT Status** | Partial (Prop-drilling still exists). | Full (Engines only receive `PipelineContext`). |
+
+### 7.3 Detailed Object Schema
+
+#### [NEW] `PipelineBlueprint` (Static Rules)
+- `columns`: Detailed definition of all 48 blueprint columns.
+- `error_catalog`: Full registry of S-C-S and L-M-F codes.
+- `phase_map`: Dict mapping phases (`P1`, `P2`, etc.) to column lists.
+- `validation_rules`: Global logic flags (e.g., `fail_fast`).
+
+#### [UPDATE] `PipelineState` (Mutable Results)
+- `mapping_summary`: Results of the fuzzy matching process.
+- `validation_errors`: Collection of errors found during processing.
+- `environment`: Snapshot of OS, Python version, and dependency status.
+- `engine_status`: Registry of completed vs. pending pipeline stages.
+
+#### [NEW] `PipelineTelemetry` (Metrics)
+- `execution_times`: Dict of `engine_name: duration_seconds`.
+- `data_metrics`: Row counts, null rates, and health score averages.
+- `memory_usage`: Peak memory consumption during processing.
 
 ## 8. Implementation Phases
 
@@ -76,11 +134,20 @@ The current architecture suffers from "God Module" syndrome and "Prop Drilling" 
 - [x] Finalize `dcc_engine_pipeline.py` with the new hierarchy and context management.
 - [x] Conduct end-to-end integration testing.
 
+### Phase 6: Context Augmentation & Verification ✅
+- [x] **Implement `PipelineBlueprint`**: Create immutable rule container in `core_engine/context.py`.
+- [x] **Implement `PipelineTelemetry`**: Create performance tracking container in `core_engine/context.py`.
+- [x] **Centralize Error Catalog**: Migrate `data_error_config.json` loading to `PipelineBlueprint`.
+- [x] **Centralize Phase Helper**: Implement `Blueprint.get_columns_by_phase(phase: str)`.
+- [x] **Refactor CalculationEngine**: Update to use `context.blueprint` for rules and `context.telemetry` for timing.
+- [x] **Verify Environment Snapshot**: Ensure `PipelineState.environment` captures full system context during initiation.
+
 ## 9. Timeline and Milestones
 - **Milestone 1**: Phase 1 Analysis Report and `PipelineContext` definition completed.
 - **Milestone 2**: `core_engine` (including Context) and `utility_engine` packages established.
 - **Milestone 3**: All engines refactored to use `PipelineContext`.
 - **Milestone 4**: Final integration test pass and version v1.2.0 release.
+- **Milestone 5**: Phase 6 Context Augmentation and verification of pending features completed. ✅
 
 ## 10. Risks and Mitigation
 - **Risk**: `PipelineContext` becomes a "God Object" if not strictly defined.
@@ -102,6 +169,7 @@ The current architecture suffers from "God Module" syndrome and "Prop Drilling" 
 - [Phase 1 Analysis Report](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_1_analysis.md)
 - [Phase 2 & 3 Implementation Report](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_2_3_implementation.md)
 - [Phase 4 & 5 Implementation Report](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_4_5_implementation.md)
+- [Phase 6 Implementation Report](file:///home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_6_implementation.md)
 
 ---
 

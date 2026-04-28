@@ -16,6 +16,7 @@ import json
 import os
 import platform
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -44,6 +45,9 @@ from core_engine.logging import (
     get_verbose_mode,
     DEBUG_LEVEL,
 )
+from core_engine.system import test_environment
+from core_engine.io import load_excel_data
+
 from utility_engine.console import (
     status_print,
     milestone_print,
@@ -60,7 +64,6 @@ from utility_engine.errors import system_error_print
 from initiation_engine import (
     ProjectSetupValidator,
     format_report as format_setup_report,
-    test_environment,
 )
 from schema_engine import (
     SchemaValidator,
@@ -72,7 +75,6 @@ from mapper_engine import ColumnMapperEngine
 from processor_engine import (
     CalculationEngine,
     SchemaProcessor,
-    load_excel_data,
 )
 from reporting_engine import (
     write_processing_summary,
@@ -100,8 +102,12 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
 
     # Step 1: Initiation Engine - Project Setup Validation
     try:
+        start_time = time.time()
         with log_context("pipeline", "step1_initiation"):
             setup_validator = ProjectSetupValidator(context)
+            # return setup_results which includes a "ready" boolean and details on missing/invalid items if not ready, like number of files/folders found, missing files/folders, etc
+            # if ready is True, return a summary of the setup validation, like number of files/folders found, etc
+            # if ready is False, log a system error with code S-C-S-0305 and include the details in the log, then raise a ValueError with the details
             setup_results = setup_validator.validate()
             context.state.setup_results = setup_results
             if not setup_results.get("ready"):
@@ -110,6 +116,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             total_folders = setup_validator.get_total_folders(setup_results)
             total_files = setup_validator.get_total_files(setup_results)
             milestone_print("Setup validated", f"{total_folders} folders, {total_files} files")
+        context.telemetry.execution_times["initiation_engine"] = time.time() - start_time
     except ValueError:
         raise
     except Exception as exc:
@@ -118,6 +125,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
 
     # Step 2: Schema Engine - Schema Validation
     try:
+        start_time = time.time()
         with log_context("pipeline", "step2_schema_validation"):
             status_print(f"Main schema: {schema_path}", min_level=3)
             if not schema_path.exists():
@@ -132,9 +140,37 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
                 system_error_print("S-C-S-0303", detail=str(schema_path))
                 raise ValueError(json.dumps(schema_results, indent=2))
             
+            # Populate Blueprint (SSOT)
+            resolved_schema = schema_validator.load_resolved_schema()
+            context.state.resolved_schema = resolved_schema
+            
+            _schema_root = resolved_schema if "columns" in resolved_schema else resolved_schema.get("enhanced_schema", {})
+            context.blueprint.columns = _schema_root.get("columns", {})
+            context.blueprint.validation_rules = resolved_schema.get("parameters", {})
+            
+            # Pre-calculate phase map for Phase 6
+            column_sequence = _schema_root.get("column_sequence", [])
+            phase_map = {"P1": [], "P2": [], "P2.5": [], "P3": []}
+            for col_name in column_sequence:
+                if col_name in context.blueprint.columns:
+                    phase = context.blueprint.columns[col_name].get("processing_phase", "P3")
+                    if phase in phase_map:
+                        phase_map[phase].append(col_name)
+            context.blueprint.phase_map = phase_map
+            
+            # Load Error Catalog into Blueprint
+            error_config_path = base_path / "config" / "schemas" / "data_error_config.json"
+            if error_config_path.exists():
+                try:
+                    with open(error_config_path, "r", encoding="utf-8") as f:
+                        context.blueprint.error_catalog = json.load(f).get("data_logic_errors", {})
+                except Exception as e:
+                    log_error(f"Failed to load error catalog: {e}", module="pipeline")
+
             total_columns = schema_validator.get_total_columns(schema_results)
             total_refs = schema_validator.get_total_references(schema_results)
             milestone_print("Schema loaded", f"{total_columns} columns, {total_refs} references")
+        context.telemetry.execution_times["schema_engine"] = time.time() - start_time
     except (ValueError, FileNotFoundError):
         raise
     except json.JSONDecodeError as exc:
@@ -146,21 +182,21 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
 
     # Step 3: Mapper Engine - Column Mapping
     try:
+        start_time = time.time()
         with log_context("pipeline", "step3_column_mapping"):
             if not excel_path.exists():
                 system_error_print("S-F-S-0201", detail=str(excel_path))
                 raise FileNotFoundError(f"Input file not found: {excel_path}")
-            df_raw = load_excel_data(excel_path, context.parameters, nrows=context.nrows, verbose=DEBUG_LEVEL >= 2)
-            context.data.df_raw = df_raw
+            df_raw = load_excel_data(excel_path, context.parameters, nrows=context.nrows, verbose=DEBUG_LEVEL >= 2, context=context)
             
-            resolved_schema = schema_validator.load_resolved_schema()
-            context.state.resolved_schema = resolved_schema
+            # resolved_schema is already in context.state.resolved_schema from step 2
             
             mapper = ColumnMapperEngine(context)
             mapping_out = mapper.map_dataframe()
             mapping_result = context.state.mapping_result
             df_mapped = context.data.df_mapped
             milestone_print("Columns mapped", f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})")
+        context.telemetry.execution_times["mapper_engine"] = time.time() - start_time
     except FileNotFoundError:
         raise
     except PermissionError as exc:
@@ -172,6 +208,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
 
     # Step 4: Processor Engine - Document Processing
     try:
+        start_time = time.time()
         with log_context("pipeline", "step4_document_processing"):
             processor = CalculationEngine(context, context.state.resolved_schema)
             processor.process_data()
@@ -183,6 +220,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
             dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
             status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
+        context.telemetry.execution_times["processor_engine"] = time.time() - start_time
     except MemoryError as exc:
         system_error_print("S-R-S-0403", detail=str(exc))
         raise
@@ -221,12 +259,15 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
 
     # Step 5: Reorder columns per schema column_sequence
     with log_context("pipeline", "step5_column_reorder"):
+        start_time = time.time()
         schema_processor = SchemaProcessor(resolved_schema)
         df_processed = schema_processor.reorder_dataframe(df_processed, status_print_fn=status_print)
         context.data.df_processed = df_processed
+        context.telemetry.execution_times["reorder_engine"] = time.time() - start_time
 
     # Export results
     with log_context("pipeline", "step6_export"):
+        start_time = time.time()
         df_processed.to_excel(export_paths["excel_path"], index=False)
         df_processed.to_csv(export_paths["csv_path"], index=False)
 
@@ -255,6 +296,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
         # Save debug log to same output folder as CSV
         debug_log_path = context.paths.debug_log_path
         save_debug_log(output_path=debug_log_path)
+        context.telemetry.execution_times["export_engine"] = time.time() - start_time
 
         # Get error summary for display from processor
         error_summary = context.state.error_summary
@@ -276,6 +318,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
 
     # Step 7: AI Operations (non-blocking)
     with log_context("pipeline", "step7_ai_ops"):
+        start_time = time.time()
         status_print("Running AI operations analysis...")
         ai_insight = run_ai_ops(
             context=context,
@@ -285,6 +328,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             status_print(f"AI Insight: {export_paths['csv_path'].parent / 'ai_insight_summary.json'}")
         else:
             status_print("⚠ AI analysis skipped or failed (non-blocking)")
+        context.telemetry.execution_times["ai_ops_engine"] = time.time() - start_time
 
     return {
         "base_path": str(base_path),
@@ -302,6 +346,8 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
         "match_rate": mapping_result["match_rate"],
         "missing_required": mapping_result.get("missing_required", []),
         "ready": True,
+        "telemetry": context.telemetry.execution_times,
+        "environment": context.state.environment,
     }
 
 
@@ -380,6 +426,7 @@ def main() -> int:
         nrows=args.nrows,
         debug_mode=(DEBUG_LEVEL >= 2)
     )
+    context.state.environment = environment
 
     # milestone print for number of parameters resolved from cli args, schema, and native defaults
     total_params = len(effective_parameters)

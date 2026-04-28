@@ -3,7 +3,7 @@ Pipeline Context - Centralized state management for the DCC pipeline.
 """
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -19,13 +19,43 @@ class PipelinePaths:
 
 
 @dataclass
+class PipelineBlueprint:
+    """
+    The Rulebook - Immutable storage for schema definitions and business rules.
+    Loaded once during initiation/schema resolution.
+    """
+    columns: Dict[str, Any] = field(default_factory=dict)        # The 48-column blueprint
+    error_catalog: Dict[str, Any] = field(default_factory=dict)  # Standardized error definitions
+    phase_map: Dict[str, List[str]] = field(default_factory=dict) # P1-P4 column groupings
+    validation_rules: Dict[str, Any] = field(default_factory=dict) # Global logic flags
+    
+    def get_columns_by_phase(self, phase: str) -> List[str]:
+        """Return list of column names for a specific processing phase."""
+        return self.phase_map.get(phase, [])
+
+
+@dataclass
+class PipelineTelemetry:
+    """
+    Performance Trace - Tracking execution time, row counts, and KPIs.
+    """
+    execution_times: Dict[str, float] = field(default_factory=dict) # engine_name: seconds
+    data_metrics: Dict[str, Any] = field(default_factory=dict)      # rows, null_rates, etc.
+    memory_usage: Dict[str, Any] = field(default_factory=dict)      # peak usage stats
+
+
+@dataclass
 class PipelineState:
-    """State objects and results generated during pipeline execution."""
+    """
+    The Scoreboard - Mutable state objects and results generated during execution.
+    """
     setup_results: Dict[str, Any] = field(default_factory=dict)
     schema_results: Dict[str, Any] = field(default_factory=dict)
     resolved_schema: Dict[str, Any] = field(default_factory=dict)
     mapping_result: Dict[str, Any] = field(default_factory=dict)
     error_summary: Dict[str, Any] = field(default_factory=dict)
+    environment: Dict[str, Any] = field(default_factory=dict)      # OS/Env snapshot
+    engine_status: Dict[str, str] = field(default_factory=dict)     # engine: status (complete/failed)
 
 
 @dataclass
@@ -40,11 +70,13 @@ class PipelineData:
 class PipelineContext:
     """
     Centralized context object for the DCC pipeline.
-    Replaces loose variable passing between engines.
+    The Single Source of Truth (SSOT).
     """
     paths: PipelinePaths
     parameters: Dict[str, Any]
+    blueprint: PipelineBlueprint = field(default_factory=PipelineBlueprint)
     state: PipelineState = field(default_factory=PipelineState)
+    telemetry: PipelineTelemetry = field(default_factory=PipelineTelemetry)
     data: PipelineData = field(default_factory=PipelineData)
     
     # Execution flags

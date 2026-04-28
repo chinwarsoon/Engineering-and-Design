@@ -3,9 +3,9 @@
 | Field | Value |
 |-------|-------|
 | **Workplan ID** | WP-DCC-DOC-001 |
-| **Version** | 3.0 |
-| **Date** | 2026-04-25 |
-| **Status** | ✅ ACTIVE — Living document, updated with project changes |
+| **Version** | 3.1 |
+| **Date** | 2026-04-28 |
+| **Status** | ✅ ACTIVE — Living document, updated with Phase 6 completion |
 | **Type** | Documentation / Reference |
 | **Related** | [README](README.md) \| [Agent Rules](../../agent_rule.md) \| [Maintenance Workplan](workplan/maintenance/archive_cleanup_workplan.md) |
 
@@ -71,7 +71,8 @@ To provide a definitive technical reference for the Document Control Center (DCC
 
 | Version | Date | Author | Changes | Status |
 |---------|------|--------|---------|--------|
-| 3.0 | 2026-04-25 | System | Converted to workplan format per agent_rule.md Section 8, added detailed UI function documentation, moved backup/tracer files to archive | ✅ Current |
+| 3.1 | 2026-04-28 | System | Phase 6 Augmented Context completed. Augmented PipelineContext with Blueprint/Telemetry. | ✅ Current |
+| 3.0 | 2026-04-25 | System | Converted to workplan format per agent_rule.md Section 8, added detailed UI function documentation, moved backup/tracer files to archive | ✅ Superseded |
 | 2.1 | 2026-04-25 | System | Updated UI section with detailed file and function listings, archived tracer_pro.html and backup files | ✅ Superseded |
 | 2.0 | 2026-04-20 | System | Added 7-engine architecture section, 3-tier schema documentation, standardized error codes reference | ✅ Superseded |
 | 1.0 | 2026-04-15 | System | Initial project structure documentation | ✅ Superseded |

@@ -162,32 +162,18 @@ class CalculationEngine(BaseProcessor):
         Rule 13: Always respect sequence of columns in the schema
         """
         with log_context("processor", "apply_phased_processing"):
-            from ..utils.dataframe import prepare_dataframe_for_processing, initialize_missing_columns
+            from core_engine.data import prepare_dataframe_for_processing, initialize_missing_columns
             
             # Initialize DataFrame
             df_processed = prepare_dataframe_for_processing(df)
-            parameters = self.schema_data.get('parameters', {})
+            parameters = self.context.blueprint.validation_rules or self.schema_data.get('parameters', {})
             df_processed = initialize_missing_columns(df_processed, self.columns, parameters)
             
-            # Get column sequence from schema (Rule 13)
-            # Support new top-level 'column_sequence' and legacy 'enhanced_schema.column_sequence'
-            _schema_root = self.schema_data if 'column_sequence' in self.schema_data else self.schema_data.get('enhanced_schema', {})
-            column_sequence = _schema_root.get('column_sequence', [])
-            
-            # Group columns by processing phase
-            phase_columns = {'P1': [], 'P2': [], 'P2.5': [], 'P3': []}
-            for col_name in column_sequence:
-                if col_name in self.columns:
-                    phase = self.columns[col_name].get('processing_phase', 'P3')
-                    if phase in phase_columns:
-                        phase_columns[phase].append(col_name)
-            
-            debug_print(f"Phase distribution: P1={len(phase_columns['P1'])}, P2={len(phase_columns['P2'])}, P2.5={len(phase_columns['P2.5'])}, P3={len(phase_columns['P3'])}")
-            
             # Phase 1: Meta Data - Apply null handling (forward fill OK)
-            if phase_columns['P1']:
-                self._print_processing_step("Phase 1", "Meta Data", f"Processing {len(phase_columns['P1'])} columns")
-                df_processed = self._apply_phase_null_handling(df_processed, phase_columns['P1'])
+            p1_cols = self.context.blueprint.get_columns_by_phase('P1')
+            if p1_cols:
+                self._print_processing_step("Phase 1", "Meta Data", f"Processing {len(p1_cols)} columns")
+                df_processed = self._apply_phase_null_handling(df_processed, p1_cols)
                 # Phase 4: Run Phase 1 detection
                 p1_results = self.business_detector.detect(
                     df_processed, 
@@ -200,9 +186,10 @@ class CalculationEngine(BaseProcessor):
             # Phase C: Initialize fill history tracking for error detection
             self.fill_history = []
             
-            if phase_columns['P2']:
-                self._print_processing_step("Phase 2", "Transactional", f"Processing {len(phase_columns['P2'])} columns")
-                df_processed = self._apply_phase_transactional(df_processed, phase_columns['P2'])
+            p2_cols = self.context.blueprint.get_columns_by_phase('P2')
+            if p2_cols:
+                self._print_processing_step("Phase 2", "Transactional", f"Processing {len(p2_cols)} columns")
+                df_processed = self._apply_phase_transactional(df_processed, p2_cols)
                 # Phase 4: Run Phase 2 detection
                 p2_results = self.business_detector.detect(
                     df_processed, 
@@ -212,9 +199,10 @@ class CalculationEngine(BaseProcessor):
                 self.error_aggregator.add_errors(p2_results.get(ProcessingPhase.P2, []))
             
             # Phase 2.5: Anomaly - Calculations FIRST, then null handling
-            if phase_columns['P2.5']:
-                self._print_processing_step("Phase 2.5", "Anomaly", f"Processing {len(phase_columns['P2.5'])} columns")
-                df_processed = self._apply_phase_calculated(df_processed, phase_columns['P2.5'])
+            p25_cols = self.context.blueprint.get_columns_by_phase('P2.5')
+            if p25_cols:
+                self._print_processing_step("Phase 2.5", "Anomaly", f"Processing {len(p25_cols)} columns")
+                df_processed = self._apply_phase_calculated(df_processed, p25_cols)
                 # Phase 4: Run Phase 2.5 detection
                 # Phase C: Include fill_history in context for FillDetector
                 p25_results = self.business_detector.detect(
@@ -231,9 +219,10 @@ class CalculationEngine(BaseProcessor):
                 self.fill_history = []
             
             # Phase 3: Calculated - Calculations FIRST, then null handling (last defense)
-            if phase_columns['P3']:
-                self._print_processing_step("Phase 3", "Calculated", f"Processing {len(phase_columns['P3'])} columns")
-                df_processed = self._apply_phase_calculated(df_processed, phase_columns['P3'])
+            p3_cols = self.context.blueprint.get_columns_by_phase('P3')
+            if p3_cols:
+                self._print_processing_step("Phase 3", "Calculated", f"Processing {len(p3_cols)} columns")
+                df_processed = self._apply_phase_calculated(df_processed, p3_cols)
                 # Phase 4: Run Phase 3 detection
                 p3_results = self.business_detector.detect(
                     df_processed, 

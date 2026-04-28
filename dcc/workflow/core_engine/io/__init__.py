@@ -17,6 +17,7 @@ def load_excel_data(
     nrows: int | None = None,
     verbose: bool = True,
     status_print_fn: Callable = print,
+    context: Any = None,
 ) -> Any:
     """
     Load Excel data with specified parameters.
@@ -28,59 +29,53 @@ def load_excel_data(
         nrows: Optional row limit
         verbose: Whether to print status messages
         status_print_fn: Function to print status messages (default: print)
+        context: Optional PipelineContext to store raw data and telemetry
         
     Returns:
         pandas.DataFrame with loaded data
-        
-    Raises:
-        ImportError: If pandas is not available
-        ValueError: If no columns loaded or invalid parameters
     """
     if not HAS_PANDAS:
         raise ImportError("pandas is required for load_excel_data")
     
-    sheet_name = effective_parameters.get("upload_sheet_name", "Prolog Submittals ")
-    header_row = effective_parameters.get("header_row_index", 4)
-    start_col = effective_parameters.get("start_col", "P")
-    end_col = effective_parameters.get("end_col", "AP")
+    # Extract params from context if provided
+    params = context.parameters if context else effective_parameters
+    sheet_name = params.get("upload_sheet_name", "Prolog Submittals ")
+    header_row = params.get("header_row_index", 4)
+    start_col = params.get("start_col", "P")
+    end_col = params.get("end_col", "AP")
     usecols = f"{start_col}:{end_col}"
     
     if verbose:
         status_print_fn(f"📁 Loading Excel file: {excel_path}")
         status_print_fn(f"   Sheet: '{sheet_name}'")
-        status_print_fn(f"   Header row: {header_row + 1} (0-indexed: {header_row})")
+        status_print_fn(f"   Header row: {header_row + 1}")
         status_print_fn(f"   Column range: {start_col}:{end_col}")
-        status_print_fn(f"   Row limit: {nrows if nrows else 'all'}")
     
     df = pd.read_excel(
         excel_path,
         sheet_name=sheet_name,
         header=header_row,
         usecols=usecols,
-        nrows=nrows,
+        nrows=nrows or (context.nrows if context else None),
     )
     
-    # Validate columns loaded
     if len(df.columns) == 0:
-        raise ValueError(f"No columns loaded. Check header_row_index={header_row} and range {start_col}:{end_col}")
+        raise ValueError(f"No columns loaded from {excel_path}")
     
-    # Flatten MultiIndex columns if present
+    # Flatten columns
     if isinstance(df.columns, pd.MultiIndex):
-        if verbose:
-            status_print_fn("   ⚠️  Flattening MultiIndex columns")
         df.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df.columns]
     
-    # Remove duplicate columns
-    if df.columns.duplicated().any():
-        dup_cols = df.columns[df.columns.duplicated()].tolist()
-        if verbose:
-            status_print_fn(f"   ⚠️  Removing {len(dup_cols)} duplicate columns")
-        df = df.loc[:, ~df.columns.duplicated()].copy()
-    
-    # Remove empty columns
+    # Cleanup
+    df = df.loc[:, ~df.columns.duplicated()].copy()
     df = df.dropna(axis=1, how='all')
     
     if verbose:
         status_print_fn(f"   ✓ Loaded {len(df)} rows × {len(df.columns)} columns")
     
+    if context:
+        context.data.df_raw = df
+        if "rows_loaded" not in context.telemetry.data_metrics:
+            context.telemetry.data_metrics["rows_loaded"] = len(df)
+            
     return df
