@@ -19,6 +19,25 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-63"></a>
+## 2026-04-28
+
+### Issue #63 — Pipeline Architecture Full Compliance Pending (WP-PIPE-ARCH-001)
+- **Status:** OPEN
+- **Context:** Phase 1 traceability confirms overall `PARTIALLY COMPLIANT` status (`13 PASS`, `5 PARTIAL`) for current pipeline architecture requirements.
+- **Root Cause:** Three capability groups are not fully closed: Dependency Injection depth, 1,000-row telemetry heartbeat, and UI-facing exception/override contracts.
+- **File Changes:** 
+  - `dcc/workplan/pipeline_architecture/pipeline_architecture_design_workplan.md`
+  - `dcc/workplan/pipeline_architecture/reports/phase_1_traceability_report.md`
+  - `dcc/workplan/issue_log.md`
+- **Resolution Plan:** Close through workplan phases:
+  1. Phase 2: DI boundary hardening.
+  2. Phase 3: telemetry heartbeat contract.
+  3. Phase 4: UI consumer and overrides contract.
+- **Link to Update Log:** [update_log.md](#wp-pipe-arch-001-phase1-traceability)
+
+---
+
 <a id="issue-62"></a>
 ## 2026-04-24
 

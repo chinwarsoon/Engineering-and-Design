@@ -8,6 +8,29 @@
 
 # Section 2. Log entries
 
+<a id="wp-pipe-arch-001-phase1-traceability"></a>
+## 2026-04-28
+
+### COMPLETED: Pipeline Architecture Workplan — Phase 1 Baseline Closure (WP-PIPE-ARCH-001)
+**Status:** COMPLETE  
+**Related Task:** [pipeline_architecture_design_workplan.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/pipeline_architecture_design_workplan.md)
+
+**Summary:** Completed Phase 1 for the pipeline architecture workplan by finalizing requirement retention, compliance status capture, and requirement traceability report generation.
+
+**Changes Made:**
+- Updated workplan metadata to `v0.4` and revised revision history.
+- Marked all Phase 1 checklist items complete in the workplan.
+- Added Phase 1 report link in the workplan section.
+- Created report: [phase_1_traceability_report.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/reports/phase_1_traceability_report.md).
+- Created workplan-level issue log: [dcc/workplan/issue_log.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/issue_log.md).
+
+**Impact:**
+- Phase 1 is formally closed with traceable evidence.
+- Workplan now complies better with `agent_rule.md` reporting and logging expectations.
+- Remaining partial compliance items are clearly tracked for Phase 2-4 execution.
+
+---
+
 <a id="rename-packages"></a>
 ## 2026-04-28
 

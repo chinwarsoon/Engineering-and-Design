@@ -110,15 +110,15 @@
    - object
    - scope summary
    - index of content with links
-   - evaluation and alignment with existing architecture
    - dependencies with other tasks
-   - what will be updated/created
+   - evaluation and alignment with existing architecture
    - implementation phase and task breakdown
-   - timeline, milestones, and deliverables
-   - risks and mitigation
-   - potential issues to be addressed in the future
-   - success criteria
-   - references with links to other files, reports, and code files.
+     - timeline, milestones, and deliverables
+     - what will be updated/created
+     - risks and mitigation
+     - potential issues to be addressed in the future
+     - success criteria
+     - references with links to other files, reports, and code files.
 3. always update workplan file when there are changes or updates
 4. always review related others workplan file before starting implementation
 5. always log issues to issue_log.md file under the parent folder of workplan folder
