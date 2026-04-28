@@ -154,16 +154,16 @@ The current error handling architecture suffers from fragmented error management
 5. Update exception handling to preserve error context
 
 **Detailed Evaluation**:
-- **Current Assessment**: 7 instances of direct error handling in main orchestrator
-- **Impact Analysis**: Critical pipeline control points need context integration
+- **Current Assessment**: ~15 instances of direct error handling in main orchestrator (including try-except blocks across 4 pipeline steps and `main()` environment testing)
+- **Impact Analysis**: Critical pipeline control points need context integration, specifically replacing legacy string-matching fail-fast checks (`"FAIL FAST" in str(exc)`).
 - **Performance Impact**: Expected <2ms overhead per error handling operation
 - **Compatibility**: Must maintain existing error codes and messages
 
 **Changes and Updates**:
-- **Error Pattern Replacement**: Replace direct calls with context-based handling
-- **Fail-Fast Integration**: Implement blueprint-controlled failure behavior
+- **Error Pattern Replacement**: Replace direct `system_error_print` calls with context-based handling across all pipeline try-except blocks and within `main()`.
+- **Fail-Fast Integration**: Refactor the legacy string-based 'FAIL FAST' logic in step 4 into structured blueprint-controlled failure behavior.
 - **Error Reporting**: Add comprehensive error summary at pipeline completion
-- **Exception Preservation**: Maintain error context through exception chain
+- **Exception Preservation**: Maintain error context through exception chain and wrap generic exceptions in context-aware pipeline exceptions.
 
 **Related Schemas**:
 - **PipelineErrorHandling Schema**:
