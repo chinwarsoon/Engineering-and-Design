@@ -100,6 +100,7 @@ Gap focus (updated post-Phase 4):
 1. [core_utility_engine_workplan.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/core_utility_engine_workplan.md)
 2. Engine-level implementation documents under `dcc/workflow/*/readme.md`
 3. Logging and reporting obligations from `agent_rule.md` Section 8 and Section 9
+4. **Error Handling Workplan (WP-ERR-INT-2026-001)**: Related workplan for error handling integration (see `../../error_handling/error_handling_integration_workplan.md`)
 
 ## 8. Implementation Phases and Task Breakdown
 

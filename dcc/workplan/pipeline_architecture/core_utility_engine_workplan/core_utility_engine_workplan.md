@@ -49,6 +49,7 @@ The scope covers all six primary engines of the DCC pipeline and the main orches
 
 ### 6.1 Task Dependencies
 - **Pipeline Architecture Workplan (WP-PIPE-ARCH-001)**: This workplan is a sub-component of the overall pipeline architecture modernization effort
+- **Error Handling Workplan (WP-ERR-INT-2026-001)**: Related workplan for error handling integration (see `../error_handling/error_handling_integration_workplan.md`)
 - **Agent Rule Compliance**: Must follow standards defined in `/agent_rule.md`
 - **Issue Log**: All issues must be logged to `../../../log/issue_log.md`
 - **Update Log**: Progress must be logged to `../../../log/update_log.md`

@@ -19,6 +19,59 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-iss-002"></a>
+## 2026-04-29
+
+### Issue ISS-002 — Error Handling Bypassing PipelineContext (WP-ARCH-2026-001)
+- **Status:** 🟡 PENDING
+- **Context:** Pipeline error handling throughout the codebase bypasses the centralized PipelineContext error management system. Direct calls to `system_error_print()` and immediate exception raising prevent error aggregation and centralized tracking.
+- **Root Cause:** Legacy error handling patterns from pre-PipelineContext architecture still in use
+- **Impact:**
+  - Errors not stored in `context.state.validation_errors` for reporting
+  - No centralized error tracking through `context.blueprint.error_catalog`
+  - Errors immediately raised rather than accumulated for comprehensive reporting
+  - Bypasses fail-fast configuration from `context.blueprint.validation_rules`
+  - Missing error statistics and summary reporting
+- **Affected Components:**
+  - `dcc_engine_pipeline.py` - Main orchestrator (lines 133, 143, 152, 160, 197, 200, 208)
+  - `ai_ops_engine/core/engine.py` - AI operations (lines 233)
+  - `ai_ops_engine/persistence/run_store.py` - Persistence layer (line 44)
+  - `mapper_engine/core/engine.py` - Column mapping (lines 52, 110)
+  - `initiation_engine/overrides.py` - Parameter validation (line 195)
+  - `initiation_engine/utils/paths.py` - Path validation (line 282)
+- **Current Pattern:**
+  ```python
+  # PROBLEMATIC: Direct error printing and immediate raising
+  if not setup_results.get("ready"):
+      system_error_print("S-C-S-0305", detail=format_setup_report(setup_results))
+      raise ValueError(format_setup_report(setup_results))
+  ```
+- **Required Pattern:**
+  ```python
+  # PROPER: Context-based error handling
+  if not setup_results.get("ready"):
+      context.state.add_validation_error(
+          code="S-C-S-0305",
+          message="Setup validation failed",
+          details=format_setup_report(setup_results)
+      )
+      if context.blueprint.validation_rules.get("fail_fast", True):
+          raise ValueError(format_setup_report(setup_results))
+  ```
+- **Resolution Needed:**
+  1. Add `add_validation_error()` method to `PipelineState` class
+  2. Update all error handling to use context-based error storage
+  3. Implement fail-fast logic based on blueprint configuration
+  4. Create error summary reporting from accumulated errors
+  5. Update exception handling to preserve error context
+- **Files to Change:**
+  - `dcc/workflow/core_engine/context.py` - Add error management methods
+  - `dcc/workflow/dcc_engine_pipeline.py` - Update orchestrator error handling
+  - All engine modules - Replace direct error calls with context-based handling
+- **Link to Update Log:** TBD
+
+---
+
 <a id="issue-iss-001"></a>
 ## 2026-04-28
 

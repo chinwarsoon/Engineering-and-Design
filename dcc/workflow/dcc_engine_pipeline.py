@@ -132,9 +132,10 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             if not setup_results.get("ready"):
                 system_error_print("S-C-S-0305", detail=format_setup_report(setup_results))
                 raise ValueError(format_setup_report(setup_results))
-            total_folders = setup_validator.get_total_folders(setup_results)
-            total_files = setup_validator.get_total_files(setup_results)
-            milestone_print("Setup validated", f"{total_folders} folders, {total_files} files")
+            else:
+                total_folders = setup_validator.get_total_folders(setup_results)
+                total_files = setup_validator.get_total_files(setup_results)
+                milestone_print("Setup validated", f"{total_folders} folders, {total_files} files")
         context.telemetry.execution_times["initiation_engine"] = time.time() - start_time
     except ValueError:
         raise
@@ -481,15 +482,12 @@ def main() -> int:
     """Main entry point for DCC Engine Pipeline."""
     
     # 1. Parse CLI args (this also sets debug level via --verbose)
+    # milestone print for CLI args parsed to be shown in banner
     args, cli_args, cli_overrides_provided = parse_cli_args()
-    # milestone print how many CLI args were parsed
-    cli_arg_count = len(cli_args)
-    milestone_print("CLI args parsed", f"Base path: {args.base_path}, CLI args: {cli_arg_count}")
-
+    
     # 2. Configure Python logging based on DEBUG_LEVEL (suppresses INFO at level 0-1)
+    # milestone print for logging configured to be shown in banner
     setup_logger()
-    # milestone print logging configured, indicated debug level defined
-    milestone_print("Logging configured", f"Debug level: {get_verbose_mode()}")
     
     # 3. Print framework banner (visible at ALL levels)
     input_file = cli_args.get("upload_file_name", "Submittal and RFI Tracker Lists.xlsx")
@@ -501,9 +499,14 @@ def main() -> int:
     local_home = get_homedir()
     if get_verbose_mode() in ["debug", "trace"]:
         status_print(f"  Resolved home directory: {local_home}")
+    else:
+        # milestone print for home directory resolved
+        milestone_print("Home Directory", f"Resolved: {local_home}")
     
     # 5. Build parameters using the central base_path
     native_defaults = build_native_defaults(base_path)
+    # milestone print for native defaults built, and count of native defaults
+    milestone_print("Native Defaults", f"Built from base_path ({len(native_defaults)} defaults)")
 
     # 6. Test environment using central base_path
     environment = test_environment(base_path=base_path)
@@ -520,7 +523,8 @@ def main() -> int:
             missing = ", ".join(environment.get("missing_packages", [])) or "see output above"
             system_error_print("S-E-S-0103", detail=missing)
         return 1
-    milestone_print("Environment ready", "Required dependencies available")
+    else:
+        milestone_print("Environment ready", "Required dependencies available")
 
     # 7. Resolve the main schema path
     schema_path = safe_resolve(
@@ -528,7 +532,7 @@ def main() -> int:
     )
     milestone_print("Schema resolved", f"Using: {schema_path}")
 
-    # 5. Resolve effective parameters
+    # 8. Resolve effective parameters
     effective_parameters = resolve_effective_parameters(
         schema_path, 
         cli_args, 
@@ -548,7 +552,7 @@ def main() -> int:
     native_params = len(native_defaults)
     milestone_print("Parameters resolved", f"Precedence: {total_params} total (CLI: {cli_params}, Schema: {schema_params}, Defaults: {native_params})")
 
-    # Build PipelineContext
+    # 9.Build PipelineContext
     pipeline_paths = PipelinePaths(
         base_path=base_path,
         schema_path=schema_path,
@@ -566,10 +570,14 @@ def main() -> int:
         debug_mode=(DEBUG_LEVEL >= 2)
     )
     context.state.environment = environment
+    # milestone print for pipeline context built
+    milestone_print("Pipeline Context", "Built with all parameters and paths")
 
     
-    # 6. Run the engine pipeline
+    # 10. Run the engine pipeline
     try:
+        # milestone print for pipeline execution started
+        milestone_print("Pipeline Execution", "Starting engine pipeline")
         results = run_engine_pipeline(context)
     except Exception as exc:
         payload = {
