@@ -48,6 +48,17 @@ from core_engine.logging import (
 from core_engine.system import test_environment
 from core_engine.io import load_excel_data
 
+# Phase 4: UI Contract imports for path and parameter overrides
+from initiation_engine.overrides import (
+    PathSelectionContract,
+    ParameterOverrideContract,
+    UIContractBundle,
+    get_available_files,
+    suggest_base_paths,
+    validate_and_resolve,
+)
+from core_engine.ui_contract import UIContractManager, UIRequest, UIResponse
+
 from utility_engine.console import (
     status_print,
     milestone_print,
@@ -75,12 +86,20 @@ from mapper_engine import ColumnMapperEngine
 from processor_engine import (
     CalculationEngine,
     SchemaProcessor,
+    # Phase 2 DI: Import factories for dependency injection
+    CalculationEngineFactory,
+    SchemaProcessorFactory,
+    create_calculation_engine,
 )
 from reporting_engine import (
     write_processing_summary,
     print_summary,
 )
 from ai_ops_engine import run_ai_ops
+
+# Phase 2 DI Configuration: Set to True to use dependency injection
+# Set to False for legacy direct instantiation (backward compatibility)
+_USE_DI_MODE = True  # Toggle this to switch between DI and legacy mode
 
 
 def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
@@ -210,7 +229,23 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
     try:
         start_time = time.time()
         with log_context("pipeline", "step4_document_processing"):
-            processor = CalculationEngine(context, context.state.resolved_schema)
+            # Phase 2 DI: Use factory for dependency injection (or legacy mode for compatibility)
+            if _USE_DI_MODE:
+                processor = create_calculation_engine(
+                    context=context,
+                    schema_data=context.state.resolved_schema,
+                    # Dependencies are auto-created if not provided
+                    # For custom injection, pass explicit dependencies:
+                    # error_reporter=custom_reporter,
+                    # error_aggregator=custom_aggregator,
+                    # etc.
+                )
+                status_print("Using DI-enabled CalculationEngine", min_level=3)
+            else:
+                # Legacy mode: Direct instantiation (backward compatibility)
+                processor = CalculationEngine(context, context.state.resolved_schema)
+                status_print("Using legacy CalculationEngine", min_level=3)
+            
             processor.process_data()
             df_processed = context.data.df_processed
             
@@ -260,7 +295,12 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
     # Step 5: Reorder columns per schema column_sequence
     with log_context("pipeline", "step5_column_reorder"):
         start_time = time.time()
-        schema_processor = SchemaProcessor(resolved_schema)
+        # Phase 2 DI: Use factory for SchemaProcessor creation
+        if _USE_DI_MODE:
+            schema_processor = SchemaProcessorFactory.create(resolved_schema)
+        else:
+            # Legacy mode
+            schema_processor = SchemaProcessor(resolved_schema)
         df_processed = schema_processor.reorder_dataframe(df_processed, status_print_fn=status_print)
         context.data.df_processed = df_processed
         context.telemetry.execution_times["reorder_engine"] = time.time() - start_time
@@ -351,30 +391,121 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
     }
 
 
+def run_engine_pipeline_with_ui(
+    base_path: Path,
+    upload_file_name: str,
+    output_folder: str = "output",
+    schema_file_name: Optional[str] = None,
+    debug_mode: bool = False,
+    nrows: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Phase 4: Run pipeline with UI-selected paths and parameters.
+    
+    This function provides a UI-friendly interface for pipeline execution
+    using PathSelectionContract and ParameterOverrideContract.
+    
+    Precedence (highest to lowest):
+        1. CLI Arguments (handled by main())
+        2. UI Overrides (this function)
+        3. Schema Configuration
+        4. Hardcoded Defaults
+    
+    Args:
+        base_path: Base directory selected by user (contains data/ folder)
+        upload_file_name: Excel file name selected by user
+        output_folder: Output subfolder name (default: "output")
+        schema_file_name: Optional custom schema file
+        debug_mode: Enable debug logging
+        nrows: Optional row limit for testing
+        
+    Returns:
+        Pipeline execution results dictionary
+        
+    Example:
+        >>> result = run_engine_pipeline_with_ui(
+        ...     base_path=Path("/home/user/dcc"),
+        ...     upload_file_name="project.xlsx",
+        ...     debug_mode=True,
+        ...     nrows=500
+        ... )
+    """
+    # Phase 4: Create path selection contract
+    path_contract = PathSelectionContract(
+        base_path=base_path,
+        upload_file_name=upload_file_name,
+        output_folder=output_folder,
+        schema_file_name=schema_file_name
+    )
+    
+    # Phase 4: Validate before running
+    validation = path_contract.validate()
+    if not validation["valid"]:
+        raise ValueError(f"Path validation failed: {validation['errors']}")
+    
+    # Phase 4: Create parameter override contract
+    param_contract = ParameterOverrideContract(
+        debug_mode=debug_mode,
+        nrows=nrows
+    )
+    
+    # Phase 4: Apply parameter warnings
+    param_validation = param_contract.validate()
+    if param_validation.get("warnings"):
+        for warning in param_validation["warnings"]:
+            status_print(f"⚠ {warning}")
+    
+    # Phase 4: Resolve to PipelinePaths
+    paths = path_contract.to_paths()
+    
+    # Phase 4: Create context with overrides
+    context = PipelineContext(
+        paths=paths,
+        parameters={},
+        nrows=nrows or 0,
+        debug_mode=debug_mode
+    )
+    
+    # Phase 4: Apply parameter overrides to context
+    param_contract.apply_to_context(context)
+    
+    # Phase 4: Run main pipeline
+    status_print(f"🚀 Phase 4 UI Pipeline: {upload_file_name}")
+    status_print(f"   Base: {base_path}")
+    status_print(f"   Debug: {debug_mode} | Rows: {nrows or 'ALL'}")
+    
+    return run_engine_pipeline(context)
+
+
 def main() -> int:
     """Main entry point for DCC Engine Pipeline."""
     
     # 1. Parse CLI args (this also sets debug level via --verbose)
     args, cli_args, cli_overrides_provided = parse_cli_args()
-    
-    # 1.5 Configure Python logging based on DEBUG_LEVEL (suppresses INFO at level 0-1)
+    # milestone print how many CLI args were parsed
+    cli_arg_count = len(cli_args)
+    milestone_print("CLI args parsed", f"Base path: {args.base_path}, CLI args: {cli_arg_count}")
+
+    # 2. Configure Python logging based on DEBUG_LEVEL (suppresses INFO at level 0-1)
     setup_logger()
+    # milestone print logging configured, indicated debug level defined
+    milestone_print("Logging configured", f"Debug level: {get_verbose_mode()}")
     
-    # 2. Print framework banner (visible at ALL levels)
+    # 3. Print framework banner (visible at ALL levels)
     input_file = cli_args.get("upload_file_name", "Submittal and RFI Tracker Lists.xlsx")
     base_path = safe_resolve(Path(args.base_path))
     output_dir = base_path / "output"
     print_framework_banner(base_path=base_path, input_file=input_file, output_dir=str(output_dir), cli_overrides=cli_args if cli_overrides_provided else None)
     
-    # 3. Handle Windows HOME env issues
+    # 4. Handle Windows HOME env issues
     local_home = get_homedir()
     if get_verbose_mode() in ["debug", "trace"]:
         status_print(f"  Resolved home directory: {local_home}")
     
-    # 4. Build parameters using the central base_path
+    # 5. Build parameters using the central base_path
     native_defaults = build_native_defaults(base_path)
 
-    # 5. Test environment using central base_path
+    # 6. Test environment using central base_path
     environment = test_environment(base_path=base_path)
     if not environment["ready"]:
         payload = {
@@ -391,10 +522,11 @@ def main() -> int:
         return 1
     milestone_print("Environment ready", "Required dependencies available")
 
-    # 4. Resolve the main schema path
+    # 7. Resolve the main schema path
     schema_path = safe_resolve(
         Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"]))
     )
+    milestone_print("Schema resolved", f"Using: {schema_path}")
 
     # 5. Resolve effective parameters
     effective_parameters = resolve_effective_parameters(
@@ -409,6 +541,13 @@ def main() -> int:
     export_paths = resolve_output_paths(base_path, effective_parameters, safe_resolve, status_print)
     validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
     
+   # milestone print for number of parameters resolved from cli args, schema, and native defaults
+    total_params = len(effective_parameters)
+    cli_params = len(cli_args)
+    schema_params = len(load_schema_parameters(schema_path))
+    native_params = len(native_defaults)
+    milestone_print("Parameters resolved", f"Precedence: {total_params} total (CLI: {cli_params}, Schema: {schema_params}, Defaults: {native_params})")
+
     # Build PipelineContext
     pipeline_paths = PipelinePaths(
         base_path=base_path,
@@ -428,13 +567,7 @@ def main() -> int:
     )
     context.state.environment = environment
 
-    # milestone print for number of parameters resolved from cli args, schema, and native defaults
-    total_params = len(effective_parameters)
-    cli_params = len(cli_args)
-    schema_params = len(load_schema_parameters(schema_path))
-    native_params = len(native_defaults)
-    milestone_print("Parameters resolved", f"Precedence: {total_params} total (CLI: {cli_params}, Schema: {schema_params}, Defaults: {native_params})")
-
+    
     # 6. Run the engine pipeline
     try:
         results = run_engine_pipeline(context)

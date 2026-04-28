@@ -4,11 +4,14 @@ House the CalculationEngine class itself, specifically the
   _resolve_calculation_order (DAG sorting),
   apply_calculations,
   apply_null_handling entry points.
+
+Phase 2 DI Update: Supports dependency injection for all components
+while maintaining backward compatibility with legacy instantiation.
 """
 
 import logging
 import pandas as pd
-from typing import Dict, List, Set, Optional, Any
+from typing import Dict, List, Set, Optional, Any, TYPE_CHECKING
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -31,37 +34,86 @@ from ..error_handling.detectors.business import ProcessingPhase
 
 from core_engine.context import PipelineContext
 
+# Phase 2 DI: Import interfaces for type hints
+if TYPE_CHECKING:
+    from ..interfaces import (
+        IErrorReporter,
+        IErrorAggregator,
+        IStructuredLogger,
+        IBusinessDetector,
+        IStrategyResolver,
+    )
+
+
 class CalculationEngine(BaseProcessor):
     """
     The orchestrator for the modular calculation engine.
     This class manages the sequence of null handling and calculation execution.
+    
+    Phase 2 DI Update: Supports dependency injection for:
+    - error_reporter: IErrorReporter implementation
+    - error_aggregator: IErrorAggregator implementation
+    - structured_logger: IStructuredLogger implementation
+    - business_detector: IBusinessDetector implementation
+    - strategy_resolver: IStrategyResolver implementation
     """
 
-    def __init__(self, context: PipelineContext, schema_data: Dict):
+    def __init__(
+        self,
+        context: PipelineContext,
+        schema_data: Dict,
+        error_reporter: Optional['IErrorReporter'] = None,
+        error_aggregator: Optional['IErrorAggregator'] = None,
+        structured_logger: Optional['IStructuredLogger'] = None,
+        business_detector: Optional['IBusinessDetector'] = None,
+        strategy_resolver: Optional['IStrategyResolver'] = None,
+    ):
         """
         Initialize the engine using the resolved schema.
+        
+        Args:
+            context: Pipeline context with paths, parameters, and state
+            schema_data: Resolved schema data with column definitions
+            error_reporter: Optional error reporter implementation (DI)
+            error_aggregator: Optional error aggregator implementation (DI)
+            structured_logger: Optional structured logger implementation (DI)
+            business_detector: Optional business detector implementation (DI)
+            strategy_resolver: Optional strategy resolver implementation (DI)
+            
+        Note:
+            If dependencies are not provided, they are created with default
+            implementations for backward compatibility.
         """
         super().__init__(context, schema_data)
         
-        # Phase 4: Initialize error handling
-        from reporting_engine.error_reporter import ErrorReporter
-        from ..error_handling.core.logger import StructuredLogger
-        from ..error_handling.aggregator import ErrorAggregator
-        from ..error_handling.detectors.business import BusinessDetector
-        
+        # Phase 2 DI: Initialize dependencies (injected or default)
         parameters = schema_data.get('parameters', {})
         fail_fast = parameters.get('fail_fast', True)
         
-        self.structured_logger = StructuredLogger()
-        self.error_aggregator = ErrorAggregator()
-        self.business_detector = BusinessDetector(
-            enable_fail_fast=fail_fast,
-            logger=self.structured_logger
-        )
+        # Lazy imports to avoid circular dependencies
+        if structured_logger is None:
+            from ..error_handling.core.logger import StructuredLogger
+            structured_logger = StructuredLogger()
+        self.structured_logger = structured_logger
         
-        # Phase 5: Initialize reporter and metrics
-        from reporting_engine.error_reporter import ErrorReporter
-        self.error_reporter = ErrorReporter(self.error_aggregator)
+        if error_aggregator is None:
+            from ..error_handling.aggregator import ErrorAggregator
+            error_aggregator = ErrorAggregator()
+        self.error_aggregator = error_aggregator
+        
+        if business_detector is None:
+            from ..error_handling.detectors.business import BusinessDetector
+            business_detector = BusinessDetector(
+                enable_fail_fast=fail_fast,
+                logger=self.structured_logger
+            )
+        self.business_detector = business_detector
+        
+        if error_reporter is None:
+            from reporting_engine.error_reporter import ErrorReporter
+            error_reporter = ErrorReporter(self.error_aggregator)
+        self.error_reporter = error_reporter
+        
         self._last_processed_rows = 0
         
         # Support new top-level 'columns' key and legacy 'enhanced_schema.columns'
@@ -87,8 +139,10 @@ class CalculationEngine(BaseProcessor):
         from ..schema.dependency import resolve_calculation_order
         self.calculation_order = resolve_calculation_order(self.columns)
         
-        # Initialize strategy resolver for calculated columns
-        self.strategy_resolver = StrategyResolver()
+        # Phase 2 DI: Initialize strategy resolver (injected or default)
+        if strategy_resolver is None:
+            strategy_resolver = StrategyResolver()
+        self.strategy_resolver = strategy_resolver
         self._column_strategies = {}  # Cache resolved strategies
         self.strategy_executor = None  # Initialized on first use
 
@@ -129,6 +183,8 @@ class CalculationEngine(BaseProcessor):
         The main entry point for data transformation.
         Uses phased processing: P1 → P2 → P2.5 → P3
         For calculated columns (P2.5, P3): Calculations run FIRST, null handling as LAST DEFENSE
+        
+        Phase 3: Added telemetry heartbeat logging every 1,000 rows (R17)
         """
         if df is None:
             df = self.context.data.df_mapped
@@ -139,8 +195,19 @@ class CalculationEngine(BaseProcessor):
             debug_print(f"Starting process_data with {len(df.columns)} columns")
             self._last_processed_rows = len(df)
             
+            # Phase 3: Initialize telemetry heartbeat
+            from core_engine.telemetry_heartbeat import TelemetryHeartbeat
+            heartbeat = TelemetryHeartbeat(interval=1000)
+            total_rows = len(df)
+            status_print(f"🚀 Starting processing of {total_rows:,} rows...", min_level=1)
+            
             # Use phased processing (P1 → P2 → P2.5 → P3)
-            df = self.apply_phased_processing(df)
+            df = self.apply_phased_processing(df, heartbeat=heartbeat, total_rows=total_rows)
+            
+            # Phase 3: Emit final heartbeat summary
+            final_payload = heartbeat.final_summary(total_rows, status_print_fn=status_print)
+            self.context.telemetry.heartbeat_logs.append(final_payload.to_dict())
+            
             debug_print(f"Finished phased processing, now has {len(df.columns)} columns")
 
             # Store in context
@@ -148,7 +215,12 @@ class CalculationEngine(BaseProcessor):
 
             return df
 
-    def apply_phased_processing(self, df: pd.DataFrame) -> pd.DataFrame:
+    def apply_phased_processing(
+        self,
+        df: pd.DataFrame,
+        heartbeat: Optional[Any] = None,
+        total_rows: Optional[int] = None,
+    ) -> pd.DataFrame:
         """
         Process columns by phase: P1 → P2 → P2.5 → P3
         
@@ -157,6 +229,8 @@ class CalculationEngine(BaseProcessor):
         Phase 2.5 (Anomaly): Calculations FIRST, then null handling as last defense
         Phase 3 (Calculated): Calculations FIRST, then null handling as last defense
         
+        Phase 3: Added telemetry heartbeat tracking (R17)
+        
         Rule 11: If is_calculated = true, apply calculation FIRST, then null_handling as last defense
         Rule 12: If manual user input is allowed, forward fill with boundary is allowed
         Rule 13: Always respect sequence of columns in the schema
@@ -164,16 +238,34 @@ class CalculationEngine(BaseProcessor):
         with log_context("processor", "apply_phased_processing"):
             from core_engine.data import prepare_dataframe_for_processing, initialize_missing_columns
             
+            # Phase 3: Helper to emit heartbeat and store in context
+            def _emit_checkpoint(phase: str, rows_processed: int):
+                if heartbeat and total_rows:
+                    payload = heartbeat.tick(
+                        current_row=rows_processed,
+                        current_phase=phase,
+                        total_rows=total_rows,
+                        status_print_fn=status_print,
+                    )
+                    if payload and hasattr(self.context.telemetry, 'heartbeat_logs'):
+                        self.context.telemetry.heartbeat_logs.append(payload.to_dict())
+            
             # Initialize DataFrame
             df_processed = prepare_dataframe_for_processing(df)
             parameters = self.context.blueprint.validation_rules or self.schema_data.get('parameters', {})
             df_processed = initialize_missing_columns(df_processed, self.columns, parameters)
+            
+            # Get total rows for progress tracking
+            total_rows = len(df_processed) if total_rows is None else total_rows
+            current_rows = 0
             
             # Phase 1: Meta Data - Apply null handling (forward fill OK)
             p1_cols = self.context.blueprint.get_columns_by_phase('P1')
             if p1_cols:
                 self._print_processing_step("Phase 1", "Meta Data", f"Processing {len(p1_cols)} columns")
                 df_processed = self._apply_phase_null_handling(df_processed, p1_cols)
+                current_rows = len(df_processed)
+                _emit_checkpoint("P1", current_rows)
                 # Phase 4: Run Phase 1 detection
                 p1_results = self.business_detector.detect(
                     df_processed, 
@@ -190,6 +282,8 @@ class CalculationEngine(BaseProcessor):
             if p2_cols:
                 self._print_processing_step("Phase 2", "Transactional", f"Processing {len(p2_cols)} columns")
                 df_processed = self._apply_phase_transactional(df_processed, p2_cols)
+                current_rows = len(df_processed)
+                _emit_checkpoint("P2", current_rows)
                 # Phase 4: Run Phase 2 detection
                 p2_results = self.business_detector.detect(
                     df_processed, 
@@ -203,6 +297,8 @@ class CalculationEngine(BaseProcessor):
             if p25_cols:
                 self._print_processing_step("Phase 2.5", "Anomaly", f"Processing {len(p25_cols)} columns")
                 df_processed = self._apply_phase_calculated(df_processed, p25_cols)
+                current_rows = len(df_processed)
+                _emit_checkpoint("P2.5", current_rows)
                 # Phase 4: Run Phase 2.5 detection
                 # Phase C: Include fill_history in context for FillDetector
                 p25_results = self.business_detector.detect(
@@ -223,6 +319,8 @@ class CalculationEngine(BaseProcessor):
             if p3_cols:
                 self._print_processing_step("Phase 3", "Calculated", f"Processing {len(p3_cols)} columns")
                 df_processed = self._apply_phase_calculated(df_processed, p3_cols)
+                current_rows = len(df_processed)
+                _emit_checkpoint("P3", current_rows)
                 # Phase 4: Run Phase 3 detection
                 p3_results = self.business_detector.detect(
                     df_processed, 

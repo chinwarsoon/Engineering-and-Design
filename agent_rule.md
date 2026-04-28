@@ -108,11 +108,11 @@
    - Title and description
    - workplan document ID, revision control (summary of what updated in this workpan) and version history, status
    - object
-   - scope summary
+   - scope summary, including a list to have a highlevel summary of ID, details, category, status, and related phase
    - index of content with links
    - dependencies with other tasks
    - evaluation and alignment with existing architecture
-   - implementation phase and task breakdown
+   - implementation phase and task breakdown, include details below for each phase:
      - timeline, milestones, and deliverables
      - what will be updated/created
      - risks and mitigation

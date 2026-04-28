@@ -38,10 +38,12 @@ class PipelineBlueprint:
 class PipelineTelemetry:
     """
     Performance Trace - Tracking execution time, row counts, and KPIs.
+    Phase 3: Added heartbeat_logs for telemetry every 1,000 rows (R17).
     """
     execution_times: Dict[str, float] = field(default_factory=dict) # engine_name: seconds
     data_metrics: Dict[str, Any] = field(default_factory=dict)      # rows, null_rates, etc.
     memory_usage: Dict[str, Any] = field(default_factory=dict)      # peak usage stats
+    heartbeat_logs: List[Dict[str, Any]] = field(default_factory=list)  # Phase 3: Heartbeat every 1,000 rows
 
 
 @dataclass
