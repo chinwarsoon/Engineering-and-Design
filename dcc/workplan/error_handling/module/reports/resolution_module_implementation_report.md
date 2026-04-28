@@ -295,5 +295,5 @@ The Resolution Module implementation is **fully complete** with all 7 modules im
 ---
 
 **Report Generated:** 2026-04-17  
-**Report Location:** workplan/error_handling/resolution_module_implementation_report.md  
-**Archived Under:** workplan/error_handling/reports/
+**Report Location:** `dcc/workplan/error_handling/module/reports/resolution_module_implementation_report.md`  
+**Archived Under:** `dcc/workplan/error_handling/module/reports/`

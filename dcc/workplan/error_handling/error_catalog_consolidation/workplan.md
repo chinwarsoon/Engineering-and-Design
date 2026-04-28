@@ -13,8 +13,8 @@
 |----------|---------|--------|
 | [README.md](../README.md) | Master documentation index | NEW |
 | [Error Handling Taxonomy](../error_handling_taxonomy.md) | Complete error code reference | NEW |
-| [Consolidated Implementation Report](../reports/consolidated_implementation_report.md) | All phases summary | NEW |
-| [Phase 4 Workplan (Archived)](../archive/phase4/error_code_standardization_phase4_consolidation.md) | Consolidation tasks | ✅ ARCHIVED |
+| [Consolidated Implementation Report](reports/consolidated_implementation_report.md) | All phases summary | NEW |
+| [Phase 4 Workplan (Archived)](archive/phase4/error_code_standardization_phase4_consolidation.md) | Consolidation tasks | ✅ ARCHIVED |
 
 ---
 

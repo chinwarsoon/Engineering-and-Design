@@ -266,9 +266,9 @@ dcc/archive/workflow/
 ## Related Documentation
 
 - [README](README.md) - Master documentation index
-- [Consolidated Implementation Report](reports/consolidated_implementation_report.md) - All phases summary
-- [Error Catalog Consolidation Plan](error_catalog_consolidation_plan.md) - Master workplan
-- [Data Error Handling Workplan](data_error_handling_workplan.md) - Implementation guide
+- [Consolidated Implementation Report](error_catalog_consolidation/reports/consolidated_implementation_report.md) - All phases summary
+- [Error Catalog Consolidation Workplan](error_catalog_consolidation/workplan.md) - Master workplan
+- [Data Error Handling Workplan](data_error_handling/workplan.md) - Implementation guide
 
 ---
 

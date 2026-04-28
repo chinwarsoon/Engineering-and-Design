@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-01
 **Status:** COMPLETE
-**Workplan:** `dcc/workplan/error_handling/system_error_handling_workplan.md`
+**Workplan:** `dcc/workplan/error_handling/system_error_handling/workplan.md`
 **Related Issue:** `dcc/Log/issue_log.md` — Issue #55
 
 ---
