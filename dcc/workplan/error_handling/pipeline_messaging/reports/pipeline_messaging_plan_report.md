@@ -1,6 +1,6 @@
 # Pipeline Messaging Plan Completion Report
 
-**Workplan:** `../workplan.md`  
+**Workplan:** `../pipeline_messaging_plan.md`  
 **Status:** ✅ COMPLETE  
 **Date:** 2026-04-19  
 **Duration:** 1 day

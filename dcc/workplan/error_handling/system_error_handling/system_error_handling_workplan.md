@@ -7,8 +7,8 @@
 | **Date** | 2026-05-01 |
 | **Status** | ✅ COMPLETE (Phases SE1-SE4) |
 | **Scope** | **SYSTEM ERRORS ONLY** - Environment, file, config, runtime failures |
-| **Data Errors** | See [data error handling workplan](../data_error_handling/workplan.md) for LL-M-F-XXXX data/logic errors |
-| **Depends on** | `../module/workplan.md`, `../pipeline_messaging/workplan.md` |
+| **Data Errors** | See [data error handling workplan](../data_error_handling/data_error_handling_workplan.md) for LL-M-F-XXXX data/logic errors |
+| **Depends on** | `../module/error_handling_module_workplan.md`, `../pipeline_messaging/pipeline_messaging_plan.md` |
 | **Related Issues** | #55 (Silent Stop), #56 (Windows Encoding) |
 | **Completion Report** | [`reports/system_error_handling_completion_report.md`](reports/system_error_handling_completion_report.md) |
 
@@ -21,7 +21,7 @@ To implement system-level error handling for the DCC pipeline that:
 - Provides **20 System Error Codes** in S-C-S-XXXX format (System-Category-System-UniqueID)
 - Ensures all system errors are **visible at all verbose levels** (bypasses verbose gate)
 - Triggers **hard stop** immediately on fatal errors (no suppression, no remediation)
-- Distinct from data error handling (see [data error handling workplan](../data_error_handling/workplan.md) for data quality errors)
+- Distinct from data error handling (see [data error handling workplan](../data_error_handling/data_error_handling_workplan.md) for data quality errors)
 
 **Core principle:** Any system error that stops the pipeline must be visible to the user with a clear error code (S-C-S-XXXX), description, and troubleshooting hint — regardless of verbose level.
 
@@ -41,11 +41,11 @@ To implement system-level error handling for the DCC pipeline that:
 ### Out of Scope (See Other Workplans)
 | Topic | Location |
 |-------|----------|
-| **Data Errors** (LL-M-F-XXXX) | [`../data_error_handling/workplan.md`](../data_error_handling/workplan.md) |
-| **Data Quality Errors** | [`../module/workplan.md`](../module/workplan.md) |
-| **Row-level Validation** | `../data_error_handling/workplan.md` (see referenced sections) |
-| **Schema Content Validation** | `../data_error_handling/workplan.md` |
-| **Business Logic Errors** | `../data_error_handling/workplan.md` (see referenced sections) |
+| **Data Errors** (LL-M-F-XXXX) | [`../data_error_handling/data_error_handling_workplan.md`](../data_error_handling/data_error_handling_workplan.md) |
+| **Data Quality Errors** | [`../module/error_handling_module_workplan.md`](../module/error_handling_module_workplan.md) |
+| **Row-level Validation** | `../data_error_handling/data_error_handling_workplan.md` (see referenced sections) |
+| **Schema Content Validation** | `../data_error_handling/data_error_handling_workplan.md` |
+| **Business Logic Errors** | `../data_error_handling/data_error_handling_workplan.md` (see referenced sections) |
 | **AI Engine Internals** | `ai_ops_engine/` documentation |
 
 ---
@@ -84,7 +84,7 @@ To implement system-level error handling for the DCC pipeline that:
 
 ## 5. Alignment with Existing Architecture
 
-| Aspect | Data Error Handling ([`../data_error_handling/workplan.md`](../data_error_handling/workplan.md)) | System Error Handling (This Workplan) |
+| Aspect | Data Error Handling ([`../data_error_handling/data_error_handling_workplan.md`](../data_error_handling/data_error_handling_workplan.md)) | System Error Handling (This Workplan) |
 |--------|--------------------|-----------------------|
 | **Error codes** | `LL-M-F-XXXX` (e.g. `P1-A-P-0101`, `L3-L-V-0302`) | `S-C-S-XXXX` (e.g. `S-F-S-0201`, `S-R-S-0401`) |
 | **Severity levels** | CRITICAL / HIGH / MEDIUM / LOW / WARNING | FATAL / WARNING |
@@ -93,9 +93,9 @@ To implement system-level error handling for the DCC pipeline that:
 | **Logging** | `StructuredLogger` via `detect_error()` | `system_error_print()` — always visible, direct stderr |
 | **Pipeline behaviour** | Collect per row, continue processing | Hard stop immediately (all levels) |
 | **Messaging integration** | `milestone_print()` / `status_print()` | `system_error_print()` + `milestone_print()` with error_code param |
-| **Workplan** | [`../data_error_handling/workplan.md`](../data_error_handling/workplan.md) (WP-DCC-EH-DATA-001) | This file (WP-DCC-EH-SYS-001) |
+| **Workplan** | [`../data_error_handling/data_error_handling_workplan.md`](../data_error_handling/data_error_handling_workplan.md) (WP-DCC-EH-DATA-001) | This file (WP-DCC-EH-SYS-001) |
 
-**Key differences from [`../data_error_handling/workplan.md`](../data_error_handling/workplan.md) (Data Errors):**
+**Key differences from [`../data_error_handling/data_error_handling_workplan.md`](../data_error_handling/data_error_handling_workplan.md) (Data Errors):**
 | Feature | Data Errors | System Errors |
 |---------|-------------|---------------|
 | Print behavior | Respects verbose level | **Always prints** — bypasses verbose gate |
@@ -112,10 +112,10 @@ To implement system-level error handling for the DCC pipeline that:
 
 | Task | Relationship | Status |
 |------|--------------|--------|
-| [Data Error Handling Workplan](../data_error_handling/workplan.md) | Complementary — data errors use LL-M-F-XXXX | ✅ Complete |
+| [Data Error Handling Workplan](../data_error_handling/data_error_handling_workplan.md) | Complementary — data errors use LL-M-F-XXXX | ✅ Complete |
 | [Error Handling Taxonomy](../error_handling_taxonomy.md) | Master reference includes S-C-S-XXXX codes | ✅ Complete |
-| [Pipeline Messaging Plan](../pipeline_messaging/workplan.md) | `milestone_print()` integration | ✅ Complete |
-| [Error Handling Module](../module/workplan.md) | Shared error handling infrastructure | ✅ Complete |
+| [Pipeline Messaging Plan](../pipeline_messaging/pipeline_messaging_plan.md) | `milestone_print()` integration | ✅ Complete |
+| [Error Handling Module](../module/error_handling_module_workplan.md) | Shared error handling infrastructure | ✅ Complete |
 
 ### External Dependencies
 
@@ -288,7 +288,7 @@ Each step in `run_engine_pipeline()` wrapped with specific error code:
 | D5 | ai_ops_engine updates | [`workflow/ai_ops_engine/core/engine.py`](../../workflow/ai_ops_engine/core/engine.py) | ✅ |
 | D6 | run_store.py updates | [`workflow/ai_ops_engine/persistence/run_store.py`](../../workflow/ai_ops_engine/persistence/run_store.py) | ✅ |
 | D7 | Completion Report | [`reports/system_error_handling_completion_report.md`](reports/system_error_handling_completion_report.md) | ✅ |
-| D8 | This Workplan | `dcc/workplan/error_handling/system_error_handling/workplan.md` | ✅ |
+| D8 | This Workplan | `dcc/workplan/error_handling/system_error_handling/system_error_handling_workplan.md` | ✅ |
 
 ---
 
@@ -338,7 +338,7 @@ Each step in `run_engine_pipeline()` wrapped with specific error code:
 | SC6 | 20 system error codes | `system_error_config.json` | ✅ Pass |
 | SC7 | All messages defined | `system_en.json` complete | ✅ Pass |
 | SC8 | Milestone integration | Error codes in failure lines | ✅ Pass |
-| SC9 | No data error impact | `../data_error_handling/workplan.md` unchanged | ✅ Pass |
+| SC9 | No data error impact | `../data_error_handling/data_error_handling_workplan.md` unchanged | ✅ Pass |
 | SC10 | Sub-module standalone | `initiation_engine/error_handling/` importable | ✅ Pass |
 
 ---
@@ -372,10 +372,10 @@ Each step in `run_engine_pipeline()` wrapped with specific error code:
 
 | Workplan | Scope | Location |
 |----------|-------|----------|
-| Data Error Handling | LL-M-F-XXXX data/logic errors | [`../data_error_handling/workplan.md`](../data_error_handling/workplan.md) |
+| Data Error Handling | LL-M-F-XXXX data/logic errors | [`../data_error_handling/data_error_handling_workplan.md`](../data_error_handling/data_error_handling_workplan.md) |
 | Error Handling Taxonomy | Complete code reference | [`../error_handling_taxonomy.md`](../error_handling_taxonomy.md) |
-| Pipeline Messaging Plan | UI/UX integration | [`../pipeline_messaging/workplan.md`](../pipeline_messaging/workplan.md) |
-| Error Handling Module | Remediation workflows | [`../module/workplan.md`](../module/workplan.md) |
+| Pipeline Messaging Plan | UI/UX integration | [`../pipeline_messaging/pipeline_messaging_plan.md`](../pipeline_messaging/pipeline_messaging_plan.md) |
+| Error Handling Module | Remediation workflows | [`../module/error_handling_module_workplan.md`](../module/error_handling_module_workplan.md) |
 
 ### Logs
 

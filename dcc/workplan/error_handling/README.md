@@ -8,9 +8,9 @@
 ## Folder Structure (this directory)
 
 Each workplan lives in its own subfolder:
-- `*/workplan.md`: the workplan document
+- `*/<workplan-title>.md`: the workplan document
 - `*/reports/`: phase reports and completion reports
-- `error_catalog_consolidation/archive/`: archived phase artifacts (Phase 1–4)
+- `dcc/archive/workplan/error_handling/archive/`: archived phase artifacts (Phase 1–4) (not used anymore)
 
 Shared reference docs remain at the top level (e.g., `error_handling_taxonomy.md`).
 
@@ -18,19 +18,19 @@ Shared reference docs remain at the top level (e.g., `error_handling_taxonomy.md
 
 ## Quick Links (by workplan)
 
-- **Error handling integration with `PipelineContext` (planned)**: `integration/workplan.md`
-- **Processor data error handling module (implemented / wrapped up)**: `module/workplan.md`
+- **Error handling integration with `PipelineContext` (planned)**: `integration/error_handling_integration_workplan.md`
+- **Processor data error handling module (implemented / wrapped up)**: `module/error_handling_module_workplan.md`
   - Report: `module/reports/resolution_module_implementation_report.md`
-- **System error handling (implemented)**: `system_error_handling/workplan.md`
+- **System error handling (implemented)**: `system_error_handling/system_error_handling_workplan.md`
   - Report: `system_error_handling/reports/system_error_handling_completion_report.md`
-- **Data error handling (reference / implemented in processor subsystem)**: `data_error_handling/workplan.md`
-- **Pipeline messaging (implemented)**: `pipeline_messaging/workplan.md`
+- **Data error handling (reference / implemented in processor subsystem)**: `data_error_handling/data_error_handling_workplan.md`
+- **Pipeline messaging (implemented)**: `pipeline_messaging/pipeline_messaging_plan.md`
   - Report: `pipeline_messaging/reports/pipeline_messaging_plan_report.md`
-- **Error catalog consolidation + standardization (implemented; Phase artifacts archived)**: `error_catalog_consolidation/workplan.md`
+- **Error catalog consolidation + standardization (implemented; Phase artifacts archived)**: `error_catalog_consolidation/error_catalog_consolidation_plan.md`
   - Reports:
     - `error_catalog_consolidation/reports/consolidated_implementation_report.md`
     - `error_catalog_consolidation/reports/phase4_consolidation_test_report.md`
-  - Archive (Phase 1–4): `error_catalog_consolidation/archive/`
+  - Archive (Phase 1–4): `dcc/archive/workplan/error_handling/archive/`
 
 Reference:
 - **Error Handling Taxonomy (codes, ranges, naming rules)**: `error_handling_taxonomy.md`
@@ -71,9 +71,9 @@ Provide a consistent, user-visible and machine-consumable error handling system 
 
 ## Timelines (milestones)
 
-- **2026-04-12**: Data error handling module workplan status marked core operational (`module/workplan.md`)
+- **2026-04-12**: Data error handling module workplan status marked core operational (`module/error_handling_module_workplan.md`)
 - **2026-04-17 → 2026-04-25**: Messaging, system error handling completion report, consolidation reports produced (see links above)
-- **2026-04-29**: Integration workplan updated to align with WP-PIPE-ARCH-001 and to explicitly separate system-status vs data-handling errors in `PipelineContext` (`integration/workplan.md`)
+- **2026-04-29**: Integration workplan updated to align with WP-PIPE-ARCH-001 and to explicitly separate system-status vs data-handling errors in `PipelineContext` (`integration/error_handling_integration_workplan.md`)
 
 ---
 

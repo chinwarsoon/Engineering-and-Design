@@ -7,7 +7,7 @@
 | **Date** | 2026-04-24 |
 | **Status** | ✅ COMPLETE (Phases 1-4) |
 | **Scope** | **DATA ERRORS ONLY** - Logic errors, validation errors, calculation errors in processed data |
-| **System Errors** | See [system error handling workplan](../system_error_handling/workplan.md) for environment/pipeline failures |
+| **System Errors** | See [system error handling workplan](../system_error_handling/system_error_handling_workplan.md) for environment/pipeline failures |
 | **Issue Ref** | #62 (Error Code Standardization) |
 | **Related** | [Taxonomy](../error_handling_taxonomy.md) \| [Consolidated Report](../error_catalog_consolidation/reports/consolidated_implementation_report.md) \| [README](../README.md) |
 
@@ -44,9 +44,9 @@ To establish a comprehensive error coding and validation framework for the DCC p
 ### Out of Scope (See Other Workplans)
 | Topic | Location |
 |-------|----------|
-| **System Errors** (S-C-S-XXXX) | [`../system_error_handling/workplan.md`](../system_error_handling/workplan.md) |
-| **Real-time error reporting UI** | [`../pipeline_messaging/workplan.md`](../pipeline_messaging/workplan.md) |
-| **Error remediation workflows** | [`../module/workplan.md`](../module/workplan.md) |
+| **System Errors** (S-C-S-XXXX) | [`../system_error_handling/system_error_handling_workplan.md`](../system_error_handling/system_error_handling_workplan.md) |
+| **Real-time error reporting UI** | [`../pipeline_messaging/pipeline_messaging_plan.md`](../pipeline_messaging/pipeline_messaging_plan.md) |
+| **Error remediation workflows** | [`../module/error_handling_module_workplan.md`](../module/error_handling_module_workplan.md) |
 | **System error messages** | `initiation_engine/error_handling/config/messages/system_en.json` |
 
 ---
