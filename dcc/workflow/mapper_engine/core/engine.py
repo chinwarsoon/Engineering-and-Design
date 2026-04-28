@@ -49,7 +49,19 @@ class ColumnMapperEngine(BaseEngine):
             Dictionary with detected_columns, unmatched_headers, missing_required, etc.
         """
         if not self.resolved_schema:
-            raise ValueError("No schema loaded. Call load_main_schema() first.")
+            error_msg = "No schema loaded. Call load_main_schema() first."
+            # Record error in context
+            if hasattr(self.context, 'add_system_error'):
+                self.context.add_system_error(
+                    code="S-C-M-0101",
+                    message=error_msg,
+                    details="Schema must be loaded before column mapping can be performed",
+                    engine="mapper_engine",
+                    phase="column_detection",
+                    severity="critical",
+                    fatal=True
+                )
+            raise ValueError(error_msg)
         
         # Flatten tuple headers
         flattened_headers = flatten_multiindex_headers(headers)
@@ -107,7 +119,19 @@ class ColumnMapperEngine(BaseEngine):
         if df is None:
             df = self.context.data.df_raw
             if df is None:
-                raise ValueError("No input DataFrame provided in context.data.df_raw.")
+                error_msg = "No input DataFrame provided in context.data.df_raw."
+                # Record error in context
+                if hasattr(self.context, 'add_system_error'):
+                    self.context.add_system_error(
+                        code="S-C-M-0102",
+                        message=error_msg,
+                        details="DataFrame must be provided either as parameter or in context.data.df_raw",
+                        engine="mapper_engine",
+                        phase="dataframe_mapping",
+                        severity="critical",
+                        fatal=True
+                    )
+                raise ValueError(error_msg)
                 
         # Ensure resolved_schema is up to date from context if modified
         if not self.resolved_schema and self.context.state.resolved_schema:

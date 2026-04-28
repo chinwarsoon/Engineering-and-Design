@@ -43,25 +43,67 @@ class SchemaValidator(BaseEngine):
         }
 
         if not self.schema_file.is_file():
-            results["errors"].append(f"Main schema file not found: {self.schema_file}")
+            error_msg = f"Main schema file not found: {self.schema_file}"
+            results["errors"].append(error_msg)
             results["ready"] = False
+            # Record error in context
+            if hasattr(self.context, 'add_system_error'):
+                self.context.add_system_error(
+                    code="S-F-S-0204",
+                    message=error_msg,
+                    details=str(self.schema_file),
+                    engine="schema_engine",
+                    phase="schema_validation",
+                    severity="critical",
+                    fatal=True
+                )
             return results
 
         try:
             main_schema = self.loader.load_json_file(self.schema_file)
         except json.JSONDecodeError as exc:
-            results["errors"].append(f"Invalid JSON in main schema {self.schema_file}: {exc}")
+            error_msg = f"Invalid JSON in main schema {self.schema_file}: {exc}"
+            results["errors"].append(error_msg)
             results["ready"] = False
+            # Record error in context
+            if hasattr(self.context, 'capture_exception'):
+                self.context.capture_exception(
+                    code="S-C-S-0302",
+                    exception=exc,
+                    engine="schema_engine",
+                    phase="schema_validation"
+                )
             return results
         except Exception as exc:
-            results["errors"].append(f"Error loading main schema {self.schema_file}: {exc}")
+            error_msg = f"Error loading main schema {self.schema_file}: {exc}"
+            results["errors"].append(error_msg)
             results["ready"] = False
+            # Record error in context
+            if hasattr(self.context, 'capture_exception'):
+                self.context.capture_exception(
+                    code="S-R-S-0404",
+                    exception=exc,
+                    engine="schema_engine",
+                    phase="schema_validation"
+                )
             return results
 
         # Support both new top-level 'columns' and legacy 'enhanced_schema.columns'
         columns = main_schema.get("columns") or main_schema.get("enhanced_schema", {}).get("columns", {})
         if not isinstance(columns, dict):
-            results["errors"].append("Main schema is missing a valid 'columns' object")
+            error_msg = "Main schema is missing a valid 'columns' object"
+            results["errors"].append(error_msg)
+            # Record error in context
+            if hasattr(self.context, 'add_system_error'):
+                self.context.add_system_error(
+                    code="S-C-S-0301",
+                    message=error_msg,
+                    details="Schema must contain a 'columns' object with column definitions",
+                    engine="schema_engine",
+                    phase="schema_validation",
+                    severity="critical",
+                    fatal=True
+                )
         else:
             results["column_count"] = len(columns)
 
@@ -79,7 +121,19 @@ class SchemaValidator(BaseEngine):
         if dependency_cycle:
             cycle_text = " -> ".join(str(path) for path in dependency_cycle)
             results["dependency_cycle"] = [str(path) for path in dependency_cycle]
-            results["errors"].append(f"Circular schema dependency detected: {cycle_text}")
+            error_msg = f"Circular schema dependency detected: {cycle_text}"
+            results["errors"].append(error_msg)
+            # Record error in context
+            if hasattr(self.context, 'add_system_error'):
+                self.context.add_system_error(
+                    code="S-C-S-0304",
+                    message=error_msg,
+                    details=f"Dependency cycle: {cycle_text}",
+                    engine="schema_engine",
+                    phase="schema_validation",
+                    severity="critical",
+                    fatal=True
+                )
 
         results["ready"] = not results["errors"]
         return results

@@ -6,7 +6,7 @@ Extracted from project_setup_validation.py path functions.
 import os
 import platform
 from pathlib import Path
-from typing import Any, Dict, List, Callable  # Add Any here
+from typing import Any, Dict, List, Callable, Optional  # Add Any here
 
 from ..utils.logging import status_print
 
@@ -253,7 +253,11 @@ def resolve_output_paths(
     }
 
 
-def validate_export_paths(export_paths: dict[str, Path], overwrite_existing: bool) -> None:
+def validate_export_paths(
+    export_paths: dict[str, Path], 
+    overwrite_existing: bool,
+    context: Optional[Any] = None
+) -> None:
     """
     Validate output paths and check for existing files.
 
@@ -261,11 +265,10 @@ def validate_export_paths(export_paths: dict[str, Path], overwrite_existing: boo
     already exist and overwrite is not enabled.
 
     Args:
-        export_paths: Dictionary with keys: output_dir, csv_path, excel_path, summary_path.
+        export_paths: Dictionary with output file paths (csv_path, excel_path, summary_path, output_dir)
         overwrite_existing: If True, allow overwriting existing files.
-
-    Raises:
-        FileExistsError: If output files exist and overwrite_existing is False.
+                           If False, raise FileExistsError when files exist.
+        context: Optional PipelineContext for context-based error handling
 
     Breadcrumb Comments:
         - export_paths: Initialized in resolve_output_paths().
@@ -279,4 +282,15 @@ def validate_export_paths(export_paths: dict[str, Path], overwrite_existing: boo
         for file_key in ("csv_path", "excel_path", "summary_path"):
             target_path = export_paths[file_key]
             if target_path.exists():
+                # Use context-based error handling if context provided
+                if context and hasattr(context, 'add_system_error'):
+                    context.add_system_error(
+                        code="S-F-S-0205",
+                        message=f"Output file exists: {target_path}",
+                        details=f"Use --overwrite True to overwrite existing files",
+                        engine="initiation_engine",
+                        phase="path_validation",
+                        severity="critical",
+                        fatal=True
+                    )
                 raise FileExistsError(f"Output file exists: {target_path}. Use --overwrite True.")

@@ -2,6 +2,7 @@
 Pipeline Context - Centralized state management for the DCC pipeline.
 """
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -23,6 +24,7 @@ class PipelineBlueprint:
     """
     The Rulebook - Immutable storage for schema definitions and business rules.
     Loaded once during initiation/schema resolution.
+    Enhanced with fail-fast configuration for error handling.
     """
     columns: Dict[str, Any] = field(default_factory=dict)        # The 48-column blueprint
     error_catalog: Dict[str, Any] = field(default_factory=dict)  # Standardized error definitions
@@ -32,6 +34,14 @@ class PipelineBlueprint:
     def get_columns_by_phase(self, phase: str) -> List[str]:
         """Return list of column names for a specific processing phase."""
         return self.phase_map.get(phase, [])
+    
+    def get_error_definition(self, code: str) -> Optional[Dict[str, Any]]:
+        """Get error definition from centralized catalog."""
+        return self.error_catalog.get(code)
+    
+    def get_fail_fast_config(self, domain: str = "system") -> Dict[str, Any]:
+        """Get fail-fast configuration for a specific error domain."""
+        return self.validation_rules.get(f"fail_fast_{domain}", {"enabled": True, "severity_threshold": "critical"})
 
 
 @dataclass
@@ -47,17 +57,36 @@ class PipelineTelemetry:
 
 
 @dataclass
+class PipelineErrorEvent:
+    """
+    Canonical error event schema for pipeline context.
+    Separates system-status errors from data-handling errors.
+    """
+    domain: str           # "system" | "data"
+    code: str             # e.g., "S-F-S-0201" (system) or "P1-A-P-0101" (data)
+    severity: str         # e.g., "critical" | "high" | "medium" | "low"
+    engine: Optional[str] # initiation/schema/mapper/processor/reporting/ai_ops
+    phase: Optional[str]  # pipeline step or processing phase (P1/P2/P2.5/P3/P4)
+    message: str
+    details: Optional[str]
+    timestamp: str
+    fatal: bool = True    # Whether this error should stop the pipeline
+
+
+@dataclass
 class PipelineState:
     """
     The Scoreboard - Mutable state objects and results generated during execution.
+    Enhanced with structured error tracking for system-status and data-handling errors.
     """
     setup_results: Dict[str, Any] = field(default_factory=dict)
     schema_results: Dict[str, Any] = field(default_factory=dict)
     resolved_schema: Dict[str, Any] = field(default_factory=dict)
     mapping_result: Dict[str, Any] = field(default_factory=dict)
-    error_summary: Dict[str, Any] = field(default_factory=dict)
-    environment: Dict[str, Any] = field(default_factory=dict)      # OS/Env snapshot
-    engine_status: Dict[str, str] = field(default_factory=dict)     # engine: status (complete/failed)
+    error_summary: Dict[str, Any] = field(default_factory=dict)      # Data-handling errors (processor output)
+    system_status_errors: List[PipelineErrorEvent] = field(default_factory=list)  # System-status errors
+    environment: Dict[str, Any] = field(default_factory=dict)        # OS/Env snapshot
+    engine_status: Dict[str, str] = field(default_factory=dict)       # engine: status (complete/failed)
 
 
 @dataclass
@@ -73,6 +102,7 @@ class PipelineContext:
     """
     Centralized context object for the DCC pipeline.
     The Single Source of Truth (SSOT).
+    Enhanced with error handling APIs for system-status and data-handling errors.
     """
     paths: PipelinePaths
     parameters: Dict[str, Any]
@@ -84,3 +114,190 @@ class PipelineContext:
     # Execution flags
     nrows: Optional[int] = None
     debug_mode: bool = False
+    
+    def add_system_error(
+        self,
+        *,
+        code: str,
+        message: str,
+        details: Optional[str] = None,
+        severity: str = "critical",
+        engine: Optional[str] = None,
+        phase: Optional[str] = None,
+        fatal: bool = True
+    ) -> None:
+        """Add a system-status error to the context for tracking."""
+        error_event = PipelineErrorEvent(
+            domain="system",
+            code=code,
+            severity=severity,
+            engine=engine,
+            phase=phase,
+            message=message,
+            details=details,
+            timestamp=datetime.now().isoformat(),
+            fatal=fatal
+        )
+        self.state.system_status_errors.append(error_event)
+    
+    def add_data_error(
+        self,
+        *,
+        code: str,
+        message: str,
+        details: Optional[str] = None,
+        severity: str = "medium",
+        engine: Optional[str] = None,
+        phase: Optional[str] = None,
+        fatal: bool = False
+    ) -> None:
+        """Add a data-handling error to the context for tracking."""
+        error_event = PipelineErrorEvent(
+            domain="data",
+            code=code,
+            severity=severity,
+            engine=engine,
+            phase=phase,
+            message=message,
+            details=details,
+            timestamp=datetime.now().isoformat(),
+            fatal=fatal
+        )
+        self.state.system_status_errors.append(error_event)
+    
+    def capture_exception(
+        self,
+        *,
+        code: str,
+        exception: Exception,
+        engine: Optional[str] = None,
+        phase: Optional[str] = None,
+        severity: str = "critical",
+        fatal: bool = True
+    ) -> None:
+        """Capture an exception as a system-status error."""
+        self.add_system_error(
+            code=code,
+            message=f"{type(exception).__name__}: {str(exception)}",
+            details=str(exception),
+            severity=severity,
+            engine=engine,
+            phase=phase,
+            fatal=fatal
+        )
+    
+    def record_engine_failure(
+        self,
+        engine: str,
+        phase: Optional[str] = None,
+        exception: Optional[Exception] = None
+    ) -> None:
+        """Record engine failure status and capture exception if provided."""
+        self.state.engine_status[engine] = "failed"
+        if exception:
+            self.capture_exception(
+                code=f"E-ENG-{engine.upper()}-FAIL",
+                exception=exception,
+                engine=engine,
+                phase=phase,
+                severity="critical",
+                fatal=True
+            )
+    
+    def should_fail_fast(self, domain: str = "system") -> bool:
+        """Determine if pipeline should fail fast based on errors and configuration."""
+        config = self.blueprint.get_fail_fast_config(domain)
+        if not config.get("enabled", True):
+            return False
+        
+        # Check for fatal errors in the specified domain
+        domain_errors = [
+            error for error in self.state.system_status_errors
+            if error.domain == domain and error.fatal
+        ]
+        
+        if not domain_errors:
+            return False
+        
+        # Check severity threshold
+        severity_threshold = config.get("severity_threshold", "critical")
+        severity_levels = {"critical": 4, "high": 3, "medium": 2, "low": 1}
+        threshold_level = severity_levels.get(severity_threshold, 4)
+        
+        for error in domain_errors:
+            error_level = severity_levels.get(error.severity, 1)
+            if error_level >= threshold_level:
+                return True
+        
+        return False
+    
+    def get_error_summary(self) -> Dict[str, Any]:
+        """Generate comprehensive error summary for reporting."""
+        summary = {
+            "total_errors": len(self.state.system_status_errors),
+            "by_domain": {},
+            "by_severity": {},
+            "by_engine": {},
+            "by_code": {},
+            "fatal_errors": 0,
+            "data_handling_summary": self.state.error_summary
+        }
+        
+        for error in self.state.system_status_errors:
+            # Count by domain
+            domain = error.domain
+            summary["by_domain"][domain] = summary["by_domain"].get(domain, 0) + 1
+            
+            # Count by severity
+            severity = error.severity
+            summary["by_severity"][severity] = summary["by_severity"].get(severity, 0) + 1
+            
+            # Count by engine
+            engine = error.engine or "unknown"
+            summary["by_engine"][engine] = summary["by_engine"].get(engine, 0) + 1
+            
+            # Count by code
+            code = error.code
+            summary["by_code"][code] = summary["by_code"].get(code, 0) + 1
+            
+            # Count fatal errors
+            if error.fatal:
+                summary["fatal_errors"] += 1
+        
+        return summary
+    
+    def get_system_status_errors(self) -> List[Dict[str, Any]]:
+        """Get system-status errors as dictionaries for reporting."""
+        return [
+            {
+                "domain": error.domain,
+                "code": error.code,
+                "severity": error.severity,
+                "engine": error.engine,
+                "phase": error.phase,
+                "message": error.message,
+                "details": error.details,
+                "timestamp": error.timestamp,
+                "fatal": error.fatal
+            }
+            for error in self.state.system_status_errors
+            if error.domain == "system"
+        ]
+    
+    def get_data_handling_errors(self) -> List[Dict[str, Any]]:
+        """Get data-handling errors as dictionaries for reporting."""
+        return [
+            {
+                "domain": error.domain,
+                "code": error.code,
+                "severity": error.severity,
+                "engine": error.engine,
+                "phase": error.phase,
+                "message": error.message,
+                "details": error.details,
+                "timestamp": error.timestamp,
+                "fatal": error.fatal
+            }
+            for error in self.state.system_status_errors
+            if error.domain == "data"
+        ]

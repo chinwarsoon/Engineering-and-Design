@@ -192,7 +192,18 @@ class ParameterOverrideContract:
         """Validate parameter values."""
         if self.nrows is not None:
             if not isinstance(self.nrows, int) or self.nrows < 1:
-                raise ValueError(f"nrows must be a positive integer, got {self.nrows}")
+                error_msg = f"nrows must be a positive integer, got {self.nrows}"
+                # Store validation error for potential context recording
+                self._validation_error = {
+                    "code": "S-P-S-0101",
+                    "message": error_msg,
+                    "details": f"Invalid nrows value: {self.nrows} (type: {type(self.nrows).__name__})",
+                    "engine": "initiation_engine",
+                    "phase": "parameter_validation",
+                    "severity": "critical",
+                    "fatal": True
+                }
+                raise ValueError(error_msg)
     
     def apply_to_context(self, context: 'PipelineContext') -> None:
         """
@@ -204,9 +215,15 @@ class ParameterOverrideContract:
         Note:
             This modifies the context in-place.
         """
-        # Apply debug mode
-        context.parameters["debug_mode"] = self.debug_mode
-        if self.debug_mode:
+        # Record any validation errors that occurred during __post_init__
+        if hasattr(self, '_validation_error') and hasattr(context, 'add_system_error'):
+            context.add_system_error(**self._validation_error)
+        
+        if self.debug_mode is not None:
+            context.debug_mode = self.debug_mode
+        if self.nrows is not None:
+            context.nrows = self.nrows
+            context.parameters["nrows"] = self.nrows
             context.parameters["verbose"] = True
         
         # Apply row limit

@@ -189,7 +189,19 @@ class CalculationEngine(BaseProcessor):
         if df is None:
             df = self.context.data.df_mapped
             if df is None:
-                raise ValueError("No input DataFrame provided in context.data.df_mapped.")
+                error_msg = "No input DataFrame provided in context.data.df_mapped."
+                # Record error in context
+                if hasattr(self.context, 'add_system_error'):
+                    self.context.add_system_error(
+                        code="S-C-P-0101",
+                        message=error_msg,
+                        details="DataFrame must be provided either as parameter or in context.data.df_mapped",
+                        engine="processor_engine",
+                        phase="data_processing",
+                        severity="critical",
+                        fatal=True
+                    )
+                raise ValueError(error_msg)
                 
         with log_context("processor", "process_data"):
             debug_print(f"Starting process_data with {len(df.columns)} columns")

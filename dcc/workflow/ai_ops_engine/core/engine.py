@@ -228,6 +228,20 @@ def run_ai_ops(
         return engine.run(pipeline_results)
     except Exception as exc:
         logger.warning(f"[ai_ops_engine] AI operations failed (non-blocking): {exc}")
+        
+        # Record error in context as non-blocking system error
+        if hasattr(context, 'add_system_error'):
+            context.add_system_error(
+                code="S-A-S-0501",
+                message=f"AI operations failed: {exc}",
+                details=str(exc),
+                engine="ai_ops_engine",
+                phase="ai_analysis",
+                severity="medium",
+                fatal=False  # Non-blocking as per R11
+            )
+        
+        # Also print to stderr for user visibility (preserved behavior)
         try:
             from utility_engine.errors import system_error_print
             system_error_print("S-A-S-0501", detail=str(exc), fatal=False)

@@ -71,6 +71,7 @@ from utility_engine.cli import (
     resolve_effective_parameters,
 )
 from utility_engine.errors import system_error_print
+from core_engine.error_handling import handle_system_error, validate_setup_ready, validate_schema_ready, generate_error_report
 
 from initiation_engine import (
     ProjectSetupValidator,
@@ -129,18 +130,26 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             # if ready is False, log a system error with code S-C-S-0305 and include the details in the log, then raise a ValueError with the details
             setup_results = setup_validator.validate()
             context.state.setup_results = setup_results
-            if not setup_results.get("ready"):
-                system_error_print("S-C-S-0305", detail=format_setup_report(setup_results))
-                raise ValueError(format_setup_report(setup_results))
+            
+            # Record engine status
+            context.state.engine_status["initiation_engine"] = "running"
+            
+            # Use context-based error handling
+            if not validate_setup_ready(context, setup_results, engine="initiation_engine", phase="step1_initiation"):
+                if context.should_fail_fast("system"):
+                    raise ValueError(format_setup_report(setup_results))
             else:
                 total_folders = setup_validator.get_total_folders(setup_results)
                 total_files = setup_validator.get_total_files(setup_results)
                 milestone_print("Setup validated", f"{total_folders} folders, {total_files} files")
+                context.state.engine_status["initiation_engine"] = "completed"
+        
         context.telemetry.execution_times["initiation_engine"] = time.time() - start_time
     except ValueError:
+        context.record_engine_failure("initiation_engine", "step1_initiation")
         raise
     except Exception as exc:
-        system_error_print("S-R-S-0401", detail=str(exc))
+        context.capture_exception(code="S-R-S-0401", exception=exc, engine="initiation_engine", phase="step1_initiation")
         raise
 
     # Step 2: Schema Engine - Schema Validation
@@ -148,17 +157,34 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
         start_time = time.time()
         with log_context("pipeline", "step2_schema_validation"):
             status_print(f"Main schema: {schema_path}", min_level=3)
-            if not schema_path.exists():
-                system_error_print("S-F-S-0204", detail=str(schema_path))
+            
+            # Record engine status
+            context.state.engine_status["schema_engine"] = "running"
+            
+            # Validate schema file exists using context-based error handling
+            if not handle_system_error(
+                context=context,
+                condition=schema_path.exists(),
+                code="S-F-S-0204",
+                message=f"Schema file not found: {schema_path}",
+                details=str(schema_path),
+                engine="schema_engine",
+                phase="step2_schema_validation",
+                severity="critical",
+                fatal=True
+            ):
                 raise FileNotFoundError(f"Schema file not found: {schema_path}")
+            
             schema_validator = SchemaValidator(context)
             status_print("Validating schema and resolving dependencies...", min_level=3)
             schema_results = schema_validator.validate()
             context.state.schema_results = schema_results
             write_validation_status(schema_results)
-            if not schema_results.get("ready"):
-                system_error_print("S-C-S-0303", detail=str(schema_path))
-                raise ValueError(json.dumps(schema_results, indent=2))
+            
+            # Use context-based error handling for schema validation
+            if not validate_schema_ready(context, schema_results, engine="schema_engine", phase="step2_schema_validation"):
+                if context.should_fail_fast("system"):
+                    raise ValueError(json.dumps(schema_results, indent=2))
             
             # Populate Blueprint (SSOT)
             resolved_schema = schema_validator.load_resolved_schema()
@@ -185,28 +211,53 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
                     with open(error_config_path, "r", encoding="utf-8") as f:
                         context.blueprint.error_catalog = json.load(f).get("data_logic_errors", {})
                 except Exception as e:
-                    log_error(f"Failed to load error catalog: {e}", module="pipeline")
+                    context.add_system_error(
+                        code="E-SCH-CATALOG-LOAD",
+                        message=f"Failed to load error catalog: {e}",
+                        details=str(e),
+                        engine="schema_engine",
+                        phase="step2_schema_validation",
+                        severity="medium",
+                        fatal=False
+                    )
 
             total_columns = schema_validator.get_total_columns(schema_results)
             total_refs = schema_validator.get_total_references(schema_results)
             milestone_print("Schema loaded", f"{total_columns} columns, {total_refs} references")
+            context.state.engine_status["schema_engine"] = "completed"
+        
         context.telemetry.execution_times["schema_engine"] = time.time() - start_time
     except (ValueError, FileNotFoundError):
+        context.record_engine_failure("schema_engine", "step2_schema_validation")
         raise
     except json.JSONDecodeError as exc:
-        system_error_print("S-C-S-0302", detail=f"{schema_path}: {exc}")
+        context.capture_exception(code="S-C-S-0302", exception=exc, engine="schema_engine", phase="step2_schema_validation")
         raise
     except Exception as exc:
-        system_error_print("S-R-S-0404", detail=str(exc))
+        context.capture_exception(code="S-R-S-0404", exception=exc, engine="schema_engine", phase="step2_schema_validation")
         raise
 
     # Step 3: Mapper Engine - Column Mapping
     try:
         start_time = time.time()
         with log_context("pipeline", "step3_column_mapping"):
-            if not excel_path.exists():
-                system_error_print("S-F-S-0201", detail=str(excel_path))
+            # Record engine status
+            context.state.engine_status["mapper_engine"] = "running"
+            
+            # Validate excel file exists using context-based error handling
+            if not handle_system_error(
+                context=context,
+                condition=excel_path.exists(),
+                code="S-F-S-0201",
+                message=f"Input file not found: {excel_path}",
+                details=str(excel_path),
+                engine="mapper_engine",
+                phase="step3_column_mapping",
+                severity="critical",
+                fatal=True
+            ):
                 raise FileNotFoundError(f"Input file not found: {excel_path}")
+            
             df_raw = load_excel_data(excel_path, context.parameters, nrows=context.nrows, verbose=DEBUG_LEVEL >= 2, context=context)
             
             # resolved_schema is already in context.state.resolved_schema from step 2
@@ -216,20 +267,26 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             mapping_result = context.state.mapping_result
             df_mapped = context.data.df_mapped
             milestone_print("Columns mapped", f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})")
+            context.state.engine_status["mapper_engine"] = "completed"
+        
         context.telemetry.execution_times["mapper_engine"] = time.time() - start_time
     except FileNotFoundError:
+        context.record_engine_failure("mapper_engine", "step3_column_mapping")
         raise
     except PermissionError as exc:
-        system_error_print("S-F-S-0202", detail=str(excel_path))
+        context.capture_exception(code="S-F-S-0202", exception=exc, engine="mapper_engine", phase="step3_column_mapping")
         raise
     except Exception as exc:
-        system_error_print("S-R-S-0405", detail=str(exc))
+        context.capture_exception(code="S-R-S-0405", exception=exc, engine="mapper_engine", phase="step3_column_mapping")
         raise
 
     # Step 4: Processor Engine - Document Processing
     try:
         start_time = time.time()
         with log_context("pipeline", "step4_document_processing"):
+            # Record engine status
+            context.state.engine_status["processor_engine"] = "running"
+            
             # Phase 2 DI: Use factory for dependency injection (or legacy mode for compatibility)
             if _USE_DI_MODE:
                 processor = create_calculation_engine(
@@ -256,14 +313,17 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
             dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
             status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
+            context.state.engine_status["processor_engine"] = "completed"
+        
         context.telemetry.execution_times["processor_engine"] = time.time() - start_time
     except MemoryError as exc:
-        system_error_print("S-R-S-0403", detail=str(exc))
+        context.capture_exception(code="S-R-S-0403", exception=exc, engine="processor_engine", phase="step4_document_processing")
         raise
     except Exception as exc:
-        is_fail_fast = "FAIL FAST" in str(exc)
-        if is_fail_fast:
-            system_error_print("S-R-S-0402", detail=str(exc))
+        # Replace legacy "FAIL FAST" string detection with context-based fail-fast
+        context.capture_exception(code="S-R-S-0402", exception=exc, engine="processor_engine", phase="step4_document_processing")
+        
+        if context.should_fail_fast("data"):
             status_print("Generating diagnostic report for captured errors...")
             context.state.error_summary = processor.get_error_summary()
             schema_results["error_summary"] = context.state.error_summary
@@ -290,7 +350,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
                 excel_path=export_paths["excel_path"],
             )
         else:
-            system_error_print("S-R-S-0406", detail=str(exc))
+            context.capture_exception(code="S-R-S-0406", exception=exc, engine="processor_engine", phase="step4_document_processing")
         raise
 
     # Step 5: Reorder columns per schema column_sequence
@@ -580,27 +640,74 @@ def main() -> int:
         milestone_print("Pipeline Execution", "Starting engine pipeline")
         results = run_engine_pipeline(context)
     except Exception as exc:
+        # Capture exception in context before failing
+        context.capture_exception(code="S-R-S-0401", exception=exc, engine="orchestrator", phase="main_execution")
+        
+        # Generate error report
+        error_report = generate_error_report(context)
+        
         payload = {
             "ready": False,
             "error": str(exc),
             "environment": environment,
             "effective_parameters": effective_parameters,
             "timestamp": datetime.now().isoformat(),
+            "error_report": error_report
         }
         if args.json:
             print(json.dumps(payload, indent=2))
         else:
             system_error_print("S-R-S-0401", detail=str(exc))
+            # Print error summary
+            print("\n=== Error Summary ===")
+            print(f"Total errors: {error_report['error_summary']['total_errors']}")
+            print(f"Fatal errors: {error_report['error_summary']['fatal_errors']}")
+            if error_report['error_summary']['by_domain']:
+                print("By domain:", error_report['error_summary']['by_domain'])
+            if error_report['error_summary']['by_severity']:
+                print("By severity:", error_report['error_summary']['by_severity'])
         return 1
+    
+    # Generate final error report for successful completion
+    error_report = generate_error_report(context)
     
     results["environment"] = environment
     results["effective_parameters"] = effective_parameters
     results["timestamp"] = datetime.now().isoformat()
+    results["error_report"] = error_report
     
     if args.json:
         print(json.dumps(results, indent=2))
     else:
         print_summary(results, status_print_fn=status_print)
+        
+        # Print error summary for non-JSON output
+        if error_report['error_summary']['total_errors'] > 0:
+            print("\n=== Error Summary ===")
+            print(f"Total errors: {error_report['error_summary']['total_errors']}")
+            print(f"Fatal errors: {error_report['error_summary']['fatal_errors']}")
+            if error_report['error_summary']['by_domain']:
+                print("By domain:", error_report['error_summary']['by_domain'])
+            if error_report['error_summary']['by_severity']:
+                print("By severity:", error_report['error_summary']['by_severity'])
+            
+            # Show system vs data error separation
+            system_errors = error_report['system_status_errors']['errors']
+            data_errors = error_report['data_handling_errors']['errors']
+            
+            if system_errors:
+                print(f"\nSystem-status errors ({len(system_errors)}):")
+                for error in system_errors[:3]:  # Show first 3
+                    print(f"  - [{error['code']}] {error['message']}")
+                if len(system_errors) > 3:
+                    print(f"  ... and {len(system_errors) - 3} more")
+            
+            if data_errors:
+                print(f"\nData-handling errors ({len(data_errors)}):")
+                for error in data_errors[:3]:  # Show first 3
+                    print(f"  - [{error['code']}] {error['message']}")
+                if len(data_errors) > 3:
+                    print(f"  ... and {len(data_errors) - 3} more")
     
     return 0
 
