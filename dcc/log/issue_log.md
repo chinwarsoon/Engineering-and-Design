@@ -19,6 +19,34 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-iss-006"></a>
+## 2026-04-29 13:20:00
+
+### Issue ISS-006 — Missing Explicit Preload/Postload Context Lifecycle and Pre-Context Validation Gate
+- **Status:** ✅ RESOLVED
+- **Context:** `PipelineContext` construction did not persist explicit preload and postload trace states, and context creation could proceed without a single fail-fast pre-context validation gate.
+- **Root Cause:** Context lifecycle tracking was implicit and distributed across orchestration steps; no dedicated preload/postload contract was captured in the context model.
+- **Impact:**
+  - Reduced traceability for parameter/path source and validation state
+  - Harder to audit context-bound values before execution
+  - Increased risk of injecting partially validated values
+- **Affected Components:**
+  - `workflow/core_engine/context.py`
+  - `workflow/dcc_engine_pipeline.py`
+- **Resolution:**
+  - Added `ContextTraceItem` and `ContextLoadState` dataclasses to model preload and postload context snapshots.
+  - Added `PipelineContext.set_preload_state()` and `PipelineContext.set_postload_state()`.
+  - Added orchestration helpers in pipeline for preload build, pre-context gate validation, and postload build.
+  - Enforced fail-fast pre-context gate before `PipelineContext` construction.
+- **Files Changed:** 
+  - `dcc/workflow/core_engine/context.py`
+  - `dcc/workflow/dcc_engine_pipeline.py`
+  - `dcc/workplan/pipeline_architecture/context_validation_workplan/contex_validation_workplan.md`
+  - `dcc/workplan/pipeline_architecture/context_validation_workplan/reports/phase_1_context_lifecycle_completion_report.md`
+  - `dcc/log/update_log.md`
+- **Link to Update Log:** [Phase 1 Context Validation Completion](#update-2026-04-29-ctx-val-phase1)
+- **Link to Test Log:** [Phase 1 Completion Report](../../workplan/pipeline_architecture/context_validation_workplan/reports/phase_1_context_lifecycle_completion_report.md)
+
 <a id="issue-iss-005"></a>
 ## 2026-04-29
 

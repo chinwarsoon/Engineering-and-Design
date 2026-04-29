@@ -27,7 +27,13 @@ if str(workflow_path) not in sys.path:
     sys.path.insert(0, str(workflow_path))
 
 # Engine imports
-from core_engine.context import PipelineContext, PipelinePaths, PipelineState, PipelineData
+from core_engine.context import (
+    PipelineContext,
+    PipelinePaths,
+    PipelineState,
+    PipelineData,
+    ContextTraceItem,
+)
 from core_engine.paths import (
     default_base_path,
     get_homedir,
@@ -101,6 +107,70 @@ from ai_ops_engine import run_ai_ops
 # Phase 2 DI Configuration: Set to True to use dependency injection
 # Set to False for legacy direct instantiation (backward compatibility)
 _USE_DI_MODE = True  # Toggle this to switch between DI and legacy mode
+
+
+def _build_preload_context_data(
+    *,
+    base_path: Path,
+    schema_path: Path,
+    input_file_path: Path,
+    export_paths: Dict[str, Path],
+    effective_parameters: Dict[str, Any],
+) -> Dict[str, ContextTraceItem]:
+    """Build preload trace from raw resolved values before context creation."""
+    return {
+        "base_path": ContextTraceItem("base_path", str(base_path), "resolved", "directory", True),
+        "schema_path": ContextTraceItem("schema_path", str(schema_path), "resolved", "file", True),
+        "upload_file_name": ContextTraceItem(
+            "upload_file_name",
+            effective_parameters.get("upload_file_name"),
+            "effective_parameters",
+            "file",
+            bool(effective_parameters.get("upload_file_name")),
+        ),
+        "download_file_path": ContextTraceItem(
+            "download_file_path",
+            effective_parameters.get("download_file_path"),
+            "effective_parameters",
+            "directory",
+            bool(effective_parameters.get("download_file_path")),
+        ),
+        "csv_output_path": ContextTraceItem("csv_output_path", str(export_paths["csv_path"]), "resolved", "file", True),
+        "excel_output_path": ContextTraceItem("excel_output_path", str(export_paths["excel_path"]), "resolved", "file", True),
+        "summary_path": ContextTraceItem("summary_path", str(export_paths["summary_path"]), "resolved", "file", True),
+        "parameters": ContextTraceItem("parameters", effective_parameters, "effective_parameters", "dict", isinstance(effective_parameters, dict)),
+    }
+
+
+def _validate_pre_context_gate(
+    preload_data: Dict[str, ContextTraceItem],
+    validation_result: Any,
+) -> None:
+    """Fail fast if preload trace or validation state is not ready for context construction."""
+    invalid_items = [item.key for item in preload_data.values() if not item.validated]
+    if invalid_items:
+        raise ValueError(f"Pre-context validation gate failed: invalid preload fields: {', '.join(invalid_items)}")
+    if validation_result.has_errors:
+        raise ValueError(
+            f"Pre-context validation gate failed: {'; '.join(validation_result.errors)}"
+        )
+
+
+def _build_postload_context_data(
+    *,
+    pipeline_paths: PipelinePaths,
+    effective_parameters: Dict[str, Any],
+) -> Dict[str, ContextTraceItem]:
+    """Build postload trace from context-ready values after context construction."""
+    return {
+        "base_path": ContextTraceItem("base_path", str(pipeline_paths.base_path), "context.paths", "directory", True, "ready"),
+        "schema_path": ContextTraceItem("schema_path", str(pipeline_paths.schema_path), "context.paths", "file", True, "ready"),
+        "excel_path": ContextTraceItem("excel_path", str(pipeline_paths.excel_path), "context.paths", "file", True, "ready"),
+        "csv_output_path": ContextTraceItem("csv_output_path", str(pipeline_paths.csv_output_path), "context.paths", "file", True, "ready"),
+        "excel_output_path": ContextTraceItem("excel_output_path", str(pipeline_paths.excel_output_path), "context.paths", "file", True, "ready"),
+        "summary_path": ContextTraceItem("summary_path", str(pipeline_paths.summary_path), "context.paths", "file", True, "ready"),
+        "parameters": ContextTraceItem("parameters", effective_parameters, "context.parameters", "dict", isinstance(effective_parameters, dict), "ready"),
+    }
 
 
 def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
@@ -802,8 +872,18 @@ def main() -> int:
     
     # Set debug log path for context
     debug_log_path = export_paths["csv_path"].parent / "debug_log.json"
-    
-    # 14.Build PipelineContext
+
+    # 14. Build preload context trace and enforce pre-context validation gate
+    preload_context_data = _build_preload_context_data(
+        base_path=base_path,
+        schema_path=schema_path,
+        input_file_path=input_file_path,
+        export_paths=export_paths,
+        effective_parameters=effective_parameters,
+    )
+    _validate_pre_context_gate(preload_context_data, validation_result)
+
+    # 15. Build PipelineContext
     pipeline_paths = PipelinePaths(
         base_path=base_path,
         schema_path=schema_path,
@@ -820,12 +900,19 @@ def main() -> int:
         nrows=args.nrows,
         debug_mode=(DEBUG_LEVEL >= 2)
     )
+    context.set_preload_state(preload_context_data)
+    context.set_postload_state(
+        _build_postload_context_data(
+            pipeline_paths=pipeline_paths,
+            effective_parameters=effective_parameters,
+        )
+    )
     context.state.environment = environment
     # milestone print for pipeline context built, this is preloaded with all parameters and paths
-    milestone_print("Pipeline Context", "Built with all parameters and paths")
+    milestone_print("Pipeline Context", "Built with validated preload/postload trace data")
 
     
-    # 15. Run the engine pipeline
+    # 16. Run the engine pipeline
     try:
         # milestone print for pipeline execution started
         milestone_print("Pipeline Execution", "Starting engine pipeline")

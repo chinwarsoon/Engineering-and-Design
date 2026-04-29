@@ -99,6 +99,28 @@ class PipelineData:
 
 
 @dataclass
+class ContextTraceItem:
+    """Trace record for a single context parameter/path entry."""
+    key: str
+    value: Any
+    source: str
+    expected_type: str
+    validated: bool
+    notes: str = ""
+
+
+@dataclass
+class ContextLoadState:
+    """
+    Explicit context lifecycle snapshots.
+    - preload: raw values before context construction
+    - postload: validated/resolved values after construction
+    """
+    preload: Dict[str, ContextTraceItem] = field(default_factory=dict)
+    postload: Dict[str, ContextTraceItem] = field(default_factory=dict)
+
+
+@dataclass
 class PipelineContext:
     """
     Centralized context object for the DCC pipeline.
@@ -111,6 +133,7 @@ class PipelineContext:
     state: PipelineState = field(default_factory=PipelineState)
     telemetry: PipelineTelemetry = field(default_factory=PipelineTelemetry)
     data: PipelineData = field(default_factory=PipelineData)
+    load_state: ContextLoadState = field(default_factory=ContextLoadState)
     
     # Execution flags
     nrows: Optional[int] = None
@@ -121,6 +144,14 @@ class PipelineContext:
         if self.paths.schema_paths is None:
             from .schema_paths import get_schema_paths
             self.paths.schema_paths = get_schema_paths(self.paths.base_path)
+
+    def set_preload_state(self, preload: Dict[str, ContextTraceItem]) -> None:
+        """Attach preload trace data before pipeline execution."""
+        self.load_state.preload = preload
+
+    def set_postload_state(self, postload: Dict[str, ContextTraceItem]) -> None:
+        """Attach postload trace data after context construction."""
+        self.load_state.postload = postload
     
     def add_system_error(
         self,
