@@ -34,8 +34,8 @@ from core_engine.paths import (
     resolve_platform_paths,
     resolve_output_paths,
     validate_export_paths,
-    safe_resolve,
 )
+from utility_engine.paths import safe_resolve
 from core_engine.logging import (
     setup_logger,
     set_debug_mode,
@@ -121,6 +121,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
     }
 
     # Step 1: Initiation Engine - Project Setup Validation
+    # this step will check if all required files and folders are present.
     try:
         start_time = time.time()
         with log_context("pipeline", "step1_initiation"):
@@ -205,7 +206,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             context.blueprint.phase_map = phase_map
             
             # Load Error Catalog into Blueprint
-            error_config_path = base_path / "config" / "schemas" / "data_error_config.json"
+            error_config_path = context.paths.schema_paths.data_error_config
             if error_config_path.exists():
                 try:
                     with open(error_config_path, "r", encoding="utf-8") as f:
@@ -549,26 +550,119 @@ def main() -> int:
     # milestone print for logging configured to be shown in banner
     setup_logger()
     
-    # 3. Print framework banner (visible at ALL levels)
-    input_file = cli_args.get("upload_file_name", "Submittal and RFI Tracker Lists.xlsx")
-    base_path = safe_resolve(Path(args.base_path))
-    output_dir = base_path / "output"
-    print_framework_banner(base_path=base_path, input_file=input_file, output_dir=str(output_dir), cli_overrides=cli_args if cli_overrides_provided else None)
+    # 3. Resolve base path early for banner using centralized validation
+    from utility_engine.validation import ValidationManager
     
-    # 4. Handle Windows HOME env issues
-    local_home = get_homedir()
-    if get_verbose_mode() in ["debug", "trace"]:
-        status_print(f"  Resolved home directory: {local_home}")
+    validator = ValidationManager()
+    base_path_validation = validator.validate_path_with_system_context(
+        path_input=Path(args.base_path),
+        path_type="directory",
+        name="Base Directory",
+        required=True,
+        base_path=None  # Base path resolution for base path itself
+    )
+    
+    if base_path_validation.status.name == "FAIL":
+        raise ValueError(f"Base path validation failed: {base_path_validation.message}")
+    
+    base_path = base_path_validation.path
+    
+    # 4. Handle Windows HOME env issues using centralized validation
+    home_dir_validation = validator.validate_home_directory()
+    
+    if home_dir_validation.status.name == "FAIL":
+        milestone_print("Warning", f"Home directory validation failed: {home_dir_validation.message}")
     else:
         # milestone print for home directory resolved
-        milestone_print("Home Directory", f"Resolved: {local_home}")
+        milestone_print("Home Directory", f"Resolved: {home_dir_validation.path}")
     
     # 5. Build parameters using the central base_path
     native_defaults = build_native_defaults(base_path)
     # milestone print for native defaults built, and count of native defaults
     milestone_print("Native Defaults", f"Built from base_path ({len(native_defaults)} defaults)")
+    
+    # 5.5. Validate native defaults folders and files conditionally (only when not available from CLI or schema)
+    from utility_engine.validation import ValidationStatus
+    milestone_print("Native Defaults Validation", "Checking fallback parameter availability")
+    
+    # Extract file and folder paths from native defaults for validation
+    native_files_to_validate = []
+    native_dirs_to_validate = []
+    
+    # Conditionally validate native default input file (only if not provided by CLI or schema)
+    cli_upload_file = cli_args.get("upload_file_name")
+    schema_upload_file = effective_parameters.get("upload_file_name") if "effective_parameters" in locals() else None
+    native_upload_file = native_defaults.get("upload_file_name")
+    
+    if not cli_upload_file and (not schema_upload_file or schema_upload_file == native_upload_file):
+        if native_upload_file:
+            native_files_to_validate.append((
+                Path(native_upload_file),
+                "Native Default Input File",
+                False,  # Native defaults are fallbacks, not required
+                False   # create_parent parameter (not used for files)
+            ))
+    
+    # Conditionally validate native default output directory (only if not provided by CLI or schema)
+    cli_output_path = cli_args.get("download_file_path")
+    schema_output_path = effective_parameters.get("download_file_path") if "effective_parameters" in locals() else None
+    native_output_path = native_defaults.get("download_file_path")
+    
+    if not cli_output_path and (not schema_output_path or schema_output_path == native_output_path):
+        if native_output_path:
+            native_dirs_to_validate.append((
+                Path(native_output_path),
+                "Native Default Output Directory",
+                False,  # Native defaults are fallbacks, not required
+                False   # create_if_missing parameter (False for native defaults)
+            ))
+    
+    # Always validate common directories (data, config) as they're infrastructure directories
+    data_dir = base_path / "data"
+    native_dirs_to_validate.append((
+        data_dir,
+        "Native Default Data Directory",
+        False,  # Optional directory
+        False   # create_if_missing parameter (False for native defaults)
+    ))
+    
+    config_dir = base_path / "config"
+    native_dirs_to_validate.append((
+        config_dir,
+        "Native Default Config Directory",
+        False,  # Optional directory
+        False   # create_if_missing parameter (False for native defaults)
+    ))
+    
+    # Validate native defaults using ValidationManager (only if we have items to validate)
+    if native_files_to_validate or native_dirs_to_validate:
+        milestone_print("Native Defaults Validation", f"Validating {len(native_files_to_validate) + len(native_dirs_to_validate)} fallback items")
+        
+        native_validation_result = validator.validate_paths_and_parameters(
+            files=native_files_to_validate,
+            directories=native_dirs_to_validate
+        )
+        
+        if native_validation_result.has_errors:
+            error_messages = "\n".join(native_validation_result.errors)
+            milestone_print("Native Defaults Validation", f"Native defaults validation failed:\n{error_messages}")
+        elif native_validation_result.has_warnings:
+            warning_messages = "\n".join(native_validation_result.warnings)
+            milestone_print("Native Defaults Validation", f"Native defaults validation completed with warnings:\n{warning_messages}")
+        else:
+            milestone_print("Native Defaults Validation", "All native defaults validated successfully")
+        
+        # Show native defaults validation summary
+        total_native_items = len(native_files_to_validate) + len(native_dirs_to_validate)
+        passed_native = len([item for item in native_validation_result.items if item.status == ValidationStatus.PASS])
+        failed_native = len([item for item in native_validation_result.items if item.status == ValidationStatus.FAIL])
+        warnings_native = len([item for item in native_validation_result.items if item.status == ValidationStatus.WARNING])
+        
+        milestone_print("Native Defaults Summary", f"Total: {total_native_items}, Passed: {passed_native}, Failed: {failed_native}, Warnings: {warnings_native}")
+    else:
+        milestone_print("Native Defaults Validation", "No fallback validation needed (CLI or schema values available)")
 
-    # 6. Test environment using central base_path
+    # 7. Test environment using central base_path
     environment = test_environment(base_path=base_path)
     if not environment["ready"]:
         payload = {
@@ -586,10 +680,20 @@ def main() -> int:
     else:
         milestone_print("Environment ready", "Required dependencies available")
 
-    # 7. Resolve the main schema path
-    schema_path = safe_resolve(
-        Path(cli_args.get("schema_register_file", native_defaults["schema_register_file"]))
+    # 8. Resolve the main schema path using centralized validation
+    schema_path_input = cli_args.get("schema_register_file", native_defaults["schema_register_file"])
+    schema_path_validation = validator.validate_path_with_system_context(
+        path_input=Path(schema_path_input),
+        path_type="file",
+        name="Schema File",
+        required=True,
+        base_path=base_path
     )
+    
+    if schema_path_validation.status.name == "FAIL":
+        raise ValueError(f"Schema path validation failed: {schema_path_validation.message}")
+    
+    schema_path = schema_path_validation.path
     milestone_print("Schema resolved", f"Using: {schema_path}")
 
     # 8. Resolve effective parameters
@@ -612,15 +716,102 @@ def main() -> int:
     native_params = len(native_defaults)
     milestone_print("Parameters resolved", f"Precedence: {total_params} total (CLI: {cli_params}, Schema: {schema_params}, Defaults: {native_params})")
 
-    # 9.Build PipelineContext
+    # 9.5. Print framework banner (visible at ALL levels) with input_file (output_dir to be resolved after project_config loading)
+    input_file = effective_parameters.get("upload_file_name", native_defaults.get("upload_file_name"))
+    print_framework_banner(base_path=base_path, input_file=input_file, output_dir="pending resolution", cli_overrides=cli_args if cli_overrides_provided else None)
+
+    # 11.Validate paths and parameters using universal validation functions
+    milestone_print("Validation", "Validating paths and parameters using universal validation functions")
+    
+    # Import universal validation utilities
+    from utility_engine.validation import ValidationStatus
+    
+    # Resolve input file path using centralized validation
+    input_file_validation = validator.validate_path_with_system_context(
+        path_input=Path(effective_parameters["upload_file_name"]),
+        path_type="file",
+        name="Input Excel File",
+        required=True,
+        base_path=base_path
+    )
+    
+    if input_file_validation.status.name == "FAIL":
+        raise ValueError(f"Input file validation failed: {input_file_validation.message}")
+    
+    input_file_path = input_file_validation.path
+    
+    # Load project_config for folder creation configuration
+    project_config_path = base_path / "config" / "schemas" / "project_config.json"
+    project_config = {}
+    if project_config_path.exists():
+        try:
+            with open(project_config_path, "r", encoding="utf-8") as f:
+                project_config = json.load(f)
+        except Exception as e:
+            milestone_print("Warning", f"Could not load project_config.json: {e}")
+    
+    # 12.5. Resolve output directory using proper precedence and centralized validation
+    output_dir_input = effective_parameters.get("download_file_path", native_defaults.get("download_file_path"))
+    
+    # Update validator with folder creation config
+    if project_config and "folder_creation" in project_config:
+        validator.folder_creation_config = project_config["folder_creation"]
+    
+    output_dir_validation = validator.validate_path_with_system_context(
+        path_input=Path(output_dir_input),
+        path_type="directory",
+        name="Output Directory",
+        required=True,
+        base_path=base_path
+    )
+    
+    if output_dir_validation.status.name == "FAIL":
+        raise ValueError(f"Output directory validation failed: {output_dir_validation.message}")
+    
+    output_dir = output_dir_validation.path
+    milestone_print("Output Directory", f"Resolved and validated: {output_dir}")
+
+    # 13. Validate all pipeline prerequisites using universal validation with schema-controlled folder creation
+    validation_result = validator.validate_pipeline_prerequisites(
+        base_path=base_path,
+        schema_path=schema_path,
+        input_file_path=input_file_path,
+        export_paths=export_paths,
+        effective_parameters=effective_parameters,
+        project_config=project_config
+    )
+    
+    # Check validation results
+    if validation_result.has_errors:
+        error_messages = "\n".join(validation_result.errors)
+        raise ValueError(f"Pipeline validation failed:\n{error_messages}")
+    
+    if validation_result.has_warnings:
+        warning_messages = "\n".join(validation_result.warnings)
+        milestone_print("Validation Warnings", f"Validation completed with warnings:\n{warning_messages}")
+    else:
+        milestone_print("Validation", "All paths and parameters validated successfully")
+    
+    # Log validation summary
+    summary = validation_result.summary
+    milestone_print("Validation Summary", 
+                   f"Total: {summary['total_items']}, "
+                   f"Passed: {summary['passed']}, "
+                   f"Failed: {summary['failed']}, "
+                   f"Warnings: {summary['warnings']}")
+    
+    # Set debug log path for context
+    debug_log_path = export_paths["csv_path"].parent / "debug_log.json"
+    
+    # 14.Build PipelineContext
     pipeline_paths = PipelinePaths(
         base_path=base_path,
         schema_path=schema_path,
-        excel_path=safe_resolve(Path(effective_parameters["upload_file_name"])),
+        excel_path=input_file_path,
         csv_output_path=export_paths["csv_path"],
         excel_output_path=export_paths["excel_path"],
         summary_path=export_paths["summary_path"],
-        debug_log_path=export_paths["csv_path"].parent / "debug_log.json"
+        debug_log_path=debug_log_path
     )
     
     context = PipelineContext(
@@ -630,11 +821,11 @@ def main() -> int:
         debug_mode=(DEBUG_LEVEL >= 2)
     )
     context.state.environment = environment
-    # milestone print for pipeline context built
+    # milestone print for pipeline context built, this is preloaded with all parameters and paths
     milestone_print("Pipeline Context", "Built with all parameters and paths")
 
     
-    # 10. Run the engine pipeline
+    # 15. Run the engine pipeline
     try:
         # milestone print for pipeline execution started
         milestone_print("Pipeline Execution", "Starting engine pipeline")

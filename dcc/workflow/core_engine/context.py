@@ -17,6 +17,7 @@ class PipelinePaths:
     excel_output_path: Path
     summary_path: Path
     debug_log_path: Path
+    schema_paths: Optional[Any] = None  # Centralized SchemaPaths instance
 
 
 @dataclass
@@ -114,6 +115,12 @@ class PipelineContext:
     # Execution flags
     nrows: Optional[int] = None
     debug_mode: bool = False
+    
+    def __post_init__(self):
+        """Initialize schema paths after dataclass creation."""
+        if self.paths.schema_paths is None:
+            from .schema_paths import get_schema_paths
+            self.paths.schema_paths = get_schema_paths(self.paths.base_path)
     
     def add_system_error(
         self,

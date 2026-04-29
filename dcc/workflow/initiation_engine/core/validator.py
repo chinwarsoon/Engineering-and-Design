@@ -55,6 +55,7 @@ class ProjectSetupValidator(BaseEngine):
         super().__init__(context)
         self.base_path = self.context.paths.base_path
         self.schema_path = self.context.paths.schema_path
+        self.schema_paths = self.context.paths.schema_paths  # Use centralized schema paths from context
         self.schema_document: Dict[str, Any] = {}  # Raw source from project_setup.json
         self.project_setup: Dict[str, Any] = {}    # Normalized configuration dictionary
         self.validation_rules: Dict[str, bool] = {}
@@ -86,7 +87,7 @@ class ProjectSetupValidator(BaseEngine):
                     Consumed here to load schema_document.
         """
         with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+            return json.load(handle) # Json.load() returns Dict, such as {"folders": [...], "root_files": [...], ...}
 
     def _init_ref_resolver(self) -> Optional[RefResolver]:
         """
@@ -104,15 +105,13 @@ class ProjectSetupValidator(BaseEngine):
             
         try:
             # Find project_setup.json for strict registration
-            project_setup_path = self.base_path / "config" / "schemas" / "project_setup.json"
+            project_setup_path = self.schema_paths.project_setup_schema
             if not project_setup_path.exists():
                 return None
                 
             self._ref_resolver = RefResolver(
                 project_setup_path=project_setup_path,
-                schema_directories=[
-                    self.base_path / "config" / "schemas"
-                ]
+                schema_directories=[self.schema_paths.config_dir]
             )
             return self._ref_resolver
         except Exception as exc:
@@ -123,28 +122,14 @@ class ProjectSetupValidator(BaseEngine):
         """
         Extract project_setup configuration from schema document.
 
-        Handles three formats:
-        1. Legacy: "project_setup": {} key directly in document
-        2. Instance data: top-level 'folders' key present (project_config.json style)
-        3. JSON Schema: '$schema' key present → load project_config.json as instance data
+        Handles current schema architecture:
+        1. JSON Schema format: '$schema' key present → load project_config.json as instance data
+        2. Instance data format: top-level 'folders' key present (direct project_config.json)
+        3. Properties-based config: extract from schema properties as fallback
         """
-        # Case 1: Legacy format - direct project_setup object
-        if "project_setup" in document:
-            config = document["project_setup"]
-            if isinstance(config, list) and config:
-                first_item = config[0]
-                return first_item if isinstance(first_item, dict) else {}
-            if isinstance(config, dict):
-                return config
-            return {}
-
-        # Case 2: Instance data format - top-level 'folders' key (project_config.json)
-        if "folders" in document:
-            return document
-
-        # Case 3: JSON Schema format - load project_config.json as instance data
+        # Case 1: JSON Schema format - load project_config.json as instance data
         if "$schema" in document:
-            config_path = self.base_path / "config" / "schemas" / "project_config.json"
+            config_path = self.schema_paths.project_config_data
             if config_path.is_file():
                 try:
                     config_doc = self._load_json(config_path)
@@ -155,7 +140,11 @@ class ProjectSetupValidator(BaseEngine):
             # Fallback: extract defaults from schema properties
             return self._extract_from_schema(document)
 
-        # Case 4: Properties-based config without $schema
+        # Case 2: Instance data format - top-level 'folders' key present (project_config.json style)
+        if "folders" in document:
+            return document
+
+        # Case 3: Properties-based config without $schema
         if "properties" in document and isinstance(document["properties"], dict):
             return self._extract_from_schema(document)
 
@@ -350,7 +339,7 @@ class ProjectSetupValidator(BaseEngine):
                     results,
                     "schema_files",
                     schema_files,
-                    self.base_path / "config" / "schemas",
+                    self.schema_paths.config_dir,
                     "filename",
                     "description",
                 )

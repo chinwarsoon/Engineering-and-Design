@@ -46,6 +46,23 @@
   "tool_files": [
         {"filename": "project_setup_tools.py", "required": true, "description": "Project setup utilities", "type": "python_script"}
   ],
+  "folder_creation": {
+    "auto_create_output_directories": true,
+    "auto_create_debug_directories": true,
+    "auto_create_log_directories": true,
+    "create_missing_parents": true,
+    "required_directories": [
+      {"name": "output", "auto_create": true, "purpose": "Processed data exports"},
+      {"name": "output/csv", "auto_create": true, "purpose": "CSV file exports"},
+      {"name": "output/excel", "auto_create": true, "purpose": "Excel file exports"},
+      {"name": "output/summary", "auto_create": true, "purpose": "Summary reports"},
+      {"name": "Log", "auto_create": true, "purpose": "System logs"}
+    ],
+    "optional_directories": [
+      {"name": "temp", "auto_create": false, "purpose": "Temporary files"},
+      {"name": "backup", "auto_create": false, "purpose": "Backup files"}
+    ]
+  },
   "environment": [
         {
           "name": "conda",

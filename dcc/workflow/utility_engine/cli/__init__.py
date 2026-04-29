@@ -84,11 +84,33 @@ def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, D
 
 def build_native_defaults(base_path: Path) -> Dict[str, Any]:
     """
-    Build native default parameters for the DCC processing pipeline.
+    Build native default parameters for DCC processing pipeline.
     Precedence: CLI args → Schema params → Native defaults
+    
+    Standardized parameter keys across CLI, schema, and native defaults:
+    - upload_file_name: Input Excel file path
+    - download_file_path: Output directory path
+    - schema_register_file: Schema file path
+    - upload_sheet_name: Excel sheet name
+    - start_col: Start column for processing
+    - end_col: End column for processing
+    - header_row_index: Header row index
     """
     status_print("Building native default parameters...", min_level=3)
+    
+    # Platform-specific defaults (for reference, not used in precedence)
+    platform_defaults = {
+        "win_upload_file": r"K:\J Submission\Submittal and RFI Tracker Lists.xlsx",
+        "win_download_path": r"K:\J Submission\AI Tools and Report\data_output",
+        "linux_upload_file": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
+        "linux_download_path": str(base_path / "output"),
+        "colab_upload_file": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
+        "colab_download_path": "/content/output",
+    }
+    
+    # Standardized native defaults using consistent keys
     return {
+        # Core processing parameters (consistent with CLI and schema)
         "debug_dev_mode": False,
         "overwrite_existing_downloads": True,
         "start_col": "P",
@@ -96,16 +118,15 @@ def build_native_defaults(base_path: Path) -> Dict[str, Any]:
         "header_row_index": 4,
         "upload_sheet_name": "Prolog Submittals ",
         "schema_register_file": str(default_schema_path(base_path)),
-        "win_upload_file": r"K:\J Submission\Submittal and RFI Tracker Lists.xlsx",
-        "win_download_path": r"K:\J Submission\AI Tools and Report\data_output",
-        "win_upload_file_fallback": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
-        "win_download_path_fallback": str(base_path / "output"),
-        "linux_upload_file": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
-        "linux_download_path": str(base_path / "output"),
-        "colab_upload_file": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
-        "colab_download_path": "/content/output",
         "upload_file_name": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
         "download_file_path": str(base_path / "output"),
+        
+        # Platform-specific defaults (kept for reference, not used in precedence)
+        "platform_defaults": platform_defaults,
+        
+        # Legacy fallback keys (for backward compatibility)
+        "win_upload_file_fallback": str(base_path / "data" / "Submittal and RFI Tracker Lists.xlsx"),
+        "win_download_path_fallback": str(base_path / "output"),
     }
 
 

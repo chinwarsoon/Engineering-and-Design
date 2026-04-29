@@ -19,6 +19,141 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-iss-005"></a>
+## 2026-04-29
+
+### Issue ISS-005 — Complete Schema-Controlled Folder Creation Implementation
+- **Status:** ✅ RESOLVED
+- **Context:** Complete elimination of hardcoded folder creation parameters throughout the pipeline, implementing full schema-controlled behavior via project_config.json.
+- **Root Cause:** Hardcoded `create_if_missing` parameters scattered across validation functions and pipeline code, preventing flexible configuration.
+- **Impact:**
+  - Inflexible folder creation behavior hardcoded in multiple locations
+  - Maintenance burden when folder creation policies needed changes
+  - No centralized control over directory creation policies
+  - Inconsistent folder creation behavior across different components
+- **Affected Components:**
+  - `utility_engine/validation/__init__.py` - Multiple hardcoded create_if_missing parameters
+  - `dcc_engine_pipeline.py` - Hardcoded safe_resolve calls with create_if_missing=True
+  - `utility_engine/paths/__init__.py` - Path resolution functions with hardcoded creation logic
+  - `config/schemas/project_config.json` - Missing comprehensive folder creation configuration
+- **Current Pattern (BEFORE):**
+  ```python
+  # PROBLEMATIC: Hardcoded folder creation
+  directories = [
+      (path, "Directory", True, True),  # Hardcoded create_if_missing=True
+      (path2, "Directory2", True, False),  # Hardcoded create_if_missing=False
+  ]
+  base_path = safe_resolve(Path(args.base_path), create_if_missing=True)  # Hardcoded
+  ```
+- **Proposed Solution (AFTER):**
+  ```python
+  # SOLUTION: Schema-controlled folder creation
+  folder_creation_config = project_config["folder_creation"]
+  directories = [
+      (path, "Directory", True, folder_creation_config.get("auto_create_output", True)),
+      (path2, "Directory2", True, folder_creation_config.get("auto_create_debug", True)),
+  ]
+  base_path = safe_resolve(Path(args.base_path))  # No hardcoded parameters
+  ```
+- **Implementation Status:** ✅ COMPLETE
+  - Enhanced project_config.json with comprehensive folder_creation section
+  - Updated all validation functions to use folder_creation_config
+  - Removed all hardcoded create_if_missing parameters
+  - Updated pipeline to load and use project_config for folder creation
+  - Maintained backward compatibility through fallback logic
+- **Files Changed:** 
+  - `config/schemas/project_config.json` - Added folder_creation configuration
+  - `utility_engine/validation/__init__.py` - Updated all validation functions
+  - `dcc_engine_pipeline.py` - Removed hardcoded parameters, added config loading
+  - `dcc/log/update_log.md` - Comprehensive implementation documentation
+- **Link to Update Log:** [Update Log Entry](#update-2026-04-29-complete-schema-control)
+- **Link to Test Log:** [Test Results](#test-2026-04-29-main-pipeline)
+
+<a id="issue-iss-004"></a>
+## 2026-04-29
+
+### Issue ISS-004 — Path and Parameter Validation Before Context Preloading
+- **Status:** 🟡 PENDING APPROVAL
+- **Context:** Pipeline paths and parameters are loaded into PipelineContext without validation, potentially causing runtime errors and invalid context states.
+- **Root Cause:** Missing validation step before context creation allows invalid paths and parameters to be preloaded
+- **Impact:**
+  - Invalid contexts created with non-existent paths
+  - Runtime errors during pipeline execution
+  - Poor user experience with unclear error messages
+  - Potential pipeline failures after expensive initialization
+- **Affected Components:**
+  - `dcc_engine_pipeline.py` - Main function (lines 616-677)
+  - `PipelineContext` - Context creation without validation
+  - `PipelinePaths` - Path objects potentially invalid
+- **Current Pattern:**
+  ```python
+  # PROBLEMATIC: Direct context creation without validation
+  pipeline_paths = PipelinePaths(
+      base_path=base_path,  # May not exist
+      schema_path=schema_path,  # May not exist
+      excel_path=input_file_path,  # May not exist
+      # ... other paths
+  )
+  context = PipelineContext(paths=pipeline_paths, parameters=effective_parameters)
+  ```
+- **Proposed Solution:**
+  ```python
+  # VALIDATION: Check paths and parameters before context creation
+  # Validate required parameters exist and are not empty
+  # Validate base path exists
+  # Validate schema path exists
+  # Validate input file path exists
+  # Create export directories if needed
+  # Create debug log directory if needed
+  # Only then create PipelineContext
+  ```
+- **Implementation Status:** ✅ Code implemented but ⏳ **AWAITING APPROVAL**
+- **Files Changed:** 
+  - `dcc_engine_pipeline.py` - Added comprehensive validation step (lines 616-657)
+- **Link to Update Log:** [Update Log Entry](#update-2026-04-29-path-validation)
+- **Link to Test Log:** [Test Results](#test-2026-04-29-path-validation)
+
+<a id="issue-iss-003"></a>
+## 2026-04-29
+
+### Issue ISS-003 — Schema Path Hardcoding Duplication (Single Point of Truth)
+- **Status:** ✅ RESOLVED
+- **Context:** Multiple hardcoded schema file paths scattered throughout the codebase creating maintenance issues and potential inconsistencies.
+- **Root Cause:** Schema file paths like `base_path / "config" / "schemas" / "project_setup.json"` were hardcoded in multiple locations instead of being centrally managed.
+- **Impact:**
+  - Maintenance burden when schema paths change
+  - Potential inconsistencies in path references
+  - Code duplication across multiple files
+  - No single source of truth for schema path management
+- **Affected Components:**
+  - `initiation_engine/core/validator.py` - Multiple hardcoded paths (lines 107, 133, 343)
+  - `dcc_engine_pipeline.py` - Error config path (line 209)
+  - `core_engine/paths/__init__.py` - Legacy path functions (lines 92, 105)
+  - `core_engine/system/__init__.py` - Setup path (line 50)
+  - `schema_engine/utils/paths.py` - Schema path resolution (line 47)
+  - `processor_engine/error_handling/tests/` - Test paths (line 563)
+- **Pattern Identified:**
+  ```python
+  # PROBLEMATIC: Scattered hardcoded paths
+  project_setup_path = self.base_path / "config" / "schemas" / "project_setup.json"
+  config_path = self.base_path / "config" / "schemas" / "project_config.json"
+  error_config_path = base_path / "config" / "schemas" / "data_error_config.json"
+  ```
+- **Resolution:**
+  - Created centralized `SchemaPaths` class in `core_engine/schema_paths.py`
+  - Added `schema_paths` field to `PipelinePaths` dataclass
+  - Implemented single source of truth in `PipelineContext.__post_init__()`
+  - Updated all components to use `context.paths.schema_paths` instead of hardcoded paths
+  - Maintained backward compatibility with legacy path functions
+- **Files Changed:**
+  - `core_engine/schema_paths.py` - NEW: Centralized schema path management
+  - `core_engine/context.py` - Added schema_paths to PipelinePaths and __post_init__()
+  - `initiation_engine/core/validator.py` - Updated to use context.schema_paths
+  - `dcc_engine_pipeline.py` - Updated to use context.schema_paths
+  - `core_engine/paths/__init__.py` - Updated legacy functions to delegate to SchemaPaths
+- **Link to Update Log:** [Update Log Entry](#update-2026-04-29-schema-centralization)
+- **Link to Test Log:** [Test Results](#test-2026-04-29-schema-centralization)
+
 <a id="issue-iss-002"></a>
 ## 2026-04-29
 
