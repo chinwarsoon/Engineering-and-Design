@@ -79,10 +79,10 @@ def create_parser(base_path: Path) -> argparse.ArgumentParser:
     return parser
 
 
-def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, Dict[str, Any], bool]:
+def parse_cli_args(base_path: Path | None = None, pipeline_dir: str = "workflow") -> Tuple[argparse.Namespace, Dict[str, Any], bool]:
     """Parse CLI arguments and return the namespace, override dict, and a status boolean."""
     if base_path is None:
-        base_path = default_base_path()
+        base_path = default_base_path(pipeline_dir)
         
     parser = create_parser(base_path)
     args, unknown_args = parser.parse_known_args()

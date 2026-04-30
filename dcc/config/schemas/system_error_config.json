@@ -52,6 +52,13 @@
       "count": 3,
       "start_id": "S-A-S-0501",
       "end_id": "S-A-S-0503"
+    },
+    "bootstrap": {
+      "prefix": "S-B-S-06xx",
+      "description": "Bootstrap initialization errors (Phase P1-P8, trace building)",
+      "count": 10,
+      "start_id": "S-B-S-0601",
+      "end_id": "S-B-S-0610"
     }
   },
   "system_errors": {
@@ -264,6 +271,51 @@
       "severity": "WARNING",
       "category": "AI",
       "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-B-S-0601": {
+      "code": "S-B-S-0601",
+      "name": "BOOTSTRAP_NOT_COMPLETE",
+      "message": "Bootstrap must be completed before accessing preload trace",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-B-S-0602": {
+      "code": "S-B-S-0602",
+      "name": "BOOTSTRAP_TRACE_NOT_BUILT",
+      "message": "Preload trace not built - pre-pipeline validation may have failed",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-B-S-0603": {
+      "code": "S-B-S-0603",
+      "name": "BOOTSTRAP_TRACE_BUILD_FAILED",
+      "message": "Failed to build preload trace during bootstrap",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-B-S-0604": {
+      "code": "S-B-S-0604",
+      "name": "BOOTSTRAP_GATE_VALIDATION_FAILED",
+      "message": "Pre-context validation gate failed - invalid preload fields detected",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-B-S-0605": {
+      "code": "S-B-S-0605",
+      "name": "BOOTSTRAP_GATE_TRACE_MISSING",
+      "message": "Cannot validate gate: preload trace not built",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
       "promote_detail": true
     }
   },

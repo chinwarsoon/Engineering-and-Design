@@ -35,7 +35,7 @@ from core_engine.context import (
     ContextTraceItem,
 )
 from core_engine.paths import (
-    resolve_pipeline_base_path,
+    default_base_path,
     get_homedir,
     resolve_platform_paths,
     resolve_output_paths,
@@ -78,7 +78,6 @@ from utility_engine.cli import (
     get_registry_for_cli,
 )
 from utility_engine.errors import system_error_print
-from utility_engine.bootstrap import BootstrapManager, BootstrapError
 from core_engine.error_handling import handle_system_error, validate_setup_ready, validate_schema_ready, generate_error_report
 
 from initiation_engine import (
@@ -109,6 +108,70 @@ from ai_ops_engine import run_ai_ops
 # Phase 2 DI Configuration: Set to True to use dependency injection
 # Set to False for legacy direct instantiation (backward compatibility)
 _USE_DI_MODE = True  # Toggle this to switch between DI and legacy mode
+
+
+def _build_preload_context_data(
+    *,
+    base_path: Path,
+    schema_path: Path,
+    input_file_path: Path,
+    export_paths: Dict[str, Path],
+    effective_parameters: Dict[str, Any],
+) -> Dict[str, ContextTraceItem]:
+    """Build preload trace from raw resolved values before context creation."""
+    return {
+        "base_path": ContextTraceItem("base_path", str(base_path), "resolved", "directory", True),
+        "schema_path": ContextTraceItem("schema_path", str(schema_path), "resolved", "file", True),
+        "upload_file_name": ContextTraceItem(
+            "upload_file_name",
+            effective_parameters.get("upload_file_name"),
+            "effective_parameters",
+            "file",
+            bool(effective_parameters.get("upload_file_name")),
+        ),
+        "download_file_path": ContextTraceItem(
+            "download_file_path",
+            effective_parameters.get("download_file_path"),
+            "effective_parameters",
+            "directory",
+            bool(effective_parameters.get("download_file_path")),
+        ),
+        "csv_output_path": ContextTraceItem("csv_output_path", str(export_paths["csv_path"]), "resolved", "file", True),
+        "excel_output_path": ContextTraceItem("excel_output_path", str(export_paths["excel_path"]), "resolved", "file", True),
+        "summary_path": ContextTraceItem("summary_path", str(export_paths["summary_path"]), "resolved", "file", True),
+        "parameters": ContextTraceItem("parameters", effective_parameters, "effective_parameters", "dict", isinstance(effective_parameters, dict)),
+    }
+
+
+def _validate_pre_context_gate(
+    preload_data: Dict[str, ContextTraceItem],
+    validation_result: Any,
+) -> None:
+    """Fail fast if preload trace or validation state is not ready for context construction."""
+    invalid_items = [item.key for item in preload_data.values() if not item.validated]
+    if invalid_items:
+        raise ValueError(f"Pre-context validation gate failed: invalid preload fields: {', '.join(invalid_items)}")
+    if validation_result.has_errors:
+        raise ValueError(
+            f"Pre-context validation gate failed: {'; '.join(validation_result.errors)}"
+        )
+
+
+def _build_postload_context_data(
+    *,
+    pipeline_paths: PipelinePaths,
+    effective_parameters: Dict[str, Any],
+) -> Dict[str, ContextTraceItem]:
+    """Build postload trace from context-ready values after context construction."""
+    return {
+        "base_path": ContextTraceItem("base_path", str(pipeline_paths.base_path), "context.paths", "directory", True, "ready"),
+        "schema_path": ContextTraceItem("schema_path", str(pipeline_paths.schema_path), "context.paths", "file", True, "ready"),
+        "excel_path": ContextTraceItem("excel_path", str(pipeline_paths.excel_path), "context.paths", "file", True, "ready"),
+        "csv_output_path": ContextTraceItem("csv_output_path", str(pipeline_paths.csv_output_path), "context.paths", "file", True, "ready"),
+        "excel_output_path": ContextTraceItem("excel_output_path", str(pipeline_paths.excel_output_path), "context.paths", "file", True, "ready"),
+        "summary_path": ContextTraceItem("summary_path", str(pipeline_paths.summary_path), "context.paths", "file", True, "ready"),
+        "parameters": ContextTraceItem("parameters", effective_parameters, "context.parameters", "dict", isinstance(effective_parameters, dict), "ready"),
+    }
 
 
 def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
@@ -480,16 +543,16 @@ def run_engine_pipeline_with_ui(
     nrows: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
-    Run pipeline with UI-selected paths and parameters using BootstrapManager.
+    Phase 4: Run pipeline with UI-selected paths and parameters.
     
-    Breadcrumb: UI params -> BootstrapManager -> bootstrap_for_ui() -> to_pipeline_context() -> run_engine_pipeline()
-    
-    Simplified UI mode initialization using BootstrapManager instead of manual contracts.
+    This function provides a UI-friendly interface for pipeline execution
+    using PathSelectionContract and ParameterOverrideContract.
     
     Precedence (highest to lowest):
-        1. UI Overrides (this function - passed to BootstrapManager)
-        2. Schema Configuration
-        3. Native Defaults
+        1. CLI Arguments (handled by main())
+        2. UI Overrides (this function)
+        3. Schema Configuration
+        4. Hardcoded Defaults
     
     Args:
         base_path: Base directory selected by user (contains data/ folder)
@@ -510,122 +573,409 @@ def run_engine_pipeline_with_ui(
         ...     nrows=500
         ... )
     """
-    try:
-        # Bootstrap all initialization phases for UI mode
-        manager = BootstrapManager(base_path).bootstrap_for_ui(
-            upload_file_name=upload_file_name,
-            output_folder=output_folder,
-            schema_file_name=schema_file_name,
-            debug_mode=debug_mode,
-            nrows=nrows
-        )
-        
-        # Convert to PipelineContext
-        context = manager.to_pipeline_context()
-        context.nrows = nrows or 0
-        context.debug_mode = debug_mode
-        
-        # Run pipeline
-        status_print(f"🚀 UI Pipeline: {upload_file_name}")
-        status_print(f"   Base: {base_path}")
-        status_print(f"   Debug: {debug_mode} | Rows: {nrows or 'ALL'}")
-        
-        return run_engine_pipeline(context)
-        
-    except BootstrapError as e:
-        # Handle bootstrap failures
-        code, message = e.to_system_error()
-        raise ValueError(f"Bootstrap failed [{code}]: {message}")
-    except Exception as exc:
-        # Handle unexpected errors
-        raise ValueError(f"Pipeline initialization failed: {exc}")
+    # Phase 4: Create path selection contract
+    path_contract = PathSelectionContract(
+        base_path=base_path,
+        upload_file_name=upload_file_name,
+        output_folder=output_folder,
+        schema_file_name=schema_file_name
+    )
+    
+    # Phase 4: Validate before running
+    validation = path_contract.validate()
+    if not validation["valid"]:
+        raise ValueError(f"Path validation failed: {validation['errors']}")
+    
+    # Phase 4: Create parameter override contract
+    param_contract = ParameterOverrideContract(
+        debug_mode=debug_mode,
+        nrows=nrows
+    )
+    
+    # Phase 4: Apply parameter warnings
+    param_validation = param_contract.validate()
+    if param_validation.get("warnings"):
+        for warning in param_validation["warnings"]:
+            status_print(f"⚠ {warning}")
+    
+    # Phase 4: Resolve to PipelinePaths
+    paths = path_contract.to_paths()
+    
+    # Phase 4: Create context with overrides
+    context = PipelineContext(
+        paths=paths,
+        parameters={},
+        nrows=nrows or 0,
+        debug_mode=debug_mode
+    )
+    
+    # Phase 4: Apply parameter overrides to context
+    param_contract.apply_to_context(context)
+    
+    # Phase 4: Run main pipeline
+    status_print(f"🚀 Phase 4 UI Pipeline: {upload_file_name}")
+    status_print(f"   Base: {base_path}")
+    status_print(f"   Debug: {debug_mode} | Rows: {nrows or 'ALL'}")
+    
+    return run_engine_pipeline(context)
 
 
 def main() -> int:
-    """
-    Main entry point for DCC Engine Pipeline using BootstrapManager.
+    """Main entry point for DCC Engine Pipeline."""
     
-    Breadcrumb: sys.argv -> resolve_pipeline_base_path() -> parse_cli_args() -> BootstrapManager -> bootstrap_all() -> to_pipeline_context() -> run_engine_pipeline()
+    # 1. Parse CLI args (this also sets debug level via --verbose)
+    # milestone print for CLI args parsed to be shown in banner
+    args, cli_args, cli_overrides_provided = parse_cli_args()
     
-    The pipeline start position is determined by:
-        1. --base-path CLI argument (explicit)
-        2. Current working directory (execution context)
+    # 2. Configure Python logging based on DEBUG_LEVEL (suppresses INFO at level 0-1)
+    # milestone print for logging configured to be shown in banner
+    setup_logger()
     
-    Simplified from ~400 lines to ~50 lines using BootstrapManager for initialization.
-    """
-    # Resolve pipeline start position before parsing CLI args
-    # This ensures all path operations use the correct execution context
-    # pipeline must rest in "workflow" folder
-    pipeline_dir = "workflow"
-    # return actual pipeline start position
-    pipeline_start = resolve_pipeline_base_path()
+    # 3. Resolve base path early for banner using centralized validation
+    from utility_engine.validation import ValidationManager
     
-    # Parse CLI args with resolved base_path, raise error if pipeline is not in "workflow" folder
-    args, cli_args, cli_overrides_provided = parse_cli_args(pipeline_start, pipeline_dir)
+    validator = ValidationManager()
+    base_path_validation = validator.validate_path_with_system_context(
+        path_input=Path(args.base_path),
+        path_type="directory",
+        name="Base Directory",
+        required=True,
+        base_path=None  # Base path resolution for base path itself
+    )
     
-    try:
-        # Bootstrap all initialization phases in one call
-        # Bootstrap will load schema, validate paths, resolve parameters per precedence of CLI > config > defaults
-        # Bootsrap will return a BootstrapManager instance with all initialized components
-        # if any error, Bootstrap will raise BootstrapError
+    if base_path_validation.status.name == "FAIL":
+        raise ValueError(f"Base path validation failed: {base_path_validation.message}")
+    
+    base_path = base_path_validation.path
+    
+    # 4. Handle Windows HOME env issues using centralized validation
+    home_dir_validation = validator.validate_home_directory()
+    
+    if home_dir_validation.status.name == "FAIL":
+        milestone_print("Warning", f"Home directory validation failed: {home_dir_validation.message}")
+    else:
+        # milestone print for home directory resolved
+        milestone_print("Home Directory", f"Resolved: {home_dir_validation.path}")
+    
+    # 5. Initialize parameter registry for schema-driven key lookups
+    registry = get_registry_for_cli(base_path)
+    
+    # 5.1. Build parameters using the central base_path (with schema-driven keys)
+    native_defaults = build_native_defaults(base_path, registry=registry)
+    # milestone print for native defaults built, and count of native defaults
+    milestone_print("Native Defaults", f"Built from base_path ({len(native_defaults)} defaults)")
+    
+    # 5.5. Validate native defaults folders and files conditionally (only when not available from CLI or schema)
+    from utility_engine.validation import ValidationStatus
+    milestone_print("Native Defaults Validation", "Checking fallback parameter availability")
+    
+    # Extract file and folder paths from native defaults for validation
+    native_files_to_validate = []
+    native_dirs_to_validate = []
+    
+    # Conditionally validate native default input file (only if not provided by CLI)
+    # Use schema-driven parameter keys from registry (not hardcoded strings)
+    upload_file_key = registry.get_canonical_key("upload_file_name") if registry else "upload_file_name"
+    cli_upload_file = cli_args.get(upload_file_key)
+    native_upload_file = native_defaults.get(upload_file_key)
+    
+    if not cli_upload_file and native_upload_file:
+        native_files_to_validate.append((
+            Path(native_upload_file),
+            "Native Default Input File",
+            False,  # Native defaults are fallbacks, not required
+            False   # create_parent parameter (not used for files)
+        ))
+    
+    # Conditionally validate native default output directory (only if not provided by CLI)
+    # Use schema-driven parameter keys from registry (not hardcoded strings)
+    download_path_key = registry.get_canonical_key("download_file_path") if registry else "download_file_path"
+    cli_output_path = cli_args.get(download_path_key)
+    native_output_path = native_defaults.get(download_path_key)
+    
+    if not cli_output_path and native_output_path:
+        native_dirs_to_validate.append((
+            Path(native_output_path),
+            "Native Default Output Directory",
+            False,  # Native defaults are fallbacks, not required
+            False   # create_if_missing parameter (False for native defaults)
+        ))
+    
+    # Always validate common directories (data, config) as they're infrastructure directories
+    # Use schema-driven directory parameter keys from registry (not hardcoded strings)
+    data_dir_key = registry.get_canonical_key("data_dir") if registry else "data_dir"
+    data_dir = base_path / native_defaults.get(data_dir_key, "data")
+    native_dirs_to_validate.append((
+        data_dir,
+        "Native Default Data Directory",
+        False,  # Optional directory
+        False   # create_if_missing parameter (False for native defaults)
+    ))
+    
+    config_dir_key = registry.get_canonical_key("config_dir") if registry else "config_dir"
+    config_dir = base_path / native_defaults.get(config_dir_key, "config")
+    native_dirs_to_validate.append((
+        config_dir,
+        "Native Default Config Directory",
+        False,  # Optional directory
+        False   # create_if_missing parameter (False for native defaults)
+    ))
+    
+    # Validate native defaults using ValidationManager (only if we have items to validate)
+    if native_files_to_validate or native_dirs_to_validate:
+        milestone_print("Native Defaults Validation", f"Validating {len(native_files_to_validate) + len(native_dirs_to_validate)} fallback items")
         
-        manager = BootstrapManager(Path(args.base_path)).bootstrap_all(cli_args)
-        
-        # Convert to PipelineContext (this also builds postload trace via Phase P3)
-        context = manager.to_pipeline_context()
-        context.nrows = args.nrows
-        
-        # Update debug mode based on DEBUG_LEVEL
-        context.debug_mode = (DEBUG_LEVEL >= 2)
-        
-        # Phase P3: Set preload/postload traces from BootstrapManager
-        context.set_preload_state(manager.preload_trace)
-        if manager.postload_trace:
-            context.set_postload_state(manager.postload_trace)
-        
-        # Print banner after bootstrap (now that we have effective_parameters)
-        print_framework_banner(
-            base_path=manager.base_path,
-            input_file=manager.effective_parameters.get("upload_file_name"),
-            output_dir=manager.effective_parameters.get("download_file_path"),
-            cli_overrides=cli_args if cli_overrides_provided else None
+        native_validation_result = validator.validate_paths_and_parameters(
+            files=native_files_to_validate,
+            directories=native_dirs_to_validate
         )
         
-        # Run pipeline
+        if native_validation_result.has_errors:
+            error_messages = "\n".join(native_validation_result.errors)
+            milestone_print("Native Defaults Validation", f"Native defaults validation failed:\n{error_messages}")
+        elif native_validation_result.has_warnings:
+            warning_messages = "\n".join(native_validation_result.warnings)
+            milestone_print("Native Defaults Validation", f"Native defaults validation completed with warnings:\n{warning_messages}")
+        else:
+            milestone_print("Native Defaults Validation", "All native defaults validated successfully")
+        
+        # Show native defaults validation summary
+        total_native_items = len(native_files_to_validate) + len(native_dirs_to_validate)
+        passed_native = len([item for item in native_validation_result.items if item.status == ValidationStatus.PASS])
+        failed_native = len([item for item in native_validation_result.items if item.status == ValidationStatus.FAIL])
+        warnings_native = len([item for item in native_validation_result.items if item.status == ValidationStatus.WARNING])
+        
+        milestone_print("Native Defaults Summary", f"Total: {total_native_items}, Passed: {passed_native}, Failed: {failed_native}, Warnings: {warnings_native}")
+    else:
+        milestone_print("Native Defaults Validation", "No fallback validation needed (CLI or schema values available)")
+
+    # 7. Test environment using central base_path
+    environment = test_environment(base_path=base_path)
+    if not environment["ready"]:
+        payload = {
+            "ready": False,
+            "error": "Environment test failed",
+            "environment": environment,
+            "timestamp": datetime.now().isoformat(),
+        }
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            missing = ", ".join(environment.get("missing_packages", [])) or "see output above"
+            system_error_print("S-E-S-0103", detail=missing)
+        return 1
+    else:
+        milestone_print("Environment ready", "Required dependencies available")
+
+    # 8. Resolve the main schema path using centralized validation
+    schema_path_input = cli_args.get("schema_register_file", native_defaults["schema_register_file"])
+    schema_path_validation = validator.validate_path_with_system_context(
+        path_input=Path(schema_path_input),
+        path_type="file",
+        name="Schema File",
+        required=True,
+        base_path=base_path
+    )
+    
+    if schema_path_validation.status.name == "FAIL":
+        raise ValueError(f"Schema path validation failed: {schema_path_validation.message}")
+    
+    schema_path = schema_path_validation.path
+    milestone_print("Schema resolved", f"Using: {schema_path}")
+
+    # 8. Resolve effective parameters (with schema-driven keys)
+    effective_parameters = resolve_effective_parameters(
+        schema_path, 
+        cli_args, 
+        native_defaults,
+        load_schema_params_fn=load_schema_parameters,
+        registry=registry
+    )
+    effective_parameters = resolve_platform_paths(effective_parameters, base_path, status_print)
+    
+    # Generate export paths and validate them before building PipelineContext
+    export_paths = resolve_output_paths(base_path, effective_parameters, safe_resolve, status_print)
+    validate_export_paths(export_paths, bool(effective_parameters.get("overwrite_existing_downloads", True)))
+    
+   # milestone print for number of parameters resolved from cli args, schema, and native defaults
+    total_params = len(effective_parameters)
+    cli_params = len(cli_args)
+    schema_params = len(load_schema_parameters(schema_path))
+    native_params = len(native_defaults)
+    milestone_print("Parameters resolved", f"Precedence: {total_params} total (CLI: {cli_params}, Schema: {schema_params}, Defaults: {native_params})")
+
+    # 9.5. Print framework banner (visible at ALL levels) with input_file (output_dir to be resolved after project_config loading)
+    input_file = effective_parameters.get("upload_file_name", native_defaults.get("upload_file_name"))
+    print_framework_banner(base_path=base_path, input_file=input_file, output_dir="pending resolution", cli_overrides=cli_args if cli_overrides_provided else None)
+
+    # 11.Validate paths and parameters using universal validation functions
+    milestone_print("Validation", "Validating paths and parameters using universal validation functions")
+    
+    # Import universal validation utilities
+    from utility_engine.validation import ValidationStatus
+    
+    # Resolve input file path using centralized validation
+    input_file_validation = validator.validate_path_with_system_context(
+        path_input=Path(effective_parameters["upload_file_name"]),
+        path_type="file",
+        name="Input Excel File",
+        required=True,
+        base_path=base_path
+    )
+    
+    if input_file_validation.status.name == "FAIL":
+        raise ValueError(f"Input file validation failed: {input_file_validation.message}")
+    
+    input_file_path = input_file_validation.path
+    
+    # Load project_config for folder creation configuration
+    # Use schema-driven directory parameters instead of hardcoded paths
+    project_config_path = (
+        base_path 
+        / effective_parameters.get("config_dir", "config") 
+        / effective_parameters.get("schema_dir", "schemas") 
+        / "project_config.json"
+    )
+    project_config = {}
+    if project_config_path.exists():
+        try:
+            with open(project_config_path, "r", encoding="utf-8") as f:
+                project_config = json.load(f)
+        except Exception as e:
+            milestone_print("Warning", f"Could not load project_config.json: {e}")
+    
+    # 12.5. Resolve output directory using proper precedence and centralized validation
+    output_dir_input = effective_parameters.get("download_file_path", native_defaults.get("download_file_path"))
+    
+    # Update validator with folder creation config
+    if project_config and "folder_creation" in project_config:
+        validator.folder_creation_config = project_config["folder_creation"]
+    
+    output_dir_validation = validator.validate_path_with_system_context(
+        path_input=Path(output_dir_input),
+        path_type="directory",
+        name="Output Directory",
+        required=True,
+        base_path=base_path
+    )
+    
+    if output_dir_validation.status.name == "FAIL":
+        raise ValueError(f"Output directory validation failed: {output_dir_validation.message}")
+    
+    output_dir = output_dir_validation.path
+    milestone_print("Output Directory", f"Resolved and validated: {output_dir}")
+
+    # 13. Validate all pipeline prerequisites using universal validation with schema-controlled folder creation
+    validation_result = validator.validate_pipeline_prerequisites(
+        base_path=base_path,
+        schema_path=schema_path,
+        input_file_path=input_file_path,
+        export_paths=export_paths,
+        effective_parameters=effective_parameters,
+        project_config=project_config
+    )
+    
+    # Check validation results
+    if validation_result.has_errors:
+        error_messages = "\n".join(validation_result.errors)
+        raise ValueError(f"Pipeline validation failed:\n{error_messages}")
+    
+    if validation_result.has_warnings:
+        warning_messages = "\n".join(validation_result.warnings)
+        milestone_print("Validation Warnings", f"Validation completed with warnings:\n{warning_messages}")
+    else:
+        milestone_print("Validation", "All paths and parameters validated successfully")
+    
+    # Log validation summary
+    summary = validation_result.summary
+    milestone_print("Validation Summary", 
+                   f"Total: {summary['total_items']}, "
+                   f"Passed: {summary['passed']}, "
+                   f"Failed: {summary['failed']}, "
+                   f"Warnings: {summary['warnings']}")
+    
+    # Set debug log path for context (schema-driven filename)
+    debug_log_filename = effective_parameters.get("debug_log_filename", "debug_log.json")
+    debug_log_path = export_paths["csv_path"].parent / debug_log_filename
+
+    # 14. Build preload context trace and enforce pre-context validation gate
+    preload_context_data = _build_preload_context_data(
+        base_path=base_path,
+        schema_path=schema_path,
+        input_file_path=input_file_path,
+        export_paths=export_paths,
+        effective_parameters=effective_parameters,
+    )
+    _validate_pre_context_gate(preload_context_data, validation_result)
+
+    # 15. Build PipelineContext
+    pipeline_paths = PipelinePaths(
+        base_path=base_path,
+        schema_path=schema_path,
+        excel_path=input_file_path,
+        csv_output_path=export_paths["csv_path"],
+        excel_output_path=export_paths["excel_path"],
+        summary_path=export_paths["summary_path"],
+        debug_log_path=debug_log_path
+    )
+    
+    context = PipelineContext(
+        paths=pipeline_paths,
+        parameters=effective_parameters,
+        nrows=args.nrows,
+        debug_mode=(DEBUG_LEVEL >= 2)
+    )
+    context.set_preload_state(preload_context_data)
+    context.set_postload_state(
+        _build_postload_context_data(
+            pipeline_paths=pipeline_paths,
+            effective_parameters=effective_parameters,
+        )
+    )
+    context.state.environment = environment
+    # milestone print for pipeline context built, this is preloaded with all parameters and paths
+    milestone_print("Pipeline Context", "Built with validated preload/postload trace data")
+
+    
+    # 16. Run the engine pipeline
+    try:
+        # milestone print for pipeline execution started
         milestone_print("Pipeline Execution", "Starting engine pipeline")
         results = run_engine_pipeline(context)
-        
-    except BootstrapError as e:
-        # Handle bootstrap failures with structured error codes
-        code, message = e.to_system_error()
-        if args.json:
-            print(json.dumps({
-                "ready": False,
-                "error": message,
-                "code": code,
-                "phase": e.phase,
-                "timestamp": datetime.now().isoformat()
-            }, indent=2))
-        else:
-            system_error_print(code, detail=message)
-        return 1
     except Exception as exc:
-        # Handle unexpected errors
+        # Capture exception in context before failing
+        context.capture_exception(code="S-R-S-0401", exception=exc, engine="orchestrator", phase="main_execution")
+        
+        # Generate error report
+        error_report = generate_error_report(context)
+        
+        payload = {
+            "ready": False,
+            "error": str(exc),
+            "environment": environment,
+            "effective_parameters": effective_parameters,
+            "timestamp": datetime.now().isoformat(),
+            "error_report": error_report
+        }
         if args.json:
-            print(json.dumps({
-                "ready": False,
-                "error": str(exc),
-                "timestamp": datetime.now().isoformat()
-            }, indent=2))
+            print(json.dumps(payload, indent=2))
         else:
             system_error_print("S-R-S-0401", detail=str(exc))
+            # Print error summary
+            print("\n=== Error Summary ===")
+            print(f"Total errors: {error_report['error_summary']['total_errors']}")
+            print(f"Fatal errors: {error_report['error_summary']['fatal_errors']}")
+            if error_report['error_summary']['by_domain']:
+                print("By domain:", error_report['error_summary']['by_domain'])
+            if error_report['error_summary']['by_severity']:
+                print("By severity:", error_report['error_summary']['by_severity'])
         return 1
     
     # Generate final error report for successful completion
     error_report = generate_error_report(context)
     
-    results["environment"] = manager.environment
-    results["effective_parameters"] = manager.effective_parameters
+    results["environment"] = environment
+    results["effective_parameters"] = effective_parameters
     results["timestamp"] = datetime.now().isoformat()
     results["error_report"] = error_report
     
@@ -650,14 +1000,14 @@ def main() -> int:
             
             if system_errors:
                 print(f"\nSystem-status errors ({len(system_errors)}):")
-                for error in system_errors[:3]:
+                for error in system_errors[:3]:  # Show first 3
                     print(f"  - [{error['code']}] {error['message']}")
                 if len(system_errors) > 3:
                     print(f"  ... and {len(system_errors) - 3} more")
             
             if data_errors:
                 print(f"\nData-handling errors ({len(data_errors)}):")
-                for error in data_errors[:3]:
+                for error in data_errors[:3]:  # Show first 3
                     print(f"  - [{error['code']}] {error['message']}")
                 if len(data_errors) > 3:
                     print(f"  ... and {len(data_errors) - 3} more")

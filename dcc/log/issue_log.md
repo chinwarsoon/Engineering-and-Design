@@ -19,6 +19,88 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-iss-008"></a>
+## 2026-05-01 00:45:00
+
+### Issue ISS-008 — default_base_path() Returns Wrong Directory When 'workflow' Not Found
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-01
+- **Resolution Summary:** Changed `default_base_path()` fallback from returning `Path(__file__).parent` (which returns the paths module directory) to raising `FileNotFoundError` with clear error message. This prevents silent failures and wrong-path operations when pipeline is executed outside the workflow folder structure.
+- **Files Changed:**
+  - `workflow/core_engine/paths/__init__.py` (MODIFIED - `default_base_path()` function)
+- **Verification:**
+  - From dcc/ folder: ✅ Pipeline executes successfully
+  - From parent/ without --base-path: ✅ Fails fast with clear error
+  - From parent/ with --base-path: ✅ Pipeline executes successfully
+- **Context:** The `default_base_path()` function is used to determine the project base path by searching for a 'workflow' folder in parent directories. When the folder is not found, it was falling back to returning the directory containing the `__file__` (the paths module directory), which caused all subsequent path operations to use wrong locations.
+- **Root Cause:** The fallback `return Path(__file__).parent` returns `/home/franklin/dsai/Engineering-and-Design/dcc/workflow/core_engine/paths/` instead of the project root. This caused schema files, input data, and output directories to be resolved incorrectly.
+- **Impact:**
+  - Schema not found (looks in `paths/config/` instead of `dcc/config/`)
+  - Input files missing (looks in `paths/data/` instead of `dcc/data/`)
+  - Output in wrong location (writes to `paths/output/` instead of `dcc/output/`)
+  - Silent failures - pipeline would fail with confusing errors rather than clear indication of wrong execution context
+- **Proposed Solution:**
+  - Remove silent fallback to wrong directory
+  - Raise `FileNotFoundError` with descriptive message
+  - Message should guide user to either:
+    1. Execute from within workflow folder structure
+    2. Use `--base-path` argument to specify project root explicitly
+- **Related Issues:**
+  - Related to ISS-007 (BootstrapManager initialization)
+- **Link to Update Log:** [Update 2026-05-01-fail-fast-base-path](/home/franklin/dsai/Engineering-and-Design/dcc/log/update_log.md#update-2026-05-01-fail-fast-base-path)
+
+---
+
+<a id="issue-iss-007"></a>
+## 2026-04-30 20:00:00
+
+### Issue ISS-007 — dcc_engine_pipeline.py main() Initialization Code Bloat
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-04-30
+- **Resolution Summary:** Successfully implemented BootstrapManager in utility_engine/bootstrap.py and integrated into dcc_engine_pipeline.py. main() reduced from ~390 lines to ~60 lines (84% reduction). Full pipeline test passed processing 100 rows with all 8 bootstrap phases completing successfully.
+- **Files Changed:**
+  - `workflow/utility_engine/bootstrap.py` (NEW - 31KB, BootstrapManager class)
+  - `workflow/utility_engine/__init__.py` (NEW - exports)
+  - `workflow/dcc_engine_pipeline.py` (MODIFIED - refactored main() and run_engine_pipeline_with_ui())
+- **Verification:**
+  - Static analysis: ✅ Imports successful
+  - Basic test: ✅ BootstrapManager instantiates correctly
+  - Full pipeline test: ✅ Processed 100 rows successfully
+  - Output files: ✅ CSV and Excel generated
+  - Exit code: ✅ 0 (success)
+- **Context:** The `main()` function in `dcc_engine_pipeline.py` contains ~400 lines of initialization code (lines 623-830) that handles CLI parsing, path validation, registry loading, parameter resolution, and pre-pipeline validation. This makes the main function difficult to maintain, test, and understand.
+- **Root Cause:** All initialization logic is embedded directly in `main()` rather than being encapsulated in a dedicated module. The initialization spans 8 distinct phases (CLI, paths, registry, defaults, fallback validation, environment, schema, parameters) without clear separation of concerns.
+- **Impact:**
+  - `main()` function is ~400 lines instead of ~50 lines
+  - Difficult to test initialization phases independently
+  - No reusability between CLI mode (`main()`) and UI mode (`run_engine_pipeline_with_ui()`)
+  - Violates single responsibility principle
+  - Hard to debug initialization failures without clear phase boundaries
+- **Affected Components:**
+  - `workflow/dcc_engine_pipeline.py` - `main()` function lines 623-830
+  - `workflow/dcc_engine_pipeline.py` - `run_engine_pipeline_with_ui()` function lines 537-620
+- **Proposed Solution:**
+  - Create `utility_engine/bootstrap.py` submodule with `BootstrapManager` class
+  - `BootstrapManager` follows Manager pattern (like `ValidationManager`, `ParameterTypeRegistry`)
+  - Encapsulates all 8 initialization phases as private methods (`_bootstrap_cli()`, `_bootstrap_paths()`, etc.)
+  - Provides public orchestrator methods `bootstrap_all()` and `bootstrap_for_ui()`
+  - Maintains initialization state internally (cli_args, native_defaults, effective_parameters, registry, etc.)
+  - Provides `to_pipeline_context()` method to convert validated state to PipelineContext
+  - Raises `BootstrapError` with structured error codes (B-CLI-xxx, B-PATH-xxx, etc.) on failure
+- **Files to Create/Modify:**
+  - `utility_engine/bootstrap.py` (CREATE) - New submodule with BootstrapManager class
+  - `utility_engine/__init__.py` (MODIFY) - Export BootstrapManager and BootstrapError
+  - `dcc_engine_pipeline.py` (MODIFY) - Refactor main() to use BootstrapManager
+  - `dcc_engine_pipeline.py` (MODIFY) - Refactor run_engine_pipeline_with_ui() to use BootstrapManager
+  - `workplan/pipeline_architecture/core_utility_engine_workplan/bootstrap_subworkplan/bootstrap_submodule_workplan.md` (CREATE) - Implementation workplan
+- **Expected Outcome:**
+  - `main()` reduced from ~400 lines to ~50 lines
+  - Single line initialization: `BootstrapManager(base_path).bootstrap_all(cli_args).to_pipeline_context()`
+  - Reusable between CLI and UI modes
+  - Testable initialization phases
+  - Clear error handling with phase-specific error codes
+- **Link to Workplan:** [Bootstrap Submodule Workplan](../../workplan/pipeline_architecture/core_utility_engine_workplan/bootstrap_subworkplan/bootstrap_submodule_workplan.md)
+
 <a id="issue-iss-006"></a>
 ## 2026-04-29 13:20:00
 

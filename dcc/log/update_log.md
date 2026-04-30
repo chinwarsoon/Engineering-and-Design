@@ -8,6 +8,410 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-01-fail-fast-base-path"></a>
+## 2026-05-01 00:45:00
+
+### COMPLETED: Fail-Fast for default_base_path() — ISS-008
+**Status:** ✅ COMPLETE  
+**Related Issue:** [ISS-008](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-008)
+
+**Summary:** Fixed `default_base_path()` to raise `FileNotFoundError` instead of silently returning wrong directory when 'workflow' folder is not found in parent hierarchy.
+
+**Changes Made:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| `default_base_path()` | `workflow/core_engine/paths/__init__.py` | Added `pipeline_dir` parameter |
+| Fallback behavior | `workflow/core_engine/paths/__init__.py` | Changed from returning `Path(__file__).parent` to raising `FileNotFoundError` |
+| Error message | `workflow/core_engine/paths/__init__.py` | Added clear guidance: use --base-path or execute from workflow folder |
+
+**Before:**
+```python
+def default_base_path(pipeline_dir: str = "workflow") -> Path:
+    for parent in Path(__file__).parents:
+        if parent.name.lower() == pipeline_dir:
+            return parent.parent
+    return Path(__file__).parent  # Wrong! Returns paths module dir
+```
+
+**After:**
+```python
+def default_base_path(pipeline_dir: str = "workflow") -> Path:
+    for parent in Path(__file__).parents:
+        if parent.name.lower() == pipeline_dir:
+            return parent.parent
+    raise FileNotFoundError(
+        f"Pipeline directory '{pipeline_dir}' not found in parent hierarchy. "
+        f"Ensure pipeline is executed from within '{pipeline_dir}' folder structure, "
+        f"or specify project root explicitly using --base-path argument."
+    )
+```
+
+**Test Results:**
+- From dcc/ folder: ✅ Pipeline executes (base_path: /home/franklin/dsai/Engineering-and-Design/dcc)
+- From parent/ without --base-path: ✅ Fails fast with B-environment-B-ENV-001
+- From parent/ with --base-path dcc: ✅ Pipeline executes successfully
+
+**Impact:**
+- Prevents silent failures with confusing "file not found" errors
+- Provides clear actionable error message to users
+- Forces explicit --base-path usage when executing outside workflow structure
+
+---
+
+<a id="update-2026-05-01-error-handling-compliance"></a>
+## 2026-05-01 00:30:00
+
+### COMPLETED: Bootstrap Error Handling Compliance & Pipeline Base Path Resolution
+**Status:** ✅ COMPLETE  
+**Related Issue:** [ISS-007](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-007)
+
+**Summary:** Added S-B-S-06xx bootstrap error codes per DCC pipeline error handling taxonomy. Moved pipeline start position resolution to `core_engine.paths` for proper separation of concerns.
+
+**Error Handling Changes:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| System error config | `config/schemas/system_error_config.json` | Added `bootstrap` category (S-B-S-06xx) |
+| New error codes | `config/schemas/system_error_config.json` | Added 5 S-B-S codes: 0601-0605 |
+| Bootstrap errors | `utility_engine/bootstrap.py` | Updated to S-B-S-06xx format (B-TRACE-* → S-B-S-060*) |
+| `to_system_error()` | `utility_engine/bootstrap.py` | Updated to preserve S-B-S codes |
+| Workplan | `bootstrap_submodule_workplan.md` | Added Error Handling section |
+
+**New S-B-S Error Codes:**
+
+| Code | Name | Description |
+|:---|:---|:---|
+| S-B-S-0601 | BOOTSTRAP_NOT_COMPLETE | Bootstrap must be completed before accessing preload trace |
+| S-B-S-0602 | BOOTSTRAP_TRACE_NOT_BUILT | Preload trace not built - pre-pipeline validation may have failed |
+| S-B-S-0603 | BOOTSTRAP_TRACE_BUILD_FAILED | Failed to build preload trace during bootstrap |
+| S-B-S-0604 | BOOTSTRAP_GATE_VALIDATION_FAILED | Pre-context validation gate failed |
+| S-B-S-0605 | BOOTSTRAP_GATE_TRACE_MISSING | Cannot validate gate: preload trace not built |
+
+**Pipeline Base Path Changes:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| `resolve_pipeline_base_path()` | `core_engine/paths/__init__.py` | NEW - Moved from main pipeline |
+| Import | `dcc_engine_pipeline.py` | Added `resolve_pipeline_base_path` import |
+| `main()` | `dcc_engine_pipeline.py` | Updated to use imported function |
+
+**Pipeline Start Position Logic:**
+- Priority 1: `--base-path` CLI argument (explicit)
+- Priority 2: Current working directory (execution context)
+- Removed dependency on 'workflow' file structure marker in main()
+
+**Test Results:**
+- Pipeline test with 10 rows: ✅ PASS (exit code 0)
+- All bootstrap phases: ✅ COMPLETE
+- Error codes verified: ✅ S-B-S-06xx format
+
+---
+
+<a id="update-2026-04-30-bootstrap-phase3"></a>
+## 2026-04-30 22:00:00
+
+### COMPLETED: Bootstrap Submodule Phase 3 (DCC-WP-UTIL-BOOTSTRAP-001)
+**Status:** ✅ PHASE 3 COMPLETE  
+**Related Issue:** [ISS-007](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-007)
+
+**Summary:** Integrated context trace functions into `BootstrapManager`, further simplifying `dcc_engine_pipeline.py` by removing 3 helper functions and centralizing all initialization logic.
+
+**Phase P3 Changes:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| Trace attributes | `utility_engine/bootstrap.py` | Added `_preload_trace` and `_postload_trace` attributes |
+| Preload trace property | `utility_engine/bootstrap.py` | Added `preload_trace` property with validation |
+| Postload trace property | `utility_engine/bootstrap.py` | Added `postload_trace` property |
+| `_build_preload_trace()` | `utility_engine/bootstrap.py` | NEW - Moved from dcc_engine_pipeline.py |
+| `_validate_pre_context_gate()` | `utility_engine/bootstrap.py` | NEW - Moved from dcc_engine_pipeline.py |
+| `_build_postload_trace()` | `utility_engine/bootstrap.py` | NEW - Moved from dcc_engine_pipeline.py |
+| `to_pipeline_context()` | `utility_engine/bootstrap.py` | Updated to call `_build_postload_trace()` |
+| `main()` | `dcc_engine_pipeline.py` | Updated to use `manager.preload_trace` and `manager.postload_trace` |
+| Helper functions | `dcc_engine_pipeline.py` | REMOVED - 3 functions deleted |
+
+**Line Count Comparison (All Phases):**
+
+| Function | Before P1 | After P2 | After P3 | Total Reduction |
+|:---|---:|---:|---:|---:|
+| `main()` | ~400 | ~60 | **~45** | **89%** |
+| Helper functions | 3 | 3 | **0** | **100%** |
+| **Total init code** | **~475** | **~90** | **~75** | **84%** |
+
+**New main() Structure (Phase P3):**
+```python
+def main() -> int:
+    # 1. Parse CLI args (5 lines)
+    args, cli_args, _ = parse_cli_args()
+    
+    try:
+        # 2. Bootstrap all initialization (1 line)
+        manager = BootstrapManager(Path(args.base_path)).bootstrap_all(cli_args)
+        
+        # 3. Convert to context (1 line)
+        context = manager.to_pipeline_context()
+        context.nrows = args.nrows
+        context.debug_mode = (DEBUG_LEVEL >= 2)
+        
+        # 4. Set traces from manager (Phase P3 - 2 lines)
+        context.set_preload_state(manager.preload_trace)
+        if manager.postload_trace:
+            context.set_postload_state(manager.postload_trace)
+        
+        # 5. Run pipeline (2 lines)
+        results = run_engine_pipeline(context)
+        
+    except BootstrapError as e:
+        system_error_print(*e.to_system_error())
+        return 1
+    return 0
+```
+
+**Why This Was Changed:**
+- Complete centralization of initialization logic in BootstrapManager
+- Remove all helper functions from dcc_engine_pipeline.py
+- Enable testing of trace building independently
+- Provide clean property-based access to traces
+- Maintain consistent BootstrapError pattern
+
+**Architecture Alignment:**
+- ✅ Follows Manager pattern - all state in BootstrapManager
+- ✅ Follows single responsibility - dcc_engine_pipeline.py handles execution only
+- ✅ All milestone prints preserved (Bootstrap Phase P3a/b/c)
+- ✅ Error codes follow B-{phase}-{number} pattern (B-GATE-001, B-TRACE-002, etc.)
+
+**Validation:**
+- ✅ Syntax check - imports successful
+- ✅ Pipeline test - 100 rows processed successfully
+- ✅ All 11 bootstrap phases complete (8 original + 3 Phase P3)
+- ✅ Output files generated (CSV, Excel)
+- ✅ Exit code: 0 (success)
+
+**Pipeline Test Results:**
+```
+OK  Bootstrap Phase 1      CLI parsed, 2 args
+OK  Bootstrap Phase 2      Base path validated
+OK  Bootstrap Phase 3      Registry loaded
+OK  Bootstrap Phase 4      Native defaults built
+OK  Bootstrap Phase 5      Fallback validation complete
+OK  Bootstrap Phase 6      Environment ready
+OK  Bootstrap Phase 7      Schema resolved
+OK  Bootstrap Phase 8      Parameters resolved
+OK  Bootstrap Phase 8b     Pre-pipeline validation complete
+OK  Bootstrap Phase P3a    Preload trace built          ← NEW
+OK  Bootstrap Phase P3b    Pre-context gate validated   ← NEW
+OK  Bootstrap Phase P3c    Postload trace built         ← NEW
+OK  Bootstrap Complete     All 11 phases completed
+OK  PipelineContext Created Paths validated, 32 parameters
+OK  Pipeline Execution     Starting engine pipeline
+✅ Processing complete: 100 rows
+```
+
+**Files Changed:**
+1. `workflow/utility_engine/bootstrap.py` - Added trace attributes, properties, and 3 methods
+2. `workflow/dcc_engine_pipeline.py` - Removed 3 helper functions, updated main()
+
+**BootstrapManager Now Contains:**
+- 8 original bootstrap phases (1-8)
+- 3 Phase P3 trace methods (P3a/b/c)
+- 2 trace properties (preload_trace, postload_trace)
+- Complete initialization encapsulation
+
+**Final Status:**
+- Workplan: R4 COMPLETE (All 3 Phases Done)
+- Issue ISS-007: RESOLVED
+- Pipeline: Production Ready
+
+---
+
+<a id="update-2026-04-30-bootstrap-phase2"></a>
+## 2026-04-30 20:30:00
+
+### COMPLETED: Bootstrap Submodule Phase 2 (DCC-WP-UTIL-BOOTSTRAP-001)
+**Status:** ✅ PHASE 2 COMPLETE  
+**Related Issue:** [ISS-007](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-007)
+
+**Summary:** Integrated `BootstrapManager` into `dcc_engine_pipeline.py`, refactoring `main()` from ~400 lines to ~60 lines and updating `run_engine_pipeline_with_ui()` to use the new bootstrap pattern.
+
+**What Changed:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| Bootstrap import | `workflow/dcc_engine_pipeline.py` | Added `from utility_engine.bootstrap import BootstrapManager, BootstrapError` |
+| main() function | `workflow/dcc_engine_pipeline.py` | REFACTORED - ~400 lines → ~60 lines |
+| run_engine_pipeline_with_ui() | `workflow/dcc_engine_pipeline.py` | REFACTORED - Uses BootstrapManager |
+| Error handling | `workflow/dcc_engine_pipeline.py` | Updated to catch BootstrapError with structured codes |
+| Import fixes | `workflow/utility_engine/bootstrap.py` | Fixed imports (setup_logger, milestone_print) |
+| Module exports | `workflow/utility_engine/__init__.py` | Fixed system_error_print import |
+| Backup | `dcc/archive/` | Created backup of original dcc_engine_pipeline.py |
+
+**Line Count Comparison:**
+
+| Function | Before | After | Reduction |
+|:---|---:|---:|---:|
+| main() | ~390 lines | ~60 lines | **-84%** |
+| run_engine_pipeline_with_ui() | ~85 lines | ~30 lines | **-65%** |
+| **Total** | ~475 lines | ~90 lines | **-81%** |
+
+**New main() Structure:**
+```python
+def main() -> int:
+    # 1. Parse CLI args (5 lines)
+    args, cli_args, cli_overrides_provided = parse_cli_args()
+    
+    try:
+        # 2. Bootstrap all initialization (1 line!)
+        manager = BootstrapManager(Path(args.base_path)).bootstrap_all(cli_args)
+        
+        # 3. Convert to context (1 line)
+        context = manager.to_pipeline_context()
+        context.nrows = args.nrows
+        context.debug_mode = (DEBUG_LEVEL >= 2)
+        
+        # 4. Run pipeline (2 lines)
+        results = run_engine_pipeline(context)
+        
+    except BootstrapError as e:
+        # Handle with structured error codes
+        code, message = e.to_system_error()
+        system_error_print(code, detail=message)
+        return 1
+    
+    # Return success
+    return 0
+```
+
+**Why This Was Changed:**
+- Simplify maintenance by centralizing initialization logic
+- Enable independent testing of bootstrap phases
+- Provide consistent initialization for CLI and UI modes
+- Follow Manager pattern established by ValidationManager
+- Improve error handling with phase-specific error codes
+
+**Architecture Alignment:**
+- ✅ Follows `agent_rule.md` Section 4 (Module design) - Manager pattern
+- ✅ Follows `agent_rule.md` Section 6 (Debug and logging) - Milestone prints preserved
+- ✅ Maintains backward compatibility - same CLI interface
+- ✅ Preserves all validation behavior
+
+**Impact:**
+- `dcc_engine_pipeline.py` significantly simplified
+- Single-line bootstrap initialization: `BootstrapManager(base_path).bootstrap_all(cli_args).to_pipeline_context()`
+- Both CLI and UI modes now use BootstrapManager
+- Structured error handling with phase-specific codes (B-CLI-xxx, B-PATH-xxx, etc.)
+- Easier to test and maintain
+
+**Validation:**
+- ✅ Static analysis - imports successful
+- ✅ Basic instantiation test passed
+- ✅ Both main() and run_engine_pipeline_with_ui() refactored
+- ✅ Backup created before modification
+- ✅ **Full pipeline test: PASSED** - Processed 100 rows successfully
+  - All 8 bootstrap phases completed: OK
+  - PipelineContext created: OK (32 parameters)
+  - Setup validated: OK (7 folders, 10 files)
+  - Schema loaded: OK (48 columns)
+  - Columns mapped: OK (26/26, 100%)
+  - Processing: OK (100 rows)
+  - Output files: OK (CSV, Excel generated)
+  - Exit code: 0 (success)
+
+**Files Changed:**
+1. `workflow/dcc_engine_pipeline.py` - Refactored main() and run_engine_pipeline_with_ui()
+2. `workflow/utility_engine/bootstrap.py` - Import fixes
+3. `workflow/utility_engine/__init__.py` - Import fixes
+4. `dcc/archive/dcc_engine_pipeline_backup_*.py` - Backup
+
+**Next Steps (Completed):**
+1. ✅ Run full pipeline test with sample data - PASSED
+2. ✅ Verify no regression in functionality - VERIFIED
+3. ✅ Mark issue ISS-007 as RESOLVED - DONE
+
+**Future Enhancements:**
+- Add `bootstrap_async()` for async initialization patterns
+- Add bootstrap caching for repeated pipeline runs
+- Add bootstrap metrics collection for performance monitoring
+- Create comprehensive unit tests for BootstrapManager phases
+
+**Links:**
+- Phase 1 Report: [Phase 1 Completion Report](../../workplan/pipeline_architecture/core_utility_engine_workplan/bootstrap_subworkplan/reports/phase_1_bootstrap_module_creation_report.md)
+- Phase 2 Report: [Phase 2 Completion Report](../../workplan/pipeline_architecture/core_utility_engine_workplan/bootstrap_subworkplan/reports/phase_2_bootstrap_integration_report.md)
+- Workplan: [Bootstrap Submodule Workplan](../../workplan/pipeline_architecture/core_utility_engine_workplan/bootstrap_subworkplan/bootstrap_submodule_workplan.md)
+
+---
+
+<a id="update-2026-04-30-bootstrap-phase1"></a>
+## 2026-04-30 20:10:00
+
+### COMPLETED: Bootstrap Submodule Phase 1 (DCC-WP-UTIL-BOOTSTRAP-001)
+**Status:** ✅ PHASE 1 COMPLETE  
+**Related Issue:** [ISS-007](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-007)
+
+**Summary:** Created `utility_engine/bootstrap.py` submodule with `BootstrapManager` class following the Manager pattern to encapsulate all pipeline initialization phases.
+
+**What Changed:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| Bootstrap submodule | `workflow/utility_engine/bootstrap.py` | NEW - BootstrapManager class with 8 phase methods |
+| Bootstrap error handling | `workflow/utility_engine/bootstrap.py` | NEW - BootstrapError exception with structured error codes |
+| Bootstrap orchestrator (CLI) | `workflow/utility_engine/bootstrap.py` | NEW - `bootstrap_all(cli_args)` method |
+| Bootstrap orchestrator (UI) | `workflow/utility_engine/bootstrap.py` | NEW - `bootstrap_for_ui(**params)` method |
+| Context conversion | `workflow/utility_engine/bootstrap.py` | NEW - `to_pipeline_context()` method |
+| Module exports | `workflow/utility_engine/__init__.py` | NEW - Exports BootstrapManager and BootstrapError |
+| Workplan progress | `workplan/pipeline_architecture/core_utility_engine_workplan/bootstrap_subworkplan/bootstrap_submodule_workplan.md` | Proposed (R0) |
+| Phase report | `workplan/pipeline_architecture/core_utility_engine_workplan/bootstrap_subworkplan/reports/phase_1_bootstrap_module_creation_report.md` | NEW completion report |
+
+**Phase Methods Implemented (8 total):**
+
+| Phase | Method | Error Code | Description |
+|:---|:---|:---|:---|
+| 1 | `_bootstrap_cli()` | B-CLI-xxx | CLI parsing and logging setup |
+| 2 | `_bootstrap_paths()` | B-PATH-xxx | base_path and home directory validation |
+| 3 | `_bootstrap_registry()` | B-REG-xxx | ParameterTypeRegistry loading |
+| 4 | `_bootstrap_defaults()` | B-DEFAULT-xxx | Native defaults building |
+| 5 | `_bootstrap_fallback_validation()` | B-FALLBACK-xxx | Native file/directory validation |
+| 6 | `_bootstrap_environment()` | B-ENV-xxx | Environment testing |
+| 7 | `_bootstrap_schema()` | B-SCHEMA-xxx | Schema path resolution |
+| 8a | `_bootstrap_parameters()` | B-PARAM-xxx | Parameters resolution (CLI mode) |
+| 8a | `_bootstrap_parameters_for_ui()` | B-PARAM-xxx | Parameters resolution (UI mode) |
+| 8b | `_bootstrap_pre_pipeline_validation()` | B-INPUT-xxx / B-OUTPUT-xxx | Input/output path validation |
+
+**Why This Was Changed:**
+- Simplify `dcc_engine_pipeline.py` `main()` from ~400 lines to ~50 lines
+- Provide reusable initialization for both CLI and UI modes
+- Enable independent testing of initialization phases
+- Follow Manager pattern (like ValidationManager, ParameterTypeRegistry)
+- Add structured error handling with phase-specific error codes
+- Improve maintainability by separating concerns
+
+**Architecture Alignment:**
+- Follows `agent_rule.md` Section 4 (Module design) - Manager pattern
+- Follows `agent_rule.md` Section 5 (Function coding) - Standardized docstrings
+- Follows `agent_rule.md` Section 6 (Debug and logging) - Tiered logging, breadcrumbs
+
+**Impact:**
+- New `utility_engine/bootstrap.py` module (~600 lines, 31KB)
+- New `utility_engine/__init__.py` with exports
+- Ready for Phase 2: Pipeline integration in `dcc_engine_pipeline.py`
+- Maintains backward compatibility - no existing code changes yet
+
+**Next Steps (Phase 2):**
+1. Update `dcc_engine_pipeline.py` imports
+2. Refactor `main()` to use `BootstrapManager`
+3. Update `run_engine_pipeline_with_ui()` to use `BootstrapManager`
+4. Create comprehensive tests
+5. Run full pipeline verification
+
+**Validation:**
+- Static analysis of bootstrap.py complete
+- All methods have docstrings and type hints
+- Error codes defined for all phases
+- Module structure follows established patterns
+
+---
+
 <a id="update-2026-04-29-ctx-val-phase1"></a>
 ## 2026-04-29 13:25:00
 

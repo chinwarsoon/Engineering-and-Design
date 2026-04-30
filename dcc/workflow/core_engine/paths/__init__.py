@@ -79,12 +79,61 @@ def get_homedir() -> Path:
     return Path.home()
 
 
-def default_base_path() -> Path:
-    """Return default base path for project by finding 'workflow' parent."""
+def default_base_path(pipeline_dir: str = "workflow") -> Path:
+    """
+    Return default base path for project by finding pipeline_dir parent.
+    
+    Raises:
+        FileNotFoundError: If pipeline_dir is not found in parent hierarchy
+    """
     for parent in Path(__file__).parents:
-        if parent.name.lower() == "workflow":
+        if parent.name.lower() == pipeline_dir:
             return parent.parent
-    return Path(__file__).parent
+    
+    raise FileNotFoundError(
+        f"Pipeline directory '{pipeline_dir}' not found in parent hierarchy. "
+        f"Ensure pipeline is executed from within '{pipeline_dir}' folder structure, "
+        f"or specify project root explicitly using --base-path argument."
+    )
+
+
+def resolve_pipeline_base_path() -> Path:
+    """
+    Resolve pipeline start position from CLI args or current working directory.
+    
+    This determines the base_path BEFORE full CLI parsing so that the parser
+    and all path resolutions use the correct execution context.
+    
+    Priority:
+        1. --base-path CLI argument (if provided)
+        2. Current working directory (os.getcwd())
+    
+    Returns:
+        Path: Resolved base path for the pipeline
+        
+    Example:
+        >>> # From CLI: python dcc_engine_pipeline.py --base-path /project
+        >>> base_path = resolve_pipeline_base_path()
+        >>> print(base_path)
+        Path('/project')
+    """
+    import sys
+    
+    # Pre-parse just --base-path from sys.argv
+    base_path_arg = None
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if arg == "--base-path" and i + 1 < len(sys.argv):
+            base_path_arg = sys.argv[i + 1]
+            break
+        elif arg.startswith("--base-path="):
+            base_path_arg = arg.split("=", 1)[1]
+            break
+    
+    if base_path_arg:
+        return Path(base_path_arg).expanduser().resolve()
+    
+    # Default to current working directory (pipeline start position)
+    return Path.cwd()
 
 
 def get_schema_path(base_path: Path) -> Path:
