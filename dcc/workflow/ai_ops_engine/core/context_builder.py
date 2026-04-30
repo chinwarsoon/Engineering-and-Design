@@ -24,26 +24,34 @@ _SAMPLE_ROWS = 200
 def build_ai_context(
     output_dir: Path,
     run_id: Optional[str] = None,
+    effective_parameters: Optional[Dict[str, Any]] = None,
 ) -> AiContext:
     """
-    Build AiContext from pipeline output files.
+    Build AiContext from pipeline output files using schema-driven filenames.
 
-    Reads error_dashboard_data.json, processing_summary.txt, and
-    processed_dcc_universal.csv from output_dir.
+    Reads error_dashboard, processing_summary, and processed data from output_dir.
+    Uses effective_parameters for schema-driven filename configuration.
 
     Args:
         output_dir: Path to dcc/output/ directory
         run_id: Optional run UUID; generated if not provided
+        effective_parameters: Optional dict with schema-driven filename configuration
 
     Returns:
         Populated AiContext ready for provider consumption
     """
+    params = effective_parameters or {}
     ctx = AiContext()
     if run_id:
         ctx.run_id = run_id
 
-    # --- error_dashboard_data.json ---
-    dashboard_path = output_dir / "error_dashboard_data.json"
+    # Get schema-driven filenames with defaults
+    dashboard_filename = params.get("error_dashboard_filename", "error_dashboard_data.json")
+    summary_filename = params.get("summary_filename", "processing_summary.txt")
+    output_pattern = params.get("output_filename_pattern", "processed_dcc_universal")
+
+    # --- error dashboard JSON ---
+    dashboard_path = output_dir / dashboard_filename
     if dashboard_path.exists():
         try:
             with dashboard_path.open(encoding="utf-8") as f:
@@ -63,16 +71,16 @@ def build_ai_context(
     else:
         logger.warning(f"[context_builder] Dashboard JSON not found: {dashboard_path}")
 
-    # --- processing_summary.txt ---
-    summary_path = output_dir / "processing_summary.txt"
+    # --- processing summary ---
+    summary_path = output_dir / summary_filename
     if summary_path.exists():
         try:
             ctx.processing_summary = summary_path.read_text(encoding="utf-8")
         except Exception as exc:
             logger.warning(f"[context_builder] Failed to read summary: {exc}")
 
-    # --- processed_dcc_universal.csv (sample) ---
-    csv_path = output_dir / "processed_dcc_universal.csv"
+    # --- processed data CSV (sample) ---
+    csv_path = output_dir / f"{output_pattern}.csv"
     if csv_path.exists():
         try:
             df = pd.read_csv(csv_path, nrows=_SAMPLE_ROWS, low_memory=False)

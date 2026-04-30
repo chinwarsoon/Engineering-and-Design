@@ -54,11 +54,13 @@ class AiOpsEngine:
         db_path: Optional[Path] = None,
         model: str = "llama3.1:8b",
         use_ollama: bool = True,
+        effective_parameters: Optional[Dict[str, Any]] = None,
     ):
         self.output_dir = Path(output_dir)
         self.db_path = db_path or (self.output_dir / "dcc_runs.duckdb")
         self.model = model
         self.use_ollama = use_ollama
+        self.effective_parameters = effective_parameters or {}
 
         self._risk_analyzer = RiskAnalyzer()
         self._trend_analyzer = TrendAnalyzer()
@@ -83,8 +85,12 @@ class AiOpsEngine:
         emit_pipeline_status("step7_ai_ops", "running", "Building AI context...")
         logger.info("[ai_ops_engine] Starting AI operations run")
 
-        # Step 1: Build context
-        ctx = build_ai_context(self.output_dir, run_id=run_id)
+        # Step 1: Build context with schema-driven filenames
+        ctx = build_ai_context(
+            self.output_dir, 
+            run_id=run_id,
+            effective_parameters=self.effective_parameters,
+        )
         logger.info(f"[ai_ops_engine] Context built: run_id={ctx.run_id}, rows={ctx.total_rows}")
 
         # Step 2: Deterministic analysis
@@ -148,23 +154,33 @@ class AiOpsEngine:
 
     def _write_outputs(self, insight: AiInsight) -> None:
         """
-        Write all AI output files to output_dir.
+        Write all AI output files to output_dir using schema-driven filenames.
+
+        Uses effective_parameters for:
+        - ai_insight_summary_filename (default: ai_insight_summary.json)
+        - ai_insight_report_filename (default: ai_insight_report.md)
+        - ai_insight_trace_filename (default: ai_insight_trace.json)
 
         Args:
             insight: Populated AiInsight
         """
+        # Get schema-driven filenames with defaults
+        summary_filename = self.effective_parameters.get("ai_insight_summary_filename", "ai_insight_summary.json")
+        report_filename = self.effective_parameters.get("ai_insight_report_filename", "ai_insight_report.md")
+        trace_filename = self.effective_parameters.get("ai_insight_trace_filename", "ai_insight_trace.json")
+
         # JSON summary
-        json_path = self.output_dir / "ai_insight_summary.json"
+        json_path = self.output_dir / summary_filename
         self._summary_generator.generate_json_summary(insight, json_path)
         emit_pipeline_artifact("ai_insight", str(json_path))
 
         # Markdown report
-        md_path = self.output_dir / "ai_insight_report.md"
+        md_path = self.output_dir / report_filename
         self._summary_generator.generate_markdown_report(insight, md_path)
         emit_pipeline_artifact("ai_report", str(md_path))
 
         # Trace
-        trace_path = self.output_dir / "ai_insight_trace.json"
+        trace_path = self.output_dir / trace_filename
         self._summary_generator.generate_trace(insight, trace_path)
         emit_pipeline_artifact("ai_trace", str(trace_path))
 
@@ -204,21 +220,27 @@ class AiOpsEngine:
 def run_ai_ops(
     context: PipelineContext,
     model: str = "llama3.1:8b",
+    effective_parameters: Optional[Dict[str, Any]] = None,
 ) -> Optional[AiInsight]:
     """
-    Top-level entry point for AI operations — called from dcc_engine_pipeline.py.
+    Convenience entry point for running AI ops from the pipeline.
 
-    Non-blocking: catches all exceptions so pipeline always completes.
+    Creates engine, runs analysis, and returns insight.
 
     Args:
-        context: Pipeline context
-        model: Ollama model name
+        context: PipelineContext with paths and state
+        model: Ollama model to use
+        effective_parameters: Optional dict with schema-driven filename configuration
 
     Returns:
         AiInsight or None if AI ops failed
     """
     try:
-        engine = AiOpsEngine(output_dir=context.paths.csv_output_path.parent, model=model)
+        engine = AiOpsEngine(
+            output_dir=context.paths.csv_output_path.parent, 
+            model=model,
+            effective_parameters=effective_parameters,
+        )
         pipeline_results = {
             "excel_path": str(context.paths.excel_path),
             "csv_output_path": str(context.paths.csv_output_path),

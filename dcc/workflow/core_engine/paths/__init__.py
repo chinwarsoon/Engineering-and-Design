@@ -160,7 +160,25 @@ def resolve_output_paths(
     safe_resolve_fn: Any = None,
     status_print_fn: Any = print,
 ) -> Dict[str, Path]:
-    """Resolve output file paths for processed data."""
+    """
+    Resolve output file paths for processed data using schema-driven filenames.
+    
+    Breadcrumb: effective_parameters -> schema-driven filename resolution
+    
+    Uses global_parameters.json for:
+    - output_file: Explicit output filename (if provided)
+    - output_filename_pattern: Default filename stem (default: processed_dcc_universal)
+    - summary_filename: Summary file name (default: processing_summary.txt)
+    
+    Args:
+        base_path: Project base path
+        effective_parameters: Resolved parameters (should include schema values)
+        safe_resolve_fn: Optional path resolution function
+        status_print_fn: Status printing function
+        
+    Returns:
+        Dictionary with resolved output paths (output_dir, csv_path, excel_path, summary_path)
+    """
     explicit_output = effective_parameters.get("output_file")
     if explicit_output:
         base_output = Path(explicit_output)
@@ -171,21 +189,26 @@ def resolve_output_paths(
         output_dir = Path(output_dir_str)
         if safe_resolve_fn:
             output_dir = safe_resolve_fn(output_dir)
-        base_output = output_dir / "processed_dcc_universal.csv"
+        # Use schema-driven filename pattern (not hardcoded)
+        filename_pattern = effective_parameters.get("output_filename_pattern", "processed_dcc_universal")
+        base_output = output_dir / f"{filename_pattern}.csv"
     
     output_dir = base_output.parent
-    stem = base_output.stem or "processed_dcc_universal"
+    stem = base_output.stem or effective_parameters.get("output_filename_pattern", "processed_dcc_universal")
+
+    # Use schema-driven summary filename (not hardcoded)
+    summary_filename = effective_parameters.get("summary_filename", "processing_summary.txt")
 
     status_print_fn(f"Output directory: {output_dir}", min_level=3)
     status_print_fn(f"CSV path: {output_dir / f'{stem}.csv'}", min_level=3)
     status_print_fn(f"Excel path: {output_dir / f'{stem}.xlsx'}", min_level=3)
-    status_print_fn(f"Summary path: {output_dir / 'processing_summary.txt'}", min_level=3)
+    status_print_fn(f"Summary path: {output_dir / summary_filename}", min_level=3)
     
     return {
         "output_dir": output_dir,
         "csv_path": output_dir / f"{stem}.csv",
         "excel_path": output_dir / f"{stem}.xlsx",
-        "summary_path": output_dir / "processing_summary.txt",
+        "summary_path": output_dir / summary_filename,
     }
 
 

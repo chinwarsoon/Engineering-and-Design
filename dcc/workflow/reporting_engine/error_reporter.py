@@ -17,12 +17,23 @@ class ErrorReporter:
     Generates detailed error reports based on aggregated detection results.
     """
     
-    def __init__(self, aggregator: ErrorAggregator, output_dir: Optional[Path] = None):
+    def __init__(
+        self, 
+        aggregator: ErrorAggregator, 
+        output_dir: Optional[Path] = None,
+        effective_parameters: Optional[Dict[str, Any]] = None,
+    ):
         """
         Initialize with an aggregator instance.
+        
+        Args:
+            aggregator: ErrorAggregator instance
+            output_dir: Output directory path
+            effective_parameters: Optional dict with schema-driven filename configuration
         """
         self.aggregator = aggregator
         self.output_dir = output_dir or Path("output")
+        self.effective_parameters = effective_parameters or {}
         
     def generate_summary_stats(self, total_rows: int) -> Dict[str, Any]:
         """
@@ -114,10 +125,29 @@ class ErrorReporter:
         
         return output_path
 
-    def export_dashboard_json(self, total_rows: int, filename: str = "error_dashboard_data.json") -> Path:
+    def export_dashboard_json(
+        self, 
+        total_rows: int, 
+        filename: Optional[str] = None,
+    ) -> Path:
         """
         Exports a rich JSON object containing all telemetry for the UI dashboard.
+        
+        Uses schema-driven filename from effective_parameters if available.
+        
+        Args:
+            total_rows: Total number of rows processed
+            filename: Optional override filename (uses schema default if not provided)
+            
+        Returns:
+            Path to exported JSON file
         """
+        # Use schema-driven filename with fallback to default
+        if filename is None:
+            filename = self.effective_parameters.get(
+                "error_dashboard_filename", 
+                "error_dashboard_data.json"
+            )
         stats = self.generate_summary_stats(total_rows)
         unique_errors = self.aggregator.deduplicate_errors()
         phase_breakdown = self.generate_phase_breakdown().to_dict(orient="records")

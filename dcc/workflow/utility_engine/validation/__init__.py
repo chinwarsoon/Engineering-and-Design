@@ -3,12 +3,28 @@ Universal Validation Utilities - Class-Based Design Approach
 
 Provides a ValidationManager class that encapsulates all validation functionality
 for files, folders, and parameters that can be used across all pipeline components.
+
+Phase 2 Enhancement: Type-driven parameter validation with ParameterTypeRegistry
+and ParameterValidator for schema-based, type-driven validation.
 """
 
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Union
 from dataclasses import dataclass
 from enum import Enum
+
+# Phase 2: Type-driven parameter validation imports
+from utility_engine.validation.parameter_type_registry import (
+    ParameterType,
+    ParameterTypeRegistry,
+    get_parameter_registry,
+    load_default_registry,
+    get_default_registry,
+)
+from utility_engine.validation.parameter_validator import (
+    ParameterValidationResult,
+    ParameterValidator,
+)
 
 
 class ValidationStatus(Enum):

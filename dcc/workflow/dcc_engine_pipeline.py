@@ -75,6 +75,7 @@ from utility_engine.cli import (
     parse_cli_args,
     build_native_defaults,
     resolve_effective_parameters,
+    get_registry_for_cli,
 )
 from utility_engine.errors import system_error_print
 from core_engine.error_handling import handle_system_error, validate_setup_ready, validate_schema_ready, generate_error_report
@@ -189,6 +190,9 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
         "excel_path": context.paths.excel_output_path,
         "summary_path": context.paths.summary_path,
     }
+    
+    # Get effective_parameters from context for schema-driven filenames
+    effective_parameters = getattr(context, 'parameters', {}) or {}
 
     # Step 1: Initiation Engine - Project Setup Validation
     # this step will check if all required files and folders are present.
@@ -382,6 +386,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             context.state.error_summary = processor.get_error_summary()
             schema_results["error_summary"] = context.state.error_summary
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
+            processor.error_reporter.effective_parameters = effective_parameters  # Schema-driven filenames
             dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
             status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
             context.state.engine_status["processor_engine"] = "completed"
@@ -399,6 +404,7 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             context.state.error_summary = processor.get_error_summary()
             schema_results["error_summary"] = context.state.error_summary
             processor.error_reporter.output_dir = export_paths["csv_path"].parent
+            processor.error_reporter.effective_parameters = effective_parameters  # Schema-driven filenames
             processor.error_reporter.export_dashboard_json(len(df_mapped))
             schema_reference_count = len(resolved_schema.get("schema_references", {}))
             write_processing_summary(
@@ -483,7 +489,9 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
             health_kpi = error_summary.get("health_kpi", {})
             affected = error_summary.get("affected_rows", 0)
             status_print(f"⚠ Validation: {total_errors} errors ({health_kpi.get('critical_errors',0)} critical, {health_kpi.get('high_errors',0)} high, {health_kpi.get('medium_errors',0)} medium) — {affected} rows affected")
-            status_print(f"  Details: {export_paths['csv_path'].parent.name}/error_diagnostic_log.csv")
+            # Use schema-driven dashboard filename for error details reference
+            dashboard_filename = effective_parameters.get("error_dashboard_filename", "error_dashboard_data.json")
+            status_print(f"  Details: {export_paths['csv_path'].parent.name}/{dashboard_filename}")
             status_print(f"  Run with --verbose debug for full error list")
         else:
             status_print(f"✓ Validation: No errors detected")
@@ -494,10 +502,13 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
         status_print("Running AI operations analysis...")
         ai_insight = run_ai_ops(
             context=context,
+            effective_parameters=effective_parameters,  # Pass schema-driven filenames
         )
         if ai_insight:
             status_print(f"✓ AI analysis complete — Risk: {ai_insight.risk_level}, Provider: {ai_insight.provider}")
-            status_print(f"AI Insight: {export_paths['csv_path'].parent / 'ai_insight_summary.json'}")
+            # Use schema-driven filename for status message
+            ai_summary_filename = effective_parameters.get("ai_insight_summary_filename", "ai_insight_summary.json")
+            status_print(f"AI Insight: {export_paths['csv_path'].parent / ai_summary_filename}")
         else:
             status_print("⚠ AI analysis skipped or failed (non-blocking)")
         context.telemetry.execution_times["ai_ops_engine"] = time.time() - start_time
@@ -646,8 +657,11 @@ def main() -> int:
         # milestone print for home directory resolved
         milestone_print("Home Directory", f"Resolved: {home_dir_validation.path}")
     
-    # 5. Build parameters using the central base_path
-    native_defaults = build_native_defaults(base_path)
+    # 5. Initialize parameter registry for schema-driven key lookups
+    registry = get_registry_for_cli(base_path)
+    
+    # 5.1. Build parameters using the central base_path (with schema-driven keys)
+    native_defaults = build_native_defaults(base_path, registry=registry)
     # milestone print for native defaults built, and count of native defaults
     milestone_print("Native Defaults", f"Built from base_path ({len(native_defaults)} defaults)")
     
@@ -659,36 +673,38 @@ def main() -> int:
     native_files_to_validate = []
     native_dirs_to_validate = []
     
-    # Conditionally validate native default input file (only if not provided by CLI or schema)
-    cli_upload_file = cli_args.get("upload_file_name")
-    schema_upload_file = effective_parameters.get("upload_file_name") if "effective_parameters" in locals() else None
-    native_upload_file = native_defaults.get("upload_file_name")
+    # Conditionally validate native default input file (only if not provided by CLI)
+    # Use schema-driven parameter keys from registry (not hardcoded strings)
+    upload_file_key = registry.get_canonical_key("upload_file_name") if registry else "upload_file_name"
+    cli_upload_file = cli_args.get(upload_file_key)
+    native_upload_file = native_defaults.get(upload_file_key)
     
-    if not cli_upload_file and (not schema_upload_file or schema_upload_file == native_upload_file):
-        if native_upload_file:
-            native_files_to_validate.append((
-                Path(native_upload_file),
-                "Native Default Input File",
-                False,  # Native defaults are fallbacks, not required
-                False   # create_parent parameter (not used for files)
-            ))
+    if not cli_upload_file and native_upload_file:
+        native_files_to_validate.append((
+            Path(native_upload_file),
+            "Native Default Input File",
+            False,  # Native defaults are fallbacks, not required
+            False   # create_parent parameter (not used for files)
+        ))
     
-    # Conditionally validate native default output directory (only if not provided by CLI or schema)
-    cli_output_path = cli_args.get("download_file_path")
-    schema_output_path = effective_parameters.get("download_file_path") if "effective_parameters" in locals() else None
-    native_output_path = native_defaults.get("download_file_path")
+    # Conditionally validate native default output directory (only if not provided by CLI)
+    # Use schema-driven parameter keys from registry (not hardcoded strings)
+    download_path_key = registry.get_canonical_key("download_file_path") if registry else "download_file_path"
+    cli_output_path = cli_args.get(download_path_key)
+    native_output_path = native_defaults.get(download_path_key)
     
-    if not cli_output_path and (not schema_output_path or schema_output_path == native_output_path):
-        if native_output_path:
-            native_dirs_to_validate.append((
-                Path(native_output_path),
-                "Native Default Output Directory",
-                False,  # Native defaults are fallbacks, not required
-                False   # create_if_missing parameter (False for native defaults)
-            ))
+    if not cli_output_path and native_output_path:
+        native_dirs_to_validate.append((
+            Path(native_output_path),
+            "Native Default Output Directory",
+            False,  # Native defaults are fallbacks, not required
+            False   # create_if_missing parameter (False for native defaults)
+        ))
     
     # Always validate common directories (data, config) as they're infrastructure directories
-    data_dir = base_path / "data"
+    # Use schema-driven directory parameter keys from registry (not hardcoded strings)
+    data_dir_key = registry.get_canonical_key("data_dir") if registry else "data_dir"
+    data_dir = base_path / native_defaults.get(data_dir_key, "data")
     native_dirs_to_validate.append((
         data_dir,
         "Native Default Data Directory",
@@ -696,7 +712,8 @@ def main() -> int:
         False   # create_if_missing parameter (False for native defaults)
     ))
     
-    config_dir = base_path / "config"
+    config_dir_key = registry.get_canonical_key("config_dir") if registry else "config_dir"
+    config_dir = base_path / native_defaults.get(config_dir_key, "config")
     native_dirs_to_validate.append((
         config_dir,
         "Native Default Config Directory",
@@ -766,12 +783,13 @@ def main() -> int:
     schema_path = schema_path_validation.path
     milestone_print("Schema resolved", f"Using: {schema_path}")
 
-    # 8. Resolve effective parameters
+    # 8. Resolve effective parameters (with schema-driven keys)
     effective_parameters = resolve_effective_parameters(
         schema_path, 
         cli_args, 
         native_defaults,
-        load_schema_params_fn=load_schema_parameters
+        load_schema_params_fn=load_schema_parameters,
+        registry=registry
     )
     effective_parameters = resolve_platform_paths(effective_parameters, base_path, status_print)
     
@@ -811,7 +829,13 @@ def main() -> int:
     input_file_path = input_file_validation.path
     
     # Load project_config for folder creation configuration
-    project_config_path = base_path / "config" / "schemas" / "project_config.json"
+    # Use schema-driven directory parameters instead of hardcoded paths
+    project_config_path = (
+        base_path 
+        / effective_parameters.get("config_dir", "config") 
+        / effective_parameters.get("schema_dir", "schemas") 
+        / "project_config.json"
+    )
     project_config = {}
     if project_config_path.exists():
         try:
@@ -870,8 +894,9 @@ def main() -> int:
                    f"Failed: {summary['failed']}, "
                    f"Warnings: {summary['warnings']}")
     
-    # Set debug log path for context
-    debug_log_path = export_paths["csv_path"].parent / "debug_log.json"
+    # Set debug log path for context (schema-driven filename)
+    debug_log_filename = effective_parameters.get("debug_log_filename", "debug_log.json")
+    debug_log_path = export_paths["csv_path"].parent / debug_log_filename
 
     # 14. Build preload context trace and enforce pre-context validation gate
     preload_context_data = _build_preload_context_data(

@@ -10,11 +10,11 @@ from typing import Dict, List, Any, Optional, Protocol
 import pandas as pd
 
 
-class IErrorReporter(ABC):
+class ErrorReporterInterface(ABC):
     """Interface for error reporting implementations."""
     
     @abstractmethod
-    def export_dashboard_json(self, total_rows: int) -> str:
+    def export_dashboard_json(self, total_rows: int, filename: Optional[str] = None) -> str:
         """Export error summary as JSON dashboard."""
         pass
     
@@ -22,6 +22,10 @@ class IErrorReporter(ABC):
     def set_output_dir(self, output_dir: Any) -> None:
         """Set the output directory for reports."""
         pass
+
+
+# Alias for backward compatibility with existing code
+IErrorReporter = ErrorReporterInterface
 
 
 class IErrorAggregator(ABC):
