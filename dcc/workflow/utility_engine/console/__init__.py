@@ -46,6 +46,8 @@ def print_framework_banner(
     output_dir: str = None,
     version: str = "3.0",
     cli_overrides: Dict[str, Any] = None,
+    bootstrap_status: str = "complete",
+    bootstrap_phases: int = 8,
 ) -> None:
     """Print default framework banner."""
     mode = {0: "quiet", 1: "normal", 2: "debug", 3: "trace"}.get(DEBUG_LEVEL, "normal")
@@ -58,7 +60,8 @@ def print_framework_banner(
   base_path: {base_path if base_path else 'N/A'}
   Input: {input_name}
   Output: {output_name}
-  DEBUG {'ENABLED' if DEBUG_LEVEL >= 2 else 'DISABLED':<49}
+  Bootstrap: {bootstrap_phases} phases {bootstrap_status.upper()}
+  DEBUG {'ENABLED' if DEBUG_LEVEL >= 2 else 'DISABLED':<37}
   CLI Overrides: {json.dumps(cli_overrides) if cli_overrides else 'None'}  """
     
     content_width = max(len(line) for line in banner_content.splitlines())

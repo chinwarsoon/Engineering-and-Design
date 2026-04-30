@@ -69,6 +69,13 @@ Simplify `dcc_engine_pipeline.py` by extracting all initialization logic into a 
 | S16 | Create comprehensive tests for bootstrap submodule | Testing | Proposed | P2 |
 | S17 | Add S-B-S-06xx error codes per taxonomy standard | Error Handling | ✅ Complete | P3 |
 | S18 | Move trace building functions to BootstrapManager | Refactoring | ✅ Complete | P3 |
+| S19 | Create BootstrapPhaseStatus dataclass | Phase Tracking | ✅ Complete | P4 |
+| S20 | Add phase tracking attributes to BootstrapManager | Phase Tracking | ✅ Complete | P4 |
+| S21 | Implement phase recording methods (_record_phase_*) | Phase Tracking | ✅ Complete | P4 |
+| S22 | Instrument all 8 phase methods with tracking | Phase Tracking | ✅ Complete | P4 |
+| S23 | Update _build_preload_trace() to include phase data | Phase Tracking | ✅ Complete | P4 |
+| S24 | Add bootstrap_summary property to BootstrapManager | Phase Tracking | ✅ Complete | P4 |
+| S25 | Update dcc_engine_pipeline.py banner with dynamic summary | Phase Tracking | ✅ Complete | P4 |
 
 ## Index
 - [Title and Description](#title-and-description)
@@ -88,6 +95,7 @@ Simplify `dcc_engine_pipeline.py` by extracting all initialization logic into a 
   - [Phase P1 - Bootstrap Module Creation](#phase-p1---bootstrap-module-creation) ✅ COMPLETE
   - [Phase P2 - Pipeline Integration and Testing](#phase-p2---pipeline-integration-and-testing) ✅ COMPLETE
   - [Phase P3 - Context Trace Integration](#phase-p3---context-trace-integration) ✅ COMPLETE
+  - [Phase P4 - Bootstrap Phase Tracking](#phase-p4---bootstrap-phase-tracking) ✅ COMPLETE
 - [Error Handling](#error-handling)
   - [Error Code Standards](#error-code-standards)
 - [Files to Create/Modify](#files-to-createmodify)
@@ -504,6 +512,275 @@ code, message = error.to_system_error()
 | Error code compliance | S-B-S-06xx format per taxonomy | ✅ **ACHIEVED** |
 
 **Phase P3 Result: 6/6 Criteria PASS (100%) - COMPLETE**
+
+**Phase P3b - Milestone Print Refinement (Additional)**
+
+**Goal:** Reduce visual noise in normal mode by moving phase milestone prints to debug-only output.
+
+**Background:** After Phase P3 implementation, the console showed 8+ "OK Bootstrap Phase X" milestone lines before the banner, creating visual clutter. Users only need to see:
+1. Final bootstrap completion status
+2. Summary in the framework banner
+
+**Changes Made:**
+
+| Component | Change |
+|:---|:---|
+| Phase 1-8 milestone prints | Changed from `milestone_print()` to `debug_print()` |
+| P3a/P3b/P3c milestone prints | Changed from `milestone_print()` to `debug_print()` |
+| "Bootstrap Complete" milestone | **Retained** - shows final completion |
+| Banner | Added `bootstrap_status` and `bootstrap_phases` parameters |
+
+**Output Comparison:**
+
+**Before (Normal Mode):**
+```
+OK  Bootstrap Phase 1      CLI parsed, 1 args
+OK  Bootstrap Phase 2      Base path validated: /path
+OK  Bootstrap Phase 3      Registry loaded: 42 parameters
+OK  Bootstrap Phase 4      Native defaults: 15 parameters
+OK  Bootstrap Phase 5      Fallback validation: 1 files, 3 dirs
+OK  Bootstrap Phase 6      Environment ready
+OK  Bootstrap Phase 7      Schema: dcc_register_config.json
+OK  Bootstrap Phase 8      Parameters: 32 total
+OK  Bootstrap Phase 8b     Pre-pipeline validation complete
+OK  Bootstrap Phase P3a    Preload trace built
+OK  Bootstrap Phase P3b    Pre-context gate validated
+OK  Bootstrap Complete     All 8 phases completed successfully
+=================================================================
+    DCC Pipeline v3.0
+    ...
+=================================================================
+```
+
+**After (Normal Mode):**
+```
+OK  Bootstrap Complete     All 8 phases completed successfully
+=================================================================
+    DCC Pipeline v3.0
+    ...
+    Bootstrap: 8 phases COMPLETE
+    ...
+=================================================================
+```
+
+**After (Debug Mode):**
+```
+[DEBUG] Bootstrap Phase 1: CLI parsed, 1 args
+[DEBUG] Bootstrap Phase 2: Base path validated: /path
+...
+[DEBUG] Bootstrap Phase P3b: Pre-context gate validated
+  OK  Bootstrap Complete     All 8 phases completed successfully
+[DEBUG] Bootstrap Phase P3c: Postload trace built
+=================================================================
+    ...
+=================================================================
+```
+
+**Files Modified:**
+| File | Changes |
+|:---|:---|
+| `workflow/utility_engine/bootstrap.py` | Changed phase prints to `debug_print()`, added `debug_print` import |
+| `workflow/utility_engine/console/__init__.py` | Added `bootstrap_status` and `bootstrap_phases` parameters to `print_framework_banner()` |
+| `workflow/dcc_engine_pipeline.py` | Updated `print_framework_banner()` call with bootstrap completion info |
+
+### Phase P4 - Bootstrap Phase Tracking (PROPOSED)
+
+**Goal:** Enhance `BootstrapManager` to track phase progress and timing within the preload trace, enabling better debugging and audit trail capabilities.
+
+**Background:** Currently, the `_preload_trace` captures the end-state of bootstrap variables but does not track the progression through phases (P1-P8). Adding phase tracking allows:
+- Exact identification of which phase failed without console output
+- Performance timing per phase for optimization
+- Better error reporting with phase context
+- Audit trail for debugging initialization issues
+
+**Approach:** Option A - Add phase tracking to existing `_preload_trace`
+
+**New BootstrapManager Attributes:**
+
+| Attribute | Type | Purpose |
+|-----------|------|---------|
+| `_phase_status` | `Dict[str, BootstrapPhaseStatus]` | Tracks status of each bootstrap phase |
+| `_phase_timings` | `Dict[str, float]` | Records execution time per phase |
+
+**New Data Class:**
+
+```python
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
+
+@dataclass
+class BootstrapPhaseStatus:
+    """Status tracking for a single bootstrap phase."""
+    phase_id: str           # e.g., "P1_cli", "P2_paths"
+    phase_name: str         # e.g., "CLI Parsing", "Path Validation"
+    status: str             # "pending", "running", "complete", "failed"
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    duration_ms: Optional[float] = None
+    error_code: Optional[str] = None  # If failed, error code
+```
+
+**New BootstrapManager Methods:**
+
+| Method | Purpose |
+|--------|---------|
+| `_record_phase_start(phase_id, phase_name)` | Marks phase as running with timestamp |
+| `_record_phase_complete(phase_id)` | Marks phase complete, calculates duration |
+| `_record_phase_failure(phase_id, error_code)` | Marks phase failed with error |
+| `get_phase_summary()` | Returns formatted summary of all phases |
+| `get_bootstrap_summary()` | Returns tuple of (status, completed_count, total_count) for banner |
+
+**New BootstrapManager Property:**
+
+| Property | Returns | Description |
+|----------|---------|-------------|
+| `bootstrap_summary` | `Dict[str, Any]` | Dynamic summary with status, phase count, completion info |
+
+**Dynamic Banner Integration:**
+
+```python
+# In dcc_engine_pipeline.py main():
+summary = manager.bootstrap_summary
+print_framework_banner(
+    base_path=manager.base_path,
+    input_file=manager.effective_parameters.get("upload_file_name"),
+    output_dir=manager.effective_parameters.get("download_file_path"),
+    cli_overrides=cli_args if cli_overrides_provided else None,
+    bootstrap_status=summary["status"],      # e.g., "complete", "failed", "partial"
+    bootstrap_phases=summary["completed_count"],  # e.g., 8
+    bootstrap_total=summary["total_count"]   # e.g., 8
+)
+```
+
+**Summary Structure:**
+```python
+{
+    "status": "complete",           # "complete", "failed", "partial", "in_progress"
+    "completed_count": 8,           # Number of phases successfully completed
+    "total_count": 8,               # Total number of phases (8 standard)
+    "failed_phase": None,           # If failed, which phase (e.g., "P3_registry")
+    "error_code": None,             # If failed, error code (e.g., "S-B-S-0603")
+    "total_duration_ms": 145.5      # Total bootstrap duration
+}
+```
+
+**Modified Trace Structure:**
+
+```python
+_preload_trace = {
+    "phases": {
+        "P1_cli": {
+            "status": "complete",
+            "start_time": "2026-05-01T02:20:00.123Z",
+            "end_time": "2026-05-01T02:20:00.145Z",
+            "duration_ms": 22.0,
+            "error_code": None
+        },
+        "P2_paths": { ... },
+        "P3_registry": { ... },
+        # ... all 8 phases
+    },
+    "base_path": ContextTraceItem(...),
+    "registry": ContextTraceItem(...),
+    # ... existing trace items
+}
+```
+
+**Tasks:**
+
+1. **Create BootstrapPhaseStatus dataclass** (15 min)
+   - Add dataclass definition to `utility_engine/bootstrap.py`
+   - Include all tracking fields (status, timestamps, duration, error_code)
+
+2. **Add phase tracking attributes** (15 min)
+   - Add `_phase_status: Dict[str, BootstrapPhaseStatus]` to `__init__`
+   - Add `_phase_timings: Dict[str, float]` for quick duration lookup
+   - Initialize all 8 phases with "pending" status
+
+3. **Implement phase recording methods** (30 min)
+   - `_record_phase_start()` - Sets status "running", records start_time
+   - `_record_phase_complete()` - Sets status "complete", calculates duration
+   - `_record_phase_failure()` - Sets status "failed", records error_code
+
+4. **Instrument all phase methods** (45 min)
+   - Add `_record_phase_start()` call at beginning of each `_bootstrap_*` method
+   - Add `_record_phase_complete()` call at end of each successful phase
+   - Update error handlers to call `_record_phase_failure()` on exception
+   - Phases to instrument: P1_cli, P2_paths, P3_registry, P4_defaults, P5_fallback, P6_env, P7_schema, P8_params
+
+5. **Update `_build_preload_trace()`** (20 min)
+   - Include phase tracking data in trace output
+   - Add "phases" key with full status dictionary
+   - Ensure serializable format (ISO timestamps)
+
+6. **Add phase summary property** (15 min)
+   - Add `phase_summary` property for quick status overview
+   - Returns formatted string or dict for logging/reporting
+
+7. **Update `dcc_engine_pipeline.py` banner call** (10 min)
+   - Change from hardcoded `bootstrap_status="complete"` to `manager.bootstrap_summary["status"]`
+   - Change from hardcoded `bootstrap_phases=8` to `manager.bootstrap_summary["completed_count"]`
+   - Test banner displays correct dynamic values
+
+8. **Run pipeline test** (15 min)
+   - Execute pipeline with sample data
+   - Verify all 8 phases are tracked in preload_trace
+   - Verify timing data is populated
+   - Verify banner shows correct dynamic summary
+   - Verify no regression in functionality
+
+**Deliverables:**
+- `BootstrapPhaseStatus` dataclass for phase tracking
+- Updated `BootstrapManager` with phase recording methods
+- `bootstrap_summary` property for dynamic status summary
+- Instrumented all 8 phase methods with start/complete/failure tracking
+- Enhanced `_preload_trace` with phase progress data
+- Updated `dcc_engine_pipeline.py` to use dynamic summary in banner
+- Successful pipeline execution with phase tracking verified
+
+**Files to Create/Modify:**
+| File | Action | Purpose |
+|------|--------|---------|
+| `utility_engine/bootstrap.py` | Modify | Add BootstrapPhaseStatus, phase tracking, and `bootstrap_summary` property |
+| `dcc_engine_pipeline.py` | Modify | Update banner call to use `manager.bootstrap_summary` |
+
+**Success Criteria for Phase P4:**
+| Criterion | Target | Status |
+|-----------|--------|--------|
+| Phase tracking | All 9 phases tracked (8 main + P3_trace) | ✅ **ACHIEVED** |
+| Timing data | Duration recorded for each phase | ✅ **ACHIEVED** |
+| Error context | Failed phase identified with error code | ✅ **ACHIEVED** |
+| Trace integration | Phase data in `_preload_trace["phases"]` | ✅ **ACHIEVED** |
+| Dynamic summary | `bootstrap_summary` property returns live status | ✅ **ACHIEVED** |
+| Banner integration | Banner uses dynamic summary (not hardcoded) | ✅ **ACHIEVED** |
+| Pipeline test | Passes with no regression | ✅ **ACHIEVED** |
+
+**Phase P4 Result: 7/7 Criteria PASS (100%) - COMPLETE**
+
+**Implementation Status:**
+The banner now uses dynamic values from `manager.bootstrap_summary`:
+```python
+# In dcc_engine_pipeline.py main():
+summary = manager.bootstrap_summary
+print_framework_banner(
+    ...
+    bootstrap_status=summary["status"],           # Dynamic: "complete", "failed", "partial"
+    bootstrap_phases=summary["completed_count"]   # Dynamic: actual count (9 for all phases)
+)
+```
+
+**Example Output:**
+```
+=================================================================
+    DCC Pipeline v3.0
+    ...
+    Bootstrap: 9 phases COMPLETE
+    ...
+=================================================================
+```
+
+---
 
 ## Files to Create/Modify
 

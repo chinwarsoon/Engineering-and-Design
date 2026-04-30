@@ -19,6 +19,70 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-iss-010"></a>
+## 2026-05-01 03:30:00
+
+### Issue ISS-010 — Bootstrap Phase Milestone Prints Create Visual Clutter
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-01
+- **Resolution Summary:** Changed individual bootstrap phase milestone prints to debug-only output. Retained only "Bootstrap Complete" milestone print. Added bootstrap completion info to framework banner showing "Bootstrap: 8 phases COMPLETE". This reduces console output from 12+ lines to 1 milestone line + banner summary.
+- **Files Changed:**
+  - `workflow/utility_engine/bootstrap.py` (MODIFIED - Changed phase prints to `debug_print()`)
+  - `workflow/utility_engine/console/__init__.py` (MODIFIED - Added `bootstrap_status` and `bootstrap_phases` parameters to `print_framework_banner()`)
+  - `workflow/dcc_engine_pipeline.py` (MODIFIED - Updated banner call with bootstrap info)
+- **Verification:**
+  - Normal mode output: ✅ Shows only "Bootstrap Complete" + banner
+  - Debug mode output: ✅ Shows all phase debug prints
+  - Banner displays: ✅ "Bootstrap: 8 phases COMPLETE"
+  - Pipeline test: ✅ Passes with no regression
+- **Context:** After Phase P3 implementation, the console displayed 8+ individual "OK Bootstrap Phase X" milestone lines before the framework banner, creating visual clutter and making it harder to identify important information.
+- **Root Cause:** Each bootstrap phase method called `milestone_print()` which is always visible in normal mode, resulting in excessive output.
+- **Impact:**
+  - Visual clutter - 12+ lines of milestone output
+  - Important info (final completion) buried in phase details
+  - Poor user experience - too much noise
+- **Proposed Solution:**
+  - Change phase milestone prints to `debug_print()` (debug-only visibility)
+  - Retain only "Bootstrap Complete" milestone for final confirmation
+  - Add bootstrap status to banner for consolidated summary
+- **Related Issues:**
+  - Related to ISS-007 (BootstrapManager initialization)
+- **Link to Update Log:** [Update 2026-05-01-milestone-refinement](/home/franklin/dsai/Engineering-and-Design/dcc/log/update_log.md#update-2026-05-01-milestone-refinement)
+
+---
+
+<a id="issue-iss-009"></a>
+## 2026-05-01 02:20:00
+
+### Issue ISS-009 — setup_logger() Called Inside BootstrapManager Instead of Main Pipeline
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-01
+- **Resolution Summary:** Moved `setup_logger()` from `BootstrapManager._bootstrap_cli()` to `main()` in `dcc_engine_pipeline.py`. This ensures logging is initialized before any bootstrap operations, capturing all errors including CLI parsing and path resolution failures. Also makes the control flow more visible and easier to debug.
+- **Files Changed:**
+  - `workflow/dcc_engine_pipeline.py` (MODIFIED - Added `setup_logger()` call in `main()`)
+  - `workflow/utility_engine/bootstrap.py` (MODIFIED - Removed `setup_logger()` from `_bootstrap_cli()`)
+- **Verification:**
+  - Pipeline test with 5 rows: ✅ PASS (exit code 0)
+  - All bootstrap phases complete: ✅ VERIFIED
+  - Logging functional: ✅ Milestone prints working
+- **Context:** The `setup_logger()` was being called inside `BootstrapManager._bootstrap_cli()`, which meant any errors occurring before or during CLI parsing (in `parse_cli_args()`) would not be logged. This made debugging early-stage failures difficult.
+- **Root Cause:** Logger initialization was buried inside a BootstrapManager method, making it an implicit side effect rather than an explicit initialization step in the main pipeline flow.
+- **Impact:**
+  - Errors before bootstrap (CLI parsing, path resolution) not captured in logs
+  - Hidden side effect - unclear when logger is actually initialized
+  - Harder to debug early-stage pipeline failures
+- **Proposed Solution:**
+  - Move `setup_logger()` to `main()` before `BootstrapManager` instantiation
+  - Add explicit comment explaining why logger setup happens early
+  - Remove `setup_logger()` call from `_bootstrap_cli()`
+  - Ensure `VERBOSE_LEVELS` is imported in main for debug level configuration
+- **Related Issues:**
+  - Related to ISS-007 (BootstrapManager initialization)
+  - Related to ISS-008 (Pipeline base path resolution)
+- **Link to Update Log:** [Update 2026-05-01-logger-main](/home/franklin/dsai/Engineering-and-Design/dcc/log/update_log.md#update-2026-05-01-logger-main)
+
+---
+
 <a id="issue-iss-008"></a>
 ## 2026-05-01 00:45:00
 

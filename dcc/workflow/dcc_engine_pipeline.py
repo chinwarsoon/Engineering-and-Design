@@ -45,6 +45,7 @@ from utility_engine.paths import safe_resolve
 from core_engine.logging import (
     setup_logger,
     set_debug_mode,
+    set_debug_level,
     log_context,
     log_error,
     save_debug_log,
@@ -76,6 +77,7 @@ from utility_engine.cli import (
     build_native_defaults,
     resolve_effective_parameters,
     get_registry_for_cli,
+    VERBOSE_LEVELS,
 )
 from utility_engine.errors import system_error_print
 from utility_engine.bootstrap import BootstrapManager, BootstrapError
@@ -563,6 +565,11 @@ def main() -> int:
     # Parse CLI args with resolved base_path, raise error if pipeline is not in "workflow" folder
     args, cli_args, cli_overrides_provided = parse_cli_args(pipeline_start, pipeline_dir)
     
+    # Setup logger early with verbose level from CLI (before any bootstrap operations)
+    setup_logger()
+    verbose_level = VERBOSE_LEVELS.get(args.verbose, 1)
+    set_debug_level(verbose_level)
+    
     try:
         # Bootstrap all initialization phases in one call
         # Bootstrap will load schema, validate paths, resolve parameters per precedence of CLI > config > defaults
@@ -584,11 +591,15 @@ def main() -> int:
             context.set_postload_state(manager.postload_trace)
         
         # Print banner after bootstrap (now that we have effective_parameters)
+        # Use dynamic bootstrap summary for status display
+        summary = manager.bootstrap_summary
         print_framework_banner(
             base_path=manager.base_path,
             input_file=manager.effective_parameters.get("upload_file_name"),
             output_dir=manager.effective_parameters.get("download_file_path"),
-            cli_overrides=cli_args if cli_overrides_provided else None
+            cli_overrides=cli_args if cli_overrides_provided else None,
+            bootstrap_status=summary["status"],
+            bootstrap_phases=summary["completed_count"]
         )
         
         # Run pipeline

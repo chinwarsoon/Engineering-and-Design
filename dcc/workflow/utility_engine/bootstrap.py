@@ -51,7 +51,7 @@ from core_engine.paths import (
 from core_engine.system import test_environment
 
 # Utility engine imports
-from utility_engine.console import status_print, milestone_print
+from utility_engine.console import status_print, milestone_print, debug_print
 from utility_engine.errors import system_error_print
 from utility_engine.paths import safe_resolve
 from utility_engine.validation import (
@@ -106,6 +106,45 @@ class BootstrapError(Exception):
             return self.code, self.message
         # Otherwise, return with bootstrap phase prefix (legacy compatibility)
         return f"B-{self.phase}-{self.code}", self.message
+
+
+@dataclass
+class BootstrapPhaseStatus:
+    """
+    Status tracking for a single bootstrap phase.
+    
+    Records start time, end time, duration, status, and error information
+    for each bootstrap phase. Used for performance monitoring and debugging.
+    
+    Breadcrumb: _record_phase_start() -> _record_phase_complete()/failure() -> _phase_status
+    
+    Attributes:
+        phase_id: Phase identifier (e.g., "P1_cli", "P2_paths")
+        phase_name: Human-readable phase name (e.g., "CLI Parsing")
+        status: Current status ("pending", "running", "complete", "failed")
+        start_time: When phase started (ISO format datetime)
+        end_time: When phase ended (ISO format datetime)
+        duration_ms: Phase execution time in milliseconds
+        error_code: Error code if phase failed
+        
+    Example:
+        >>> status = BootstrapPhaseStatus(
+        ...     phase_id="P1_cli",
+        ...     phase_name="CLI Parsing",
+        ...     status="complete",
+        ...     start_time="2026-05-01T03:45:00.123Z",
+        ...     end_time="2026-05-01T03:45:00.145Z",
+        ...     duration_ms=22.0,
+        ...     error_code=None
+        ... )
+    """
+    phase_id: str
+    phase_name: str
+    status: str = "pending"  # "pending", "running", "complete", "failed"
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration_ms: Optional[float] = None
+    error_code: Optional[str] = None
 
 
 class BootstrapManager:
@@ -166,6 +205,93 @@ class BootstrapManager:
         # Phase P3: Context trace data (populated during/after bootstrap)
         self._preload_trace: Optional[Dict[str, ContextTraceItem]] = None
         self._postload_trace: Optional[Dict[str, ContextTraceItem]] = None
+        
+        # Phase P4: Bootstrap phase tracking
+        self._phase_status: Dict[str, BootstrapPhaseStatus] = {}
+        self._bootstrap_start_time: Optional[str] = None
+        self._initialize_phase_tracking()
+    
+    def _initialize_phase_tracking(self) -> None:
+        """Initialize phase tracking for all 8 bootstrap phases."""
+        self._phase_status = {
+            "P1_cli": BootstrapPhaseStatus("P1_cli", "CLI Parsing"),
+            "P2_paths": BootstrapPhaseStatus("P2_paths", "Path Validation"),
+            "P3_registry": BootstrapPhaseStatus("P3_registry", "Registry Loading"),
+            "P4_defaults": BootstrapPhaseStatus("P4_defaults", "Native Defaults Building"),
+            "P5_fallback": BootstrapPhaseStatus("P5_fallback", "Fallback Validation"),
+            "P6_env": BootstrapPhaseStatus("P6_env", "Environment Testing"),
+            "P7_schema": BootstrapPhaseStatus("P7_schema", "Schema Resolution"),
+            "P8_params": BootstrapPhaseStatus("P8_params", "Parameters Resolution"),
+            "P3_trace": BootstrapPhaseStatus("P3_trace", "Context Trace Building"),
+        }
+        self._bootstrap_start_time = datetime.now().isoformat()
+    
+    def _record_phase_start(self, phase_id: str) -> None:
+        """Record phase start time and mark as running."""
+        if phase_id in self._phase_status:
+            self._phase_status[phase_id].status = "running"
+            self._phase_status[phase_id].start_time = datetime.now().isoformat()
+    
+    def _record_phase_complete(self, phase_id: str) -> None:
+        """Record phase completion and calculate duration."""
+        if phase_id in self._phase_status:
+            phase = self._phase_status[phase_id]
+            phase.status = "complete"
+            phase.end_time = datetime.now().isoformat()
+            if phase.start_time:
+                start = datetime.fromisoformat(phase.start_time)
+                end = datetime.fromisoformat(phase.end_time)
+                phase.duration_ms = (end - start).total_seconds() * 1000
+    
+    def _record_phase_failure(self, phase_id: str, error_code: str) -> None:
+        """Record phase failure with error code."""
+        if phase_id in self._phase_status:
+            phase = self._phase_status[phase_id]
+            phase.status = "failed"
+            phase.end_time = datetime.now().isoformat()
+            phase.error_code = error_code
+            if phase.start_time:
+                start = datetime.fromisoformat(phase.start_time)
+                end = datetime.fromisoformat(phase.end_time)
+                phase.duration_ms = (end - start).total_seconds() * 1000
+    
+    @property
+    def bootstrap_summary(self) -> Dict[str, Any]:
+        """
+        Return dynamic summary of bootstrap status for banner display.
+        
+        Returns:
+            Dict with status, completed_count, total_count, failed_phase, error_code, total_duration_ms
+        """
+        completed = sum(1 for p in self._phase_status.values() if p.status == "complete")
+        failed = [p for p in self._phase_status.values() if p.status == "failed"]
+        total = len(self._phase_status)
+        
+        # Determine overall status
+        if failed:
+            status = "failed"
+        elif completed == total:
+            status = "complete"
+        elif completed > 0:
+            status = "partial"
+        else:
+            status = "in_progress"
+        
+        # Calculate total duration
+        total_duration = None
+        if self._bootstrap_start_time:
+            start = datetime.fromisoformat(self._bootstrap_start_time)
+            end = datetime.now()
+            total_duration = (end - start).total_seconds() * 1000
+        
+        return {
+            "status": status,
+            "completed_count": completed,
+            "total_count": total,
+            "failed_phase": failed[0].phase_id if failed else None,
+            "error_code": failed[0].error_code if failed else None,
+            "total_duration_ms": total_duration,
+        }
     
     @property
     def is_bootstrapped(self) -> bool:
@@ -315,7 +441,7 @@ class BootstrapManager:
             
             # Setup logging with UI debug_mode
             setup_logger()
-            milestone_print("Bootstrap UI Mode", f"Base: {self.base_path}")
+            debug_print(f"Bootstrap UI Mode: Base: {self.base_path}")
             
             # Phase 2: Path validation (same as CLI mode)
             self._bootstrap_paths()
@@ -418,7 +544,7 @@ class BootstrapManager:
         # Phase P3: Build postload trace after context creation
         self._build_postload_trace(paths)
         
-        milestone_print("PipelineContext Created", f"Paths validated, {len(self.effective_parameters)} parameters")
+        debug_print(f"PipelineContext Created: Paths validated, {len(self.effective_parameters)} parameters")
         
         return context
     
@@ -438,6 +564,7 @@ class BootstrapManager:
         Raises:
             BootstrapError: If CLI parsing fails
         """
+        self._record_phase_start("P1_cli")
         try:
             if cli_args is None:
                 # Parse CLI args from sys.argv
@@ -449,16 +576,18 @@ class BootstrapManager:
                 self.cli_args = cli_args or {}
                 self.cli_overrides_provided = bool(cli_args)
             
-            # Setup logging
-            setup_logger()
+            # Note: Logger is now setup in main() before bootstrap_all() is called
+            # This ensures logging is available from the start of pipeline execution
             
             # Determine debug mode from verbose level
             verbose = self.cli_args.get("verbose_level", "normal")
             self.debug_mode = verbose in ["debug", "trace"]
             
-            milestone_print("Bootstrap Phase 1", f"CLI parsed, {len(self.cli_args)} args")
+            self._record_phase_complete("P1_cli")
+            debug_print(f"Bootstrap Phase 1: CLI parsed, {len(self.cli_args)} args")
             
         except Exception as exc:
+            self._record_phase_failure("P1_cli", "B-CLI-001")
             raise BootstrapError("B-CLI-001", f"CLI parsing failed: {exc}", "cli")
     
     # ==========================================================================
@@ -474,6 +603,7 @@ class BootstrapManager:
         Raises:
             BootstrapError: If path validation fails
         """
+        self._record_phase_start("P2_paths")
         try:
             # Initialize validator
             self.validator = ValidationManager()
@@ -495,13 +625,16 @@ class BootstrapManager:
             # Validate home directory (warning only, not fatal)
             home_validation = self.validator.validate_home_directory()
             if home_validation.status.name == "FAIL":
-                milestone_print("Warning", f"Home directory validation: {home_validation.message}")
+                debug_print(f"Warning: Home directory validation: {home_validation.message}")
             else:
-                milestone_print("Bootstrap Phase 2", f"Base path validated: {self.base_path}")
+                self._record_phase_complete("P2_paths")
+                debug_print(f"Bootstrap Phase 2: Base path validated: {self.base_path}")
             
-        except BootstrapError:
+        except BootstrapError as e:
+            self._record_phase_failure("P2_paths", e.code)
             raise
         except Exception as exc:
+            self._record_phase_failure("P2_paths", "B-PATH-002")
             raise BootstrapError("B-PATH-002", f"Path validation error: {exc}", "paths")
     
     # ==========================================================================
@@ -517,6 +650,7 @@ class BootstrapManager:
         Raises:
             BootstrapError: If registry loading fails
         """
+        self._record_phase_start("P3_registry")
         try:
             schema_params_path = self.base_path / "config" / "schemas" / "global_parameters.json"
             
@@ -526,15 +660,18 @@ class BootstrapManager:
             
             if schema_params_path.exists():
                 self.registry = get_parameter_registry(schema_params_path)
-                milestone_print("Bootstrap Phase 3", f"Registry loaded: {self.registry.parameter_count} parameters")
+                self._record_phase_complete("P3_registry")
+                debug_print(f"Bootstrap Phase 3: Registry loaded: {self.registry.parameter_count} parameters")
             else:
                 # Continue without registry (legacy mode)
                 self.registry = None
-                milestone_print("Bootstrap Phase 3", "Registry not found, using legacy mode")
+                self._record_phase_complete("P3_registry")
+                debug_print("Bootstrap Phase 3: Registry not found, using legacy mode")
             
         except Exception as exc:
             # Registry failure is not fatal - can continue in legacy mode
-            milestone_print("Warning", f"Registry loading failed: {exc}")
+            self._record_phase_failure("P3_registry", "B-REG-001")
+            debug_print(f"Warning: Registry loading failed: {exc}")
             self.registry = None
     
     # ==========================================================================
@@ -550,11 +687,14 @@ class BootstrapManager:
         Raises:
             BootstrapError: If defaults building fails
         """
+        self._record_phase_start("P4_defaults")
         try:
             self.native_defaults = build_native_defaults(self.base_path, registry=self.registry)
-            milestone_print("Bootstrap Phase 4", f"Native defaults: {len(self.native_defaults)} parameters")
+            self._record_phase_complete("P4_defaults")
+            debug_print(f"Bootstrap Phase 4: Native defaults: {len(self.native_defaults)} parameters")
             
         except Exception as exc:
+            self._record_phase_failure("P4_defaults", "B-DEFAULT-001")
             raise BootstrapError("B-DEFAULT-001", f"Native defaults building failed: {exc}", "defaults")
     
     # ==========================================================================
@@ -572,6 +712,7 @@ class BootstrapManager:
         Raises:
             BootstrapError: If fallback validation fails critically
         """
+        self._record_phase_start("P5_fallback")
         try:
             # Get schema-driven parameter keys
             upload_file_key = "upload_file_name"
@@ -630,15 +771,19 @@ class BootstrapManager:
                 
                 if result.has_errors:
                     errors = "\n".join(result.errors)
-                    milestone_print("Bootstrap Phase 5", f"Fallback validation warnings:\n{errors}")
+                    self._record_phase_complete("P5_fallback")
+                    debug_print(f"Bootstrap Phase 5: Fallback validation warnings:\n{errors}")
                 else:
-                    milestone_print("Bootstrap Phase 5", f"Fallback validation: {len(files_to_validate)} files, {len(dirs_to_validate)} dirs")
+                    self._record_phase_complete("P5_fallback")
+                    debug_print(f"Bootstrap Phase 5: Fallback validation: {len(files_to_validate)} files, {len(dirs_to_validate)} dirs")
             else:
-                milestone_print("Bootstrap Phase 5", "No fallback validation needed")
+                self._record_phase_complete("P5_fallback")
+                debug_print("Bootstrap Phase 5: No fallback validation needed")
             
         except Exception as exc:
             # Fallback validation failure is warning only, not fatal
-            milestone_print("Warning", f"Fallback validation error: {exc}")
+            self._record_phase_failure("P5_fallback", "B-FALLBACK-001")
+            debug_print(f"Warning: Fallback validation error: {exc}")
     
     # ==========================================================================
     # Phase 6: Environment Testing
@@ -653,6 +798,7 @@ class BootstrapManager:
         Raises:
             BootstrapError: If environment test fails
         """
+        self._record_phase_start("P6_env")
         try:
             self.environment = test_environment(base_path=self.base_path)
             
@@ -660,11 +806,14 @@ class BootstrapManager:
                 missing = ", ".join(self.environment.get("missing_packages", [])) or "see output"
                 raise BootstrapError("B-ENV-001", f"Environment not ready: {missing}", "environment")
             
-            milestone_print("Bootstrap Phase 6", "Environment ready")
+            self._record_phase_complete("P6_env")
+            debug_print("Bootstrap Phase 6: Environment ready")
             
-        except BootstrapError:
+        except BootstrapError as e:
+            self._record_phase_failure("P6_env", e.code)
             raise
         except Exception as exc:
+            self._record_phase_failure("P6_env", "B-ENV-002")
             raise BootstrapError("B-ENV-002", f"Environment test failed: {exc}", "environment")
     
     # ==========================================================================
@@ -680,6 +829,7 @@ class BootstrapManager:
         Raises:
             BootstrapError: If schema resolution fails
         """
+        self._record_phase_start("P7_schema")
         try:
             # Get schema path from CLI or native defaults
             schema_key = "schema_register_file"
@@ -704,11 +854,14 @@ class BootstrapManager:
                 raise BootstrapError("B-SCHEMA-001", f"Schema validation failed: {schema_validation.message}", "schema")
             
             self.schema_path = schema_validation.path
-            milestone_print("Bootstrap Phase 7", f"Schema: {self.schema_path.name}")
+            self._record_phase_complete("P7_schema")
+            debug_print(f"Bootstrap Phase 7: Schema: {self.schema_path.name}")
             
-        except BootstrapError:
+        except BootstrapError as e:
+            self._record_phase_failure("P7_schema", e.code)
             raise
         except Exception as exc:
+            self._record_phase_failure("P7_schema", "B-SCHEMA-002")
             raise BootstrapError("B-SCHEMA-002", f"Schema resolution failed: {exc}", "schema")
     
     # ==========================================================================
@@ -724,6 +877,7 @@ class BootstrapManager:
         Raises:
             BootstrapError: If parameter resolution fails
         """
+        self._record_phase_start("P8_params")
         try:
             self.effective_parameters = resolve_effective_parameters(
                 schema_path=self.schema_path or Path(default_schema_path(self.base_path)),
@@ -740,9 +894,11 @@ class BootstrapManager:
                 status_print
             )
             
-            milestone_print("Bootstrap Phase 8", f"Parameters: {len(self.effective_parameters)} total")
+            self._record_phase_complete("P8_params")
+            debug_print(f"Bootstrap Phase 8: Parameters: {len(self.effective_parameters)} total")
             
         except Exception as exc:
+            self._record_phase_failure("P8_params", "B-PARAM-001")
             raise BootstrapError("B-PARAM-001", f"Parameter resolution failed: {exc}", "parameters")
     
     def _bootstrap_parameters_for_ui(self, **ui_params) -> None:
@@ -831,7 +987,7 @@ class BootstrapManager:
                 except Exception as exc:
                     raise BootstrapError("B-OUTPUT-001", f"Cannot create output directory: {exc}", "pre-pipeline")
             
-            milestone_print("Bootstrap Phase 8b", "Pre-pipeline validation complete")
+            debug_print("Bootstrap Phase 8b: Pre-pipeline validation complete")
             
             # Phase P3: Build preload trace and validate pre-context gate
             self._build_preload_trace()
@@ -854,6 +1010,7 @@ class BootstrapManager:
         Raises:
             BootstrapError: If required state is not available
         """
+        self._record_phase_start("P3_trace")
         try:
             # Build export paths for trace
             csv_output_path = self.base_path / self.effective_parameters.get(
@@ -865,7 +1022,23 @@ class BootstrapManager:
                 "summary_filename", "processing_summary.txt"
             )
             
+            # Build phases status for trace (convert to serializable format)
+            phases_status = {}
+            for phase_id, status in self._phase_status.items():
+                phases_status[phase_id] = {
+                    "phase_id": status.phase_id,
+                    "phase_name": status.phase_name,
+                    "status": status.status,
+                    "start_time": status.start_time,
+                    "end_time": status.end_time,
+                    "duration_ms": status.duration_ms,
+                    "error_code": status.error_code,
+                }
+            
             self._preload_trace = {
+                "phases": ContextTraceItem(
+                    "phases", phases_status, "phase_tracking", "dict", True
+                ),
                 "base_path": ContextTraceItem(
                     "base_path", str(self.base_path), "resolved", "directory", True
                 ),
@@ -902,9 +1075,11 @@ class BootstrapManager:
                 ),
             }
             
-            milestone_print("Bootstrap Phase P3a", "Preload trace built")
+            self._record_phase_complete("P3_trace")
+            debug_print("Bootstrap Phase P3a: Preload trace built")
             
         except Exception as exc:
+            self._record_phase_failure("P3_trace", "S-B-S-0603")
             raise BootstrapError("S-B-S-0603", f"Failed to build preload trace during bootstrap: {exc}", "traces")
     
     def _validate_pre_context_gate(self) -> None:
@@ -949,7 +1124,7 @@ class BootstrapManager:
                     "gate"
                 )
         
-        milestone_print("Bootstrap Phase P3b", "Pre-context gate validated")
+        debug_print("Bootstrap Phase P3b: Pre-context gate validated")
     
     def _build_postload_trace(self, paths: PipelinePaths) -> None:
         """
@@ -989,11 +1164,11 @@ class BootstrapManager:
                 ),
             }
             
-            milestone_print("Bootstrap Phase P3c", "Postload trace built")
+            debug_print("Bootstrap Phase P3c: Postload trace built")
             
         except Exception as exc:
             # Non-fatal: log warning but don't raise
-            milestone_print("Bootstrap Warning", f"Failed to build postload trace: {exc}")
+            debug_print(f"Bootstrap Warning: Failed to build postload trace: {exc}")
 
 
 # =============================================================================
@@ -1003,4 +1178,5 @@ class BootstrapManager:
 __all__ = [
     "BootstrapManager",
     "BootstrapError",
+    "BootstrapPhaseStatus",
 ]

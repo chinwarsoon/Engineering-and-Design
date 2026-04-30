@@ -8,6 +8,190 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-01-phase-p4-complete"></a>
+## 2026-05-01 04:00:00
+
+### COMPLETED: Bootstrap Phase P4 — Phase Tracking & Dynamic Summary
+**Status:** ✅ COMPLETE  
+**Related Issue:** [ISS-007](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-007)
+
+**Summary:** Implemented Phase P4 of Bootstrap submodule, adding phase tracking with timing data and dynamic summary for banner display.
+
+**Changes Made:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| BootstrapPhaseStatus | `utility_engine/bootstrap.py` | NEW dataclass for phase status tracking |
+| Phase tracking | `utility_engine/bootstrap.py` | Added `_phase_status` and `_bootstrap_start_time` attributes |
+| Phase methods | `utility_engine/bootstrap.py` | Added `_initialize_phase_tracking()`, `_record_phase_start()`, `_record_phase_complete()`, `_record_phase_failure()` |
+| Instrumentation | `utility_engine/bootstrap.py` | Added tracking to all 8 phase methods (P1-P8) + P3_trace |
+| Trace integration | `utility_engine/bootstrap.py` | Phase data included in `_preload_trace["phases"]` |
+| Summary property | `utility_engine/bootstrap.py` | Added `bootstrap_summary` property for dynamic status |
+| Banner integration | `dcc_engine_pipeline.py` | Updated to use `manager.bootstrap_summary["status"]` and `["completed_count"]` |
+
+**Phase Tracking Structure:**
+```python
+@dataclass
+class BootstrapPhaseStatus:
+    phase_id: str           # e.g., "P1_cli"
+    phase_name: str         # e.g., "CLI Parsing"
+    status: str             # "pending", "running", "complete", "failed"
+    start_time: Optional[str]
+    end_time: Optional[str]
+    duration_ms: Optional[float]
+    error_code: Optional[str]
+```
+
+**Dynamic Summary Output:**
+```python
+{
+    "status": "complete",
+    "completed_count": 9,
+    "total_count": 9,
+    "failed_phase": None,
+    "error_code": None,
+    "total_duration_ms": 145.5
+}
+```
+
+**Test Results:**
+- Normal mode: ✅ "Bootstrap: 9 phases COMPLETE" displayed in banner
+- Debug mode: ✅ All phase timings visible in debug output
+- Pipeline test: ✅ Passes with no regression
+
+**Example Banner Output:**
+```
+=================================================================
+    DCC Pipeline v3.0
+    Bootstrap: 9 phases COMPLETE
+=================================================================
+```
+
+---
+
+<a id="update-2026-05-01-logger-main"></a>
+## 2026-05-01 02:20:00
+
+### COMPLETED: Moved setup_logger() to Main Pipeline — ISS-009
+**Status:** ✅ COMPLETE  
+**Related Issue:** [ISS-009](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-009)
+
+**Summary:** Relocated `setup_logger()` from `BootstrapManager._bootstrap_cli()` to `main()` in `dcc_engine_pipeline.py` to ensure logging is available from the start of pipeline execution.
+
+**Changes Made:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| Logger setup | `workflow/dcc_engine_pipeline.py` | Added `setup_logger()` call in `main()` after CLI parsing |
+| Debug level | `workflow/dcc_engine_pipeline.py` | Added `set_debug_level()` call with verbose level from CLI |
+| VERBOSE_LEVELS import | `workflow/dcc_engine_pipeline.py` | Added import from `utility_engine.cli` |
+| Logger removal | `workflow/utility_engine/bootstrap.py` | Removed `setup_logger()` from `_bootstrap_cli()` |
+| Documentation | `workflow/utility_engine/bootstrap.py` | Added comment explaining logger is now in main |
+
+**Before (in bootstrap.py):**
+```python
+def _bootstrap_cli(self, cli_args=None):
+    # ... CLI parsing ...
+    setup_logger()  # Hidden side effect
+    milestone_print("Bootstrap Phase 1", ...)
+```
+
+**After (in main()):**
+```python
+def main():
+    # Parse CLI args
+    args, cli_args, _ = parse_cli_args(pipeline_start, pipeline_dir)
+    
+    # Setup logger early with verbose level from CLI (before bootstrap)
+    setup_logger()
+    verbose_level = VERBOSE_LEVELS.get(args.verbose, 1)
+    set_debug_level(verbose_level)
+    
+    # Now bootstrap with logging already available
+    manager = BootstrapManager(...).bootstrap_all(cli_args)
+```
+
+**Benefits:**
+- Logging available from pipeline start (captures CLI/path errors)
+- Explicit initialization - clear when logger is setup
+- Easier debugging of early-stage failures
+- Better separation of concerns
+
+**Test Results:**
+- Pipeline test with 5 rows: ✅ PASS (exit code 0)
+- All bootstrap phases complete: ✅ 8 phases + P3 traces
+- Milestone prints visible: ✅ Working correctly
+
+---
+
+<a id="update-2026-05-01-milestone-refinement"></a>
+## 2026-05-01 03:30:00
+
+### COMPLETED: Bootstrap Milestone Print Refinement — ISS-010
+**Status:** ✅ COMPLETE  
+**Related Issue:** [ISS-010](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-010)
+
+**Summary:** Reduced visual clutter by moving individual bootstrap phase prints to debug-only output. Console output reduced from 12+ lines to 1 milestone line + banner summary.
+
+**Changes Made:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| Phase prints | `workflow/utility_engine/bootstrap.py` | Changed from `milestone_print()` to `debug_print()` |
+| Import | `workflow/utility_engine/bootstrap.py` | Added `debug_print` import |
+| Banner | `workflow/utility_engine/console/__init__.py` | Added `bootstrap_status` and `bootstrap_phases` parameters |
+| Banner call | `workflow/dcc_engine_pipeline.py` | Updated with `bootstrap_status="complete"`, `bootstrap_phases=8` |
+
+**Before (Normal Mode):**
+```
+OK  Bootstrap Phase 1      CLI parsed, 1 args
+OK  Bootstrap Phase 2      Base path validated: /path
+OK  Bootstrap Phase 3      Registry loaded: 42 parameters
+OK  Bootstrap Phase 4      Native defaults: 15 parameters
+OK  Bootstrap Phase 5      Fallback validation: 1 files, 3 dirs
+OK  Bootstrap Phase 6      Environment ready
+OK  Bootstrap Phase 7      Schema: dcc_register_config.json
+OK  Bootstrap Phase 8      Parameters: 32 total
+OK  Bootstrap Phase 8b     Pre-pipeline validation complete
+OK  Bootstrap Phase P3a    Preload trace built
+OK  Bootstrap Phase P3b    Pre-context gate validated
+OK  Bootstrap Complete     All 8 phases completed successfully
+```
+
+**After (Normal Mode):**
+```
+OK  Bootstrap Complete     All 8 phases completed successfully
+=================================================================
+    DCC Pipeline v3.0
+    ...
+    Bootstrap: 8 phases COMPLETE
+    ...
+=================================================================
+```
+
+**After (Debug Mode):**
+```
+[DEBUG] Bootstrap Phase 1: CLI parsed, 1 args
+[DEBUG] Bootstrap Phase 2: Base path validated: /path
+...
+[DEBUG] Bootstrap Phase P3b: Pre-context gate validated
+  OK  Bootstrap Complete     All 8 phases completed successfully
+[DEBUG] Bootstrap Phase P3c: Postload trace built
+```
+
+**Benefits:**
+- Cleaner console output in normal mode
+- Important info (bootstrap completion) prominently displayed
+- Phase details still available in debug mode
+- Better user experience
+
+**Test Results:**
+- Normal mode: ✅ Shows only "Bootstrap Complete" + banner with "8 phases COMPLETE"
+- Debug mode: ✅ Shows all phase debug prints
+- Pipeline test: ✅ Passes with no regression
+
+---
+
 <a id="update-2026-05-01-fail-fast-base-path"></a>
 ## 2026-05-01 00:45:00
 
