@@ -141,3 +141,14 @@
 3. always log issues to issue_log.md file under the parent folder of workplan folder
 4. always update update_log.md in <project folder>/log/ folder.
 5. link reports to workplan files for cross reference.
+
+# Section 10. Function Table and Call Graph
+1. showing all functions in a module/engine/class
+2. showing function calling sequence
+3. showing function description and purpose
+4. showing function parameters (in) and return values (out)
+5. showing function dependencies and relationships
+6. showing function error handling and exception handling
+7. showing function tracing and status reporting
+8. showing function user interface and interaction
+

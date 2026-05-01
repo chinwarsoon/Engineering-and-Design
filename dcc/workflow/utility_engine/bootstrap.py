@@ -40,7 +40,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Core engine imports
 from core_engine.context import PipelineContext, PipelinePaths, PipelineState, PipelineData, ContextTraceItem
-from core_engine.logging import DEBUG_LEVEL, setup_logger
+from core_engine.logging import DEBUG_LEVEL
 from core_engine.paths import (
     default_base_path,
     get_homedir,
@@ -393,7 +393,7 @@ class BootstrapManager:
             
             # Mark as bootstrapped
             self._bootstrapped = True
-            milestone_print("Bootstrap Complete", f"All 8 phases completed successfully")
+            debug_print("Bootstrap Complete: All 8 phases completed successfully")
             
             return self
             
@@ -439,8 +439,7 @@ class BootstrapManager:
             self.cli_overrides_provided = True
             self.debug_mode = debug_mode
             
-            # Setup logging with UI debug_mode
-            setup_logger()
+            # Note: Logger should be setup by the UI entry point before calling bootstrap_for_ui()
             debug_print(f"Bootstrap UI Mode: Base: {self.base_path}")
             
             # Phase 2: Path validation (same as CLI mode)
@@ -473,7 +472,7 @@ class BootstrapManager:
             
             # Mark as bootstrapped
             self._bootstrapped = True
-            milestone_print("Bootstrap Complete", f"UI mode - All phases completed")
+            debug_print("Bootstrap Complete: UI mode - All phases completed")
             
             return self
             
@@ -554,9 +553,11 @@ class BootstrapManager:
     
     def _bootstrap_cli(self, cli_args: Optional[Dict[str, Any]] = None) -> None:
         """
-        Phase 1: Parse CLI args and setup logging.
+        Phase 1: Parse CLI args and determine debug mode.
         
-        Breadcrumb: cli_args -> parse_cli_args() -> setup_logger() -> milestone_print()
+        Note: Logger is now setup in main() before bootstrap_all() is called.
+        
+        Breadcrumb: cli_args -> parse_cli_args() -> debug_mode determination
         
         Args:
             cli_args: Optional pre-parsed CLI arguments. If None, calls parse_cli_args()

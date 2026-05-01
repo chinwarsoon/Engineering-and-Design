@@ -826,3 +826,4 @@ print_framework_banner(
 - Registry implementation: `workflow/utility_engine/validation/parameter_type_registry.py`
 - Parent workplan: `core_utility_engine_workplan/`
 - Agent rule: `agent_rule.md` Section 4 (Module design), Section 6 (Debug and logging)
+- **Function Reference & Call Graph:** [`reports/bootstrap_function_reference.md`](reports/bootstrap_function_reference.md) — Per agent_rule.md Section 10

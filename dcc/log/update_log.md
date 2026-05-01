@@ -8,6 +8,75 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-01-function-reference"></a>
+## 2026-05-01 12:00:00
+
+### COMPLETED: Bootstrap Function Reference & Call Graph Documentation
+**Status:** ✅ COMPLETE  
+**Related Issue:** [ISS-007](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-007)
+
+**Summary:** Created comprehensive function reference document with Mermaid call graphs per agent_rule.md Section 10.
+
+**Document Location:**
+`dcc/workplan/pipeline_architecture/core_utility_engine_workplan/bootstrap_subworkplan/reports/bootstrap_function_reference.md`
+
+**Contents:**
+1. **Module Overview** — Classes, function count, entry/exit points
+2. **Function Table** — 6 categories (Exception, Data Class, Orchestrators, Tracking, Phases, Properties)
+3. **Mermaid Call Graphs:**
+   - Entry points & orchestration (flowchart)
+   - CLI bootstrap flow (flowchart with external deps)
+   - Phase tracking sequence (sequence diagram)
+   - Phase execution timeline (gantt)
+   - Error handling flow (flowchart)
+   - Complete call chain (flowchart)
+4. **External Dependencies** — 11 external module references
+5. **Cross-References** — Links to calling modules
+6. **Version History** — P1 through P4.1
+
+**Mermaid Diagrams:**
+- Entry Points & Orchestration
+- CLI Bootstrap Flow
+- Phase Tracking Sequence
+- Phase Execution Timeline (Gantt)
+- Error Handling Flow
+- Complete Call Chain
+
+**Linked to Workplan:** `bootstrap_submodule_workplan.md` updated with reference
+
+---
+
+<a id="update-2026-05-01-bootstrap-cleanup"></a>
+## 2026-05-01 08:00:00
+
+### COMPLETED: Bootstrap Module Cleanup — Remove Duplicate Logger Setup
+**Status:** ✅ COMPLETE  
+**Related Issue:** [ISS-009](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-009)
+
+**Summary:** Final cleanup to ensure consistent logger initialization pattern across CLI and UI bootstrap paths.
+
+**Changes Made:**
+
+| Component | File | Change |
+|:---|:---|:---|
+| Remove setup_logger | `utility_engine/bootstrap.py` | Removed `setup_logger()` call from `bootstrap_for_ui()` method |
+| Remove import | `utility_engine/bootstrap.py` | Removed unused `setup_logger` import |
+| Update docstring | `utility_engine/bootstrap.py` | Updated `_bootstrap_cli()` docstring to reflect logger setup in main() |
+| milestone_print → debug_print | `utility_engine/bootstrap.py` | Changed "Bootstrap Complete" message to `debug_print()` only |
+
+**Rationale:**
+- Logger setup should be centralized in entry point (`main()` for CLI, UI entry for UI mode)
+- Avoids duplicate logger initialization
+- "Bootstrap Complete" message now only appears in debug mode (banner shows status in normal mode)
+
+**Test Results:**
+- ✅ Pipeline runs successfully from dcc directory
+- ✅ No duplicate logger initialization
+- ✅ Banner shows "9 phases COMPLETE" in normal mode
+- ✅ Debug output shows phase completion details
+
+---
+
 <a id="update-2026-05-01-phase-p4-complete"></a>
 ## 2026-05-01 04:00:00
 
