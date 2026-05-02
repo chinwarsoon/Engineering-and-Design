@@ -32,7 +32,8 @@
         {"filename": "project_config.json", "required": true, "description": "Project configuration data", "category": "config_data"},
         {"filename": "dcc_register_base.json", "required": true, "description": "DCC register base definitions", "category": "base_schema"},
         {"filename": "project_code_schema.json", "required": true, "description": "Defines project codes and descriptions", "category": "data_schema"},
-        {"filename": "global_parameters.json", "required": true, "description": "Global parameters configuration", "category": "config_data"}
+        {"filename": "global_parameters.json", "required": false, "description": "[DEPRECATED] Global parameters configuration - use dcc_global_parameters.json instead", "category": "config_data"},
+        {"filename": "dcc_global_parameters.json", "required": true, "description": "DCC global processing parameter values", "category": "config_data"}
   ],
   "discovery_rules": [
         {"pattern": "*_schema.json", "directory": "config/schemas", "recursive": false, "auto_register": true, "category": "validation_schema", "exclude_patterns": ["**/backup/**"]},
@@ -82,5 +83,13 @@
             {"module": "schema_engine.validator.schema_validator", "members": ["SchemaValidator"], "optional": false}
       ]
   },
-  "required": ["folders", "root_files", "schema_files", "environment", "dependencies", "project_metadata"]
+  "system_parameters": {
+    "fail_fast": false,
+    "debug_dev_mode": false,
+    "is_colab": false,
+    "overwrite_existing_downloads": true,
+    "pc_name": "CESL-22120",
+    "progress_stage": "not_start"
+  },
+  "required": ["folders", "root_files", "schema_files", "environment", "dependencies", "project_metadata", "system_parameters"]
 }

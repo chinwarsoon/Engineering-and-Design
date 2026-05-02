@@ -200,9 +200,16 @@
     },
     "global_parameters": {
       "type": "array",
-      "description": "Global parameter definitions with type metadata for type-driven validation. Used by CLI, schema, and native defaults.",
+      "description": "[DEPRECATED: Use system_parameters instead] Global parameter definitions with type metadata for type-driven validation.",
       "items": {
         "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/global_parameters_entry"
+      }
+    },
+    "system_parameters": {
+      "type": "array",
+      "description": "System/Infrastructure parameter definitions for environment, debug flags, and execution mode. Used by CLI, schema, and native defaults for system-level configuration.",
+      "items": {
+        "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/system_parameter_entry"
       }
     }
   },

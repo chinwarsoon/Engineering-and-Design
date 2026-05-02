@@ -200,7 +200,7 @@
       "key": "upload_file_name",
       "type": "file",
       "description": "Generic input file path (default)",
-      "default_value": "data/Submittal and RFI Tracker Lists.xlsx",
+      "default_value": "data/Submittal and RFI Tracker Listss.xlsx",
       "required": true,
       "check_exists": true,
       "file_extensions": [".xlsx", ".xls"],

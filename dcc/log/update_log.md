@@ -8,6 +8,103 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-02-schema-consolidation-complete"></a>
+## 2026-05-02 11:30:00
+
+### COMPLETED: Schema Consolidation — All Phases Finished
+**Status:** ✅ COMPLETED  
+**Related Issue:** [ISS-010](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-010)
+
+**Summary:** All phases of schema consolidation completed successfully. All tests passed.
+
+**Final Implementation Status:**
+| Phase | Status | Files Modified |
+|:---|:---|:---|
+| 1. Domain Classification | ✅ COMPLETED | `project_setup_base.json`, `dcc_register_base.json` |
+| 2. Property Schema Updates | ✅ COMPLETED | `project_setup.json`, `dcc_register_setup.json` |
+| 3. Value File Restructuring | ✅ COMPLETED | `dcc_global_parameters.json` (created) |
+| 4. Config References Update | ✅ COMPLETED | `dcc_register_config.json`, `project_config.json` |
+| 4b. Archiving | ✅ COMPLETED | `global_parameters.json` → `archive/config/schemas/` |
+| 5. Code Updates | ✅ COMPLETED | Python files with `dcc_`/`system_` prefixes |
+| 6. Testing & Validation | ✅ COMPLETED | All 4 sub-phases PASSED |
+
+**Test Results:**
+- 6.1 Unit Tests: 3 test suites passed (load_schema_parameters, resolve_effective_parameters, ParameterTypeRegistry)
+- 6.2 Bootstrap Tests: Full bootstrap flow passed, 32 effective parameters loaded
+- 6.3 Pipeline Tests: dcc_engine_pipeline imports successful, no errors
+- 6.4 Regression Tests: Backward compatibility verified, all new files present
+
+**Naming Convention Applied:**
+- System: `system_parameter_entry` → `system_parameters[]` → `project_config.json#/system_parameters`
+- DCC: `dcc_parameter_entry` → `dcc_parameters[]` → `dcc_global_parameters.json#/dcc_parameters`
+
+**Phase Reports:** All 6 phase reports generated in `dcc/workplan/schema_processing/schema_consolidation/`
+
+---
+
+<a id="update-2026-05-02-schema-consolidation-plan"></a>
+## 2026-05-02 06:55:00
+
+### PLANNED: Schema Consolidation — Three-Level Hierarchy
+**Status:** ✅ COMPLETED  
+**Related Issue:** [ISS-010](/home/franklin/dsai/Engineering-and-Design/dcc/log/issue_log.md#issue-iss-010)
+
+**Summary:** Created workplan to apply domain separation principle to global parameters schema.
+
+**Architecture Change:**
+- **System/Infrastructure** parameters → `project_setup_*` files
+- **Data Processing** parameters → `dcc_register_*` files + `dcc_global_parameters.json` (as independent values file)
+
+**Domain Separation:**
+| Domain | Definitions | Properties | Values |
+|:---|:---|:---|:---|
+| System | `project_setup_base.json` | `project_setup.json` | `project_config.json` |
+| Data Processing | `dcc_register_base.json` | `dcc_register_setup.json` | `dcc_global_parameters.json` (via $ref in dcc_register_config) |
+
+**Key Changes:**
+- Split 44 global parameters by domain (system vs data processing)
+- Transform `global_parameters.json` to `dcc_global_parameters.json` (values-only, like department_schema.json)
+- Update `dcc_register_config.json` to reference `dcc_global_parameters.json` via $ref
+- KEEP all independent value files (approval_code_schema, department_schema, etc.)
+
+**Workplan Location:**
+`dcc/workplan/schema_processing/schema_consolidation/schema_consolidation_workplan.md`
+
+**Key Updates to Workplan:**
+- **Function Analysis**: 15 functions across 8 Python files identified for revision
+- **Testing Plan**: Unit tests → Bootstrap tests → Main pipeline tests → Regression tests (Phase 6 with sub-phases)
+- **Parameters to Verify**: 24 of 44 parameters classified (6 system + 18 processing)
+- **Consistent Phase Numbering**: Detailed plan (Phases 1-5) + Implementation table (Phases 1-6 with 6.1-6.4)
+
+**Implementation Status:**
+| Phase | Status | Files Modified |
+|:---|:---|:---|
+| 1. Domain Classification | ✅ COMPLETED | `project_setup_base.json`, `dcc_register_base.json` |
+| 2. Property Schema Updates | ✅ COMPLETED | `project_setup.json`, `dcc_register_setup.json` |
+| 3. Value File Restructuring | ✅ COMPLETED | `dcc_global_parameters.json` (created) |
+| 4. Config References Update | ✅ COMPLETED | `dcc_register_config.json`, `project_config.json` |
+| 4b. Archiving | ✅ COMPLETED | `global_parameters.json` → `dcc/archive/config/schemas/` |
+| 5. Code Updates | ✅ COMPLETED | Python files (bootstrap.py, registry, cli, loader) |
+| 6. Testing & Validation | 🔄 IN PROGRESS | Unit, Bootstrap, Pipeline, Regression |
+
+**Naming Convention Established:**
+| Domain | Definition | Property | Values |
+|:---|:---|:---|:---|
+| System | `system_parameter_entry` | `system_parameters[]` | `project_config.json#/system_parameters` |
+| DCC | `dcc_parameter_entry` | `dcc_parameters[]` | `dcc_global_parameters.json#/dcc_parameters` |
+
+**Phase Reports:**
+- Phase 1: `dcc/workplan/schema_processing/schema_consolidation/phase1_report.md`
+- Phase 2: `dcc/workplan/schema_processing/schema_consolidation/phase2_report.md`
+- Phase 3: `dcc/workplan/schema_processing/schema_consolidation/phase3_report.md`
+- Phase 4: `dcc/workplan/schema_processing/schema_consolidation/phase4_report.md`
+- Phase 5: `dcc/workplan/schema_processing/schema_consolidation/phase5_report.md`
+- Phase 6: `dcc/workplan/schema_processing/schema_consolidation/phase6_report.md`
+
+**Next Step:** Phase 6 — Testing & Validation (Unit tests, Bootstrap, Pipeline, Regression)
+
+---
+
 <a id="update-2026-05-01-function-reference"></a>
 ## 2026-05-01 12:00:00
 

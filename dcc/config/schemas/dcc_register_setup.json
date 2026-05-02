@@ -78,10 +78,12 @@
       "description": "Processing sequence order for columns",
       "items": {"type": "string"}
     },
-    "global_parameters": {
+    "dcc_parameters": {
       "type": "array",
-      "description": "Global processing parameters and configuration",
-      "items": {"type": "object"}
+      "description": "DCC parameter definitions for Excel paths, column settings, review durations, and DCC-specific configuration. These parameters are used by the DCC register processing pipeline.",
+      "items": {
+        "$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/dcc_parameter_entry"
+      }
     },
     "approval_codes": {
       "type": "array",

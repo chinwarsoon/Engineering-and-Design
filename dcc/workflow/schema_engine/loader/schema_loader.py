@@ -417,24 +417,56 @@ class SchemaLoader:
         return schema_data
 
 
-def load_schema_parameters(schema_path: Path) -> Dict[str, Any]:
+def load_schema_parameters(schema_path: Path, key: Optional[str] = None) -> Dict[str, Any]:
     """
     Load parameters from schema file.
 
-    Supports two schema architectures:
-    - New: top-level 'global_parameters' array  -> returns global_parameters[0]
-    - Legacy: top-level 'parameters' dict        -> returns parameters
+    Supports multiple schema architectures:
+    - Domain-separated: top-level 'system_parameters' or 'dcc_parameters' dict
+    - Legacy: top-level 'global_parameters' array -> returns global_parameters[0]
+    - Legacy: top-level 'parameters' dict -> returns parameters
 
     Args:
         schema_path: Path to the JSON schema file
+        key: Optional key to specify which parameter section to load
+             ("system_parameters" for project_config.json,
+              "dcc_parameters" for dcc_register_config.json with $ref resolution)
 
     Returns:
         Flattened parameters dict, or empty dict if not present
     """
     with schema_path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
-
-    # New architecture: global_parameters is an array
+    
+    # Domain-separated architecture with explicit key
+    if key:
+        # Try the specified key first
+        params = data.get(key)
+        if isinstance(params, dict):
+            # Check if it's a $ref that needs resolution
+            if "$ref" in params:
+                ref_path = params["$ref"]
+                # Resolve relative path to absolute
+                if ref_path.startswith("https://") or ref_path.startswith("http://"):
+                    # For now, skip external refs - would need proper resolver
+                    # Return empty or try to resolve locally
+                    base_path = schema_path.parent
+                    # Extract local schema reference if any
+                    if "#/" in ref_path:
+                        schema_ref, path_ref = ref_path.split("#/", 1)
+                        if schema_ref.startswith("https://dcc-pipeline.internal/schemas/"):
+                            local_schema = schema_ref.replace("https://dcc-pipeline.internal/schemas/", "")
+                            local_schema_path = base_path / f"{local_schema}.json"
+                            if local_schema_path.exists():
+                                with local_schema_path.open("r", encoding="utf-8") as ref_handle:
+                                    ref_data = json.load(ref_handle)
+                                    ref_params = ref_data.get(path_ref.split("/")[0], {})
+                                    if isinstance(ref_params, dict):
+                                        return ref_params
+            return params
+        return {}
+    
+    # Legacy architecture: global_parameters is an array
     gp = data.get("global_parameters")
     if isinstance(gp, list) and gp and isinstance(gp[0], dict):
         return gp[0]

@@ -1,7 +1,7 @@
 """
 Parameter Type Registry for type-driven validation.
 
-Loads global_parameters.json and provides parameter metadata lookups.
+Loads dcc_register_setup.json (parameter structure definitions) and provides parameter metadata lookups.
 Follows agent_rule.md Section 4 (Module Design) with standardized docstrings.
 """
 
@@ -42,9 +42,9 @@ class ParameterType:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ParameterType":
         """
-        Create ParameterType from dictionary loaded from global_parameters.json.
+        Create ParameterType from dictionary loaded from dcc_register_setup.json.
         
-        Breadcrumb: global_parameters.json -> ParameterType.from_dict() -> validation_rules extraction
+        Breadcrumb: dcc_register_setup.json -> ParameterType.from_dict() -> validation_rules extraction
         
         Args:
             data: Dictionary containing parameter definition
@@ -84,12 +84,12 @@ class ParameterType:
 
 class ParameterTypeRegistry:
     """
-    Registry for parameter type definitions from global_parameters.json.
+    Registry for parameter type definitions from dcc_register_setup.json.
     
     Provides type lookups, CLI parameter generation, and validation metadata.
     Follows singleton pattern for caching (load once, reuse).
     
-    Breadcrumb: global_parameters.json -> ParameterTypeRegistry.load_from_schema() -> _register_parameter()
+    Breadcrumb: dcc_register_setup.json -> ParameterTypeRegistry.load_from_schema() -> _register_parameter()
     """
     
     _instance: Optional["ParameterTypeRegistry"] = None
@@ -105,7 +105,7 @@ class ParameterTypeRegistry:
         Initialize registry. Only loads on first instantiation.
         
         Args:
-            schema_path: Path to global_parameters.json
+            schema_path: Path to dcc_register_setup.json
         """
         # Skip re-initialization for singleton
         if hasattr(self, '_initialized') and self._initialized:
@@ -120,38 +120,76 @@ class ParameterTypeRegistry:
         if schema_path:
             self.load_from_schema(schema_path)
     
-    def load_from_schema(self, schema_path: Union[str, Path]) -> None:
+    def load_from_schema(self, 
+                         schema_path: Union[str, Path], 
+                         system_schema_path: Optional[Union[str, Path]] = None) -> None:
         """
-        Load parameter definitions from global_parameters.json.
+        Load parameter definitions from dcc_register_setup.json and optionally project_setup.json.
         
-        Breadcrumb: schema_path -> json.load() -> ParameterType.from_dict() -> _register_parameter()
+        Breadcrumb: schema_path + system_schema_path -> json.load() (x2) -> ParameterType.from_dict() -> _register_parameter()
         
         Args:
-            schema_path: Path to global_parameters.json
+            schema_path: Path to dcc_register_setup.json (or legacy global_parameters.json)
+            system_schema_path: Optional path to project_setup.json for system parameters
             
         Raises:
             FileNotFoundError: If schema file not found
             json.JSONDecodeError: If invalid JSON
         """
-        schema_path = Path(schema_path)
+        # Load DCC parameters from primary schema
+        dcc_path = Path(schema_path)
         
-        if not schema_path.exists():
-            raise FileNotFoundError(f"Parameter schema not found: {schema_path}")
+        if not dcc_path.exists():
+            raise FileNotFoundError(f"Parameter schema not found: {dcc_path}")
             
-        with open(schema_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        with open(dcc_path, 'r', encoding='utf-8') as f:
+            dcc_data = json.load(f)
             
-        # Load metadata
+        # Load metadata from DCC schema
         self._metadata = {
-            "version": data.get("version", "unknown"),
-            "title": data.get("title", ""),
-            "description": data.get("description", "")
+            "version": dcc_data.get("version", "unknown"),
+            "title": dcc_data.get("title", ""),
+            "description": dcc_data.get("description", ""),
+            "domains": ["dcc"]
         }
         
-        # Load parameters
-        for param_data in data.get("global_parameters", []):
-            param = ParameterType.from_dict(param_data)
-            self._register_parameter(param)
+        # Load DCC parameters from dcc_parameters property (new structure)
+        # or global_parameters array (legacy structure)
+        dcc_params = dcc_data.get("properties", {}).get("dcc_parameters", {})
+        if isinstance(dcc_params, list):
+            # New structure: dcc_register_setup.json with dcc_parameters array
+            for param_data in dcc_params:
+                param = ParameterType.from_dict(param_data)
+                self._register_parameter(param)
+        elif "global_parameters" in dcc_data and isinstance(dcc_data["global_parameters"], list):
+            # Legacy structure: global_parameters.json with global_parameters array
+            for param_data in dcc_data.get("global_parameters", []):
+                param = ParameterType.from_dict(param_data)
+                self._register_parameter(param)
+        
+        # Load System parameters from separate schema (if provided)
+        if system_schema_path:
+            system_path = Path(system_schema_path)
+            if system_path.exists():
+                with open(system_path, 'r', encoding='utf-8') as f:
+                    system_data = json.load(f)
+                
+                # Load system_parameters from properties (new structure)
+                system_params = system_data.get("properties", {}).get("system_parameters", {})
+                if isinstance(system_params, list):
+                    # New structure: project_setup.json with system_parameters array
+                    for param_data in system_params:
+                        param = ParameterType.from_dict(param_data)
+                        self._register_parameter(param)
+                    
+                    # Update metadata to indicate both domains loaded
+                    if "domains" in self._metadata:
+                        self._metadata["domains"].append("system")
+                elif "global_parameters" in system_data and isinstance(system_data["global_parameters"], list):
+                    # Legacy structure fallback
+                    for param_data in system_data.get("global_parameters", []):
+                        param = ParameterType.from_dict(param_data)
+                        self._register_parameter(param)
         
         self._initialized = True
     
@@ -286,7 +324,7 @@ class ParameterTypeRegistry:
         Clear and reload from schema.
         
         Args:
-            schema_path: Path to global_parameters.json
+            schema_path: Path to dcc_register_setup.json
         """
         self._parameters.clear()
         self._cli_map.clear()
@@ -302,13 +340,13 @@ def get_parameter_registry(schema_path: Optional[Union[str, Path]] = None) -> Pa
     Convenience function for accessing the global registry.
     
     Args:
-        schema_path: Path to global_parameters.json (only used on first call)
+        schema_path: Path to dcc_register_setup.json (only used on first call)
         
     Returns:
         ParameterTypeRegistry singleton instance
         
     Example:
-        >>> registry = get_parameter_registry("config/schemas/global_parameters.json")
+        >>> registry = get_parameter_registry("config/schemas/dcc_register_setup.json")
         >>> param = registry.get_parameter("upload_file_name")
     """
     return ParameterTypeRegistry(schema_path)
@@ -323,7 +361,7 @@ def load_default_registry(schema_path: Union[str, Path]) -> None:
     Load default global registry (non-singleton for testing).
     
     Args:
-        schema_path: Path to global_parameters.json
+        schema_path: Path to dcc_register_setup.json
     """
     global _default_registry
     _default_registry = ParameterTypeRegistry(schema_path)

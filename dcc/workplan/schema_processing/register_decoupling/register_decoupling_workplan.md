@@ -27,7 +27,7 @@ Focus: Data Column Types, Validation Patterns, Null Handling, and Domain Classif
   - `column_types`: Reusable logic for ID, Code, Date, Sequence, and Status columns.
   - `validation_patterns`: Pattern, Schema, and Range validation logic.
   - `null_handling_strategies`: Forward fill and multi-level filling logic.
-  - `global_parameters`: Moved from project_setup_base; contains register-specific parameters.
+  - `dcc_parameters`: Moved from project_setup_base; contains register-specific parameters (renamed from global_parameters per naming convention).
   - `column_groups_entry`: Structural definition for logical column groupings.
   - `column_sequence_entry`: Structural definition for column processing sequence.
 
@@ -43,8 +43,8 @@ Focus: Data Column Types, Validation Patterns, Null Handling, and Domain Classif
   - `departments`, `disciplines`, `facilities`, `document_types`, `projects`.
   - `column_types`, `column_patterns`, `column_strategies`.
   - `column_groups`, `column_sequence`.
-  - `global_parameters`.
-  - `dcc_register_enhanced`.
+  - `dcc_parameters` (renamed from global_parameters).
+  - `dcc_register_enhanced` (later deleted after migration).
 
 ---
 
@@ -55,7 +55,7 @@ Focus: Data Column Types, Validation Patterns, Null Handling, and Domain Classif
 - **ID**: `https://dcc-pipeline.internal/schemas/dcc-register-config`
 - **Source of Data**:
   - `column_sequence`, `column_groups`: Migrated from `column_configuration.json`.
-  - `global_parameters`: Extracted actual values.
+  - `dcc_parameters`: Extracted actual values (renamed from global_parameters).
   - References to fragment schemas for `departments`, `disciplines`, etc.
 - **Cleanup**:
   - Archive `column_configuration.json` (Moved to `archive/`).
@@ -66,7 +66,7 @@ Focus: Data Column Types, Validation Patterns, Null Handling, and Domain Classif
 **Objective**: Strip data-specific definitions to leave a lean infrastructure schema.
 
 ### Items Removed:
-- [x] `global_parameters` (moved to dcc_register_base)
+- [x] `dcc_parameters` (moved to dcc_register_base, renamed from global_parameters)
 - [x] `column_types`, `validation_patterns`, `null_handling_strategies` (moved to dcc_register_base)
 - [x] `department_entry`, `discipline_entry`, `facility_entry`, `document_type_entry`, `project_entry` (moved to dcc_register_base)
 
@@ -85,7 +85,7 @@ Focus: Data Column Types, Validation Patterns, Null Handling, and Domain Classif
 - [x] `departments`, `disciplines`, `facilities`, `document_types`, `projects`.
 - [x] `column_types`, `column_patterns`, `column_strategies`.
 - [x] `column_groups`, `column_sequence`.
-- [x] `dcc_register_enhanced`, `global_parameters`.
+- [x] `dcc_register_enhanced` (deleted after migration), `dcc_parameters` (renamed from global_parameters).
 
 ### Items Retained:
 - [x] `folders`, `root_files`, `schema_files`, `discovery_rules`.
@@ -116,7 +116,7 @@ Focus: Data Column Types, Validation Patterns, Null Handling, and Domain Classif
 - [x] Verified `$id` uniqueness across all schemas.
 - [x] Checked all `$ref` URI resolution - all valid.
 - [x] Confirmed zero duplicate definitions and properties.
-- [x] Verified `dcc_register_enhanced.json` references resolve correctly.
+- [x] Confirmed `dcc_register_enhanced.json` properly migrated and deleted.
 - [x] Confirmed infrastructure/data separation achieved.
 
 ---
@@ -149,4 +149,4 @@ Focus: Data Column Types, Validation Patterns, Null Handling, and Domain Classif
 **Date Completed**: 2026-04-16
 **Total Phases**: 6/6 Completed
 **Architecture State**: Infrastructure and Data properly separated
-**Next Steps**: Phase 10 - Schema loader testing with new architecture
+**Next Steps**: All subsequent work complete (Phase 10 testing ✅, schema_consolidation ✅). Architecture stable.

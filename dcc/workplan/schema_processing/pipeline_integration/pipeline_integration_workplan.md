@@ -3,7 +3,7 @@
 **Purpose:** Integrate all schema changes (from recursive_schema_loader_workplan.md Phases A–I) into `dcc_engine_pipeline.py` and test the full pipeline end-to-end.
 
 **Created:** 2026-04-17
-**Status:** Pending Approval
+**Status:** ✅ Complete (All Phases 1-9 Implemented)
 
 **Related Documents:**
 - [recursive_schema_loader_workplan.md](recursive_schema_loader_workplan.md) - Schema architecture changes (Phases A–I)
@@ -18,14 +18,19 @@
 
 - `dcc_register_enhanced.json` → deleted; replaced by `dcc_register_base.json` + `dcc_register_setup.json` + `dcc_register_config.json`
 - `approval_code_schema.json` added as standalone schema
-- `global_parameters.json` added as standalone schema
+- `dcc_global_parameters.json` added as values-only schema (renamed from `global_parameters.json`)
 - All schemas now use URI-based `$ref` (`https://dcc-pipeline.internal/schemas/...`)
 - `schema_references` dict pattern → deprecated; replaced by URI `$ref` resolution via `RefResolver`
 - `master_registry.json` → NOT REQUIRED (Phase F)
 
-### Critical Misalignment Identified
+### Architecture Resolution ✅
 
-The pipeline currently calls `schema_validator.load_resolved_schema()` which uses `resolve_schema_dependencies()` — the **legacy** `schema_references` dict pattern. The new schema architecture uses URI `$ref` resolution via `RefResolver`. This is the root cause of all downstream misalignments.
+The pipeline now supports dual architecture via `SchemaValidator.load_resolved_schema()`:
+
+- **New Architecture (V2):** Uses URI `$ref` resolution via `RefResolver` when top-level `columns` key detected
+- **Legacy Architecture:** Falls back to `resolve_schema_dependencies()` for `schema_references` dict pattern
+
+The `SchemaValidator._load_resolved_schema_v2()` method handles URI `$ref` resolution and normalizes output to the canonical shape expected by all engines. Legacy support maintained for backward compatibility.
 
 ---
 
@@ -279,4 +284,4 @@ main()
 
 *Workplan Created: 2026-04-17*
 *Based on pipeline_integration_workplan.mg and recursive_schema_loader_workplan.md*
-*Status: Awaiting implementation approval*
+*Status: All phases implemented and tested. Pipeline operational with dual architecture support.*

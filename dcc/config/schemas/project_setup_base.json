@@ -486,6 +486,60 @@
       },
       "required": ["key", "type", "description"]
     },
+    "system_parameter_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "System/Infrastructure parameter definition for environment, debug flags, and execution mode. Used by project_setup domain.",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Canonical parameter key name used across CLI, schema, and native defaults"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["boolean", "scalar", "integer"],
+          "description": "Parameter data type for validation dispatch (system params don't use file/directory types)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable parameter description"
+        },
+        "default_value": {
+          "description": "Default value if not provided by CLI or schema"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this parameter is mandatory"
+        },
+        "enum": {
+          "type": "array",
+          "description": "Allowed values for scalar type parameters"
+        },
+        "min_value": {
+          "type": "integer",
+          "description": "For integer type: minimum allowed value"
+        },
+        "max_value": {
+          "type": "integer",
+          "description": "For integer type: maximum allowed value"
+        },
+        "cli_arg_name": {
+          "type": "string",
+          "description": "CLI argument name (e.g., --debug-mode)"
+        },
+        "cli_arg_short": {
+          "type": "string",
+          "description": "Short CLI argument name (e.g., -d)"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Alternative key names for backward compatibility"
+        }
+      },
+      "required": ["key", "type", "description"]
+    },
     "null_handling_strategies": {
       "type": "object",
       "description": "Reusable null handling strategy definitions",

@@ -16,7 +16,7 @@ This workplan details the enhancement of `dcc_register_config.json` to include a
 - **18 top-level keys**: Contains data references and basic configuration
 - **47 columns**: Column sequence only (no processing definitions)
 - **Flat structure**: column_sequence, column_groups at top level
-- **global_parameters**: Array with actual parameter values
+- **dcc_parameters**: Array with actual parameter values (renamed from global_parameters)
 - **Data references**: Links to fragment schemas
 
 ## Missing Elements Identified
@@ -46,7 +46,7 @@ This workplan details the enhancement of `dcc_register_config.json` to include a
    - [x] Preserved column_sequence and column_groups at top level for independence
 
 2. **Preserved existing structure**
-   - [x] Kept global_parameters at top level
+   - [x] Kept dcc_parameters at top level (renamed from global_parameters)
    - [x] Maintained all data references (departments, disciplines, facilities, document_types, projects)
    - [x] Preserved column_types, column_patterns, column_strategies
 
@@ -95,14 +95,14 @@ This workplan details the enhancement of `dcc_register_config.json` to include a
    - [x] Ensured proper schema validation structure
 
 2. **Enhanced parameters reference**
-   - [x] Added parameters object with $ref to global-parameters
-   - [x] Maintained existing global_parameters array for backward compatibility
+   - [x] Added parameters object with $ref to dcc-global-parameters
+   - [x] Maintained existing dcc_parameters array for backward compatibility (renamed from global_parameters)
    - [x] Validated reference resolution structure
 
 ### Results:
 - **source object**: Added with complete configuration
 - **parameters object**: Added with proper $ref
-- **Backward compatibility**: global_parameters array preserved
+- **Backward compatibility**: dcc_parameters array preserved (renamed from global_parameters)
 - **Reference structure**: Ready for resolution
 
 ---
@@ -170,7 +170,7 @@ This workplan details the enhancement of `dcc_register_config.json` to include a
 
 3. **Backward compatibility**
    - [x] Ensured existing references still work
-   - [x] Validated global_parameters array access
+   - [x] Validated dcc_parameters array access (renamed from global_parameters)
    - [x] Tested data schema links
    - [x] Verified column_types accessibility
 
@@ -217,7 +217,7 @@ This workplan details the enhancement of `dcc_register_config.json` to include a
    - Setup references base definitions (correct for structure)
 
 2. **Remaining Issues**:
-   - global_parameters: Both schemas have inline data (potential duplication)
+   - dcc_parameters: Both schemas have inline data (potential duplication) - Note: Property renamed from global_parameters
    - Data references: departments, disciplines, facilities, document_types, projects duplicated in both setup and config
 
 3. **Architecture Issues**:
@@ -230,9 +230,10 @@ This workplan details the enhancement of `dcc_register_config.json` to include a
    - Ensure setup references base definitions for structure (no actual values)
    - Validate proper architecture: Base (definitions) -> Setup (references) -> Config (actual values)
 
-2. **Resolve global_parameters Duplication - COMPLETED**
-   - Make config global_parameters reference setup instead of inline data
-   - Ensure setup global_parameters references base definition
+2. **Resolve dcc_parameters Duplication - COMPLETED**
+   - Make config dcc_parameters reference setup instead of inline data
+   - Ensure setup dcc_parameters references base definition
+   - Note: Property renamed from global_parameters to dcc_parameters per naming convention
    - Maintain backward compatibility for parameter access
 
 3. **Eliminate Data Reference Duplication - COMPLETED**
@@ -286,7 +287,7 @@ This workplan details the enhancement of `dcc_register_config.json` to include a
    - [x] Converted column_groups from $ref to inline definition
    - [x] Converted column_sequence from $ref to inline definition
    - [x] Converted column_types from $ref to inline definition
-   - [x] Converted global_parameters from $ref to inline definition
+   - [x] Converted dcc_parameters from $ref to inline definition (renamed from global_parameters)
    - [x] Achieved consistency: all properties with actual data in config now use inline definitions in setup
 
 ### Results:
@@ -390,7 +391,7 @@ dcc_register_base.json:
 
 dcc_register_setup.json:
 - 11 properties: inline definitions referencing base definitions
-- column_groups, column_sequence, column_types, global_parameters: inline definitions
+- column_groups, column_sequence, column_types, dcc_parameters: inline definitions (global_parameters renamed to dcc_parameters)
 - departments, disciplines, facilities, document_types, projects: inline definitions
 - column_patterns, column_strategies: inline definitions
 
@@ -399,7 +400,7 @@ dcc_register_config.json:
 - column_sequence: 47 column processing order
 - column_groups: 4 logical groupings
 - register_name, source, parameters: Core metadata
-- global_parameters: Parameter values
+- dcc_parameters: Parameter values (renamed from global_parameters)
 - Data references: departments, disciplines, facilities, document_types, projects
 - Column patterns: column_types, column_patterns, column_strategies
 ```

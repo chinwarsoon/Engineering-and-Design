@@ -195,6 +195,8 @@ class BootstrapManager:
         
         # Initialized components
         self.registry: Optional[ParameterTypeRegistry] = None
+        self.system_registry: Optional[ParameterTypeRegistry] = None
+        self.dcc_registry: Optional[ParameterTypeRegistry] = None
         self.validator: Optional[ValidationManager] = None
         self.environment: Dict[str, Any] = {}
         
@@ -644,36 +646,61 @@ class BootstrapManager:
     
     def _bootstrap_registry(self) -> None:
         """
-        Phase 3: Load ParameterTypeRegistry.
+        Phase 3: Load ParameterTypeRegistry for both System and DCC domains.
         
-        Breadcrumb: base_path -> get_parameter_registry() -> registry loaded
+        Breadcrumb: base_path -> get_parameter_registry() -> unified registry loaded
+        
+        Loads:
+        - System parameters from project_setup.json
+        - DCC parameters from dcc_register_setup.json
+        
+        Both are loaded into a single unified registry.
         
         Raises:
             BootstrapError: If registry loading fails
         """
         self._record_phase_start("P3_registry")
         try:
-            schema_params_path = self.base_path / "config" / "schemas" / "global_parameters.json"
+            # Define schema paths
+            dcc_params_path = self.base_path / "config" / "schemas" / "dcc_register_setup.json"
+            system_params_path = self.base_path / "config" / "schemas" / "project_setup.json"
             
-            if not schema_params_path.exists():
-                # Fallback to default location
-                schema_params_path = Path(default_schema_path(self.base_path)).parent / "global_parameters.json"
+            # Fallback to legacy global_parameters.json (deprecated)
+            if not dcc_params_path.exists():
+                legacy_path = self.base_path / "config" / "schemas" / "global_parameters.json"
+                if legacy_path.exists():
+                    dcc_params_path = legacy_path
             
-            if schema_params_path.exists():
-                self.registry = get_parameter_registry(schema_params_path)
-                self._record_phase_complete("P3_registry")
-                debug_print(f"Bootstrap Phase 3: Registry loaded: {self.registry.parameter_count} parameters")
+            if dcc_params_path.exists():
+                # Load unified registry with both system and DCC parameters
+                self.registry = ParameterTypeRegistry()
+                self.registry.load_from_schema(
+                    schema_path=dcc_params_path,
+                    system_schema_path=system_params_path if system_params_path.exists() else None
+                )
+                
+                # Store references for backward compatibility
+                self.system_registry = self.registry
+                self.dcc_registry = self.registry
+                
+                domains = self.registry._metadata.get("domains", [])
+                debug_print(f"Bootstrap Phase 3: Unified registry loaded: {self.registry.parameter_count} parameters (domains: {domains})")
             else:
                 # Continue without registry (legacy mode)
                 self.registry = None
-                self._record_phase_complete("P3_registry")
+                self.system_registry = None
+                self.dcc_registry = None
                 debug_print("Bootstrap Phase 3: Registry not found, using legacy mode")
+            
+            self._record_phase_complete("P3_registry")
             
         except Exception as exc:
             # Registry failure is not fatal - can continue in legacy mode
             self._record_phase_failure("P3_registry", "B-REG-001")
             debug_print(f"Warning: Registry loading failed: {exc}")
             self.registry = None
+            self.system_registry = None
+            self.dcc_registry = None
     
     # ==========================================================================
     # Phase 4: Native Defaults Building
@@ -880,12 +907,17 @@ class BootstrapManager:
         """
         self._record_phase_start("P8_params")
         try:
+            # Load parameters from both system and DCC domains
+            system_params_path = self.base_path / "config" / "schemas" / "project_config.json"
+            dcc_schema_path = self.schema_path or Path(default_schema_path(self.base_path))
+            
             self.effective_parameters = resolve_effective_parameters(
-                schema_path=self.schema_path or Path(default_schema_path(self.base_path)),
+                dcc_schema_path=dcc_schema_path,
                 cli_args=self.cli_args,
                 native_defaults=self.native_defaults,
                 load_schema_params_fn=load_schema_parameters,
-                registry=self.registry
+                registry=self.registry,
+                system_params_path=system_params_path if system_params_path.exists() else None
             )
             
             # Apply platform path resolution

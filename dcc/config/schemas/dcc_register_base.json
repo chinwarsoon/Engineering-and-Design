@@ -533,6 +533,75 @@
         }
       },
       "required": ["code", "status", "aliases"]
+    },
+    "dcc_parameter_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "DCC parameter definition for Excel paths, column settings, review durations, and DCC-specific configuration. Used by dcc_register domain.",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Canonical parameter key name used across CLI, schema, and native defaults"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["file", "directory", "scalar", "boolean", "integer", "object"],
+          "description": "Parameter data type for validation dispatch"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable parameter description"
+        },
+        "default_value": {
+          "description": "Default value if not provided by CLI or schema"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this parameter is mandatory"
+        },
+        "check_exists": {
+          "type": "boolean",
+          "default": true,
+          "description": "For file/directory types: whether path must exist"
+        },
+        "create_if_missing": {
+          "type": "boolean",
+          "default": false,
+          "description": "For directory type: whether to create if not exists"
+        },
+        "file_extensions": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "For file type: allowed file extensions"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "For scalar type: regex pattern for validation"
+        },
+        "min_value": {
+          "type": "integer",
+          "description": "For integer type: minimum allowed value"
+        },
+        "max_value": {
+          "type": "integer",
+          "description": "For integer type: maximum allowed value"
+        },
+        "cli_arg_name": {
+          "type": "string",
+          "description": "CLI argument name (e.g., --excel-file)"
+        },
+        "cli_arg_short": {
+          "type": "string",
+          "description": "Short CLI argument name (e.g., -e)"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Alternative key names for backward compatibility"
+        }
+      },
+      "required": ["key", "type", "description"]
     }
   }
 }
