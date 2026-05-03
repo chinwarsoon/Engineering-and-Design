@@ -81,6 +81,7 @@ from utility_engine.cli import (
 )
 from utility_engine.errors import system_error_print
 from utility_engine.bootstrap import BootstrapManager, BootstrapError
+from initiation_engine.error_handling import get_system_error_message
 from core_engine.error_handling import handle_system_error, validate_setup_ready, validate_schema_ready, generate_error_report
 
 from initiation_engine import (
@@ -225,9 +226,10 @@ def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
                     with open(error_config_path, "r", encoding="utf-8") as f:
                         context.blueprint.error_catalog = json.load(f).get("data_logic_errors", {})
                 except Exception as e:
+                    msg = get_system_error_message("S-C-S-0311").format(detail=str(e))
                     context.add_system_error(
-                        code="E-SCH-CATALOG-LOAD",
-                        message=f"Failed to load error catalog: {e}",
+                        code="S-C-S-0311",
+                        message=msg,
                         details=str(e),
                         engine="schema_engine",
                         phase="step2_schema_validation",

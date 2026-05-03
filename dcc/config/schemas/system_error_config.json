@@ -9,10 +9,10 @@
     { "$ref": "https://dcc-pipeline.internal/schemas/error-code/setup" }
   ],
   "metadata": {
-    "version": "1.0.0",
-    "last_updated": "2026-04-24",
-    "total_codes": 20,
-    "system_codes": 20,
+    "version": "1.1.0",
+    "last_updated": "2026-05-03",
+    "total_codes": 36,
+    "system_codes": 36,
     "data_logic_codes": 0,
     "system_format": "S-C-S-XXXX",
     "data_logic_format": "LL-M-F-XXXX"
@@ -21,30 +21,30 @@
     "environment": {
       "prefix": "S-E-S-01xx",
       "description": "Environment errors (Python, packages, imports)",
-      "count": 4,
+      "count": 6,
       "start_id": "S-E-S-0101",
-      "end_id": "S-E-S-0104"
+      "end_id": "S-E-S-0106"
     },
     "file_io": {
       "prefix": "S-F-S-02xx",
       "description": "File/IO errors (not found, unreadable, permissions)",
-      "count": 5,
+      "count": 12,
       "start_id": "S-F-S-0201",
-      "end_id": "S-F-S-0205"
+      "end_id": "S-F-S-0212"
     },
     "config": {
       "prefix": "S-C-S-03xx",
       "description": "Configuration errors (schema, parameters, setup)",
-      "count": 5,
+      "count": 11,
       "start_id": "S-C-S-0301",
-      "end_id": "S-C-S-0305"
+      "end_id": "S-C-S-0311"
     },
     "runtime": {
       "prefix": "S-R-S-04xx",
       "description": "Runtime errors (exceptions, memory, fail-fast)",
-      "count": 6,
+      "count": 7,
       "start_id": "S-R-S-0401",
-      "end_id": "S-R-S-0406"
+      "end_id": "S-R-S-0407"
     },
     "ai": {
       "prefix": "S-A-S-05xx",
@@ -98,6 +98,24 @@
       "stops_pipeline": true,
       "promote_detail": true
     },
+    "S-E-S-0105": {
+      "code": "S-E-S-0105",
+      "name": "ENVIRONMENT_NOT_READY",
+      "message": "Environment is not ready for pipeline execution",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0106": {
+      "code": "S-E-S-0106",
+      "name": "ENVIRONMENT_TEST_FAILED",
+      "message": "Environment test failed unexpectedly",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
     "S-F-S-0201": {
       "code": "S-F-S-0201",
       "name": "INPUT_FILE_NOT_FOUND",
@@ -138,6 +156,69 @@
       "code": "S-F-S-0205",
       "name": "CONFIG_FILE_NOT_FOUND",
       "message": "Configuration file not found",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0206": {
+      "code": "S-F-S-0206",
+      "name": "BASE_PATH_VALIDATION_FAILED",
+      "message": "Base path validation failed",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0207": {
+      "code": "S-F-S-0207",
+      "name": "PATH_VALIDATION_ERROR",
+      "message": "Path validation encountered an unexpected error",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0208": {
+      "code": "S-F-S-0208",
+      "name": "FALLBACK_VALIDATION_ERROR",
+      "message": "Fallback validation encountered an error",
+      "severity": "WARNING",
+      "category": "File",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-F-S-0209": {
+      "code": "S-F-S-0209",
+      "name": "SCHEMA_VALIDATION_FAILED",
+      "message": "Schema file validation failed",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0210": {
+      "code": "S-F-S-0210",
+      "name": "INPUT_FILE_NOT_SPECIFIED",
+      "message": "No input file specified for pipeline execution",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0211": {
+      "code": "S-F-S-0211",
+      "name": "INPUT_FILE_VALIDATION_FAILED",
+      "message": "Input file validation failed",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0212": {
+      "code": "S-F-S-0212",
+      "name": "OUTPUT_DIR_CREATION_FAILED",
+      "message": "Cannot create output directory",
       "severity": "FATAL",
       "category": "File",
       "stops_pipeline": true,
@@ -186,6 +267,60 @@
       "severity": "FATAL",
       "category": "Config",
       "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0306": {
+      "code": "S-C-S-0306",
+      "name": "REGISTRY_LOADING_FAILED",
+      "message": "Parameter registry loading failed",
+      "severity": "WARNING",
+      "category": "Config",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-C-S-0307": {
+      "code": "S-C-S-0307",
+      "name": "NATIVE_DEFAULTS_BUILD_FAILED",
+      "message": "Native defaults building failed",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0308": {
+      "code": "S-C-S-0308",
+      "name": "SCHEMA_RESOLUTION_ERROR",
+      "message": "Schema resolution failed unexpectedly",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0309": {
+      "code": "S-C-S-0309",
+      "name": "PARAMETER_RESOLUTION_FAILED",
+      "message": "Parameter resolution failed",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0310": {
+      "code": "S-C-S-0310",
+      "name": "UI_PARAMETER_RESOLUTION_FAILED",
+      "message": "UI parameter resolution failed",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0311": {
+      "code": "S-C-S-0311",
+      "name": "ERROR_CATALOG_LOAD_FAILED",
+      "message": "Failed to load error catalog",
+      "severity": "WARNING",
+      "category": "Config",
+      "stops_pipeline": false,
       "promote_detail": true
     },
     "S-R-S-0401": {
@@ -245,6 +380,15 @@
       "stops_pipeline": true,
       "promote_detail": true,
       "promotion_text": "Step 4 (Processing):"
+    },
+    "S-R-S-0407": {
+      "code": "S-R-S-0407",
+      "name": "PRE_PIPELINE_VALIDATION_FAILED",
+      "message": "Pre-pipeline validation failed",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true
     },
     "S-A-S-0501": {
       "code": "S-A-S-0501",

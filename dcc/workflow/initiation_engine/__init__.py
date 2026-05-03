@@ -70,6 +70,7 @@ from .error_handling import (
     system_error_print,
     get_system_error,
     get_all_system_codes,
+    get_system_error_message,
 )
 
 from .system.os_detect import (
@@ -134,4 +135,5 @@ __all__ = [
     'system_error_print',
     'get_system_error',
     'get_all_system_codes',
+    'get_system_error_message',
 ]

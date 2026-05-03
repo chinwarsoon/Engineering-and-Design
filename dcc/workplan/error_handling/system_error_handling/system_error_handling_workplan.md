@@ -116,6 +116,7 @@ To implement system-level error handling for the DCC pipeline that:
 | [Error Handling Taxonomy](../error_handling_taxonomy.md) | Master reference includes S-C-S-XXXX codes | ✅ Complete |
 | [Pipeline Messaging Plan](../pipeline_messaging/pipeline_messaging_plan.md) | `milestone_print()` integration | ✅ Complete |
 | [Error Handling Module](../module/error_handling_module_workplan.md) | Shared error handling infrastructure | ✅ Complete |
+| [Bootstrap Error Standardization](../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md) | Standardizes B-XXXX-NNN codes to S-C-S-XXXX | 🔄 In Progress |
 
 ### External Dependencies
 
@@ -376,6 +377,7 @@ Each step in `run_engine_pipeline()` wrapped with specific error code:
 | Error Handling Taxonomy | Complete code reference | [`../error_handling_taxonomy.md`](../error_handling_taxonomy.md) |
 | Pipeline Messaging Plan | UI/UX integration | [`../pipeline_messaging/pipeline_messaging_plan.md`](../pipeline_messaging/pipeline_messaging_plan.md) |
 | Error Handling Module | Remediation workflows | [`../module/error_handling_module_workplan.md`](../module/error_handling_module_workplan.md) |
+| Bootstrap Error Standardization | B-XXXX-NNN to S-C-S-XXXX migration | [`../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md`](../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md) |
 
 ### Logs
 

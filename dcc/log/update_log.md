@@ -8,6 +8,42 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-03-bootstrap-error-standardization"></a>
+## 2026-05-03 10:15:00
+
+### COMPLETED: Bootstrap Error Code Standardization — All Phases Finished
+**Status:** ✅ COMPLETED  
+**Workplan:** [WP-DCC-EH-BOOT-001](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/error_handling/bootstrap_error_standardization/bootstrap_error_standardization_workplan.md)
+
+**Summary:** Standardized all bootstrap error codes from non-compliant B-XXXX-NNN format to S-C-S-XXXX format. Replaced E-SCH-CATALOG-LOAD with S-C-S-0311. All error messages now loaded from system_en.json schema instead of hardcoded.
+
+**Implementation Details:**
+| Phase | Description | Files Modified |
+|:---|:---|:---|
+| BS1 | Error code definitions | `system_error_config.json` (+16 codes), `system_en.json` (+16 messages) |
+| BS2 | bootstrap.py updates | Replaced 15 B-XXXX-NNN codes with S-C-S-XXXX |
+| BS3 | to_system_error() simplification | Removed legacy B-{phase}-{code} transformation |
+| BS4 | dcc_engine_pipeline.py | Replaced E-SCH-CATALOG-LOAD with S-C-S-0311 |
+
+**New Utility:**
+- `get_system_error_message()` — Loads error message templates from system_en.json
+- Exported via `initiation_engine.error_handling` and `initiation_engine`
+
+**Code Pattern Change:**
+```python
+# Before:
+raise BootstrapError("B-PATH-001", f"Base path failed: {msg}", "paths")
+
+# After:
+msg = get_system_error_message("S-F-S-0206").format(detail=msg)
+raise BootstrapError("S-F-S-0206", msg, "paths")
+```
+
+**Total Codes:** 39 system error codes (S-E-S: 6, S-F-S: 12, S-C-S: 11, S-R-S: 7, S-A-S: 3)  
+**Completion Report:** `bootstrap_error_standardization/reports/bootstrap_error_standardization_completion_report.md`
+
+---
+
 <a id="update-2026-05-02-schema-consolidation-complete"></a>
 ## 2026-05-02 11:30:00
 

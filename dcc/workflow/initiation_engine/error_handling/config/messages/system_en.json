@@ -19,6 +19,16 @@
     "description": "A required engine module failed to import: {detail}",
     "hint": "Check that all engine packages are installed and sys.path includes the workflow/ folder.\nRun with --verbose trace for the full traceback."
   },
+  "S-E-S-0105": {
+    "title": "Environment Not Ready",
+    "description": "The environment is not ready for pipeline execution: {detail}",
+    "hint": "Check that all required Python packages are installed.\nRun: pip install -r requirements.txt\nOr activate the correct conda environment."
+  },
+  "S-E-S-0106": {
+    "title": "Environment Test Failed",
+    "description": "Environment test failed unexpectedly: {detail}",
+    "hint": "Check the output above for missing packages or version conflicts.\nRun: pip install -r requirements.txt\nOr: conda activate dcc"
+  },
   "S-F-S-0201": {
     "title": "Input File Not Found",
     "description": "Cannot find the input file at: {detail}",
@@ -43,6 +53,41 @@
     "title": "Config File Not Found",
     "description": "A required configuration file is missing: {detail}",
     "hint": "Check that all files in dcc/config/schemas/ are present.\nRun project setup or restore from backup."
+  },
+  "S-F-S-0206": {
+    "title": "Base Path Validation Failed",
+    "description": "Base path validation failed: {detail}",
+    "hint": "Check that the base directory exists and is accessible.\nVerify the path is correct and you have read permissions."
+  },
+  "S-F-S-0207": {
+    "title": "Path Validation Error",
+    "description": "Path validation encountered an unexpected error: {detail}",
+    "hint": "Check the path format and permissions.\nRun with --verbose trace for more details."
+  },
+  "S-F-S-0208": {
+    "title": "Fallback Validation Error",
+    "description": "Fallback validation encountered an error: {detail}",
+    "hint": "This is a non-fatal warning. Check the fallback file/directory paths in configuration."
+  },
+  "S-F-S-0209": {
+    "title": "Schema Validation Failed",
+    "description": "Schema file validation failed: {detail}",
+    "hint": "Check that the schema file exists and is valid JSON.\nVerify schema_register_file in project_config.json."
+  },
+  "S-F-S-0210": {
+    "title": "Input File Not Specified",
+    "description": "No input file specified for pipeline execution",
+    "hint": "Set upload_file_name in config or pass --input on the CLI.\nCheck that the input file parameter is provided."
+  },
+  "S-F-S-0211": {
+    "title": "Input File Validation Failed",
+    "description": "Input file validation failed: {detail}",
+    "hint": "Check that the file exists and is a valid .xlsx file.\nVerify file permissions and format."
+  },
+  "S-F-S-0212": {
+    "title": "Output Directory Creation Failed",
+    "description": "Cannot create output directory: {detail}",
+    "hint": "Check folder permissions and disk space.\nEnsure the output path parent directory exists and is writable."
   },
   "S-C-S-0301": {
     "title": "Invalid Parameter",
@@ -69,6 +114,36 @@
     "description": "Project setup validation did not pass: {detail}",
     "hint": "Check that all required folders and files exist under the base path.\nExpected structure is defined in dcc/config/schemas/project_config.json.\nRun with --verbose debug to see which folders or files are missing."
   },
+  "S-C-S-0306": {
+    "title": "Registry Loading Failed",
+    "description": "Parameter registry loading failed: {detail}",
+    "hint": "This is a non-fatal warning. Pipeline will continue in legacy mode.\nCheck dcc_register_setup.json and project_setup.json files."
+  },
+  "S-C-S-0307": {
+    "title": "Native Defaults Build Failed",
+    "description": "Native defaults building failed: {detail}",
+    "hint": "Check that the project structure is correct.\nVerify dcc/config/schemas/ contains required schema files."
+  },
+  "S-C-S-0308": {
+    "title": "Schema Resolution Error",
+    "description": "Schema resolution failed unexpectedly: {detail}",
+    "hint": "Check the schema file path and content.\nRun with --verbose trace for more details."
+  },
+  "S-C-S-0309": {
+    "title": "Parameter Resolution Failed",
+    "description": "Parameter resolution failed: {detail}",
+    "hint": "Check CLI arguments, schema parameters, and native defaults.\nRun with --verbose trace to see parameter resolution steps."
+  },
+  "S-C-S-0310": {
+    "title": "UI Parameter Resolution Failed",
+    "description": "UI parameter resolution failed: {detail}",
+    "hint": "Check UI-provided parameters are valid.\nVerify schema-defined parameters are correct."
+  },
+  "S-C-S-0311": {
+    "title": "Error Catalog Load Failed",
+    "description": "Failed to load error catalog: {detail}",
+    "hint": "Check that data_error_config.json exists and is valid JSON.\nThis is a non-fatal warning - pipeline will continue with default error handling."
+  },
   "S-R-S-0401": {
     "title": "Initiation Step Exception",
     "description": "{promotion_text} {detail}",
@@ -88,6 +163,11 @@
     "title": "Processing Step Exception",
     "description": "{promotion_text} {detail}",
     "hint": "Run with --verbose trace for the full Python traceback.\nCheck dcc/output/debug_log.json for captured context."
+  },
+  "S-R-S-0407": {
+    "title": "Pre-Pipeline Validation Failed",
+    "description": "Pre-pipeline validation failed: {detail}",
+    "hint": "Check input file and output directory settings.\nVerify file permissions and paths are correct."
   },
   "S-R-S-0402": {
     "title": "Fail-Fast Triggered",

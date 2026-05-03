@@ -162,3 +162,28 @@ def get_all_system_codes() -> list[str]:
     """Return all registered system error codes."""
     _load()
     return list(_CODES.keys())
+
+
+def get_system_error_message(code: str) -> str:
+    """
+    Return the message template for a system error code from system_en.json.
+    
+    This function loads the message template from the error schema,
+    allowing error messages to be defined externally rather than hardcoded.
+    
+    Args:
+        code: System error code, e.g. 'S-F-S-0201'
+        
+    Returns:
+        Message template string with optional {detail} placeholder.
+        Returns empty string if code not found.
+        
+    Example:
+        >>> template = get_system_error_message("S-F-S-0201")
+        >>> message = template.format(detail="/path/to/file.xlsx")
+        >>> print(message)
+        "Cannot find the input file at: /path/to/file.xlsx"
+    """
+    _load()
+    msg_def = _MESSAGES.get(code, {})
+    return msg_def.get("description", "")

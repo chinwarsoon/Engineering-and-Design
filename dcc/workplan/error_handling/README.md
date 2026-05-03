@@ -1,6 +1,6 @@
 # DCC Error Handling — Workplans and Implementation Summary
 
-**Last Updated:** 2026-04-29  
+**Last Updated:** 2026-05-03  
 **Purpose:** Landing page for what’s implemented, key achievements, timelines, and links to the detailed workplans + phase reports.
 
 ---
@@ -18,6 +18,9 @@ Shared reference docs remain at the top level (e.g., `error_handling_taxonomy.md
 
 ## Quick Links (by workplan)
 
+- **Bootstrap error code standardization (in progress)**: `bootstrap_error_standardization/bootstrap_error_standardization_workplan.md`
+  - Standardizes bootstrap B-XXXX-NNN codes and E-SCH-CATALOG-LOAD to S-C-S-XXXX format
+  - Loads all error messages from schema (no hardcoding)
 - **Error handling integration with `PipelineContext` (planned)**: `integration/error_handling_integration_workplan.md`
 - **Processor data error handling module (implemented / wrapped up)**: `module/error_handling_module_workplan.md`
   - Report: `module/reports/resolution_module_implementation_report.md`
@@ -74,6 +77,7 @@ Provide a consistent, user-visible and machine-consumable error handling system 
 - **2026-04-12**: Data error handling module workplan status marked core operational (`module/error_handling_module_workplan.md`)
 - **2026-04-17 → 2026-04-25**: Messaging, system error handling completion report, consolidation reports produced (see links above)
 - **2026-04-29**: Integration workplan updated to align with WP-PIPE-ARCH-001 and to explicitly separate system-status vs data-handling errors in `PipelineContext` (`integration/error_handling_integration_workplan.md`)
+- **2026-05-03**: Bootstrap error standardization workplan created to address non-compliant B-XXXX-NNN codes and schema-based message loading (`bootstrap_error_standardization/bootstrap_error_standardization_workplan.md`)
 
 ---
 

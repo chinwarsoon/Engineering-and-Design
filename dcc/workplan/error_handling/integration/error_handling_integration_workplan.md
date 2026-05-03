@@ -41,6 +41,15 @@ The scope covers all pipeline components that currently bypass a context-based e
 | WP-ERR-004 | Error handling validation and testing | Quality Assurance | Draft | Phase 4 |
 | WP-ERR-005 | Error reporting and documentation | Documentation | Draft | Phase 4 |
 
+### Related Workplans
+
+| Workplan | Scope | Location |
+|----------|-------|----------|
+| System Error Handling | S-C-S-XXXX system errors | `../system_error_handling/system_error_handling_workplan.md` |
+| Error Handling Taxonomy | Complete code reference | `../error_handling_taxonomy.md` |
+| Error Handling Integration | Context integration | `../integration/error_handling_integration_workplan.md` |
+| Bootstrap Error Standardization | B-XXXX-NNN to S-C-S-XXXX migration | `../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md` |
+
 ## 5. Index of Content
 
 - [1. Title and Description](#1-title-and-description)
@@ -268,6 +277,7 @@ The current error handling architecture suffers from fragmented error management
 - `initiation_engine/utils/paths.py` - Updated error handling
 - `processor_engine/core/engine.py` - Updated error handling
 - `schema_engine/core/engine.py` - Updated error handling
+- `utility_engine/bootstrap.py` - Updated error handling (see [Bootstrap Error Standardization](../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md))
 - `reports/phase_3_engine_updates.md` - Implementation report
 
 **Risks and Mitigation**:

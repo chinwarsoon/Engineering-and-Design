@@ -69,6 +69,9 @@ from utility_engine.cli import (
 # Schema engine imports
 from schema_engine import load_schema_parameters, default_schema_path
 
+# Error handling imports (for schema-based messages)
+from initiation_engine.error_handling import get_system_error_message
+
 
 class BootstrapError(Exception):
     """
@@ -79,12 +82,13 @@ class BootstrapError(Exception):
     Breadcrumb: phase failure -> BootstrapError(code, message, phase) -> system_error_print()
     
     Args:
-        code: Error code (e.g., "B-PATH-001", "B-REG-001")
-        message: Human-readable error message
+        code: Error code in S-C-S-XXXX format (e.g., "S-F-S-0206", "S-C-S-0306")
+        message: Human-readable error message (loaded from system_en.json via get_system_error_message)
         phase: Which bootstrap phase failed (e.g., "paths", "registry")
     
     Example:
-        >>> raise BootstrapError("B-PATH-001", "Base path not found", "paths")
+        >>> msg = get_system_error_message("S-F-S-0206").format(detail="/invalid/path")
+        >>> raise BootstrapError("S-F-S-0206", msg, "paths")
     """
     
     def __init__(self, code: str, message: str, phase: str):
@@ -98,14 +102,10 @@ class BootstrapError(Exception):
         Return tuple for system_error_print() compatibility.
         
         Returns:
-            Tuple of (system_error_code, message) where code is in S-B-S-06XX format
-            for Phase P3 trace/gate errors, or preserves S-XXX-XXXX format for other errors.
+            Tuple of (system_error_code, message) where code is in S-C-S-XXXX format.
+            All bootstrap errors now use standardized S-C-S-XXXX codes per WP-DCC-EH-BOOT-001.
         """
-        # If code is already in system format (starts with S-), return as-is
-        if self.code.startswith("S-"):
-            return self.code, self.message
-        # Otherwise, return with bootstrap phase prefix (legacy compatibility)
-        return f"B-{self.phase}-{self.code}", self.message
+        return self.code, self.message
 
 
 @dataclass
@@ -621,7 +621,8 @@ class BootstrapManager:
             )
             
             if base_validation.status.name == "FAIL":
-                raise BootstrapError("B-PATH-001", f"Base path validation failed: {base_validation.message}", "paths")
+                msg = get_system_error_message("S-F-S-0206").format(detail=base_validation.message)
+                raise BootstrapError("S-F-S-0206", msg, "paths")
             
             self.base_path = base_validation.path
             
@@ -637,8 +638,9 @@ class BootstrapManager:
             self._record_phase_failure("P2_paths", e.code)
             raise
         except Exception as exc:
-            self._record_phase_failure("P2_paths", "B-PATH-002")
-            raise BootstrapError("B-PATH-002", f"Path validation error: {exc}", "paths")
+            self._record_phase_failure("P2_paths", "S-F-S-0207")
+            msg = get_system_error_message("S-F-S-0207").format(detail=str(exc))
+            raise BootstrapError("S-F-S-0207", msg, "paths")
     
     # ==========================================================================
     # Phase 3: Registry Loading
@@ -696,8 +698,9 @@ class BootstrapManager:
             
         except Exception as exc:
             # Registry failure is not fatal - can continue in legacy mode
-            self._record_phase_failure("P3_registry", "B-REG-001")
-            debug_print(f"Warning: Registry loading failed: {exc}")
+            self._record_phase_failure("P3_registry", "S-C-S-0306")
+            msg = get_system_error_message("S-C-S-0306").format(detail=str(exc))
+            debug_print(f"Warning: {msg}")
             self.registry = None
             self.system_registry = None
             self.dcc_registry = None
@@ -722,8 +725,9 @@ class BootstrapManager:
             debug_print(f"Bootstrap Phase 4: Native defaults: {len(self.native_defaults)} parameters")
             
         except Exception as exc:
-            self._record_phase_failure("P4_defaults", "B-DEFAULT-001")
-            raise BootstrapError("B-DEFAULT-001", f"Native defaults building failed: {exc}", "defaults")
+            self._record_phase_failure("P4_defaults", "S-C-S-0307")
+            msg = get_system_error_message("S-C-S-0307").format(detail=str(exc))
+            raise BootstrapError("S-C-S-0307", msg, "defaults")
     
     # ==========================================================================
     # Phase 5: Fallback Validation
@@ -810,8 +814,9 @@ class BootstrapManager:
             
         except Exception as exc:
             # Fallback validation failure is warning only, not fatal
-            self._record_phase_failure("P5_fallback", "B-FALLBACK-001")
-            debug_print(f"Warning: Fallback validation error: {exc}")
+            self._record_phase_failure("P5_fallback", "S-F-S-0208")
+            msg = get_system_error_message("S-F-S-0208").format(detail=str(exc))
+            debug_print(f"Warning: {msg}")
     
     # ==========================================================================
     # Phase 6: Environment Testing
@@ -832,7 +837,8 @@ class BootstrapManager:
             
             if not self.environment.get("ready", False):
                 missing = ", ".join(self.environment.get("missing_packages", [])) or "see output"
-                raise BootstrapError("B-ENV-001", f"Environment not ready: {missing}", "environment")
+                msg = get_system_error_message("S-E-S-0105").format(detail=missing)
+                raise BootstrapError("S-E-S-0105", msg, "environment")
             
             self._record_phase_complete("P6_env")
             debug_print("Bootstrap Phase 6: Environment ready")
@@ -841,8 +847,9 @@ class BootstrapManager:
             self._record_phase_failure("P6_env", e.code)
             raise
         except Exception as exc:
-            self._record_phase_failure("P6_env", "B-ENV-002")
-            raise BootstrapError("B-ENV-002", f"Environment test failed: {exc}", "environment")
+            self._record_phase_failure("P6_env", "S-E-S-0106")
+            msg = get_system_error_message("S-E-S-0106").format(detail=str(exc))
+            raise BootstrapError("S-E-S-0106", msg, "environment")
     
     # ==========================================================================
     # Phase 7: Schema Resolution
@@ -879,7 +886,8 @@ class BootstrapManager:
             )
             
             if schema_validation.status.name == "FAIL":
-                raise BootstrapError("B-SCHEMA-001", f"Schema validation failed: {schema_validation.message}", "schema")
+                msg = get_system_error_message("S-F-S-0209").format(detail=schema_validation.message)
+                raise BootstrapError("S-F-S-0209", msg, "schema")
             
             self.schema_path = schema_validation.path
             self._record_phase_complete("P7_schema")
@@ -889,8 +897,9 @@ class BootstrapManager:
             self._record_phase_failure("P7_schema", e.code)
             raise
         except Exception as exc:
-            self._record_phase_failure("P7_schema", "B-SCHEMA-002")
-            raise BootstrapError("B-SCHEMA-002", f"Schema resolution failed: {exc}", "schema")
+            self._record_phase_failure("P7_schema", "S-C-S-0308")
+            msg = get_system_error_message("S-C-S-0308").format(detail=str(exc))
+            raise BootstrapError("S-C-S-0308", msg, "schema")
     
     # ==========================================================================
     # Phase 8: Parameters Resolution
@@ -931,8 +940,9 @@ class BootstrapManager:
             debug_print(f"Bootstrap Phase 8: Parameters: {len(self.effective_parameters)} total")
             
         except Exception as exc:
-            self._record_phase_failure("P8_params", "B-PARAM-001")
-            raise BootstrapError("B-PARAM-001", f"Parameter resolution failed: {exc}", "parameters")
+            self._record_phase_failure("P8_params", "S-C-S-0309")
+            msg = get_system_error_message("S-C-S-0309").format(detail=str(exc))
+            raise BootstrapError("S-C-S-0309", msg, "parameters")
     
     def _bootstrap_parameters_for_ui(self, **ui_params) -> None:
         """
@@ -971,7 +981,8 @@ class BootstrapManager:
             milestone_print("Bootstrap Phase 8", f"UI Parameters: {len(self.effective_parameters)} total")
             
         except Exception as exc:
-            raise BootstrapError("B-PARAM-002", f"UI parameter resolution failed: {exc}", "parameters")
+            msg = get_system_error_message("S-C-S-0310").format(detail=str(exc))
+            raise BootstrapError("S-C-S-0310", msg, "parameters")
     
     def _bootstrap_pre_pipeline_validation(self) -> None:
         """
@@ -996,7 +1007,8 @@ class BootstrapManager:
             # Validate input file
             input_file = self.effective_parameters.get(upload_key)
             if not input_file:
-                raise BootstrapError("B-INPUT-001", "No input file specified", "pre-pipeline")
+                msg = get_system_error_message("S-F-S-0210").format(detail="upload_file_name not set")
+                raise BootstrapError("S-F-S-0210", msg, "pre-pipeline")
             
             input_validation = self.validator.validate_path_with_system_context(
                 path_input=Path(input_file),
@@ -1007,7 +1019,8 @@ class BootstrapManager:
             )
             
             if input_validation.status.name == "FAIL":
-                raise BootstrapError("B-INPUT-002", f"Input file validation failed: {input_validation.message}", "pre-pipeline")
+                msg = get_system_error_message("S-F-S-0211").format(detail=input_validation.message)
+                raise BootstrapError("S-F-S-0211", msg, "pre-pipeline")
             
             # Validate output directory (create if needed)
             output_dir = self.effective_parameters.get(download_key, "output")
@@ -1018,7 +1031,8 @@ class BootstrapManager:
                 try:
                     output_path.mkdir(parents=True, exist_ok=True)
                 except Exception as exc:
-                    raise BootstrapError("B-OUTPUT-001", f"Cannot create output directory: {exc}", "pre-pipeline")
+                    msg = get_system_error_message("S-F-S-0212").format(detail=str(exc))
+                    raise BootstrapError("S-F-S-0212", msg, "pre-pipeline")
             
             debug_print("Bootstrap Phase 8b: Pre-pipeline validation complete")
             
@@ -1029,7 +1043,8 @@ class BootstrapManager:
         except BootstrapError:
             raise
         except Exception as exc:
-            raise BootstrapError("B-PRE-001", f"Pre-pipeline validation failed: {exc}", "pre-pipeline")
+            msg = get_system_error_message("S-R-S-0407").format(detail=str(exc))
+            raise BootstrapError("S-R-S-0407", msg, "pre-pipeline")
     
     def _build_preload_trace(self) -> None:
         """
