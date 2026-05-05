@@ -11,16 +11,20 @@ This directory contains workplans for the DCC pipeline architecture and core uti
 
 ```
 pipeline_architecture/
-├── README.md                           # This file
-├── pipeline_architecture_workplan/      # Pipeline Architecture Workplan (COMPLETE)
-│   ├── README.md                        # Workplan reports overview
-│   ├── pipeline_architecture_design_workplan.md  # Master workplan (v1.0)
-│   ├── phase_*.md                       # Phase reports (1-5)
-│   ├── lessons_learned_best_practices.md # Best practices guide
-│   └── implementation_*.md              # Combined implementation reports
-└── core_utility_engine_workplan/        # Core Utility Workplan (ACTIVE)
-    ├── README.md                        # Core utility overview
-    └── core_utility_engine_workplan.md  # Core utility workplan
+├── README.md                                    # This file
+├── pipeline_architecture_workplan/              # Pipeline Architecture Workplan (COMPLETE)
+│   ├── README.md                                # Workplan reports overview
+│   ├── pipeline_architecture_design_workplan.md # Master workplan (v1.0)
+│   ├── phase_*.md                               # Phase reports (1-5)
+│   ├── lessons_learned_best_practices.md        # Best practices guide
+│   └── implementation_*.md                      # Combined implementation reports
+├── core_utility_engine_workplan/                # Core Utility Workplan (ACTIVE)
+│   ├── README.md                                # Core utility overview
+│   └── core_utility_engine_workplan.md          # Core utility workplan
+└── pipeline_simplification/                     # Pipeline Simplification Workplan (PENDING APPROVAL)
+    ├── pipeline_simplification_workplan.md      # Master workplan (WP-PIPE-SIMP-001)
+    └── reports/                                 # Phase completion reports
+        └── README.md                            # Reports index
 ```
 
 ## Workplan Status Summary
@@ -37,6 +41,12 @@ pipeline_architecture/
 - **Description**: Core utility functions and shared components
 - **Location**: [core_utility_engine_workplan/](core_utility_engine_workplan/)
 
+### Pipeline Simplification Workplan (WP-PIPE-SIMP-001)
+- **Status**: 🟠 PENDING APPROVAL
+- **Description**: Simplification of `dcc_engine_pipeline.py` — dead code removal, SSOT enforcement, Blueprint delegation, uniform engine interface
+- **Phases**: A (Quick Wins), B (Structural Cleanup), C (Architecture Refinement)
+- **Location**: [pipeline_simplification/](pipeline_simplification/)
+
 ## Quick Access
 
 ### For Pipeline Architecture Information
@@ -47,6 +57,10 @@ pipeline_architecture/
 ### For Core Utility Information
 1. **Utility Workplan**: [core_utility_engine_workplan/core_utility_engine_workplan.md](core_utility_engine_workplan/core_utility_engine_workplan.md)
 2. **Overview**: [core_utility_engine_workplan/README.md](core_utility_engine_workplan/README.md)
+
+### For Pipeline Simplification Information
+1. **Simplification Workplan**: [pipeline_simplification/pipeline_simplification_workplan.md](pipeline_simplification/pipeline_simplification_workplan.md)
+2. **Reports**: [pipeline_simplification/reports/README.md](pipeline_simplification/reports/README.md)
 
 ## Key Achievements (Pipeline Architecture)
 
