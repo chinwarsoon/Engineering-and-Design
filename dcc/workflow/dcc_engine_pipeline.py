@@ -395,8 +395,16 @@ def main() -> int:
     pipeline_dir = "workflow"
     # return actual pipeline start position
     pipeline_start = resolve_pipeline_base_path()
+    # if pipeline started in "workflow" folder, need to strip the "workflow" folder from the pipeline_start path. this will
+    # allow the pipeline to start in the "workflow" folder.
+    # pipeline base path will be the parent of the "workflow" folder.
+    if pipeline_start.name == pipeline_dir:
+        pipeline_start = pipeline_start.parent
     
-    # Parse CLI args with resolved base_path, raise error if pipeline is not in "workflow" folder
+    # Parse CLI args using the resolved pipeline start position and expected pipeline directory
+    # args: parsed Namespace with typed fields (base_path, verbose, nrows, json, etc.)
+    # cli_args: raw dict of CLI-provided values for downstream precedence resolution
+    # cli_overrides_provided: bool flag indicating whether any CLI overrides were explicitly passed
     args, cli_args, cli_overrides_provided = parse_cli_args(pipeline_start, pipeline_dir)
     
     # Setup logger early with verbose level from CLI (before any bootstrap operations)
