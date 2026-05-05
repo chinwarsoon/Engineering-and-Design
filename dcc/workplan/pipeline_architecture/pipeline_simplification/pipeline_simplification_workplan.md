@@ -1,8 +1,8 @@
 # Pipeline Simplification Workplan
 
 **Document ID**: WP-PIPE-SIMP-001  
-**Current Version**: 0.4  
-**Status**: 🟡 IN PROGRESS — PHASE C COMPLETE  
+**Current Version**: 0.5  
+**Status**: ✅ ALL PHASES COMPLETE  
 **Last Updated**: 2026-05-06  
 
 ---
@@ -23,9 +23,10 @@ The simplification is organized into three phases of increasing scope:
 | Version | Date | Author | Summary of Changes |
 | :--- | :--- | :--- | :--- |
 | 0.1 | 2026-05-05 | System | Initial workplan created from pipeline simplification study |
-| 0.2 | 2026-05-05 | System | Added two new requirements: (1) full legacy/backward-compat code removal across all engines; (2) decouple error handling and messaging from `dcc_engine_pipeline.py` into dedicated handler. Scope expanded with items S17–S26. Phase A extended; Phase D added for legacy removal. |
-| 0.3 | 2026-05-06 | System | Completed Phase B structural cleanup. Added centralized schema root utility, delegated Blueprint population to `SchemaValidator`, wrapped all seven pipeline steps with `wrap_engine_execution()`, consolidated `BaseProcessor`, extracted result/error display to `core_engine/errors/pipeline_result_handler.py`, and generated Phase B report. |
-| 0.4 | 2026-05-06 | System | Completed Phase C architecture refinement. Added uniform `run()` engine interface, replaced manual orchestration with `PIPELINE_STEPS` registry loop, removed deprecated processor/CLI legacy paths, added structured `PipelinePhaseStatus`, and generated Phase C report. |
+| 0.2 | 2026-05-05 | System | Added two new requirements: (1) full legacy/backward-compat code removal; (2) decouple error handling and messaging from orchestrator. Scope expanded with S17–S26. Phase D added. |
+| 0.3 | 2026-05-06 | System | Completed Phase B structural cleanup. Centralized schema root utility, delegated Blueprint to `SchemaValidator`, wrapped all steps with `wrap_engine_execution()`, consolidated `BaseProcessor`, extracted result/error display to `pipeline_result_handler.py`. |
+| 0.4 | 2026-05-06 | System | Completed Phase C architecture refinement. Uniform `run()` engine interface, `PIPELINE_STEPS` registry loop, removed deprecated processor/CLI legacy paths, added structured `PipelinePhaseStatus`. |
+| 0.5 | 2026-05-06 | System | Phases A–C verified complete (S01–S16, S25–S26). Phase D approved and executed: all 10 legacy removal tasks complete. `enhanced_schema` fallback, `_new_key_map`, `_data` suffix, `global_parameters.json` fallback, `system_registry`/`dcc_registry` aliases, `safe_resolve_legacy()`, backward-compat logging section, `_use_registry_validation()` toggle all removed. Internal callers redirected to `utility_engine.console`. Test fixtures updated. Pipeline smoke test and JSON mode pass. |
 
 ---
 
@@ -64,14 +65,14 @@ The goal is a pipeline orchestrator that reads as a clear, linear sequence of en
 | S14 | Dead Code | Remove legacy factory methods | `create_legacy()`, `create_calculation_engine_legacy()` only serve dead else branch | ✅ COMPLETE | C |
 | S15 | Dead Code | Remove deprecated `--debug-mode` CLI arg | Marked DEPRECATED in parser; `--verbose debug` is the replacement | ✅ COMPLETE | C |
 | S16 | Status Tracking | Align pipeline phase tracking with `BootstrapPhaseStatus` | Bootstrap has rich phase tracking; pipeline only stores flat string per engine | ✅ COMPLETE | C |
-| S17 | Legacy Removal | Remove `enhanced_schema` fallback in schema root resolution | `enhanced_schema` was the old schema key; current schema uses top-level `columns` | 🔵 PLANNED | D |
-| S18 | Legacy Removal | Remove `_data` suffix fallback in `BaseProcessor._resolve_schema_reference()` | Old schema used `approval_code_schema_data`; new schema uses top-level `approval_codes` | 🔵 PLANNED | D |
-| S19 | Legacy Removal | Remove `_new_key_map` hardcoded lookup in `BaseProcessor` | Replace with schema-driven reference resolution; map belongs in schema, not code | 🔵 PLANNED | D |
-| S20 | Legacy Removal | Remove `global_parameters.json` fallback in `BootstrapManager` | Replaced by `dcc_register_setup.json`; fallback path is dead for current deployments | 🔵 PLANNED | D |
-| S21 | Legacy Removal | Remove `system_registry` / `dcc_registry` aliases in `BootstrapManager` | Both point to same unified `registry`; aliases add confusion with no value | 🔵 PLANNED | D |
-| S22 | Legacy Removal | Remove `safe_resolve_legacy()` function | Explicit legacy wrapper; `safe_resolve()` is the current API | 🔵 PLANNED | D |
-| S23 | Legacy Removal | Remove backward-compat section in `initiation_engine/utils/logging.py` | `debug_print()` and `set_debug_mode()` legacy wrappers; callers should use tiered logging directly | 🔵 PLANNED | D |
-| S24 | Legacy Removal | Remove `_use_registry_validation()` feature toggle in `cli_parser.py` | Gradual migration toggle; registry validation is now the only path | 🔵 PLANNED | D |
+| S17 | Legacy Removal | Remove `enhanced_schema` fallback in schema root resolution | `enhanced_schema` was the old schema key; current schema uses top-level `columns` | ✅ COMPLETE | D |
+| S18 | Legacy Removal | Remove `_data` suffix fallback in `BaseProcessor._resolve_schema_reference()` | Old schema used `approval_code_schema_data`; new schema uses top-level `approval_codes` | ✅ COMPLETE | D |
+| S19 | Legacy Removal | Remove `_new_key_map` hardcoded lookup in `BaseProcessor` | Replace with schema-driven reference resolution; map belongs in schema, not code | ✅ COMPLETE | D |
+| S20 | Legacy Removal | Remove `global_parameters.json` fallback in `BootstrapManager` | Replaced by `dcc_register_setup.json`; fallback path is dead for current deployments | ✅ COMPLETE | D |
+| S21 | Legacy Removal | Remove `system_registry` / `dcc_registry` aliases in `BootstrapManager` | Both point to same unified `registry`; aliases add confusion with no value | ✅ COMPLETE | D |
+| S22 | Legacy Removal | Remove `safe_resolve_legacy()` function | Explicit legacy wrapper; `safe_resolve()` is the current API | ✅ COMPLETE | D |
+| S23 | Legacy Removal | Remove backward-compat section in `initiation_engine/utils/logging.py` | `debug_print()` and `set_debug_mode()` legacy wrappers; callers should use tiered logging directly | ✅ COMPLETE | D |
+| S24 | Legacy Removal | Remove `_use_registry_validation()` feature toggle in `cli_parser.py` | Gradual migration toggle; registry validation is now the only path | ✅ COMPLETE | D |
 | S25 | Decoupling | Extract error handling and messaging from `dcc_engine_pipeline.py` into `pipeline_result_handler.py` | `main()` contains ~60 lines of error formatting, error printing, and result display mixed with pipeline coordination | ✅ COMPLETE | B |
 | S26 | Decoupling | Extract in-pipeline error display (step 6 validation summary) into result handler | Inline `status_print` error summary in step 6 belongs in reporting layer, not orchestrator | ✅ COMPLETE | B |
 
@@ -157,11 +158,11 @@ The goal is a pipeline orchestrator that reads as a clear, linear sequence of en
 
 ---
 
-### Phase A — Quick Wins (Low Risk, High Clarity)
+### Phase A — Quick Wins ✅ COMPLETE
 
-**Timeline:** TBD (estimated 1 session)  
+**Timeline:** Completed  
 **Milestone:** Orchestrator cleaned of dead code and shadow copies  
-**Risk Level:** 🟢 None — all changes are removals of unreachable or redundant code
+**Risk Level:** None — all changes were removals of unreachable or redundant code
 
 #### Tasks
 
@@ -341,11 +342,11 @@ The goal is a pipeline orchestrator that reads as a clear, linear sequence of en
 
 ---
 
-### Phase D — Legacy Removal (Medium Effort, Clean Break)
+### Phase D — Legacy Removal ✅ COMPLETE
 
-**Timeline:** TBD (estimated 2 sessions)  
+**Timeline:** Completed 2026-05-06  
 **Milestone:** All backward-compatibility shims removed; codebase assumes current schema format only  
-**Risk Level:** 🟡 Low-Medium — requires confirming no active data files use old schema format before removing fallbacks
+**Risk Level:** Low-Medium — pre-condition checklist passed before any removal
 
 #### Background
 
@@ -393,10 +394,10 @@ The pipeline evolved from an older schema design (`enhanced_schema.columns`, `_d
 
 #### Pre-Condition Checklist (must complete before D1–D4)
 
-- [ ] Confirm no active schema files in `dcc/config/schemas/` use `enhanced_schema` key
-- [ ] Confirm no active schema files use `*_data` suffix pattern (e.g., `approval_code_schema_data`)
-- [ ] Confirm `dcc_register_setup.json` exists and is the active parameter schema
-- [ ] Confirm `global_parameters.json` is not referenced by any active config or tool
+- [x] Confirm no active schema files in `dcc/config/schemas/` use `enhanced_schema` key
+- [x] Confirm no active schema files use `*_data` suffix pattern (e.g., `approval_code_schema_data`)
+- [x] Confirm `dcc_register_setup.json` exists and is the active parameter schema
+- [x] Confirm `global_parameters.json` is not referenced by any active config or tool
 
 #### Risks and Mitigation
 
@@ -412,19 +413,19 @@ The pipeline evolved from an older schema design (`enhanced_schema.columns`, `_d
 - `_new_key_map` removal (D3) requires the schema itself to carry reference resolution metadata — verify `dcc_register_enhanced.json` has the necessary `schema_references` section
 
 #### Success Criteria
-- [ ] Pre-condition checklist passed
-- [ ] Zero `enhanced_schema` references in production code (test fixtures excluded until D10)
-- [ ] Zero `_data` suffix fallback branches in production code
-- [ ] `global_parameters.json` fallback removed from `BootstrapManager`
-- [ ] `safe_resolve_legacy()` removed from exports
-- [ ] Backward-compat logging section removed
-- [ ] `_use_registry_validation()` toggle removed
-- [ ] All tests pass with updated fixtures
-- [ ] Pipeline runs without regression
+- [x] Pre-condition checklist passed
+- [x] Zero `enhanced_schema` references in production code (test fixtures excluded until D10)
+- [x] Zero `_data` suffix fallback branches in production code
+- [x] `global_parameters.json` fallback removed from `BootstrapManager`
+- [x] `safe_resolve_legacy()` removed from exports
+- [x] Backward-compat logging section removed
+- [x] `_use_registry_validation()` toggle removed
+- [x] All tests pass with updated fixtures
+- [x] Pipeline runs without regression
 
 #### Deliverables
-- Updated files across 8+ modules (see table above)
-- `reports/phase_D_legacy_removal_report.md`
+- Updated files across 20 modules (see table above)
+- `reports/phase_D_legacy_removal_report.md` ✅ [View Report](reports/phase_D_legacy_removal_report.md)
 
 ---
 

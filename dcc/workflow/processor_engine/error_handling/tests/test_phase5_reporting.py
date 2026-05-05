@@ -17,15 +17,13 @@ def test_phase5_reporting():
     # Mock schema
     schema = {
         "parameters": {},
-        "enhanced_schema": {
-            "columns": {
-                "Project_Code": {"processing_phase": "P1", "null_handling": {"strategy": "leave_null"}},
-                "Submission_Session": {"processing_phase": "P1", "null_handling": {"strategy": "leave_null"}},
-                "Validation_Errors": {"processing_phase": "P3", "is_calculated": True},
-                "Data_Health_Score": {"processing_phase": "P3", "is_calculated": True}
-            },
-            "column_sequence": ["Project_Code", "Submission_Session", "Validation_Errors", "Data_Health_Score"]
-        }
+        "columns": {
+            "Project_Code": {"processing_phase": "P1", "null_handling": {"strategy": "leave_null"}},
+            "Submission_Session": {"processing_phase": "P1", "null_handling": {"strategy": "leave_null"}},
+            "Validation_Errors": {"processing_phase": "P3", "is_calculated": True},
+            "Data_Health_Score": {"processing_phase": "P3", "is_calculated": True}
+        },
+        "column_sequence": ["Project_Code", "Submission_Session", "Validation_Errors", "Data_Health_Score"]
     }
     
     # Mock data with errors

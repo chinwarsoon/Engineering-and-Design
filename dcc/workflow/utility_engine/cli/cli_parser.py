@@ -2,26 +2,18 @@
 CLI argument parsing functions.
 """
 import argparse
-import os
 import sys
 from pathlib import Path
-from typing import Tuple, Dict, Any, Optional, List
+from typing import Tuple, Dict, Any
 
 from core_engine.logging import set_debug_level
 from utility_engine.console import status_print, debug_print
 from core_engine.paths import default_base_path, default_schema_path
-
-# Phase 3: Registry-driven CLI imports (backward compatible)
-try:
-    from utility_engine.validation import (
-        ParameterTypeRegistry,
-        ParameterValidator,
-        get_parameter_registry,
-    )
-    _REGISTRY_AVAILABLE = True
-except ImportError:
-    _REGISTRY_AVAILABLE = False
-    status_print("Warning: ParameterTypeRegistry not available, using legacy CLI parsing", min_level=2)
+from utility_engine.validation import (
+    ParameterTypeRegistry,
+    ParameterValidator,
+    get_parameter_registry,
+)
 
 
 VERBOSE_LEVELS = {
@@ -30,19 +22,6 @@ VERBOSE_LEVELS = {
     "debug": 2,
     "trace": 3,
 }
-
-
-# Feature toggle for gradual migration (Phase 3 backward compatibility)
-def _use_registry_validation() -> bool:
-    """
-    Check if registry-driven validation should be used.
-
-    Breadcrumb: Environment variable check -> registry validation toggle
-
-    Returns:
-        True if DCC_USE_REGISTRY_VALIDATION env var is set to "1" or "true"
-    """
-    return os.environ.get("DCC_USE_REGISTRY_VALIDATION", "").lower() in ("1", "true", "yes")
 
 
 def create_parser(base_path: Path) -> argparse.ArgumentParser:

@@ -8,7 +8,7 @@ import platform
 from pathlib import Path
 from typing import Any, Dict, List, Callable, Optional  # Add Any here
 
-from ..utils.logging import status_print
+from utility_engine.console import status_print
 
 
 

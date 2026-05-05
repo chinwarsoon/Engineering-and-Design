@@ -109,61 +109,53 @@ def extract_categorical_choices(detected_columns: Dict[str, Dict], resolved_sche
     """
     Add schema choices for categorical columns in-place.
 
+    Reads reference data from the schema's top-level lists (e.g. resolved_schema['approval_codes']).
+    The mapping from schema_reference name to top-level key is read from the schema's own
+    'schema_reference_map' section when present, with a built-in fallback for standard DCC schemas.
+
     Args:
-        detected_columns: Dictionary of detected column mappings (modified in-place)
-        resolved_schema: Resolved schema with all dependencies
+        detected_columns: Dictionary of detected column mappings (modified in-place).
+                          Breadcrumb: mapper_engine.detect_columns() → here.
+        resolved_schema: Resolved schema with all dependencies.
     """
-    # New architecture: map schema_reference name to top-level key
-    _ref_key_map = {
+    # Prefer schema-driven reference map; fall back to built-in defaults
+    ref_key_map: Dict[str, str] = resolved_schema.get('schema_reference_map', {
         'approval_code_schema': 'approval_codes',
         'department_schema':    'departments',
         'discipline_schema':    'disciplines',
         'facility_schema':      'facilities',
         'document_type_schema': 'document_types',
         'project_code_schema':  'projects',
-    }
+    })
 
     for header, mapping in detected_columns.items():
         col_def = mapping['column_definition']
-        if col_def.get('data_type') == 'categorical':
-            schema_ref = col_def.get('schema_reference')
-            if not schema_ref:
-                continue
+        if col_def.get('data_type') != 'categorical':
+            continue
 
-            # New architecture: top-level list
-            top_key = _ref_key_map.get(schema_ref)
-            if top_key and isinstance(resolved_schema.get(top_key), list):
-                entries = resolved_schema[top_key]
-                # Determine code field (facilities use 'prefix', others use 'code')
-                code_field = 'prefix' if schema_ref == 'facility_schema' else 'code'
-                mapping['choices'] = [
-                    item.get(code_field) for item in entries
-                    if isinstance(item, dict) and item.get(code_field)
-                ]
-                mapping['choice_descriptions'] = {
-                    item.get(code_field): item.get('description', item.get('building_description', ''))
-                    for item in entries
-                    if isinstance(item, dict) and item.get(code_field)
-                }
-                continue
+        schema_ref = col_def.get('schema_reference')
+        if not schema_ref:
+            continue
 
-            # Legacy fallback: _data suffix
-            schema_data = resolved_schema.get(f'{schema_ref}_data')
-            if schema_data:
-                array_key = None
-                for key in schema_data.keys():
-                    if isinstance(schema_data[key], list) and len(schema_data[key]) > 0:
-                        if isinstance(schema_data[key][0], dict) and 'code' in schema_data[key][0]:
-                            array_key = key
-                            break
-                if array_key:
-                    mapping['choices'] = [item.get('code') for item in schema_data[array_key] if item.get('code')]
-                    mapping['choice_descriptions'] = {
-                        item.get('code'): item.get('description')
-                        for item in schema_data[array_key] if item.get('code')
-                    }
-                elif 'choices' in schema_data:
-                    mapping['choices'] = schema_data.get('choices', [])
+        top_key = ref_key_map.get(schema_ref)
+        if not top_key:
+            continue
+
+        entries = resolved_schema.get(top_key)
+        if not isinstance(entries, list):
+            continue
+
+        # Facilities use 'prefix' as the code field; all others use 'code'
+        code_field = 'prefix' if schema_ref == 'facility_schema' else 'code'
+        mapping['choices'] = [
+            item.get(code_field) for item in entries
+            if isinstance(item, dict) and item.get(code_field)
+        ]
+        mapping['choice_descriptions'] = {
+            item.get(code_field): item.get('description', item.get('building_description', ''))
+            for item in entries
+            if isinstance(item, dict) and item.get(code_field)
+        }
 
 
 def rename_dataframe_columns(df: pd.DataFrame, mapping_result: Dict) -> pd.DataFrame:

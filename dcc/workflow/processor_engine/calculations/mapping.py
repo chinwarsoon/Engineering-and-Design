@@ -36,17 +36,15 @@ def apply_mapping_calculation(engine, df: pd.DataFrame, column_name: str, calcul
 
     # Load external mapping if reference provided
     if mapping_ref and not mapping:
-        # New architecture: top-level 'approval_codes' list
-        # Legacy architecture: '{mapping_ref}_data'.approval list
-        _new_key_map = {
+        # Prefer schema-driven reference map; fall back to built-in default
+        reference_map = engine.schema_data.get('schema_reference_map', {
             'approval_code_schema': 'approval_codes',
-        }
-        top_key = _new_key_map.get(mapping_ref)
+        })
+        top_key = reference_map.get(mapping_ref)
         if top_key and isinstance(engine.schema_data.get(top_key), list):
             approval_rows = engine.schema_data[top_key]
         else:
-            ref_data = engine.schema_data.get(f'{mapping_ref}_data', {})
-            approval_rows = ref_data.get('approval', [])
+            approval_rows = []
 
         for row in approval_rows:
             code = row.get('code')

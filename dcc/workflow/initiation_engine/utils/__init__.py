@@ -30,11 +30,6 @@ from .logging import (
     track_global_param,
     # Hierarchical context
     log_context,
-    # Legacy compatibility
-    status_print,
-    debug_print,
-    setup_logger,
-    set_debug_mode,
     # Framework banner
     print_framework_banner,
     get_verbose_mode,
@@ -75,11 +70,6 @@ __all__ = [
     'track_global_param',
     # Hierarchical context
     'log_context',
-    # Legacy logging
-    'status_print',
-    'debug_print',
-    'setup_logger',
-    'set_debug_mode',
     # Framework banner
     'print_framework_banner',
     'get_verbose_mode',

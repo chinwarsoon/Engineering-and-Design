@@ -12,31 +12,29 @@ from dcc.workflow.processor_engine.core.engine import CalculationEngine
 def test_engine_integration():
     # Mock schema data
     schema_data = {
-        "enhanced_schema": {
-            "columns": {
-                "Project_Code": {
-                    "processing_phase": "P1",
-                    "required": True,
-                    "validation": {"pattern": "^[A-Z0-9]+$"}
-                },
-                "Submission_Session": {
-                    "processing_phase": "P1",
-                    "validation": {"pattern": "^[0-9]{6}$"}
-                },
-                "Document_ID": {
-                    "processing_phase": "P2",
-                    "is_calculated": True,
-                    "calculation": {"type": "concat", "method": "basic", "columns": ["Project_Code", "Document_Type"]}
-                },
-                "Document_Type": {
-                    "processing_phase": "P1"
-                },
-                "Validation_Errors": {
-                    "processing_phase": "P4"
-                }
+        "columns": {
+            "Project_Code": {
+                "processing_phase": "P1",
+                "required": True,
+                "validation": {"pattern": "^[A-Z0-9]+$"}
             },
-            "column_sequence": ["Project_Code", "Submission_Session", "Document_Type", "Document_ID", "Validation_Errors"]
-        }
+            "Submission_Session": {
+                "processing_phase": "P1",
+                "validation": {"pattern": "^[0-9]{6}$"}
+            },
+            "Document_ID": {
+                "processing_phase": "P2",
+                "is_calculated": True,
+                "calculation": {"type": "concat", "method": "basic", "columns": ["Project_Code", "Document_Type"]}
+            },
+            "Document_Type": {
+                "processing_phase": "P1"
+            },
+            "Validation_Errors": {
+                "processing_phase": "P4"
+            }
+        },
+        "column_sequence": ["Project_Code", "Submission_Session", "Document_Type", "Document_ID", "Validation_Errors"]
     }
     
     # Create engine

@@ -38,9 +38,21 @@ class BaseProcessor:
 
     def _resolve_schema_reference(self, ref_config: Dict[str, Any]) -> Any:
         """
-        Resolve a schema reference to its actual value.
+        Resolve a schema reference to its actual value using the current
+        top-level schema architecture.
 
-        Supports both new architecture and legacy _data suffix keys.
+        The schema stores reference data as top-level lists keyed by domain
+        (e.g. schema_data['approval_codes'], schema_data['departments']).
+        The mapping from schema_name to top-level key is read from the schema's
+        own 'schema_reference_map' section when present, with a built-in
+        fallback for the standard DCC register schemas.
+
+        Args:
+            ref_config: Dict with 'schema', 'code', and 'field' keys.
+                        Breadcrumb: column_def['calculation']['ref'] → here.
+
+        Returns:
+            Resolved value or None if not found.
         """
         schema_name = ref_config.get('schema')
         code = ref_config.get('code')
@@ -50,28 +62,27 @@ class BaseProcessor:
             log_warning(f"Invalid schema reference: {ref_config}")
             return None
 
-        data_section = ref_config.get('data_section', 'approval')
-
-        # New architecture: map schema_name to top-level key
-        _new_key_map = {
+        # Prefer schema-driven reference map; fall back to built-in defaults
+        reference_map: Dict[str, str] = self.schema_data.get('schema_reference_map', {
             'approval_code_schema': 'approval_codes',
             'department_schema':    'departments',
             'discipline_schema':    'disciplines',
             'facility_schema':      'facilities',
             'document_type_schema': 'document_types',
             'project_code_schema':  'projects',
-        }
-        top_level_key = _new_key_map.get(schema_name)
-        entries = None
+        })
 
-        if top_level_key and isinstance(self.schema_data.get(top_level_key), list):
-            entries = self.schema_data[top_level_key]
-        else:
-            # Legacy fallback: schema_name_data.data_section
-            ref_schema_data = self.schema_data.get(f'{schema_name}_data', {})
-            entries = ref_schema_data.get(data_section, [])
+        top_level_key = reference_map.get(schema_name)
+        if not top_level_key:
+            log_warning(f"No reference map entry for schema '{schema_name}'")
+            return None
 
-        for entry in entries or []:
+        entries = self.schema_data.get(top_level_key)
+        if not isinstance(entries, list):
+            log_warning(f"Reference data '{top_level_key}' is missing or not a list")
+            return None
+
+        for entry in entries:
             if entry.get('code') == code:
                 value = entry.get(field)
                 if value is not None:

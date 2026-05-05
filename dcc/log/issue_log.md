@@ -19,6 +19,25 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-iss-012"></a>
+## 2026-05-06 04:35:00
+
+### Issue ISS-012 — `initiation_engine` Internal Modules Importing Removed Legacy Wrappers
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-06
+- **Resolution Summary:** When the backward-compat section was removed from `initiation_engine/utils/logging.py` (Phase D, task D8), 5 internal files were still importing `status_print`, `debug_print`, and `set_debug_mode` from the local logging module. These were redirected to `utility_engine.console` as part of the same phase. The `initiation_engine/__init__.py` and `utils/__init__.py` exports were also cleaned up to remove the legacy symbols.
+- **Root Cause:** The backward-compat wrappers in `initiation_engine/utils/logging.py` had been the source of `status_print` and `debug_print` for internal `initiation_engine` modules. When the wrappers were removed, the internal callers were not updated in the same pass.
+- **Files Changed:**
+  - `workflow/initiation_engine/utils/cli.py` (MODIFIED — redirected to `utility_engine.console`)
+  - `workflow/initiation_engine/utils/system.py` (MODIFIED — redirected to `utility_engine.console`)
+  - `workflow/initiation_engine/utils/parameters.py` (MODIFIED — redirected to `utility_engine.console`)
+  - `workflow/initiation_engine/utils/paths.py` (MODIFIED — redirected to `utility_engine.console`)
+  - `workflow/initiation_engine/core/validator.py` (MODIFIED — redirected to `utility_engine.console`)
+  - `workflow/initiation_engine/__init__.py` (MODIFIED — removed legacy exports)
+  - `workflow/initiation_engine/utils/__init__.py` (MODIFIED — removed legacy exports)
+- **Impact:** `ImportError` on pipeline startup until fixed. No functional regression after fix.
+- **Link to Update Log:** [Update 2026-05-06-pipeline-simplification-phase-d](#update-2026-05-06-pipeline-simplification-phase-d)
+
 <a id="issue-iss-011"></a>
 ## 2026-05-06 14:15:00
 

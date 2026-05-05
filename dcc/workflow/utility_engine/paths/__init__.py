@@ -23,7 +23,6 @@ from utility_engine.paths.path_resolvers import (
     safe_resolve_batch,
     validate_path_resolutions,
     get_path_info,
-    safe_resolve_legacy,
 )
 
 __all__ = [
@@ -39,5 +38,4 @@ __all__ = [
     "safe_resolve_batch",
     "validate_path_resolutions",
     "get_path_info",
-    "safe_resolve_legacy",
 ]

@@ -247,17 +247,3 @@ def get_path_info(path: Union[str, Path], base_path: Optional[Path] = None) -> D
 
     return info
 
-
-# Legacy compatibility function
-def safe_resolve_legacy(path: Union[str, Path], base_path: Optional[Path] = None) -> Path:
-    """
-    Legacy safe_resolve function for backward compatibility.
-
-    Args:
-        path: Path to resolve
-        base_path: Base path for relative resolution
-
-    Returns:
-        Resolved Path object
-    """
-    return safe_resolve(path, base_path, create_if_missing=False)

@@ -195,8 +195,6 @@ class BootstrapManager:
         
         # Initialized components
         self.registry: Optional[ParameterTypeRegistry] = None
-        self.system_registry: Optional[ParameterTypeRegistry] = None
-        self.dcc_registry: Optional[ParameterTypeRegistry] = None
         self.validator: Optional[ValidationManager] = None
         self.environment: Dict[str, Any] = {}
         
@@ -671,13 +669,7 @@ class BootstrapManager:
             # Define schema paths
             dcc_params_path = self.base_path / "config" / "schemas" / "dcc_register_setup.json"
             system_params_path = self.base_path / "config" / "schemas" / "project_setup.json"
-            
-            # Fallback to legacy global_parameters.json (deprecated)
-            if not dcc_params_path.exists():
-                legacy_path = self.base_path / "config" / "schemas" / "global_parameters.json"
-                if legacy_path.exists():
-                    dcc_params_path = legacy_path
-            
+
             if dcc_params_path.exists():
                 # Load unified registry with both system and DCC parameters
                 self.registry = ParameterTypeRegistry()
@@ -685,30 +677,22 @@ class BootstrapManager:
                     schema_path=dcc_params_path,
                     system_schema_path=system_params_path if system_params_path.exists() else None
                 )
-                
-                # Store references for backward compatibility
-                self.system_registry = self.registry
-                self.dcc_registry = self.registry
-                
                 domains = self.registry._metadata.get("domains", [])
                 debug_print(f"Bootstrap Phase 3: Unified registry loaded: {self.registry.parameter_count} parameters (domains: {domains})")
             else:
-                # Continue without registry (legacy mode)
-                self.registry = None
-                self.system_registry = None
-                self.dcc_registry = None
-                debug_print("Bootstrap Phase 3: Registry not found, using legacy mode")
-            
+                # Registry schema not found — raise so the caller can decide
+                msg = get_system_error_message("S-C-S-0306").format(detail=f"dcc_register_setup.json not found at {dcc_params_path}")
+                raise BootstrapError("S-C-S-0306", msg, "registry")
+
             self._record_phase_complete("P3_registry")
-            
+
+        except BootstrapError:
+            self._record_phase_failure("P3_registry", "S-C-S-0306")
+            raise
         except Exception as exc:
-            # Registry failure is not fatal - can continue in legacy mode
             self._record_phase_failure("P3_registry", "S-C-S-0306")
             msg = get_system_error_message("S-C-S-0306").format(detail=str(exc))
-            debug_print(f"Warning: {msg}")
-            self.registry = None
-            self.system_registry = None
-            self.dcc_registry = None
+            raise BootstrapError("S-C-S-0306", msg, "registry") from exc
     
     # ==========================================================================
     # Phase 4: Native Defaults Building

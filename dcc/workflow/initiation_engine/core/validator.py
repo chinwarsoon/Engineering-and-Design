@@ -16,7 +16,8 @@ from ..validators.items import (
     check_ready,
 )
 from .reports import format_report
-from ..utils.logging import log_context, log_status, log_error, trace_parameter, status_print
+from ..utils.logging import log_context, log_status, log_error, trace_parameter
+from utility_engine.console import status_print
 
 # Import RefResolver for schema $ref resolution (Phase F)
 try:

@@ -8,6 +8,40 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-06-pipeline-simplification-phase-d"></a>
+## 2026-05-06 04:35:00
+
+### COMPLETED: Pipeline Simplification Phase D — Legacy Removal
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-PIPE-SIMP-001](../workplan/pipeline_architecture/pipeline_simplification/pipeline_simplification_workplan.md)  
+**Phase Report:** [phase_D_legacy_removal_report.md](../workplan/pipeline_architecture/pipeline_simplification/reports/phase_D_legacy_removal_report.md)
+
+**Summary:** Removed all backward-compatibility shims left over from the pipeline's migration from the old `enhanced_schema` / `_data` suffix schema architecture to the current flat top-level design. Pre-condition checklist confirmed no active schema files use the old format. An additional follow-on fix redirected 5 internal `initiation_engine` callers from the removed local logging wrappers to `utility_engine.console`. Pipeline passes full smoke test (10 rows) and JSON output mode after all changes.
+
+**Implementation Details:**
+| Task | Description | Impact |
+|:---|:---|:---|
+| D1 | `enhanced_schema` fallback removed from `resolve_schema_root()` | `schema_utils.py` now returns `{}` for schemas without top-level `columns` |
+| D2/D3 | `_new_key_map` + `_data` suffix removed from `BaseProcessor` | Reference resolution now uses `schema_reference_map` (schema-driven or built-in default) |
+| D4/D4b | `_data` suffix + `_new_key_map` removed from `detection.py` and `mapping.py` | Both use `schema_reference_map` consistently |
+| D5 | `global_parameters.json` fallback removed from `BootstrapManager` | Missing `dcc_register_setup.json` now raises `BootstrapError` |
+| D6 | `system_registry`/`dcc_registry` aliases removed from `BootstrapManager` | Single `self.registry` attribute; no redundant aliases |
+| D7 | `safe_resolve_legacy()` removed | `safe_resolve()` is the only path resolver API |
+| D8 | Backward-compat logging section removed from `initiation_engine/utils/logging.py` | 5 internal callers redirected to `utility_engine.console` |
+| D9 | `_use_registry_validation()` toggle removed from `cli_parser.py` | Registry validation is now unconditional; `try/except` import guard removed |
+| D10 | Test fixtures updated | `test_phase4_integration.py` and `test_phase5_reporting.py` use top-level `columns` format |
+
+**Verification:**
+- Import test: ✅ All 7 pipeline step modules import cleanly
+- Schema utils unit tests: ✅ 4/4 pass
+- Pipeline smoke test (10 rows, normal mode): ✅ exit code 0, Ready: YES
+- JSON output mode (5 rows): ✅ All 7 engines show `"status": "complete"`
+- Legacy pattern scan: ✅ Zero matches in production code
+
+**WP-PIPE-SIMP-001 Final Status:** All 26 scope items complete across Phases A–D.
+
+---
+
 <a id="update-2026-05-06-pipeline-simplification-phase-c"></a>
 ## 2026-05-06 02:02:00
 

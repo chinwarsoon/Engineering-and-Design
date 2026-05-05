@@ -6,9 +6,12 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
 from .logging import (
-    status_print,
-    debug_print,
+    set_debug_level,
+    log_status,
+    log_warning,
+    log_error,
 )
+from utility_engine.console import status_print, debug_print
 from .paths import default_base_path, get_schema_path, normalize_path
 
 def test_environment(base_path: Path | None = None) -> Dict[str, Any]:

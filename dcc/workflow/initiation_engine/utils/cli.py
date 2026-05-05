@@ -3,7 +3,8 @@ import sys
 from pathlib import Path
 from typing import Tuple, Dict, Any
 
-from .logging import status_print, debug_print, set_debug_level
+from .logging import set_debug_level
+from utility_engine.console import status_print, debug_print
 
 VERBOSE_LEVELS = {
     "quiet": 0,

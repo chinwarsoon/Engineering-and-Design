@@ -5,7 +5,8 @@ Parameter resolution and default configuration for the DCC processing pipeline.
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from .logging import status_print, debug_print
+from .logging import set_debug_level, log_status, log_warning, log_error
+from utility_engine.console import status_print, debug_print
 from .paths import default_schema_path
 
 def build_native_defaults(base_path: Path, registry: Optional[Any] = None) -> Dict[str, Any]:

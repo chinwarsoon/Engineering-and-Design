@@ -6,7 +6,7 @@ with open('dcc_register_enhanced.json', 'r', encoding='utf-8') as f:
     schema = json.load(f)
 
 # Get current aliases
-col_def = schema['enhanced_schema']['columns']['Review_Return_Plan_Date']
+col_def = schema['columns']['Review_Return_Plan_Date']
 print(f"Current aliases ({len(col_def['aliases'])}):")
 for i, alias in enumerate(col_def['aliases'], 1):
     print(f"  {i}. {repr(alias)}")
@@ -34,7 +34,7 @@ print("✅ Schema file saved successfully")
 with open('dcc_register_enhanced.json', 'r', encoding='utf-8') as f:
     schema2 = json.load(f)
     
-aliases2 = schema2['enhanced_schema']['columns']['Review_Return_Plan_Date']['aliases']
+aliases2 = schema2['columns']['Review_Return_Plan_Date']['aliases']
 print(f"\nVerification - aliases count: {len(aliases2)}")
 print("First 3 aliases:")
 for i in range(min(3, len(aliases2))):
