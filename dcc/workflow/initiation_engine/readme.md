@@ -408,7 +408,7 @@ The main orchestrator class that coordinates all validation activities.
 - `--start-col`, `--end-col`: Column range
 - `--header-row`: Header row index
 - `--overwrite`: Overwrite output file
-- `--debug-mode`: Enable debug output
+- `--verbose`: Set output verbosity (`quiet`, `normal`, `debug`, `trace`)
 - `--nrows`: Row limit
 - `--json`: Print result as JSON
 
@@ -663,7 +663,7 @@ if args.json:
 
 **CLI Example:**
 ```bash
-python script.py --base-path /my/project --excel-file data.xlsx --debug-mode True --overwrite True
+python script.py --base-path /my/project --excel-file data.xlsx --verbose debug --overwrite True
 ```
 
 ---

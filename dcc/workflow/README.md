@@ -88,7 +88,7 @@ The pipeline supports the following command-line arguments:
 | `--end-col` | String | `AP` | Ending column for Excel data range. |
 | `--header-row` | Int | `4` | Index of the header row in Excel (0-based). |
 | `--overwrite` | Bool | `True` | Whether to overwrite existing output files. |
-| `--debug-mode` | Bool | `False` | Enables verbose tiered logging. |
+| `--verbose` | Choice | `normal` | Controls output verbosity: `quiet`, `normal`, `debug`, or `trace`. |
 | `--nrows` | Int | `None` | Limit the number of rows to process (for testing). |
 | `--json` | Flag | N/A | Output final results as a JSON string. |
 
@@ -193,7 +193,7 @@ python dcc/workflow/dcc_engine_pipeline.py --excel-file dcc/data/register.xlsx
 
 ### Debugging a specific range
 ```bash
-python dcc/workflow/dcc_engine_pipeline.py --start-col A --end-col Z --debug-mode True
+python dcc/workflow/dcc_engine_pipeline.py --start-col A --end-col Z --verbose debug
 ```
 
 ---

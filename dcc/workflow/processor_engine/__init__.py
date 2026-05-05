@@ -29,7 +29,6 @@ from .core.proc_factories import (
     CalculationEngineFactory,
     SchemaProcessorFactory,
     create_calculation_engine,
-    create_calculation_engine_legacy,
 )
 
 __all__ = [
@@ -50,5 +49,4 @@ __all__ = [
     'CalculationEngineFactory',
     'SchemaProcessorFactory',
     'create_calculation_engine',
-    'create_calculation_engine_legacy',
 ]

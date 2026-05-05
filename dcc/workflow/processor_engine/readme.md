@@ -71,7 +71,7 @@ flowchart TD
     B --> C["Load schema and columns<br/>from schema_data"]
     C --> D["Start apply_phased_processing()"]
     
-    D --> E["Phase 1: Meta Data<br/>P1 columns<br/>apply_null_handling()"]
+    D --> E["Phase 1: Meta Data<br/>P1 columns<br/>_apply_phase_direct()"]
     E --> F["Forward fill with boundaries<br/>apply_forward_fill()<br/>apply_multi_level_forward_fill()"]
     
     F --> G["Phase 2: Transactional<br/>P2 columns<br/>apply_bounded_forward_fill()"]
@@ -82,7 +82,7 @@ flowchart TD
     J --> K["Null handling LAST DEFENSE"]
     
     K --> L["Phase 3: Calculated<br/>P3 columns<br/>_apply_phase_calculated()"]
-    L --> M["Calculations FIRST<br/>apply_calculations()"]
+    L --> M["Calculations FIRST<br/>_apply_phase_calculated()"]
     M --> N["Null handling LAST DEFENSE<br/>Only fill remaining nulls"]
     
     N --> O["Return processed DataFrame"]
@@ -110,8 +110,8 @@ flowchart TD
 |----------|------|-------|--------|
 | `CalculationEngine.__init__()` | `core/engine.py` | `schema_data` (Dict): Resolved schema | Engine instance with columns, calculation_order |
 | `process_data()` | `core/engine.py` | `df` (pd.DataFrame): Input data | Processed DataFrame with all calculations applied |
-| `apply_null_handling()` | `core/engine.py` | `df` (pd.DataFrame) | DataFrame with nulls handled per schema |
-| `apply_calculations()` | `core/engine.py` | `df` (pd.DataFrame) | DataFrame with calculated columns |
+| `apply_phased_processing()` | `core/engine.py` | `df` (pd.DataFrame) | DataFrame processed through P1/P2/P2.5/P3 phases |
+| `_apply_phase_calculated()` | `core/engine.py` | `df`, `phase`, `columns` | DataFrame with calculated phase columns applied |
 | `resolve_calculation_order()` | `schema/dependency.py` | `columns` (Dict): Column definitions | List of column names in execution order |
 | `_extract_column_dependencies()` | `schema/dependency.py` | `column_name`, `column_def`, `all_columns` | Set of column dependencies |
 | `_find_cycle_path()` | `schema/dependency.py` | `dependency_graph` (Dict) | List representing cycle path or empty list |
@@ -130,10 +130,10 @@ flowchart TD
 
 | Parameter | Initialized In | Modified/Resolved By | Primary Consumers | Role in Engine |
 |-----------|---------------|---------------------|-------------------|----------------|
-| `schema_data` | `CalculationEngine.__init__()` | Passed from resolved schema | `apply_null_handling()`, `apply_calculations()`, all handlers | Full resolved schema with enhanced_schema, columns, parameters |
+| `schema_data` | `CalculationEngine.__init__()` | Passed from resolved schema | `apply_phased_processing()`, all handlers | Full resolved schema with top-level columns, parameters |
 | `columns` | `CalculationEngine.__init__()` | Extracted from `schema_data['enhanced_schema']['columns']` | `resolve_calculation_order()`, all calculation handlers | Column definitions dict with calculation and null_handling specs |
-| `calculation_order` | `CalculationEngine.__init__()` | `resolve_calculation_order()` | `apply_calculations()` | Validated execution order for calculated columns |
-| `df` | `process_data()` input | Modified by `apply_null_handling()`, `apply_calculations()` | All processing functions | Working DataFrame throughout pipeline |
+| `calculation_order` | `CalculationEngine.__init__()` | `resolve_calculation_order()` | `_apply_phase_calculated()` | Validated execution order for calculated columns |
+| `df` | `process_data()` input | Modified by `apply_phased_processing()` | All processing functions | Working DataFrame throughout pipeline |
 | `null_handling` | Column definition | Specified per column in schema | `get_null_handler()`, handler functions | Null handling strategy configuration |
 | `calculation` | Column definition | Specified per column in schema | `get_calculation_handler()`, handler functions | Calculation type and method configuration |
 | `strategy` | Column definition (`strategy` key) or inferred | `StrategyResolver.from_schema()` | All calculation handlers via `_get_preservation_mode()` | Data preservation mode, processing sequence, fallback behavior |
@@ -167,24 +167,6 @@ The main orchestrator class that coordinates all data processing activities.
 | **Output** | Processed DataFrame with null handling and calculations applied |
 | **Function** | Main entry point for data transformation pipeline |
 | **Workflow** | 1. Apply null handling<br>2. Apply calculations in dependency order<br>3. Return processed DataFrame |
-
-##### `apply_null_handling(df)`
-
-| Attribute | Details |
-|-----------|---------|
-| **Input** | `df` (pd.DataFrame): Input data |
-| **Output** | DataFrame with null values handled per schema specifications |
-| **Function** | Applies designated null-handling strategy to each column |
-| **Workflow** | 1. Prepare DataFrame<br>2. Initialize missing columns<br>3. Get handler for each column's strategy<br>4. Apply handler |
-
-##### `apply_calculations(df)` [Deprecated for direct use]
-
-| Attribute | Details |
-|-----------|---------|
-| **Input** | `df` (pd.DataFrame): DataFrame after null handling |
-| **Output** | DataFrame with calculated columns in dependency order |
-| **Function** | Executes calculated columns in validated dependency order |
-| **Note** | Now used internally by `_apply_phase_calculated()` which runs calculations FIRST, then null handling as LAST DEFENSE |
 
 #### New Phased Processing Methods
 

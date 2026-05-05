@@ -8,6 +8,102 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-06-pipeline-simplification-phase-c"></a>
+## 2026-05-06 02:02:00
+
+### COMPLETED: Pipeline Simplification Phase C — Architecture Refinement
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-PIPE-SIMP-001](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/pipeline_simplification/pipeline_simplification_workplan.md)  
+**Phase Report:** [phase_C_architecture_report.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/pipeline_simplification/reports/phase_C_architecture_report.md)  
+**Test Log:** [test-2026-05-06-pipeline-simplification-phase-c](/home/franklin/dsai/Engineering-and-Design/dcc/log/test_log.md#test-2026-05-06-pipeline-simplification-phase-c)
+
+**Summary:** Completed Phase C architecture refinement. The pipeline now has a uniform engine `run()` lifecycle contract, a `PIPELINE_STEPS` registry loop, structured `PipelinePhaseStatus` tracking, and removed deprecated processor/CLI compatibility paths.
+
+**Implementation Details:**
+| Task | Description | Impact |
+|:---|:---|:---|
+| C1/C2 | Uniform engine interface | Added abstract `BaseEngine.run()` and engine `run()` wrappers for initiation, schema, mapper, and processor. AI ops already exposed `run()`. |
+| C3 | Step registry orchestration | Replaced the seven manual step blocks in `dcc_engine_pipeline.py` with registered step handlers and a loop. |
+| C4 | Deprecated processor methods | Removed `apply_null_handling()` and `apply_calculations()` from `CalculationEngine`. |
+| C5 | Legacy factories | Removed `create_legacy()` and `create_calculation_engine_legacy()` from processor factories and exports. |
+| C6 | Deprecated CLI arg | Removed `--debug-mode`; docs now point to `--verbose debug`. |
+| C7 | Phase status tracking | Added `PipelinePhaseStatus` and JSON-safe structured status reporting. |
+
+**Verification:** Syntax checks passed, 5-row smoke pipeline passed, and JSON-mode smoke test passed with structured `engine_status` serialization.
+
+**Next Steps:**
+- Proceed to Phase D: Legacy Removal.
+
+---
+
+<a id="update-2026-05-06-pipeline-simplification-phase-b"></a>
+## 2026-05-06 01:52:00
+
+### COMPLETED: Pipeline Simplification Phase B — Structural Cleanup
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-PIPE-SIMP-001](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/pipeline_simplification/pipeline_simplification_workplan.md)  
+**Phase Report:** [phase_B_structural_report.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/pipeline_simplification/reports/phase_B_structural_report.md)  
+**Test Log:** [test-2026-05-06-pipeline-simplification-phase-b](/home/franklin/dsai/Engineering-and-Design/dcc/log/test_log.md#test-2026-05-06-pipeline-simplification-phase-b)
+
+**Summary:** Completed Phase B structural cleanup for the DCC pipeline. The orchestrator now delegates Blueprint population to the schema engine, runs all seven pipeline steps through shared wrapper error handling, uses the canonical `core_engine.base.BaseProcessor`, and delegates final result/error output to `core_engine/errors/pipeline_result_handler.py`.
+
+**Implementation Details:**
+| Task | Description | Impact |
+|:---|:---|:---|
+| B1 | Centralized schema root resolution | Added `core_engine/schema_utils.py::resolve_schema_root()` to remove repeated schema-root branching. |
+| B2 | Delegated Blueprint population | Added `SchemaValidator.build_blueprint(context)` and removed Blueprint ownership from the orchestrator. |
+| B3/B4 | Standardized engine execution | All seven steps now use `wrap_engine_execution()`, including reorder and export. |
+| B5 | Consolidated `BaseProcessor` | Processor components now use `core_engine.base.BaseProcessor`; duplicate processor-local base class removed. |
+| B6/B7 | Decoupled result/error display | `main()` now calls `handle_pipeline_results()` and `handle_pipeline_error()` instead of formatting output inline. |
+
+**Files Modified/Created:**
+- `dcc/workflow/dcc_engine_pipeline.py`
+- `dcc/workflow/core_engine/schema_utils.py`
+- `dcc/workflow/schema_engine/validator/schema_validator.py`
+- `dcc/workflow/core_engine/errors/error_manager.py`
+- `dcc/workflow/core_engine/errors/pipeline_result_handler.py`
+- `dcc/workflow/core_engine/base/base_processor.py`
+- `dcc/workflow/processor_engine/schema/processor.py`
+- `dcc/workplan/pipeline_architecture/pipeline_simplification/pipeline_simplification_workplan.md`
+- `dcc/workplan/pipeline_architecture/pipeline_simplification/reports/README.md`
+- `dcc/workplan/pipeline_architecture/pipeline_simplification/reports/phase_B_structural_report.md`
+
+**Verification:** Syntax checks passed and smoke pipeline run completed successfully with 5 rows. Known non-blocking data warning: required column `Notes` is missing from the test input.
+
+**Next Steps:**
+- Proceed to Phase C: Architecture Refinement.
+
+---
+
+<a id="update-2026-05-06-pipeline-simplification-phase-a"></a>
+## 2026-05-06 14:00:00
+
+### COMPLETED: Pipeline Simplification Phase A — Quick Wins
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-PIPE-SIMP-001](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/pipeline_simplification/pipeline_simplification_workplan.md)
+
+**Summary:** Completed Phase A of the pipeline simplification workplan. Removed dead code, unused imports, and shadow data copies to enforce SSOT. Fixed a critical bug in `add_data_error()` for proper error separation.
+
+**Implementation Details:**
+| Task | Description | Impact |
+|:---|:---|:---|
+| A1 | Remove `_USE_DI_MODE` | DI is now the only path; removed legacy `else` branches in orchestrator. |
+| A2 | Unused Imports | Removed 12+ unused symbols in `dcc_engine_pipeline.py`. |
+| A3 | SSOT: `export_paths` | Replaced shadow dict with direct `context.paths` access. |
+| A4 | SSOT: `effective_params` | Replaced local variable with direct `context.parameters` access. |
+| A5 | Bug Fix: `add_data_error()` | Added `data_handling_errors` list to `PipelineState`; updated context APIs for granular tracking. |
+
+**Files Modified:**
+- `dcc/workflow/dcc_engine_pipeline.py`: ~50 lines removed/refactored.
+- `dcc/workflow/core_engine/context/context_pipeline.py`: ~30 lines added/updated.
+
+**Phase Report:** `reports/phase_A_quickwins_report.md`
+
+**Next Steps:**
+- Proceed to Phase B: Structural Cleanup (Blueprint delegation, boilerplate absorption, error decoupling).
+
+---
+
 <a id="update-2026-05-05-barrel-pattern-refactoring"></a>
 ## 2026-05-05 05:40:00
 

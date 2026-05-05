@@ -72,7 +72,6 @@ def create_parser(base_path: Path) -> argparse.ArgumentParser:
     parser.add_argument("--header-row", type=int, default=None, help="Header row index (maps to header_row_index).")
     parser.add_argument("--overwrite", choices=["True", "False"], default=None, help="Overwrite existing output (maps to overwrite_existing_downloads).")
     parser.add_argument("--verbose", "-v", choices=["quiet", "normal", "debug", "trace"], default="normal", help="Output verbosity level.")
-    parser.add_argument("--debug-mode", choices=["True", "False"], default=None, help="Enable debug mode (maps to debug_dev_mode). DEPRECATED: Use --verbose debug instead.")
     parser.add_argument("--nrows", type=int, default=None, help="Optional row limit.")
     parser.add_argument("--json", action="store_true", help="Print final result as JSON.")
     return parser
@@ -119,9 +118,6 @@ def parse_cli_args(base_path: Path | None = None, pipeline_dir: str = "workflow"
         cli_args["header_row_index"] = args.header_row
     if args.overwrite:
         cli_args["overwrite_existing_downloads"] = args.overwrite == "True"
-    if args.debug_mode:
-        cli_args["debug_dev_mode"] = args.debug_mode == "True"
-
     if unknown_args:
         debug_print(f"Ignoring unknown CLI arguments: {unknown_args}")
 

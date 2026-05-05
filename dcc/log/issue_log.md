@@ -19,6 +19,33 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-iss-011"></a>
+## 2026-05-06 14:15:00
+
+### Issue ISS-011 — Data Errors Appended to System Status List
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-06
+- **Resolution Summary:** Fixed `add_data_error()` in `PipelineContext` to append to a dedicated `data_handling_errors` list in `PipelineState`. Updated error summary and reporting methods to reflect this separation. This ensures system-status errors (infrastructure/setup) and data-handling errors (business logic/validation) are tracked independently for better reporting granularity.
+- **Files Changed:**
+  - `workflow/core_engine/context/context_pipeline.py` (MODIFIED - Added `data_handling_errors` list, updated `add_data_error`, `get_error_summary`, and `get_data_handling_errors`)
+- **Verification:**
+  - Code inspection: ✅ `add_data_error` now targets `self.state.data_handling_errors`
+  - Granularity test: ✅ `get_data_handling_errors` returns only data domain events
+  - Summary test: ✅ `get_error_summary` combines both lists for total count but preserves domain breakdown
+- **Context:** Identified during the Pipeline Simplification study (WP-PIPE-SIMP-001, Task S05). Data errors were being mixed with system errors in the same list, complicating domain-specific reporting and KPI calculations.
+- **Root Cause:** `PipelineContext.add_data_error()` was hardcoded to append to `self.state.system_status_errors`.
+- **Impact:**
+  - Mixed error reporting - hard to distinguish system failures from data validation issues
+  - Complicated KPI logic - required filtering large lists by domain attribute
+  - Poor separation of concerns in state management
+- **Proposed Solution:**
+  - Add `data_handling_errors` list to `PipelineState`
+  - Update `add_data_error()` to use the new list
+  - Update summary and getter methods to correctly aggregate or filter based on the new structure
+- **Related Issues:**
+  - Related to WP-PIPE-SIMP-001 (Phase A)
+- **Link to Update Log:** [Update 2026-05-06-pipeline-simplification-phase-a](/home/franklin/dsai/Engineering-and-Design/dcc/log/update_log.md#update-2026-05-06-pipeline-simplification-phase-a)
+
 <a id="issue-iss-010"></a>
 ## 2026-05-01 03:30:00
 

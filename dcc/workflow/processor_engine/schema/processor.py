@@ -4,23 +4,22 @@ The logic for _resolve_schema_reference, which maps internal schema codes to act
 
 import logging
 from typing import Dict, Any, Optional, List
-from ..core.base import BaseProcessor
-
-logger = logging.getLogger(__name__)
-
+from core_engine.base import BaseProcessor
+from core_engine.schema_utils import resolve_schema_root
+...
 class SchemaProcessor(BaseProcessor):
     """
     Handles the translation of schema definitions into actionable 
     instructions for the CalculationEngine.
     """
 
-    def __init__(self, schema_data: Dict[str, Any]):
+    def __init__(self, schema_data: Dict[str, Any], context: Optional[Any] = None):
         """
         Initialize the processor with the full schema.
         """
-        super().__init__(schema_data)
-        # Support new top-level 'columns' key and legacy 'enhanced_schema.columns'
-        _schema_root = schema_data if 'columns' in schema_data else schema_data.get('enhanced_schema', {})
+        super().__init__(context, schema_data)
+        # Use centralized schema root resolution
+        _schema_root = resolve_schema_root(schema_data)
         self.column_definitions = _schema_root.get('columns', {})
         self.column_sequence = _schema_root.get('column_sequence', [])
 

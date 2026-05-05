@@ -17,6 +17,7 @@ from typing import Dict, List, Set, Optional, Any, TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 from core_engine.base import BaseProcessor
+from core_engine.schema_utils import resolve_schema_root
 from .calculation_strategy import (
     StrategyResolver,
     StrategyExecutor,
@@ -116,8 +117,8 @@ class CalculationEngine(BaseProcessor):
         
         self._last_processed_rows = 0
         
-        # Support new top-level 'columns' key and legacy 'enhanced_schema.columns'
-        _schema_root = schema_data if 'columns' in schema_data else schema_data.get('enhanced_schema', {})
+        # Use centralized schema root resolution
+        _schema_root = resolve_schema_root(schema_data)
         raw_columns = _schema_root.get('columns', {})
         column_sequence = _schema_root.get('column_sequence', [])
 
@@ -145,6 +146,14 @@ class CalculationEngine(BaseProcessor):
         self.strategy_resolver = strategy_resolver
         self._column_strategies = {}  # Cache resolved strategies
         self.strategy_executor = None  # Initialized on first use
+
+    def run(self) -> Dict[str, Any]:
+        """Execute document processing through the uniform engine interface."""
+        df_processed = self.process_data()
+        return {
+            "processed_rows": len(df_processed),
+            "processed_columns": len(df_processed.columns),
+        }
 
     def get_column_strategy(self, column_name: str) -> Optional[CalculationStrategy]:
         """
@@ -512,72 +521,6 @@ class CalculationEngine(BaseProcessor):
                         df_result = handler(self, df_result, column_name, null_handling)
                     
         return df_result
-
-    def apply_null_handling(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        [DEPRECATED for direct use] - Use apply_phased_processing() instead.
-        
-        Iterates through the schema and applies the designated null-handling
-        strategy to each column. This method is now used internally by
-        apply_phased_processing() for P1 and P2 columns.
-        
-        For calculated columns (P2.5, P3), null handling is applied as LAST DEFENSE
-        after calculations in _apply_phase_calculated().
-        """
-        with log_context("processor", "apply_null_handling"):
-            from ..utils.dataframe import prepare_dataframe_for_processing, initialize_missing_columns
-            from .registry import get_null_handler
-
-            debug_print(f"Entering apply_null_handling")
-            df_processed = prepare_dataframe_for_processing(df)
-
-            # Initialize missing columns from schema
-            parameters = self.schema_data.get('parameters', {})
-            df_processed = initialize_missing_columns(df_processed, self.columns, parameters)
-            debug_print(f"DataFrame prepared and initialized, has {len(df_processed.columns)} columns")
-
-            for column_name, column_def in self.columns.items():
-                if column_name not in df_processed.columns:
-                    continue
-
-                null_handling = column_def.get('null_handling', {})
-                strategy = null_handling.get('strategy')
-
-                if strategy and strategy != 'leave_null':
-                    handler = get_null_handler(strategy)
-                    if handler:
-                        # debug_print(f"Applying null strategy {strategy} to {column_name}")
-                        df_processed = handler(self, df_processed, column_name, null_handling)
-
-            return df_processed
-
-    def apply_calculations(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        [DEPRECATED for direct use] - Use apply_phased_processing() instead.
-        
-        Executes calculated columns in the validated dependency order.
-        This method is now used internally by _apply_phase_calculated()
-        which runs calculations FIRST, then null handling as LAST DEFENSE.
-        """
-        with log_context("processor", "apply_calculations"):
-            from .registry import get_calculation_handler
-
-            debug_print(f"Entering apply_calculations, order: {self.calculation_order}")
-            df_calculated = df.copy()
-
-            for column_name in self.calculation_order:
-                column_def = self.columns[column_name]
-                calculation = column_def.get('calculation', {})
-                calc_type = calculation.get('type')
-
-                handler = get_calculation_handler(calc_type, calculation.get('method'))
-                if handler:
-                    debug_print(f"Applying {calc_type}/{calculation.get('method')} to {column_name}")
-                    df_calculated = handler(self, df_calculated, column_name, calculation)
-                else:
-                    status_print(f"WARNING: No handler found for calculation type: {calc_type}", min_level=2)
-
-            return df_calculated
 
     def _print_processing_step(self, phase: str, column_name: str, detail: str):
         """Standardized logging for processing progress.

@@ -75,6 +75,59 @@ class PipelineErrorEvent:
 
 
 @dataclass
+class PipelinePhaseStatus:
+    """
+    Status tracking for a single pipeline engine phase.
+    Mirrors BootstrapPhaseStatus so pipeline execution has structured timing state.
+    """
+    phase_id: str
+    phase_name: str
+    status: str = "pending"
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    duration_ms: Optional[float] = None
+    error_code: Optional[str] = None
+
+    def mark_running(self) -> None:
+        """Mark phase as running and set start timestamp."""
+        self.status = "running"
+        self.start_time = datetime.now().isoformat()
+        self.end_time = None
+        self.duration_ms = None
+        self.error_code = None
+
+    def mark_complete(self) -> None:
+        """Mark phase as complete and calculate duration."""
+        self.status = "complete"
+        self._finish()
+
+    def mark_failed(self, error_code: Optional[str] = None) -> None:
+        """Mark phase as failed and calculate duration."""
+        self.status = "failed"
+        self.error_code = error_code
+        self._finish()
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Return JSON-serializable phase status."""
+        return {
+            "phase_id": self.phase_id,
+            "phase_name": self.phase_name,
+            "status": self.status,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "duration_ms": self.duration_ms,
+            "error_code": self.error_code,
+        }
+
+    def _finish(self) -> None:
+        self.end_time = datetime.now().isoformat()
+        if self.start_time:
+            start = datetime.fromisoformat(self.start_time)
+            end = datetime.fromisoformat(self.end_time)
+            self.duration_ms = (end - start).total_seconds() * 1000
+
+
+@dataclass
 class PipelineState:
     """
     The Scoreboard - Mutable state objects and results generated during execution.
@@ -84,10 +137,11 @@ class PipelineState:
     schema_results: Dict[str, Any] = field(default_factory=dict)
     resolved_schema: Dict[str, Any] = field(default_factory=dict)
     mapping_result: Dict[str, Any] = field(default_factory=dict)
-    error_summary: Dict[str, Any] = field(default_factory=dict)      # Data-handling errors (processor output)
+    error_summary: Dict[str, Any] = field(default_factory=dict)      # Data-handling summary (processor output)
     system_status_errors: List[PipelineErrorEvent] = field(default_factory=list)  # System-status errors
+    data_handling_errors: List[PipelineErrorEvent] = field(default_factory=list)  # Data-handling errors
     environment: Dict[str, Any] = field(default_factory=dict)        # OS/Env snapshot
-    engine_status: Dict[str, str] = field(default_factory=dict)       # engine: status (complete/failed)
+    engine_status: Dict[str, PipelinePhaseStatus] = field(default_factory=dict)
 
 
 @dataclass
@@ -201,7 +255,7 @@ class PipelineContext:
             timestamp=datetime.now().isoformat(),
             fatal=fatal
         )
-        self.state.system_status_errors.append(error_event)
+        self.state.data_handling_errors.append(error_event)
     
     def capture_exception(
         self,
@@ -231,7 +285,14 @@ class PipelineContext:
         exception: Optional[Exception] = None
     ) -> None:
         """Record engine failure status and capture exception if provided."""
-        self.state.engine_status[engine] = "failed"
+        phase_status = self.state.engine_status.get(engine)
+        if phase_status is None:
+            phase_status = PipelinePhaseStatus(
+                phase_id=phase or engine,
+                phase_name=engine,
+            )
+            self.state.engine_status[engine] = phase_status
+        phase_status.mark_failed()
         if exception:
             self.capture_exception(
                 code=f"E-ENG-{engine.upper()}-FAIL",
@@ -271,8 +332,9 @@ class PipelineContext:
     
     def get_error_summary(self) -> Dict[str, Any]:
         """Generate comprehensive error summary for reporting."""
+        all_errors = self.state.system_status_errors + self.state.data_handling_errors
         summary = {
-            "total_errors": len(self.state.system_status_errors),
+            "total_errors": len(all_errors),
             "by_domain": {},
             "by_severity": {},
             "by_engine": {},
@@ -281,7 +343,7 @@ class PipelineContext:
             "data_handling_summary": self.state.error_summary
         }
         
-        for error in self.state.system_status_errors:
+        for error in all_errors:
             # Count by domain
             domain = error.domain
             summary["by_domain"][domain] = summary["by_domain"].get(domain, 0) + 1
@@ -336,6 +398,5 @@ class PipelineContext:
                 "timestamp": error.timestamp,
                 "fatal": error.fatal
             }
-            for error in self.state.system_status_errors
-            if error.domain == "data"
+            for error in self.state.data_handling_errors
         ]

@@ -5,7 +5,7 @@ and enforce consistency across orchestrator and engines.
 """
 from typing import Any, Dict, Optional
 
-from ..context.context_pipeline import PipelineContext
+from ..context.context_pipeline import PipelineContext, PipelinePhaseStatus
 
 
 def handle_system_error(
@@ -204,18 +204,21 @@ def wrap_engine_execution(
     Raises:
         Exception: Re-raises original exception after recording in context
     """
-    # Set engine status to running
-    context.state.engine_status[engine_name] = "running"
+    phase_status = PipelinePhaseStatus(
+        phase_id=phase or engine_name,
+        phase_name=engine_name,
+    )
+    phase_status.mark_running()
+    context.state.engine_status[engine_name] = phase_status
     
     try:
         result = execution_func(*args, **kwargs)
-        
-        # Set engine status to completed
-        context.state.engine_status[engine_name] = "completed"
-        
+        phase_status.mark_complete()
+        context.telemetry.execution_times[engine_name] = (phase_status.duration_ms or 0) / 1000
         return result
         
     except Exception as exc:
+        phase_status.mark_failed(error_code=type(exc).__name__)
         # Handle engine failure
         handle_engine_failure(
             context=context,
@@ -253,7 +256,10 @@ def generate_error_report(context: PipelineContext) -> Dict[str, Any]:
             "count": len(data_errors),
             "errors": data_errors
         },
-        "engine_status": context.state.engine_status,
+        "engine_status": {
+            engine: status.to_dict()
+            for engine, status in context.state.engine_status.items()
+        },
         "fail_fast_triggered": {
             "system": context.should_fail_fast("system"),
             "data": context.should_fail_fast("data")

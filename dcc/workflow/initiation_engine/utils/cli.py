@@ -25,7 +25,6 @@ def create_parser(base_path: Path) -> argparse.ArgumentParser:
     parser.add_argument("--header-row", type=int, default=None, help="Header row index.")
     parser.add_argument("--overwrite", choices=["True", "False"], default=None, help="Overwrite output file.")
     parser.add_argument("--verbose", "-v", choices=["quiet", "normal", "debug", "trace"], default="normal", help="Output verbosity level.")
-    parser.add_argument("--debug-mode", choices=["True", "False"], default=None, help="(DEPRECATED) Use --verbose debug instead.")
     parser.add_argument("--nrows", type=int, default=None, help="Optional row limit.")
     parser.add_argument("--json", action="store_true", help="Print final result as JSON.")
     return parser
@@ -70,9 +69,6 @@ def parse_cli_args(base_path: Path | None = None) -> Tuple[argparse.Namespace, D
         cli_args["header_row_index"] = args.header_row
     if args.overwrite:
         cli_args["overwrite_existing_downloads"] = args.overwrite == "True"
-    if args.debug_mode:
-        cli_args["debug_dev_mode"] = args.debug_mode == "True"
-    
     if unknown_args:
         debug_print(f"Ignoring unknown CLI arguments: {unknown_args}")
     

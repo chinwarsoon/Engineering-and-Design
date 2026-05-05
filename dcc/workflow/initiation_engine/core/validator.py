@@ -72,6 +72,10 @@ class ProjectSetupValidator(BaseEngine):
                 if isinstance(item, dict) and item.get("rule")
             }
 
+    def run(self) -> Dict[str, Any]:
+        """Execute project setup validation through the uniform engine interface."""
+        return self.validate()
+
     def _load_json(self, path: Path) -> Dict[str, Any]:
         """
         Load JSON document from disk.

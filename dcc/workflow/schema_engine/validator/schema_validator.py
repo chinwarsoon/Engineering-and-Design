@@ -16,6 +16,7 @@ from .fields import (
     validate_schema_document,
     find_record_section,
 )
+from core_engine.schema_utils import resolve_schema_root
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,10 @@ class SchemaValidator(BaseEngine):
         self.schema_file = safe_resolve(Path(self.context.paths.schema_path))
         self.loader = SchemaLoader()
         self.loader.set_main_schema_path(self.schema_file)
+
+    def run(self) -> Dict[str, Any]:
+        """Execute schema validation through the uniform engine interface."""
+        return self.validate()
 
     def validate(self) -> Dict[str, Any]:
         results: Dict[str, Any] = {
@@ -88,9 +93,11 @@ class SchemaValidator(BaseEngine):
                 )
             return results
 
-        # Support both new top-level 'columns' and legacy 'enhanced_schema.columns'
-        columns = main_schema.get("columns") or main_schema.get("enhanced_schema", {}).get("columns", {})
-        if not isinstance(columns, dict):
+        # Use centralized schema root resolution
+        schema_root = resolve_schema_root(main_schema)
+        columns = schema_root.get("columns", {})
+        
+        if not isinstance(columns, dict) or not columns:
             error_msg = "Main schema is missing a valid 'columns' object"
             results["errors"].append(error_msg)
             # Record error in context
@@ -137,6 +144,49 @@ class SchemaValidator(BaseEngine):
 
         results["ready"] = not results["errors"]
         return results
+
+    def build_blueprint(self, context: PipelineContext) -> None:
+        """
+        Populate the PipelineContext Blueprint from the resolved schema.
+        Enforces SSOT by delegating this logic to the schema engine.
+        """
+        resolved_schema = self.load_resolved_schema()
+        context.state.resolved_schema = resolved_schema
+        
+        # Resolve schema root
+        schema_root = resolve_schema_root(resolved_schema)
+        
+        context.blueprint.columns = schema_root.get("columns", {})
+        context.blueprint.validation_rules = resolved_schema.get("parameters", {})
+        
+        # Pre-calculate phase map for efficient processing
+        column_sequence = schema_root.get("column_sequence", [])
+        phase_map = {"P1": [], "P2": [], "P2.5": [], "P3": []}
+        for col_name in column_sequence:
+            if col_name in context.blueprint.columns:
+                phase = context.blueprint.columns[col_name].get("processing_phase", "P3")
+                if phase in phase_map:
+                    phase_map[phase].append(col_name)
+        context.blueprint.phase_map = phase_map
+        
+        # Load Data Error Catalog into Blueprint
+        error_config_path = context.paths.schema_paths.data_error_config
+        if error_config_path.exists():
+            try:
+                with open(error_config_path, "r", encoding="utf-8") as f:
+                    context.blueprint.error_catalog = json.load(f).get("data_logic_errors", {})
+            except Exception as e:
+                from initiation_engine.error_handling import get_system_error_message
+                msg = get_system_error_message("S-C-S-0311").format(detail=str(e))
+                context.add_system_error(
+                    code="S-C-S-0311",
+                    message=msg,
+                    details=str(e),
+                    engine="schema_engine",
+                    phase="step2_schema_validation",
+                    severity="medium",
+                    fatal=False
+                )
 
     def get_total_columns(self, results: Dict[str, Any]) -> int:
         """Return the total number of columns in the main schema."""

@@ -10,11 +10,17 @@ from .context.context_pipeline import (
     PipelineBlueprint,
     PipelineTelemetry,
     PipelineErrorEvent,
+    PipelinePhaseStatus,
     PipelineState,
     PipelineData,
     ContextTraceItem,
     ContextLoadState,
     PipelineContext,
+)
+
+# Schema utilities
+from .schema_utils import (
+    resolve_schema_root,
 )
 
 # Error handling
@@ -28,6 +34,11 @@ from .errors.error_manager import (
     validate_file_exists,
     validate_schema_ready,
     validate_setup_ready,
+)
+
+from .errors.pipeline_result_handler import (
+    handle_pipeline_results,
+    handle_pipeline_error,
 )
 
 # Schema paths
@@ -120,11 +131,14 @@ __all__ = [
     "PipelineBlueprint",
     "PipelineTelemetry",
     "PipelineErrorEvent",
+    "PipelinePhaseStatus",
     "PipelineState",
     "PipelineData",
     "ContextTraceItem",
     "ContextLoadState",
     "PipelineContext",
+    # Schema utilities
+    "resolve_schema_root",
     # Error handling functions
     "handle_system_error",
     "handle_data_error",
@@ -135,6 +149,9 @@ __all__ = [
     "validate_file_exists",
     "validate_schema_ready",
     "validate_setup_ready",
+    # Result handling
+    "handle_pipeline_results",
+    "handle_pipeline_error",
     # Schema paths
     "SchemaPaths",
     "get_schema_paths",

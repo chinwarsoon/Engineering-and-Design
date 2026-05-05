@@ -22,6 +22,7 @@ from core_engine.logging import log_error
 
 from core_engine.context.context_pipeline import PipelineContext
 from core_engine.base import BaseEngine
+from core_engine.schema_utils import resolve_schema_root
 
 class ColumnMapperEngine(BaseEngine):
     """
@@ -36,6 +37,10 @@ class ColumnMapperEngine(BaseEngine):
         super().__init__(context)
         # Fallback to schema property if resolved_schema is not yet populated
         self.resolved_schema = self.context.state.resolved_schema
+
+    def run(self) -> Dict[str, Any]:
+        """Execute dataframe mapping through the uniform engine interface."""
+        return self.map_dataframe()
     
     def detect_columns(self, headers: List[Any], threshold: float = 0.6) -> Dict[str, Any]:
         """
@@ -66,8 +71,8 @@ class ColumnMapperEngine(BaseEngine):
         # Flatten tuple headers
         flattened_headers = flatten_multiindex_headers(headers)
         
-        # Support new top-level 'columns' key and legacy 'enhanced_schema.columns'
-        _schema_root = self.resolved_schema if 'columns' in self.resolved_schema else self.resolved_schema.get('enhanced_schema', {})
+        # Use centralized schema root resolution
+        _schema_root = resolve_schema_root(self.resolved_schema)
         columns = _schema_root.get('columns', {})
         
         # Detect columns using the mapper module

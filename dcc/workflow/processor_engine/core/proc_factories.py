@@ -183,24 +183,14 @@ class CalculationEngineFactory:
             strategy_resolver=strategy_resolver
         )
     
-    @staticmethod
-    def create_legacy(context: Any, schema_data: Dict) -> 'CalculationEngine':
-        """
-        Create a CalculationEngine using legacy direct instantiation.
-        Maintains backward compatibility.
-        """
-        from .engine import CalculationEngine
-        return CalculationEngine(context, schema_data)
-
-
 class SchemaProcessorFactory:
     """Factory for creating SchemaProcessor instances."""
     
     @staticmethod
-    def create(schema_data: Dict) -> 'SchemaProcessor':
+    def create(schema_data: Dict, context: Optional[Any] = None) -> 'SchemaProcessor':
         """Create a SchemaProcessor instance."""
         from ..schema import SchemaProcessor
-        return SchemaProcessor(schema_data)
+        return SchemaProcessor(schema_data, context=context)
 
 
 # Convenience functions for direct use
@@ -223,13 +213,6 @@ def create_calculation_engine(
     return CalculationEngineFactory.create(context, schema_data, **dependencies)
 
 
-def create_calculation_engine_legacy(context: Any, schema_data: Dict) -> 'CalculationEngine':
-    """
-    Legacy compatibility function for creating CalculationEngine.
-    """
-    return CalculationEngineFactory.create_legacy(context, schema_data)
-
-
 __all__ = [
     'DependencyContainer',
     'get_container',
@@ -237,5 +220,4 @@ __all__ = [
     'CalculationEngineFactory',
     'SchemaProcessorFactory',
     'create_calculation_engine',
-    'create_calculation_engine_legacy',
 ]

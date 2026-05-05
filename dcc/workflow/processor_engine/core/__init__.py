@@ -2,7 +2,7 @@
 Core engine components for the document processor.
 """
 
-from .base import BaseProcessor
+from core_engine.base import BaseProcessor
 from .engine import CalculationEngine
 from .registry import (
     get_null_handler,

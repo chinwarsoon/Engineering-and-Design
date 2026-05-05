@@ -5,6 +5,8 @@ import logging
 from typing import Dict, Any, Optional
 
 from core_engine.context.context_pipeline import PipelineContext
+from core_engine.logging import log_warning
+from utility_engine.console import status_print
 
 logger = logging.getLogger("core_engine.base")
 
@@ -26,26 +28,26 @@ class BaseProcessor:
         self.context = context
         self.schema_data = schema_data
 
+    def _print_processing_step(self, phase: str, column_name: str, detail: str) -> None:
+        """
+        Standardized console and log output for tracking processing stages.
+        """
+        message = f"[{phase}] {column_name}: {detail}"
+        status_print(message)
+        logger.info(message)
+
     def _resolve_schema_reference(self, ref_config: Dict[str, Any]) -> Any:
         """
         Resolve a schema reference to its actual value.
 
-        Supports two schema architectures:
-        - New: top-level keys (e.g., schema_data['approval_codes'], schema_data['departments'])
-        - Legacy: _data suffix keys (e.g., schema_data['approval_code_schema_data'])
-
-        Args:
-            ref_config: Dict with 'schema', 'code', and 'field' keys.
-
-        Returns:
-            Resolved value or None if not found.
+        Supports both new architecture and legacy _data suffix keys.
         """
         schema_name = ref_config.get('schema')
         code = ref_config.get('code')
         field = ref_config.get('field')
 
         if not all([schema_name, code, field]):
-            logger.warning(f"Invalid schema reference: {ref_config}")
+            log_warning(f"Invalid schema reference: {ref_config}")
             return None
 
         data_section = ref_config.get('data_section', 'approval')
@@ -75,5 +77,5 @@ class BaseProcessor:
                 if value is not None:
                     return value
 
-        logger.warning(f"Reference not found: {schema_name}[code={code}].{field}")
+        log_warning(f"Reference not found: {schema_name}[code={code}].{field}")
         return None

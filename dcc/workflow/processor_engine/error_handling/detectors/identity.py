@@ -16,6 +16,7 @@ Error Codes:
 import pandas as pd
 import re
 from typing import Dict, Any, List, Optional, Tuple
+from core_engine.schema_utils import resolve_schema_root
 
 from .base import BaseDetector, DetectionResult
 
@@ -196,8 +197,8 @@ class IdentityDetector(BaseDetector):
         # Check schema strategy configuration
         context = self._context or {}
         schema_data = context.get('schema_data', {})
-        # Support new top-level 'columns' and legacy 'enhanced_schema.columns'
-        columns_config = schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})
+        # Use centralized schema root resolution
+        columns_config = resolve_schema_root(schema_data).get('columns', {})
         transmittal_config = columns_config.get(trans_col, {})
         strategy = transmittal_config.get('strategy', {})
         validation_context = strategy.get('validation_context', {})
@@ -259,8 +260,8 @@ class IdentityDetector(BaseDetector):
             return None
         
         schema_data = context.get('schema_data', {})
-        # Support new top-level 'columns' and legacy 'enhanced_schema.columns'
-        columns_config = schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})
+        # Use centralized schema root resolution
+        columns_config = resolve_schema_root(schema_data).get('columns', {})
         
         if 'Document_ID' not in columns_config:
             return None
@@ -298,8 +299,8 @@ class IdentityDetector(BaseDetector):
             return (delimiter, sequence_length)
         
         schema_data = context.get('schema_data', {})
-        # Support new top-level 'columns' and legacy 'enhanced_schema.columns'
-        columns_config = schema_data.get('columns') or schema_data.get('enhanced_schema', {}).get('columns', {})
+        # Use centralized schema root resolution
+        columns_config = resolve_schema_root(schema_data).get('columns', {})
         
         # Get delimiter from Document_ID derived_pattern
         doc_id_config = columns_config.get('Document_ID', {})
