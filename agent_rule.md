@@ -65,6 +65,7 @@
 
 # Section 4. Moudle design:
 1. always consider module design for functions and classes.
+2. __init__.py file shall only contain import statements and version information.
 
 # Section 5. Function coding:
 1. For each function, add standardized docstrings explianing the function, and breadcrumb comments tracing parameters.
