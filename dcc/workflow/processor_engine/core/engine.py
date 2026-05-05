@@ -32,7 +32,7 @@ from core_engine.logging import log_context, DEBUG_LEVEL
 # Phase 4: Import error handling components
 from ..error_handling.detectors.business import ProcessingPhase
 
-from core_engine.context import PipelineContext
+from core_engine.context.context_pipeline import PipelineContext
 
 # Phase 2 DI: Import interfaces for type hints
 if TYPE_CHECKING:
@@ -110,7 +110,7 @@ class CalculationEngine(BaseProcessor):
         self.business_detector = business_detector
         
         if error_reporter is None:
-            from reporting_engine.error_reporter import ErrorReporter
+            from reporting_engine.core.report_errors import ErrorReporter
             error_reporter = ErrorReporter(self.error_aggregator)
         self.error_reporter = error_reporter
         
@@ -208,7 +208,7 @@ class CalculationEngine(BaseProcessor):
             self._last_processed_rows = len(df)
             
             # Phase 3: Initialize telemetry heartbeat
-            from core_engine.telemetry_heartbeat import TelemetryHeartbeat
+            from core_engine.logging.log_telemetry import TelemetryHeartbeat
             heartbeat = TelemetryHeartbeat(interval=1000)
             total_rows = len(df)
             status_print(f"🚀 Starting processing of {total_rows:,} rows...", min_level=1)
@@ -369,7 +369,7 @@ class CalculationEngine(BaseProcessor):
             
             # Phase 5: Metrics (Layer 5) - Populate Data_Health_Score column (Step 48)
             self._print_processing_step("Phase 5", "Metrics", "Calculating Data_Health_Score")
-            from reporting_engine.data_health import calculate_row_health_series
+            from reporting_engine.core.report_health import calculate_row_health_series
             df_processed["Data_Health_Score"] = calculate_row_health_series(df_processed, self.error_aggregator)
             
             return df_processed

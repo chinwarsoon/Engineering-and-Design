@@ -27,7 +27,7 @@ if str(workflow_path) not in sys.path:
     sys.path.insert(0, str(workflow_path))
 
 # Engine imports
-from core_engine.context import (
+from core_engine.context.context_pipeline import (
     PipelineContext,
     PipelinePaths,
     PipelineState,
@@ -56,7 +56,7 @@ from core_engine.system import test_environment
 from core_engine.io import load_excel_data
 
 # Phase 4: UI Contract imports for path and parameter overrides
-from initiation_engine.overrides import (
+from initiation_engine.core.init_overrides import (
     PathSelectionContract,
     ParameterOverrideContract,
     UIContractBundle,
@@ -64,7 +64,7 @@ from initiation_engine.overrides import (
     suggest_base_paths,
     validate_and_resolve,
 )
-from core_engine.ui_contract import UIContractManager, UIRequest, UIResponse
+from core_engine.ui.ui_contract import UIContractManager, UIRequest, UIResponse
 
 from utility_engine.console import (
     status_print,
@@ -80,9 +80,9 @@ from utility_engine.cli import (
     VERBOSE_LEVELS,
 )
 from utility_engine.errors import system_error_print
-from utility_engine.bootstrap import BootstrapManager, BootstrapError
+from utility_engine.bootstrap.boot_pipeline import BootstrapManager, BootstrapError
 from initiation_engine.error_handling import get_system_error_message
-from core_engine.error_handling import handle_system_error, validate_setup_ready, validate_schema_ready, generate_error_report
+from core_engine.errors.error_manager import handle_system_error, validate_setup_ready, validate_schema_ready, generate_error_report
 
 from initiation_engine import (
     ProjectSetupValidator,

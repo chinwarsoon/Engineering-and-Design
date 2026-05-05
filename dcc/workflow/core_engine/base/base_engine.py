@@ -4,7 +4,7 @@ Base engine class for all domain-specific engines.
 import logging
 from typing import Dict, Any, Optional
 
-from core_engine.context import PipelineContext
+from core_engine.context.context_pipeline import PipelineContext
 
 logger = logging.getLogger("core_engine.base")
 

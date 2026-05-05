@@ -39,7 +39,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 # Core engine imports
-from core_engine.context import PipelineContext, PipelinePaths, PipelineState, PipelineData, ContextTraceItem
+from core_engine.context.context_pipeline import PipelineContext, PipelinePaths, PipelineState, PipelineData, ContextTraceItem
 from core_engine.logging import DEBUG_LEVEL
 from core_engine.paths import (
     default_base_path,
@@ -66,8 +66,8 @@ from utility_engine.cli import (
     resolve_effective_parameters,
 )
 
-# Schema engine imports
-from schema_engine import load_schema_parameters, default_schema_path
+# Schema engine imports (moved to function to avoid circular import)
+# from schema_engine import load_schema_parameters, default_schema_path
 
 # Error handling imports (for schema-based messages)
 from initiation_engine.error_handling import get_system_error_message
@@ -525,6 +525,10 @@ class BootstrapManager:
         debug_log_filename = self.effective_parameters.get("debug_log_filename", "debug_log.json")
         debug_log_path = csv_output_path.parent / debug_log_filename
         
+        # Create SchemaPaths instance
+        from core_engine.paths.path_schema import get_schema_paths
+        schema_paths_instance = get_schema_paths(self.base_path)
+        
         paths = PipelinePaths(
             base_path=self.base_path,
             excel_path=Path(self.effective_parameters["upload_file_name"]),
@@ -533,6 +537,7 @@ class BootstrapManager:
             excel_output_path=excel_output_path,
             summary_path=summary_path,
             debug_log_path=debug_log_path,
+            schema_paths=schema_paths_instance,
         )
         
         # Create PipelineContext
@@ -874,6 +879,7 @@ class BootstrapManager:
             schema_path_input = self.cli_args.get(schema_key) or self.native_defaults.get(schema_key)
             
             if not schema_path_input:
+                from schema_engine import default_schema_path
                 schema_path_input = default_schema_path(self.base_path)
             
             # Validate schema path
@@ -918,6 +924,7 @@ class BootstrapManager:
         try:
             # Load parameters from both system and DCC domains
             system_params_path = self.base_path / "config" / "schemas" / "project_config.json"
+            from schema_engine import default_schema_path, load_schema_parameters
             dcc_schema_path = self.schema_path or Path(default_schema_path(self.base_path))
             
             self.effective_parameters = resolve_effective_parameters(
@@ -963,6 +970,7 @@ class BootstrapManager:
             # Load schema parameters
             if self.schema_path and self.schema_path.exists():
                 try:
+                    from schema_engine import load_schema_parameters
                     schema_params = load_schema_parameters(self.schema_path)
                     params.update(schema_params)
                 except Exception:

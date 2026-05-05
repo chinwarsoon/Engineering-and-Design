@@ -12,7 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from core_engine.context import PipelineContext
+from core_engine.context.context_pipeline import PipelineContext
 
 from .contracts import AiContext, AiInsight, PipelineRunRecord
 from .context_builder import build_ai_context

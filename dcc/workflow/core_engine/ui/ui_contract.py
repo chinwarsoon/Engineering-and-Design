@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass
 
-from initiation_engine.overrides import (
+from initiation_engine.core.init_overrides import (
     PathSelectionContract,
     ParameterOverrideContract,
     UIContractBundle,
@@ -32,8 +32,8 @@ from initiation_engine.overrides import (
     suggest_base_paths,
     validate_and_resolve,
 )
-from core_engine.context import PipelineContext, PipelinePaths
-from core_engine.telemetry_heartbeat import TelemetryHeartbeat
+from core_engine.context.context_pipeline import PipelineContext, PipelinePaths
+from core_engine.logging.log_telemetry import TelemetryHeartbeat
 
 
 @dataclass

@@ -47,7 +47,7 @@ def resolve_pipeline_base_path() -> Path:
 
 def get_schema_path(base_path: Path) -> Path:
     """Return default project setup schema path."""
-    from core_engine.schema_paths import get_schema_paths
+    from ..paths.path_schema import get_schema_paths
     return get_schema_paths(base_path).project_setup_schema
 
 
@@ -60,7 +60,7 @@ def default_schema_path(base_path: Path | None = None) -> Path:
                 break
         else:
             base_path = Path(__file__).parent
-    from core_engine.schema_paths import get_schema_paths
+    from ..paths.path_schema import get_schema_paths
     return get_schema_paths(base_path).dcc_register_config
 
 

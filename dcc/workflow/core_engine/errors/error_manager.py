@@ -5,7 +5,7 @@ and enforce consistency across orchestrator and engines.
 """
 from typing import Any, Dict, Optional
 
-from .context import PipelineContext
+from ..context.context_pipeline import PipelineContext
 
 
 def handle_system_error(

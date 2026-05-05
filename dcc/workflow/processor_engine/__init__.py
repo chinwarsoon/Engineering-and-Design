@@ -22,8 +22,7 @@ from .utils import load_excel_data
 
 # Phase 2 DI: Export DI components
 from . import interfaces
-from . import factories
-from .factories import (
+from .core.proc_factories import (
     DependencyContainer,
     get_container,
     set_container,
@@ -45,7 +44,6 @@ __all__ = [
     'load_excel_data',
     # Phase 2 DI exports
     'interfaces',
-    'factories',
     'DependencyContainer',
     'get_container',
     'set_container',

@@ -78,7 +78,7 @@ class PathSelectionContract:
         Raises:
             ValueError: If required paths cannot be constructed
         """
-        from core_engine.context import PipelinePaths
+        from core_engine.context.context_pipeline import PipelinePaths
         
         base = self.base_path.resolve()
         

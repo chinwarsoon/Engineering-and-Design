@@ -20,7 +20,7 @@ from utility_engine.console import status_print, debug_print
 from core_engine.logging import log_error
 
 
-from core_engine.context import PipelineContext
+from core_engine.context.context_pipeline import PipelineContext
 from core_engine.base import BaseEngine
 
 class ColumnMapperEngine(BaseEngine):

@@ -6,6 +6,14 @@ A modular engine for project setup validation and initialization.
 
 from .core.validator import ProjectSetupValidator
 from .core.reports import format_report
+from .core.init_overrides import (
+    PathSelectionContract,
+    ParameterOverrideContract,
+    UIContractBundle,
+    get_available_files,
+    suggest_base_paths,
+    validate_and_resolve,
+)
 
 from .validators.items import (
     validate_folders,
@@ -82,6 +90,13 @@ __all__ = [
     # Core
     'ProjectSetupValidator',
     'format_report',
+    # UI Overrides
+    'PathSelectionContract',
+    'ParameterOverrideContract',
+    'UIContractBundle',
+    'get_available_files',
+    'suggest_base_paths',
+    'validate_and_resolve',
     # Validators
     'validate_folders',
     'validate_named_files',

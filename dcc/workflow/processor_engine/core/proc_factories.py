@@ -8,7 +8,7 @@ for creating engine instances with configurable dependencies.
 from typing import Dict, Any, Optional, Type
 from pathlib import Path
 
-from .interfaces import (
+from ..interfaces import (
     IErrorReporter,
     IErrorAggregator,
     IStructuredLogger,
@@ -151,7 +151,7 @@ class CalculationEngineFactory:
         Returns:
             Configured CalculationEngine instance
         """
-        from .core.engine import CalculationEngine
+        from .engine import CalculationEngine
         
         if use_container:
             container = get_container()
@@ -189,7 +189,7 @@ class CalculationEngineFactory:
         Create a CalculationEngine using legacy direct instantiation.
         Maintains backward compatibility.
         """
-        from .core.engine import CalculationEngine
+        from .engine import CalculationEngine
         return CalculationEngine(context, schema_data)
 
 
@@ -199,7 +199,7 @@ class SchemaProcessorFactory:
     @staticmethod
     def create(schema_data: Dict) -> 'SchemaProcessor':
         """Create a SchemaProcessor instance."""
-        from .schema import SchemaProcessor
+        from ..schema import SchemaProcessor
         return SchemaProcessor(schema_data)
 
 

@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
 from processor_engine.error_handling.aggregator import ErrorAggregator
-from .data_health import HealthCalculator
+from .report_health import HealthCalculator
 
 class ErrorReporter:
     """

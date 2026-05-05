@@ -25,7 +25,7 @@ except ImportError:
     from workflow.schema_engine.loader.ref_resolver import RefResolver, RefResolutionError
 
 
-from core_engine.context import PipelineContext
+from core_engine.context.context_pipeline import PipelineContext
 from core_engine.base import BaseEngine
 
 class ProjectSetupValidator(BaseEngine):

@@ -7,8 +7,8 @@ bootstrap management for pipeline initialization.
 Breadcrumb: BootstrapManager -> validation -> paths -> console -> errors
 """
 
-# Bootstrap submodule (Phase 1 implementation)
-from utility_engine.bootstrap import BootstrapManager, BootstrapError
+# Bootstrap submodule (moved to bootstrap/boot_pipeline.py)
+from utility_engine.bootstrap.boot_pipeline import BootstrapManager, BootstrapError
 
 # Other submodules are imported from their respective packages
 from utility_engine.console import status_print, milestone_print
