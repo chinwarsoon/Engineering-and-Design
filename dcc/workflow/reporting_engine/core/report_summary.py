@@ -215,25 +215,77 @@ def write_processing_summary(
 
 
 def print_summary(results: Dict[str, Any], status_print_fn: Any = print) -> None:
-    """Print processing summary to console.
+    """Print enhanced processing summary to console.
 
     Args:
         results: Dictionary containing processing results.
         status_print_fn: Function to use for printing (defaults to print).
     """
-    status_print_fn("\n" + "=" * 72)
-    status_print_fn("DCC ENGINE PIPELINE - PROCESSING COMPLETE")
-    status_print_fn("=" * 72)
-    status_print_fn(f"Base Path: {results['base_path']}")
-    status_print_fn(f"Schema File: {results['schema_path']}")
-    status_print_fn(f"Excel File: {results['excel_path']}")
-    status_print_fn(f"CSV Output: {results['csv_output_path']}")
-    status_print_fn(f"Excel Output: {results['excel_output_path']}")
-    status_print_fn(f"Raw Shape: {tuple(results['raw_shape'])}")
-    status_print_fn(f"Mapped Shape: {tuple(results['mapped_shape'])}")
-    status_print_fn(f"Processed Shape: {tuple(results['processed_shape'])}")
-    status_print_fn(f"Matched Headers: {results['matched_count']} / {results['total_headers']}")
-    status_print_fn(f"Match Rate: {results['match_rate']:.1%}")
+    # Extract key metrics
+    raw_rows, raw_cols = results['raw_shape']
+    processed_rows, processed_cols = results['processed_shape']
+    match_rate = results['match_rate']
+    
+    # Calculate processing efficiency
+    column_expansion = processed_cols - raw_cols
+    row_count = processed_rows
+    
+    # Main completion banner
+    status_print_fn("\n" + "=" * 80)
+    status_print_fn("🎉 DCC ENGINE PIPELINE - PROCESSING COMPLETE")
+    status_print_fn("=" * 80)
+    
+    # Quick summary section
+    status_print_fn("\n📊 PROCESSING SUMMARY")
+    status_print_fn("-" * 40)
+    status_print_fn(f"📄 Records Processed: {row_count:,}")
+    status_print_fn(f"📋 Columns Expanded: {raw_cols} → {processed_cols} (+{column_expansion})")
+    status_print_fn(f"✅ Header Match Rate: {match_rate:.1%}")
+    
+    # File paths section
+    status_print_fn("\n📁 OUTPUT FILES")
+    status_print_fn("-" * 40)
+    status_print_fn(f"📈 CSV:  {results['csv_output_path']}")
+    status_print_fn(f"📊 Excel: {results['excel_output_path']}")
+    
+    # Error and validation status (if available)
+    if results.get("error_count", 0) > 0:
+        status_print_fn("\n⚠️  VALIDATION STATUS")
+        status_print_fn("-" * 40)
+        status_print_fn(f"🔍 Errors Found: {results['error_count']:,}")
+        status_print_fn(f"📄 Error Report: output/error_dashboard_data.json")
+    
+    # Technical details (collapsed)
+    status_print_fn("\n🔧 TECHNICAL DETAILS")
+    status_print_fn("-" * 40)
+    status_print_fn(f"📂 Base Path: {results['base_path']}")
+    status_print_fn(f"📋 Schema: {Path(results['schema_path']).name}")
+    status_print_fn(f"📥 Input: {Path(results['excel_path']).name}")
+    
+    # Missing required columns (if any)
     if results.get("missing_required"):
-        status_print_fn(f"Missing Required Columns: {results['missing_required']}")
-    status_print_fn("Ready: YES")
+        status_print_fn("\n❌ MISSING REQUIRED COLUMNS")
+        status_print_fn("-" * 40)
+        for col in results['missing_required']:
+            status_print_fn(f"   • {col}")
+    
+    # Next steps guidance
+    status_print_fn("\n🎯 NEXT STEPS")
+    status_print_fn("-" * 40)
+    status_print_fn("1. Review the processed files in your output directory:")
+    status_print_fn("   📈 CSV: processed_dcc_universal.csv")
+    status_print_fn("   📊 Excel: processed_dcc_universal.xlsx")
+    status_print_fn("")
+    status_print_fn("2. Check the validation and analysis reports:")
+    status_print_fn("   🔍 error_dashboard_data.json - Validation errors and issues")
+    status_print_fn("   🤖 ai_insight_summary.json - AI analysis results")
+    status_print_fn("   📋 processing_summary.txt - Detailed processing log")
+    status_print_fn("")
+    status_print_fn("3. Open files based on your needs:")
+    status_print_fn("   📊 Data analysis → CSV/Excel files")
+    status_print_fn("   🔍 Error review → error_dashboard_data.json")
+    status_print_fn("   🤖 AI insights → ai_insight_summary.json")
+    
+    # Final status
+    status_print_fn("\n PIPELINE STATUS: READY")
+    status_print_fn("=" * 80)
