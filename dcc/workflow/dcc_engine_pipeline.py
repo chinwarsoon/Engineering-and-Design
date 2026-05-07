@@ -297,6 +297,10 @@ def _build_pipeline_results(context: PipelineContext) -> Dict[str, Any]:
 
 def run_engine_pipeline(context: PipelineContext) -> Dict[str, Any]:
     """Run the registered DCC engine pipeline steps."""
+    # Execute each registered pipeline step in sequence.
+    # Steps are defined in PIPELINE_STEPS and run in order: initiation -> schema -> mapper -> processor -> reorder -> export -> ai_ops.
+    # wrap_engine_execution handles error capture, telemetry, and fail-fast logic per step.
+    # The lambda captures the current step's runner to avoid the classic loop-closure variable binding issue.
     for step in PIPELINE_STEPS:
         wrap_engine_execution(
             context,
@@ -393,8 +397,10 @@ def main() -> int:
     # This ensures all path operations use the correct execution context
     # pipeline must rest in "workflow" folder
     pipeline_dir = "workflow"
+
     # return actual pipeline start position
     pipeline_start = resolve_pipeline_base_path()
+    
     # if pipeline started in "workflow" folder, need to strip the "workflow" folder from the pipeline_start path. this will
     # allow the pipeline to start in the "workflow" folder.
     # pipeline base path will be the parent of the "workflow" folder.
@@ -426,8 +432,11 @@ def main() -> int:
         
         # Update debug mode based on DEBUG_LEVEL
         context.debug_mode = (DEBUG_LEVEL >= 2)
-        
-        # Phase P3: Set preload/postload traces from BootstrapManager
+
+        # Phase P3: Attach preload and postload traces from BootstrapManager to the pipeline context.
+        # Preload trace captures the parameter resolution state before schema/config loading (always present).
+        # Postload trace captures the state after schema and config are fully loaded (may be None if schema loading was skipped or failed).
+        # These traces are used downstream for diagnostics, audit logging, and parameter precedence reporting.
         context.set_preload_state(manager.preload_trace)
         if manager.postload_trace:
             context.set_postload_state(manager.postload_trace)
