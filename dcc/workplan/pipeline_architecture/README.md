@@ -13,18 +13,13 @@ This directory contains workplans for the DCC pipeline architecture and core uti
 pipeline_architecture/
 ├── README.md                                    # This file
 ├── pipeline_architecture_workplan/              # Pipeline Architecture Workplan (COMPLETE)
-│   ├── README.md                                # Workplan reports overview
-│   ├── pipeline_architecture_design_workplan.md # Master workplan (v1.0)
-│   ├── phase_*.md                               # Phase reports (1-5)
-│   ├── lessons_learned_best_practices.md        # Best practices guide
-│   └── implementation_*.md                      # Combined implementation reports
 ├── core_utility_engine_workplan/                # Core Utility Workplan (ACTIVE)
-│   ├── README.md                                # Core utility overview
-│   └── core_utility_engine_workplan.md          # Core utility workplan
-└── pipeline_simplification/                     # Pipeline Simplification Workplan (PENDING APPROVAL)
-    ├── pipeline_simplification_workplan.md      # Master workplan (WP-PIPE-SIMP-001)
-    └── reports/                                 # Phase completion reports
-        └── README.md                            # Reports index
+├── pipeline_simplification/                     # Pipeline Simplification Workplan (COMPLETE)
+│   ├── pipeline_simplification_workplan.md      # Master workplan (WP-PIPE-SIMP-001)
+│   └── reports/                                 # Phase A–D completion reports
+└── ssot_schema_driven_compliance/               # SSOT & Schema-Driven Compliance (PENDING APPROVAL)
+    ├── ssot_schema_driven_workplan.md           # Master workplan (WP-SSOT-SD-001)
+    └── reports/                                 # Phase A–C reports (pending)
 ```
 
 ## Workplan Status Summary
@@ -42,10 +37,16 @@ pipeline_architecture/
 - **Location**: [core_utility_engine_workplan/](core_utility_engine_workplan/)
 
 ### Pipeline Simplification Workplan (WP-PIPE-SIMP-001)
-- **Status**: 🟠 PENDING APPROVAL
-- **Description**: Simplification of `dcc_engine_pipeline.py` — dead code removal, SSOT enforcement, Blueprint delegation, uniform engine interface
-- **Phases**: A (Quick Wins), B (Structural Cleanup), C (Architecture Refinement)
+- **Status**: ✅ COMPLETE
+- **Description**: Simplification of `dcc_engine_pipeline.py` — dead code removal, SSOT enforcement, Blueprint delegation, uniform engine interface, legacy removal
+- **Phases**: A (Quick Wins), B (Structural Cleanup), C (Architecture Refinement), D (Legacy Removal) — all complete
 - **Location**: [pipeline_simplification/](pipeline_simplification/)
+
+### SSOT & Schema-Driven Compliance Workplan (WP-SSOT-SD-001)
+- **Status**: 🟠 PENDING APPROVAL
+- **Description**: Eliminates 15 SSOT and schema-driven violations across `dcc/workflow` — hardcoded column names, phase strings, business logic values, error maps, filenames, health thresholds, and regex patterns
+- **Phases**: A (High-Severity), B (Structural), C (Catalog/Threshold Externalization)
+- **Location**: [ssot_schema_driven_compliance/](ssot_schema_driven_compliance/)
 
 ## Quick Access
 
@@ -61,6 +62,10 @@ pipeline_architecture/
 ### For Pipeline Simplification Information
 1. **Simplification Workplan**: [pipeline_simplification/pipeline_simplification_workplan.md](pipeline_simplification/pipeline_simplification_workplan.md)
 2. **Reports**: [pipeline_simplification/reports/README.md](pipeline_simplification/reports/README.md)
+
+### For SSOT & Schema-Driven Compliance Information
+1. **Compliance Workplan**: [ssot_schema_driven_compliance/ssot_schema_driven_workplan.md](ssot_schema_driven_compliance/ssot_schema_driven_workplan.md)
+2. **Reports**: [ssot_schema_driven_compliance/reports/README.md](ssot_schema_driven_compliance/reports/README.md)
 
 ## Key Achievements (Pipeline Architecture)
 
