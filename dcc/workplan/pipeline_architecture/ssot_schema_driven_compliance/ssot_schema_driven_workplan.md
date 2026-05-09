@@ -219,8 +219,9 @@ All values that must be read from schema are sourced from these files:
 ---
 
 ### Phase A — High-Severity Fixes
+**Status:** ✅ COMPLETED (2026-05-09)
 
-**Timeline:** TBD (estimated 2 sessions)  
+**Timeline:** Completed (1 session)  
 **Milestone:** No hardcoded column names or business logic values in calculation handlers  
 **Risk Level:** 🟡 Medium — changes how calculation handlers resolve sibling columns and status values
 
@@ -233,36 +234,36 @@ All values that must be read from schema are sourced from these files:
 
 #### Tasks
 
-| # | Task | File | Action | Schema File | Schema Field |
-|:---|:---|:---|:---|:---|:---|
-| A1 | Replace hardcoded sibling column lookups in `conditional.py` | `processor_engine/calculations/conditional.py` | Read column dependencies from `calculation.get('dependencies', [])` instead of hardcoded names | `dcc_register_config.json` | `columns[col].calculation.dependencies[]` |
-| A2 | Replace hardcoded status values in `conditional.py` | `processor_engine/calculations/conditional.py` | Read `'YES'`/`'NO'`/`'RESUBMITTED'`/`'PEN'` from `column.validation[type=allowed_values].allowed_values` | `dcc_register_config.json` | `columns['Resubmission_Required'].validation[type=allowed_values].allowed_values` |
-| A3 | Replace `['APP', 'VOID']` hardcoded approval codes | `processor_engine/calculations/conditional.py` line 230 | Read from `engine.schema_data['approval_codes']` filtered by terminal status (`Approved`, `Void`) | `approval_code_schema.json` | `approval_codes[].code` where `status` in `['Approved','Void']` |
-| A4 | Replace hardcoded `"Validation_Errors"` and `"Data_Health_Score"` in engine | `processor_engine/core/engine.py` lines 377, 382 | Read column names from `context.blueprint.phase_map['P3']` filtered by `is_calculated: true` | `dcc_register_config.json` | `column_sequence` + `columns[col].processing_phase` + `columns[col].is_calculated` |
-| A5 | Replace hardcoded sibling column lookups in `null_handling.py` `_get_row_key()` | `processor_engine/calculations/null_handling.py` | Read key columns from schema `columns[col].is_row_key: true` flag | `dcc_register_config.json` | `columns[col].is_row_key` (field to be added if missing) |
-| A6 | Fix `ErrorReporter` post-construction patching | `dcc_engine_pipeline.py` lines 203–204, 212–213 | Pass `context.paths.csv_output_path.parent` and `context.parameters` to `CalculationEngine` at construction; engine passes to `ErrorReporter` | `context.paths`, `context.parameters` | Already in `PipelineContext` — no schema change needed |
-| A7 | **[Schema update first]** Add `severity_threshold`, default severity keys to `project_config.json` | `dcc/config/schemas/project_config.json` | Add `severity_threshold: "critical"`, `default_system_error_severity: "critical"`, `default_data_error_severity: "medium"` to `system_parameters` section | `project_config.json` | `system_parameters.severity_threshold`, `.default_system_error_severity`, `.default_data_error_severity` — prerequisite for A8, A9 |
-| A8 | Replace hardcoded `severity_levels` dict in `should_fail_fast()` | `core_engine/context/context_pipeline.py:323` | Derive severity ordering from `error_code_base.json` `error_severity` enum position; read `severity_threshold` from `blueprint.validation_rules` (populated from `project_config.json` `system_parameters`) | `error_code_base.json`, `project_config.json` | `definitions.error_severity.enum` + `system_parameters.severity_threshold` |
-| A9 | Replace hardcoded severity defaults in `add_system_error()` and `add_data_error()` | `core_engine/context/context_pipeline.py:216, 241` | Read defaults from `blueprint.validation_rules` populated from `project_config.json` `system_parameters` | `project_config.json` | `system_parameters.default_system_error_severity`, `.default_data_error_severity` |
-| A10 | Add 3 missing schema filenames to `project_config.json` `schema_files` list | `dcc/config/schemas/project_config.json` | Add `dcc_register_config.json`, `dcc_register_enhanced.json`, `data_error_config.json` entries with `required`, `description`, `purpose` fields | `project_config.json` | `schema_files[].filename` |
-| A11 | Replace hardcoded required schema list in `SchemaPaths.validate_required_schemas()` | `core_engine/paths/path_schema.py:120–127` | Read required schemas from `project_config.json` `schema_files` where `required: true` | `project_config.json` | `schema_files[].filename` where `required: true` |
-| A12 | Fix `SchemaPaths.global_parameters` deprecated reference | `core_engine/paths/path_schema.py:65` | Update property to reference `dcc_global_parameters.json` | `project_config.json` | `schema_files[].filename` where `filename == 'dcc_global_parameters.json'` |
+| # | Task | File | Action | Status |
+|:---|:---|:---|:---|:---|
+| A1 | Replace hardcoded sibling column lookups in `conditional.py` | `conditional.py` | Read column dependencies from `calculation.get('dependencies', [])` | ✅ |
+| A2 | Replace hardcoded status values in `conditional.py` | `conditional.py` | Read `'YES'`/`'NO'`/`'RESUBMITTED'`/`'PEN'` from `allowed_values` | ✅ |
+| A3 | Replace `['APP', 'VOID']` hardcoded approval codes | `conditional.py` | Read from `engine.schema_data['approval_codes']` | ✅ |
+| A4 | Replace hardcoded output columns in engine | `engine.py` | Read column names from `context.blueprint.phase_map['P3']` | ✅ |
+| A5 | Replace hardcoded row key lookups | `null_handling.py` | Read key columns from schema `columns[col].is_row_key: true` | ✅ |
+| A6 | Fix `ErrorReporter` post-construction patching | `engine.py`, `pipeline.py` | Pass `output_dir` and `parameters` at construction | ✅ |
+| A7 | Add severity defaults to `project_config.json` | `project_config.json` | Add `severity_threshold` and default severity keys | ✅ |
+| A8 | Replace hardcoded `severity_levels` in context | `context_pipeline.py` | Derive ordering from `error_code_base.json` enum position | ✅ |
+| A9 | Replace hardcoded severity defaults in context | `context_pipeline.py` | Read defaults from `blueprint.validation_rules` | ✅ |
+| A10 | Add missing schema files to `project_config.json` | `project_config.json` | Add `dcc_register_config.json`, etc. | ✅ |
+| A11 | Dynamic required schema validation | `path_schema.py` | Read required list from `project_config.json` | ✅ |
+| A12 | Fix `global_parameters` deprecated reference | `path_schema.py` | Update to reference `dcc_global_parameters.json` | ✅ |
 
 #### Files Updated/Created
 
-| File | Action | Schema File Used | Purpose |
+| File | Action | Schema File Used | Status |
 |:---|:---|:---|:---|
-| `dcc/config/schemas/project_config.json` | **Update first** | — | Add `severity_threshold`, `default_system_error_severity`, `default_data_error_severity` to `system_parameters`; add 3 missing schema file entries — prerequisite for A8, A9, A11 |
-| `dcc/workflow/processor_engine/calculations/conditional.py` | Update | `dcc_register_config.json`, `approval_code_schema.json` | Replace hardcoded column names, status values, and approval codes |
-| `dcc/workflow/processor_engine/calculations/null_handling.py` | Update | `dcc_register_config.json` | Replace hardcoded row key column names via `columns[col].is_row_key` |
-| `dcc/workflow/processor_engine/calculations/date.py` | Update | `dcc_register_config.json` | Replace hardcoded `'YES'` for `Submission_Closed` check |
-| `dcc/workflow/processor_engine/calculations/composite.py` | Update | `dcc_register_config.json` | Replace hardcoded `'YES'` for `Submission_Closed` check |
-| `dcc/workflow/processor_engine/core/engine.py` | Update | `dcc_register_config.json` | Replace hardcoded output column names; pass context to `ErrorReporter` at construction |
-| `dcc/workflow/dcc_engine_pipeline.py` | Update | — | Remove post-construction `ErrorReporter` patching |
-| `dcc/workflow/core_engine/context/context_pipeline.py` | Update | `error_code_base.json`, `project_config.json` | Replace `severity_levels` dict; replace hardcoded severity defaults in `add_system_error()`/`add_data_error()` |
-| `dcc/workflow/core_engine/paths/path_schema.py` | Update | `project_config.json` | Fix `global_parameters` property; replace hardcoded required schema list |
-| `dcc/config/schemas/dcc_register_config.json` | Update (if needed) | — | Add `is_row_key` flag to row-key columns if missing |
-| `dcc/workplan/pipeline_architecture/ssot_schema_driven_compliance/reports/phase_A_report.md` | Create | — | Phase A test and completion report |
+| `dcc/config/schemas/project_config.json` | Updated | — | ✅ |
+| `dcc/workflow/processor_engine/calculations/conditional.py` | Updated | `dcc_register_config.json`, `approval_code_schema.json` | ✅ |
+| `dcc/workflow/processor_engine/calculations/null_handling.py` | Updated | `dcc_register_config.json` | ✅ |
+| `dcc/workflow/processor_engine/calculations/date.py` | Updated | `dcc_register_config.json` | ✅ |
+| `dcc/workflow/processor_engine/calculations/composite.py` | Updated | `dcc_register_config.json` | ✅ |
+| `dcc/workflow/processor_engine/core/engine.py` | Updated | `dcc_register_config.json` | ✅ |
+| `dcc/workflow/dcc_engine_pipeline.py` | Updated | — | ✅ |
+| `dcc/workflow/core_engine/context/context_pipeline.py` | Updated | `error_code_base.json`, `project_config.json` | ✅ |
+| `dcc/workflow/core_engine/paths/path_schema.py` | Updated | `project_config.json` | ✅ |
+| `dcc/config/schemas/dcc_register_config.json` | Updated | — | ✅ |
+| `dcc/workplan/pipeline_architecture/ssot_schema_driven_compliance/reports/phase_A_report.md` | Created | — | ✅ |
 
 #### Risks and Mitigation
 

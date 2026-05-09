@@ -31,6 +31,9 @@
         {"filename": "project_setup.json", "required": true, "description": "Project setup validation schema", "category": "project_schema"},
         {"filename": "project_config.json", "required": true, "description": "Project configuration data", "category": "config_data"},
         {"filename": "dcc_register_base.json", "required": true, "description": "DCC register base definitions", "category": "base_schema"},
+        {"filename": "dcc_register_config.json", "required": true, "description": "DCC register configuration schema", "category": "register_schema"},
+        {"filename": "dcc_register_enhanced.json", "required": false, "description": "Enhanced DCC register schema", "category": "register_schema"},
+        {"filename": "data_error_config.json", "required": true, "description": "Data error configuration schema", "category": "error_schema"},
         {"filename": "project_code_schema.json", "required": true, "description": "Defines project codes and descriptions", "category": "data_schema"},
         {"filename": "global_parameters.json", "required": false, "description": "[DEPRECATED] Global parameters configuration - use dcc_global_parameters.json instead", "category": "config_data"},
         {"filename": "dcc_global_parameters.json", "required": true, "description": "DCC global processing parameter values", "category": "config_data"}
@@ -85,6 +88,9 @@
   },
   "system_parameters": {
     "fail_fast": false,
+    "severity_threshold": "critical",
+    "default_system_error_severity": "critical",
+    "default_data_error_severity": "medium",
     "debug_dev_mode": false,
     "is_colab": false,
     "overwrite_existing_downloads": true,

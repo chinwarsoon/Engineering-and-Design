@@ -213,12 +213,16 @@ class PipelineContext:
         code: str,
         message: str,
         details: Optional[str] = None,
-        severity: str = "critical",
+        severity: Optional[str] = None,
         engine: Optional[str] = None,
         phase: Optional[str] = None,
         fatal: bool = True
     ) -> None:
         """Add a system-status error to the context for tracking."""
+        # Task A9: Read default from blueprint (populated from project_config.json)
+        if severity is None:
+            severity = self.blueprint.validation_rules.get("default_system_error_severity", "critical")
+            
         error_event = PipelineErrorEvent(
             domain="system",
             code=code,
@@ -238,12 +242,16 @@ class PipelineContext:
         code: str,
         message: str,
         details: Optional[str] = None,
-        severity: str = "medium",
+        severity: Optional[str] = None,
         engine: Optional[str] = None,
         phase: Optional[str] = None,
         fatal: bool = False
     ) -> None:
         """Add a data-handling error to the context for tracking."""
+        # Task A9: Read default from blueprint (populated from project_config.json)
+        if severity is None:
+            severity = self.blueprint.validation_rules.get("default_data_error_severity", "medium")
+            
         error_event = PipelineErrorEvent(
             domain="data",
             code=code,
@@ -318,14 +326,20 @@ class PipelineContext:
         if not domain_errors:
             return False
         
-        # Check severity threshold
+        # Task A8: Read severity threshold from blueprint (SSOT)
         severity_threshold = config.get("severity_threshold", "critical")
-        severity_levels = {"critical": 4, "high": 3, "medium": 2, "low": 1}
-        threshold_level = severity_levels.get(severity_threshold, 4)
+        
+        # Task A8: Derive severity ordering from error_code_base.json enum position
+        # FATAL(0), CRITICAL(1), HIGH(2), MEDIUM(3), WARNING(4), INFO(5)
+        severity_order = ["FATAL", "CRITICAL", "HIGH", "MEDIUM", "WARNING", "INFO"]
+        severity_levels = {sev.lower(): i for i, sev in enumerate(severity_order)}
+        
+        # Use numeric comparison (lower index = higher severity)
+        threshold_level = severity_levels.get(severity_threshold.lower(), 1) # Default to CRITICAL
         
         for error in domain_errors:
-            error_level = severity_levels.get(error.severity, 1)
-            if error_level >= threshold_level:
+            error_level = severity_levels.get(error.severity.lower(), 5) # Default to INFO
+            if error_level <= threshold_level:
                 return True
         
         return False

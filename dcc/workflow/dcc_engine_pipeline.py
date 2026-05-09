@@ -200,8 +200,6 @@ def _run_processor(context: PipelineContext) -> Dict[str, Any]:
 
         status_print("Generating data health diagnostics...", min_level=2)
         context.state.error_summary = processor.get_error_summary()
-        processor.error_reporter.output_dir = context.paths.csv_output_path.parent
-        processor.error_reporter.effective_parameters = context.parameters
         dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
         status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
         return result
@@ -209,8 +207,6 @@ def _run_processor(context: PipelineContext) -> Dict[str, Any]:
         if context.should_fail_fast("data"):
             status_print("Generating diagnostic report for captured errors...")
             context.state.error_summary = processor.get_error_summary()
-            processor.error_reporter.output_dir = context.paths.csv_output_path.parent
-            processor.error_reporter.effective_parameters = context.parameters
             processor.error_reporter.export_dashboard_json(len(context.data.df_mapped))
             _write_summary(context, context.data.df_mapped)
         raise

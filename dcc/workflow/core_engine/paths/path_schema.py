@@ -61,8 +61,9 @@ class SchemaPaths:
     
     @property
     def global_parameters(self) -> Path:
-        """Global parameters configuration."""
-        return self._config_dir / "global_parameters.json"
+        """Global parameters configuration (SSOT)."""
+        # Task A12: Update to dcc_global_parameters.json (Legacy global_parameters.json is deprecated)
+        return self._config_dir / "dcc_global_parameters.json"
     
     # Error Handling Schemas
     @property
@@ -111,19 +112,39 @@ class SchemaPaths:
     
     def validate_required_schemas(self) -> Dict[str, bool]:
         """
-        Validate that required schemas exist.
+        Validate that required schemas exist based on project_config.json (SSOT).
         
         Returns:
             Dictionary mapping schema names to existence status
         """
-        required_schemas = [
-            "project_setup",
-            "project_config", 
-            "project_setup_base",
-            "dcc_register_config",
-            "project_code_schema",
-            "global_parameters"
-        ]
+        # Task A11: Read required schemas from project_config.json SSOT
+        import json
+        config_path = self.project_config_data
+        required_schemas = []
+        
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    schema_files = config.get('schema_files', [])
+                    # Extract stems from required schema filenames
+                    required_schemas = [
+                        Path(s['filename']).stem 
+                        for s in schema_files if s.get('required')
+                    ]
+            except Exception:
+                # Fallback to legacy if parsing fails or file is malformed
+                required_schemas = []
+        
+        if not required_schemas:
+            required_schemas = [
+                "project_setup",
+                "project_config", 
+                "project_setup_base",
+                "dcc_register_config",
+                "project_code_schema",
+                "dcc_global_parameters"
+            ]
         
         return {name: self.exists(name) for name in required_schemas}
 

@@ -138,10 +138,14 @@ def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calc
 
     FIX: replaced O(n^2) iterrows loop with a vectorised self-join approach.
     """
-    doc_id_col = 'Document_ID'
-    submission_date_col = 'Submission_Date'
-    plan_date_col = 'Resubmission_Plan_Date'
-    closed_col = 'Submission_Closed'
+    dependencies = calculation.get('dependencies', [])
+    
+    # Task A1: Read column dependencies
+    # Dependency order: Submission_Closed, Document_ID, Submission_Date, Resubmission_Plan_Date
+    closed_col = dependencies[0] if len(dependencies) > 0 else 'Submission_Closed'
+    doc_id_col = dependencies[1] if len(dependencies) > 1 else 'Document_ID'
+    submission_date_col = dependencies[2] if len(dependencies) > 2 else 'Submission_Date'
+    plan_date_col = dependencies[3] if len(dependencies) > 3 else 'Resubmission_Plan_Date'
 
     required_cols = [doc_id_col, submission_date_col, plan_date_col, closed_col]
     missing_cols = [col for col in required_cols if col not in df.columns]
@@ -185,7 +189,13 @@ def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calc
     delay = (df[submission_date_col] - prev_max_plan).dt.days.fillna(0).clip(lower=0).astype(int)
 
     # Override: closed submissions always have delay 0
-    closed_mask = df[closed_col] == 'YES'
+    # Task A2: Use schema value for 'YES'
+    column_def = engine.columns.get(closed_col, {})
+    validation = column_def.get('validation', [])
+    allowed_values = next((v.get('allowed_values', []) for v in validation if v.get('type') == 'allowed_values'), [])
+    val_yes = allowed_values[0] if len(allowed_values) > 0 else 'YES'
+    
+    closed_mask = df[closed_col] == val_yes
     delay[closed_mask] = 0
 
     # Only apply to null values

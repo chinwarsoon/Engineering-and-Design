@@ -79,12 +79,26 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
     Respects strategy configuration for data preservation.
     """
     source_column = calculation.get('source_column', 'Resubmission_Required')
+    dependencies = calculation.get('dependencies', [])
+    
+    # Task A1: Read column dependencies from calculation instead of hardcoding
+    # Dependency order: Submission_Closed, Document_ID, Submission_Date, Review_Return_Actual_Date, Latest_Submission_Date
+    submission_closed_col = dependencies[0] if len(dependencies) > 0 else 'Submission_Closed'
+    document_id_col = dependencies[1] if len(dependencies) > 1 else 'Document_ID'
+    submission_date_col = dependencies[2] if len(dependencies) > 2 else 'Submission_Date'
+    review_return_col = dependencies[3] if len(dependencies) > 3 else 'Review_Return_Actual_Date'
+    latest_submission_date_col = dependencies[4] if len(dependencies) > 4 else 'Latest_Submission_Date'
 
-    # Get required columns
-    submission_closed_col = 'Submission_Closed' if 'Submission_Closed' in df.columns else None
-    document_id_col = 'Document_ID' if 'Document_ID' in df.columns else None
-    submission_date_col = 'Submission_Date' if 'Submission_Date' in df.columns else None
-    review_return_col = 'Review_Return_Actual_Date' if 'Review_Return_Actual_Date' in df.columns else None
+    # Task A2: Read status values from schema allowed_values
+    column_def = engine.columns.get(column_name, {})
+    validation = column_def.get('validation', [])
+    allowed_values = next((v.get('allowed_values', []) for v in validation if v.get('type') == 'allowed_values'), [])
+    
+    # Map status values from schema or use current defaults as fallback
+    val_yes = allowed_values[0] if len(allowed_values) > 0 else 'YES'
+    val_no = allowed_values[1] if len(allowed_values) > 1 else 'NO'
+    val_resub = allowed_values[2] if len(allowed_values) > 2 else 'RESUBMITTED'
+    val_pen = allowed_values[3] if len(allowed_values) > 3 else 'PEN'
 
     engine._print_processing_step("Conditional", column_name, f"Checking rejection/resubmission logic from {source_column}")
 
@@ -110,48 +124,58 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
             return df
     
     # Initialize target values with default YES
-    df.loc[null_mask, column_name] = 'YES'
+    df.loc[null_mask, column_name] = val_yes
 
     # Track which rows have been determined - these skip remaining checks
     determined_mask = pd.Series([False] * len(df), index=df.index)
 
     # Condition 1: Keep NO if already NO
     if source_column in df.columns:
-        mask_already_no = df[source_column] == 'NO'
-        df.loc[mask_already_no, column_name] = 'NO'
+        mask_already_no = df[source_column] == val_no
+        df.loc[mask_already_no, column_name] = val_no
         determined_mask |= mask_already_no
 
     # Condition 2: Set to NO if submission is closed (skip rows already determined)
-    if submission_closed_col:
-        mask_closed = (df[submission_closed_col] == 'YES') & ~determined_mask
-        df.loc[mask_closed, column_name] = 'NO'
+    if submission_closed_col in df.columns:
+        mask_closed = (df[submission_closed_col] == val_yes) & ~determined_mask
+        df.loc[mask_closed, column_name] = val_no
         determined_mask |= mask_closed
 
     # Condition 3: Set to RESUBMITTED if not the latest submission (skip rows already determined)
-    if document_id_col and submission_date_col:
+    if document_id_col in df.columns and submission_date_col in df.columns:
         df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
-        latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+        # Use Latest_Submission_Date column if available as dependency, otherwise calculate
+        if latest_submission_date_col in df.columns:
+            latest_dates = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
+        else:
+            latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+            
         mask_not_latest = (df[submission_date_col] < latest_dates) & ~determined_mask
-        df.loc[mask_not_latest, column_name] = 'RESUBMITTED'
+        df.loc[mask_not_latest, column_name] = val_resub
         determined_mask |= mask_not_latest
 
-    # Condition 4: Set to PENDING if latest submission and awaiting review return
-    if review_return_col and submission_date_col and document_id_col:
+    # Condition 4: Set to PEN if latest submission and awaiting review return
+    if review_return_col in df.columns and submission_date_col in df.columns and document_id_col in df.columns:
         df[review_return_col] = pd.to_datetime(df[review_return_col], errors='coerce')
-        latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+        # Re-verify latest_dates
+        if latest_submission_date_col in df.columns:
+            latest_dates = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
+        else:
+            latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+            
         mask_pending = (
             (df[submission_date_col] == latest_dates) &
             df[review_return_col].isna() &
             ~determined_mask
         )
-        df.loc[mask_pending, column_name] = 'PENDING'
+        df.loc[mask_pending, column_name] = val_pen
         determined_mask |= mask_pending
 
     # Condition 5: Default YES - already set for all remaining undetermined rows
 
     engine._print_processing_step("Conditional", column_name, 
-        f"Applied: {(df[column_name] == 'NO').sum()} NO, {(df[column_name] == 'RESUBMITTED').sum()} RESUBMITTED, "
-        f"{(df[column_name] == 'PENDING').sum()} PENDING, {(df[column_name] == 'YES').sum()} YES")
+        f"Applied: {(df[column_name] == val_no).sum()} {val_no}, {(df[column_name] == val_resub).sum()} {val_resub}, "
+        f"{(df[column_name] == val_pen).sum()} {val_pen}, {(df[column_name] == val_yes).sum()} {val_yes}")
     return df
 
 
@@ -161,18 +185,28 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
     Priority order:
     1. Keep YES if already YES
     2. Set to YES if current submission is not the latest (superseded by newer submission)
-    3. Set to YES if Latest_Approval_Code in ['APP', 'VOID']
+    3. Set to YES if Latest_Approval_Code in approval list (terminal status)
     4. Default to NO for remaining rows
 
     Note: Does NOT depend on Resubmission_Required to avoid circular dependency.
     Respects strategy configuration for data preservation.
     """
     source_column = calculation.get('source_column', 'Submission_Closed')
+    dependencies = calculation.get('dependencies', [])
+    
+    # Task A1: Read column dependencies
+    # Dependency order: Latest_Approval_Code, Document_ID, Submission_Date, Latest_Submission_Date
+    latest_approval_col = dependencies[0] if len(dependencies) > 0 else 'Latest_Approval_Code'
+    document_id_col = dependencies[1] if len(dependencies) > 1 else 'Document_ID'
+    submission_date_col = dependencies[2] if len(dependencies) > 2 else 'Submission_Date'
+    latest_submission_date_col = dependencies[3] if len(dependencies) > 3 else 'Latest_Submission_Date'
 
-    # Get required columns
-    latest_approval_col = 'Latest_Approval_Code' if 'Latest_Approval_Code' in df.columns else None
-    document_id_col = 'Document_ID' if 'Document_ID' in df.columns else None
-    submission_date_col = 'Submission_Date' if 'Submission_Date' in df.columns else None
+    # Task A2: Read status values
+    column_def = engine.columns.get(column_name, {})
+    validation = column_def.get('validation', [])
+    allowed_values = next((v.get('allowed_values', []) for v in validation if v.get('type') == 'allowed_values'), [])
+    val_yes = allowed_values[0] if len(allowed_values) > 0 else 'YES'
+    val_no = allowed_values[1] if len(allowed_values) > 1 else 'NO'
 
     engine._print_processing_step("Conditional", column_name, "Evaluating closure status")
 
@@ -206,30 +240,44 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
         df[source_column] = df[source_column].fillna(text_cleaning['fill_nulls'])
 
     # Initialize target values with default NO
-    df.loc[null_mask, column_name] = 'NO'
+    df.loc[null_mask, column_name] = val_no
 
     # Track which rows have been determined - these skip remaining checks
     determined_mask = pd.Series([False] * len(df), index=df.index)
 
     # Condition 1: Keep YES if already YES
     if source_column in df.columns:
-        mask_already_yes = (df[source_column] == 'YES') & ~determined_mask
-        df.loc[mask_already_yes, column_name] = 'YES'
+        mask_already_yes = (df[source_column] == val_yes) & ~determined_mask
+        df.loc[mask_already_yes, column_name] = val_yes
         determined_mask |= mask_already_yes
 
     # Condition 2: Set to YES if current submission is not the latest (superseded)
-    if document_id_col and submission_date_col:
+    if document_id_col in df.columns and submission_date_col in df.columns:
         df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
-        latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+        if latest_submission_date_col in df.columns:
+            latest_dates = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
+        else:
+            latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
+            
         mask_not_latest = (df[submission_date_col] < latest_dates) & ~determined_mask
-        df.loc[mask_not_latest, column_name] = 'YES'
+        df.loc[mask_not_latest, column_name] = val_yes
         determined_mask |= mask_not_latest
 
-    # Condition 3: Set to YES if Latest_Approval_Code is in approval list
-    if latest_approval_col:
-        approval_codes = ['APP', 'VOID']
+    # Condition 3: Set to YES if Latest_Approval_Code is in terminal approval list
+    if latest_approval_col in df.columns:
+        # Task A3: Read from engine.schema_data['approval_codes'] filtered by status
+        approval_entries = engine.schema_data.get('approval_codes', [])
+        # Terminal status list (Approved, Void, For Information)
+        terminal_statuses = ['Approved', 'Void', 'For Information']
+        approval_codes = [
+            entry['code'] for entry in approval_entries 
+            if entry.get('status') in terminal_statuses
+        ]
+        if not approval_codes:
+            approval_codes = ['APP', 'VOID', 'INF'] # Fallback
+            
         mask_approved = df[latest_approval_col].isin(approval_codes) & ~determined_mask
-        df.loc[mask_approved, column_name] = 'YES'
+        df.loc[mask_approved, column_name] = val_yes
         determined_mask |= mask_approved
 
     # Condition 4: Default NO - already set for all remaining undetermined rows
@@ -244,15 +292,25 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
 
     Logic:
     1. If Resubmission_Required == 'YES' AND Resubmission_Plan_Date is not null AND Resubmission_Plan_Date < current_date -> 'Overdue'
-    2. Otherwise -> null
+    2. Otherwise -> NO
     
     Respects strategy configuration for data preservation.
     """
-    # Get required columns
-    resubmission_required_col = 'Resubmission_Required' if 'Resubmission_Required' in df.columns else None
-    resubmission_plan_date_col = 'Resubmission_Plan_Date' if 'Resubmission_Plan_Date' in df.columns else None
+    dependencies = calculation.get('dependencies', [])
+    
+    # Task A1: Read column dependencies
+    # Dependency order: Resubmission_Required, Resubmission_Plan_Date
+    resubmission_required_col = dependencies[0] if len(dependencies) > 0 else 'Resubmission_Required'
+    resubmission_plan_date_col = dependencies[1] if len(dependencies) > 1 else 'Resubmission_Plan_Date'
 
-    engine._print_processing_step("Conditional", column_name, "Calculating Overdue/On-Track")
+    # Task A2: Read status values
+    column_def = engine.columns.get(column_name, {})
+    validation = column_def.get('validation', [])
+    allowed_values = next((v.get('allowed_values', []) for v in validation if v.get('type') == 'allowed_values'), [])
+    val_overdue = allowed_values[1] if len(allowed_values) > 1 else 'Overdue'
+    val_no = allowed_values[2] if len(allowed_values) > 2 else 'NO'
+
+    engine._print_processing_step("Conditional", column_name, f"Calculating {val_overdue}/{val_no}")
 
     # Respect strategy configuration
     preservation_mode = _get_preservation_mode(engine, column_name)
@@ -278,7 +336,7 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
             return df
         process_all = False
 
-    if resubmission_required_col and resubmission_plan_date_col:
+    if resubmission_required_col in df.columns and resubmission_plan_date_col in df.columns:
         # Convert plan date to datetime
         df[resubmission_plan_date_col] = pd.to_datetime(df[resubmission_plan_date_col], errors='coerce')
 
@@ -293,15 +351,18 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
         )
 
         if process_all:
-            df.loc[mask_overdue, column_name] = 'Overdue'
+            df[column_name] = val_no
+            df.loc[mask_overdue, column_name] = val_overdue
             engine._print_processing_step("Conditional", column_name, 
-                f"Applied to all rows: {mask_overdue.sum()} Overdue, {(~mask_overdue).sum()} null (overwritten)")
+                f"Applied to all rows: {mask_overdue.sum()} {val_overdue}, {(~mask_overdue).sum()} {val_no} (overwritten)")
         else:
             # Only apply to null rows
             null_overdue_mask = mask_overdue & df[column_name].isna()
-            df.loc[null_overdue_mask, column_name] = 'Overdue'
+            df.loc[null_overdue_mask, column_name] = val_overdue
+            # Apply default NO to remaining nulls
+            df[column_name] = df[column_name].fillna(val_no)
             engine._print_processing_step("Conditional", column_name, 
-                f"Applied: {null_overdue_mask.sum()} rows Overdue, {df[column_name].isna().sum()} rows null")
+                f"Applied: {null_overdue_mask.sum()} rows {val_overdue}, {df[column_name].isna().sum()} rows {val_no}")
     else:
         engine._print_processing_step("Conditional", column_name, 
             "Cannot calculate: missing required columns")

@@ -123,11 +123,12 @@ def apply_resubmission_plan_date(engine, df: pd.DataFrame, column_name: str, cal
     second_review_duration = parameters.get('second_review_duration', 14)
     duration_is_working_day = parameters.get('duration_is_working_day', True)
 
-    # Get required columns
-    submission_closed_col = 'Submission_Closed' if 'Submission_Closed' in df.columns else None
-    review_return_date_col = 'Review_Return_Actual_Date' if 'Review_Return_Actual_Date' in df.columns else None
-    latest_submission_date_col = 'Latest_Submission_Date' if 'Latest_Submission_Date' in df.columns else None
-    submission_date_col = 'Submission_Date' if 'Submission_Date' in df.columns else None
+    # Task A1: Read column dependencies from calculation instead of hardcoding
+    # Dependency order: Submission_Closed, Review_Return_Actual_Date, Latest_Submission_Date, Submission_Date
+    submission_closed_col = dependencies[0] if len(dependencies) > 0 else 'Submission_Closed'
+    review_return_date_col = dependencies[1] if len(dependencies) > 1 else 'Review_Return_Actual_Date'
+    latest_submission_date_col = dependencies[2] if len(dependencies) > 2 else 'Latest_Submission_Date'
+    submission_date_col = dependencies[3] if len(dependencies) > 3 else 'Submission_Date'
 
     engine._print_processing_step("Resubmission-Plan", column_name, "Calculating based on submission state")
 
@@ -145,11 +146,17 @@ def apply_resubmission_plan_date(engine, df: pd.DataFrame, column_name: str, cal
 
     # Condition 1: If Submission_Closed == 'YES', set to NaT (null) - ALWAYS OVERWRITES
     if submission_closed_col:
-        mask_closed = df[submission_closed_col] == 'YES'
+        # Task A2: Use schema value for 'YES'
+        column_def = engine.columns.get(submission_closed_col, {})
+        validation = column_def.get('validation', [])
+        allowed_values = next((v.get('allowed_values', []) for v in validation if v.get('type') == 'allowed_values'), [])
+        val_yes = allowed_values[0] if len(allowed_values) > 0 else 'YES'
+        
+        mask_closed = df[submission_closed_col] == val_yes
         df.loc[mask_closed, column_name] = pd.NaT
         determined_mask |= mask_closed
         if mask_closed.any():
-            engine._print_processing_step("Resubmission-Plan", column_name, f"Overwrote {mask_closed.sum()} rows to null (Submission_Closed=YES)")
+            engine._print_processing_step("Resubmission-Plan", column_name, f"Overwrote {mask_closed.sum()} rows to null ({submission_closed_col}={val_yes})")
 
     # Condition 2: If Review_Return_Actual_Date is not null, add duration offset
     if review_return_date_col:

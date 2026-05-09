@@ -11,6 +11,7 @@ while maintaining backward compatibility with legacy instantiation.
 
 import logging
 import pandas as pd
+from pathlib import Path
 from typing import Dict, List, Set, Optional, Any, TYPE_CHECKING
 
 # Configure logging
@@ -112,7 +113,13 @@ class CalculationEngine(BaseProcessor):
         
         if error_reporter is None:
             from reporting_engine.core.report_errors import ErrorReporter
-            error_reporter = ErrorReporter(self.error_aggregator)
+            # Task A6: Pass output_dir and parameters at construction
+            output_dir = getattr(self.context.paths, 'csv_output_path', Path("output")).parent
+            error_reporter = ErrorReporter(
+                aggregator=self.error_aggregator,
+                output_dir=output_dir,
+                effective_parameters=self.context.parameters
+            )
         self.error_reporter = error_reporter
         
         self._last_processed_rows = 0
@@ -373,13 +380,16 @@ class CalculationEngine(BaseProcessor):
             )
 
             # Phase 4: Aggregation - Populate Validation_Errors column (Step 46)
-            self._print_processing_step("Phase 4", "Aggregation", "Populating Validation_Errors column")
-            df_processed["Validation_Errors"] = self.error_aggregator.format_validation_errors_column(len(df_processed))
+            # Task A4: Resolve column names from blueprint (SSOT)
+            validation_errors_col = next((c for c in p3_cols if self.columns.get(c, {}).get('calculation', {}).get('type') == 'error_tracking'), "Validation_Errors")
+            self._print_processing_step("Phase 4", "Aggregation", f"Populating {validation_errors_col} column")
+            df_processed[validation_errors_col] = self.error_aggregator.format_validation_errors_column(len(df_processed))
             
             # Phase 5: Metrics (Layer 5) - Populate Data_Health_Score column (Step 48)
-            self._print_processing_step("Phase 5", "Metrics", "Calculating Data_Health_Score")
+            health_score_col = next((c for c in p3_cols if self.columns.get(c, {}).get('column_type') == 'score_column'), "Data_Health_Score")
+            self._print_processing_step("Phase 5", "Metrics", f"Calculating {health_score_col}")
             from reporting_engine.core.report_health import calculate_row_health_series
-            df_processed["Data_Health_Score"] = calculate_row_health_series(df_processed, self.error_aggregator)
+            df_processed[health_score_col] = calculate_row_health_series(df_processed, self.error_aggregator)
             
             return df_processed
 

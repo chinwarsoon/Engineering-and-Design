@@ -265,6 +265,7 @@
       "required": true,
       "allow_null": false,
       "is_calculated": false,
+      "is_row_key": true,
       "create_if_missing": true,
       "column_type": "sequence_column",
       "null_handling": {
@@ -537,6 +538,7 @@
       "required": true,
       "allow_null": false,
       "is_calculated": true,
+      "is_row_key": true,
       "create_if_missing": true,
       "column_type": "id_column",
       "calculation": {
@@ -879,6 +881,7 @@
       "required": true,
       "allow_null": false,
       "is_calculated": false,
+      "is_row_key": true,
       "create_if_missing": true,
       "column_type": "date_column",
       "null_handling": {

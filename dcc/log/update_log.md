@@ -8,6 +8,36 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-09-ssot-compliance-phase-a"></a>
+## 2026-05-09 21:15:00
+
+### COMPLETED: SSOT & Schema-Driven Compliance Phase A — High-Severity Fixes
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-PIPE-SSOT-001](../workplan/pipeline_architecture/ssot_schema_driven_compliance/ssot_schema_driven_workplan.md)  
+**Phase Report:** [phase_A_report.md](../workplan/pipeline_architecture/ssot_schema_driven_compliance/reports/phase_A_report.md)
+
+**Summary:** Successfully eliminated 12 high-severity SSOT violations across 10 production files. Hardcoded column names, status values, and severity levels have been replaced with dynamic lookups from the schema and PipelineContext. Architecture now enforces the Schema as the Single Source of Truth (SSOT). Pipeline passes smoke tests with 100% match rate and READY status.
+
+**Implementation Details:**
+| Task | Description | Impact |
+|:---|:---|:---|
+| A1/A2 | Refactored `conditional.py`, `date.py`, `composite.py` | Column names and status values (YES/NO/PEN) now read from schema `dependencies` and `allowed_values`. |
+| A3 | Dynamic approval code lookup | `conditional.py` now filters `engine.schema_data['approval_codes']` by terminal status instead of hardcoding `['APP', 'VOID']`. |
+| A4 | Dynamic output column names | `engine.py` resolves `Validation_Errors` and `Data_Health_Score` from the P3 blueprint. |
+| A5 | Schema-driven row keys | `null_handling.py` and `dcc_register_config.json` updated to use `is_row_key: true` flag. |
+| A6 | `ErrorReporter` construction fix | `engine.py` passes `output_dir` and `parameters` at construction; removed patching in `dcc_engine_pipeline.py`. |
+| A7/A10 | `project_config.json` updates | Added `severity_threshold`, default severities, and 3 missing schema files to the global registry. |
+| A8/A9 | `context_pipeline.py` refactor | Severity ordering derived from `error_code_base.json` enum; defaults read from blueprint. |
+| A11/A12| `path_schema.py` updates | Required schemas now read from `project_config.json`; `global_parameters` references `dcc_global_parameters.json`. |
+
+**Verification:**
+- Pipeline smoke test (100 rows): ✅ PASS, Status: READY
+- Column Expansion: 26 → 44 (correctly populated)
+- Metadata Match Rate: 100.0%
+- Taxonomy compliance: Severity ordering validated against `error_code_base.json`.
+
+---
+
 <a id="update-2026-05-06-pipeline-simplification-phase-d"></a>
 ## 2026-05-06 04:35:00
 
