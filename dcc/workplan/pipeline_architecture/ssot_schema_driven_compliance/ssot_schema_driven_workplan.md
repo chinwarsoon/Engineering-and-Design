@@ -220,7 +220,10 @@ All values that must be read from schema are sourced from these files:
 ---
 
 ### Phase A — High-Severity Fixes
-**Status:** ✅ COMPLETED (2026-05-09)
+**Status:** ✅ COMPLETED (2026-05-09)  
+**Timeline:** Completed (1 session)  
+**Milestone:** Zero hardcoded column names or business logic values in calculation handlers  
+**Risk Level:** 🟡 Medium — changes how calculation handlers resolve sibling columns and status values
 
 **Timeline:** Completed (1 session)  
 **Milestone:** No hardcoded column names or business logic values in calculation handlers  
@@ -300,16 +303,15 @@ All values that must be read from schema are sourced from these files:
 ---
 
 ### Phase B — Medium-Severity Structural Fixes
-
-**Timeline:** TBD (estimated 2 sessions)  
+**Timeline:** IN PROGRESS (started 2026-05-09)  
 **Milestone:** Dynamic phase iteration, schema-driven filenames, schema-driven regex patterns  
 **Risk Level:** 🟡 Low-Medium — behavior-preserving structural changes
 
 #### Tasks
 
-| # | Task | File | Action | Schema File | Schema Field |
-|:---|:---|:---|:---|:---|:---|
-| B1 | Make `apply_phased_processing()` iterate phases dynamically | `processor_engine/core/engine.py` | Replace 4 hardcoded `get_columns_by_phase('Px')` calls with loop over `context.blueprint.phase_map.keys()` in defined order | `dcc_register_config.json` | `columns[col].processing_phase` — already in `blueprint.phase_map` |
+| # | Task | File | Action | Schema File | Schema Field | Status |
+|:---|:---|:---|:---|:---|:---|:---|
+| B1 | Make `apply_phased_processing()` iterate phases dynamically | `processor_engine/core/engine.py` | Replace 4 hardcoded `get_columns_by_phase('Px')` calls with loop over `context.blueprint.phase_map.keys()` in defined order | `dcc_register_config.json` | `columns[col].processing_phase` — already in `blueprint.phase_map` | 🟡 IN PROGRESS |
 | B2 | Make `build_blueprint()` phase_map init dynamic | `schema_engine/validator/schema_validator.py` | Replace `phase_map = {"P1": [], "P2": [], "P2.5": [], "P3": []}` with `phase_map = {}` and `phase_map.setdefault(phase, []).append(col_name)` | `dcc_register_config.json` | `columns[col].processing_phase` |
 | B3 | Replace hardcoded `SESSION_PATTERN` with schema lookup | `processor_engine/error_handling/detectors/anchor.py` | Read `validation.pattern` from `Submission_Session` column schema; compile at init from schema | `dcc_register_config.json` | `columns['Submission_Session'].validation[type=pattern].pattern` = `"^[0-9]{6}$"` — **already in schema** |
 | B4 | Remove `DOC_ID_PATTERN` class-level fallback | `processor_engine/error_handling/detectors/identity.py` | Remove fallback constant; schema-driven pattern at line 278 is the only path | `dcc_register_config.json` | `columns['Document_ID'].validation[type=pattern].pattern` — schema-driven path already exists |

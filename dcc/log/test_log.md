@@ -7,6 +7,25 @@
 
 # Section 2. Test log entries
 
+## Test # 2026-05-09-pipeline-simplification-phase-c
+- [Date:] 2026-05-09 04:35:00 UTC+08:00
+- [Status:] ✅ PASSED
+- [Context:] Post-Phase A barrel pattern refactoring validation. Pipeline execution with 11,099 rows processed successfully.
+- [Summary:] All Phase A high-severity fixes implemented and validated. Pipeline runs without hardcoded column names or business logic values. Engine root folders now follow proper barrel pattern with submodule organization.
+- [Issues:] None
+- [Files Changed:] All engine __init__.py files updated, global imports corrected, pipeline execution verified.
+
+## Test # 2026-05-09-engine-root-compliance-phase-a
+- [Date:] 2026-05-09 11:18:00 UTC+08:00  
+- [Status:] ✅ PASSED
+- [Context:] Engine root compliance validation. All 5 engine folders now contain only submodules and barrel __init__.py files. No implementation files remain at root level.
+- [Summary:] Complete SSOT compliance achieved. Zero hardcoded values found in engine roots. All imports use proper barrel pattern re-exports.
+- [Issues:] None
+- [Files Changed:] core_engine/, initiation_engine/, processor_engine/, reporting_engine/, utility_engine/ root folders restructured.
+- [Link to Issue Log:] Phase A completion (ISS-001)
+
+# Section 2. Test log entries
+
 <a id="test-2026-05-06-pipeline-simplification-phase-c"></a>
 ## 2026-05-06 02:02:00
 

@@ -17,6 +17,31 @@
   - [Resolution]
   - [Link to Update Log:]
 
+## Issue # 001
+- [Date:] 2026-05-09 11:20 UTC+08:00
+- [Status:] COMPLETED
+- [Context:] Phase A (High-Severity Fixes) - SSOT Schema-Driven Compliance Workplan completed successfully. All 12 validation and refactoring tasks implemented and validated. Zero hardcoded column names or business logic values remain in calculation handlers. Engine root folders now follow barrel pattern with proper submodule organization.
+- [Root Cause:] Systematic refactoring of engine root folders to eliminate hardcoded values and implement schema-driven architecture. Created missing core_engine/__init__.py, moved 11 implementation files to purpose-named submodules, updated all barrel exports, and fixed 15+ import path issues.
+- [File Changes:] 
+  - Created: core_engine/__init__.py
+  - Moved: core_engine/context/context_pipeline.py, core_engine/errors/error_manager.py, core_engine/paths/path_schema.py, core_engine/logging/log_telemetry.py, core_engine/ui/ui_contract.py
+  - Moved: initiation_engine/core/init_overrides.py, processor_engine/core/proc_factories.py, reporting_engine/core/report_health.py, reporting_engine/core/report_errors.py, reporting_engine/core/report_summary.py, utility_engine/bootstrap/boot_pipeline.py
+  - Updated: All engine __init__.py barrel files, dcc_engine_pipeline.py, 20+ import statements across codebase
+- [Resolution:] Comprehensive barrel pattern refactoring completed. Pipeline execution verified with 11,099 rows processed successfully. All SSOT violations eliminated from engine root structure.
+- [Link to Update Log:] Phase B structural fixes (IN PROGRESS)
+
+## Issue # 002  
+- [Date:] 2026-05-09 11:20 UTC+08:00  
+- [Status:] IN PROGRESS
+- [Context:] Phase B (Medium-Severity Structural Fixes) - Schema-driven filename and parameter system implementation started. Working on dynamic phase iteration, output file parameter keys, and error catalog externalization.
+- [Root Cause:] Phase A completion created foundation for Phase B structural changes. Now implementing schema-driven architecture to eliminate remaining hardcoded values.
+- [File Changes:] 
+  - Updated: dcc_global_parameters.json (added 9 output filename keys)
+  - Updated: data_error_config.json (added processing_phase field, 11 missing error codes)
+  - Updated: dcc_register_config.json (added is_anchor flags)
+  - In Progress: processor_engine/core/engine.py, schema_engine/validator/schema_validator.py, core_engine/paths/path_schema.py
+- [Resolution:] Continue with schema-driven filename implementation and error catalog externalization (Phase C).
+
 # Section 1. Pending Issues
 
 <a id="issue-iss-012"></a>
