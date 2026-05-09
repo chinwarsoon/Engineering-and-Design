@@ -1,7 +1,7 @@
 # SSOT & Schema-Driven Compliance Workplan
 
 **Document ID**: WP-SSOT-SD-001  
-**Current Version**: 0.6  
+**Current Version**: 0.7  
 **Status**: 🟠 PENDING APPROVAL  
 **Last Updated**: 2026-05-07  
 
@@ -35,6 +35,7 @@ The goal is to ensure that all business rules, column names, processing phases, 
 | 0.4 | 2026-05-07 | System | Full output file compliance audit added. Found 12 pipeline outputs — 7 partially compliant (`.get()` pattern used but parameter keys missing from schema), 4 violations (hardcoded literals). Added V16–V21 to violation table. Expanded Phase B with dedicated output file task group (B5a–B5f). Added 9 missing parameter keys to `dcc_global_parameters.json` schema update requirement. Updated Schema File Reference Map, Object, Impact Assessment, and References. |
 | 0.5 | 2026-05-07 | System | Deep global scan completed. Found 5 additional violation categories: (1) 55 hardcoded `severity=` strings in 9 detector files — must read from `data_error_config.json`; (2) 4 severity mismatches between detectors and catalog (`input.py`, `row_validator.py`); (3) 11 error codes in `calculation.py`, `fill.py`, `logic.py` missing from `data_error_config.json`; (4) 41 hardcoded column names in 6 detector files — must read from schema `processing_phase`, `source_columns`, `is_anchor`; (5) `ROW_ERROR_WEIGHTS`, `ANCHOR_REQUIRED`, `DOC_ID_SEGMENTS`, `IDENTITY_COLUMNS`, `ANCHOR_COLUMNS` class-level constants in detectors must be schema-driven. Added V22–V26. Phase C expanded with detector catalog tasks. |
 | 0.6 | 2026-05-07 | System | PipelineContext audit completed. Found 6 violations: (1) `severity_levels` numeric ordering dict hardcoded in `should_fail_fast()` — not in any schema; (2) `get_fail_fast_config()` default `severity_threshold: "critical"` not in schema; (3) `add_system_error()`/`add_data_error()` hardcoded severity defaults; (4) `SchemaPaths` hardcodes 3 schema filenames not in `project_config.json` schema_files list; (5) `SchemaPaths.validate_required_schemas()` hardcodes required schema list instead of reading from `project_config.json`; (6) `SchemaPaths.global_parameters` still references deprecated `global_parameters.json`. Added V27–V32. Phase A extended with context fixes. |
+| 0.7 | 2026-05-07 | System | Phase A validated and marked complete. All 12 tasks passed automated validation suite (A1–A12) and pipeline smoke test. Phase A report generated. Scope summary V01–V05d, V13, V27–V32 updated to COMPLETE. |
 
 ---
 
@@ -107,14 +108,14 @@ All values that must be read from schema are sourced from these files:
 
 | ID | Category | Violation | Location | Schema File | Field to Read | Severity | Phase |
 |:---|:---|:---|:---|:---|:---|:---:|:---:|
-| V01 | Schema-Driven | Hardcoded sibling column names in calculation handlers | `conditional.py` lines 80–302, `null_handling.py`, `composite.py`, `date.py` | `dcc_register_config.json` | `columns[col].calculation.dependencies[]` | HIGH | A |
-| V02 | Schema-Driven | Hardcoded `"Validation_Errors"` and `"Data_Health_Score"` column names in engine | `processor_engine/core/engine.py` lines 377, 382 | `dcc_register_config.json` | `column_sequence` — find by `processing_phase: P3` + `is_calculated: true` | HIGH | A |
+| V01 | Schema-Driven | Hardcoded sibling column names in calculation handlers | `conditional.py` lines 80–302, `null_handling.py`, `composite.py`, `date.py` | `dcc_register_config.json` | `columns[col].calculation.dependencies[]` | HIGH | A ✅ |
+| V02 | Schema-Driven | Hardcoded `"Validation_Errors"` and `"Data_Health_Score"` column names in engine | `processor_engine/core/engine.py` lines 377, 382 | `dcc_register_config.json` | `column_sequence` — find by `processing_phase: P3` + `is_calculated: true` | HIGH | A ✅ |
 | V03 | Schema-Driven | Hardcoded phase strings `"P1"`, `"P2"`, `"P2.5"`, `"P3"`, `"P4"` in `apply_phased_processing()` | `processor_engine/core/engine.py` lines 284–368 | `dcc_register_config.json` | `columns[col].processing_phase` — iterate `blueprint.phase_map.keys()` | HIGH | B |
 | V04 | Schema-Driven | Hardcoded phase map init `{"P1": [], "P2": [], "P2.5": [], "P3": []}` in `build_blueprint()` | `schema_engine/validator/schema_validator.py` line 164 | `dcc_register_config.json` | `columns[col].processing_phase` — build dynamically via `setdefault` | LOW | B |
-| V05a | Schema-Driven | Hardcoded `'YES'`, `'NO'`, `'RESUBMITTED'`, `'PEN'` in `conditional.py` | `conditional.py` lines 113–154 | `dcc_register_config.json` | `columns['Resubmission_Required'].validation[type=allowed_values].allowed_values` = `['YES','NO','RESUBMITTED','PEN']` | HIGH | A |
-| V05b | Schema-Driven | Hardcoded `'Overdue'`, `'NO'` in `conditional.py` | `conditional.py` lines 296–302 | `dcc_register_config.json` | `columns['Resubmission_Overdue_Status'].validation[type=allowed_values].allowed_values` = `['Resubmitted','Overdue','NO']` | HIGH | A |
-| V05c | Schema-Driven | Hardcoded `['APP', 'VOID']` approval codes in `conditional.py` | `conditional.py` line 230 | `approval_code_schema.json` | Filter `approval_codes[]` where `status` in `['Approved','Void']` → codes `APP`, `VOID`. **SSOT: `approval_code_schema.json`** | HIGH | A |
-| V05d | Schema-Driven | Hardcoded `'YES'` for `Submission_Closed` check in `date.py`, `composite.py` | `date.py:148`, `composite.py:188` | `dcc_register_config.json` | `columns['Submission_Closed'].validation[type=allowed_values].allowed_values[0]` = `'YES'` | HIGH | A |
+| V05a | Schema-Driven | Hardcoded `'YES'`, `'NO'`, `'RESUBMITTED'`, `'PEN'` in `conditional.py` | `conditional.py` lines 113–154 | `dcc_register_config.json` | `columns['Resubmission_Required'].validation[type=allowed_values].allowed_values` = `['YES','NO','RESUBMITTED','PEN']` | HIGH | A ✅ |
+| V05b | Schema-Driven | Hardcoded `'Overdue'`, `'NO'` in `conditional.py` | `conditional.py` lines 296–302 | `dcc_register_config.json` | `columns['Resubmission_Overdue_Status'].validation[type=allowed_values].allowed_values` = `['Resubmitted','Overdue','NO']` | HIGH | A ✅ |
+| V05c | Schema-Driven | Hardcoded `['APP', 'VOID']` approval codes in `conditional.py` | `conditional.py` line 230 | `approval_code_schema.json` | Filter `approval_codes[]` where `status` in `['Approved','Void']` → codes `APP`, `VOID`. **SSOT: `approval_code_schema.json`** | HIGH | A ✅ |
+| V05d | Schema-Driven | Hardcoded `'YES'` for `Submission_Closed` check in `date.py`, `composite.py` | `date.py:148`, `composite.py:188` | `dcc_register_config.json` | `columns['Submission_Closed'].validation[type=allowed_values].allowed_values[0]` = `'YES'` | HIGH | A ✅ |
 | V06 | Schema-Driven | Hardcoded `ERROR_CODES` dict in `validation.py` | `processor_engine/calculations/validation.py` line 70 | `data_error_config.json` | `data_logic_errors[code].message`, `.name` | MEDIUM | C |
 | V07 | Schema-Driven | Hardcoded severity/layer maps in `categorizer.py` | `processor_engine/error_handling/resolution/categorizer.py` lines 44–70 | `data_error_config.json` | `data_logic_errors[code].severity`, `.layer` — **already in schema** | MEDIUM | C |
 | V08 | Schema-Driven | Hardcoded error-to-phase mapping dict in `evidence.py` | `ai_ops_engine/core/evidence.py` lines 19–31 | `data_error_config.json` | `data_logic_errors[code].processing_phase` — **field missing, must be added to schema** | MEDIUM | C |
@@ -122,7 +123,7 @@ All values that must be read from schema are sourced from these files:
 | V10 | Schema-Driven | Hardcoded health score grade thresholds and pass/fail thresholds | `report_health.py` lines 60–72, `report_errors.py:57` | `dcc_global_parameters.json` | `dcc_parameters.health_grade_thresholds`, `.health_pass_threshold`, `.health_fail_threshold` — **keys missing, must be added** | MEDIUM | C |
 | V11 | Schema-Driven | Hardcoded `SESSION_PATTERN = re.compile(r'^\d{6}$')` class constant | `detectors/anchor.py` line 45 | `dcc_register_config.json` | `columns['Submission_Session'].validation[type=pattern].pattern` = `"^[0-9]{6}$"` — **already in schema** | MEDIUM | B |
 | V12 | Schema-Driven | Hardcoded `DOC_ID_PATTERN` fallback regex class constant | `detectors/identity.py` line 64 | `dcc_register_config.json` | `columns['Document_ID'].validation[type=pattern].pattern` — schema-driven path already at line 278; fallback to be removed | LOW | B |
-| V13 | SSOT | `ErrorReporter.output_dir` and `effective_parameters` patched post-construction | `dcc_engine_pipeline.py` lines 203–204, 212–213 | `context.paths`, `context.parameters` | `context.paths.csv_output_path.parent`, `context.parameters` — already in context, pass at construction | MEDIUM | A |
+| V13 | SSOT | `ErrorReporter.output_dir` and `effective_parameters` patched post-construction | `dcc_engine_pipeline.py` lines 203–204, 212–213 | `context.paths`, `context.parameters` | `context.paths.csv_output_path.parent`, `context.parameters` — already in context, pass at construction | MEDIUM | A ✅ |
 | V14 | SSOT | `_SCHEMA_REF_KEY_MAP` hardcoded in `validation.py` (duplicate of `base_processor.py` default) | `processor_engine/calculations/validation.py` lines 41–50 | `dcc_register_config.json` | `schema_data.get('schema_reference_map', {...})` — use same pattern as `base_processor.py` | LOW | B |
 | V15 | Schema-Driven | Hardcoded `jump_limit=20` default in fill detector | `detectors/fill.py:48`, `detectors/business.py:109` | `dcc_global_parameters.json` | `dcc_parameters.fill_jump_limit` — **key missing, must be added** | LOW | C |
 | V16 | Schema-Driven | 9 output filename parameter keys used in code but absent from `dcc_global_parameters.json` | `boot_pipeline.py`, `path_resolvers.py`, `report_errors.py`, `context_builder.py`, `ai_ops_engine/core/engine.py` | `dcc_global_parameters.json` | `output_filename_pattern`, `summary_filename`, `error_dashboard_filename`, `debug_log_filename`, `ai_insight_summary_filename`, `ai_insight_report_filename`, `ai_insight_trace_filename`, `schema_validation_status_filename`, `ai_runs_db_filename` — **all missing from schema** | HIGH | B |
@@ -136,12 +137,12 @@ All values that must be read from schema are sourced from these files:
 | V24 | Schema-Driven | 4 severity mismatches between detector code and `data_error_config.json` catalog | `detectors/input.py`: `S1-I-F-0805` (code=HIGH, catalog=CRITICAL), `S1-I-V-0502` (code=HIGH, catalog=CRITICAL); `detectors/row_validator.py`: `P1-A-P-0101` (code=HIGH, catalog=CRITICAL), `L3-L-V-0306` (code=LOW, catalog=MEDIUM) | `data_error_config.json` | `data_logic_errors[code].severity` — catalog is SSOT; detector code must be corrected | HIGH | C |
 | V25 | Schema-Driven | Class-level column constant lists in detectors hardcode column names that should come from schema | `detectors/anchor.py`: `ANCHOR_COLUMNS` (5 cols); `detectors/identity.py`: `IDENTITY_COLUMNS` (4 cols); `detectors/row_validator.py`: `ANCHOR_REQUIRED` (5 cols), `DOC_ID_SEGMENTS` (5 cols) | `dcc_register_config.json` | `ANCHOR_COLUMNS` → P1 columns with `required: true`; `DOC_ID_SEGMENTS` → `columns['Document_ID'].calculation.source_columns`; `IDENTITY_COLUMNS` → P2 columns with `required: true`. **Schema must add `is_anchor` flag** | HIGH | C |
 | V26 | Schema-Driven | `ROW_ERROR_WEIGHTS` dict in `row_validator.py` hardcodes health score weights per error code | `detectors/row_validator.py` lines 38–49 | `data_error_config.json` | `data_logic_errors[code].health_score_impact` — **already present in catalog** (e.g., `P1-A-P-0101: -20`); detector must read from catalog instead of maintaining a parallel dict | MEDIUM | C |
-| V27 | Schema-Driven | `severity_levels` numeric ordering dict hardcoded in `should_fail_fast()` | `context_pipeline.py:323` | `error_code_base.json` | `definitions.error_severity.enum` = `["FATAL","CRITICAL","HIGH","MEDIUM","WARNING","INFO"]` — derive ordering from enum position; **`severity_level_order` key missing from schema** | MEDIUM | A |
-| V28 | Schema-Driven | `get_fail_fast_config()` default `severity_threshold: "critical"` hardcoded | `context_pipeline.py:45` | `project_config.json` | `system_parameters.severity_threshold` — **key missing, must be added** | MEDIUM | A |
-| V29 | Schema-Driven | `add_system_error()` default `severity="critical"` and `add_data_error()` default `severity="medium"` hardcoded | `context_pipeline.py:216, 241` | `project_config.json` | `system_parameters.default_system_error_severity`, `system_parameters.default_data_error_severity` — **keys missing, must be added** | LOW | A |
-| V30 | Schema-Driven | `SchemaPaths` hardcodes 3 schema filenames not in `project_config.json` `schema_files` list | `core_engine/paths/path_schema.py` | `project_config.json` | `schema_files[].filename` — `dcc_register_config.json`, `dcc_register_enhanced.json`, `data_error_config.json` must be added to `schema_files` list | MEDIUM | A |
-| V31 | Schema-Driven | `SchemaPaths.validate_required_schemas()` hardcodes required schema list | `core_engine/paths/path_schema.py:120–127` | `project_config.json` | `schema_files[].filename` where `required: true` — read from schema instead of hardcoded list | LOW | A |
-| V32 | Schema-Driven | `SchemaPaths.global_parameters` property references deprecated `global_parameters.json` | `core_engine/paths/path_schema.py:65` | `project_config.json` | `schema_files[].filename` where `filename == 'dcc_global_parameters.json'` — update property to use current filename | LOW | A |
+| V27 | Schema-Driven | `severity_levels` numeric ordering dict hardcoded in `should_fail_fast()` | `context_pipeline.py:323` | `error_code_base.json` | `definitions.error_severity.enum` = `["FATAL","CRITICAL","HIGH","MEDIUM","WARNING","INFO"]` — derive ordering from enum position; **`severity_level_order` key missing from schema** | MEDIUM | A ✅ |
+| V28 | Schema-Driven | `get_fail_fast_config()` default `severity_threshold: "critical"` hardcoded | `context_pipeline.py:45` | `project_config.json` | `system_parameters.severity_threshold` — **key missing, must be added** | MEDIUM | A ✅ |
+| V29 | Schema-Driven | `add_system_error()` default `severity="critical"` and `add_data_error()` default `severity="medium"` hardcoded | `context_pipeline.py:216, 241` | `project_config.json` | `system_parameters.default_system_error_severity`, `system_parameters.default_data_error_severity` — **keys missing, must be added** | LOW | A ✅ |
+| V30 | Schema-Driven | `SchemaPaths` hardcodes 3 schema filenames not in `project_config.json` `schema_files` list | `core_engine/paths/path_schema.py` | `project_config.json` | `schema_files[].filename` — `dcc_register_config.json`, `dcc_register_enhanced.json`, `data_error_config.json` must be added to `schema_files` list | MEDIUM | A ✅ |
+| V31 | Schema-Driven | `SchemaPaths.validate_required_schemas()` hardcodes required schema list | `core_engine/paths/path_schema.py:120–127` | `project_config.json` | `schema_files[].filename` where `required: true` — read from schema instead of hardcoded list | LOW | A ✅ |
+| V32 | Schema-Driven | `SchemaPaths.global_parameters` property references deprecated `global_parameters.json` | `core_engine/paths/path_schema.py:65` | `project_config.json` | `schema_files[].filename` where `filename == 'dcc_global_parameters.json'` — update property to use current filename | LOW | A ✅ |
 
 **Status Legend:** 🔵 PLANNED | 🟡 IN PROGRESS | ✅ COMPLETE | ❌ DEFERRED
 
@@ -278,23 +279,23 @@ All values that must be read from schema are sourced from these files:
 - `allowed_values` in schema must stay in sync with any UI dropdowns
 
 #### Success Criteria
-- [ ] Pre-condition checklist passed
-- [ ] Zero hardcoded column names in `conditional.py`
-- [ ] Zero hardcoded status values (`'YES'`/`'NO'`/`'RESUBMITTED'`/`'PENDING'`/`'Overdue'`) in calculation handlers
-- [ ] `['APP', 'VOID']` replaced with schema reference lookup
-- [ ] `"Validation_Errors"` and `"Data_Health_Score"` not hardcoded in `engine.py`
-- [ ] `ErrorReporter` receives `output_dir` and `effective_parameters` at construction, not post-patched
-- [ ] `severity_levels` dict removed from `should_fail_fast()` — ordering derived from `error_code_base.json` enum
-- [ ] `severity_threshold` default reads from `project_config.json` `system_parameters`
-- [ ] `add_system_error()` and `add_data_error()` severity defaults read from schema
-- [ ] `SchemaPaths.validate_required_schemas()` reads from `project_config.json` `schema_files`
-- [ ] `SchemaPaths.global_parameters` references `dcc_global_parameters.json`
-- [ ] Pipeline smoke test passes
+- [x] Pre-condition checklist passed
+- [x] Zero hardcoded column names in `conditional.py`
+- [x] Zero hardcoded status values (`'YES'`/`'NO'`/`'RESUBMITTED'`/`'PENDING'`/`'Overdue'`) in calculation handlers
+- [x] `['APP', 'VOID']` replaced with schema reference lookup
+- [x] `"Validation_Errors"` and `"Data_Health_Score"` not hardcoded in `engine.py`
+- [x] `ErrorReporter` receives `output_dir` and `effective_parameters` at construction, not post-patched
+- [x] `severity_levels` dict removed from `should_fail_fast()` — ordering derived from `error_code_base.json` enum
+- [x] `severity_threshold` default reads from `project_config.json` `system_parameters`
+- [x] `add_system_error()` and `add_data_error()` severity defaults read from schema
+- [x] `SchemaPaths.validate_required_schemas()` reads from `project_config.json` `schema_files`
+- [x] `SchemaPaths.global_parameters` references `dcc_global_parameters.json`
+- [x] Pipeline smoke test passes
 
 #### Deliverables
-- Updated `conditional.py`, `null_handling.py`, `engine.py`, `dcc_engine_pipeline.py`
-- Updated schema files (if needed)
-- `reports/phase_A_report.md`
+- Updated `conditional.py`, `null_handling.py`, `engine.py`, `dcc_engine_pipeline.py`, `context_pipeline.py`, `path_schema.py`
+- Updated `project_config.json` (severity defaults + 3 schema file entries)
+- `reports/phase_A_report.md` ✅ [View Report](reports/phase_A_report.md)
 
 ---
 

@@ -38,6 +38,32 @@
 
 ---
 
+<a id="update-2026-05-07-ssot-phase-a"></a>
+## 2026-05-07 05:00:00
+
+### COMPLETED: SSOT & Schema-Driven Compliance Phase A — High-Severity Fixes
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-SSOT-SD-001](../workplan/pipeline_architecture/ssot_schema_driven_compliance/ssot_schema_driven_workplan.md)  
+**Phase Report:** [phase_A_report.md](../workplan/pipeline_architecture/ssot_schema_driven_compliance/reports/phase_A_report.md)
+
+**Summary:** Completed Phase A of the SSOT & Schema-Driven Compliance workplan. All 12 tasks validated with automated assertion suite and pipeline smoke test. Hardcoded column names, status values, approval codes, severity defaults, and schema path references replaced with schema-driven lookups across 7 files.
+
+**Implementation Details:**
+| Task | Description | Impact |
+|:---|:---|:---|
+| A1/A2/A3 | `conditional.py` reads column deps, status values, approval codes from schema | `dcc_register_config.json` `dependencies[]`, `allowed_values`, `approval_code_schema.json` |
+| A4 | `Validation_Errors`/`Data_Health_Score` resolved from `p3_cols` schema lookup | No bare column name literals in `engine.py` |
+| A5 | `_get_row_key()` reads `is_row_key: true` from schema | `dcc_register_config.json` |
+| A6 | `ErrorReporter` constructed with context paths/params; post-construction patching removed | `dcc_engine_pipeline.py` cleaned |
+| A7/A10 | `project_config.json` updated: severity defaults + 3 missing schema file entries | `severity_threshold`, `default_system_error_severity`, `default_data_error_severity` added |
+| A8 | `severity_levels` dict replaced with enum-position ordering | `error_code_base.json` `error_severity` enum |
+| A9 | `add_system_error()`/`add_data_error()` read severity from `blueprint.validation_rules` | Schema-driven defaults |
+| A11/A12 | `SchemaPaths.validate_required_schemas()` reads from `project_config.json`; `global_parameters` fixed | `dcc_global_parameters.json` |
+
+**Verification:** 12/12 task assertions PASS, pipeline smoke test PASS (exit 0), JSON mode PASS (all 7 engines complete).
+
+---
+
 <a id="update-2026-05-06-pipeline-simplification-phase-d"></a>
 ## 2026-05-06 04:35:00
 
