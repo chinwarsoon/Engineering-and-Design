@@ -147,6 +147,22 @@ class AnchorDetector(BaseDetector):
         
         if session_col not in df.columns:
             return
+            
+        # Task B3: Use pattern from schema if available (SSOT)
+        pattern = self.SESSION_PATTERN
+        schema_data = getattr(self, 'schema_data', {})
+        if schema_data:
+            cols = schema_data.get('columns', {})
+            session_schema = cols.get(session_col, {})
+            # Navigate to validation[type=pattern].pattern
+            validation_list = session_schema.get('validation', [])
+            for v in validation_list:
+                if v.get('type') == 'pattern' and v.get('pattern'):
+                    try:
+                        pattern = re.compile(v.get('pattern'))
+                        break
+                    except re.error:
+                        continue
         
         # Check non-null values
         valid_mask = df[session_col].notna() & (df[session_col] != '')
@@ -155,17 +171,17 @@ class AnchorDetector(BaseDetector):
             value = str(df.at[idx, session_col])
             
             # Check pattern
-            if not self.SESSION_PATTERN.match(value):
+            if not pattern.match(value):
                 self.detect_error(
                     error_code=self.ERROR_SESSION_FORMAT,
-                    message=f"Invalid Submission_Session format: '{value}' (expected 6 digits)",
+                    message=f"Invalid Submission_Session format: '{value}' (expected pattern: {pattern.pattern})",
                     row=idx,
                     column=session_col,
                     severity="HIGH",
                     fail_fast=False,
                     additional_context={
                         "actual_value": value,
-                        "expected_pattern": "^\\d{6}$",
+                        "expected_pattern": pattern.pattern,
                         "example_valid": "240101"
                     }
                 )

@@ -37,8 +37,8 @@ class ValidationLogFilter(logging.Filter):
 
 logger.addFilter(ValidationLogFilter())
 
-# Mapping from schema_reference name to new top-level key in resolved_schema
-_SCHEMA_REF_KEY_MAP = {
+# Task B6: Mapping from schema_reference name to new top-level key in resolved_schema (SSOT)
+DEFAULT_SCHEMA_REF_KEY_MAP = {
     'approval_code_schema': 'approval_codes',
     'department_schema':    'departments',
     'discipline_schema':    'disciplines',
@@ -56,7 +56,10 @@ def _get_ref_data(schema_ref: str, schema_data: dict) -> dict:
     New architecture: returns {'<section>': [entries]} built from top-level list.
     Legacy architecture: returns schema_data['{schema_ref}_data'].
     """
-    top_key = _SCHEMA_REF_KEY_MAP.get(schema_ref)
+    # Task B6: Use schema-driven reference map consistent with base_processor.py
+    reference_map = schema_data.get('schema_reference_map', DEFAULT_SCHEMA_REF_KEY_MAP)
+    top_key = reference_map.get(schema_ref)
+    
     if top_key and isinstance(schema_data.get(top_key), list):
         # Wrap the list under a predictable section key so downstream
         # _get_schema_reference_allowed_codes can find it.

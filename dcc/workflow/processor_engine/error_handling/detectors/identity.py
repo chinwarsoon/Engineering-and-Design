@@ -57,14 +57,6 @@ class IdentityDetector(BaseDetector):
     ERROR_DUPLICATE_TRANS = "P2-I-V-0203"
     ERROR_ID_FORMAT_INVALID = "P2-I-V-0204"
     
-    # Validation patterns
-    # Document_ID: PROJECT-FACILITY-TYPE-DISCIPLINE-SEQUENCE (e.g., PRJ-FAC-DWG-ARC-0001)
-    # Note: Now using schema-driven derived_pattern from dcc_register_enhanced.json
-    # Fallback pattern kept for backward compatibility when schema not available
-    DOC_ID_PATTERN = re.compile(
-        r'^[A-Z0-9]{3,10}-[A-Z0-9]{2,10}-[A-Z0-9]{1,10}-[A-Z0-9]{1,10}-\d{4}(?:-[A-Z0-9.]+)?$'
-    )
-    
     def __init__(
         self,
         logger=None,
@@ -215,7 +207,8 @@ class IdentityDetector(BaseDetector):
         # Group by session if available
         if session_col in df.columns:
             for session_id, group in df.groupby(session_col):
-                duplicates = group[trans_col].duplicated(keep=False)
+                # Only flag subsequent occurrences (keep='first')
+                duplicates = group[trans_col].duplicated(keep='first')
                 
                 for idx in group[duplicates].index:
                     self.detect_error(
@@ -228,13 +221,13 @@ class IdentityDetector(BaseDetector):
                         additional_context={
                             "session_id": str(session_id),
                             "transmittal_value": str(df.at[idx, trans_col]),
-                            "duplicate_count": int(duplicates.sum()),
+                            "duplicate_count": int(group[trans_col].duplicated(keep=False).sum()),
                             "suggestion": "Make Transmittal_Number unique per session"
                         }
                     )
         else:
-            # Check across entire dataset
-            duplicates = df[trans_col].duplicated(keep=False)
+            # Check across entire dataset - only flag subsequent occurrences
+            duplicates = df[trans_col].duplicated(keep='first')
             
             for idx in df[duplicates].index:
                 self.detect_error(
@@ -246,6 +239,7 @@ class IdentityDetector(BaseDetector):
                     fail_fast=False,
                     additional_context={
                         "transmittal_value": str(df.at[idx, trans_col]),
+                        "duplicate_count": int(df[trans_col].duplicated(keep=False).sum()),
                         "suggestion": "Ensure Transmittal_Number uniqueness"
                     }
                 )
@@ -341,17 +335,21 @@ class IdentityDetector(BaseDetector):
         if id_col not in df.columns:
             return
         
-        # Try to get schema-driven pattern first
+        # Get schema-driven pattern (SSOT)
         pattern = self._get_schema_pattern(self._context)
-        if pattern:
-            pattern_source = "schema_derived"
+        
+        if not pattern:
             if self._logger:
-                self._logger.info(
-                    f"[{self.__class__.__name__}] Using schema-derived pattern for {id_col} validation"
+                self._logger.warning(
+                    f"[{self.__class__.__name__}] Schema pattern not found for {id_col} - skipping format validation"
                 )
-        else:
-            pattern = self.DOC_ID_PATTERN
-            pattern_source = "fallback"
+            return
+            
+        pattern_source = "schema_derived"
+        if self._logger:
+            self._logger.info(
+                f"[{self.__class__.__name__}] Using schema-derived pattern for {id_col} validation"
+            )
         
         # Get affix extraction parameters from schema (Issue #16)
         delimiter, sequence_length = self._get_affix_extraction_params(self._context)

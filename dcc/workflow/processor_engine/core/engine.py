@@ -287,75 +287,55 @@ class CalculationEngine(BaseProcessor):
             total_rows = len(df_processed) if total_rows is None else total_rows
             current_rows = 0
             
-            # Phase 1: Meta Data - Apply null handling (forward fill OK)
-            p1_cols = self.context.blueprint.get_columns_by_phase('P1')
-            if p1_cols:
-                self._print_processing_step("Phase 1", "Meta Data", f"Processing {len(p1_cols)} columns")
-                df_processed = self._apply_phase_null_handling(df_processed, p1_cols)
-                current_rows = len(df_processed)
-                _emit_checkpoint("P1", current_rows)
-                # Phase 4: Run Phase 1 detection
-                p1_results = self.business_detector.detect(
-                    df_processed, 
-                    context={"phase": "P1", "schema_data": self.schema_data}, 
-                    phases=[ProcessingPhase.P1]
-                )
-                self.error_aggregator.add_errors(p1_results.get(ProcessingPhase.P1, []))
+            # Get phase order from schema or use default
+            phase_order = self.schema_data.get('processing_phase_order', ["P1", "P2", "P2.5", "P3"])
             
-            # Phase 2: Transactional - Forward fill if Manual Input = YES, then validate
+            # Configuration map for phased processing steps
+            phase_config = {
+                "P1": {"method": self._apply_phase_null_handling, "enum": ProcessingPhase.P1, "desc": "Meta Data"},
+                "P2": {"method": self._apply_phase_transactional, "enum": ProcessingPhase.P2, "desc": "Transactional"},
+                "P2.5": {"method": self._apply_phase_calculated, "enum": ProcessingPhase.P2_5, "desc": "Anomaly"},
+                "P3": {"method": self._apply_phase_calculated, "enum": ProcessingPhase.P3, "desc": "Calculated"}
+            }
+
             # Phase C: Initialize fill history tracking for error detection
             self.fill_history = []
             
-            p2_cols = self.context.blueprint.get_columns_by_phase('P2')
-            if p2_cols:
-                self._print_processing_step("Phase 2", "Transactional", f"Processing {len(p2_cols)} columns")
-                df_processed = self._apply_phase_transactional(df_processed, p2_cols)
+            # Iterate through phases dynamically based on schema-driven order
+            for phase_id in phase_order:
+                config = phase_config.get(phase_id)
+                if not config:
+                    continue
+                
+                phase_cols = self.context.blueprint.get_columns_by_phase(phase_id)
+                if not phase_cols:
+                    continue
+                
+                self._print_processing_step(f"Phase {phase_id}", config["desc"], f"Processing {len(phase_cols)} columns")
+                
+                # Apply phase-specific processing
+                df_processed = config["method"](df_processed, phase_cols)
                 current_rows = len(df_processed)
-                _emit_checkpoint("P2", current_rows)
-                # Phase 4: Run Phase 2 detection
-                p2_results = self.business_detector.detect(
+                _emit_checkpoint(phase_id, current_rows)
+                
+                # Build detection context
+                detection_context = {"phase": phase_id, "schema_data": self.schema_data}
+                if phase_id == "P2.5":
+                    # Phase C: Include fill_history in context for FillDetector
+                    detection_context["fill_history"] = getattr(self, 'fill_history', [])
+                
+                # Run business detection for this phase
+                phase_results = self.business_detector.detect(
                     df_processed, 
-                    context={"phase": "P2", "schema_data": self.schema_data}, 
-                    phases=[ProcessingPhase.P2]
+                    context=detection_context, 
+                    phases=[config["enum"]]
                 )
-                self.error_aggregator.add_errors(p2_results.get(ProcessingPhase.P2, []))
-            
-            # Phase 2.5: Anomaly - Calculations FIRST, then null handling
-            p25_cols = self.context.blueprint.get_columns_by_phase('P2.5')
-            if p25_cols:
-                self._print_processing_step("Phase 2.5", "Anomaly", f"Processing {len(p25_cols)} columns")
-                df_processed = self._apply_phase_calculated(df_processed, p25_cols)
-                current_rows = len(df_processed)
-                _emit_checkpoint("P2.5", current_rows)
-                # Phase 4: Run Phase 2.5 detection
-                # Phase C: Include fill_history in context for FillDetector
-                p25_results = self.business_detector.detect(
-                    df_processed, 
-                    context={
-                        "phase": "P2.5", 
-                        "schema_data": self.schema_data,
-                        "fill_history": getattr(self, 'fill_history', [])
-                    }, 
-                    phases=[ProcessingPhase.P2_5]
-                )
-                self.error_aggregator.add_errors(p25_results.get(ProcessingPhase.P2_5, []))
-                # Phase C: Clear fill history after detection to prevent memory bloat
-                self.fill_history = []
-            
-            # Phase 3: Calculated - Calculations FIRST, then null handling (last defense)
-            p3_cols = self.context.blueprint.get_columns_by_phase('P3')
-            if p3_cols:
-                self._print_processing_step("Phase 3", "Calculated", f"Processing {len(p3_cols)} columns")
-                df_processed = self._apply_phase_calculated(df_processed, p3_cols)
-                current_rows = len(df_processed)
-                _emit_checkpoint("P3", current_rows)
-                # Phase 4: Run Phase 3 detection
-                p3_results = self.business_detector.detect(
-                    df_processed, 
-                    context={"phase": "P3", "schema_data": self.schema_data}, 
-                    phases=[ProcessingPhase.P3]
-                )
-                self.error_aggregator.add_errors(p3_results.get(ProcessingPhase.P3, []))
+                self.error_aggregator.add_errors(phase_results.get(config["enum"], []))
+                
+                # Post-phase cleanup
+                if phase_id == "P2.5":
+                    # Phase C: Clear fill history after detection to prevent memory bloat
+                    self.fill_history = []
             
             # Phase 4: Validation - Apply schema validation rules
             self._print_processing_step("Phase 4", "Validation", "Applying all schema validation rules")

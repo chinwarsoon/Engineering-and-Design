@@ -57,10 +57,14 @@ class AiOpsEngine:
         effective_parameters: Optional[Dict[str, Any]] = None,
     ):
         self.output_dir = Path(output_dir)
-        self.db_path = db_path or (self.output_dir / "dcc_runs.duckdb")
+        self.effective_parameters = effective_parameters or {}
+        
+        # Task B5d: Use filename from parameters if available (SSOT)
+        db_filename = self.effective_parameters.get('ai_runs_db_filename', 'dcc_runs.duckdb')
+        self.db_path = db_path or (self.output_dir / db_filename)
+        
         self.model = model
         self.use_ollama = use_ollama
-        self.effective_parameters = effective_parameters or {}
 
         self._risk_analyzer = RiskAnalyzer()
         self._trend_analyzer = TrendAnalyzer()

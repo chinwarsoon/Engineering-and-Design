@@ -53,12 +53,17 @@ def _get_system_snapshot() -> Dict[str, Any]:
 def get_debug_object() -> Dict[str, Any]:
     return DEBUG_OBJECT
 
-def save_debug_log(output_path) -> Any:
+def save_debug_log(output_path=None) -> Any:
     from pathlib import Path
     global DEBUG_OBJECT
     DEBUG_OBJECT["duration_ms"] = _calculate_duration()
+    
     if output_path is None:
-        output_path = Path("debug_log.json")
+        # Task B5a: Use filename from parameters if available (SSOT)
+        params = DEBUG_OBJECT.get("global_parameters", {})
+        filename = params.get("debug_log_filename", "debug_log.json")
+        output_path = Path(filename)
+    
     output_path = Path(output_path)
     import json
     output_path.write_text(json.dumps(DEBUG_OBJECT, indent=2, default=str))

@@ -161,12 +161,11 @@ class SchemaValidator(BaseEngine):
         
         # Pre-calculate phase map for efficient processing
         column_sequence = schema_root.get("column_sequence", [])
-        phase_map = {"P1": [], "P2": [], "P2.5": [], "P3": []}
+        phase_map = {}
         for col_name in column_sequence:
             if col_name in context.blueprint.columns:
                 phase = context.blueprint.columns[col_name].get("processing_phase", "P3")
-                if phase in phase_map:
-                    phase_map[phase].append(col_name)
+                phase_map.setdefault(phase, []).append(col_name)
         context.blueprint.phase_map = phase_map
         
         # Load Data Error Catalog into Blueprint

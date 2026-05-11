@@ -13,11 +13,17 @@ from ..utils.paths import safe_resolve
 logger = logging.getLogger(__name__)
 
 
-def get_validation_status_path(schema_file: str | Path) -> Path:
+def get_validation_status_path(schema_file: str | Path, parameters: Dict[str, Any] | None = None) -> Path:
     """Return the default persisted schema-validation status path."""
     schema_path = safe_resolve(Path(schema_file))
     project_root = schema_path.parents[2] if len(schema_path.parents) >= 3 else schema_path.parent
-    return project_root / "output" / "schema_validation_status.json"
+    
+    # Task B5b: Use filename from parameters if available (SSOT)
+    filename = "schema_validation_status.json"
+    if parameters:
+        filename = parameters.get("schema_validation_status_filename", filename)
+        
+    return project_root / "output" / filename
 
 
 def _tracked_schema_files(results: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -51,9 +57,13 @@ def _tracked_schema_files(results: Dict[str, Any]) -> List[Dict[str, Any]]:
     return tracked_files
 
 
-def write_validation_status(results: Dict[str, Any], status_path: str | Path | None = None) -> Path:
+def write_validation_status(
+    results: Dict[str, Any], 
+    status_path: str | Path | None = None,
+    parameters: Dict[str, Any] | None = None
+) -> Path:
     """Persist schema-validation status for downstream pipeline steps."""
-    destination = safe_resolve(Path(status_path)) if status_path else get_validation_status_path(results["main_schema_path"])
+    destination = safe_resolve(Path(status_path)) if status_path else get_validation_status_path(results["main_schema_path"], parameters=parameters)
     destination.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "main_schema_path": results["main_schema_path"],
@@ -66,18 +76,26 @@ def write_validation_status(results: Dict[str, Any], status_path: str | Path | N
     return destination
 
 
-def load_validation_status(schema_file: str | Path, status_path: str | Path | None = None) -> Dict[str, Any]:
+def load_validation_status(
+    schema_file: str | Path, 
+    status_path: str | Path | None = None,
+    parameters: Dict[str, Any] | None = None
+) -> Dict[str, Any]:
     """Load the persisted schema-validation status for a schema file."""
-    source = safe_resolve(Path(status_path)) if status_path else get_validation_status_path(schema_file)
+    source = safe_resolve(Path(status_path)) if status_path else get_validation_status_path(schema_file, parameters=parameters)
     with source.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
-def validate_validation_status(schema_file: str | Path, status_path: str | Path | None = None) -> tuple[bool, str]:
+def validate_validation_status(
+    schema_file: str | Path, 
+    status_path: str | Path | None = None,
+    parameters: Dict[str, Any] | None = None
+) -> tuple[bool, str]:
     """Check whether a persisted validation status is present and current."""
     schema_path = safe_resolve(Path(schema_file))
     try:
-        status = load_validation_status(schema_path, status_path)
+        status = load_validation_status(schema_path, status_path, parameters=parameters)
     except FileNotFoundError:
         return False, (
             f"Schema validation status not found for {schema_path}. "

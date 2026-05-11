@@ -29,9 +29,9 @@ class LogicDetector(BaseDetector):
     between columns.
     """
     
-    # Error codes
+    # Error codes (Standardized per data_error_config.json)
     ERROR_DATE_INVERSION = "L3-L-P-0301"
-    ERROR_REV_REGRESSION = "L3-L-V-0302"
+    ERROR_REV_REGRESSION = "L3-L-V-0305"  # Fixed from L3-L-V-0302 to match SSOT
     ERROR_STATUS_CONFLICT = "L3-L-V-0303"
     ERROR_OVERDUE_PENDING = "L3-L-W-0304"
     

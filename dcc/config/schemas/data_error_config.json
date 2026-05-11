@@ -3,17 +3,17 @@
   "$id": "https://dcc-pipeline.internal/schemas/error-code/data-config",
   "title": "Data/Logic Error Configuration",
   "description": "Actual data/logic error code values (LL-M-F-XXXX format)",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "object",
   "allOf": [
     { "$ref": "https://dcc-pipeline.internal/schemas/error-code/setup" }
   ],
   "metadata": {
-    "version": "1.0.0",
-    "last_updated": "2026-04-24",
-    "total_codes": 17,
+    "version": "1.1.0",
+    "last_updated": "2026-05-11",
+    "total_codes": 29,
     "system_codes": 0,
-    "data_logic_codes": 17,
+    "data_logic_codes": 29,
     "system_format": "S-C-S-XXXX",
     "data_logic_format": "LL-M-F-XXXX"
   },
@@ -32,12 +32,26 @@
       "start_id": "P2-I-V-0204",
       "end_id": "P2-I-V-0204"
     },
+    "phase_2.5_fill": {
+      "prefix": "F4-C-F-04xx",
+      "description": "Phase 2.5 - Null handling and forward fill",
+      "count": 5,
+      "start_id": "F4-C-F-0401",
+      "end_id": "F4-C-F-0405"
+    },
+    "phase_3_calculation": {
+      "prefix": "C6-C-C-06xx",
+      "description": "Phase 3 - Calculation and dependency",
+      "count": 6,
+      "start_id": "C6-C-C-0601",
+      "end_id": "C6-C-C-0606"
+    },
     "layer_3_logic": {
       "prefix": "L3-L-V-03xx",
       "description": "Layer 3 - Logic/Temporal validation",
-      "count": 7,
+      "count": 8,
       "start_id": "L3-L-P-0301",
-      "end_id": "L3-L-V-0307"
+      "end_id": "L3-L-W-0304"
     },
     "validation_schema": {
       "prefix": "V5-I-V-05xx",
@@ -72,7 +86,8 @@
       "function": "P",
       "column": "Project_Code, Facility_Code, Document_Type, Discipline",
       "source": "processor_engine/error_handling/detectors/row_validator.py:154",
-      "health_score_impact": -20
+      "health_score_impact": -20,
+      "processing_phase": "P1"
     },
     "P2-I-V-0204": {
       "code": "P2-I-V-0204",
@@ -84,7 +99,140 @@
       "function": "V",
       "column": "Document_ID",
       "source": "processor_engine/error_handling/detectors/row_validator.py:199,219",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P2"
+    },
+    "F4-C-F-0401": {
+      "code": "F4-C-F-0401",
+      "name": "JUMP_LIMIT_EXCEEDED",
+      "message": "Forward fill row jump exceeded limit",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "C",
+      "function": "F",
+      "source": "processor_engine/error_handling/detectors/fill.py",
+      "health_score_impact": -10,
+      "processing_phase": "P2.5"
+    },
+    "F4-C-F-0402": {
+      "code": "F4-C-F-0402",
+      "name": "BOUNDARY_CROSS_DETECTED",
+      "message": "Session boundary crossed during forward fill",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "C",
+      "function": "F",
+      "source": "processor_engine/error_handling/detectors/fill.py",
+      "health_score_impact": -15,
+      "processing_phase": "P2.5"
+    },
+    "F4-C-F-0403": {
+      "code": "F4-C-F-0403",
+      "name": "INFERRED_FILL_APPLIED",
+      "message": "Calculation-based or default fill applied to nulls",
+      "severity": "WARNING",
+      "layer": "L3",
+      "module": "C",
+      "function": "F",
+      "source": "processor_engine/error_handling/detectors/fill.py",
+      "health_score_impact": -5,
+      "processing_phase": "P2.5"
+    },
+    "F4-C-F-0404": {
+      "code": "F4-C-F-0404",
+      "name": "EXCESSIVE_NULL_FILLS",
+      "message": "High percentage of rows in column are filled",
+      "severity": "WARNING",
+      "layer": "L3",
+      "module": "C",
+      "function": "F",
+      "source": "processor_engine/error_handling/detectors/fill.py",
+      "health_score_impact": -5,
+      "processing_phase": "P2.5"
+    },
+    "F4-C-F-0405": {
+      "code": "F4-C-F-0405",
+      "name": "INVALID_GROUPING",
+      "message": "Grouping configuration is invalid for fill operation",
+      "severity": "ERROR",
+      "layer": "L3",
+      "module": "C",
+      "function": "F",
+      "source": "processor_engine/error_handling/detectors/fill.py",
+      "health_score_impact": -10,
+      "processing_phase": "P2.5"
+    },
+    "C6-C-C-0601": {
+      "code": "C6-C-C-0601",
+      "name": "MISSING_INPUT_COLUMNS",
+      "message": "Required input columns for calculation are missing",
+      "severity": "CRITICAL",
+      "layer": "L3",
+      "module": "C",
+      "function": "C",
+      "source": "processor_engine/error_handling/detectors/calculation.py",
+      "health_score_impact": -20,
+      "processing_phase": "P3"
+    },
+    "C6-C-C-0602": {
+      "code": "C6-C-C-0602",
+      "name": "CIRCULAR_DEPENDENCY",
+      "message": "Circular dependency detected in calculations",
+      "severity": "CRITICAL",
+      "layer": "L3",
+      "module": "C",
+      "function": "C",
+      "source": "processor_engine/error_handling/detectors/calculation.py",
+      "health_score_impact": -20,
+      "processing_phase": "P3"
+    },
+    "C6-C-C-0603": {
+      "code": "C6-C-C-0603",
+      "name": "DIVISION_BY_ZERO",
+      "message": "Division by zero in calculation",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "C",
+      "function": "C",
+      "source": "processor_engine/error_handling/detectors/calculation.py",
+      "health_score_impact": -15,
+      "processing_phase": "P3"
+    },
+    "C6-C-C-0604": {
+      "code": "C6-C-C-0604",
+      "name": "AGGREGATE_EMPTY_SET",
+      "message": "Aggregation performed on empty set",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "C",
+      "function": "C",
+      "source": "processor_engine/error_handling/detectors/calculation.py",
+      "health_score_impact": -10,
+      "processing_phase": "P3"
+    },
+    "C6-C-C-0605": {
+      "code": "C6-C-C-0605",
+      "name": "DATE_ARITHMETIC_FAILURE",
+      "message": "Date arithmetic failed (e.g. invalid date range)",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "C",
+      "function": "C",
+      "source": "processor_engine/error_handling/detectors/calculation.py",
+      "health_score_impact": -15,
+      "processing_phase": "P3"
+    },
+    "C6-C-C-0606": {
+      "code": "C6-C-C-0606",
+      "name": "MAPPING_NO_MATCH",
+      "message": "No match found in mapping calculation",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "C",
+      "function": "C",
+      "source": "processor_engine/error_handling/detectors/calculation.py",
+      "health_score_impact": -15,
+      "processing_phase": "P3"
     },
     "L3-L-P-0301": {
       "code": "L3-L-P-0301",
@@ -96,7 +244,8 @@
       "function": "P",
       "column": "Review_Return_Actual_Date, Submission_Date",
       "source": "processor_engine/error_handling/detectors/row_validator.py:254",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P3"
     },
     "L3-L-V-0302": {
       "code": "L3-L-V-0302",
@@ -109,7 +258,8 @@
       "column": "Submission_Closed, Resubmission_Plan_Date",
       "source": "processor_engine/error_handling/detectors/row_validator.py:289",
       "migrated_from": "CLOSED_WITH_PLAN_DATE (string code)",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P3"
     },
     "L3-L-V-0303": {
       "code": "L3-L-V-0303",
@@ -122,7 +272,8 @@
       "column": "Review_Status, Resubmission_Required",
       "source": "processor_engine/error_handling/detectors/row_validator.py:322",
       "migrated_from": "RESUBMISSION_MISMATCH (string code)",
-      "health_score_impact": -10
+      "health_score_impact": -10,
+      "processing_phase": "P3"
     },
     "L3-L-V-0304": {
       "code": "L3-L-V-0304",
@@ -135,7 +286,8 @@
       "column": "Resubmission_Plan_Date, Resubmission_Overdue_Status",
       "source": "processor_engine/error_handling/detectors/row_validator.py:369",
       "migrated_from": "OVERDUE_MISMATCH (string code)",
-      "health_score_impact": -10
+      "health_score_impact": -10,
+      "processing_phase": "P3"
     },
     "L3-L-V-0305": {
       "code": "L3-L-V-0305",
@@ -148,7 +300,8 @@
       "column": "Document_Revision",
       "source": "processor_engine/error_handling/detectors/row_validator.py:472",
       "migrated_from": "VERSION_REGRESSION (string code)",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P3"
     },
     "L3-L-V-0306": {
       "code": "L3-L-V-0306",
@@ -161,7 +314,8 @@
       "column": "Submission_Session, Document_Revision",
       "source": "processor_engine/error_handling/detectors/row_validator.py:531",
       "migrated_from": "REVISION_GAP (string code)",
-      "health_score_impact": -10
+      "health_score_impact": -10,
+      "processing_phase": "P3"
     },
     "L3-L-V-0307": {
       "code": "L3-L-V-0307",
@@ -174,7 +328,20 @@
       "column": "Submission_Closed, Resubmission_Required",
       "source": "Proposed - Issue #61 fix",
       "workplan_reference": "row_validation_p2_logic.md Section 3.4",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P3"
+    },
+    "L3-L-W-0304": {
+      "code": "L3-L-W-0304",
+      "name": "OVERDUE_PENDING",
+      "message": "Review is past its planned return date and still pending",
+      "severity": "WARNING",
+      "layer": "L3",
+      "module": "L",
+      "function": "W",
+      "source": "processor_engine/error_handling/detectors/logic.py",
+      "health_score_impact": -5,
+      "processing_phase": "P3"
     },
     "S1-I-F-0804": {
       "code": "S1-I-F-0804",
@@ -185,7 +352,8 @@
       "module": "I",
       "function": "F",
       "source": "processor_engine/error_handling/detectors/input.py:109",
-      "health_score_impact": -20
+      "health_score_impact": -20,
+      "processing_phase": "P1"
     },
     "S1-I-F-0805": {
       "code": "S1-I-F-0805",
@@ -196,7 +364,8 @@
       "module": "I",
       "function": "F",
       "source": "processor_engine/error_handling/detectors/input.py:125,145",
-      "health_score_impact": -20
+      "health_score_impact": -20,
+      "processing_phase": "P1"
     },
     "S1-I-V-0501": {
       "code": "S1-I-V-0501",
@@ -207,7 +376,8 @@
       "module": "I",
       "function": "V",
       "source": "processor_engine/error_handling/detectors/input.py:167",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P1"
     },
     "S1-I-V-0502": {
       "code": "S1-I-V-0502",
@@ -218,7 +388,8 @@
       "module": "I",
       "function": "V",
       "source": "processor_engine/error_hand/detectors/input.py:195,212,245",
-      "health_score_impact": -20
+      "health_score_impact": -20,
+      "processing_phase": "P1"
     },
     "V5-I-V-0501": {
       "code": "V5-I-V-0501",
@@ -229,7 +400,8 @@
       "module": "I",
       "function": "V",
       "source": "processor_engine/error_handling/detectors/schema.py:114,141,358",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P4"
     },
     "V5-I-V-0502": {
       "code": "V5-I-V-0502",
@@ -240,7 +412,8 @@
       "module": "I",
       "function": "V",
       "source": "processor_engine/error_handling/detectors/schema.py:191,209",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P4"
     },
     "V5-I-V-0503": {
       "code": "V5-I-V-0503",
@@ -251,7 +424,8 @@
       "module": "I",
       "function": "V",
       "source": "processor_engine/error_handling/detectors/schema.py:260",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P4"
     },
     "V5-I-V-0504": {
       "code": "V5-I-V-0504",
@@ -262,27 +436,31 @@
       "module": "I",
       "function": "V",
       "source": "processor_engine/error_handling/detectors/schema.py:301",
-      "health_score_impact": -15
+      "health_score_impact": -15,
+      "processing_phase": "P4"
     }
   },
   "migration_log": {
-    "date": "2026-04-24",
-    "description": "Initial data/logic error code configuration following LL-M-F-XXXX format",
+    "date": "2026-05-11",
+    "description": "Updated Data Error Catalog with missing detector codes and processing phases",
     "changes": [
-      "Migrated 5 string codes to standardized format",
-      "Added new CLOSED_WITH_RESUBMISSION code (L3-L-V-0307)",
-      "Implemented proper separation per agent_rule.md Section 2.3",
-      "Base: error_code_base.json, Properties: error_code_setup.json, Values: this file"
+      "Added 12 new error codes from detectors (C6xx, F4xx, L3-L-W)",
+      "Added processing_phase field to all 29 entries for dynamic orchestration",
+      "Aligned logic detector codes with schema (L3-L-W-0304)",
+      "Updated total_codes to 29"
     ],
     "migrations": [
       "CLOSED_WITH_PLAN_DATE → L3-L-V-0302",
       "RESUBMISSION_MISMATCH → L3-L-V-0303",
       "OVERDUE_MISMATCH → L3-L-V-0304",
       "VERSION_REGRESSION → L3-L-V-0305",
-      "REVISION_GAP → L3-L-V-0306"
+      "REVISION_GAP → L3-L-V-0306",
+      "OVERDUE_PENDING → L3-L-W-0304"
     ],
     "new_codes": [
-      "L3-L-V-0307: CLOSED_WITH_RESUBMISSION (Issue #61)"
+      "C6-C-C-0601..0606: Calculation errors",
+      "F4-C-F-0401..0405: Fill errors",
+      "L3-L-W-0304: Overdue pending warning"
     ],
     "references": {
       "base": "error_code_base.json",

@@ -97,10 +97,14 @@ class ErrorReporter:
             
         return pd.DataFrame(report_data)
         
-    def export_full_diagnostic_log(self, filename: str = "error_diagnostic_log.csv") -> Path:
+    def export_full_diagnostic_log(self, filename: str = None) -> Path:
         """
         Exports a detailed, per-instance error log to CSV for external analysis.
         """
+        # Task B5c: Use filename from parameters if available (SSOT)
+        if filename is None:
+            filename = self.effective_parameters.get('error_diagnostic_log_filename', 'error_diagnostic_log.csv')
+            
         all_errors = self.aggregator.get_all_errors()
         export_data = []
         

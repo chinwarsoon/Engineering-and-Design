@@ -46,7 +46,9 @@ class TestAnchorDetector(unittest.TestCase):
         df = pd.DataFrame({
             "Project_Code": ["PRJ001", None, "PRJ003"],
             "Facility_Code": ["FAC01", "FAC02", ""],
-            "Document_Type": ["Drawing", "Spec", "Report"]
+            "Document_Type": ["Drawing", "Spec", "Report"],
+            "Discipline": ["ARC", "STR", "CIV"],
+            "Submission_Session": ["240101", "240101", "240101"]
         })
         
         errors = self.detector.detect(df)
@@ -147,17 +149,17 @@ class TestBusinessDetector(unittest.TestCase):
         """Test phase-based detection."""
         df = pd.DataFrame({
             "Project_Code": ["PRJ001", None],  # P1 error
-            "Document_ID": ["valid", "TBD"],  # P2 error
+            "Document_ID": ["valid", "TBD"],  # P2.5 error
         })
         
         phase_errors = self.detector.detect(df)
         
-        # Check both P1 and P2 errors exist
+        # Check both P1 and P2.5 errors exist
         p1_errors = phase_errors.get(ProcessingPhase.P1, [])
-        p2_errors = phase_errors.get(ProcessingPhase.P2, [])
+        p25_errors = phase_errors.get(ProcessingPhase.P2_5, [])
         
         self.assertGreater(len(p1_errors), 0)
-        self.assertGreater(len(p2_errors), 0)
+        self.assertGreater(len(p25_errors), 0)
     
     def test_phase_summary(self):
         """Test phase summary generation."""
@@ -201,7 +203,7 @@ class TestLogicDetector(unittest.TestCase):
         
         errors = self.detector.detect(df)
         
-        reg_errors = [e for e in errors if e.error_code == "L3-L-V-0302"]
+        reg_errors = [e for e in errors if e.error_code == "L3-L-V-0305"]
         self.assertEqual(len(reg_errors), 1)
     
     def test_status_conflict(self):
@@ -240,7 +242,7 @@ class TestFillDetector(unittest.TestCase):
         """Test analyzing fill history records."""
         fill_history = [
             {
-                "operation": "forward_fill",
+                "operation_type": "forward_fill",
                 "column": "Reviewer",
                 "from_row": 0,
                 "to_row": 25,
@@ -254,8 +256,9 @@ class TestFillDetector(unittest.TestCase):
             context={"fill_history": fill_history}
         )
         
-        self.assertEqual(len(errors), 1)
+        self.assertEqual(len(errors), 2)  # Jump limit AND excessive fill
         self.assertEqual(errors[0].error_code, "F4-C-F-0401")
+        self.assertEqual(errors[1].error_code, "F4-C-F-0404")
 
 
 class TestValidationDetector(unittest.TestCase):

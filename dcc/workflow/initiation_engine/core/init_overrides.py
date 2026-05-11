@@ -91,8 +91,8 @@ class PathSelectionContract:
             excel_path=base / "data" / self.upload_file_name,
             csv_output_path=base / self.output_folder / "processed_dcc_universal.csv",
             excel_output_path=base / self.output_folder / "processed_dcc_universal.xlsx",
-            summary_path=base / self.output_folder / "summary.json",
-            debug_log_path=base / self.output_folder / "debug.json"
+            summary_path=base / self.output_folder / "processing_summary.txt",
+            debug_log_path=base / self.output_folder / "debug_log.json"
         )
     
     def validate(self) -> Dict[str, Any]:

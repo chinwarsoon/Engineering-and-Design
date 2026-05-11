@@ -76,10 +76,13 @@ class BaseDetector(ABC):
         self._errors: List[DetectionResult] = []
         self._context: Dict[str, Any] = {}
         self._on_error_callbacks: List[Callable] = []
+        self.processing_phase: Optional[str] = None
     
     def set_context(self, **kwargs) -> None:
         """Set detection context."""
         self._context.update(kwargs)
+        if "phase" in kwargs:
+            self.processing_phase = kwargs["phase"]
     
     def clear_context(self) -> None:
         """Clear detection context."""
@@ -125,6 +128,10 @@ class BaseDetector(ABC):
         if additional_context:
             merged_context.update(additional_context)
         
+        # Task C4: Ensure phase is in context (SSOT)
+        if "phase" not in merged_context and self.processing_phase:
+            merged_context["phase"] = self.processing_phase
+            
         result = DetectionResult(
             error_code=error_code,
             message=message,

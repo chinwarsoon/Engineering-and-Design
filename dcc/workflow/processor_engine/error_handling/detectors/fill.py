@@ -569,7 +569,8 @@ class FillDetector(BaseDetector):
         total_rows = 0
         for record in fill_history:
             to_row = record.get("to_row", {})
-            row_idx = to_row.get("row_index", 0)
+            # Handle both dict and int formats for to_row
+            row_idx = to_row.get("row_index", 0) if isinstance(to_row, dict) else to_row
             if row_idx > total_rows:
                 total_rows = row_idx
         total_rows = max(total_rows, 1)  # Avoid division by zero
@@ -586,6 +587,8 @@ class FillDetector(BaseDetector):
                         break
                 
                 to_row = last_record.get("to_row", {}) if last_record else {"row_index": 0}
+                # Handle both dict and int formats for to_row
+                to_row_idx = to_row.get("row_index", 0) if isinstance(to_row, dict) else to_row
                 
                 # Phase D: Enhanced error context
                 from_row = last_record.get("from_row", {}) if last_record else {}
@@ -593,7 +596,7 @@ class FillDetector(BaseDetector):
                 self.detect_error(
                     error_code=self.ERROR_EXCESSIVE_NULLS,
                     message=f"Excessive null fills in '{column}': {fill_percentage:.1f}% of rows filled",
-                    row=to_row.get("row_index", 0),
+                    row=to_row_idx,
                     column=column,
                     severity="WARNING",
                     fail_fast=False,

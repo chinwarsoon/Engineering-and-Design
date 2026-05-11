@@ -15,8 +15,6 @@ from ..core.contracts import AiInsight, PipelineRunRecord
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_DB = "dcc_runs.duckdb"
-
 
 class RunStore:
     """

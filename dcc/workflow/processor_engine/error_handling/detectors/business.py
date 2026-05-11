@@ -16,6 +16,8 @@ from .base import BaseDetector, DetectionResult, CompositeDetector, FailFastErro
 from .anchor import AnchorDetector
 from .identity import IdentityDetector
 from .fill import FillDetector
+from .calculation import CalculationDetector
+from .logic import LogicDetector
 
 
 class ProcessingPhase(Enum):
@@ -108,6 +110,24 @@ class BusinessDetector(BaseDetector):
                 enable_fail_fast=self._enable_fail_fast,
                 jump_limit=20,
                 max_fill_percentage=80.0
+            )
+        )
+
+        # P3: Calculation detector
+        self.register_phase_detector(
+            ProcessingPhase.P3,
+            CalculationDetector(
+                logger=self._logger,
+                enable_fail_fast=self._enable_fail_fast
+            )
+        )
+
+        # P3: Logic detector
+        self.register_phase_detector(
+            ProcessingPhase.P3,
+            LogicDetector(
+                logger=self._logger,
+                enable_fail_fast=self._enable_fail_fast
             )
         )
     
