@@ -108,7 +108,7 @@ class InputDetector(BaseDetector):
             self.detect_error(
                 error_code="S1-I-F-0804",
                 message=f"File not found: {file_path}",
-                severity="CRITICAL",
+                severity=self._get_severity("S1-I-F-0804", "CRITICAL"),
                 fail_fast=True,
                 remediation_type="MANUAL_FIX",
                 additional_context={"file_path": str(file_path)}
@@ -124,7 +124,7 @@ class InputDetector(BaseDetector):
             self.detect_error(
                 error_code="S1-I-F-0805",
                 message=f"Unsupported file format: {suffix}",
-                severity="CRITICAL",
+                severity=self._get_severity("S1-I-F-0805", "CRITICAL"),
                 fail_fast=True,
                 remediation_type="MANUAL_FIX",
                 additional_context={
@@ -144,7 +144,7 @@ class InputDetector(BaseDetector):
             self.detect_error(
                 error_code="S1-I-F-0805",
                 message=f"File too large: {size_mb:.1f}MB (max: {self.max_file_size_mb}MB)",
-                severity="HIGH",
+                severity=self._get_severity("S1-I-F-0805", "CRITICAL"),
                 fail_fast=False,
                 remediation_type="MANUAL_FIX",
                 additional_context={
@@ -166,7 +166,7 @@ class InputDetector(BaseDetector):
             self.detect_error(
                 error_code="S1-I-V-0501",
                 message=f"File encoding error (expected UTF-8): {file_path}",
-                severity="HIGH",
+                severity=self._get_severity("S1-I-V-0501", "HIGH"),
                 fail_fast=True,
                 remediation_type="MANUAL_FIX",
                 additional_context={"file_path": str(file_path), "expected_encoding": "utf-8"}
@@ -194,7 +194,7 @@ class InputDetector(BaseDetector):
                 self.detect_error(
                     error_code="S1-I-V-0502",
                     message=f"Missing required columns: {', '.join(missing_columns)}",
-                    severity="CRITICAL",
+                    severity=self._get_severity("S1-I-V-0502", "CRITICAL"),
                     fail_fast=True,
                     remediation_type="MANUAL_FIX",
                     additional_context={
@@ -211,7 +211,7 @@ class InputDetector(BaseDetector):
             self.detect_error(
                 error_code="S1-I-V-0502",
                 message=f"Failed to validate columns: {e}",
-                severity="HIGH",
+                severity=self._get_severity("S1-I-V-0502", "HIGH"),
                 fail_fast=False,
                 additional_context={"file_path": str(file_path), "error": str(e)}
             )
@@ -244,7 +244,7 @@ class InputDetector(BaseDetector):
             self.detect_error(
                 error_code="S1-I-V-0502",
                 message=f"Missing required columns: {', '.join(missing_columns)}",
-                severity="CRITICAL",
+                severity=self._get_severity("S1-I-V-0502", "CRITICAL"),
                 fail_fast=True,
                 remediation_type="MANUAL_FIX",
                 additional_context={

@@ -112,7 +112,7 @@ class LogicDetector(BaseDetector):
                         message=f"Review return date before submission at row {idx}",
                         row=idx,
                         column=return_col,
-                        severity="CRITICAL",
+                        severity=self._get_severity(self.ERROR_DATE_INVERSION, "CRITICAL"),
                         fail_fast=True,
                         additional_context={
                             "submission_date": str(submit_date),
@@ -165,7 +165,7 @@ class LogicDetector(BaseDetector):
                                 message=f"Revision regression for {doc_id}: {prev_rev} → {current_rev}",
                                 row=idx,
                                 column=rev_col,
-                                severity="HIGH",
+                                severity=self._get_severity(self.ERROR_REV_REGRESSION, "HIGH"),
                                 fail_fast=False,
                                 additional_context={
                                     "document_id": str(doc_id),
@@ -206,7 +206,7 @@ class LogicDetector(BaseDetector):
                     error_code=self.ERROR_STATUS_CONFLICT,
                     message=f"Status conflict: Approved but marked for resubmission",
                     row=idx,
-                    severity="HIGH",
+                    severity=self._get_severity(self.ERROR_STATUS_CONFLICT, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "approval_code": str(df.at[idx, approval_col]),
@@ -232,7 +232,7 @@ class LogicDetector(BaseDetector):
                     error_code=self.ERROR_STATUS_CONFLICT,
                     message=f"Status conflict: Closed but review still active",
                     row=idx,
-                    severity="HIGH",
+                    severity=self._get_severity(self.ERROR_STATUS_CONFLICT, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "submission_closed": str(df.at[idx, closed_col]),
@@ -285,7 +285,7 @@ class LogicDetector(BaseDetector):
                         message=f"Review overdue by {days_overdue} days",
                         row=idx,
                         column=plan_col,
-                        severity="WARNING",
+                        severity=self._get_severity(self.ERROR_OVERDUE_PENDING, "WARNING"),
                         fail_fast=False,
                         additional_context={
                             "planned_date": str(plan_date),

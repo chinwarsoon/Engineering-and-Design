@@ -119,7 +119,9 @@ class AiOpsEngine:
             try:
                 with dashboard_path.open(encoding="utf-8") as f:
                     dashboard_data = json.load(f)
-                insight = attach_evidence_links(insight, dashboard_data)
+                # C3: Pass error catalog from pipeline_results as SSOT for phase mapping
+                error_catalog = pipeline_results.get("error_catalog", {})
+                insight = attach_evidence_links(insight, dashboard_data, error_catalog=error_catalog)
             except Exception as exc:
                 logger.warning(f"[ai_ops_engine] Evidence linking failed: {exc}")
 

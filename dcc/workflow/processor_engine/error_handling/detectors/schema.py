@@ -115,7 +115,7 @@ class SchemaDetector(BaseDetector):
                         message=f"Pattern mismatch in {column}: '{value}' doesn't match {pattern_info['description'] or pattern_info['pattern']}",
                         row=idx,
                         column=column,
-                        severity="HIGH",
+                        severity=self._get_severity("V5-I-V-0501", "HIGH"),
                         fail_fast=False,
                         remediation_type="MANUAL_FIX",
                         additional_context={
@@ -142,7 +142,7 @@ class SchemaDetector(BaseDetector):
                     message=f"Pattern mismatch in {column}: '{value}' doesn't match {pattern_info['description'] or pattern_info['pattern']}",
                     row=row_index,
                     column=column,
-                    severity="HIGH",
+                    severity=self._get_severity("V5-I-V-0501", "HIGH"),
                     fail_fast=False,
                     remediation_type="MANUAL_FIX",
                     additional_context={
@@ -192,7 +192,7 @@ class SchemaDetector(BaseDetector):
                 message=f"Length exceeded in {column}: {str_len} chars (max: {max_length})",
                 row=row_index,
                 column=column,
-                severity="HIGH",
+                severity=self._get_severity("V5-I-V-0502", "HIGH"),
                 fail_fast=False,
                 remediation_type="MANUAL_FIX",
                 additional_context={
@@ -210,7 +210,7 @@ class SchemaDetector(BaseDetector):
                 message=f"Length too short in {column}: {str_len} chars (min: {min_length})",
                 row=row_index,
                 column=column,
-                severity="HIGH",
+                severity=self._get_severity("V5-I-V-0502", "HIGH"),
                 fail_fast=False,
                 remediation_type="MANUAL_FIX",
                 additional_context={
@@ -261,7 +261,7 @@ class SchemaDetector(BaseDetector):
                 message=f"Invalid value in {column}: '{value}' not in allowed values",
                 row=row_index,
                 column=column,
-                severity="HIGH",
+                severity=self._get_severity("V5-I-V-0503", "HIGH"),
                 fail_fast=False,
                 remediation_type="MANUAL_FIX",
                 additional_context={
@@ -302,7 +302,7 @@ class SchemaDetector(BaseDetector):
                 message=f"Type mismatch in {column}: expected {expected_type.__name__}, got {type(value).__name__}",
                 row=row_index,
                 column=column,
-                severity="HIGH",
+                severity=self._get_severity("V5-I-V-0504", "HIGH"),
                 fail_fast=False,
                 remediation_type="MANUAL_FIX",
                 additional_context={
@@ -359,7 +359,7 @@ class SchemaDetector(BaseDetector):
                             message=f"Pattern mismatch in {column}",
                             row=row_index,
                             column=column,
-                            severity="HIGH",
+                            severity=self._get_severity("V5-I-V-0501", "HIGH"),
                             additional_context={"value": str(value), "pattern": pattern}
                         )
             

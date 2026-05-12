@@ -95,6 +95,29 @@ class BaseDetector(ABC):
     def register_error_callback(self, callback: Callable) -> None:
         """Register callback for each detected error."""
         self._on_error_callbacks.append(callback)
+
+    def _get_severity(self, error_code: str, fallback: str = "ERROR") -> str:
+        """
+        Resolve severity for an error code from the error catalog (SSOT).
+
+        Reads from context['error_catalog'] (data_error_config.json data_logic_errors).
+        Falls back to the provided fallback value if the catalog is unavailable or
+        the code is not found.
+
+        Args:
+            error_code: Error code string (e.g. "P1-A-P-0101")
+            fallback: Severity string to use when catalog lookup fails
+
+        Returns:
+            Severity string (e.g. "CRITICAL", "HIGH", "MEDIUM", "WARNING")
+        """
+        catalog = self._context.get("error_catalog", {})
+        if catalog:
+            entry = catalog.get(error_code, {})
+            severity = entry.get("severity")
+            if severity:
+                return severity
+        return fallback
     
     def detect_error(
         self,

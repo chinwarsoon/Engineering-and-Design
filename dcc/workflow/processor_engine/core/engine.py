@@ -361,6 +361,7 @@ class CalculationEngine(BaseProcessor):
 
             # Phase 4: Aggregation - Populate Validation_Errors column (Step 46)
             # Task A4: Resolve column names from blueprint (SSOT)
+            p3_cols = self.context.blueprint.get_columns_by_phase('P3')
             validation_errors_col = next((c for c in p3_cols if self.columns.get(c, {}).get('calculation', {}).get('type') == 'error_tracking'), "Validation_Errors")
             self._print_processing_step("Phase 4", "Aggregation", f"Populating {validation_errors_col} column")
             df_processed[validation_errors_col] = self.error_aggregator.format_validation_errors_column(len(df_processed))

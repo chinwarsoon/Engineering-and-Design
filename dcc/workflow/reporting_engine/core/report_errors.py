@@ -54,7 +54,12 @@ class ErrorReporter:
             "affected_rows": len(row_errors),
             "clean_run": kpi.health_score == 100.0,
             "error_density": round(len(errors) / total_rows, 3) if total_rows > 0 else 0,
-            "status": "PASS" if kpi.health_score >= 90.0 else "FAIL" if kpi.health_score < 60.0 else "WARNING"
+            # C5: Read pass/fail thresholds from parameters (SSOT: dcc_global_parameters.json)
+            "status": (
+                "PASS" if kpi.health_score >= self.effective_parameters.get("health_pass_threshold", 90.0)
+                else "FAIL" if kpi.health_score < self.effective_parameters.get("health_fail_threshold", 60.0)
+                else "WARNING"
+            )
         }
         
     def generate_diagnostic_summary(self) -> str:

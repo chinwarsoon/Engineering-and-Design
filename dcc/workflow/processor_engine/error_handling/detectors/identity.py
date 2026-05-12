@@ -43,7 +43,8 @@ class IdentityDetector(BaseDetector):
     and downstream processing.
     """
     
-    # P2 identity columns
+    # P2 identity columns — fallback when schema is not available
+    # C12: Schema (dcc_register_config.json processing_phase == P2, required == true) is SSOT
     IDENTITY_COLUMNS = [
         "Document_ID",
         "Document_Revision",
@@ -77,6 +78,24 @@ class IdentityDetector(BaseDetector):
             enable_fail_fast=enable_fail_fast
         )
         self.required_identities = required_identities or self.IDENTITY_COLUMNS
+
+    def _get_identity_columns(self) -> List[str]:
+        """
+        C12: Return P2 identity columns from schema (SSOT) or fallback constant.
+        Reads columns with processing_phase == 'P2' and required == true from context.
+        """
+        schema_data = self._context.get("schema_data", {})
+        columns = schema_data.get("columns", {})
+        if columns:
+            identity_cols = [
+                name for name, defn in columns.items()
+                if isinstance(defn, dict)
+                and defn.get("processing_phase") == "P2"
+                and defn.get("required")
+            ]
+            if identity_cols:
+                return identity_cols
+        return self.IDENTITY_COLUMNS
     
     def detect(
         self,
@@ -134,7 +153,7 @@ class IdentityDetector(BaseDetector):
                     message=f"Document_ID uncertain at row {idx}: '{df.at[idx, id_col]}'",
                     row=idx,
                     column=id_col,
-                    severity="CRITICAL",
+                    severity=self._get_severity(self.ERROR_ID_UNCERTAIN, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "actual_value": str(df.at[idx, id_col]),
@@ -163,7 +182,7 @@ class IdentityDetector(BaseDetector):
                 message=f"Document_Revision missing at row {idx}",
                 row=idx,
                 column=rev_col,
-                severity="CRITICAL",
+                severity=self._get_severity(self.ERROR_REV_MISSING, "CRITICAL"),
                 fail_fast=True,
                 additional_context={
                     "suggestion": "Set default revision (e.g., '00' or 'A')"
@@ -216,7 +235,7 @@ class IdentityDetector(BaseDetector):
                         message=f"Duplicate Transmittal_Number in session {session_id}",
                         row=idx,
                         column=trans_col,
-                        severity="HIGH",
+                        severity=self._get_severity(self.ERROR_DUPLICATE_TRANS, "HIGH"),
                         fail_fast=False,
                         additional_context={
                             "session_id": str(session_id),
@@ -235,7 +254,7 @@ class IdentityDetector(BaseDetector):
                     message=f"Duplicate Transmittal_Number detected",
                     row=idx,
                     column=trans_col,
-                    severity="HIGH",
+                    severity=self._get_severity(self.ERROR_DUPLICATE_TRANS, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "transmittal_value": str(df.at[idx, trans_col]),
@@ -396,7 +415,7 @@ class IdentityDetector(BaseDetector):
                     message=f"Invalid Document_ID format: '{value}'",
                     row=idx,
                     column=id_col,
-                    severity="HIGH",
+                    severity=self._get_severity(self.ERROR_ID_FORMAT_INVALID, "HIGH"),
                     fail_fast=False,
                     additional_context=error_context
                 )

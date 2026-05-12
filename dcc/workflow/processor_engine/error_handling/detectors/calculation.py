@@ -116,7 +116,7 @@ class CalculationDetector(BaseDetector):
                     error_code=self.ERROR_DEPENDENCY_FAIL,
                     message=f"Missing input columns for {target_column}: {missing_inputs}",
                     column=target_column,
-                    severity="CRITICAL",
+                    severity=self._get_severity(self.ERROR_DEPENDENCY_FAIL, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "calculation_type": calc_type,
@@ -163,7 +163,7 @@ class CalculationDetector(BaseDetector):
                     self.detect_error(
                         error_code=self.ERROR_CIRCULAR_DEPENDENCY,
                         message=f"Circular dependency detected: {' -> '.join(cycle)}",
-                        severity="CRITICAL",
+                        severity=self._get_severity(self.ERROR_CIRCULAR_DEPENDENCY, "CRITICAL"),
                         fail_fast=True,
                         additional_context={
                             "cycle": cycle,
@@ -210,7 +210,7 @@ class CalculationDetector(BaseDetector):
                     message=f"No mapping match for '{source_value}' in {source_column}",
                     row=idx,
                     column=target_column,
-                    severity="HIGH",
+                    severity=self._get_severity(self.ERROR_MAPPING_NO_MATCH, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "source_column": source_column,
@@ -255,7 +255,7 @@ class CalculationDetector(BaseDetector):
                     message=f"Invalid start date in '{start_column}': '{start_val}'",
                     row=idx,
                     column=target_column,
-                    severity="HIGH",
+                    severity=self._get_severity(self.ERROR_DATE_ARITHMETIC_FAIL, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "start_column": start_column,
@@ -270,7 +270,7 @@ class CalculationDetector(BaseDetector):
                     message=f"Invalid end date in '{end_column}': '{end_val}'",
                     row=idx,
                     column=target_column,
-                    severity="HIGH",
+                    severity=self._get_severity(self.ERROR_DATE_ARITHMETIC_FAIL, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "end_column": end_column,
@@ -302,7 +302,7 @@ class CalculationDetector(BaseDetector):
                                 message=f"Zero duration may cause division issues",
                                 row=idx,
                                 column=duration_col,
-                                severity="HIGH",
+                                severity=self._get_severity(self.ERROR_DIVISION_BY_ZERO, "HIGH"),
                                 fail_fast=False,
                                 additional_context={
                                     "value": str(value),
@@ -315,7 +315,7 @@ class CalculationDetector(BaseDetector):
                                 message=f"Negative duration detected",
                                 row=idx,
                                 column=duration_col,
-                                severity="HIGH",
+                                severity=self._get_severity(self.ERROR_DATE_ARITHMETIC_FAIL, "HIGH"),
                                 fail_fast=False,
                                 additional_context={
                                     "value": str(value),
@@ -356,7 +356,7 @@ class CalculationDetector(BaseDetector):
                             message=f"Empty aggregate value in '{col}'",
                             row=idx,
                             column=col,
-                            severity="HIGH",
+                            severity=self._get_severity(self.ERROR_AGGREGATE_EMPTY, "HIGH"),
                             fail_fast=False,
                             additional_context={
                                 "value": str(value),
@@ -395,7 +395,7 @@ class CalculationDetector(BaseDetector):
                             message=f"Date calculation error in '{col}'",
                             row=idx,
                             column=col,
-                            severity="HIGH",
+                            severity=self._get_severity(self.ERROR_DATE_ARITHMETIC_FAIL, "HIGH"),
                             fail_fast=False,
                             additional_context={
                                 "value": str(value),

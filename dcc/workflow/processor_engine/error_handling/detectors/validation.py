@@ -375,7 +375,7 @@ class ValidationDetector(BaseDetector):
                     message=f"Required field '{column}' is missing at row {idx}",
                     row=idx,
                     column=column,
-                    severity="CRITICAL",
+                    severity=self._get_severity(rule.error_code or self.ERROR_REQUIRED_MISSING, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "column": column,

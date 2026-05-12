@@ -43,7 +43,8 @@ class BusinessDetector(BaseDetector):
         self,
         logger=None,
         enable_fail_fast: bool = True,
-        phases: Optional[List[ProcessingPhase]] = None
+        phases: Optional[List[ProcessingPhase]] = None,
+        parameters: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize business detector orchestrator.
@@ -52,6 +53,7 @@ class BusinessDetector(BaseDetector):
             logger: StructuredLogger instance
             enable_fail_fast: Whether to stop on critical errors
             phases: Phases to run (default: all phases)
+            parameters: Schema parameters dict for schema-driven defaults (C6)
         """
         super().__init__(
             layer="L3",
@@ -60,6 +62,7 @@ class BusinessDetector(BaseDetector):
         )
         
         self.phases = phases or list(ProcessingPhase)
+        self._parameters = parameters or {}
         self._phase_detectors: Dict[ProcessingPhase, List[BaseDetector]] = {
             phase: [] for phase in ProcessingPhase
         }
@@ -108,8 +111,8 @@ class BusinessDetector(BaseDetector):
             FillDetector(
                 logger=self._logger,
                 enable_fail_fast=self._enable_fail_fast,
-                jump_limit=20,
-                max_fill_percentage=80.0
+                # C6: Pass parameters so FillDetector reads fill_jump_limit from schema
+                parameters=self._parameters,
             )
         )
 

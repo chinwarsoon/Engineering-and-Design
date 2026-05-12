@@ -47,6 +47,20 @@
       "missing_column_action": "create_with_default",
       "default_value": "NA",
       "description": "Executed by _initialize_missing_columns. If a schema column is not found in the input data, it is created using the global or column-specific default value."
+    },
+    "fill_jump_limit": 20,
+    "fill_max_percentage": 80.0,
+    "health_pass_threshold": 90.0,
+    "health_fail_threshold": 60.0,
+    "health_grade_thresholds": {
+      "A+": 99.0,
+      "A":  95.0,
+      "A-": 90.0,
+      "B+": 85.0,
+      "B":  80.0,
+      "C":  70.0,
+      "D":  60.0,
+      "F":  0.0
     }
   }
 }

@@ -40,7 +40,28 @@ class HealthCalculator:
     """
     Orchestrator for calculating health metrics.
     """
-    
+
+    # Default grade thresholds — overridden by dcc_global_parameters.json health_grade_thresholds
+    _DEFAULT_GRADE_THRESHOLDS = {
+        "A+": 99.0,
+        "A":  95.0,
+        "A-": 90.0,
+        "B+": 85.0,
+        "B":  80.0,
+        "C":  70.0,
+        "D":  60.0,
+        "F":  0.0,
+    }
+
+    @classmethod
+    def _get_grade_thresholds(cls, parameters: dict = None) -> dict:
+        """Return grade thresholds from parameters (SSOT) or fall back to defaults."""
+        if parameters:
+            thresholds = parameters.get("health_grade_thresholds")
+            if isinstance(thresholds, dict) and thresholds:
+                return thresholds
+        return cls._DEFAULT_GRADE_THRESHOLDS
+
     @staticmethod
     def calculate_dataset_score(total_rows: int, critical_errors: int, high_errors: int) -> float:
         """
@@ -56,22 +77,21 @@ class HealthCalculator:
         score = max(0.0, (total_rows - deductions) / total_rows * 100.0)
         return round(score, 2)
         
-    @staticmethod
-    def get_grade(score: float) -> str:
+    @classmethod
+    def get_grade(cls, score: float, parameters: dict = None) -> str:
         """
-        Converts score to a letter grade based on industry standards.
+        Converts score to a letter grade.
+        Reads thresholds from parameters (SSOT: dcc_global_parameters.json health_grade_thresholds).
         """
-        if score >= 99.0: return "A+"
-        if score >= 95.0: return "A"
-        if score >= 90.0: return "A-"
-        if score >= 85.0: return "B+"
-        if score >= 80.0: return "B"
-        if score >= 70.0: return "C"
-        if score >= 60.0: return "D"
+        thresholds = cls._get_grade_thresholds(parameters)
+        # Sort by threshold value descending so highest threshold is checked first
+        for grade, threshold in sorted(thresholds.items(), key=lambda x: x[1], reverse=True):
+            if score >= threshold:
+                return grade
         return "F"
         
     @classmethod
-    def get_kpi(cls, total_rows: int, errors: List[Any]) -> DataHealthKPI:
+    def get_kpi(cls, total_rows: int, errors: List[Any], parameters: dict = None) -> DataHealthKPI:
         """
         Calculate full KPI from a list of DetectionResult objects.
         """
@@ -87,7 +107,7 @@ class HealthCalculator:
         }
         
         score = cls.calculate_dataset_score(total_rows, critical_count, high_count)
-        grade = cls.get_grade(score)
+        grade = cls.get_grade(score, parameters=parameters)
         
         return DataHealthKPI(
             total_rows=total_rows,

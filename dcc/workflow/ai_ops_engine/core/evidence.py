@@ -14,8 +14,9 @@ from .contracts import AiInsight
 
 logger = logging.getLogger(__name__)
 
-# Map error codes to their pipeline phase
-_ERROR_PHASE_MAP: Dict[str, str] = {
+# Fallback map used when error catalog is not available.
+# Catalog is the SSOT — this is only a safety net for codes not yet in the catalog.
+_FALLBACK_ERROR_PHASE_MAP: Dict[str, str] = {
     "P1-A-P-0101": "P1",
     "P2-I-V-0204": "P2",
     "P2-I-P-0201": "P2",
@@ -32,9 +33,32 @@ _ERROR_PHASE_MAP: Dict[str, str] = {
 }
 
 
+def _get_phase_from_catalog(code: str, error_catalog: Dict[str, Any]) -> str:
+    """
+    Resolve the processing phase for an error code.
+
+    Reads from error_catalog (data_error_config.json) first.
+    Falls back to _FALLBACK_ERROR_PHASE_MAP for codes not in the catalog.
+
+    Args:
+        code: Error code string
+        error_catalog: Dict of error_code -> catalog entry (from blueprint.error_catalog)
+
+    Returns:
+        Phase string (e.g. "P1", "P2.5") or "Unknown"
+    """
+    if error_catalog:
+        entry = error_catalog.get(code, {})
+        phase = entry.get("processing_phase")
+        if phase:
+            return phase
+    return _FALLBACK_ERROR_PHASE_MAP.get(code, "Unknown")
+
+
 def attach_evidence_links(
     insight: AiInsight,
     dashboard_data: Dict[str, Any],
+    error_catalog: Dict[str, Any] = None,
 ) -> AiInsight:
     """
     Attach deterministic evidence links to each risk in the AiInsight.
@@ -45,6 +69,7 @@ def attach_evidence_links(
     Args:
         insight: AiInsight from provider (may have empty evidence_links)
         dashboard_data: Loaded error_dashboard_data.json dict
+        error_catalog: Optional error catalog from blueprint (SSOT for phase mapping)
 
     Returns:
         AiInsight with evidence_links populated
@@ -53,12 +78,16 @@ def attach_evidence_links(
     column_health = {c.get("column"): c.get("error_count", 0) for c in dashboard_data.get("column_health", [])}
     recent_errors = dashboard_data.get("recent_errors", [])
 
+    # C3: Use error catalog as SSOT for phase mapping
+    error_catalog = error_catalog or {}
+
     evidence_links = []
 
     for risk in insight.top_risks:
         for code in risk.error_codes:
             et = error_types.get(code, {})
-            phase = _ERROR_PHASE_MAP.get(code, "Unknown")
+            # C3: Read phase from error catalog (SSOT)
+            phase = _get_phase_from_catalog(code, error_catalog)
 
             # Find sample rows from recent_errors matching this code
             sample_rows = [

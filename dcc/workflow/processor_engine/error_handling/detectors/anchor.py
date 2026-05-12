@@ -27,7 +27,8 @@ class AnchorDetector(BaseDetector):
     before any downstream processing.
     """
     
-    # P1 anchor columns
+    # P1 anchor columns — fallback when schema is not available
+    # C10: Schema (dcc_register_config.json is_anchor: true) is SSOT
     ANCHOR_COLUMNS = [
         "Project_Code",
         "Facility_Code", 
@@ -64,6 +65,22 @@ class AnchorDetector(BaseDetector):
             enable_fail_fast=enable_fail_fast
         )
         self.required_anchors = required_anchors or self.ANCHOR_COLUMNS
+
+    def _get_anchor_columns(self) -> List[str]:
+        """
+        C10: Return anchor columns from schema (SSOT) or fallback constant.
+        Reads columns with is_anchor: true from context schema_data.
+        """
+        schema_data = self._context.get("schema_data", {})
+        columns = schema_data.get("columns", {})
+        if columns:
+            anchor_cols = [
+                name for name, defn in columns.items()
+                if isinstance(defn, dict) and defn.get("is_anchor")
+            ]
+            if anchor_cols:
+                return anchor_cols
+        return self.ANCHOR_COLUMNS
     
     def detect(
         self,
@@ -95,17 +112,19 @@ class AnchorDetector(BaseDetector):
     def _detect_null_anchors(self, df: pd.DataFrame) -> None:
         """
         Detect null values in anchor columns.
-        
+
         Error: P1-A-P-0101 (CRITICAL - FAIL FAST)
         """
-        for col in self.required_anchors:
+        # C10: Use schema-driven anchor columns (SSOT) with fallback to required_anchors
+        anchor_cols = self._get_anchor_columns()
+        for col in anchor_cols:
             if col not in df.columns:
                 # Column missing entirely - critical error
                 self.detect_error(
                     error_code=self.ERROR_NULL_ANCHOR,
                     message=f"Anchor column '{col}' is missing from DataFrame",
                     column=col,
-                    severity="CRITICAL",
+                    severity=self._get_severity(self.ERROR_NULL_ANCHOR, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "available_columns": list(df.columns),
@@ -126,7 +145,7 @@ class AnchorDetector(BaseDetector):
                     error_code=self.ERROR_NULL_ANCHOR,
                     message=f"Anchor column '{col}' has {null_count} null/empty values",
                     column=col,
-                    severity="CRITICAL",
+                    severity=self._get_severity(self.ERROR_NULL_ANCHOR, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "null_count": int(null_count),
@@ -177,7 +196,7 @@ class AnchorDetector(BaseDetector):
                     message=f"Invalid Submission_Session format: '{value}' (expected pattern: {pattern.pattern})",
                     row=idx,
                     column=session_col,
-                    severity="HIGH",
+                    severity=self._get_severity(self.ERROR_SESSION_FORMAT, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "actual_value": value,
@@ -216,7 +235,7 @@ class AnchorDetector(BaseDetector):
                         message=f"Invalid date format in '{col}': '{value}'",
                         row=idx,
                         column=col,
-                        severity="HIGH",
+                        severity=self._get_severity(self.ERROR_DATE_INVALID, "HIGH"),
                         fail_fast=False,
                         additional_context={
                             "actual_value": str(value),

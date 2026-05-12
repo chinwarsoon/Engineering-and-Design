@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 # Health score weights per dcc_register_rule.md Section 5.4
 # Updated to use standardized error codes (Phase 2 - 2026-04-24)
+# C13: Fallback weights — catalog (data_error_config.json health_score_impact) is SSOT.
+# These are used only when error_catalog is not available in context.
 ROW_ERROR_WEIGHTS: Dict[str, int] = {
     "ANCHOR_NULL":            25,
     "COMPOSITE_MISMATCH":     20,
@@ -48,7 +50,8 @@ ROW_ERROR_WEIGHTS: Dict[str, int] = {
     "L3-L-V-0306":             5,  # REVISION_GAP
 }
 
-# Anchor columns that must not be null (Section 4.1)
+# C10: Fallback anchor columns — schema (dcc_register_config.json is_anchor: true) is SSOT.
+# Used only when blueprint.columns is not available.
 ANCHOR_REQUIRED = [
     "Document_ID",
     "Project_Code",
@@ -57,7 +60,8 @@ ANCHOR_REQUIRED = [
     "Document_Sequence_Number",
 ]
 
-# Document_ID constituent segments in order (Section 4.2)
+# C11: Fallback Document_ID segments — schema (Document_ID.calculation.source_columns) is SSOT.
+# Used only when blueprint.columns is not available.
 DOC_ID_SEGMENTS = [
     "Project_Code",
     "Facility_Code",
@@ -85,9 +89,48 @@ class RowValidator(BaseDetector):
         """
         super().__init__(layer="RV", logger=logger_inst, enable_fail_fast=enable_fail_fast)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+    def _get_anchor_columns(self) -> List[str]:
+        """
+        C10: Return anchor columns from schema (SSOT) or fallback constant.
+        Reads columns with is_anchor: true from context blueprint.
+        """
+        schema_data = self._context.get("schema_data", {})
+        columns = schema_data.get("columns", {})
+        if columns:
+            anchor_cols = [name for name, defn in columns.items()
+                           if isinstance(defn, dict) and defn.get("is_anchor")]
+            if anchor_cols:
+                return anchor_cols
+        return ANCHOR_REQUIRED
+
+    def _get_doc_id_segments(self) -> List[str]:
+        """
+        C11: Return Document_ID source columns from schema (SSOT) or fallback constant.
+        Reads Document_ID.calculation.source_columns from context blueprint.
+        """
+        schema_data = self._context.get("schema_data", {})
+        columns = schema_data.get("columns", {})
+        doc_id_def = columns.get("Document_ID", {})
+        source_cols = doc_id_def.get("calculation", {}).get("source_columns")
+        if source_cols and isinstance(source_cols, list):
+            return source_cols
+        return DOC_ID_SEGMENTS
+
+    def _get_row_error_weights(self) -> Dict[str, int]:
+        """
+        C13: Return error weights from error catalog (SSOT) or fallback constant.
+        Reads health_score_impact from context error_catalog.
+        """
+        catalog = self._context.get("error_catalog", {})
+        if catalog:
+            weights = {}
+            for code, entry in catalog.items():
+                impact = entry.get("health_score_impact")
+                if impact is not None:
+                    weights[code] = abs(int(impact))
+            if weights:
+                return weights
+        return ROW_ERROR_WEIGHTS.copy()
 
     def detect(
         self,
@@ -131,11 +174,12 @@ class RowValidator(BaseDetector):
     def compute_row_health_weights(self) -> Dict[str, int]:
         """
         Return the error-weight map used for Data_Health_Score calculation.
+        C13: Reads from error catalog (SSOT) when available.
 
         Returns:
             Dict mapping error key → deduction weight
         """
-        return ROW_ERROR_WEIGHTS.copy()
+        return self._get_row_error_weights()
 
     # ------------------------------------------------------------------
     # Phase 1 – Anchor & Composite Identity
@@ -146,9 +190,11 @@ class RowValidator(BaseDetector):
         Phase 1.1 – Verify no anchor column is null.
 
         Error: P1-A-P-0101 (HIGH)
-        Breadcrumb: df → ANCHOR_REQUIRED columns → null mask → detect_error per row
+        Breadcrumb: df → anchor columns (C10: schema-driven) → null mask → detect_error per row
         """
-        for col in ANCHOR_REQUIRED:
+        # C10: Read anchor columns from schema (SSOT) or fallback constant
+        anchor_cols = self._get_anchor_columns()
+        for col in anchor_cols:
             if col not in df.columns:
                 continue
             null_mask = df[col].isna() | (df[col].astype(str).str.strip() == "")
@@ -158,7 +204,7 @@ class RowValidator(BaseDetector):
                     message=f"Anchor column '{col}' is null at row {idx}",
                     row=idx,
                     column=col,
-                    severity="HIGH",
+                    severity=self._get_severity("P1-A-P-0101", "HIGH"),
                     fail_fast=False,
                     additional_context={"error_key": "ANCHOR_NULL", "anchor_column": col},
                 )
@@ -176,7 +222,9 @@ class RowValidator(BaseDetector):
         if "Document_ID" not in df.columns:
             return
 
-        available_segs = [c for c in DOC_ID_SEGMENTS if c in df.columns]
+        # C11: Read Document_ID segments from schema (SSOT) or fallback constant
+        doc_id_segments = self._get_doc_id_segments()
+        available_segs = [c for c in doc_id_segments if c in df.columns]
         if len(available_segs) < 5:
             logger.warning(
                 f"[RowValidator._validate_composite_identity] Only {len(available_segs)}/5 "
@@ -203,7 +251,7 @@ class RowValidator(BaseDetector):
                     message=f"Document_ID '{doc_id}' has fewer than 5 segments at row {idx}",
                     row=idx,
                     column="Document_ID",
-                    severity="HIGH",
+                    severity=self._get_severity("P2-I-V-0204", "HIGH"),
                     fail_fast=False,
                     additional_context={"error_key": "COMPOSITE_MISMATCH", "base_id": base_id},
                 )
@@ -211,7 +259,7 @@ class RowValidator(BaseDetector):
 
             # Compare each segment against its source column
             mismatches = []
-            for seg_idx, col in enumerate(DOC_ID_SEGMENTS):
+            for seg_idx, col in enumerate(doc_id_segments):
                 expected = str(df.at[idx, col]).strip() if pd.notna(df.at[idx, col]) else ""
                 actual = parts[seg_idx].strip()
                 if expected and actual != expected:
@@ -223,7 +271,7 @@ class RowValidator(BaseDetector):
                     message=f"Document_ID composite mismatch at row {idx}: {'; '.join(mismatches)}",
                     row=idx,
                     column="Document_ID",
-                    severity="HIGH",
+                    severity=self._get_severity("P2-I-V-0204", "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "error_key": "COMPOSITE_MISMATCH",
@@ -231,6 +279,18 @@ class RowValidator(BaseDetector):
                         "mismatches": mismatches,
                     },
                 )
+
+    def _get_rejected_code(self) -> str:
+        """
+        C14: Return the rejected approval code from schema (SSOT) or fallback 'REJ'.
+        Reads from approval_code_schema filtered by status == 'Rejected'.
+        """
+        schema_data = self._context.get("schema_data", {})
+        approval_codes = schema_data.get("approval_codes", [])
+        for entry in approval_codes:
+            if isinstance(entry, dict) and entry.get("status", "").lower() == "rejected":
+                return entry.get("code", "REJ")
+        return "REJ"
 
     # ------------------------------------------------------------------
     # Phase 2 – Temporal & Logical Sequence
@@ -262,7 +322,7 @@ class RowValidator(BaseDetector):
                     ),
                     row=idx,
                     column=ret_col,
-                    severity="HIGH",
+                    severity=self._get_severity("L3-L-P-0301", "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "error_key": "DATE_INVERSION",
@@ -296,7 +356,7 @@ class RowValidator(BaseDetector):
                 ),
                 row=idx,
                 column=plan_col,
-                severity="HIGH",
+                severity=self._get_severity("L3-L-V-0302", "HIGH"),
                 fail_fast=False,
                 additional_context={
                     "error_key": "CLOSED_WITH_PLAN_DATE",
@@ -306,17 +366,19 @@ class RowValidator(BaseDetector):
 
     def _validate_resubmission_logic(self, df: pd.DataFrame) -> None:
         """
-        Phase 2.3 – Review_Status containing 'REJ' must have Resubmission_Required in (YES, RESUBMITTED).
+        Phase 2.3 – Review_Status containing rejected code must have Resubmission_Required in (YES, RESUBMITTED).
 
         Error: RESUBMISSION_MISMATCH (MEDIUM)
-        Breadcrumb: df['Review_Status'].str.contains('REJ') → df['Resubmission_Required']
+        Breadcrumb: df['Review_Status'].str.contains(rejected_code) → df['Resubmission_Required']
         """
         status_col = "Review_Status"
         resub_col = "Resubmission_Required"
         if status_col not in df.columns or resub_col not in df.columns:
             return
 
-        rej_mask = df[status_col].astype(str).str.upper().str.contains("REJ", na=False)
+        # C14: Read rejected code from approval_code_schema (SSOT)
+        rejected_code = self._get_rejected_code()
+        rej_mask = df[status_col].astype(str).str.upper().str.contains(rejected_code, na=False)
         valid_resub = {"YES", "RESUBMITTED"}
         bad_resub_mask = ~df[resub_col].astype(str).str.upper().isin(valid_resub)
 
@@ -329,7 +391,7 @@ class RowValidator(BaseDetector):
                 ),
                 row=idx,
                 column=resub_col,
-                severity="MEDIUM",
+                severity=self._get_severity("L3-L-V-0303", "MEDIUM"),
                 fail_fast=False,
                 additional_context={
                     "error_key": "RESUBMISSION_MISMATCH",
@@ -376,7 +438,7 @@ class RowValidator(BaseDetector):
                         ),
                         row=idx,
                         column=overdue_col,
-                        severity="MEDIUM",
+                        severity=self._get_severity("L3-L-V-0304", "MEDIUM"),
                         fail_fast=False,
                         additional_context={
                             "error_key": "OVERDUE_MISMATCH",
@@ -479,7 +541,7 @@ class RowValidator(BaseDetector):
                                 ),
                                 row=idx,
                                 column=rev_col,
-                                severity="HIGH",
+                                severity=self._get_severity("L3-L-V-0305", "HIGH"),
                                 fail_fast=False,
                                 additional_context={
                                     "error_key": "VERSION_REGRESSION",
@@ -538,7 +600,7 @@ class RowValidator(BaseDetector):
                         ),
                         row=first_idx,
                         column=rev_col,
-                        severity="LOW",
+                        severity=self._get_severity("L3-L-V-0306", "LOW"),
                         fail_fast=False,
                         additional_context={
                             "error_key": "REVISION_GAP",

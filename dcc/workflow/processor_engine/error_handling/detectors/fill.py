@@ -37,7 +37,7 @@ class FillDetector(BaseDetector):
     ERROR_EXCESSIVE_NULLS = "F4-C-F-0404"
     ERROR_INVALID_GROUPING = "F4-C-F-0405"
     
-    # Default limits
+    # Default limits — overridden by dcc_global_parameters.json fill_jump_limit / fill_max_percentage
     DEFAULT_JUMP_LIMIT = 20
     DEFAULT_MAX_FILL_PERCENTAGE = 80  # Alert if >80% of rows are filled
     
@@ -45,8 +45,9 @@ class FillDetector(BaseDetector):
         self,
         logger=None,
         enable_fail_fast: bool = True,
-        jump_limit: int = 20,
-        max_fill_percentage: float = 80.0
+        jump_limit: int = None,
+        max_fill_percentage: float = None,
+        parameters: dict = None,
     ):
         """
         Initialize fill detector.
@@ -54,16 +55,19 @@ class FillDetector(BaseDetector):
         Args:
             logger: StructuredLogger instance
             enable_fail_fast: Whether to raise on critical errors
-            jump_limit: Maximum allowed row jump for forward fill
-            max_fill_percentage: Maximum allowed percentage of filled values (0-100)
+            jump_limit: Maximum allowed row jump for forward fill (overrides schema default)
+            max_fill_percentage: Maximum allowed percentage of filled values (overrides schema default)
+            parameters: Schema parameters dict (dcc_global_parameters.json dcc_parameters)
         """
         super().__init__(
             layer="L3",
             logger=logger,
             enable_fail_fast=enable_fail_fast
         )
-        self.jump_limit = jump_limit
-        self.max_fill_percentage = max_fill_percentage
+        # C6: Read limits from parameters (SSOT) with constructor arg as override
+        _params = parameters or {}
+        self.jump_limit = jump_limit if jump_limit is not None else _params.get("fill_jump_limit", self.DEFAULT_JUMP_LIMIT)
+        self.max_fill_percentage = max_fill_percentage if max_fill_percentage is not None else _params.get("fill_max_percentage", self.DEFAULT_MAX_FILL_PERCENTAGE)
     
     def detect(
         self,
@@ -176,7 +180,7 @@ class FillDetector(BaseDetector):
                 message=f"Forward fill row jump exceeded limit: {row_jump} > {self.jump_limit}",
                 row=to_row_idx,
                 column=column,
-                severity="HIGH",
+                severity=self._get_severity(self.ERROR_JUMP_LIMIT, "HIGH"),
                 fail_fast=False,
                 additional_context={
                     # Phase D: Enhanced context fields
@@ -204,7 +208,7 @@ class FillDetector(BaseDetector):
                 message=f"Forward fill crossed session boundary",
                 row=to_row_idx,
                 column=column,
-                severity="HIGH",
+                severity=self._get_severity(self.ERROR_BOUNDARY_CROSS, "HIGH"),
                 fail_fast=False,
                 additional_context={
                     # Phase D: Enhanced context fields
@@ -246,7 +250,7 @@ class FillDetector(BaseDetector):
                 message=f"Multi-level fill failed to find value, default applied",
                 row=to_row_idx,
                 column=column,
-                severity="WARNING",
+                severity=self._get_severity(self.ERROR_FILL_INFERRED, "WARNING"),
                 fail_fast=False,
                 additional_context={
                     # Phase D: Enhanced context fields
@@ -301,7 +305,7 @@ class FillDetector(BaseDetector):
                                 message=f"Potential forward fill with {row_jump} row jump in '{col}'",
                                 row=idx,
                                 column=col,
-                                severity="HIGH",
+                                severity=self._get_severity(self.ERROR_JUMP_LIMIT, "HIGH"),
                                 fail_fast=False,
                                 additional_context={
                                     "column": col,
@@ -355,7 +359,7 @@ class FillDetector(BaseDetector):
                             message=f"Value '{current_value}' appears in multiple sessions",
                             row=idx,
                             column=col,
-                            severity="HIGH",
+                            severity=self._get_severity(self.ERROR_BOUNDARY_CROSS, "HIGH"),
                             fail_fast=False,
                             additional_context={
                                 "column": col,
@@ -408,7 +412,7 @@ class FillDetector(BaseDetector):
                             message=f"Value in '{col}' may be calculated/inferred",
                             row=idx,
                             column=col,
-                            severity="WARNING",
+                            severity=self._get_severity(self.ERROR_FILL_INFERRED, "WARNING"),
                             fail_fast=False,
                             additional_context={
                                 "column": col,
@@ -533,7 +537,7 @@ class FillDetector(BaseDetector):
                 message=f"Default value applied to fill nulls in '{column}'",
                 row=to_row_idx,
                 column=column,
-                severity="WARNING",
+                severity=self._get_severity(self.ERROR_FILL_INFERRED, "WARNING"),
                 fail_fast=False,
                 additional_context={
                     # Phase D: Enhanced context fields
@@ -598,7 +602,7 @@ class FillDetector(BaseDetector):
                     message=f"Excessive null fills in '{column}': {fill_percentage:.1f}% of rows filled",
                     row=to_row_idx,
                     column=column,
-                    severity="WARNING",
+                    severity=self._get_severity(self.ERROR_EXCESSIVE_NULLS, "WARNING"),
                     fail_fast=False,
                     additional_context={
                         # Phase D: Enhanced context fields
@@ -644,7 +648,7 @@ class FillDetector(BaseDetector):
                 message=f"Empty group_by configuration for '{column}'",
                 row=to_row_idx,
                 column=column,
-                severity="ERROR",
+                severity=self._get_severity(self.ERROR_INVALID_GROUPING, "ERROR"),
                 fail_fast=False,
                 additional_context={
                     # Phase D: Enhanced context fields

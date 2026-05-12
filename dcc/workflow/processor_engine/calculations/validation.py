@@ -69,8 +69,10 @@ def _get_ref_data(schema_ref: str, schema_data: dict) -> dict:
     return schema_data.get(f'{schema_ref}_data', {})
 
 
-# Error codes mapping based on error_handling/config/error_codes.json
-ERROR_CODES = {
+# Default error codes mapping for validation rule types.
+# Can be overridden via schema_data['validation_error_codes'].
+# Based on error_handling/config/error_codes.json
+DEFAULT_VALIDATION_ERROR_CODES = {
     'required': 'P-V-V-0505',
     'allow_null': 'P-V-V-0505',
     'pattern': 'P-V-V-0501',
@@ -85,6 +87,9 @@ ERROR_CODES = {
     'derived_pattern': 'P-V-V-0501',
     'group_consistency': 'P-V-V-0501',
 }
+
+# Keep backward-compatible alias — callers that imported ERROR_CODES directly still work.
+ERROR_CODES = DEFAULT_VALIDATION_ERROR_CODES
 
 
 def collect_raw_pattern_errors(df: pd.DataFrame, columns_schema: dict) -> pd.Series:
@@ -150,6 +155,10 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
     """
     df_validated = df.copy()
 
+    # C1: Read validation error codes from schema_data if available (SSOT).
+    # Falls back to DEFAULT_VALIDATION_ERROR_CODES so existing behaviour is preserved.
+    error_codes = schema_data.get('validation_error_codes', DEFAULT_VALIDATION_ERROR_CODES)
+
     # Initialize Validation_Errors column if it exists in schema
     error_col = "Validation_Errors"
     if error_col in columns_schema:
@@ -191,7 +200,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
 
         mask_null = df_validated[column_name].isna()
         if not allow_null and mask_null.any():
-            code = ERROR_CODES.get('allow_null', 'P-V-V-0505')
+            code = error_codes.get('allow_null', 'P-V-V-0505')
             msg = f"{column_name} cannot be null"
             logger.warning(f"Validation failed: {msg} ({mask_null.sum()} found)")
             record_errors(mask_null, msg, code=code)
@@ -208,7 +217,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 if allow_null:
                     mask &= df_validated[column_name].notna()
                 if mask.any():
-                    code = ERROR_CODES.get('pattern', 'P-V-V-0501')
+                    code = error_codes.get('pattern', 'P-V-V-0501')
                     msg = f"{column_name} pattern mismatch ({pattern})"
                     logger.warning(f"Pattern validation failed for {column_name}: {mask.sum()} invalid values")
                     record_errors(mask, msg, code=code)
@@ -220,7 +229,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 if allow_null:
                     mask &= df_validated[column_name].notna()
                 if mask.any():
-                    code = ERROR_CODES.get('min_length', 'P-V-V-0501')
+                    code = error_codes.get('min_length', 'P-V-V-0501')
                     msg = f"{column_name} too short (<{min_len})"
                     logger.warning(f"Min length validation failed for {column_name}: {mask.sum()} values too short")
                     record_errors(mask, msg, code=code)
@@ -231,7 +240,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 if allow_null:
                     mask &= df_validated[column_name].notna()
                 if mask.any():
-                    code = ERROR_CODES.get('max_length', 'P-V-V-0502')
+                    code = error_codes.get('max_length', 'P-V-V-0502')
                     msg = f"{column_name} too long (>{max_len})"
                     logger.warning(f"Max length validation failed for {column_name}: {mask.sum()} values too long")
                     record_errors(mask, msg, code=code)
@@ -242,7 +251,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 if allow_null:
                     mask &= df_validated[column_name].notna()
                 if mask.any():
-                    code = ERROR_CODES.get('max_value', 'P-V-V-0501')
+                    code = error_codes.get('max_value', 'P-V-V-0501')
                     msg = f"{column_name} too high (>{max_val})"
                     logger.warning(f"Max value validation failed for {column_name}: {mask.sum()} numeric values > {max_val}")
                     record_errors(mask, msg, code=code)
@@ -253,7 +262,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 if allow_null:
                     mask &= df_validated[column_name].notna()
                 if mask.any():
-                    code = ERROR_CODES.get('min_value', 'P-V-V-0501')
+                    code = error_codes.get('min_value', 'P-V-V-0501')
                     msg = f"{column_name} too low (<{min_val})"
                     logger.warning(f"Min value validation failed for {column_name}: {mask.sum()} numeric values < {min_val}")
                     record_errors(mask, msg, code=code)
@@ -264,7 +273,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 if allow_null:
                     mask &= df_validated[column_name].notna()
                 if mask.any():
-                    code = ERROR_CODES.get('format', 'P-V-V-0504')
+                    code = error_codes.get('format', 'P-V-V-0504')
                     msg = f"{column_name} invalid date format (expected YYYY-MM-DD)"
                     logger.warning(f"Format validation (YYYY-MM-DD) failed for {column_name}: {mask.sum()} invalid dates")
                     record_errors(mask, msg, code=code)
@@ -275,7 +284,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 if allow_null:
                     mask &= df_validated[column_name].notna()
                 if mask.any():
-                    code = ERROR_CODES.get('allowed_values', 'P-V-V-0503')
+                    code = error_codes.get('allowed_values', 'P-V-V-0503')
                     msg = f"{column_name} value not allowed"
                     logger.warning(f"Allowed values validation failed for {column_name}: {mask.sum()} invalid values")
                     record_errors(mask, msg, code=code)
@@ -289,7 +298,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                         nunique_counts = df_validated.groupby(valid_group_cols)[target_col].transform('nunique')
                         mask = nunique_counts > 1
                         if mask.any():
-                            code = ERROR_CODES.get('group_consistency', 'P-V-V-0501')
+                            code = error_codes.get('group_consistency', 'P-V-V-0501')
                             msg = f"{column_name} group inconsistency on {target_col}"
                             logger.warning(f"Group consistency validation failed for {column_name}: Column {target_col} must be the same within groups {valid_group_cols}")
                             record_errors(mask, msg, code=code)
@@ -308,7 +317,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                         exclude_codes=validation.get('exclude_codes', []),
                     )
                     if mask is not None and mask.any():
-                        code = ERROR_CODES.get('schema_reference_check', 'P-V-V-0506')
+                        code = error_codes.get('schema_reference_check', 'P-V-V-0506')
                         msg = f"{column_name} not in {schema_ref}"
                         record_errors(mask, msg, code=code)
 
@@ -328,7 +337,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                         if allow_null:
                             mask &= df_validated[column_name].notna()
                         if mask.any():
-                            code = ERROR_CODES.get('starts_with_schema_reference', 'P-V-V-0501')
+                            code = error_codes.get('starts_with_schema_reference', 'P-V-V-0501')
                             msg = f"{column_name} does not start with valid code from {schema_ref}"
                             logger.warning(f"Starts-with validation failed for {column_name}: {mask.sum()} invalid values")
                             record_errors(mask, msg, code=code)
@@ -389,7 +398,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                         mask &= df_validated[column_name].notna()
                     
                 if mask.any():
-                    code = ERROR_CODES.get('derived_pattern', 'P-V-V-0501')
+                    code = error_codes.get('derived_pattern', 'P-V-V-0501')
                     msg = f"{column_name} dynamic pattern mismatch"
                     
                     # Include affix info in error context for debugging
@@ -420,7 +429,7 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                 df_validated, column_name, allow_null, schema_ref, schema_data
             )
             if mask is not None and mask.any():
-                code = ERROR_CODES.get('schema_reference_check', 'P-V-V-0506')
+                code = error_codes.get('schema_reference_check', 'P-V-V-0506')
                 msg = f"{column_name} not in {schema_ref}"
                 record_errors(mask, msg, code=code)
 
