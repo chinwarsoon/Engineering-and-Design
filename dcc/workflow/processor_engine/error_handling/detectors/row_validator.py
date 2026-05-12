@@ -91,14 +91,23 @@ class RowValidator(BaseDetector):
 
     def _get_anchor_columns(self) -> List[str]:
         """
-        C10: Return anchor columns from schema (SSOT) or fallback constant.
-        Reads columns with is_anchor: true from context blueprint.
+        C10: Return required anchor columns for row-level completeness check.
+        Reads columns with is_anchor: true OR (required: true AND allow_null: false AND is_row_key: true)
+        from context schema_data. Falls back to ANCHOR_REQUIRED constant.
+
+        Note: is_anchor covers P1 anchor detector columns; is_row_key covers Document_ID and
+        Submission_Date which are required for row-level cross-field validation.
         """
         schema_data = self._context.get("schema_data", {})
         columns = schema_data.get("columns", {})
         if columns:
-            anchor_cols = [name for name, defn in columns.items()
-                           if isinstance(defn, dict) and defn.get("is_anchor")]
+            anchor_cols = [
+                name for name, defn in columns.items()
+                if isinstance(defn, dict) and (
+                    defn.get("is_anchor")
+                    or (defn.get("is_row_key") and defn.get("required") and not defn.get("allow_null", True))
+                )
+            ]
             if anchor_cols:
                 return anchor_cols
         return ANCHOR_REQUIRED
@@ -521,6 +530,8 @@ class RowValidator(BaseDetector):
             if len(group) <= 1:
                 continue
             if sort_col:
+                group = group.copy()
+                group[sort_col] = pd.to_datetime(group[sort_col], errors='coerce')
                 group = group.sort_values(sort_col)
 
             prev_rev_str: Optional[str] = None

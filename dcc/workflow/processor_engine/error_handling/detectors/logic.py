@@ -112,8 +112,8 @@ class LogicDetector(BaseDetector):
                         message=f"Review return date before submission at row {idx}",
                         row=idx,
                         column=return_col,
-                        severity=self._get_severity(self.ERROR_DATE_INVERSION, "CRITICAL"),
-                        fail_fast=True,
+                        severity=self._get_severity(self.ERROR_DATE_INVERSION, "HIGH"),
+                        fail_fast=False,
                         additional_context={
                             "submission_date": str(submit_date),
                             "return_date": str(return_date),
@@ -141,6 +141,8 @@ class LogicDetector(BaseDetector):
             
             # Sort by submission date if available
             if "Submission_Date" in group.columns:
+                group = group.copy()
+                group["Submission_Date"] = pd.to_datetime(group["Submission_Date"], errors='coerce')
                 group = group.sort_values("Submission_Date")
             
             prev_rev = None
@@ -432,6 +434,8 @@ class LogicDetector(BaseDetector):
                 continue
             
             if "Submission_Date" in group.columns:
+                group = group.copy()
+                group["Submission_Date"] = pd.to_datetime(group["Submission_Date"], errors='coerce')
                 group = group.sort_values("Submission_Date")
             
             prev_rev = None

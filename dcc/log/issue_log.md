@@ -1015,3 +1015,42 @@
   - workflow/dcc_engine_pipeline.py
 - [Resolution]: Changed CLI parsing to only record explicit user overrides, returned an explicit override-status boolean to the pipeline banner path, removed the duplicate validator bootstrap from `test_environment()`, and added an environment-ready milestone after a successful dependency check.
 - [Link to Update Log]: [update_log.md](#issue43-pipeline-initiation-cli)
+
+<a id="issue-iss-013"></a>
+## 2026-05-12
+
+### Issue ISS-013 — `Resubmission_Plan_Date` Incorrectly Set to `NaT` for Superseded (Non-Latest) Submission Rows
+
+- **Status:** ✅ RESOLVED (final fix 2026-05-12)
+- **Resolution Date:** 2026-05-12
+- **Context:** `Resubmission_Plan_Date` was producing `NaT` for all prior submission rows (rows where `Submission_Date < Latest_Submission_Date`). Only the latest submission row for each `Document_ID` received a calculated plan date.
+- **Root Cause — two iterations:**
+  - **First fix (ISS-013 initial):** `apply_resubmission_plan_date` condition 1 used `Submission_Closed == 'YES'` to set `NaT`. Because `apply_submission_closure_status` marks superseded rows as `'YES'`, all prior rows got `NaT`. Fixed by switching to `Latest_Approval_Code in terminal_codes`.
+  - **Second fix (this entry):** The `Latest_Approval_Code` check was applied to **all rows** regardless of whether they were the latest submission. `Latest_Approval_Code` reflects the document's current state — a superseded row that was `REJ` at the time has `Latest_Approval_Code = 'APP'` if the document was later approved. This caused every row of an eventually-approved document to get `NaT`. Fixed by adding `Submission_Date == Latest_Submission_Date` as a required co-condition — only the latest submission row of a terminally closed document gets `NaT`.
+- **Impact:** Superseded rows had no `Resubmission_Plan_Date`, making `Delay_of_Resubmission` calculations incorrect.
+- **File Changes:**
+  - `dcc/workflow/processor_engine/calculations/date.py` — `apply_resubmission_plan_date` condition 1: now requires both `Submission_Date == Latest_Submission_Date` AND `Latest_Approval_Code in terminal_codes`. Superseded rows always fall through to conditions 2–4.
+  - `dcc/config/schemas/dcc_register_config.json` — `Resubmission_Plan_Date.calculation.dependencies`: added `Latest_Approval_Code` as 5th dependency; condition 1 description updated.
+  - `dcc/workplan/column_processing/column_update_logic.md` — Step 37 updated.
+- **Resolution:** Condition 1 = `Submission_Date == Latest_Submission_Date AND Latest_Approval_Code in [APP, VOID, INF]` → `NaT`. All other rows (including superseded) receive a calculated plan date.
+- **Link to Update Log:** [update-2026-05-12-resubmission-plan-date-fix](#update-2026-05-12-resubmission-plan-date-fix)
+
+<a id="issue-iss-014"></a>
+## 2026-05-12
+
+### Issue ISS-014 — `Delay_of_Resubmission` Always 0 for Latest Submission Row When Resubmission Is Overdue
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-12
+- **Context:** `Delay_of_Resubmission` was 0 for the latest (active) submission row even when the review had been returned (`Review_Return_Actual_Date` populated), a plan date existed (`Resubmission_Plan_Date` in the past), and the resubmission had not yet occurred. Additionally, the original backward-looking logic (`shift(1).cummax()`) assigned delay to the *resubmission row* rather than the *plan-setting row*, contradicting the user requirement that delay should be stored on the previous submission (the row whose plan was missed). The `Submission_Closed == 'YES'` override also incorrectly zeroed out superseded rows, which are exactly the rows that should carry delay values.
+- **Root Cause — three compounding issues:**
+  1. **Wrong row assignment:** `shift(1).cummax()` assigned delay to the resubmission row (Row B gets the delay). Correct: delay belongs on the plan-setting row (Row A gets the delay because its plan was missed by Row B).
+  2. **Latest row gap:** No next submission row exists for the latest row, so `shift(-1)` returns `NaT` → delay = 0, even when the plan date has passed and review has been returned.
+  3. **Incorrect closed override:** `Submission_Closed == 'YES'` zeroed all closed rows including superseded ones. Only terminally closed rows (APP/VOID/INF) should be zeroed.
+- **Impact:** All `Delay_of_Resubmission` values were 0 or misassigned. Reporting and KPI calculations showed no resubmission delays.
+- **File Changes:**
+  - `dcc/workflow/processor_engine/calculations/composite.py` — `apply_delay_of_resubmission` fully rewritten: (1) `shift(-1)` forward-looking assignment — delay stored on plan-setting row; (2) Path 2 for latest active overdue row using `today − Resubmission_Plan_Date`; (3) terminal-only override replacing blanket `Submission_Closed == 'YES'` override.
+  - `dcc/config/schemas/dcc_register_config.json` — `Delay_of_Resubmission.calculation` description updated to reflect forward-looking logic.
+  - `dcc/workplan/column_processing/column_update_logic.md` — Step 40 updated with two-path forward-looking description.
+- **Resolution:** Two-path forward-looking calculation: Path 1 — `delay = max(next_Submission_Date − current_Resubmission_Plan_Date, 0)` via `shift(-1)`, stored on the plan-setting row. Path 2 — `delay = max(today − Resubmission_Plan_Date, 0)` for latest active overdue row. Terminal closure (APP/VOID/INF) overrides to 0; superseded rows keep their delay.
+- **Link to Update Log:** [update-2026-05-12-delay-resubmission](#update-2026-05-12-delay-resubmission)

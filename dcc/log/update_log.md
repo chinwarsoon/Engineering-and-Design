@@ -4793,3 +4793,94 @@ Next steps:
 - **Architectural Purity:** Domain engines (`initiation`, `processor`, etc.) no longer contain general-purpose utilities.
 - **Maintenance:** Centralized IO and Data logic means updates to Excel loading or DataFrame cleaning only need to happen in one place.
 - **Reliability:** Eliminated logic duplication (e.g., `detect_os`) which previously existed in multiple engines.
+
+<a id="update-2026-05-12-delay-resubmission"></a>
+## 2026-05-12
+
+### Resubmission_Plan_Date and Delay_of_Resubmission — Logic Corrections (ISS-013, ISS-014)
+
+**Issues resolved:** [ISS-013](#issue-iss-013), [ISS-014](#issue-iss-014)
+
+---
+
+#### ISS-013 — `Resubmission_Plan_Date` incorrectly `NaT` for superseded rows
+
+**Root cause:** `apply_resubmission_plan_date` condition 1 blanket-set `NaT` for all rows where `Submission_Closed == 'YES'`. Because `apply_submission_closure_status` runs earlier in the P3 sequence and marks superseded rows (newer submission exists) as `'YES'`, all prior submission rows arrived at the plan date calculation already closed — triggering `NaT` before any date calculation ran.
+
+**Fix:** Condition 1 now checks `Latest_Approval_Code` in terminal codes (`APP`, `VOID`, `INF`) instead of `Submission_Closed == 'YES'`. Only terminally closed documents get `NaT`. Superseded rows fall through to conditions 2–4 and receive a calculated plan date from their own `Review_Return_Actual_Date` / `Submission_Date`.
+
+**Files changed:**
+- `dcc/workflow/processor_engine/calculations/date.py` — `apply_resubmission_plan_date`
+- `dcc/config/schemas/dcc_register_config.json` — `Resubmission_Plan_Date.calculation.dependencies` (added `Latest_Approval_Code` as 5th dependency), condition 1 description updated
+
+---
+
+#### ISS-014 — `Delay_of_Resubmission` misassigned and always 0 for active overdue rows
+
+Three compounding problems identified and fixed:
+
+**Problem 1 — Wrong row assignment (backward vs forward):**
+The original `shift(1).cummax()` logic assigned delay to the *resubmission row* (Row B got the delay value). The correct behaviour is that delay is stored on the *plan-setting row* (Row A gets the delay because its plan was missed by Row B's late arrival).
+
+**Fix:** Replaced `shift(1).cummax()` with `shift(-1)` — for each row, look forward to the next submission's date within the same `Document_ID` group. `delay = max(next_Submission_Date − current_Resubmission_Plan_Date, 0)`.
+
+**Problem 2 — Latest row always 0:**
+For the latest submission row there is no next row, so `shift(-1)` returns `NaT` → delay = 0, even when the review has been returned and the plan date has passed.
+
+**Fix:** Path 2 — when `Submission_Date == Latest_Submission_Date` AND not terminally closed AND `Review_Return_Actual_Date` is not null AND `Resubmission_Plan_Date < today`: `delay = max(today − Resubmission_Plan_Date, 0)`.
+
+**Problem 3 — Incorrect closed override:**
+The `Submission_Closed == 'YES'` override zeroed all closed rows including superseded ones. Superseded rows are the primary rows that carry delay values.
+
+**Fix:** Override changed to `Latest_Approval_Code in terminal_codes` — only terminally approved/voided documents get delay = 0. Superseded rows keep their calculated delay.
+
+**Result — concrete example:**
+
+| Row | `Submission_Date` | `Resubmission_Plan_Date` | `Delay_of_Resubmission` (before) | `Delay_of_Resubmission` (after) |
+|:--|:--|:--|:--|:--|
+| A (superseded) | 2024-01-01 | 2024-02-14 | 0 (closed override) | **15** (next sub Mar-01 − plan Feb-14) |
+| B (superseded) | 2024-03-01 | 2024-04-14 | 0 (closed override) | **36** (next sub May-20 − plan Apr-14) |
+| C (terminal) | 2024-05-20 | NaT | 0 | **0** (terminal override) |
+
+**Files changed:**
+- `dcc/workflow/processor_engine/calculations/composite.py` — `apply_delay_of_resubmission` fully rewritten
+- `dcc/config/schemas/dcc_register_config.json` — `Delay_of_Resubmission.calculation` description updated
+- `dcc/workplan/column_processing/column_update_logic.md` — Step 40 updated with two-path forward-looking description
+
+<a id="update-2026-05-12-resubmission-plan-date-fix"></a>
+## 2026-05-12
+
+### Resubmission_Plan_Date — Condition 1 Logic Correction (ISS-013 final fix)
+
+**Issue resolved:** [ISS-013](#issue-iss-013)
+
+#### Root cause
+
+The first ISS-013 fix replaced `Submission_Closed == 'YES'` with `Latest_Approval_Code in terminal_codes` in condition 1 of `apply_resubmission_plan_date`. This was correct in intent but incomplete in scope.
+
+`Latest_Approval_Code` reflects the **document's current state** — the latest approval code across all submissions for that `Document_ID`. A superseded row that was `REJ` at the time of its own submission has `Latest_Approval_Code = 'APP'` if the document was eventually approved in a later submission. The condition `Latest_Approval_Code in ['APP', 'VOID', 'INF']` therefore fired on **every row** of an eventually-approved document — including all superseded rows — setting `Resubmission_Plan_Date = NaT` for all of them.
+
+#### Fix
+
+Condition 1 now requires **both** conditions simultaneously:
+
+```
+Submission_Date == Latest_Submission_Date   ← this is the latest submission row
+AND Latest_Approval_Code in terminal_codes  ← document is terminally closed
+```
+
+Only the **latest submission row** of a terminally approved/voided document gets `NaT`. All superseded rows (where `Submission_Date < Latest_Submission_Date`) fall through to conditions 2–4 and receive a calculated plan date from their own `Review_Return_Actual_Date` / `Submission_Date`.
+
+#### Behaviour after fix
+
+| Row type | `Latest_Approval_Code` | `Submission_Date == Latest_Submission_Date` | `Resubmission_Plan_Date` |
+|:--|:--|:--|:--|
+| Superseded (REJ at time, APP later) | APP | ❌ No | Calculated from own dates ✓ |
+| Superseded (REJ at time, still REJ) | REJ | ❌ No | Calculated from own dates ✓ |
+| Latest, terminally approved | APP | ✅ Yes | `NaT` ✓ |
+| Latest, still pending | REJ / PEN | ✅ Yes | Calculated from own dates ✓ |
+
+#### Files changed
+
+- `dcc/workflow/processor_engine/calculations/date.py` — `apply_resubmission_plan_date` condition 1 updated
+- `dcc/workplan/column_processing/column_update_logic.md` — Step 37 updated

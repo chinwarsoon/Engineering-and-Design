@@ -889,7 +889,6 @@
       "allow_null": false,
       "is_calculated": false,
       "is_row_key": true,
-      "is_anchor": true,
       "create_if_missing": true,
       "column_type": "date_column",
       "null_handling": {
@@ -1853,13 +1852,14 @@
           "Submission_Closed",
           "Review_Return_Actual_Date",
           "Latest_Submission_Date",
-          "Submission_Date"
+          "Submission_Date",
+          "Latest_Approval_Code"
         ],
         "conditions": [
           {
-            "if": "Submission_Closed == 'YES'",
+            "if": "Latest_Approval_Code in terminal_codes (APP, VOID, INF)",
             "then": "pd.NaT",
-            "description": "If submission is closed, return NaT"
+            "description": "Terminally closed documents (approved/voided) have no future resubmission — set to NaT. Superseded rows (newer submission exists) are NOT treated as terminal and still receive a calculated plan date."
           },
           {
             "if": "Review_Return_Actual_Date is not null",
@@ -1869,11 +1869,11 @@
           {
             "if": "Latest_Submission_Date == Submission_Date",
             "then": "Submission_Date + (first_review_duration + resubmission_duration)",
-            "description": "If first submission, add first review + resubmission duration"
+            "description": "If first/only submission, add first review + resubmission duration"
           },
           {
             "else": "Submission_Date + (second_review_duration + resubmission_duration)",
-            "description": "If subsequent submission, add second review + resubmission duration"
+            "description": "Subsequent or superseded submission — add second review + resubmission duration"
           }
         ],
         "parameters": {
@@ -2040,7 +2040,9 @@
           "Submission_Closed",
           "Document_ID",
           "Submission_Date",
-          "Resubmission_Plan_Date"
+          "Resubmission_Plan_Date",
+          "Review_Return_Actual_Date",
+          "Latest_Submission_Date"
         ],
         "lookup_logic": {
           "if": "Submission_Closed == 'YES'",
@@ -2048,25 +2050,20 @@
           "description": "If submission is closed, delay is 0"
         },
         "else": {
-          "lookup_previous_submissions": {
-            "filter": "Document_ID == current_row.Document_ID AND Submission_Date < current_row.Submission_Date",
-            "sort_by": "Submission_Date desc",
-            "description": "Find previous submissions for same Document_ID with earlier dates"
+          "path_1_prior_rows": {
+            "condition": "A newer submission exists for the same Document_ID",
+            "formula": "max(current_Submission_Date - max_previous_Resubmission_Plan_Date, 0)",
+            "description": "Backward-looking: how late was this resubmission vs the plan set by the prior submission"
           },
-          "get_latest_plan_date": {
-            "filter": "Resubmission_Plan_Date is not null",
-            "get": "max(Resubmission_Plan_Date)",
-            "description": "Get latest previous resubmission plan date"
-          },
-          "calculate_delay": {
-            "formula": "(current_row.Submission_Date - latest_previous_plan_date).days",
-            "ensure_non_negative": "max(delay, 0)",
-            "description": "Calculate days difference and ensure non-negative"
+          "path_2_latest_row_active_overdue": {
+            "condition": "Submission_Date == Latest_Submission_Date AND Submission_Closed != 'YES' AND Review_Return_Actual_Date is not null AND Resubmission_Plan_Date < today",
+            "formula": "max(today - Resubmission_Plan_Date, 0)",
+            "description": "Forward-looking: review has been returned, plan date has passed, resubmission not yet made — delay accumulates against today (ISS-014)"
           },
           "no_previous_fallback": "0",
-          "description": "If no previous submissions, delay is 0"
+          "description": "If no prior row and not active overdue, delay is 0"
         },
-        "description": "Calculated via complex_lookup logic. Identifies delay by finding the maximum previous plan date for the same Document_ID and calculating the calendar variance against the current submission."
+        "description": "Two-path calculation. Path 1 (all rows): delay = max(next_Submission_Date − current_Resubmission_Plan_Date, 0) — delay is stored on the row whose plan was missed (forward-looking, shift(-1)). Path 2 (latest active overdue row): delay = today − Resubmission_Plan_Date when review has been returned but resubmission has not yet occurred. Terminal closure (APP/VOID/INF) overrides to 0. Superseded rows keep their delay value."
       },
       "validation": [
         {
@@ -2080,7 +2077,21 @@
           "description": "Number of days delayed for resubmission"
         }
       ],
-      "processing_phase": "P3"
+      "processing_phase": "P3",
+      "strategy": {
+        "data_preservation": {
+          "mode": "overwrite_existing",
+          "description": "Always recalculate — delay values must reflect current pipeline state, not preserved from prior runs or source data"
+        },
+        "processing_sequence": {
+          "calculation_timing": "first",
+          "null_handling_timing": "skip"
+        },
+        "fallback": {
+          "type": "default_value",
+          "value": 0
+        }
+      }
     },
     "Notes": {
       "aliases": [

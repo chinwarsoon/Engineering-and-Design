@@ -12,6 +12,16 @@ from typing import Dict, Any
 from utility_engine.console import status_print, debug_print
 
 
+def _coerce_date_col(df: pd.DataFrame, col: str) -> None:
+    """
+    Coerce a column to datetime in-place, safely handling mixed Timestamp/str types.
+    Runs unconditionally — pd.to_datetime with errors='coerce' is idempotent on
+    already-datetime values and converts strings/mixed types safely.
+    """
+    if col in df.columns:
+        df[col] = pd.to_datetime(df[col], errors='coerce')
+
+
 def _get_preservation_mode(engine, column_name: str) -> str:
     """Get data preservation mode from engine strategy if available."""
     if hasattr(engine, 'get_column_strategy'):
@@ -143,10 +153,11 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
 
     # Condition 3: Set to RESUBMITTED if not the latest submission (skip rows already determined)
     if document_id_col in df.columns and submission_date_col in df.columns:
-        df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
+        _coerce_date_col(df, submission_date_col)
         # Use Latest_Submission_Date column if available as dependency, otherwise calculate
         if latest_submission_date_col in df.columns:
-            latest_dates = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
+            _coerce_date_col(df, latest_submission_date_col)
+            latest_dates = df[latest_submission_date_col]
         else:
             latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
             
@@ -156,10 +167,12 @@ def apply_update_resubmission_required(engine, df: pd.DataFrame, column_name: st
 
     # Condition 4: Set to PEN if latest submission and awaiting review return
     if review_return_col in df.columns and submission_date_col in df.columns and document_id_col in df.columns:
-        df[review_return_col] = pd.to_datetime(df[review_return_col], errors='coerce')
+        _coerce_date_col(df, review_return_col)
+        _coerce_date_col(df, submission_date_col)
         # Re-verify latest_dates
         if latest_submission_date_col in df.columns:
-            latest_dates = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
+            _coerce_date_col(df, latest_submission_date_col)
+            latest_dates = df[latest_submission_date_col]
         else:
             latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
             
@@ -253,9 +266,10 @@ def apply_submission_closure_status(engine, df: pd.DataFrame, column_name: str, 
 
     # Condition 2: Set to YES if current submission is not the latest (superseded)
     if document_id_col in df.columns and submission_date_col in df.columns:
-        df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
+        _coerce_date_col(df, submission_date_col)
         if latest_submission_date_col in df.columns:
-            latest_dates = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
+            _coerce_date_col(df, latest_submission_date_col)
+            latest_dates = df[latest_submission_date_col]
         else:
             latest_dates = df.groupby(document_id_col)[submission_date_col].transform('max')
             

@@ -68,15 +68,18 @@ class AnchorDetector(BaseDetector):
 
     def _get_anchor_columns(self) -> List[str]:
         """
-        C10: Return anchor columns from schema (SSOT) or fallback constant.
-        Reads columns with is_anchor: true from context schema_data.
+        C10: Return P1 anchor columns from schema (SSOT) or fallback constant.
+        Reads columns with is_anchor: true AND processing_phase: P1 from context schema_data.
+        Document_Sequence_Number has is_anchor: true but is P2 — excluded here, used by RowValidator.
         """
         schema_data = self._context.get("schema_data", {})
         columns = schema_data.get("columns", {})
         if columns:
             anchor_cols = [
                 name for name, defn in columns.items()
-                if isinstance(defn, dict) and defn.get("is_anchor")
+                if isinstance(defn, dict)
+                and defn.get("is_anchor")
+                and defn.get("processing_phase") == "P1"
             ]
             if anchor_cols:
                 return anchor_cols

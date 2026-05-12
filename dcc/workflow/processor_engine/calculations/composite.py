@@ -127,25 +127,33 @@ def apply_row_index(engine, df: pd.DataFrame, column_name: str, calculation: Dic
 
 def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
-    Calculate Delay_of_Resubmission with non-negative check.
+    Calculate Delay_of_Resubmission — delay is stored on the row whose plan was missed.
 
-    Logic:
-    - If Submission_Closed == 'YES', return 0
-    - Find previous submissions for same Document_ID with earlier Submission_Date
-    - Get latest Resubmission_Plan_Date from previous submissions
-    - Calculate days between that plan date and current Submission_Date
-    - Ensure non-negative: return max(delay, 0)
+    For each submission row:
+        delay = max(next_Submission_Date − current_Resubmission_Plan_Date, 0)
 
-    FIX: replaced O(n^2) iterrows loop with a vectorised self-join approach.
+    Where "next submission" = the immediately following submission for the same Document_ID
+    (sorted by Submission_Date ascending).
+
+    Special case — latest row with no next submission yet (ISS-014):
+        If Review_Return_Actual_Date is not null AND Resubmission_Plan_Date < today
+        AND Submission_Closed != terminal:
+            delay = max(today − Resubmission_Plan_Date, 0)
+        Otherwise: 0
+
+    Terminal closure override: Latest_Approval_Code in terminal codes (APP/VOID/INF) → 0.
+    Superseded rows (closed only because a newer submission exists) still carry their delay.
     """
     dependencies = calculation.get('dependencies', [])
-    
-    # Task A1: Read column dependencies
-    # Dependency order: Submission_Closed, Document_ID, Submission_Date, Resubmission_Plan_Date
-    closed_col = dependencies[0] if len(dependencies) > 0 else 'Submission_Closed'
-    doc_id_col = dependencies[1] if len(dependencies) > 1 else 'Document_ID'
-    submission_date_col = dependencies[2] if len(dependencies) > 2 else 'Submission_Date'
-    plan_date_col = dependencies[3] if len(dependencies) > 3 else 'Resubmission_Plan_Date'
+
+    # Dependency order: Submission_Closed, Document_ID, Submission_Date,
+    #                   Resubmission_Plan_Date, Review_Return_Actual_Date, Latest_Submission_Date
+    closed_col            = dependencies[0] if len(dependencies) > 0 else 'Submission_Closed'
+    doc_id_col            = dependencies[1] if len(dependencies) > 1 else 'Document_ID'
+    submission_date_col   = dependencies[2] if len(dependencies) > 2 else 'Submission_Date'
+    plan_date_col         = dependencies[3] if len(dependencies) > 3 else 'Resubmission_Plan_Date'
+    review_return_col     = dependencies[4] if len(dependencies) > 4 else 'Review_Return_Actual_Date'
+    latest_submission_col = dependencies[5] if len(dependencies) > 5 else 'Latest_Submission_Date'
 
     required_cols = [doc_id_col, submission_date_col, plan_date_col, closed_col]
     missing_cols = [col for col in required_cols if col not in df.columns]
@@ -155,56 +163,119 @@ def apply_delay_of_resubmission(engine, df: pd.DataFrame, column_name: str, calc
         df[column_name] = 0
         return df
 
-    engine._print_processing_step("Complex-Lookup", column_name, "Calculating delay from previous resubmission plan")
+    engine._print_processing_step("Complex-Lookup", column_name,
+        "Calculating delay — stored on the row whose plan was missed")
 
     df = df.copy()
 
-    # Initialize column if not exists
     if column_name not in df.columns:
         df[column_name] = None
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Complex-Lookup", column_name, f"Preserving {existing_mask.sum()} existing values")
+    # Always recalculate — overwrite_existing strategy
+    # Delay values must reflect current pipeline state, not preserved from prior runs.
+    existing_count = df[column_name].notna().sum()
+    if existing_count:
+        engine._print_processing_step("Complex-Lookup", column_name,
+            f"Overwriting {existing_count} existing values (overwrite_existing strategy)")
 
     df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
     df[plan_date_col] = pd.to_datetime(df[plan_date_col], errors='coerce')
 
-    # For each row we need the max Resubmission_Plan_Date of all earlier rows
-    # (same Document_ID, earlier Submission_Date).
-    # Vectorised: sort by doc + date, use shifted cummax per group, then re-align.
-    df_sorted = df[[doc_id_col, submission_date_col, plan_date_col, closed_col]].copy()
+    # ----------------------------------------------------------------
+    # Path 1: Forward-looking — delay on the row whose plan was missed
+    # For each row: next_Submission_Date − current_Resubmission_Plan_Date
+    # Vectorised: sort by [Document_ID, Submission_Date], shift(-1) to get
+    # the next row's Submission_Date within each group, then compute diff.
+    # ----------------------------------------------------------------
+    df_sorted = df[[doc_id_col, submission_date_col, plan_date_col]].copy()
     df_sorted = df_sorted.sort_values([doc_id_col, submission_date_col])
 
-    df_sorted['_prev_max_plan'] = (
-        df_sorted.groupby(doc_id_col)[plan_date_col]
-        .transform(lambda s: s.shift(1).cummax())
+    # next_submission_date: the Submission_Date of the immediately following row
+    # within the same Document_ID group. NaT for the last row in each group.
+    df_sorted['_next_sub_date'] = (
+        df_sorted.groupby(doc_id_col)[submission_date_col]
+        .transform(lambda s: s.shift(-1))
     )
 
-    # Re-align to original index
-    prev_max_plan = df_sorted['_prev_max_plan'].reindex(df.index)
+    next_sub_date = df_sorted['_next_sub_date'].reindex(df.index)
 
-    # Calculate delay
-    delay = (df[submission_date_col] - prev_max_plan).dt.days.fillna(0).clip(lower=0).astype(int)
+    # delay = next_Submission_Date − current_Resubmission_Plan_Date, clamp ≥ 0
+    delay = (next_sub_date - df[plan_date_col]).dt.days.fillna(0).clip(lower=0).fillna(0).astype(int)
 
-    # Override: closed submissions always have delay 0
-    # Task A2: Use schema value for 'YES'
+    # ----------------------------------------------------------------
+    # Path 2: Latest row, active overdue — no next submission yet (ISS-014)
+    # Review has been returned, plan date has passed, resubmission not made.
+    # delay = max(today − Resubmission_Plan_Date, 0)
+    # ----------------------------------------------------------------
+    today = pd.Timestamp.now().normalize()
+
+    if latest_submission_col in df.columns:
+        df[latest_submission_col] = pd.to_datetime(df[latest_submission_col], errors='coerce')
+        latest_dates = df[latest_submission_col]
+    else:
+        latest_dates = df.groupby(doc_id_col)[submission_date_col].transform('max')
+
+    if review_return_col in df.columns:
+        df[review_return_col] = pd.to_datetime(df[review_return_col], errors='coerce')
+        has_review_return = df[review_return_col].notna()
+    else:
+        has_review_return = pd.Series(False, index=df.index)
+
+    # Read schema YES value for Submission_Closed
     column_def = engine.columns.get(closed_col, {})
     validation = column_def.get('validation', [])
-    allowed_values = next((v.get('allowed_values', []) for v in validation if v.get('type') == 'allowed_values'), [])
+    allowed_values = next(
+        (v.get('allowed_values', []) for v in validation if v.get('type') == 'allowed_values'), []
+    )
     val_yes = allowed_values[0] if len(allowed_values) > 0 else 'YES'
-    
-    closed_mask = df[closed_col] == val_yes
-    delay[closed_mask] = 0
 
-    # Only apply to null values
-    null_mask = df[column_name].isna()
-    if null_mask.any():
-        df.loc[null_mask, column_name] = delay[null_mask]
-        engine._print_processing_step("Complex-Lookup", column_name, f"Applied to {null_mask.sum()} null rows: {(delay > 0).sum()} rows with positive delay")
+    # Resolve terminal approval codes (same source as Resubmission_Plan_Date ISS-013)
+    approval_entries = engine.schema_data.get('approval_codes', [])
+    terminal_statuses = ['Approved', 'Void', 'For Information']
+    terminal_codes = [
+        entry['code'] for entry in approval_entries
+        if entry.get('status') in terminal_statuses
+    ]
+    if not terminal_codes:
+        terminal_codes = ['APP', 'VOID', 'INF']
+
+    # Resolve Latest_Approval_Code for terminal check
+    latest_approval_col = 'Latest_Approval_Code'
+    if latest_approval_col in df.columns:
+        is_terminal = df[latest_approval_col].isin(terminal_codes)
     else:
-        debug_print(f"Skipped delay_of_resubmission for {column_name}: all values present")
+        is_terminal = pd.Series(False, index=df.index)
+
+    # Path 2 mask: latest row, not terminally closed, review returned, plan date past
+    mask_active_overdue = (
+        (df[submission_date_col] == latest_dates)  # latest submission for this document
+        & ~is_terminal                              # not terminally closed
+        & has_review_return                         # review has been returned
+        & df[plan_date_col].notna()                # plan date exists
+        & (df[plan_date_col] < today)              # plan date has passed
+    )
+
+    if mask_active_overdue.any():
+        active_delay = (today - df[plan_date_col]).dt.days.fillna(0).clip(lower=0).fillna(0).astype(int)
+        delay[mask_active_overdue] = active_delay[mask_active_overdue]
+        engine._print_processing_step(
+            "Complex-Lookup", column_name,
+            f"Path 2 (active overdue): {mask_active_overdue.sum()} rows — "
+            f"delay = today − Resubmission_Plan_Date"
+        )
+
+    # ----------------------------------------------------------------
+    # Terminal override: terminally closed rows → 0
+    # Superseded rows (Submission_Closed=YES but not terminal) keep their delay.
+    # ----------------------------------------------------------------
+    delay[is_terminal] = 0
+
+    # Apply to all rows (overwrite_existing strategy)
+    df[column_name] = delay
+    engine._print_processing_step(
+        "Complex-Lookup", column_name,
+        f"Applied to all {len(df)} rows: {(delay > 0).sum()} rows with positive delay"
+    )
 
     return df
 

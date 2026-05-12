@@ -25,6 +25,20 @@ def _get_preservation_mode(engine, column_name: str) -> str:
     return "preserve_existing"
 
 
+def _coerce_sort_cols(df: pd.DataFrame, sort_by: list) -> None:
+    """
+    Coerce any object-dtype columns in sort_by to datetime in-place if they
+    contain date-like values. Prevents 'Timestamp < str' errors from sort_values
+    when a date column has mixed Timestamp/string content.
+    """
+    for col in sort_by:
+        if col in df.columns and df[col].dtype == object:
+            coerced = pd.to_datetime(df[col], errors='coerce')
+            # Only replace if at least some values parsed as dates
+            if coerced.notna().any():
+                df[col] = coerced
+
+
 def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
     Performs standard grouping and aggregation (Min, Max, Sum, Count, Concatenate, etc.)
@@ -90,11 +104,31 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
         calculated = grouped[source_column].transform('count')
         df.loc[null_mask, column_name] = calculated[null_mask]
     elif method in ['min', 'max']:
-        calculated = grouped[source_column].transform(method)
-        df.loc[null_mask, column_name] = calculated[null_mask]
+        # Coerce to datetime if the source column contains date-like values,
+        # otherwise pandas transform('min'/'max') raises on object dtype.
+        src_series = df[source_column]
+        coerced = pd.to_datetime(src_series, errors='coerce')
+        if coerced.notna().any() and src_series.dtype == object:
+            # Date column stored as strings — work on the coerced series
+            df['__temp_dt__'] = coerced
+            calculated = df.groupby(group_by, dropna=False)['__temp_dt__'].transform(method)
+            df.loc[null_mask, column_name] = calculated[null_mask]
+            df.drop(columns=['__temp_dt__'], inplace=True)
+        else:
+            try:
+                calculated = grouped[source_column].transform(method)
+                df.loc[null_mask, column_name] = calculated[null_mask]
+            except (TypeError, ValueError):
+                # Final fallback: string-safe min/max via lambda
+                fn = min if method == 'min' else max
+                calculated = grouped[source_column].transform(
+                    lambda s: fn((v for v in s if pd.notna(v)), default=pd.NA)
+                )
+                df.loc[null_mask, column_name] = calculated[null_mask]
     elif method == 'concatenate_unique':
         # FIX: Use copy for sorting to avoid modifying original DataFrame index
         if sort_by:
+            _coerce_sort_cols(df, sort_by)
             df_sorted = df.sort_values(sort_by).copy()
             grouped = df_sorted.groupby(group_by, dropna=False)
         else:
@@ -147,6 +181,7 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
     elif method == 'concatenate_unique_quoted':
         # FIX: Use copy for sorting to avoid modifying original DataFrame index
         if sort_by:
+            _coerce_sort_cols(df, sort_by)
             df_sorted = df.sort_values(sort_by).copy()
             grouped = df_sorted.groupby(group_by, dropna=False)
         else:
@@ -195,6 +230,7 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
     elif method == 'concatenate_dates':
         # FIX: Use copy for sorting to avoid modifying original DataFrame index
         if sort_by:
+            _coerce_sort_cols(df, sort_by)
             df_sorted = df.sort_values(sort_by).copy()
             grouped = df_sorted.groupby(group_by, dropna=False)
         else:
@@ -275,6 +311,7 @@ def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str,
     if len(asc_flags) < len(sort_by):
         asc_flags.extend([False] * (len(sort_by) - len(asc_flags)))
 
+    _coerce_sort_cols(filtered_df, sort_by)
     sorted_df = filtered_df.sort_values(sort_by, ascending=asc_flags)
     latest_vals = sorted_df.groupby(group_by)[source_column].first()
 
@@ -384,6 +421,9 @@ def apply_latest_non_pending_status(engine, df: pd.DataFrame, column_name: str, 
                 df_copy[source_column] = df_copy[source_column].astype(str).str.replace(pattern, '', regex=True)
         if text_cleaning.get('strip_whitespace'):
             df_copy[source_column] = df_copy[source_column].astype(str).str.strip()
+
+    # Coerce sort columns to datetime before groupby sort to prevent Timestamp < str errors
+    _coerce_sort_cols(df_copy, sort_by)
 
     def get_latest_non_pending(group_df):
         sorted_df = group_df.sort_values(by=sort_by[0], ascending=False)
