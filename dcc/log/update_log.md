@@ -4884,3 +4884,17 @@ Only the **latest submission row** of a terminally approved/voided document gets
 
 - `dcc/workflow/processor_engine/calculations/date.py` — `apply_resubmission_plan_date` condition 1 updated
 - `dcc/workplan/column_processing/column_update_logic.md` — Step 37 updated
+
+## Update # 2026-05-13-phase4-workplan-restructure
+- [Date:] 2026-05-13
+- [Context:] Phase 4 details were embedded in the master project-plan.md, making it hard to maintain separately. The agent_rule.md Section 8 requires each phase to have a dedicated workplan with doc ID, revision control, scope, risks, and references.
+- [Changes Made:]
+  - Created `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — dedicated workplan following agent_rule.md Section 8 format with Document ID (WP-UI-001), revision control, content index, dependencies, architecture alignment, phase details with risks/mitigation per deliverable, delivery sequence, success criteria, known limitations, and references.
+  - Moved all related files into `dcc/workplan/ui_design/web_interface/` with `web_interface_*.md` naming: workplan, implementation, completion report, user guide, index, summary, verification, update log (8 files total).
+  - Updated `dcc/workplan/project_setup/project-plan.md` — replaced ~260 lines of detail with a concise reference table and link to the workplan.
+  - Removed redundant summary section from project-plan.md (duplicate of workplan content).
+  - Updated internal cross-references in workplan, project-plan.md, and update_log.md to reflect new paths and filenames.
+  - Restructured workplan as independent document (v2.0): removed external phase identity; each HTML deliverable now its own standalone phase (Phases 1–9) with renumbered delivery sequence and scope.
+- [Impact:] Master project-plan.md is now leaner. Phase 4 has its own standalone workplan aligned with agent_rule.md standards for future reference and maintenance. All Phase 4 documentation consolidated in a single subfolder.
+- [Link to Test Log:] N/A — documentation restructure, no logic changes.
+- [Link to Issue Log:] N/A — planned refactoring, not an issue fix.
