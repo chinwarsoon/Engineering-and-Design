@@ -34,6 +34,7 @@
   --th-hover:  #1c2128;
   --icon-bar-w:48px;
   --sidebar-w: 260px;
+  --right-sidebar-w: 220px;
   --titlebar-h:36px;
   --statusbar-h:22px;
   --radius:    6px;
@@ -284,6 +285,40 @@ body {
   justify-content: space-between;
 }
 .dcc-sidebar-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+/* Sidebar drag handles */
+.dcc-sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background 0.15s;
+}
+.dcc-sidebar-resizer:hover,
+.dcc-sidebar-resizer.dragging {
+  background: var(--accent);
+}
+.dcc-sidebar-resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+.dcc-sidebar-resizer:hover::after,
+.dcc-sidebar-resizer.dragging::after {
+  background: var(--accent);
+}
+.dcc-sidebar-resizer.left-resizer  { right: -2px; }
+.dcc-sidebar-resizer.right-resizer { left: -2px; }
 
 /* Sidebar section accordion */
 .sb-section { border-bottom: 1px solid var(--border); }

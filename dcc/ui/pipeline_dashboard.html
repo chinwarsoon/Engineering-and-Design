@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>DCC Pipeline Dashboard</title>
   <link rel="stylesheet" href="dcc-design-system.css">
   <style>
@@ -15,11 +18,6 @@
     .stage-status { font-size: 10px; color: var(--text3); text-transform: uppercase; }
     .stage-progress { width: 100%; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
     .stage-progress-bar { height: 100%; background: var(--accent); transition: width 0.3s; }
-    .output-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
-    .output-link { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; text-align: center; cursor: pointer; transition: all 0.15s; text-decoration: none; color: var(--text2); }
-    .output-link:hover { border-color: var(--accent-alt); color: var(--accent-alt); background: var(--surface2); }
-    .output-icon { font-size: 20px; margin-bottom: 4px; }
-    .output-name { font-size: 11px; font-weight: 500; }
     .health-gauge { width: 100%; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin-top: 4px; }
     .health-bar { height: 100%; background: linear-gradient(90deg, var(--danger), var(--warning), var(--success)); transition: width 0.3s; }
     .run-btn { width: 100%; padding: 10px; margin-top: 12px; }
@@ -49,6 +47,18 @@
       font-size: 11px;
       color: var(--text3);
     }
+    .kpi-card, .stage-card { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .kpi-card:hover, .stage-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .detail-back { width:100%;text-align:left;padding:6px 10px;margin-bottom:8px; }
+    .dt-tab-bar { display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:8px; }
+    .dt-tab { padding:5px 10px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid transparent;border-bottom:none;border-radius:var(--radius-sm) var(--radius-sm) 0 0;background:transparent;color:var(--text3);transition:all 0.12s; }
+    .dt-tab:hover { color:var(--text);background:var(--surface2); }
+    .dt-tab.active { color:var(--accent);background:var(--surface);border-color:var(--border); }
+    .dt-tab-content { display:none; }
+    .dt-tab-content.active { display:block; }
+    .output-sidebar-item:hover { background: var(--surface2); }
+    .output-sidebar-item:hover .sidebar-dl-btn { opacity:0.8 !important; }
+    .sidebar-dl-btn:hover { opacity:1 !important; background: var(--surface); }
   </style>
 </head>
 <body>
@@ -83,10 +93,10 @@
           <div class="theme-opt" data-theme="presentation">
             <span class="theme-dot" style="background: #f8fafc;"></span> Presentation
           </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
   <div class="dcc-shell">
     <div class="dcc-iconbar">
@@ -99,7 +109,8 @@
       </div>
     </div>
 
-    <div class="dcc-sidebar" id="leftSidebar">
+    <div class="dcc-sidebar" id="leftSidebar" style="position:relative;">
+      <div class="dcc-sidebar-resizer left-resizer" data-resize="left"></div>
       <div class="dcc-sidebar-header">
         <span>Pipeline Info</span>
       </div>
@@ -270,106 +281,23 @@
           </div>
         </div>
 
-        <!-- Output Files -->
-        <div style="margin-bottom: 20px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Output Files</div>
-          <div class="output-grid">
-            <a href="#" class="output-link" title="Download CSV">
-              <div class="output-icon">📄</div>
-              <div class="output-name">CSV Export</div>
-            </a>
-            <a href="#" class="output-link" title="Download Excel">
-              <div class="output-icon">📊</div>
-              <div class="output-name">Excel Export</div>
-            </a>
-            <a href="#" class="output-link" title="View Summary">
-              <div class="output-icon">📋</div>
-              <div class="output-name">Summary</div>
-            </a>
-            <a href="#" class="output-link" title="View Debug Log">
-              <div class="output-icon">🐛</div>
-              <div class="output-name">Debug Log</div>
-            </a>
-            <a href="#" class="output-link" title="View Error Dashboard">
-              <div class="output-icon">📈</div>
-              <div class="output-name">Error Data</div>
-            </a>
-            <a href="#" class="output-link" title="View Validation Report">
-              <div class="output-icon">✓</div>
-              <div class="output-name">Validation</div>
-            </a>
+        <!-- Detail Data Table -->
+        <div id="detailTableContainer" style="display:none;margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <span id="detailTableTitle">Data View</span>
+            <button class="btn btn-sm btn-secondary" id="detailTableClose" style="margin-left:auto;">✕ Close</button>
           </div>
-        </div>
-
-        <!-- Recent Activity -->
-        <div>
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Recent Activity</div>
-          <div class="card">
-            <table class="dcc-table" style="font-size: 11px;">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Event</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="mono">2026-04-18 14:32:15</td>
-                  <td>Pipeline completed</td>
-                  <td><span class="badge badge-success">✓ Pass</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">2026-04-18 14:31:45</td>
-                  <td>Export stage finished</td>
-                  <td><span class="badge badge-success">✓ Pass</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">2026-04-18 14:31:20</td>
-                  <td>Processing stage finished</td>
-                  <td><span class="badge badge-success">✓ Pass</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">2026-04-18 14:30:55</td>
-                  <td>Validation stage finished</td>
-                  <td><span class="badge badge-warning">⚠ 3 warnings</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <div class="card" style="padding:12px;overflow-x:auto;" id="detailTableBody"></div>
         </div>
       </div>
     </div>
 
-    <div class="dcc-sidebar-right" id="rightSidebar">
+    <div class="dcc-sidebar-right" id="rightSidebar" style="position:relative;width:var(--right-sidebar-w);">
+      <div class="dcc-sidebar-resizer right-resizer" data-resize="right"></div>
       <div class="dcc-sidebar-header">
         <span>Settings</span>
       </div>
-      <div class="dcc-sidebar-body">
-        <div class="sb-section">
-          <div class="sb-section-header">
-            <span>⚙️ Options</span>
-            <span class="sb-section-arrow">▼</span>
-          </div>
-          <div class="sb-section-body">
-            <div style="font-size: 11px; color: var(--text2); line-height: 1.8;">
-              <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="autoRefresh" checked> Auto-refresh on load</label></div>
-              <div style="margin-top:8px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="showTimestamps" checked> Show timestamps</label></div>
-            </div>
-          </div>
-        </div>
-        <div class="sb-section">
-          <div class="sb-section-header">
-            <span>ℹ️ About</span>
-            <span class="sb-section-arrow">▼</span>
-          </div>
-          <div class="sb-section-body" style="font-size:11px;color:var(--text3);line-height:1.6;">
-            <div>DCC Pipeline Dashboard</div>
-            <div>v<span id="aboutVersion">3.0.0</span></div>
-            <div style="margin-top:4px;">Data loaded from pipeline output files.</div>
-          </div>
-        </div>
-      </div>
+      <div class="dcc-sidebar-body"></div>
     </div>
   </div>
 
@@ -380,24 +308,26 @@
   </div>
 
   <script>
-    // ─── CONSTANTS ──────────────────────────────────────────────────────────
+    // ─── CONFIG ─────────────────────────────────────────────────────────────
     const DATA_BASE = '../output';
-    const STAGES = [
-      { id:'stage1', name:'File Upload',   phase:'P1' },
-      { id:'stage2', name:'Sheet Selection', phase:'P1' },
-      { id:'stage3', name:'Column Mapping', phase:'P2.5' },
-      { id:'stage4', name:'Data Validation', phase:'P3' },
-      { id:'stage5', name:'Processing',      phase:'P4' },
-      { id:'stage6', name:'Export',          phase:null }
-    ];
-    const OUTPUT_FILES = [
-      { name:'CSV Export',        icon:'📄', path:'processed_dcc_universal.csv' },
-      { name:'Excel Export',      icon:'📊', path:'processed_dcc_universal.xlsx' },
-      { name:'Summary',           icon:'📋', path:'processing_summary.txt' },
-      { name:'Debug Log',         icon:'🐛', path:'debug_log.json' },
-      { name:'Error Data',        icon:'📈', path:'error_dashboard_data.json' },
-      { name:'Validation Report', icon:'✓',  path:'schema_validation_status.json' }
-    ];
+    let uiConfig = null;
+    let STAGES = [];
+    let OUTPUT_FILES = [];
+
+    async function loadUiConfig() {
+      try {
+        const resp = await fetch('ui_help.json');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const cfg = await resp.json();
+        uiConfig = cfg;
+        STAGES = cfg.stages || [];
+        OUTPUT_FILES = cfg.output_files || [];
+      } catch {
+        uiConfig = null;
+        STAGES = [];
+        OUTPUT_FILES = [];
+      }
+    }
 
     // ─── THEME SYSTEM ─────────────────────────────────────────────────────
     const themeBtn = document.getElementById('themeBtn');
@@ -434,10 +364,11 @@
     document.querySelector(`[data-theme="${savedTheme}"]`)?.classList.add('active');
 
     // ─── SIDEBAR ACCORDION ──────────────────────────────────────────────────
-    document.querySelectorAll('.sb-section-header').forEach(header => {
-      header.addEventListener('click', () => {
+    document.addEventListener('click', e => {
+      const header = e.target.closest('.sb-section-header');
+      if (header) {
         header.parentElement.classList.toggle('closed');
-      });
+      }
     });
 
     // ─── ICON BAR PANEL TOGGLING ────────────────────────────────────────────
@@ -455,14 +386,280 @@
         } else if (panel === 'right-sidebar') {
           rightSidebar.classList.toggle('collapsed');
           btn.classList.toggle('active');
+          if (helpActive && rightSidebar.classList.contains('collapsed')) {
+            helpActive = false;
+            rightSidebarHeader.textContent = 'Settings';
+            rightSidebarBody.innerHTML = buildDefaultSidebarHtml();
+          }
         } else if (panel === 'help') {
           showHelp();
         }
       });
     });
 
+    let helpActive = false;
+    const rightSidebarHeader = document.querySelector('#rightSidebar .dcc-sidebar-header span');
+    const rightSidebarBody = document.querySelector('#rightSidebar .dcc-sidebar-body');
+
     function showHelp() {
-      alert('DCC Pipeline Dashboard v3.0\n\nLoads pipeline output files from dcc/output/ to display:\n- KPI metrics\n- Pipeline stage status\n- Output file links\n- Recent activity from debug log\n\nUse the 📁 icon to load local files.');
+      helpActive = !helpActive;
+      rightSidebar.classList.remove('collapsed');
+      document.querySelector('.dcc-iconbar-btn[data-panel="right-sidebar"]')?.classList.add('active');
+
+      if (helpActive) {
+        const h = uiConfig?.help;
+        rightSidebarHeader.textContent = 'Help';
+        rightSidebarBody.innerHTML = h ? buildHelpHtml(h) : '<div style="padding:12px;font-size:11px;color:var(--text3);">Help content unavailable.</div>';
+      } else {
+        rightSidebarHeader.textContent = 'Settings';
+        rightSidebarBody.innerHTML = buildDefaultSidebarHtml();
+      }
+    }
+
+    function buildHelpHtml(h) {
+      const kpiItems = (h.kpi_metrics?.items || []).map(i =>
+        `<div><strong>${escHtml(i.label)}</strong> ${i.text}</div>`
+      ).join('');
+      return `
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>📊 KPI Metrics</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
+            <div style="margin-bottom:8px;">${h.kpi_metrics?.intro || ''}</div>
+            ${kpiItems}
+          </div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>🔧 Pipeline Stages</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
+            <div style="margin-bottom:8px;">${h.pipeline_stages?.intro || ''}</div>
+            <div>${h.pipeline_stages?.details || ''}</div>
+            <div style="margin-top:6px;">${h.pipeline_stages?.export_note || ''}</div>
+          </div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>📋 Recent Activity</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
+            <div style="margin-bottom:8px;">${h.recent_activity?.intro || ''}</div>
+            <div>${h.recent_activity?.primary || ''}</div>
+            <div>${h.recent_activity?.fallback || ''}</div>
+          </div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>📁 Output Files</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
+            <div>${h.output_files?.text || ''}</div>
+          </div>
+        </div>`;
+    }
+
+    function buildDefaultSidebarHtml() {
+      const d = uiConfig?.default_sidebar;
+      return [
+        '<div class="sb-section">',
+        '  <div class="sb-section-header">',
+        '    <span>\u2699\ufe0f Options</span>',
+        '    <span class="sb-section-arrow">\u25bc</span>',
+        '  </div>',
+        '  <div class="sb-section-body">',
+        '    <div style="font-size: 11px; color: var(--text2); line-height: 1.8;">',
+        `      <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="autoRefresh" checked> ${d?.options?.auto_refresh || 'Auto-refresh on load'}</label></div>`,
+        `      <div style="margin-top:8px;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="showTimestamps" checked> ${d?.options?.show_timestamps || 'Show timestamps'}</label></div>`,
+        '    </div>',
+        '  </div>',
+        '</div>',
+        '<div class="sb-section">',
+        '  <div class="sb-section-header">',
+        '    <span>\u2139\ufe0f About</span>',
+        '    <span class="sb-section-arrow">\u25bc</span>',
+        '  </div>',
+        '  <div class="sb-section-body" style="font-size:11px;color:var(--text3);line-height:1.6;">',
+        `    <div>${d?.about?.title || 'DCC Pipeline Dashboard'}</div>`,
+        `    <div>v<span id="aboutVersion">${d?.about?.version || '3.0.0'}</span></div>`,
+        `    <div style="margin-top:4px;">${d?.about?.description || 'Data loaded from pipeline output files.'}</div>`,
+        '  </div>',
+        '</div>'
+      ].join('\n');
+    }
+
+    // ─── DETAIL VIEW ─────────────────────────────────────────────────────────
+    function showDetail(title, bodyHtml) {
+      helpActive = false;
+      rightSidebar.classList.remove('collapsed');
+      document.querySelector('.dcc-iconbar-btn[data-panel="right-sidebar"]')?.classList.add('active');
+      rightSidebarHeader.textContent = title;
+      rightSidebarBody.innerHTML =
+        '<button class="btn btn-sm btn-secondary detail-back" id="detailBackBtn">\u2190 Back</button>' +
+        '<div style="padding:0 12px 12px;font-size:11px;color:var(--text2);line-height:1.8;overflow-wrap:break-word;">' +
+        bodyHtml + '</div>';
+      document.getElementById('detailBackBtn')?.addEventListener('click', () => {
+        rightSidebarHeader.textContent = 'Settings';
+        rightSidebarBody.innerHTML = buildDefaultSidebarHtml();
+      });
+    }
+
+    function showKpiDetail(index) {
+      const labels = ['Rows Processed', 'Match Rate', 'Columns Created', 'Errors Found', 'Data Health'];
+      const title = labels[index] || 'KPI Detail';
+      if (!dashboardData && !summaryText) {
+        showDetail(title, '<div style="color:var(--text3);">No pipeline data loaded. Click Refresh to load data.</div>');
+        return;
+      }
+      const s = dashboardData?.summary || {};
+      const h = s.health_kpi || {};
+      const meta = dashboardData?.metadata || {};
+
+      let body = '';
+      switch (index) {
+        case 0:
+          body = '<div><strong>Value:</strong> ' + formatNum(h.total_rows || meta.total_rows) + '</div>' +
+            '<div style="margin-top:8px;"><strong>Source:</strong> <code>error_dashboard_data.json</code></div>' +
+            '<div><strong>Primary field:</strong> <code>health_kpi.total_rows</code> = ' + (h.total_rows != null ? h.total_rows : 'N/A') + '</div>' +
+            '<div><strong>Fallback field:</strong> <code>metadata.total_rows</code> = ' + (meta.total_rows != null ? meta.total_rows : 'N/A') + '</div>';
+          break;
+        case 1:
+          const total = h.total_rows;
+          const unique = s.unique_errors;
+          const rate = (unique != null && total) ? ((1 - unique / total) * 100).toFixed(1) : 'N/A';
+          body = '<div><strong>Value:</strong> ' + rate + '%</div>' +
+            '<div style="margin-top:8px;"><strong>Source:</strong> <code>error_dashboard_data.json</code></div>' +
+            '<div><strong>Calculation:</strong> (1 \u2212 <code>unique_errors</code> \u00f7 <code>total_rows</code>) \u00d7 100</div>' +
+            '<div><code>summary.unique_errors</code> = ' + (unique != null ? unique : 'N/A') + '</div>' +
+            '<div><code>health_kpi.total_rows</code> = ' + (total != null ? total : 'N/A') + '</div>';
+          break;
+        case 2:
+          const colLine = summaryText ? summaryText.match(/Processed Data Shape:\s*\(\d+,\s*(\d+)\)/) : null;
+          body = '<div><strong>Value:</strong> ' + (colLine ? colLine[1] : '\u2014') + '</div>' +
+            '<div style="margin-top:8px;"><strong>Source:</strong> <code>processing_summary.txt</code></div>' +
+            '<div><strong>Parsed from:</strong> <code>Processed Data Shape</code> line</div>' +
+            '<div style="margin-top:8px;padding:6px;background:var(--surface2);border-radius:var(--radius-sm);font-family:monospace;font-size:10px;white-space:pre-wrap;">' +
+            escHtml(colLine ? colLine[0] : '(line not found)') + '</div>';
+          break;
+        case 3:
+          body = '<div><strong>Value:</strong> ' + formatNum(s.total_errors) + '</div>' +
+            '<div><strong>Unique errors:</strong> ' + formatNum(s.unique_errors) + '</div>' +
+            '<div style="margin-top:8px;"><strong>Source:</strong> <code>error_dashboard_data.json</code></div>' +
+            '<div><strong>Field:</strong> <code>summary.total_errors</code> = ' + (s.total_errors != null ? s.total_errors : 'N/A') + '</div>' +
+            '<div><strong>Field:</strong> <code>summary.unique_errors</code> = ' + (s.unique_errors != null ? s.unique_errors : 'N/A') + '</div>' +
+            '<div><strong>Clean run:</strong> ' + (s.clean_run ? 'Yes' : 'No') + '</div>';
+          break;
+        case 4:
+          const score = h.score != null ? Math.round(h.score) : 'N/A';
+          const grade = h.grade || 'N/A';
+          body = '<div><strong>Value:</strong> ' + score + '%</div>' +
+            '<div><strong>Grade:</strong> ' + grade + '</div>' +
+            '<div style="margin-top:8px;"><strong>Source:</strong> <code>error_dashboard_data.json</code></div>' +
+            '<div><strong>Field:</strong> <code>health_kpi.score</code> = ' + (h.score != null ? h.score : 'N/A') + '</div>' +
+            '<div><strong>Field:</strong> <code>health_kpi.grade</code> = ' + grade + '</div>';
+          break;
+      }
+      showDetail(title, body);
+    }
+
+    function showStageDetail(index) {
+      const stage = STAGES[index];
+      if (!stage) return;
+      if (!dashboardData) {
+        showDetail(stage.name, '<div style="color:var(--text3);">No pipeline data loaded.</div>');
+        return;
+      }
+      const phases = {};
+      if (Array.isArray(dashboardData.phase_breakdown)) {
+        dashboardData.phase_breakdown.forEach(p => { phases[p.Phase] = p; });
+      }
+      let body = '<div><strong>Stage:</strong> ' + escHtml(stage.name) + '</div>' +
+        '<div><strong>Internal ID:</strong> <code>' + stage.id + '</code></div>';
+      if (stage.phase) {
+        body += '<div><strong>Phase code:</strong> <code>' + stage.phase + '</code></div>';
+        const p = phases[stage.phase];
+        if (p) {
+          const hasCritical = (p.Critical || 0) > 0;
+          body += '<div style="margin-top:8px;"><strong>Phase breakdown</strong></div>' +
+            '<div><strong>Total issues:</strong> ' + (p.Total != null ? p.Total : 0) + '</div>' +
+            '<div><strong>Critical:</strong> ' + (p.Critical || 0) + '</div>' +
+            '<div><strong>High:</strong> ' + (p.High || 0) + '</div>' +
+            '<div><strong>Medium:</strong> ' + (p.Medium || 0) + '</div>' +
+            '<div><strong>Warning/Info:</strong> ' + (p['Warning/Info'] || 0) + '</div>' +
+            '<div><strong>Status:</strong> ' + (hasCritical ? '<span style="color:var(--danger);">FAIL</span>' : p.Total > 0 ? '<span style="color:var(--warning);">Warnings</span>' : '<span style="color:var(--success);">PASS</span>') + '</div>';
+        } else {
+          body += '<div style="margin-top:8px;color:var(--text3);">No phase breakdown entry found for code <code>' + stage.phase + '</code>.</div>';
+        }
+
+        // ── Error details table for this phase ──
+        const prefix = stage.phase.split('.')[0];
+        const phaseErrorTypes = (dashboardData.error_types || []).filter(e => e.code.startsWith(prefix));
+        const phaseRecent = (dashboardData.recent_errors || []).filter(e => e.code.startsWith(prefix));
+
+        if (phaseErrorTypes.length > 0) {
+          body += '<div style="margin-top:12px;font-weight:600;font-size:11px;">Error Types</div>' +
+            '<div style="margin-top:4px;overflow-x:auto;">' +
+            '<table style="width:100%;font-size:10px;border-collapse:collapse;">' +
+            '<thead><tr style="background:var(--th-bg);">' +
+            '<th style="padding:3px 4px;text-align:left;border:1px solid var(--border);">Code</th>' +
+            '<th style="padding:3px 4px;text-align:right;border:1px solid var(--border);">Count</th>' +
+            '<th style="padding:3px 4px;text-align:left;border:1px solid var(--border);">Severity</th>' +
+            '</tr></thead><tbody>' +
+            phaseErrorTypes.map(et =>
+              '<tr>' +
+              '<td style="padding:3px 4px;border:1px solid var(--border);font-family:monospace;">' + escHtml(et.code) + '</td>' +
+              '<td style="padding:3px 4px;border:1px solid var(--border);text-align:right;">' + et.count + '</td>' +
+              '<td style="padding:3px 4px;border:1px solid var(--border);">' + severityBadge(et.severity) + '</td>' +
+              '</tr>'
+            ).join('') +
+            '</tbody></table></div>';
+        } else if (p && p.Total > 0) {
+          body += '<div style="margin-top:12px;color:var(--text3);font-size:11px;">No error type breakdown available for phase <code>' + stage.phase + '</code> \u2014 error codes in the dataset use different prefix conventions.</div>';
+        }
+
+        if (phaseRecent.length > 0) {
+          body += '<div style="margin-top:12px;font-weight:600;font-size:11px;">Recent Error Details</div>' +
+            '<div style="margin-top:4px;overflow-x:auto;">' +
+            '<table style="width:100%;font-size:10px;border-collapse:collapse;">' +
+            '<thead><tr style="background:var(--th-bg);">' +
+            '<th style="padding:3px 4px;text-align:left;border:1px solid var(--border);">Row</th>' +
+            '<th style="padding:3px 4px;text-align:left;border:1px solid var(--border);">Column</th>' +
+            '<th style="padding:3px 4px;text-align:left;border:1px solid var(--border);">Code</th>' +
+            '<th style="padding:3px 4px;text-align:left;border:1px solid var(--border);">Message</th>' +
+            '<th style="padding:3px 4px;text-align:left;border:1px solid var(--border);">Severity</th>' +
+            '</tr></thead><tbody>' +
+            phaseRecent.map(r =>
+              '<tr>' +
+              '<td style="padding:3px 4px;border:1px solid var(--border);font-family:monospace;">' + r.row + '</td>' +
+              '<td style="padding:3px 4px;border:1px solid var(--border);">' + escHtml(r.column) + '</td>' +
+              '<td style="padding:3px 4px;border:1px solid var(--border);font-family:monospace;">' + escHtml(r.code) + '</td>' +
+              '<td style="padding:3px 4px;border:1px solid var(--border);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escHtml(r.message) + '">' + escHtml(r.message) + '</td>' +
+              '<td style="padding:3px 4px;border:1px solid var(--border);">' + severityBadge(r.severity) + '</td>' +
+              '</tr>'
+            ).join('') +
+            '</tbody></table></div>';
+        } else if (p && p.Total > 0) {
+          body += '<div style="margin-top:8px;color:var(--text3);font-size:11px;">No individual error entries logged for phase <code>' + stage.phase + '</code> in the recent errors log.</div>';
+        }
+      } else {
+        body += '<div><strong>Phase code:</strong> <em>none (derived from overall run status)</em></div>' +
+          '<div style="margin-top:8px;"><strong>Overall run:</strong> ' + (dashboardData.summary?.clean_run ? '<span style="color:var(--success);">PASS</span>' : '<span style="color:var(--warning);">' + (dashboardData.summary?.status || 'FAIL') + '</span>') + '</div>';
+      }
+      body += '<div style="margin-top:8px;"><strong>Source:</strong> <code>error_dashboard_data.json</code></div>';
+      showDetail(stage.name, body);
+    }
+
+    function severityBadge(sev) {
+      if (!sev) return '<span style="color:var(--text3);">\u2014</span>';
+      const s = sev.toUpperCase();
+      if (s === 'CRITICAL' || s === 'HIGH') return '<span style="color:var(--danger);font-weight:600;">' + escHtml(sev) + '</span>';
+      if (s === 'MEDIUM') return '<span style="color:var(--warning);font-weight:600;">' + escHtml(sev) + '</span>';
+      return '<span style="color:var(--text2);">' + escHtml(sev) + '</span>';
     }
 
     // ─── LAYOUT TOGGLE ──────────────────────────────────────────────────────
@@ -485,29 +682,66 @@
       }
     });
 
+    // ─── SIDEBAR RESIZE ─────────────────────────────────────────────────────
+    let resizeTarget = null;
+    let resizeStartX = 0;
+    let resizeStartW = 0;
+
+    document.addEventListener('mousedown', e => {
+      const handle = e.target.closest('.dcc-sidebar-resizer');
+      if (!handle) return;
+      const sidebar = handle.parentElement;
+      resizeTarget = handle.dataset.resize;
+      resizeStartX = e.clientX;
+      resizeStartW = sidebar.offsetWidth;
+      handle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!resizeTarget) return;
+      requestAnimationFrame(() => {
+        const dx = e.clientX - resizeStartX;
+        let w;
+        if (resizeTarget === 'left') {
+          w = Math.max(120, Math.min(600, resizeStartW + dx));
+          document.documentElement.style.setProperty('--sidebar-w', w + 'px');
+        } else {
+          w = Math.max(120, Math.min(600, resizeStartW - dx));
+          document.documentElement.style.setProperty('--right-sidebar-w', w + 'px');
+        }
+      });
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!resizeTarget) return;
+      document.querySelector('.dcc-sidebar-resizer.dragging')?.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      resizeTarget = null;
+    });
+
     // ─── DATA LOADER ────────────────────────────────────────────────────────
     let dashboardData = null;
     let summaryText = '';
-    let debugMessages = [];
 
     async function loadAllData() {
       updateStatus('loading', 'Loading pipeline data...');
       const kpiEls = getKpiElements();
       setKpiLoading(kpiEls);
 
-      const [errData, summary, debug] = await Promise.allSettled([
+      const [errData, summary] = await Promise.allSettled([
         fetchJSON('error_dashboard_data.json'),
-        fetchText('processing_summary.txt'),
-        fetchJSON('debug_log.json')
+        fetchText('processing_summary.txt')
       ]);
 
       dashboardData = errData.status === 'fulfilled' ? errData.value : null;
       summaryText = summary.status === 'fulfilled' ? summary.value : '';
-      debugMessages = debug.status === 'fulfilled' ? extractMessages(debug.value) : [];
 
       renderDashboard();
       renderOutputFileLinks();
-      renderRecentActivity();
       updateStatusBar();
     }
 
@@ -521,15 +755,6 @@
       const resp = await fetch(`${DATA_BASE}/${name}`);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return resp.text();
-    }
-
-    function extractMessages(debug) {
-      if (!debug || !Array.isArray(debug.messages)) return [];
-      return debug.messages.slice(0, 30).map(m => ({
-        time: m.timestamp || '',
-        msg: m.message || '',
-        level: m.level || 0
-      }));
     }
 
     // ─── KPI RENDERER ───────────────────────────────────────────────────────
@@ -679,56 +904,154 @@
 
     // ─── OUTPUT FILE LINKS ──────────────────────────────────────────────────
     function renderOutputFileLinks() {
-      const links = document.querySelectorAll('.output-link');
-      links.forEach((link, i) => {
-        if (i < OUTPUT_FILES.length) {
-          const f = OUTPUT_FILES[i];
-          link.href = `${DATA_BASE}/${f.path}`;
-          link.target = '_blank';
-          link.querySelector('.output-icon').textContent = f.icon;
-          link.querySelector('.output-name').textContent = f.name;
-        }
-      });
-
       const sidebarList = document.querySelector('#outputFileList div');
-      if (sidebarList) {
-        let outputDir = DATA_BASE;
-        if (summaryText) {
-          const dirMatch = summaryText.match(/CSV Export:\s*(.+[\\/])/);
-          if (dirMatch) outputDir = dirMatch[1].trim();
+      if (!sidebarList) return;
+      let outputDir = DATA_BASE;
+      if (summaryText) {
+        const dirMatch = summaryText.match(/CSV Export:\s*(.+[\\/])/);
+        if (dirMatch) outputDir = dirMatch[1].trim();
+      }
+      sidebarList.innerHTML = '<div style="font-size:10px;color:var(--text3);margin-bottom:6px;word-break:break-all;">📁 ' + outputDir + '</div>' +
+        OUTPUT_FILES.map((f, i) =>
+          '<div style="display:flex;align-items:center;gap:4px;padding:3px 0;cursor:pointer;border-radius:var(--radius-sm);transition:background 0.12s;" class="output-sidebar-item" data-idx="' + i + '" title="' + escHtml(f.name) + '">' +
+          '<span style="flex:1;">' + f.icon + ' ' + escHtml(f.name) + '</span>' +
+          '<span class="sidebar-dl-btn" style="font-size:10px;padding:1px 4px;border-radius:3px;cursor:pointer;opacity:0.4;transition:opacity 0.12s;" title="Download ' + escHtml(f.name) + '">⬇</span>' +
+          '</div>'
+        ).join('');
+
+      sidebarList.querySelectorAll('.output-sidebar-item').forEach(el => {
+        const i = parseInt(el.dataset.idx);
+        const f = OUTPUT_FILES[i];
+        if (!f) return;
+        const url = DATA_BASE + '/' + f.path;
+
+        // Click on item name → view content
+        el.addEventListener('click', (e) => {
+          if (e.target.classList.contains('sidebar-dl-btn')) return;
+          if (i < 2) {
+            window.open(url, '_blank');
+          } else {
+            showOutputFileContent(f.name, f.path);
+          }
+        });
+
+        // Download button
+        el.querySelector('.sidebar-dl-btn')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = f.path.split('/').pop();
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        });
+      });
+    }
+
+    function showDetailTable(title, html) {
+      const container = document.getElementById('detailTableContainer');
+      const titleEl = document.getElementById('detailTableTitle');
+      const bodyEl = document.getElementById('detailTableBody');
+      if (!container || !titleEl || !bodyEl) return;
+      titleEl.textContent = title;
+      bodyEl.innerHTML = html;
+      container.style.display = 'block';
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.getElementById('detailTableClose')?.addEventListener('click', () => {
+      document.getElementById('detailTableContainer').style.display = 'none';
+    });
+
+    function jsonToTable(data, maxRows) {
+      if (maxRows === undefined) maxRows = 100;
+      if (Array.isArray(data)) {
+        if (!data.length) return '<div style="color:var(--text3);">Empty array.</div>';
+        const keys = Object.keys(data[0]);
+        return '<div style="overflow-x:auto;"><table style="width:100%;font-size:10px;border-collapse:collapse;">' +
+          '<thead><tr style="background:var(--th-bg);">' +
+          keys.map(k => '<th style="padding:4px 6px;text-align:left;border:1px solid var(--border);white-space:nowrap;">' + escHtml(k) + '</th>').join('') +
+          '</tr></thead><tbody>' +
+          data.slice(0, maxRows).map(row =>
+            '<tr>' + keys.map(k =>
+              '<td style="padding:4px 6px;border:1px solid var(--border);font-size:10px;">' + escHtml(formatCell(row[k])) + '</td>'
+            ).join('') + '</tr>'
+          ).join('') +
+          (data.length > maxRows ? '<tr><td colspan="' + keys.length + '" style="padding:4px 6px;text-align:center;color:var(--text3);font-size:10px;border:1px solid var(--border);">... and ' + (data.length - maxRows) + ' more rows</td></tr>' : '') +
+          '</tbody></table></div>';
+      }
+      if (typeof data === 'object' && data !== null) {
+        return '<table style="width:100%;font-size:10px;border-collapse:collapse;">' +
+          Object.entries(data).map(([k, v]) =>
+            '<tr><td style="padding:4px 6px;border:1px solid var(--border);font-weight:600;white-space:nowrap;">' + escHtml(k) + '</td>' +
+            '<td style="padding:4px 6px;border:1px solid var(--border);">' + escHtml(formatCell(v)) + '</td></tr>'
+          ).join('') + '</table>';
+      }
+      return escHtml(String(data));
+    }
+
+    function formatCell(val) {
+      if (val === null || val === undefined) return '\u2014';
+      if (typeof val === 'object') return JSON.stringify(val);
+      return String(val);
+    }
+
+    async function showOutputFileContent(name, path) {
+      showDetailTable(name, '<div style="color:var(--text3);">Loading...</div>');
+      try {
+        const resp = await fetch(DATA_BASE + '/' + path);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const isJson = path.endsWith('.json');
+        let html = '<div style="margin-bottom:8px;"><strong>File:</strong> <code>' + escHtml(path) + '</code></div>';
+
+        if (isJson) {
+          const data = await resp.json();
+          const size = formatBytes(new Blob([JSON.stringify(data)]).size);
+          html += '<div style="margin-bottom:8px;"><strong>Size:</strong> ' + size + '</div>';
+
+          const arrays = Object.entries(data).filter(([, v]) => Array.isArray(v) && v.length > 0);
+          const tabs = [];
+          arrays.forEach(([key, arr]) => {
+            tabs.push({ id: 'tab-' + key, label: key + ' (' + arr.length + ')', content: jsonToTable(arr, 50) });
+          });
+          tabs.push({ id: 'tab-raw', label: 'Raw JSON', content: '<pre style="margin:0;padding:8px;background:var(--surface2);border-radius:var(--radius-sm);font-size:10px;line-height:1.5;overflow-x:auto;white-space:pre-wrap;max-height:400px;overflow-y:auto;">' + escHtml(JSON.stringify(data, null, 2)) + '</pre>' });
+
+          if (tabs.length > 0) {
+            html += '<div class="dt-tab-bar">' +
+              tabs.map((t, i) => '<div class="dt-tab' + (i === 0 ? ' active' : '') + '" data-tab="' + t.id + '">' + escHtml(t.label) + '</div>').join('') +
+              '</div>' +
+              tabs.map((t, i) => '<div class="dt-tab-content' + (i === 0 ? ' active' : '') + '" data-tab-content="' + t.id + '">' + t.content + '</div>').join('');
+          } else {
+            html += jsonToTable(data, 50);
+          }
+        } else {
+          const text = await resp.text();
+          const size = formatBytes(new Blob([text]).size);
+          html += '<div style="margin-bottom:8px;"><strong>Size:</strong> ' + size + '</div>' +
+            '<pre style="margin:0;padding:8px;background:var(--surface2);border-radius:var(--radius-sm);font-size:10px;line-height:1.5;overflow-x:auto;white-space:pre-wrap;max-height:400px;overflow-y:auto;">' +
+            escHtml(text.length > 10000 ? text.slice(0, 10000) + '\n\n... (truncated, full file: ' + path + ')' : text) + '</pre>';
         }
-        sidebarList.innerHTML = `<div style="font-size:10px;color:var(--text3);margin-bottom:6px;word-break:break-all;">📁 ${outputDir}</div>` +
-          OUTPUT_FILES.map(f =>
-            `<div style="padding:2px 0;">${f.icon} ${f.name}</div>`
-          ).join('');
+        showDetailTable(name, html);
+
+        // Tab switching
+        document.querySelectorAll('.dt-tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            document.querySelectorAll('.dt-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.dt-tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            const content = document.querySelector('[data-tab-content="' + tab.dataset.tab + '"]');
+            if (content) content.classList.add('active');
+          });
+        });
+      } catch (err) {
+        showDetailTable(name, '<div style="color:var(--danger);">Failed to load: ' + escHtml(err.message) + '</div>');
       }
     }
 
-    // ─── RECENT ACTIVITY ────────────────────────────────────────────────────
-    function renderRecentActivity() {
-      const tbody = document.querySelector('.dcc-table tbody');
-      if (!tbody) return;
-
-      const entries = debugMessages.length
-        ? debugMessages
-        : dashboardData?.recent_errors
-          ? dashboardData.recent_errors.slice(0, 10).map(e => ({
-              time: '',
-              msg: `${e.code}: ${e.message}`,
-              level: e.severity === 'HIGH' ? 2 : 1
-            }))
-          : [];
-
-      if (!entries.length) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:20px;">No activity data loaded</td></tr>`;
-        return;
-      }
-
-      tbody.innerHTML = entries.map(e => {
-        const ts = e.time ? formatTimestamp(e.time) : '';
-        const badge = makeBadge(e.level);
-        return `<tr><td class="mono">${ts}</td><td>${escHtml(e.msg)}</td><td>${badge}</td></tr>`;
-      }).join('');
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
     function formatTimestamp(ts) {
@@ -820,8 +1143,19 @@
     });
 
     // ─── INIT ────────────────────────────────────────────────────────────────
-    renderOutputFileLinks();
-    loadAllData();
+    (async () => {
+      await loadUiConfig();
+      rightSidebarBody.innerHTML = buildDefaultSidebarHtml();
+      renderOutputFileLinks();
+      loadAllData();
+
+      document.querySelectorAll('.kpi-card').forEach((el, i) => {
+        el.addEventListener('click', () => showKpiDetail(i));
+      });
+      document.querySelectorAll('.stage-card').forEach((el, i) => {
+        el.addEventListener('click', () => showStageDetail(i));
+      });
+    })();
   </script>
 </body>
 </html>

@@ -1,0 +1,55 @@
+{
+  "version": "3.0.0",
+  "help": {
+    "kpi_metrics": {
+      "intro": "Each KPI value is read from <code>error_dashboard_data.json</code> or <code>processing_summary.txt</code>. The list below describes which file and field supplies each metric.",
+      "items": [
+        { "label": "Rows Processed", "text": "comes from <code>error_dashboard_data.json</code>, reading <code>health_kpi.total_rows</code> first and falling back to <code>metadata.total_rows</code>." },
+        { "label": "Match Rate", "text": "is calculated from <code>error_dashboard_data.json</code> by dividing <code>summary.unique_errors</code> by <code>health_kpi.total_rows</code>, then subtracting the result from 100%." },
+        { "label": "Columns Created", "text": "is parsed from <code>processing_summary.txt</code> by extracting the column number from the <code>Processed Data Shape</code> line." },
+        { "label": "Errors Found", "text": "is read directly from <code>error_dashboard_data.json</code> field <code>summary.total_errors</code>." },
+        { "label": "Data Health", "text": "is read from <code>error_dashboard_data.json</code> field <code>health_kpi.score</code>, displayed as a percentage with a color gradient bar underneath." }
+      ]
+    },
+    "pipeline_stages": {
+      "intro": "Stage status and progress bars are driven by the <code>phase_breakdown</code> array inside <code>error_dashboard_data.json</code>. Each pipeline stage maps to a phase code and the corresponding phase entry determines its appearance.",
+      "details": "If a phase entry has its <code>Critical</code> count greater than zero, the stage is marked <strong style=\"color:var(--danger);\">FAIL</strong> with a red progress bar. If it has a non-zero <code>Total</code> count but no critical issues, the stage shows a warning count with an amber bar. A phase with zero issues shows <strong style=\"color:var(--success);\">PASS</strong> with a green bar.",
+      "export_note": "The Export stage has no phase code assigned, so its status is derived from the overall run: it passes only when <code>summary.clean_run</code> is true. Stages that do not match any phase entry fall back to <em>no data</em> with a grey bar."
+    },
+    "recent_activity": {
+      "intro": "The activity table is populated from two possible sources with a priority order.",
+      "primary": "<strong>Primary source:</strong> <code>debug_log.json</code> \u2014 the <code>messages</code> array is read and the most recent 30 entries are displayed, each with a timestamp, message text, and a severity badge.",
+      "fallback": "<strong>Fallback source:</strong> If <code>debug_log.json</code> is unavailable or empty, the dashboard falls back to the <code>recent_errors</code> array inside <code>error_dashboard_data.json</code>, showing up to 10 entries with an error code, message, and a severity badge derived from the <code>severity</code> field."
+    },
+    "output_files": {
+      "text": "Each output file link points to a file inside <code>dcc/output/</code> and opens in a new browser tab."
+    }
+  },
+  "default_sidebar": {
+    "options": {
+      "auto_refresh": "Auto-refresh on load",
+      "show_timestamps": "Show timestamps"
+    },
+    "about": {
+      "title": "DCC Pipeline Dashboard",
+      "version": "3.0.0",
+      "description": "Data loaded from pipeline output files."
+    }
+  },
+  "stages": [
+    { "id": "stage1", "name": "File Upload", "phase": "P1" },
+    { "id": "stage2", "name": "Sheet Selection", "phase": "P1" },
+    { "id": "stage3", "name": "Column Mapping", "phase": "P2.5" },
+    { "id": "stage4", "name": "Data Validation", "phase": "P3" },
+    { "id": "stage5", "name": "Processing", "phase": "P4" },
+    { "id": "stage6", "name": "Export", "phase": null }
+  ],
+  "output_files": [
+    { "name": "CSV Export", "icon": "📄", "path": "processed_dcc_universal.csv" },
+    { "name": "Excel Export", "icon": "📊", "path": "processed_dcc_universal.xlsx" },
+    { "name": "Summary", "icon": "📋", "path": "processing_summary.txt" },
+    { "name": "Debug Log", "icon": "🐛", "path": "debug_log.json" },
+    { "name": "Error Data", "icon": "📈", "path": "error_dashboard_data.json" },
+    { "name": "Validation Report", "icon": "✓", "path": "schema_validation_status.json" }
+  ]
+}

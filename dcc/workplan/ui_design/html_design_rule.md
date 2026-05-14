@@ -55,7 +55,14 @@
 2. file load icon is 📂
 3. help icon is ❓
 4. setting icon is ⚙️
-5. trr icon is 🌳
+5. tree icon is 🌳
+
+## Help
+1. store following details in ui_help.json file. HTML file can load the value from this json file.:
+- help text
+- about text
+- revision text
+- default file names, folders, definitions
 
 
 ## main content panel
