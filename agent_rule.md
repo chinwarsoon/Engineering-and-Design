@@ -155,3 +155,6 @@
 7. showing function tracing and status reporting
 8. showing function user interface and interaction
 
+# Section 11. UI web design
+
+1. refer to file dcc/workplan/ui_design/web_interface/html_design_rule.md.

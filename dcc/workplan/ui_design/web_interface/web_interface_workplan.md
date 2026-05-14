@@ -1,9 +1,9 @@
 # Web Interface Workplan — Universal UI Toolkit
 
 **Document ID:** WP-UI-001  
-**Current Version:** 2.0  
+**Current Version:** 3.0  
 **Status:** COMPLETED  
-**Last Updated:** 2026-05-13  
+**Last Updated:** 2026-05-14  
 **Lead:** Franklin Song
 
 ---
@@ -14,6 +14,7 @@
 | :--- | :--- | :--- | :--- |
 | 1.0 | 2026-04-18 | Franklin Song | Initial workplan — 8 UI tools + design system delivered. |
 | 2.0 | 2026-05-13 | Franklin Song | Restructured as independent workplan. Each HTML deliverable now a standalone phase (Phases 1–9). Removed external phase identity. |
+| 3.0 | 2026-05-14 | Franklin Song | Phase 2 revision: Pipeline Dashboard updated from static mockup to live data-driven dashboard. Added 8 sub-tasks (data loader, dynamic KPIs, real pipeline stages, wired buttons, dynamic status bar, activity log, fixed theme dots). |
 
 ---
 
@@ -165,37 +166,100 @@ A shared CSS design system that all 8 UI tools import. Based on a VS Code-inspir
 
 ### Phase 2: Pipeline Dashboard
 
-**Timeline:** Days 2–3  
-**Status:** ✅ COMPLETED  
-**File:** `dcc/ui/pipeline_dashboard.html` (2,156 lines)
+**Timeline:** Days 2–3 (initial), Days 11–12 (v3.0 revision)  
+**Status:** ✅ REVISION COMPLETED  
+**File:** `dcc/ui/pipeline_dashboard.html` (881 lines)
 
-#### What Was Created
+#### What Was Created (v1.0–v2.0)
 
-Central hub showing pipeline run status, output file links, processing summary KPIs, and data health score.
+Initial static mockup: central hub showing pipeline run status, output file links, processing summary KPIs, and data health score.
 
-**Features:**
+**Legacy Features (static mockup):**
 - Pipeline run status card (Steps 1–6 with pass/fail indicators)
 - KPI tiles: rows processed, match rate, columns created, error count, data health score
 - Output file quick-links: CSV, Excel, Summary, Debug Log, Dashboard JSON
-- Data health score gauge (from `error_dashboard_data.json`)
+- Data health score gauge
 - Last run timestamp and schema version
 - "Run Pipeline" button
 
-**Data Sources:** `output/error_dashboard_data.json`, `output/processing_summary.txt`
+**Known Issues Identified (v3.0 revision driver):**
+1. All data is hardcoded — no `fetch()` or `FileReader` implementation
+2. All buttons (Run, Refresh, Load Files, iconbar, toolbar) have no event handlers
+3. Output file links use `href="#"` — point to nothing
+4. Pipeline stages always show "pending" with 0% progress
+5. Status bar shows hardcoded values, not real pipeline state
+6. Recent activity table has static sample rows
+7. Theme dot colors for Sky and Presentation misrepresent actual theme backgrounds
+
+#### v3.0 Revision Scope
+
+**Data Sources:** `output/error_dashboard_data.json`, `output/processing_summary.txt`, `output/debug_log.json`
+
+**9 Sub-Tasks:**
+
+| ID | Task | Detail |
+| :--- | :--- | :--- |
+| 2.1 | **Compliance check against html_design_rule.md** | Audit `pipeline_dashboard.html` against all rules. Fix violations first before adding new features. |
+| 2.2 | **Implement data loader** | Add `fetch()` calls to load `error_dashboard_data.json` and `processing_summary.txt` from `dcc/output/`. Fallback to FileReader API for `file://` protocol. Handle missing files with graceful degradation and clear error messages. |
+| 2.3 | **Make KPI tiles data-driven** | Replace hardcoded values (1,247 rows, 100% match, etc.) with real data derived from loaded JSON. Add abbreviated formatting (1.2K, 3.5M). |
+| 2.4 | **Update pipeline stages from real data** | Parse phase-level error/success info from `error_dashboard_data.json`. Set stage progress bars, status labels (pass/fail/warning), and color-coding dynamically per stage. |
+| 2.5 | **Wire up output file links** | Replace `href="#"` with real relative paths (`../output/processed_dcc_universal.csv`, etc.). Add click-to-download or open behavior. |
+| 2.6 | **Add button event handlers** | Attach handlers to: Run Pipeline (trigger re-fetch), Refresh Data (reload from files), Load Files (FileReader picker). Wire iconbar + toolbar buttons appropriately. |
+| 2.7 | **Make status bar dynamic** | Derive "Last run" timestamp, overall status indicator, and version from loaded data. Show error count in status if pipeline has failures. |
+| 2.8 | **Load recent activity from log files** | Parse `debug_log.json` to populate the activity table with real events, timestamps, and status badges. |
+| 2.9 | **Fix theme dot colors** | Correct `themeColors` JS object: Sky dot from `#0a1628` to `#e0f2fe`, Presentation dot from `#12082a` to `#f8fafc` to match actual CSS background values. |
+
+#### Compliance Audit Results (html_design_rule.md)
+
+| # | Rule | Status | Finding |
+| :--- | :--- | :--- | :--- |
+| 1.1 | VS Code-like layout: title bar, side icon bar, toggleable left sidebar, status bar, right sidebar | ❌ Partial | Title bar, icon bar, left sidebar, status bar exist. **No right sidebar panel.** |
+| 1.2 | Theme toggle in top-right title bar | ✅ Pass | Theme button with dropdown menu present. |
+| 1.3 | 5 themes: light, dark, sky (light blue), ocean, presentation (light grey), saved to localStorage | ⚠️ Partial | 5 themes present and saved. CSS bg colors match spec. But `themeColors` JS object has wrong values for sky (`#0a1628`) and presentation (`#12082a`) — dark instead of light. |
+| 1.4 | All panels height/width adjustable | ❌ Fail | No drag-to-resize on any panel. Sidebar width fixed. |
+| 1.5 | All HTML files reference same CSS | ✅ Pass | Imports `dcc-design-system.css`. |
+| 1.6 | Icons only in icon bar, title bar, buttons | ✅ Pass | Uses emoji icons appropriately. |
+| 2.1 | Title bar full width with theme button, layout button, menu, search | ❌ Partial | Full width ✅. Has theme button. **Missing layout button. Missing global search.** |
+| 3.1 | Side icon bar toggles left sidebar | ❌ Fail | Icon bar buttons have no event handlers — clicking them does nothing. |
+| 4.1 | Sidebar contents toggleable | ✅ Pass | Sidebar sections collapse/expand on click. |
+| 4.2 | Sidebar resizable by dragging right edge | ❌ Fail | No drag-resize implemented. |
+| 4.3 | Sidebar collapsible via icon bar | ❌ Fail | No mechanism to hide/show entire sidebar. |
+| 5.1–5.2 | Right sidebar panel with toggleable contents, resizable | ❌ Fail | No right sidebar exists. |
+| 6.1 | File loading panel loads local/pipeline files | ❌ Fail | "Load Files" button exists but no handler. |
+| 6.2 | File loading panel lists loaded files | ❌ Fail | Not implemented. |
+| 6.3 | Drag-and-drop file loading | ❌ Fail | Not implemented. |
+| 6.4 | Status bar shows selected file | ❌ Fail | Not implemented. |
+| 6.5 | File loading panel collapsible via icon bar | ❌ Fail | Not implemented. |
+| 7.1–7.4 | Tree selection panel for hierarchical content | ❌ Fail | No tree view exists. |
 
 #### Risks & Mitigation
 - **Risk:** Missing or malformed data files cause UI errors. **Mitigation:** Graceful degradation with placeholder data and clear error messages.
 - **Risk:** Large KPI values overflow UI tiles. **Mitigation:** Abbreviated number formatting (1.2K, 3.5M).
+- **Risk:** `fetch()` blocked on `file://` protocol in some browsers. **Mitigation:** Auto-detect protocol; fallback to FileReader API with local file picker.
+- **Risk:** JSON structure changes between pipeline versions. **Mitigation:** Validate required fields on load; fallback to empty/default state.
 
-#### Success Criteria
-- [x] All 5 KPI tiles render and update correctly
-- [x] Pipeline stages show correct pass/fail state
-- [x] Output file links point to correct paths
-- [x] Theme switching works
+#### Potential Issues to Address in Future
+- Real-time WebSocket updates for live pipeline runs
+- Historical trend charts for KPI values over time
+- Pipeline configuration editing from the dashboard
+
+#### Success Criteria (v3.0)
+- [x] All non-conformant html_design_rule.md items resolved (see compliance audit table)
+- [x] KPI tiles render from real pipeline output data
+- [x] Pipeline stages show correct pass/fail per phase from data
+- [x] Output file links navigate to real files
+- [x] Run/Refresh buttons trigger actual data reload
+- [x] Status bar reflects real last-run timestamp and status
+- [x] Activity table populated from debug log
+- [x] Theme dots match actual theme background colors
+- [x] Graceful fallback when data files are missing
+- [x] No hardcoded mock data remains in the script
 
 #### References
 - Report: `web_interface_report.md`
 - User guide: `../../../ui/user_guide.md`
+- Data files: `dcc/output/error_dashboard_data.json`, `dcc/output/processing_summary.txt`, `dcc/output/debug_log.json`
+- Design system: `dcc/ui/dcc-design-system.css`
 
 ---
 
@@ -433,7 +497,7 @@ Upload an Excel file and auto-generate a schema JSON skeleton from its headers.
 | Step | Deliverable | Depends On | Priority | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | 1 | `dcc-design-system.css` | — | Critical | ✅ Complete |
-| 2 | `pipeline_dashboard.html` | 1 | High | ✅ Complete |
+| 2 | `pipeline_dashboard.html` (v3.0) | 1 | High | ✅ Complete |
 | 3 | `excel_explorer_pro.html` | 1 | High | ✅ Complete |
 | 4 | `error_diagnostic_dashboard.html` | 1, 2 | High | ✅ Complete |
 | 5 | `schema_manager.html` | 1 | High | ✅ Complete |

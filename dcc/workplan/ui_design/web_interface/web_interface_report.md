@@ -1,14 +1,15 @@
 # Web Interface Report — Universal UI Toolkit
 
-**Status:** ✅ COMPLETE  
-**Date:** 2026-04-18  
-**Lead:** Franklin Song
+**Status:** ✅ COMPLETE (with revisions)  
+**Date:** 2026-05-14  
+**Lead:** Franklin Song  
+**Revision:** v3.0 — Pipeline Dashboard updated from static mockup to live data-driven dashboard (see `web_interface_workplan.md` v3.0)
 
 ---
 
 ## 1. Executive Summary
 
-Successfully delivered a comprehensive suite of 8 browser-based UI tools under `dcc/ui/` for data visualization, schema management, pipeline monitoring, and analysis. All tools share a unified design system with 5 color themes and VS Code-inspired layout. Total: 19,406 lines of code across 8 tools + 1 shared CSS design system, with 5,950 lines of documentation.
+Successfully delivered a comprehensive suite of 8 browser-based UI tools under `dcc/ui/` for data visualization, schema management, pipeline monitoring, and analysis. All tools share a unified design system with 5 color themes and VS Code-inspired layout. Total: 18,130 lines of code across 8 tools + 1 shared CSS design system, with 5,950 lines of documentation. Pipeline Dashboard (v3.0) revised from static mockup to live data-driven dashboard connecting to real pipeline output files.
 
 ---
 
@@ -30,7 +31,7 @@ Successfully delivered a comprehensive suite of 8 browser-based UI tools under `
 ```
 dcc/ui/
 ├── dcc-design-system.css              (1,247 lines)
-├── pipeline_dashboard.html            (2,156 lines)
+├── pipeline_dashboard.html            (880 lines, v3.0)
 ├── excel_explorer_pro.html            (2,847 lines)
 ├── error_diagnostic_dashboard.html    (2,634 lines)
 ├── schema_manager.html                (2,156 lines)
@@ -64,19 +65,25 @@ dcc/ui/
 
 **Typography:** Inter (UI), JetBrains Mono (code)
 
-### 3.2 Pipeline Dashboard
+### 3.2 Pipeline Dashboard (v3.0)
 
-**File:** `pipeline_dashboard.html` (2,156 lines)
+**File:** `pipeline_dashboard.html` (880 lines)
 
 | Feature | Detail |
 | :--- | :--- |
-| KPI Tiles | rows processed, match rate, columns created, errors, health score |
-| Pipeline Stages | 6 stages (Steps 1-6) with pass/fail indicators |
-| Output Links | CSV, Excel, Summary, Debug Log, Dashboard JSON |
+| KPI Tiles | rows processed, match rate, columns created, errors, health score — from real data |
+| Pipeline Stages | 6 stages mapped to P1/P2.5/P3/P4 phases with pass/warning/fail color-coding |
+| Output Links | CSV, Excel, Summary, Debug Log, Dashboard JSON, Validation Report |
 | Data Health | Score gauge from `error_dashboard_data.json` |
-| Interactions | Last run timestamp, schema version, Run Pipeline button |
+| Interactions | Run Pipeline, Refresh Data, Load Local Files buttons all wired |
+| Status Bar | Dynamic last-run timestamp, health score, overall status |
+| Recent Activity | Populated from `debug_log.json` messages (30 entries) |
+| Theme Dots | Fixed Sky and Presentation dot colors to match actual CSS backgrounds |
+| Layout | Layout toggle button in title bar (3 modes), right sidebar panel |
+| File Loading | FileReader API fallback for `file://` protocol, loaded file indicators |
+| Compliance | 19 html_design_rule.md checks passed after revisions |
 
-**Data Sources:** `output/error_dashboard_data.json`, `output/processing_summary.txt`
+**Data Sources:** `output/error_dashboard_data.json`, `output/processing_summary.txt`, `output/debug_log.json`
 
 ### 3.3 Excel Explorer Pro
 
@@ -238,7 +245,8 @@ dcc/ui/
 - [x] Theme support in all tools
 - [x] Responsive design, accessibility features
 - [x] No console errors
-- [x] Total: 19,406 lines
+- [x] Total: 18,130 lines
+- [x] Pipeline Dashboard v3.0: All mock data removed, replaced with real fetch/FileReader data loading
 
 ### Functionality
 - [x] All file loaders work (CSV, Excel, JSON)
@@ -292,11 +300,12 @@ dcc/ui/
 ## 7. Statistics
 
 ### Code
-- **Total Lines:** 19,406
+- **Total Lines:** 18,130
 - **Tools:** 8 HTML files + 1 CSS design system
 - **Design System:** 1,247 lines
-- **Average Tool:** 2,426 lines
+- **Average Tool:** 2,110 lines
 - **Documentation:** 5,950 lines across all docs
+- **Pipeline Dashboard v3.0:** Restructured from 2,156 to 880 lines, removing static mock data and replacing with dynamic JS data layer
 
 ### Components
 - **Buttons:** 5 variants (primary, secondary, ghost, danger, success)
