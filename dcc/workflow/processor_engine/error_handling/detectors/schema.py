@@ -36,6 +36,12 @@ class SchemaDetector(BaseDetector):
     Supports both row-by-row and batch validation.
     """
     
+    # Error codes
+    ERROR_PATTERN_MISMATCH = "V5-I-V-0501"
+    ERROR_LENGTH = "V5-I-V-0502"
+    ERROR_ENUM = "V5-I-V-0503"
+    ERROR_TYPE = "V5-I-V-0504"
+
     def __init__(
         self,
         logger=None,
@@ -111,13 +117,11 @@ class SchemaDetector(BaseDetector):
                 
                 if not self._validate_pattern(value, pattern_info["regex"]):
                     self.detect_error(
-                        error_code="V5-I-V-0501",
-                        message=f"Pattern mismatch in {column}: '{value}' doesn't match {pattern_info['description'] or pattern_info['pattern']}",
+                        error_code=self.ERROR_PATTERN_MISMATCH,
+                        message=self._format_message(self.ERROR_PATTERN_MISMATCH, column=column, value=value),
                         row=idx,
                         column=column,
-                        severity=self._get_severity("V5-I-V-0501", "HIGH"),
                         fail_fast=False,
-                        remediation_type="MANUAL_FIX",
                         additional_context={
                             "value": str(value),
                             "expected_pattern": pattern_info['pattern'],
@@ -138,13 +142,11 @@ class SchemaDetector(BaseDetector):
             
             if not self._validate_pattern(value, pattern_info["regex"]):
                 self.detect_error(
-                    error_code="V5-I-V-0501",
-                    message=f"Pattern mismatch in {column}: '{value}' doesn't match {pattern_info['description'] or pattern_info['pattern']}",
+                     error_code=self.ERROR_PATTERN_MISMATCH,
+                        message=self._format_message(self.ERROR_PATTERN_MISMATCH, column=column, value=value),
                     row=row_index,
                     column=column,
-                    severity=self._get_severity("V5-I-V-0501", "HIGH"),
                     fail_fast=False,
-                    remediation_type="MANUAL_FIX",
                     additional_context={
                         "value": str(value),
                         "expected_pattern": pattern_info['pattern'],
@@ -188,17 +190,15 @@ class SchemaDetector(BaseDetector):
         
         if max_length is not None and str_len > max_length:
             self.detect_error(
-                error_code="V5-I-V-0502",
-                message=f"Length exceeded in {column}: {str_len} chars (max: {max_length})",
+                error_code=self.ERROR_LENGTH,
+                message=self._format_message(self.ERROR_LENGTH, column=column),
                 row=row_index,
-                column=column,
-                severity=self._get_severity("V5-I-V-0502", "HIGH"),
-                fail_fast=False,
-                remediation_type="MANUAL_FIX",
-                additional_context={
-                    "value": str_value[:50] + "..." if str_len > 50 else str_value,
-                    "actual_length": str_len,
-                    "max_length": max_length,
+                    column=column,
+                    fail_fast=False,
+                    additional_context={
+                        "value": str_value[:50] + "..." if str_len > 50 else str_value,
+                        "actual_length": str_len,
+                        "max_length": max_length,
                     "column": column
                 }
             )
@@ -206,17 +206,15 @@ class SchemaDetector(BaseDetector):
         
         if min_length is not None and str_len < min_length:
             self.detect_error(
-                error_code="V5-I-V-0502",
-                message=f"Length too short in {column}: {str_len} chars (min: {min_length})",
+                error_code=self.ERROR_LENGTH,
+                message=self._format_message(self.ERROR_LENGTH, column=column),
                 row=row_index,
-                column=column,
-                severity=self._get_severity("V5-I-V-0502", "HIGH"),
-                fail_fast=False,
-                remediation_type="MANUAL_FIX",
-                additional_context={
-                    "value": str_value,
-                    "actual_length": str_len,
-                    "min_length": min_length,
+                    column=column,
+                    fail_fast=False,
+                    additional_context={
+                        "value": str_value,
+                        "actual_length": str_len,
+                        "min_length": min_length,
                     "column": column
                 }
             )
@@ -257,16 +255,14 @@ class SchemaDetector(BaseDetector):
         
         if not is_valid:
             self.detect_error(
-                error_code="V5-I-V-0503",
-                message=f"Invalid value in {column}: '{value}' not in allowed values",
+                error_code=self.ERROR_ENUM,
+                message=self._format_message(self.ERROR_ENUM, column=column, value=value),
                 row=row_index,
-                column=column,
-                severity=self._get_severity("V5-I-V-0503", "HIGH"),
-                fail_fast=False,
-                remediation_type="MANUAL_FIX",
-                additional_context={
-                    "value": str_value,
-                    "allowed_values": allowed_values,
+                    column=column,
+                    fail_fast=False,
+                    additional_context={
+                        "value": str_value,
+                        "allowed_values": allowed_values,
                     "column": column
                 }
             )
@@ -298,17 +294,15 @@ class SchemaDetector(BaseDetector):
         
         if not isinstance(value, expected_type):
             self.detect_error(
-                error_code="V5-I-V-0504",
-                message=f"Type mismatch in {column}: expected {expected_type.__name__}, got {type(value).__name__}",
+                error_code=self.ERROR_TYPE,
+                message=self._format_message(self.ERROR_TYPE, column=column, expected_type=expected_type.__name__, actual_type=type(value).__name__),
                 row=row_index,
-                column=column,
-                severity=self._get_severity("V5-I-V-0504", "HIGH"),
-                fail_fast=False,
-                remediation_type="MANUAL_FIX",
-                additional_context={
-                    "value": str(value)[:50],
-                    "expected_type": expected_type.__name__,
-                    "actual_type": type(value).__name__,
+                    column=column,
+                    fail_fast=False,
+                    additional_context={
+                        "value": str(value)[:50],
+                        "expected_type": expected_type.__name__,
+                        "actual_type": type(value).__name__,
                     "column": column
                 }
             )
@@ -355,11 +349,10 @@ class SchemaDetector(BaseDetector):
                     results.append(self._validate_pattern(value, regex))
                     if not results[-1]:
                         self.detect_error(
-                            error_code="V5-I-V-0501",
-                            message=f"Pattern mismatch in {column}",
+                            error_code=self.ERROR_PATTERN_MISMATCH,
+                            message=self._format_message(self.ERROR_PATTERN_MISMATCH, column=column, value=""),
                             row=row_index,
                             column=column,
-                            severity=self._get_severity("V5-I-V-0501", "HIGH"),
                             additional_context={"value": str(value), "pattern": pattern}
                         )
             

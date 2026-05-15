@@ -174,10 +174,9 @@ class ValidationDetector(BaseDetector):
             if not compiled_pattern.match(str(value)):
                 self.detect_error(
                     error_code=rule.error_code or self.ERROR_PATTERN_MISMATCH,
-                    message=f"Pattern mismatch in '{column}': '{value}'",
+                    message=self._format_message(self.ERROR_PATTERN_MISMATCH, column=column, value=value),
                     row=idx,
                     column=column,
-                    severity=rule.severity,
                     fail_fast=False,
                     additional_context={
                         "value": str(value),
@@ -212,10 +211,9 @@ class ValidationDetector(BaseDetector):
             if max_length is not None and len(str_value) > max_length:
                 self.detect_error(
                     error_code=rule.error_code or self.ERROR_LENGTH_EXCEEDED,
-                    message=f"Length exceeded in '{column}': {len(str_value)} > {max_length}",
+                    message=self._format_message(self.ERROR_LENGTH_EXCEEDED, column=column),
                     row=idx,
                     column=column,
-                    severity=rule.severity,
                     fail_fast=False,
                     additional_context={
                         "value": str_value[:50] + "..." if len(str_value) > 50 else str_value,
@@ -228,10 +226,9 @@ class ValidationDetector(BaseDetector):
             if min_length is not None and len(str_value) < min_length:
                 self.detect_error(
                     error_code=rule.error_code or self.ERROR_LENGTH_EXCEEDED,
-                    message=f"Length below minimum in '{column}': {len(str_value)} < {min_length}",
+                    message=self._format_message(self.ERROR_LENGTH_EXCEEDED, column=column),
                     row=idx,
                     column=column,
-                    severity=rule.severity,
                     fail_fast=False,
                     additional_context={
                         "value": str_value,
@@ -278,10 +275,9 @@ class ValidationDetector(BaseDetector):
             if check_value not in allowed_normalized:
                 self.detect_error(
                     error_code=rule.error_code or self.ERROR_INVALID_ENUM,
-                    message=f"Invalid enum value in '{column}': '{value}'",
+                    message=self._format_message(self.ERROR_INVALID_ENUM, column=column, value=value),
                     row=idx,
                     column=column,
-                    severity=rule.severity,
                     fail_fast=False,
                     additional_context={
                         "value": str(value),
@@ -342,15 +338,14 @@ class ValidationDetector(BaseDetector):
                 except (ValueError, TypeError):
                     self.detect_error(
                         error_code=rule.error_code or self.ERROR_TYPE_MISMATCH,
-                        message=f"Type mismatch in '{column}': expected {expected_type}, got {type(value).__name__}",
+                        message=self._format_message(self.ERROR_TYPE_MISMATCH, column=column, expected_type=expected_type, actual_type=type(value).__name__),
                         row=idx,
-                        column=column,
-                        severity=rule.severity,
-                        fail_fast=False,
-                        additional_context={
-                            "value": str(value),
-                            "expected_type": expected_type,
-                            "actual_type": type(value).__name__,
+                    column=column,
+                    fail_fast=False,
+                    additional_context={
+                        "value": str(value),
+                        "expected_type": expected_type,
+                        "actual_type": type(value).__name__,
                             "suggestion": f"Convert to {expected_type}"
                         }
                     )
@@ -372,10 +367,9 @@ class ValidationDetector(BaseDetector):
             if pd.isna(value) or value == '':
                 self.detect_error(
                     error_code=rule.error_code or self.ERROR_REQUIRED_MISSING,
-                    message=f"Required field '{column}' is missing at row {idx}",
+                    message=self._format_message(self.ERROR_REQUIRED_MISSING, column=column),
                     row=idx,
                     column=column,
-                    severity=self._get_severity(rule.error_code or self.ERROR_REQUIRED_MISSING, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "column": column,
@@ -416,10 +410,9 @@ class ValidationDetector(BaseDetector):
             if str(value) not in valid_values:
                 self.detect_error(
                     error_code=rule.error_code or self.ERROR_FOREIGN_KEY_FAIL,
-                    message=f"Foreign key validation failed for '{column}': '{value}' not in {reference_table}",
+                    message=self._format_message(self.ERROR_FOREIGN_KEY_FAIL, column=column, value=value, reference_table=reference_table),
                     row=idx,
                     column=column,
-                    severity=rule.severity,
                     fail_fast=False,
                     additional_context={
                         "value": str(value),

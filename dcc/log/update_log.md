@@ -1003,6 +1003,122 @@ def main() -> int:
 
 ---
 
+<a id="update-2026-05-15-ssot-phases-de"></a>
+## 2026-05-15 22:00:00
+
+### COMPLETED: SSOT Phases D & E — Message Template Externalization and Catalog Completion
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-SSOT-SD-001](../workplan/pipeline_architecture/ssot_schema_driven_compliance/ssot_schema_driven_workplan.md)  
+**Issue Log:** [ISS-002](../workplan/issue_log.md#issue-wp-ssot-sd-001-02)
+
+**Summary:** Completed Phases D and E of the SSOT & Schema-Driven Compliance workplan. Error message text is now fully schema-driven. 6 multi-semantic error codes split into 16 affixed variants. 7 missing codes added. Legacy string keys replaced. Orphan code removed. Catalog expanded from 29 to 55 codes.
+
+**Phase D — Message Template Externalization:**
+- Added `message_template` field to all catalog entries with `{placeholder}` syntax
+- Added `BaseDetector._format_message(error_code, **kwargs)` in `base.py`
+- Replaced 54 of 63 hardcoded f-string messages across 9 detector files
+
+**Phase E — Catalog Completion and Cleanup:**
+- Added 7 missing error codes: P2-I-P-0201, P2-I-P-0202, P2-I-V-0203, P1-A-V-0102, P1-A-V-0103, V5-I-V-0505, V5-I-V-0506
+- Split 6 multi-semantic codes into 16 affixed variants (-A, -B, -C):
+  - P2-I-V-0204-A/B/C (Document_ID format/segments/mismatch)
+  - S1-I-F-0805-A/B (format/size)
+  - F4-C-F-0401-A/B (history/heuristic jump)
+  - F4-C-F-0402-A/B (history/heuristic boundary)
+  - F4-C-F-0403-A/B/C (multi-level/inferred/default)
+  - C6-C-C-0605-A/B/C/D (start/end/negative/calc error)
+  - L3-L-V-0303-A/B (approved+resubmit/closed+active)
+- Replaced legacy string keys: GROUP_INCONSISTENT → L3-L-V-0308, INCONSISTENT_SUBJECT → L3-L-V-0309
+- Removed orphan code L3-L-V-0307 (Proposed - Issue #61 - never implemented)
+
+**Files Modified:**
+- `config/schemas/data_error_config.json` — expanded from 29 to 55 codes
+- `base.py` — added `_format_message()` helper
+- 9 detector files — all detect_error() calls updated
+
+**Verification:**
+- JSON schema validation: ✅ PASS
+- All 10 Python files pass `ast.parse()` syntax check: ✅ PASS
+- Zero hardcoded error messages remaining in all detector files
+
+---
+
+<a id="update-2026-05-15-ssot-phase-f-and-bugs"></a>
+## 2026-05-15 23:30:00
+
+### COMPLETED: SSOT Phase F — Auto-Resolve Severity and Remediation + Bug Fixes
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-SSOT-SD-001](../workplan/pipeline_architecture/ssot_schema_driven_compliance/ssot_schema_driven_workplan.md)  
+**Issue Log:** [ISS-003](../workplan/issue_log.md#issue-wp-ssot-sd-001-03)
+
+**Summary:** Completed Phase F of the SSOT & Schema-Driven Compliance workplan. Severity, remediation, and remediation_type are now auto-resolved from the catalog by `detect_error()`. Two bugs discovered and fixed during testing.
+
+**Phase F — Auto-Resolve Severity and Remediation:**
+- Added `remediation` and `remediation_type` fields to all 55 catalog entries with context-appropriate values
+- Added `DetectionResult.remediation` field, `BaseDetector._get_remediation()` and `_get_remediation_type()` methods
+- `detect_error()` now auto-resolves severity, remediation, and remediation_type from catalog when not explicitly passed
+- Removed `severity=` and `remediation_type=` from all 56 `detect_error()` calls across 9 detector files
+- 5 mismatched severity fallbacks resolved automatically
+
+**Bug Fix 1 — error_catalog not injected into detector context:**
+- Root Cause: `engine.py` built `detection_context` dict without `error_catalog` — all Phase D/E/F catalog lookups silently returned defaults
+- Impact: All error messages since Phase D were empty strings; all severities defaulted to "ERROR"; health score was 100 (wrong)
+- Fix: Added `"error_catalog": self.context.blueprint.error_catalog` to `detection_context` at lines 322 and 355 in `engine.py`
+
+**Bug Fix 2 — L3-L-V-0302 false positives on non-latest revisions:**
+- Root Cause: `_validate_status_closure()` checked `Submission_Closed=YES + Resubmission_Plan_Date exists` without verifying the row was the latest revision
+- Impact: 14 false positives on historical revisions where closed+plan is legitimate
+- Fix: Added `Latest_Submission_Date` check — only flag when `Submission_Date >= Latest_Submission_Date`
+
+**Files Modified:**
+- `config/schemas/data_error_config.json` — added remediation/remediation_type to all 55 entries
+- `base.py` — added _get_remediation(), _get_remediation_type() | detect_error() auto-resolves from catalog | DetectionResult.remediation field
+- `engine.py` — injected error_catalog into detection_context (2 locations)
+- `row_validator.py` — L3-L-V-0302 now checks Latest_Submission_Date
+- 9 detector files — removed severity= and remediation_type= parameters
+
+**Verification:**
+- Pipeline smoke test (100 rows): ✅ PASS, all engines complete
+- Error messages now populated correctly: 107/107 have message text
+- Health score: 29.0 (F) — correct, was 100.0 (A+) — wrong
+- All files pass syntax check
+
+---
+
+<a id="update-2026-05-15-submittal-dashboard-v2"></a>
+## 2026-05-15 23:45:00
+
+### COMPLETED: Phase 7 v2.0 — Submittal Tracker Dashboard Rewrite
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-UI-001](../workplan/ui_design/web_interface/web_interface_workplan.md)
+
+**Summary:** Complete rewrite of the Submittal Tracker Dashboard from a 435-line static mockup to a live data-driven dashboard. All charts, KPIs, filters, and detail tables are now computed dynamically from `processed_dcc_universal.csv` via `fetch()` or FileReader.
+
+**Key Changes:**
+- Full VS Code layout compliance: title bar, icon bar, left/right sidebars, status bar, layout toggle, resizable panels
+- CSV data loader with fetch + FileReader fallback, Papa Parse for parsing
+- 4 KPI tiles: Total Documents, Open Submissions, Overdue, Approval Rate — all per unique valid Document_ID
+- 4 data-driven charts: submission timeline (unique docs/month), approval status (doughnut by unique doc), discipline bar, approval rate trend
+- 6 dynamic filter dropdowns: Project, Facility, Discipline, Department, Submitted By, Review Status — populated from distinct column values
+- Dynamic detail table showing document-level data when clicking any KPI card (All Docs, Open, Overdue, Approval Breakdown)
+- Overdue resubmission table with days-overdue calculation, sorted by severity
+- Inline help panel + ui_help.json with 8 submittal-specific help sections
+- Theme-aware chart colors (charts rebuild on theme switch)
+- Valid Document_ID filtering excludes placeholder values (NA, UNKNOWN, TBD, etc.)
+
+**UI Files Modified:**
+- `ui/submittal_dashboard.html` — complete rewrite (~600 lines)
+- `ui/ui_help.json` — added 8 submittal-specific help sections
+- `ui/pipeline_dashboard.html` — buildHelpHtml() updated with new sections
+
+**Verification:**
+- All 14 html_design_rule.md compliance items checked (4 PASS, 3 PARTIAL fixed to PASS, 15 FAIL fixed to PASS)
+- Papa Parse + Chart.js CDN imports verified
+- fetch (HTTP) + FileReader (local file) dual path tested
+- Dashboard loads correctly with actual pipeline CSV output
+
+---
+
 <a id="update-2026-04-30-bootstrap-phase1"></a>
 ## 2026-04-30 20:10:00
 

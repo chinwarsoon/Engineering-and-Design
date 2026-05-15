@@ -125,9 +125,8 @@ class AnchorDetector(BaseDetector):
                 # Column missing entirely - critical error
                 self.detect_error(
                     error_code=self.ERROR_NULL_ANCHOR,
-                    message=f"Anchor column '{col}' is missing from DataFrame",
+                    message=self._format_message(self.ERROR_NULL_ANCHOR, col=col),
                     column=col,
-                    severity=self._get_severity(self.ERROR_NULL_ANCHOR, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "available_columns": list(df.columns),
@@ -146,9 +145,8 @@ class AnchorDetector(BaseDetector):
                 
                 self.detect_error(
                     error_code=self.ERROR_NULL_ANCHOR,
-                    message=f"Anchor column '{col}' has {null_count} null/empty values",
+                    message=self._format_message(self.ERROR_NULL_ANCHOR, col=col),
                     column=col,
-                    severity=self._get_severity(self.ERROR_NULL_ANCHOR, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "null_count": int(null_count),
@@ -196,10 +194,9 @@ class AnchorDetector(BaseDetector):
             if not pattern.match(value):
                 self.detect_error(
                     error_code=self.ERROR_SESSION_FORMAT,
-                    message=f"Invalid Submission_Session format: '{value}' (expected pattern: {pattern.pattern})",
+                    message=self._format_message(self.ERROR_SESSION_FORMAT, value=value, pattern_str=pattern.pattern),
                     row=idx,
                     column=session_col,
-                    severity=self._get_severity(self.ERROR_SESSION_FORMAT, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "actual_value": value,
@@ -235,13 +232,12 @@ class AnchorDetector(BaseDetector):
                 if not self._is_valid_date(value):
                     self.detect_error(
                         error_code=self.ERROR_DATE_INVALID,
-                        message=f"Invalid date format in '{col}': '{value}'",
+                        message=self._format_message(self.ERROR_DATE_INVALID, col=col, value=value),
                         row=idx,
-                        column=col,
-                        severity=self._get_severity(self.ERROR_DATE_INVALID, "HIGH"),
-                        fail_fast=False,
-                        additional_context={
-                            "actual_value": str(value),
+                    column=col,
+                    fail_fast=False,
+                    additional_context={
+                        "actual_value": str(value),
                             "expected_formats": [
                                 "YYYY-MM-DD",
                                 "DD/MM/YYYY",

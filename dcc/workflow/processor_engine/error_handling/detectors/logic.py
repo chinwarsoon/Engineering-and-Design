@@ -32,7 +32,8 @@ class LogicDetector(BaseDetector):
     # Error codes (Standardized per data_error_config.json)
     ERROR_DATE_INVERSION = "L3-L-P-0301"
     ERROR_REV_REGRESSION = "L3-L-V-0305"  # Fixed from L3-L-V-0302 to match SSOT
-    ERROR_STATUS_CONFLICT = "L3-L-V-0303"
+    ERROR_STATUS_CONFLICT_A = "L3-L-V-0303-A"
+    ERROR_STATUS_CONFLICT_B = "L3-L-V-0303-B"
     ERROR_OVERDUE_PENDING = "L3-L-W-0304"
     
     def __init__(
@@ -109,11 +110,10 @@ class LogicDetector(BaseDetector):
                 if return_date < submit_date:
                     self.detect_error(
                         error_code=self.ERROR_DATE_INVERSION,
-                        message=f"Review return date before submission at row {idx}",
+                        message=self._format_message(self.ERROR_DATE_INVERSION),
                         row=idx,
-                        column=return_col,
-                        severity=self._get_severity(self.ERROR_DATE_INVERSION, "HIGH"),
-                        fail_fast=False,
+                    column=return_col,
+                    fail_fast=False,
                         additional_context={
                             "submission_date": str(submit_date),
                             "return_date": str(return_date),
@@ -164,11 +164,10 @@ class LogicDetector(BaseDetector):
                         if current_rev_num < prev_rev_num:
                             self.detect_error(
                                 error_code=self.ERROR_REV_REGRESSION,
-                                message=f"Revision regression for {doc_id}: {prev_rev} → {current_rev}",
+                                message=self._format_message(self.ERROR_REV_REGRESSION, doc_id=doc_id, prev_rev=prev_rev, curr_rev=current_rev),
                                 row=idx,
-                                column=rev_col,
-                                severity=self._get_severity(self.ERROR_REV_REGRESSION, "HIGH"),
-                                fail_fast=False,
+                    column=rev_col,
+                    fail_fast=False,
                                 additional_context={
                                     "document_id": str(doc_id),
                                     "previous_revision": str(prev_rev),
@@ -205,10 +204,9 @@ class LogicDetector(BaseDetector):
             
             for idx in df[conflict_mask].index:
                 self.detect_error(
-                    error_code=self.ERROR_STATUS_CONFLICT,
-                    message=f"Status conflict: Approved but marked for resubmission",
+                    error_code=self.ERROR_STATUS_CONFLICT_A,
+                    message=self._format_message(self.ERROR_STATUS_CONFLICT_A),
                     row=idx,
-                    severity=self._get_severity(self.ERROR_STATUS_CONFLICT, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "approval_code": str(df.at[idx, approval_col]),
@@ -231,10 +229,9 @@ class LogicDetector(BaseDetector):
             
             for idx in df[conflict_mask].index:
                 self.detect_error(
-                    error_code=self.ERROR_STATUS_CONFLICT,
-                    message=f"Status conflict: Closed but review still active",
+                    error_code=self.ERROR_STATUS_CONFLICT_B,
+                    message=self._format_message(self.ERROR_STATUS_CONFLICT_B),
                     row=idx,
-                    severity=self._get_severity(self.ERROR_STATUS_CONFLICT, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "submission_closed": str(df.at[idx, closed_col]),
@@ -284,11 +281,10 @@ class LogicDetector(BaseDetector):
                 if days_overdue > 1:
                     self.detect_error(
                         error_code=self.ERROR_OVERDUE_PENDING,
-                        message=f"Review overdue by {days_overdue} days",
+                        message=self._format_message(self.ERROR_OVERDUE_PENDING, days_overdue=days_overdue),
                         row=idx,
-                        column=plan_col,
-                        severity=self._get_severity(self.ERROR_OVERDUE_PENDING, "WARNING"),
-                        fail_fast=False,
+                    column=plan_col,
+                    fail_fast=False,
                         additional_context={
                             "planned_date": str(plan_date),
                             "days_overdue": days_overdue,

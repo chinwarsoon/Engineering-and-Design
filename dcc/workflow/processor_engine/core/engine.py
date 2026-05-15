@@ -318,8 +318,12 @@ class CalculationEngine(BaseProcessor):
                 current_rows = len(df_processed)
                 _emit_checkpoint(phase_id, current_rows)
                 
-                # Build detection context
-                detection_context = {"phase": phase_id, "schema_data": self.schema_data}
+                # Build detection context with error catalog (SSOT for severity, messages, remediation)
+                detection_context = {
+                    "phase": phase_id,
+                    "schema_data": self.schema_data,
+                    "error_catalog": self.context.blueprint.error_catalog,
+                }
                 if phase_id == "P2.5":
                     # Phase C: Include fill_history in context for FillDetector
                     detection_context["fill_history"] = getattr(self, 'fill_history', [])
@@ -352,7 +356,7 @@ class CalculationEngine(BaseProcessor):
             )
             row_errors = row_validator.detect(
                 df_processed,
-                context={"phase": "P4", "schema_data": self.schema_data},
+                context={"phase": "P4", "schema_data": self.schema_data, "error_catalog": self.context.blueprint.error_catalog},
             )
             self.error_aggregator.add_errors(row_errors)
             status_print(

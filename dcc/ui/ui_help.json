@@ -16,13 +16,90 @@
       "details": "If a phase entry has its <code>Critical</code> count greater than zero, the stage is marked <strong style=\"color:var(--danger);\">FAIL</strong> with a red progress bar. If it has a non-zero <code>Total</code> count but no critical issues, the stage shows a warning count with an amber bar. A phase with zero issues shows <strong style=\"color:var(--success);\">PASS</strong> with a green bar.",
       "export_note": "The Export stage has no phase code assigned, so its status is derived from the overall run: it passes only when <code>summary.clean_run</code> is true. Stages that do not match any phase entry fall back to <em>no data</em> with a grey bar."
     },
-    "recent_activity": {
-      "intro": "The activity table is populated from two possible sources with a priority order.",
-      "primary": "<strong>Primary source:</strong> <code>debug_log.json</code> \u2014 the <code>messages</code> array is read and the most recent 30 entries are displayed, each with a timestamp, message text, and a severity badge.",
-      "fallback": "<strong>Fallback source:</strong> If <code>debug_log.json</code> is unavailable or empty, the dashboard falls back to the <code>recent_errors</code> array inside <code>error_dashboard_data.json</code>, showing up to 10 entries with an error code, message, and a severity badge derived from the <code>severity</code> field."
+    "source_file": {
+      "intro": "The Source File section in the left sidebar displays metadata about the input Excel file used for the current pipeline run.",
+      "fields": [
+        { "label": "File Name", "text": "read from <code>debug_log.json</code> <code>global_parameters.upload_file_name</code> or the filename extracted from the bootstrap path." },
+        { "label": "Sheet Name", "text": "taken from <code>debug_log.json</code> <code>global_parameters.upload_sheet_name</code> — identifies which worksheet was processed." },
+        { "label": "Path", "text": "the full path to the input file, resolved at pipeline startup from CLI args, UI overrides, or schema defaults." }
+      ]
+    },
+    "debug_log_data_table": {
+      "intro": "Clicking an output file in the sidebar opens a detail data table in the main content area. The table supports tabbed views for JSON files and inline preview for text files.",
+      "details": "For JSON files, the first data array is shown as a sortable table with up to 50 rows. Additional tabs give access to other arrays in the file. The <strong>Raw JSON</strong> tab shows the full unparsed content. For text files, the first 10KB are displayed inline with a monospace font.",
+      "fields": [
+        { "label": "CSV / Excel", "text": "open in a new browser tab (no inline table preview)." },
+        { "label": "Summary", "text": "displays the full <code>processing_summary.txt</code> content inline." },
+        { "label": "Debug Log", "text": "the <code>messages</code> array is shown as a table, with the <code>errors</code> and <code>trace_table</code> arrays available in additional tabs." },
+        { "label": "Error Data", "text": "the <code>phase_breakdown</code> and <code>error_types</code> arrays are shown as tables, plus a Raw JSON tab." }
+      ]
+    },
+    "execution": {
+      "intro": "The Execution section in the left sidebar displays run-level metadata collected at pipeline completion.",
+      "fields": [
+        { "label": "Last Run", "text": "timestamp from <code>debug_log.json</code> <code>timestamp</code> field, formatted as a human-readable date/time." },
+        { "label": "Schema", "text": "the schema file version read from <code>debug_log.json</code> bootstrap parameters." },
+        { "label": "Status", "text": "derived from <code>error_dashboard_data.json</code> — <strong style=\"color:var(--success);\">READY</strong> if <code>ready</code> is true, otherwise <strong style=\"color:var(--danger);\">FAILED</strong>." },
+        { "label": "Health", "text": "the data health score and grade from <code>error_dashboard_data.json</code> <code>health_kpi</code> object." }
+      ]
     },
     "output_files": {
       "text": "Each output file link points to a file inside <code>dcc/output/</code> and opens in a new browser tab."
+    },
+    "submittal_data_source": {
+      "intro": "The Submittal Tracker loads data from the processed pipeline CSV output.",
+      "fields": [
+        { "label": "Load CSV", "text": "click the <strong>Load CSV</strong> button to pick a local CSV file via FileReader. The <strong>Refresh</strong> button fetches the default file from <code>../output/processed_dcc_universal.csv</code>. Loaded row count and source filename appear in the toolbar and status bar." },
+        { "label": "Data Info", "text": "the left sidebar <strong>Data Info</strong> section shows the total row count, column count, and source filename after loading." }
+      ]
+    },
+    "submittal_analytics": {
+      "intro": "Four KPI tiles summarize the loaded submission data at a glance. All values are computed per <strong>unique Document_ID</strong> from the active (filtered) data set. <strong>Click any KPI card</strong> to view its detail table below the charts.",
+      "fields": [
+        { "label": "Total Documents", "text": "distinct count of <code>Document_ID</code> values. Not affected by duplicate submission rows. Click to view document list." },
+        { "label": "Open Submissions", "text": "unique documents where <code>Submission_Closed</code> is not <strong>YES</strong> — submissions still awaiting final closure. A doc is considered closed if any of its rows has <code>Submission_Closed=YES</code>. Click to view open documents." },
+        { "label": "Overdue", "text": "unique documents that have at least one row where <code>Resubmission_Overdue_Status</code> equals <strong>Overdue</strong> — resubmissions past their planned return date. Click to view overdue details." },
+        { "label": "Approval Rate", "text": "percentage of unique documents with a terminal approval code (<strong>APP</strong>, <strong>A</strong>, <strong>APR</strong>, <strong>APPROVED</strong>) among all documents that have an approval code on record. Click to view approval breakdown." }
+      ]
+    },
+    "submittal_timeline": {
+      "intro": "The Submission Timeline chart shows unique document volume over time.",
+      "details": "Unique <strong>Document_ID</strong> values are grouped by the year-month portion of <code>Submission_Date</code>. A document with multiple submissions in the same month is counted once. The line chart uses the current theme accent color and fills the area underneath. Months with no submissions are omitted."
+    },
+    "submittal_status_chart": {
+      "intro": "The Approval Status doughnut chart counts <strong>unique Document_ID</strong> values grouped by their latest approval code. Each document is counted once. Each slice label shows the category name with the document count in parentheses.",
+      "fields": [
+        { "label": "Approved", "text": "codes <strong>APP</strong>, <strong>APR</strong>, <strong>APPROVED</strong>, <strong>A</strong> — submission approved." },
+        { "label": "AWC", "text": "code <strong>AWC</strong> (Approved with Comments) — approved subject to comments." },
+        { "label": "Rejected", "text": "codes <strong>REJ</strong>, <strong>R</strong>, <strong>REJECTED</strong>, <strong>NAP</strong> (Not Approved)." },
+        { "label": "Pending", "text": "codes <strong>PEN</strong>, <strong>PENDING</strong> — awaiting a decision." },
+        { "label": "Void", "text": "code <strong>VOID</strong> — submission voided or cancelled." },
+        { "label": "Info", "text": "code <strong>INF</strong> — for information only, no approval required." },
+        { "label": "Other", "text": "any unrecognised approval code not falling into the above categories." }
+      ]
+    },
+    "submittal_discipline_chart": {
+      "intro": "The Documents by Discipline bar chart shows document counts per engineering discipline.",
+      "details": "Each bar represents a distinct <code>Discipline</code> value from the loaded data. Bars are sorted from highest to lowest count. The chart uses the current theme accent color."
+    },
+    "submittal_trend_chart": {
+      "intro": "The Approval Rate Trend chart tracks approval percentage over time.",
+      "details": "For each month, the approval rate is calculated as the number of approved rows divided by total rows with an approval code. The trend line uses the success (green) color. Values range from 0% to 100%."
+    },
+    "submittal_filters": {
+      "intro": "Six filter dropdowns in the left sidebar narrow the visible data set. Filtering is applied immediately and updates all charts, KPIs, and the overdue table.",
+      "fields": [
+        { "label": "Project", "text": "filter by <code>Project_Code</code>. Populated from distinct values in the loaded data." },
+        { "label": "Facility", "text": "filter by <code>Facility_Code</code>. Populated from distinct values in the loaded data." },
+        { "label": "Discipline", "text": "filter by <code>Discipline</code>. Populated from distinct values in the loaded data." },
+        { "label": "Department", "text": "filter by <code>Department</code>. Populated from distinct values in the loaded data." },
+        { "label": "Submitted By", "text": "filter by <code>Submitted_By</code>. Populated from distinct values in the loaded data." },
+        { "label": "Review Status", "text": "filter by <code>Review_Status</code>. Populated from distinct values in the loaded data." }
+      ]
+    },
+    "submittal_overdue_table": {
+      "intro": "The Overdue Resubmissions table lists all rows where <code>Resubmission_Overdue_Status</code> equals <strong>Overdue</strong>.",
+      "details": "Rows are sorted by days overdue (highest first). Each row shows the <code>Document_ID</code>, <code>Discipline</code>, <code>Resubmission_Plan_Date</code>, and computed days overdue. Click column headers to toggle sort order (placeholder — reload re-sorts). An empty state message is shown when no overdue items exist."
     }
   },
   "default_sidebar": {

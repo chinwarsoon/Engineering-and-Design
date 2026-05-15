@@ -18,7 +18,10 @@ Reports are generated after each phase is completed per agent_rule.md Section 9.
 |:---|:---|:---:|
 | Phase A — High-Severity Fixes | `phase_A_report.md` | ✅ Complete |
 | Phase B — Medium-Severity Structural Fixes | `phase_B_report.md` | ✅ Complete |
-| Phase C — Catalog and Threshold Externalization | `phase_C_report.md` | 🟡 In Progress (5/15 tasks) |
+| Phase C — Catalog and Threshold Externalization | `phase_C_report.md` | ✅ Complete |
+| Phase D — Message Template Externalization | `phase_D_report.md` | ✅ Complete |
+| Phase E — Catalog Completion and Cleanup | `phase_E_report.md` | ✅ Complete |
+| Phase F — Auto-Resolve Severity and Remediation from Catalog | `phase_F_report.md` | ✅ Complete |
 
 ---
 

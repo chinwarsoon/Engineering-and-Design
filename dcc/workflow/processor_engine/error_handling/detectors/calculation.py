@@ -37,7 +37,10 @@ class CalculationDetector(BaseDetector):
     ERROR_CIRCULAR_DEPENDENCY = "C6-C-C-0602"
     ERROR_DIVISION_BY_ZERO = "C6-C-C-0603"
     ERROR_AGGREGATE_EMPTY = "C6-C-C-0604"
-    ERROR_DATE_ARITHMETIC_FAIL = "C6-C-C-0605"
+    ERROR_DATE_ARITHMETIC_FAIL_A = "C6-C-C-0605-A"
+    ERROR_DATE_ARITHMETIC_FAIL_B = "C6-C-C-0605-B"
+    ERROR_DATE_ARITHMETIC_FAIL_C = "C6-C-C-0605-C"
+    ERROR_DATE_ARITHMETIC_FAIL_D = "C6-C-C-0605-D"
     ERROR_MAPPING_NO_MATCH = "C6-C-C-0606"
     
     def __init__(
@@ -114,9 +117,8 @@ class CalculationDetector(BaseDetector):
             if missing_inputs:
                 self.detect_error(
                     error_code=self.ERROR_DEPENDENCY_FAIL,
-                    message=f"Missing input columns for {target_column}: {missing_inputs}",
+                    message=self._format_message(self.ERROR_DEPENDENCY_FAIL, target_column=target_column, missing_inputs=missing_inputs),
                     column=target_column,
-                    severity=self._get_severity(self.ERROR_DEPENDENCY_FAIL, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "calculation_type": calc_type,
@@ -162,8 +164,7 @@ class CalculationDetector(BaseDetector):
                     cycle = path[cycle_start:] + [neighbor]
                     self.detect_error(
                         error_code=self.ERROR_CIRCULAR_DEPENDENCY,
-                        message=f"Circular dependency detected: {' -> '.join(cycle)}",
-                        severity=self._get_severity(self.ERROR_CIRCULAR_DEPENDENCY, "CRITICAL"),
+                        message=self._format_message(self.ERROR_CIRCULAR_DEPENDENCY, cycle_str=' -> '.join(cycle)),
                         fail_fast=True,
                         additional_context={
                             "cycle": cycle,
@@ -207,10 +208,9 @@ class CalculationDetector(BaseDetector):
             if str(source_value) not in mapping:
                 self.detect_error(
                     error_code=self.ERROR_MAPPING_NO_MATCH,
-                    message=f"No mapping match for '{source_value}' in {source_column}",
+                    message=self._format_message(self.ERROR_MAPPING_NO_MATCH, source_value=source_value, source_column=source_column),
                     row=idx,
                     column=target_column,
-                    severity=self._get_severity(self.ERROR_MAPPING_NO_MATCH, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "source_column": source_column,
@@ -251,11 +251,10 @@ class CalculationDetector(BaseDetector):
             
             if start_date is None:
                 self.detect_error(
-                    error_code=self.ERROR_DATE_ARITHMETIC_FAIL,
-                    message=f"Invalid start date in '{start_column}': '{start_val}'",
+                    error_code=self.ERROR_DATE_ARITHMETIC_FAIL_A,
+                    message=self._format_message(self.ERROR_DATE_ARITHMETIC_FAIL_A, col=start_column, value=start_val),
                     row=idx,
                     column=target_column,
-                    severity=self._get_severity(self.ERROR_DATE_ARITHMETIC_FAIL, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "start_column": start_column,
@@ -266,11 +265,10 @@ class CalculationDetector(BaseDetector):
             
             if end_date is None:
                 self.detect_error(
-                    error_code=self.ERROR_DATE_ARITHMETIC_FAIL,
-                    message=f"Invalid end date in '{end_column}': '{end_val}'",
+                    error_code=self.ERROR_DATE_ARITHMETIC_FAIL_B,
+                    message=self._format_message(self.ERROR_DATE_ARITHMETIC_FAIL_B, col=end_column, value=end_val),
                     row=idx,
                     column=target_column,
-                    severity=self._get_severity(self.ERROR_DATE_ARITHMETIC_FAIL, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "end_column": end_column,
@@ -299,10 +297,9 @@ class CalculationDetector(BaseDetector):
                         if num_val == 0:
                             self.detect_error(
                                 error_code=self.ERROR_DIVISION_BY_ZERO,
-                                message=f"Zero duration may cause division issues",
+                                message=self._format_message(self.ERROR_DIVISION_BY_ZERO),
                                 row=idx,
                                 column=duration_col,
-                                severity=self._get_severity(self.ERROR_DIVISION_BY_ZERO, "HIGH"),
                                 fail_fast=False,
                                 additional_context={
                                     "value": str(value),
@@ -311,11 +308,10 @@ class CalculationDetector(BaseDetector):
                             )
                         elif num_val < 0:
                             self.detect_error(
-                                error_code=self.ERROR_DATE_ARITHMETIC_FAIL,
-                                message=f"Negative duration detected",
+                                error_code=self.ERROR_DATE_ARITHMETIC_FAIL_C,
+                                message=self._format_message(self.ERROR_DATE_ARITHMETIC_FAIL_C),
                                 row=idx,
                                 column=duration_col,
-                                severity=self._get_severity(self.ERROR_DATE_ARITHMETIC_FAIL, "HIGH"),
                                 fail_fast=False,
                                 additional_context={
                                     "value": str(value),
@@ -353,10 +349,9 @@ class CalculationDetector(BaseDetector):
                     if str_val in ["[]", "", "0", "None", "null"]:
                         self.detect_error(
                             error_code=self.ERROR_AGGREGATE_EMPTY,
-                            message=f"Empty aggregate value in '{col}'",
+                            message=self._format_message(self.ERROR_AGGREGATE_EMPTY, col=col),
                             row=idx,
                             column=col,
-                            severity=self._get_severity(self.ERROR_AGGREGATE_EMPTY, "HIGH"),
                             fail_fast=False,
                             additional_context={
                                 "value": str(value),
@@ -391,11 +386,10 @@ class CalculationDetector(BaseDetector):
                 if isinstance(value, str):
                     if "error" in value.lower() or "invalid" in value.lower():
                         self.detect_error(
-                            error_code=self.ERROR_DATE_ARITHMETIC_FAIL,
-                            message=f"Date calculation error in '{col}'",
+                            error_code=self.ERROR_DATE_ARITHMETIC_FAIL_D,
+                            message=self._format_message(self.ERROR_DATE_ARITHMETIC_FAIL_D, col=col),
                             row=idx,
                             column=col,
-                            severity=self._get_severity(self.ERROR_DATE_ARITHMETIC_FAIL, "HIGH"),
                             fail_fast=False,
                             additional_context={
                                 "value": str(value),

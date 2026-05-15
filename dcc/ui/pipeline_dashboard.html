@@ -420,6 +420,15 @@
       const kpiItems = (h.kpi_metrics?.items || []).map(i =>
         `<div><strong>${escHtml(i.label)}</strong> ${i.text}</div>`
       ).join('');
+      const sourceItems = (h.source_file?.fields || []).map(i =>
+        `<div><strong>${escHtml(i.label)}</strong> ${i.text}</div>`
+      ).join('');
+      const dtItems = (h.debug_log_data_table?.fields || []).map(i =>
+        `<div><strong>${escHtml(i.label)}</strong> ${i.text}</div>`
+      ).join('');
+      const execItems = (h.execution?.fields || []).map(i =>
+        `<div><strong>${escHtml(i.label)}</strong> ${i.text}</div>`
+      ).join('');
       return `
         <div class="sb-section">
           <div class="sb-section-header">
@@ -429,6 +438,16 @@
           <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
             <div style="margin-bottom:8px;">${h.kpi_metrics?.intro || ''}</div>
             ${kpiItems}
+          </div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>📁 Source File</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
+            <div style="margin-bottom:8px;">${h.source_file?.intro || ''}</div>
+            ${sourceItems}
           </div>
         </div>
         <div class="sb-section">
@@ -444,13 +463,23 @@
         </div>
         <div class="sb-section">
           <div class="sb-section-header">
-            <span>📋 Recent Activity</span>
+            <span>📋 Debug Log Data Table</span>
             <span class="sb-section-arrow">▼</span>
           </div>
           <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
-            <div style="margin-bottom:8px;">${h.recent_activity?.intro || ''}</div>
-            <div>${h.recent_activity?.primary || ''}</div>
-            <div>${h.recent_activity?.fallback || ''}</div>
+            <div style="margin-bottom:8px;">${h.debug_log_data_table?.intro || ''}</div>
+            <div style="margin-bottom:6px;">${h.debug_log_data_table?.details || ''}</div>
+            ${dtItems}
+          </div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header">
+            <span>▶ Execution</span>
+            <span class="sb-section-arrow">▼</span>
+          </div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
+            <div style="margin-bottom:8px;">${h.execution?.intro || ''}</div>
+            ${execItems}
           </div>
         </div>
         <div class="sb-section">

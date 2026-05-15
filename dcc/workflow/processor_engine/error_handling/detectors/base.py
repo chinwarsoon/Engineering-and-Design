@@ -26,6 +26,7 @@ class DetectionResult:
     layer: Optional[str] = None
     fail_fast: bool = False
     remediation_type: Optional[str] = None
+    remediation: Optional[str] = None
     detected_at: datetime = field(default_factory=datetime.utcnow)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -40,6 +41,7 @@ class DetectionResult:
             "layer": self.layer,
             "fail_fast": self.fail_fast,
             "remediation_type": self.remediation_type,
+            "remediation": self.remediation,
             "detected_at": self.detected_at.isoformat() if self.detected_at else None
         }
 
@@ -96,6 +98,68 @@ class BaseDetector(ABC):
         """Register callback for each detected error."""
         self._on_error_callbacks.append(callback)
 
+    def _format_message(self, error_code: str, **kwargs) -> str:
+        """
+        Format an error message from the error catalog (SSOT) using message_template.
+
+        Reads message_template from context['error_catalog'][error_code].
+        Falls back to the generic message field if template is absent or kwargs are empty.
+
+        Args:
+            error_code: Error code string (e.g. "P1-A-P-0101")
+            **kwargs: Template placeholder values (e.g. col='Project_Code')
+
+        Returns:
+            Formatted message string
+        """
+        catalog = self._context.get("error_catalog", {})
+        entry = catalog.get(error_code, {})
+        template = entry.get("message_template", entry.get("message", ""))
+        if template and kwargs:
+            try:
+                return template.format(**kwargs)
+            except KeyError:
+                pass
+        return template
+
+    def _get_remediation_type(self, error_code: str, fallback: Optional[str] = None) -> Optional[str]:
+        """
+        Resolve remediation_type for an error code from the error catalog (SSOT).
+
+        Args:
+            error_code: Error code string (e.g. "P1-A-P-0101")
+            fallback: Value to use when catalog lookup fails
+
+        Returns:
+            Remediation type string or fallback
+        """
+        catalog = self._context.get("error_catalog", {})
+        if catalog:
+            entry = catalog.get(error_code, {})
+            value = entry.get("remediation_type")
+            if value:
+                return value
+        return fallback
+
+    def _get_remediation(self, error_code: str, fallback: Optional[str] = None) -> Optional[str]:
+        """
+        Resolve remediation (remedy description) for an error code from the catalog.
+
+        Args:
+            error_code: Error code string (e.g. "P1-A-P-0101")
+            fallback: Value to use when catalog lookup fails
+
+        Returns:
+            Remediation string or fallback
+        """
+        catalog = self._context.get("error_catalog", {})
+        if catalog:
+            entry = catalog.get(error_code, {})
+            value = entry.get("remediation")
+            if value:
+                return value
+        return fallback
+
     def _get_severity(self, error_code: str, fallback: str = "ERROR") -> str:
         """
         Resolve severity for an error code from the error catalog (SSOT).
@@ -125,9 +189,10 @@ class BaseDetector(ABC):
         message: str,
         row: Optional[int] = None,
         column: Optional[str] = None,
-        severity: str = "ERROR",
+        severity: Optional[str] = None,
         fail_fast: bool = False,
         remediation_type: Optional[str] = None,
+        remediation: Optional[str] = None,
         additional_context: Optional[Dict[str, Any]] = None
     ) -> DetectionResult:
         """
@@ -138,14 +203,23 @@ class BaseDetector(ABC):
             message: Error message
             row: Row index (optional)
             column: Column name (optional)
-            severity: Error severity
+            severity: Error severity (auto-resolved from catalog if not provided)
             fail_fast: Whether this error triggers fail-fast
-            remediation_type: Suggested remediation
+            remediation_type: Suggested remediation type (auto-resolved from catalog if not provided)
+            remediation: Human-readable remedy description (auto-resolved from catalog if not provided)
             additional_context: Additional context dict
         
         Returns:
             DetectionResult object
         """
+        # Auto-resolve severity, remediation, remediation_type from catalog (SSOT)
+        if severity is None:
+            severity = self._get_severity(error_code)
+        if remediation_type is None:
+            remediation_type = self._get_remediation_type(error_code)
+        if remediation is None:
+            remediation = self._get_remediation(error_code)
+        
         # Merge contexts
         merged_context = self._context.copy()
         if additional_context:
@@ -164,7 +238,8 @@ class BaseDetector(ABC):
             severity=severity,
             layer=self.layer,
             fail_fast=fail_fast,
-            remediation_type=remediation_type
+            remediation_type=remediation_type,
+            remediation=remediation
         )
         
         # Store error

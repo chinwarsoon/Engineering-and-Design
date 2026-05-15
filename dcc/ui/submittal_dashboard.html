@@ -5,16 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DCC Submittal Tracker Dashboard</title>
   <link rel="stylesheet" href="dcc-design-system.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <style>
     .content-scroll { flex: 1; overflow-y: auto; padding: 16px; }
     .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-    .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; position: relative; height: 300px; }
+    .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; position: relative; height: 280px; }
     .chart-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
     .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
-    .status-table { font-size: 11px; }
-    .status-table td { padding: 6px 8px; }
-    .filter-bar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+    .filter-bar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; align-items: center; }
+    .filter-bar select { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+    .dcc-sidebar-right { width: 220px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s; }
+    .dcc-sidebar-right.collapsed { width: 0; border-left: none; }
+    .sb-section-body { font-size: 11px; color: var(--text2); line-height: 1.8; }
+    .sb-section-body strong { color: var(--text); }
+    .dt-container { overflow-x: auto; max-height: 300px; overflow-y: auto; }
+    .dt-container table { width: 100%; font-size: 10px; border-collapse: collapse; }
+    .dt-container th { padding: 4px 6px; text-align: left; border: 1px solid var(--border); background: var(--surface2); position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+    .dt-container th:hover { background: var(--surface3); }
+    .dt-container td { padding: 4px 6px; border: 1px solid var(--border); }
+    .dt-container tr:hover { background: var(--surface2); }
+    .kpi-card { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .kpi-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   </style>
 </head>
 <body>
@@ -27,27 +39,18 @@
       <span class="bc-active">Analytics Dashboard</span>
     </div>
     <div class="dcc-titlebar-actions">
+      <button class="dcc-iconbar-btn" id="layoutBtn" title="Toggle Layout" style="width:28px;height:28px;font-size:13px;background:none;border:none;cursor:pointer;">🔲</button>
       <div class="theme-picker">
         <button class="theme-btn" id="themeBtn">
           <span class="theme-dot" id="themeDot"></span>
           <span id="themeName">Dark</span>
         </button>
         <div class="theme-menu" id="themeMenu">
-          <div class="theme-opt active" data-theme="dark">
-            <span class="theme-dot" style="background: #0d1117;"></span> Dark
-          </div>
-          <div class="theme-opt" data-theme="light">
-            <span class="theme-dot" style="background: #f0f4f8;"></span> Light
-          </div>
-          <div class="theme-opt" data-theme="sky">
-            <span class="theme-dot" style="background: #e0f2fe;"></span> Sky
-          </div>
-          <div class="theme-opt" data-theme="ocean">
-            <span class="theme-dot" style="background: #071520;"></span> Ocean
-          </div>
-          <div class="theme-opt" data-theme="presentation">
-            <span class="theme-dot" style="background: #f8fafc;"></span> Presentation
-          </div>
+          <div class="theme-opt active" data-theme="dark"><span class="theme-dot" style="background:#0d1117;"></span> Dark</div>
+          <div class="theme-opt" data-theme="light"><span class="theme-dot" style="background:#f0f4f8;"></span> Light</div>
+          <div class="theme-opt" data-theme="sky"><span class="theme-dot" style="background:#e0f2fe;"></span> Sky</div>
+          <div class="theme-opt" data-theme="ocean"><span class="theme-dot" style="background:#071520;"></span> Ocean</div>
+          <div class="theme-opt" data-theme="presentation"><span class="theme-dot" style="background:#f8fafc;"></span> Presentation</div>
         </div>
       </div>
     </div>
@@ -55,227 +58,108 @@
 
   <div class="dcc-shell">
     <div class="dcc-iconbar">
-      <button class="dcc-iconbar-btn active" title="Dashboard">📊</button>
-      <button class="dcc-iconbar-btn" title="Timeline">📅</button>
-      <button class="dcc-iconbar-btn" title="Status">✓</button>
+      <button class="dcc-iconbar-btn active" data-panel="sidebar" title="Toggle Filters">📂</button>
       <div class="dcc-iconbar-spacer"></div>
       <div class="dcc-iconbar-bottom">
-        <button class="dcc-iconbar-btn" title="Help">❓</button>
+        <div class="dcc-iconbar-sep"></div>
+        <button class="dcc-iconbar-btn" data-panel="right-sidebar" title="Settings">⚙️</button>
+        <button class="dcc-iconbar-btn" data-panel="help" title="Help">❓</button>
       </div>
     </div>
 
-    <div class="dcc-sidebar">
-      <div class="dcc-sidebar-header">
-        <span>Filters</span>
-      </div>
-      <div class="dcc-sidebar-body">
+    <div class="dcc-sidebar" id="leftSidebar" style="position:relative;">
+      <div class="dcc-sidebar-resizer left-resizer" data-resize="left"></div>
+      <div class="dcc-sidebar-header"><span>Filters</span></div>
+      <div class="dcc-sidebar-body" id="filterSidebarBody">
         <div class="sb-section">
-          <div class="sb-section-header">
-            <span>🏢 Project</span>
-            <span class="sb-section-arrow">▼</span>
-          </div>
-          <div class="sb-section-body">
-            <select style="width: 100%; margin-bottom: 8px;">
-              <option value="">All Projects</option>
-              <option value="PROJ001">PROJ001</option>
-              <option value="PROJ002">PROJ002</option>
-              <option value="PROJ003">PROJ003</option>
-            </select>
+          <div class="sb-section-header"><span>🏢 Project</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterProject" style="width:100%;"><option value="">All Projects</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>🏭 Facility</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterFacility" style="width:100%;"><option value="">All Facilities</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>📐 Discipline</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterDiscipline" style="width:100%;"><option value="">All Disciplines</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>🏢 Department</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterDepartment" style="width:100%;"><option value="">All Departments</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>✍️ Submitted By</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterSubmittedBy" style="width:100%;"><option value="">All Submitters</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>📋 Review Status</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterReviewStatus" style="width:100%;"><option value="">All Statuses</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>📄 Data Info</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.6;">
+            <div><strong>Rows:</strong> <span id="dataRowCount">—</span></div>
+            <div><strong>Columns:</strong> <span id="dataColCount">—</span></div>
+            <div><strong>Source:</strong> <span id="dataSource">—</span></div>
           </div>
         </div>
-
-        <div class="sb-section">
-          <div class="sb-section-header">
-            <span>🏭 Facility</span>
-            <span class="sb-section-arrow">▼</span>
-          </div>
-          <div class="sb-section-body">
-            <select style="width: 100%; margin-bottom: 8px;">
-              <option value="">All Facilities</option>
-              <option value="FAC001">FAC001</option>
-              <option value="FAC002">FAC002</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="sb-section">
-          <div class="sb-section-header">
-            <span>🔧 Discipline</span>
-            <span class="sb-section-arrow">▼</span>
-          </div>
-          <div class="sb-section-body">
-            <select style="width: 100%; margin-bottom: 8px;">
-              <option value="">All Disciplines</option>
-              <option value="Structural">Structural</option>
-              <option value="Mechanical">Mechanical</option>
-              <option value="Electrical">Electrical</option>
-              <option value="Plumbing">Plumbing</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="sb-section">
-          <div class="sb-section-header">
-            <span>📅 Date Range</span>
-            <span class="sb-section-arrow">▼</span>
-          </div>
-          <div class="sb-section-body">
-            <input type="date" style="width: 100%; margin-bottom: 6px;">
-            <input type="date" style="width: 100%;">
-          </div>
-        </div>
-
-        <button class="btn btn-primary" style="width: 100%; margin-top: 12px;">🔄 Apply Filters</button>
       </div>
     </div>
 
     <div class="dcc-content">
       <div class="toolbar">
-        <span style="font-weight: 600; color: var(--text);">Submittal Analytics</span>
+        <span style="font-weight:600;color:var(--text);">Submittal Analytics</span>
         <div class="toolbar-spacer"></div>
-        <button class="btn btn-sm btn-secondary">📥 Export Report</button>
-        <button class="btn btn-sm btn-secondary">🔄 Refresh</button>
+        <span id="loadedInfo" style="font-size:10px;color:var(--text3);">no data loaded</span>
+        <button class="btn btn-sm btn-secondary" id="loadBtn">📂 Load CSV</button>
+        <button class="btn btn-sm btn-primary" id="refreshBtn">🔄 Refresh</button>
       </div>
 
       <div class="content-scroll">
-        <!-- Summary KPIs -->
-        <div style="margin-bottom: 20px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Summary</div>
-          <div class="kpi-row">
-            <div class="kpi-card">
-              <div class="kpi-value">1,247</div>
-              <div class="kpi-label">Total Documents</div>
-              <div class="kpi-sub">+45 this month</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-value">89</div>
-              <div class="kpi-label">Open Submissions</div>
-              <div class="kpi-sub">7% of total</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-value">12</div>
-              <div class="kpi-label">Overdue Resubmissions</div>
-              <div class="kpi-sub">⚠ Requires attention</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-value">94%</div>
-              <div class="kpi-label">Approval Rate</div>
-              <div class="kpi-sub">+2% vs last month</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Charts -->
-        <div class="grid-2">
-          <div class="chart-container">
-            <div class="chart-title">Submission Timeline</div>
-            <canvas id="timelineChart"></canvas>
-          </div>
-          <div class="chart-container">
-            <div class="chart-title">Approval Status Breakdown</div>
-            <canvas id="statusChart"></canvas>
-          </div>
+        <div class="kpi-row" id="kpiRow">
+          <div class="kpi-card"><div class="kpi-value" id="kpiDocs">—</div><div class="kpi-label">Total Documents</div><div class="kpi-sub">unique valid doc IDs</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpiOpen">—</div><div class="kpi-label">Open Submissions</div><div class="kpi-sub">unique valid doc IDs, not closed</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpiOverdue">—</div><div class="kpi-label">Overdue</div><div class="kpi-sub">unique valid doc IDs, overdue</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpiApproval">—</div><div class="kpi-label">Approval Rate</div><div class="kpi-sub">of unique valid doc IDs</div></div>
         </div>
 
         <div class="grid-2">
-          <div class="chart-container">
-            <div class="chart-title">Document Status by Discipline</div>
-            <canvas id="disciplineChart"></canvas>
-          </div>
-          <div class="chart-container">
-            <div class="chart-title">Submission Trend</div>
-            <canvas id="trendChart"></canvas>
-          </div>
+          <div class="chart-container"><div class="chart-title">📅 Submission Timeline <span style="font-weight:400;color:var(--text3);">(unique docs per month)</span></div><canvas id="timelineChart"></canvas></div>
+          <div class="chart-container"><div class="chart-title">✓ Approval Status <span style="font-weight:400;color:var(--text3);">(per unique document)</span></div><canvas id="statusChart"></canvas></div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-container"><div class="chart-title">📐 Documents by Discipline</div><canvas id="disciplineChart"></canvas></div>
+          <div class="chart-container"><div class="chart-title">📈 Approval Rate Trend</div><canvas id="trendChart"></canvas></div>
         </div>
 
-        <!-- Overdue Resubmissions -->
-        <div style="margin-bottom: 20px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Overdue Resubmissions</div>
-          <div class="card">
-            <table class="dcc-table status-table">
-              <thead>
-                <tr>
-                  <th>Document ID</th>
-                  <th>Discipline</th>
-                  <th>Due Date</th>
-                  <th>Days Overdue</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>DOC-2026-001</td>
-                  <td>Structural</td>
-                  <td>2026-04-10</td>
-                  <td><span style="color: var(--danger); font-weight: 600;">8 days</span></td>
-                  <td><span class="badge badge-danger">✗ Overdue</span></td>
-                </tr>
-                <tr>
-                  <td>DOC-2026-045</td>
-                  <td>Mechanical</td>
-                  <td>2026-04-12</td>
-                  <td><span style="color: var(--danger); font-weight: 600;">6 days</span></td>
-                  <td><span class="badge badge-danger">✗ Overdue</span></td>
-                </tr>
-                <tr>
-                  <td>DOC-2026-089</td>
-                  <td>Electrical</td>
-                  <td>2026-04-14</td>
-                  <td><span style="color: var(--warning); font-weight: 600;">4 days</span></td>
-                  <td><span class="badge badge-warning">⚠ Due Soon</span></td>
-                </tr>
-                <tr>
-                  <td>DOC-2026-156</td>
-                  <td>Plumbing</td>
-                  <td>2026-04-15</td>
-                  <td><span style="color: var(--warning); font-weight: 600;">3 days</span></td>
-                  <td><span class="badge badge-warning">⚠ Due Soon</span></td>
-                </tr>
-              </tbody>
-            </table>
+        <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <span id="detailTableTitle">⚠️ Overdue Resubmissions</span>
+            <span id="detailTableCount" style="font-weight:400;color:var(--text2);font-size:10px;"></span>
+          </div>
+          <div class="dt-container" id="detailTableContainer"><div style="color:var(--text3);padding:8px;font-size:11px;">Click a KPI card above to view details. <strong>Overdue</strong> shown by default when data loads.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcc-sidebar-right" id="rightSidebar" style="position:relative;width:var(--right-sidebar-w, 220px);">
+      <div class="dcc-sidebar-resizer right-resizer" data-resize="right"></div>
+      <div class="dcc-sidebar-header"><span>Settings</span></div>
+      <div class="dcc-sidebar-body" id="rightSidebarBody">
+        <div class="sb-section">
+          <div class="sb-section-header"><span>⚙️ Options</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body">
+            <div style="font-size:11px;color:var(--text2);line-height:1.8;">
+              <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="autoRefresh" checked> Auto-refresh on load</label></div>
+            </div>
           </div>
         </div>
-
-        <!-- Recent Activity -->
-        <div>
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Recent Activity</div>
-          <div class="card">
-            <table class="dcc-table status-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Document</th>
-                  <th>Action</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="mono">2026-04-18 14:32</td>
-                  <td>DOC-2026-234</td>
-                  <td>Approved</td>
-                  <td><span class="badge badge-success">✓ Complete</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">2026-04-18 13:15</td>
-                  <td>DOC-2026-233</td>
-                  <td>Submitted</td>
-                  <td><span class="badge badge-info">📤 Pending</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">2026-04-18 11:42</td>
-                  <td>DOC-2026-232</td>
-                  <td>Resubmitted</td>
-                  <td><span class="badge badge-warning">⚠ Review</span></td>
-                </tr>
-                <tr>
-                  <td class="mono">2026-04-18 10:20</td>
-                  <td>DOC-2026-231</td>
-                  <td>Rejected</td>
-                  <td><span class="badge badge-danger">✗ Rejected</span></td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>ℹ️ About</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text3);line-height:1.6;">
+            <div>DCC Submittal Tracker</div>
+            <div>v3.0.0</div>
+            <div style="margin-top:4px;">Analytics from pipeline CSV output.</div>
           </div>
         </div>
       </div>
@@ -283,153 +167,447 @@
   </div>
 
   <div class="dcc-statusbar status-ok">
-    <div class="sb-item">✓ Dashboard Updated</div>
-    <div class="sb-item">1,247 documents tracked</div>
-    <div class="sb-item-right">Last updated: 2026-04-18 14:32</div>
+    <div class="sb-item">✓ <span id="statusMsg">Ready</span></div>
+    <div class="sb-item"><span id="statusFile">No file loaded</span></div>
+    <div class="sb-item-right">v3.0.0</div>
   </div>
 
   <script>
-    const themeColors = {
-      dark: '#0d1117', light: '#f0f4f8', sky: '#0a1628', ocean: '#071520', presentation: '#12082a'
-    };
+    const DATA_BASE = '../output';
+    const CSV_FILE = 'processed_dcc_universal.csv';
+    let allData = [];
+    let filteredData = [];
+    let chartInstances = {};
 
-    // Theme switching
-    document.getElementById('themeBtn').addEventListener('click', () => {
-      document.getElementById('themeMenu').classList.toggle('open');
-    });
+    // ─── THEME ───────────────────────────────────────────────────────────────
+    const themeBtn = document.getElementById('themeBtn');
+    const themeMenu = document.getElementById('themeMenu');
+    const themeName = document.getElementById('themeName');
+    const themeDot = document.getElementById('themeDot');
+    const themeOpts = document.querySelectorAll('.theme-opt');
+    const themeColors = { dark:'#0d1117', light:'#f0f4f8', sky:'#e0f2fe', ocean:'#071520', presentation:'#f8fafc' };
 
-    document.querySelectorAll('.theme-opt').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const theme = opt.dataset.theme;
-        document.documentElement.setAttribute('data-theme', theme);
-        document.getElementById('themeName').textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
-        document.getElementById('themeDot').style.background = themeColors[theme];
-        document.getElementById('themeMenu').classList.remove('open');
-        localStorage.setItem('dcc-theme', theme);
-        document.querySelectorAll('.theme-opt').forEach(o => o.classList.remove('active'));
-        opt.classList.add('active');
-      });
-    });
-
+    themeBtn.addEventListener('click', () => themeMenu.classList.toggle('open'));
+    themeOpts.forEach(o => o.addEventListener('click', () => {
+      const t = o.dataset.theme; applyTheme(t);
+      localStorage.setItem('dcc-theme', t);
+      themeOpts.forEach(x => x.classList.remove('active'));
+      o.classList.add('active');
+      themeMenu.classList.remove('open');
+    }));
+    function applyTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      themeName.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+      themeDot.style.background = themeColors[t] || '#0d1117';
+      setTimeout(rebuildCharts, 100);
+    }
     const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    document.getElementById('themeName').textContent = savedTheme.charAt(0).toUpperCase() + savedTheme.slice(1);
-    document.getElementById('themeDot').style.background = themeColors[savedTheme];
-    document.querySelector(`[data-theme="${savedTheme}"]`).classList.add('active');
+    applyTheme(savedTheme);
+    document.querySelector(`[data-theme="${savedTheme}"]`)?.classList.add('active');
 
-    // Sidebar toggle
-    document.querySelectorAll('.sb-section-header').forEach(header => {
-      header.addEventListener('click', () => {
-        header.parentElement.classList.toggle('closed');
+    // ─── LAYOUT TOGGLE ───────────────────────────────────────────────────────
+    const leftSidebar = document.getElementById('leftSidebar');
+    const rightSidebar = document.getElementById('rightSidebar');
+    const layoutBtn = document.getElementById('layoutBtn');
+    let layoutMode = 0;
+    layoutBtn.addEventListener('click', () => {
+      layoutMode = (layoutMode + 1) % 3;
+      leftSidebar.classList.toggle('collapsed', layoutMode === 1);
+      rightSidebar.classList.toggle('collapsed', layoutMode === 0);
+      layoutBtn.textContent = layoutMode === 0 ? '🔲' : layoutMode === 1 ? '📐' : '📦';
+    });
+
+    // ─── SIDEBAR RESIZE ──────────────────────────────────────────────────────
+    let resizeTarget = null, resizeStartX = 0, resizeStartW = 0;
+    document.addEventListener('mousedown', e => {
+      const h = e.target.closest('.dcc-sidebar-resizer'); if (!h) return;
+      const sb = h.parentElement;
+      resizeTarget = h.dataset.resize; resizeStartX = e.clientX; resizeStartW = sb.offsetWidth;
+      h.classList.add('dragging'); document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!resizeTarget) return;
+      requestAnimationFrame(() => {
+        const dx = e.clientX - resizeStartX;
+        const w = Math.max(120, Math.min(600, resizeTarget === 'left' ? resizeStartW + dx : resizeStartW - dx));
+        document.documentElement.style.setProperty(resizeTarget === 'left' ? '--sidebar-w' : '--right-sidebar-w', w + 'px');
+      });
+    });
+    document.addEventListener('mouseup', () => {
+      if (!resizeTarget) return;
+      document.querySelector('.dcc-sidebar-resizer.dragging')?.classList.remove('dragging');
+      document.body.style.cursor = ''; document.body.style.userSelect = ''; resizeTarget = null;
+    });
+
+    // ─── ICON BAR ────────────────────────────────────────────────────────────
+    const iconBtns = document.querySelectorAll('.dcc-iconbar-btn[data-panel]');
+    let helpActive = false;
+    const rightSidebarHeader = document.querySelector('#rightSidebar .dcc-sidebar-header span');
+    const rightSidebarBody = document.getElementById('rightSidebarBody');
+
+    iconBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const panel = btn.dataset.panel;
+        if (panel === 'sidebar') { leftSidebar.classList.toggle('collapsed'); btn.classList.toggle('active'); }
+        else if (panel === 'right-sidebar') {
+          rightSidebar.classList.toggle('collapsed'); btn.classList.toggle('active');
+          if (helpActive && rightSidebar.classList.contains('collapsed')) { helpActive = false; showSettingsPanel(); }
+        } else if (panel === 'help') showHelp();
       });
     });
 
-    // Get theme colors for charts
-    const getChartColors = () => {
-      const style = getComputedStyle(document.documentElement);
-      return {
-        text: style.getPropertyValue('--text').trim(),
-        text2: style.getPropertyValue('--text2').trim(),
-        accent: style.getPropertyValue('--accent').trim(),
-        danger: style.getPropertyValue('--danger').trim(),
-        warning: style.getPropertyValue('--warning').trim(),
-        success: style.getPropertyValue('--success').trim(),
-        surface: style.getPropertyValue('--surface').trim(),
-        border: style.getPropertyValue('--border').trim()
-      };
-    };
+    function showSettingsPanel() {
+      helpActive = false;
+      rightSidebarHeader.textContent = 'Settings';
+      rightSidebarBody.innerHTML = `
+        <div class="sb-section"><div class="sb-section-header"><span>⚙️ Options</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body"><div style="font-size:11px;color:var(--text2);line-height:1.8;">
+        <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="autoRefresh" checked> Auto-refresh on load</label></div></div></div></div>
+        <div class="sb-section"><div class="sb-section-header"><span>ℹ️ About</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body" style="font-size:11px;color:var(--text3);line-height:1.6;">
+        <div>DCC Submittal Tracker</div><div>v3.0.0</div><div style="margin-top:4px;">Analytics from pipeline CSV output.</div></div></div>`;
+    }
 
-    const colors = getChartColors();
+    function buildSubmittalHelp() {
+      const s = (t, c) => `<div class="sb-section"><div class="sb-section-header"><span>${t}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${c}</div></div>`;
+      const fl = (items) => items.map(i => `<div><strong>${esc(i[0])}</strong> ${i[1]}</div>`).join('');
+      return s('📂 Data Source', fl([['Load CSV','Click <strong>Load CSV</strong> to pick a local file, or <strong>Refresh</strong> to fetch from <code>../output/processed_dcc_universal.csv</code>.'],
+        ['Data Info','Left sidebar shows row count, column count, and source filename after loading.']])) +
+        s('📊 Submittal Analytics', fl([['Total Documents','Distinct count of <code>Document_ID</code> values in the filtered data set. <strong>Click</strong> to view document list in the detail table below.'],
+        ['Open Submissions','Unique documents where <code>Submission_Closed</code> is not <strong>YES</strong>. A document is considered closed if any of its rows has <code>Submission_Closed=YES</code>. <strong>Click</strong> to view open documents.'],
+        ['Overdue','Unique documents that have at least one row where <code>Resubmission_Overdue_Status</code> is <strong>Overdue</strong>. <strong>Click</strong> to view overdue details.'],
+        ['Approval Rate','Percentage of unique documents with a terminal approval code (<strong>APP</strong>, <strong>APR</strong>, <strong>APPROVED</strong>, <strong>A</strong>) among all documents that have an approval code on record. <strong>Click</strong> to view approval breakdown.']])) +
+        s('📅 Timeline', 'Unique <strong>Document_ID</strong> values per month from <code>Submission_Date</code>. A document with multiple submissions in the same month is counted once. Uses current theme accent color.') +
+        s('✓ Approval Status', '<div style="margin-bottom:6px;">Per unique <strong>Document_ID</strong> using the latest approval code on record for each document. Label shows count in parentheses.</div>' + fl([['Approved','Codes <strong>APP</strong>, <strong>APR</strong>, <strong>APPROVED</strong>, <strong>A</strong> \u2014 submission approved.'],
+        ['AWC','Code <strong>AWC</strong> (Approved with Comments) \u2014 approved subject to comments.'],
+        ['Rejected','Codes <strong>REJ</strong>, <strong>R</strong>, <strong>REJECTED</strong>, <strong>NAP</strong> (Not Approved).'],
+        ['Pending','Codes <strong>PEN</strong>, <strong>PENDING</strong> \u2014 awaiting decision.'],
+        ['Void','Code <strong>VOID</strong> \u2014 submission voided.'],
+        ['Info','Code <strong>INF</strong> \u2014 for information only.'],
+        ['Other','Any unrecognised approval code not falling into the above categories.']])) +
+        s('📐 Discipline Chart', 'Document count per distinct <code>Discipline</code> value, sorted highest to lowest. Uses theme accent color.') +
+        s('📈 Trend Chart', 'Monthly approval rate: approved rows divided by total rows with an approval code per month. Range 0\u2013100%. Uses success (green) color.') +
+        s('🏢 Filters', fl([['Project','Filter by <code>Project_Code</code>, populated from distinct values.'],
+        ['Facility','Filter by <code>Facility_Code</code>, populated from distinct values.'],
+        ['Discipline','Filter by <code>Discipline</code>, populated from distinct values.'],
+        ['Department','Filter by <code>Department</code>, populated from distinct values.'],
+        ['Submitted By','Filter by <code>Submitted_By</code>, populated from distinct values.'],
+        ['Review Status','Filter by <code>Review_Status</code>, populated from distinct values.']])) +
+        s('⚠️ Overdue Table', 'Rows where <code>Resubmission_Overdue_Status</code> is <strong>Overdue</strong>, sorted by days descending. Shows Document ID, Discipline, Plan Date, Days Overdue.');
+    }
 
-    // Timeline Chart
-    new Chart(document.getElementById('timelineChart').getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-        datasets: [{
-          label: 'Submissions',
-          data: [145, 189, 234, 267, 312, 289],
-          borderColor: colors.accent,
-          backgroundColor: colors.accent + '20',
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: colors.accent
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, ticks: { color: colors.text2 }, grid: { color: colors.border } },
-          x: { ticks: { color: colors.text2 }, grid: { color: colors.border } }
+    async function showHelp() {
+      helpActive = !helpActive;
+      rightSidebar.classList.remove('collapsed');
+      document.querySelector('.dcc-iconbar-btn[data-panel="right-sidebar"]')?.classList.add('active');
+      rightSidebarHeader.textContent = helpActive ? 'Help' : 'Settings';
+      if (helpActive) {
+        let body = '';
+        try {
+          const r = await fetch('ui_help.json'); const h = await r.json();
+          const sec = (title, content) => `<div class="sb-section"><div class="sb-section-header"><span>${title}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${content}</div></div>`;
+          if (h.help?.submittal_data_source) body += sec('📂 Data Source', (h.help.submittal_data_source.fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
+          if (h.help?.submittal_analytics) body += sec('📊 Submittal Analytics', (h.help.submittal_analytics.fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
+          if (h.help?.submittal_timeline) body += sec('📅 Timeline', `<div>${h.help.submittal_timeline.intro||''}</div><div style="margin-top:6px;">${h.help.submittal_timeline.details||''}</div>`);
+          if (h.help?.submittal_status_chart) body += sec('✓ Approval Status', (h.help.submittal_status_chart.fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
+          if (h.help?.submittal_discipline_chart) body += sec('📐 Discipline Chart', `<div>${h.help.submittal_discipline_chart.intro||''}</div><div style="margin-top:6px;">${h.help.submittal_discipline_chart.details||''}</div>`);
+          if (h.help?.submittal_trend_chart) body += sec('📈 Trend Chart', `<div>${h.help.submittal_trend_chart.intro||''}</div><div style="margin-top:6px;">${h.help.submittal_trend_chart.details||''}</div>`);
+          if (h.help?.submittal_filters) body += sec('🏢 Filters', (h.help.submittal_filters.fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
+          if (h.help?.submittal_overdue_table) body += sec('⚠️ Overdue Table', `<div>${h.help.submittal_overdue_table.intro||''}</div><div style="margin-top:6px;">${h.help.submittal_overdue_table.details||''}</div>`);
+        } catch {}
+        rightSidebarBody.innerHTML = body || buildSubmittalHelp();
+      } else showSettingsPanel();
+    }
+
+    // ─── SIDEBAR ACCORDION ───────────────────────────────────────────────────
+    document.addEventListener('click', e => {
+      const h = e.target.closest('.sb-section-header'); if (h) h.parentElement.classList.toggle('closed');
+    });
+
+    // ─── CSV LOADER ──────────────────────────────────────────────────────────
+    document.getElementById('loadBtn').addEventListener('click', () => {
+      const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv';
+      input.addEventListener('change', e => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const text = ev.target.result;
+          parseCSV(text, file.name);
+        };
+        reader.readAsText(file);
+      });
+      input.click();
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', loadFromPipeline);
+
+    async function loadFromPipeline() {
+      updateStatus('loading', 'Loading CSV...');
+      try {
+        const resp = await fetch(`${DATA_BASE}/${CSV_FILE}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const text = await resp.text();
+        parseCSV(text, CSV_FILE);
+      } catch (err) {
+        updateStatus('error', `Failed to load: ${err.message}`);
+        document.getElementById('loadedInfo').textContent = 'load failed';
+      }
+    }
+
+    function parseCSV(text, sourceName) {
+      const result = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: true });
+      if (result.errors.length > 0) console.warn('CSV parse errors:', result.errors);
+      allData = result.data.filter(r => r.Document_ID);
+      document.getElementById('dataSource').textContent = sourceName;
+      document.getElementById('dataRowCount').textContent = allData.length;
+      document.getElementById('dataColCount').textContent = result.meta.fields?.length || '—';
+      populateFilters();
+      applyFilters();
+      updateStatus('ok', `Loaded ${allData.length} rows`);
+      document.getElementById('loadedInfo').textContent = `${allData.length} rows from ${sourceName}`;
+    }
+
+    // ─── FILTERS ─────────────────────────────────────────────────────────────
+    function populateFilters() {
+      const unique = (col) => { const v = new Set(); allData.forEach(r => { if (r[col]) v.add(r[col]); }); return [...v].sort(); };
+      populateSelect('filterProject', unique('Project_Code'));
+      populateSelect('filterFacility', unique('Facility_Code'));
+      populateSelect('filterDiscipline', unique('Discipline'));
+      populateSelect('filterDepartment', unique('Department'));
+      populateSelect('filterSubmittedBy', unique('Submitted_By'));
+      populateSelect('filterReviewStatus', unique('Review_Status'));
+    }
+
+    function populateSelect(id, values) {
+      const sel = document.getElementById(id);
+      const current = sel.value;
+      sel.innerHTML = '<option value="">All ' + id.replace('filter','') + '</option>' + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+      sel.value = current;
+    }
+
+    document.getElementById('filterProject').addEventListener('change', applyFilters);
+    document.getElementById('filterFacility').addEventListener('change', applyFilters);
+    document.getElementById('filterDiscipline').addEventListener('change', applyFilters);
+    document.getElementById('filterDepartment').addEventListener('change', applyFilters);
+    document.getElementById('filterSubmittedBy').addEventListener('change', applyFilters);
+    document.getElementById('filterReviewStatus').addEventListener('change', applyFilters);
+
+    function applyFilters() {
+      const p = document.getElementById('filterProject').value;
+      const f = document.getElementById('filterFacility').value;
+      const d = document.getElementById('filterDiscipline').value;
+      const dept = document.getElementById('filterDepartment').value;
+      const sub = document.getElementById('filterSubmittedBy').value;
+      const rs = document.getElementById('filterReviewStatus').value;
+      filteredData = allData.filter(r =>
+        (!p || r.Project_Code === p) && (!f || r.Facility_Code === f) && (!d || r.Discipline === d) &&
+        (!dept || r.Department === dept) && (!sub || r.Submitted_By === sub) && (!rs || r.Review_Status === rs)
+      );
+      renderDashboard();
+    }
+
+    // ─── KPI CALCULATIONS (per unique Document_ID) ─────────────────────────
+    function computeKPIs(data) {
+      const docMap = {};
+      data.forEach(r => {
+        const id = r.Document_ID; if (!isValidDocId(id)) return;
+        if (!docMap[id]) docMap[id] = { closed: null, overdue: null, approval: null };
+        const c = String(r.Submission_Closed || '').toUpperCase();
+        if (c === 'YES' || c === '1') docMap[id].closed = true;
+        else if (docMap[id].closed === null) docMap[id].closed = false;
+        if (String(r.Resubmission_Overdue_Status || '').toLowerCase() === 'overdue') docMap[id].overdue = true;
+        const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
+        if (code) docMap[id].approval = code;
+      });
+      const docs = Object.keys(docMap).length;
+      const open = Object.values(docMap).filter(d => d.closed === false || d.closed === null).length;
+      const overdue = Object.values(docMap).filter(d => d.overdue === true).length;
+      const approved = Object.values(docMap).filter(d => d.approval && ['APP','APR','APPROVED','A'].includes(d.approval)).length;
+      const total = Object.values(docMap).filter(d => d.approval).length;
+      const rate = total > 0 ? (approved / total * 100) : 0;
+      return { docs, open, overdue, rate };
+    }
+
+    // ─── RENDER ──────────────────────────────────────────────────────────────
+    function renderDashboard() {
+      const data = filteredData.length > 0 ? filteredData : allData;
+      if (data.length === 0) { setEmptyState(); return; }
+      const kpi = computeKPIs(data);
+      document.getElementById('kpiDocs').textContent = formatNum(kpi.docs);
+      document.getElementById('kpiOpen').textContent = formatNum(kpi.open);
+      document.getElementById('kpiOverdue').textContent = formatNum(kpi.overdue);
+      document.getElementById('kpiApproval').textContent = kpi.rate.toFixed(1) + '%';
+      showDetailOverdue(data);
+      rebuildCharts();
+    }
+
+    function setEmptyState() {
+      ['kpiDocs','kpiOpen','kpiOverdue','kpiApproval'].forEach(id => document.getElementById(id).textContent = '—');
+      document.getElementById('detailTableContainer').innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No data to display.</div>';
+    }
+
+    function formatNum(n) { if (n == null) return '—'; if (n >= 1000000) return (n/1000000).toFixed(1)+'M'; if (n >= 1000) return (n/1000).toFixed(1)+'K'; return String(n); }
+
+    function isValidDocId(id) {
+      if (!id) return false;
+      const s = String(id).trim().toLowerCase();
+      if (!s) return false;
+      const invalid = ['na','n/a','nan','unknown','tbd','to be determined','pending','draft','temp','temporary','-','none','nil','null','undefined','0'];
+      return !invalid.includes(s);
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ─── CHARTS ──────────────────────────────────────────────────────────────
+    function getChartColors() {
+      const s = getComputedStyle(document.documentElement);
+      return { text:s.getPropertyValue('--text').trim(), text2:s.getPropertyValue('--text2').trim(), accent:s.getPropertyValue('--accent').trim(), danger:s.getPropertyValue('--danger').trim(), warning:s.getPropertyValue('--warning').trim(), success:s.getPropertyValue('--success').trim(), info:s.getPropertyValue('--info').trim()||'#58a6ff', surface:s.getPropertyValue('--surface').trim(), border:s.getPropertyValue('--border').trim() };
+    }
+
+    function rebuildCharts() {
+      const data = filteredData.length > 0 ? filteredData : allData;
+      Object.values(chartInstances).forEach(c => { if (c) { c.destroy(); } }); chartInstances = {};
+      if (data.length === 0) return;
+      const c = getChartColors();
+
+      // Timeline — unique Document_ID per month
+      const monthlyDocs = {}; data.forEach(r => {
+        if (r.Submission_Date && isValidDocId(r.Document_ID)) {
+          const m = String(r.Submission_Date).slice(0,7);
+          if (!monthlyDocs[m]) monthlyDocs[m] = new Set();
+          monthlyDocs[m].add(r.Document_ID);
         }
-      }
+      });
+      const tl = Object.entries(monthlyDocs).sort(([a],[b]) => a.localeCompare(b)).map(([k,v]) => [k, v.size]);
+      chartInstances.timeline = new Chart(document.getElementById('timelineChart').getContext('2d'), { type:'line', data:{ labels:tl.map(([k])=>k), datasets:[{ label:'Submissions', data:tl.map(([,v])=>v), borderColor:c.accent, backgroundColor:c.accent+'20', tension:0.4, fill:true, pointBackgroundColor:c.accent }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
+
+      // Status donut
+      // Approval status per unique Document_ID (latest approval code per document)
+      const docStatuses = {};
+      const approveCodes = ['APP','APR','APPROVED','A'];
+      const awcCodes = ['AWC'];
+      const rejectCodes = ['REJ','R','REJECTED','NAP'];
+      const pendingCodes = ['PEN','PENDING'];
+      const voidCodes = ['VOID'];
+      const infoCodes = ['INF'];
+      data.forEach(r => {
+        const docId = r.Document_ID; if (!isValidDocId(docId)) return;
+        const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
+        if (!code) return;
+        if (!docStatuses[docId]) docStatuses[docId] = code;
+      });
+      const statusCounts = {};
+      Object.values(docStatuses).forEach(code => {
+        if (approveCodes.includes(code)) statusCounts['Approved'] = (statusCounts['Approved']||0)+1;
+        else if (awcCodes.includes(code)) statusCounts['AWC'] = (statusCounts['AWC']||0)+1;
+        else if (rejectCodes.includes(code)) statusCounts['Rejected'] = (statusCounts['Rejected']||0)+1;
+        else if (pendingCodes.includes(code)) statusCounts['Pending'] = (statusCounts['Pending']||0)+1;
+        else if (voidCodes.includes(code)) statusCounts['Void'] = (statusCounts['Void']||0)+1;
+        else if (infoCodes.includes(code)) statusCounts['Info'] = (statusCounts['Info']||0)+1;
+        else statusCounts['Other'] = (statusCounts['Other']||0)+1;
+      });
+      const sl = Object.keys(statusCounts);
+      const palette = [c.success, '#58a6ff', c.danger, c.warning, '#8b949e', '#6e7681', c.text2];
+      chartInstances.status = new Chart(document.getElementById('statusChart').getContext('2d'), { type:'doughnut', data:{ labels:sl.map(k=>k+' ('+statusCounts[k]+')'), datasets:[{ data:sl.map(k=>statusCounts[k]), backgroundColor:palette.slice(0,sl.length), borderColor:c.surface }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:c.text2 } } } } });
+
+      // Discipline bar
+      const discCounts = {}; data.forEach(r => { if (r.Discipline) discCounts[r.Discipline] = (discCounts[r.Discipline]||0)+1; });
+      const dl = Object.entries(discCounts).sort(([,a],[,b]) => b-a);
+      chartInstances.discipline = new Chart(document.getElementById('disciplineChart').getContext('2d'), { type:'bar', data:{ labels:dl.map(([k])=>k), datasets:[{ label:'Documents', data:dl.map(([,v])=>v), backgroundColor:c.accent, borderColor:c.border, borderWidth:1 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
+
+      // Approval rate trend by month
+      const trend = {}; data.forEach(r => {
+        if (!r.Submission_Date) return; const m = String(r.Submission_Date).slice(0,7);
+        if (!trend[m]) trend[m] = { total:0, approved:0 };
+        trend[m].total++;
+        const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
+        if (approveCodes.includes(code)) trend[m].approved++;
+      });
+      const tld = Object.entries(trend).sort(([a],[b]) => a.localeCompare(b));
+      chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), { type:'line', data:{ labels:tld.map(([k])=>k), datasets:[{ label:'Approval Rate', data:tld.map(([,v])=>v.total>0?(v.approved/v.total*100):0), borderColor:c.success, backgroundColor:c.success+'20', tension:0.4, fill:true, pointBackgroundColor:c.success }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100, ticks:{ color:c.text2, callback:v=>v+'%' }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
+    }
+
+    // ─── DYNAMIC DETAIL TABLE ────────────────────────────────────────────────
+    function renderDetailTable(title, columns, rows) {
+      document.getElementById('detailTableTitle').textContent = title;
+      document.getElementById('detailTableCount').textContent = rows.length + ' items';
+      const container = document.getElementById('detailTableContainer');
+      if (rows.length === 0) { container.innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No items to display.</div>'; return; }
+      container.innerHTML = '<table><thead><tr>' + columns.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' +
+        rows.map(r => '<tr>' + columns.map(c => '<td>' + esc(r[c] != null ? r[c] : '') + '</td>').join('') + '</tr>').join('') +
+        '</tbody></table>';
+    }
+
+    function firstVal(data, docId, col) { const r = data.find(x => x.Document_ID === docId && x[col]); return r ? r[col] : ''; }
+
+    function showDetailOverdue(data) {
+      const rows = data.filter(r => String(r.Resubmission_Overdue_Status).toLowerCase() === 'overdue' && isValidDocId(r.Document_ID))
+        .map(r => ({ 'Document ID': r.Document_ID, 'Department': r.Department||'', 'Submitted By': r.Submitted_By||'', 'Discipline': r.Discipline||'', 'Plan Date': r.Resubmission_Plan_Date||'', 'Days Overdue': calcDaysOverdue(r.Resubmission_Plan_Date) }))
+        .sort((a,b) => b['Days Overdue'] - a['Days Overdue']);
+      renderDetailTable('⚠️ Overdue Resubmissions', ['Document ID','Department','Submitted By','Discipline','Plan Date','Days Overdue'], rows);
+    }
+
+    function showDetailAllDocs(data) {
+      const seen = new Set(); const rows = [];
+      data.forEach(r => { if (isValidDocId(r.Document_ID) && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ 'Document ID': r.Document_ID, 'Department': r.Department||'', 'Submitted By': r.Submitted_By||'', 'Discipline': r.Discipline||'', 'Project': r.Project_Code||'', 'Latest Approval': r.Latest_Approval_Code||r.This_Submission_Approval_Code||'' }); } });
+      renderDetailTable('📄 All Documents', ['Document ID','Department','Submitted By','Discipline','Project','Latest Approval'], rows);
+    }
+
+    function showDetailOpen(data) {
+      const docStatus = {}; data.forEach(r => { if (!isValidDocId(r.Document_ID)) return; if (!docStatus[r.Document_ID]) docStatus[r.Document_ID] = { closed: false }; const c = String(r.Submission_Closed||'').toUpperCase(); if (c==='YES'||c==='1') docStatus[r.Document_ID].closed = true; });
+      const openIds = Object.entries(docStatus).filter(([,s]) => !s.closed).map(([id]) => id);
+      const seen = new Set(); const rows = [];
+      data.forEach(r => { if (isValidDocId(r.Document_ID) && openIds.includes(r.Document_ID) && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ 'Document ID': r.Document_ID, 'Department': r.Department||'', 'Submitted By': r.Submitted_By||'', 'Discipline': r.Discipline||'', 'Status': 'Open' }); } });
+      renderDetailTable('📂 Open Submissions', ['Document ID','Department','Submitted By','Discipline','Status'], rows);
+    }
+
+    function showDetailApproval(data) {
+      const docMap = {}; data.forEach(r => { if (!isValidDocId(r.Document_ID)) return; const code = (r.Latest_Approval_Code||r.This_Submission_Approval_Code||'').toUpperCase(); if (code) docMap[r.Document_ID] = code; });
+      const approveCodes = ['APP','APR','APPROVED','A']; const rejectCodes = ['REJ','R','REJECTED','NAP']; const pendingCodes = ['PEN','PENDING'];
+      const cat = (c) => approveCodes.includes(c) ? 'Approved' : rejectCodes.includes(c) ? 'Rejected' : pendingCodes.includes(c) ? 'Pending' : c==='AWC' ? 'AWC' : c==='VOID' ? 'Void' : c==='INF' ? 'Info' : 'Other';
+      const seen = new Set(); const rows = [];
+      data.forEach(r => { if (isValidDocId(r.Document_ID) && docMap[r.Document_ID] && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ 'Document ID': r.Document_ID, 'Department': r.Department||'', 'Submitted By': r.Submitted_By||'', 'Approval Code': docMap[r.Document_ID], 'Category': cat(docMap[r.Document_ID]) }); } });
+      renderDetailTable('✓ Approval Rate', ['Document ID','Department','Submitted By','Approval Code','Category'], rows);
+    }
+
+    function calcDaysOverdue(planDate) {
+      if (!planDate) return 0; const d = new Date(planDate); if (isNaN(d)) return 0;
+      return Math.max(1, Math.floor((Date.now() - d) / 86400000));
+    }
+
+    // ─── KPI CARD CLICK HANDLERS ────────────────────────────────────────────
+    document.querySelectorAll('.kpi-card').forEach((card, i) => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => {
+        const d = filteredData.length > 0 ? filteredData : allData;
+        if (!d.length) return;
+        const actions = [showDetailAllDocs, showDetailOpen, showDetailOverdue, showDetailApproval];
+        if (actions[i]) actions[i](d);
+      });
     });
 
-    // Status Chart
-    new Chart(document.getElementById('statusChart').getContext('2d'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Approved', 'Pending', 'Rejected', 'Resubmit'],
-        datasets: [{
-          data: [1171, 45, 18, 13],
-          backgroundColor: [colors.success, colors.info, colors.danger, colors.warning],
-          borderColor: colors.surface
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { color: colors.text2 } } }
-      }
-    });
+    function calcDaysOverdue(planDate) {
+      if (!planDate) return 0;
+      const d = new Date(planDate); if (isNaN(d)) return 0;
+      return Math.max(1, Math.floor((Date.now() - d) / 86400000));
+    }
 
-    // Discipline Chart
-    new Chart(document.getElementById('disciplineChart').getContext('2d'), {
-      type: 'bar',
-      data: {
-        labels: ['Structural', 'Mechanical', 'Electrical', 'Plumbing'],
-        datasets: [{
-          label: 'Documents',
-          data: [345, 289, 267, 234],
-          backgroundColor: colors.accent,
-          borderColor: colors.border,
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, ticks: { color: colors.text2 }, grid: { color: colors.border } },
-          x: { ticks: { color: colors.text2 }, grid: { color: colors.border } }
-        }
-      }
-    });
+    // ─── STATUS BAR ──────────────────────────────────────────────────────────
+    function updateStatus(type, msg) {
+      const bar = document.querySelector('.dcc-statusbar');
+      const msgEl = document.getElementById('statusMsg');
+      bar.className = 'dcc-statusbar status-' + type;
+      msgEl.textContent = msg;
+      document.getElementById('statusFile').textContent = document.getElementById('dataSource').textContent || 'No file loaded';
+    }
 
-    // Trend Chart
-    new Chart(document.getElementById('trendChart').getContext('2d'), {
-      type: 'line',
-      data: {
-        labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-        datasets: [{
-          label: 'Approval Rate',
-          data: [88, 90, 92, 94],
-          borderColor: colors.success,
-          backgroundColor: colors.success + '20',
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: colors.success
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, max: 100, ticks: { color: colors.text2 }, grid: { color: colors.border } },
-          x: { ticks: { color: colors.text2 }, grid: { color: colors.border } }
-        }
+    // ─── INIT ────────────────────────────────────────────────────────────────
+    (async function init() {
+      if (document.getElementById('autoRefresh')?.checked !== false) {
+        await loadFromPipeline();
       }
-    });
+    })();
   </script>
 </body>
 </html>

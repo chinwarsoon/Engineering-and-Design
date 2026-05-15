@@ -56,7 +56,7 @@ class IdentityDetector(BaseDetector):
     ERROR_ID_UNCERTAIN = "P2-I-P-0201"
     ERROR_REV_MISSING = "P2-I-P-0202"
     ERROR_DUPLICATE_TRANS = "P2-I-V-0203"
-    ERROR_ID_FORMAT_INVALID = "P2-I-V-0204"
+    ERROR_ID_FORMAT_INVALID = "P2-I-V-0204-A"
     
     def __init__(
         self,
@@ -150,10 +150,9 @@ class IdentityDetector(BaseDetector):
             if value in uncertain_values or pd.isna(df.at[idx, id_col]):
                 self.detect_error(
                     error_code=self.ERROR_ID_UNCERTAIN,
-                    message=f"Document_ID uncertain at row {idx}: '{df.at[idx, id_col]}'",
+                    message=self._format_message(self.ERROR_ID_UNCERTAIN, value=str(df.at[idx, id_col])),
                     row=idx,
                     column=id_col,
-                    severity=self._get_severity(self.ERROR_ID_UNCERTAIN, "CRITICAL"),
                     fail_fast=True,
                     additional_context={
                         "actual_value": str(df.at[idx, id_col]),
@@ -179,11 +178,10 @@ class IdentityDetector(BaseDetector):
         for idx in df[null_mask].index:
             self.detect_error(
                 error_code=self.ERROR_REV_MISSING,
-                message=f"Document_Revision missing at row {idx}",
+                message=self._format_message(self.ERROR_REV_MISSING),
                 row=idx,
-                column=rev_col,
-                severity=self._get_severity(self.ERROR_REV_MISSING, "CRITICAL"),
-                fail_fast=True,
+                    column=rev_col,
+                    fail_fast=True,
                 additional_context={
                     "suggestion": "Set default revision (e.g., '00' or 'A')"
                 }
@@ -232,13 +230,12 @@ class IdentityDetector(BaseDetector):
                 for idx in group[duplicates].index:
                     self.detect_error(
                         error_code=self.ERROR_DUPLICATE_TRANS,
-                        message=f"Duplicate Transmittal_Number in session {session_id}",
+                        message=self._format_message(self.ERROR_DUPLICATE_TRANS, session_id=session_id),
                         row=idx,
-                        column=trans_col,
-                        severity=self._get_severity(self.ERROR_DUPLICATE_TRANS, "HIGH"),
-                        fail_fast=False,
-                        additional_context={
-                            "session_id": str(session_id),
+                    column=trans_col,
+                    fail_fast=False,
+                    additional_context={
+                        "session_id": str(session_id),
                             "transmittal_value": str(df.at[idx, trans_col]),
                             "duplicate_count": int(group[trans_col].duplicated(keep=False).sum()),
                             "suggestion": "Make Transmittal_Number unique per session"
@@ -251,10 +248,9 @@ class IdentityDetector(BaseDetector):
             for idx in df[duplicates].index:
                 self.detect_error(
                     error_code=self.ERROR_DUPLICATE_TRANS,
-                    message=f"Duplicate Transmittal_Number detected",
+                    message=self._format_message(self.ERROR_DUPLICATE_TRANS),
                     row=idx,
                     column=trans_col,
-                    severity=self._get_severity(self.ERROR_DUPLICATE_TRANS, "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "transmittal_value": str(df.at[idx, trans_col]),
@@ -412,10 +408,9 @@ class IdentityDetector(BaseDetector):
                 
                 self.detect_error(
                     error_code=self.ERROR_ID_FORMAT_INVALID,
-                    message=f"Invalid Document_ID format: '{value}'",
+                    message=self._format_message(self.ERROR_ID_FORMAT_INVALID, value=value),
                     row=idx,
                     column=id_col,
-                    severity=self._get_severity(self.ERROR_ID_FORMAT_INVALID, "HIGH"),
                     fail_fast=False,
                     additional_context=error_context
                 )

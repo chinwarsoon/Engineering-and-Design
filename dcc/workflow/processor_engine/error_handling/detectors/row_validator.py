@@ -210,10 +210,9 @@ class RowValidator(BaseDetector):
             for idx in df.index[null_mask]:
                 self.detect_error(
                     error_code="P1-A-P-0101",
-                    message=f"Anchor column '{col}' is null at row {idx}",
+                    message=self._format_message("P1-A-P-0101", col=col),
                     row=idx,
                     column=col,
-                    severity=self._get_severity("P1-A-P-0101", "HIGH"),
                     fail_fast=False,
                     additional_context={"error_key": "ANCHOR_NULL", "anchor_column": col},
                 )
@@ -256,11 +255,10 @@ class RowValidator(BaseDetector):
             parts = base_id.split("-")
             if len(parts) < 5:
                 self.detect_error(
-                    error_code="P2-I-V-0204",
-                    message=f"Document_ID '{doc_id}' has fewer than 5 segments at row {idx}",
+                    error_code="P2-I-V-0204-B",
+                    message=self._format_message("P2-I-V-0204-B"),
                     row=idx,
                     column="Document_ID",
-                    severity=self._get_severity("P2-I-V-0204", "HIGH"),
                     fail_fast=False,
                     additional_context={"error_key": "COMPOSITE_MISMATCH", "base_id": base_id},
                 )
@@ -276,11 +274,10 @@ class RowValidator(BaseDetector):
 
             if mismatches:
                 self.detect_error(
-                    error_code="P2-I-V-0204",
-                    message=f"Document_ID composite mismatch at row {idx}: {'; '.join(mismatches)}",
+                    error_code="P2-I-V-0204-C",
+                    message=self._format_message("P2-I-V-0204-C"),
                     row=idx,
                     column="Document_ID",
-                    severity=self._get_severity("P2-I-V-0204", "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "error_key": "COMPOSITE_MISMATCH",
@@ -324,14 +321,9 @@ class RowValidator(BaseDetector):
             if sub_dt and ret_dt and ret_dt < sub_dt:
                 self.detect_error(
                     error_code="L3-L-P-0301",
-                    message=(
-                        f"Date inversion at row {idx}: "
-                        f"Review_Return_Actual_Date ({ret_dt.date()}) < "
-                        f"Submission_Date ({sub_dt.date()})"
-                    ),
+                    message=self._format_message("L3-L-P-0301"),
                     row=idx,
                     column=ret_col,
-                    severity=self._get_severity("L3-L-P-0301", "HIGH"),
                     fail_fast=False,
                     additional_context={
                         "error_key": "DATE_INVERSION",
@@ -344,9 +336,12 @@ class RowValidator(BaseDetector):
     def _validate_status_closure(self, df: pd.DataFrame) -> None:
         """
         Phase 2.2 – If Submission_Closed=YES then Resubmission_Plan_Date must be NULL.
+        Only applies to the latest submission revision — historical revisions may
+        have both closed=YES and a plan date for the next submission.
 
         Error: CLOSED_WITH_PLAN_DATE (HIGH)
         Breadcrumb: df['Submission_Closed'] == 'YES' → df['Resubmission_Plan_Date'].notna()
+        → Latest_Submission_Date check excludes non-latest rows
         """
         closed_col = "Submission_Closed"
         plan_col = "Resubmission_Plan_Date"
@@ -356,16 +351,24 @@ class RowValidator(BaseDetector):
         closed_mask = df[closed_col].astype(str).str.upper() == "YES"
         has_plan_mask = df[plan_col].notna() & (df[plan_col].astype(str).str.strip() != "")
 
-        for idx in df.index[closed_mask & has_plan_mask]:
+        # Only flag if this is the latest submission revision — historical revisions
+        # may legitimately have both closed=YES and a plan date for the next submission.
+        submission_date_col = "Submission_Date"
+        latest_submission_col = "Latest_Submission_Date"
+        if latest_submission_col in df.columns and submission_date_col in df.columns:
+            sub_dates = pd.to_datetime(df[submission_date_col], errors='coerce')
+            latest_dates = pd.to_datetime(df[latest_submission_col], errors='coerce')
+            is_latest_mask = sub_dates >= latest_dates
+            query_mask = closed_mask & has_plan_mask & is_latest_mask
+        else:
+            query_mask = closed_mask & has_plan_mask
+
+        for idx in df.index[query_mask]:
             self.detect_error(
                 error_code="L3-L-V-0302",
-                message=(
-                    f"Submission_Closed=YES but Resubmission_Plan_Date is set "
-                    f"('{df.at[idx, plan_col]}') at row {idx}"
-                ),
+                message=self._format_message("L3-L-V-0302"),
                 row=idx,
                 column=plan_col,
-                severity=self._get_severity("L3-L-V-0302", "HIGH"),
                 fail_fast=False,
                 additional_context={
                     "error_key": "CLOSED_WITH_PLAN_DATE",
@@ -394,13 +397,9 @@ class RowValidator(BaseDetector):
         for idx in df.index[rej_mask & bad_resub_mask]:
             self.detect_error(
                 error_code="L3-L-V-0303",
-                message=(
-                    f"Review_Status='{df.at[idx, status_col]}' (REJ) but "
-                    f"Resubmission_Required='{df.at[idx, resub_col]}' at row {idx}"
-                ),
+                message=self._format_message("L3-L-V-0303"),
                 row=idx,
                 column=resub_col,
-                severity=self._get_severity("L3-L-V-0303", "MEDIUM"),
                 fail_fast=False,
                 additional_context={
                     "error_key": "RESUBMISSION_MISMATCH",
@@ -441,13 +440,9 @@ class RowValidator(BaseDetector):
                 if actual_status.lower() not in ("overdue", "resubmitted"):
                     self.detect_error(
                         error_code="L3-L-V-0304",
-                        message=(
-                            f"Resubmission_Plan_Date ({plan_dt.date()}) is past but "
-                            f"Resubmission_Overdue_Status='{actual_status}' at row {idx}"
-                        ),
+                        message=self._format_message("L3-L-V-0304"),
                         row=idx,
                         column=overdue_col,
-                        severity=self._get_severity("L3-L-V-0304", "MEDIUM"),
                         fail_fast=False,
                         additional_context={
                             "error_key": "OVERDUE_MISMATCH",
@@ -479,9 +474,9 @@ class RowValidator(BaseDetector):
         group_cols = [c for c in [session_col, rev_col] if c in df.columns]
 
         checks = [
-            ("Submission_Date",            "GROUP_INCONSISTENT",   "MEDIUM"),
-            ("Transmittal_Number",         "GROUP_INCONSISTENT",   "MEDIUM"),
-            ("Submission_Session_Subject", "INCONSISTENT_SUBJECT", "MEDIUM"),
+            ("Submission_Date",            "L3-L-V-0308",   "MEDIUM"),
+            ("Transmittal_Number",         "L3-L-V-0308",   "MEDIUM"),
+            ("Submission_Session_Subject", "L3-L-V-0309",   "MEDIUM"),
         ]
 
         for target_col, error_key, severity in checks:
@@ -496,10 +491,7 @@ class RowValidator(BaseDetector):
             for idx in inconsistent_idx:
                 self.detect_error(
                     error_code=error_key,
-                    message=(
-                        f"'{target_col}' is inconsistent within group "
-                        f"{group_cols} at row {idx}"
-                    ),
+                    message=self._format_message(error_key, target_col=target_col, group_cols=group_cols),
                     row=idx,
                     column=target_col,
                     severity=severity,
@@ -546,13 +538,9 @@ class RowValidator(BaseDetector):
                         if _parse_revision(curr_rev_str) < _parse_revision(prev_rev_str):
                             self.detect_error(
                                 error_code="L3-L-V-0305",
-                                message=(
-                                    f"Revision regression for Document_ID '{doc_id}': "
-                                    f"'{prev_rev_str}' → '{curr_rev_str}' at row {idx}"
-                                ),
+                                message=self._format_message("L3-L-V-0305", doc_id=doc_id, prev_rev=prev_rev_str, curr_rev=curr_rev_str),
                                 row=idx,
                                 column=rev_col,
-                                severity=self._get_severity("L3-L-V-0305", "HIGH"),
                                 fail_fast=False,
                                 additional_context={
                                     "error_key": "VERSION_REGRESSION",
@@ -605,13 +593,9 @@ class RowValidator(BaseDetector):
                     first_idx = group.index[0]
                     self.detect_error(
                         error_code="L3-L-V-0306",
-                        message=(
-                            f"Revision gap in Submission_Session '{session_id}': "
-                            f"{numeric_revs[i-1]} → {numeric_revs[i]}"
-                        ),
+                        message=self._format_message("L3-L-V-0306", session_id=session_id, prev_rev=numeric_revs[i-1], curr_rev=numeric_revs[i]),
                         row=first_idx,
                         column=rev_col,
-                        severity=self._get_severity("L3-L-V-0306", "LOW"),
                         fail_fast=False,
                         additional_context={
                             "error_key": "REVISION_GAP",

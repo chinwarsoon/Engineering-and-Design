@@ -1,27 +1,21 @@
 # SSOT & Schema-Driven Compliance Workplan
 
 **Document ID**: WP-SSOT-SD-001  
-**Current Version**: 0.9  
+**Current Version**: 1.4  
 **Status**: ✅ COMPLETE  
-**Last Updated**: 2026-05-12  
+**Last Updated**: 2026-05-15  
 
 ---
 
 ## 1. Title and Description
 
-This workplan addresses SSOT (Single Source of Truth) and schema-driven compliance violations identified across the `dcc/workflow` codebase through a systematic multi-pass scan of all functions, classes, and global parameters.
+This workplan addresses SSOT (Single Source of Truth) and schema-driven compliance violations identified across the `dcc/workflow` codebase through systematic multi-pass scans of all functions, classes, and global parameters.
 
-**v0.1 initial scan** found 10 violation categories: hardcoded column names, processing phases, business logic values, error/severity maps, output filenames, health score thresholds, regex patterns, post-construction state patching, duplicate phase map initialization, and legacy schema reference maps.
+**v0.1–v0.6 (original scope):** 35 violations across 24 production files and 4 schema files, organized into 3 implementation phases (A: 12 tasks, B: 12 tasks, C: 15 tasks). Completed 2026-05-12.
 
-**v0.4 output file audit** found 12 pipeline outputs — 7 partially compliant (`.get()` pattern used but parameter keys missing from schema), 4 with hardcoded literals. 9 parameter keys missing from `dcc_global_parameters.json`.
+**v1.0 (new scope — 2026-05-15):** A previously unaddressed violation category was discovered: **error message text is hardcoded in 63 `detect_error()` calls across 9 detector files**, while the `message` field in `data_error_config.json` exists but is never read at runtime — it is dead metadata. Additionally, 8 error codes used in code are missing from the catalog, and 1 catalog code is never used. This expands the scope by +12 violations across 11 files.
 
-**v0.5 deep global scan** found 5 additional categories: 55 hardcoded `severity=` strings in 9 detector files; 4 severity mismatches between detector code and catalog; 11 error codes missing from `data_error_config.json`; 41 hardcoded column names in 6 detector files; 5 class-level constant lists duplicating schema data.
-
-**v0.6 PipelineContext audit** found 6 violations in `context_pipeline.py` and `path_schema.py`: hardcoded severity ordering dict, hardcoded fail-fast defaults, hardcoded severity parameter defaults, 3 schema filenames missing from `project_config.json`, hardcoded required schema list, and deprecated schema file reference.
-
-**Final scope:** 35 violations across 24 production files and 4 schema files, organized into 3 implementation phases (A: 12 tasks, B: 12 tasks, C: 15 tasks).
-
-The goal is to ensure that all business rules, column names, processing phases, status values, thresholds, filenames, error codes, severity levels, and configuration defaults are driven exclusively by the schema and `PipelineContext` — with no values duplicated or hardcoded in Python logic.
+The goal is to ensure that all business rules, column names, processing phases, status values, thresholds, filenames, error codes, severity levels, **message templates**, and configuration defaults are driven exclusively by the schema and `PipelineContext` — with no values duplicated or hardcoded in Python logic.
 
 ---
 
@@ -36,7 +30,12 @@ The goal is to ensure that all business rules, column names, processing phases, 
 | 0.5 | 2026-05-07 | System | Deep global scan completed. Found 5 additional violation categories: (1) 55 hardcoded `severity=` strings in 9 detector files — must read from `data_error_config.json`; (2) 4 severity mismatches between detectors and catalog (`input.py`, `row_validator.py`); (3) 11 error codes in `calculation.py`, `fill.py`, `logic.py` missing from `data_error_config.json`; (4) 41 hardcoded column names in 6 detector files — must read from schema `processing_phase`, `source_columns`, `is_anchor`; (5) `ROW_ERROR_WEIGHTS`, `ANCHOR_REQUIRED`, `DOC_ID_SEGMENTS`, `IDENTITY_COLUMNS`, `ANCHOR_COLUMNS` class-level constants in detectors must be schema-driven. Added V22–V26. Phase C expanded with detector catalog tasks. |
 | 0.6 | 2026-05-07 | System | PipelineContext audit completed. Found 6 violations: (1) `severity_levels` numeric ordering dict hardcoded in `should_fail_fast()` — not in any schema; (2) `get_fail_fast_config()` default `severity_threshold: "critical"` not in schema; (3) `add_system_error()`/`add_data_error()` hardcoded severity defaults; (4) `SchemaPaths` hardcodes 3 schema filenames not in `project_config.json` schema_files list; (5) `SchemaPaths.validate_required_schemas()` hardcodes required schema list instead of reading from `project_config.json`; (6) `SchemaPaths.global_parameters` still references deprecated `global_parameters.json`. Added V27–V32. Phase A extended with context fixes. |
 | 0.7 | 2026-05-07 | System | Phase A validated and marked complete. All 12 tasks passed automated validation suite (A1–A12) and pipeline smoke test. Phase A report generated. Scope summary V01–V05d, V13, V27–V32 updated to COMPLETE. |
-| 0.9 | 2026-05-12 | System | Phase C completed. All 15 tasks implemented: C1 (DEFAULT_VALIDATION_ERROR_CODES + schema override), C2 (already done), C3 (evidence.py catalog-driven phase lookup with fallback), C4 (health grade thresholds from parameters), C5 (pass/fail thresholds from parameters), C6 (fill_jump_limit from parameters), C7 (already done), C8 (55 hardcoded severity= strings replaced with _get_severity() in all 9 detectors via base.py helper), C9 (already done), C10 (ANCHOR_COLUMNS schema-driven via is_anchor flag), C11 (DOC_ID_SEGMENTS schema-driven via Document_ID.calculation.source_columns), C12 (IDENTITY_COLUMNS schema-driven via P2+required), C13 (ROW_ERROR_WEIGHTS schema-driven via health_score_impact), C14 (REJ code schema-driven via approval_code_schema), C15 (PEN already schema-driven). Schema updates: dcc_global_parameters.json (fill_jump_limit, fill_max_percentage, health_pass_threshold, health_fail_threshold, health_grade_thresholds), dcc_register_config.json (is_anchor: true on 6 anchor columns). All files pass syntax check. |
+| 0.9 | 2026-05-12 | System | Phase C completed. All 15 tasks implemented: C1–C15. Schema updates: dcc_global_parameters.json (fill_jump_limit, fill_max_percentage, health_pass_threshold, health_fail_threshold, health_grade_thresholds), dcc_register_config.json (is_anchor: true on 6 anchor columns). All files pass syntax check. |
+| 1.0 | 2026-05-15 | System | Post-completion audit discovered error messages are not schema-driven. Added V33–V44 (12 new violations). Added Phase D (message_template externalization — 54 call sites updated, 11 files). Added Phase E (split 6 multi-semantic codes into 16 affixed codes; add 7 missing codes; replace legacy keys; resolve orphan code). Updated Object, Scope Summary, Violation Table, Dependencies, Evaluation, and References. |
+| 1.1 | 2026-05-15 | System | Phase D implemented: 54/63 hardcoded messages replaced. Phase E implemented: 7 missing codes added, 6 multi-semantic codes split into 16 affixed (-A/-B/-C) variants, 2 legacy string keys replaced with L3-L-V-0308/0309, orphan L3-L-V-0307 removed. Catalog expanded from 29 to 55 codes. |
+| 1.2 | 2026-05-15 | System | Phase E cleanup: input.py and schema.py updated to use error code class constants instead of raw string literals — error code defined once, referenced via constant in error_code / _format_message / _get_severity. All 9 detectors now use consistent constant pattern. |
+| 1.3 | 2026-05-15 | System | Post-completion audit found 56 hardcoded severity fallbacks (5 mismatches with catalog) and 12 hardcoded remediation_type strings. Added Phase F: auto-resolve severity + remediation from catalog in detect_error(), eliminating need for caller to pass them. |
+| 1.4 | 2026-05-15 | System | Phase F implemented: remediation/remediation_type fields added to all 55 catalog entries; _get_remediation()/_get_remediation_type() helpers in base.py; detect_error() auto-resolves severity, remediation, remediation_type from catalog; all 56 call sites cleaned up; 5 severity mismatches resolved. |
 
 ---
 
@@ -57,6 +56,13 @@ Eliminate all SSOT and schema-driven violations in `dcc/workflow` by:
 11. **Adding 11 missing error codes to `data_error_config.json`** and correcting 4 severity mismatches between catalog and detector code
 12. **Replacing class-level column constant lists** (`ANCHOR_COLUMNS`, `ANCHOR_REQUIRED`, `DOC_ID_SEGMENTS`, `IDENTITY_COLUMNS`) in detectors with schema-driven lookups
 13. **Replacing `ROW_ERROR_WEIGHTS` dict** in `row_validator.py` with `data_error_config.json` `health_score_impact` values
+14. **Adding `message_template` field to `data_error_config.json`** — the existing `message` field is a static description never read at runtime; `message_template` with `{placeholder}` syntax becomes the SSOT for error message text
+15. **Replacing 54 hardcoded f-string messages in 9 detector files** with `BaseDetector._format_message()` reading from the error catalog
+16. **Adding 7 missing error codes** to catalog (`P2-I-P-0201`, `P2-I-P-0202`, `P2-I-V-0203`, `P1-A-V-0102`, `P1-A-V-0103`, `V5-I-V-0505`, `V5-I-V-0506`)
+17. **Splitting 6 multi-semantic error codes into 16 distinct codes using letter affix** (`-A`, `-B`, `-C`) — each detection scenario gets its own code with its own `message_template`
+18. **Replacing legacy string keys** `GROUP_INCONSISTENT` / `INCONSISTENT_SUBJECT` with standardized `LL-M-F-XXXX` codes
+19. **Auto-resolving severity from catalog in `detect_error()`** — severity has been read from catalog via `_get_severity()` since Phase C, but callers still pass a hardcoded fallback string. `detect_error()` should resolve severity from the `error_code` automatically.
+20. **Adding `remediation_type` to the catalog** and auto-resolving it in `detect_error()` — currently 12 hardcoded `"MANUAL_FIX"` strings in 2 files, and 0 in the other 7 files.
 
 ---
 
@@ -103,6 +109,8 @@ All values that must be read from schema are sourced from these files:
 
 > **Key finding — `error_code_base.json` already defines severity enum:** `error_severity` enum = `["FATAL", "CRITICAL", "HIGH", "MEDIUM", "WARNING", "INFO"]`. The numeric ordering for `should_fail_fast()` should be derived from this enum's position, not hardcoded as a separate dict.
 
+> **Key finding — Error messages are NOT schema-driven (v1.0):** The `message` field in `data_error_config.json` exists as a static description but is never read at runtime. All 63 `detect_error()` calls across 9 detector files hardcode f-string messages directly. Additionally, 8 error codes used in code have no catalog entry at all, and 1 catalog code (`L3-L-V-0307`) is never used in any detector. A new phase (Phase D) adds `message_template` to the catalog and replaces 54 hardcoded messages with `_format_message()` catalog lookups. Remaining items (8 missing codes, legacy string keys, multi-semantic code reuse, unused catalog code) are deferred to Phase E.
+
 ---
 
 ### Violation Table
@@ -144,16 +152,39 @@ All values that must be read from schema are sourced from these files:
 | V30 | Schema-Driven | `SchemaPaths` hardcodes 3 schema filenames not in `project_config.json` `schema_files` list | `core_engine/paths/path_schema.py` | `project_config.json` | `schema_files[].filename` — `dcc_register_config.json`, `dcc_register_enhanced.json`, `data_error_config.json` must be added to `schema_files` list | MEDIUM | A ✅ |
 | V31 | Schema-Driven | `SchemaPaths.validate_required_schemas()` hardcodes required schema list | `core_engine/paths/path_schema.py:120–127` | `project_config.json` | `schema_files[].filename` where `required: true` — read from schema instead of hardcoded list | LOW | A ✅ |
 | V32 | Schema-Driven | `SchemaPaths.global_parameters` property references deprecated `global_parameters.json` | `core_engine/paths/path_schema.py:65` | `project_config.json` | `schema_files[].filename` where `filename == 'dcc_global_parameters.json'` — update property to use current filename | LOW | A ✅ |
+| V33 | Schema-Driven | `message` field in `data_error_config.json` exists but is never read — dead metadata | `config/schemas/data_error_config.json` | `data_error_config.json` | `message` field present but no runtime code reads it — must add `message_template` with `{placeholder}` syntax | HIGH | D ✅ |
+| V34 | Schema-Driven | 54 `message=` f-strings hardcoded in 9 detector files — must read from catalog | `detectors/row_validator.py` (9), `calculation.py` (9), `fill.py` (9), `schema.py` (7), `input.py` (7), `logic.py` (5), `identity.py` (1), `anchor.py` (2), `validation.py` (5) | `data_error_config.json` | `data_logic_errors[code].message_template` | HIGH | D ✅ |
+| V35 | Schema-Driven | Error code `P2-I-P-0201` used in `identity.py` but missing from catalog | `detectors/identity.py:151` | `data_error_config.json` | Missing entry — must add with `code`, `name`, `message`, `severity`, `layer`, `processing_phase` | HIGH | E |
+| V36 | Schema-Driven | Error code `P2-I-P-0202` used in `identity.py` but missing from catalog | `detectors/identity.py:180` | `data_error_config.json` | Missing entry | HIGH | E |
+| V37 | Schema-Driven | Error code `P2-I-V-0203` used in `identity.py` but missing from catalog | `detectors/identity.py:233,252` | `data_error_config.json` | Missing entry | HIGH | E |
+| V38 | Schema-Driven | Error code `P1-A-V-0102` used in `anchor.py` but missing from catalog | `detectors/anchor.py:197` | `data_error_config.json` | Missing entry | MEDIUM | E |
+| V39 | Schema-Driven | Error code `P1-A-V-0103` used in `anchor.py` but missing from catalog | `detectors/anchor.py:236` | `data_error_config.json` | Missing entry | MEDIUM | E |
+| V40 | Schema-Driven | Error code `V5-I-V-0505` used in `validation.py` but missing from catalog | `detectors/validation.py:373` | `data_error_config.json` | Missing entry | HIGH | E |
+| V41 | Schema-Driven | Error code `V5-I-V-0506` used in `validation.py` but missing from catalog | `detectors/validation.py:417` | `data_error_config.json` | Missing entry | HIGH | E |
+| V42 | Schema-Driven | Catalog code `L3-L-V-0307` defined but never used in any detector | `config/schemas/data_error_config.json` | `data_error_config.json` | Orphan code — either implement detection logic or remove from catalog | LOW | E |
+| V43 | Schema-Driven | Legacy string keys `"GROUP_INCONSISTENT"` and `"INCONSISTENT_SUBJECT"` in `row_validator.py` | `detectors/row_validator.py:~497,~630` | `data_error_config.json` | Must be replaced with standardized `LL-M-F-XXXX` codes | MEDIUM | E |
+| V44 | Schema-Driven | Multi-semantic code reuse — same error code used for semantically different detection scenarios | `detectors/identity.py` (P2-I-V-0204: 3 scenarios), `row_validator.py` (P2-I-V-0204: 2 of 3), `detectors/fill.py` (F4-C-F-0401: 2, F4-C-F-0402: 2, F4-C-F-0403: 3), `detectors/calculation.py` (C6-C-C-0605: 4), `detectors/logic.py` (L3-L-V-0303: 2), `detectors/input.py` (S1-I-F-0805: 2) | `data_error_config.json` | Split into distinct codes using letter affix: `-A`, `-B`, `-C` per detection scenario | MEDIUM | E |
 
 **Status Legend:** 🔵 PLANNED | 🟡 IN PROGRESS | ✅ COMPLETE | ❌ DEFERRED
 
-**Violation Count:** 35 items — 9 HIGH, 15 MEDIUM, 11 LOW  
-**Files Affected:** 24 production files across 6 engines  
-**Schema Updates Required:**
+**Violation Count (Phase A–E):** 44 items — 13 HIGH, 19 MEDIUM, 12 LOW — **ALL COMPLETED**  
+**Violation Count (Phase F — new):** 2 items — 0 HIGH, 0 MEDIUM, 2 LOW  
+**Files Affected:** 35 production files across 6 engines  
+**Final Catalog Size:** 55 error codes (29 original + 7 new + 16 affix variants + 2 legacy replacements - 1 orphan removed)  
+**Schema Updates Required (original scope — completed):**
 - `dcc_global_parameters.json` — add 13 parameter keys: 9 output filenames + `fill_jump_limit` + `health_grade_thresholds` + `health_pass_threshold` + `health_fail_threshold`
 - `data_error_config.json` — add `processing_phase` field to all 17 existing entries; add 11 missing error code entries; confirm `health_score_impact` present on all entries
 - `dcc_register_config.json` — add `is_anchor: true` flag to P1 anchor columns
 - `project_config.json` — add `severity_threshold`, `default_system_error_severity`, `default_data_error_severity` to `system_parameters`; add `dcc_register_config.json`, `dcc_register_enhanced.json`, `data_error_config.json` to `schema_files` list
+
+**Schema Updates Required (Phase D — completed):**
+- `data_error_config.json` — add `message_template` field to all 29 existing entries with `{placeholder}` syntax for dynamic values
+
+**Schema Updates Required (Phase E — completed):**
+- `data_error_config.json` — added 7 missing error codes; split 6 multi-semantic codes into 16 affixed variants; added 2 codes for legacy string keys; removed orphan `L3-L-V-0307`. Catalog expanded from 29 to 55 codes.
+
+**Schema Updates Required (Phase F — planned):**
+- `data_error_config.json` — add `remediation` (remedy description) and `remediation_type` (classification) fields to all 55 entries
 
 ---
 
@@ -170,6 +201,9 @@ All values that must be read from schema are sourced from these files:
   - [Phase A — High-Severity Fixes](#phase-a--high-severity-fixes)
   - [Phase B — Medium-Severity Structural Fixes](#phase-b--medium-severity-structural-fixes)
   - [Phase C — Catalog and Threshold Externalization](#phase-c--catalog-and-threshold-externalization)
+  - [Phase D — Message Template Externalization](#phase-d--message-template-externalization)
+  - [Phase E — Catalog Completion and Cleanup](#phase-e--catalog-completion-and-cleanup)
+  - [Phase F — Auto-Resolve Severity and Remediation from Catalog](#phase-f--auto-resolve-severity-and-remediation-from-catalog)
 - [9. References](#9-references)
 
 ---
@@ -185,6 +219,8 @@ All values that must be read from schema are sourced from these files:
 | Section 4.1 | Module design for functions and classes | ✅ No structural changes — only value sources change |
 | Section 1.4 | Always check and define data column priority | ✅ Phase A ensures column dependencies are schema-declared |
 | Section 6.7 | Fail-fast metadata in functions | ✅ Phase A adds schema-driven validation for missing dependencies |
+| Section 4.3 | SSOT for global parameters, variables, keys, codes, values | ✅ Phase D extends SSOT to error message text via `message_template` |
+| Section 8.2 | Workplan must include revision control, scope, phases, risks | ✅ v1.0 updated with Phase D/E, new violations, full compliance |
 
 ### Alignment with Existing Architecture
 
@@ -202,7 +238,9 @@ All values that must be read from schema are sourced from these files:
 |:---|:---:|:---:|
 | Phase A | 10 files + 2 schema files | Low-Medium — calculation handler behavior + PipelineContext defaults + SchemaPaths fixes |
 | Phase B | 12 files + 1 schema file | 🟡 Low-Medium — structural, behavior-preserving; schema update is prerequisite |
-| Phase C | 19 files + 3 schema files | � Medium — schema updates required first; detector changes are behavior-preserving once catalog is complete |
+| Phase C | 19 files + 3 schema files | 🟡 Medium — schema updates required first; detector changes are behavior-preserving once catalog is complete |
+| Phase D | 11 files + 1 schema file | 🟢 Low — externalization only, no logic change; 54 call sites replaced with catalog lookup |
+| Phase E | 5 files + 1 schema file | 🟢 Low — additive catalog entries; legacy key replacement; cleanup only |
 
 ---
 
@@ -213,6 +251,9 @@ All values that must be read from schema are sourced from these files:
 3. **Error Handling Workplan** — `dcc/workplan/error_handling/` — V06, V07, V08 touch the error catalog and categorizer; coordinate with any active error handling work.
 4. **Schema files** — `dcc/config/schemas/dcc_register_config.json` — Phase A requires verifying that `allowed_values`, `choices`, and `depends_on` fields are present in the schema for affected columns. Schema updates may be needed before code changes.
 5. **agent_rule.md** — Section 2 (Schema), Section 1 (Data Columns), Section 8 (Workplan)
+6. **Phase D requires Phase C completion** — `_get_severity()` and error catalog infrastructure from Phase C is prerequisite for `_format_message()` added in Phase D.
+7. **Phase E requires Phase D completion** — `_format_message()` helper and catalog `message_template` from Phase D is prerequisite for adding missing codes (V35–V41) and legacy key replacement (V43).
+8. **Phase F requires Phase E completion** — 55-entry catalog with all codes populated is prerequisite for adding `remediation_type` field and auto-resolving in `detect_error()`.
 
 ---
 
@@ -472,6 +513,257 @@ All values that must be read from schema are sourced from these files:
 #### Deliverables
 - Updated files (see table above — 19 files)
 - `reports/phase_C_report.md` 🟡 [View Status Report](reports/phase_C_report.md)
+
+---
+
+### Phase D — Message Template Externalization ✅ COMPLETE
+
+**Timeline:** Completed 2026-05-15  
+**Milestone:** Error message text is schema-driven — `message_template` in catalog is SSOT  
+**Risk Level:** 🟢 Low — externalization only, no logic change
+
+#### Summary
+
+A post-completion audit discovered that the `message` field in `data_error_config.json` was never read at runtime — all 63 `detect_error()` calls across 9 detector files hardcoded f-string messages. Phase D:
+1. Added `message_template` field to all 29 entries in `data_error_config.json` with `{placeholder}` syntax
+2. Added `BaseDetector._format_message(error_code, **kwargs)` method in `base.py` (parallel to existing `_get_severity()`)
+3. Replaced 54 of 63 hardcoded messages with `self._format_message()` catalog lookups
+4. Left 9 calls unchanged (8 for codes not yet in catalog, 1 for legacy `GROUP_INCONSISTENT` key)
+
+#### Design Pattern
+
+Single-message codes use exact template with kwargs:
+```python
+message=self._format_message("S1-I-F-0804", file_path=file_path)
+```
+
+Multi-message codes (same code used for different scenarios) use a generic template from config:
+```python
+message=self._format_message("F4-C-F-0403")  # Returns canonical description
+```
+
+Config stores `message_template` alongside existing `message` field:
+```json
+"message": "Forward fill row jump exceeded limit",
+"message_template": "Forward fill row jump exceeded limit"
+```
+
+#### Tasks
+
+| # | Task | File | Action | Status |
+|:---|:---|:---|:---|:---:|
+| D1 | Add `message_template` to all 29 catalog entries | `data_error_config.json` | Add field with `{placeholder}` syntax matching primary detector message | ✅ |
+| D2 | Add `_format_message()` to BaseDetector | `base.py` | Add method reading `message_template` from `error_catalog`, with graceful fallback | ✅ |
+| D3 | Update `anchor.py` (2 of 4 messages) | `anchor.py` | Replace P1-A-P-0101 messages; leave P1-A-V-0102/0103 (not in catalog) | ✅ |
+| D4 | Update `identity.py` (1 of 5 messages) | `identity.py` | Replace P2-I-V-0204 message; leave P2-I-P-0201/0202, P2-I-V-0203 (not in catalog) | ✅ |
+| D5 | Update `row_validator.py` (9 of 10 messages) | `row_validator.py` | Replace all standardized codes; leave `GROUP_INCONSISTENT` legacy key | ✅ |
+| D6 | Update `calculation.py` (9 messages) | `calculation.py` | Replace all C6xx messages | ✅ |
+| D7 | Update `fill.py` (9 messages) | `fill.py` | Replace all F4xx messages | ✅ |
+| D8 | Update `input.py` (7 messages) | `input.py` | Replace all S1xx messages | ✅ |
+| D9 | Update `logic.py` (5 messages) | `logic.py` | Replace all L3xx messages | ✅ |
+| D10 | Update `schema.py` (7 messages) | `schema.py` | Replace all V5xx messages | ✅ |
+| D11 | Update `validation.py` (5 of 7 messages) | `validation.py` | Replace V5-I-V-0501/0502/0503/0504; leave V5-I-V-0505/0506 (not in catalog) | ✅ |
+
+#### Files Modified
+
+| File | Change |
+|:---|:---|
+| `dcc/config/schemas/data_error_config.json` | Added `message_template` to all 29 entries |
+| `dcc/workflow/processor_engine/error_handling/detectors/base.py` | Added `_format_message()` method |
+| `dcc/workflow/processor_engine/error_handling/detectors/anchor.py` | 2 messages → `_format_message()` |
+| `dcc/workflow/processor_engine/error_handling/detectors/identity.py` | 1 message → `_format_message()` |
+| `dcc/workflow/processor_engine/error_handling/detectors/row_validator.py` | 9 messages → `_format_message()` |
+| `dcc/workflow/processor_engine/error_handling/detectors/calculation.py` | 9 messages → `_format_message()` |
+| `dcc/workflow/processor_engine/error_handling/detectors/fill.py` | 9 messages → `_format_message()` |
+| `dcc/workflow/processor_engine/error_handling/detectors/input.py` | 7 messages → `_format_message()` |
+| `dcc/workflow/processor_engine/error_handling/detectors/logic.py` | 5 messages → `_format_message()` |
+| `dcc/workflow/processor_engine/error_handling/detectors/schema.py` | 7 messages → `_format_message()` |
+| `dcc/workflow/processor_engine/error_handling/detectors/validation.py` | 5 messages → `_format_message()` |
+
+#### Risks and Mitigation
+
+| Risk | Likelihood | Impact | Mitigation |
+|:---|:---:|:---:|:---:|
+| Template placeholder name mismatch between config and `_format_message()` kwargs | Low | Medium | `_format_message()` catches `KeyError` and returns unformatted template — no crash |
+
+#### Potential Future Issues
+- Multi-message codes (same code, different detection scenarios) use a single generic template — the specific detail is lost in the catalog. If per-variant templates are needed, `message_templates` (plural) as a dict keyed by variant name should be considered.
+- 9 hardcoded messages remain for codes not yet in catalog — these must be resolved in Phase E.
+
+#### Success Criteria
+- [x] All 29 catalog entries have `message_template` field
+- [x] `BaseDetector._format_message()` implemented and tested with syntax check
+- [x] 54 of 63 hardcoded messages replaced with catalog lookup
+- [x] All 11 modified files pass `ast.parse()` syntax check
+- [x] JSON schema file passes `json.load()` validation
+
+#### Deliverables
+- Updated files (11 files — see table above)
+- Phase D implementation completed in single session
+
+---
+
+### Phase E — Catalog Completion and Cleanup ✅ COMPLETE
+
+**Timeline:** Completed 2026-05-15  
+**Milestone:** Every error code used in code has a catalog entry; multi-semantic codes split with affixes; legacy keys eliminated; orphan codes resolved  
+**Risk Level:** 🟢 Low — additive catalog entries and code splits only
+
+#### Scope
+
+Phase E addresses remaining violations not covered by Phase D. The core work is two-fold: (1) add 7 missing error codes to the catalog, and (2) split 6 existing multi-semantic codes into distinct codes using **letter affix notation** (`-A`, `-B`, `-C`).
+
+| ID | Violation | Severity |
+|:---|:---|:---:|
+| V35 | `P2-I-P-0201` used in `identity.py` — missing from catalog | HIGH |
+| V36 | `P2-I-P-0202` used in `identity.py` — missing from catalog | HIGH |
+| V37 | `P2-I-V-0203` used in `identity.py` — missing from catalog | HIGH |
+| V38 | `P1-A-V-0102` used in `anchor.py` — missing from catalog | MEDIUM |
+| V39 | `P1-A-V-0103` used in `anchor.py` — missing from catalog | MEDIUM |
+| V40 | `V5-I-V-0505` used in `validation.py` — missing from catalog | HIGH |
+| V41 | `V5-I-V-0506` used in `validation.py` — missing from catalog | HIGH |
+| V42 | `L3-L-V-0307` defined in catalog — never used in any detector — **REMOVED** | LOW |
+| V43 | Legacy string keys `"GROUP_INCONSISTENT"` / `"INCONSISTENT_SUBJECT"` in `row_validator.py` | MEDIUM |
+| V44 | Multi-semantic code reuse — 6 codes, 16 total detection scenarios | MEDIUM |
+
+#### Affix Split Plan (V44)
+
+Each multi-semantic code is split into distinct codes using a letter affix. The original code is kept as a parent umbrella entry (for backward compatibility); detectors use the affixed child codes.
+
+| Base Code | Split Codes | Affix | Detection Scenario | File |
+|:---|:---|:---:|:---|:---:|
+| P2-I-V-0204 | P2-I-V-0204-A | -A | Invalid Document_ID format (regex fail) | `identity.py:413` |
+| P2-I-V-0204 | P2-I-V-0204-B | -B | Document_ID has fewer than 5 segments | `row_validator.py:258` |
+| P2-I-V-0204 | P2-I-V-0204-C | -C | Document_ID composite segment mismatch | `row_validator.py:278` |
+| S1-I-F-0805 | S1-I-F-0805-A | -A | Unsupported file format | `input.py:124` |
+| S1-I-F-0805 | S1-I-F-0805-B | -B | File too large (exceeds max size) | `input.py:144` |
+| F4-C-F-0401 | F4-C-F-0401-A | -A | Forward fill row jump exceeded (history path) | `fill.py:178` |
+| F4-C-F-0401 | F4-C-F-0401-B | -B | Potential forward fill detected (heuristic path) | `fill.py:303` |
+| F4-C-F-0402 | F4-C-F-0402-A | -A | Forward fill crossed session boundary (history path) | `fill.py:206` |
+| F4-C-F-0402 | F4-C-F-0402-B | -B | Value appears in multiple sessions (heuristic path) | `fill.py:357` |
+| F4-C-F-0403 | F4-C-F-0403-A | -A | Multi-level fill failed, default applied | `fill.py:248` |
+| F4-C-F-0403 | F4-C-F-0403-B | -B | Value may be calculated/inferred | `fill.py:410` |
+| F4-C-F-0403 | F4-C-F-0403-C | -C | Default value applied to fill nulls | `fill.py:535` |
+| C6-C-C-0605 | C6-C-C-0605-A | -A | Invalid start date in column | `calculation.py:253` |
+| C6-C-C-0605 | C6-C-C-0605-B | -B | Invalid end date in column | `calculation.py:268` |
+| C6-C-C-0605 | C6-C-C-0605-C | -C | Negative duration detected | `calculation.py:313` |
+| C6-C-C-0605 | C6-C-C-0605-D | -D | Date calculation error in column | `calculation.py:393` |
+| L3-L-V-0303 | L3-L-V-0303-A | -A | Approved but marked for resubmission | `logic.py:207` |
+| L3-L-V-0303 | L3-L-V-0303-B | -B | Closed but review still active | `logic.py:233` |
+
+The original parent codes (`P2-I-V-0204`, `S1-I-F-0805`, `F4-C-F-0401`, `F4-C-F-0402`, `F4-C-F-0403`, `C6-C-C-0605`, `L3-L-V-0303`) are retained in the catalog as umbrella entries for backward compatibility and dashboard aggregation.
+
+#### Proposed Tasks
+
+| # | Task | File | Action |
+|:---|:---|:---|:---|
+| E1 | Add 7 missing error codes to catalog | `data_error_config.json` | Add entries for P2-I-P-0201, P2-I-P-0202, P2-I-V-0203, P1-A-V-0102, P1-A-V-0103, V5-I-V-0505, V5-I-V-0506 with full fields |
+| E2 | Update 7 hardcoded messages to use catalog | `identity.py` (3), `anchor.py` (2), `validation.py` (2) | Replace remaining f-strings with `_format_message()` after E1 |
+| E3 | Split P2-I-V-0204 into 3 codes with affix | `data_error_config.json`, `identity.py`, `row_validator.py` | Add P2-I-V-0204-A/B/C; update detector error_code constants and calls |
+| E4 | Split S1-I-F-0805 into 2 codes with affix | `data_error_config.json`, `input.py` | Add S1-I-F-0805-A/B; update error_code and detect_error() calls |
+| E5 | Split F4-C-F-0401/0402/0403 into 7 codes with affix | `data_error_config.json`, `fill.py` | Add -A/-B/-C variants; update error code constants and detector calls |
+| E6 | Split C6-C-C-0605 into 4 codes with affix | `data_error_config.json`, `calculation.py` | Add C6-C-C-0605-A/B/C/D; update error code constants and detector calls |
+| E7 | Split L3-L-V-0303 into 2 codes with affix | `data_error_config.json`, `logic.py` | Add L3-L-V-0303-A/B; update error code constants and detector calls |
+| E8 | Replace legacy string keys with standardized codes | `row_validator.py`, `data_error_config.json` | Replace `"GROUP_INCONSISTENT"` / `"INCONSISTENT_SUBJECT"` with new codes (e.g., L3-L-V-0308, L3-L-V-0309); add to catalog |
+| E9 | Resolve orphan code `L3-L-V-0307` | `data_error_config.json` | Either implement detection logic or remove the unused entry |
+
+#### Risks and Mitigation
+
+| Risk | Likelihood | Impact | Mitigation |
+|:---|:---:|:---:|:---|
+| Affixed codes break dashboard aggregation queries that filter by parent code | Low | Medium | Retain parent code in catalog as umbrella; dashboards can match by prefix `LIKE 'P2-I-V-0204%'` |
+| Legacy string keys (GROUP_INCONSISTENT) used in multiple call sites beyond `row_validator.py` | Low | Medium | Search all files for legacy key strings before replacement |
+| Detector error_code constants need coordinated updates with catalog entries | Low | Low | Update catalog first, then detector constants, then call sites — sequential verification per task |
+
+#### Potential Future Issues
+- Affix convention (`-A`, `-B`, `-C`) must be documented in `data_error_config.json` metadata as the standard for variant splitting
+- Dashboard and reporting tools must support prefix-based code matching (e.g., `startswith("P2-I-V-0204")`) to aggregate parent + child codes
+
+#### Success Criteria
+- [x] 7 missing error codes added to `data_error_config.json`
+- [x] 6 multi-semantic codes split into 16 distinct affixed codes
+- [x] All `detect_error()` calls updated to use affixed codes
+- [x] Zero hardcoded messages remaining in all 9 detector files
+- [x] Legacy string keys eliminated from `row_validator.py`
+- [x] `L3-L-V-0307` removed (orphan, never used in any detector)
+- [x] Parent umbrella codes retained in catalog for backward compatibility
+- [x] All modified files pass `ast.parse()` syntax check
+- [x] JSON schema file passes `json.load()` validation
+
+---
+
+### Phase F — Auto-Resolve Severity and Remediation from Catalog ✅ COMPLETE
+
+**Timeline:** Completed 2026-05-15  
+**Milestone:** `detect_error()` resolves severity and remediation from catalog automatically — callers pass only `error_code`, `message`, `row`, `column`  
+**Risk Level:** 🟢 Low — housed entirely within `base.py`'s `detect_error()` internals
+
+#### Summary
+
+Post-completion audit of all 56 `_get_severity()` calls found:
+- All calls pass a hardcoded fallback string (e.g. `_get_severity(code, "HIGH")`)
+- 5 of 56 fallbacks **mismatch** the catalog (wrong severity if catalog were missing)
+- 12 `remediation_type="MANUAL_FIX"` strings hardcoded in `schema.py` and `input.py`
+- 7 detector files omit `remediation_type` entirely (defaults to `None`)
+
+The fix: `detect_error()` already receives `error_code`. It should use that code to look up `severity` and `remediation_type` from the catalog automatically, removing the need for callers to pass them.
+
+#### Violations (newly discovered)
+
+| ID | Category | Violation | Location | Schema File | Severity | Phase |
+|:---|:---|:---|:---|:---|:---:|:---:|
+| V45 | Schema-Driven | `_get_severity()` fallback hardcoded in all 56 calls — 5 mismatches with catalog | all 9 detector files | `data_error_config.json` | LOW | F |
+| V46 | Schema-Driven | `remediation_type="MANUAL_FIX"` hardcoded in 12 calls in 2 files | `schema.py` (6), `input.py` (6) | `data_error_config.json` | LOW | F |
+
+#### Proposed Tasks
+
+| # | Task | File | Action |
+|:---|:---|:---|:---|
+| F1 | Define `remediation` per error code in catalog | `data_error_config.json` | Add `remediation` field to all 55 entries with a context-appropriate remedy description (e.g. "Verify input file path" for FILE_NOT_FOUND, "Provide valid Document_ID" for DOCUMENT_ID_UNCERTAIN) |
+| F1a | Add `remediation_type` field to all 55 catalog entries | `data_error_config.json` | Classify each error as `"MANUAL_FIX"`, `"AUTO_FIX"`, `"REVIEW"`, or `"RERUN"` based on error context |
+| F2 | Add `_get_remediation()` and `_get_remediation_type()` to `BaseDetector` | `base.py` | Parallel to `_get_severity()` — reads from `error_catalog[code].remediation` / `.remediation_type` |
+| F3 | Make `detect_error()` auto-resolve severity + remediation | `base.py` | If `severity` not explicitly passed, resolve from catalog via `_get_severity()`. Same for `remediation` and `remediation_type`. |
+| F4 | Remove `severity=` and `remediation_type=` from all `detect_error()` calls | 9 detector files | Clean up ~68 parameters across 56 calls |
+| F5 | Fix 5 severity fallback mismatches | `input.py:221`, `logic.py:212,238`, `row_validator.py:216,592` | Correct fallback strings to match catalog |
+
+#### Remediation Proposal (per context)
+
+| Error Category | Example Codes | Proposed Remediation | Remediation Type |
+|:---|:---|:---|:---:|
+| Missing/invalid input file | S1-I-F-0804, S1-I-F-0805-A/B | "Verify input file path, format, and size" | MANUAL_FIX |
+| Missing/uncertain identity | P2-I-P-0201, P2-I-P-0202 | "Provide valid Document_ID or Document_Revision" | MANUAL_FIX |
+| Format/validation violation | V5-I-V-0501..0504, P1-A-V-0102/0103 | "Correct value format per field specification" | MANUAL_FIX |
+| Missing required data | S1-I-V-0502, V5-I-V-0505, C6-C-C-0601 | "Add missing required columns or values to input" | MANUAL_FIX |
+| Calculation/dependency error | C6-C-C-0602, C6-C-C-0603, C6-C-C-0605-A/B/C/D | "Review calculation inputs and formula logic" | REVIEW |
+| Mapping failure | C6-C-C-0606 | "Add mapping for unmapped values or use default" | MANUAL_FIX |
+| Fill/boundary warning | F4-C-F-0401-A/B, F4-C-F-0402-A/B | "Verify fill operation or adjust jump_limit parameter" | REVIEW |
+| Inferred/default fill | F4-C-F-0403-A/B/C | "Review if inferred/default values are appropriate" | REVIEW |
+| Excessive nulls | F4-C-F-0404 | "Review data quality — systemic missing data detected" | REVIEW |
+| Invalid grouping | F4-C-F-0405 | "Specify valid grouping columns in fill schema" | MANUAL_FIX |
+| Date/temporal inversion | L3-L-P-0301, C6-C-C-0605-A/B | "Verify date order — return cannot be before submission" | REVIEW |
+| Status/logic conflict | L3-L-V-0302, L3-L-V-0303-A/B | "Resolve status inconsistency in submission data" | REVIEW |
+| Overdue/pending | L3-L-V-0304, L3-L-W-0304 | "Follow up with reviewer or update overdue status" | REVIEW |
+| Revision anomaly | L3-L-V-0305, L3-L-V-0306 | "Revision should not decrease; check session sequence" | REVIEW |
+| Group inconsistency | L3-L-V-0308, L3-L-V-0309 | "Ensure consistent values within group/session" | REVIEW |
+| Aggregate/data issue | C6-C-C-0604, S1-I-V-0506 | "Verify aggregation data source or foreign key values" | REVIEW |
+
+#### Files Modified
+
+| File | Change |
+|:---|:---|
+| `config/schemas/data_error_config.json` | Add `remediation_type` to all 55 entries |
+| `workflow/processor_engine/error_handling/detectors/base.py` | Add `_get_remediation_type()`, modify `detect_error()` for auto-resolve |
+| 9 detector files | Remove `severity=` and `remediation_type=` parameters |
+
+#### Success Criteria
+
+- [x] `remediation` field (human-readable remedy) added to all 55 catalog entries
+- [x] `remediation_type` field (classification: MANUAL_FIX / AUTO_FIX / REVIEW / RERUN) added to all 55 catalog entries
+- [x] `_get_remediation()` and `_get_remediation_type()` implemented in `base.py`
+- [x] `detect_error()` auto-resolves severity + remediation + remediation_type from catalog
+- [x] Zero hardcoded severity fallbacks or remediation strings in callers
+- [x] 5 mismatched fallbacks resolved (removed by auto-resolve — fallback never used in production)
+- [x] All files pass syntax check
 
 ---
 

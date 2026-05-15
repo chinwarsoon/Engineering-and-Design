@@ -36,6 +36,13 @@ class InputDetector(BaseDetector):
     - S1-I-V-0502: Required column missing
     """
     
+    # Error codes
+    ERROR_FILE_NOT_FOUND = "S1-I-F-0804"
+    ERROR_FILE_FORMAT_A = "S1-I-F-0805-A"
+    ERROR_FILE_FORMAT_B = "S1-I-F-0805-B"
+    ERROR_ENCODING = "S1-I-V-0501"
+    ERROR_MISSING_COLUMNS = "S1-I-V-0502"
+
     def __init__(
         self,
         required_columns: Optional[List[str]] = None,
@@ -106,11 +113,9 @@ class InputDetector(BaseDetector):
         """Validate file exists."""
         if not file_path.exists():
             self.detect_error(
-                error_code="S1-I-F-0804",
-                message=f"File not found: {file_path}",
-                severity=self._get_severity("S1-I-F-0804", "CRITICAL"),
+                error_code=self.ERROR_FILE_NOT_FOUND,
+                message=self._format_message(self.ERROR_FILE_NOT_FOUND, file_path=file_path),
                 fail_fast=True,
-                remediation_type="MANUAL_FIX",
                 additional_context={"file_path": str(file_path)}
             )
             return False
@@ -122,11 +127,9 @@ class InputDetector(BaseDetector):
         
         if suffix not in self.supported_formats:
             self.detect_error(
-                error_code="S1-I-F-0805",
-                message=f"Unsupported file format: {suffix}",
-                severity=self._get_severity("S1-I-F-0805", "CRITICAL"),
+                error_code=self.ERROR_FILE_FORMAT_A,
+                message=self._format_message(self.ERROR_FILE_FORMAT_A, suffix=suffix),
                 fail_fast=True,
-                remediation_type="MANUAL_FIX",
                 additional_context={
                     "file_path": str(file_path),
                     "detected_format": suffix,
@@ -142,11 +145,9 @@ class InputDetector(BaseDetector):
         
         if size_mb > self.max_file_size_mb:
             self.detect_error(
-                error_code="S1-I-F-0805",
-                message=f"File too large: {size_mb:.1f}MB (max: {self.max_file_size_mb}MB)",
-                severity=self._get_severity("S1-I-F-0805", "CRITICAL"),
+                error_code=self.ERROR_FILE_FORMAT_B,
+                message=self._format_message(self.ERROR_FILE_FORMAT_B, size_mb=size_mb, max_size_mb=self.max_file_size_mb),
                 fail_fast=False,
-                remediation_type="MANUAL_FIX",
                 additional_context={
                     "file_path": str(file_path),
                     "file_size_mb": size_mb,
@@ -164,11 +165,9 @@ class InputDetector(BaseDetector):
             return True
         except UnicodeDecodeError:
             self.detect_error(
-                error_code="S1-I-V-0501",
-                message=f"File encoding error (expected UTF-8): {file_path}",
-                severity=self._get_severity("S1-I-V-0501", "HIGH"),
+                error_code=self.ERROR_ENCODING,
+                message=self._format_message(self.ERROR_ENCODING, file_path=file_path),
                 fail_fast=True,
-                remediation_type="MANUAL_FIX",
                 additional_context={"file_path": str(file_path), "expected_encoding": "utf-8"}
             )
             return False
@@ -192,11 +191,9 @@ class InputDetector(BaseDetector):
             
             if missing_columns:
                 self.detect_error(
-                    error_code="S1-I-V-0502",
-                    message=f"Missing required columns: {', '.join(missing_columns)}",
-                    severity=self._get_severity("S1-I-V-0502", "CRITICAL"),
+                    error_code=self.ERROR_MISSING_COLUMNS,
+                    message=self._format_message(self.ERROR_MISSING_COLUMNS, missing_cols=', '.join(missing_columns)),
                     fail_fast=True,
-                    remediation_type="MANUAL_FIX",
                     additional_context={
                         "file_path": str(file_path),
                         "missing_columns": missing_columns,
@@ -209,9 +206,8 @@ class InputDetector(BaseDetector):
             
         except Exception as e:
             self.detect_error(
-                error_code="S1-I-V-0502",
-                message=f"Failed to validate columns: {e}",
-                severity=self._get_severity("S1-I-V-0502", "HIGH"),
+                error_code=self.ERROR_MISSING_COLUMNS,
+                message=self._format_message(self.ERROR_MISSING_COLUMNS, missing_cols=str(e)),
                 fail_fast=False,
                 additional_context={"file_path": str(file_path), "error": str(e)}
             )
@@ -242,11 +238,9 @@ class InputDetector(BaseDetector):
         
         if missing_columns:
             self.detect_error(
-                error_code="S1-I-V-0502",
-                message=f"Missing required columns: {', '.join(missing_columns)}",
-                severity=self._get_severity("S1-I-V-0502", "CRITICAL"),
+                error_code=self.ERROR_MISSING_COLUMNS,
+                message=self._format_message(self.ERROR_MISSING_COLUMNS, missing_cols=', '.join(missing_columns)),
                 fail_fast=True,
-                remediation_type="MANUAL_FIX",
                 additional_context={
                     "missing_columns": missing_columns,
                     "available_columns": columns
