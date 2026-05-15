@@ -1054,3 +1054,36 @@
   - `dcc/workplan/column_processing/column_update_logic.md` — Step 40 updated with two-path forward-looking description.
 - **Resolution:** Two-path forward-looking calculation: Path 1 — `delay = max(next_Submission_Date − current_Resubmission_Plan_Date, 0)` via `shift(-1)`, stored on the plan-setting row. Path 2 — `delay = max(today − Resubmission_Plan_Date, 0)` for latest active overdue row. Terminal closure (APP/VOID/INF) overrides to 0; superseded rows keep their delay.
 - **Link to Update Log:** [update-2026-05-12-delay-resubmission](#update-2026-05-12-delay-resubmission)
+
+<a id="issue-iss-015"></a>
+## 2026-05-15
+
+### Issue ISS-015 — Submittal Dashboard Duplicated Pipeline Validation Logic Instead of Using Validation_Errors Column
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-15
+- **Context:** The Submittal Tracker Dashboard's `isValidDocId()` implemented its own complex validation logic (hardcoded uncertain values blocklist, ruby-segment counting, format regex, composite segment matching against source columns) rather than using the pipeline's already-computed `Validation_Errors` column. This duplicated pipeline logic in the browser and could diverge from the pipeline's actual validation rules.
+- **Root Cause:** The original implementation (Phase 7 v2.0) re-implemented Document_ID validation rules from scratch in JavaScript, parsing segments, comparing against source columns, and maintaining a hardcoded blocklist of placeholder values. This ignored the pipeline's `Validation_Errors` column which already contains structured error codes for each row (e.g. `[P2-I-P-0201] Document_ID uncertain: 'na'`).
+- **Impact:**
+  - Validation rules in dashboard could drift from pipeline's actual rules
+  - Multiple schema file fetches needed (`data_error_config.json`, `dcc_register_config.json`) for the dashboard to replicate pipeline logic
+  - Complex segment/composite checks that failed silently when source columns were missing
+  - Hardcoded uncertain values blocklist that could become stale
+- **Resolution:** Rewrote `isValidDocId()` to:
+  1. Fetch `data_error_config.json` on init → extract all error codes with `column` containing `Document_ID`
+  2. Check if `row['Validation_Errors']` contains any of those error codes
+  3. Keep only a minimal fallback uncertain-values blocklist for CSV files without a `Validation_Errors` column
+  4. Removed all segment-counting, format-regex, and composite-matching logic
+- **Additional Changes (2026-05-15 follow-up):**
+  - Open Submissions: explicitly reads `Submission_Closed` for `NO`/`0` values
+  - Detail tables: all column titles changed to exact CSV column names (`Document_ID`, `Submitted_By`, `Resubmission_Plan_Date`, etc.)
+  - Computed columns removed from tables (Days Overdue, Status, Category); unused functions (`firstVal`, `calcDaysOverdue`) removed
+  - Overdue table added `Resubmission_Overdue_Status` column
+  - Approval Rate redefined: numerator = APP+AWC+INFO+VOID, denominator = total unique valid Document_IDs
+  - Awaiting Response expanded: counts docs with null/empty approval code OR PEN/PENDING
+  - Added 6th KPI: "Review >30 Days" — unique docs with `Duration_of_Review > 30`
+  - Added 7th KPI: "Delay >30 Days" — unique docs with `Delay_of_Resubmission > 30`
+  - Status bar shows "Unique Docs: X (Valid) / Y (Total)"
+- **File Changes:**
+  - `dcc/ui/submittal_dashboard.html` — all above changes
+- **Link to Update Log:** [update-2026-05-15-submittal-dashboard-enhancements](update_log.md#update-2026-05-15-submittal-dashboard-enhancements)

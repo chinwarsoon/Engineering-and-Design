@@ -1119,6 +1119,76 @@ def main() -> int:
 
 ---
 
+<a id="update-2026-05-15-submittal-dashboard-validation-errors"></a>
+## 2026-05-15 23:55:00
+
+### UPDATED: Submittal Tracker Dashboard — Schema-Driven Document ID Validation via Validation_Errors Column
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-UI-001](../workplan/ui_design/web_interface/web_interface_workplan.md)  
+**Issue Log:** [ISS-015](../log/issue_log.md#issue-iss-015)
+
+**Summary:** Replaced `isValidDocId()` complex client-side validation (segment count, format regex, composite matching) with schema-driven approach that reads Document_ID error codes from `data_error_config.json` and checks the pipeline's own `Validation_Errors` column. Added 5th KPI card for "Awaiting Response" (documents with PEN/PENDING approval codes).
+
+**Changes Made:**
+
+| Area | Detail |
+|:---|:---|
+| Schema-Driven Validation | `loadDocIdRules()` fetches `data_error_config.json`, extracts all error codes where `column` includes `Document_ID` (P2-I-P-0201, P2-I-V-0204, P2-I-V-0204-A/B/C), stores them in `docIdRules.docIdCodes[]` |
+| isDValidDocId Rewrite | Removed all segment-splitting, format-regex, and composite-matching logic. Now checks `row['Validation_Errors']` contains any loaded Document_ID error code. Kept fallback uncertain-value blocklist for CSV files without Validation_Errors column |
+| Pre-Filter at Load | `parseCSV()` now filters `allData` through `isValidDocId()` at load time — invalid rows never enter the data set |
+| Robust fallback | `loadDocIdRules()` builds rules in a temp object, only assigns to `docIdRules` on full success. Partial failures preserve defaults with all checks enabled |
+| Awaiting Response KPI | 5th KPI card counting unique docs with `Latest_Approval_Code` = PEN/PENDING. Clickable to detail table. Help text added to `buildSubmittalHelp()` |
+
+**Files Modified:**
+- `dcc/ui/submittal_dashboard.html` — rewritten isValidDocId, new loadDocIdRules, Awaiting Response KPI, pre-filter in parseCSV, all call sites updated
+
+**Verification:**
+- `data_error_config.json` loaded on init, 55 error codes scanned, 5 Document_ID codes extracted
+- `Validation_Errors` column checked per row for matching codes
+- Fallback uncertain blocklist preserved for non-Validation_Errors data
+- Awaiting Response KPI computed and clickable with detail table
+
+---
+
+<a id="update-2026-05-15-submittal-dashboard-enhancements"></a>
+## 2026-05-15 23:59:00
+
+### UPDATED: Submittal Tracker Dashboard — KPI Enhancements, Column Consistency, Status Bar
+**Status:** ✅ COMPLETE  
+**Workplan:** [WP-UI-001](../workplan/ui_design/web_interface/web_interface_workplan.md)  
+**Issue Log:** [ISS-015](../log/issue_log.md#issue-iss-015)
+
+**Summary:** Multiple enhancements to the Submittal Tracker Dashboard: 2 new KPI cards (Review >30 Days, Delay >30 Days), KPI logic fixes (Open Submissions, Approval Rate, Awaiting Response), detail table column names aligned to CSV headers, computed columns removed, status bar shows unique doc counts, and a critical JS syntax bug fixed.
+
+**Changes Made:**
+
+| Area | Detail |
+|:---|:---|
+| Open Submissions KPI | Now explicitly reads `Submission_Closed` for `NO`/`0` values. Only docs with `Submission_Closed='NO'` are counted as open. Null/empty treated as unknown. |
+| Approval Rate KPI | Redefined: numerator = unique docs with `APP`/`AWC`/`INFO`/`VOID` codes, denominator = total unique valid Document_IDs (not just docs with an approval code). |
+| Awaiting Response KPI | Expanded: counts docs where `Latest_Approval_Code` is null/empty (not yet reviewed) OR `PEN`/`PENDING`. Previously only counted explicit PEN/PENDING codes. |
+| Review >30 Days KPI | 6th KPI: unique docs with `Duration_of_Review > 30`. Clickable detail table sorted by duration descending. |
+| Delay >30 Days KPI | 7th KPI: unique docs with `Delay_of_Resubmission > 30`. Clickable detail table sorted by delay descending. |
+| Detail Table Column Names | All tables now use exact CSV column names (`Document_ID`, `Submitted_By`, `Resubmission_Plan_Date`, `Latest_Approval_Code`, etc.). Computed columns removed (Days Overdue, Status, Category). |
+| Overdue Table | Added `Resubmission_Overdue_Status` column. |
+| Status Bar | Shows `Unique Docs: X (Valid) / Y (Total)` — total vs valid unique Document_ID counts. |
+| Bug Fix | Click handler was missing closing brackets (`if (actions[i])`, `});` `});`), causing entire script to fail silently — no data displayed. Fixed. |
+| Cleanup | Removed unused `firstVal()` and duplicate `calcDaysOverdue()` functions. |
+
+**Files Modified:**
+- `dcc/ui/submittal_dashboard.html` — all above changes
+
+**Verification:**
+- All 7 KPI cards render with correct computed values
+- Detail tables show only CSV column names, no computed columns
+- Open count matches rows with `Submission_Closed='NO'`
+- Awaiting response count now aligns with open submissions
+- Status bar shows valid/total unique doc counts
+- JS syntax validated — all braces balanced
+- Help text updated for all new KPIs
+
+---
+
 <a id="update-2026-04-30-bootstrap-phase1"></a>
 ## 2026-04-30 20:10:00
 

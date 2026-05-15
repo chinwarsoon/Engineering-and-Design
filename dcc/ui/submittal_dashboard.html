@@ -91,9 +91,9 @@
           <div class="sb-section-header"><span>✍️ Submitted By</span><span class="sb-section-arrow">▼</span></div>
           <div class="sb-section-body"><select id="filterSubmittedBy" style="width:100%;"><option value="">All Submitters</option></select></div>
         </div>
-        <div class="sb-section">
-          <div class="sb-section-header"><span>📋 Review Status</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body"><select id="filterReviewStatus" style="width:100%;"><option value="">All Statuses</option></select></div>
+          <div class="sb-section">
+          <div class="sb-section-header"><span>📋 Latest_Approval_Status</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterApprovalStatus" style="width:100%;"><option value="">All Statuses</option></select></div>
         </div>
         <div class="sb-section">
           <div class="sb-section-header"><span>📄 Data Info</span><span class="sb-section-arrow">▼</span></div>
@@ -120,12 +120,15 @@
           <div class="kpi-card"><div class="kpi-value" id="kpiDocs">—</div><div class="kpi-label">Total Documents</div><div class="kpi-sub">unique valid doc IDs</div></div>
           <div class="kpi-card"><div class="kpi-value" id="kpiOpen">—</div><div class="kpi-label">Open Submissions</div><div class="kpi-sub">unique valid doc IDs, not closed</div></div>
           <div class="kpi-card"><div class="kpi-value" id="kpiOverdue">—</div><div class="kpi-label">Overdue</div><div class="kpi-sub">unique valid doc IDs, overdue</div></div>
-          <div class="kpi-card"><div class="kpi-value" id="kpiApproval">—</div><div class="kpi-label">Approval Rate</div><div class="kpi-sub">of unique valid doc IDs</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpiApproval">—</div><div class="kpi-label">Approval Rate</div><div class="kpi-sub">APP+AWC+INFO+VOID over unique valid doc IDs</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpiAwaiting">—</div><div class="kpi-label">Awaiting Response</div><div class="kpi-sub">unique valid doc IDs, pending approval</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpiLongReview">—</div><div class="kpi-label">Review >30 Days</div><div class="kpi-sub">unique valid doc IDs, duration over 30 days</div></div>
+          <div class="kpi-card"><div class="kpi-value" id="kpiDelay">—</div><div class="kpi-label">Delay >30 Days</div><div class="kpi-sub">unique valid doc IDs, resubmission delay over 30 days</div></div>
         </div>
 
         <div class="grid-2">
           <div class="chart-container"><div class="chart-title">📅 Submission Timeline <span style="font-weight:400;color:var(--text3);">(unique docs per month)</span></div><canvas id="timelineChart"></canvas></div>
-          <div class="chart-container"><div class="chart-title">✓ Approval Status <span style="font-weight:400;color:var(--text3);">(per unique document)</span></div><canvas id="statusChart"></canvas></div>
+          <div class="chart-container"><div class="chart-title">✓ Approval Status <span style="font-weight:400;color:var(--text3);">(per unique document, by Latest_Approval_Status)</span></div><canvas id="statusChart"></canvas></div>
         </div>
         <div class="grid-2">
           <div class="chart-container"><div class="chart-title">📐 Documents by Discipline</div><canvas id="disciplineChart"></canvas></div>
@@ -169,6 +172,7 @@
   <div class="dcc-statusbar status-ok">
     <div class="sb-item">✓ <span id="statusMsg">Ready</span></div>
     <div class="sb-item"><span id="statusFile">No file loaded</span></div>
+    <div class="sb-item"><span id="statusDocCount"></span></div>
     <div class="sb-item-right">v3.0.0</div>
   </div>
 
@@ -178,6 +182,29 @@
     let allData = [];
     let filteredData = [];
     let chartInstances = {};
+    let docIdRules = { docIdCodes: [], checkUncertain: true,
+      uncertainValues: ['na','n/a','nan','unknown','tbd','to be determined','pending','draft','temp','temporary','-','none','nil','null','undefined','0'] };
+
+    async function loadDocIdRules() {
+      try {
+        const resp = await fetch('../config/schemas/data_error_config.json');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const config = await resp.json();
+        const errors = config.data_logic_errors;
+        if (!errors || typeof errors !== 'object') throw new Error('Invalid data_logic_errors');
+        const codes = [];
+        Object.values(errors).forEach(e => {
+          if (!e || typeof e !== 'object') return;
+          const cols = (String(e.column) || '').split(',').map(c => c.trim());
+          if (!cols.includes('Document_ID')) return;
+          if (e.code) codes.push(e.code);
+        });
+        docIdRules.docIdCodes = codes;
+        updateStatus('ok', `Doc ID rules loaded (${codes.length} codes)`);
+      } catch (err) {
+        updateStatus('warning', 'Using default Doc ID rules');
+      }
+    }
 
     // ─── THEME ───────────────────────────────────────────────────────────────
     const themeBtn = document.getElementById('themeBtn');
@@ -277,15 +304,12 @@
         s('📊 Submittal Analytics', fl([['Total Documents','Distinct count of <code>Document_ID</code> values in the filtered data set. <strong>Click</strong> to view document list in the detail table below.'],
         ['Open Submissions','Unique documents where <code>Submission_Closed</code> is not <strong>YES</strong>. A document is considered closed if any of its rows has <code>Submission_Closed=YES</code>. <strong>Click</strong> to view open documents.'],
         ['Overdue','Unique documents that have at least one row where <code>Resubmission_Overdue_Status</code> is <strong>Overdue</strong>. <strong>Click</strong> to view overdue details.'],
-        ['Approval Rate','Percentage of unique documents with a terminal approval code (<strong>APP</strong>, <strong>APR</strong>, <strong>APPROVED</strong>, <strong>A</strong>) among all documents that have an approval code on record. <strong>Click</strong> to view approval breakdown.']])) +
+        ['Approval Rate','Percentage of unique documents with a terminal/resolution code (<strong>APP</strong>, <strong>AWC</strong>, <strong>INFO</strong>, <strong>VOID</strong>) among all unique valid Document_IDs. <strong>Click</strong> to view approval breakdown.'],
+        ['Awaiting Response','Unique documents with no terminal approval code — <code>Latest_Approval_Code</code> is empty, <strong>PEN</strong>, or <strong>PENDING</strong>. These documents are still under review and awaiting a decision. <strong>Click</strong> to view pending documents.'],
+        ['Review >30 Days','Unique documents where <code>Duration_of_Review</code> exceeds 30 days. <strong>Click</strong> to view documents sorted by duration descending.'],
+        ['Delay >30 Days','Unique documents where <code>Delay_of_Resubmission</code> exceeds 30 days. <strong>Click</strong> to view documents sorted by delay descending.']])) +
         s('📅 Timeline', 'Unique <strong>Document_ID</strong> values per month from <code>Submission_Date</code>. A document with multiple submissions in the same month is counted once. Uses current theme accent color.') +
-        s('✓ Approval Status', '<div style="margin-bottom:6px;">Per unique <strong>Document_ID</strong> using the latest approval code on record for each document. Label shows count in parentheses.</div>' + fl([['Approved','Codes <strong>APP</strong>, <strong>APR</strong>, <strong>APPROVED</strong>, <strong>A</strong> \u2014 submission approved.'],
-        ['AWC','Code <strong>AWC</strong> (Approved with Comments) \u2014 approved subject to comments.'],
-        ['Rejected','Codes <strong>REJ</strong>, <strong>R</strong>, <strong>REJECTED</strong>, <strong>NAP</strong> (Not Approved).'],
-        ['Pending','Codes <strong>PEN</strong>, <strong>PENDING</strong> \u2014 awaiting decision.'],
-        ['Void','Code <strong>VOID</strong> \u2014 submission voided.'],
-        ['Info','Code <strong>INF</strong> \u2014 for information only.'],
-        ['Other','Any unrecognised approval code not falling into the above categories.']])) +
+        s('✓ Approval Status', '<div style="margin-bottom:6px;">Per unique <strong>Document_ID</strong> using the <code>Latest_Approval_Status</code> column. Label shows count in parentheses.</div>') +
         s('📐 Discipline Chart', 'Document count per distinct <code>Discipline</code> value, sorted highest to lowest. Uses theme accent color.') +
         s('📈 Trend Chart', 'Monthly approval rate: approved rows divided by total rows with an approval code per month. Range 0\u2013100%. Uses success (green) color.') +
         s('🏢 Filters', fl([['Project','Filter by <code>Project_Code</code>, populated from distinct values.'],
@@ -293,7 +317,7 @@
         ['Discipline','Filter by <code>Discipline</code>, populated from distinct values.'],
         ['Department','Filter by <code>Department</code>, populated from distinct values.'],
         ['Submitted By','Filter by <code>Submitted_By</code>, populated from distinct values.'],
-        ['Review Status','Filter by <code>Review_Status</code>, populated from distinct values.']])) +
+        ['Approval Status','Filter by <code>Latest_Approval_Status</code>, populated from distinct values.']])) +
         s('⚠️ Overdue Table', 'Rows where <code>Resubmission_Overdue_Status</code> is <strong>Overdue</strong>, sorted by days descending. Shows Document ID, Discipline, Plan Date, Days Overdue.');
     }
 
@@ -358,10 +382,14 @@
     function parseCSV(text, sourceName) {
       const result = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: true });
       if (result.errors.length > 0) console.warn('CSV parse errors:', result.errors);
-      allData = result.data.filter(r => r.Document_ID);
+      const allRows = result.data.filter(r => r.Document_ID);
+      const totalUnique = new Set(allRows.map(r => String(r.Document_ID).trim())).size;
+      allData = allRows.filter(r => isValidDocId(r.Document_ID, r));
+      const validUnique = new Set(allData.map(r => String(r.Document_ID).trim())).size;
       document.getElementById('dataSource').textContent = sourceName;
       document.getElementById('dataRowCount').textContent = allData.length;
       document.getElementById('dataColCount').textContent = result.meta.fields?.length || '—';
+      document.getElementById('statusDocCount').textContent = `Unique Docs: ${validUnique} (Valid) / ${totalUnique} (Total)`;
       populateFilters();
       applyFilters();
       updateStatus('ok', `Loaded ${allData.length} rows`);
@@ -376,7 +404,7 @@
       populateSelect('filterDiscipline', unique('Discipline'));
       populateSelect('filterDepartment', unique('Department'));
       populateSelect('filterSubmittedBy', unique('Submitted_By'));
-      populateSelect('filterReviewStatus', unique('Review_Status'));
+      populateSelect('filterApprovalStatus', unique('Latest_Approval_Status'));
     }
 
     function populateSelect(id, values) {
@@ -391,7 +419,7 @@
     document.getElementById('filterDiscipline').addEventListener('change', applyFilters);
     document.getElementById('filterDepartment').addEventListener('change', applyFilters);
     document.getElementById('filterSubmittedBy').addEventListener('change', applyFilters);
-    document.getElementById('filterReviewStatus').addEventListener('change', applyFilters);
+    document.getElementById('filterApprovalStatus').addEventListener('change', applyFilters);
 
     function applyFilters() {
       const p = document.getElementById('filterProject').value;
@@ -399,10 +427,11 @@
       const d = document.getElementById('filterDiscipline').value;
       const dept = document.getElementById('filterDepartment').value;
       const sub = document.getElementById('filterSubmittedBy').value;
-      const rs = document.getElementById('filterReviewStatus').value;
+      const as = document.getElementById('filterApprovalStatus').value;
       filteredData = allData.filter(r =>
         (!p || r.Project_Code === p) && (!f || r.Facility_Code === f) && (!d || r.Discipline === d) &&
-        (!dept || r.Department === dept) && (!sub || r.Submitted_By === sub) && (!rs || r.Review_Status === rs)
+        (!dept || r.Department === dept) && (!sub || r.Submitted_By === sub) &&
+        (!as || r.Latest_Approval_Status === as)
       );
       renderDashboard();
     }
@@ -411,22 +440,28 @@
     function computeKPIs(data) {
       const docMap = {};
       data.forEach(r => {
-        const id = r.Document_ID; if (!isValidDocId(id)) return;
-        if (!docMap[id]) docMap[id] = { closed: null, overdue: null, approval: null };
+        const id = r.Document_ID; if (!isValidDocId(id, r)) return;
+        if (!docMap[id]) docMap[id] = { closed: null, overdue: null, approval: null, longReview: false, delay: false };
         const c = String(r.Submission_Closed || '').toUpperCase();
         if (c === 'YES' || c === '1') docMap[id].closed = true;
-        else if (docMap[id].closed === null) docMap[id].closed = false;
+        else if (c === 'NO' || c === '0') docMap[id].closed = false;
         if (String(r.Resubmission_Overdue_Status || '').toLowerCase() === 'overdue') docMap[id].overdue = true;
         const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
         if (code) docMap[id].approval = code;
+        const dur = Number(r.Duration_of_Review);
+        if (!isNaN(dur) && dur > 30) docMap[id].longReview = true;
+        const del = Number(r.Delay_of_Resubmission);
+        if (!isNaN(del) && del > 30) docMap[id].delay = true;
       });
       const docs = Object.keys(docMap).length;
-      const open = Object.values(docMap).filter(d => d.closed === false || d.closed === null).length;
+      const open = Object.values(docMap).filter(d => d.closed === false).length;
       const overdue = Object.values(docMap).filter(d => d.overdue === true).length;
-      const approved = Object.values(docMap).filter(d => d.approval && ['APP','APR','APPROVED','A'].includes(d.approval)).length;
-      const total = Object.values(docMap).filter(d => d.approval).length;
-      const rate = total > 0 ? (approved / total * 100) : 0;
-      return { docs, open, overdue, rate };
+      const awaiting = Object.values(docMap).filter(d => !d.approval || ['PEN','PENDING'].includes(d.approval)).length;
+      const approved = Object.values(docMap).filter(d => d.approval && ['APP','APR','APPROVED','A','AWC','INF','INFO','VOID'].includes(d.approval)).length;
+      const longReview = Object.values(docMap).filter(d => d.longReview).length;
+      const delay = Object.values(docMap).filter(d => d.delay).length;
+      const rate = docs > 0 ? (approved / docs * 100) : 0;
+      return { docs, open, overdue, awaiting, longReview, delay, rate };
     }
 
     // ─── RENDER ──────────────────────────────────────────────────────────────
@@ -437,24 +472,36 @@
       document.getElementById('kpiDocs').textContent = formatNum(kpi.docs);
       document.getElementById('kpiOpen').textContent = formatNum(kpi.open);
       document.getElementById('kpiOverdue').textContent = formatNum(kpi.overdue);
+      document.getElementById('kpiAwaiting').textContent = formatNum(kpi.awaiting);
+      document.getElementById('kpiLongReview').textContent = formatNum(kpi.longReview);
+      document.getElementById('kpiDelay').textContent = formatNum(kpi.delay);
       document.getElementById('kpiApproval').textContent = kpi.rate.toFixed(1) + '%';
       showDetailOverdue(data);
       rebuildCharts();
     }
 
     function setEmptyState() {
-      ['kpiDocs','kpiOpen','kpiOverdue','kpiApproval'].forEach(id => document.getElementById(id).textContent = '—');
+      ['kpiDocs','kpiOpen','kpiOverdue','kpiAwaiting','kpiLongReview','kpiDelay','kpiApproval'].forEach(id => document.getElementById(id).textContent = '—');
       document.getElementById('detailTableContainer').innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No data to display.</div>';
     }
 
     function formatNum(n) { if (n == null) return '—'; if (n >= 1000000) return (n/1000000).toFixed(1)+'M'; if (n >= 1000) return (n/1000).toFixed(1)+'K'; return String(n); }
 
-    function isValidDocId(id) {
+    function isValidDocId(id, row) {
       if (!id) return false;
       const s = String(id).trim().toLowerCase();
       if (!s) return false;
-      const invalid = ['na','n/a','nan','unknown','tbd','to be determined','pending','draft','temp','temporary','-','none','nil','null','undefined','0'];
-      return !invalid.includes(s);
+      if (docIdRules.checkUncertain && docIdRules.uncertainValues.includes(s)) return false;
+      if (docIdRules.docIdCodes.length > 0 && row) {
+        const errs = row['Validation_Errors'];
+        if (errs) {
+          const errStr = String(errs);
+          for (let i = 0; i < docIdRules.docIdCodes.length; i++) {
+            if (errStr.includes(docIdRules.docIdCodes[i])) return false;
+          }
+        }
+      }
+      return true;
     }
 
     function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -473,7 +520,7 @@
 
       // Timeline — unique Document_ID per month
       const monthlyDocs = {}; data.forEach(r => {
-        if (r.Submission_Date && isValidDocId(r.Document_ID)) {
+        if (r.Submission_Date && isValidDocId(r.Document_ID, r)) {
           const m = String(r.Submission_Date).slice(0,7);
           if (!monthlyDocs[m]) monthlyDocs[m] = new Set();
           monthlyDocs[m].add(r.Document_ID);
@@ -482,31 +529,15 @@
       const tl = Object.entries(monthlyDocs).sort(([a],[b]) => a.localeCompare(b)).map(([k,v]) => [k, v.size]);
       chartInstances.timeline = new Chart(document.getElementById('timelineChart').getContext('2d'), { type:'line', data:{ labels:tl.map(([k])=>k), datasets:[{ label:'Submissions', data:tl.map(([,v])=>v), borderColor:c.accent, backgroundColor:c.accent+'20', tension:0.4, fill:true, pointBackgroundColor:c.accent }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
 
-      // Status donut
-      // Approval status per unique Document_ID (latest approval code per document)
+      // Status donut — per unique Document_ID using Latest_Approval_Status
       const docStatuses = {};
-      const approveCodes = ['APP','APR','APPROVED','A'];
-      const awcCodes = ['AWC'];
-      const rejectCodes = ['REJ','R','REJECTED','NAP'];
-      const pendingCodes = ['PEN','PENDING'];
-      const voidCodes = ['VOID'];
-      const infoCodes = ['INF'];
       data.forEach(r => {
-        const docId = r.Document_ID; if (!isValidDocId(docId)) return;
-        const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
-        if (!code) return;
-        if (!docStatuses[docId]) docStatuses[docId] = code;
+        const docId = r.Document_ID; if (!isValidDocId(docId, r)) return;
+        const status = r.Latest_Approval_Status;
+        if (status && !docStatuses[docId]) docStatuses[docId] = status;
       });
       const statusCounts = {};
-      Object.values(docStatuses).forEach(code => {
-        if (approveCodes.includes(code)) statusCounts['Approved'] = (statusCounts['Approved']||0)+1;
-        else if (awcCodes.includes(code)) statusCounts['AWC'] = (statusCounts['AWC']||0)+1;
-        else if (rejectCodes.includes(code)) statusCounts['Rejected'] = (statusCounts['Rejected']||0)+1;
-        else if (pendingCodes.includes(code)) statusCounts['Pending'] = (statusCounts['Pending']||0)+1;
-        else if (voidCodes.includes(code)) statusCounts['Void'] = (statusCounts['Void']||0)+1;
-        else if (infoCodes.includes(code)) statusCounts['Info'] = (statusCounts['Info']||0)+1;
-        else statusCounts['Other'] = (statusCounts['Other']||0)+1;
-      });
+      Object.values(docStatuses).forEach(s => { statusCounts[s] = (statusCounts[s]||0)+1; });
       const sl = Object.keys(statusCounts);
       const palette = [c.success, '#58a6ff', c.danger, c.warning, '#8b949e', '#6e7681', c.text2];
       chartInstances.status = new Chart(document.getElementById('statusChart').getContext('2d'), { type:'doughnut', data:{ labels:sl.map(k=>k+' ('+statusCounts[k]+')'), datasets:[{ data:sl.map(k=>statusCounts[k]), backgroundColor:palette.slice(0,sl.length), borderColor:c.surface }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:c.text2 } } } } });
@@ -517,6 +548,7 @@
       chartInstances.discipline = new Chart(document.getElementById('disciplineChart').getContext('2d'), { type:'bar', data:{ labels:dl.map(([k])=>k), datasets:[{ label:'Documents', data:dl.map(([,v])=>v), backgroundColor:c.accent, borderColor:c.border, borderWidth:1 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
 
       // Approval rate trend by month
+      const approveCodes = ['APP','APR','APPROVED','A'];
       const trend = {}; data.forEach(r => {
         if (!r.Submission_Date) return; const m = String(r.Submission_Date).slice(0,7);
         if (!trend[m]) trend[m] = { total:0, approved:0 };
@@ -539,41 +571,76 @@
         '</tbody></table>';
     }
 
-    function firstVal(data, docId, col) { const r = data.find(x => x.Document_ID === docId && x[col]); return r ? r[col] : ''; }
-
     function showDetailOverdue(data) {
-      const rows = data.filter(r => String(r.Resubmission_Overdue_Status).toLowerCase() === 'overdue' && isValidDocId(r.Document_ID))
-        .map(r => ({ 'Document ID': r.Document_ID, 'Department': r.Department||'', 'Submitted By': r.Submitted_By||'', 'Discipline': r.Discipline||'', 'Plan Date': r.Resubmission_Plan_Date||'', 'Days Overdue': calcDaysOverdue(r.Resubmission_Plan_Date) }))
-        .sort((a,b) => b['Days Overdue'] - a['Days Overdue']);
-      renderDetailTable('⚠️ Overdue Resubmissions', ['Document ID','Department','Submitted By','Discipline','Plan Date','Days Overdue'], rows);
+      const rows = data.filter(r => String(r.Resubmission_Overdue_Status).toLowerCase() === 'overdue' && isValidDocId(r.Document_ID, r))
+        .map(r => ({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Resubmission_Plan_Date: r.Resubmission_Plan_Date||'', Resubmission_Overdue_Status: r.Resubmission_Overdue_Status||'' }))
+        .sort((a,b) => (b.Resubmission_Plan_Date||'').localeCompare(a.Resubmission_Plan_Date||''));
+      renderDetailTable('⚠️ Overdue Resubmissions', ['Document_ID','Department','Submitted_By','Discipline','Resubmission_Plan_Date','Resubmission_Overdue_Status'], rows);
     }
 
     function showDetailAllDocs(data) {
       const seen = new Set(); const rows = [];
-      data.forEach(r => { if (isValidDocId(r.Document_ID) && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ 'Document ID': r.Document_ID, 'Department': r.Department||'', 'Submitted By': r.Submitted_By||'', 'Discipline': r.Discipline||'', 'Project': r.Project_Code||'', 'Latest Approval': r.Latest_Approval_Code||r.This_Submission_Approval_Code||'' }); } });
-      renderDetailTable('📄 All Documents', ['Document ID','Department','Submitted By','Discipline','Project','Latest Approval'], rows);
+      data.forEach(r => { if (isValidDocId(r.Document_ID, r) && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Project_Code: r.Project_Code||'', Latest_Approval_Code: r.Latest_Approval_Code||r.This_Submission_Approval_Code||'' }); } });
+      renderDetailTable('📄 All Documents', ['Document_ID','Department','Submitted_By','Discipline','Project_Code','Latest_Approval_Code'], rows);
     }
 
     function showDetailOpen(data) {
-      const docStatus = {}; data.forEach(r => { if (!isValidDocId(r.Document_ID)) return; if (!docStatus[r.Document_ID]) docStatus[r.Document_ID] = { closed: false }; const c = String(r.Submission_Closed||'').toUpperCase(); if (c==='YES'||c==='1') docStatus[r.Document_ID].closed = true; });
-      const openIds = Object.entries(docStatus).filter(([,s]) => !s.closed).map(([id]) => id);
+      const docStatus = {}; data.forEach(r => { if (!isValidDocId(r.Document_ID, r)) return; if (!docStatus[r.Document_ID]) docStatus[r.Document_ID] = { closed: null }; const c = String(r.Submission_Closed||'').toUpperCase(); if (c==='YES'||c==='1') docStatus[r.Document_ID].closed = true; else if (c==='NO'||c==='0') docStatus[r.Document_ID].closed = false; });
+      const openIds = Object.entries(docStatus).filter(([,s]) => s.closed === false).map(([id]) => id);
       const seen = new Set(); const rows = [];
-      data.forEach(r => { if (isValidDocId(r.Document_ID) && openIds.includes(r.Document_ID) && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ 'Document ID': r.Document_ID, 'Department': r.Department||'', 'Submitted By': r.Submitted_By||'', 'Discipline': r.Discipline||'', 'Status': 'Open' }); } });
-      renderDetailTable('📂 Open Submissions', ['Document ID','Department','Submitted By','Discipline','Status'], rows);
+      data.forEach(r => { if (isValidDocId(r.Document_ID, r) && openIds.includes(r.Document_ID) && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Submission_Closed: 'NO' }); } });
+      renderDetailTable('📂 Open Submissions', ['Document_ID','Department','Submitted_By','Discipline','Submission_Closed'], rows);
     }
 
     function showDetailApproval(data) {
-      const docMap = {}; data.forEach(r => { if (!isValidDocId(r.Document_ID)) return; const code = (r.Latest_Approval_Code||r.This_Submission_Approval_Code||'').toUpperCase(); if (code) docMap[r.Document_ID] = code; });
-      const approveCodes = ['APP','APR','APPROVED','A']; const rejectCodes = ['REJ','R','REJECTED','NAP']; const pendingCodes = ['PEN','PENDING'];
-      const cat = (c) => approveCodes.includes(c) ? 'Approved' : rejectCodes.includes(c) ? 'Rejected' : pendingCodes.includes(c) ? 'Pending' : c==='AWC' ? 'AWC' : c==='VOID' ? 'Void' : c==='INF' ? 'Info' : 'Other';
+      const docMap = {}; data.forEach(r => { if (!isValidDocId(r.Document_ID, r)) return; const code = (r.Latest_Approval_Code||r.This_Submission_Approval_Code||'').toUpperCase(); if (code) docMap[r.Document_ID] = code; });
       const seen = new Set(); const rows = [];
-      data.forEach(r => { if (isValidDocId(r.Document_ID) && docMap[r.Document_ID] && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ 'Document ID': r.Document_ID, 'Department': r.Department||'', 'Submitted By': r.Submitted_By||'', 'Approval Code': docMap[r.Document_ID], 'Category': cat(docMap[r.Document_ID]) }); } });
-      renderDetailTable('✓ Approval Rate', ['Document ID','Department','Submitted By','Approval Code','Category'], rows);
+      data.forEach(r => { if (isValidDocId(r.Document_ID, r) && docMap[r.Document_ID] && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Latest_Approval_Code: docMap[r.Document_ID] }); } });
+      renderDetailTable('✓ Approval Rate', ['Document_ID','Department','Submitted_By','Latest_Approval_Code'], rows);
     }
 
-    function calcDaysOverdue(planDate) {
-      if (!planDate) return 0; const d = new Date(planDate); if (isNaN(d)) return 0;
-      return Math.max(1, Math.floor((Date.now() - d) / 86400000));
+    function showDetailAwaiting(data) {
+      const pendingCodes = ['PEN','PENDING'];
+      const terminalCodes = ['APP','APR','APPROVED','A','AWC','INF','INFO','VOID','REJ','R','REJECTED','NAP'];
+      const seen = new Set(); const rows = [];
+      data.forEach(r => {
+        if (!isValidDocId(r.Document_ID, r)) return;
+        const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
+        if (seen.has(r.Document_ID)) return;
+        if (!code || pendingCodes.includes(code)) {
+          seen.add(r.Document_ID);
+          rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Latest_Approval_Code: code || '—' });
+        }
+      });
+      renderDetailTable('⏳ Awaiting Response', ['Document_ID','Department','Submitted_By','Discipline','Latest_Approval_Code'], rows);
+    }
+
+    function showDetailLongReview(data) {
+      const seen = new Set(); const rows = [];
+      data.forEach(r => {
+        if (!isValidDocId(r.Document_ID, r)) return;
+        const dur = Number(r.Duration_of_Review);
+        if (!isNaN(dur) && dur > 30 && !seen.has(r.Document_ID)) {
+          seen.add(r.Document_ID);
+          rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Duration_of_Review: dur });
+        }
+      });
+      rows.sort((a,b) => b.Duration_of_Review - a.Duration_of_Review);
+      renderDetailTable('⏱ Review >30 Days', ['Document_ID','Department','Submitted_By','Discipline','Duration_of_Review'], rows);
+    }
+
+    function showDetailDelay(data) {
+      const seen = new Set(); const rows = [];
+      data.forEach(r => {
+        if (!isValidDocId(r.Document_ID, r)) return;
+        const del = Number(r.Delay_of_Resubmission);
+        if (!isNaN(del) && del > 30 && !seen.has(r.Document_ID)) {
+          seen.add(r.Document_ID);
+          rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Delay_of_Resubmission: del });
+        }
+      });
+      rows.sort((a,b) => b.Delay_of_Resubmission - a.Delay_of_Resubmission);
+      renderDetailTable('⏳ Delay >30 Days', ['Document_ID','Department','Submitted_By','Discipline','Delay_of_Resubmission'], rows);
     }
 
     // ─── KPI CARD CLICK HANDLERS ────────────────────────────────────────────
@@ -582,16 +649,10 @@
       card.addEventListener('click', () => {
         const d = filteredData.length > 0 ? filteredData : allData;
         if (!d.length) return;
-        const actions = [showDetailAllDocs, showDetailOpen, showDetailOverdue, showDetailApproval];
+        const actions = [showDetailAllDocs, showDetailOpen, showDetailOverdue, showDetailApproval, showDetailAwaiting, showDetailLongReview, showDetailDelay];
         if (actions[i]) actions[i](d);
       });
     });
-
-    function calcDaysOverdue(planDate) {
-      if (!planDate) return 0;
-      const d = new Date(planDate); if (isNaN(d)) return 0;
-      return Math.max(1, Math.floor((Date.now() - d) / 86400000));
-    }
 
     // ─── STATUS BAR ──────────────────────────────────────────────────────────
     function updateStatus(type, msg) {
@@ -604,6 +665,7 @@
 
     // ─── INIT ────────────────────────────────────────────────────────────────
     (async function init() {
+      await loadDocIdRules();
       if (document.getElementById('autoRefresh')?.checked !== false) {
         await loadFromPipeline();
       }
