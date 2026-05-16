@@ -87,7 +87,7 @@
     },
     "submittal_trend_chart": {
       "intro": "The Approval Rate Trend chart tracks approval percentage over time.",
-      "details": "For each month, the approval rate is calculated as the number of approved rows divided by total rows with an approval code. The trend line uses the success (green) color. Values range from 0% to 100%."
+      "details": "For each month, the approval rate is calculated as approved unique documents divided by total unique documents per month. Each document is counted once per month regardless of submission count. The trend line uses the success (green) color. Values range from 0% to 100%."
     },
     "submittal_filters": {
       "intro": "Six filter dropdowns in the left sidebar narrow the visible data set. Filtering is applied immediately and updates all charts, KPIs, and the overdue table.",
@@ -101,8 +101,8 @@
       ]
     },
     "submittal_overdue_table": {
-      "intro": "The Overdue Resubmissions table lists all rows where <code>Resubmission_Overdue_Status</code> equals <strong>Overdue</strong>.",
-      "details": "Rows are sorted by days overdue (highest first). Each row shows the <code>Document_ID</code>, <code>Discipline</code>, <code>Resubmission_Plan_Date</code>, and computed days overdue. Click column headers to toggle sort order (placeholder — reload re-sorts). An empty state message is shown when no overdue items exist."
+      "intro": "The Overdue Resubmissions table lists unique documents with <code>Resubmission_Overdue_Status</code> equal to <strong>Overdue</strong>, deduplicated by <code>Document_ID</code>.",
+      "details": "When multiple rows exist for the same document, the row with the oldest <code>Resubmission_Plan_Date</code> is kept (most overdue first). The table is sorted by <code>Resubmission_Plan_Date</code> ascending. Columns shown: <code>Document_ID</code>, <code>Department</code>, <code>Submitted_By</code>, <code>Discipline</code>, <code>Resubmission_Plan_Date</code>, <code>Resubmission_Overdue_Status</code>. Click column headers to toggle sort order. An empty state message is shown when no overdue items exist."
     },
     "submittal_settings": {
       "intro": "The Settings panel provides configuration options and version information.",

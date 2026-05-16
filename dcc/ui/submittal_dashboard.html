@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="dcc-design-system.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     .content-scroll { flex: 1; overflow-y: auto; padding: 16px; }
     .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
@@ -27,6 +28,7 @@
     .dt-container tr:hover { background: var(--surface2); }
     .kpi-card { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
     .kpi-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .download-opt:hover { background: var(--surface2); }
   </style>
 </head>
 <body>
@@ -135,10 +137,17 @@
           <div class="chart-container"><div class="chart-title">📈 Approval Rate Trend <span style="font-weight:400;color:var(--text3);">(per unique document, by month)</span></div><canvas id="trendChart"></canvas></div>
         </div>
 
-        <div style="margin-bottom:20px;">
+          <div style="margin-bottom:20px;">
           <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
             <span id="detailTableTitle">⚠️ Overdue Resubmissions</span>
             <span id="detailTableCount" style="font-weight:400;color:var(--text2);font-size:10px;"></span>
+            <div style="margin-left:auto;position:relative;">
+              <button class="btn btn-xs btn-secondary" id="downloadBtn" style="font-size:10px;padding:2px 8px;">⬇ Download</button>
+              <div id="downloadMenu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:4px;z-index:20;min-width:90px;overflow:hidden;">
+                <div class="download-opt" data-format="csv" style="padding:4px 10px;font-size:11px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);">📄 CSV</div>
+                <div class="download-opt" data-format="excel" style="padding:4px 10px;font-size:11px;cursor:pointer;color:var(--text);">📊 Excel</div>
+              </div>
+            </div>
           </div>
           <div class="dt-container" id="detailTableContainer"><div style="color:var(--text3);padding:8px;font-size:11px;">Click a KPI card above to view details. <strong>All Documents</strong> shown by default.</div></div>
         </div>
@@ -809,6 +818,61 @@
         if (handler) handler(d);
       });
     });
+
+    // ─── DOWNLOAD TABLE ──────────────────────────────────────────────────────
+    document.getElementById('downloadBtn').addEventListener('click', e => {
+      e.stopPropagation();
+      const menu = document.getElementById('downloadMenu');
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    });
+    document.addEventListener('click', () => { document.getElementById('downloadMenu').style.display = 'none'; });
+    document.getElementById('downloadMenu').addEventListener('click', e => e.stopPropagation());
+    document.querySelectorAll('.download-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        downloadTable(opt.dataset.format);
+        document.getElementById('downloadMenu').style.display = 'none';
+      });
+    });
+
+    function downloadTable(format) {
+      const { columns, rows } = dtState;
+      if (!rows || rows.length === 0) return;
+      let data = rows;
+      if (dtState.search) {
+        const q = dtState.search.toLowerCase();
+        data = rows.filter(r => columns.some(c => String(r[c] != null ? r[c] : '').toLowerCase().includes(q)));
+      }
+      if (dtState.sortCol !== null) {
+        const col = columns[dtState.sortCol];
+        data = [...data].sort((a, b) => {
+          const va = a[col], vb = b[col];
+          const na = parseFloat(va), nb = parseFloat(vb);
+          if (!isNaN(na) && !isNaN(nb)) return dtState.sortAsc ? na - nb : nb - na;
+          return dtState.sortAsc ? String(va||'').localeCompare(String(vb||'')) : String(vb||'').localeCompare(String(va||''));
+        });
+      }
+      const exportData = data.map(r => {
+        const obj = {};
+        columns.forEach(c => { obj[c] = r[c] != null ? r[c] : ''; });
+        return obj;
+      });
+      if (format === 'csv') {
+        const csv = Papa.unparse(exportData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'submittal_table.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
+      } else if (format === 'excel') {
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const colWidths = columns.map(c => ({ wch: Math.max(c.length, 10) }));
+        ws['!cols'] = colWidths;
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Submittal');
+        XLSX.writeFile(wb, 'submittal_table.xlsx');
+      }
+    }
 
     // ─── STATUS BAR ──────────────────────────────────────────────────────────
     function updateStatus(type, msg) {
