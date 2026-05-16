@@ -5,7 +5,7 @@
 | **Workplan ID** | WP-DCC-EH-DATA-001 |
 | **Version** | 2.0 |
 | **Date** | 2026-04-24 |
-| **Status** | ✅ COMPLETE (Phases 1-4) |
+| **Status** | ⏳ IN PROGRESS (Phase 5) |
 | **Scope** | **DATA ERRORS ONLY** - Logic errors, validation errors, calculation errors in processed data |
 | **System Errors** | See [system error handling workplan](../system_error_handling/system_error_handling_workplan.md) for environment/pipeline failures |
 | **Issue Ref** | #62 (Error Code Standardization) |
@@ -77,6 +77,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 
 | Version | Date | Author | Changes | Status |
 |---------|------|--------|---------|--------|
+| 2.1 | 2026-05-16 | System | Added Phase 5 to address data column logic gaps and schema mismatch | ⏳ In Progress |
 | 2.0 | 2026-04-24 | System | Major update to standardized LL-M-F-XXXX format, added Phase 1-3 completion status, migration table | ✅ Complete |
 | 1.2 | 2026-04-09 | System | Added implementation guide and integration specs | ✅ Complete |
 | 1.1 | 2026-04-09 | System | Added V5xx (Validation) and C6xx (Calculation) error codes | ✅ Complete |
@@ -184,6 +185,36 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | EC4.2 | Create master README.md | ✅ |
 | EC4.3 | Archive obsolete phase files | ✅ |
 
+### Phase 5: Data Column Logic Gap Remediation (PENDING)
+**Objective:** Address discrepancies in data column ingestion, schema mappings, and validation alignment discovered during data output evaluation.
+
+#### Timeline, Milestones, and Deliverables
+- **Timeline:** May 16, 2026 – TBD
+- **Milestone:** All identified data columns correctly ingested and mapped, and error code taxonomy fully aligned.
+
+#### What will be updated/created
+- `workflow/processor_engine/utils/dataio.py`: Broaden `usecols` to `A:AP` to include the first 15 columns.
+- `config/schemas/dcc_register_config.json`: Update aliases for `Document_Title` and `Submission_Reference_1`.
+- Downstream processing/export modules: Ensure the successfully mapped `Reviewer` column is not dropped.
+- `workflow/processor_engine/calculations/validation.py`: Update to `V5-I-V-05xx` standardized error codes.
+- `workplan/error_handling/error_handling_taxonomy.md`: Add undocumented `L3-L-V-0308` and `0309` codes.
+
+#### Risks and Mitigation
+- **Risk:** Broadening the `usecols` range might introduce unexpected or duplicate columns causing pandas errors.
+- **Mitigation:** Ensure duplicate column handling and `drop_unmapped` logic in `column_mapper.py` are robust.
+
+#### Success Criteria
+- The output `processed_dcc_universal.xlsx` correctly includes `Document_Title`, `Submission_Reference_1`, and `Reviewer`.
+- `validation.py` uses the standard V5 taxonomy and missing L3 logic errors are documented.
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| EC5.1 | Update `dataio.py` to ingest columns A:AP | ⏳ Pending |
+| EC5.2 | Update `dcc_register_config.json` schema aliases | ⏳ Pending |
+| EC5.3 | Fix `Reviewer` (Responder) mapping drop issue | ⏳ Pending |
+| EC5.4 | Standardize codes in `validation.py` to `V5-I-V-` format | ⏳ Pending |
+| EC5.5 | Document missing `L3` codes in taxonomy | ⏳ Pending |
+
 ---
 
 ## 8. Timeline, Milestones, and Deliverables
@@ -196,6 +227,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | Phase 2 | Apr 22 | Apr 23 | 2 days | ✅ Complete |
 | Phase 3 | Apr 23 | Apr 24 | 1 day | ✅ Complete |
 | Phase 4 | Apr 24 | Apr 25 | 1 day | ✅ Complete |
+| Phase 5 | May 16 | TBD | TBD | ⏳ Pending |
 
 ### Key Milestones
 
@@ -205,6 +237,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | M2 | Apr 23 | 5 codes migrated, messages updated |
 | M3 | Apr 24 | 28 tests passing (100%) |
 | M4 | Apr 25 | Documentation consolidated |
+| M5 | TBD | Phase 5 logic gaps remediated |
 
 ### Deliverables
 
@@ -784,6 +817,6 @@ def test_F4_C_F_0401_jump_limit():
 
 ---
 
-**Status:** ✅ **UP TO DATE** - All standardized error codes implemented (Issue #62)  
+**Status:** ⏳ **IN PROGRESS** - Executing Phase 5 for data logic and taxonomy alignment.
 **Last Updated:** 2026-04-25 per agent_rule.md workplan requirements  
 **File:** `data_error_handling_workplan.md` (renamed from `data_error_handling.md`)
