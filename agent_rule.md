@@ -156,5 +156,7 @@
 8. showing function user interface and interaction
 
 # Section 11. UI web design
-
 1. refer to file dcc/workplan/ui_design/html_design_rule.md.
+
+# Section 12. Data health, score, and errors
+1. each business logic must have independent error code defined to trace related error.

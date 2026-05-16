@@ -19,6 +19,7 @@
 | 3.2 | 2026-05-15 | System | Phase 7 revision implemented: full VS Code layout, CSV loader (fetch+FileReader), 4 KPI tiles, 4 data-driven charts, overdue sortable table, dynamic filters, status bar, right sidebar help panel, layout toggle, resizable panels, icon bar wired. |
 | 3.3 | 2026-05-15 | System | Phase 7 v2.1: Added 5th KPI card "Awaiting Response". Replaced complex client-side validation with schema-driven approach using `Validation_Errors` column + `data_error_config.json`. Pre-filter invalid Document_IDs at load time. |
 | 3.4 | 2026-05-15 | System | Phase 7 v2.1 follow-up: KPI logic fixes (Open Submissions, Approval Rate, Awaiting Response). Added Review >30 Days and Delay >30 Days KPIs. Detail table columns aligned to CSV headers. Status bar shows unique doc counts. JS syntax bug fix. |
+| 3.5 | 2026-05-16 | System | Phase 7 v2.2 proposed: 8 issues identified via code review — overdue table dedup+sort, delay table max aggregation, awaiting table latest-row resolution, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables missing plan date and delay columns, fragile positional KPI click handler. Workplan updated for approval. |
 
 ---
 
@@ -38,7 +39,7 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
 | 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down | Diagnostics | ✅ Completed |
 | 5 | Schema Manager — browse, inspect, edit schema files | Management | ✅ Completed |
 | 6 | Log Explorer Pro — multi-format log browser with search | Logging | ✅ Completed |
-| 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation | Analytics | ✅ Completed (v2.1) |
+| 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation | Analytics | 🟠 v2.2 Pending Approval |
 | 8 | Common JSON Tools — tree viewer, formatter, JSONPath, validation | Utilities | ✅ Completed |
 | 9 | Excel → Schema Generator — auto-generate schema from Excel headers | Generation | ✅ Completed |
 
@@ -455,7 +456,7 @@ v2.1 revision of the data-driven dashboard. Replaces complex client-side Documen
 | 8.1–8.5 | Icon standards | ❌ Partial | Help ❓ present. **Missing settings ⚙️, file load 📂.** |
 | 9.1 | Help text in ui_help.json | ❌ Fail | **No help panel, no ui_help.json content loaded.** |
 
-**Compliance Summary:** 21 PASS, 0 PARTIAL, 0 FAIL, 1 N/A — dashboard is fully compliant with html_design_rule.md after v2.0 revision.
+**Compliance Summary (pre-v2.0):** 3 PASS, 1 PARTIAL, 15 FAIL, 1 N/A — audit above reflects state before v2.0 revision. After v2.0 all layout compliance items were resolved (right sidebar, status bar, resizable panels, icon bar handlers, drag-and-drop file loading).
 
 #### v2.1 Revision Scope
 
@@ -517,6 +518,70 @@ v2.1 revision of the data-driven dashboard. Replaces complex client-side Documen
 - [x] Robust fallback: rules built in temp object, defaults preserved on failure
 - [x] JS syntax validated (balanced braces)
 - [x] Workplan, issue log, and update log updated
+
+---
+
+#### v2.2 Revision Scope
+
+**Status:** 🟠 PENDING APPROVAL  
+**Data Sources:** `../output/processed_dcc_universal.csv`, `../config/schemas/data_error_config.json`, `../config/schemas/approval_code_schema.json`
+
+##### Issues Identified
+
+| ID | Issue | Root Cause | Impact |
+| :--- | :--- | :--- | :--- |
+| A | Overdue detail table: string sort on date + no dedup per doc | `.localeCompare()` on date strings; no `Document_ID` dedup | Wrong sort order; duplicate rows for multi-row docs |
+| B | Delay detail table: first-seen row, not max delay per doc | `seen.has()` stops at first row encountered | Understates delay for multi-submission documents |
+| C | Awaiting detail table: uses first row, not latest submission row | `seen.has()` stops at first row; may not be latest | Wrong `Latest_Approval_Code` for multi-submission docs |
+| D | Hardcoded approval code arrays in `computeKPIs` and detail tables | `['PEN','PENDING']`, `['APP','AWC','INF','VOID',...]` literals in JS | Breaks silently if pipeline schema codes change |
+| E | Approval rate trend chart is row-level; KPI tile is doc-level | Trend counts rows per month; KPI counts unique docs | Inconsistent percentages between chart and KPI |
+| F | Overdue detail table shows all matching rows, not one per doc | No dedup in `showDetailOverdue` | Multi-row docs appear multiple times |
+| G | Open/awaiting detail tables missing `Resubmission_Plan_Date` and `Delay_of_Resubmission` | Columns not included in table definition | Missing actionable context for follow-up prioritisation |
+| H | KPI card click handler uses positional array index | `actions[i]` maps by DOM order | Silently breaks if cards are reordered or added |
+
+##### v2.2 Sub-Tasks
+
+| ID | Task | Detail | Priority |
+| :--- | :--- | :--- | :--- |
+| 7.25 | **Fix overdue table — date sort + dedup** | Deduplicate `showDetailOverdue` by `Document_ID` (keep row with oldest `Resubmission_Plan_Date`). Sort ascending by `Resubmission_Plan_Date` using `new Date()` comparison — oldest plan date first = most overdue first. | High |
+| 7.26 | **Fix delay table — max delay per doc** | Rewrite `showDetailDelay` to aggregate all rows per `Document_ID` and show the maximum `Delay_of_Resubmission` value. Sort descending by max delay. | High |
+| 7.27 | **Fix awaiting table — use latest submission row** | Rewrite `showDetailAwaiting` to resolve the latest submission row per doc (where `Submission_Date == Latest_Submission_Date`) before reading `Latest_Approval_Code`. Ensures current approval state is shown, not an arbitrary earlier row. | High |
+| 7.28 | **Load approval codes from `approval_code_schema.json`** | Add `loadApprovalCodes()` on init alongside `loadDocIdRules()`. Derive `terminalCodes` (Approved/Void/For Information), `pendingCodes` (PEN), and `approvedCodes` (APP/AWC/INF/VOID) dynamically from schema. Replace all hardcoded code arrays in `computeKPIs`, `showDetailAwaiting`, and the trend chart. Fallback to current hardcoded arrays if fetch fails. | Medium |
+| 7.29 | **Fix approval rate trend chart — doc-level** | Change trend chart to count unique approved docs per month vs total unique docs per month, consistent with the KPI tile. Update chart subtitle to `(per unique document, by month)`. | Medium |
+| 7.30 | **Add plan date and delay to open/awaiting tables** | Add `Resubmission_Plan_Date` and `Delay_of_Resubmission` columns to `showDetailOpen` and `showDetailAwaiting`. Resolve values from the latest submission row per doc (`Submission_Date == Latest_Submission_Date`). Sort awaiting table by `Delay_of_Resubmission` descending. | Medium |
+| 7.31 | **Replace positional KPI click handler with `data-kpi` attributes** | Add `data-kpi="allDocs|open|overdue|approval|awaiting|longReview|delay"` attribute to each KPI card `div` in HTML. Rewrite click handler to look up handler by attribute value, not array index. | Low |
+
+##### Features (v2.2 additions)
+- **Overdue table:** One row per unique document, sorted oldest plan date first (most overdue first), using proper date comparison
+- **Delay table:** Maximum `Delay_of_Resubmission` per document, not first-seen row
+- **Awaiting table:** Resolved from latest submission row per document; includes `Resubmission_Plan_Date` and `Delay_of_Resubmission` columns sorted by delay descending
+- **Open table:** Includes `Resubmission_Plan_Date` and `Delay_of_Resubmission` from latest submission row
+- **Schema-driven approval codes:** `approval_code_schema.json` loaded on init; all KPI and detail table logic uses dynamic code lists
+- **Trend chart:** Doc-level approval rate per month, consistent with KPI tile
+- **Robust KPI click wiring:** `data-kpi` attribute-based dispatch, not positional index
+
+##### Risks & Mitigation (v2.2)
+
+| Risk | Likelihood | Impact | Mitigation |
+| :--- | :--- | :--- | :--- |
+| `approval_code_schema.json` fetch fails on `file://` protocol | Medium | Low | Fallback to current hardcoded arrays; behaviour unchanged from v2.1 |
+| `Latest_Submission_Date` column absent from CSV | Low | Medium | Fall back to computing `max(Submission_Date)` per `Document_ID` client-side |
+| Date parsing fails for non-ISO date strings in `Resubmission_Plan_Date` | Low | Low | Wrap in `new Date()` with `isNaN` guard; treat invalid dates as oldest (sort to end) |
+| Schema approval code structure changes between pipeline versions | Low | Medium | Validate required fields on load; fallback to hardcoded arrays |
+
+##### Success Criteria (v2.2)
+- [ ] `approval_code_schema.json` loaded on init; `terminalCodes`, `pendingCodes`, `approvedCodes` derived dynamically
+- [ ] `showDetailOverdue` deduplicates by `Document_ID`; sorted oldest `Resubmission_Plan_Date` first using `Date` comparison
+- [ ] `showDetailDelay` shows maximum `Delay_of_Resubmission` per doc; sorted descending
+- [ ] `showDetailAwaiting` resolves `Latest_Approval_Code` from latest submission row per doc
+- [ ] `showDetailOpen` and `showDetailAwaiting` include `Resubmission_Plan_Date` and `Delay_of_Resubmission` columns
+- [ ] Approval rate trend chart uses unique doc counts per month, not row counts
+- [ ] KPI card click handlers use `data-kpi` attribute dispatch, not positional index
+- [ ] All fallbacks verified: missing schema files, missing CSV columns, invalid date strings
+- [ ] No regressions in existing v2.1 features (schema-driven validation, 7 KPIs, 4 charts, filters, status bar)
+- [ ] JS syntax validated (balanced braces)
+- [ ] Workplan, issue log, and update log updated on completion
+
 
 ---
 
@@ -612,6 +677,7 @@ Upload an Excel file and auto-generate a schema JSON skeleton from its headers.
 - [x] Excel Explorer Pro handles `Validation_Errors` and `Data_Health_Score` columns
 - [x] Phase 7 v2.0 revision: CSV data loading, dynamic KPIs, data-driven charts, dynamic filters, overdue table
 - [x] Phase 7 v2.1 revision: 5th KPI (Awaiting Response), schema-driven validation via Validation_Errors column + data_error_config.json, pre-filter at load time
+- [ ] Phase 7 v2.2 revision: overdue/delay/awaiting table fixes, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay — **PENDING APPROVAL**
 - [x] All other 8 phases complete and functional
 - [x] Comprehensive documentation provided (implementation plan, user guide, completion report)
 - [x] Cross-browser compatibility verified (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
@@ -650,6 +716,22 @@ Upload an Excel file and auto-generate a schema JSON skeleton from its headers.
 6. Implement data caching strategies
 7. Add advanced analytics features
 8. Create API documentation
+
+### Phase 7 — Addressed in v2.2 (pending approval)
+- Overdue table dedup + date sort fix (Issue A/F)
+- Delay table max aggregation (Issue B)
+- Awaiting table latest-row resolution (Issue C)
+- Schema-driven approval codes from `approval_code_schema.json` (Issue D)
+- Trend chart doc-level consistency (Issue E)
+- Open/awaiting tables enriched with plan date and delay (Issue G)
+- KPI click handler `data-kpi` attribute dispatch (Issue H)
+
+### Phase 7 — Remaining future items
+- Add date range filter (start/end date pickers)
+- Add export filtered data to CSV
+- Add drill-down from chart segments to detail table
+- Add per-project and per-facility sub-pages
+- Real-time updates via WebSocket for live pipeline runs
 
 ---
 

@@ -3,6 +3,7 @@
 ## dependencies
 1. always consider interactive standalone webpage design.
 2. maintain and seperate an independent css file.
+3. schema driven
 
 
 ## overall layout and theme design
