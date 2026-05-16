@@ -140,7 +140,7 @@
             <span id="detailTableTitle">⚠️ Overdue Resubmissions</span>
             <span id="detailTableCount" style="font-weight:400;color:var(--text2);font-size:10px;"></span>
           </div>
-          <div class="dt-container" id="detailTableContainer"><div style="color:var(--text3);padding:8px;font-size:11px;">Click a KPI card above to view details. <strong>Overdue</strong> shown by default when data loads.</div></div>
+          <div class="dt-container" id="detailTableContainer"><div style="color:var(--text3);padding:8px;font-size:11px;">Click a KPI card above to view details. <strong>All Documents</strong> shown by default.</div></div>
         </div>
       </div>
     </div>
@@ -293,7 +293,7 @@
         <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="autoRefresh" checked> Auto-refresh on load</label></div></div></div></div>
         <div class="sb-section"><div class="sb-section-header"><span>ℹ️ About</span><span class="sb-section-arrow">▼</span></div>
         <div class="sb-section-body" style="font-size:11px;color:var(--text3);line-height:1.6;">
-        <div>DCC Submittal Tracker</div><div>v3.0.0</div><div style="margin-top:4px;">Analytics from pipeline CSV output.</div></div></div>`;
+        <div>DCC Submittal Tracker Dashboard</div><div>v3.0.0</div></div></div>`;
     }
 
     function buildSubmittalHelp() {
@@ -309,7 +309,7 @@
         ['Review >30 Days','Unique documents where <code>Duration_of_Review</code> exceeds 30 days. <strong>Click</strong> to view documents sorted by duration descending.'],
         ['Delay >30 Days','Unique documents where <code>Delay_of_Resubmission</code> exceeds 30 days. <strong>Click</strong> to view documents sorted by delay descending.']])) +
         s('📅 Timeline', 'Unique <strong>Document_ID</strong> values per month from <code>Submission_Date</code>. A document with multiple submissions in the same month is counted once. Uses current theme accent color.') +
-        s('✓ Approval Status', '<div style="margin-bottom:6px;">Per unique <strong>Document_ID</strong> using the <code>Latest_Approval_Status</code> column. Label shows count in parentheses.</div>') +
+        s('✓ Approval Status', '<div style="margin-bottom:6px;">Per unique <strong>Document_ID</strong> using the <code>Latest_Approval_Status</code> column. Label shows count in parentheses.</div><div>Click <strong>Help</strong> for full approval code legend.</div>') +
         s('📐 Discipline Chart', 'Document count per distinct <code>Discipline</code> value, sorted highest to lowest. Uses theme accent color.') +
         s('📈 Trend Chart', 'Monthly approval rate: approved rows divided by total rows with an approval code per month. Range 0\u2013100%. Uses success (green) color.') +
         s('🏢 Filters', fl([['Project','Filter by <code>Project_Code</code>, populated from distinct values.'],
@@ -318,7 +318,8 @@
         ['Department','Filter by <code>Department</code>, populated from distinct values.'],
         ['Submitted By','Filter by <code>Submitted_By</code>, populated from distinct values.'],
         ['Approval Status','Filter by <code>Latest_Approval_Status</code>, populated from distinct values.']])) +
-        s('⚠️ Overdue Table', 'Rows where <code>Resubmission_Overdue_Status</code> is <strong>Overdue</strong>, sorted by days descending. Shows Document ID, Discipline, Plan Date, Days Overdue.');
+        s('📊 Status Bar', 'Bottom bar shows overall status (Ready/Loading/Error/Warning), loaded filename, unique valid/total document counts, and version number.') +
+        s('📋 Detail Table', 'Click any KPI card to show a detail table with row-level data for that metric. Includes a search box and clickable column headers for sorting. Default shows <strong>All Documents</strong> on load.');
     }
 
     async function showHelp() {
@@ -331,14 +332,17 @@
         try {
           const r = await fetch('ui_help.json'); const h = await r.json();
           const sec = (title, content) => `<div class="sb-section"><div class="sb-section-header"><span>${title}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${content}</div></div>`;
-          if (h.help?.submittal_data_source) body += sec('📂 Data Source', (h.help.submittal_data_source.fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
-          if (h.help?.submittal_analytics) body += sec('📊 Submittal Analytics', (h.help.submittal_analytics.fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
-          if (h.help?.submittal_timeline) body += sec('📅 Timeline', `<div>${h.help.submittal_timeline.intro||''}</div><div style="margin-top:6px;">${h.help.submittal_timeline.details||''}</div>`);
-          if (h.help?.submittal_status_chart) body += sec('✓ Approval Status', (h.help.submittal_status_chart.fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
-          if (h.help?.submittal_discipline_chart) body += sec('📐 Discipline Chart', `<div>${h.help.submittal_discipline_chart.intro||''}</div><div style="margin-top:6px;">${h.help.submittal_discipline_chart.details||''}</div>`);
-          if (h.help?.submittal_trend_chart) body += sec('📈 Trend Chart', `<div>${h.help.submittal_trend_chart.intro||''}</div><div style="margin-top:6px;">${h.help.submittal_trend_chart.details||''}</div>`);
-          if (h.help?.submittal_filters) body += sec('🏢 Filters', (h.help.submittal_filters.fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
-          if (h.help?.submittal_overdue_table) body += sec('⚠️ Overdue Table', `<div>${h.help.submittal_overdue_table.intro||''}</div><div style="margin-top:6px;">${h.help.submittal_overdue_table.details||''}</div>`);
+          const secFields = (title, fields) => sec(title, (fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
+          const secIntro = (title, data) => sec(title, `<div>${data.intro||''}</div>${data.details ? `<div style="margin-top:6px;">${data.details}</div>` : ''}`);
+          if (h.help?.submittal_data_source) body += secFields('📂 Data Source', h.help.submittal_data_source.fields);
+          if (h.help?.submittal_analytics) body += secFields('📊 Submittal Analytics', h.help.submittal_analytics.fields);
+          if (h.help?.submittal_timeline) body += secIntro('📅 Timeline', h.help.submittal_timeline);
+          if (h.help?.submittal_status_chart) body += secFields('✓ Approval Status', h.help.submittal_status_chart.fields);
+          if (h.help?.submittal_discipline_chart) body += secIntro('📐 Discipline Chart', h.help.submittal_discipline_chart);
+          if (h.help?.submittal_trend_chart) body += secIntro('📈 Trend Chart', h.help.submittal_trend_chart);
+          if (h.help?.submittal_filters) body += secFields('🏢 Filters', h.help.submittal_filters.fields);
+          if (h.help?.submittal_status_bar) body += secIntro('📊 Status Bar', h.help.submittal_status_bar);
+          if (h.help?.submittal_detail_table) body += secIntro('📋 Detail Table', h.help.submittal_detail_table);
         } catch {}
         rightSidebarBody.innerHTML = body || buildSubmittalHelp();
       } else showSettingsPanel();
@@ -476,7 +480,7 @@
       document.getElementById('kpiLongReview').textContent = formatNum(kpi.longReview);
       document.getElementById('kpiDelay').textContent = formatNum(kpi.delay);
       document.getElementById('kpiApproval').textContent = kpi.rate.toFixed(1) + '%';
-      showDetailOverdue(data);
+      showDetailAllDocs(data);
       rebuildCharts();
     }
 
@@ -561,14 +565,46 @@
     }
 
     // ─── DYNAMIC DETAIL TABLE ────────────────────────────────────────────────
+    let dtState = { title: '', columns: [], rows: [], sortCol: null, sortAsc: true, search: '' };
+
     function renderDetailTable(title, columns, rows) {
+      dtState = { title, columns, rows, sortCol: null, sortAsc: true, search: '' };
+      buildDetailTable();
+    }
+
+    function buildDetailTable() {
+      const { title, columns, rows, sortCol, sortAsc, search } = dtState;
       document.getElementById('detailTableTitle').textContent = title;
-      document.getElementById('detailTableCount').textContent = rows.length + ' items';
+      let filtered = rows;
+      if (search) {
+        const q = search.toLowerCase();
+        filtered = rows.filter(r => columns.some(c => String(r[c] != null ? r[c] : '').toLowerCase().includes(q)));
+      }
+      if (sortCol !== null) {
+        const col = columns[sortCol];
+        filtered = [...filtered].sort((a, b) => {
+          const va = a[col], vb = b[col];
+          const na = parseFloat(va), nb = parseFloat(vb);
+          if (!isNaN(na) && !isNaN(nb)) return sortAsc ? na - nb : nb - na;
+          return sortAsc ? String(va||'').localeCompare(String(vb||'')) : String(vb||'').localeCompare(String(va||''));
+        });
+      }
+      document.getElementById('detailTableCount').textContent = filtered.length + ' / ' + rows.length + ' items';
       const container = document.getElementById('detailTableContainer');
-      if (rows.length === 0) { container.innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No items to display.</div>'; return; }
-      container.innerHTML = '<table><thead><tr>' + columns.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' +
-        rows.map(r => '<tr>' + columns.map(c => '<td>' + esc(r[c] != null ? r[c] : '') + '</td>').join('') + '</tr>').join('') +
+      if (filtered.length === 0) { container.innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No matching items.</div>'; return; }
+      const arrow = (i) => sortCol === i ? (sortAsc ? ' ▲' : ' ▼') : '';
+      container.innerHTML =
+        '<div style="margin-bottom:6px;"><input id="dtSearch" type="text" placeholder="Filter table..." style="width:100%;padding:4px 8px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);box-sizing:border-box;" value="' + esc(search) + '"></div>' +
+        '<table><thead><tr>' + columns.map((c, i) => '<th data-col="' + i + '" style="cursor:pointer;user-select:none;">' + esc(c) + arrow(i) + '</th>').join('') + '</tr></thead><tbody>' +
+        filtered.map(r => '<tr>' + columns.map(c => '<td>' + esc(r[c] != null ? r[c] : '') + '</td>').join('') + '</tr>').join('') +
         '</tbody></table>';
+      document.getElementById('dtSearch')?.addEventListener('input', function() { dtState.search = this.value; buildDetailTable(); });
+      container.querySelectorAll('th[data-col]').forEach(th => th.addEventListener('click', function() {
+        const i = parseInt(this.dataset.col);
+        if (dtState.sortCol === i) dtState.sortAsc = !dtState.sortAsc;
+        else { dtState.sortCol = i; dtState.sortAsc = true; }
+        buildDetailTable();
+      }));
     }
 
     function showDetailOverdue(data) {

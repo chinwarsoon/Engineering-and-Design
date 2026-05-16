@@ -157,4 +157,4 @@
 
 # Section 11. UI web design
 
-1. refer to file dcc/workplan/ui_design/web_interface/html_design_rule.md.
+1. refer to file dcc/workplan/ui_design/html_design_rule.md.

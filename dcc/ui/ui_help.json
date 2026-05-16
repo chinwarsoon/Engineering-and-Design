@@ -54,12 +54,15 @@
       ]
     },
     "submittal_analytics": {
-      "intro": "Four KPI tiles summarize the loaded submission data at a glance. All values are computed per <strong>unique Document_ID</strong> from the active (filtered) data set. <strong>Click any KPI card</strong> to view its detail table below the charts.",
+      "intro": "Seven KPI tiles summarize the loaded submission data at a glance. All values are computed per <strong>unique Document_ID</strong> from the active (filtered) data set. <strong>Click any KPI card</strong> to view its detail table below the charts.",
       "fields": [
         { "label": "Total Documents", "text": "distinct count of <code>Document_ID</code> values. Not affected by duplicate submission rows. Click to view document list." },
         { "label": "Open Submissions", "text": "unique documents where <code>Submission_Closed</code> is not <strong>YES</strong> — submissions still awaiting final closure. A doc is considered closed if any of its rows has <code>Submission_Closed=YES</code>. Click to view open documents." },
         { "label": "Overdue", "text": "unique documents that have at least one row where <code>Resubmission_Overdue_Status</code> equals <strong>Overdue</strong> — resubmissions past their planned return date. Click to view overdue details." },
-        { "label": "Approval Rate", "text": "percentage of unique documents with a terminal approval code (<strong>APP</strong>, <strong>A</strong>, <strong>APR</strong>, <strong>APPROVED</strong>) among all documents that have an approval code on record. Click to view approval breakdown." }
+        { "label": "Approval Rate", "text": "percentage of unique documents with a terminal/resolution code (<strong>APP</strong>, <strong>AWC</strong>, <strong>INFO</strong>, <strong>VOID</strong>) among all unique valid Document_IDs. Click to view approval breakdown." },
+        { "label": "Awaiting Response", "text": "unique documents with no terminal approval code — <code>Latest_Approval_Code</code> is empty, <strong>PEN</strong>, or <strong>PENDING</strong>. These documents are still under review and awaiting a decision. Click to view pending documents." },
+        { "label": "Review >30 Days", "text": "unique documents where <code>Duration_of_Review</code> exceeds 30 days. Click to view documents sorted by duration descending." },
+        { "label": "Delay >30 Days", "text": "unique documents where <code>Delay_of_Resubmission</code> exceeds 30 days. Click to view documents sorted by delay descending." }
       ]
     },
     "submittal_timeline": {
@@ -94,12 +97,27 @@
         { "label": "Discipline", "text": "filter by <code>Discipline</code>. Populated from distinct values in the loaded data." },
         { "label": "Department", "text": "filter by <code>Department</code>. Populated from distinct values in the loaded data." },
         { "label": "Submitted By", "text": "filter by <code>Submitted_By</code>. Populated from distinct values in the loaded data." },
-        { "label": "Review Status", "text": "filter by <code>Review_Status</code>. Populated from distinct values in the loaded data." }
+        { "label": "Approval Status", "text": "filter by <code>Latest_Approval_Status</code>. Populated from distinct values in the loaded data." }
       ]
     },
     "submittal_overdue_table": {
       "intro": "The Overdue Resubmissions table lists all rows where <code>Resubmission_Overdue_Status</code> equals <strong>Overdue</strong>.",
       "details": "Rows are sorted by days overdue (highest first). Each row shows the <code>Document_ID</code>, <code>Discipline</code>, <code>Resubmission_Plan_Date</code>, and computed days overdue. Click column headers to toggle sort order (placeholder — reload re-sorts). An empty state message is shown when no overdue items exist."
+    },
+    "submittal_settings": {
+      "intro": "The Settings panel provides configuration options and version information.",
+      "fields": [
+        { "label": "Options", "text": "the <strong>Auto-refresh on load</strong> checkbox controls whether the dashboard automatically fetches pipeline data from <code>../output/processed_dcc_universal.csv</code> on page load. Uncheck this to start with an empty state and load a local file manually." },
+        { "label": "About", "text": "shows the dashboard name, version number (<strong>v3.0.0</strong>), and a brief description. The Submittal Tracker Dashboard is Phase 7 of the DCC UI Toolkit, consuming processed pipeline CSV output for analytics and monitoring." }
+      ]
+    },
+    "submittal_status_bar": {
+      "intro": "The status bar at the bottom of the dashboard provides real-time feedback about the current application state.",
+      "details": "Left section shows overall status (<strong>Ready</strong>, <strong>Loading</strong>, <strong>Error</strong>, <strong>Warning</strong>) with color coding. Middle section shows the currently loaded filename. Right section shows unique valid/total document counts. Far right shows the version number."
+    },
+    "submittal_detail_table": {
+      "intro": "The detail table below the charts displays row-level data based on which KPI card is clicked.",
+      "details": "Clicking any KPI card updates the table title, column headers, and data rows to reflect the selected metric. The table supports horizontal scrolling for wide datasets and sticky headers. Includes a search box to filter rows and clickable column headers to sort ascending or descending. By default, <strong>All Documents</strong> is shown on load."
     }
   },
   "default_sidebar": {
@@ -108,9 +126,9 @@
       "show_timestamps": "Show timestamps"
     },
     "about": {
-      "title": "DCC Pipeline Dashboard",
+      "title": "DCC Submittal Tracker Dashboard",
       "version": "3.0.0",
-      "description": "Data loaded from pipeline output files."
+      "description": "Phase 7 of the DCC UI Toolkit. Submission analytics from pipeline CSV output."
     }
   },
   "stages": [
