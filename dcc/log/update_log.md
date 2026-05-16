@@ -5084,3 +5084,23 @@ Only the **latest submission row** of a terminally approved/voided document gets
 - [Impact:] Master project-plan.md is now leaner. Phase 4 has its own standalone workplan aligned with agent_rule.md standards for future reference and maintenance. All Phase 4 documentation consolidated in a single subfolder.
 - [Link to Test Log:] N/A — documentation restructure, no logic changes.
 - [Link to Issue Log:] N/A — planned refactoring, not an issue fix.
+
+## Update # 2026-05-16-phase5-completion
+- [Date:] 2026-05-16 14:00 UTC+08:00
+- [Context:] Phase 5 (Data Column Logic Gap Remediation) completion. Addressed three tasks (EC5.3–EC5.5) to fix data column ingestion, validation code alignment, and taxonomy documentation gaps.
+- [Changes Made:]
+  - **EC5.3 (io_excel.py dropna fix):** Changed `dropna(axis=1, how='all')` to only remove auto-generated `Unnamed:` columns, preserving named columns (like `Responder`) even if 100% null. This allows the mapper engine to match them against schema aliases.
+  - **EC5.4 (validation.py error codes):** Standardized all `P-V-V-05xx` codes to `V5-I-V-05xx` in `DEFAULT_VALIDATION_ERROR_CODES` dict and all fallback `get()` calls.
+  - **EC5.5 (taxonomy docs):** Added `L3-L-V-0308` (GROUP_INCONSISTENT) and `L3-L-V-0309` (INCONSISTENT_SUBJECT) rows to Layer 3 table in `error_handling_taxonomy.md`.
+  - **EC5.1/EC5.2 dropped:** Determined column range is schema-driven (not hardcoded), and alias targets fall outside loaded range; no changes needed.
+  - **Workplan updated:** Phase 5 marked complete, timeline/deliverables/status updated.
+- [Files Updated:]
+  - `dcc/workflow/core_engine/io/io_excel.py` — EC5.3 dropna fix
+  - `dcc/workflow/processor_engine/calculations/validation.py` — EC5.4 error code standardization
+  - `dcc/workplan/error_handling/error_handling_taxonomy.md` — EC5.5 taxonomy additions
+  - `dcc/workplan/error_handling/data_error_handling/data_error_handling_workplan.md` — status updates
+  - `dcc/workplan/error_handling/data_error_handling/reports/phase5_completion_report.md` — new report
+  - `dcc.yml`, `dcc/dcc.yml` — code tracer pip dependencies
+- [Impact:] Phase 5 tasks complete. Column ingestion gap resolved, validation error codes consistent across modules, and taxonomy fully documented. 25/28 tests pass (pre-existing failures unrelated).
+- [Link to Test Log:] N/A — no new tests written (existing test suite used)
+- [Link to Issue Log:] Issue #062

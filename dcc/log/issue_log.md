@@ -1058,7 +1058,22 @@
 <a id="issue-iss-015"></a>
 ## 2026-05-15
 
-### Issue ISS-015 — Submittal Dashboard Duplicated Pipeline Validation Logic Instead of Using Validation_Errors Column
+### Issue # 062 — Phase 5: Data Column Logic Gap Remediation
+- [Date:] 2026-05-16
+- [Status:] ✅ RESOLVED
+- [Context:] Three gaps discovered during Phase 5 evaluation: (1) `io_excel.py` dropna stripping 100%-null named columns before mapper sees them, (2) `calculations/validation.py` using non-standard `P-V-V-05xx` error codes, (3) missing L3 logic error codes in taxonomy document.
+- [Root Cause:]
+  - EC5.3: `df.dropna(axis=1, how='all')` at `io_excel.py:71` removed `Responder` column before mapper alias matching.
+  - EC5.4: `calculations/validation.py` was not updated during the earlier V5 standardization pass.
+  - EC5.5: `L3-L-V-0308`/`0309` added to `data_error_config.json` but taxonomy doc not updated.
+- [File Changes:]
+  - `dcc/workflow/core_engine/io/io_excel.py` — EC5.3 fix
+  - `dcc/workflow/processor_engine/calculations/validation.py` — EC5.4 fix
+  - `dcc/workplan/error_handling/error_handling_taxonomy.md` — EC5.5 fix
+- [Resolution:] All three tasks completed. See Phase 5 completion report for details.
+- [Link to Update Log:] [update-2026-05-16-phase5-completion](update_log.md#update-2026-05-16-phase5-completion)
+
+## Issue ISS-015 — Submittal Dashboard Duplicated Pipeline Validation Logic Instead of Using Validation_Errors Column
 
 - **Status:** ✅ RESOLVED
 - **Resolution Date:** 2026-05-15

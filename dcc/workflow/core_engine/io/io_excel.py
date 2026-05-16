@@ -66,9 +66,13 @@ def load_excel_data(
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df.columns]
 
-    # Cleanup
+    # Cleanup: remove duplicate columns
     df = df.loc[:, ~df.columns.duplicated()].copy()
-    df = df.dropna(axis=1, how='all')
+    # Remove only auto-generated unnamed columns (pandas creates these for columns without headers).
+    # Preserve named columns even if all-null — they may have schema aliases to map.
+    unnamed_cols = [c for c in df.columns if isinstance(c, str) and c.startswith('Unnamed:')]
+    if unnamed_cols:
+        df = df.drop(columns=unnamed_cols)
 
     if verbose:
         status_print_fn(f"   ✓ Loaded {len(df)} rows × {len(df.columns)} columns")

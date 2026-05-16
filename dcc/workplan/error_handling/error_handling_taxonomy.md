@@ -106,6 +106,8 @@
 | L3-L-V-0305 | VERSION_REGRESSION | HIGH | Document_Revision | -15 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Current revision older than previous for same Document_ID |
 | L3-L-V-0306 | REVISION_GAP | MEDIUM | Submission_Session, Document_Revision | -5 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Revision gap in Submission_Session sequence |
 | L3-L-V-0307 | CLOSED_WITH_RESUBMISSION | HIGH | Submission_Closed, Resubmission_Required | -10 | `processor_engine/validators/row_validator.py::detect_logic_errors()` | Submission_Closed=YES but Resubmission_Required=YES (should be NO) |
+| L3-L-V-0308 | GROUP_INCONSISTENT | MEDIUM | dynamic | -10 | `processor_engine/error_handling/detectors/row_validator.py:497` | Column value is inconsistent within group |
+| L3-L-V-0309 | INCONSISTENT_SUBJECT | MEDIUM | Submission_Session, Submission_Session_Subject | -5 | `processor_engine/error_handling/detectors/row_validator.py:630` | Submission_Session_Subject is inconsistent within session |
 
 ### Validation - Schema (V5-I-V-05xx)
 
