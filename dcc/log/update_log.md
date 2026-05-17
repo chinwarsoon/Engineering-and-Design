@@ -8,6 +8,46 @@
 
 # Section 2. Log entries
 
+# Section 2. Log entries
+
+<a id="update-2026-05-17-business-logic-validation-workplan"></a>
+## 2026-05-17 10:00:00
+
+### CREATED: Data Business Logic Validation Workplan — 8 Issues Identified
+**Status:** DRAFT — Pending Approval  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md)  
+**Related Issues:** [BLV-001](#issue-blv-001) through [BLV-008](#issue-blv-008)
+
+**Summary:** Executed `dcc_engine_pipeline.py` on production dataset (11,821 rows) and identified 8 contradicting business logic issues against documented specifications in `column_priority_reference.md` and `column_update_logic.md`. Created comprehensive workplan with 8 implementation phases to resolve all issues.
+
+**Issues Identified:**
+| ID | Issue | Rows Affected | Severity | Phase |
+|:---|:-------|:-------------|:---------|:------|
+| BLV-001 | Submission_Closed=YES but Resubmission_Plan_Date set | 5,678 | HIGH | Phase 1 |
+| BLV-002 | Document_ID format violations | 1,699 | HIGH | Phase 2 |
+| BLV-003 | Overdue when Resubmission_Required≠YES | 662 | MEDIUM | Phase 3 |
+| BLV-004 | Latest_Revision null | 119 | MEDIUM | Phase 4 |
+| BLV-005 | Terminal approval with Resubmission_Plan_Date | 972 | HIGH | Phase 5 |
+| BLV-006 | All_Submission_Sessions format mismatch | All | LOW | Phase 6 |
+| BLV-007 | Validation_Errors volume (32% of rows) | 3,784 | MEDIUM | Phase 7 |
+| BLV-008 | Count_of_Submissions max_value restrictive | 0 | LOW | Phase 8 |
+
+**Pipeline Execution Baseline:**
+- Input: `Submittal and RFI Tracker Lists.xlsx` (11,821 rows, 27 columns)
+- Output: `processed_dcc_universal.xlsx` (11,821 rows, 45 columns)
+- Header Match Rate: 100%
+- Validation Errors: 3,784 rows (32%)
+- AI Risk Level: HIGH
+
+**Target After All Phases:**
+- Validation error rows: <1,200 (<10%)
+- BLV-001 contradictions: 0
+- BLV-002 invalid IDs: <200 (malformed source only)
+- BLV-003 overdue mismatches: 0
+- BLV-004 Latest_Revision nulls: 0
+
+**Next Steps:** Awaiting approval to proceed with Phase 1 implementation.
+
 ## Update # 2026-05-09-phase-a-completion
 - [Date:] 2026-05-09 11:20 UTC+08:00
 - [Context:] Phase A (High-Severity Fixes) and Phase B (Medium-Severity Structural Fixes) completion. Phase A completed all 12 validation and refactoring tasks successfully. Phase B implementation started with schema-driven filename and parameter system work.

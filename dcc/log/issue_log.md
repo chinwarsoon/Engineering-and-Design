@@ -44,6 +44,94 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-blv-001"></a>
+## 2026-05-17 10:00:00
+
+### Issue BLV-001 — Submission_Closed=YES but Resubmission_Plan_Date is set (5,678 rows)
+- **Status:** IDENTIFIED — Workplan Created
+- **Context:** Pipeline execution of `dcc_engine_pipeline.py` produced 5,678 rows where `Submission_Closed=YES` but `Resubmission_Plan_Date` is not null. Per business logic (`column_update_logic.md` Step 35, 37), closed documents should not have resubmission plan dates.
+- **Root Cause:** `Resubmission_Plan_Date` calculation does not check `Submission_Closed` status as first condition. It calculates dates for all rows except the latest terminal approval row, but "superseded" rows (where `Submission_Date < Latest_Submission_Date`) also get `Submission_Closed=YES` and should not have plan dates.
+- **Impact:** Validation error `[L3-L-V-0302]` logged for 713 rows; data inconsistency in closure logic.
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 1
+- **Link to Update Log:** Pending implementation
+
+<a id="issue-blv-002"></a>
+## 2026-05-17 10:05:00
+
+### Issue BLV-002 — Document_ID format violations (1,699 rows)
+- **Status:** IDENTIFIED — Workplan Created
+- **Context:** 1,699 rows have invalid Document_ID format. Two sub-types: (1) 122 rows with malformed source data producing IDs like `#000002.0_ Reply_2023 08 31-NA-NA-NA-NA`, (2) 1,577 rows with valid base IDs but affixes/suffixes like `_PUB`, `_FSSD_BP` that fail 5-segment pattern validation.
+- **Root Cause:** Composite calculation uses raw source data with "NA" defaults for missing fields, producing invalid IDs. Validation pattern does not account for affixed ID variants.
+- **Impact:** Validation errors `[P2-I-V-0204-A]`, `[P2-I-V-0204-B]`, `[P2-I-V-0204-C]` totaling 1,667+ occurrences. `Latest_Revision` null for 119 rows linked to malformed IDs.
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 2
+- **Link to Update Log:** Pending implementation
+
+<a id="issue-blv-003"></a>
+## 2026-05-17 10:10:00
+
+### Issue BLV-003 — Resubmission_Overdue_Status="Overdue" when Resubmission_Required≠"YES" (662 rows)
+- **Status:** IDENTIFIED — Workplan Created
+- **Context:** 662 rows marked "Overdue" but `Resubmission_Required` is not "YES". Breakdown: 653 rows with `Resubmission_Required="RESUBMITTED"`, 9 rows with `Resubmission_Required="NO"`.
+- **Root Cause:** Overdue calculation checks `Resubmission_Required == "YES"` but does not account for `RESUBMITTED` status, which also indicates an active resubmission that can be overdue.
+- **Impact:** Validation error `[L3-L-V-0308]` for 259 rows; incorrect overdue status reporting.
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 3
+- **Link to Update Log:** Pending implementation
+
+<a id="issue-blv-004"></a>
+## 2026-05-17 10:15:00
+
+### Issue BLV-004 — Latest_Revision null for 119 rows (108 unique Document_IDs)
+- **Status:** IDENTIFIED — Workplan Created
+- **Context:** 119 rows have null `Latest_Revision` despite schema fallback being "NA". Mostly affects rows with malformed Document_IDs containing NA segments.
+- **Root Cause:** `latest_by_date` calculation fails when all revisions for a Document_ID are "NA" or when Document_ID itself is malformed.
+- **Impact:** Downstream calculations dependent on Latest_Revision may produce incorrect results.
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 4
+- **Link to Update Log:** Pending implementation
+
+<a id="issue-blv-005"></a>
+## 2026-05-17 10:20:00
+
+### Issue BLV-005 — Terminal approval documents with Resubmission_Plan_Date set (972 rows)
+- **Status:** IDENTIFIED — Workplan Created
+- **Context:** 972 rows with terminal approval codes (APP/VOID/INF) have `Resubmission_Plan_Date` set. Per business logic, only the latest submission row of a terminally approved document should have `NaT`; superseded rows get calculated dates.
+- **Root Cause:** Requires investigation — may be correct behavior (superseded rows) or bug in "latest" row identification.
+- **Impact:** Validation error `[L3-L-V-0304]` for 615 rows; potential logic gap in terminal approval handling.
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 5
+- **Link to Update Log:** Pending implementation
+
+<a id="issue-blv-006"></a>
+## 2026-05-17 10:25:00
+
+### Issue BLV-006 — All_Submission_Sessions format mismatch
+- **Status:** IDENTIFIED — Workplan Created
+- **Context:** Output shows JSON-like array format `["000001"]` instead of documented `&&`-separated string `000001&&000002`.
+- **Root Cause:** `concatenate_unique` method may be producing JSON array strings instead of plain concatenated strings.
+- **Impact:** Format inconsistency with documented specification; may affect downstream consumers expecting specific format.
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 6
+- **Link to Update Log:** Pending implementation
+
+<a id="issue-blv-007"></a>
+## 2026-05-17 10:30:00
+
+### Issue BLV-007 — Validation_Errors in 32% of rows (3,784 rows)
+- **Status:** IDENTIFIED — Workplan Created
+- **Context:** 3,784 rows (32%) have validation errors. Top errors: `P2-I-V-0204-C` (1,667), `L3-L-V-0302` (713), `F4-C-F-0403-C` (710).
+- **Root Cause:** Combination of issues BLV-001 through BLV-006. Phases 1-6 will resolve majority of these errors.
+- **Impact:** High error rate reduces data trustworthiness; many errors are pipeline logic issues, not source data quality.
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 7
+- **Link to Update Log:** Pending implementation
+
+<a id="issue-blv-008"></a>
+## 2026-05-17 10:35:00
+
+### Issue BLV-008 — Count_of_Submissions max_value=100 may be too restrictive
+- **Status:** IDENTIFIED — Workplan Created
+- **Context:** Schema defines `max_value: 100` for `Count_of_Submissions`. Current data within limit, but large projects may exceed 100 submissions per document.
+- **Root Cause:** Schema validation rule may not reflect realistic business constraints for large-scale projects.
+- **Impact:** Potential false-positive validation errors for legitimate high-count documents in future projects.
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 8
+- **Link to Update Log:** Pending implementation
+
 <a id="issue-iss-012"></a>
 ## 2026-05-06 04:35:00
 
