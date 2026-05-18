@@ -89,7 +89,7 @@
 
 | File | Change | Verified |
 |------|--------|----------|
-| `config/schemas/data_error_config.json` | Added `P4-I-V-0401` (REVISION_MISSING_FOR_VALID_ID, CRITICAL, health -20, MANUAL_FIX) | ✅ |
+| `config/schemas/data_error_config.json` | Added `P4-I-V-0401` (REVISION_MISSING_FOR_VALID_ID, HIGH, health -20, MANUAL_FIX) | ✅ |
 | `workflow/processor_engine/error_handling/config/messages/en.json` | Added EN message for `P4-I-V-0401` | ✅ |
 | `workflow/processor_engine/error_handling/config/messages/zh.json` | Added ZH translation for `P4-I-V-0401` | ✅ |
 | `workflow/processor_engine/calculations/aggregate.py` | Updated `apply_latest_by_date_calculation` with Document_ID format check (malformed → "NA", null revision → None) | ✅ |

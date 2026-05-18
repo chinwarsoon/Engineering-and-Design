@@ -1054,7 +1054,7 @@
       "name": "REVISION_MISSING_FOR_VALID_ID",
       "message": "Document_Revision is null or NA for valid Document_ID — manual input required",
       "message_template": "Revision number is required for valid Document_ID. Please enter a valid Document_Revision (not blank or 'NA').",
-      "severity": "CRITICAL",
+      "severity": "HIGH",
       "layer": "P4",
       "module": "I",
       "function": "V",

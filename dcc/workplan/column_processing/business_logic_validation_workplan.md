@@ -1,7 +1,7 @@
 # Data Business Logic Validation Workplan
 
 **Document ID:** WP-DCC-BLV-001  
-**Version:** 1.13.0  
+**Version:** 1.14.0  
 **Status:** ACTIVE — Phases 1–8 Complete.  
 **Created:** 2026-05-17  
 **Author:** AI Agent  
@@ -32,6 +32,7 @@
 | 1.11.0 | 2026-05-18 | Phase 8 COMPLETED: `warning_threshold` rule type implemented in `validation.py`; `submission_count_warning_threshold: 100` added to `dcc_global_parameters.json` as SSOT; `Count_of_Submissions` schema rule changed from `max_value` to `warning_threshold` with `parameter_ref`; `L3-L-W-0305` (HIGH_SUBMISSION_COUNT, WARNING, health_score_impact=0) added to error catalog and translations; all 5 tests pass. | AI Agent |
 | 1.12.0 | 2026-05-18 | Final audit: all status references updated to reflect phases 1–8 completion; §9.13 error codes all marked IMPLEMENTED; §5.5.10/§5.6.4/§6 success criteria checked; corrupted M8.6 entry fixed; final status line updated. | AI Agent |
 | 1.13.0 | 2026-05-18 | Verified all 36 implementation claims across 8 phases against actual code/config — 34 PASS, 2 workplan references corrected: `affix.py` → `affix_extractor.py`, `CLOSED_WITH_PLAN_DATE` criterion clarified to note 2 intentional legacy mappings for backward compatibility. | AI Agent |
+| 1.14.0 | 2026-05-18 | P4-I-V-0401 severity changed from CRITICAL to HIGH to suppress console output at default debug level; message is still recorded in error log with full health_score_impact. | AI Agent |
 
 ---
 
