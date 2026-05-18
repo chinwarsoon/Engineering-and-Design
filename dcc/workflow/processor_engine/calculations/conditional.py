@@ -332,6 +332,7 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
     val_on_track = allowed_values[3] if len(allowed_values) > 3 else 'ON_TRACK'
     val_no = allowed_values[4] if len(allowed_values) > 4 else 'NO'
 
+    print(f"DEBUG: apply_calculate_overdue_status called for {column_name}, preservation_mode={preservation_mode}, df shape={df.shape}")
     engine._print_processing_step("Conditional", column_name, f"Calculating 5-value overdue matrix")
 
     # Respect strategy configuration
