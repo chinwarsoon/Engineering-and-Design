@@ -1973,6 +1973,11 @@
       "is_calculated": true,
       "create_if_missing": false,
       "column_type": "status_column",
+      "strategy": {
+        "data_preservation": {
+          "mode": "overwrite_existing"
+        }
+      },
       "calculation": {
         "type": "conditional",
         "method": "calculate_overdue_status",
