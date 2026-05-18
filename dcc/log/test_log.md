@@ -7,7 +7,178 @@
 
 # Section 2. Test log entries
 
-## Test # 2026-05-09-pipeline-simplification-phase-c
+<a id="test-2026-05-18-blv-008-phase8"></a>
+## 2026-05-18
+
+### BLV-008 Phase 8 — Count_of_Submissions Warning Threshold
+**Related Update:** [update-2026-05-18-blv-008-phase8-complete](update_log.md#update-2026-05-18-blv-008-phase8-complete)  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 8  
+**Related Issue:** [BLV-008](issue_log.md#issue-blv-008)
+
+#### Test Environment
+- Python path: `/home/franklin/dsai/Engineering-and-Design/dcc/workflow`
+- Test method: Automated Python assertions against live modules and config files
+- Scope: `warning_threshold` handler in `validation.py`; config file integrity
+
+#### Test 1 — Counts within threshold: no warning emitted
+- **Input:** `Count_of_Submissions` = [5, 10, 50, 99, 100]
+- **Expected:** No `L3-L-W-0305` in `Validation_Errors`
+- **Result:** ✅ PASS
+
+#### Test 2 — Counts exceeding threshold: warning emitted
+- **Input:** `Count_of_Submissions` = [5, 101, 150, 200]
+- **Expected:** Row 0 (count=5) no warning; rows 1-3 have `L3-L-W-0305`
+- **Result:** ✅ PASS
+
+#### Test 3 — Message contains actual count and threshold
+- **Input:** `Count_of_Submissions` = 101, threshold = 100
+- **Expected message:** `[L3-L-W-0305] Count_of_Submissions has 101 submissions — unusually high revision count (threshold: 100), please review`
+- **Result:** ✅ PASS — message matches expected format
+
+#### Test 4 — Null values not flagged (allow_null=True)
+- **Input:** `Count_of_Submissions` = [None, 150, None]
+- **Expected:** Nulls not flagged; count=150 flagged
+- **Result:** ✅ PASS
+
+#### Test 5 — max_value rule on other columns unchanged
+- **Input:** `Delay_of_Resubmission` = [10, 400], `max_value: 365`
+- **Expected:** Row 1 (400) emits `V5-I-V-0501`, NOT `L3-L-W-0305`
+- **Result:** ✅ PASS — `max_value` rule unaffected
+
+#### Config Verification
+- `dcc_global_parameters.json`: `submission_count_warning_threshold = 100` ✅
+- `dcc_register_config.json`: `Count_of_Submissions.validation[1].type = warning_threshold` ✅
+- `dcc_register_config.json`: `parameter_ref = submission_count_warning_threshold` ✅
+- `dcc_register_config.json`: `max_value` rule removed ✅
+- `data_error_config.json`: `L3-L-W-0305` present, severity=WARNING, health_score_impact=0, processing_phase=P3 ✅
+- `data_error_config.json`: `layer_3_logic` count=9, end_id=L3-L-W-0305 ✅
+- `data_error_config.json`: `metadata.total_codes = 57` ✅
+- `en.json`: `L3-L-W-0305` present ✅
+- `zh.json`: `L3-L-W-0305` present ✅
+
+#### Overall Assessment
+
+| Test | Status |
+|------|--------|
+| Test 1 — No warning for counts ≤ 100 | ✅ PASS |
+| Test 2 — Warning emitted for counts > 100 | ✅ PASS |
+| Test 3 — Message contains count and threshold | ✅ PASS |
+| Test 4 — Null handling correct | ✅ PASS |
+| Test 5 — max_value rule unchanged | ✅ PASS |
+| Config integrity | ✅ PASS |
+| **OVERALL** | **✅ PHASE 8 COMPLETE** |
+
+---
+
+<a id="test-2026-05-18-blv-phases1-7-verification"></a>
+## 2026-05-18
+
+### BLV Phases 1–7 — Full Programmatic Verification
+**Related Update:** [update-2026-05-18-blv-phases1-7-verification](update_log.md#update-2026-05-18-blv-phases1-7-verification)  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md)  
+**Related Issues:** BLV-001 through BLV-007
+
+#### Test Environment
+- Python path: `/home/franklin/dsai/Engineering-and-Design/dcc/workflow`
+- Test method: Automated Python assertions against live config files and module imports
+- Scope: All 7 completed phases verified programmatically
+
+#### Phase 1 — Error Code Catalog
+- **Command:** Python assertions against `data_error_config.json`, `en.json`, `zh.json`
+- **Result:** ✅ PASS
+- **Checks:**
+  - `L3-L-V-0302` name = `LATEST_CLOSED_WITH_PLAN_DATE` ✅
+  - `L3-L-V-0302` message contains "Latest submission" ✅
+  - `L3-L-V-0307` name = `CLOSED_WITH_RESUBMISSION_REQUIRED`, severity = HIGH ✅
+  - `en.json` L3-L-V-0307 present ✅
+  - `zh.json` L3-L-V-0307 present ✅
+
+#### Phase 2 — Affix Extraction + Granular Error Codes
+- **Command:** `extract_document_id_affixes()` unit tests + config assertions
+- **Result:** ✅ PASS
+- **Checks:**
+  - `131242-WST00-DR-C-8000_ST604` → base=`131242-WST00-DR-C-8000`, affix=`_ST604` ✅
+  - `131242-WST00-DR-S-1000` (no affix) → base=`131242-WST00-DR-S-1000`, affix=`` ✅
+  - `P2-I-V-0204-D` (DOCUMENT_ID_NA_SEGMENTS) present in config ✅
+  - `P2-I-V-0204-E` (DOCUMENT_ID_REPLY_REFERENCE) present in config ✅
+  - `P2-I-V-0204-F` (DOCUMENT_ID_SPACES_IN_SEGMENTS) present in config ✅
+  - `P2-I-V-0204-G` (DOCUMENT_ID_WRONG_SEGMENT_COUNT) present in config ✅
+  - `P2-I-V-0204-H` (DOCUMENT_ID_SPECIAL_CHARACTERS) present in config ✅
+
+#### Phase 3 — 5-Value Overdue Status Matrix
+- **Command:** `apply_calculate_overdue_status()` with mock engine and test DataFrame
+- **Result:** ✅ PASS
+- **Checks:**
+  - `RESUBMITTED` + past plan date → `OVERDUE_RESUBMITTED` ✅
+  - `YES` + past plan date → `OVERDUE` ✅
+  - `NO` + Closed=YES → `NO` ✅
+  - `RESUBMITTED` + future plan date → `RESUBMITTED` ✅
+  - `YES` + future plan date → `ON_TRACK` ✅
+  - Schema `allowed_values` = `['OVERDUE_RESUBMITTED','OVERDUE','RESUBMITTED','ON_TRACK','NO']` ✅
+  - `overwrite_existing` strategy present in schema ✅
+
+#### Phase 4 — Latest_Revision Null Handling
+- **Command:** Config assertions against `dcc_register_config.json` and `data_error_config.json`
+- **Result:** ✅ PASS
+- **Checks:**
+  - `multi_level_forward_fill` absent from `Document_Revision` null_handling ✅
+  - `P4-I-V-0401` (REVISION_MISSING_FOR_VALID_ID) present in config ✅
+  - `P4-I-V-0401` present in `en.json` ✅
+  - `P4-I-V-0401` present in `zh.json` ✅
+
+#### Phase 5 — Resubmission_Plan_Date Row-Position Logic
+- **Command:** `apply_resubmission_plan_date()` with mock engine and test DataFrame (5 rows)
+- **Result:** ✅ PASS
+- **Checks:**
+  - L1: latest + `Resubmission_Required=NO` → `NaT` ✅
+  - L2: latest + `Resubmission_Required=YES` → calculated date ✅
+  - S1: superseded + `Resubmission_Required=NO` → `NaT` ✅
+  - S2: superseded + `RESUBMITTED` + terminal (`APP`) → `NaT` ✅
+  - S3: superseded + `RESUBMITTED` + non-terminal (`AWC`) → calculated date ✅
+
+#### Phase 6 — Aggregate JSON Format
+- **Command:** Config assertions against `dcc_register_config.json` for all 4 `All_*` columns
+- **Result:** ✅ PASS
+- **Checks:**
+  - `All_Submission_Sessions`: `data_type=json`, `column_type=json_column`, no `separator` field ✅
+  - `All_Submission_Dates`: `data_type=json`, `column_type=json_column`, no `separator` field ✅
+  - `All_Submission_Session_Revisions`: `data_type=json`, `column_type=json_column`, no `separator` field ✅
+  - `All_Approval_Code`: `data_type=json`, `column_type=json_column`, no `separator` field ✅
+
+#### Phase 7 — Validation Error Reduction
+- **Command:** Source code inspection + config assertions
+- **Result:** ✅ PASS
+- **Checks:**
+  - `mask_no` in `conditional.py` contains `required != 'RESUBMITTED'` exclusion ✅
+  - `Resubmission_Overdue_Status` schema has `overwrite_existing` strategy ✅
+
+#### Residual Reference Check
+- **Command:** `grep -rn "CLOSED_WITH_PLAN_DATE"` across workflow and config directories
+- **Result:** ⚠️ 3 residual references found → cleaned up
+- **Findings:**
+  - `row_validator.py` line 48: comment `# CLOSED_WITH_PLAN_DATE` → updated to `# LATEST_CLOSED_WITH_PLAN_DATE`
+  - `row_validator.py` line 379: `error_key: "CLOSED_WITH_PLAN_DATE"` → updated to `"LATEST_CLOSED_WITH_PLAN_DATE"`
+  - `risk_analyzer.py` line 30: legacy key → `LATEST_CLOSED_WITH_PLAN_DATE` entry added
+  - `evidence.py` line 30: legacy key → `LATEST_CLOSED_WITH_PLAN_DATE` entry added
+- **Post-cleanup result:** ✅ No functional references to old name remain
+
+#### Overall Assessment
+
+| Phase | Status |
+|-------|--------|
+| Phase 1 — Error Code Catalog | ✅ PASS |
+| Phase 2 — Affix Extraction | ✅ PASS |
+| Phase 3 — 5-Value Overdue Matrix | ✅ PASS |
+| Phase 4 — Latest_Revision Null Handling | ✅ PASS |
+| Phase 5 — Resubmission_Plan_Date Logic | ✅ PASS |
+| Phase 6 — Aggregate JSON Format | ✅ PASS |
+| Phase 7 — Validation Error Reduction | ✅ PASS |
+| Residual Reference Cleanup | ✅ CLEANED |
+| **OVERALL** | **✅ ALL 7 PHASES CONFIRMED** |
+
+---
+
+
 - [Date:] 2026-05-09 04:35:00 UTC+08:00
 - [Status:] ✅ PASSED
 - [Context:] Post-Phase A barrel pattern refactoring validation. Pipeline execution with 11,099 rows processed successfully.

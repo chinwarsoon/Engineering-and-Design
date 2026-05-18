@@ -27,7 +27,8 @@ _ERROR_DESCRIPTIONS = {
     "GROUP_INCONSISTENT": ("Session Group Inconsistency", "Submission_Date varies within the same session group."),
     "VERSION_REGRESSION": ("Revision Regression", "Document revision decreased for a subsequent submission."),
     "RESUBMISSION_MISMATCH": ("Resubmission Flag Mismatch", "Rejected status without required resubmission flag."),
-    "CLOSED_WITH_PLAN_DATE": ("Closed With Plan Date", "Submission closed but resubmission plan date is set."),
+    "CLOSED_WITH_PLAN_DATE": ("Closed With Plan Date", "Submission closed but resubmission plan date is set."),  # legacy key
+    "LATEST_CLOSED_WITH_PLAN_DATE": ("Latest Closed With Plan Date", "Latest submission Closed=YES but Resubmission_Plan_Date is set."),
     "INCONSISTENT_SUBJECT": ("Inconsistent Session Subject", "Session subject varies within the same session group."),
 }
 

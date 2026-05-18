@@ -1132,9 +1132,10 @@
           "description": "Total number of submissions"
         },
         {
-          "type": "max_value",
-          "max_value": 100,
-          "description": "Total number of submissions"
+          "type": "warning_threshold",
+          "warning_threshold": 100,
+          "parameter_ref": "submission_count_warning_threshold",
+          "description": "Advisory threshold — documents exceeding this count trigger WARNING (L3-L-W-0305) with no Data_Health_Score penalty. Threshold value is defined in dcc_global_parameters.json#/dcc_parameters/submission_count_warning_threshold."
         }
       ],
       "processing_phase": "P3"

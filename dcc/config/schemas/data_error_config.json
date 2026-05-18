@@ -13,7 +13,7 @@
   "metadata": {
     "version": "1.1.0",
     "last_updated": "2026-05-18",
-    "total_codes": 56,
+    "total_codes": 57,
     "system_codes": 0,
     "data_logic_codes": 56,
     "system_format": "S-C-S-XXXX",
@@ -58,9 +58,9 @@
     "layer_3_logic": {
       "prefix": "L3-L-V-03xx",
       "description": "Layer 3 - Logic/Temporal validation",
-      "count": 8,
+      "count": 9,
       "start_id": "L3-L-P-0301",
-      "end_id": "L3-L-W-0304"
+      "end_id": "L3-L-W-0305"
     },
     "validation_schema": {
       "prefix": "V5-I-V-05xx",
@@ -816,6 +816,21 @@
       "health_score_impact": -5,
       "processing_phase": "P3",
       "remediation": "Follow up with reviewer for overdue review",
+      "remediation_type": "REVIEW"
+    },
+    "L3-L-W-0305": {
+      "code": "L3-L-W-0305",
+      "name": "HIGH_SUBMISSION_COUNT",
+      "message": "Document has an unusually high number of submissions — please review",
+      "message_template": "Document has {count} submissions — unusually high revision count, please review",
+      "severity": "WARNING",
+      "layer": "L3",
+      "module": "L",
+      "function": "W",
+      "source": "processor_engine/calculations/validation.py",
+      "health_score_impact": 0,
+      "processing_phase": "P3",
+      "remediation": "Review document submission history — excessive revisions may indicate data entry duplication or a genuinely complex document. Threshold is defined in dcc_global_parameters.json#/dcc_parameters/submission_count_warning_threshold.",
       "remediation_type": "REVIEW"
     },
     "S1-I-F-0804": {

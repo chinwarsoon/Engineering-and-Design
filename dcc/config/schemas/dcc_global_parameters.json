@@ -50,6 +50,7 @@
     },
     "fill_jump_limit": 20,
     "fill_max_percentage": 80.0,
+    "submission_count_warning_threshold": 100,
     "health_pass_threshold": 90.0,
     "health_fail_threshold": 60.0,
     "health_grade_thresholds": {

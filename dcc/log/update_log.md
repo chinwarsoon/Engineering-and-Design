@@ -8,9 +8,81 @@
 
 # Section 2. Log entries
 
-# Section 2. Log entries
+<a id="update-2026-05-18-blv-008-phase8-complete"></a>
+## 2026-05-18 (Phase 8)
 
-<a id="update-2026-05-18-blv-003-phase3-complete"></a>
+### COMPLETED: BLV-008 Phase 8 — Count_of_Submissions High-Volume Warning
+**Status:** ✅ COMPLETE  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 8  
+**Phase Report:** [phase8_count_of_submissions_warning_report.md](../workplan/column_processing/reports/phase8_count_of_submissions_warning_report.md)  
+**Related Issue:** [BLV-008](issue_log.md#issue-blv-008)
+
+**Summary:** Replaced the hard `max_value: 100` validation rule on `Count_of_Submissions` with a new `warning_threshold` rule type that emits an advisory WARNING (`L3-L-W-0305`) with zero health score penalty. The threshold value is now schema-driven via `dcc_global_parameters.json` (SSOT), not hardcoded. The `max_value` rule type is preserved unchanged for columns where exceeding the limit is a genuine error (e.g., `Delay_of_Resubmission > 365`).
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `workflow/processor_engine/calculations/validation.py` | Added `warning_threshold` handler after `max_value` block; added `'warning_threshold': 'L3-L-W-0305'` to `DEFAULT_VALIDATION_ERROR_CODES`; added `'warning_threshold'` to `scalar_keys` in `_normalize_validation_rules` |
+| `config/schemas/dcc_global_parameters.json` | Added `submission_count_warning_threshold: 100` — SSOT for the threshold value |
+| `config/schemas/dcc_register_config.json` | Changed `Count_of_Submissions.validation[1]` from `{type: max_value, max_value: 100}` to `{type: warning_threshold, warning_threshold: 100, parameter_ref: submission_count_warning_threshold}` |
+| `config/schemas/data_error_config.json` | Added `L3-L-W-0305` (HIGH_SUBMISSION_COUNT, WARNING, health_score_impact=0, processing_phase=P3); updated `layer_3_logic` range count 8→9, end_id→L3-L-W-0305; updated `metadata.total_codes` 56→57 |
+| `workflow/processor_engine/error_handling/config/messages/en.json` | Added `L3-L-W-0305` message |
+| `workflow/processor_engine/error_handling/config/messages/zh.json` | Added `L3-L-W-0305` translation |
+| `workplan/column_processing/business_logic_validation_workplan.md` | Updated to version 1.11.0; Phase 8 milestones marked complete; success criteria checked; BLV-008 scope summary updated to COMPLETE; §9.13 L3-L-W-0305 marked IMPLEMENTED |
+
+**Key Design Decisions:**
+- `warning_threshold` is a distinct rule type from `max_value` — hard errors and soft advisory limits are separated at the schema level
+- Threshold is read from the schema rule's `warning_threshold` key at runtime; `parameter_ref` documents the SSOT link to `dcc_global_parameters.json`
+- `health_score_impact: 0` — advisory signal, not a data defect; no health penalty
+- Message includes actual count and threshold: `"Count_of_Submissions has 127 submissions — unusually high revision count (threshold: 100), please review"`
+- `L3-L-W-0304` (OVERDUE_PENDING) unchanged
+
+**Verification (5 unit tests, all PASS):**
+1. Counts ≤ 100: no warning emitted ✅
+2. Counts > 100: `L3-L-W-0305` warning emitted for flagged rows ✅
+3. Message contains actual count and threshold ✅
+4. Null values not flagged (allow_null=True respected) ✅
+5. `max_value` rule on other columns still emits `V5-I-V-0501` (unchanged) ✅
+
+<a id="update-2026-05-18-blv-phases1-7-verification"></a>
+
+### VERIFIED: BLV Phases 1–7 — Full Confirmation + Residual Reference Cleanup
+**Status:** ✅ COMPLETE  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md)  
+**Related Issues:** [BLV-001](#issue-blv-001) through [BLV-007](#issue-blv-007)  
+**Test Log:** [test-2026-05-18-blv-phases1-7-verification](#test-2026-05-18-blv-phases1-7-verification)
+
+**Summary:** Conducted full programmatic verification of all 7 completed phases. All 7 phases confirmed PASS via automated test suite. During verification, 3 residual `CLOSED_WITH_PLAN_DATE` string references were found in `risk_analyzer.py`, `evidence.py`, and `row_validator.py` (comment/context fields) — these were cleaned up to align with the renamed `LATEST_CLOSED_WITH_PLAN_DATE` code. Issue log updated: BLV-001 through BLV-007 status updated to RESOLVED; BLV-008 updated to STUDIED.
+
+**Verification Results:**
+
+| Phase | Description | Result |
+|-------|-------------|--------|
+| Phase 1 | Error Code Catalog (L3-L-V-0302 rename, L3-L-V-0307 add) | ✅ PASS |
+| Phase 2 | Affix Extraction + 5 granular error codes | ✅ PASS |
+| Phase 3 | 5-Value Overdue Status Matrix | ✅ PASS |
+| Phase 4 | Latest_Revision Null Handling + P4-I-V-0401 | ✅ PASS |
+| Phase 5 | Resubmission_Plan_Date Row-Position Logic | ✅ PASS |
+| Phase 6 | Aggregate JSON Format (separator removed, data_type=json) | ✅ PASS |
+| Phase 7 | mask_no fix + overwrite_existing strategy | ✅ PASS |
+
+**Cleanup Changes Made:**
+
+| File | Change |
+|------|--------|
+| `workflow/processor_engine/error_handling/detectors/row_validator.py` | Updated `ROW_ERROR_WEIGHTS` comment from `# CLOSED_WITH_PLAN_DATE` to `# LATEST_CLOSED_WITH_PLAN_DATE`; updated `additional_context["error_key"]` from `"CLOSED_WITH_PLAN_DATE"` to `"LATEST_CLOSED_WITH_PLAN_DATE"` |
+| `workflow/ai_ops_engine/analyzers/risk_analyzer.py` | Added `LATEST_CLOSED_WITH_PLAN_DATE` entry alongside legacy `CLOSED_WITH_PLAN_DATE` key for backward compatibility |
+| `workflow/ai_ops_engine/core/evidence.py` | Added `LATEST_CLOSED_WITH_PLAN_DATE` entry alongside legacy `CLOSED_WITH_PLAN_DATE` key for backward compatibility |
+
+**Log Updates:**
+- `dcc/log/issue_log.md` — BLV-001 through BLV-007 updated to RESOLVED with full resolution summaries; BLV-008 updated to STUDIED
+- `dcc/workplan/column_processing/reports/phase1_completion_report.md` — Updated to v1.1.0 with residual reference cleanup findings
+- `dcc/workplan/column_processing/business_logic_validation_workplan.md` — Updated to v1.10.1 with verification confirmation
+
+**Next Phase:** Phase 8 (BLV-008) — Count_of_Submissions High-Volume Warning — awaiting implementation approval.
+
+
 ## 2026-05-18 (Phase 3)
 
 ### COMPLETED: BLV-003 Phase 3 — Resubmission_Overdue_Status Logic Expansion

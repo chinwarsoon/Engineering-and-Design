@@ -45,7 +45,7 @@ ROW_ERROR_WEIGHTS: Dict[str, int] = {
     "P4-I-V-0401":            20,  # REVISION_MISSING
     "GROUP_INCONSISTENT":     15,
     "INCONSISTENT_CLOSURE":   10,
-    "L3-L-V-0302":            10,  # CLOSED_WITH_PLAN_DATE
+    "L3-L-V-0302":            10,  # LATEST_CLOSED_WITH_PLAN_DATE
     "L3-L-V-0307":            10,  # CLOSED_WITH_RESUBMISSION
     "INCONSISTENT_SUBJECT":    5,
     "L3-L-V-0304":             5,  # OVERDUE_MISMATCH
@@ -376,7 +376,7 @@ class RowValidator(BaseDetector):
                 column=plan_col,
                 fail_fast=False,
                 additional_context={
-                    "error_key": "CLOSED_WITH_PLAN_DATE",
+                    "error_key": "LATEST_CLOSED_WITH_PLAN_DATE",
                     "plan_date": str(df.at[idx, plan_col]),
                 },
             )

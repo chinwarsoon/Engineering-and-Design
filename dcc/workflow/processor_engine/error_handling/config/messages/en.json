@@ -97,7 +97,8 @@
     "V5-I-V-0502": "Field value length violates min/max constraints",
     "V5-I-V-0503": "Field value is not in allowed values list",
     "V5-I-V-0504": "Field value type does not match expected type",
-    "P4-I-V-0401": "Document_Revision is null or NA for valid Document_ID — manual input required"
+    "P4-I-V-0401": "Document_Revision is null or NA for valid Document_ID — manual input required",
+    "L3-L-W-0305": "Document has {count} submissions — unusually high revision count, please review"
   },
   "action": {
     "fix_in_excel": "Fix this issue in the Excel source file and re-upload",

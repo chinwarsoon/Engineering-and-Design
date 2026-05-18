@@ -86,6 +86,8 @@ DEFAULT_VALIDATION_ERROR_CODES = {
     'starts_with_schema_reference': 'V5-I-V-0501',
     'derived_pattern': 'V5-I-V-0501',
     'group_consistency': 'V5-I-V-0501',
+    # Phase 8 (BLV-008): advisory warning for high submission count — zero health penalty
+    'warning_threshold': 'L3-L-W-0305',
 }
 
 # Keep backward-compatible alias — callers that imported ERROR_CODES directly still work.
@@ -254,6 +256,34 @@ def apply_validation(df: pd.DataFrame, columns_schema: dict, schema_data: dict,
                     code = error_codes.get('max_value', 'V5-I-V-0501')
                     msg = f"{column_name} too high (>{max_val})"
                     logger.warning(f"Max value validation failed for {column_name}: {mask.sum()} numeric values > {max_val}")
+                    record_errors(mask, msg, code=code)
+
+            if rule_type == 'warning_threshold' or ('warning_threshold' in validation and rule_type is None):
+                # Phase 8 (BLV-008): Advisory soft limit — emits WARNING, zero health_score_impact.
+                # Threshold is defined in dcc_global_parameters.json#/dcc_parameters/submission_count_warning_threshold
+                # and referenced in the schema rule via parameter_ref. The runtime value is read
+                # directly from the schema rule's 'warning_threshold' key (SSOT: global parameters
+                # populate the schema rule value at load time via parameter_ref).
+                # Breadcrumb: validation['warning_threshold'] → threshold → numeric mask → L3-L-W-0305
+                threshold = validation['warning_threshold']
+                numeric_vals = pd.to_numeric(df_validated[column_name], errors='coerce')
+                mask = numeric_vals > threshold
+                if allow_null:
+                    mask &= df_validated[column_name].notna()
+                if mask.any():
+                    code = error_codes.get('warning_threshold', 'L3-L-W-0305')
+                    # Include the actual count in the message — all rows in a Document_ID group
+                    # share the same Count_of_Submissions value (broadcast aggregate), so the
+                    # first flagged value is representative.
+                    count_val = int(numeric_vals[mask].iloc[0])
+                    msg = (
+                        f"{column_name} has {count_val} submissions — "
+                        f"unusually high revision count (threshold: {threshold}), please review"
+                    )
+                    logger.warning(
+                        f"Warning threshold exceeded for {column_name}: "
+                        f"{mask.sum()} rows with count {count_val} > {threshold}"
+                    )
                     record_errors(mask, msg, code=code)
 
             if rule_type == 'min_value' or ('min_value' in validation and rule_type is None):
@@ -485,6 +515,7 @@ def _normalize_validation_rules(validation: TypingAny) -> List[Dict[str, TypingA
             'max_value',
             'format',
             'allowed_values',
+            'warning_threshold',  # Phase 8 (BLV-008): advisory soft limit
         }
         nested_rule_keys = {'schema_reference_check', 'starts_with_schema_reference'}
         rules: List[Dict[str, TypingAny]] = []
