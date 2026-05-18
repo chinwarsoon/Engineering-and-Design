@@ -1,8 +1,8 @@
 # Data Business Logic Validation Workplan
 
 **Document ID:** WP-DCC-BLV-001  
-**Version:** 1.9.0  
-**Status:** ACTIVE — Phase 7 Complete (BLV-007 validated — 3 bugs fixed, all remaining errors are data quality)  
+**Version:** 1.10.0  
+**Status:** ACTIVE — Phase 7 Complete, Phase 8 study complete. Pending implementation.  
 **Created:** 2026-05-17  
 **Author:** AI Agent  
 **Based on:** `agent_rule.md`, `column_priority_reference.md`, `column_update_logic.md`, `dcc_register_config.json`, pipeline execution results
@@ -27,6 +27,7 @@
 | 1.7.0 | 2026-05-18 | Phase 5 COMPLETED: Resubmission_Plan_Date logic rewritten with row-position-separated 5-priority logic; dependencies updated to use Resubmission_Required and Review_Status_Code; 3 bugs fixed (~6,300 rows affected) | AI Agent |
 | 1.8.0 | 2026-05-18 | Phase 6 COMPLETED: Aggregate column output format standardised; stale separators removed from 4 All_* columns; data_type changed from text to json; column_update_logic.md updated to document JSON array format | AI Agent |
 | 1.9.0 | 2026-05-18 | Phase 7 COMPLETED: mask_no bug fixed in conditional.py; overwrite_existing strategy set for Resubmission_Overdue_Status; F4 severity audit done; remaining errors classified as data quality; P3-W-O-0304 warning code proposed | AI Agent |
+| 1.10.0 | 2026-05-18 | Phase 8 STUDIED: Count_of_Submissions max_value=100 not an error — emits WARNING only with no health penalty. Proposed new L3-L-W-0305 code, warning_threshold rule type, zero health_score_impact. All implementation steps pending. | AI Agent |
 
 ---
 
@@ -857,50 +858,117 @@ After all phases complete, the remaining errors break down as follows:
 
 #### 5.8.1 Analysis
 
-- Schema defines: `max_value: 100` for `Count_of_Submissions`
-- Actual max in current data: Within limit (no rows > 100)
-- **Design intent:** 100 submissions per document is abnormal in standard engineering workflows. Exceeding this threshold does not mean the data is invalid — it means the document history warrants user review (e.g. excessive revision cycles, data entry duplication, or a genuinely complex document)
-- **Current behaviour:** The pipeline treats `max_value` as a hard validation error, emitting a range violation error code. This is incorrect — it should emit a warning, not an error
+- **Schema defines:** `Count_of_Submissions.validation[1]` = `{ type: "max_value", max_value: 100 }` in `dcc_register_config.json:1134-1137`
+- **Current behavior:** `validation.py:248-257` handles `max_value` generically — emits `V5-I-V-0501` (`PATTERN_MISMATCH`, severity **HIGH**, `health_score_impact: -15`) for any value > `max_value`
+- **Problem:** The generic `V5-I-V-0501` code (a) has the wrong name/severity for this case and (b) penalizes `Data_Health_Score` by -15 points, which is incorrect for a threshold that is merely advisory
+- **Actual max in current data:** Within limit (no rows > 100) — zero rows affected today
+- **Existing warning code `L3-L-W-0304`** already exists in `data_error_config.json:806-820` with `name: "OVERDUE_PENDING"`, `severity: WARNING`, `health_score_impact: -5` — but it is used for review-overdue detection, **not** for submission count. Repurposing it would conflate two unrelated warnings. A new code is needed.
+
+**Design intent:** 100 submissions per document is abnormal in standard engineering workflows. Exceeding this threshold does not mean the data is invalid — it means the document history warrants user review (e.g. excessive revision cycles, data entry duplication, or a genuinely complex document). The pipeline should:
+- Emit a **WARNING** severity diagnostic (not an ERROR)
+- Apply **zero `Data_Health_Score` penalty** (health_score_impact = 0)
+- Include the actual submission count in the message
 
 #### 5.8.2 What Will Be Updated
 
-**A. Schema Update**
+**A. Validation Logic Update** — `validation.py`
+
+Add a new rule type handler for `warning_threshold` alongside the existing `max_value` handler at `validation.py:248`. When a validation rule has `type: "warning_threshold"`, emit a WARNING-level entry using a dedicated warning code instead of the generic range-violation code.
+
+```python
+# New handler to add after existing max_value handler (~line 258):
+if rule_type == 'warning_threshold' or ('warning_threshold' in validation and rule_type is None):
+    threshold = validation['warning_threshold']
+    mask = pd.to_numeric(df_validated[column_name], errors='coerce') > threshold
+    if allow_null:
+        mask &= df_validated[column_name].notna()
+    if mask.any():
+        code = error_codes.get('warning_threshold', 'L3-L-W-0305')
+        counts = df_validated.loc[mask, column_name].astype(str).tolist()
+        msg = f"Document has {{count}} submissions — unusually high revision count, please review"
+        logger.warning(f"Warning threshold exceeded for {column_name}: {mask.sum()} values > {threshold}")
+        record_errors(mask, msg, code=code)
+```
+
+**B. Schema Update** — `dcc_register_config.json`
 
 | File | Field | Current | Updated |
 |------|-------|---------|---------|
-| `dcc_register_config.json` | `Count_of_Submissions.validation.type` | `max_value` (hard error) | `warning_threshold` |
-| `dcc_register_config.json` | `Count_of_Submissions.validation.message` | Range violation message | `Document has {count} submissions — unusually high revision count, please review` |
-| `dcc_register_config.json` | `Count_of_Submissions.validation.severity` | `ERROR` | `WARNING` |
+| `dcc_register_config.json` | `Count_of_Submissions.validation[1].type` | `max_value` | `warning_threshold` |
+| `dcc_register_config.json` | `Count_of_Submissions.validation[1]` key name | `max_value` | `warning_threshold` |
+| `dcc_register_config.json` | `Count_of_Submissions.validation[1].description` | `"Total number of submissions"` | `"Advisory threshold — >100 submissions triggers WARNING with no Data_Health_Score penalty"` |
 
-**B. Error Code Configuration**
+**C. New Error Code** — `L3-L-W-0305` in `data_error_config.json`
 
-| File | Field | Current | Updated |
-|------|-------|---------|---------|
-| `data_error_config.json` | `Count_of_Submissions` rule | Hard range error | Warning-severity entry with threshold message |
-| `messages/en.json` | Warning message | — | `Document has {count} submissions — unusually high revision count, please review` |
-| `messages/zh.json` | Warning message | — | Chinese translation |
+Add a dedicated warning code for high submission count:
 
-**C. Validation Logic Update**
+| Field | Value |
+|-------|-------|
+| `code` | `L3-L-W-0305` |
+| `name` | `HIGH_SUBMISSION_COUNT` |
+| `message` | `Document has {count} submissions — unusually high revision count, please review` |
+| `message_template` | `Document has {count} submissions — unusually high revision count, please review` |
+| `severity` | `WARNING` |
+| `layer` | `L3` |
+| `module` | `L` |
+| `function` | `W` |
+| `source` | `processor_engine/calculations/validation.py` |
+| `health_score_impact` | `0` |
+| `processing_phase` | `P4` |
+| `remediation` | `Review document submission history — excessive revisions may indicate data entry duplication or a genuinely complex document` |
+| `remediation_type` | `REVIEW` |
 
-- **File:** `processor_engine/error_handling/detectors/validation.py`
-- **Change:** When `Count_of_Submissions > 100`, emit a `WARNING` severity entry in `Validation_Errors` instead of an `ERROR` — row is not penalised in `Data_Health_Score`
+**D. Error Code Config Updates**
+
+| File | Change |
+|------|--------|
+| `data_error_config.json` | Add `L3-L-W-0305` entry with `health_score_impact: 0` — zero penalty |
+| `messages/en.json` | Add `L3-L-W-0305` message: `Document has {count} submissions — unusually high revision count, please review` |
+| `messages/zh.json` | Add `L3-L-W-0305` translation: `该文档有 {count} 次提交 — 修订次数异常高，请审查` |
+
+**E. Section 9.12 Update** — `business_logic_validation_workplan.md`
+
+Replace the §9.12 entry's repurposed `L3-L-W-0304` reference with the new dedicated code:
+
+| # | Rule | Condition | Error Code | Severity |
+|---|------|-----------|------------|----------|
+| 1 | High submission count | `COUNT(rows per Document_ID) > 100` | `L3-L-W-0305` — High submission count | WARNING |
+
+And move `L3-L-W-0305` to the §9.13 Missing Error Codes table (to be added during implementation).
 
 #### 5.8.3 Timeline and Deliverables
 
-| Milestone | Deliverable | Target |
+| Milestone | Deliverable | Status |
 |-----------|-------------|--------|
-| M8.1 | Update schema `max_value` to `warning_threshold` with WARNING severity | Day 1 |
-| M8.2 | Update error config and messages (en/zh) | Day 1 |
-| M8.3 | Update validation logic to emit WARNING not ERROR | Day 1 |
-| M8.4 | Verify no `Data_Health_Score` deduction for warned rows | Day 2 |
+| M8.1 | Add `warning_threshold` handler to `validation.py` | ⏳ Pending — new rule type to emit WARNING, not ERROR |
+| M8.2 | Update schema `Count_of_Submissions.validation[1]` from `max_value` to `warning_threshold` | ⏳ Pending |
+| M8.3 | Add `L3-L-W-0305` to error config and translations (en/zh) | ⏳ Pending |
+| M8.4 | Update §9.12 and §9.13 in workplan | ⏳ Pending |
+| M8.5 | Run pipeline and verify: (a) no errors emitted for Count > 100, (b) warning present in Validation_Errors, (c) Data_Health_Score unchanged | ⏳ Pending |
 
-#### 5.8.4 Success Criteria
+#### 5.8.4 Key Implementation Details
+
+**Why not reuse `L3-L-W-0304`?**
+`L3-L-W-0304` already exists with `name: "OVERDUE_PENDING"` and `health_score_impact: -5`. It is used by `row_validator.py` for review-overdue detection. Repurposing it would:
+1. Break the existing overdue-review warning
+2. Apply an unnecessary -5 health penalty to high-volume warnings (should be 0)
+3. Create ambiguity (same code, two different meanings)
+
+**Why add a new handler instead of modifying `max_value`?**
+The existing `max_value` handler is correct for other columns (e.g., `Delay_of_Resubmission` has `max_value: 365` — exceeding 365 days IS an error). Adding `warning_threshold` as distinct rule type keeps HAR王之s (hard errors) separate from SOFT limits (advisory warnings) at the schema level.
+
+**Why `health_score_impact: 0`?**
+A document having >100 submissions is a data quality signal for user attention, not a data quality defect. The document may be genuinely complex (e.g., a master register with hundreds of entries). Applying any health score penalty would conflate this advisory signal with actual data errors. Zero penalty means the warning appears in `Validation_Errors` for visibility but does not drag down the document's health score.
+
+#### 5.8.5 Success Criteria
 
 - [ ] `Count_of_Submissions > 100` emits `WARNING` severity in `Validation_Errors`, not `ERROR`
-- [ ] `Data_Health_Score` is not penalised for rows where only this warning is present
+- [ ] `Data_Health_Score` is not penalised for rows where only this warning is present (health_score_impact = 0)
 - [ ] Warning message includes the actual submission count for user context
-- [ ] Schema `validation.severity` updated to `WARNING` for this rule
+- [ ] Schema updated: `validation[1].type` changed from `max_value` to `warning_threshold`
+- [ ] New error code `L3-L-W-0305` added to `data_error_config.json`, `en.json`, `zh.json`
 - [ ] No rows in current dataset trigger the warning (count confirmed within limit)
+- [ ] `L3-L-W-0304` (OVERDUE_PENDING) unchanged — not repurposed
 
 ---
 
@@ -1184,11 +1252,11 @@ Non-terminal codes = `PEN`, `AWC`, `NAP`, `REJ`
 
 **Immediate dependencies:** `Document_ID`
 
-| # | Rule | Condition | Error Code | Severity |
-|---|------|-----------|------------|----------|
-| 1 | High submission count | `COUNT(rows per Document_ID) > 100` | `L3-L-W-0304` — Overdue pending (repurposed as high-volume warning) | WARNING |
+| # | Rule | Condition | Error Code | Severity | Health Impact |
+|---|------|-----------|------------|----------|---------------|
+| 1 | High submission count | `COUNT(rows per Document_ID) > 100` | `L3-L-W-0305` — High submission count | WARNING | 0 (no penalty) |
 
-**Note:** WARNING only — no `Data_Health_Score` penalty. Message: `Document has {count} submissions — unusually high revision count, please review`
+**Note:** WARNING only — no `Data_Health_Score` penalty. Message: `Document has {count} submissions — unusually high revision count, please review`. Implements a separate `warning_threshold` rule type in `validation.py` distinct from the `max_value` hard error.
 
 ---
 
@@ -1206,7 +1274,8 @@ The following error codes are referenced in this checkpoint but do not yet exist
 | `P2-I-V-0204-F` | `DOCUMENT_ID_SPACES_IN_SEGMENTS` | `Document_ID segments contain spaces` | Phase 2 (BLV-002) | `identity.py` |
 | `P2-I-V-0204-G` | `DOCUMENT_ID_WRONG_SEGMENT_COUNT` | `Document_ID has wrong number of segments` | Phase 2 (BLV-002) | `identity.py` |
 | `P2-I-V-0204-H` | `DOCUMENT_ID_SPECIAL_CHARACTERS` | `Document_ID contains special characters` | Phase 2 (BLV-002) | `identity.py` |
+| `L3-L-W-0305` | `HIGH_SUBMISSION_COUNT` | `Document has {count} submissions — unusually high revision count, please review` | Phase 8 (BLV-008) | `validation.py` |
 
 ---
 
-**Status:** Phase 6 Complete. Awaiting approval to proceed with Phase 7 implementation.
+**Status:** Phase 7 Complete, Phase 8 studied. Awaiting approval to proceed with Phase 8 implementation.
