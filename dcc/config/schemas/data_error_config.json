@@ -12,10 +12,10 @@
   ],
   "metadata": {
     "version": "1.1.0",
-    "last_updated": "2026-05-11",
-    "total_codes": 55,
+    "last_updated": "2026-05-18",
+    "total_codes": 56,
     "system_codes": 0,
-    "data_logic_codes": 55,
+    "data_logic_codes": 56,
     "system_format": "S-C-S-XXXX",
     "data_logic_format": "LL-M-F-XXXX"
   },
@@ -47,6 +47,13 @@
       "count": 6,
       "start_id": "C6-C-C-0601",
       "end_id": "C6-C-C-0606"
+    },
+    "phase_4_quality": {
+      "prefix": "P4-I-V-04xx",
+      "description": "Phase 4 - Data quality and null handling",
+      "count": 1,
+      "start_id": "P4-I-V-0401",
+      "end_id": "P4-I-V-0401"
     },
     "layer_3_logic": {
       "prefix": "L3-L-V-03xx",
@@ -204,6 +211,86 @@
       "health_score_impact": -15,
       "processing_phase": "P2",
       "remediation": "Align Document_ID segments with source column values",
+      "remediation_type": "MANUAL_FIX"
+    },
+    "P2-I-V-0204-D": {
+      "code": "P2-I-V-0204-D",
+      "name": "DOCUMENT_ID_NA_SEGMENTS",
+      "message": "Document_ID contains NA segments from null source columns",
+      "message_template": "Document_ID contains NA segments: '{value}'",
+      "severity": "HIGH",
+      "layer": "P2",
+      "module": "I",
+      "function": "V",
+      "column": "Document_ID",
+      "source": "processor_engine/calculations/composite.py",
+      "health_score_impact": -15,
+      "processing_phase": "P2",
+      "remediation": "Provide values for all source columns (Project, Facility, Type, Discipline, Sequence)",
+      "remediation_type": "MANUAL_FIX"
+    },
+    "P2-I-V-0204-E": {
+      "code": "P2-I-V-0204-E",
+      "name": "DOCUMENT_ID_REPLY_REFERENCE",
+      "message": "Document_ID field contains reply/comment reference, not a document ID",
+      "message_template": "Document_ID contains reply/comment reference: '{value}'",
+      "severity": "HIGH",
+      "layer": "P2",
+      "module": "I",
+      "function": "V",
+      "column": "Document_ID",
+      "source": "processor_engine/error_handling/detectors/identity.py",
+      "health_score_impact": -15,
+      "processing_phase": "P2",
+      "remediation": "Remove reply/comment references from Document_ID source columns",
+      "remediation_type": "MANUAL_FIX"
+    },
+    "P2-I-V-0204-F": {
+      "code": "P2-I-V-0204-F",
+      "name": "DOCUMENT_ID_SPACES_IN_SEGMENTS",
+      "message": "Document_ID segments contain spaces",
+      "message_template": "Document_ID segments contain spaces: '{value}'",
+      "severity": "HIGH",
+      "layer": "P2",
+      "module": "I",
+      "function": "V",
+      "column": "Document_ID",
+      "source": "processor_engine/error_handling/detectors/identity.py",
+      "health_score_impact": -15,
+      "processing_phase": "P2",
+      "remediation": "Remove spaces from Document_ID source columns",
+      "remediation_type": "MANUAL_FIX"
+    },
+    "P2-I-V-0204-G": {
+      "code": "P2-I-V-0204-G",
+      "name": "DOCUMENT_ID_WRONG_SEGMENT_COUNT",
+      "message": "Document_ID has wrong number of segments",
+      "message_template": "Document_ID has wrong segment count ({count}): '{value}'",
+      "severity": "HIGH",
+      "layer": "P2",
+      "module": "I",
+      "function": "V",
+      "column": "Document_ID",
+      "source": "processor_engine/error_handling/detectors/identity.py",
+      "health_score_impact": -15,
+      "processing_phase": "P2",
+      "remediation": "Ensure Document_ID has exactly 5 segments separated by '-'",
+      "remediation_type": "MANUAL_FIX"
+    },
+    "P2-I-V-0204-H": {
+      "code": "P2-I-V-0204-H",
+      "name": "DOCUMENT_ID_SPECIAL_CHARACTERS",
+      "message": "Document_ID contains special characters (dots, parentheses, etc.)",
+      "message_template": "Document_ID contains special characters: '{value}'",
+      "severity": "HIGH",
+      "layer": "P2",
+      "module": "I",
+      "function": "V",
+      "column": "Document_ID",
+      "source": "processor_engine/error_handling/detectors/identity.py",
+      "health_score_impact": -15,
+      "processing_phase": "P2",
+      "remediation": "Remove special characters from Document_ID source columns",
       "remediation_type": "MANUAL_FIX"
     },
     "P1-A-V-0102": {
@@ -586,9 +673,9 @@
     },
     "L3-L-V-0302": {
       "code": "L3-L-V-0302",
-      "name": "CLOSED_WITH_PLAN_DATE",
-      "message": "Submission_Closed=YES but Resubmission_Plan_Date is set",
-      "message_template": "Submission_Closed=YES but Resubmission_Plan_Date is set",
+      "name": "LATEST_CLOSED_WITH_PLAN_DATE",
+      "message": "Latest submission Closed=YES but Resubmission_Plan_Date is set",
+      "message_template": "Latest submission Closed=YES but Resubmission_Plan_Date is set",
       "severity": "HIGH",
       "layer": "L3",
       "module": "L",
@@ -598,7 +685,7 @@
       "migrated_from": "CLOSED_WITH_PLAN_DATE (string code)",
       "health_score_impact": -15,
       "processing_phase": "P3",
-      "remediation": "Clear Resubmission_Plan_Date when Submission_Closed is YES",
+      "remediation": "Clear Resubmission_Plan_Date for latest submission when Closed=YES",
       "remediation_type": "REVIEW"
     },
     "L3-L-V-0303": {
@@ -652,20 +739,19 @@
     },
     "L3-L-V-0304": {
       "code": "L3-L-V-0304",
-      "name": "OVERDUE_MISMATCH",
-      "message": "Resubmission_Plan_Date is past but Resubmission_Overdue_Status is not overdue/resubmitted",
-      "message_template": "Resubmission_Plan_Date is past but Resubmission_Overdue_Status is not overdue/resubmitted",
-      "severity": "MEDIUM",
+      "name": "RESUBMISSION_OVERDUE_STATUS_MISMATCH",
+      "message": "Resubmission_Overdue_Status value mismatch with Resubmission_Required and Plan_Date",
+      "message_template": "Overdue status mismatch: '{value}' (Required: {required}, Plan: {plan_date})",
+      "severity": "HIGH",
       "layer": "L3",
       "module": "L",
       "function": "V",
-      "column": "Resubmission_Plan_Date, Resubmission_Overdue_Status",
-      "source": "processor_engine/error_handling/detectors/row_validator.py:369",
-      "migrated_from": "OVERDUE_MISMATCH (string code)",
+      "column": "Resubmission_Overdue_Status",
+      "source": "processor_engine/error_handling/detectors/row_validator.py",
       "health_score_impact": -10,
       "processing_phase": "P3",
-      "remediation": "Update Resubmission_Overdue_Status to match actual state",
-      "remediation_type": "REVIEW"
+      "remediation": "Recalculate status using 5-value matrix: OVERDUE_RESUBMITTED, OVERDUE, RESUBMITTED, ON_TRACK, NO",
+      "remediation_type": "CALCULATION"
     },
     "L3-L-V-0305": {
       "code": "L3-L-V-0305",
@@ -699,6 +785,22 @@
       "health_score_impact": -10,
       "processing_phase": "P3",
       "remediation": "Check for missing revisions in Submission_Session sequence",
+      "remediation_type": "REVIEW"
+    },
+    "L3-L-V-0307": {
+      "code": "L3-L-V-0307",
+      "name": "CLOSED_WITH_RESUBMISSION_REQUIRED",
+      "message": "Submission_Closed=YES but Resubmission_Required=YES (should be NO)",
+      "message_template": "Submission_Closed=YES but Resubmission_Required=YES (should be NO)",
+      "severity": "HIGH",
+      "layer": "L3",
+      "module": "L",
+      "function": "V",
+      "column": "Submission_Closed, Resubmission_Required",
+      "source": "processor_engine/error_handling/detectors/row_validator.py",
+      "health_score_impact": -10,
+      "processing_phase": "P3",
+      "remediation": "Set Resubmission_Required to NO when Submission_Closed is YES",
       "remediation_type": "REVIEW"
     },
     "L3-L-W-0304": {
@@ -931,6 +1033,22 @@
       "processing_phase": "P3",
       "remediation": "Unify Submission_Session_Subject naming within session",
       "remediation_type": "REVIEW"
+    },
+    "P4-I-V-0401": {
+      "code": "P4-I-V-0401",
+      "name": "REVISION_MISSING_FOR_VALID_ID",
+      "message": "Document_Revision is null or NA for valid Document_ID — manual input required",
+      "message_template": "Revision number is required for valid Document_ID. Please enter a valid Document_Revision (not blank or 'NA').",
+      "severity": "CRITICAL",
+      "layer": "P4",
+      "module": "I",
+      "function": "V",
+      "column": "Document_Revision",
+      "source": "processor_engine/error_handling/detectors/row_validator.py",
+      "health_score_impact": -20,
+      "processing_phase": "P4",
+      "remediation": "Enter the correct revision number in Document_Revision column",
+      "remediation_type": "MANUAL_FIX"
     }
   },
   "migration_log": {

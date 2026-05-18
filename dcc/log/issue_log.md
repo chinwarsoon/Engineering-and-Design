@@ -48,12 +48,21 @@
 ## 2026-05-17 10:00:00
 
 ### Issue BLV-001 — Submission_Closed=YES but Resubmission_Plan_Date is set (5,678 rows)
-- **Status:** IDENTIFIED — Workplan Created
+- **Status:** PARTIALLY RESOLVED — Error code catalog updated; calculation fix pending Phase 5
+- **Resolution Date (Phase 1):** 2026-05-17
 - **Context:** Pipeline execution of `dcc_engine_pipeline.py` produced 5,678 rows where `Submission_Closed=YES` but `Resubmission_Plan_Date` is not null. Per business logic (`column_update_logic.md` Step 35, 37), closed documents should not have resubmission plan dates.
 - **Root Cause:** `Resubmission_Plan_Date` calculation does not check `Submission_Closed` status as first condition. It calculates dates for all rows except the latest terminal approval row, but "superseded" rows (where `Submission_Date < Latest_Submission_Date`) also get `Submission_Closed=YES` and should not have plan dates.
 - **Impact:** Validation error `[L3-L-V-0302]` logged for 713 rows; data inconsistency in closure logic.
+- **Phase 1 Resolution:** Error code catalog updated — `L3-L-V-0302` renamed to `LATEST_CLOSED_WITH_PLAN_DATE`, messages updated in `en.json`/`zh.json`/`data_error_config.json`; `L3-L-V-0307` missing catalog entry added. Calculation fix merged into Phase 5 (BLV-005).
+- **File Changes (Phase 1):**
+  - `dcc/config/schemas/data_error_config.json` — L3-L-V-0302 renamed, L3-L-V-0307 added
+  - `dcc/workflow/processor_engine/error_handling/config/messages/en.json` — L3-L-V-0302 updated, L3-L-V-0307 added
+  - `dcc/workflow/processor_engine/error_handling/config/messages/zh.json` — L3-L-V-0302 updated
+  - `dcc/workflow/processor_engine/error_handling/detectors/row_validator.py` — docstrings updated
+  - `dcc/config/schemas/dcc_register_config.json` — Resubmission_Plan_Date description updated
 - **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 1
-- **Link to Update Log:** Pending implementation
+- **Phase 1 Report:** [phase1_completion_report.md](../workplan/column_processing/reports/phase1_completion_report.md)
+- **Link to Update Log:** [update-2026-05-17-blv-001-phase1](#update-2026-05-17-blv-001-phase1)
 
 <a id="issue-blv-002"></a>
 ## 2026-05-17 10:05:00

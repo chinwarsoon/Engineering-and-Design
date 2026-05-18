@@ -10,7 +10,206 @@
 
 # Section 2. Log entries
 
-<a id="update-2026-05-17-business-logic-validation-workplan"></a>
+<a id="update-2026-05-18-blv-003-phase3-complete"></a>
+## 2026-05-18 (Phase 3)
+
+### COMPLETED: BLV-003 Phase 3 — Resubmission_Overdue_Status Logic Expansion
+**Status:** ✅ COMPLETE  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 3  
+**Related Issue:** [BLV-003](issue_log.md#issue-blv-003)
+
+**Summary:** Expanded `Resubmission_Overdue_Status` from a basic 2-value check to a comprehensive 5-value matrix. This resolves 696 misclassified rows by correctly distinguishing between historical overdue resubmissions, active overdue actions, and on-track items.
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `config/schemas/data_error_config.json` | Standardized `L3-L-V-0304` and updated remediation. |
+| `workflow/processor_engine/error_handling/config/messages/en.json` | Updated EN message for `L3-L-V-0304`. |
+| `workflow/processor_engine/error_handling/config/messages/zh.json` | Updated ZH message for `L3-L-V-0304`. |
+| `config/schemas/dcc_register_config.json` | Updated `allowed_values` and `conditions` for overdue status. |
+| `workflow/processor_engine/calculations/conditional.py` | Rewrote `apply_calculate_overdue_status` with the 5-value matrix logic. |
+| `workflow/processor_engine/error_handling/detectors/row_validator.py` | Updated `_validate_overdue_status` to synchronize with the new matrix. |
+| `workplan/column_processing/business_logic_validation_workplan.md` | Updated to version `1.5.0`, marked Phase 3 as complete, and activated Phase 4. |
+
+**Verification:**
+1. Logic Coverage: All 5 business scenarios (OVERDUE_RESUBMITTED, OVERDUE, RESUBMITTED, ON_TRACK, NO) are now explicitly handled.
+2. Cross-Module Sync: Calculation, Validation, and Schema are fully aligned.
+
+**Next Phase:** Phase 4 (BLV-004) — Latest_Revision Null Handling — Ready for implementation.
+
+<a id="update-2026-05-18-blv-004-phase4-complete"></a>
+## 2026-05-18 (Phase 4)
+
+### COMPLETED: BLV-004 Phase 4 — Latest_Revision Null Handling
+**Status:** ✅ COMPLETE
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 4
+**Phase Report:** [phase4_latest_revision_null_handling_report.md](../workplan/column_processing/reports/phase4_latest_revision_null_handling_report.md)
+**Related Issue:** [BLV-004](issue_log.md#issue-blv-004)
+
+**Summary:** Implemented proper null handling for `Latest_Revision` — 119 null rows now correctly separated: 13 malformed Document_ID rows set to "NA", 106 valid ID rows left null and flagged with P4-I-V-0401 for manual user input. Multi-level forward fill removed from `Document_Revision` to prevent masking missing data.
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `config/schemas/data_error_config.json` | Added `P4-I-V-0401` (REVISION_MISSING_FOR_VALID_ID, CRITICAL, health -20). |
+| `workflow/processor_engine/error_handling/config/messages/en.json` | Added EN message for `P4-I-V-0401`. |
+| `workflow/processor_engine/error_handling/config/messages/zh.json` | Added ZH translation for `P4-I-V-0401`. |
+| `workflow/processor_engine/calculations/aggregate.py` | Updated `apply_latest_by_date_calculation` with Document_ID format validation. |
+| `workflow/processor_engine/error_handling/detectors/row_validator.py` | Added `_validate_revision_completeness` detector for P4-I-V-0401. |
+| `config/schemas/dcc_register_config.json` | `Document_Revision` null_handling changed to `default_value: "NA"`; forward fill removed. |
+| `workplan/column_processing/business_logic_validation_workplan.md` | Updated to version `1.6.0`, marked Phase 4 success criteria complete, activated Phase 5. |
+
+**Verification:**
+1. Forward fill removed: `Document_Revision` now uses `default_value: "NA"` strategy — no history/heuristic/fallback fill.
+2. Malformed ID handling: Document_ID with fewer than 5 segments → `Latest_Revision = "NA"`.
+3. Valid ID with null revision: `Latest_Revision = null` → flagged with P4-I-V-0401 via `_validate_revision_completeness`.
+4. Cross-Module Sync: Calculation, Validation, Schema, and Error Catalog are fully aligned.
+
+**Next Phase:** Phase 5 (BLV-005) — Resubmission_Plan_Date Logic Correction — Ready for implementation.
+
+<a id="update-2026-05-18-blv-005-phase5-complete"></a>
+## 2026-05-18 (Phase 5)
+
+### COMPLETED: BLV-005 Phase 5 — Resubmission_Plan_Date Logic Correction
+**Status:** ✅ COMPLETE
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 5
+**Phase Report:** [phase5_resubmission_plan_date_logic_report.md](../workplan/column_processing/reports/phase5_resubmission_plan_date_logic_report.md)
+**Related Issue:** [BLV-005](issue_log.md#issue-blv-005)
+
+**Summary:** Rewrote `Resubmission_Plan_Date` calculation with row-position-separated 5-priority logic, fixing 3 confirmed bugs affecting ~6,300 rows. Replaced flat 4-condition approach (which did not distinguish latest vs superseded rows and used incorrect dependencies) with explicit L1/L2 (latest) and S1/S2/S3 (superseded) priorities. Updated schema dependencies to use `Resubmission_Required` (primary gate) and `Review_Status_Code` (terminal check) instead of `Submission_Closed` and `Latest_Approval_Code`.
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `workflow/processor_engine/calculations/date.py` | Rewrote `apply_resubmission_plan_date` — 5-priority row-position-separated logic with sub-rule A→B/A→C calculation; removed `.py` import restriction, updated dependency indices from flat pattern to priority-specific pattern. |
+| `config/schemas/dcc_register_config.json` | Updated `Resubmission_Plan_Date.calculation.dependencies` to `[Submission_Date, Latest_Submission_Date, Resubmission_Required, Review_Status_Code, Review_Return_Actual_Date]`; rewrote `.conditions` to 5 priorities (L1, L2, S1, S2, S3) with `sub_rules` section; updated `.description`. |
+| `workplan/column_processing/business_logic_validation_workplan.md` | Updated to version `1.7.0`, marked Phase 5 success criteria complete, activated Phase 6. |
+
+**Verification:**
+1. L1: Latest + `Resubmission_Required=NO` → NaT (5,678 rows fixed)
+2. L2: Latest + `Resubmission_Required` in `[YES, PEN]` → calculated date (34 terminal-override rows fixed)
+3. S1: Superseded + `Resubmission_Required=NO` → NaT
+4. S2: Superseded + `RESUBMITTED` + terminal `Review_Status_Code` → NaT (884 rows fixed)
+5. S3: Superseded + `RESUBMITTED` + non-terminal `Review_Status_Code` → calculated date (benchmark preserved)
+6. Schema dependencies updated; `Latest_Approval_Code` and `Submission_Closed` removed
+7. Cross-Module Sync: Calculation (date.py) and Schema (dcc_register_config.json) are fully aligned
+
+**Next Phase:** Phase 6 (BLV-006) — Aggregate Column Output Format Standardisation — Ready for implementation.
+
+<a id="update-2026-05-18-blv-006-phase6-complete"></a>
+## 2026-05-18 (Phase 6)
+
+### COMPLETED: BLV-006 Phase 6 — Aggregate Column Output Format Standardisation
+**Status:** ✅ COMPLETE
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 6
+**Related Issue:** [BLV-006](issue_log.md#issue-blv-006)
+
+**Summary:** Standardised all 4 `All_*` aggregate columns to use `data_type: json` and removed stale/never-read `separator` fields from their schema definitions. The pipeline already outputs JSON arrays for these columns (via `column_type: json_column`), so this is purely a schema consistency cleanup. Updated `column_update_logic.md` to document JSON array output format instead of misleading string-separator descriptions.
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `config/schemas/dcc_register_config.json` | Changed `data_type` from `text` to `json` for `All_Submission_Sessions`, `All_Submission_Dates`, `All_Submission_Session_Revisions`, `All_Approval_Code`. Removed unused `separator` field from all 4 columns. Updated descriptions to reflect JSON array output. |
+| `workplan/column_processing/column_update_logic.md` | Updated Steps 20, 21, 22, 33 to document JSON array format (e.g. `["S001", "S002"]`) instead of string-join separators (`"&&"`, `", "`). |
+| `workplan/column_processing/business_logic_validation_workplan.md` | Updated to version `1.8.0`, marked Phase 6 success criteria complete, activated Phase 7. |
+
+**Verification:**
+1. `All_Submission_Sessions`: `separator` field removed, `data_type: json`
+2. `All_Submission_Dates`: `separator` field removed, `data_type: json`
+3. `All_Submission_Session_Revisions`: `separator` field removed, `data_type: json`
+4. `All_Approval_Code`: `separator` field removed, `data_type: json`
+5. `column_update_logic.md`: All 4 steps reference JSON array format (no `&&` or `, ` descriptions)
+6. `Consolidated_Submission_Session_Subject`: Unchanged — remains `text_column` with ` && ` separator (correct — intentional text format)
+7. Pipeline output format unchanged (already JSON arrays via `column_type: json_column`)
+
+**Next Phase:** Phase 7 (BLV-007) — Validation_Errors Volume Reduction — Ready for implementation.
+
+<a id="update-2026-05-18-blv-002-phase2-complete"></a>
+## 2026-05-18 (Phase 2)
+
+### COMPLETED: BLV-002 Phase 2 — Document_ID Format and Quality
+**Status:** ✅ COMPLETE  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 2  
+**Related Issue:** [BLV-002](issue_log.md#issue-blv-002)
+
+**Summary:** Implemented affix extraction and granular error flagging for Document_ID. Resolved 94.8% of format violations (1,613 rows) by separating underscores suffixes into the `Document_ID_Affixes` column. Added 5 new error codes to identify genuine malformations in source data.
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `config/schemas/data_error_config.json` | Added error codes `P2-I-V-0204-D` through `H`. |
+| `workflow/processor_engine/error_handling/config/messages/en.json` | Added English translations for new error codes. |
+| `workflow/processor_engine/error_handling/config/messages/zh.json` | Added Chinese translations for new error codes. |
+| `workflow/processor_engine/calculations/composite.py` | Enhanced `apply_composite_calculation` to extract affixes and store them in `Document_ID_Affixes`. |
+| `workflow/processor_engine/error_handling/detectors/identity.py` | Updated `_detect_invalid_id_format` to use granular error codes for malformed patterns. |
+| `workplan/column_processing/business_logic_validation_workplan.md` | Updated to version `1.4.0`, marked Phase 2 as complete, and activated Phase 3. |
+
+**Verification:**
+1. Code synchronization: All new error codes are defined in config, translated in messages, and utilized in detectors.
+2. Logic check: `composite.py` now correctly identifies base ID vs affix, preventing false format mismatch errors.
+
+**Next Phase:** Phase 3 (BLV-003) — Resubmission_Overdue_Status Logic Expansion — Ready for implementation.
+
+<a id="update-2026-05-18-blv-001-phase1-final"></a>
+## 2026-05-18 (Phase 1)
+
+### COMPLETED: BLV-001 Phase 1 Final Actions — Docstring Sync and Workplan Activation
+**Status:** ✅ COMPLETE  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 1  
+**Related Issue:** [BLV-001](issue_log.md#issue-blv-001)
+
+**Summary:** Completed the final remaining actions for Phase 1. Synchronized internal code docstrings with the standardized error catalog and transitioned the workplan to ACTIVE status.
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `workflow/processor_engine/error_handling/detectors/row_validator.py` | Updated `_validate_status_closure` internal docstring to use `LATEST_CLOSED_WITH_PLAN_DATE` and reflect revised logic. |
+| `workplan/column_processing/business_logic_validation_workplan.md` | Updated version to `1.3.1`, status to `ACTIVE — Phase 1 Complete`, and marked BLV-001 as complete in scope summary. |
+
+**Verification:**
+1. Code search: Zero references to `CLOSED_WITH_PLAN_DATE` remain in `row_validator.py`.
+2. Workplan: Section 2 and Revision History updated to reflect completion.
+
+**Next Phase:** Phase 2 (BLV-002) — Document_ID Format and Quality — Identified and ready for implementation.
+
+
+<a id="update-2026-05-17-blv-001-phase1"></a>
+## 2026-05-17
+
+### COMPLETED: BLV-001 Phase 1 — Error Code Catalog Corrections for Submission_Closed Logic
+**Status:** ✅ COMPLETE  
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) § Phase 1  
+**Phase Report:** [phase1_completion_report.md](../workplan/column_processing/reports/phase1_completion_report.md)  
+**Related Issue:** [BLV-001](issue_log.md#issue-blv-001)
+
+**Summary:** Completed Phase 1 of the Business Logic Validation workplan. Scope is error code catalog updates only — calculation fix merged into Phase 5 (BLV-005) which rewrites the same function. Pre-implementation review identified 3 issues before any code was written: wrong file reference, calculation conflict with Phase 5, and missing `L3-L-V-0307` catalog entry.
+
+**Changes Made:**
+
+| File | Change |
+|------|--------|
+| `dcc/config/schemas/data_error_config.json` | `L3-L-V-0302` name → `LATEST_CLOSED_WITH_PLAN_DATE`; message/template/remediation updated; `L3-L-V-0307` entry added (name=`CLOSED_WITH_RESUBMISSION_REQUIRED`, severity=HIGH, health_score_impact=-10) |
+| `dcc/workflow/processor_engine/error_handling/config/messages/en.json` | `L3-L-V-0302` message updated to reference "latest submission"; `L3-L-V-0307` entry confirmed present |
+| `dcc/workflow/processor_engine/error_handling/config/messages/zh.json` | `L3-L-V-0302` message updated to `最新提交已关闭但重新提交计划日期已设置` |
+| `dcc/workflow/processor_engine/error_handling/detectors/row_validator.py` | Module docstring `L3-L-V-0302` renamed to `LATEST_CLOSED_WITH_PLAN_DATE`; `_validate_status_closure` docstring updated to reference "latest submission" |
+| `dcc/config/schemas/dcc_register_config.json` | `Resubmission_Plan_Date.calculation.description` updated with latest-closed note and Phase 5 reference |
+
+**Pre-Implementation Review Findings Resolved:**
+1. `conditional_date.py` file reference — does not exist; correct file is `date.py` — removed from Phase 1, merged into Phase 5
+2. Calculation fix conflicts with Phase 5 full rewrite of same function — removed from Phase 1 scope
+3. `L3-L-V-0307` declared in `row_validator.py` but missing from error catalog — added to Phase 1 deliverables
+
+**All 12 success criteria: ✅ PASS**
+
+**Next Phase:** Phase 2 (BLV-002) — Document_ID Format and Quality — awaiting approval
+
+
 ## 2026-05-17 10:00:00
 
 ### CREATED: Data Business Logic Validation Workplan — 8 Issues Identified

@@ -266,14 +266,14 @@ def apply_aggregate_calculation(engine, df: pd.DataFrame, column_name: str, calc
 def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
     Identifies the 'latest' value in a group based on a date column.
-    Commonly used to find the 'Latest Review Status' for a document.
+    Enhanced for Phase 4 to handle malformed Document IDs and null revisions.
     """
     source_column = calculation.get('source_column')
     group_by = calculation.get('group_by', [])
     sort_by = calculation.get('sort_by', [])
     sort_dir = calculation.get('sort_direction', ['desc'])
     mapping = calculation.get('mapping', {})
-    fallback = mapping.get('fallback_value', 'NA')
+    fallback = mapping.get('fallback_value', None)  # Default to None for P4
 
     if source_column not in df.columns or not group_by or not sort_by:
         return df
@@ -302,33 +302,61 @@ def apply_latest_by_date_calculation(engine, df: pd.DataFrame, column_name: str,
 
     engine._print_processing_step("Latest-By-Date", column_name, f"Finding latest {source_column} via {sort_by}")
 
-    filtered_df = df.copy()
-    exclude = calculation.get('filter', {}).get('exclude_values', [])
-    if exclude:
-        filtered_df = filtered_df[~filtered_df[source_column].isin(exclude)]
-
+    # --- Phase 4 Enhanced Logic ---
+    
+    # Identify malformed IDs in the group_by columns (assuming Document_ID is the main group_by)
+    # BLV-004: Malformed IDs get "NA" Latest_Revision
+    doc_id_col = group_by[0] if group_by and group_by[0] == 'Document_ID' else None
+    
+    # Prepare sorting
     asc_flags = [d.lower() == 'asc' for d in sort_dir]
     if len(asc_flags) < len(sort_by):
         asc_flags.extend([False] * (len(sort_by) - len(asc_flags)))
 
-    _coerce_sort_cols(filtered_df, sort_by)
-    sorted_df = filtered_df.sort_values(sort_by, ascending=asc_flags)
-    latest_vals = sorted_df.groupby(group_by)[source_column].first()
+    # Create a copy for calculation to avoid side effects
+    work_df = df.copy()
+    _coerce_sort_cols(work_df, sort_by)
+    
+    # Sort entire dataframe by group and date to find the absolute latest per group
+    # (regardless of whether that latest row has a valid source_column value)
+    sorted_df = work_df.sort_values(group_by + sort_by, ascending=[True] * len(group_by) + asc_flags)
+    
+    # Get the latest row for each group (first() picks top based on sort_by)
+    latest_rows = sorted_df.groupby(group_by).first()
+    
+    def calculate_group_latest(group_key):
+        if doc_id_col:
+            doc_id = group_key if isinstance(group_key, str) else str(group_key)
+            # Malformed check: 5 segments separated by '-'
+            if not doc_id or str(doc_id).count('-') != 4:
+                return "NA"
+        
+        # Get value from the latest row
+        val = latest_rows.loc[group_key, source_column] if group_key in latest_rows.index else None
+        
+        # BLV-004: If latest value is null or "NA", result is null (None)
+        if pd.isna(val) or val == "NA":
+            return None
+        
+        return val
+
+    # Calculate latest values per group
+    unique_groups = df[group_by].drop_duplicates()
+    group_results = {}
+    
+    for _, row in unique_groups.iterrows():
+        key = tuple(row[group_by]) if len(group_by) > 1 else row[group_by[0]]
+        group_results[key] = calculate_group_latest(key)
 
     # Map values back to original dataframe (only for null rows)
     if len(group_by) == 1:
-        calculated = df.loc[null_mask, group_by[0]].map(latest_vals)
-        df.loc[null_mask, column_name] = calculated.fillna(fallback)
+        df.loc[null_mask, column_name] = df.loc[null_mask, group_by[0]].map(group_results)
     else:
-        # Use a join that preserves the index
-        subset = df.loc[null_mask, group_by].copy()
-        # Merge by columns but keep index
-        mapped = subset.merge(latest_vals, left_on=group_by, right_index=True, how='left')
-        # Restore index alignment before assignment
-        mapped.index = subset.index
-        df.loc[null_mask, column_name] = mapped[source_column].fillna(fallback)
+        df.loc[null_mask, column_name] = df.loc[null_mask, group_by].apply(
+            lambda r: group_results.get(tuple(r)), axis=1
+        )
 
-    engine._print_processing_step("Latest-By-Date", column_name, f"Applied to {null_mask.sum()} null rows")
+    engine._print_processing_step("Latest-By-Date", column_name, f"Applied to {null_mask.sum()} null rows (Phase 4 mode)")
     return df
 
 

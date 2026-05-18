@@ -338,12 +338,13 @@ class IdentityDetector(BaseDetector):
         Uses schema-driven derived_pattern if available, falls back to hardcoded pattern.
         Extracts affixes before validation to prevent false positives for IDs with suffixes.
         
-        Expected format: PROJECT-FACILITY-TYPE-DISCIPLINE-SEQUENCE
-        Example: PRJ-FAC-DWG-ARC-0001
-        
-        Error: P2-I-V-0204 (HIGH)
-        
-        Related to Issue #16: Document_ID affix handling
+        Error Codes (Phase 2):
+        - P2-I-V-0204-A: Pattern mismatch (base ID)
+        - P2-I-V-0204-D: NA segments
+        - P2-I-V-0204-E: Reply/Comment reference
+        - P2-I-V-0204-F: Spaces in segments
+        - P2-I-V-0204-G: Wrong segment count
+        - P2-I-V-0204-H: Special characters
         """
         id_col = "Document_ID"
         
@@ -360,58 +361,102 @@ class IdentityDetector(BaseDetector):
                 )
             return
             
-        pattern_source = "schema_derived"
-        if self._logger:
-            self._logger.info(
-                f"[{self.__class__.__name__}] Using schema-derived pattern for {id_col} validation"
-            )
-        
-        # Get affix extraction parameters from schema (Issue #16)
+        # Get affix extraction parameters from schema
         delimiter, sequence_length = self._get_affix_extraction_params(self._context)
         affix_extraction_enabled = HAS_AFFIX_EXTRACTOR
         
         for idx in df.index:
-            value = str(df.at[idx, id_col])
+            raw_value = str(df.at[idx, id_col])
             
             # Skip nulls (handled by _detect_uncertain_document_id)
-            if pd.isna(df.at[idx, id_col]) or value.strip() == '':
+            if pd.isna(df.at[idx, id_col]) or raw_value.strip() == '':
                 continue
             
-            # Extract affix before validation (Issue #16)
-            base_id = value
+            # Phase 2: Identify specific malformation type first
+            # These take precedence over pattern mismatch because they explain WHY it mismatched
+            
+            # E: Reply/Comment reference
+            if any(keyword in raw_value.upper() for keyword in ["REPLY", "COMMENT", "RESPONSE"]):
+                self.detect_error(
+                    error_code="P2-I-V-0204-E",
+                    message=self._format_message("P2-I-V-0204-E", value=raw_value),
+                    row=idx, column=id_col, fail_fast=False,
+                    additional_context={"actual_value": raw_value}
+                )
+                continue
+
+            # F: Spaces in segments
+            if " " in raw_value.strip():
+                self.detect_error(
+                    error_code="P2-I-V-0204-F",
+                    message=self._format_message("P2-I-V-0204-F", value=raw_value),
+                    row=idx, column=id_col, fail_fast=False,
+                    additional_context={"actual_value": raw_value}
+                )
+                continue
+
+            # H: Special characters (dots, parentheses, etc.)
+            if any(char in raw_value for char in "().,;:+*#?!@%^&="):
+                self.detect_error(
+                    error_code="P2-I-V-0204-H",
+                    message=self._format_message("P2-I-V-0204-H", value=raw_value),
+                    row=idx, column=id_col, fail_fast=False,
+                    additional_context={"actual_value": raw_value}
+                )
+                continue
+
+            # Extract affix before further validation
+            base_id = raw_value
             affix = ""
             if affix_extraction_enabled:
                 base_id, affix = extract_document_id_affixes(
-                    value, 
+                    raw_value, 
                     delimiter=delimiter, 
                     sequence_length=sequence_length
                 )
             
-            # Validate base ID (without affix)
+            segments = base_id.split(delimiter)
+            
+            # G: Wrong segment count
+            if len(segments) != 5:
+                self.detect_error(
+                    error_code="P2-I-V-0204-G",
+                    message=self._format_message("P2-I-V-0204-G", value=raw_value, count=len(segments)),
+                    row=idx, column=id_col, fail_fast=False,
+                    additional_context={"actual_value": raw_value, "segment_count": len(segments)}
+                )
+                continue
+                
+            # D: NA segments
+            if "NA" in segments:
+                self.detect_error(
+                    error_code="P2-I-V-0204-D",
+                    message=self._format_message("P2-I-V-0204-D", value=raw_value),
+                    row=idx, column=id_col, fail_fast=False,
+                    additional_context={"actual_value": raw_value}
+                )
+                continue
+
+            # A: General Pattern validation (base ID)
             if not pattern.match(base_id):
                 error_context = {
-                    "actual_value": value,
+                    "actual_value": raw_value,
                     "expected_pattern": "PROJECT-FACILITY-TYPE-DISCIPLINE-SEQUENCE",
                     "example_valid": "PRJ-FAC-DWG-ARC-0001",
-                    "suggestion": "Use format: PROJECT-FACILITY-TYPE-DISCIPLINE-0000",
-                    "pattern_source": pattern_source
+                    "suggestion": "Use format: PROJECT-FACILITY-TYPE-DISCIPLINE-0000"
                 }
                 
-                # Include affix info in error context (Issue #16)
-                if affix_extraction_enabled and affix:
+                if affix:
                     error_context.update({
                         "base_id": base_id,
                         "affix": affix,
-                        "affix_extraction": "applied",
                         "note": "Validation performed on base ID after removing affix"
                     })
                 
                 self.detect_error(
                     error_code=self.ERROR_ID_FORMAT_INVALID,
-                    message=self._format_message(self.ERROR_ID_FORMAT_INVALID, value=value),
-                    row=idx,
-                    column=id_col,
-                    fail_fast=False,
+                    message=self._format_message(self.ERROR_ID_FORMAT_INVALID, value=raw_value),
+                    row=idx, column=id_col, fail_fast=False,
                     additional_context=error_context
                 )
     

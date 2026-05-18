@@ -304,27 +304,35 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
     Calculates if a document is overdue by comparing Resubmission_Plan_Date
     against current date.
 
-    Logic:
-    1. If Resubmission_Required == 'YES' AND Resubmission_Plan_Date is not null AND Resubmission_Plan_Date < current_date -> 'Overdue'
-    2. Otherwise -> NO
+    Expanded 5-value logic matrix (Phase 3):
+    1. OVERDUE_RESUBMITTED: Required=RESUBMITTED and Plan_Date < today
+    2. RESUBMITTED: Required=RESUBMITTED and Plan_Date >= today
+    3. NO: Required=NO or Submission_Closed=YES
+    4. OVERDUE: Required=YES and Plan_Date < today
+    5. ON_TRACK: Required=YES and Plan_Date >= today
     
     Respects strategy configuration for data preservation.
     """
     dependencies = calculation.get('dependencies', [])
     
-    # Task A1: Read column dependencies
-    # Dependency order: Resubmission_Required, Resubmission_Plan_Date
+    # Dependency order: Resubmission_Required, Resubmission_Plan_Date, Submission_Closed
     resubmission_required_col = dependencies[0] if len(dependencies) > 0 else 'Resubmission_Required'
     resubmission_plan_date_col = dependencies[1] if len(dependencies) > 1 else 'Resubmission_Plan_Date'
+    submission_closed_col = dependencies[2] if len(dependencies) > 2 else 'Submission_Closed'
 
-    # Task A2: Read status values
+    # Read status values from schema allowed_values
     column_def = engine.columns.get(column_name, {})
     validation = column_def.get('validation', [])
     allowed_values = next((v.get('allowed_values', []) for v in validation if v.get('type') == 'allowed_values'), [])
-    val_overdue = allowed_values[1] if len(allowed_values) > 1 else 'Overdue'
-    val_no = allowed_values[2] if len(allowed_values) > 2 else 'NO'
+    
+    # Map status values: [OVERDUE_RESUBMITTED, OVERDUE, RESUBMITTED, ON_TRACK, NO]
+    val_overdue_resub = allowed_values[0] if len(allowed_values) > 0 else 'OVERDUE_RESUBMITTED'
+    val_overdue = allowed_values[1] if len(allowed_values) > 1 else 'OVERDUE'
+    val_resubmitted = allowed_values[2] if len(allowed_values) > 2 else 'RESUBMITTED'
+    val_on_track = allowed_values[3] if len(allowed_values) > 3 else 'ON_TRACK'
+    val_no = allowed_values[4] if len(allowed_values) > 4 else 'NO'
 
-    engine._print_processing_step("Conditional", column_name, f"Calculating {val_overdue}/{val_no}")
+    engine._print_processing_step("Conditional", column_name, f"Calculating 5-value overdue matrix")
 
     # Respect strategy configuration
     preservation_mode = _get_preservation_mode(engine, column_name)
@@ -335,50 +343,56 @@ def apply_calculate_overdue_status(engine, df: pd.DataFrame, column_name: str, c
     # Determine which rows to process
     if preservation_mode == "overwrite_existing":
         engine._print_processing_step("Conditional", column_name, f"Strategy: overwrite_existing - processing all {len(df)} rows")
-        # For overwrite, clear existing values first
-        df[column_name] = pd.NA
-        process_all = True
+        null_mask = pd.Series([True] * len(df), index=df.index)
     else:
-        # Calculate only for null values (default)
-        existing_mask = df[column_name].notna()
-        if existing_mask.any():
-            engine._print_processing_step("Conditional", column_name, f"Preserving {existing_mask.sum()} existing values")
-        
         null_mask = df[column_name].isna()
         if not null_mask.any():
             debug_print(f"Skipped overdue calculation for {column_name}: all values present")
             return df
-        process_all = False
 
     if resubmission_required_col in df.columns and resubmission_plan_date_col in df.columns:
-        # Convert plan date to datetime
-        df[resubmission_plan_date_col] = pd.to_datetime(df[resubmission_plan_date_col], errors='coerce')
-
-        # Get current date
+        # Ensure plan date is datetime
+        _coerce_date_col(df, resubmission_plan_date_col)
         current_date = pd.Timestamp.now().normalize()
 
-        # Condition: Resubmission_Required == 'YES' AND plan date not null AND plan date < current_date
-        mask_overdue = (
-            (df[resubmission_required_col] == 'YES') &
-            (df[resubmission_plan_date_col].notna()) &
-            (df[resubmission_plan_date_col] < current_date)
-        )
+        # Build masks for conditions
+        required = df[resubmission_required_col].astype(str).str.upper()
+        plan_dates = df[resubmission_plan_date_col]
+        closed = df[submission_closed_col].astype(str).str.upper() if submission_closed_col in df.columns else pd.Series(['NO'] * len(df), index=df.index)
 
-        if process_all:
-            df[column_name] = val_no
-            df.loc[mask_overdue, column_name] = val_overdue
-            engine._print_processing_step("Conditional", column_name, 
-                f"Applied to all rows: {mask_overdue.sum()} {val_overdue}, {(~mask_overdue).sum()} {val_no} (overwritten)")
-        else:
-            # Only apply to null rows
-            null_overdue_mask = mask_overdue & df[column_name].isna()
-            df.loc[null_overdue_mask, column_name] = val_overdue
-            # Apply default NO to remaining nulls
-            df[column_name] = df[column_name].fillna(val_no)
-            engine._print_processing_step("Conditional", column_name, 
-                f"Applied: {null_overdue_mask.sum()} rows {val_overdue}, {df[column_name].isna().sum()} rows {val_no}")
-    else:
+        # 1. OVERDUE_RESUBMITTED: Required=RESUBMITTED and Plan_Date < today
+        mask_overdue_resub = (required == 'RESUBMITTED') & (plan_dates.notna()) & (plan_dates < current_date)
+        
+        # 2. RESUBMITTED: Required=RESUBMITTED and Plan_Date >= today
+        mask_resubmitted = (required == 'RESUBMITTED') & ((plan_dates.isna()) | (plan_dates >= current_date))
+        
+        # 3. NO: Required=NO or (Submission_Closed=YES AND Required != RESUBMITTED)
+        # RESUBMITTED rows with Closed=YES are handled by conditions 1-2 (RESUBMITTED takes priority over Closed)
+        mask_no = (required == 'NO') | ((closed == 'YES') & (required != 'RESUBMITTED'))
+        
+        # 4. OVERDUE: Required=YES and Plan_Date < today
+        mask_overdue = (required == 'YES') & (plan_dates.notna()) & (plan_dates < current_date)
+        
+        # 5. ON_TRACK: Required=YES and (Plan_Date is null or Plan_Date >= today)
+        # Note: If Required=YES but Plan_Date is null, we treat as ON_TRACK (waiting for plan)
+        mask_on_track = (required == 'YES') & ((plan_dates.isna()) | (plan_dates >= current_date))
+
+        # Apply values to null rows
+        df.loc[null_mask & mask_overdue_resub, column_name] = val_overdue_resub
+        df.loc[null_mask & mask_resubmitted, column_name] = val_resubmitted
+        df.loc[null_mask & mask_no, column_name] = val_no
+        df.loc[null_mask & mask_overdue, column_name] = val_overdue
+        df.loc[null_mask & mask_on_track, column_name] = val_on_track
+        
+        # Final fallback for any remaining nulls in the null_mask
+        df.loc[null_mask & df[column_name].isna(), column_name] = val_no
+
         engine._print_processing_step("Conditional", column_name, 
-            "Cannot calculate: missing required columns")
+            f"Result: {(df[column_name] == val_overdue).sum()} {val_overdue}, "
+            f"{(df[column_name] == val_on_track).sum()} {val_on_track}, "
+            f"{(df[column_name] == val_resubmitted).sum()} {val_resubmitted}, "
+            f"{(df[column_name] == val_overdue_resub).sum()} {val_overdue_resub}")
+    else:
+        engine._print_processing_step("Conditional", column_name, "Cannot calculate: missing dependencies")
 
     return df

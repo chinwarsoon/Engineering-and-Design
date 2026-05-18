@@ -110,138 +110,228 @@ def calculate_date_difference(engine, df: pd.DataFrame, column_name: str, calcul
 
 def apply_resubmission_plan_date(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
-    Calculate Resubmission_Plan_Date based on conditional logic.
+    Calculate Resubmission_Plan_Date using row-position-separated 5-priority logic.
 
-    Condition 1 (NaT): Only when the document is TERMINALLY closed — Latest_Approval_Code
-    in terminal codes (APP, VOID, INF). Superseded rows (Submission_Date < Latest_Submission_Date
-    but not terminally approved) still receive a calculated plan date from their own dates.
+    Row position (is_latest vs is_superseded) determines which priority applies,
+    replacing the old flat 4-condition approach.
 
     Priority order:
-    1. Latest_Approval_Code in terminal codes → NaT  (terminally closed, no resubmission)
-    2. Review_Return_Actual_Date is not null  → Review_Return_Actual_Date + resubmission_duration
-    3. Latest_Submission_Date == Submission_Date (first/only submission)
-                                              → Submission_Date + first_review + resubmission_duration
-    4. Else (subsequent submission)           → Submission_Date + second_review + resubmission_duration
+    L1: is_latest + Resubmission_Required == NO             → NaT
+    L2: is_latest + Resubmission_Required in [YES, PEN]     → calc A → B
+    S1: is_superseded + Resubmission_Required == NO          → NaT
+    S2: is_superseded + Resubmission_Required == RESUBMITTED
+        + Review_Status_Code in [APP, VOID, INF]            → NaT
+    S3: is_superseded + Resubmission_Required == RESUBMITTED
+        + Review_Status_Code NOT in [APP, VOID, INF]        → calc A → C
+
+    Sub-rules (calculate):
+    A: Review_Return_Actual_Date not null → +resubmission_duration BDays
+    B: Submission_Date + (first_review + resubmission) BDays (latest rows)
+    C: Submission_Date + (second_review + resubmission) BDays (superseded rows)
     """
     dependencies = calculation.get('dependencies', [])
-    conditions = calculation.get('conditions', [])
     parameters = calculation.get('parameters', {})
 
-    # Get parameters
     resubmission_duration = parameters.get('resubmission_duration', 14)
     first_review_duration = parameters.get('first_review_duration', 20)
     second_review_duration = parameters.get('second_review_duration', 14)
     duration_is_working_day = parameters.get('duration_is_working_day', True)
 
-    # Dependency order: Submission_Closed (legacy, kept for compat), Review_Return_Actual_Date,
-    #                   Latest_Submission_Date, Submission_Date, Latest_Approval_Code
-    review_return_date_col       = dependencies[1] if len(dependencies) > 1 else 'Review_Return_Actual_Date'
-    latest_submission_date_col   = dependencies[2] if len(dependencies) > 2 else 'Latest_Submission_Date'
-    submission_date_col          = dependencies[3] if len(dependencies) > 3 else 'Submission_Date'
-    latest_approval_col          = dependencies[4] if len(dependencies) > 4 else 'Latest_Approval_Code'
+    # New dependency order (Phase 5):
+    # [0] Submission_Date, [1] Latest_Submission_Date, [2] Resubmission_Required,
+    # [3] Review_Status_Code, [4] Review_Return_Actual_Date
+    submission_date_col       = dependencies[0] if len(dependencies) > 0 else 'Submission_Date'
+    latest_submission_date_col = dependencies[1] if len(dependencies) > 1 else 'Latest_Submission_Date'
+    resubmission_required_col = dependencies[2] if len(dependencies) > 2 else 'Resubmission_Required'
+    review_status_col         = dependencies[3] if len(dependencies) > 3 else 'Review_Status_Code'
+    review_return_date_col    = dependencies[4] if len(dependencies) > 4 else 'Review_Return_Actual_Date'
 
-    engine._print_processing_step("Resubmission-Plan", column_name, "Calculating based on submission state")
+    engine._print_processing_step("Resubmission-Plan", column_name,
+        "Calculating based on row position and resubmission state")
 
     # Initialize column if not exists
     if column_name not in df.columns:
         df[column_name] = pd.NaT
 
-    # Get existing non-null values
-    existing_mask = df[column_name].notna()
-    if existing_mask.any():
-        engine._print_processing_step("Resubmission-Plan", column_name,
-            f"Will preserve {existing_mask.sum()} existing values (except terminally closed rows)")
-
     # Track which rows have been determined — these skip remaining checks
     determined_mask = pd.Series([False] * len(df), index=df.index)
 
-    # Condition 1: Terminally closed — latest submission AND terminal approval code → NaT
-    # Only the latest submission row of a terminally approved/voided document has no
-    # future resubmission. Superseded rows always need a plan date regardless of the
-    # document's current approval state.
-    if latest_approval_col in df.columns and latest_submission_date_col in df.columns and submission_date_col in df.columns:
+    # Coerce date columns
+    for col in [submission_date_col, latest_submission_date_col, review_return_date_col]:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+
+    # Determine row position: is_latest vs is_superseded
+    has_position_cols = (submission_date_col in df.columns
+                         and latest_submission_date_col in df.columns)
+    if has_position_cols:
+        is_latest_mask = df[submission_date_col] == df[latest_submission_date_col]
+        is_superseded_mask = df[submission_date_col] != df[latest_submission_date_col]
+    else:
+        is_latest_mask = pd.Series([True] * len(df), index=df.index)
+        is_superseded_mask = pd.Series([False] * len(df), index=df.index)
+        engine._print_processing_step("Resubmission-Plan", column_name,
+            "WARNING: Missing Submission_Date or Latest_Submission_Date — treating all as latest")
+
+    # Get terminal codes from schema
+    terminal_codes = ['APP', 'VOID', 'INF']
+    if review_status_col in df.columns:
         approval_entries = engine.schema_data.get('approval_codes', [])
         terminal_statuses = ['Approved', 'Void', 'For Information']
-        terminal_codes = [
+        codes = [
             entry['code'] for entry in approval_entries
             if entry.get('status') in terminal_statuses
         ]
-        if not terminal_codes:
-            terminal_codes = ['APP', 'VOID', 'INF']  # fallback
-
-        df[latest_submission_date_col] = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
-        df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
-
-        # Terminal = latest submission row AND terminal approval code
-        mask_terminal = (
-            (df[submission_date_col] == df[latest_submission_date_col])
-            & df[latest_approval_col].isin(terminal_codes)
-        )
-        df.loc[mask_terminal, column_name] = pd.NaT
-        determined_mask |= mask_terminal
-        if mask_terminal.any():
-            engine._print_processing_step("Resubmission-Plan", column_name,
-                f"Set {mask_terminal.sum()} terminally-closed latest rows to NaT "
-                f"(Latest_Approval_Code in {terminal_codes})")
-    elif latest_approval_col not in df.columns:
+        if codes:
+            terminal_codes = codes
+    else:
         engine._print_processing_step("Resubmission-Plan", column_name,
-            f"WARNING: {latest_approval_col} not found — terminal closure check skipped")
+            f"WARNING: {review_status_col} not found — terminal check uses fallback {terminal_codes}")
 
-    # Condition 2: Review_Return_Actual_Date is not null → add resubmission_duration
-    if review_return_date_col in df.columns:
-        df[review_return_date_col] = pd.to_datetime(df[review_return_date_col], errors='coerce')
-        mask_has_return_date = df[review_return_date_col].notna() & ~determined_mask
+    # ===== L1: Latest + Resubmission_Required == NO → NaT =====
+    # Latest submission row not requiring resubmission: no plan date needed
+    if resubmission_required_col in df.columns and has_position_cols:
+        mask_l1 = (
+            is_latest_mask
+            & (df[resubmission_required_col] == 'NO')
+            & ~determined_mask
+        )
+        df.loc[mask_l1, column_name] = pd.NaT
+        determined_mask |= mask_l1
+        if mask_l1.any():
+            engine._print_processing_step("Resubmission-Plan", column_name,
+                f"L1: Set {mask_l1.sum()} latest-NO rows to NaT")
 
-        if duration_is_working_day:
-            from pandas.tseries.offsets import BDay
-            df.loc[mask_has_return_date, column_name] = (
-                df.loc[mask_has_return_date, review_return_date_col] + BDay(resubmission_duration)
-            )
-        else:
-            df.loc[mask_has_return_date, column_name] = (
-                df.loc[mask_has_return_date, review_return_date_col]
-                + pd.Timedelta(days=resubmission_duration)
-            )
-        determined_mask |= mask_has_return_date
+    # ===== L2: Latest + Resubmission_Required in [YES, PEN] → calc A → B =====
+    # Latest row pending resubmission: calculate date via Review_Return_Actual_Date
+    # or fall back to Submission_Date + first_review + resubmission
+    if resubmission_required_col in df.columns and has_position_cols:
+        mask_l2 = (
+            is_latest_mask
+            & df[resubmission_required_col].isin(['YES', 'PEN'])
+            & ~determined_mask
+        )
+        if mask_l2.any():
+            # Sub-rule A: Review_Return_Actual_Date not null → +resubmission_duration
+            if review_return_date_col in df.columns:
+                mask_a = mask_l2 & df[review_return_date_col].notna()
+                if mask_a.any():
+                    if duration_is_working_day:
+                        from pandas.tseries.offsets import BDay
+                        df.loc[mask_a, column_name] = (
+                            df.loc[mask_a, review_return_date_col]
+                            + BDay(resubmission_duration)
+                        )
+                    else:
+                        df.loc[mask_a, column_name] = (
+                            df.loc[mask_a, review_return_date_col]
+                            + pd.Timedelta(days=resubmission_duration)
+                        )
+                    determined_mask |= mask_a
 
-    # Condition 3: First/only submission (Latest_Submission_Date == Submission_Date)
-    if latest_submission_date_col in df.columns and submission_date_col in df.columns:
-        df[latest_submission_date_col] = pd.to_datetime(df[latest_submission_date_col], errors='coerce')
-        df[submission_date_col] = pd.to_datetime(df[submission_date_col], errors='coerce')
+            # Sub-rule B: Submission_Date + (first_review + resubmission) BDays
+            mask_b = mask_l2 & ~determined_mask
+            if mask_b.any():
+                total_days = first_review_duration + resubmission_duration
+                if duration_is_working_day:
+                    from pandas.tseries.offsets import BDay
+                    df.loc[mask_b, column_name] = (
+                        df.loc[mask_b, submission_date_col] + BDay(total_days)
+                    )
+                else:
+                    df.loc[mask_b, column_name] = (
+                        df.loc[mask_b, submission_date_col]
+                        + pd.Timedelta(days=total_days)
+                    )
+                determined_mask |= mask_b
 
-        mask_first = (df[latest_submission_date_col] == df[submission_date_col]) & ~determined_mask
-        total_days = first_review_duration + resubmission_duration
+            engine._print_processing_step("Resubmission-Plan", column_name,
+                f"L2: Set {mask_l2.sum()} latest-YES/PEN rows with plan dates")
 
-        if duration_is_working_day:
-            from pandas.tseries.offsets import BDay
-            df.loc[mask_first, column_name] = (
-                df.loc[mask_first, submission_date_col] + BDay(total_days)
-            )
-        else:
-            df.loc[mask_first, column_name] = (
-                df.loc[mask_first, submission_date_col] + pd.Timedelta(days=total_days)
-            )
-        determined_mask |= mask_first
+    # ===== S1: Superseded + Resubmission_Required == NO → NaT =====
+    # Superseded rows not requiring resubmission (older documents superseded by newer):
+    # no plan date needed
+    if resubmission_required_col in df.columns and has_position_cols:
+        mask_s1 = (
+            is_superseded_mask
+            & (df[resubmission_required_col] == 'NO')
+            & ~determined_mask
+        )
+        df.loc[mask_s1, column_name] = pd.NaT
+        determined_mask |= mask_s1
+        if mask_s1.any():
+            engine._print_processing_step("Resubmission-Plan", column_name,
+                f"S1: Set {mask_s1.sum()} superseded-NO rows to NaT")
 
-    # Condition 4: Subsequent submission (includes superseded rows)
-    if submission_date_col in df.columns:
-        mask_subsequent = ~determined_mask
-        total_days = second_review_duration + resubmission_duration
+    # ===== S2: Superseded + RESUBMITTED + terminal → NaT =====
+    # Superseded rows with terminal review status (APP, VOID, INF): document is
+    # terminally closed, no future resubmission
+    if (resubmission_required_col in df.columns and review_status_col in df.columns
+            and has_position_cols):
+        mask_s2 = (
+            is_superseded_mask
+            & (df[resubmission_required_col] == 'RESUBMITTED')
+            & df[review_status_col].isin(terminal_codes)
+            & ~determined_mask
+        )
+        df.loc[mask_s2, column_name] = pd.NaT
+        determined_mask |= mask_s2
+        if mask_s2.any():
+            engine._print_processing_step("Resubmission-Plan", column_name,
+                f"S2: Set {mask_s2.sum()} superseded-RESUBMITTED-terminal rows to NaT")
 
-        if duration_is_working_day:
-            from pandas.tseries.offsets import BDay
-            df.loc[mask_subsequent, column_name] = (
-                df.loc[mask_subsequent, submission_date_col] + BDay(total_days)
-            )
-        else:
-            df.loc[mask_subsequent, column_name] = (
-                df.loc[mask_subsequent, submission_date_col] + pd.Timedelta(days=total_days)
-            )
-        determined_mask |= mask_subsequent
+    # ===== S3: Superseded + RESUBMITTED + non-terminal → calc A → C =====
+    # Superseded rows that were resubmitted with non-terminal status (PEN, REJ, AWC, NAP):
+    # calculate date via Review_Return_Actual_Date or fall back to
+    # Submission_Date + second_review + resubmission
+    if (resubmission_required_col in df.columns and review_status_col in df.columns
+            and has_position_cols):
+        mask_s3 = (
+            is_superseded_mask
+            & (df[resubmission_required_col] == 'RESUBMITTED')
+            & ~df[review_status_col].isin(terminal_codes)
+            & ~determined_mask
+        )
+        if mask_s3.any():
+            # Sub-rule A: Review_Return_Actual_Date not null → +resubmission_duration
+            if review_return_date_col in df.columns:
+                mask_a = mask_s3 & df[review_return_date_col].notna()
+                if mask_a.any():
+                    if duration_is_working_day:
+                        from pandas.tseries.offsets import BDay
+                        df.loc[mask_a, column_name] = (
+                            df.loc[mask_a, review_return_date_col]
+                            + BDay(resubmission_duration)
+                        )
+                    else:
+                        df.loc[mask_a, column_name] = (
+                            df.loc[mask_a, review_return_date_col]
+                            + pd.Timedelta(days=resubmission_duration)
+                        )
+                    determined_mask |= mask_a
+
+            # Sub-rule C: Submission_Date + (second_review + resubmission) BDays
+            mask_c = mask_s3 & ~determined_mask
+            if mask_c.any():
+                total_days = second_review_duration + resubmission_duration
+                if duration_is_working_day:
+                    from pandas.tseries.offsets import BDay
+                    df.loc[mask_c, column_name] = (
+                        df.loc[mask_c, submission_date_col] + BDay(total_days)
+                    )
+                else:
+                    df.loc[mask_c, column_name] = (
+                        df.loc[mask_c, submission_date_col]
+                        + pd.Timedelta(days=total_days)
+                    )
+                determined_mask |= mask_c
+
+            engine._print_processing_step("Resubmission-Plan", column_name,
+                f"S3: Set {mask_s3.sum()} superseded-RESUBMITTED-non-terminal rows with plan dates")
 
     engine._print_processing_step("Resubmission-Plan", column_name,
         f"Applied: {df[column_name].notna().sum()} rows with dates, "
-        f"{df[column_name].isna().sum()} rows null (terminally closed)")
+        f"{df[column_name].isna().sum()} rows null")
     return df
 
 

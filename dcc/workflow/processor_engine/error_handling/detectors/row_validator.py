@@ -13,12 +13,13 @@ Error Codes (Standardized per error_code_standardization_proposal.md):
   P1-A-P-0101  : Null anchor column
   P2-I-V-0204  : Document_ID composite mismatch
   L3-L-P-0301  : Date inversion (Submission_Date > Review_Return_Actual_Date)
-  L3-L-V-0302  : CLOSED_WITH_PLAN_DATE - Resubmission_Plan_Date not null when Submission_Closed=YES
+  L3-L-V-0302  : LATEST_CLOSED_WITH_PLAN_DATE - Resubmission_Plan_Date not null when latest submission Closed=YES
   L3-L-V-0303  : RESUBMISSION_MISMATCH - REJ status without Resubmission_Required=YES/RESUBMITTED
   L3-L-V-0304  : OVERDUE_MISMATCH - Overdue status mismatch
   L3-L-V-0305  : VERSION_REGRESSION - Document_Revision decreases per Document_ID
   L3-L-V-0306  : REVISION_GAP - Submission_Session_Revision not sequential
   L3-L-V-0307  : CLOSED_WITH_RESUBMISSION - Submission_Closed=YES but Resubmission_Required=YES
+  P4-I-V-0401  : REVISION_MISSING_FOR_VALID_ID - Document_Revision null/NA for valid Document_ID
   GROUP_INCONSISTENT    : Submission_Date inconsistent within Submission_Session
   INCONSISTENT_SUBJECT  : Submission_Session_Subject inconsistent within session
 """
@@ -40,8 +41,9 @@ logger = logging.getLogger(__name__)
 ROW_ERROR_WEIGHTS: Dict[str, int] = {
     "ANCHOR_NULL":            25,
     "COMPOSITE_MISMATCH":     20,
-    "GROUP_INCONSISTENT":     15,
     "L3-L-V-0305":            15,  # VERSION_REGRESSION
+    "P4-I-V-0401":            20,  # REVISION_MISSING
+    "GROUP_INCONSISTENT":     15,
     "INCONSISTENT_CLOSURE":   10,
     "L3-L-V-0302":            10,  # CLOSED_WITH_PLAN_DATE
     "L3-L-V-0307":            10,  # CLOSED_WITH_RESUBMISSION
@@ -174,6 +176,9 @@ class RowValidator(BaseDetector):
         self._validate_group_consistency(df)
         self._validate_revision_progression(df)
         self._validate_session_revision_sequence(df)
+
+        # Phase 4 – Data Quality & Null Handling
+        self._validate_revision_completeness(df)
 
         logger.info(
             f"[RowValidator.detect] Complete — {len(self._errors)} row-level errors found"
@@ -335,11 +340,11 @@ class RowValidator(BaseDetector):
 
     def _validate_status_closure(self, df: pd.DataFrame) -> None:
         """
-        Phase 2.2 – If Submission_Closed=YES then Resubmission_Plan_Date must be NULL.
+        Phase 2.2 – If latest submission Closed=YES then Resubmission_Plan_Date must be NULL.
         Only applies to the latest submission revision — historical revisions may
-        have both closed=YES and a plan date for the next submission.
+        have both closed=YES and a plan date as benchmark for Delay_of_Resubmission.
 
-        Error: CLOSED_WITH_PLAN_DATE (HIGH)
+        Error: LATEST_CLOSED_WITH_PLAN_DATE (HIGH)
         Breadcrumb: df['Submission_Closed'] == 'YES' → df['Resubmission_Plan_Date'].notna()
         → Latest_Submission_Date check excludes non-latest rows
         """
@@ -410,47 +415,60 @@ class RowValidator(BaseDetector):
 
     def _validate_overdue_status(self, df: pd.DataFrame) -> None:
         """
-        Phase 2.4 – Resubmission_Overdue_Status must be 'Overdue' when today > Resubmission_Plan_Date
-        and Submission_Closed != YES.
-
-        Error: OVERDUE_MISMATCH (MEDIUM)
-        Breadcrumb: today > Resubmission_Plan_Date & not closed → check Resubmission_Overdue_Status
+        Phase 2.4 – Validate Resubmission_Overdue_Status against Plan_Date and Required state.
+        
+        Logic (5-value matrix):
+        1. OVERDUE_RESUBMITTED: Required=RESUBMITTED and Plan_Date < today
+        2. RESUBMITTED: Required=RESUBMITTED and Plan_Date >= today
+        3. NO: Required=NO or Submission_Closed=YES
+        4. OVERDUE: Required=YES and Plan_Date < today
+        5. ON_TRACK: Required=YES and Plan_Date >= today
+        
+        Error: L3-L-V-0304 (HIGH)
         """
-        plan_col = "Resubmission_Plan_Date"
         overdue_col = "Resubmission_Overdue_Status"
+        plan_col = "Resubmission_Plan_Date"
+        required_col = "Resubmission_Required"
         closed_col = "Submission_Closed"
-        if plan_col not in df.columns or overdue_col not in df.columns:
+        
+        if any(col not in df.columns for col in [overdue_col, plan_col, required_col]):
             return
+            
+        current_date = pd.Timestamp.now().normalize()
+        
+        for idx in df.index:
+            status = str(df.at[idx, overdue_col])
+            required = str(df.at[idx, required_col]).upper()
+            plan_date = df.at[idx, plan_col]
+            closed = str(df.at[idx, closed_col]).upper() if closed_col in df.columns else "NO"
+            
+            # Skip if status is null/NaN — not yet calculated
+            if pd.isna(df.at[idx, overdue_col]):
+                continue
+                
+            # Parse plan_date
+            plan_dt = _parse_date(plan_date) if pd.notna(plan_date) else None
 
-        today = datetime.now()
-        not_closed_mask = pd.Series(True, index=df.index)
-        if closed_col in df.columns:
-            not_closed_mask = df[closed_col].astype(str).str.upper() != "YES"
-
-        has_plan_mask = df[plan_col].notna() & (df[plan_col].astype(str).str.strip() != "")
-
-        for idx in df.index[has_plan_mask & not_closed_mask]:
-            plan_dt = _parse_date(df.at[idx, plan_col])
-            if plan_dt and plan_dt < today:
-                raw_status = df.at[idx, overdue_col]
-                # Skip rows where Resubmission_Overdue_Status is null/NaN — not yet calculated
-                if pd.isna(raw_status):
-                    continue
-                actual_status = str(raw_status).strip()
-                if actual_status.lower() not in ("overdue", "resubmitted"):
-                    self.detect_error(
-                        error_code="L3-L-V-0304",
-                        message=self._format_message("L3-L-V-0304"),
-                        row=idx,
-                        column=overdue_col,
-                        fail_fast=False,
-                        additional_context={
-                            "error_key": "OVERDUE_MISMATCH",
-                            "plan_date": str(plan_dt.date()),
-                            "overdue_status": actual_status,
-                            "days_overdue": (today - plan_dt).days,
-                        },
-                    )
+            expected = "NO"
+            if required == "RESUBMITTED":
+                expected = "OVERDUE_RESUBMITTED" if plan_dt and plan_dt < current_date else "RESUBMITTED"
+            elif closed == "YES" or required == "NO":
+                expected = "NO"
+            elif required == "YES":
+                expected = "OVERDUE" if plan_dt and plan_dt < current_date else "ON_TRACK"
+            
+            if status != expected:
+                self.detect_error(
+                    error_code="L3-L-V-0304",
+                    message=self._format_message("L3-L-V-0304", value=status, required=required, plan_date=str(plan_dt.date()) if plan_dt else "None"),
+                    row=idx, column=overdue_col, fail_fast=False,
+                    additional_context={
+                        "actual": status,
+                        "expected": expected,
+                        "required": required,
+                        "plan_date": str(plan_dt.date()) if plan_dt else "None"
+                    }
+                )
 
     # ------------------------------------------------------------------
     # Phase 3 – Relational Invariants & Aggregation
@@ -604,6 +622,39 @@ class RowValidator(BaseDetector):
                             "gap_to": numeric_revs[i],
                         },
                     )
+
+    # ------------------------------------------------------------------
+    # Phase 4 – Data Quality & Null Handling
+    # ------------------------------------------------------------------
+
+    def _validate_revision_completeness(self, df: pd.DataFrame) -> None:
+        """
+        Phase 4.1 – Ensure valid Document_ID has a Latest_Revision.
+        If Latest_Revision is null for a valid ID, it means manual input is required.
+
+        Error: P4-I-V-0401 (CRITICAL)
+        """
+        if "Latest_Revision" not in df.columns or "Document_ID" not in df.columns:
+            return
+
+        # Valid ID = not null and has 5 segments (P2 standard)
+        id_mask = df["Document_ID"].notna() & (df["Document_ID"].astype(str).str.count("-") == 4)
+        
+        # Null Revision = is null (not "NA", as "NA" for malformed is handled in calculation)
+        null_rev_mask = df["Latest_Revision"].isna()
+        
+        for idx in df.index[id_mask & null_rev_mask]:
+            self.detect_error(
+                error_code="P4-I-V-0401",
+                message=self._format_message("P4-I-V-0401"),
+                row=idx,
+                column="Document_Revision",  # Flag source column for user fix
+                fail_fast=False,
+                additional_context={
+                    "error_key": "REVISION_MISSING",
+                    "document_id": str(df.at[idx, "Document_ID"]),
+                },
+            )
 
 
 # ------------------------------------------------------------------

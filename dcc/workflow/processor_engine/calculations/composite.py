@@ -30,16 +30,54 @@ def _get_preservation_mode(engine, column_name: str) -> str:
     return "preserve_existing"  # Default behavior
 
 
+def _identify_id_malformation(value: str) -> Optional[str]:
+    """
+    Identify specific malformation type for Document_ID.
+    Returns the error code suffix or None if not specifically malformed.
+    """
+    if not value or pd.isna(value):
+        return None
+    
+    # E: Reply/Comment reference
+    if any(keyword in value.upper() for keyword in ["REPLY", "COMMENT", "RESPONSE"]):
+        return "E"
+    
+    # F: Spaces in segments
+    if " " in value.strip():
+        return "F"
+    
+    # H: Special characters (dots, parentheses, etc.)
+    if any(char in value for char in "().,;:+*#?!@%^&="):
+        return "H"
+        
+    segments = value.split('-')
+    # G: Wrong segment count
+    if len(segments) != 5:
+        # Check if it has an affix that was not stripped yet
+        if '_' in value:
+            base_part = value.split('_')[0]
+            if len(base_part.split('-')) != 5:
+                return "G"
+        else:
+            return "G"
+            
+    # D: NA segments
+    if "NA" in segments:
+        return "D"
+        
+    return None
+
+
 def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calculation: Dict[str, Any]) -> pd.DataFrame:
     """
     Apply composite calculation using row-by-row formatting.
     Builds values by combining multiple source columns with a format string.
     
-    Respects strategy configuration:
-    - preserve_existing: Keep existing values, only calculate for nulls (default)
-    - overwrite_existing: Replace all values with calculated results
+    Phase 2 Enhancements:
+    - Pre-validation of source columns
+    - Affix extraction for Document_ID
+    - Specific error flagging for malformed IDs
     """
-    # Support both 'sources' and 'source_columns'
     source_columns = calculation.get('sources') or calculation.get('source_columns', [])
     format_string = calculation.get('format', '')
 
@@ -56,11 +94,41 @@ def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calc
 
     engine._print_processing_step("Composite", column_name, f"Formatting with {len(available_sources)}/{len(source_columns)} sources")
 
+    # Document_ID specific handling (Phase 2)
+    is_doc_id = column_name == "Document_ID"
+    affix_col = "Document_ID_Affixes"
+    
+    # Import affix extractor if needed
+    extract_fn = None
+    if is_doc_id:
+        try:
+            from .affix_extractor import extract_document_id_affixes
+            extract_fn = extract_document_id_affixes
+        except ImportError:
+            pass
+
     def format_row(row):
         try:
-            # Fill NA/NaN values with empty string before formatting
-            values = {col: '' if pd.isna(row.get(col)) else row[col] for col in available_sources}
-            return format_string.format(**values)
+            # Pre-validation (Phase 2): Check for malformed source data
+            # If any source contains NA or invalid text, it will propagate to the formatted string
+            values = {col: 'NA' if pd.isna(row.get(col)) or str(row.get(col)).strip() == '' else str(row[col]).strip() for col in available_sources}
+            
+            # Check for NA segments (Phase 2 Case 2)
+            if is_doc_id and any(v == 'NA' for v in values.values()):
+                # We still format it, but it will be flagged by identity detector later
+                pass
+                
+            formatted = format_string.format(**values)
+            
+            # Affix Extraction (Phase 2 Case 1)
+            if is_doc_id and extract_fn and '_' in formatted:
+                base, affix = extract_fn(formatted)
+                # Store affix in row if we had a way to return multiple values, 
+                # but format_row only returns the column value. 
+                # We handle storing affix in a separate vectorized step for efficiency.
+                return base
+                
+            return formatted
         except Exception:
             return "ERR-COMPOSITE"
 
@@ -70,27 +138,34 @@ def apply_composite_calculation(engine, df: pd.DataFrame, column_name: str, calc
     if column_name not in df.columns:
         df[column_name] = np.nan
 
-    # Get preservation mode from strategy (respects schema configuration)
+    # Get preservation mode from strategy
     preservation_mode = _get_preservation_mode(engine, column_name)
     
+    # Determine rows to calculate
     if preservation_mode == "overwrite_existing":
-        # Strategy: Calculate for ALL rows (overwrite mode)
-        engine._print_processing_step("Composite", column_name, f"Strategy: overwrite_existing - calculating all {len(df)} rows")
-        df[column_name] = df[available_sources].apply(format_row, axis=1)
-        engine._print_processing_step("Composite", column_name, f"Applied to all rows (overwritten)")
+        calc_mask = pd.Series(True, index=df.index)
     else:
-        # Strategy: preserve_existing (default) - only calculate for nulls
-        existing_mask = df[column_name].notna()
-        if existing_mask.any():
-            engine._print_processing_step("Composite", column_name, f"Preserving {existing_mask.sum()} existing values")
+        calc_mask = df[column_name].isna()
 
-        # Calculate only for null values
-        null_mask = df[column_name].isna()
-        if null_mask.any():
-            df.loc[null_mask, column_name] = df.loc[null_mask, available_sources].apply(format_row, axis=1)
-            engine._print_processing_step("Composite", column_name, f"Applied to {null_mask.sum()} null rows")
-        else:
-            debug_print(f"Skipped composite for {column_name}: all values present")
+    if calc_mask.any():
+        df.loc[calc_mask, column_name] = df.loc[calc_mask, available_sources].apply(format_row, axis=1)
+        
+        # Post-process Document_ID to extract affixes (Phase 2 Case 1)
+        if is_doc_id and extract_fn:
+            if affix_col not in df.columns:
+                df[affix_col] = ""
+            
+            # Vectorized affix extraction for the newly calculated rows
+            # This ensures Document_ID is clean and Affixes are stored
+            doc_ids = df.loc[calc_mask, column_name].astype(str)
+            affix_results = doc_ids.apply(lambda x: extract_fn(x) if '_' in x else (x, ""))
+            
+            df.loc[calc_mask, column_name] = affix_results.apply(lambda x: x[0])
+            # Only update affix if it was empty or we are in overwrite mode
+            affix_update_mask = calc_mask & (df[affix_col].isna() | (df[affix_col] == ""))
+            df.loc[affix_update_mask, affix_col] = affix_results.loc[affix_update_mask].apply(lambda x: x[1])
+
+        engine._print_processing_step("Composite", column_name, f"Applied to {calc_mask.sum()} rows")
 
     return df
 
