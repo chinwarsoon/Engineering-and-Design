@@ -7,173 +7,6 @@
   <link rel="stylesheet" href="dcc-design-system.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    .content-scroll { flex: 1; overflow-y: auto; min-height: 0; }
-    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 0 0 20px 0; }
-    .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; position: relative; height: 220px; }
-    .chart-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
-    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
-    .dcc-sidebar-right { width: var(--right-sidebar-w, 320px); background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s; min-height: 0; }
-    .dcc-sidebar-right.collapsed { width: 0; border-left: none; }
-    .sb-section-body { font-size: 11px; color: var(--text2); line-height: 1.8; }
-    .sb-section-body strong { color: var(--text); }
-
-    #risksContainer { margin-top: 12px; }
-    .risk-card { border-left: 4px solid var(--border); margin-bottom: var(--space-md); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
-    .risk-card:hover { box-shadow: 0 0 0 1px var(--accent); }
-    .risk-card.expanded { border-left-width: 4px; }
-    .risk-card.severity-CRITICAL { border-left-color: var(--danger); }
-    .risk-card.severity-HIGH { border-left-color: var(--warning); }
-    .risk-card.severity-MEDIUM { border-left-color: var(--info); }
-    .risk-card.severity-LOW { border-left-color: var(--success); }
-    .risk-card.severity-WARNING { border-left-color: var(--warning); }
-
-    .risk-body { display: none; }
-    .risk-card.expanded .risk-body { display: block; }
-    .risk-header { display: flex; justify-content: space-between; align-items: start; cursor: pointer; }
-    .risk-arrow { transition: transform 0.2s; font-size: 10px; color: var(--text3); }
-    .risk-card.expanded .risk-arrow { transform: rotate(90deg); }
-
-    .evidence-table { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 8px; }
-    .evidence-table th { padding: 4px 8px; text-align: left; border: 1px solid var(--border); background: var(--surface2); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); }
-    .evidence-table td { padding: 4px 8px; border: 1px solid var(--border); }
-
-    .trend-card { border-bottom: 1px solid var(--border); padding: 10px 0; }
-    .trend-card:last-child { border-bottom: none; }
-
-    .phase-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; background: var(--tag-bg); color: var(--accent-alt); border: 1px solid var(--tag-border); margin: 1px 2px; cursor: pointer; }
-
-    .rec-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text); cursor: pointer; transition: background 0.1s; }
-    .rec-item:last-child { border-bottom: none; }
-    .rec-item:hover { background: var(--surface2); }
-    .rec-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
-
-    .md-report { max-width: 820px; margin: 0 auto; line-height: 1.75; padding: 20px 0; }
-    .md-report h1 { font-size: 1.6rem; font-weight: 700; color: var(--text); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
-    .md-report h2 { font-size: 1.2rem; font-weight: 700; color: var(--text); margin: 28px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
-    .md-report h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin: 20px 0 6px; }
-    .md-report p { margin: 10px 0; color: var(--text); }
-    .md-report strong { color: var(--text); }
-    .md-report code { font-family: var(--font-mono); font-size: 0.85em; background: var(--surface3); padding: 2px 6px; border-radius: 4px; color: var(--accent-alt); }
-    .md-report hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
-    .md-report ul, .md-report ol { margin: 8px 0 8px 20px; color: var(--text); }
-    .md-report li { margin: 3px 0; }
-
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; display: none; align-items: center; justify-content: center; }
-    .modal-overlay.open { display: flex; }
-    .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; max-width: 700px; max-height: 80vh; overflow-y: auto; width: 90%; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-    .modal-close { cursor: pointer; font-size: 18px; color: var(--text3); background: none; border: none; }
-    .modal-close:hover { color: var(--text); }
-
-    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 40px; text-align: center; color: var(--text3); }
-    .empty-state .icon { font-size: 40px; }
-    .empty-state .title { font-size: 16px; font-weight: 600; color: var(--text); }
-    .empty-state .sub { font-size: 12px; color: var(--text2); max-width: 400px; line-height: 1.6; }
-
-    .error-card { background: var(--surface); border: 1px solid var(--danger); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
-    .error-card .msg { flex: 1; font-size: 12px; color: var(--text); }
-
-    .loading-skeleton { padding: 20px; }
-    .skeleton-card { background: var(--surface2); border-radius: var(--radius); height: 60px; margin-bottom: 12px; animation: pulse 1.5s infinite; }
-    .skeleton-kpi { background: var(--surface2); border-radius: var(--radius); height: 80px; }
-    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
-
-    .dcc-sidebar-resizer { z-index: 1000; background: transparent; }
-    .left-resizer { right: -4px; width: 8px; cursor: col-resize; }
-    .right-resizer { left: -4px; width: 8px; cursor: col-resize; }
-    .sidebar-panel-stretch { height: 100%; display: none; flex-direction: column; overflow: hidden; }
-    .sidebar-panel-stretch.visible { display: flex; }
-    .dcc-sidebar-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
-
-    /* Chat panel fills the right sidebar flex column; input row stays pinned at bottom */
-    .chat-container { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-    .chat-header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-    .chat-status-dot { width: 6px; height: 6px; border-radius: 50%; }
-    .chat-status-dot.online { background: var(--success); }
-    .chat-status-dot.offline { background: var(--danger); }
-    .chat-messages { flex: 1; overflow-y: auto; padding: 8px 12px; font-size: 12px; min-height: 0; }
-    .chat-msg { margin-bottom: 8px; line-height: 1.5; }
-    .chat-msg.user { color: var(--accent-alt); }
-    .chat-msg.assistant { color: var(--text); }
-    .chat-msg .label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 2px; }
-    .chat-msg table { width: 100%; border-collapse: collapse; font-size: 10px; margin: 6px 0; }
-    .chat-msg th, .chat-msg td { padding: 3px 6px; border: 1px solid var(--border); text-align: left; }
-    .chat-msg th { background: var(--surface2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text3); font-size: 9px; }
-    .chat-msg td { color: var(--text); }
-    .chat-msg code { font-size: 10px; background: var(--surface3); padding: 1px 4px; border-radius: 3px; }
-    .chat-msg pre { font-size: 10px; background: var(--surface3); padding: 6px 8px; border-radius: 4px; overflow-x: auto; }
-    .chat-input-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 24px 12px; border-top: 1px solid var(--border); flex-shrink: 0; min-height: 80px; }
-    .chat-input-row textarea { flex: 1; width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 12px; font-family: inherit; resize: none; outline: none; box-sizing: border-box; overflow-y: auto; }
-    .chat-input-row button { align-self: flex-end; padding: 6px 12px; font-size: 12px; }
-    .chat-drag-handle { height: 4px; cursor: ns-resize; flex-shrink: 0; background: var(--border); }
-
-    .tab-bar { 
-      background: var(--surface); 
-      padding: 0 16px; 
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
-    .tab {
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      padding: 8px 16px;
-      font-family: inherit;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text2);
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.15s ease;
-    }
-    .tab:hover { color: var(--text); background: var(--surface2); }
-    .tab.active { 
-      color: var(--accent-alt); 
-      border-bottom-color: var(--accent-alt);
-      background: radial-gradient(circle at bottom, rgba(47,129,247,0.08) 0%, transparent 70%);
-    }
-
-    .tab-panel { display: none; padding: 16px; }
-    .tab-panel.active { display: block; }
-    #tabBar { scrollbar-width: thin; }
-    #tabBar::-webkit-scrollbar { display: block; height: 4px; }
-    #tabBar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-    .kpi-card { cursor: default; }
-
-    .filter-bar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; align-items: center; }
-    .filter-bar select { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
-    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
-    .data-table th { 
-      position: sticky; 
-      top: 0; 
-      background: var(--surface2); 
-      padding: 7px 10px; 
-      text-align: left; 
-      border-bottom: 2px solid var(--border); 
-      border-right: 1px solid var(--border);
-      font-size: 10px; 
-      text-transform: uppercase; 
-      letter-spacing: 0.3px; 
-      color: var(--text2); 
-      font-weight: 700; 
-      white-space: nowrap; 
-      z-index: 10; 
-    }
-    .data-table th:first-child { border-left: 1px solid var(--border); }
-    .data-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--surface); }
-    .data-table td:first-child { border-left: 1px solid var(--border); }
-    .data-table tr:nth-child(even) td { background: var(--surface3); }
-    .data-table tr:hover td { background: var(--accent-bg) !important; }
-    .pagination-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 0; font-size: 11px; color: var(--text2); }
-    .pagination-bar button { padding: 4px 10px; font-size: 11px; min-width: 60px; }
-    .pagination-bar .page-info { font-weight: 600; color: var(--text); min-width: 80px; text-align: center; }
-    .pagination-bar .total-info { color: var(--text3); }
-    .table-search-input { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); width: 180px; }
-  </style>
 </head>
 <body>
   <div class="dcc-titlebar">
@@ -372,7 +205,7 @@
       </div>
     </div>
 
-    <div class="dcc-sidebar-right" id="rightSidebar" style="position:relative;width:var(--right-sidebar-w, 320px);">
+    <div class="dcc-sidebar-right" id="rightSidebar" style="position:relative;width:var(--right-sidebar-w, 320px);height:100%;flex-shrink:1;">
       <div class="dcc-sidebar-resizer right-resizer" data-resize="right"></div>
       <div class="dcc-sidebar-header"><span id="rightSidebarHeader">Settings</span></div>
       <div id="rightSidebarContent" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
@@ -446,8 +279,11 @@
       setupModalClose();
       setupOllamaDetection();
       setupFileDrop();
-      updateFileStatusList(); // Show initial "Missing" state immediately
+      updateFileStatusList();
       await loadHelpData();
+      // Initialize right sidebar with settings content after help data is loaded
+      const rightBody = document.getElementById('rightSidebarBody');
+      if (rightBody) rightBody.innerHTML = buildSettingsContent();
       await loadAllData();
       window._initialLoadComplete = true;
     }
@@ -576,17 +412,16 @@
           rightContent.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
           if (panel === 'help') {
             header.textContent = 'Help';
-            rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildHelpContent();
+            const body = rightContent.querySelector('.dcc-sidebar-body');
+            if (body) body.innerHTML = buildHelpContent();
           } else if (panel === 'settings') {
             header.textContent = 'Settings';
-            rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildSettingsContent();
+            const body = rightContent.querySelector('.dcc-sidebar-body');
+            if (body) body.innerHTML = buildSettingsContent();
           }
         }
       }
     }
-
-    function showHelp() { switchRightPanel('help'); }
-    function showSettings() { switchRightPanel('settings'); }
 
     function setupResize() {
       let resizeTarget = null, resizeStartX = 0, resizeStartW = 0;
@@ -631,12 +466,12 @@
         layoutBtn.textContent = layoutMode === 0 ? '🔲' : layoutMode === 1 ? '📐' : '📦';
         
         // Sync button active states
-        if (layoutMode === 1 || layoutMode === 3) {
+        if (layoutMode === 1) {
            document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
              if (['files', 'tree'].includes(b.dataset.panel)) b.classList.remove('active');
            });
         }
-        if (layoutMode === 2 || layoutMode === 1) {
+        if (layoutMode === 2) {
            document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
              if (['chat', 'settings', 'help'].includes(b.dataset.panel)) b.classList.remove('active');
            });
@@ -822,9 +657,6 @@
       document.querySelectorAll('.tree-arrow').forEach(a => a.style.transform = '');
     };
     window.treeCollapseAll = () => { 
-      document.querySelectorAll('#navTree ul ul').forEach(u => u.style.display = 'none'); 
-      document.querySelectorAll('#navTree ul ul').parentElement?.querySelectorAll('.tree-arrow').forEach(a => a.style.transform = 'rotate(-90deg)');
-      // Simpler approach for arrows:
       document.querySelectorAll('#navTree .tree-node-item').forEach(li => {
         const ul = li.querySelector('ul');
         if (ul) {
@@ -941,37 +773,6 @@
       renderAll();
     }
 
-    async function fetchWithFallback(url) {
-      // This is now mostly used for manual "Refresh" or specific lookups
-      try {
-        const resp = await fetch(url);
-        if (resp.ok) return await resp.text();
-        throw new Error(`HTTP ${resp.status}`);
-      } catch (e) {
-        if (window.location.protocol === 'file:') {
-          // Only show picker if called from a user event (Refresh)
-          // We'll check if it's the initial load by looking at a flag
-          if (window._initialLoadComplete) {
-            return new Promise((resolve, reject) => {
-              const path = url.split('/').pop();
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = path.endsWith('.json') ? '.json' : path.endsWith('.md') ? '.md' : '.xlsx';
-              input.onchange = ev => {
-                const f = ev.target.files[0];
-                if (!f) return reject(new Error('No file'));
-                const r = new FileReader();
-                r.onload = () => resolve(r.result);
-                r.readAsText(f);
-              };
-              input.click();
-            });
-          }
-        }
-        throw e;
-      }
-    }
-
     function renderAll() {
       if (summaryData) {
         updateMeta(summaryData);
@@ -1057,7 +858,7 @@
         }).join('');
         const columns = (risk.columns || []).join(', ');
         const traceBtn = traceLookup[risk.error_codes?.[0]] ? `<button class="btn btn-sm btn-secondary" onclick="showEvidence('${risk.error_codes[0]}')" style="margin-top:8px;">🔍 View Trace</button>` : '';
-        const analyzeBtn = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); riskAnalyze(${i})" style="margin-top:8px;margin-left:${traceBtn ? '6px' : '0'};">🤖 Analyze</button>`;
+        const analyzeBtn = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); riskAnalyzeByCode('${escHtml(risk.error_codes?.[0] || '')}')" style="margin-top:8px;margin-left:${traceBtn ? '6px' : '0'};">🤖 Analyze</button>`;
         return `<div class="card risk-card severity-${sevClass}" onclick="this.classList.toggle('expanded')" data-risk-index="${i}">
           <div class="risk-header">
             <div style="flex:1;">
@@ -1084,9 +885,13 @@
       }).join('');
     }
 
-    function riskAnalyze(idx) {
-      const risk = summaryData?.top_risks?.[idx];
+    window.riskAnalyzeByCode = function(errorCode) {
+      const risk = summaryData?.top_risks?.find(r => r.error_codes?.[0] === errorCode);
       if (!risk) return;
+      riskAnalyzeRisk(risk);
+    };
+
+    function riskAnalyzeRisk(risk) {
       const firstCode = risk.error_codes?.[0];
       const entry = firstCode ? errorCodeLookup[firstCode] : null;
 
@@ -1110,7 +915,7 @@
         source     ? `Source: ${source}` : '',
         ``,
         `What is the likely root cause and what steps should be taken to resolve it?`
-      ].filter(l => l !== null && l !== undefined && !(l === '' && false)).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+      ].filter(l => l !== null && l !== undefined && l !== '').join('\n').replace(/\n{3,}/g, '\n\n').trim();
 
       if (!chatActive) showChat();
       setTimeout(() => {
@@ -1235,6 +1040,10 @@
         return;
       }
       try {
+        if (typeof marked === 'undefined' || !marked.parse) {
+          container.innerHTML = `<pre style="padding:16px;font-size:12px;color:var(--text2);white-space:pre-wrap;">${escHtml(reportMd)}</pre>`;
+          return;
+        }
         const html = marked.parse(reportMd, { breaks: true, gfm: true });
         container.innerHTML = `<div class="md-report">${html}</div>`;
       } catch (e) {
@@ -1327,8 +1136,9 @@
       rows.forEach(r => {
         csv.push(headers.map(h => {
           const key = h.toLowerCase().replace(/ /g, '_');
-          const val = r[key] || '';
-          return '"' + String(val).replace(/"/g, '""') + '"';
+          const val = r[key] != null ? String(r[key]) : '';
+          const escaped = val.replace(/"/g, '""').replace(/\r\n/g, '\n').replace(/\n/g, '\\n');
+          return '"' + escaped + '"';
         }).join(','));
       });
 
@@ -1406,33 +1216,6 @@
       }
     }
 
-    let helpActive = false;
-    function showHelp() {
-      const rightSidebar = document.getElementById('rightSidebar');
-      const rightContent = document.getElementById('rightSidebarContent');
-      const header = document.getElementById('rightSidebarHeader');
-      const helpBtn = document.querySelector('.dcc-iconbar-btn[data-panel="help"]');
-      const chatBtn = document.querySelector('.dcc-iconbar-btn[data-panel="chat"]');
-      const chatPanel = document.getElementById('chatPanel');
-
-      helpActive = !helpActive;
-      rightSidebar.classList.remove('collapsed');
-      if (chatPanel) chatPanel.style.display = 'none';
-
-      if (helpActive) {
-        if (chatActive) { chatActive = false; chatBtn?.classList.remove('active'); }
-        rightContent.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
-        header.textContent = 'Help';
-        rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildHelpContent();
-        helpBtn?.classList.add('active');
-      } else {
-        rightContent.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
-        header.textContent = 'Settings';
-        rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildSettingsContent();
-        helpBtn?.classList.remove('active');
-      }
-    }
-
     function buildHelpContent() {
       if (!helpData) return buildHelpContentLegacy();
       const s = (t, c) => `<div class="sb-section"><div class="sb-section-header"><span>${t}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${c}</div></div>`;
@@ -1494,14 +1277,14 @@
               </select>
             </span>
           </div>
-          <div class="chat-messages" id="chatMessages">
+          <div class="chat-messages" id="chatMessages" style="flex:1;overflow-y:auto;min-height:0;">
             <div class="chat-msg assistant">
               <div class="label">Assistant</div>
               ${ollamaAvailable ? 'Ask me anything about the data — risks, trends, or to show pipeline data as a table.' : 'Ollama is not running. Start Ollama and ensure a model is available, then refresh.'}
             </div>
           </div>
           <div class="chat-drag-handle" id="chatDragHandle"></div>
-          <div class="chat-input-row">
+          <div class="chat-input-row" id="chatInputRow">
             <textarea id="chatInput" rows="2" placeholder="${ollamaAvailable ? 'Ask about the insight data...' : 'Ollama unavailable'}" ${ollamaAvailable ? '' : 'disabled'}></textarea>
             <button class="btn btn-sm btn-primary" id="chatSendBtn" ${ollamaAvailable ? '' : 'disabled'}>Send</button>
           </div>`;
@@ -1513,14 +1296,25 @@
         });
 
         const dragHandle = document.getElementById('chatDragHandle');
-        const chatRow = document.querySelector('.chat-input-row');
+        const chatRow = document.getElementById('chatInputRow');
         if (dragHandle && chatRow) {
+          const initialH = chatRow.offsetHeight;
+          chatRow.dataset.minHeight = String(initialH);
           dragHandle.addEventListener('mousedown', e => {
             e.preventDefault();
             const startY = e.clientY;
             const startH = chatRow.offsetHeight;
+            const minH = parseInt(chatRow.dataset.minHeight || '80', 10);
             const onMove = me => {
-              const h = Math.max(80, startH - (me.clientY - startY));
+              const chatPanel = document.getElementById('chatPanel');
+              if (!chatPanel) return;
+              const chatHeader = chatPanel.querySelector('.chat-header');
+              const panelH = chatPanel.clientHeight;
+              const headerH = chatHeader ? chatHeader.offsetHeight : 30;
+              const handleH = dragHandle.offsetHeight;
+              const messagesMinH = 40;
+              const maxH = Math.max(minH, panelH - headerH - handleH - messagesMinH);
+              const h = Math.max(minH, Math.min(maxH, startH - (me.clientY - startY)));
               chatRow.style.height = h + 'px';
             };
             const onUp = () => {
@@ -1544,7 +1338,7 @@
 
     async function setupOllamaDetection() {
       try {
-        const resp = await fetch('http://localhost:11434/api/tags');
+        const resp = await fetch('/ollama/api/tags');
         if (resp.ok) {
           const data = await resp.json();
           const models = data.models || [];
@@ -1566,7 +1360,7 @@
     setInterval(async () => {
       if (ollamaAvailable) return; // already connected, skip
       try {
-        const resp = await fetch('http://localhost:11434/api/tags');
+        const resp = await fetch('/ollama/api/tags');
         if (resp.ok) {
           const data = await resp.json();
           const models = data.models || [];
@@ -1623,7 +1417,6 @@
 
       chatMessages.innerHTML += `<div class="chat-msg user"><div class="label">You</div>${escHtml(question)}</div>`;
       chatMessages.appendChild(msgDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
 
       const context = buildChatContext();
       const modelName = ollamaModel || 'llama3';
@@ -1638,7 +1431,7 @@
       });
 
       try {
-        let resp = await fetch('http://localhost:11434/api/chat', {
+        let resp = await fetch('/ollama/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body
@@ -1651,7 +1444,7 @@
 
         const result = await resp.json();
         if (textSpan) {
-          let raw = (result.message && result.message.content) || result.response || 'No response.';
+          let raw = (result.message && result.message.content) || 'No response.';
           // Execute FILTER: commands against in-memory excel data
           const filterMatch = raw.match(/FILTER:\s*(.+?)\s+(equals|contains|starts_with|>|<|>=|<=)\s+(.+)/i);
           if (filterMatch && excelRows.length > 0) {
@@ -1686,7 +1479,11 @@
             }
           }
           try {
-            textSpan.innerHTML = marked.parse(raw, { breaks: true, gfm: true });
+            if (typeof marked !== 'undefined' && marked.parse) {
+              textSpan.innerHTML = marked.parse(raw, { breaks: true, gfm: true });
+            } else {
+              textSpan.textContent = raw;
+            }
           } catch (e) {
             textSpan.textContent = raw;
           }

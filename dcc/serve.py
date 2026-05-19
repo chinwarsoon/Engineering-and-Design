@@ -15,6 +15,7 @@ import http.server
 import socketserver
 import os
 import argparse
+import json
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -23,6 +24,7 @@ from urllib.parse import unquote
 PORT = 5000
 ROOT = Path(__file__).parent.resolve()
 BACKEND_PORT = 8000
+OLLAMA_BASE = "http://localhost:11434"
 
 SCAN_DIRS = ["ui", "tracer", "publish"]
 EXCLUDE_DIRS = {"node_modules", "archive", "backup", "__pycache__"}
@@ -67,6 +69,35 @@ def _proxy(handler, method: str) -> None:
         msg = str(exc).encode()
         handler.send_response(502)
         handler.send_header("Content-Type", "text/plain")
+        handler.send_header("Content-Length", str(len(msg)))
+        handler.end_headers()
+        handler.wfile.write(msg)
+
+
+def _proxy_ollama(handler, path: str, method: str, body: bytes = None) -> None:
+    """Forward /ollama/* to the local Ollama server."""
+    target_url = f"{OLLAMA_BASE}{path}"
+    req = urllib.request.Request(target_url, data=body, method=method)
+    req.add_header("Content-Type", "application/json")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = resp.read()
+            handler.send_response(200)
+            handler.send_header("Content-Type", "application/json")
+            handler.send_header("Content-Length", str(len(payload)))
+            handler.end_headers()
+            handler.wfile.write(payload)
+    except urllib.error.URLError as exc:
+        msg = json.dumps({"error": str(exc)}).encode()
+        handler.send_response(502)
+        handler.send_header("Content-Type", "application/json")
+        handler.send_header("Content-Length", str(len(msg)))
+        handler.end_headers()
+        handler.wfile.write(msg)
+    except Exception as exc:
+        msg = json.dumps({"error": str(exc)}).encode()
+        handler.send_response(500)
+        handler.send_header("Content-Type", "application/json")
         handler.send_header("Content-Length", str(len(msg)))
         handler.end_headers()
         handler.wfile.write(msg)
@@ -212,6 +243,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if path.startswith("/api/"):
             _proxy(self, "GET")
             return
+        if path.startswith("/ollama/"):
+            _proxy_ollama(self, path.replace("/ollama", ""), "GET")
+            return
         if path in ("/", ""):
             body = _build_index().encode("utf-8")
             self.send_response(200)
@@ -226,6 +260,11 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         path = unquote(self.path).split("?")[0]
         if path.startswith("/api/"):
             _proxy(self, "POST")
+            return
+        if path.startswith("/ollama/"):
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length else b""
+            _proxy_ollama(self, path.replace("/ollama", ""), "POST", body)
             return
         self.send_response(405)
         self.end_headers()
