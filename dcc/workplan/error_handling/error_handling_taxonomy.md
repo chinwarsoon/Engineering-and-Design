@@ -71,7 +71,9 @@
 |------|------|----------|----------------|--------------------|-------------|
 | S-A-S-0501 | AI_OPS_FAILED | WARNING | No | `processor_engine/ai/ai_operations.py::execute()` | AI operations failed to complete |
 | S-A-S-0502 | DUCKDB_UNAVAILABLE | WARNING | No | `processor_engine/ai/duckdb_connector.py::connect()` | DuckDB not available for AI operations |
-| S-A-S-0503 | OLLAMA_UNAVAILABLE | WARNING | No | `processor_engine/ai/ollama_client.py::check_availability()` | Ollama service not available |
+| S-A-S-0503 | OLLAMA_UNAVAILABLE | WARNING | No | `ai_ops_engine/providers/ollama_provider.py::is_available()` | Ollama service not running or unreachable |
+| S-A-S-0504 | OLLAMA_API_FAILED | WARNING | No | `ai_ops_engine/providers/ollama_provider.py::generate()` | Ollama API request failed during AI insight generation |
+| S-A-S-0505 | OLLAMA_RESPONSE_INVALID | WARNING | No | `ai_ops_engine/providers/ollama_provider.py::_parse_response()` | Ollama returned an invalid or unparseable response |
 
 ---
 

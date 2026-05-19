@@ -8,7 +8,54 @@
 
 # Section 2. Log entries
 
-<a id="update-2026-05-18-blv-008-phase8-complete"></a>
+<a id="update-2026-05-19-ai-dashboard-v1"></a>
+## 2026-05-19 — AI Analysis Dashboard v1.0 Implementation
+
+### COMPLETED: Phase 10 — AI Analysis Dashboard (WP-UI-001)
+
+**Summary:** Rebuilt `ai_analysis_dashboard.html` from 154-line MVP to full DCC design system-compliant dashboard (1020 lines). Added shell layout, data loader for 3 insight files, KPI row, risk cards with evidence drill-down, trends & recommendations panels, markdown report viewer, export to CSV, Ollama chat assistant, and error/loading/empty states.
+
+**Changes:**
+- Updated `web_interface_workplan.md` to v3.7 — added Phase 10 with 14 sub-tasks, compliance audit, risk matrix, success criteria
+- Rewrote `dcc/ui/ai_analysis_dashboard.html` (154 → 1020 lines):
+  - **DCC Shell**: full VS Code layout (titlebar, iconbar, left sidebar with drag-resize, content area, right sidebar, statusbar)
+  - **Theme Picker**: 5 themes (dark/light/sky/ocean/presentation) saved to localStorage
+  - **Data Loader**: fetches `ai_insight_summary.json`, `ai_insight_trace.json`, `ai_insight_report.md` from `../output/` with FileReader fallback for `file://` protocol
+  - **KPI Row**: 6 tiles (risk level, total rows, health score, error count, affected rows, model)
+  - **Risk Cards**: color-coded by severity, expandable with description, error codes, columns, recommendation, "View Trace" button
+  - **Evidence Modal**: column-level error counts from `ai_insight_trace.json` lookup by error_code
+  - **Trends Panel**: pattern cards with frequency counts, phase badges
+  - **Recommendations Panel**: ordered list with click-to-highlight for Document_ID fixes
+  - **Markdown Report Viewer**: renders `ai_insight_report.md` inline via marked.js
+  - **Export CSV**: risk findings with Blob download
+  - **Ollama Chat Assistant**: right sidebar chat panel, connects to `localhost:11434/api/generate`, builds context from insight data, auto-detection of Ollama availability
+  - **Error/Loading/Empty States**: styled error card with retry, loading skeleton, empty welcome state
+  - **Status Bar**: dynamic status, data source count, risk level badge, version
+  - **Resizable panels**, layout toggle, icon bar wired to toggle left/right panels
+
+**Compliance:** All 19 html_design_rule.md items resolved (was 1 PASS / 15 FAIL / 3 N/A)
+
+**Files Modified:**
+- `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.7, Phase 10 added
+- `dcc/ui/ai_analysis_dashboard.html` — complete rewrite
+
+<a id="update-2026-05-19-ollama-warning-codes"></a>
+## 2026-05-19 — Ollama Warning Codes & Milestone
+
+### COMPLETED: Issue OLLAMA-001 — Schema-driven warning codes for Ollama server status + success milestone
+
+**Changes:**
+- Added `S-A-S-0504` (OLLAMA_API_FAILED) and `S-A-S-0505` (OLLAMA_RESPONSE_INVALID) to `system_error_config.json`; extended AI range 0501–0505; total_codes 36→38
+- Added messages for both new codes to `utility_engine/errors/config/messages/system_en.json` and `initiation_engine/error_handling/config/messages/system_en.json`
+- Updated `ollama_provider.py`:
+  - `is_available()`: now emits `logger.warning()` + `system_error_print("S-A-S-0503")` when Ollama unreachable
+  - `generate()`: emits `system_error_print("S-A-S-0504")` on API failure + `milestone_print()` on success
+  - `_parse_response()`: emits `system_error_print("S-A-S-0505")` on JSON parse errors
+- Updated `error_handling_taxonomy.md` with new codes and corrected source paths
+- **Pipeline test:** 11,821 rows processed successfully — success milestone visible: `OK  AI Analysis  Ollama insight generated — risk=HIGH`
+- **Impact:** Users now see clear warning messages at default `--verbose normal` for all three Ollama failure scenarios, plus a visible milestone on success. All non-blocking, pipeline unaffected.
+- **Link to Issue:** [Issue OLLAMA-001](../log/issue_log.md#issue-ollama-001)
+
 ## 2026-05-18 (Phase 8)
 
 ### COMPLETED: BLV-008 Phase 8 — Count_of_Submissions High-Volume Warning

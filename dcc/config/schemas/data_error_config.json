@@ -353,7 +353,8 @@
       "health_score_impact": -10,
       "processing_phase": "P2.5",
       "remediation": "Verify forward fill operation or adjust jump_limit parameter",
-      "remediation_type": "REVIEW"
+      "remediation_type": "REVIEW",
+      "ai_prompt": "Analyze error {code} ({name}): {message}. Risk: {title} (Severity: {severity}). Description: {description}. Affected Rows: {affected_rows}. Columns: {columns}. Source: {source}. Remediation: {remediation}. Provide root cause analysis and remediation steps for this DCC pipeline risk."
     },
     "F4-C-F-0401-B": {
       "code": "F4-C-F-0401-B",
@@ -473,7 +474,8 @@
       "health_score_impact": -5,
       "processing_phase": "P2.5",
       "remediation": "Review if default value is appropriate for this column",
-      "remediation_type": "REVIEW"
+      "remediation_type": "REVIEW",
+      "ai_prompt": "Analyze error {code} ({name}): {message}. Risk: {title} (Severity: {severity}). Description: {description}. Affected Rows: {affected_rows}. Columns: {columns}. Source: {source}. Remediation: {remediation}. Provide root cause analysis and remediation steps for this DCC pipeline risk."
     },
     "F4-C-F-0404": {
       "code": "F4-C-F-0404",
@@ -488,7 +490,8 @@
       "health_score_impact": -5,
       "processing_phase": "P2.5",
       "remediation": "Review data quality — systemic missing data detected",
-      "remediation_type": "REVIEW"
+      "remediation_type": "REVIEW",
+      "ai_prompt": "Analyze error {code} ({name}): {message}. Risk: {title} (Severity: {severity}). Description: {description}. Affected Rows: {affected_rows}. Columns: {columns}. Source: {source}. Remediation: {remediation}. Provide root cause analysis and remediation steps for this DCC pipeline risk."
     },
     "F4-C-F-0405": {
       "code": "F4-C-F-0405",
@@ -548,7 +551,8 @@
       "health_score_impact": -15,
       "processing_phase": "P3",
       "remediation": "Verify calculation inputs to avoid division by zero",
-      "remediation_type": "REVIEW"
+      "remediation_type": "REVIEW",
+      "ai_prompt": "Analyze error {code} ({name}): {message}. Risk: {title} (Severity: {severity}). Description: {description}. Affected Rows: {affected_rows}. Columns: {columns}. Source: {source}. Remediation: {remediation}. Provide root cause analysis and remediation steps for this DCC pipeline risk."
     },
     "C6-C-C-0604": {
       "code": "C6-C-C-0604",
@@ -669,7 +673,8 @@
       "health_score_impact": -15,
       "processing_phase": "P3",
       "remediation": "Verify dates — return date cannot be before submission date",
-      "remediation_type": "REVIEW"
+      "remediation_type": "REVIEW",
+      "ai_prompt": "Analyze error {code} ({name}): {message}. Risk: {title} (Severity: {severity}). Description: {description}. Affected Rows: {affected_rows}. Columns: {columns}. Source: {source}. Remediation: {remediation}. Provide root cause analysis and remediation steps for this DCC pipeline risk."
     },
     "L3-L-V-0302": {
       "code": "L3-L-V-0302",

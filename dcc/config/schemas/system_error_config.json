@@ -11,8 +11,8 @@
   "metadata": {
     "version": "1.1.0",
     "last_updated": "2026-05-03",
-    "total_codes": 36,
-    "system_codes": 36,
+    "total_codes": 38,
+    "system_codes": 38,
     "data_logic_codes": 0,
     "system_format": "S-C-S-XXXX",
     "data_logic_format": "LL-M-F-XXXX"
@@ -49,9 +49,9 @@
     "ai": {
       "prefix": "S-A-S-05xx",
       "description": "AI/Optional service errors (non-fatal)",
-      "count": 3,
+      "count": 5,
       "start_id": "S-A-S-0501",
-      "end_id": "S-A-S-0503"
+      "end_id": "S-A-S-0505"
     },
     "bootstrap": {
       "prefix": "S-B-S-06xx",
@@ -412,6 +412,24 @@
       "code": "S-A-S-0503",
       "name": "OLLAMA_UNAVAILABLE",
       "message": "Ollama service is not available",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-A-S-0504": {
+      "code": "S-A-S-0504",
+      "name": "OLLAMA_API_FAILED",
+      "message": "Ollama API request failed during AI insight generation",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-A-S-0505": {
+      "code": "S-A-S-0505",
+      "name": "OLLAMA_RESPONSE_INVALID",
+      "message": "Ollama returned an invalid or unparseable response",
       "severity": "WARNING",
       "category": "AI",
       "stops_pipeline": false,

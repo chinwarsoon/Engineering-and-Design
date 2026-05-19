@@ -113,5 +113,15 @@
     "title": "Ollama Unavailable",
     "description": "The Ollama service is not running or unreachable: {detail}",
     "hint": "Start Ollama: ollama serve\nOr ignore — the rule-based fallback provider will be used automatically."
+  },
+  "S-A-S-0504": {
+    "title": "Ollama API Request Failed",
+    "description": "The Ollama API request failed during AI insight generation: {detail}",
+    "hint": "Check that Ollama is running: ollama serve\nOr ignore — the rule-based fallback will be used automatically."
+  },
+  "S-A-S-0505": {
+    "title": "Ollama Response Invalid",
+    "description": "Ollama returned an invalid or unparseable response: {detail}",
+    "hint": "This may indicate a model issue. Try: ollama pull llama3.1:8b\nOr ignore — the rule-based fallback will be used automatically."
   }
 }

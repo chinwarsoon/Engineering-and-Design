@@ -18,6 +18,16 @@ from ..core.contracts import AiContext, AiInsight, RiskItem, TrendItem
 from ..core.context_builder import format_context_for_prompt
 from .base import BaseProvider, RuleBasedProvider
 
+try:
+    from utility_engine.errors import system_error_print
+except ImportError:
+    def system_error_print(*args, **kwargs): pass
+
+try:
+    from utility_engine.console import milestone_print
+except ImportError:
+    def milestone_print(*args, **kwargs): pass
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_MODEL = "llama3.1:8b"
@@ -68,9 +78,11 @@ class OllamaProvider(BaseProvider):
             insight.provider = "ollama"
             insight.fallback_used = False
             logger.info(f"[ollama] Generated insight: risk={insight.risk_level}")
+            milestone_print("AI Analysis", f"Ollama insight generated — risk={insight.risk_level}", ok=True)
             return insight
         except Exception as exc:
             logger.warning(f"[ollama] Provider failed ({exc}), using rule-based fallback")
+            system_error_print("S-A-S-0504", detail=str(exc), fatal=False)
             return self._fallback.generate(ctx)
 
     def _call_ollama(self, prompt: str) -> str:
@@ -133,12 +145,14 @@ class OllamaProvider(BaseProvider):
         json_match = re.search(r"\{.*\}", raw, re.DOTALL)
         if not json_match:
             logger.warning("[ollama] No JSON block found in response, using fallback")
+            system_error_print("S-A-S-0505", detail="No JSON block in response", fatal=False)
             return self._fallback.generate(ctx)
 
         try:
             data = json.loads(json_match.group())
         except json.JSONDecodeError as exc:
             logger.warning(f"[ollama] JSON parse error: {exc}, using fallback")
+            system_error_print("S-A-S-0505", detail=str(exc), fatal=False)
             return self._fallback.generate(ctx)
 
         # Build RiskItems
@@ -191,5 +205,7 @@ class OllamaProvider(BaseProvider):
                 available = any(self.model in m for m in models)
                 logger.info(f"[ollama] Available={available}, model={self.model}")
                 return available
-        except Exception:
+        except Exception as exc:
+            logger.warning(f"[ollama] Ollama server not available: {exc}")
+            system_error_print("S-A-S-0503", detail=str(exc), fatal=False)
             return False

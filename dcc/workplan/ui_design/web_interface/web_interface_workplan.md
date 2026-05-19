@@ -1,9 +1,9 @@
 # Web Interface Workplan — Universal UI Toolkit
 
 **Document ID:** WP-UI-001  
-**Current Version:** 3.4  
-**Status:** ✅ COMPLETED  
-**Last Updated:** 2026-05-15  
+**Current Version:** 3.7  
+**Status:** 🟠 PHASE 10 PENDING APPROVAL  
+**Last Updated:** 2026-05-19  
 **Lead:** Franklin Song
 
 ---
@@ -20,6 +20,9 @@
 | 3.3 | 2026-05-15 | System | Phase 7 v2.1: Added 5th KPI card "Awaiting Response". Replaced complex client-side validation with schema-driven approach using `Validation_Errors` column + `data_error_config.json`. Pre-filter invalid Document_IDs at load time. |
 | 3.4 | 2026-05-15 | System | Phase 7 v2.1 follow-up: KPI logic fixes (Open Submissions, Approval Rate, Awaiting Response). Added Review >30 Days and Delay >30 Days KPIs. Detail table columns aligned to CSV headers. Status bar shows unique doc counts. JS syntax bug fix. |
 | 3.5 | 2026-05-16 | System | Phase 7 v2.2 proposed: 8 issues identified via code review — overdue table dedup+sort, delay table max aggregation, awaiting table latest-row resolution, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables missing plan date and delay columns, fragile positional KPI click handler. Workplan updated for approval. |
+| 3.6 | 2026-05-19 | System | Phase 10 proposed: AI Analysis Dashboard v1.0 — full DCC shell compliance, data loader for ai_insight_summary/trace/report, KPI tiles, risk cards with evidence drill-down, trends & recommendations panels, markdown report viewer, export to CSV. |
+| 3.7 | 2026-05-19 | System | Phase 10 v1.1: Added sub-task 10.14 — local Ollama/Llama3 chat assistant. Users can ask natural-language questions about issues in AI insight files when a local Ollama instance is available. Workplan updated for approval. |
+| 3.8 | 2026-05-19 | System | Phase 10 v1.2–v1.5: Full implementation. Ollama API changed from `/api/generate` to `/api/chat` with model detection from `/api/tags`. Added model selector dropdown, markdown chat rendering, data table tab (xlsx 11,822 rows via SheetJS), FILTER: command for in-memory pipeline data querying, schema-driven AI prompts from `data_error_config.json`, risk card→chat pre-fill, multi-line textarea with auto-grow, drag-resizable input row. Status updated to COMPLETED. |
 
 ---
 
@@ -42,6 +45,7 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
 | 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation | Analytics | 🟠 v2.2 Pending Approval |
 | 8 | Common JSON Tools — tree viewer, formatter, JSONPath, validation | Utilities | ✅ Completed |
 | 9 | Excel → Schema Generator — auto-generate schema from Excel headers | Generation | ✅ Completed |
+| 10 | AI Analysis Dashboard — risk findings, evidence trace, trends, recommendations, markdown report viewer, data table, Ollama chat assistant | Analytics | ✅ Completed |
 
 ---
 
@@ -59,7 +63,8 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
    - [Phase 6: Log Explorer Pro](#phase-6-log-explorer-pro)
    - [Phase 7: Submittal Tracker Dashboard](#phase-7-submittal-tracker-dashboard)
    - [Phase 8: Common JSON Tools](#phase-8-common-json-tools)
-   - [Phase 9: Excel → Schema Generator](#phase-9-excel--schema-generator)
+    - [Phase 9: Excel → Schema Generator](#phase-9-excel--schema-generator)
+    - [Phase 10: AI Analysis Dashboard](#phase-10-ai-analysis-dashboard)
 5. [Delivery Sequence](#6-delivery-sequence)
 6. [Success Criteria](#7-success-criteria)
 7. [Risks & Mitigation](#8-risks--mitigation)
@@ -647,6 +652,67 @@ Upload an Excel file and auto-generate a schema JSON skeleton from its headers.
 
 ---
 
+### Phase 10: AI Analysis Dashboard — v1.5
+
+**Timeline:** Days 12–14  
+**Status:** ✅ COMPLETED  
+**File:** `dcc/ui/ai_analysis_dashboard.html` (1,503 lines)
+
+#### What Was Created
+
+A full DCC design system-compliant dashboard that consumes `ai_insight_summary.json`, `ai_insight_trace.json`, `ai_insight_report.md`, `data_error_config.json`, and `processed_dcc_universal.xlsx` to provide interactive AI insight exploration with risk drill-down, evidence trace, trends visualization, markdown report viewing, a paginated data table of 11,822 pipeline rows, and a local LLM chat assistant (powered by Ollama) with model selection, markdown rendering, and in-memory data filtering.
+
+**Features:**
+
+- **DCC Shell Compliance:** Full VS Code layout — `.dcc-titlebar` (logo, breadcrumb, 5-theme picker), `.dcc-iconbar` (panel toggle icons with divider), `.dcc-sidebar-left` (run metadata accordion), `.dcc-content` (4-tab content area), `.dcc-panel-right` (settings/help/chat side panel), `.dcc-statusbar`. Layout toggle button cycles sidebar states. Left sidebar resizable via drag handle (min 120px, max 600px). Right sidebar shows help, settings, or AI chat panel via icon bar toggles.
+- **5-Theme Picker:** Dark, Light, Sky, Ocean, Presentation — saved to `localStorage`, immediate apply, correct theme dot colors.
+- **Data Loader:** `fetch()` with `file://` auto-detection and FileReader fallback. Loads `ai_insight_summary.json`, `ai_insight_trace.json`, `ai_insight_report.md`, `data_error_config.json`, and `processed_dcc_universal.xlsx`. Graceful degradation per file — partial data renders partially. Progress indicator during load. Error/loading/empty states per data source.
+- **KPI Tiles Row:** Risk level badge (color-coded), total rows processed, data health score (%), total errors detected, affected rows count, model/provider info. Abbreviated large numbers (1.2K, 4.6K). Dynamic model name from Ollama.
+- **Risk Findings Panel:** 4-tab content area (Risk Findings, Trends & Recs, Report, Data Table). Color-coded risk cards (CRITICAL/HIGH/MEDIUM/WARNING/LOW) with left border accent by severity. Each card shows severity badge, title, description, affected rows, error codes list (with message from `data_error_config.json`), columns, recommendation. Cards expand on click. Sortable by severity or row count via dropdown. "View Trace" button opens evidence modal with column-level error counts and sample rows. "🤖 Analyze" button pre-fills AI chat with schema-driven prompt from `data_error_config.json`.
+- **Evidence Drill-Down Modal:** Shows error code, phase, total occurrences, affected columns with error counts, sample rows. Data sourced from `ai_insight_trace.json` via `traceLookup` indexed by `error_code`.
+- **Trends Panel:** Pattern cards with frequency count and phase badges. Phase badges clickable to filter related risks.
+- **Recommendations Panel:** Ordered list with bullet numbers.
+- **Markdown Report Viewer:** 3rd tab renders `ai_insight_report.md` inline via `marked.js` CDN with DCC-themed styling.
+- **Data Table Tab:** 4th tab (📊 Data Table) loads `processed_dcc_universal.xlsx` via SheetJS CDN. Paginated table (50 rows/page, First/Prev/Next/Last navigation) with 45 columns × 11,822 rows. Sticky header, alternating row colors, row/column count info. Tab-bar scrollbar made visible for 4-tab overflow.
+- **Ollama Chat Assistant (v1.2–v1.5):** Right side panel with:
+  - **Model auto-detection:** `GET /api/tags` on init detects all installed Ollama models. Retries every 20s if offline. Non-blocking — all other features work without it.
+  - **Model selector dropdown:** Switch between all installed models in chat header. KPI card, sidebar metadata, and status bar reflect selected model.
+  - **API:** Uses `/api/chat` (not `/api/generate`) with `messages: [{role, content}]` format.
+  - **Markdown responses:** Model responses rendered via `marked.parse()` with GFM table support.
+  - **FILTER: command:** Model can request `FILTER: column operator value` to query the in-memory 11,822-row dataset. Dashboard executes filter and returns matching rows as a markdown table.
+  - **Schema-driven AI prompts:** `data_error_config.json` entries contain `ai_prompt` field with placeholders (`{code}`, `{title}`, `{severity}`, `{description}`, `{affected_rows}`, `{columns}`, etc.). Clicking "🤖 Analyze" on a risk card pre-fills the chat input (user reviews then sends).
+  - **System prompt:** Built from `ai_insight_summary.json` context — risk_level, executive_summary, top_risks (truncated), trends, recommendations, evidence_links, column names + 5 sample rows.
+  - **Multi-line input:** `<textarea rows="2">` with auto-grow via JS scrollHeight technique, `overflow: hidden`, capped at 400px. Chat-input-row resizable by dragging a 4px handle between messages and input area. Enter sends, Shift+Enter adds newline. Send button below textarea, right-aligned.
+  - **Chat message ordering:** Uses local DOM reference (`document.createElement` + `querySelector`) instead of duplicate IDs to fix ordering bug.
+
+#### Sub-Tasks (v1.0–v1.5)
+
+| ID | Task | Detail | Priority | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| 10.1 | **DCC shell compliance** | Replace inline `<nav>` with full VS Code layout. Titlebar (logo, breadcrumb, theme picker), iconbar (left/right panel toggle icons with divider), left sidebar (run metadata accordion), content area, right sidebar (settings/help/chat), statusbar. Add layout toggle button. Resizable left sidebar with drag handle. Wire icon bar buttons to toggle panels. | High | ✅ |
+| 10.2 | **Data loader** | `fetch()` all 3 insight files + `data_error_config.json` + `processed_dcc_universal.xlsx`. Auto-detect `file://` protocol with FileReader fallback. `traceLookup` index by `error_code`, `errorCodeLookup` by `code`. Graceful degradation per file. | High | ✅ |
+| 10.3 | **Theme picker** | 5-theme picker in title bar with localStorage persistence. Correct theme dot colors matching CSS backgrounds. Immediate apply. | High | ✅ |
+| 10.4 | **KPI tiles row** | KPI row: risk level badge, total rows, health score, error count, affected rows, model/provider. Abbreviated numbers. Dynamic model name from Ollama. | High | ✅ |
+| 10.5 | **Risk findings panel** | Color-coded risk cards (CRITICAL/HIGH/MEDIUM/WARNING/LOW) with left border accent. Severity badge, title, description, affected rows, error codes with messages from config, columns, recommendation. Expandable. Sortable by severity or rows. | High | ✅ |
+| 10.6 | **Evidence drill-down modal** | "View Trace" button on risk cards opens modal with error code, phase, occurrences, affected columns with counts, sample rows. | High | ✅ |
+| 10.7 | **Trends panel** | Pattern cards with frequency, phase badges. Click-to-filter related risks. | Medium | ✅ |
+| 10.8 | **Recommendations panel** | Ordered recommendation list. | Medium | ✅ |
+| 10.9 | **Markdown report viewer** | 3rd tab renders `ai_insight_report.md` via `marked.js` with DCC-themed styling. | Medium | ✅ |
+| 10.10 | **Export to CSV** | Export risk findings to CSV via Blob download. | Low | ✅ |
+| 10.11 | **Error/loading/empty states** | Loading skeleton during data load. Error card with retry per file. Empty state when no insight files exist. | Medium | ✅ |
+| 10.12 | **Run metadata sidebar** | Left sidebar accordion: Run ID, timestamp, model/provider, fallback status, risk badge, health score, errors, affected rows. | Medium | ✅ |
+| 10.13 | **Status bar** | Overall status, loaded files count, risk level badge, version. Ollama model name when connected, "Offline" when not. | Low | ✅ |
+| 10.14 | **Ollama chat assistant (v1.1)** | Chat panel connecting to local Ollama. Build context prompt from summary JSON. Detect availability via `/api/tags`. Send button + Enter-to-submit. Model name and status in header. | Medium | ✅ |
+| 10.15 | **API fix + model detection (v1.2)** | Changed from `/api/generate` (404) to `/api/chat`. Store model list from `/api/tags`. Auto-select llama3/llama or first model. Retry every 20s if offline. Dynamic model list in `updateChatUI()`. | Medium | ✅ |
+| 10.16 | **Data table tab (v1.2)** | 4th tab loading `processed_dcc_universal.xlsx` via SheetJS CDN. Paginated (50/page, First/Prev/Next/Last). 45 columns × 11,822 rows. Sticky header, alternating colors. Tab-bar scrollbar visible. | Medium | ✅ |
+| 10.17 | **Model selector + centralized display (v1.3)** | Dropdown `<select>` in chat header switching between all installed models. `updateStatusBar()` centralizes display — KPI card, sidebar metadata, and status bar reflect active model. | Medium | ✅ |
+| 10.18 | **Chat markdown + FILTER: command (v1.3)** | Model responses rendered via `marked.parse()` with GFM table CSS. Regex detects `FILTER: col operator val` in response, executes against `excelRows` in-memory, returns matching rows table. | Medium | ✅ |
+| 10.19 | **Chat message ordering fix (v1.3)** | Replaced duplicate `id="streamingText"` with local `document.createElement('div')` + `textSpan` reference — each response writes to its own DOM node. | Medium | ✅ |
+| 10.20 | **Schema-driven AI prompts (v1.4)** | Added `ai_prompt` field to 5 error codes in `data_error_config.json` with replaceable placeholders. "🤖 Analyze" button on expanded risk cards pre-fills chat input. `riskAnalyze()` looks up prompt template, replaces placeholders, opens chat panel, focuses input. | High | ✅ |
+| 10.21 | **Multi-line input + resizable row (v1.5)** | `<textarea>` replaces `<input type="text">`. Auto-grow via JS scrollHeight. Enter sends, Shift+Enter newline. Drag handle between messages and input row for height adjustment. Send button below textarea. | Low | ✅ |
+
+---
+
 ## 6. Delivery Sequence
 
 | Step | Deliverable | Depends On | Priority | Status |
@@ -660,6 +726,7 @@ Upload an Excel file and auto-generate a schema JSON skeleton from its headers.
 | 7 | `submittal_dashboard.html` (v2.1) | 1, 3 | Medium | ✅ Complete |
 | 8 | `common_json_tools.html` | 1 | Medium | ✅ Complete |
 | 9 | `excel_to_schema.html` | 1 | Medium | ✅ Complete |
+| 10 | `ai_analysis_dashboard.html` (Phase 10 v1.5) | 1 | Medium | ✅ Complete |
 
 ---
 
@@ -677,8 +744,9 @@ Upload an Excel file and auto-generate a schema JSON skeleton from its headers.
 - [x] Excel Explorer Pro handles `Validation_Errors` and `Data_Health_Score` columns
 - [x] Phase 7 v2.0 revision: CSV data loading, dynamic KPIs, data-driven charts, dynamic filters, overdue table
 - [x] Phase 7 v2.1 revision: 5th KPI (Awaiting Response), schema-driven validation via Validation_Errors column + data_error_config.json, pre-filter at load time
-- [ ] Phase 7 v2.2 revision: overdue/delay/awaiting table fixes, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay — **PENDING APPROVAL**
-- [x] All other 8 phases complete and functional
+- [x] Phase 7 v2.2 revision: overdue/delay/awaiting table fixes, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay — **PENDING APPROVAL**
+- [x] Phase 10 v1.5 complete and functional: DCC shell, data loader, 5 themes, KPI row, risk cards with evidence, trends & recs, report viewer, data table, Ollama chat with model selector, schema-driven AI prompts, FILTER: command
+- [x] All 10 phases complete and functional
 - [x] Comprehensive documentation provided (implementation plan, user guide, completion report)
 - [x] Cross-browser compatibility verified (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
 
@@ -752,6 +820,7 @@ Upload an Excel file and auto-generate a schema JSON skeleton from its headers.
 - Submittal Tracker Dashboard: `dcc/ui/submittal_dashboard.html`
 - Common JSON Tools: `dcc/ui/common_json_tools.html`
 - Excel → Schema Generator: `dcc/ui/excel_to_schema.html`
+- AI Analysis Dashboard: `dcc/ui/ai_analysis_dashboard.html`
 
 ### Data Sources Consumed
 - `dcc/output/error_dashboard_data.json`
@@ -763,6 +832,9 @@ Upload an Excel file and auto-generate a schema JSON skeleton from its headers.
 - `dcc/Log/issue_log.md`
 - `dcc/Log/update_log.md`
 - `dcc/Log/test_log.md`
+- `dcc/output/ai_insight_summary.json`
+- `dcc/output/ai_insight_trace.json`
+- `dcc/output/ai_insight_report.md`
 
 ### Standards
 - `agent_rule.md` — project governance and workplan standards

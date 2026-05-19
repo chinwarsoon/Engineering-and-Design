@@ -185,6 +185,36 @@
 - **Phase 7 Report:** [phase7_validation_errors_volume_reduction_report.md](../workplan/column_processing/reports/phase7_validation_errors_volume_reduction_report.md)
 - **Link to Update Log:** [update-2026-05-18-blv-007-phase7-complete](#update-2026-05-18-blv-007-phase7-complete)
 
+<a id="issue-ollama-001"></a>
+## 2026-05-19 14:30:00
+
+### Issue OLLAMA-001 — Ollama server status notifications silent at default verbose level; provider uses generic logger.warning() instead of schema-driven error codes
+
+- **Status:** ✅ COMPLETED
+- **Resolution Date:** 2026-05-19
+- **Context:** When Ollama is not running, the `is_available()` check in `ollama_provider.py` silently returned `False` with only `logger.info()` — invisible at default `--verbose normal` (`DEBUG_LEVEL=1`, threshold `logging.WARNING`). When the Ollama API call failed mid-request or returned malformed JSON, `logger.warning()` was visible but used generic Python logging instead of schema-driven error codes.
+- **Root Cause:** Three gaps in `workflow/ai_ops_engine/providers/ollama_provider.py`:
+  1. `is_available()` caught connection errors and returned `False` silently — no `system_error_print()` call
+  2. `generate()` caught `Exception` and used `logger.warning()` without `system_error_print()`
+  3. `_parse_response()` caught JSON errors and used `logger.warning()` without `system_error_print()`
+- **Resolution:** 
+  - Added `S-A-S-0504` (OLLAMA_API_FAILED) and `S-A-S-0505` (OLLAMA_RESPONSE_INVALID) to `system_error_config.json`; updated AI range end_id from 0503 to 0505, total_codes 36→38
+  - Added messages for both new codes to both `system_en.json` message files (utility_engine + initiation_engine)
+  - Updated `ollama_provider.py`:
+    - `is_available()`: added `logger.warning()` + `system_error_print("S-A-S-0503")` when Ollama unreachable
+    - `generate()`: added `system_error_print("S-A-S-0504")` on API failure + `milestone_print()` on success
+    - `_parse_response()`: added `system_error_print("S-A-S-0505")` on JSON parse errors
+  - Updated `error_handling_taxonomy.md` with S-A-S-0504 and S-A-S-0505 entries; fixed S-A-S-0503 source path
+- **Pipeline Test:** 11,821 rows processed successfully. Success milestone appeared as: `OK  AI Analysis  Ollama insight generated — risk=HIGH`
+- **File Changes:**
+  - `dcc/config/schemas/system_error_config.json` — S-A-S-0504, S-A-S-0505 added; counts/range updated
+  - `dcc/workflow/utility_engine/errors/config/messages/system_en.json` — S-A-S-0504, S-A-S-0505 messages added
+  - `dcc/workflow/initiation_engine/error_handling/config/messages/system_en.json` — S-A-S-0504, S-A-S-0505 messages added
+  - `dcc/workflow/ai_ops_engine/providers/ollama_provider.py` — imports + error/milestone calls added
+  - `dcc/workplan/error_handling/error_handling_taxonomy.md` — S-A-S-0504, S-A-S-0505 documented
+- **Impact:** Pipeline continues normally with rule-based fallback in all scenarios (non-blocking). Clear user visibility at default verbose level: errors show both `logger.warning()` + `system_error_print()`, success shows milestone message.
+- **Link to Update Log:** [update-2026-05-19-ollama-warning-codes](update_log.md#update-2026-05-19-ollama-warning-codes)
+
 <a id="issue-blv-008"></a>
 ## 2026-05-17 10:35:00
 

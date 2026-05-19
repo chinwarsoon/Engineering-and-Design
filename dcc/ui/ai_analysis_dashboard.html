@@ -1,154 +1,1791 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DCC AI Analysis Dashboard</title>
-    <link rel="stylesheet" href="dcc-design-system.css">
-    <style>
-        .risk-card {
-            border-left: 4px solid var(--border);
-            margin-bottom: var(--space-md);
-        }
-        .risk-CRITICAL { border-left-color: var(--danger); }
-        .risk-HIGH { border-left-color: var(--warning); }
-        .risk-MEDIUM { border-left-color: var(--info); }
-        .risk-LOW { border-left-color: var(--success); }
-        
-        .badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: var(--text-xs);
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        .badge-CRITICAL { background: var(--danger); color: white; }
-        .badge-HIGH { background: var(--warning); color: black; }
-        .badge-MEDIUM { background: var(--info); color: white; }
-        .badge-LOW { background: var(--success); color: white; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCC AI Analysis Dashboard</title>
+  <link rel="stylesheet" href="dcc-design-system.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    .content-scroll { flex: 1; overflow-y: auto; }
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 0 0 20px 0; }
+    .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; position: relative; height: 220px; }
+    .chart-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .dcc-sidebar-right { width: var(--right-sidebar-w, 320px); background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s; }
+    .dcc-sidebar-right.collapsed { width: 0; border-left: none; }
+    .sb-section-body { font-size: 11px; color: var(--text2); line-height: 1.8; }
+    .sb-section-body strong { color: var(--text); }
 
-        .summary-box {
-            background: var(--surface2);
-            padding: var(--space-md);
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border);
-            font-style: italic;
-            color: var(--accent-alt);
-        }
-    </style>
+    #risksContainer { margin-top: 12px; }
+    .risk-card { border-left: 4px solid var(--border); margin-bottom: var(--space-md); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .risk-card:hover { box-shadow: 0 0 0 1px var(--accent); }
+    .risk-card.expanded { border-left-width: 4px; }
+    .risk-card.severity-CRITICAL { border-left-color: var(--danger); }
+    .risk-card.severity-HIGH { border-left-color: var(--warning); }
+    .risk-card.severity-MEDIUM { border-left-color: var(--info); }
+    .risk-card.severity-LOW { border-left-color: var(--success); }
+    .risk-card.severity-WARNING { border-left-color: var(--warning); }
+
+    .risk-body { display: none; }
+    .risk-card.expanded .risk-body { display: block; }
+    .risk-header { display: flex; justify-content: space-between; align-items: start; cursor: pointer; }
+    .risk-arrow { transition: transform 0.2s; font-size: 10px; color: var(--text3); }
+    .risk-card.expanded .risk-arrow { transform: rotate(90deg); }
+
+    .evidence-table { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 8px; }
+    .evidence-table th { padding: 4px 8px; text-align: left; border: 1px solid var(--border); background: var(--surface2); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); }
+    .evidence-table td { padding: 4px 8px; border: 1px solid var(--border); }
+
+    .trend-card { border-bottom: 1px solid var(--border); padding: 10px 0; }
+    .trend-card:last-child { border-bottom: none; }
+
+    .phase-badge { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600; background: var(--tag-bg); color: var(--accent-alt); border: 1px solid var(--tag-border); margin: 1px 2px; cursor: pointer; }
+
+    .rec-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text); cursor: pointer; transition: background 0.1s; }
+    .rec-item:last-child { border-bottom: none; }
+    .rec-item:hover { background: var(--surface2); }
+    .rec-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; margin-right: 8px; flex-shrink: 0; }
+
+    .md-report { max-width: 820px; margin: 0 auto; line-height: 1.75; padding: 20px 0; }
+    .md-report h1 { font-size: 1.6rem; font-weight: 700; color: var(--text); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--accent); }
+    .md-report h2 { font-size: 1.2rem; font-weight: 700; color: var(--text); margin: 28px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+    .md-report h3 { font-size: 1rem; font-weight: 600; color: var(--text); margin: 20px 0 6px; }
+    .md-report p { margin: 10px 0; color: var(--text); }
+    .md-report strong { color: var(--text); }
+    .md-report code { font-family: var(--font-mono); font-size: 0.85em; background: var(--surface3); padding: 2px 6px; border-radius: 4px; color: var(--accent-alt); }
+    .md-report hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+    .md-report ul, .md-report ol { margin: 8px 0 8px 20px; color: var(--text); }
+    .md-report li { margin: 3px 0; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal-content { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; max-width: 700px; max-height: 80vh; overflow-y: auto; width: 90%; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .modal-close { cursor: pointer; font-size: 18px; color: var(--text3); background: none; border: none; }
+    .modal-close:hover { color: var(--text); }
+
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 40px; text-align: center; color: var(--text3); }
+    .empty-state .icon { font-size: 40px; }
+    .empty-state .title { font-size: 16px; font-weight: 600; color: var(--text); }
+    .empty-state .sub { font-size: 12px; color: var(--text2); max-width: 400px; line-height: 1.6; }
+
+    .error-card { background: var(--surface); border: 1px solid var(--danger); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
+    .error-card .msg { flex: 1; font-size: 12px; color: var(--text); }
+
+    .loading-skeleton { padding: 20px; }
+    .skeleton-card { background: var(--surface2); border-radius: var(--radius); height: 60px; margin-bottom: 12px; animation: pulse 1.5s infinite; }
+    .skeleton-kpi { background: var(--surface2); border-radius: var(--radius); height: 80px; }
+    @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+    .dcc-sidebar-resizer { z-index: 1000; background: transparent; }
+    .left-resizer { right: -4px; width: 8px; cursor: col-resize; }
+    .right-resizer { left: -4px; width: 8px; cursor: col-resize; }
+    .dcc-sidebar, .dcc-sidebar-right { overflow: visible !important; }
+    .sidebar-panel-stretch { height: 100%; display: none; flex-direction: column; overflow: hidden; }
+    .sidebar-panel-stretch.visible { display: flex; }
+    .dcc-sidebar-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
+
+    .chat-container { display: flex; flex-direction: column; height: 100%; }
+    .chat-header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .chat-status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .chat-status-dot.online { background: var(--success); }
+    .chat-status-dot.offline { background: var(--danger); }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 8px 12px; font-size: 12px; min-height: 0; }
+    .chat-msg { margin-bottom: 8px; line-height: 1.5; }
+    .chat-msg.user { color: var(--accent-alt); }
+    .chat-msg.assistant { color: var(--text); }
+    .chat-msg .label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 2px; }
+    .chat-msg table { width: 100%; border-collapse: collapse; font-size: 10px; margin: 6px 0; }
+    .chat-msg th, .chat-msg td { padding: 3px 6px; border: 1px solid var(--border); text-align: left; }
+    .chat-msg th { background: var(--surface2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text3); font-size: 9px; }
+    .chat-msg td { color: var(--text); }
+    .chat-msg code { font-size: 10px; background: var(--surface3); padding: 1px 4px; border-radius: 3px; }
+    .chat-msg pre { font-size: 10px; background: var(--surface3); padding: 6px 8px; border-radius: 4px; overflow-x: auto; }
+    .chat-input-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--border); flex-shrink: 0; min-height: 80px; }
+    .chat-input-row textarea { flex: 1; width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 12px; font-family: inherit; resize: none; outline: none; box-sizing: border-box; overflow-y: auto; }
+    .chat-input-row button { align-self: flex-end; padding: 6px 12px; font-size: 12px; }
+    .chat-drag-handle { height: 4px; cursor: ns-resize; flex-shrink: 0; background: var(--border); }
+
+    .tab-bar { 
+      background: var(--surface); 
+      padding: 0 16px; 
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .tab {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 8px 16px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text2);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .tab:hover { color: var(--text); background: var(--surface2); }
+    .tab.active { 
+      color: var(--accent-alt); 
+      border-bottom-color: var(--accent-alt);
+      background: radial-gradient(circle at bottom, rgba(47,129,247,0.08) 0%, transparent 70%);
+    }
+
+    .tab-panel { display: none; padding: 16px; }
+    .tab-panel.active { display: block; }
+    #tabBar { scrollbar-width: thin; }
+    #tabBar::-webkit-scrollbar { display: block; height: 4px; }
+    #tabBar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .kpi-card { cursor: default; }
+
+    .filter-bar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; align-items: center; }
+    .filter-bar select { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+    .data-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+    .data-table th { 
+      position: sticky; 
+      top: 0; 
+      background: var(--surface2); 
+      padding: 7px 10px; 
+      text-align: left; 
+      border-bottom: 2px solid var(--border); 
+      border-right: 1px solid var(--border);
+      font-size: 10px; 
+      text-transform: uppercase; 
+      letter-spacing: 0.3px; 
+      color: var(--text2); 
+      font-weight: 700; 
+      white-space: nowrap; 
+      z-index: 10; 
+    }
+    .data-table th:first-child { border-left: 1px solid var(--border); }
+    .data-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--surface); }
+    .data-table td:first-child { border-left: 1px solid var(--border); }
+    .data-table tr:nth-child(even) td { background: var(--surface3); }
+    .data-table tr:hover td { background: var(--accent-bg) !important; }
+    .pagination-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 0; font-size: 11px; color: var(--text2); }
+    .pagination-bar button { padding: 4px 10px; font-size: 11px; min-width: 60px; }
+    .pagination-bar .page-info { font-weight: 600; color: var(--text); min-width: 80px; text-align: center; }
+    .pagination-bar .total-info { color: var(--text3); }
+    .table-search-input { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); width: 180px; }
+  </style>
 </head>
 <body>
-    <nav style="background: var(--surface); height: 48px; display: flex; align-items: center; padding: 0 var(--space-lg); border-bottom: 1px solid var(--border);">
-        <div style="font-weight: 800; color: var(--accent); margin-right: var(--space-md);">DCC</div>
-        <div style="font-weight: 600; flex-grow: 1;">AI Analysis Dashboard</div>
-        <div id="status-badge" class="badge badge-LOW">System Ready</div>
-    </nav>
-
-    <main style="padding: var(--space-lg); max-width: 1200px; margin: 0 auto;">
-        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-lg);">
-            <!-- Left Column: Summary and Risks -->
-            <div>
-                <section class="card" style="margin-bottom: var(--space-lg);">
-                    <h3>Executive Summary</h3>
-                    <p id="executive-summary" class="summary-box">Loading AI analysis...</p>
-                </section>
-
-                <section>
-                    <h3>Top Risk Findings</h3>
-                    <div id="risks-container">
-                        <!-- Risks populated by JS -->
-                    </div>
-                </section>
-            </div>
-
-            <!-- Right Column: Metadata and Trends -->
-            <div>
-                <section class="card" style="margin-bottom: var(--space-lg);">
-                    <h3>Run Metadata</h3>
-                    <div style="font-size: var(--text-sm);">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <span style="color: var(--text2);">Run ID:</span>
-                            <span id="run-id" style="font-family: var(--font-mono);">---</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <span style="color: var(--text2);">Timestamp:</span>
-                            <span id="timestamp">---</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                            <span style="color: var(--text2);">Model:</span>
-                            <span id="model-used">---</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <span style="color: var(--text2);">Overall Risk:</span>
-                            <span id="overall-risk" class="badge">---</span>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="card">
-                    <h3>Recurring Trends</h3>
-                    <div id="trends-container">
-                        <!-- Trends populated by JS -->
-                    </div>
-                </section>
-            </div>
+  <div class="dcc-titlebar">
+    <div class="dcc-titlebar-logo">
+      <span class="logo-icon">🤖</span>
+      <span class="logo-name">AI <span class="logo-accent">Analysis</span></span>
+    </div>
+    <div class="dcc-titlebar-breadcrumb">
+      <span class="bc-active">Insight Explorer</span>
+    </div>
+    <div class="dcc-titlebar-actions">
+      <div style="position:relative;margin-right:12px;">
+        <input type="text" class="table-search-input" id="globalSearch" placeholder="Search insights..." style="width:200px;padding-left:28px;">
+        <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;opacity:0.5;">🔍</span>
+      </div>
+      <button class="dcc-iconbar-btn" id="layoutBtn" title="Toggle Layout" style="width:28px;height:28px;font-size:13px;background:none;border:none;cursor:pointer;">🔲</button>
+      <div class="theme-picker">
+        <button class="theme-btn" id="themeBtn">
+          <span class="theme-dot" id="themeDot"></span>
+          <span id="themeName">Dark</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-opt active" data-theme="dark"><span class="theme-dot" style="background:#0d1117;"></span> Dark</div>
+          <div class="theme-opt" data-theme="light"><span class="theme-dot" style="background:#f0f4f8;"></span> Light</div>
+          <div class="theme-opt" data-theme="sky"><span class="theme-dot" style="background:#e0f2fe;"></span> Sky</div>
+          <div class="theme-opt" data-theme="ocean"><span class="theme-dot" style="background:#071520;"></span> Ocean</div>
+          <div class="theme-opt" data-theme="presentation"><span class="theme-dot" style="background:#f8fafc;"></span> Presentation</div>
         </div>
-    </main>
+      </div>
+    </div>
+  </div>
 
-    <script>
-        async function loadData() {
-            try {
-                // In production, this would be fetched from ../output/ai_insight_summary.json
-                const response = await fetch('../output/ai_insight_summary.json');
-                const data = await response.json();
-                renderDashboard(data);
-            } catch (err) {
-                console.error("Error loading AI insight data:", err);
-                document.getElementById('executive-summary').innerText = "Unable to load AI insight data. Ensure the pipeline has been run with AI operations enabled.";
+  <div class="dcc-shell">
+    <div class="dcc-iconbar">
+      <button class="dcc-iconbar-btn active" data-panel="files" title="File Loading">📂</button>
+      <button class="dcc-iconbar-btn" data-panel="tree" title="Tree Selection">🌳</button>
+      <div class="dcc-iconbar-spacer"></div>
+      <div class="dcc-iconbar-bottom">
+        <div class="dcc-iconbar-sep"></div>
+        <button class="dcc-iconbar-btn" data-panel="chat" title="AI Chat">💬</button>
+        <button class="dcc-iconbar-btn" data-panel="settings" title="Settings">⚙️</button>
+        <button class="dcc-iconbar-btn" data-panel="help" title="Help">❓</button>
+      </div>
+    </div>
+
+    <div class="dcc-sidebar" id="leftSidebar" style="position:relative;">
+      <div class="dcc-sidebar-resizer left-resizer" data-resize="left"></div>
+      
+      <!-- File Loading Panel -->
+      <div id="panelFiles" class="sidebar-panel-stretch visible">
+        <div class="dcc-sidebar-header"><span>File Loading</span></div>
+        <div class="dcc-sidebar-body">
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📥 Upload / Detect</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body">
+              <div class="drop-zone" id="dropZone" style="padding:16px 10px;">
+                <div class="dz-icon">📂</div>
+                <div class="dz-title" style="font-size:11px;">Drop Pipeline Files</div>
+                <div class="dz-sub" style="font-size:9px;">JSON, XLSX, or MD</div>
+                <input type="file" id="fileInput" multiple>
+              </div>
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📋 Pipeline Files</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="fileListBody" style="font-size:11px;padding:4px 12px;">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>🏃 Run Info</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="font-size:11px;padding:4px 12px;color:var(--text2);">
+              <div><strong>Run ID:</strong> <span id="metaRunId" style="font-family:var(--font-mono);">—</span></div>
+              <div><strong>Timestamp:</strong> <span id="metaTimestamp">—</span></div>
+              <div><strong>Provider:</strong> <span id="metaProvider">—</span></div>
+              <div><strong>Model:</strong> <span id="metaModel">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tree Selection Panel -->
+      <div id="panelTree" class="sidebar-panel-stretch">
+        <div class="dcc-sidebar-header">
+          <span>Tree Selection</span>
+          <div class="key-tree-actions">
+            <button class="key-tree-btn" onclick="treeExpandAll()">[+]</button>
+            <button class="key-tree-btn" onclick="treeCollapseAll()">[-]</button>
+          </div>
+        </div>
+        <div class="dcc-sidebar-body">
+          <div class="key-tree" id="navTree">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcc-content">
+      <div class="toolbar">
+        <span style="font-weight:600;color:var(--text);">AI Insight Explorer</span>
+        <div class="toolbar-spacer"></div>
+        <span id="loadedInfo" style="font-size:10px;color:var(--text3);">no data loaded</span>
+        <button class="btn btn-sm btn-secondary" id="exportCsvBtn">📄 Export CSV</button>
+        <button class="btn btn-sm btn-primary" id="refreshBtn">🔄 Refresh</button>
+      </div>
+
+      <div class="tab-bar" id="tabBar">
+        <button class="tab active" data-tab="risks">⚠️ Risk Findings</button>
+        <button class="tab" data-tab="trends">📈 Trends & Recs</button>
+        <button class="tab" data-tab="report">📄 Report</button>
+        <button class="tab" data-tab="data">📊 Data Table</button>
+      </div>
+
+      <div class="content-scroll">
+        <div id="tabPanelRisks" class="tab-panel active">
+          <div id="loadingState" class="loading-skeleton" style="display:none;">
+            <div class="kpi-row"><div class="skeleton-kpi"></div><div class="skeleton-kpi"></div><div class="skeleton-kpi"></div><div class="skeleton-kpi"></div></div>
+            <div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div>
+          </div>
+          <div id="emptyState" class="empty-state" style="display:none;">
+            <div class="icon">🔍</div>
+            <div class="title">No AI Insight Data</div>
+            <div class="sub">Run the pipeline with AI operations enabled to generate insight data. Look for <code>ai_insight_summary.json</code>, <code>ai_insight_trace.json</code>, and <code>ai_insight_report.md</code> in the <code>output/</code> directory.</div>
+          </div>
+          <div id="errorState" style="display:none;">
+            <div class="error-card" id="errorCard">
+              <span style="font-size:20px;">❌</span>
+              <div class="msg" id="errorMsg">Failed to load AI insight data.</div>
+              <button class="btn btn-sm btn-secondary" id="retryBtn">🔄 Retry</button>
+            </div>
+          </div>
+
+          <div id="mainContent" style="display:none;">
+            <div class="kpi-row" id="kpiRow">
+              <div class="kpi-card"><div class="kpi-value" id="kpiRiskLevel">—</div><div class="kpi-label">Risk Level</div><div class="kpi-sub">overall assessment</div></div>
+              <div class="kpi-card"><div class="kpi-value" id="kpiTotalRows">—</div><div class="kpi-label">Total Rows</div><div class="kpi-sub">pipeline processed</div></div>
+              <div class="kpi-card"><div class="kpi-value" id="kpiHealthScore">—</div><div class="kpi-label">Health Score</div><div class="kpi-sub">data quality grade</div></div>
+              <div class="kpi-card"><div class="kpi-value" id="kpiErrorCount">—</div><div class="kpi-label">Errors</div><div class="kpi-sub">total detected</div></div>
+              <div class="kpi-card"><div class="kpi-value" id="kpiAffectedRows">—</div><div class="kpi-label">Affected Rows</div><div class="kpi-sub">rows with errors</div></div>
+              <div class="kpi-card"><div class="kpi-value" id="kpiModel">—</div><div class="kpi-label">Model</div><div class="kpi-sub">AI provider</div></div>
+            </div>
+
+            <div class="filter-bar" id="riskFilterBar">
+              <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;">Top Risks</span>
+              <div class="toolbar-spacer"></div>
+              <label style="font-size:10px;color:var(--text2);">Sort:</label>
+              <select id="riskSort">
+                <option value="severity">Severity (High→Low)</option>
+                <option value="rows">Affected Rows (Most→Least)</option>
+              </select>
+            </div>
+            <div id="risksContainer"></div>
+          </div>
+        </div>
+
+        <div id="tabPanelTrends" class="tab-panel">
+          <div class="grid-2">
+            <div>
+              <div class="card" style="margin-bottom:16px;">
+                <div class="card-title">📊 Recurring Trends</div>
+                <div id="trendsContainer"><div style="color:var(--text3);padding:8px;font-size:11px;">No trend data available.</div></div>
+              </div>
+            </div>
+            <div>
+              <div class="card" style="margin-bottom:16px;">
+                <div class="card-title">💡 Recommendations</div>
+                <div id="recommendationsContainer"><div style="color:var(--text3);padding:8px;font-size:11px;">No recommendations available.</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tabPanelReport" class="tab-panel">
+          <div id="reportContent" style="color:var(--text3);padding:20px;font-size:12px;">Loading report...</div>
+        </div>
+
+        <div id="tabPanelData" class="tab-panel">
+          <div class="filter-bar" id="dataTableFilter">
+            <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;">📊 Pipeline Data</span>
+            <div class="toolbar-spacer"></div>
+            <span id="dataTableInfo" style="font-size:10px;color:var(--text3);"></span>
+          </div>
+          <div id="dataTableWrapper" style="overflow:auto;padding:0 12px 12px;">
+            <div id="dataTableContent">
+              <div style="padding:30px;text-align:center;color:var(--text3);font-size:12px;">Loading data table...</div>
+            </div>
+            <div id="dataTablePagination" class="pagination-bar" style="display:none;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcc-sidebar-right" id="rightSidebar" style="position:relative;width:var(--right-sidebar-w, 320px);">
+      <div class="dcc-sidebar-resizer right-resizer" data-resize="right"></div>
+      <div class="dcc-sidebar-header"><span id="rightSidebarHeader">Settings</span></div>
+      <div id="rightSidebarContent">
+        <div class="dcc-sidebar-body" id="rightSidebarBody">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dcc-statusbar status-ok">
+    <div class="sb-item">✓ <span id="statusMsg">Ready</span></div>
+    <div class="sb-item"><span id="statusFiles">No data loaded</span></div>
+    <div class="sb-item" id="sbModel" style="display:none;">🤖 <span id="statusModel"></span></div>
+    <div class="sb-item" id="sbOllama" style="display:none;"><span id="statusOllamaDot" style="width:6px;height:6px;border-radius:50%;display:inline-block;"></span> <span id="statusOllamaText"></span></div>
+    <div class="sb-item" id="sbRiskBadge" style="display:none;"></div>
+    <div class="sb-item-right" id="sbVersion">v—</div>
+  </div>
+
+  <div class="modal-overlay" id="evidenceModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle" style="margin:0;font-size:14px;">Evidence Details</h3>
+        <button class="modal-close" id="modalClose">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const DATA_BASE = '../output';
+    const SUMMARY_FILE = 'ai_insight_summary.json';
+    const TRACE_FILE = 'ai_insight_trace.json';
+    const REPORT_FILE = 'ai_insight_report.md';
+    const EXCEL_FILE = 'processed_dcc_universal.xlsx';
+    const SCHEMAS_BASE = '../config/schemas';
+    const ERROR_CONFIG_FILE = 'data_error_config.json';
+
+    let summaryData = null;
+    let traceData = null;
+    let reportMd = null;
+    let excelHeaders = [];
+    let excelRows = [];
+    let traceLookup = {};
+    let errorCodeLookup = {};
+
+    let dataTablePage = 1;
+    const DATA_TABLE_PAGE_SIZE = 50;
+
+    let chartInstances = {};
+    const themeColors = { dark:'#0d1117', light:'#f0f4f8', sky:'#e0f2fe', ocean:'#071520', presentation:'#f8fafc' };
+
+    let chatActive = false;
+    let ollamaAvailable = false;
+    let ollamaModel = '';
+    let ollamaModels = [];
+    let fileStatus = { summary: false, trace: false, report: false, errorConfig: false, excel: false };
+    let helpData = null;
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    async function init() {
+      setupTheme();
+      setupTabs();
+      setupIconBar();
+      setupResize();
+      setupLayoutToggle();
+      setupExport();
+      setupRefresh();
+      setupRetry();
+      setupModalClose();
+      setupOllamaDetection();
+      setupFileDrop();
+      updateFileStatusList(); // Show initial "Missing" state immediately
+      await loadHelpData();
+      await loadAllData();
+      window._initialLoadComplete = true;
+    }
+
+    async function loadHelpData() {
+      try {
+        const resp = await fetch('ui_help.json');
+        if (resp.ok) {
+          const data = await resp.json();
+          helpData = data.ai_analysis;
+          if (helpData && helpData.about) {
+            document.querySelector('.logo-name').innerHTML = `AI <span class="logo-accent">${helpData.about.title.split(' AI ')[1] || 'Analysis'}</span>`;
+            const vEl = document.getElementById('sbVersion');
+            if (vEl) vEl.textContent = 'v' + helpData.about.version;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load ui_help.json', e);
+      }
+    }
+
+    function setupTheme() {
+      const themeBtn = document.getElementById('themeBtn');
+      const themeMenu = document.getElementById('themeMenu');
+      const themeName = document.getElementById('themeName');
+      const themeDot = document.getElementById('themeDot');
+      const themeOpts = document.querySelectorAll('.theme-opt');
+
+      themeBtn.addEventListener('click', () => themeMenu.classList.toggle('open'));
+      themeOpts.forEach(o => o.addEventListener('click', () => {
+        const t = o.dataset.theme;
+        applyTheme(t);
+        localStorage.setItem('dcc-theme', t);
+        themeOpts.forEach(x => x.classList.remove('active'));
+        o.classList.add('active');
+        themeMenu.classList.remove('open');
+      }));
+      document.addEventListener('click', e => {
+        if (!e.target.closest('.theme-picker')) themeMenu.classList.remove('open');
+      });
+
+      function applyTheme(t) {
+        document.documentElement.setAttribute('data-theme', t);
+        themeName.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+        themeDot.style.background = themeColors[t] || '#0d1117';
+      }
+      window.applyTheme = applyTheme;
+
+      const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
+      applyTheme(savedTheme);
+      document.querySelector(`[data-theme="${savedTheme}"]`)?.classList.add('active');
+    }
+
+    function setupTabs() {
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+          tab.classList.add('active');
+          const panel = document.getElementById('tabPanel' + tab.dataset.tab.charAt(0).toUpperCase() + tab.dataset.tab.slice(1));
+          if (panel) panel.classList.add('active');
+          if (tab.dataset.tab === 'report') renderReport();
+        });
+      });
+    }
+
+    function setupIconBar() {
+      const leftPanels = ['files', 'tree'];
+      const rightPanels = ['chat', 'settings', 'help'];
+
+      document.querySelectorAll('.dcc-iconbar-btn[data-panel]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const panel = btn.dataset.panel;
+          if (leftPanels.includes(panel)) {
+            switchLeftPanel(panel);
+          } else if (rightPanels.includes(panel)) {
+            switchRightPanel(panel);
+          }
+        });
+      });
+    }
+
+    function switchLeftPanel(panel) {
+      const sidebar = document.getElementById('leftSidebar');
+      const btn = document.querySelector(`.dcc-iconbar-btn[data-panel="${panel}"]`);
+      const isAlreadyActive = btn.classList.contains('active') && !sidebar.classList.contains('collapsed');
+
+      if (isAlreadyActive) {
+        sidebar.classList.add('collapsed');
+        btn.classList.remove('active');
+      } else {
+        sidebar.classList.remove('collapsed');
+        document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
+          if (['files', 'tree'].includes(b.dataset.panel)) b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        document.getElementById('panelFiles').classList.toggle('visible', panel === 'files');
+        document.getElementById('panelTree').classList.toggle('visible', panel === 'tree');
+        if (panel === 'tree') renderNavTree();
+      }
+    }
+
+    function switchRightPanel(panel) {
+      const sidebar = document.getElementById('rightSidebar');
+      const rightContent = document.getElementById('rightSidebarContent');
+      const header = document.getElementById('rightSidebarHeader');
+      const btn = document.querySelector(`.dcc-iconbar-btn[data-panel="${panel}"]`);
+      const chatPanel = document.getElementById('chatPanel');
+      
+      const isAlreadyActive = btn.classList.contains('active') && !sidebar.classList.contains('collapsed');
+
+      if (isAlreadyActive) {
+        sidebar.classList.add('collapsed');
+        btn.classList.remove('active');
+      } else {
+        sidebar.classList.remove('collapsed');
+        document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
+          if (['chat', 'settings', 'help'].includes(b.dataset.panel)) b.classList.remove('active');
+        });
+        btn.classList.add('active');
+
+        if (panel === 'chat') {
+          showChat(true);
+        } else {
+          if (chatPanel) chatPanel.style.display = 'none';
+          rightContent.style.display = 'flex';
+          if (panel === 'help') {
+            header.textContent = 'Help';
+            rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildHelpContent();
+          } else if (panel === 'settings') {
+            header.textContent = 'Settings';
+            rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildSettingsContent();
+          }
+        }
+      }
+    }
+
+    function showHelp() { switchRightPanel('help'); }
+    function showSettings() { switchRightPanel('settings'); }
+
+    function setupResize() {
+      let resizeTarget = null, resizeStartX = 0, resizeStartW = 0;
+      document.addEventListener('mousedown', e => {
+        const h = e.target.closest('.dcc-sidebar-resizer');
+        if (!h) return;
+        const sb = h.parentElement;
+        resizeTarget = h.dataset.resize;
+        resizeStartX = e.clientX;
+        resizeStartW = sb.offsetWidth;
+        h.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', e => {
+        if (!resizeTarget) return;
+        requestAnimationFrame(() => {
+          const dx = e.clientX - resizeStartX;
+          const w = Math.max(120, Math.min(600, resizeTarget === 'left' ? resizeStartW + dx : resizeStartW - dx));
+          document.documentElement.style.setProperty(resizeTarget === 'left' ? '--sidebar-w' : '--right-sidebar-w', w + 'px');
+        });
+      });
+      document.addEventListener('mouseup', () => {
+        if (!resizeTarget) return;
+        document.querySelector('.dcc-sidebar-resizer.dragging')?.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        resizeTarget = null;
+      });
+    }
+
+    let layoutMode = 0;
+    function setupLayoutToggle() {
+      const leftSidebar = document.getElementById('leftSidebar');
+      const rightSidebar = document.getElementById('rightSidebar');
+      const layoutBtn = document.getElementById('layoutBtn');
+      layoutBtn.addEventListener('click', () => {
+        layoutMode = (layoutMode + 1) % 3;
+        leftSidebar.classList.toggle('collapsed', layoutMode === 1);
+        rightSidebar.classList.toggle('collapsed', layoutMode === 2 || layoutMode === 1);
+        layoutBtn.textContent = layoutMode === 0 ? '🔲' : layoutMode === 1 ? '📐' : '📦';
+        
+        // Sync button active states
+        if (layoutMode === 1 || layoutMode === 3) {
+           document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
+             if (['files', 'tree'].includes(b.dataset.panel)) b.classList.remove('active');
+           });
+        }
+        if (layoutMode === 2 || layoutMode === 1) {
+           document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
+             if (['chat', 'settings', 'help'].includes(b.dataset.panel)) b.classList.remove('active');
+           });
+        }
+      });
+    }
+
+    function setupExport() {
+      document.getElementById('exportCsvBtn').addEventListener('click', exportCsv);
+    }
+
+    function setupRefresh() {
+      document.getElementById('refreshBtn').addEventListener('click', () => {
+        updateStatus('loading', 'Refreshing...');
+        loadAllData();
+      });
+    }
+
+    function setupRetry() {
+      document.getElementById('retryBtn').addEventListener('click', () => {
+        document.getElementById('errorState').style.display = 'none';
+        updateStatus('loading', 'Retrying...');
+        loadAllData();
+      });
+    }
+
+    function setupModalClose() {
+      document.getElementById('modalClose').addEventListener('click', () => {
+        document.getElementById('evidenceModal').classList.remove('open');
+      });
+      document.getElementById('evidenceModal').addEventListener('click', e => {
+        if (e.target === e.currentTarget) {
+          document.getElementById('evidenceModal').classList.remove('open');
+        }
+      });
+    }
+
+    document.addEventListener('click', e => {
+      const h = e.target.closest('.sb-section-header');
+      if (h) h.parentElement.classList.toggle('closed');
+    });
+
+    document.getElementById('riskSort')?.addEventListener('change', () => {
+      if (summaryData) renderRisks(summaryData);
+    });
+
+    function setupFileDrop() {
+      const dz = document.getElementById('dropZone');
+      const fi = document.getElementById('fileInput');
+      if (!dz || !fi) return;
+
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+      dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.classList.remove('drag-over');
+        handleFiles(e.dataTransfer.files);
+      });
+      fi.addEventListener('change', () => handleFiles(fi.files));
+    }
+
+    async function handleFiles(files) {
+      updateStatus('loading', `Processing ${files.length} files...`);
+      for (const f of files) {
+        const name = f.name.toLowerCase();
+        const reader = new FileReader();
+        if (name.endsWith('.json')) {
+          reader.onload = e => {
+            const data = JSON.parse(e.target.result);
+            if (name.includes('summary')) { summaryData = data; fileStatus.summary = true; }
+            else if (name.includes('trace')) { traceData = data; fileStatus.trace = true; }
+            else if (name.includes('error_config')) { 
+              const errors = data.data_logic_errors || {};
+              Object.keys(errors).forEach(k => errorCodeLookup[errors[k].code] = errors[k]);
+              fileStatus.errorConfig = true; 
             }
+            renderAll();
+          };
+          reader.readAsText(f);
+        } else if (name.endsWith('.md')) {
+          reader.onload = e => { reportMd = e.target.result; fileStatus.report = true; renderAll(); };
+          reader.readAsText(f);
+        } else if (name.endsWith('.xlsx')) {
+          reader.onload = e => {
+            const wb = XLSX.read(e.target.result, { type: 'array' });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (rows.length > 0) { excelHeaders = rows[0]; excelRows = rows.slice(1); fileStatus.excel = true; renderAll(); }
+          };
+          reader.readAsArrayBuffer(f);
+        }
+      }
+      updateFileStatusList();
+    }
+
+    function updateFileStatusList() {
+      const container = document.getElementById('fileListBody');
+      if (!container) return;
+      const files = [
+        { id: 'summary', name: 'ai_insight_summary.json', status: fileStatus.summary },
+        { id: 'trace', name: 'ai_insight_trace.json', status: fileStatus.trace },
+        { id: 'report', name: 'ai_insight_report.md', status: fileStatus.report },
+        { id: 'excel', name: 'processed_dcc_universal.xlsx', status: fileStatus.excel },
+        { id: 'error', name: 'data_error_config.json', status: fileStatus.errorConfig }
+      ];
+      container.innerHTML = files.map(f => `
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;color:${f.status ? 'var(--text)' : 'var(--text3)'}">
+          <span>${f.status ? '✅' : '⚪'}</span>
+          <span style="flex:1;">${f.name}</span>
+          <span style="font-size:9px;opacity:0.6;">${f.status ? 'Loaded' : 'Missing'}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderNavTree() {
+      const container = document.getElementById('navTree');
+      if (!container) return;
+      
+      const nodes = [
+        { label: '📊 Summary KPIs', tab: 'risks', target: 'kpiRow' },
+        { label: '⚠️ Risk Findings', tab: 'risks', children: (summaryData?.top_risks || []).map((r, i) => ({ label: `• ${r.title}`, tab: 'risks', riskIndex: i })) },
+        { label: '📈 Trends & Recs', tab: 'trends' },
+        { label: '📄 Detailed Report', tab: 'report' },
+        { label: '📋 Pipeline Data', tab: 'data' }
+      ];
+
+      function buildTree(items, isRoot = false) {
+        return `<ul class="tree-node" style="${isRoot ? '' : 'padding-left:12px;'}">` + items.map(n => {
+          let clickAttr = `onclick="handleTreeClick('${n.tab}', '${n.target||''}', ${n.riskIndex ?? 'null'})"`;
+          return `
+          <li class="tree-node-item">
+            <div class="tree-node-inner" ${clickAttr}>
+              <span class="tree-arrow" style="display:inline-block;width:12px;transition:transform 0.1s;cursor:pointer;${n.children?'':'opacity:0;'}" onclick="event.stopPropagation(); toggleNode(event)">${n.children ? '▼' : ' '}</span>
+              <span class="tree-label">${n.label}</span>
+            </div>
+            ${n.children ? buildTree(n.children) : ''}
+          </li>`;
+        }).join('') + 'ul';
+      }
+
+      // Small helper to close the ul correctly
+      function buildTreeFixed(items, isRoot = false) {
+        let html = `<ul class="tree-node" style="${isRoot ? '' : 'padding-left:12px;'}">`;
+        items.forEach(n => {
+          let clickAttr = `onclick="handleTreeClick('${n.tab}', '${n.target||''}', ${n.riskIndex ?? 'null'})"`;
+          html += `
+          <li class="tree-node-item">
+            <div class="tree-node-inner" ${clickAttr}>
+              <span class="tree-arrow" style="display:inline-block;width:12px;transition:transform 0.1s;cursor:pointer;${n.children?'':'opacity:0;'}" onclick="event.stopPropagation(); toggleNode(event)">${n.children ? '▼' : ' '}</span>
+              <span class="tree-label">${n.label}</span>
+            </div>
+            ${n.children ? buildTreeFixed(n.children) : ''}
+          </li>`;
+        });
+        return html + '</ul>';
+      }
+
+      container.innerHTML = buildTreeFixed(nodes, true);
+    }
+
+    window.handleTreeClick = function(tab, targetId, riskIndex) {
+      switchTab(tab);
+      if (targetId) {
+        setTimeout(() => {
+          document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+      }
+      if (riskIndex !== null) {
+        setTimeout(() => {
+          const cards = document.querySelectorAll('.risk-card');
+          if (cards[riskIndex]) {
+            cards[riskIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cards[riskIndex].classList.add('expanded');
+          }
+        }, 100);
+      }
+    };
+
+    window.toggleNode = function(e) {
+      e.stopPropagation();
+      const arrow = e.target;
+      const li = arrow.closest('.tree-node-item');
+      const childUl = li.querySelector('ul');
+      if (childUl) {
+        const isCollapsed = childUl.style.display === 'none';
+        childUl.style.display = isCollapsed ? 'block' : 'none';
+        arrow.style.transform = isCollapsed ? '' : 'rotate(-90deg)';
+      }
+    };
+
+    window.switchTab = function(tabName) {
+      const tab = document.querySelector(`.tab[data-tab="${tabName}"]`);
+      if (tab) tab.click();
+    };
+
+    window.treeExpandAll = () => { 
+      document.querySelectorAll('#navTree ul').forEach(u => u.style.display = 'block'); 
+      document.querySelectorAll('.tree-arrow').forEach(a => a.style.transform = '');
+    };
+    window.treeCollapseAll = () => { 
+      document.querySelectorAll('#navTree ul ul').forEach(u => u.style.display = 'none'); 
+      document.querySelectorAll('#navTree ul ul').parentElement?.querySelectorAll('.tree-arrow').forEach(a => a.style.transform = 'rotate(-90deg)');
+      // Simpler approach for arrows:
+      document.querySelectorAll('#navTree .tree-node-item').forEach(li => {
+        const ul = li.querySelector('ul');
+        if (ul) {
+          ul.style.display = 'none';
+          const arrow = li.querySelector('.tree-arrow');
+          if (arrow) arrow.style.transform = 'rotate(-90deg)';
+        }
+      });
+    };
+
+    async function loadAllData() {
+      showLoading(true);
+      document.getElementById('errorState').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'none';
+      document.getElementById('emptyState').style.display = 'none';
+
+      fileStatus = { summary: false, trace: false, report: false, errorConfig: false, excel: false };
+      updateFileStatusList();
+      
+      dataTablePage = 1;
+      excelHeaders = [];
+      excelRows = [];
+
+      const probe = async (base, file, isBinary = false) => {
+        const url = `${base}/${file}?t=${Date.now()}`;
+        try {
+          const resp = await fetch(url);
+          if (resp.ok) return isBinary ? await resp.arrayBuffer() : await resp.text();
+        } catch (e) {}
+        return null;
+      };
+
+      const bases = [DATA_BASE, 'output', '/output', '.'];
+      const schemaBases = [SCHEMAS_BASE, 'config/schemas', '/config/schemas', '.'];
+
+      // Load Summary
+      for (const b of bases) {
+        const res = await probe(b, SUMMARY_FILE);
+        if (res) { 
+          try { summaryData = JSON.parse(res); fileStatus.summary = true; break; } catch(e){}
+        }
+      }
+      updateFileStatusList();
+
+      // Load Trace
+      for (const b of bases) {
+        const res = await probe(b, TRACE_FILE);
+        if (res) {
+          try {
+            traceData = JSON.parse(res);
+            fileStatus.trace = true;
+            if (traceData.evidence) traceData.evidence.forEach(ev => traceLookup[ev.error_code] = ev);
+            break;
+          } catch(e){}
+        }
+      }
+      updateFileStatusList();
+
+      // Load Report
+      for (const b of bases) {
+        const res = await probe(b, REPORT_FILE);
+        if (res) { reportMd = res; fileStatus.report = true; break; }
+      }
+      updateFileStatusList();
+
+      // Load Error Config
+      for (const b of schemaBases) {
+        const res = await probe(b, ERROR_CONFIG_FILE);
+        if (res) {
+          try {
+            const config = JSON.parse(res);
+            const errors = config.data_logic_errors || {};
+            Object.keys(errors).forEach(k => errorCodeLookup[errors[k].code] = errors[k]);
+            fileStatus.errorConfig = true;
+            break;
+          } catch(e){}
+        }
+      }
+      updateFileStatusList();
+
+      // Load Excel
+      for (const b of bases) {
+        const res = await probe(b, EXCEL_FILE, true);
+        if (res) {
+          try {
+            const wb = XLSX.read(res, { type: 'array' });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (rows.length > 0) { excelHeaders = rows[0]; excelRows = rows.slice(1); fileStatus.excel = true; break; }
+          } catch(e){}
+        }
+      }
+      updateFileStatusList();
+
+      showLoading(false);
+      updateStatusBar();
+
+      const loadedCount = Object.values(fileStatus).filter(Boolean).length;
+      if (loadedCount === 0) { 
+        if (window.location.protocol === 'file:') {
+          updateStatus('warning', 'Please drag & drop files or use the Loading panel');
+        }
+        document.getElementById('emptyState').style.display = 'flex'; 
+        return; 
+      }
+      
+      if (!summaryData) {
+        document.getElementById('errorState').style.display = 'block';
+        document.getElementById('errorMsg').textContent = 'Loaded partial data, but ai_insight_summary.json is still missing.';
+        return;
+      }
+
+      document.getElementById('mainContent').style.display = 'block';
+      renderAll();
+    }
+
+    async function fetchWithFallback(url) {
+      // This is now mostly used for manual "Refresh" or specific lookups
+      try {
+        const resp = await fetch(url);
+        if (resp.ok) return await resp.text();
+        throw new Error(`HTTP ${resp.status}`);
+      } catch (e) {
+        if (window.location.protocol === 'file:') {
+          // Only show picker if called from a user event (Refresh)
+          // We'll check if it's the initial load by looking at a flag
+          if (window._initialLoadComplete) {
+            return new Promise((resolve, reject) => {
+              const path = url.split('/').pop();
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = path.endsWith('.json') ? '.json' : path.endsWith('.md') ? '.md' : '.xlsx';
+              input.onchange = ev => {
+                const f = ev.target.files[0];
+                if (!f) return reject(new Error('No file'));
+                const r = new FileReader();
+                r.onload = () => resolve(r.result);
+                r.readAsText(f);
+              };
+              input.click();
+            });
+          }
+        }
+        throw e;
+      }
+    }
+
+    function renderAll() {
+      if (summaryData) {
+        updateMeta(summaryData);
+        renderKpis(summaryData);
+        renderRisks(summaryData);
+        renderTrends(summaryData);
+        renderRecommendations(summaryData);
+        renderReport();
+      }
+      renderDataTable();
+      updateStatus('ok', 'Data loaded');
+    }
+
+    function updateMeta(data) {
+      const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+      
+      set('metaRunId', data.run_id ? data.run_id.substring(0, 8) : '—');
+      set('metaTimestamp', data.timestamp ? new Date(data.timestamp).toLocaleString() : '—');
+      set('metaProvider', data.provider || '—');
+
+      const fb = document.getElementById('metaFallback');
+      if (fb) {
+        if (data.fallback_used) { fb.textContent = 'Yes'; fb.className = 'badge badge-warning'; }
+        else { fb.textContent = 'No'; fb.className = 'badge badge-success'; }
+      }
+
+      const risk = document.getElementById('metaRiskLevel');
+      if (risk) {
+        risk.textContent = data.risk_level || '—';
+        risk.className = 'badge badge-' + (data.risk_level || 'muted');
+      }
+
+      const execMatch = data.executive_summary ? data.executive_summary.match(/([\d,]+)\s*rows/i) : null;
+      const errorMatch = data.executive_summary ? data.executive_summary.match(/([\d,]+)\s*detected error/i) : null;
+      const affectedMatch = data.executive_summary ? data.executive_summary.match(/([\d,]+)\s*affected row/i) : null;
+
+      set('metaTotalRows', execMatch ? execMatch[1] : '—');
+      set('metaErrorCount', errorMatch ? errorMatch[1] : '—');
+      set('metaAffectedRows', affectedMatch ? affectedMatch[1] : '—');
+    }
+
+    function renderKpis(data) {
+      const exec = data.executive_summary || '';
+      const totalMatch = exec.match(/([\d,]+)\s*rows/i);
+      const healthMatch = exec.match(/([\d.]+)%/);
+      const errorMatch = exec.match(/([\d,]+)\s*detected error/i);
+      const affectedMatch = exec.match(/([\d,]+)\s*affected row/i);
+
+      const riskEl = document.getElementById('kpiRiskLevel');
+      riskEl.textContent = data.risk_level || '—';
+      riskEl.style.color = 'var(--' + (data.risk_level === 'HIGH' || data.risk_level === 'CRITICAL' ? 'danger' : data.risk_level === 'MEDIUM' ? 'warning' : 'success') + ')';
+
+      document.getElementById('kpiTotalRows').textContent = totalMatch ? totalMatch[1] : '—';
+      document.getElementById('kpiHealthScore').textContent = healthMatch ? healthMatch[0] : '—';
+      document.getElementById('kpiErrorCount').textContent = errorMatch ? errorMatch[1] : '—';
+      document.getElementById('kpiAffectedRows').textContent = affectedMatch ? affectedMatch[1] : '—';
+    }
+
+    function renderRisks(data) {
+      const container = document.getElementById('risksContainer');
+      if (!data.top_risks || data.top_risks.length === 0) {
+        container.innerHTML = '<div style="color:var(--text3);padding:12px;font-size:12px;">No risk findings available.</div>';
+        return;
+      }
+
+      const sortBy = document.getElementById('riskSort').value;
+      let risks = [...data.top_risks];
+      const sevOrder = { 'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'WARNING': 3, 'LOW': 4 };
+      if (sortBy === 'severity') {
+        risks.sort((a, b) => (sevOrder[a.severity] || 5) - (sevOrder[b.severity] || 5));
+      } else {
+        risks.sort((a, b) => (b.affected_rows || 0) - (a.affected_rows || 0));
+      }
+
+      container.innerHTML = risks.map((risk, i) => {
+        const sev = risk.severity || 'LOW';
+        const sevClass = sev === 'CRITICAL' || sev === 'HIGH' || sev === 'MEDIUM' || sev === 'LOW' || sev === 'WARNING' ? sev : 'LOW';
+        const errorCodeItems = (risk.error_codes || []).map(code => {
+          const entry = errorCodeLookup[code];
+          const msg = entry ? entry.message || entry.remediation || '' : '';
+          return msg ? `<div style="margin:2px 0;"><code style="font-size:10px;">${escHtml(code)}</code> — ${escHtml(msg)}</div>`
+                     : `<div style="margin:2px 0;"><code style="font-size:10px;">${escHtml(code)}</code></div>`;
+        }).join('');
+        const columns = (risk.columns || []).join(', ');
+        const traceBtn = traceLookup[risk.error_codes?.[0]] ? `<button class="btn btn-sm btn-secondary" onclick="showEvidence('${risk.error_codes[0]}')" style="margin-top:8px;">🔍 View Trace</button>` : '';
+        const analyzeBtn = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); riskAnalyze(${i})" style="margin-top:8px;margin-left:${traceBtn ? '6px' : '0'};">🤖 Analyze</button>`;
+        return `<div class="card risk-card severity-${sevClass}" onclick="this.classList.toggle('expanded')" data-risk-index="${i}">
+          <div class="risk-header">
+            <div style="flex:1;">
+              <div style="display:flex;justify-content:space-between;align-items:start;">
+                <h4 style="margin:0 0 4px 0;font-size:13px;">${escHtml(risk.title)}</h4>
+                <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;margin-left:12px;">
+                  <span class="badge badge-${sevClass}">${sev}</span>
+                  <span class="risk-arrow">▶</span>
+                </div>
+              </div>
+              <p style="font-size:12px;color:var(--text2);margin:0;">${escHtml(risk.description)}</p>
+            </div>
+          </div>
+          <div class="risk-body">
+            <div style="background:var(--surface3);padding:10px;border-radius:var(--radius-sm);margin-top:8px;font-size:11px;">
+              ${risk.affected_rows != null ? `<div><strong>Affected Rows:</strong> ${formatNum(risk.affected_rows)}</div>` : ''}
+              ${errorCodeItems ? `<div style="margin-top:4px;"><strong>Error Codes:</strong> ${errorCodeItems}</div>` : ''}
+              ${columns ? `<div style="margin-top:4px;"><strong>Columns:</strong> ${escHtml(columns)}</div>` : ''}
+              ${risk.recommendation ? `<div style="margin-top:4px;"><strong>Recommendation:</strong> ${escHtml(risk.recommendation)}</div>` : ''}
+              <div style="margin-top:8px;display:flex;gap:6px;">${traceBtn}${analyzeBtn}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function riskAnalyze(idx) {
+      const risk = summaryData?.top_risks?.[idx];
+      if (!risk) return;
+      const firstCode = risk.error_codes?.[0];
+      const entry = firstCode ? errorCodeLookup[firstCode] : null;
+      const promptTemplate = entry?.ai_prompt || '';
+      if (!promptTemplate) {
+        alert('No AI prompt configured for this error code.');
+        return;
+      }
+      const replacers = {
+        code: firstCode || '',
+        name: entry?.name || '',
+        message: entry?.message || '',
+        source: entry?.source || '',
+        health_score_impact: entry?.health_score_impact ?? '',
+        remediation: entry?.remediation || '',
+        title: risk.title || '',
+        severity: risk.severity || '',
+        description: risk.description || '',
+        affected_rows: risk.affected_rows != null ? formatNum(risk.affected_rows) : '',
+        columns: (risk.columns || []).join(', '),
+        recommendation: risk.recommendation || ''
+      };
+      let prompt = promptTemplate;
+      Object.keys(replacers).forEach(k => {
+        prompt = prompt.replace(new RegExp(`\\{${k}\\}`, 'g'), String(replacers[k]));
+      });
+
+      const existingPanel = document.getElementById('chatPanel');
+      if (!existingPanel || !chatActive) {
+        showChat();
+      }
+
+      const input = document.getElementById('chatInput');
+      if (input) {
+        input.value = prompt;
+        input.focus();
+      }
+    }
+
+    function showEvidence(errorCode) {
+      const ev = traceLookup[errorCode];
+      if (!ev) return;
+
+      const modal = document.getElementById('evidenceModal');
+      const title = document.getElementById('modalTitle');
+      const body = document.getElementById('modalBody');
+
+      title.textContent = `Evidence: ${errorCode}`;
+
+      const cols = ev.affected_columns || [];
+      const samples = ev.sample_rows || [];
+      const schemaEntry = errorCodeLookup[errorCode];
+
+      let html = `<div style="margin-bottom:12px;font-size:12px;">
+        <div><strong>Phase:</strong> ${ev.phase || 'Unknown'}</div>
+        <div><strong>Total Occurrences:</strong> ${ev.total_occurrences || 0}</div>
+        <div><strong>Severity:</strong> <span class="badge badge-${ev.severity}">${ev.severity || 'LOW'}</span></div>
+        <div><strong>Risk:</strong> ${escHtml(ev.risk_title || '')}</div>
+      </div>`;
+
+      if (schemaEntry) {
+        const msg = schemaEntry.message || schemaEntry.remediation || '';
+        const name = schemaEntry.name || '';
+        const remediation = schemaEntry.remediation || '';
+        html += `<div class="card" style="margin-bottom:12px;font-size:11px;background:var(--surface2);">
+          ${name ? `<div><strong>Name:</strong> ${escHtml(name)}</div>` : ''}
+          ${msg ? `<div style="margin-top:4px;"><strong>Message:</strong> ${escHtml(msg)}</div>` : ''}
+          ${remediation ? `<div style="margin-top:4px;"><strong>Remediation:</strong> ${escHtml(remediation)}</div>` : ''}
+          ${schemaEntry.source ? `<div style="margin-top:4px;"><strong>Source:</strong> <code>${escHtml(schemaEntry.source)}</code></div>` : ''}
+          ${schemaEntry.health_score_impact != null ? `<div style="margin-top:4px;"><strong>Health Score Impact:</strong> ${schemaEntry.health_score_impact}</div>` : ''}
+        </div>`;
+      }
+
+      if (cols.length > 0) {
+        html += `<h4 style="font-size:12px;margin:12px 0 6px;">Affected Columns</h4>
+        <table class="evidence-table"><thead><tr><th>Column</th><th>Error Count</th></tr></thead><tbody>
+        ${cols.map(c => `<tr><td>${escHtml(c.column)}</td><td>${formatNum(c.error_count)}</td></tr>`).join('')}
+        </tbody></table>`;
+      }
+
+      if (samples.length > 0) {
+        html += `<h4 style="font-size:12px;margin:12px 0 6px;">Sample Rows</h4>
+        <table class="evidence-table"><thead><tr><th>#</th><th>Row Data</th></tr></thead><tbody>
+        ${samples.map((s, i) => `<tr><td>${i + 1}</td><td>${escHtml(JSON.stringify(s))}</td></tr>`).join('')}
+        </tbody></table>`;
+      } else {
+        html += `<div style="font-size:11px;color:var(--text3);margin-top:8px;">No sample rows available for this error code.</div>`;
+      }
+
+      body.innerHTML = html;
+      modal.classList.add('open');
+    }
+    window.showEvidence = showEvidence;
+
+    function renderTrends(data) {
+      const container = document.getElementById('trendsContainer');
+      if (!data.trends || data.trends.length === 0) {
+        container.innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No trend data available.</div>';
+        return;
+      }
+
+      container.innerHTML = data.trends.map(t => {
+        const phases = (t.phases || []).map(p => `<span class="phase-badge">${escHtml(p)}</span>`).join('');
+        return `<div class="trend-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;font-weight:500;">${escHtml(t.pattern)}</span>
+            <span style="font-size:13px;color:var(--accent-alt);font-family:var(--font-mono);font-weight:600;">${formatNum(t.frequency)}</span>
+          </div>
+          <div style="margin-top:4px;font-size:11px;color:var(--text3);">
+            Frequency: ${formatNum(t.frequency)} occurrences ${phases ? '| Phases: ' + phases : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function renderRecommendations(data) {
+      const container = document.getElementById('recommendationsContainer');
+      if (!data.recommendations || data.recommendations.length === 0) {
+        container.innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No recommendations available.</div>';
+        return;
+      }
+
+      container.innerHTML = data.recommendations.map((r, i) => {
+        const isDocIdFix = r.toLowerCase().includes('document_id');
+        return `<div class="rec-item" onclick="${isDocIdFix ? `highlightDocIdRisks()` : ''}" title="${isDocIdFix ? 'Click to highlight related risks' : ''}">
+          <span class="rec-num">${i + 1}</span>
+          ${escHtml(r)}
+        </div>`;
+      }).join('');
+    }
+
+    function highlightDocIdRisks() {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelector('[data-tab="risks"]').classList.add('active');
+      document.getElementById('tabPanelRisks').classList.add('active');
+
+      const cards = document.querySelectorAll('.risk-card');
+      cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes('document_id')) {
+          card.style.boxShadow = '0 0 0 2px var(--warning)';
+          card.classList.add('expanded');
+          setTimeout(() => { card.style.boxShadow = ''; }, 3000);
+        }
+      });
+    }
+
+    function renderReport() {
+      const container = document.getElementById('reportContent');
+      if (!reportMd) {
+        container.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center;font-size:12px;">No report available. Ensure ai_insight_report.md is present in the output directory.</div>';
+        return;
+      }
+      try {
+        const html = marked.parse(reportMd, { breaks: true, gfm: true });
+        container.innerHTML = `<div class="md-report">${html}</div>`;
+      } catch (e) {
+        container.innerHTML = `<pre style="padding:16px;font-size:12px;color:var(--text2);white-space:pre-wrap;">${escHtml(reportMd)}</pre>`;
+      }
+    }
+
+    function renderDataTable() {
+      const content = document.getElementById('dataTableContent');
+      const pagination = document.getElementById('dataTablePagination');
+      const info = document.getElementById('dataTableInfo');
+      if (!content || !pagination || !info) { console.warn('DataTable: missing DOM elements'); return; }
+
+      console.log('DataTable: rows=' + excelRows.length + ' headers=' + excelHeaders.length);
+
+      if (excelRows.length === 0) {
+        content.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text3);font-size:12px;">No data available. Ensure processed_dcc_universal.xlsx is present in the output directory.</div>';
+        pagination.style.display = 'none';
+        info.textContent = '';
+        return;
+      }
+
+      info.textContent = `${excelRows.length.toLocaleString()} rows × ${excelHeaders.length} columns`;
+      pagination.style.display = 'flex';
+
+      const totalPages = Math.ceil(excelRows.length / DATA_TABLE_PAGE_SIZE);
+      if (dataTablePage > totalPages) dataTablePage = totalPages;
+      if (dataTablePage < 1) dataTablePage = 1;
+
+      const startIdx = (dataTablePage - 1) * DATA_TABLE_PAGE_SIZE;
+      const pageRows = excelRows.slice(startIdx, startIdx + DATA_TABLE_PAGE_SIZE);
+
+      let html = '<table class="data-table"><thead><tr>';
+      excelHeaders.forEach(h => {
+        html += `<th>${escHtml(String(h))}</th>`;
+      });
+      html += '</tr></thead><tbody>';
+      pageRows.forEach(row => {
+        html += '<tr>';
+        for (let c = 0; c < excelHeaders.length; c++) {
+          const val = row[c];
+          const display = val instanceof Date ? val.toLocaleDateString('en-GB') : (val != null ? String(val) : '');
+          html += `<td title="${escHtml(display)}">${escHtml(display)}</td>`;
+        }
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+      content.innerHTML = html;
+
+      let pagesHtml = '';
+      const maxVisible = 5;
+      let startP = Math.max(1, dataTablePage - Math.floor(maxVisible / 2));
+      let endP = Math.min(totalPages, startP + maxVisible - 1);
+      if (endP - startP + 1 < maxVisible) startP = Math.max(1, endP - maxVisible + 1);
+
+      if (dataTablePage > 1) pagesHtml += `<button class="btn btn-sm btn-secondary" onclick="goDataTablePage(1)">⏮ First</button><button class="btn btn-sm btn-secondary" onclick="goDataTablePage(${dataTablePage - 1})">◀ Prev</button>`;
+      for (let p = startP; p <= endP; p++) {
+        pagesHtml += p === dataTablePage
+          ? `<button class="btn btn-sm btn-primary" style="font-weight:700;">${p}</button>`
+          : `<button class="btn btn-sm btn-secondary" onclick="goDataTablePage(${p})">${p}</button>`;
+      }
+      if (dataTablePage < totalPages) pagesHtml += `<button class="btn btn-sm btn-secondary" onclick="goDataTablePage(${dataTablePage + 1})">Next ▶</button><button class="btn btn-sm btn-secondary" onclick="goDataTablePage(${totalPages})">Last ⏭</button>`;
+
+      pagesHtml += `<span class="total-info" style="margin-left:12px;">Page ${dataTablePage} of ${totalPages}</span>`;
+      pagination.innerHTML = pagesHtml;
+    }
+
+    window.goDataTablePage = function(p) {
+      dataTablePage = p;
+      renderDataTable();
+    };
+    function exportCsv() {
+      if (!summaryData || !summaryData.top_risks) return;
+
+      const rows = summaryData.top_risks.map(r => {
+        const ev = traceLookup[r.error_codes?.[0]];
+        return {
+          title: r.title,
+          severity: r.severity,
+          affected_rows: r.affected_rows,
+          error_codes: (r.error_codes || []).join('; '),
+          columns: (r.columns || []).join('; '),
+          recommendation: r.recommendation || '',
+          phase: ev ? (ev.phase || '') : ''
+        };
+      });
+
+      const headers = ['Title', 'Severity', 'Affected Rows', 'Error Codes', 'Columns', 'Recommendation', 'Phase'];
+      const csv = [headers.join(',')];
+      rows.forEach(r => {
+        csv.push(headers.map(h => {
+          const key = h.toLowerCase().replace(/ /g, '_');
+          const val = r[key] || '';
+          return '"' + String(val).replace(/"/g, '""') + '"';
+        }).join(','));
+      });
+
+      const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ai_risk_findings.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function showLoading(loading) {
+      document.getElementById('loadingState').style.display = loading ? 'block' : 'none';
+    }
+
+    function updateStatus(type, msg) {
+      const bar = document.querySelector('.dcc-statusbar');
+      const msgEl = document.getElementById('statusMsg');
+      bar.className = 'dcc-statusbar status-' + type;
+      msgEl.textContent = msg;
+    }
+
+    function updateStatusBar() {
+      const fs = [];
+      if (fileStatus.summary) fs.push('insight');
+      if (fileStatus.trace) fs.push('trace');
+      if (fileStatus.report) fs.push('report');
+      if (fileStatus.errorConfig) fs.push('error_codes');
+      if (fileStatus.excel) fs.push('excel');
+      document.getElementById('statusFiles').textContent = fs.length ? fs.join(', ') : 'No data loaded';
+
+      const sbModel = document.getElementById('sbModel');
+      const sbOllama = document.getElementById('sbOllama');
+      const sbRisk = document.getElementById('sbRiskBadge');
+
+      if (summaryData) {
+        const model = ollamaModel || summaryData.model_used || summaryData.provider || '';
+        if(sbModel) sbModel.style.display = '';
+        const sm = document.getElementById('statusModel');
+        if(sm) sm.textContent = model.replace(/:latest$/, '');
+
+        const rl = summaryData.risk_level || '';
+        if(sbRisk) {
+          sbRisk.style.display = '';
+          sbRisk.textContent = rl;
+          const rlClass = rl === 'HIGH' || rl === 'CRITICAL' ? 'danger' : rl === 'MEDIUM' ? 'warning' : 'success';
+          sbRisk.className = 'sb-item badge badge-' + rlClass;
+        }
+      } else {
+        if(sbModel) sbModel.style.display = 'none';
+        if(sbRisk) sbRisk.style.display = 'none';
+      }
+
+      // Update KPI model card and sidebar metadata
+      const km = document.getElementById('kpiModel');
+      const mm = document.getElementById('metaModel');
+      if (ollamaModel) {
+        if(km) km.textContent = ollamaModel.replace(/:latest$/, '').substring(0, 12);
+        if(mm) mm.textContent = ollamaModel.replace(/:latest$/, '');
+      } else if (summaryData) {
+        if(km) km.textContent = (summaryData.model_used || summaryData.provider || '—').substring(0, 12);
+        if(mm) mm.textContent = summaryData.model_used || '—';
+      }
+
+      sbOllama.style.display = '';
+      const dot = document.getElementById('statusOllamaDot');
+      const text = document.getElementById('statusOllamaText');
+      if (ollamaAvailable) {
+        dot.style.background = 'var(--success)';
+        text.textContent = 'Ollama: ' + (ollamaModel ? ollamaModel.replace(/:latest$/, '') : 'Connected');
+      } else {
+        dot.style.background = 'var(--danger)';
+        text.textContent = 'Ollama Offline';
+      }
+    }
+
+    let helpActive = false;
+    function showHelp() {
+      const rightSidebar = document.getElementById('rightSidebar');
+      const rightContent = document.getElementById('rightSidebarContent');
+      const header = document.getElementById('rightSidebarHeader');
+      const helpBtn = document.querySelector('.dcc-iconbar-btn[data-panel="help"]');
+      const chatBtn = document.querySelector('.dcc-iconbar-btn[data-panel="chat"]');
+      const chatPanel = document.getElementById('chatPanel');
+
+      helpActive = !helpActive;
+      rightSidebar.classList.remove('collapsed');
+      if (chatPanel) chatPanel.style.display = 'none';
+
+      if (helpActive) {
+        if (chatActive) { chatActive = false; chatBtn?.classList.remove('active'); }
+        rightContent.style.display = 'flex';
+        header.textContent = 'Help';
+        rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildHelpContent();
+        helpBtn?.classList.add('active');
+      } else {
+        rightContent.style.display = 'flex';
+        header.textContent = 'Settings';
+        rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildSettingsContent();
+        helpBtn?.classList.remove('active');
+      }
+    }
+
+    function buildHelpContent() {
+      if (!helpData) return buildHelpContentLegacy();
+      const s = (t, c) => `<div class="sb-section"><div class="sb-section-header"><span>${t}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${c}</div></div>`;
+      return helpData.help.sections.map(sec => s(sec.label, sec.text)).join('');
+    }
+
+    function buildHelpContentLegacy() {
+      const s = (t, c) => `<div class="sb-section"><div class="sb-section-header"><span>${t}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${c}</div></div>`;
+      return s('📂 Data Sources', '<div>Detects output files in <code>../output/</code>.</div>') +
+        s('⚠️ Risk Findings', '<div>Cards coded by severity. Click to expand.</div>') +
+        s('💬 AI Chat', '<div>Ask questions about the data via local Ollama.</div>');
+    }
+
+    function buildSettingsContent() {
+      const about = helpData?.about || { title: 'AI Analysis Dashboard', version: '1.0.0', description: 'AI-powered insight exploration.' };
+      return `<div class="sb-section"><div class="sb-section-header"><span>⚙️ Options</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body"><div style="font-size:11px;color:var(--text2);line-height:1.8;">
+        <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="autoRefresh" checked> Auto-refresh on load</label></div></div></div></div>
+        <div class="sb-section"><div class="sb-section-header"><span>ℹ️ About</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body" style="font-size:11px;color:var(--text3);line-height:1.6;">
+        <div>${about.title}</div><div>v${about.version}</div><div style="margin-top:4px;">${about.description}</div></div></div>`;
+    }
+
+    document.getElementById('globalSearch')?.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll('.risk-card').forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(q) ? 'block' : 'none';
+      });
+    });
+
+    function showChat(forceShow = false) {
+      const rightSidebar = document.getElementById('rightSidebar');
+      const rightContent = document.getElementById('rightSidebarContent');
+      const header = document.getElementById('rightSidebarHeader');
+      const chatBtn = document.querySelector('.dcc-iconbar-btn[data-panel="chat"]');
+
+      const existingPanel = document.getElementById('chatPanel');
+      if (existingPanel && chatActive && !forceShow) {
+        existingPanel.style.display = 'none';
+        rightSidebar.classList.add('collapsed');
+        chatBtn?.classList.remove('active');
+        chatActive = false;
+        return;
+      }
+
+      if (!existingPanel) {
+        const chatPanel = document.createElement('div');
+        chatPanel.id = 'chatPanel';
+        chatPanel.className = 'chat-container';
+        chatPanel.style.display = 'flex';
+        chatPanel.innerHTML = `
+          <div class="chat-header">
+            <span class="chat-status-dot ${ollamaAvailable ? 'online' : 'offline'}" id="chatStatusDot"></span>
+            <span id="chatStatusLabel">${ollamaAvailable ? 'Ollama Connected' : 'Ollama Not Detected'}</span>
+            <span style="margin-left:auto;display:flex;align-items:center;gap:4px;">
+              <select id="chatModelSelect" style="font-size:10px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);max-width:120px;" onchange="switchOllamaModel(this.value)">
+                ${ollamaModels.map(m => `<option value="${escHtml(m)}" ${m === ollamaModel ? 'selected' : ''}>${escHtml(m.replace(/:latest$/, ''))}</option>`).join('')}
+              </select>
+            </span>
+          </div>
+          <div class="chat-messages" id="chatMessages">
+            <div class="chat-msg assistant">
+              <div class="label">Assistant</div>
+              ${ollamaAvailable ? 'Ask me anything about the data — risks, trends, or to show pipeline data as a table.' : 'Ollama is not running. Start Ollama and ensure a model is available, then refresh.'}
+            </div>
+          </div>
+          <div class="chat-drag-handle" id="chatDragHandle"></div>
+          <div class="chat-input-row">
+            <textarea id="chatInput" rows="2" placeholder="${ollamaAvailable ? 'Ask about the insight data...' : 'Ollama unavailable'}" ${ollamaAvailable ? '' : 'disabled'}></textarea>
+            <button class="btn btn-sm btn-primary" id="chatSendBtn" ${ollamaAvailable ? '' : 'disabled'}>Send</button>
+          </div>`;
+        rightContent.parentElement.insertBefore(chatPanel, rightContent);
+        
+        document.getElementById('chatSendBtn')?.addEventListener('click', sendChatMessage);
+        document.getElementById('chatInput')?.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+        });
+
+        const dragHandle = document.getElementById('chatDragHandle');
+        const chatRow = document.querySelector('.chat-input-row');
+        if (dragHandle && chatRow) {
+          dragHandle.addEventListener('mousedown', e => {
+            e.preventDefault();
+            const startY = e.clientY;
+            const startH = chatRow.offsetHeight;
+            const onMove = me => {
+              const h = Math.max(80, startH - (me.clientY - startY));
+              chatRow.style.height = h + 'px';
+            };
+            const onUp = () => {
+              document.removeEventListener('mousemove', onMove);
+              document.removeEventListener('mouseup', onUp);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+          });
+        }
+      }
+
+      const chatPanel = document.getElementById('chatPanel');
+      chatPanel.style.display = 'flex';
+      rightContent.style.display = 'none';
+      header.textContent = 'AI Chat';
+      rightSidebar.classList.remove('collapsed');
+      chatBtn?.classList.add('active');
+      chatActive = true;
+    }
+
+    async function setupOllamaDetection() {
+      try {
+        const resp = await fetch('http://localhost:11434/api/tags');
+        if (resp.ok) {
+          const data = await resp.json();
+          const models = data.models || [];
+          ollamaModels = models.map(m => m.name).filter(Boolean);
+          const llama = models.find(m => m.name && (m.name.startsWith('llama3') || m.name.startsWith('llama')));
+          ollamaModel = llama ? llama.name : (ollamaModels.length > 0 ? ollamaModels[0] : '');
+          ollamaAvailable = !!ollamaModel;
+          updateChatUI();
+        }
+      } catch (e) {
+        ollamaAvailable = false;
+        ollamaModel = '';
+        ollamaModels = [];
+      }
+      updateStatusBar();
+    }
+
+    // Retry Ollama detection every 20s if offline
+    setInterval(async () => {
+      if (ollamaAvailable) return; // already connected, skip
+      try {
+        const resp = await fetch('http://localhost:11434/api/tags');
+        if (resp.ok) {
+          const data = await resp.json();
+          const models = data.models || [];
+          ollamaModels = models.map(m => m.name).filter(Boolean);
+          const llama = models.find(m => m.name && (m.name.startsWith('llama3') || m.name.startsWith('llama')));
+          ollamaModel = llama ? llama.name : (ollamaModels.length > 0 ? ollamaModels[0] : '');
+          ollamaAvailable = !!ollamaModel;
+          if (ollamaAvailable) updateChatUI();
+          updateStatusBar();
+        }
+      } catch (e) { /* still offline */ }
+    }, 20000);
+
+    function updateChatUI() {
+      const statusLabel = document.getElementById('chatStatusLabel');
+      const statusDot = document.getElementById('chatStatusDot');
+      const input = document.getElementById('chatInput');
+      const btn = document.getElementById('chatSendBtn');
+      const msgArea = document.getElementById('chatMessages');
+      const modelSelect = document.getElementById('chatModelSelect');
+      if (statusLabel) statusLabel.textContent = ollamaAvailable ? 'Ollama Connected' : 'Ollama Not Detected';
+      if (statusDot) statusDot.className = 'chat-status-dot ' + (ollamaAvailable ? 'online' : 'offline');
+      if (input) { input.disabled = !ollamaAvailable; input.placeholder = ollamaAvailable ? 'Ask about the insight data...' : 'Ollama unavailable'; }
+      if (btn) btn.disabled = !ollamaAvailable;
+      if (modelSelect) {
+        const prev = modelSelect.value;
+        modelSelect.innerHTML = ollamaModels.map(m => `<option value="${escHtml(m)}" ${m === ollamaModel ? 'selected' : ''}>${escHtml(m.replace(/:latest$/, ''))}</option>`).join('');
+        if (ollamaModels.includes(prev)) modelSelect.value = prev;
+      }
+      if (msgArea && ollamaAvailable && msgArea.children.length <= 1) {
+        msgArea.innerHTML = `<div class="chat-msg assistant"><div class="label">Assistant</div>Ask me anything about the data — risks, trends, or to show pipeline data as a table.</div>`;
+      }
+    }
+
+    function switchOllamaModel(modelName) {
+      if (modelName && ollamaModels.includes(modelName)) {
+        ollamaModel = modelName;
+        updateStatusBar();
+      }
+    }
+
+    async function sendChatMessage() {
+      const input = document.getElementById('chatInput');
+      const chatMessages = document.getElementById('chatMessages');
+      const question = input.value.trim();
+      if (!question || !ollamaAvailable) return;
+
+      input.value = '';
+
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'chat-msg assistant';
+      msgDiv.innerHTML = '<div class="label">Assistant</div><span class="chat-text"></span>';
+      const textSpan = msgDiv.querySelector('.chat-text');
+
+      chatMessages.innerHTML += `<div class="chat-msg user"><div class="label">You</div>${escHtml(question)}</div>`;
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      const context = buildChatContext();
+      const modelName = ollamaModel || 'llama3';
+
+      const body = JSON.stringify({
+        model: modelName,
+        messages: [
+          { role: 'system', content: context },
+          { role: 'user', content: question }
+        ],
+        stream: false
+      });
+
+      try {
+        let resp = await fetch('http://localhost:11434/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
+        });
+
+        if (!resp.ok) {
+          const text = await resp.text().catch(() => '');
+          throw new Error(`HTTP ${resp.status}${text ? ': ' + text.slice(0, 200) : ''}`);
         }
 
-        function renderDashboard(data) {
-            document.getElementById('executive-summary').innerText = data.executive_summary;
-            document.getElementById('run-id').innerText = data.run_id.substring(0, 8);
-            document.getElementById('timestamp').innerText = new Date(data.timestamp).toLocaleString();
-            document.getElementById('model-used').innerText = data.model_used || data.provider;
-            
-            const riskBadge = document.getElementById('overall-risk');
-            riskBadge.innerText = data.risk_level;
-            riskBadge.className = 'badge badge-' + data.risk_level;
-
-            const risksContainer = document.getElementById('risks-container');
-            risksContainer.innerHTML = data.top_risks.map(risk => `
-                <div class="card risk-card risk-${risk.severity}">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <h4 style="margin: 0 0 var(--space-xs) 0;">${risk.title}</h4>
-                        <span class="badge badge-${risk.severity}">${risk.severity}</span>
-                    </div>
-                    <p style="font-size: var(--text-sm); margin-bottom: var(--space-md);">${risk.description}</p>
-                    <div style="background: var(--surface3); padding: var(--space-sm); border-radius: var(--radius-sm); font-size: var(--text-xs);">
-                        <strong>Recommendation:</strong> ${risk.recommendation}
-                    </div>
-                    <div style="margin-top: var(--space-sm); font-size: var(--text-xs); color: var(--text2);">
-                        Affected Rows: ${risk.affected_rows} | Codes: ${risk.error_codes.join(', ')}
-                    </div>
-                </div>
-            `).join('');
-
-            const trendsContainer = document.getElementById('trends-container');
-            trendsContainer.innerHTML = data.trends.map(trend => `
-                <div style="border-bottom: 1px solid var(--border); padding: var(--space-sm) 0;">
-                    <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);">
-                        <strong>${trend.error_code}</strong>
-                        <span style="color: var(--accent);">${trend.frequency} occurrences</span>
-                    </div>
-                    <div style="font-size: var(--text-xs); color: var(--text2);">${trend.pattern}</div>
-                </div>
-            `).join('');
+        const result = await resp.json();
+        if (textSpan) {
+          let raw = (result.message && result.message.content) || result.response || 'No response.';
+          // Execute FILTER: commands against in-memory excel data
+          const filterMatch = raw.match(/FILTER:\s*(.+?)\s+(equals|contains|starts_with|>|<|>=|<=)\s+(.+)/i);
+          if (filterMatch && excelRows.length > 0) {
+            const colName = filterMatch[1].trim();
+            const op = filterMatch[2].toLowerCase();
+            const val = filterMatch[3].trim();
+            const colIdx = excelHeaders.findIndex(h => h.toLowerCase() === colName.toLowerCase());
+            if (colIdx >= 0) {
+              const results = excelRows.filter(row => {
+                const cell = row[colIdx];
+                const s = cell != null ? String(cell).toLowerCase() : '';
+                const v = val.toLowerCase();
+                if (op === 'equals') return s === v;
+                if (op === 'contains') return s.includes(v);
+                if (op === 'starts_with') return s.startsWith(v);
+                if (op === '>') return parseFloat(s) > parseFloat(v);
+                if (op === '<') return parseFloat(s) < parseFloat(v);
+                if (op === '>=') return parseFloat(s) >= parseFloat(v);
+                if (op === '<=') return parseFloat(s) <= parseFloat(v);
+                return false;
+              });
+              const headerRow = '| ' + excelHeaders.join(' | ') + ' |';
+              const sepRow = '| ' + excelHeaders.map(() => '---').join(' | ') + ' |';
+              const dataRows = results.slice(0, 20).map(row =>
+                '| ' + excelHeaders.map((h, ci) => {
+                  const v = row[ci];
+                  return v instanceof Date ? v.toLocaleDateString('en-GB') : (v != null ? String(v) : '');
+                }).join(' | ') + ' |'
+              ).join('\n');
+              const summary = `**${results.length} matching rows found** (showing first ${Math.min(20, results.length)}):\n\n${headerRow}\n${sepRow}\n${dataRows}`;
+              raw = raw.replace(filterMatch[0], summary);
+            }
+          }
+          try {
+            textSpan.innerHTML = marked.parse(raw, { breaks: true, gfm: true });
+          } catch (e) {
+            textSpan.textContent = raw;
+          }
         }
+      } catch (e) {
+        if (textSpan) textSpan.textContent = 'Error: ' + e.message;
+      }
 
-        loadData();
-    </script>
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function buildChatContext() {
+      if (!summaryData) return 'No insight data available.';
+      let ctx = `You are analyzing AI insight data from a DCC (Document Control Compliance) pipeline. Here is the data:\n\n`;
+      ctx += `Risk Level: ${summaryData.risk_level || 'Unknown'}\n`;
+      ctx += `Executive Summary: ${summaryData.executive_summary || 'N/A'}\n\n`;
+      ctx += `Top Risks:\n`;
+      (summaryData.top_risks || []).forEach((r, i) => {
+        ctx += `  ${i+1}. ${r.title} (Severity: ${r.severity}, Affected Rows: ${r.affected_rows}, Columns: ${(r.columns||[]).join(', ')})\n`;
+        ctx += `     Recommendation: ${r.recommendation}\n`;
+      });
+      ctx += `\nTrends:\n`;
+      (summaryData.trends || []).forEach(t => {
+        ctx += `  - ${t.pattern} (Frequency: ${t.frequency}, Phases: ${(t.phases||[]).join(', ')})\n`;
+      });
+      ctx += `\nRecommendations:\n`;
+      (summaryData.recommendations || []).forEach((r, i) => {
+        ctx += `  ${i+1}. ${r}\n`;
+      });
+      ctx += `\nEvidence Links:\n`;
+      (summaryData.evidence_links || []).forEach(e => {
+        ctx += `  - ${e.error_code}: ${e.total_occurrences} occurrences in phase ${e.phase || 'Unknown'}\n`;
+      });
+      ctx += `\nModel: ${summaryData.model_used || 'N/A'}, Provider: ${summaryData.provider || 'N/A'}, Fallback Used: ${summaryData.fallback_used || false}\n`;
+
+      if (traceData && traceData.evidence) {
+        ctx += `\n=== Evidence Trace (${traceData.evidence.length} entries) ===\n`;
+        traceData.evidence.forEach(ev => {
+          ctx += `  - Error: ${ev.error_code} | Risk: ${ev.risk_title} | Phase: ${ev.phase} | Occurrences: ${ev.total_occurrences} | Severity: ${ev.severity}\n`;
+          const cols = (ev.affected_columns || []).map(c => `${c.column}(${c.error_count})`).join(', ');
+          if (cols) ctx += `    Affected Columns: ${cols}\n`;
+        });
+      }
+
+      if (reportMd) {
+        ctx += `\n=== Report Summary (first 1000 chars) ===\n`;
+        ctx += reportMd.slice(0, 1000) + '\n';
+      }
+
+      if (excelHeaders.length > 0) {
+        ctx += `\n=== Pipeline Data Table (${excelRows.length.toLocaleString()} rows total, ${excelHeaders.length} columns) ===\n`;
+        ctx += `Columns: ${excelHeaders.join(', ')}\n`;
+        ctx += `First 5 sample rows:\n`;
+        for (let i = 0; i < Math.min(5, excelRows.length); i++) {
+          const row = excelRows[i];
+          const vals = excelHeaders.map((h, ci) => {
+            const v = row[ci];
+            return v instanceof Date ? v.toISOString().split('T')[0] : (v != null ? String(v).slice(0, 60) : '');
+          });
+          ctx += `  Row ${i + 1}: ${vals.join(' | ')}\n`;
+        }
+        ctx += `\nTo query this data, say: FILTER: column_name operator value (e.g. FILTER: Document_Type equals PP) and the dashboard will show matching rows as a table.\n`;
+      }
+
+      ctx += `\nAnswer user questions concisely based on this data. For data table queries, tell the user what columns are available and ask them to specify a filter.`;
+      return ctx;
+    }
+
+    function formatNum(n) {
+      if (n == null) return '—';
+      if (typeof n === 'string') n = parseInt(n.replace(/,/g, ''));
+      if (isNaN(n)) return '—';
+      if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+      return String(n);
+    }
+
+    function escHtml(s) {
+      if (s == null) return '';
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+  </script>
 </body>
 </html>
