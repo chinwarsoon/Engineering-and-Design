@@ -8,12 +8,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
-    .content-scroll { flex: 1; overflow-y: auto; }
+    .content-scroll { flex: 1; overflow-y: auto; min-height: 0; }
     .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 0 0 20px 0; }
     .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; position: relative; height: 220px; }
     .chart-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
     .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
-    .dcc-sidebar-right { width: var(--right-sidebar-w, 320px); background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s; }
+    .dcc-sidebar-right { width: var(--right-sidebar-w, 320px); background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s; min-height: 0; }
     .dcc-sidebar-right.collapsed { width: 0; border-left: none; }
     .sb-section-body { font-size: 11px; color: var(--text2); line-height: 1.8; }
     .sb-section-body strong { color: var(--text); }
@@ -82,12 +82,12 @@
     .dcc-sidebar-resizer { z-index: 1000; background: transparent; }
     .left-resizer { right: -4px; width: 8px; cursor: col-resize; }
     .right-resizer { left: -4px; width: 8px; cursor: col-resize; }
-    .dcc-sidebar, .dcc-sidebar-right { overflow: visible !important; }
     .sidebar-panel-stretch { height: 100%; display: none; flex-direction: column; overflow: hidden; }
     .sidebar-panel-stretch.visible { display: flex; }
     .dcc-sidebar-body { flex: 1; overflow-y: auto; overflow-x: hidden; }
 
-    .chat-container { display: flex; flex-direction: column; height: 100%; }
+    /* Chat panel fills the right sidebar flex column; input row stays pinned at bottom */
+    .chat-container { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
     .chat-header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--text2); display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .chat-status-dot { width: 6px; height: 6px; border-radius: 50%; }
     .chat-status-dot.online { background: var(--success); }
@@ -250,6 +250,11 @@
               <div><strong>Timestamp:</strong> <span id="metaTimestamp">—</span></div>
               <div><strong>Provider:</strong> <span id="metaProvider">—</span></div>
               <div><strong>Model:</strong> <span id="metaModel">—</span></div>
+              <div><strong>Risk Level:</strong> <span id="metaRiskLevel" class="badge">—</span></div>
+              <div><strong>Fallback:</strong> <span id="metaFallback" class="badge">—</span></div>
+              <div><strong>Total Rows:</strong> <span id="metaTotalRows">—</span></div>
+              <div><strong>Errors:</strong> <span id="metaErrorCount">—</span></div>
+              <div><strong>Affected Rows:</strong> <span id="metaAffectedRows">—</span></div>
             </div>
           </div>
         </div>
@@ -370,7 +375,7 @@
     <div class="dcc-sidebar-right" id="rightSidebar" style="position:relative;width:var(--right-sidebar-w, 320px);">
       <div class="dcc-sidebar-resizer right-resizer" data-resize="right"></div>
       <div class="dcc-sidebar-header"><span id="rightSidebarHeader">Settings</span></div>
-      <div id="rightSidebarContent">
+      <div id="rightSidebarContent" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
         <div class="dcc-sidebar-body" id="rightSidebarBody">
           <!-- Dynamically populated -->
         </div>
@@ -568,7 +573,7 @@
           showChat(true);
         } else {
           if (chatPanel) chatPanel.style.display = 'none';
-          rightContent.style.display = 'flex';
+          rightContent.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
           if (panel === 'help') {
             header.textContent = 'Help';
             rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildHelpContent();
@@ -758,21 +763,6 @@
         { label: '📋 Pipeline Data', tab: 'data' }
       ];
 
-      function buildTree(items, isRoot = false) {
-        return `<ul class="tree-node" style="${isRoot ? '' : 'padding-left:12px;'}">` + items.map(n => {
-          let clickAttr = `onclick="handleTreeClick('${n.tab}', '${n.target||''}', ${n.riskIndex ?? 'null'})"`;
-          return `
-          <li class="tree-node-item">
-            <div class="tree-node-inner" ${clickAttr}>
-              <span class="tree-arrow" style="display:inline-block;width:12px;transition:transform 0.1s;cursor:pointer;${n.children?'':'opacity:0;'}" onclick="event.stopPropagation(); toggleNode(event)">${n.children ? '▼' : ' '}</span>
-              <span class="tree-label">${n.label}</span>
-            </div>
-            ${n.children ? buildTree(n.children) : ''}
-          </li>`;
-        }).join('') + 'ul';
-      }
-
-      // Small helper to close the ul correctly
       function buildTreeFixed(items, isRoot = false) {
         let html = `<ul class="tree-node" style="${isRoot ? '' : 'padding-left:12px;'}">`;
         items.forEach(n => {
@@ -1099,40 +1089,34 @@
       if (!risk) return;
       const firstCode = risk.error_codes?.[0];
       const entry = firstCode ? errorCodeLookup[firstCode] : null;
-      const promptTemplate = entry?.ai_prompt || '';
-      if (!promptTemplate) {
-        alert('No AI prompt configured for this error code.');
-        return;
-      }
-      const replacers = {
-        code: firstCode || '',
-        name: entry?.name || '',
-        message: entry?.message || '',
-        source: entry?.source || '',
-        health_score_impact: entry?.health_score_impact ?? '',
-        remediation: entry?.remediation || '',
-        title: risk.title || '',
-        severity: risk.severity || '',
-        description: risk.description || '',
-        affected_rows: risk.affected_rows != null ? formatNum(risk.affected_rows) : '',
-        columns: (risk.columns || []).join(', '),
-        recommendation: risk.recommendation || ''
-      };
-      let prompt = promptTemplate;
-      Object.keys(replacers).forEach(k => {
-        prompt = prompt.replace(new RegExp(`\\{${k}\\}`, 'g'), String(replacers[k]));
-      });
 
-      const existingPanel = document.getElementById('chatPanel');
-      if (!existingPanel || !chatActive) {
-        showChat();
-      }
+      // Build a prompt from available catalog data — no ai_prompt field required
+      const codeName   = entry?.name        || firstCode || 'Unknown';
+      const codeMsg    = entry?.message     || risk.description || '';
+      const remediation = entry?.remediation || risk.recommendation || '';
+      const impact     = entry?.health_score_impact != null ? entry.health_score_impact : '';
+      const source     = entry?.source      || '';
 
-      const input = document.getElementById('chatInput');
-      if (input) {
-        input.value = prompt;
-        input.focus();
-      }
+      const prompt = [
+        `Analyze this pipeline risk finding:`,
+        ``,
+        `Error Code: ${firstCode || '—'}  (${codeName})`,
+        `Severity: ${risk.severity || '—'}`,
+        `Affected Rows: ${risk.affected_rows != null ? formatNum(risk.affected_rows) : '—'}`,
+        `Columns: ${(risk.columns || []).join(', ') || '—'}`,
+        codeMsg    ? `Message: ${codeMsg}` : '',
+        remediation ? `Remediation: ${remediation}` : '',
+        impact !== '' ? `Health Score Impact: ${impact}` : '',
+        source     ? `Source: ${source}` : '',
+        ``,
+        `What is the likely root cause and what steps should be taken to resolve it?`
+      ].filter(l => l !== null && l !== undefined && !(l === '' && false)).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+
+      if (!chatActive) showChat();
+      setTimeout(() => {
+        const input = document.getElementById('chatInput');
+        if (input) { input.value = prompt; input.focus(); }
+      }, 100);
     }
 
     function showEvidence(errorCode) {
@@ -1437,12 +1421,12 @@
 
       if (helpActive) {
         if (chatActive) { chatActive = false; chatBtn?.classList.remove('active'); }
-        rightContent.style.display = 'flex';
+        rightContent.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
         header.textContent = 'Help';
         rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildHelpContent();
         helpBtn?.classList.add('active');
       } else {
-        rightContent.style.display = 'flex';
+        rightContent.style.cssText = 'display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
         header.textContent = 'Settings';
         rightContent.querySelector('.dcc-sidebar-body').innerHTML = buildSettingsContent();
         helpBtn?.classList.remove('active');
@@ -1499,7 +1483,7 @@
         const chatPanel = document.createElement('div');
         chatPanel.id = 'chatPanel';
         chatPanel.className = 'chat-container';
-        chatPanel.style.display = 'flex';
+        chatPanel.style.cssText = 'display:flex;flex:1;min-height:0;overflow:hidden;';
         chatPanel.innerHTML = `
           <div class="chat-header">
             <span class="chat-status-dot ${ollamaAvailable ? 'online' : 'offline'}" id="chatStatusDot"></span>
@@ -1550,7 +1534,7 @@
       }
 
       const chatPanel = document.getElementById('chatPanel');
-      chatPanel.style.display = 'flex';
+      chatPanel.style.cssText = 'display:flex;flex:1;min-height:0;overflow:hidden;';
       rightContent.style.display = 'none';
       header.textContent = 'AI Chat';
       rightSidebar.classList.remove('collapsed');
