@@ -382,7 +382,7 @@ body {
   flex-shrink: 0;
   z-index: 300;
 }
-.dcc-statusbar.status-ok   { background: var(--success); }
+.dcc-statusbar.status-ok   { background: var(--accent); }
 .dcc-statusbar.status-warn { background: var(--warning); }
 .dcc-statusbar.status-err  { background: var(--danger); }
 .dcc-statusbar.status-info { background: var(--accent); }
