@@ -8,6 +8,45 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-20-phase6-f4-severity"></a>
+## 2026-05-20 — Phase 6: F4-C-F-0401-A/B Severity Reclassification (HIGH → WARNING)
+
+### COMPLETED: Phase 6 — F4-C-F-0401-A/B Severity Reclassification (WP-DCC-EH-DATA-001 v2.2)
+
+**Summary:** Reclassified F4-C-F-0401-A/B (forward fill jump limit exceeded) from HIGH to WARNING severity, with health_score_impact reduced from -10 to -5. These codes document normal null-handling transformations, not data logic bugs.
+
+**Rationale:** F4-C-F-0401-A/B are diagnostic observations emitted by `FillDetector` during standard forward fill operations. The fill operation succeeded; the code merely flags that the jump distance exceeded the configured threshold (20 rows). This is an informational audit trail, not a data integrity issue.
+
+**Changes:**
+- **Schema (SSOT):** `config/schemas/data_error_config.json` — F4-C-F-0401-A/B severity `HIGH` → `WARNING`, health_score_impact `-10` → `-5`
+- **Detector docstrings:** `workflow/processor_engine/error_handling/detectors/fill.py` — module docstring (line 12) and function docstring (line 278) updated `(HIGH)` → `(WARNING)`
+- **Documentation updated:** `docs/error_handling/error_code_reference.md`, `docs/error_handling/detectors/fill.md`, `docs/error_handling/null_handling_guide.md`, `docs/readme_main.md`
+- **Workplans updated:** `workplan/error_handling/data_error_handling/data_error_handling_workplan.md` (v2.2, Phase 6 added), `workplan/error_handling/module/error_handling_module_workplan.md`, `workplan/error_handling/error_catalog_consolidation/error_catalog_consolidation_plan.md`, `workplan/data_validation/dcc_register_rule.md`, `workplan/column_processing/business_logic_validation_workplan.md`
+- **Reports updated:** `workplan/column_processing/reports/phase7_validation_errors_volume_reduction_report.md`
+- **Log updated:** `log/update_log.md` — existing F4xx severity reference updated
+
+**Impact:**
+- Health score: -5 per occurrence instead of -10 (overall health score improves)
+- Risk Dashboard: WARNING badge instead of HIGH (lower visual priority)
+- AI Chat: Treated as informational, not critical risk
+- Risk Analyzer: Severity weight drops from 3 (HIGH) to 1 (WARNING) — may drop out of top 8 risks
+- Remediator: SUPPRESS strategy unchanged — no behavior change
+
+**Files Modified (14):**
+- `dcc/config/schemas/data_error_config.json` — severity and health_score_impact
+- `dcc/workflow/processor_engine/error_handling/detectors/fill.py` — docstrings
+- `dcc/docs/error_handling/error_code_reference.md` — severity table
+- `dcc/docs/error_handling/detectors/fill.md` — severity table
+- `dcc/docs/error_handling/null_handling_guide.md` — severity description
+- `dcc/docs/readme_main.md` — severity table (expanded to affix variants)
+- `dcc/workplan/error_handling/data_error_handling/data_error_handling_workplan.md` — v2.2, Phase 6
+- `dcc/workplan/error_handling/module/error_handling_module_workplan.md` — error codes list
+- `dcc/workplan/error_handling/error_catalog_consolidation/error_catalog_consolidation_plan.md` — severity table
+- `dcc/workplan/data_validation/dcc_register_rule.md` — severity table
+- `dcc/workplan/column_processing/business_logic_validation_workplan.md` — severity analysis (3 locations)
+- `dcc/workplan/column_processing/reports/phase7_validation_errors_volume_reduction_report.md` — severity references (2 locations)
+- `dcc/log/update_log.md` — F4xx severity reference
+
 <a id="update-2026-05-19-ai-dashboard-v1"></a>
 ## 2026-05-19 — AI Analysis Dashboard v1.0 Implementation
 
@@ -4789,12 +4828,12 @@ Foreign Key Dependencies:
      - Added `_check_default_value_record` (line 473-500): Detects default value applications (F4-C-F-0403)
      - Added `_detect_excessive_nulls_from_stats` (line 502-557): Detects columns with >80% filled values (F4-C-F-0404)
      - Added `_detect_invalid_grouping` (line 559-585): Detects empty group_by configurations (F4-C-F-0405)
-4. All F4xx error codes now active:
-   - F4-C-F-0401: Forward fill row jump > 20 rows (HIGH)
-   - F4-C-F-0402: Session boundary crossed during fill (HIGH)
-   - F4-C-F-0403: Calculation-based/default fill applied (WARNING)
-   - F4-C-F-0404: Excessive null fills (>80% of column) (WARNING)
-   - F4-C-F-0405: Invalid grouping configuration (ERROR)
+ 4. All F4xx error codes now active:
+    - F4-C-F-0401-A/B: Forward fill row jump > 20 rows (WARNING)
+    - F4-C-F-0402-A/B: Session boundary crossed during fill (HIGH)
+    - F4-C-F-0403-A/B/C: Calculation-based/default fill applied (WARNING)
+    - F4-C-F-0404: Excessive null fills (>80% of column) (WARNING)
+    - F4-C-F-0405: Invalid grouping configuration (ERROR)
 5. Integration: FillDetector now reads `engine.fill_history` populated by null_handling.py functions
 6. Related to [Null Handling Error Detection Plan](../workplan/error_handling/error_handling_module_workplan.md): Phase B complete, ready for Phase C (Engine Integration)
 

@@ -374,7 +374,7 @@ Example: PRJ-FAC-DWG-ARC-0001
 |-----------|-------|
 | **Category** | Fill |
 | **Layer** | L3 |
-| **Severity** | HIGH |
+| **Severity** | WARNING |
 | **Fail Fast** | No |
 | **Source File** | `detectors/fill.py` |
 | **Function** | `FillDetector._check_forward_fill_record()` |

@@ -1128,12 +1128,16 @@ class ErrorInterceptor:
    
    **Current Status:** All phases (A, B, C, D, E) complete. F4xx error detection fully operational with comprehensive documentation.
    
-   **Error Codes Defined:**
-   - `F4-C-F-0401`: Forward fill row jump limit exceeded (HIGH)
-   - `F4-C-F-0402`: Session boundary crossed during fill (HIGH)  
-   - `F4-C-F-0403`: Multi-level fill failed, default applied (WARNING)
-   - `F4-C-F-0404`: Excessive nulls after fill operation (WARNING) ← NEW
-   - `F4-C-F-0405`: Group-based fill with invalid grouping (WARNING) ← NEW
+    **Error Codes Defined:**
+    - `F4-C-F-0401-A`: Forward fill row jump limit exceeded (history path) (WARNING)
+    - `F4-C-F-0401-B`: Forward fill row jump limit exceeded (heuristic path) (WARNING)
+    - `F4-C-F-0402-A`: Session boundary crossed during fill (history path) (HIGH)
+    - `F4-C-F-0402-B`: Session boundary crossed during fill (heuristic path) (HIGH)
+    - `F4-C-F-0403-A`: Multi-level fill failed, all levels failed (WARNING)
+    - `F4-C-F-0403-B`: Multi-level fill failed, calculation missing source (WARNING)
+    - `F4-C-F-0403-C`: Multi-level fill failed, default applied (WARNING)
+    - `F4-C-F-0404`: Excessive nulls after fill operation (WARNING)
+    - `F4-C-F-0405`: Group-based fill with invalid grouping (ERROR)
    
    **Implementation Plan:**
    

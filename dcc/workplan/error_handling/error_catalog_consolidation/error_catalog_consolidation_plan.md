@@ -115,9 +115,13 @@ The following codes are hardcoded as string constants in detector files but **ab
 | `L3-L-V-0302` | REVISION_REGRESSION | HIGH | logic.py | L3 |
 | `L3-L-V-0303` | STATUS_CONFLICT | HIGH | logic.py | L3 |
 | `L3-L-W-0304` | OVERDUE_PENDING | WARNING | logic.py | L3 |
-| `F4-C-F-0401` | FILL_JUMP_LIMIT | HIGH | fill.py | L3 |
-| `F4-C-F-0402` | FILL_BOUNDARY_CROSS | HIGH | fill.py | L3 |
-| `F4-C-F-0403` | FILL_INFERRED | WARNING | fill.py | L3 |
+| `F4-C-F-0401-A` | FILL_JUMP_LIMIT_HISTORY | WARNING | fill.py | L3 |
+| `F4-C-F-0401-B` | FILL_JUMP_LIMIT_HEURISTIC | WARNING | fill.py | L3 |
+| `F4-C-F-0402-A` | FILL_BOUNDARY_CROSS_HISTORY | HIGH | fill.py | L3 |
+| `F4-C-F-0402-B` | FILL_BOUNDARY_CROSS_HEURISTIC | HIGH | fill.py | L3 |
+| `F4-C-F-0403-A` | FILL_INFERRED_ALL_LEVELS_FAILED | WARNING | fill.py | L3 |
+| `F4-C-F-0403-B` | FILL_INFERRED_CALC_MISSING_SOURCE | WARNING | fill.py | L3 |
+| `F4-C-F-0403-C` | FILL_INFERRED_DEFAULT | WARNING | fill.py | L3 |
 | `F4-C-F-0404` | FILL_EXCESSIVE_NULLS | WARNING | fill.py | L3 |
 | `F4-C-F-0405` | FILL_INVALID_GROUPING | ERROR | fill.py | L3 |
 | `V5-I-V-0501` | PATTERN_MISMATCH | HIGH | validation.py / schema.py | L2 |

@@ -20,7 +20,7 @@ The Null Handling Error Detection module provides comprehensive monitoring and e
 | Attribute | Value |
 |-----------|-------|
 | **Error Code** | F4-C-F-0401 |
-| **Severity** | HIGH |
+| **Severity** | WARNING |
 | **Layer** | L3 (Business Logic) |
 | **Description** | Forward fill operation spanned more rows than the configured limit |
 

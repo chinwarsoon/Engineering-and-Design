@@ -9,7 +9,7 @@ Detects null handling and forward fill issues:
 - Invalid grouping configuration
 
 Error Codes:
-- F4-C-F-0401: Forward fill limit exceeded (HIGH)
+- F4-C-F-0401: Forward fill limit exceeded (WARNING)
 - F4-C-F-0402: Session boundary crossed during fill (HIGH)
 - F4-C-F-0403: Calculation-based fill applied (WARNING)
 - F4-C-F-0404: Excessive null fills detected (WARNING)
@@ -275,7 +275,7 @@ class FillDetector(BaseDetector):
         """
         Detect row jumps exceeding limit in DataFrame.
         
-        Error: F4-C-F-0401 (HIGH)
+        Error: F4-C-F-0401 (WARNING)
         """
         # This is a heuristic detection based on data patterns
         # Actual fill detection should use fill_history from null_handling.py

@@ -769,12 +769,12 @@ Top error codes:
 | F4-C-F-0403-C | 710 | Default value applied to fill nulls | WARNING | Not a bug — expected when source data has nulls requiring defaults; `health_score_impact: -5` |
 | L3-L-V-0304 | 615 | Resubmission_Overdue_Status value mismatch | ERROR | Phase 3 (5-value matrix eliminates ambiguity) |
 | L3-L-V-0303 | 313 | Related to Resubmission logic | ERROR | Phase 5 (row-position-separated logic corrects superseded calculations) |
-| F4-C-F-0401-A | 281 | Forward fill applied | HIGH | Not a logic bug — documents forward fill operation; `health_score_impact: -10` |
+| F4-C-F-0401-A | 281 | Forward fill applied | WARNING | Not a logic bug — documents forward fill operation; `health_score_impact: -5` |
 | L3-L-V-0308 | 259 | Related to Overdue status | ERROR | Phase 3 (5-value matrix) |
 | L3-L-V-0305 | 214 | Related to closure logic | ERROR | Phase 5 (L1/S1 priorities — correct NaT handling per Resubmission_Required) |
 
-**Notes on F4 codes:** F4-C-F-0403-C (710 rows, severity: **WARNING**) and F4-C-F-0401-A (281 rows, severity: **HIGH**) are emitted by `FillDetector` (`fill.py`) — they document data transformations (default value fills, forward fills) that occur during normal null handling. These are not logic bugs but operational diagnostics. Their severity levels are already set appropriately in `data_error_config.json`:
-- F4-C-F-0401-A: `health_score_impact: -10` (HIGH) — justified because large forward fill jumps may indicate data integrity issues
+**Notes on F4 codes:** F4-C-F-0403-C (710 rows, severity: **WARNING**) and F4-C-F-0401-A (281 rows, severity: **WARNING**) are emitted by `FillDetector` (`fill.py`) — they document data transformations (default value fills, forward fills) that occur during normal null handling. These are not logic bugs but operational diagnostics. Their severity levels are set appropriately in `data_error_config.json`:
+- F4-C-F-0401-A: `health_score_impact: -5` (WARNING) — diagnostic observation of forward fill jump distance; not a data integrity issue
 - F4-C-F-0403-C: `health_score_impact: -5` (WARNING) — justified because default fills mask missing data
 
 **Row overlap:** The 3,784 figure is unique rows with ≥1 error. A single row can carry multiple error codes (e.g., a row with both P2-I-V-0204-C and L3-L-V-0302 counts once in the 3,784 total). As a result, fixing individual error codes does not reduce the row count proportionally. The <1,200 target accounts for this but is best-effort until pipeline re-run.
@@ -817,7 +817,7 @@ After all phases complete, the remaining errors break down as follows:
 |------------|-------|----------------|--------|
 | P2-I-V-0204-C | 186 | **Data quality** — 54 genuine segment mismatches; 132 affix edge cases not fully handled by affix extraction | P2 extraction tuned but some multi-affix patterns remain. Document as known limitation. |
 | F4-C-F-0403-C | 217 | **Diagnostic** — default fills applied; WARNING severity, not a bug | Accept — within expected range after other fixes reduced null prevalence |
-| F4-C-F-0401-A | 19 | **Diagnostic** — forward fills applied; HIGH severity, not a bug | Accept — documents data transformation |
+| F4-C-F-0401-A | 19 | **Diagnostic** — forward fills applied; WARNING severity, not a bug | Accept — documents data transformation |
 | L3-L-V-0305 | 21 | **Data quality** — version regression in documents with non-standard revision sequences | Accept — genuine data anomaly, not a pipeline bug |
 | P4-I-V-0401 | 20 | **Data quality** — null document revisions for valid Document_IDs | Accept — Phase 4 correctly flags missing manual input |
 | F4-C-F-0404 | 3 | **Diagnostic** — other fill operation | Accept |
@@ -839,7 +839,7 @@ After all phases complete, the remaining errors break down as follows:
 | Milestone | Deliverable | Status |
 |-----------|-------------|--------|
 | M7.1 | Execute Phases 1-6 | ✅ **DONE** — all prior phases complete |
-| M7.2 | Audit F4-code severity in `fill.py` and `data_error_config.json` | ✅ **DONE** — F4-C-F-0401-A (HIGH, -10) and F4-C-F-0403-C (WARNING, -5) are appropriate; no change needed |
+| M7.2 | Audit F4-code severity in `fill.py` and `data_error_config.json` | ✅ **DONE** — Phase 6 (2026-05-20): F4-C-F-0401-A/B reclassified from HIGH to WARNING, health_score_impact -10 → -5 |
 | M7.3 | Re-run pipeline and measure error reduction | ✅ **DONE** — see actual results above; error codes per estimate with minor variance |
 | M7.4 | Analyze remaining errors | ✅ **DONE** — all remaining errors classified as data quality, not pipeline bugs |
 

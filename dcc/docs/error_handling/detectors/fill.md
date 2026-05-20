@@ -36,7 +36,7 @@ The **FillDetector** analyzes null handling operations (forward fills, multi-lev
 
 | Attribute | Value |
 |-----------|-------|
-| **Severity** | HIGH |
+| **Severity** | WARNING |
 | **Trigger** | `row_jump > jump_limit` (default: 20) |
 | **Context** | fill_strategy, row_jump, from_row, to_row, fill_percentage |
 

@@ -598,8 +598,10 @@ expected_segments = [
 | P2-I-P-0201 | Document_ID null or empty | HIGH |
 | P2-I-V-0204 | Document_ID format invalid | HIGH |
 | L3-L-P-0301 | Date inversion | HIGH |
-| F4-C-F-0401 | Forward fill row jump exceeded | HIGH |
-| F4-C-F-0402 | Session boundary crossed | HIGH |
+| F4-C-F-0401-A | Forward fill row jump exceeded (history) | WARNING |
+| F4-C-F-0401-B | Forward fill row jump exceeded (heuristic) | WARNING |
+| F4-C-F-0402-A | Session boundary crossed (history) | HIGH |
+| F4-C-F-0402-B | Session boundary crossed (heuristic) | HIGH |
 
 ### 5.4 Row Health Score Weights
 

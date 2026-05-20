@@ -378,9 +378,13 @@ workflow/
 
 | Code | Description | Severity |
 |------|-------------|----------|
-| F4-C-F-0401 | Forward fill row jump > limit | HIGH |
-| F4-C-F-0402 | Session boundary crossed | HIGH |
-| F4-C-F-0403 | Multi-level fill failed | WARNING |
+| F4-C-F-0401-A | Forward fill row jump > limit (history) | WARNING |
+| F4-C-F-0401-B | Forward fill row jump > limit (heuristic) | WARNING |
+| F4-C-F-0402-A | Session boundary crossed (history) | HIGH |
+| F4-C-F-0402-B | Session boundary crossed (heuristic) | HIGH |
+| F4-C-F-0403-A | Multi-level fill failed (all levels) | WARNING |
+| F4-C-F-0403-B | Multi-level fill failed (calc missing source) | WARNING |
+| F4-C-F-0403-C | Multi-level fill failed (default applied) | WARNING |
 | F4-C-F-0404 | Excessive null fills (>80%) | WARNING |
 | F4-C-F-0405 | Invalid grouping config | ERROR |
 

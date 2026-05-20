@@ -28,7 +28,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 ## 2. Scope Summary
 
 ### In Scope (Data Errors Only)
-- **17 Data/Logic Error Codes** in LL-M-F-XXXX format
+- **24 Data/Logic Error Codes** in LL-M-F-XXXX format (including affix variants for multi-semantic codes)
 - **6 Data Error Categories:** 
   - P1-A (Anchor): Column nulls, format errors
   - P2-I (Identity): Document ID, revision errors
@@ -77,7 +77,8 @@ To establish a comprehensive error coding and validation framework for the DCC p
 
 | Version | Date | Author | Changes | Status |
 |---------|------|--------|---------|--------|
-| 2.1 | 2026-05-16 | System | Added Phase 5 to address data column logic gaps and schema mismatch | ⏳ In Progress |
+| 2.2 | 2026-05-20 | System | Added Phase 6 — F4-C-F-0401-A/B severity HIGH → WARNING reclassification | ⏳ In Progress |
+| 2.1 | 2026-05-16 | System | Added Phase 5 to address data column logic gaps and schema mismatch | ✅ Complete |
 | 2.0 | 2026-04-24 | System | Major update to standardized LL-M-F-XXXX format, added Phase 1-3 completion status, migration table | ✅ Complete |
 | 1.2 | 2026-04-09 | System | Added implementation guide and integration specs | ✅ Complete |
 | 1.1 | 2026-04-09 | System | Added V5xx (Validation) and C6xx (Calculation) error codes | ✅ Complete |
@@ -151,7 +152,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | EC1.1 | Create `error_code_base.json` (definitions) | ✅ |
 | EC1.2 | Create `error_code_setup.json` (properties) | ✅ |
 | EC1.3 | Create `system_error_config.json` (20 codes) | ✅ |
-| EC1.4 | Create `data_error_config.json` (17 codes) | ✅ |
+| EC1.4 | Create `data_error_config.json` (24 codes with affix variants) | ✅ |
 | EC1.5 | Validate schema inheritance chain | ✅ |
 
 ### Phase 2: Code Migration (COMPLETE)
@@ -216,6 +217,83 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | ✅ EC5.4 | Standardize error codes in `calculations/validation.py` from `P-V-V-05xx` to `V5-I-V-05xx` format | ✅ Complete |
 | ✅ EC5.5 | Document missing `L3` codes (`L3-L-V-0308`, `L3-L-V-0309`) in taxonomy | ✅ Complete |
 
+### Phase 6: F4-C-F-0401-A/B Severity Reclassification (IN PROGRESS)
+**Objective:** Reclassify forward fill jump limit exceeded errors from HIGH to WARNING severity, as they document normal null-handling transformations rather than data logic bugs.
+
+#### Rationale
+- F4-C-F-0401-A/B are **diagnostic observations** emitted by `FillDetector` during normal forward fill operations
+- They document data transformations (forward fills jumping over >20 rows) that occur as part of standard null handling
+- Not a logic bug — the fill operation succeeded; the code merely flags that the jump distance exceeded the configured threshold
+- Current HIGH severity (-10 health impact) overstated the risk; WARNING (-5) better reflects the informational nature
+
+#### What will be updated/created
+
+**Schema (SSOT):**
+- ✅ `config/schemas/data_error_config.json`: F4-C-F-0401-A `severity: "HIGH"` → `"WARNING"`, `health_score_impact: -10` → `-5`
+- ✅ `config/schemas/data_error_config.json`: F4-C-F-0401-B `severity: "HIGH"` → `"WARNING"`, `health_score_impact: -10` → `-5`
+
+**Detector Code (docstring only — no logic change):**
+- ✅ `workflow/processor_engine/error_handling/detectors/fill.py:12` — module docstring `(HIGH)` → `(WARNING)`
+- ✅ `workflow/processor_engine/error_handling/detectors/fill.py:278` — function docstring `(HIGH)` → `(WARNING)`
+
+**Remediator (review only):**
+- ⏳ `workflow/processor_engine/error_handling/resolution/remediator.py:61` — current strategy `SUPPRESS` is appropriate for WARNING; no change needed
+
+**AI Ops (review only):**
+- ⏳ `workflow/ai_ops_engine/analyzers/risk_analyzer.py:25` — `_ERROR_DESCRIPTIONS` entry severity is driven by config, not hardcoded; no change needed
+- ⏳ `workflow/ai_ops_engine/analyzers/risk_analyzer.py:119` — recommendation text still valid for WARNING; no change needed
+
+**Documentation (severity references):**
+- ⏳ `docs/error_handling/error_code_reference.md:381` — update severity table
+- ⏳ `docs/error_handling/detectors/fill.md:35` — update severity table
+- ⏳ `docs/error_handling/null_handling_guide.md:22` — update severity description
+- ⏳ `docs/readme_main.md:381` — update severity table
+- ⏳ `workplan/error_handling/module/error_handling_module_workplan.md:1132` — update severity reference
+- ⏳ `workplan/error_handling/error_catalog_consolidation/error_catalog_consolidation_plan.md:118` — update severity reference
+- ⏳ `workplan/data_validation/dcc_register_rule.md:601` — update severity table
+- ⏳ `workplan/column_processing/business_logic_validation_workplan.md:772,776,777,820,842` — update severity analysis
+- ⏳ `workplan/column_processing/reports/phase7_validation_errors_volume_reduction_report.md:84,162,174` — update severity references
+- ⏳ `log/update_log.md:4793` — update severity reference
+
+**Archive (auto-generated — no manual update):**
+- ⏭ `archive/tracer/output/call_graph.json:21815` — docstring in call graph; will update on next pipeline run
+
+#### Impact Analysis
+
+| Area | Before | After | Impact |
+|------|--------|-------|--------|
+| Health Score | -10 per occurrence | -5 per occurrence | Overall health score will improve |
+| Risk Dashboard | HIGH badge (red/amber) | WARNING badge (blue/grey) | Lower visual priority |
+| AI Chat | Treated as critical risk | Treated as informational | Model response tone adjusted |
+| Risk Analyzer | Severity weight 3 (HIGH) | Severity weight 1 (WARNING) | May drop out of top 8 risks |
+| Remediator | SUPPRESS strategy | SUPPRESS (unchanged) | No behavior change |
+| Tests | `test_all_detectors.py` asserts error code only | No change needed | Tests pass |
+
+#### Risks and Mitigation
+- **Risk:** Existing pipeline output files still contain HIGH severity for historical runs
+- **Mitigation:** Severity is read from config at runtime; dashboard/AI analysis will reflect new severity on next load. Historical JSON files retain original severity but are overridden by config lookup.
+- **Risk:** Downstream reports reference HIGH severity for F4-C-F-0401-A
+- **Mitigation:** All documentation updated in this phase; reports will be regenerated on next pipeline run.
+
+#### Success Criteria
+- ⏳ `data_error_config.json` F4-C-F-0401-A/B severity = `"WARNING"`, health_score_impact = `-5`
+- ⏳ `fill.py` docstrings updated to reflect WARNING severity
+- ⏳ All documentation severity references updated
+- ⏳ Dashboard displays WARNING badge for F4-C-F-0401-A/B
+- ⏳ AI chat treats F4-C-F-0401-A/B as informational, not critical
+
+| Task | Deliverable | Status |
+|------|-------------|--------|
+| ✅ EC6.1 | Update `data_error_config.json` — F4-C-F-0401-A severity HIGH → WARNING, health_score_impact -10 → -5 | ✅ Complete |
+| ✅ EC6.2 | Update `data_error_config.json` — F4-C-F-0401-B severity HIGH → WARNING, health_score_impact -10 → -5 | ✅ Complete |
+| ✅ EC6.3 | Update `fill.py` module docstring (line 12) and function docstring (line 278) | ✅ Complete |
+| ✅ EC6.4 | Review `remediator.py` — confirm SUPPRESS strategy appropriate for WARNING | ✅ Complete — no change needed |
+| ✅ EC6.5 | Review `risk_analyzer.py` — confirm severity driven by config, no hardcoded changes needed | ✅ Complete — no change needed |
+| ✅ EC6.6 | Update documentation: `error_code_reference.md`, `fill.md`, `null_handling_guide.md`, `readme_main.md` | ✅ Complete |
+| ✅ EC6.7 | Update workplan references: `module_workplan.md`, `catalog_consolidation_plan.md`, `dcc_register_rule.md` | ✅ Complete |
+| ✅ EC6.8 | Update column processing references: `business_logic_validation_workplan.md`, `phase7_report.md` | ✅ Complete |
+| ✅ EC6.9 | Update `log/update_log.md` severity reference and add Phase 6 entry | ✅ Complete |
+
 ---
 
 ## 8. Timeline, Milestones, and Deliverables
@@ -229,6 +307,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | Phase 3 | Apr 23 | Apr 24 | 1 day | ✅ Complete |
 | Phase 4 | Apr 24 | Apr 25 | 1 day | ✅ Complete |
 | Phase 5 | May 16 | May 16 | 1 day | ✅ Complete |
+| Phase 6 | May 20 | May 20 | 1 day | ✅ Complete |
 
 ### Key Milestones
 
@@ -239,6 +318,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | M3 | Apr 24 | 28 tests passing (100%) |
 | M4 | Apr 25 | Documentation consolidated |
 | M5 | May 16 | Phase 5 logic gaps remediated |
+| M6 | May 20 | F4-C-F-0401-A/B severity reclassified to WARNING | ✅ Complete |
 
 ### Deliverables
 
@@ -256,6 +336,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | D10 | Consolidated Report | `workplan/error_handling/reports/consolidated_implementation_report.md` | ✅ |
 | D11 | Master README | `workplan/error_handling/README.md` | ✅ |
 | D12 | Phase 5 Report | `workplan/error_handling/data_error_handling/reports/phase5_completion_report.md` | ✅ |
+| D13 | Phase 6 Report | `workplan/error_handling/data_error_handling/reports/phase6_severity_reclassification_report.md` | ✅ Complete |
 
 ---
 
@@ -267,7 +348,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | R2 | Message lookup performance | Low | Low | Cached registry, O(1) lookup | Resolved |
 | R3 | Schema validation failures | Low | High | 4 schema files, 100% test pass | Resolved |
 | R4 | Health score calculation errors | Low | Medium | Weight validation tests | Resolved |
-| R5 | Missing bilingual messages | Low | Medium | All 37 codes have EN+ZH | Resolved |
+| R5 | Missing bilingual messages | Low | Medium | All 44 codes have EN+ZH | Resolved |
 
 ---
 
@@ -287,7 +368,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 
 | Criterion | Target | Measurement | Status |
 |-----------|--------|-------------|--------|
-| SC1 | All 37 error codes standardized | LL-M-F-XXXX or S-C-S-XXXX format | ✅ 100% |
+| SC1 | All 44 error codes standardized | LL-M-F-XXXX or S-C-S-XXXX format | ✅ 100% |
 | SC2 | Schema architecture compliant | agent_rule.md Section 2.3 | ✅ Pass |
 | SC3 | 5 legacy codes migrated | row_validator.py updated | ✅ Complete |
 | SC4 | 100% test pass rate | 28/28 tests passing | ✅ 100% |
@@ -376,15 +457,19 @@ All errors follow the standardized **LL-M-F-XXXX** format (Layer-Module-Function
 ### 12.5 Priority 4: Imputation & Boundary Warnings (F4-C-F-04xx)
 *Audit trail codes indicating where the script "guessed" or "filled" values.*
 
-| Standardized Code | Legacy Code | Description | Severity |
-| :--- | :--- | :--- | :--- |
-| **F4-C-F-0401** | F401 | **FILL_JUMP_LIMIT** - Forward fill exceeded the 20-row threshold | HIGH |
-| **F4-C-F-0402** | F402 | **FILL_BOUNDARY_CROSS** - Forward fill attempted to bridge across different `Submission_Sessions` | HIGH |
-| **F4-C-F-0403** | F403 | **FILL_INFERRED** - A blank cell was populated via calculation logic | WARNING |
-| **F4-C-F-0404** | - | **FILL_EXCESSIVE_NULLS** - Too many null values in group | WARNING |
-| **F4-C-F-0405** | - | **FILL_INVALID_GROUPING** - Invalid grouping for fill operation | ERROR |
+| Standardized Code | Legacy Code | Description | Severity | Health Impact |
+| :--- | :--- | :--- | :--- | :--- |
+| **F4-C-F-0401-A** | F401 | **FILL_JUMP_LIMIT_HISTORY** - Forward fill exceeded the 20-row threshold (fill history path) | WARNING | -5 |
+| **F4-C-F-0401-B** | F401 | **FILL_JUMP_LIMIT_HEURISTIC** - Potential forward fill detected (heuristic path) | WARNING | -5 |
+| **F4-C-F-0402-A** | F402 | **FILL_BOUNDARY_CROSS_HISTORY** - Forward fill bridged across sessions (history path) | HIGH | -10 |
+| **F4-C-F-0402-B** | F402 | **FILL_BOUNDARY_CROSS_HEURISTIC** - Same value across sessions (heuristic path) | HIGH | -10 |
+| **F4-C-F-0403-A** | F403 | **FILL_INFERRED_ALL_LEVELS_FAILED** - Multi-level fill failed; no value found | WARNING | -5 |
+| **F4-C-F-0403-B** | F403 | **FILL_INFERRED_CALCULATION** - Blank cell populated via calculation with missing source | WARNING | -5 |
+| **F4-C-F-0403-C** | F403 | **FILL_INFERRED_DEFAULT** - Default value applied after all levels failed | WARNING | -5 |
+| **F4-C-F-0404** | - | **FILL_EXCESSIVE_NULLS** - Too many null values in group | WARNING | -5 |
+| **F4-C-F-0405** | - | **FILL_INVALID_GROUPING** - Invalid grouping for fill operation | ERROR | -15 |
 
-**Migration Note:** Legacy F4xx codes mapped to F4-C-F-04xx format.
+**Migration Note:** Legacy F4xx codes mapped to F4-C-F-04xx format. Phase 6 (2026-05-20): F4-C-F-0401-A/B reclassified from HIGH to WARNING — these are diagnostic observations of normal null-handling transformations, not data logic bugs.
 
 ---
 
@@ -426,9 +511,9 @@ All errors follow the standardized **LL-M-F-XXXX** format (Layer-Module-Function
 
 | Phase | Applicable Error Codes |
 |-------|------------------------|
-| **P1 (Meta Data)** | P1-A-P-0101, P1-A-V-0102, P1-A-V-0103, V5-I-V-0501-0506, F4-C-F-0401-0403 |
-| **P2 (Transactional)** | P2-I-P-0201, P2-I-P-0202, P2-I-V-0203, P2-I-V-0204, V5-I-V-0501-0506, F4-C-F-0401-0403 |
-| **P2.5 (Anomaly)** | C6-C-C-0601-0606, F4-C-F-0403-0405, V5-I-V-0501-0506 |
+| **P1 (Meta Data)** | P1-A-P-0101, P1-A-V-0102, P1-A-V-0103, V5-I-V-0501-0506, F4-C-F-0401-A/B, F4-C-F-0403-A/B/C |
+| **P2 (Transactional)** | P2-I-P-0201, P2-I-P-0202, P2-I-V-0203, P2-I-V-0204, V5-I-V-0501-0506, F4-C-F-0401-A/B, F4-C-F-0403-A/B/C |
+| **P2.5 (Anomaly)** | C6-C-C-0601-0606, F4-C-F-0403-A/B/C, F4-C-F-0404, F4-C-F-0405, V5-I-V-0501-0506 |
 | **P3 (Calculated)** | L3-L-P-0301, L3-L-V-0302-0307, C6-C-C-0601-0606, V5-I-V-0501-0506 |
 | **Validation** | V5-I-V-0501-0506 |
 | **System** | S-E-S-0101-0104, S-F-S-0201-0205, S-C-S-0301-0305, S-R-S-0401-0406, S-A-S-0501-0503 |
@@ -438,9 +523,10 @@ All errors follow the standardized **LL-M-F-XXXX** format (Layer-Module-Function
 | Criticality | Standardized Codes | Action |
 |-------------|-------------------|--------|
 | **CRITICAL** | P1-A-P/V-01xx, P2-I-P/V-02xx, S1-I-F/V-0xxx | Stop processing, fix source data |
-| **HIGH** | L3-L-P/V-03xx, C6-C-C-0601-0603 | Review and correct logic/data |
-| **MEDIUM** | V5-I-V-05xx, F4-C-F-04xx | Fix data quality issues |
-| **WARNING** | S-A-S-05xx | Informational, non-blocking |
+| **HIGH** | L3-L-P/V-03xx, C6-C-C-0601-0603, F4-C-F-0402-A/B | Review and correct logic/data |
+| **MEDIUM** | V5-I-V-05xx | Fix data quality issues |
+| **WARNING** | F4-C-F-0401-A/B, F4-C-F-0403-A/B/C, F4-C-F-0404, S-A-S-05xx | Informational, non-blocking |
+| **ERROR** | F4-C-F-0405 | Configuration error — fix grouping schema |
 | **FATAL** | S-E-S, S-F-S, S-C-S, S-R-S | Stop pipeline, fix environment |
 
 ---
@@ -470,7 +556,7 @@ dcc/config/schemas/
 ├── error_code_base.json          → 8 reusable definitions
 ├── error_code_setup.json         → Properties structure (allOf)
 ├── system_error_config.json      → 20 system error codes
-└── data_error_config.json        → 17 data/logic error codes
+└── data_error_config.json        → 24 data/logic error codes (including affix variants)
 ```
 
 ### Error Aggregation per Row (Updated)
@@ -497,7 +583,7 @@ def aggregate_row_errors(df, row_index):
     
     # Check F4-C-F-04xx warnings (Fill)
     if forward_fill_jump_exceeded(row_index, threshold=20):
-        errors.append('F4-C-F-0401')
+        errors.append('F4-C-F-0401-A')
     
     # Check V5-I-V-05xx errors (Validation)
     if pattern_mismatch_detected(row_index, 'Document_Sequence_Number'):
@@ -559,9 +645,13 @@ ERROR_CODE_MAP = {
     'CLOSED_WITH_RESUBMISSION': 'L3-L-V-0307',
     
     # Fill warnings (F4-C-F-04xx)
-    'FORWARD_FILL_JUMP_EXCEEDED': 'F4-C-F-0401',
-    'BOUNDARY_CROSS_DETECTED': 'F4-C-F-0402',
-    'VALUE_INFERRED_BY_CALCULATION': 'F4-C-F-0403',
+    'FORWARD_FILL_JUMP_EXCEEDED': 'F4-C-F-0401-A',
+    'FORWARD_FILL_JUMP_HEURISTIC': 'F4-C-F-0401-B',
+    'BOUNDARY_CROSS_DETECTED': 'F4-C-F-0402-A',
+    'BOUNDARY_CROSS_HEURISTIC': 'F4-C-F-0402-B',
+    'VALUE_INFERRED_BY_CALCULATION': 'F4-C-F-0403-A',
+    'VALUE_INFERRED_CALC_MISSING_SOURCE': 'F4-C-F-0403-B',
+    'VALUE_INFERRED_DEFAULT': 'F4-C-F-0403-C',
     'EXCESSIVE_NULLS': 'F4-C-F-0404',
     'INVALID_GROUPING': 'F4-C-F-0405',
     
@@ -604,10 +694,10 @@ LEGACY_TO_STANDARDIZED = {
     'L303': 'L3-L-V-0307',  # Renamed from STATUS_CONFLICT
     'L304': 'L3-L-V-0304',  # Renamed from OVERDUE_PENDING
     
-    # F4xx → F4-C-F-04xx
-    'F401': 'F4-C-F-0401',
-    'F402': 'F4-C-F-0402',
-    'F403': 'F4-C-F-0403',
+    # F4xx → F4-C-F-04xx (with affix variants)
+    'F401': ['F4-C-F-0401-A', 'F4-C-F-0401-B'],  # Split: history/heuristic paths
+    'F402': ['F4-C-F-0402-A', 'F4-C-F-0402-B'],  # Split: history/heuristic paths
+    'F403': ['F4-C-F-0403-A', 'F4-C-F-0403-B', 'F4-C-F-0403-C'],  # Split: all-levels-failed/calc/default
     
     # V5xx → V5-I-V-05xx
     'V501': 'V5-I-V-0501',
@@ -653,10 +743,11 @@ LEGACY_TO_STANDARDIZED = {
 
 ### Tooltip Priority (By Standardized Severity)
 1. Show **CRITICAL** errors first (P1-A, P2-I, S1-I)
-2. Show **HIGH** priority second (L3-L, C6-C-C-0601-0603)
-3. Show **MEDIUM** priority third (V5-I-V, F4-C-F)
-4. Show **FATAL** system errors (S-E-S, S-F-S, S-C-S, S-R-S)
-5. Collapse **WARNING** priority (S-A-S) under "Non-Blocking Warnings"
+2. Show **HIGH** priority second (L3-L, C6-C-C-0601-0603, F4-C-F-0402-A/B)
+3. Show **ERROR** priority third (F4-C-F-0405)
+4. Show **MEDIUM** priority fourth (V5-I-V)
+5. Collapse **WARNING** priority (F4-C-F-0401-A/B, F4-C-F-0403-A/B/C, F4-C-F-0404, S-A-S) under "Non-Blocking Warnings"
+6. Show **FATAL** system errors (S-E-S, S-F-S, S-C-S, S-R-S)
 
 ---
 
@@ -694,12 +785,12 @@ def test_L3_L_V_0302_closed_with_plan_date():
     errors = detect_logic_errors(row)
     assert 'L3-L-V-0302' in errors
 
-def test_F4_C_F_0401_jump_limit():
-    """Test warning for forward fill exceeding 20 rows (standardized F4-C-F-0401)"""
+def test_F4_C_F_0401_A_jump_limit():
+    """Test warning for forward fill exceeding 20 rows (standardized F4-C-F-0401-A, severity WARNING)"""
     # Simulate 25 rows with same value
     jump_size = 25
     warning = detect_fill_warnings(jump_size)
-    assert warning == 'F4-C-F-0401'
+    assert warning == 'F4-C-F-0401-A'
 ```
 
 ---
@@ -721,9 +812,13 @@ def test_F4_C_F_0401_jump_limit():
 | L302 | L3-L-V-0305 | Split: VERSION_REGRESSION | ✅ Complete |
 | L303 | L3-L-V-0307 | STATUS_CONFLICT → CLOSED_WITH_RESUBMISSION | ✅ Complete |
 | L304 | L3-L-V-0304 | CLOSED_RESUBMISSION → OVERDUE_MISMATCH | ✅ Complete |
-| F401 | F4-C-F-0401 | JUMP_LIMIT → FILL_JUMP_LIMIT | ✅ Complete |
-| F402 | F4-C-F-0402 | BOUNDARY_CROSS → FILL_BOUNDARY_CROSS | ✅ Complete |
-| F403 | F4-C-F-0403 | FILL_INFERRED | ✅ Complete |
+| F401 | F4-C-F-0401-A | JUMP_LIMIT → FILL_JUMP_LIMIT_HISTORY | ✅ Complete |
+| F401 | F4-C-F-0401-B | JUMP_LIMIT → FILL_JUMP_LIMIT_HEURISTIC | ✅ Complete |
+| F402 | F4-C-F-0402-A | BOUNDARY_CROSS → FILL_BOUNDARY_CROSS_HISTORY | ✅ Complete |
+| F402 | F4-C-F-0402-B | BOUNDARY_CROSS → FILL_BOUNDARY_CROSS_HEURISTIC | ✅ Complete |
+| F403 | F4-C-F-0403-A | FILL_INFERRED → FILL_INFERRED_ALL_LEVELS_FAILED | ✅ Complete |
+| F403 | F4-C-F-0403-B | FILL_INFERRED → FILL_INFERRED_CALCULATION | ✅ Complete |
+| F403 | F4-C-F-0403-C | FILL_INFERRED → FILL_INFERRED_DEFAULT | ✅ Complete |
 | V501 | V5-I-V-0501 | PATTERN_MISMATCH | ✅ Complete |
 | V502 | V5-I-V-0502 | LENGTH_EXCEEDED → LENGTH_VIOLATION | ✅ Complete |
 | V503 | V5-I-V-0503 | INVALID_ENUM → INVALID_ENUM_VALUE | ✅ Complete |
@@ -755,7 +850,7 @@ def test_F4_C_F_0401_jump_limit():
 | Component | Status | Location |
 |-----------|--------|----------|
 | Schema Files | ✅ Complete | `dcc/config/schemas/` |
-| Error Codes | ✅ Complete | 20 system + 17 data/logic |
+| Error Codes | ✅ Complete | 20 system + 24 data/logic (including affix variants) |
 | Messages (EN) | ✅ Complete | `messages/en.json` |
 | Messages (ZH) | ✅ Complete | `messages/zh.json` |
 | row_validator.py | ✅ Updated | Uses standardized codes |
@@ -766,7 +861,7 @@ def test_F4_C_F_0401_jump_limit():
 - ✅ `detect_anchor_errors()` - Returns P1-A-P/V-01xx codes
 - ✅ `detect_identity_errors()` - Returns P2-I-P/V-02xx codes
 - ✅ `detect_logic_errors()` - Returns L3-L-P/V-03xx codes
-- ✅ `detect_fill_warnings()` - Returns F4-C-F-04xx codes
+- ✅ `detect_fill_warnings()` - Returns F4-C-F-0401-A/B, F4-C-F-0402-A/B, F4-C-F-0403-A/B/C, F4-C-F-0404, F4-C-F-0405 codes
 - ✅ `detect_validation_errors()` - Returns V5-I-V-05xx codes
 - ✅ `detect_calculation_errors()` - Returns C6-C-C-06xx codes
 
@@ -819,6 +914,6 @@ def test_F4_C_F_0401_jump_limit():
 
 ---
 
-**Status:** ✅ **COMPLETE** - All Phase 5 tasks completed.
-**Last Updated:** 2026-05-16 per agent_rule.md workplan requirements  
+**Status:** ✅ **COMPLETE** - All Phase 6 tasks completed.
+**Last Updated:** 2026-05-20 per agent_rule.md workplan requirements  
 **File:** `data_error_handling_workplan.md` (renamed from `data_error_handling.md`)

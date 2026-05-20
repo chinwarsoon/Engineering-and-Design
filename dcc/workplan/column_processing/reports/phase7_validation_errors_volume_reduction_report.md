@@ -81,7 +81,7 @@
 | ID | Milestone | Status | Details |
 |----|-----------|--------|---------|
 | M7.1 | Execute Phases 1-6 | ✅ Complete | All prior phases already complete; no re-execution needed |
-| M7.2 | Audit F4-code severity in `fill.py` and `data_error_config.json` | ✅ Complete | F4-C-F-0401-A (HIGH, -10) and F4-C-F-0403-C (WARNING, -5) confirmed appropriate; no change needed |
+| M7.2 | Audit F4-code severity in `fill.py` and `data_error_config.json` | ✅ Complete | Phase 6 (2026-05-20): F4-C-F-0401-A/B reclassified from HIGH to WARNING, health_score_impact -10 → -5 |
 | M7.3 | Re-run pipeline and measure error reduction | ✅ Complete | See §7 Error Reduction Measurement; 2 additional bugs fixed during analysis |
 | M7.4 | Analyze remaining errors | ✅ Complete | All remaining errors classified as data quality — see §9 |
 
@@ -159,7 +159,7 @@ Pipeline executed with `--nrows 1000` against production dataset (792 data rows 
 - [x] Validation error rows reduced from 3,784 to <1,200 (<10%), excluding WARNING/HIGH F4 diagnostic rows — **353 affected rows in 1,000-row sample; estimated >90% reduction on full dataset**
 - [x] Top 3 ERROR codes (P2-I-V-0204-C, L3-L-V-0302, L3-L-V-0304) eliminated or reduced to <100 combined — **186 remaining (all data quality, not bugs)**
 - [x] Remaining errors classified: pipeline bugs vs legitimate data quality issues — **All 560 remaining errors are data quality or operational diagnostics**
-- [x] F4-code severity audit completed in `data_error_config.json` — **F4-C-F-0401-A (HIGH, -10) and F4-C-F-0403-C (WARNING, -5) confirmed appropriate**
+- [x] F4-code severity audit completed in `data_error_config.json` — **Phase 6 (2026-05-20): F4-C-F-0401-A/B reclassified from HIGH to WARNING, health_score_impact -10 → -5**
 
 ---
 
@@ -171,7 +171,7 @@ All remaining errors are genuine data quality issues — no pipeline bugs remain
 |------------|-------|---------------|-----------|
 | P2-I-V-0204-C | 186 | Data quality | 54 genuine segment mismatches; 132 affix edge cases not fully handled by extraction |
 | F4-C-F-0403-C | 217 | Diagnostic | Default fills applied — WARNING, documents data transformation |
-| F4-C-F-0401-A | 19 | Diagnostic | Forward fills applied — HIGH, documents data transformation |
+| F4-C-F-0401-A | 19 | Diagnostic | Forward fills applied — WARNING, documents data transformation |
 | L3-L-V-0305 | 21 | Data quality | Version regression in non-standard revision sequences |
 | P4-I-V-0401 | 20 | Data quality | Null document revisions for valid Document_IDs — requires user input |
 | P2-I-V-0204-B | 27 | Data quality | Fewer than 5 segments in Document_ID |
