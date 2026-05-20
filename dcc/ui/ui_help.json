@@ -136,6 +136,14 @@
       "version": "1.1.0",
       "description": "AI-powered insight exploration from pipeline analysis. Phase 8 of the DCC UI Toolkit."
     },
+    "chat_suggestions": [
+      { "icon": "📊", "text": "What are the top risks?" },
+      { "icon": "🔍", "text": "Show all rows for error C6-C-C-0603" },
+      { "icon": "📈", "text": "What trends were detected?" },
+      { "icon": "💡", "text": "What are the recommendations?" },
+      { "icon": "📋", "text": "What columns are available in the data?" },
+      { "icon": "📄", "text": "Summarize the report" }
+    ],
     "definitions": {
       "summary_file": "ai_insight_summary.json",
       "trace_file": "ai_insight_trace.json",

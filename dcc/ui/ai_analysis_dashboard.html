@@ -1282,6 +1282,9 @@
               <div class="label">Assistant</div>
               ${ollamaAvailable ? 'Ask me anything about the data — risks, trends, or to show pipeline data as a table.' : 'Ollama is not running. Start Ollama and ensure a model is available, then refresh.'}
             </div>
+            <div class="chat-suggestions" id="chatSuggestions" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 0;">
+              ${(helpData?.chat_suggestions || []).map(s => `<button class="chat-suggestion-btn" onclick="askSuggestion(this)">${escHtml(s.icon)} ${escHtml(s.text)}</button>`).join('')}
+            </div>
           </div>
           <div class="chat-drag-handle" id="chatDragHandle"></div>
           <div class="chat-input-row" id="chatInputRow">
@@ -1402,6 +1405,14 @@
       }
     }
 
+    window.askSuggestion = function(btn) {
+      const input = document.getElementById('chatInput');
+      if (input) {
+        input.value = btn.textContent.trim();
+        input.focus();
+      }
+    };
+
     async function sendChatMessage() {
       const input = document.getElementById('chatInput');
       const chatMessages = document.getElementById('chatMessages');
@@ -1478,6 +1489,45 @@
               raw = raw.replace(filterMatch[0], summary);
             }
           }
+
+          // Execute SHOW_ERROR_ROWS: command — resolves error code to affected columns, then lists matching rows
+          const errorMatch = raw.match(/SHOW_ERROR_ROWS:\s*([A-Za-z0-9\-_]+)/i);
+          if (errorMatch && excelRows.length > 0) {
+            const errorCode = errorMatch[1].trim();
+            const ev = traceLookup[errorCode];
+            if (ev && ev.affected_columns && ev.affected_columns.length > 0) {
+              const affectedColNames = ev.affected_columns.map(c => c.column);
+              const colIndices = affectedColNames.map(name => excelHeaders.findIndex(h => h.toLowerCase() === name.toLowerCase())).filter(i => i >= 0);
+              if (colIndices.length > 0) {
+                // Find rows where ANY affected column is non-empty/non-null (indicating an error)
+                const results = excelRows.filter(row =>
+                  colIndices.some(ci => {
+                    const cell = row[ci];
+                    return cell != null && String(cell).trim() !== '' && String(cell).trim() !== 'null' && String(cell).trim() !== 'undefined';
+                  })
+                );
+                const headerRow = '| ' + excelHeaders.join(' | ') + ' |';
+                const sepRow = '| ' + excelHeaders.map(() => '---').join(' | ') + ' |';
+                const dataRows = results.slice(0, 50).map(row =>
+                  '| ' + excelHeaders.map((h, ci) => {
+                    const v = row[ci];
+                    const display = v instanceof Date ? v.toLocaleDateString('en-GB') : (v != null ? String(v) : '');
+                    const highlight = colIndices.includes(ci) ? '**' : '';
+                    return highlight + escHtml(display) + highlight;
+                  }).join(' | ') + ' |'
+                ).join('\n');
+                const affectedColsStr = affectedColNames.join(', ');
+                const summary = `**Error ${errorCode}: ${results.length} rows found** (showing first ${Math.min(50, results.length)})\nAffected columns: ${affectedColsStr}\n\n${headerRow}\n${sepRow}\n${dataRows}`;
+                raw = raw.replace(errorMatch[0], summary);
+              } else {
+                raw = raw.replace(errorMatch[0], `**Error ${errorCode}:** Affected columns not found in Excel headers. Available columns: ${excelHeaders.join(', ')}`);
+              }
+            } else if (ev) {
+              raw = raw.replace(errorMatch[0], `**Error ${errorCode}:** No affected columns listed in trace data. Total occurrences: ${ev.total_occurrences || 'Unknown'}`);
+            } else {
+              raw = raw.replace(errorMatch[0], `**Error ${errorCode}:** Not found in trace data. Available error codes: ${Object.keys(traceLookup).slice(0, 20).join(', ')}${Object.keys(traceLookup).length > 20 ? '...' : ''}`);
+            }
+          }
           try {
             if (typeof marked !== 'undefined' && marked.parse) {
               textSpan.innerHTML = marked.parse(raw, { breaks: true, gfm: true });
@@ -1546,6 +1596,7 @@
           ctx += `  Row ${i + 1}: ${vals.join(' | ')}\n`;
         }
         ctx += `\nTo query this data, say: FILTER: column_name operator value (e.g. FILTER: Document_Type equals PP) and the dashboard will show matching rows as a table.\n`;
+        ctx += `To list all rows for a specific error code, say: SHOW_ERROR_ROWS: ERROR_CODE (e.g. SHOW_ERROR_ROWS: C6-C-C-0603) and the dashboard will resolve the error to its affected columns and show matching rows.\n`;
       }
 
       ctx += `\nAnswer user questions concisely based on this data. For data table queries, tell the user what columns are available and ask them to specify a filter.`;

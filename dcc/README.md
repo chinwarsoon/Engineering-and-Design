@@ -3,6 +3,8 @@
 ## `AI Assisted Document Control Centre` is designed to:
 - streamline the management of documents within organizations,
 - automate processes, enhance security, and improve efficiency.
+- extend data training to AI model to help on planning document list, manhours, staffing, and schedule.
+- monitor and evaluate engineering and design performance.
 
 ## The following workflows will be automated step by step:
  - Step 1: AI assisted User Interface to request or update document submission.
@@ -22,6 +24,14 @@
  - Generating duckdb for external data processing and analysis.
  - Dashboards for status reporting and analysis.
  - Considering AI assisted data and report analysis.
+
+ ## Small model training will help to:
+ - Understand context of deliverables required for engineering and design for different industries through model training.
+ - Plan required engineering and design document for a given porject. Plan `Master Document List`.
+ - Estimate manhour requried per `Master Document List`.
+ - Prepare `Staffing Plan` which will be developed in according to `Master Document List` and `Project Schedule`.
+ - Establish `Key Performance Index`.
+ - Monitor and evaluate engineering and design performance by tracking `Submittal Register`, `Staffing Plan`, `Project Schedule`, and `Master Document List`, and advise improvements to be implemented.
 
 
 
