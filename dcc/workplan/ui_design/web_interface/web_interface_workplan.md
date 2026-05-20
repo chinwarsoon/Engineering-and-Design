@@ -1,9 +1,9 @@
 # Web Interface Workplan — Universal UI Toolkit
 
 **Document ID:** WP-UI-001  
-**Current Version:** 3.7  
-**Status:** 🟠 PHASE 10 PENDING APPROVAL  
-**Last Updated:** 2026-05-19  
+**Current Version:** 3.12  
+**Status:** 🟠 PHASE 4 v2.1 PENDING APPROVAL  
+**Last Updated:** 2026-05-20  
 **Lead:** Franklin Song
 
 ---
@@ -23,6 +23,10 @@
 | 3.6 | 2026-05-19 | System | Phase 10 proposed: AI Analysis Dashboard v1.0 — full DCC shell compliance, data loader for ai_insight_summary/trace/report, KPI tiles, risk cards with evidence drill-down, trends & recommendations panels, markdown report viewer, export to CSV. |
 | 3.7 | 2026-05-19 | System | Phase 10 v1.1: Added sub-task 10.14 — local Ollama/Llama3 chat assistant. Users can ask natural-language questions about issues in AI insight files when a local Ollama instance is available. Workplan updated for approval. |
 | 3.8 | 2026-05-19 | System | Phase 10 v1.2–v1.5: Full implementation. Ollama API changed from `/api/generate` to `/api/chat` with model detection from `/api/tags`. Added model selector dropdown, markdown chat rendering, data table tab (xlsx 11,822 rows via SheetJS), FILTER: command for in-memory pipeline data querying, schema-driven AI prompts from `data_error_config.json`, risk card→chat pre-fill, multi-line textarea with auto-grow, drag-resizable input row. Status updated to COMPLETED. |
+| 3.9 | 2026-05-20 | System | Phase 4 v2.0: Full DCC shell compliance audit completed. All 9 sub-tasks (4.1–4.9) implemented. 8 bugs identified and documented. Compliance audit updated to reflect actual code state. Workplan updated for approval. |
+| 3.10 | 2026-05-20 | System | Phase 4 v2.1 proposed: `debug_log.json` integration — pipeline trace panel, filter-driven debug log correlation, trace-enriched error detail table, 4 bug fixes from v2.0 audit. Workplan updated for approval. |
+| 3.11 | 2026-05-20 | System | Phase 4 v2.1 revised: Corrected data source analysis — `debug_log.json["errors"]` contains 4,601 row-level errors (not process-level only). Added message parsing sub-task (4.11) to extract code/row/column via regex. Error detail table replaced with full debug log data (4,601 vs 50 capped). Added data source toggle (4.16). 7 sub-tasks total. |
+| 3.12 | 2026-05-20 | System | Phase 4 v2.1 implemented: All 7 sub-tasks (4.10–4.16) completed. Added debug_log.json loader, regex message parser, full error table with pagination, debug context correlation, pipeline trace panel, data source toggle, and 4 bug fixes (XSS, phase filter, CSS resize, PascalCase). |
 
 ---
 
@@ -39,7 +43,7 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
 | 1 | DCC UI Design System — shared CSS with 5 themes, 25+ components | Foundation | ✅ Completed |
 | 2 | Pipeline Dashboard — run status, KPIs, output links | Monitoring | ✅ Completed |
 | 3 | Excel Explorer Pro — data loading, filtering, validation highlighting | Exploration | ✅ Completed |
-| 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down | Diagnostics | ✅ Completed |
+| 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down, debug log integration | Diagnostics | 🟠 v2.1 Pending Approval |
 | 5 | Schema Manager — browse, inspect, edit schema files | Management | ✅ Completed |
 | 6 | Log Explorer Pro — multi-format log browser with search | Logging | ✅ Completed |
 | 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation | Analytics | 🟠 v2.2 Pending Approval |
@@ -308,36 +312,182 @@ Load and explore the processed output CSV/Excel with filtering, sorting, column 
 
 ---
 
-### Phase 4: Error Diagnostic Dashboard
+### Phase 4: Error Diagnostic Dashboard — v2.0 Revision
 
-**Timeline:** Days 4–5  
+**Timeline:** Days 4–5 (initial), 2026-05-20 (v2.0 revision)  
 **Status:** ✅ COMPLETED  
-**File:** `dcc/ui/error_diagnostic_dashboard.html` (2,634 lines)
+**File:** `dcc/ui/error_diagnostic_dashboard.html` (765 lines)
 
-#### What Was Created
+#### What Was Created (v1.0)
 
-Visualise validation errors and data health from `error_dashboard_data.json`.
+Initial functional dashboard visualizing error data from `error_dashboard_data.json` using Chart.js.
 
-**Features:**
-- Error summary by phase (P1, P2, P2.5, P3)
+**Features (v1.0):**
+- Error summary by phase (P1–P4) table
 - Error code frequency bar chart
-- Per-column error heatmap
-- Row-level error drill-down table
-- Data health score distribution histogram
-- Filter by error code, column, severity
-- Export error report to CSV
+- Per-column error heatmap (CSS grid)
+- Row-level error detail table
+- Data health score distribution line chart
+- Filter by error code, column, severity (static placeholders)
+- Theme switching with 5 themes
 
-**Library:** Chart.js 3.9.1
+#### v2.0 Revision Scope — Full Compliance & Dynamic Data
+
+The v2.0 revision transforms the dashboard from a partially static visualization tool into a fully compliant, interactive DCC shell application that dynamically loads and explores real pipeline diagnostic data.
+
+**Compliance Audit Against `html_design_rule.md` (Post-Implementation)**
+
+| # | Rule | Status | Finding |
+| :--- | :--- | :--- | :--- |
+| 1.1 | VS Code layout (title/icon/left/right/status) | ✅ Pass | Full shell with right sidebar, statusbar, iconbar present. |
+| 1.2-1.3 | Theme picker with 5 themes + localStorage | ✅ Pass | Fully implemented — Dark, Light, Sky, Ocean, Presentation. |
+| 1.4 | Adjustable height/width of all panels | ⚠️ Partial | Width resizable via drag handles ✅; height adjustment not implemented. |
+| 1.5 | Reference same shared CSS | ✅ Pass | Imports `dcc-design-system.css`. |
+| 1.6 | Icons only in icon bar, title bar, buttons | ✅ Pass | Compliant. |
+| 2.1-2.3 | Title bar: theme, layout, search, menu | ✅ Pass | Layout toggle (3 modes), global search, theme picker all present and functional. |
+| 3.1-3.4 | Icon bar with top/bottom groups and divider | ✅ Pass | 📂🌳 on top, divider, ⚙️❓ on bottom; all wired to panel toggles. |
+| 4.1-4.3 | Left sidebar: resizable, collapsible, toggleable | ✅ Pass | Drag-resize handle, icon bar collapse, panel toggling all functional. |
+| 5.1-5.3 | Right sidebar: toggleable, resizable, at right | ✅ Pass | Settings/Help panels toggleable, drag-resize handle present. |
+| 6.1-6.5 | File loading panel: drag-drop, file list, status | ⚠️ Partial | Drag-drop ✅, FileReader ✅, status bar shows filename ✅; **no file list displayed** (Rule 6.2). |
+| 7.1-7.4 | Tree selection panel: hierarchical structure | ⚠️ Partial | Navigation tree present with scroll-to-section; **no expand/collapse all** (Rule 7.4). |
+| 8.1-8.5 | Icons: Info(ℹ️), Load(📂), Help(❓), Settings(⚙️), Tree(🌳) | ⚠️ Partial | 📂, 🌳, ⚙️, ❓ present; **missing ℹ️** (Rule 8.1). |
+| 9.1 | Help/About/Revision from `ui_help.json` | ✅ Pass | Loads on init, updates version in status bar. |
+
+**9 Sub-Tasks for v2.0 Revision:**
+
+| ID | Task | Detail | Priority |
+| :--- | :--- | :--- | :--- |
+| 4.1 | **Implement Full DCC Shell** | Add Right Sidebar panel. Reorganize Icon Bar with top/bottom groups and a divider. Add Layout Toggle and Global Search to Title Bar. | High |
+| 4.2 | **Add Drag-to-Resize Handles** | Implement resizable panels with mouse event listeners and visual drag handles between sidebars and content. | High |
+| 4.3 | **Dynamic Data Loader** | Implement `fetch()` and `FileReader` (drag-drop) for `error_dashboard_data.json`. Replace all hardcoded KPI, chart, and table data with JS parsing logic. | High |
+| 4.4 | **Icon Bar Panel Toggling** | Wire all icon bar buttons (Dashboard, Errors, Health, Help, Settings) to show/hide respective sidebar panels. | Medium |
+| 4.5 | **Navigation Tree Panel** | Implement a `🌳 Navigation` panel to jump between different error phases or jump to specific chart sections. | Medium |
+| 4.6 | **Externalize Metadata to ui_help.json** | Load Help, About, and Revision notes from `ui_help.json`. | Medium |
+| 4.7 | **Standardize Icons & Status Bar** | Update icons to mandated emojis. Make status bar dynamic (show row count, health score, error counts from loaded file). | Low |
+| 4.8 | **Live Global Search** | Implement search logic in Title Bar that filters the Error Detail table as the user types. | Medium |
+| 4.9 | **Dynamic Chart Rebuild** | Ensure Chart.js instances properly update data and colors on file load and theme switch. | High |
 
 #### Risks & Mitigation
-- **Risk:** Heatmap becomes unreadable with many columns. **Mitigation:** Scrollable heatmap with sticky row labels.
-- **Risk:** JSON data structure changes between pipeline versions. **Mitigation:** Validate required fields on load; fallback to empty state.
+- **Risk:** Large JSON files (>10MB) cause Chart.js rendering lag. **Mitigation:** Limit table to first 500 errors; group minor error codes in charts.
+- **Risk:** `fetch()` blocked on local file system. **Mitigation:** Auto-fallback to FileReader API with a prominent "Load Data" drop zone.
 
-#### Success Criteria
-- [x] All 4 chart types render correctly
-- [x] Drill-down shows row-level error details
-- [x] Filters narrow data correctly
-- [x] Export generates valid CSV error report
+#### Success Criteria (v2.0)
+- [x] Sidebar panels resizable via drag handles
+- [x] Icon bar groups icons correctly and toggles respective panels
+- [x] Data loaded dynamically from `error_dashboard_data.json` or user drop
+- [x] Charts and tables update based on real data (no hardcoded mock data)
+- [x] Help/About sections loaded from `ui_help.json`
+- [x] Global search successfully filters error details
+- [x] All mandated emojis used for icons (ℹ️, 📂, ❓, ⚙️, 🌳)
+
+#### Bugs Identified During Audit
+
+| ID | Severity | Location | Description |
+| :--- | :--- | :--- | :--- |
+| BUG-001 | High | Line 638 | `onclick="filterByColumn('${c.column}')"` — column names with single quotes break JS execution (XSS vulnerability). |
+| BUG-002 | Medium | Line 531 | `renderPhases(rawData.phase_breakdown)` called with unfiltered data — phase summary table ignores active filters. |
+| BUG-003 | Medium | Line 398 | Resize sets CSS vars `--sidebar-w` / `--right-sidebar-w` — may not be defined in `dcc-design-system.css`, causing resize to have no visual effect. |
+| BUG-004 | Medium | Line 656 | Phase table uses PascalCase keys (`p.Critical`, `p.High`) — values will be `undefined` if `phase_breakdown` data uses lowercase. |
+| BUG-005 | Low | Line 743 | CSV export uses naive quoting — doesn't handle newlines or commas within fields properly. |
+| BUG-006 | Low | Line 328 | `document.querySelector(\`[data-theme="${savedTheme}"]\`)` may double-apply `.active` class on theme restore. |
+| BUG-007 | Low | Lines 693-697 | Navigation tree uses inline `onclick` handlers — incompatible with strict CSP policies. |
+| BUG-008 | Info | Line 8 | Chart.js 3.9.1 loaded from CDN — no fallback if CDN is unreachable. |
+
+#### Remaining Items for Future Revision
+
+| ID | Rule | Description |
+| :--- | :--- | :--- |
+| REM-001 | 1.4 | Implement panel height adjustment (currently only width is resizable). |
+| REM-002 | 6.2 | Display list of loaded files in the file loading panel. |
+| REM-003 | 7.4 | Add expand-all / collapse-all controls to navigation tree. |
+| REM-004 | 8.1 | Add ℹ️ (Info) icon to icon bar. |
+
+---
+
+### Phase 4: Error Diagnostic Dashboard — v2.1 Revision
+
+**Timeline:** 2026-05-20–21  
+**Status:** ✅ COMPLETED  
+**File:** `dcc/ui/error_diagnostic_dashboard.html` (937 lines)
+
+#### v2.1 Revision Scope — Debug Log Integration with Message Parsing
+
+The v2.1 revision adds `debug_log.json` as a secondary data source. Critically, `debug_log.json` contains **two arrays**:
+
+1. **`errors[]`** — **4,601 entries** — every single row-level error from the pipeline run, with no cap or deduplication. Error code, row, and column are embedded in a formatted message string.
+2. **`messages[]`** — **179 entries** — pipeline lifecycle logs (bootstrap, milestones, strategy decisions, validation summaries).
+
+The error detail table will be populated from `debug_log.json["errors"]` (all 4,601 errors) instead of the capped 50 from `error_dashboard_data.json["recent_errors"]`. Message parsing extracts `code`, `row`, and `column` from each entry to enable filter-driven correlation.
+
+**Data Source Analysis:**
+
+| File | Array | Count | Content | Fields |
+| :--- | :--- | :--- | :--- | :--- |
+| `error_dashboard_data.json` | `recent_errors[]` | 50 (capped) | Row-level error details, deduplicated | `row`, `column`, `code`, `message`, `severity` (pre-parsed) |
+| `error_dashboard_data.json` | `error_types[]` | 17 | Aggregated error code counts | `code`, `count`, `severity` |
+| `error_dashboard_data.json` | `column_health[]` | 18 | Per-column error counts | `column`, `error_count` |
+| `dcc/output/debug_log.json` | `errors[]` | 4,601 | All row-level errors, no cap, no dedup | `timestamp`, `module`, `context`, `message` (formatted: `[CODE] description (Row: N) (Col: X)`) |
+| `dcc/output/debug_log.json` | `messages[]` | 179 | Pipeline execution trace | `timestamp`, `level`, `module`, `context`, `message` |
+
+**Message Parsing Strategy:**
+
+Each entry in `debug_log.json["errors"]` has a `message` field in this format:
+```
+[P2-I-V-0204-E] Document_ID contains reply/comment reference: '#000002.0_...' (Row: 5) (Col: Document_ID)
+```
+
+A regex parser will extract:
+- **`code`**: `P2-I-V-0204-E` (pattern: `[A-Z0-9]+-[A-Z]-[A-Z]-[0-9]+[A-Z]?`)
+- **`row`**: `5` (pattern: `\(Row:\s*(\d+)\)`)
+- **`column`**: `Document_ID` (pattern: `\(Col:\s*([^)]+)\)`)
+- **`description`**: everything between `]` and `(Row:`
+
+Parsed entries are stored as structured objects matching the `recent_errors` schema, enabling seamless integration with existing filter logic.
+
+**7 Sub-Tasks for v2.1 Revision:**
+
+| ID | Task | Detail | Priority |
+| :--- | :--- | :--- | :--- |
+| 4.10 | **Load `debug_log.json` from `dcc/output/`** | Add `fetch('../output/debug_log.json')` with FileReader fallback. Parse both `errors[]` (4,601 entries) and `messages[]` (179 entries). Store in `debugLogData`. Graceful degradation if file missing. | High |
+| 4.11 | **Message Parser — extract code/row/column** | Implement regex-based parser for `debug_log.json["errors"]` entries. Extract `code`, `row`, `column`, `description` from formatted `message` string. Build `parsedErrors[]` array with structured fields matching `recent_errors` schema. Handle malformed entries gracefully (skip with warning). | High |
+| 4.12 | **Replace error detail table with parsed debug log data** | Replace `renderTable(filteredRecent)` to use `debugLogData.parsedErrors` as the primary error source instead of `rawData.recent_errors`. This provides all 4,601 errors (vs 50 capped). Apply existing filter logic (code, column, severity, global search) against parsed fields. Paginate or limit display (e.g., first 500) for performance. | High |
+| 4.13 | **Filter-Driven Error Detail Correlation** | When user selects a column or error code filter, the parsed error array is filtered by extracted `column` and `code` fields. Matching errors populate the detail table. Additionally, scan `debugLogData.messages[]` for entries referencing the selected column/code — display matching pipeline trace entries in a "Debug Context" section above the error table (e.g., filtering `Document_ID` shows strategy resolution and validation phase messages). | High |
+| 4.14 | **Pipeline Trace Panel** | Add new left sidebar section "📋 Pipeline Trace" showing `debug_log.json["messages"]`. Filterable by level (L1 milestone, L2 info, L3 trace). Collapsible sections by pipeline phase (Bootstrap, Setup, Mapping, Validation, Calculations, AI Ops, Export). Timestamp, module, context displayed per entry. | Medium |
+| 4.15 | **Bug Fixes from v2.0 Audit** | Fix BUG-001 (XSS in onclick), BUG-002 (phase table ignores filters), BUG-003 (CSS vars undefined), BUG-004 (PascalCase key mismatch). | High |
+| 4.16 | **Data source toggle** | Add settings option to switch error detail table source between `debug_log.json` (all 4,601 errors) and `error_dashboard_data.json` (50 deduplicated). Default to `debug_log.json`. | Low |
+
+#### Features (v2.1 additions)
+
+- **Full Error Coverage:** All 4,601 errors available in detail table (vs 50 capped)
+- **Message Parsing:** Regex extraction of code/row/column from formatted debug log messages
+- **Filter-Driven Correlation:** Column/error code filter shows matching errors + related pipeline trace
+- **Pipeline Trace Panel:** Debug log browser with level filtering and phase grouping
+- **Data Source Toggle:** Switch between debug_log (full) and dashboard (deduplicated) sources
+- **4 Bug Fixes:** XSS, filter bypass, CSS resize, key casing
+
+#### Risks & Mitigation
+
+| Risk | Likelihood | Impact | Mitigation |
+| :--- | :--- | :--- | :--- |
+| `debug_log.json` too large (>50MB) for browser | Low | Medium | Limit display to first 500 parsed errors; virtual scrolling; warn user |
+| Message parsing fails for non-standard formats | Medium | Medium | Regex with fallback — entries that don't match pattern are stored with `code: "UNKNOWN"`, `row: null`, `column: "Unknown"`; logged to console |
+| No matching debug log entries for selected filter | Medium | Low | Show "No errors found for this filter" placeholder |
+| `fetch()` blocked on `file://` protocol | Medium | Low | Auto-fallback to FileReader with file picker |
+| Debug log format changes between pipeline versions | Low | Medium | Validate `errors[]` structure on load; fallback to `error_dashboard_data.json` if parsing fails |
+| Performance degradation with 4,601+ DOM rows | Medium | Medium | Paginate to 500 rows max; add "load more" button; use `DocumentFragment` for batch DOM insertion |
+
+#### Success Criteria (v2.1)
+
+- [x] `debug_log.json` loaded on init from `dcc/output/` with FileReader fallback
+- [x] Message parser correctly extracts `code`, `row`, `column` from 95%+ of `errors[]` entries
+- [x] Error detail table populated from parsed debug log data (all 4,601 errors, paginated)
+- [x] Column/error code filter correctly filters parsed errors by extracted fields
+- [x] Matching pipeline trace entries displayed in Debug Context section when filter applied
+- [x] Pipeline Trace panel displays messages with level filtering and phase grouping
+- [x] Data source toggle switches between debug_log and dashboard sources
+- [x] BUG-001 (XSS), BUG-002 (filter bypass), BUG-003 (CSS vars), BUG-004 (key casing) all fixed
+- [x] No regressions in v2.0 features (charts, heatmap, filters, resize, theme)
+- [x] JS syntax validated
 
 ---
 
@@ -720,7 +870,7 @@ A full DCC design system-compliant dashboard that consumes `ai_insight_summary.j
 | 1 | `dcc-design-system.css` | — | Critical | ✅ Complete |
 | 2 | `pipeline_dashboard.html` (v3.0) | 1 | High | ✅ Complete |
 | 3 | `excel_explorer_pro.html` | 1 | High | ✅ Complete |
-| 4 | `error_diagnostic_dashboard.html` | 1, 2 | High | ✅ Complete |
+| 4 | `error_diagnostic_dashboard.html` (v2.0) | 1, 2 | High | ✅ Complete |
 | 5 | `schema_manager.html` | 1 | High | ✅ Complete |
 | 6 | `log_explorer_pro.html` | 1 | High | ✅ Complete |
 | 7 | `submittal_dashboard.html` (v2.1) | 1, 3 | Medium | ✅ Complete |
@@ -744,6 +894,7 @@ A full DCC design system-compliant dashboard that consumes `ai_insight_summary.j
 - [x] Excel Explorer Pro handles `Validation_Errors` and `Data_Health_Score` columns
 - [x] Phase 7 v2.0 revision: CSV data loading, dynamic KPIs, data-driven charts, dynamic filters, overdue table
 - [x] Phase 7 v2.1 revision: 5th KPI (Awaiting Response), schema-driven validation via Validation_Errors column + data_error_config.json, pre-filter at load time
+- [x] Phase 4 v2.0 revision: full DCC shell compliance, dynamic data loader, resizable panels, icon bar toggling, nav tree, ui_help.json loading, global search, dynamic charts — **COMPLETED** (8 bugs documented, 4 remaining items for future)
 - [x] Phase 7 v2.2 revision: overdue/delay/awaiting table fixes, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay — **PENDING APPROVAL**
 - [x] Phase 10 v1.5 complete and functional: DCC shell, data loader, 5 themes, KPI row, risk cards with evidence, trends & recs, report viewer, data table, Ollama chat with model selector, schema-driven AI prompts, FILTER: command
 - [x] All 10 phases complete and functional

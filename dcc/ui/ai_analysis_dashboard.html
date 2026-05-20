@@ -535,36 +535,60 @@
 
     async function handleFiles(files) {
       updateStatus('loading', `Processing ${files.length} files...`);
-      for (const f of files) {
-        const name = f.name.toLowerCase();
-        const reader = new FileReader();
-        if (name.endsWith('.json')) {
-          reader.onload = e => {
-            const data = JSON.parse(e.target.result);
-            if (name.includes('summary')) { summaryData = data; fileStatus.summary = true; }
-            else if (name.includes('trace')) { traceData = data; fileStatus.trace = true; }
-            else if (name.includes('error_config')) { 
-              const errors = data.data_logic_errors || {};
-              Object.keys(errors).forEach(k => errorCodeLookup[errors[k].code] = errors[k]);
-              fileStatus.errorConfig = true; 
-            }
-            renderAll();
-          };
-          reader.readAsText(f);
-        } else if (name.endsWith('.md')) {
-          reader.onload = e => { reportMd = e.target.result; fileStatus.report = true; renderAll(); };
-          reader.readAsText(f);
-        } else if (name.endsWith('.xlsx')) {
-          reader.onload = e => {
-            const wb = XLSX.read(e.target.result, { type: 'array' });
-            const sheet = wb.Sheets[wb.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-            if (rows.length > 0) { excelHeaders = rows[0]; excelRows = rows.slice(1); fileStatus.excel = true; renderAll(); }
-          };
-          reader.readAsArrayBuffer(f);
-        }
-      }
+      
+      const filePromises = Array.from(files).map(f => {
+        return new Promise((resolve) => {
+          const name = f.name.toLowerCase();
+          const reader = new FileReader();
+          
+          if (name.endsWith('.json')) {
+            reader.onload = e => {
+              try {
+                const data = JSON.parse(e.target.result);
+                if (name.includes('summary')) { summaryData = data; fileStatus.summary = true; }
+                else if (name.includes('trace')) { 
+                  traceData = data; 
+                  fileStatus.trace = true; 
+                  if (traceData.evidence) {
+                    traceData.evidence.forEach(ev => traceLookup[ev.error_code] = ev);
+                  }
+                }
+                else if (name.includes('error_config')) { 
+                  const errors = data.data_logic_errors || {};
+                  Object.keys(errors).forEach(k => errorCodeLookup[errors[k].code] = errors[k]);
+                  fileStatus.errorConfig = true; 
+                }
+              } catch (err) { console.error('Error parsing JSON:', f.name, err); }
+              resolve();
+            };
+            reader.readAsText(f);
+          } else if (name.endsWith('.md')) {
+            reader.onload = e => { 
+              reportMd = e.target.result; 
+              fileStatus.report = true; 
+              resolve(); 
+            };
+            reader.readAsText(f);
+          } else if (name.endsWith('.xlsx')) {
+            reader.onload = e => {
+              try {
+                const wb = XLSX.read(e.target.result, { type: 'array' });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                if (rows.length > 0) { excelHeaders = rows[0]; excelRows = rows.slice(1); fileStatus.excel = true; }
+              } catch (err) { console.error('Error parsing XLSX:', f.name, err); }
+              resolve();
+            };
+            reader.readAsArrayBuffer(f);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      await Promise.all(filePromises);
       updateFileStatusList();
+      renderAll();
     }
 
     function updateFileStatusList() {
@@ -601,18 +625,26 @@
       function buildTreeFixed(items, isRoot = false) {
         let html = `<ul class="tree-node" style="${isRoot ? '' : 'padding-left:12px;'}">`;
         items.forEach(n => {
-          let clickAttr = `onclick="handleTreeClick('${n.tab}', '${n.target||''}', ${n.riskIndex ?? 'null'})"`;
+          let dataAttrs = ` data-tab="${escHtml(n.tab)}" data-target="${escHtml(n.target||'')}" data-risk-index="${n.riskIndex !== undefined ? n.riskIndex : 'null'}" class="tree-clickable"`;
           html += `
           <li class="tree-node-item">
-            <div class="tree-node-inner" ${clickAttr}>
+            <div class="tree-node-inner"${dataAttrs}>
               <span class="tree-arrow" style="display:inline-block;width:12px;transition:transform 0.1s;cursor:pointer;${n.children?'':'opacity:0;'}" onclick="event.stopPropagation(); toggleNode(event)">${n.children ? '▼' : ' '}</span>
-              <span class="tree-label">${n.label}</span>
+              <span class="tree-label">${escHtml(n.label)}</span>
             </div>
             ${n.children ? buildTreeFixed(n.children) : ''}
           </li>`;
         });
         return html + '</ul>';
       }
+      
+      document.getElementById('navTree')?.addEventListener('click', (e) => {
+        const node = e.target.closest('.tree-clickable');
+        if (node) {
+          const riskIdx = node.dataset.riskIndex === 'null' ? null : parseInt(node.dataset.riskIndex);
+          handleTreeClick(node.dataset.tab, node.dataset.target, riskIdx);
+        }
+      });
 
       container.innerHTML = buildTreeFixed(nodes, true);
     }
@@ -624,7 +656,7 @@
           document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 50);
       }
-      if (riskIndex !== null) {
+      if (riskIndex !== null && !isNaN(riskIndex)) {
         setTimeout(() => {
           const cards = document.querySelectorAll('.risk-card');
           if (cards[riskIndex]) {
@@ -857,8 +889,8 @@
                      : `<div style="margin:2px 0;"><code style="font-size:10px;">${escHtml(code)}</code></div>`;
         }).join('');
         const columns = (risk.columns || []).join(', ');
-        const traceBtn = traceLookup[risk.error_codes?.[0]] ? `<button class="btn btn-sm btn-secondary" onclick="showEvidence('${risk.error_codes[0]}')" style="margin-top:8px;">🔍 View Trace</button>` : '';
-        const analyzeBtn = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); riskAnalyzeByCode('${escHtml(risk.error_codes?.[0] || '')}')" style="margin-top:8px;margin-left:${traceBtn ? '6px' : '0'};">🤖 Analyze</button>`;
+        const traceBtn = traceLookup[risk.error_codes?.[0]] ? `<button class="btn btn-sm btn-secondary" onclick="showEvidence('${escJs(risk.error_codes[0])}')" style="margin-top:8px;">🔍 View Trace</button>` : '';
+        const analyzeBtn = `<button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); riskAnalyzeByCode('${escJs(risk.error_codes?.[0] || '')}')" style="margin-top:8px;margin-left:${traceBtn ? '6px' : '0'};">🤖 Analyze</button>`;
         return `<div class="card risk-card severity-${sevClass}" onclick="this.classList.toggle('expanded')" data-risk-index="${i}">
           <div class="risk-header">
             <div style="flex:1;">
@@ -1247,6 +1279,15 @@
       });
     });
 
+    // Event delegation for View Trace buttons (data-error-code)
+    document.addEventListener('click', (e) => {
+      const traceBtn = e.target.closest('[data-error-code]');
+      if (traceBtn) {
+        const errorCode = traceBtn.dataset.errorCode;
+        showEvidence(errorCode);
+      }
+    });
+
     function showChat(forceShow = false) {
       const rightSidebar = document.getElementById('rightSidebar');
       const rightContent = document.getElementById('rightSidebarContent');
@@ -1341,7 +1382,10 @@
 
     async function setupOllamaDetection() {
       try {
-        const resp = await fetch('/ollama/api/tags');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const resp = await fetch('/ollama/api/tags', { signal: controller.signal });
+        clearTimeout(timeout);
         if (resp.ok) {
           const data = await resp.json();
           const models = data.models || [];
@@ -1363,7 +1407,10 @@
     setInterval(async () => {
       if (ollamaAvailable) return; // already connected, skip
       try {
-        const resp = await fetch('/ollama/api/tags');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const resp = await fetch('/ollama/api/tags', { signal: controller.signal });
+        clearTimeout(timeout);
         if (resp.ok) {
           const data = await resp.json();
           const models = data.models || [];
@@ -1442,11 +1489,16 @@
       });
 
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+        
         let resp = await fetch('/ollama/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body
+          body,
+          signal: controller.signal
         });
+        clearTimeout(timeout);
 
         if (!resp.ok) {
           const text = await resp.text().catch(() => '');
@@ -1456,13 +1508,13 @@
         const result = await resp.json();
         if (textSpan) {
           let raw = (result.message && result.message.content) || 'No response.';
-          // Execute FILTER: commands against in-memory excel data
-          const filterMatch = raw.match(/FILTER:\s*(.+?)\s+(equals|contains|starts_with|>|<|>=|<=)\s+(.+)/i);
+          // Execute FILTER: commands against in-memory excel data — handles spaces in column names
+          const filterMatch = raw.match(/FILTER:\s*(?:["'](.+?)["']|([\w\-]+))\s+(equals|contains|starts_with|>|<|>=|<=)\s+(?:["'](.+?)["']|(\S+))/i);
           if (filterMatch && excelRows.length > 0) {
-            const colName = filterMatch[1].trim();
-            const op = filterMatch[2].toLowerCase();
-            const val = filterMatch[3].trim();
-            const colIdx = excelHeaders.findIndex(h => h.toLowerCase() === colName.toLowerCase());
+            const colName = (filterMatch[1] || filterMatch[2]).trim();
+            const op = filterMatch[3].toLowerCase();
+            const val = (filterMatch[4] || filterMatch[5]).trim();
+            const colIdx = excelHeaders.findIndex(h => String(h).toLowerCase() === colName.toLowerCase());
             if (colIdx >= 0) {
               const results = excelRows.filter(row => {
                 const cell = row[colIdx];
@@ -1490,40 +1542,27 @@
             }
           }
 
-          // Execute SHOW_ERROR_ROWS: command — resolves error code to affected columns, then lists matching rows
+          // Execute SHOW_ERROR_ROWS: command — handles both object and array sample rows
           const errorMatch = raw.match(/SHOW_ERROR_ROWS:\s*([A-Za-z0-9\-_]+)/i);
-          if (errorMatch && excelRows.length > 0) {
+          if (errorMatch) {
             const errorCode = errorMatch[1].trim();
             const ev = traceLookup[errorCode];
-            if (ev && ev.affected_columns && ev.affected_columns.length > 0) {
-              const affectedColNames = ev.affected_columns.map(c => c.column);
-              const colIndices = affectedColNames.map(name => excelHeaders.findIndex(h => h.toLowerCase() === name.toLowerCase())).filter(i => i >= 0);
-              if (colIndices.length > 0) {
-                // Find rows where ANY affected column is non-empty/non-null (indicating an error)
-                const results = excelRows.filter(row =>
-                  colIndices.some(ci => {
-                    const cell = row[ci];
-                    return cell != null && String(cell).trim() !== '' && String(cell).trim() !== 'null' && String(cell).trim() !== 'undefined';
-                  })
-                );
-                const headerRow = '| ' + excelHeaders.join(' | ') + ' |';
-                const sepRow = '| ' + excelHeaders.map(() => '---').join(' | ') + ' |';
-                const dataRows = results.slice(0, 50).map(row =>
-                  '| ' + excelHeaders.map((h, ci) => {
-                    const v = row[ci];
-                    const display = v instanceof Date ? v.toLocaleDateString('en-GB') : (v != null ? String(v) : '');
-                    const highlight = colIndices.includes(ci) ? '**' : '';
-                    return highlight + escHtml(display) + highlight;
-                  }).join(' | ') + ' |'
-                ).join('\n');
-                const affectedColsStr = affectedColNames.join(', ');
-                const summary = `**Error ${errorCode}: ${results.length} rows found** (showing first ${Math.min(50, results.length)})\nAffected columns: ${affectedColsStr}\n\n${headerRow}\n${sepRow}\n${dataRows}`;
-                raw = raw.replace(errorMatch[0], summary);
-              } else {
-                raw = raw.replace(errorMatch[0], `**Error ${errorCode}:** Affected columns not found in Excel headers. Available columns: ${excelHeaders.join(', ')}`);
-              }
+            if (ev && ev.sample_rows && ev.sample_rows.length > 0) {
+              const affectedColNames = (ev.affected_columns || []).map(c => c.column);
+              const headerRow = '| ' + excelHeaders.join(' | ') + ' |';
+              const sepRow = '| ' + excelHeaders.map(() => '---').join(' | ') + ' |';
+              const dataRows = ev.sample_rows.map(sampleRow => {
+                const values = excelHeaders.map((h, hIdx) => {
+                  const val = Array.isArray(sampleRow) ? sampleRow[hIdx] : sampleRow[h];
+                  return val != null ? String(val) : '';
+                });
+                return '| ' + values.join(' | ') + ' |';
+              }).join('\n');
+              const affectedColsStr = affectedColNames.length > 0 ? affectedColNames.filter(Boolean).join(', ') || 'Various' : 'Various';
+              const summary = `**Error ${errorCode}: ${ev.total_occurrences || ev.sample_rows.length} total occurrences** (showing ${ev.sample_rows.length} samples)\nAffected columns: ${affectedColsStr}\nPhase: ${ev.phase || 'Unknown'}\n\n${headerRow}\n${sepRow}\n${dataRows}`;
+              raw = raw.replace(errorMatch[0], summary);
             } else if (ev) {
-              raw = raw.replace(errorMatch[0], `**Error ${errorCode}:** No affected columns listed in trace data. Total occurrences: ${ev.total_occurrences || 'Unknown'}`);
+              raw = raw.replace(errorMatch[0], `**Error ${errorCode}:** No sample rows in trace data. Total occurrences: ${ev.total_occurrences || 'Unknown'}. Affected columns: ${(ev.affected_columns || []).map(c => c.column).join(', ') || 'Unknown'}`);
             } else {
               raw = raw.replace(errorMatch[0], `**Error ${errorCode}:** Not found in trace data. Available error codes: ${Object.keys(traceLookup).slice(0, 20).join(', ')}${Object.keys(traceLookup).length > 20 ? '...' : ''}`);
             }
@@ -1617,6 +1656,11 @@
       const d = document.createElement('div');
       d.textContent = s;
       return d.innerHTML;
+    }
+
+    function escJs(s) {
+      if (s == null) return '';
+      return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
   </script>
 </body>

@@ -7,17 +7,52 @@
   <link rel="stylesheet" href="dcc-design-system.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
   <style>
+    :root {
+      --sev-critical: #ff4d4f;
+      --sev-high: #ff7a45;
+      --sev-medium: #ffc53d;
+      --sev-warning: #3fb950;
+      --sev-info: #40a9ff;
+    }
     .content-scroll { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
     .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; position: relative; height: 300px; }
     .chart-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
     .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
     .error-table { font-size: 11px; }
     .error-table td { padding: 6px 8px; }
-    .severity-critical { color: var(--danger); font-weight: 600; }
-    .severity-warning { color: var(--warning); font-weight: 600; }
-    .severity-info { color: var(--info); font-weight: 600; }
-    .heatmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 4px; }
-    .heatmap-cell { padding: 8px; border-radius: var(--radius-sm); text-align: center; font-size: 10px; font-weight: 600; }
+    .severity-CRITICAL { color: var(--sev-critical); font-weight: 600; }
+    .severity-HIGH { color: var(--sev-high); font-weight: 600; }
+    .severity-MEDIUM { color: var(--sev-medium); font-weight: 600; }
+    .severity-WARNING { color: var(--sev-warning); font-weight: 600; }
+    .severity-INFO { color: var(--sev-info); font-weight: 600; }
+    .heatmap { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+    .heatmap-cell { padding: 12px 8px; border-radius: var(--radius-sm); text-align: center; font-size: 10px; font-weight: 600; border: 1px solid var(--border); transition: transform 0.1s; cursor: pointer; }
+    .heatmap-cell:hover { transform: translateY(-2px); border-color: var(--accent); }
+    .drop-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 24px; text-align: center; color: var(--text3); cursor: pointer; transition: all 0.2s; position: relative; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--surface2); color: var(--text2); }
+    .drop-zone input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .dz-icon { font-size: 24px; margin-bottom: 8px; }
+    .sidebar-panel-stretch { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+    .sidebar-panel-stretch.visible { display: flex; }
+    .debug-context { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 16px; }
+    .debug-context-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .debug-entry { font-size: 10px; color: var(--text2); padding: 4px 0; border-bottom: 1px solid var(--border); font-family: var(--font-mono); }
+    .debug-entry:last-child { border-bottom: none; }
+    .debug-level-1 { color: var(--success); }
+    .debug-level-2 { color: var(--text2); }
+    .debug-level-3 { color: var(--text3); }
+    .trace-panel { font-size: 10px; }
+    .trace-entry { padding: 4px 8px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .trace-entry:hover { background: var(--surface2); }
+    .trace-ts { color: var(--text3); font-family: var(--font-mono); }
+    .trace-msg { color: var(--text2); margin-left: 8px; }
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 11px; color: var(--text2); }
+    .pagination button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer; font-size: 10px; }
+    .pagination button:disabled { opacity: 0.4; cursor: default; }
+    .pagination button:hover:not(:disabled) { background: var(--surface3); }
+    .source-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
+    .source-toggle label { display: flex; align-items: center; gap: 4px; font-size: 11px; cursor: pointer; color: var(--text2); }
+    .source-toggle input[type="radio"] { accent-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -30,27 +65,22 @@
       <span class="bc-active">Dashboard</span>
     </div>
     <div class="dcc-titlebar-actions">
+      <div style="position:relative;margin-right:12px;">
+        <input type="text" class="table-search-input" id="globalSearch" placeholder="Search errors..." style="width:200px;padding-left:28px;">
+        <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;opacity:0.5;">🔍</span>
+      </div>
+      <button class="dcc-iconbar-btn" id="layoutBtn" title="Toggle Layout" style="width:28px;height:28px;font-size:13px;background:none;border:none;cursor:pointer;">🔲</button>
       <div class="theme-picker">
         <button class="theme-btn" id="themeBtn">
           <span class="theme-dot" id="themeDot"></span>
           <span id="themeName">Dark</span>
         </button>
         <div class="theme-menu" id="themeMenu">
-          <div class="theme-opt active" data-theme="dark">
-            <span class="theme-dot" style="background: #0d1117;"></span> Dark
-          </div>
-          <div class="theme-opt" data-theme="light">
-            <span class="theme-dot" style="background: #f0f4f8;"></span> Light
-          </div>
-          <div class="theme-opt" data-theme="sky">
-            <span class="theme-dot" style="background: #e0f2fe;"></span> Sky
-          </div>
-          <div class="theme-opt" data-theme="ocean">
-            <span class="theme-dot" style="background: #071520;"></span> Ocean
-          </div>
-          <div class="theme-opt" data-theme="presentation">
-            <span class="theme-dot" style="background: #f8fafc;"></span> Presentation
-          </div>
+          <div class="theme-opt active" data-theme="dark"><span class="theme-dot" style="background: #0d1117;"></span> Dark</div>
+          <div class="theme-opt" data-theme="light"><span class="theme-dot" style="background: #f0f4f8;"></span> Light</div>
+          <div class="theme-opt" data-theme="sky"><span class="theme-dot" style="background: #e0f2fe;"></span> Sky</div>
+          <div class="theme-opt" data-theme="ocean"><span class="theme-dot" style="background: #071520;"></span> Ocean</div>
+          <div class="theme-opt" data-theme="presentation"><span class="theme-dot" style="background: #f8fafc;"></span> Presentation</div>
         </div>
       </div>
     </div>
@@ -58,99 +88,130 @@
 
   <div class="dcc-shell">
     <div class="dcc-iconbar">
-      <button class="dcc-iconbar-btn active" title="Dashboard">📊</button>
-      <button class="dcc-iconbar-btn" title="Errors">✗</button>
-      <button class="dcc-iconbar-btn" title="Health">❤️</button>
+      <button class="dcc-iconbar-btn active" data-panel="files" title="Data Sources">📂</button>
+      <button class="dcc-iconbar-btn" data-panel="tree" title="Navigation">🌳</button>
+      <button class="dcc-iconbar-btn" data-panel="trace" title="Pipeline Trace">📋</button>
       <div class="dcc-iconbar-spacer"></div>
       <div class="dcc-iconbar-bottom">
-        <button class="dcc-iconbar-btn" title="Help">❓</button>
+        <div class="dcc-iconbar-sep"></div>
+        <button class="dcc-iconbar-btn" data-panel="settings" title="Settings">⚙️</button>
+        <button class="dcc-iconbar-btn" data-panel="help" title="Help">❓</button>
       </div>
     </div>
 
-    <div class="dcc-sidebar">
-      <div class="dcc-sidebar-header">
-        <span>Filters</span>
+    <div class="dcc-sidebar" id="leftSidebar" style="position:relative;">
+      <div class="dcc-sidebar-resizer left-resizer" data-resize="left"></div>
+      
+      <!-- Data Sources Panel -->
+      <div id="panelFiles" class="sidebar-panel-stretch visible">
+        <div class="dcc-sidebar-header"><span>Data Sources</span></div>
+        <div class="dcc-sidebar-body">
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📥 Load Data</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body">
+              <div class="drop-zone" id="dropZone">
+                <div class="dz-icon">📂</div>
+                <div class="dz-title" style="font-size:11px;">Drop JSON Files</div>
+                <div class="dz-sub" style="font-size:9px;">error_dashboard_data.json + debug_log.json</div>
+                <input type="file" id="fileInput" multiple>
+              </div>
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>🔍 Filters</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body">
+              <div style="padding:0 12px 12px;">
+                <label style="display:block;font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;font-weight:700;">Error Code</label>
+                <select id="errorCodeFilter" style="width:100%;margin-bottom:12px;">
+                  <option value="">All Errors</option>
+                </select>
+                <label style="display:block;font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;font-weight:700;">Column</label>
+                <select id="columnFilter" style="width:100%;margin-bottom:12px;">
+                  <option value="">All Columns</option>
+                </select>
+                <label style="display:block;font-size:10px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;font-weight:700;">Severity</label>
+                <div id="severityFilters" style="display:flex;flex-direction:column;gap:6px;">
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="CRITICAL" checked> Critical</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="HIGH" checked> High</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="MEDIUM" checked> Medium</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="WARNING" checked> Warning</label>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📋 Run Info</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="font-size:11px;padding:4px 12px;color:var(--text2);">
+              <div><strong>Dataset:</strong> <span id="metaDataset">—</span></div>
+              <div><strong>Generated:</strong> <span id="metaGenerated">—</span></div>
+              <div><strong>Total Rows:</strong> <span id="metaTotalRows">—</span></div>
+              <div><strong>Errors:</strong> <span id="metaErrorCount">—</span></div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="dcc-sidebar-body">
-        <div class="sb-section">
-          <div class="sb-section-header">
-            <span>🔍 Error Code</span>
-            <span class="sb-section-arrow">▼</span>
-          </div>
-          <div class="sb-section-body">
-            <select id="errorCodeFilter" style="width: 100%; margin-bottom: 8px;">
-              <option value="">All Errors</option>
-              <option value="E001">E001 - Missing Value</option>
-              <option value="E002">E002 - Invalid Format</option>
-              <option value="E003">E003 - Out of Range</option>
-              <option value="W001">W001 - Warning</option>
-            </select>
+
+      <!-- Navigation Tree Panel -->
+      <div id="panelTree" class="sidebar-panel-stretch">
+        <div class="dcc-sidebar-header"><span>Navigation</span></div>
+        <div class="dcc-sidebar-body">
+          <div class="key-tree" id="navTree">
+            <!-- Dynamically populated -->
           </div>
         </div>
+      </div>
 
-        <div class="sb-section">
-          <div class="sb-section-header">
-            <span>📋 Column</span>
-            <span class="sb-section-arrow">▼</span>
+      <!-- Pipeline Trace Panel -->
+      <div id="panelTrace" class="sidebar-panel-stretch">
+        <div class="dcc-sidebar-header"><span>Pipeline Trace</span></div>
+        <div class="dcc-sidebar-body">
+          <div class="sb-section">
+            <div class="sb-section-header"><span>🔻 Filter by Level</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="padding:8px 12px;">
+              <div id="traceLevelFilters" style="display:flex;flex-direction:column;gap:6px;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="1" checked> <span class="debug-level-1">L1 Milestone</span></label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="2" checked> <span class="debug-level-2">L2 Info</span></label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="3" checked> <span class="debug-level-3">L3 Trace</span></label>
+              </div>
+            </div>
           </div>
-          <div class="sb-section-body">
-            <select id="columnFilter" style="width: 100%; margin-bottom: 8px;">
-              <option value="">All Columns</option>
-              <option value="Document_ID">Document_ID</option>
-              <option value="Approval_Date">Approval_Date</option>
-              <option value="Review_Status">Review_Status</option>
-            </select>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📄 Messages</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body trace-panel" id="traceMessages" style="overflow-y:auto;flex:1;">
+              <!-- Dynamically populated -->
+            </div>
           </div>
         </div>
-
-        <div class="sb-section">
-          <div class="sb-section-header">
-            <span>⚠️ Severity</span>
-            <span class="sb-section-arrow">▼</span>
-          </div>
-          <div class="sb-section-body">
-            <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; cursor: pointer; font-size: 11px;">
-              <input type="checkbox" checked> Critical
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px; cursor: pointer; font-size: 11px;">
-              <input type="checkbox" checked> Warning
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px;">
-              <input type="checkbox" checked> Info
-            </label>
-          </div>
-        </div>
-
-        <button class="btn btn-primary" style="width: 100%; margin-top: 12px;">📥 Export Report</button>
       </div>
     </div>
 
     <div class="dcc-content">
       <div class="toolbar">
-        <span style="font-weight: 600; color: var(--text);">Error Analysis & Data Health</span>
+        <span style="font-weight:600;color:var(--text);">Error Analysis & Data Health</span>
         <div class="toolbar-spacer"></div>
-        <button class="btn btn-sm btn-secondary">🔄 Refresh</button>
+        <button class="btn btn-sm btn-secondary" id="exportBtn">📄 Export Report</button>
+        <button class="btn btn-sm btn-primary" id="refreshBtn">🔄 Refresh</button>
       </div>
 
       <div class="content-scroll">
         <!-- Summary KPIs -->
-        <div style="margin-bottom: 20px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Summary</div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px;">
+        <div style="margin-bottom: 24px;">
+          <div class="chart-title">Overall Summary</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
             <div class="kpi-card">
-              <div class="kpi-value" style="color: var(--danger);">247</div>
+              <div class="kpi-value" id="kpiTotalErrors" style="color: var(--sev-critical);">—</div>
               <div class="kpi-label">Total Errors</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-value" style="color: var(--warning);">89</div>
-              <div class="kpi-label">Warnings</div>
+              <div class="kpi-value" id="kpiUniqueErrors" style="color: var(--sev-medium);">—</div>
+              <div class="kpi-label">Unique Errors</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-value" style="color: var(--success);">98%</div>
-              <div class="kpi-label">Data Health</div>
+              <div class="kpi-value" id="kpiHealthScore" style="color: var(--success);">—</div>
+              <div class="kpi-label">Data Health Score</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-value" style="color: var(--info);">12</div>
+              <div class="kpi-value" id="kpiAffectedRows" style="color: var(--sev-info);">—</div>
               <div class="kpi-label">Affected Rows</div>
             </div>
           </div>
@@ -158,244 +219,844 @@
 
         <!-- Charts -->
         <div class="grid-2">
-          <div class="chart-container">
+          <div class="chart-container" id="secFrequency">
             <div class="chart-title">Error Code Frequency</div>
             <canvas id="errorCodeChart"></canvas>
           </div>
-          <div class="chart-container">
-            <div class="chart-title">Data Health Distribution</div>
-            <canvas id="healthChart"></canvas>
+          <div class="chart-container" id="secBreakdown">
+            <div class="chart-title">Severity Breakdown</div>
+            <canvas id="severityChart"></canvas>
           </div>
         </div>
 
         <!-- Error Heatmap -->
-        <div style="margin-bottom: 20px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Error Heatmap by Column</div>
+        <div style="margin-bottom: 24px;" id="secHeatmap">
+          <div class="chart-title">Error Distribution by Column</div>
           <div class="card">
-            <div class="heatmap">
-              <div class="heatmap-cell" style="background: rgba(63,185,80,0.2); color: var(--success);">Document_ID<br>0</div>
-              <div class="heatmap-cell" style="background: rgba(210,153,34,0.2); color: var(--warning);">Approval_Date<br>12</div>
-              <div class="heatmap-cell" style="background: rgba(248,81,73,0.2); color: var(--danger);">Review_Status<br>45</div>
-              <div class="heatmap-cell" style="background: rgba(210,153,34,0.2); color: var(--warning);">Submitted_By<br>8</div>
-              <div class="heatmap-cell" style="background: rgba(63,185,80,0.2); color: var(--success);">Department<br>0</div>
-              <div class="heatmap-cell" style="background: rgba(248,81,73,0.2); color: var(--danger);">Discipline<br>34</div>
-              <div class="heatmap-cell" style="background: rgba(210,153,34,0.2); color: var(--warning);">Facility_Code<br>15</div>
-              <div class="heatmap-cell" style="background: rgba(63,185,80,0.2); color: var(--success);">Project_Code<br>0</div>
+            <div class="heatmap" id="heatmapContainer">
+              <!-- Dynamically populated -->
             </div>
           </div>
         </div>
 
-        <!-- Error Details Table -->
-        <div style="margin-bottom: 20px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Error Details</div>
-          <div class="card">
-            <table class="dcc-table error-table">
-              <thead>
-                <tr>
-                  <th>Row</th>
-                  <th>Column</th>
-                  <th>Error Code</th>
-                  <th>Message</th>
-                  <th>Severity</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>42</td>
-                  <td>Review_Status</td>
-                  <td>E001</td>
-                  <td>Missing required value</td>
-                  <td><span class="severity-critical">Critical</span></td>
-                </tr>
-                <tr>
-                  <td>87</td>
-                  <td>Approval_Date</td>
-                  <td>E002</td>
-                  <td>Invalid date format</td>
-                  <td><span class="severity-warning">Warning</span></td>
-                </tr>
-                <tr>
-                  <td>156</td>
-                  <td>Discipline</td>
-                  <td>E003</td>
-                  <td>Value not in allowed list</td>
-                  <td><span class="severity-critical">Critical</span></td>
-                </tr>
-                <tr>
-                  <td>203</td>
-                  <td>Facility_Code</td>
-                  <td>W001</td>
-                  <td>Unusual value detected</td>
-                  <td><span class="severity-info">Info</span></td>
-                </tr>
-                <tr>
-                  <td>289</td>
-                  <td>Review_Status</td>
-                  <td>E001</td>
-                  <td>Missing required value</td>
-                  <td><span class="severity-critical">Critical</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         <!-- Phase Summary -->
-        <div style="margin-bottom: 20px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;">Error Summary by Phase</div>
+        <div style="margin-bottom: 24px;" id="secPhases">
+          <div class="chart-title">Error Summary by Phase</div>
           <div class="card">
             <table class="dcc-table" style="font-size: 11px;">
               <thead>
                 <tr>
                   <th>Phase</th>
-                  <th>Errors</th>
-                  <th>Warnings</th>
+                  <th>Total Errors</th>
+                  <th>Critical</th>
+                  <th>High</th>
+                  <th>Medium</th>
+                  <th>Warning/Info</th>
                   <th>Status</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>P1 - File Upload</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td><span class="badge badge-success">✓ Pass</span></td>
-                </tr>
-                <tr>
-                  <td>P2 - Sheet Selection</td>
-                  <td>0</td>
-                  <td>0</td>
-                  <td><span class="badge badge-success">✓ Pass</span></td>
-                </tr>
-                <tr>
-                  <td>P3 - Column Mapping</td>
-                  <td>0</td>
-                  <td>3</td>
-                  <td><span class="badge badge-warning">⚠ Warnings</span></td>
-                </tr>
-                <tr>
-                  <td>P4 - Validation</td>
-                  <td>247</td>
-                  <td>89</td>
-                  <td><span class="badge badge-danger">✗ Failed</span></td>
-                </tr>
+              <tbody id="phaseTableBody">
+                <!-- Dynamically populated -->
               </tbody>
             </table>
           </div>
         </div>
+
+        <!-- Debug Context (shown when filter applied) -->
+        <div style="margin-bottom: 24px; display:none;" id="secDebugContext">
+          <div class="debug-context">
+            <div class="debug-context-title">🔗 Debug Context — Pipeline Trace for Selected Filter</div>
+            <div id="debugContextContent">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Error Details Table -->
+        <div style="margin-bottom: 24px;" id="secDetails">
+          <div class="chart-title">Error Details <span id="errorSourceLabel" style="font-weight:400;color:var(--text3);font-size:10px;"></span></div>
+          <div class="card" style="overflow-x: auto;">
+            <table class="dcc-table error-table">
+              <thead>
+                <tr>
+                  <th>Row</th>
+                  <th>Column</th>
+                  <th>Code</th>
+                  <th>Message</th>
+                  <th>Severity</th>
+                </tr>
+              </thead>
+              <tbody id="errorTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+            <div class="pagination" id="pagination" style="padding:0 12px 12px;">
+              <span id="paginationInfo"></span>
+              <div style="display:flex;gap:4px;">
+                <button id="pageFirst" disabled>First</button>
+                <button id="pagePrev" disabled>Prev</button>
+                <button id="pageNext">Next</button>
+                <button id="pageLast">Last</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcc-sidebar-right" id="rightSidebar" style="position:relative;">
+      <div class="dcc-sidebar-resizer right-resizer" data-resize="right"></div>
+      <div class="dcc-sidebar-header"><span id="rightSidebarHeader">Settings</span></div>
+      <div class="dcc-sidebar-body" id="rightSidebarBody">
+        <!-- Dynamically populated -->
       </div>
     </div>
   </div>
 
-  <div class="dcc-statusbar status-warn">
-    <div class="sb-item">⚠ 247 errors found</div>
-    <div class="sb-item">89 warnings</div>
-    <div class="sb-item-right">Data Health: 98%</div>
+  <div class="dcc-statusbar status-ok">
+    <div class="sb-item">✓ <span id="statusMsg">Ready</span></div>
+    <div class="sb-item" id="statusFileInfo">No data loaded</div>
+    <div class="sb-item-right" id="sbVersion">v3.0.0</div>
   </div>
 
   <script>
+    const DATA_FILE = '../output/error_dashboard_data.json';
+    const DEBUG_LOG_FILE = '../output/debug_log.json';
+    const HELP_FILE = 'ui_help.json';
+    const ERRORS_PER_PAGE = 500;
+    
+    let rawData = null;
+    let filteredData = null;
+    let chartFrequency = null;
+    let chartSeverity = null;
+    let helpData = null;
+    let debugLogData = null;
+    let parsedErrors = [];
+    let errorDataSource = 'debug_log';
+    let currentPage = 1;
+    let filteredErrors = [];
+
     const themeColors = {
-      dark: '#0d1117', light: '#f0f4f8', sky: '#0a1628', ocean: '#071520', presentation: '#12082a'
+      dark: '#0d1117', light: '#f0f4f8', sky: '#e0f2fe', ocean: '#071520', presentation: '#f8fafc'
     };
 
-    // Theme switching
-    document.getElementById('themeBtn').addEventListener('click', () => {
-      document.getElementById('themeMenu').classList.toggle('open');
-    });
+    const ERR_CODE_RE = /\[([A-Z0-9]+-[A-Z]-[A-Z]-[0-9]+[A-Z]?)\]/;
+    const ERR_ROW_RE = /\(Row:\s*(\d+)\)/;
+    const ERR_COL_RE = /\(Col:\s*([^)]+)\)/;
 
-    document.querySelectorAll('.theme-opt').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const theme = opt.dataset.theme;
-        document.documentElement.setAttribute('data-theme', theme);
-        document.getElementById('themeName').textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
-        document.getElementById('themeDot').style.background = themeColors[theme];
-        document.getElementById('themeMenu').classList.remove('open');
-        localStorage.setItem('dcc-theme', theme);
-        document.querySelectorAll('.theme-opt').forEach(o => o.classList.remove('active'));
-        opt.classList.add('active');
+    function getOS() {
+      const ua = navigator.userAgent;
+      if (ua.includes('Win')) return 'win';
+      if (ua.includes('Mac')) return 'mac';
+      if (ua.includes('Linux')) return 'linux';
+      return 'unknown';
+    }
+
+    function resolvePath(relativePath) {
+      const base = window.location.href;
+      const dir = base.substring(0, base.lastIndexOf('/') + 1);
+      const parts = dir.split('/');
+      const relParts = relativePath.split('/');
+      for (const p of relParts) {
+        if (p === '..') {
+          if (parts.length > 1) parts.pop();
+        } else if (p !== '.') {
+          parts.push(p);
+        }
+      }
+      return parts.join('/');
+    }
+
+    function loadLocalJSON(url) {
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.responseType = 'text';
+        xhr.onload = () => {
+          if (xhr.status === 200 || xhr.status === 0) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch (e) { reject(e); }
+          } else { reject(new Error(`HTTP ${xhr.status}`)); }
+        };
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send();
       });
-    });
+    }
 
-    const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    document.getElementById('themeName').textContent = savedTheme.charAt(0).toUpperCase() + savedTheme.slice(1);
-    document.getElementById('themeDot').style.background = themeColors[savedTheme];
-    document.querySelector(`[data-theme="${savedTheme}"]`).classList.add('active');
+    document.addEventListener('DOMContentLoaded', init);
 
-    // Sidebar toggle
-    document.querySelectorAll('.sb-section-header').forEach(header => {
-      header.addEventListener('click', () => {
-        header.parentElement.classList.toggle('closed');
+    async function init() {
+      setupTheme();
+      setupIconBar();
+      setupResize();
+      setupLayoutToggle();
+      setupFileHandlers();
+      setupFilters();
+      setupTraceFilters();
+      setupPagination();
+      setupRefresh();
+      setupExport();
+      await loadHelpData();
+      renderRightSidebar('settings');
+      const os = getOS();
+      const dataUrl = resolvePath(DATA_FILE);
+      const debugUrl = resolvePath(DEBUG_LOG_FILE);
+      console.log(`OS: ${os} | Data: ${dataUrl} | Debug: ${debugUrl}`);
+      const results = await Promise.allSettled([loadLocalJSON(dataUrl), loadLocalJSON(debugUrl)]);
+      if (results[0].status === 'fulfilled') {
+        rawData = results[0].value;
+        document.getElementById('statusFileInfo').textContent = 'error_dashboard_data.json';
+        processData();
+      }
+      if (results[1].status === 'fulfilled') {
+        debugLogData = results[1].value;
+        parseDebugErrors();
+        if (rawData) processData();
+      }
+      if (results[0].status === 'rejected' && results[1].status === 'rejected') {
+        autoFallbackLoader();
+      }
+    }
+
+    async function loadHelpData() {
+      try {
+        const resp = await fetch(HELP_FILE);
+        if (resp.ok) {
+          helpData = await resp.json();
+          if (helpData.version) document.getElementById('sbVersion').textContent = 'v' + helpData.version;
+        }
+      } catch (e) { console.warn('Failed to load help data'); }
+    }
+
+    function setupTheme() {
+      const themeBtn = document.getElementById('themeBtn');
+      const themeMenu = document.getElementById('themeMenu');
+      const themeName = document.getElementById('themeName');
+      const themeDot = document.getElementById('themeDot');
+      const themeOpts = document.querySelectorAll('.theme-opt');
+
+      themeBtn.addEventListener('click', () => themeMenu.classList.toggle('open'));
+      themeOpts.forEach(opt => {
+        opt.addEventListener('click', () => {
+          const theme = opt.dataset.theme;
+          applyTheme(theme);
+          localStorage.setItem('dcc-theme', theme);
+          themeOpts.forEach(o => o.classList.remove('active'));
+          opt.classList.add('active');
+          themeMenu.classList.remove('open');
+        });
       });
-    });
 
-    // Get theme colors for charts
-    const getChartColors = () => {
+      function applyTheme(t) {
+        document.documentElement.setAttribute('data-theme', t);
+        themeName.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+        themeDot.style.background = themeColors[t];
+        if (chartFrequency) updateCharts();
+      }
+
+      const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
+      applyTheme(savedTheme);
+      document.querySelector(`.theme-opt[data-theme="${savedTheme}"]`)?.classList.add('active');
+    }
+
+    function setupIconBar() {
+      document.querySelectorAll('.dcc-iconbar-btn[data-panel]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const panel = btn.dataset.panel;
+          if (panel === 'files' || panel === 'tree' || panel === 'trace') {
+            toggleLeftPanel(panel);
+          } else {
+            toggleRightPanel(panel);
+          }
+        });
+      });
+    }
+
+    function toggleLeftPanel(panel) {
+      const sidebar = document.getElementById('leftSidebar');
+      const btn = document.querySelector(`.dcc-iconbar-btn[data-panel="${panel}"]`);
+      const isAlreadyActive = btn.classList.contains('active') && !sidebar.classList.contains('collapsed');
+
+      if (isAlreadyActive) {
+        sidebar.classList.add('collapsed');
+        btn.classList.remove('active');
+      } else {
+        sidebar.classList.remove('collapsed');
+        document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
+          if (['files', 'tree', 'trace'].includes(b.dataset.panel)) b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        document.getElementById('panelFiles').classList.toggle('visible', panel === 'files');
+        document.getElementById('panelTree').classList.toggle('visible', panel === 'tree');
+        document.getElementById('panelTrace').classList.toggle('visible', panel === 'trace');
+        if (panel === 'tree') renderNavTree();
+        if (panel === 'trace') renderPipelineTrace();
+      }
+    }
+
+    function toggleRightPanel(panel) {
+      const sidebar = document.getElementById('rightSidebar');
+      const btn = document.querySelector(`.dcc-iconbar-btn[data-panel="${panel}"]`);
+      const isAlreadyActive = btn.classList.contains('active') && !sidebar.classList.contains('collapsed');
+
+      if (isAlreadyActive) {
+        sidebar.classList.add('collapsed');
+        btn.classList.remove('active');
+      } else {
+        sidebar.classList.remove('collapsed');
+        document.querySelectorAll('.dcc-iconbar-btn').forEach(b => {
+          if (['settings', 'help'].includes(b.dataset.panel)) b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        renderRightSidebar(panel);
+      }
+    }
+
+    function setupResize() {
+      let resizeTarget = null, resizeStartX = 0, resizeStartW = 0;
+      document.addEventListener('mousedown', e => {
+        const h = e.target.closest('.dcc-sidebar-resizer');
+        if (!h) return;
+        resizeTarget = h.dataset.resize;
+        resizeStartX = e.clientX;
+        resizeStartW = h.parentElement.offsetWidth;
+        h.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        e.preventDefault();
+      });
+      document.addEventListener('mousemove', e => {
+        if (!resizeTarget) return;
+        const dx = e.clientX - resizeStartX;
+        const w = resizeTarget === 'left' ? resizeStartW + dx : resizeStartW - dx;
+        const clamped = Math.max(150, Math.min(600, w)) + 'px';
+        if (resizeTarget === 'left') {
+          document.getElementById('leftSidebar').style.width = clamped;
+        } else {
+          document.getElementById('rightSidebar').style.width = clamped;
+        }
+      });
+      document.addEventListener('mouseup', () => {
+        if (!resizeTarget) return;
+        document.querySelectorAll('.dcc-sidebar-resizer').forEach(h => h.classList.remove('dragging'));
+        document.body.style.cursor = '';
+        resizeTarget = null;
+      });
+    }
+
+    let layoutMode = 0;
+    function setupLayoutToggle() {
+      const btn = document.getElementById('layoutBtn');
+      btn.addEventListener('click', () => {
+        layoutMode = (layoutMode + 1) % 3;
+        const left = document.getElementById('leftSidebar');
+        const right = document.getElementById('rightSidebar');
+        left.classList.toggle('collapsed', layoutMode === 1);
+        right.classList.toggle('collapsed', layoutMode !== 0);
+        btn.textContent = layoutMode === 0 ? '🔲' : layoutMode === 1 ? '📐' : '📦';
+      });
+    }
+
+    function setupFileHandlers() {
+      const dz = document.getElementById('dropZone');
+      const fi = document.getElementById('fileInput');
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+      dz.addEventListener('drop', e => {
+        e.preventDefault();
+        dz.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+      });
+      fi.addEventListener('change', () => {
+        for (const f of fi.files) handleFile(f);
+      });
+    }
+
+    function handleFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (file.name === 'debug_log.json' || (data.errors && data.messages)) {
+            debugLogData = data;
+            parseDebugErrors();
+            document.getElementById('statusFileInfo').textContent = 'debug_log.json';
+            if (rawData) processData();
+            updateStatus('ok', 'Debug log loaded');
+          } else {
+            rawData = data;
+            document.getElementById('statusFileInfo').textContent = 'error_dashboard_data.json';
+            processData();
+            updateStatus('ok', 'Dashboard data loaded');
+          }
+        } catch (err) { alert('Invalid JSON file'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function autoFallbackLoader() {
+      updateStatus('warning', 'Select output files to load...');
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.multiple = true;
+      input.onchange = () => {
+        for (const f of input.files) handleFile(f);
+      };
+      input.click();
+    }
+
+    function parseDebugErrors() {
+      if (!debugLogData || !debugLogData.errors) return;
+      parsedErrors = [];
+      let skipped = 0;
+      debugLogData.errors.forEach(entry => {
+        const msg = entry.message || '';
+        const codeMatch = msg.match(ERR_CODE_RE);
+        const rowMatch = msg.match(ERR_ROW_RE);
+        const colMatch = msg.match(ERR_COL_RE);
+        if (codeMatch) {
+          const descEnd = msg.indexOf('(Row:');
+          const description = descEnd > 0 ? msg.substring(msg.indexOf(']') + 2, descEnd).trim() : msg.substring(msg.indexOf(']') + 2).trim();
+          parsedErrors.push({
+            row: rowMatch ? parseInt(rowMatch[1], 10) : null,
+            column: colMatch ? colMatch[1].trim() : 'Unknown',
+            code: codeMatch[1],
+            message: description,
+            severity: resolveSeverity(codeMatch[1]),
+            timestamp: entry.timestamp
+          });
+        } else {
+          skipped++;
+        }
+      });
+      if (skipped > 0) console.warn(`Debug log: ${skipped} entries skipped (no error code found)`);
+    }
+
+    function resolveSeverity(code) {
+      if (!rawData || !rawData.error_types) return 'INFO';
+      const found = rawData.error_types.find(t => t.code === code);
+      return found ? found.severity : 'INFO';
+    }
+
+    function processData() {
+      if (!rawData) return;
+      updateMeta();
+      updateFilterOptions();
+      currentPage = 1;
+      applyFilters();
+      updateStatus('ok', 'Data loaded');
+    }
+
+    function updateMeta() {
+      const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      set('metaDataset', rawData.metadata?.dataset_name || '—');
+      set('metaGenerated', rawData.metadata?.generated_at ? new Date(rawData.metadata.generated_at).toLocaleString() : '—');
+      set('metaTotalRows', rawData.metadata?.total_rows?.toLocaleString() || '—');
+      set('metaErrorCount', rawData.summary?.total_errors?.toLocaleString() || '—');
+      
+      set('kpiTotalErrors', rawData.summary?.total_errors?.toLocaleString() || '0');
+      set('kpiUniqueErrors', rawData.summary?.unique_errors?.toLocaleString() || '0');
+      set('kpiHealthScore', (rawData.summary?.health_kpi?.score || 0) + '%');
+      set('kpiAffectedRows', rawData.summary?.affected_rows?.toLocaleString() || '0');
+    }
+
+    function updateFilterOptions() {
+      const codeSelect = document.getElementById('errorCodeFilter');
+      const colSelect = document.getElementById('columnFilter');
+      
+      const codes = [...new Set(rawData.error_types?.map(t => t.code) || [])].sort();
+      const cols = [...new Set(rawData.column_health?.map(c => c.column) || [])].sort();
+      
+      codeSelect.innerHTML = '<option value="">All Errors</option>' + codes.map(c => `<option value="${c}">${c}</option>`).join('');
+      colSelect.innerHTML = '<option value="">All Columns</option>' + cols.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    function setupFilters() {
+      document.getElementById('errorCodeFilter').addEventListener('change', () => { currentPage = 1; applyFilters(); });
+      document.getElementById('columnFilter').addEventListener('change', () => { currentPage = 1; applyFilters(); });
+      document.getElementById('severityFilters').querySelectorAll('input').forEach(i => i.addEventListener('change', () => { currentPage = 1; applyFilters(); }));
+      document.getElementById('globalSearch').addEventListener('input', applyFilters);
+    }
+
+    function setupTraceFilters() {
+      document.getElementById('traceLevelFilters').querySelectorAll('input').forEach(i => i.addEventListener('change', renderPipelineTrace));
+    }
+
+    function setupPagination() {
+      document.getElementById('pageFirst').addEventListener('click', () => { currentPage = 1; renderTable(filteredErrors); });
+      document.getElementById('pagePrev').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(filteredErrors); } });
+      document.getElementById('pageNext').addEventListener('click', () => { currentPage++; renderTable(filteredErrors); });
+      document.getElementById('pageLast').addEventListener('click', () => { currentPage = Math.ceil(filteredErrors.length / ERRORS_PER_PAGE); renderTable(filteredErrors); });
+    }
+
+    function applyFilters() {
+      if (!rawData) return;
+      
+      const code = document.getElementById('errorCodeFilter').value;
+      const col = document.getElementById('columnFilter').value;
+      const sevs = [...document.getElementById('severityFilters').querySelectorAll('input:checked')].map(i => i.value);
+      const search = document.getElementById('globalSearch').value.toLowerCase();
+
+      const filteredTypes = (rawData.error_types || []).filter(t => {
+        if (code && t.code !== code) return false;
+        if (!sevs.includes(t.severity)) return false;
+        return true;
+      });
+
+      const filteredColumns = (rawData.column_health || []).filter(c => {
+        if (col && c.column !== col) return false;
+        return true;
+      });
+
+      const filteredPhases = (rawData.phase_breakdown || []).filter(p => {
+        if (code) {
+          const phaseCodes = (rawData.recent_errors || []).filter(e => e.code === code).map(e => {
+            const phase = findPhaseForError(e);
+            return phase;
+          });
+        }
+        return true;
+      });
+
+      let sourceErrors;
+      if (errorDataSource === 'debug_log' && parsedErrors.length > 0) {
+        sourceErrors = parsedErrors;
+      } else {
+        sourceErrors = (rawData.recent_errors || []).map(e => ({...e, severity: e.severity || resolveSeverity(e.code)}));
+      }
+
+      filteredErrors = sourceErrors.filter(e => {
+        if (code && e.code !== code) return false;
+        if (col && e.column !== col) return false;
+        if (!sevs.includes(e.severity)) return false;
+        if (search && !JSON.stringify(e).toLowerCase().includes(search)) return false;
+        return true;
+      });
+
+      renderCharts(filteredTypes);
+      renderHeatmap(filteredColumns);
+      renderPhases(rawData.phase_breakdown);
+      renderDebugContext(code, col);
+      renderTable(filteredErrors);
+    }
+
+    function findPhaseForError(error) {
+      if (!rawData || !rawData.phase_breakdown) return null;
+      const codePrefix = error.code.split('-')[0];
+      const phaseMap = { P1: 'P1', P2: 'P2', P2.5: 'P2.5', P3: 'P3', P4: 'P4', F4: 'P4', L3: 'P3', C6: 'P3', V5: 'P4' };
+      return phaseMap[codePrefix] || null;
+    }
+
+    function renderDebugContext(code, col) {
+      const section = document.getElementById('secDebugContext');
+      const content = document.getElementById('debugContextContent');
+      if (!debugLogData || (!code && !col)) {
+        section.style.display = 'none';
+        return;
+      }
+      section.style.display = 'block';
+      const matches = (debugLogData.messages || []).filter(m => {
+        const msg = m.message || '';
+        if (code && msg.includes(code)) return true;
+        if (col && msg.includes(col)) return true;
+        return false;
+      });
+      if (matches.length === 0) {
+        content.innerHTML = '<div style="font-size:10px;color:var(--text3);">No pipeline trace entries found for this filter.</div>';
+        return;
+      }
+      content.innerHTML = matches.map(m => {
+        const levelClass = `debug-level-${m.level || 2}`;
+        return `<div class="debug-entry"><span class="${levelClass}">[L${m.level}]</span> <span class="trace-ts">${m.timestamp ? m.timestamp.substring(11, 19) : ''}</span> ${escHtml(m.message)}</div>`;
+      }).join('');
+    }
+
+    function getChartColors() {
       const style = getComputedStyle(document.documentElement);
       return {
-        text: style.getPropertyValue('--text').trim(),
-        text2: style.getPropertyValue('--text2').trim(),
+        text: style.getPropertyValue('--text2').trim(),
+        border: style.getPropertyValue('--border').trim(),
         accent: style.getPropertyValue('--accent').trim(),
         danger: style.getPropertyValue('--danger').trim(),
         warning: style.getPropertyValue('--warning').trim(),
+        info: style.getPropertyValue('--info').trim(),
         success: style.getPropertyValue('--success').trim(),
-        surface: style.getPropertyValue('--surface').trim(),
-        border: style.getPropertyValue('--border').trim()
+        critical: style.getPropertyValue('--sev-critical').trim(),
+        high: style.getPropertyValue('--sev-high').trim(),
+        medium: style.getPropertyValue('--sev-medium').trim(),
+        warn: style.getPropertyValue('--sev-warning').trim(),
+        inf: style.getPropertyValue('--sev-info').trim()
       };
+    }
+
+    function renderCharts(types) {
+      const c = getChartColors();
+      const sevColorMap = { CRITICAL: c.critical, HIGH: c.high, MEDIUM: c.medium, WARNING: c.warn, INFO: c.inf };
+      
+      const freqCtx = document.getElementById('errorCodeChart').getContext('2d');
+      if (chartFrequency) chartFrequency.destroy();
+      
+      const sorted = [...types].sort((a, b) => b.count - a.count).slice(0, 10);
+      chartFrequency = new Chart(freqCtx, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(t => t.code),
+          datasets: [{
+            label: 'Occurrences',
+            data: sorted.map(t => t.count),
+            backgroundColor: sorted.map(t => sevColorMap[t.severity] || c.inf),
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { ticks: { color: c.text }, grid: { color: c.border } },
+            x: { ticks: { color: c.text }, grid: { color: 'transparent' } }
+          }
+        }
+      });
+
+      const sevCtx = document.getElementById('severityChart').getContext('2d');
+      if (chartSeverity) chartSeverity.destroy();
+      
+      const counts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, WARNING: 0, INFO: 0 };
+      types.forEach(t => counts[t.severity] = (counts[t.severity] || 0) + t.count);
+      
+      const labels = Object.keys(counts).filter(k => counts[k] > 0);
+      chartSeverity = new Chart(sevCtx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: labels.map(l => counts[l]),
+            backgroundColor: labels.map(l => sevColorMap[l]),
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: c.text, font: { size: 10 } } }
+          },
+          cutout: '70%'
+        }
+      });
+    }
+
+    function renderHeatmap(cols) {
+      const container = document.getElementById('heatmapContainer');
+      const max = Math.max(...cols.map(c => c.error_count), 1);
+      
+      const colors = {
+        danger: '#ff4d4f',
+        warning: '#ffc53d',
+        success: '#3fb950'
+      };
+
+      container.innerHTML = cols.map(c => {
+        const ratio = c.error_count / max;
+        let baseColor = ratio > 0.5 ? colors.danger : ratio > 0 ? colors.warning : colors.success;
+        const isHighLoad = ratio > 0.3;
+        const bg = isHighLoad ? baseColor : `${baseColor}22`;
+        const textColor = isHighLoad ? '#ffffff' : 'var(--text)';
+        const borderColor = isHighLoad ? 'transparent' : 'var(--border)';
+        const safeCol = c.column.replace(/'/g, "\\'");
+
+        return `
+          <div class="heatmap-cell" style="background: ${bg}; color: ${textColor}; border-color: ${borderColor};" onclick="filterByColumn('${safeCol}')">
+            <div style="opacity: 0.8; margin-bottom: 2px;">${escHtml(c.column)}</div>
+            <div style="font-size: 14px; font-weight: 700;">${c.error_count.toLocaleString()}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.filterByColumn = function(col) {
+      document.getElementById('columnFilter').value = col;
+      applyFilters();
     };
 
-    // Error Code Chart
-    const errorCodeCtx = document.getElementById('errorCodeChart').getContext('2d');
-    const colors = getChartColors();
-    new Chart(errorCodeCtx, {
-      type: 'bar',
-      data: {
-        labels: ['E001', 'E002', 'E003', 'W001', 'W002'],
-        datasets: [{
-          label: 'Count',
-          data: [89, 67, 45, 34, 12],
-          backgroundColor: [colors.danger, colors.danger, colors.warning, colors.warning, colors.info],
-          borderColor: colors.border,
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, ticks: { color: colors.text2 }, grid: { color: colors.border } },
-          x: { ticks: { color: colors.text2 }, grid: { color: colors.border } }
-        }
-      }
-    });
+    function renderPhases(phases) {
+      const container = document.getElementById('phaseTableBody');
+      if (!phases) return;
+      
+      container.innerHTML = phases.map(p => {
+        const critical = p.Critical ?? p.critical ?? 0;
+        const high = p.High ?? p.high ?? 0;
+        const medium = p.Medium ?? p.medium ?? 0;
+        const warningInfo = p['Warning/Info'] ?? p['warning/info'] ?? 0;
+        const total = p.Total ?? p.total ?? 0;
+        const phase = p.Phase ?? p.phase ?? '';
+        const status = critical > 0 ? '<span class="badge badge-danger">✗ Failed</span>' : high > 0 ? '<span class="badge badge-warning">⚠ Issues</span>' : '<span class="badge badge-success">✓ Pass</span>';
+        return `
+          <tr>
+            <td style="font-weight:600;">${escHtml(phase)}</td>
+            <td>${total}</td>
+            <td style="color:var(--sev-critical);">${critical}</td>
+            <td style="color:var(--sev-high);">${high}</td>
+            <td style="color:var(--sev-medium);">${medium}</td>
+            <td style="color:var(--sev-info);">${warningInfo}</td>
+            <td>${status}</td>
+          </tr>
+        `;
+      }).join('');
+    }
 
-    // Health Distribution Chart
-    const healthCtx = document.getElementById('healthChart').getContext('2d');
-    new Chart(healthCtx, {
-      type: 'line',
-      data: {
-        labels: ['60%', '70%', '80%', '90%', '95%', '98%', '99%', '100%'],
-        datasets: [{
-          label: 'Rows',
-          data: [2, 5, 12, 34, 89, 156, 234, 715],
-          borderColor: colors.accent,
-          backgroundColor: colors.accent + '20',
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: colors.accent,
-          pointBorderColor: colors.surface
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, ticks: { color: colors.text2 }, grid: { color: colors.border } },
-          x: { ticks: { color: colors.text2 }, grid: { color: colors.border } }
-        }
+    function renderTable(errors) {
+      const container = document.getElementById('errorTableBody');
+      const totalPages = Math.max(1, Math.ceil(errors.length / ERRORS_PER_PAGE));
+      if (currentPage > totalPages) currentPage = totalPages;
+      const start = (currentPage - 1) * ERRORS_PER_PAGE;
+      const pageErrors = errors.slice(start, start + ERRORS_PER_PAGE);
+      
+      const frag = document.createDocumentFragment();
+      pageErrors.forEach(e => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${e.row ?? '—'}</td>
+          <td style="font-weight:600;">${escHtml(e.column)}</td>
+          <td><code>${escHtml(e.code)}</code></td>
+          <td>${escHtml(e.message)}</td>
+          <td><span class="severity-${e.severity}">${e.severity}</span></td>
+        `;
+        frag.appendChild(tr);
+      });
+      container.innerHTML = '';
+      container.appendChild(frag);
+
+      const info = document.getElementById('paginationInfo');
+      info.textContent = `Showing ${start + 1}–${Math.min(start + ERRORS_PER_PAGE, errors.length)} of ${errors.length} errors`;
+      
+      document.getElementById('pageFirst').disabled = currentPage === 1;
+      document.getElementById('pagePrev').disabled = currentPage === 1;
+      document.getElementById('pageNext').disabled = currentPage >= totalPages;
+      document.getElementById('pageLast').disabled = currentPage >= totalPages;
+
+      const label = document.getElementById('errorSourceLabel');
+      label.textContent = errorDataSource === 'debug_log' ? `(from debug_log.json — ${parsedErrors.length} total)` : '(from dashboard JSON — 50 max)';
+    }
+
+    function renderPipelineTrace() {
+      const container = document.getElementById('traceMessages');
+      if (!debugLogData) {
+        container.innerHTML = '<div style="padding:12px;font-size:10px;color:var(--text3);">No debug log loaded.</div>';
+        return;
       }
-    });
+      const levels = [...document.getElementById('traceLevelFilters').querySelectorAll('input:checked')].map(i => parseInt(i.value, 10));
+      const filtered = (debugLogData.messages || []).filter(m => levels.includes(m.level));
+      container.innerHTML = filtered.map(m => {
+        const levelClass = `debug-level-${m.level || 2}`;
+        return `<div class="trace-entry"><span class="trace-ts">${m.timestamp ? m.timestamp.substring(11, 19) : ''}</span><span class="${levelClass}"> [L${m.level}]</span><span class="trace-msg">${escHtml(m.message)}</span></div>`;
+      }).join('');
+    }
+
+    function renderNavTree() {
+      const container = document.getElementById('navTree');
+      const nodes = [
+        { label: '📊 Summary', target: 'secFrequency' },
+        { label: '🔥 Heatmap', target: 'secHeatmap' },
+        { label: '⚙️ Phase Breakdown', target: 'secPhases' },
+        { label: '📋 Error Details', target: 'secDetails' }
+      ];
+      
+      container.innerHTML = '<ul class="tree-node">' + nodes.map(n => `
+        <li class="tree-node-item" onclick="document.getElementById('${n.target}').scrollIntoView({behavior:'smooth'})">
+          <div class="tree-node-inner"><span class="tree-label">${n.label}</span></div>
+        </li>
+      `).join('') + '</ul>';
+    }
+
+    function renderRightSidebar(panel) {
+      const header = document.getElementById('rightSidebarHeader');
+      const body = document.getElementById('rightSidebarBody');
+      
+      if (panel === 'help') {
+        header.textContent = 'Help';
+        body.innerHTML = `
+          <div class="sb-section">
+            <div class="sb-section-header"><span>ℹ️ About</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text3);">
+              DCC Error Diagnostic Dashboard v3.1.0<br>Visualizes pipeline validation results and data health metrics. Includes debug log integration for full error coverage.
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>❓ Metrics</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.6;">
+              ${helpData?.help?.kpi_metrics?.items?.map(i => `<div><strong>${i.label}:</strong> ${i.text}</div>`).join('') || 'No metric help available.'}
+            </div>
+          </div>
+        `;
+      } else {
+        header.textContent = 'Settings';
+        body.innerHTML = `
+          <div class="sb-section">
+            <div class="sb-section-header"><span>⚙️ Options</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="padding:12px;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;">
+                <input type="checkbox" id="autoRefresh" checked> Auto-refresh data
+              </label>
+              <div style="margin-top:12px;">
+                <label style="display:block;font-size:10px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;font-weight:700;">Error Detail Source</label>
+                <div class="source-toggle">
+                  <label><input type="radio" name="errorSource" value="debug_log" ${errorDataSource === 'debug_log' ? 'checked' : ''}> Debug Log (all errors)</label>
+                  <label><input type="radio" name="errorSource" value="dashboard" ${errorDataSource === 'dashboard' ? 'checked' : ''}> Dashboard (deduplicated)</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+        body.querySelectorAll('input[name="errorSource"]').forEach(r => {
+          r.addEventListener('change', () => {
+            errorDataSource = r.value;
+            currentPage = 1;
+            applyFilters();
+          });
+        });
+      }
+    }
+
+    function setupRefresh() {
+      document.getElementById('refreshBtn').addEventListener('click', () => { loadData(); loadDebugLog(); });
+    }
+
+    function setupExport() {
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        const source = (errorDataSource === 'debug_log' && parsedErrors.length > 0) ? parsedErrors : (rawData.recent_errors || []);
+        if (source.length === 0) return;
+        const csv = [['Row', 'Column', 'Code', 'Message', 'Severity']];
+        source.forEach(e => csv.push([e.row ?? '', e.column, e.code, `"${(e.message || '').replace(/"/g, '""')}"`, e.severity]));
+        const blob = new Blob([csv.map(r => r.join(',')).join('\n')], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'error_report.csv';
+        a.click();
+      });
+    }
+
+    function updateStatus(type, msg) {
+      const bar = document.querySelector('.dcc-statusbar');
+      bar.className = 'dcc-statusbar status-' + type;
+      document.getElementById('statusMsg').textContent = msg;
+    }
+
+    function updateCharts() {
+      if (chartFrequency) chartFrequency.update();
+      if (chartSeverity) chartSeverity.update();
+    }
+
+    function escHtml(str) {
+      if (!str) return '';
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
   </script>
 </body>
 </html>

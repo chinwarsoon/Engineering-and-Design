@@ -942,3 +942,38 @@ Log/                       ✅ Created (auto_create_log_directories: true)
    - **Result**: EXIT 0, Pipeline fully functional under the consolidated architecture. 100% of universal logic is now foundation-managed.
    - **Related**: [update_log.md](#wp-arch-2026-001-consolidation)
 - `Status: PASS`
+
+<a id="test-2026-05-20-ai-dashboard-bugfixes"></a>
+## 2026-05-20
+
+### AI Analysis Dashboard Bug Fixes Verification
+**Related Update:** [update-2026-05-20-ai-dashboard-bugfixes](update_log.md#update-2026-05-20-ai-dashboard-bugfixes)  
+**Related Issue:** [Issue # 063](issue_log.md#issue-iss-063)
+
+#### Test Results
+1. **Multiple renderAll()**: Verified `handleFiles` uses `Promise.all`. Single call confirmed via code analysis. ✅
+2. **Onclick Escaping**: Verified `escJs` escapes single quotes. `riskAnalyzeByCode` calls now safe. ✅
+3. **FILTER Regex**: Verified support for quotes and spaces in column/values. ✅
+4. **Fetch Timeout**: `AbortController` with 30s timeout verified in `sendChatMessage`. ✅
+5. **SHOW_ERROR_ROWS**: Logic now checks `Array.isArray(sampleRow)` and uses index-based lookup. ✅
+6. **Tree Nodes**: `escHtml(n.label)` and `n.riskIndex !== undefined` logic verified. ✅
+
+**Overall Status: PASS**
+
+<a id="test-2026-05-20-error-dashboard-v2"></a>
+## 2026-05-20
+
+### Error Diagnostic Dashboard v2.0 Verification
+**Related Update:** [update-2026-05-20-error-dashboard-v2](update_log.md#update-2026-05-20-error-dashboard-v2)  
+**Related Issue:** [Issue # 064](issue_log.md#issue-iss-064)
+
+#### Test Results
+1. **Layout Shell**: VS Code structure (Title/Icon/Sidebar/Status) verified. Right sidebar present. ✅
+2. **Resizability**: Left and Right resizer handles functional via mouse events. ✅
+3. **Data Loading**: `loadData()` (fetch) and `handleFile()` (FileReader) successfully parse `error_dashboard_data.json`. ✅
+4. **Visualizations**: Chart.js instances and Heatmap grid update correctly on data load. ✅
+5. **Filtering**: Error Code, Column, and Severity filters correctly update charts and details table. ✅
+6. **Global Search**: Title bar search successfully filters the Error Details table. ✅
+7. **Compliance**: Mandated emojis (ℹ️, 📂, ❓, ⚙️, 🌳) and `ui_help.json` integration verified. ✅
+
+**Overall Status: PASS**

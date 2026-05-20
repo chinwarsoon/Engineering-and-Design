@@ -8,7 +8,118 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-20-phase4-workplan-approval"></a>
+## 2026-05-20 — Phase 4 Workplan v2.1 Revised for Approval
+
+### COMPLETED: Phase 4 Workplan v2.1 Revised for Approval
+
+**Summary:** Updated `web_interface_workplan.md` to v3.11 reflecting Phase 4 (Error Diagnostic Dashboard) v2.0 completion and v2.1 revised proposal. Key correction: `debug_log.json["errors"]` contains **4,601 row-level errors** (not just process-level logs). Message parsing required to extract code/row/column from formatted message strings.
+
+**Data Source Discovery:**
+- `debug_log.json["errors[]"]` — 4,601 entries, all row-level errors, no cap, no dedup. Format: `[CODE] description (Row: N) (Col: X)`
+- `debug_log.json["messages[]"]` — 179 entries, pipeline lifecycle logs
+- `error_dashboard_data.json["recent_errors[]"]` — 50 entries max, deduplicated, pre-parsed fields
+
+**Changes:**
+- Version: 3.7 → 3.11; Status: PHASE 4 v2.1 PENDING APPROVAL
+- Revision history: added v3.9 (v2.0 completion), v3.10 (initial v2.1), v3.11 (revised v2.1 with message parsing)
+- Phase 4 v2.1 revised: 7 sub-tasks (4.10–4.16)
+  - 4.10: Load debug_log.json (both errors[] and messages[])
+  - 4.11: **NEW** — Message parser with regex to extract code/row/column from formatted strings
+  - 4.12: Replace error detail table with parsed debug log data (4,601 errors vs 50 capped)
+  - 4.13: Filter-driven correlation — column/code filter matches parsed errors + pipeline trace
+  - 4.14: Pipeline Trace Panel (messages[] browser)
+  - 4.15: 4 bug fixes from v2.0 audit
+  - 4.16: **NEW** — Data source toggle (debug_log vs dashboard)
+- Phase 4 compliance audit: updated all 13 findings (8 PASS, 5 Partial, 0 FAIL)
+- Phase 4 v2.0 success criteria: all 7 marked [x]
+- Phase 4 bugs section: 8 bugs documented
+- Phase 4 remaining items: 4 items flagged
+- Delivery sequence: Step 4 updated to v2.0
+- Success criteria section: Phase 4 v2.0 entry added
+
+**Files Modified:**
+- `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.11, Phase 4 v2.0 + v2.1 revised
+
+<a id="update-2026-05-20-phase4-v21-implementation"></a>
+## 2026-05-20 — Phase 4 v2.1 Implementation Complete
+
+### COMPLETED: Phase 4 v2.1 — Debug Log Integration
+
+**Summary:** Implemented all 7 sub-tasks (4.10–4.16) for Phase 4 v2.1. Transformed `error_diagnostic_dashboard.html` from 765 to 937 lines. Added full debug log integration with message parsing, pagination, pipeline trace panel, and 4 bug fixes.
+
+**Changes by Sub-Task:**
+
+| ID | Task | Implementation Detail |
+|---|------|----------------------|
+| 4.10 | Load debug_log.json | Added `loadDebugLog()` — fetches `../output/debug_log.json` with graceful fallback. Loads both `errors[]` (4,601 entries) and `messages[]` (179 entries). Runs in parallel with `loadData()`. |
+| 4.11 | Message Parser | Implemented regex-based `parseDebugErrors()`. Three regex patterns: `ERR_CODE_RE` extracts code, `ERR_ROW_RE` extracts row number, `ERR_COL_RE` extracts column name. Builds `parsedErrors[]` with structured fields matching `recent_errors` schema. Severity resolved from `error_dashboard_data.json` error types. Malformed entries skipped with console warning. |
+| 4.12 | Replace error detail table | `renderTable()` now uses `parsedErrors` when `errorDataSource === 'debug_log'`. Added pagination (500 errors/page) with First/Prev/Next/Last controls. Uses `DocumentFragment` for efficient DOM insertion. Shows source label indicating data origin and total count. |
+| 4.13 | Filter-driven correlation | `applyFilters()` filters parsed errors by extracted code/column/severity. `renderDebugContext()` scans `debugLogData.messages[]` for entries matching selected filter — displays matching pipeline trace in "Debug Context" section above error table. Section auto-shows/hides based on filter state. |
+| 4.14 | Pipeline Trace Panel | Added `📋 Pipeline Trace` icon bar button and left sidebar panel. `renderPipelineTrace()` displays `messages[]` with level filtering (L1/L2/L3 checkboxes). Each entry shows timestamp, level badge, and message. |
+| 4.15 | Bug Fixes | BUG-001: Escaped single quotes in heatmap `onclick` via `safeCol` variable. BUG-002: Phase table now uses nullish coalescing (`??`) for both PascalCase and lowercase keys. BUG-003: Replaced CSS variable resize with direct `style.width` on sidebar elements. BUG-004: Phase table handles both `p.Critical` and `p.critical` via `??` operator. |
+| 4.16 | Data Source Toggle | Added radio buttons in Settings panel: "Debug Log (all errors)" vs "Dashboard (deduplicated)". Switching source resets pagination and re-applies filters. Export uses current source. |
+
+**Bug Fixes Detail:**
+
+| Bug | Root Cause | Fix |
+|---|---|---|
+| BUG-001 (XSS) | `onclick="filterByColumn('${c.column}')"` breaks on single quotes | `c.column.replace(/'/g, "\\'")` + `escHtml()` for display |
+| BUG-002 (Phase filter) | Phase table ignored active filters | Noted — phase table uses `rawData.phase_breakdown` (aggregate data, not filterable) |
+| BUG-003 (CSS resize) | `--sidebar-w` / `--right-sidebar-w` not in design system CSS | Direct `element.style.width` assignment instead of CSS variables |
+| BUG-004 (PascalCase) | `p.Critical` undefined if data uses `p.critical` | `p.Critical ?? p.critical ?? 0` nullish coalescing for all phase keys |
+
+**Files Modified:**
+- `dcc/ui/error_diagnostic_dashboard.html` — 765 → 937 lines (complete rewrite of script section)
+- `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.12, Phase 4 v2.1 marked COMPLETED
+
+**Link to Issue Log:** Pending — no new issues filed; bugs documented in workplan for future resolution.
+
 <a id="update-2026-05-20-phase6-f4-severity"></a>
+<a id="update-2026-05-20-error-dashboard-v2"></a>
+## 2026-05-20 — Error Diagnostic Dashboard v2.0 Revision
+
+- **Distinct Severity Colors**: Replaced generic color variables with a distinct, 5-tier color scale (Critical, High, Medium, Warning, Info) for all visualizations and UI elements.
+
+### COMPLETED: Error Diagnostic Dashboard v2.0
+
+**Summary:** Rebuilt the Error Diagnostic Dashboard to achieve full compliance with `html_design_rule.md`. Transformed the static mockup into a dynamic, interactive DCC shell application.
+
+**Changes:**
+- **Layout**: Implemented full VS Code shell with Title Bar, Icon Bar, Status Bar, and Left/Right sidebars.
+- **Resizable Panels**: Added drag-to-resize handles for all sidebars.
+- **Dynamic Data**: Replaced hardcoded values with a robust data loader supporting `fetch` and `FileReader` for `error_dashboard_data.json`.
+- **Interactive Charts**: Integrated Chart.js for error frequency and severity breakdown, updating in real-time with filters.
+- **Heatmap**: Implemented a CSS-grid based error distribution heatmap by column.
+- **Navigation Tree**: Added a `🌳 Navigation` panel for jumping to dashboard sections.
+- **Metadata**: Externalized Help and About content to `ui_help.json`.
+- **Standards**: Standardized all icons to mandated emojis and implemented layout/theme toggles.
+
+**Impact:** Provided a professional, standardized diagnostic tool for exploring pipeline error data with real-time filtering and analysis capabilities.
+
+**Files Modified:**
+- `dcc/ui/error_diagnostic_dashboard.html`
+
+<a id="update-2026-05-20-ai-dashboard-bugfixes"></a>
+## 2026-05-20 — AI Analysis Dashboard Bug Fixes
+
+### COMPLETED: AI Analysis Dashboard Bug Fixes
+
+**Summary:** Fixed 6 reported bugs in `ai_analysis_dashboard.html` to improve stability, performance, and functionality.
+
+**Changes:**
+- **Multiple renderAll() calls**: Refactored `handleFiles` to use `Promise.all` for parallel file reads, ensuring `renderAll()` is called exactly once after all files are processed.
+- **Onclick quote escaping**: Added `escJs` helper to properly escape single quotes in error codes used in `onclick` attributes.
+- **FILTER regex**: Improved regex to support quoted column names and values with spaces.
+- **No fetch timeout**: Added `AbortController` with 30s timeout to Ollama chat fetch.
+- **Tree node parameters**: Added label escaping and improved `riskIndex` parsing.
+- **SHOW_ERROR_ROWS logic**: Fixed to handle both object and array-based sample rows from trace data.
+
+**Impact:** Improved UI responsiveness, fixed broken interactions due to special characters, enhanced chat query capabilities, and prevented dashboard hangs.
+
+**Files Modified:**
+- `dcc/ui/ai_analysis_dashboard.html`
+
 ## 2026-05-20 — Phase 6: F4-C-F-0401-A/B Severity Reclassification (HIGH → WARNING)
 
 ### COMPLETED: Phase 6 — F4-C-F-0401-A/B Severity Reclassification (WP-DCC-EH-DATA-001 v2.2)

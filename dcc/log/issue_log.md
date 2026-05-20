@@ -1294,3 +1294,35 @@
 - **File Changes:**
   - `dcc/ui/submittal_dashboard.html` — all above changes
 - **Link to Update Log:** [update-2026-05-15-submittal-dashboard-enhancements](update_log.md#update-2026-05-15-submittal-dashboard-enhancements)
+
+<a id="issue-iss-063"></a>
+## 2026-05-20
+
+### Issue # 063 — AI Analysis Dashboard Reported Bugs
+- [Date:] 2026-05-20
+- [Status:] ✅ RESOLVED
+- [Context:] Six bugs reported in `ai_analysis_dashboard.html`: (1) SHOW_ERROR_ROWS logic failure with array sample rows, (2) Multiple renderAll() calls causing lag, (3) Onclick quote escaping breaking with special chars, (4) FILTER regex too simplistic, (5) No fetch timeout for chat, (6) Tree node parameter/label issues.
+- [Root Cause:]
+  - Bug 1: Expected object-based sample rows; trace data sometimes contains arrays.
+  - Bug 2: Async loop called `renderAll()` for every file.
+  - Bug 3: Missing JS string escaping in HTML attributes.
+  - Bug 4: Regex didn't handle quotes or spaces in column/values.
+  - Bug 5: Native `fetch` lacks default timeout.
+  - Bug 6: Missing HTML escaping for labels; fragile `??` nullish coalescing on data attributes.
+- [File Changes:]
+  - `dcc/ui/ai_analysis_dashboard.html`
+- [Resolution:] Implemented surgical fixes for all 6 bugs, including a new `escJs` helper and refactored file handling.
+- [Link to Update Log:] [update-2026-05-20-ai-dashboard-bugfixes](update_log.md#update-2026-05-20-ai-dashboard-bugfixes)
+
+<a id="issue-iss-064"></a>
+## 2026-05-20
+
+### Issue # 064 — Error Diagnostic Dashboard Non-Compliance
+- [Date:] 2026-05-20
+- [Status:] ✅ RESOLVED
+- [Context:] Compliance audit of `error_diagnostic_dashboard.html` against `html_design_rule.md` revealed multiple gaps: missing right sidebar, no resizable panels, static/hardcoded data, and inconsistent iconography.
+- [Root Cause:] The original v1.0 implementation was a functional mockup that did not incorporate the full DCC shell architectural requirements or dynamic data loading logic.
+- [File Changes:]
+  - `dcc/ui/error_diagnostic_dashboard.html`
+- [Resolution:] Completely rebuilt the dashboard as a compliant v2.0 application. Implemented resizable sidebars, dynamic JSON loader, interactive charts, and standardized UI components.
+- [Link to Update Log:] [update-2026-05-20-error-dashboard-v2](update_log.md#update-2026-05-20-error-dashboard-v2)
