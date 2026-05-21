@@ -44,6 +44,100 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-ui-007"></a>
+## 2026-05-21 18:30:00
+
+### Issue UI-007 — `serve.py` `ConnectionResetError` traceback spam on browser refresh
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-21
+- **Context:** When refreshing or navigating away from pages served by `serve.py` on port 5000, a full Python traceback is printed to the console for `ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host`.
+- **Root Cause:** `socketserver.TCPServer` has no custom error handler — all exceptions, including benign connection resets, print full tracebacks.
+- **Impact:** Console cluttered with non-actionable error traces during normal browser usage.
+- **Resolution Summary:** Added `handle_error()` override to `ReusableTCPServer` class. `ConnectionResetError` is logged at DEBUG level (hidden by default). All other exceptions still print full tracebacks.
+- **File Changes:**
+  - `dcc/serve.py` — Added `import sys`, `import logging`, and `handle_error()` method to `ReusableTCPServer`
+- **Link to Update Log:** [update-2026-05-21-serve-connection-reset](#update-2026-05-21-serve-connection-reset)
+
+<a id="issue-ui-006"></a>
+## 2026-05-21 18:00:00
+
+### Issue UI-006 — Dashboard shows "Loading..." forever on `file://` protocol, files never load
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-21
+- **Context:** When opening `error_diagnostic_dashboard.html` directly via `file://` protocol, the file status list showed "⏳ Loading..." indefinitely. No files were loaded because `fetch()` was skipped but `fileStatus` was never updated from `'loading'`.
+- **Root Cause:** `init()` returned early on `file://` without updating `fileStatus` from its initial `'loading'` value. Also, `input.click()` for folder picker was called during `DOMContentLoaded` — browsers block programmatic file pickers not triggered by a direct user gesture.
+- **Impact:** Dashboard appeared stuck on `file://` protocol with no way to load data.
+- **Resolution Summary:**
+  - `init()` sets `fileStatus` to `'waiting'` on `file://`, updates status list, shows status message
+  - `updateFileStatusList()` handles `'waiting'` (⏸️ Waiting), `'blocked'` (🚫 Blocked), `'loading'` (⏳ Loading...) states
+  - Folder picker triggered by user clicking "📁 Select Output Folder" button (direct user gesture)
+  - `init()` tries `fetch()` first on `file://` — if blocked, shows "Direct file load blocked by browser" with 🚫 icon
+  - Drop zone processes all dropped files (was only processing first file)
+- **File Changes:**
+  - `dcc/ui/error_diagnostic_dashboard.html` — `init()`, `updateFileStatusList()`, `promptFolderLoad()`, `loadFileViaReader()`, `handleFile()`, `setupFileHandlers()`, added folder picker button to HTML
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 4 v2.4
+- **Link to Update Log:** [update-2026-05-21-phase4-v24-standalone-file-protocol](#update-2026-05-21-phase4-v24-standalone-file-protocol)
+
+<a id="issue-ui-005"></a>
+## 2026-05-21 17:30:00
+
+### Issue UI-005 — Filter dropdowns missing error codes and columns
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-21
+- **Context:** After v2.3 filter priority fix, filter dropdowns (`errorCodeFilter`, `columnFilter`) were not showing all available error codes and columns. Only a subset appeared.
+- **Root Cause:** `updateFilterOptions()` used `rawData.recent_errors` (capped at 50 entries) as the primary source. This array contains only the most recent 50 errors, not all unique error types. The full uncapped sets are in `rawData.error_types[]` (all unique codes) and `rawData.column_health[]` (all columns with errors).
+- **Impact:** Users could not filter by error codes or columns that existed in the data but were not in the recent_errors sample.
+- **Resolution Summary:** `updateFilterOptions()` now uses `rawData.error_types` for codes (all unique error codes with counts) and `rawData.column_health` for columns (all columns with errors). Falls back to `parsedErrors` only when dashboard data is missing.
+- **File Changes:**
+  - `dcc/ui/error_diagnostic_dashboard.html` — `updateFilterOptions()` rewritten to use `error_types[]` and `column_health[]`
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 4 v2.3
+- **Link to Update Log:** [update-2026-05-21-phase4-v23-filter-priority](#update-2026-05-21-phase4-v23-filter-priority)
+
+<a id="issue-ui-004"></a>
+## 2026-05-21 17:00:00
+
+### Issue UI-004 — Dashboard `parseDebugErrors()` fails on structured `message` dict (Phase 4 v2.2)
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-21
+- **Context:** After Phase 1.5 (Python-side) converted `debug_log.json` `message` and `context` fields from flat strings to structured JSON objects, the Error Diagnostic Dashboard's `parseDebugErrors()` function would fail because it called `.match()` on `entry.message` assuming it was a string. Similarly, `renderDebugContext()` and `renderPipelineTrace()` used `.includes()` on `message` values which would fail on dicts.
+- **Root Cause:** Three dashboard functions assumed `message` is a string:
+  1. `parseDebugErrors()`: `msg.match(ERR_CODE_RE)` — `match()` is not a method on objects
+  2. `renderDebugContext()`: `msg.includes(code)` — `includes()` is not a method on objects
+  3. `renderPipelineTrace()`: `escHtml(m.message)` — would render `[object Object]` for dicts
+- **Impact:** Dashboard would show 0 parsed errors, no debug context, and broken pipeline trace when loading structured `debug_log.json`.
+- **Resolution Summary:**
+  - `parseDebugErrors()`: Added `typeof msg === 'object' && msg.error_code` check — reads fields directly. Falls back to regex for legacy strings. Console log reports structured vs legacy counts.
+  - `renderDebugContext()`: Type-checks `m.message` — compares `error_code` and `column` fields directly for structured format; uses `includes()` for legacy strings.
+  - `renderPipelineTrace()`: Extracts `displayMsg` from structured dict (`description` or `error_code`); renders legacy strings as-is.
+  - All three functions now handle mixed-format files (some entries structured, some legacy).
+- **File Changes:**
+  - `dcc/ui/error_diagnostic_dashboard.html` — `parseDebugErrors()`, `renderDebugContext()`, `renderPipelineTrace()` updated
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 4 v2.2
+- **Link to Update Log:** [update-2026-05-21-phase4-v22-ui-complete](#update-2026-05-21-phase4-v22-ui-complete)
+
+<a id="issue-err-003"></a>
+## 2026-05-21 16:40:00
+
+### Issue ERR-003 — `TypeError: unhashable type: 'dict'` in `ErrorAggregator.sync_with_initiation_logging()`
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-21
+- **Context:** After Phase 1.5 converted `DEBUG_OBJECT["errors"]` entries from flat strings to structured JSON objects, pipeline execution failed at processor engine step with `TypeError: unhashable type: 'dict'`. The error occurred in `ErrorAggregator.sync_with_initiation_logging()` which pulls errors from `DEBUG_OBJECT` into the aggregator.
+- **Root Cause:** Three locations in `aggregator.py` assumed `message` and `context` are strings:
+  1. Line 55: `existing_msgs = {e.message for e in self._errors}` — `e.message` is now a dict, which cannot be added to a `set` (dicts are unhashable)
+  2. Lines 61-62: `"source:StructuredLogger" in context_str` — `context` is now a dict, not a string
+  3. Lines 65-70: `re.search(r'\[...\]', msg)` — `message` is now a dict, not a string
+- **Impact:** Pipeline execution halted at processor engine step. No output files generated. `debug_log.json` not saved.
+- **Resolution Summary:**
+  - Changed deduplication from message-string set to hashable tuple keys: `{(e.error_code, e.row, e.column) for e in self._errors}`
+  - Added type-checking for `context` value — handles both dict and string formats
+  - Added direct dict field extraction for structured `message` dicts
+  - Added legacy string format fallback with improved regex for extended error codes (`P2-I-V-0204-E`, `F4-C-F-0401-A`)
+  - Added message cleanup to strip `[CODE]`, `(Row: N)`, `(Col: X)` annotations from legacy strings
+- **File Changes:**
+  - `dcc/workflow/processor_engine/error_handling/aggregator.py` — `sync_with_initiation_logging()` rewritten (lines 51-112)
+- **Workplan:** [error_handling_integration_workplan.md](../workplan/error_handling/integration/error_handling_integration_workplan.md) — Phase 1.6
+- **Link to Update Log:** [update-2026-05-21-phase1-5-1-6-complete](#update-2026-05-21-phase1-5-1-6-complete)
+
 <a id="issue-blv-001"></a>
 ## 2026-05-17 10:00:00
 

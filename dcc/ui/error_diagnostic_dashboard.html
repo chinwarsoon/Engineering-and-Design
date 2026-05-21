@@ -111,10 +111,19 @@
             <div class="sb-section-body">
               <div class="drop-zone" id="dropZone">
                 <div class="dz-icon">📂</div>
-                <div class="dz-title" style="font-size:11px;">Drop JSON Files</div>
+                <div class="dz-title" style="font-size:11px;">Drop JSON Files or Click Below</div>
                 <div class="dz-sub" style="font-size:9px;">error_dashboard_data.json + debug_log.json</div>
                 <input type="file" id="fileInput" multiple>
               </div>
+              <div style="text-align:center;margin-top:12px;">
+                <button id="folderPickerBtn" class="btn btn-primary" style="font-size:11px;padding:6px 16px;">📁 Select Output Folder</button>
+              </div>
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📋 Loaded Files</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="fileListBody" style="font-size:11px;padding:4px 12px;">
+              <!-- Dynamically populated -->
             </div>
           </div>
           <div class="sb-section">
@@ -153,8 +162,14 @@
 
       <!-- Navigation Tree Panel -->
       <div id="panelTree" class="sidebar-panel-stretch">
-        <div class="dcc-sidebar-header"><span>Navigation</span></div>
-        <div class="dcc-sidebar-body">
+        <div class="dcc-sidebar-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>Navigation</span>
+          <div class="key-tree-actions" style="margin-left:auto;">
+            <button class="key-tree-btn" onclick="expandAllTree()" title="Expand All">Expand All</button>
+            <button class="key-tree-btn" onclick="collapseAllTree()" title="Collapse All">Collapse All</button>
+          </div>
+        </div>
+        <div class="dcc-sidebar-body" style="padding: 0;">
           <div class="key-tree" id="navTree">
             <!-- Dynamically populated -->
           </div>
@@ -320,8 +335,9 @@
   </div>
 
   <script>
-    const DATA_FILE = '../output/error_dashboard_data.json';
-    const DEBUG_LOG_FILE = '../output/debug_log.json';
+    const DATA_BASE = '../output';
+    const DATA_FILE = 'error_dashboard_data.json';
+    const DEBUG_LOG_FILE = 'debug_log.json';
     const HELP_FILE = 'ui_help.json';
     const ERRORS_PER_PAGE = 500;
     
@@ -335,12 +351,13 @@
     let errorDataSource = 'debug_log';
     let currentPage = 1;
     let filteredErrors = [];
+    let fileStatus = { dashboard: 'loading', debugLog: 'loading' };
 
     const themeColors = {
       dark: '#0d1117', light: '#f0f4f8', sky: '#e0f2fe', ocean: '#071520', presentation: '#f8fafc'
     };
 
-    const ERR_CODE_RE = /\[([A-Z0-9]+-[A-Z]-[A-Z]-[0-9]+[A-Z]?)\]/;
+    const ERR_CODE_RE = /\[([A-Z0-9]+(?:-[A-Z0-9]+)+)\]/;
     const ERR_ROW_RE = /\(Row:\s*(\d+)\)/;
     const ERR_COL_RE = /\(Col:\s*([^)]+)\)/;
 
@@ -352,36 +369,98 @@
       return 'unknown';
     }
 
-    function resolvePath(relativePath) {
-      const base = window.location.href;
-      const dir = base.substring(0, base.lastIndexOf('/') + 1);
-      const parts = dir.split('/');
-      const relParts = relativePath.split('/');
-      for (const p of relParts) {
-        if (p === '..') {
-          if (parts.length > 1) parts.pop();
-        } else if (p !== '.') {
-          parts.push(p);
+    async function probe(base, file) {
+      const url = `${base}/${file}?t=${Date.now()}`;
+      try {
+        const resp = await fetch(url);
+        if (resp.ok) {
+          console.log(`probe OK: ${url}`);
+          return await resp.text();
         }
+        console.log(`probe ${resp.status}: ${url}`);
+      } catch (e) {
+        console.log(`probe error: ${url} - ${e.message}`);
       }
-      return parts.join('/');
+      return null;
     }
 
-    function loadLocalJSON(url) {
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, true);
-        xhr.responseType = 'text';
-        xhr.onload = () => {
-          if (xhr.status === 200 || xhr.status === 0) {
-            try {
-              resolve(JSON.parse(xhr.responseText));
-            } catch (e) { reject(e); }
-          } else { reject(new Error(`HTTP ${xhr.status}`)); }
-        };
-        xhr.onerror = () => reject(new Error('Network error'));
-        xhr.send();
-      });
+    async function loadData() {
+      const bases = [DATA_BASE, 'output', '/output', '.'];
+      for (const b of bases) {
+        const res = await probe(b, DATA_FILE);
+        if (res) {
+          try {
+            rawData = JSON.parse(res);
+            fileStatus.dashboard = true;
+            updateFileStatusList();
+            document.getElementById('statusFileInfo').textContent = 'error_dashboard_data.json';
+            processData();
+            updateStatus('ok', 'Dashboard data loaded');
+            console.log('Dashboard data loaded successfully');
+            return;
+          } catch (e) {
+            console.error('JSON parse error for dashboard data:', e);
+          }
+        }
+      }
+      fileStatus.dashboard = false;
+      updateFileStatusList();
+      console.error('Failed to load dashboard data from any path');
+    }
+
+    async function loadDebugLog() {
+      const bases = [DATA_BASE, 'output', '/output', '.'];
+      for (const b of bases) {
+        const res = await probe(b, DEBUG_LOG_FILE);
+        if (res) {
+          try {
+            debugLogData = JSON.parse(res);
+            fileStatus.debugLog = true;
+            updateFileStatusList();
+            parseDebugErrors();
+            if (rawData) {
+              processData();
+            } else {
+              updateFilterOptions();
+            }
+            document.getElementById('statusFileInfo').textContent = 'debug_log.json';
+            updateStatus('ok', 'Debug log loaded');
+            console.log('Debug log loaded successfully');
+            return;
+          } catch (e) {
+            console.error('JSON parse error for debug log:', e);
+          }
+        }
+      }
+      fileStatus.debugLog = false;
+      updateFileStatusList();
+      console.error('Failed to load debug log from any path');
+    }
+
+    function updateFileStatusList() {
+      const container = document.getElementById('fileListBody');
+      if (!container) return;
+      const files = [
+        { name: 'error_dashboard_data.json', status: fileStatus.dashboard },
+        { name: 'debug_log.json', status: fileStatus.debugLog }
+      ];
+      container.innerHTML = files.map(f => {
+        const isLoaded = f.status === true;
+        const isLoading = f.status === 'loading';
+        const isBlocked = f.status === 'blocked';
+        const isWaiting = f.status === 'waiting';
+        const isFailed = f.status === false;
+        const icon = isLoaded ? '✅' : isLoading ? '⏳' : isBlocked ? '🚫' : isWaiting ? '⏸️' : '⚪';
+        const label = isLoaded ? 'Loaded' : isLoading ? 'Loading...' : isBlocked ? 'Blocked' : isWaiting ? 'Waiting' : 'Missing';
+        const color = isLoaded ? 'var(--text)' : isLoading ? 'var(--text2)' : isBlocked ? 'var(--danger)' : 'var(--text3)';
+        return `
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;color:${color}">
+          <span>${icon}</span>
+          <span style="flex:1;">${f.name}</span>
+          <span style="font-size:9px;opacity:0.6;">${label}</span>
+        </div>
+      `;
+      }).join('');
     }
 
     document.addEventListener('DOMContentLoaded', init);
@@ -400,21 +479,39 @@
       await loadHelpData();
       renderRightSidebar('settings');
       const os = getOS();
-      const dataUrl = resolvePath(DATA_FILE);
-      const debugUrl = resolvePath(DEBUG_LOG_FILE);
-      console.log(`OS: ${os} | Data: ${dataUrl} | Debug: ${debugUrl}`);
-      const results = await Promise.allSettled([loadLocalJSON(dataUrl), loadLocalJSON(debugUrl)]);
-      if (results[0].status === 'fulfilled') {
-        rawData = results[0].value;
-        document.getElementById('statusFileInfo').textContent = 'error_dashboard_data.json';
-        processData();
+      console.log(`OS: ${os}`);
+      fileStatus = { dashboard: 'loading', debugLog: 'loading' };
+      updateFileStatusList();
+
+      if (window.location.protocol === 'file:') {
+        updateStatus('warning', 'Attempting direct file load...');
+        const results = await Promise.allSettled([loadData(), loadDebugLog()]);
+        const loadedCount = Object.values(fileStatus).filter(s => s === true).length;
+        const failedCount = Object.values(fileStatus).filter(s => s === false).length;
+        if (loadedCount === 0) {
+          fileStatus = { dashboard: 'blocked', debugLog: 'blocked' };
+          updateFileStatusList();
+          if (failedCount > 0) {
+            updateStatus('error', 'Direct file load blocked by browser — use folder picker or drop files');
+          } else {
+            updateStatus('warning', 'No data files found — use folder picker or drop files');
+          }
+        } else {
+          updateStatus('ok', `${loadedCount} file(s) loaded directly`);
+        }
+        return;
       }
-      if (results[1].status === 'fulfilled') {
-        debugLogData = results[1].value;
-        parseDebugErrors();
-        if (rawData) processData();
-      }
-      if (results[0].status === 'rejected' && results[1].status === 'rejected') {
+
+      const results = await Promise.allSettled([loadData(), loadDebugLog()]);
+      const loadedCount = Object.values(fileStatus).filter(s => s === true).length;
+      const failedCount = Object.values(fileStatus).filter(s => s === false).length;
+      console.log('init: load results:', results.map(r => r.status));
+      console.log('init: fileStatus:', fileStatus);
+      console.log('init: rawData keys:', rawData ? Object.keys(rawData) : 'null');
+      console.log('init: debugLogData:', debugLogData ? 'loaded' : 'null');
+      console.log('init: parsedErrors:', parsedErrors.length);
+      if (loadedCount === 0 && failedCount > 0) {
+        updateStatus('warning', 'No data files found - drag & drop files to load');
         autoFallbackLoader();
       }
     }
@@ -560,16 +657,18 @@
     function setupFileHandlers() {
       const dz = document.getElementById('dropZone');
       const fi = document.getElementById('fileInput');
+      const fp = document.getElementById('folderPickerBtn');
       dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
       dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
       dz.addEventListener('drop', e => {
         e.preventDefault();
         dz.classList.remove('drag-over');
-        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        for (const f of e.dataTransfer.files) handleFile(f);
       });
       fi.addEventListener('change', () => {
         for (const f of fi.files) handleFile(f);
       });
+      fp.addEventListener('click', promptFolderLoad);
     }
 
     function handleFile(file) {
@@ -579,17 +678,77 @@
           const data = JSON.parse(e.target.result);
           if (file.name === 'debug_log.json' || (data.errors && data.messages)) {
             debugLogData = data;
+            fileStatus.debugLog = true;
             parseDebugErrors();
+            updateFileStatusList();
             document.getElementById('statusFileInfo').textContent = 'debug_log.json';
             if (rawData) processData();
+            else updateFilterOptions();
             updateStatus('ok', 'Debug log loaded');
           } else {
             rawData = data;
+            fileStatus.dashboard = true;
+            updateFileStatusList();
             document.getElementById('statusFileInfo').textContent = 'error_dashboard_data.json';
             processData();
             updateStatus('ok', 'Dashboard data loaded');
           }
         } catch (err) { alert('Invalid JSON file'); }
+      };
+      reader.readAsText(file);
+    }
+
+    function promptFolderLoad() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.webkitdirectory = true;
+      input.directory = true;
+      input.multiple = true;
+      input.onchange = () => {
+        let dashboardLoaded = false;
+        let debugLogLoaded = false;
+        for (const f of input.files) {
+          if (f.name === 'error_dashboard_data.json' && !dashboardLoaded) {
+            loadFileViaReader(f, 'dashboard');
+            dashboardLoaded = true;
+          } else if (f.name === 'debug_log.json' && !debugLogLoaded) {
+            loadFileViaReader(f, 'debug');
+            debugLogLoaded = true;
+          }
+          if (dashboardLoaded && debugLogLoaded) break;
+        }
+        if (!dashboardLoaded && !debugLogLoaded) {
+          updateStatus('error', 'No data files found in selected folder');
+        }
+      };
+      input.click();
+    }
+
+    function loadFileViaReader(file, type) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (type === 'debug') {
+            debugLogData = data;
+            fileStatus.debugLog = true;
+            parseDebugErrors();
+            updateFileStatusList();
+            document.getElementById('statusFileInfo').textContent = 'debug_log.json';
+            if (rawData) processData();
+            else updateFilterOptions();
+            updateStatus('ok', 'Debug log loaded');
+          } else {
+            rawData = data;
+            fileStatus.dashboard = true;
+            updateFileStatusList();
+            document.getElementById('statusFileInfo').textContent = 'error_dashboard_data.json';
+            processData();
+            updateStatus('ok', 'Dashboard data loaded');
+          }
+        } catch (err) {
+          console.error('Parse error for', file.name, err);
+        }
       };
       reader.readAsText(file);
     }
@@ -610,27 +769,58 @@
       if (!debugLogData || !debugLogData.errors) return;
       parsedErrors = [];
       let skipped = 0;
+      let structuredCount = 0;
+      let legacyCount = 0;
+      const codeSet = new Set();
+      const colSet = new Set();
       debugLogData.errors.forEach(entry => {
-        const msg = entry.message || '';
-        const codeMatch = msg.match(ERR_CODE_RE);
-        const rowMatch = msg.match(ERR_ROW_RE);
-        const colMatch = msg.match(ERR_COL_RE);
-        if (codeMatch) {
-          const descEnd = msg.indexOf('(Row:');
-          const description = descEnd > 0 ? msg.substring(msg.indexOf(']') + 2, descEnd).trim() : msg.substring(msg.indexOf(']') + 2).trim();
+        const msg = entry.message;
+        if (typeof msg === 'object' && msg !== null && msg.error_code) {
+          // Structured JSON format (Phase 4 v2.2)
+          structuredCount++;
+          const code = msg.error_code;
+          const row = msg.row !== undefined ? msg.row : null;
+          const column = msg.column || 'Unknown';
+          const description = msg.description || '';
           parsedErrors.push({
-            row: rowMatch ? parseInt(rowMatch[1], 10) : null,
-            column: colMatch ? colMatch[1].trim() : 'Unknown',
-            code: codeMatch[1],
+            row: row,
+            column: column,
+            code: code,
             message: description,
-            severity: resolveSeverity(codeMatch[1]),
+            severity: resolveSeverity(code),
             timestamp: entry.timestamp
           });
+          codeSet.add(code);
+          colSet.add(column);
+        } else if (typeof msg === 'string') {
+          // Legacy string format — fallback to regex
+          legacyCount++;
+          const codeMatch = msg.match(ERR_CODE_RE);
+          const rowMatch = msg.match(ERR_ROW_RE);
+          const colMatch = msg.match(ERR_COL_RE);
+          if (codeMatch) {
+            const descEnd = msg.indexOf('(Row:');
+            const description = descEnd > 0 ? msg.substring(msg.indexOf(']') + 2, descEnd).trim() : msg.substring(msg.indexOf(']') + 2).trim();
+            parsedErrors.push({
+              row: rowMatch ? parseInt(rowMatch[1], 10) : null,
+              column: colMatch ? colMatch[1].trim() : 'Unknown',
+              code: codeMatch[1],
+              message: description,
+              severity: resolveSeverity(codeMatch[1]),
+              timestamp: entry.timestamp
+            });
+            codeSet.add(codeMatch[1]);
+            if (colMatch) colSet.add(colMatch[1].trim());
+          } else {
+            skipped++;
+          }
         } else {
           skipped++;
         }
       });
-      if (skipped > 0) console.warn(`Debug log: ${skipped} entries skipped (no error code found)`);
+      console.log(`parseDebugErrors: ${parsedErrors.length} parsed (${structuredCount} structured, ${legacyCount} legacy), ${skipped} skipped, ${codeSet.size} unique codes, ${colSet.size} unique columns`);
+      console.log('parseDebugErrors codes:', [...codeSet].sort());
+      console.log('parseDebugErrors columns:', [...colSet].sort());
     }
 
     function resolveSeverity(code) {
@@ -640,7 +830,11 @@
     }
 
     function processData() {
-      if (!rawData) return;
+      if (!rawData) {
+        console.warn('processData: rawData is null');
+        return;
+      }
+      console.log('processData: raw data loaded, keys:', Object.keys(rawData));
       updateMeta();
       updateFilterOptions();
       currentPage = 1;
@@ -665,11 +859,26 @@
       const codeSelect = document.getElementById('errorCodeFilter');
       const colSelect = document.getElementById('columnFilter');
       
-      const codes = [...new Set(rawData.error_types?.map(t => t.code) || [])].sort();
-      const cols = [...new Set(rawData.column_health?.map(c => c.column) || [])].sort();
-      
-      codeSelect.innerHTML = '<option value="">All Errors</option>' + codes.map(c => `<option value="${c}">${c}</option>`).join('');
-      colSelect.innerHTML = '<option value="">All Columns</option>' + cols.map(c => `<option value="${c}">${c}</option>`).join('');
+      // Primary: error_dashboard_data.json (full uncapped sets), Fallback: debug_log.json parsed errors
+      if (rawData?.error_types?.length > 0) {
+        // Use error_types[] (all unique codes) and column_health[] (all columns with errors)
+        const codes = rawData.error_types.map(t => t.code).filter(Boolean).sort();
+        const cols = rawData.column_health.map(c => c.column).filter(Boolean).sort();
+        codeSelect.innerHTML = '<option value="">All Errors</option>' + codes.map(c => `<option value="${c}">${c}</option>`).join('');
+        colSelect.innerHTML = '<option value="">All Columns</option>' + cols.map(c => `<option value="${c}">${c}</option>`).join('');
+        console.log('updateFilterOptions: source=dashboard (error_types+column_health), codes=', codes.length, 'cols=', cols.length);
+      } else if (parsedErrors.length > 0) {
+        // Fallback: derive from parsed debug_log errors
+        const codes = [...new Set(parsedErrors.map(e => e.code).filter(Boolean))].sort();
+        const cols = [...new Set(parsedErrors.map(e => e.column).filter(Boolean))].sort();
+        codeSelect.innerHTML = '<option value="">All Errors</option>' + codes.map(c => `<option value="${c}">${c}</option>`).join('');
+        colSelect.innerHTML = '<option value="">All Columns</option>' + cols.map(c => `<option value="${c}">${c}</option>`).join('');
+        console.log('updateFilterOptions: source=debug_log (parsedErrors), codes=', codes.length, 'cols=', cols.length);
+      } else {
+        codeSelect.innerHTML = '<option value="">All Errors</option>';
+        colSelect.innerHTML = '<option value="">All Columns</option>';
+        console.log('updateFilterOptions: no data available');
+      }
     }
 
     function setupFilters() {
@@ -691,12 +900,18 @@
     }
 
     function applyFilters() {
-      if (!rawData) return;
+      if (!rawData) {
+        console.warn('applyFilters: rawData is null');
+        return;
+      }
       
       const code = document.getElementById('errorCodeFilter').value;
       const col = document.getElementById('columnFilter').value;
       const sevs = [...document.getElementById('severityFilters').querySelectorAll('input:checked')].map(i => i.value);
       const search = document.getElementById('globalSearch').value.toLowerCase();
+
+      console.log('applyFilters: code=', code, 'col=', col, 'sevs=', sevs, 'search=', search);
+      console.log('applyFilters: error_types=', rawData.error_types?.length, 'column_health=', rawData.column_health?.length, 'recent_errors=', rawData.recent_errors?.length);
 
       const filteredTypes = (rawData.error_types || []).filter(t => {
         if (code && t.code !== code) return false;
@@ -722,8 +937,10 @@
       let sourceErrors;
       if (errorDataSource === 'debug_log' && parsedErrors.length > 0) {
         sourceErrors = parsedErrors;
+        console.log('applyFilters: using debug_log source, errors=', parsedErrors.length);
       } else {
         sourceErrors = (rawData.recent_errors || []).map(e => ({...e, severity: e.severity || resolveSeverity(e.code)}));
+        console.log('applyFilters: using dashboard source, errors=', sourceErrors.length);
       }
 
       filteredErrors = sourceErrors.filter(e => {
@@ -734,17 +951,23 @@
         return true;
       });
 
-      renderCharts(filteredTypes);
-      renderHeatmap(filteredColumns);
-      renderPhases(rawData.phase_breakdown);
-      renderDebugContext(code, col);
-      renderTable(filteredErrors);
+      console.log('applyFilters: filteredErrors=', filteredErrors.length, 'filteredTypes=', filteredTypes.length, 'filteredColumns=', filteredColumns.length);
+
+      try {
+        renderCharts(filteredTypes);
+        renderHeatmap(filteredColumns);
+        renderPhases(rawData.phase_breakdown);
+        renderDebugContext(code, col);
+        renderTable(filteredErrors);
+      } catch (e) {
+        console.error('applyFilters render error:', e);
+      }
     }
 
     function findPhaseForError(error) {
       if (!rawData || !rawData.phase_breakdown) return null;
       const codePrefix = error.code.split('-')[0];
-      const phaseMap = { P1: 'P1', P2: 'P2', P2.5: 'P2.5', P3: 'P3', P4: 'P4', F4: 'P4', L3: 'P3', C6: 'P3', V5: 'P4' };
+      const phaseMap = { P1: 'P1', P2: 'P2', 'P2.5': 'P2.5', P3: 'P3', P4: 'P4', F4: 'P4', L3: 'P3', C6: 'P3', V5: 'P4' };
       return phaseMap[codePrefix] || null;
     }
 
@@ -757,7 +980,16 @@
       }
       section.style.display = 'block';
       const matches = (debugLogData.messages || []).filter(m => {
-        const msg = m.message || '';
+        const msgVal = m.message;
+        if (typeof msgVal === 'object' && msgVal !== null) {
+          // Structured format — direct field comparison
+          if (code && msgVal.error_code === code) return true;
+          if (col && msgVal.column === col) return true;
+          if (col && msgVal.description && msgVal.description.includes(col)) return true;
+          return false;
+        }
+        // Legacy string format — fallback to includes
+        const msg = typeof msgVal === 'string' ? msgVal : '';
         if (code && msg.includes(code)) return true;
         if (col && msg.includes(col)) return true;
         return false;
@@ -768,7 +1000,10 @@
       }
       content.innerHTML = matches.map(m => {
         const levelClass = `debug-level-${m.level || 2}`;
-        return `<div class="debug-entry"><span class="${levelClass}">[L${m.level}]</span> <span class="trace-ts">${m.timestamp ? m.timestamp.substring(11, 19) : ''}</span> ${escHtml(m.message)}</div>`;
+        const displayMsg = typeof m.message === 'object' && m.message !== null
+          ? (m.message.description || m.message.error_code || '')
+          : (m.message || '');
+        return `<div class="debug-entry"><span class="${levelClass}">[L${m.level}]</span> <span class="trace-ts">${m.timestamp ? m.timestamp.substring(11, 19) : ''}</span> ${escHtml(displayMsg)}</div>`;
       }).join('');
     }
 
@@ -791,8 +1026,14 @@
     }
 
     function renderCharts(types) {
+      if (typeof Chart === 'undefined') {
+        console.error('Chart.js not loaded');
+        return;
+      }
       const c = getChartColors();
       const sevColorMap = { CRITICAL: c.critical, HIGH: c.high, MEDIUM: c.medium, WARNING: c.warn, INFO: c.inf };
+      
+      console.log('renderCharts: types=', types.length);
       
       const freqCtx = document.getElementById('errorCodeChart').getContext('2d');
       if (chartFrequency) chartFrequency.destroy();
@@ -909,6 +1150,7 @@
     }
 
     function renderTable(errors) {
+      console.log('renderTable: errors=', errors.length, 'currentPage=', currentPage);
       const container = document.getElementById('errorTableBody');
       const totalPages = Math.max(1, Math.ceil(errors.length / ERRORS_PER_PAGE));
       if (currentPage > totalPages) currentPage = totalPages;
@@ -949,28 +1191,131 @@
         return;
       }
       const levels = [...document.getElementById('traceLevelFilters').querySelectorAll('input:checked')].map(i => parseInt(i.value, 10));
-      const filtered = (debugLogData.messages || []).filter(m => levels.includes(m.level));
+      const filtered = (debugLogData.messages || []).filter(m => {
+        if (!levels.includes(m.level)) return false;
+        // Structured context filtering — check context.phase and context.layer
+        const ctx = m.context;
+        if (typeof ctx === 'object' && ctx !== null) {
+          return true; // show all structured entries (phase filtering can be added later)
+        }
+        return true;
+      });
       container.innerHTML = filtered.map(m => {
         const levelClass = `debug-level-${m.level || 2}`;
-        return `<div class="trace-entry"><span class="trace-ts">${m.timestamp ? m.timestamp.substring(11, 19) : ''}</span><span class="${levelClass}"> [L${m.level}]</span><span class="trace-msg">${escHtml(m.message)}</span></div>`;
+        const displayMsg = typeof m.message === 'object' && m.message !== null
+          ? (m.message.description || m.message.error_code || JSON.stringify(m.message))
+          : (m.message || '');
+        return `<div class="trace-entry"><span class="trace-ts">${m.timestamp ? m.timestamp.substring(11, 19) : ''}</span><span class="${levelClass}"> [L${m.level}]</span><span class="trace-msg">${escHtml(displayMsg)}</span></div>`;
       }).join('');
     }
 
+    let treeExpandedState = {};
+
     function renderNavTree() {
       const container = document.getElementById('navTree');
-      const nodes = [
-        { label: '📊 Summary', target: 'secFrequency' },
-        { label: '🔥 Heatmap', target: 'secHeatmap' },
-        { label: '⚙️ Phase Breakdown', target: 'secPhases' },
-        { label: '📋 Error Details', target: 'secDetails' }
+      const treeData = [
+        {
+          id: 'dashboards',
+          label: '📊 Dashboards',
+          children: [
+            { label: '📈 Summary & Charts', target: 'secFrequency' },
+            { label: '🔥 Column Heatmap', target: 'secHeatmap' },
+            { label: '⚙️ Phase Breakdown', target: 'secPhases' },
+            { label: '📋 Error Details', target: 'secDetails' }
+          ]
+        },
+        {
+          id: 'utilities',
+          label: '⚙️ Utilities',
+          children: [
+            { label: '🔍 Filters & Metadata', action: "toggleLeftPanel('files')" },
+            { label: '⚙️ Settings Sidebar', action: "toggleRightPanel('settings')" },
+            { label: '❓ Help Documentation', action: "toggleRightPanel('help')" }
+          ]
+        }
       ];
-      
-      container.innerHTML = '<ul class="tree-node">' + nodes.map(n => `
-        <li class="tree-node-item" onclick="document.getElementById('${n.target}').scrollIntoView({behavior:'smooth'})">
-          <div class="tree-node-inner"><span class="tree-label">${n.label}</span></div>
-        </li>
-      `).join('') + '</ul>';
+
+      function buildNodeHtml(node, depth = 0) {
+        const indent = depth * 12;
+        const hasChildren = node.children && node.children.length > 0;
+        let toggleIcon = '';
+        let isExpanded = true;
+        
+        if (hasChildren) {
+          if (treeExpandedState[node.id] === undefined) {
+            treeExpandedState[node.id] = true;
+          }
+          isExpanded = treeExpandedState[node.id];
+          toggleIcon = isExpanded ? '▼ ' : '▶ ';
+        }
+
+        let clickHandler = '';
+        if (hasChildren) {
+          clickHandler = `toggleTreeNode('${node.id}')`;
+        } else if (node.target) {
+          clickHandler = `scrollIntoViewAndHighlight('${node.target}')`;
+        } else if (node.action) {
+          clickHandler = node.action;
+        }
+
+        let html = `
+          <li class="tree-node-item">
+            <div class="tree-node-inner" style="padding-left: ${indent + 12}px;" onclick="${clickHandler}">
+              <span class="tree-toggle-icon" style="font-family: monospace; font-size: 8px; margin-right: 4px; display: inline-block; width: 10px;">${toggleIcon}</span>
+              <span class="tree-label">${node.label}</span>
+            </div>
+        `;
+
+        if (hasChildren) {
+          const displayStyle = isExpanded ? 'block' : 'none';
+          html += `<ul class="tree-node" style="display: ${displayStyle}; margin: 0; padding: 0; list-style: none;">`;
+          node.children.forEach(child => {
+            html += buildNodeHtml(child, depth + 1);
+          });
+          html += `</ul>`;
+        }
+
+        html += `</li>`;
+        return html;
+      }
+
+      let treeHtml = '<ul class="tree-node" style="margin: 0; padding: 0; list-style: none;">';
+      treeData.forEach(node => {
+        treeHtml += buildNodeHtml(node);
+      });
+      treeHtml += '</ul>';
+      container.innerHTML = treeHtml;
     }
+
+    window.toggleTreeNode = function(nodeId) {
+      treeExpandedState[nodeId] = !treeExpandedState[nodeId];
+      renderNavTree();
+    };
+
+    window.scrollIntoViewAndHighlight = function(targetId) {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+        const originalOutline = el.style.outline;
+        el.style.transition = 'outline 0.3s ease';
+        el.style.outline = '2px dashed var(--accent)';
+        setTimeout(() => {
+          el.style.outline = originalOutline;
+        }, 1500);
+      }
+    };
+
+    window.expandAllTree = function() {
+      treeExpandedState['dashboards'] = true;
+      treeExpandedState['utilities'] = true;
+      renderNavTree();
+    };
+
+    window.collapseAllTree = function() {
+      treeExpandedState['dashboards'] = false;
+      treeExpandedState['utilities'] = false;
+      renderNavTree();
+    };
 
     function renderRightSidebar(panel) {
       const header = document.getElementById('rightSidebarHeader');
@@ -981,8 +1326,9 @@
         body.innerHTML = `
           <div class="sb-section">
             <div class="sb-section-header"><span>ℹ️ About</span><span class="sb-section-arrow">▼</span></div>
-            <div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text3);">
-              DCC Error Diagnostic Dashboard v3.1.0<br>Visualizes pipeline validation results and data health metrics. Includes debug log integration for full error coverage.
+            <div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text3);line-height:1.4;">
+              <strong>${helpData?.error_diagnostic?.about?.title || 'DCC Error Diagnostic Dashboard'} v${helpData?.error_diagnostic?.about?.version || '3.1.0'}</strong><br>
+              ${helpData?.error_diagnostic?.about?.description || 'Visualizes pipeline validation results and data health metrics. Includes debug log integration for full error coverage.'}
             </div>
           </div>
           <div class="sb-section">
@@ -1015,14 +1361,26 @@
           r.addEventListener('change', () => {
             errorDataSource = r.value;
             currentPage = 1;
+            updateFilterOptions();
             applyFilters();
           });
         });
       }
     }
 
+    // Expose panel toggle helpers to window scope for tree navigation triggers
+    window.toggleLeftPanel = toggleLeftPanel;
+    window.toggleRightPanel = toggleRightPanel;
+
     function setupRefresh() {
-      document.getElementById('refreshBtn').addEventListener('click', () => { loadData(); loadDebugLog(); });
+      document.getElementById('refreshBtn').addEventListener('click', () => {
+        fileStatus = { dashboard: 'loading', debugLog: 'loading' };
+        updateFileStatusList();
+        rawData = null;
+        debugLogData = null;
+        parsedErrors = [];
+        Promise.allSettled([loadData(), loadDebugLog()]);
+      });
     }
 
     function setupExport() {

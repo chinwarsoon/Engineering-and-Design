@@ -178,5 +178,12 @@
     { "name": "Debug Log", "icon": "🐛", "path": "debug_log.json" },
     { "name": "Error Data", "icon": "📈", "path": "error_dashboard_data.json" },
     { "name": "Validation Report", "icon": "✓", "path": "schema_validation_status.json" }
-  ]
+  ],
+  "error_diagnostic": {
+    "about": {
+      "title": "DCC Error Diagnostic Dashboard",
+      "version": "3.1.0",
+      "description": "Visualizes pipeline validation results and data health metrics. Includes debug log integration for full error coverage."
+    }
+  }
 }

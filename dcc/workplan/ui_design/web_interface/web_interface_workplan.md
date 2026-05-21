@@ -1,9 +1,9 @@
 # Web Interface Workplan — Universal UI Toolkit
 
 **Document ID:** WP-UI-001  
-**Current Version:** 3.12  
-**Status:** 🟠 PHASE 4 v2.1 PENDING APPROVAL  
-**Last Updated:** 2026-05-20  
+**Current Version:** 3.16  
+**Status:** ✅ PHASE 4 v2.4 COMPLETE  
+**Last Updated:** 2026-05-21  
 **Lead:** Franklin Song
 
 ---
@@ -27,6 +27,10 @@
 | 3.10 | 2026-05-20 | System | Phase 4 v2.1 proposed: `debug_log.json` integration — pipeline trace panel, filter-driven debug log correlation, trace-enriched error detail table, 4 bug fixes from v2.0 audit. Workplan updated for approval. |
 | 3.11 | 2026-05-20 | System | Phase 4 v2.1 revised: Corrected data source analysis — `debug_log.json["errors"]` contains 4,601 row-level errors (not process-level only). Added message parsing sub-task (4.11) to extract code/row/column via regex. Error detail table replaced with full debug log data (4,601 vs 50 capped). Added data source toggle (4.16). 7 sub-tasks total. |
 | 3.12 | 2026-05-20 | System | Phase 4 v2.1 implemented: All 7 sub-tasks (4.10–4.16) completed. Added debug_log.json loader, regex message parser, full error table with pagination, debug context correlation, pipeline trace panel, data source toggle, and 4 bug fixes (XSS, phase filter, CSS resize, PascalCase). |
+| 3.13 | 2026-05-21 | System | Phase 4 v2.2 proposed: Convert `context` and `message` fields in `debug_log.json` from flat strings to structured JSON objects. Python-side changes (tasks 4.17–4.19) moved to Error Handling Integration workplan Phase 1.5. UI-side changes (tasks 4.20–4.22) remain here. Workplan updated for approval. |
+| 3.14 | 2026-05-21 | System | Phase 4 v2.2 implemented: All 3 UI sub-tasks (4.20–4.22) completed. `parseDebugErrors()` reads structured fields directly with legacy regex fallback. `renderDebugContext()` and `renderPipelineTrace()` handle structured `message` and `context` dicts. Backward compatible with legacy string-format `debug_log.json` files. |
+| 3.15 | 2026-05-21 | System | Phase 4 v2.3 implemented: Filter dropdowns (`errorCodeFilter`, `columnFilter`) now populated from `error_dashboard_data.json` when available, falling back to `debug_log.json` parsed errors only when dashboard data is missing. Eliminates race condition from parallel loaders. |
+| 3.16 | 2026-05-21 | System | Phase 4 v2.4 implemented: Standalone `file://` protocol support via folder picker (`webkitdirectory`). Dashboard prompts user to select the output folder, automatically finds and loads `error_dashboard_data.json` and `debug_log.json`. Drop zone now processes all dropped files (not just first). |
 
 ---
 
@@ -43,7 +47,7 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
 | 1 | DCC UI Design System — shared CSS with 5 themes, 25+ components | Foundation | ✅ Completed |
 | 2 | Pipeline Dashboard — run status, KPIs, output links | Monitoring | ✅ Completed |
 | 3 | Excel Explorer Pro — data loading, filtering, validation highlighting | Exploration | ✅ Completed |
-| 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down, debug log integration | Diagnostics | 🟠 v2.1 Pending Approval |
+| 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down, debug log integration, structured JSON context/message, filter priority, standalone file:// support | Diagnostics | ✅ v2.4 Completed |
 | 5 | Schema Manager — browse, inspect, edit schema files | Management | ✅ Completed |
 | 6 | Log Explorer Pro — multi-format log browser with search | Logging | ✅ Completed |
 | 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation | Analytics | 🟠 v2.2 Pending Approval |
@@ -488,6 +492,182 @@ Parsed entries are stored as structured objects matching the `recent_errors` sch
 - [x] BUG-001 (XSS), BUG-002 (filter bypass), BUG-003 (CSS vars), BUG-004 (key casing) all fixed
 - [x] No regressions in v2.0 features (charts, heatmap, filters, resize, theme)
 - [x] JS syntax validated
+
+---
+
+### Phase 4: Error Diagnostic Dashboard — v2.2 Revision
+
+**Timeline:** 2026-05-21  
+**Status:** ✅ COMPLETED  
+**Files Modified (UI-side only):**
+- `ui/error_diagnostic_dashboard.html`
+- `ui/ai_analysis_dashboard.html` (if it consumes debug_log.json)
+
+**Python-side files (handled by Error Handling Integration workplan Phase 1.5):**
+- `workflow/initiation_engine/utils/logging.py`
+- `workflow/processor_engine/error_handling/core/logger.py`
+- `workflow/core_engine/logging/log_state.py`
+
+#### v2.2 Revision Scope — Structured JSON `context` and `message` in `debug_log.json`
+
+The v2.2 revision converts the `context` and `message` fields in `debug_log.json` from flat strings to structured JSON objects. This eliminates the need for regex-based message parsing in the dashboard and aligns the output format with the `PipelineErrorEvent` schema defined in the Error Handling Integration workplan.
+
+**Python-side changes (tasks 4.17–4.19) moved to Error Handling Integration workplan Phase 1.5.** See [`error_handling/integration/error_handling_integration_workplan.md`](../../error_handling/integration/error_handling_integration_workplan.md) for details.
+
+**Problem Statement:**
+
+Currently, `debug_log.json` stores `context` and `message` as flat strings:
+```json
+{
+  "context": "phase:None, layer:L3, source:StructuredLogger",
+  "message": "[P2-I-V-0204-E] Document_ID contains reply/comment reference: '...' (Row: 5) (Col: Document_ID)"
+}
+```
+
+The dashboard must use regex (`ERR_CODE_RE`, `ERR_ROW_RE`, `ERR_COL_RE`) to extract structured fields. This is fragile — the original regex missed codes like `F4-C-F-0401-A` and `P2-I-V-0204-E` because the pattern was too restrictive.
+
+**Proposed Format:**
+```json
+{
+  "context": {
+    "phase": null,
+    "layer": "L3",
+    "source": "StructuredLogger"
+  },
+  "message": {
+    "error_code": "P2-I-V-0204-E",
+    "description": "Document_ID contains reply/comment reference: '...'",
+    "row": 5,
+    "column": "Document_ID"
+  }
+}
+```
+
+**Motivation:**
+- Eliminates all regex parsing in dashboard — direct JSON field access
+- Aligns with `PipelineErrorEvent` schema (domain, code, severity, engine, phase, message, details, timestamp)
+- Enables native filtering/sorting by structured fields in dashboard
+- Single source of truth — no string↔dict roundtrip needed
+- Follows agent_rule.md Section 4 (SSOT, schema-driven design) and Section 6 (structured logging)
+
+**3 Sub-Tasks for v2.2 Revision (UI-side only):**
+
+| ID | Task | Detail | Priority |
+|---|---|---|---|
+| 4.20 | **Update dashboard `parseDebugErrors()` to read structured fields** | Check `typeof entry.message === 'object'` — if true, read `entry.message.error_code`, `.row`, `.column`, `.description` directly. If false (legacy string), fall back to regex parsing. This ensures backward compatibility with existing `debug_log.json` files. | High |
+| 4.21 | **Update dashboard `renderDebugContext()` and `renderPipelineTrace()`** | Replace `msg.includes()` string matching with structured field comparison. Filter by `entry.context.phase`, `entry.context.layer`, `entry.message.error_code` directly. | Medium |
+| 4.22 | **Verify `save_debug_log()` serialization** | Confirm `json.dumps(DEBUG_OBJECT, indent=2, default=str)` handles nested dicts correctly. Remove `default=str` fallback after migration — all values should be natively serializable. | Low |
+
+**Dependencies:**
+- Requires Phase 1.5 of Error Handling Integration workplan to be completed first (Python-side changes)
+- Dashboard sub-tasks 4.20–4.22 depend on structured JSON output being available in `debug_log.json`
+
+#### Features (v2.2 additions)
+
+- **Structured `context` field:** `{phase, layer, source}` dict instead of `"phase:X, layer:Y, source:Z"` string
+- **Structured `message` field:** `{error_code, description, row, column}` dict for errors; `{description}` dict for messages
+- **Regex elimination:** Dashboard reads fields directly — no `ERR_CODE_RE`, `ERR_ROW_RE`, `ERR_COL_RE` needed
+- **Backward compatibility:** Dashboard falls back to regex if `message` is still a string (legacy files)
+- **Console output unchanged:** Display string composed from structured dict before printing
+
+#### Risks & Mitigation
+
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| Existing `debug_log.json` files incompatible | Low | Medium | Dashboard type-checks `entry.message` — falls back to regex for legacy string format |
+| Other tools/scripts grep `message` field | Low | Medium | Document the change; provide migration note in workplan |
+| `json.dumps` with `default=str` masks dict issues | Low | Low | Keep `default=str` as safety net during transition; remove after all callers updated |
+
+#### Success Criteria (v2.2)
+
+- [x] `debug_log.json` `errors[]` entries have `context` as dict and `message` as dict (Phase 1.5 — Python-side)
+- [x] `debug_log.json` `messages[]` entries have `context` as dict and `message` as dict (Phase 1.5 — Python-side)
+- [x] Console output format unchanged (same string format printed to terminal) (Phase 1.5 — Python-side)
+- [x] Dashboard `parseDebugErrors()` reads structured fields directly — no regex parsing for new-format entries (Task 4.20)
+- [x] Dashboard falls back to regex for legacy string-format entries (backward compatibility) (Task 4.20)
+- [x] `renderDebugContext()` and `renderPipelineTrace()` handle structured `message` and `context` dicts (Task 4.21)
+- [x] JS syntax validated
+- [x] No regressions in v2.1 features (debug log loader, error table, pipeline trace, filters)
+
+#### References
+
+- Error Handling Integration workplan Phase 1.5: `../../error_handling/integration/error_handling_integration_workplan.md` (Python-side tasks 1.5.1–1.5.3)
+- SSOT Schema-Driven workplan: `../../pipeline_architecture/ssot_schema_driven_compliance/ssot_schema_driven_workplan.md` (Phase D: message_template pattern)
+- agent_rule.md Section 4: SSOT and schema-driven design
+- agent_rule.md Section 6: Structured logging and Debug Object
+
+---
+
+### Phase 4: Error Diagnostic Dashboard — v2.3 Revision
+
+**Timeline:** 2026-05-21  
+**Status:** ✅ COMPLETED  
+**Files to Modify:**
+- `ui/error_diagnostic_dashboard.html`
+
+#### v2.3 Revision Scope — Filter Source Priority
+
+Filter dropdowns (`errorCodeFilter`, `columnFilter`) are now populated from `error_dashboard_data.json` when available, falling back to `debug_log.json` parsed errors only when dashboard data is missing.
+
+**Problem:** `updateFilterOptions()` used `errorDataSource` (user's detail table preference) to decide filter source. Default `'debug_log'` meant filters always came from `debug_log.json` even when `error_dashboard_data.json` was loaded. Parallel loaders (`Promise.allSettled`) created a race condition.
+
+**Fix:** `updateFilterOptions()` now uses explicit priority: `rawData.recent_errors` first, fallback to `parsedErrors`. Detail table source toggle remains independent.
+
+**1 Sub-Task for v2.3 Revision:**
+
+| ID | Task | Detail | Priority |
+|---|---|---|---|
+| 4.23 | **Rewrite `updateFilterOptions()` with explicit source priority** | Replace `errorDataSource` ternary with `rawData?.recent_errors?.length > 0 ? rawData.recent_errors : parsedErrors`. Update `loadDebugLog()` to call `updateFilterOptions()` when `rawData` is null (dashboard failed). Console log reports which source was used. | High |
+
+#### Success Criteria (v2.3)
+
+- [x] Filters populated from `error_dashboard_data.json` when available
+- [x] Filters fall back to `debug_log.json` parsed errors when dashboard data missing
+- [x] Detail table source toggle remains independent (user choice for table, not filters)
+- [x] No race condition from parallel loaders
+- [x] JS syntax validated
+- [x] No regressions in v2.2 features (structured JSON parsing, backward compatibility)
+
+#### References
+
+- Phase 4 v2.2: [Structured JSON context/message](#phase-4-error-diagnostic-dashboard--v22-revision)
+
+---
+
+### Phase 4: Error Diagnostic Dashboard — v2.4 Revision
+
+**Timeline:** 2026-05-21  
+**Status:** ✅ COMPLETED  
+**Files to Modify:**
+- `ui/error_diagnostic_dashboard.html`
+
+#### v2.4 Revision Scope — Standalone `file://` Protocol Support
+
+Dashboard works without a server (port 5000). When opened directly via `file://` protocol, prompts user to select the output folder, automatically finds and loads required JSON files.
+
+**Problem:** `fetch()` is blocked by CORS on `file://` protocol. Dashboard showed a warning and did nothing — user had to manually drag-and-drop files or use the file picker.
+
+**Fix:** On `file://` protocol, use `<input type="file" webkitdirectory>` to let user select the entire output folder. Scan selected files for `error_dashboard_data.json` and `debug_log.json`, load them via FileReader API.
+
+**2 Sub-Tasks for v2.4 Revision:**
+
+| ID | Task | Detail | Priority |
+|---|---|---|---|
+| 4.24 | **Folder picker for `file://` protocol** | `promptFolderLoad()` creates `<input type="file" webkitdirectory>` — user selects output folder. Scans files for target JSON names. Loads each via `loadFileViaReader()`. Calls `updateFilterOptions()` when debug log loaded without dashboard data. | High |
+| 4.25 | **Drop zone processes all dropped files** | Changed `handleFile(e.dataTransfer.files[0])` to loop through all dropped files. Enables dropping an entire folder's contents. | Medium |
+
+#### Success Criteria (v2.4)
+
+- [x] Dashboard opens on `file://` protocol and prompts for folder selection
+- [x] Folder picker finds and loads `error_dashboard_data.json` and `debug_log.json`
+- [x] Filters populated correctly after folder load
+- [x] Drop zone processes all dropped files (not just first)
+- [x] JS syntax validated
+- [x] No regressions in v2.3 features (filter priority, structured JSON)
+
+#### References
+
+- Phase 4 v2.3: [Filter source priority](#phase-4-error-diagnostic-dashboard--v23-revision)
 
 ---
 

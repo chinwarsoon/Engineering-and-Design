@@ -135,7 +135,7 @@ def _get_indent() -> str:
     return "  " * CALL_DEPTH
 
 
-def log_status(message: str, module: str = "", context: str = "", min_level: int = 1) -> None:
+def log_status(message: str, module: str = "", context: str = "", min_level: int = 1, context_dict: Optional[Dict] = None) -> None:
     """
     Level 1: Milestone progress / high-level workflow status.
 
@@ -145,10 +145,11 @@ def log_status(message: str, module: str = "", context: str = "", min_level: int
         context: Additional calling context.
         min_level: Minimum DEBUG_LEVEL required to print (default 1).
                    Use min_level=2 for step detail, min_level=3 for internal calls.
+        context_dict: Optional structured context dict (e.g., {"phase": "P1"}).
 
     Breadcrumb Comments:
         - DEBUG_LEVEL: Checked here - only outputs if level >= min_level.
-        - DEBUG_OBJECT: Appends message to 'messages' list.
+        - DEBUG_OBJECT: Appends message to 'messages' list with structured context.
     """
     if DEBUG_LEVEL >= min_level:
         prefix = _get_indent()
@@ -158,16 +159,17 @@ def log_status(message: str, module: str = "", context: str = "", min_level: int
             prefix += f"({context}) "
         builtins.print(f"{prefix}{message}", flush=True)
 
+    ctx_dict = context_dict if context_dict is not None else context
     DEBUG_OBJECT["messages"].append({
         "level": min_level,
         "timestamp": datetime.now().isoformat(),
         "module": module,
-        "context": context,
-        "message": message,
+        "context": ctx_dict,
+        "message": {"description": message},
     })
 
 
-def log_warning(message: str, module: str = "", context: str = "") -> None:
+def log_warning(message: str, module: str = "", context: str = "", context_dict: Optional[Dict] = None) -> None:
     """
     Level 2: Warnings, detailed debugging, variable values, path resolutions.
 
@@ -175,10 +177,11 @@ def log_warning(message: str, module: str = "", context: str = "") -> None:
         message: Warning/debug message.
         module: Module name for context.
         context: Additional calling context.
+        context_dict: Optional structured context dict (e.g., {"phase": "P2", "layer": "L3"}).
 
     Breadcrumb Comments:
         - DEBUG_LEVEL: Checked here - only outputs if level >= 2.
-        - DEBUG_OBJECT: Appends message to 'messages' list.
+        - DEBUG_OBJECT: Appends message to 'messages' list with structured context.
     """
     if DEBUG_LEVEL >= 2:
         prefix = _get_indent()
@@ -188,16 +191,17 @@ def log_warning(message: str, module: str = "", context: str = "") -> None:
             prefix += f"({context}) "
         builtins.print(f"{prefix}[DEBUG] {message}", flush=True)
 
+    ctx_dict = context_dict if context_dict is not None else context
     DEBUG_OBJECT["messages"].append({
         "level": 2,
         "timestamp": datetime.now().isoformat(),
         "module": module,
-        "context": context,
-        "message": message,
+        "context": ctx_dict,
+        "message": {"description": message},
     })
 
 
-def log_trace(message: str, module: str = "", context: str = "") -> None:
+def log_trace(message: str, module: str = "", context: str = "", context_dict: Optional[Dict] = None) -> None:
     """
     Level 3: Deep technical info - OS path slashes, JSON raw extraction, etc.
 
@@ -205,10 +209,11 @@ def log_trace(message: str, module: str = "", context: str = "") -> None:
         message: Trace message.
         module: Module name for context.
         context: Additional calling context.
+        context_dict: Optional structured context dict (e.g., {"phase": "P3", "source": "schema_loader"}).
 
     Breadcrumb Comments:
         - DEBUG_LEVEL: Checked here - only outputs if level >= 3.
-        - DEBUG_OBJECT: Appends message to 'messages' list.
+        - DEBUG_OBJECT: Appends message to 'messages' list with structured context.
     """
     if DEBUG_LEVEL >= 3:
         prefix = _get_indent()
@@ -218,40 +223,76 @@ def log_trace(message: str, module: str = "", context: str = "") -> None:
             prefix += f"({context}) "
         builtins.print(f"{prefix}[TRACE] {message}", flush=True)
 
+    ctx_dict = context_dict if context_dict is not None else context
     DEBUG_OBJECT["messages"].append({
         "level": 3,
         "timestamp": datetime.now().isoformat(),
         "module": module,
-        "context": context,
-        "message": message,
+        "context": ctx_dict,
+        "message": {"description": message},
     })
 
 
-def log_error(message: str, module: str = "", context: str = "", fatal: bool = False, severity: Optional[str] = None, show_summary: bool = True) -> None:
+def log_error(
+    message: str = None, module: str = "", context: str = "",
+    fatal: bool = False, severity: Optional[str] = None, show_summary: bool = True,
+    error_code: str = None, description: str = None,
+    row: int = None, column: str = None, context_dict: Optional[Dict] = None
+) -> None:
     """
     Log errors. Always shown regardless of debug level.
 
     Args:
-        message: Error message.
+        message: Error message (string, for backward compatibility).
         module: Module name for context.
-        context: Additional calling context.
+        context: Additional calling context (string).
         fatal: If True, raises exception (fail-fast).
         severity: Error severity (CRITICAL, HIGH, MEDIUM, WARNING, INFO).
                   Defaults to CRITICAL if fatal=True, else ERROR.
         show_summary: If True, show abbreviated error + reference to report file.
+        error_code: Structured error code (e.g., "P2-I-V-0204-E").
+        description: Structured error description (replaces message if provided).
+        row: Row number where error occurred.
+        column: Column name where error occurred.
+        context_dict: Structured context dict (e.g., {"phase": "P2", "layer": "L3"}).
 
     Breadcrumb Comments:
         - DEBUG_LEVEL: Errors always output regardless of level.
-        - DEBUG_OBJECT: Appends to 'errors' list.
+        - DEBUG_OBJECT: Appends to 'errors' list with structured context and message.
         - If fatal=True, raises RuntimeError immediately (fail-fast).
     """
     if severity is None:
         severity = "CRITICAL" if fatal else "ERROR"
-        
+
+    # Build structured message dict
+    msg_dict = {
+        "error_code": error_code,
+        "description": description or message,
+        "row": row,
+        "column": column,
+    }
+    # Remove None values for cleaner JSON
+    msg_dict = {k: v for k, v in msg_dict.items() if v is not None}
+
+    # Build structured context dict
+    ctx_dict = context_dict or {}
+    if context and not ctx_dict:
+        # If context is a string and no dict provided, keep as-is for backward compat
+        ctx_dict = context
+
+    # Compose display string for console output (unchanged format)
+    display_msg = message or ""
+    if error_code and not display_msg.startswith(f"[{error_code}]"):
+        display_msg = f"[{error_code}] {description or ''}"
+    if row is not None:
+        display_msg += f" (Row: {row + 1})"
+    if column:
+        display_msg += f" (Col: {column})"
+
     prefix = _get_indent()
     if module:
         prefix += f"[{module}] "
-    if context:
+    if context and isinstance(context, str):
         prefix += f"({context}) "
 
     # Show errors based on verbosity level
@@ -261,13 +302,13 @@ def log_error(message: str, module: str = "", context: str = "", fatal: bool = F
     # Level 3: Full errors
     if DEBUG_LEVEL >= 3:
         # Level 3: Show full error
-        builtins.print(f"{prefix}[ERROR] {message}", flush=True, file=sys.stderr)
+        builtins.print(f"{prefix}[ERROR] {display_msg}", flush=True, file=sys.stderr)
     elif DEBUG_LEVEL == 2:
         # Level 2: Truncate long messages
-        if len(message) > 100:
-            short_msg = message[:97] + "..."
+        if len(display_msg) > 100:
+            short_msg = display_msg[:97] + "..."
         else:
-            short_msg = message
+            short_msg = display_msg
         builtins.print(f"{prefix}[ERROR] {short_msg}", flush=True, file=sys.stderr)
     elif DEBUG_LEVEL == 1:
         # Level 1: No individual errors - they appear in final summary
@@ -276,20 +317,20 @@ def log_error(message: str, module: str = "", context: str = "", fatal: bool = F
     else:
         # Level 0: Silent - only critical/fatal errors
         if severity == "CRITICAL" or fatal:
-            builtins.print(f"{prefix}[ERROR] {message}", flush=True, file=sys.stderr)
+            builtins.print(f"{prefix}[ERROR] {display_msg}", flush=True, file=sys.stderr)
 
     error_entry = {
         "timestamp": datetime.now().isoformat(),
         "module": module,
-        "context": context,
-        "message": message,
+        "context": ctx_dict,
+        "message": msg_dict,
         "fatal": fatal,
         "severity": severity
     }
     DEBUG_OBJECT["errors"].append(error_entry)
 
     if fatal:
-        raise RuntimeError(f"[{module}] {context}: {message}")
+        raise RuntimeError(f"[{module}] {context}: {display_msg}")
 
 
 # =============================================================================

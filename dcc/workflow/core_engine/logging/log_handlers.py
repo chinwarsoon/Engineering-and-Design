@@ -4,7 +4,8 @@ Log handlers for output operations.
 import sys
 import builtins
 import warnings
-from typing import Optional
+from typing import Optional, Dict
+from datetime import datetime
 
 from core_engine.logging.log_state import DEBUG_LEVEL, DEBUG_OBJECT, CALL_DEPTH
 
@@ -22,7 +23,7 @@ def set_debug_level(level: int) -> None:
         warnings.resetwarnings()
 
 
-def log_status(message: str, module: str = "", context: str = "", min_level: int = 1) -> None:
+def log_status(message: str, module: str = "", context: str = "", min_level: int = 1, context_dict: Optional[Dict] = None) -> None:
     if DEBUG_LEVEL >= min_level:
         prefix = _get_indent()
         if module:
@@ -31,16 +32,16 @@ def log_status(message: str, module: str = "", context: str = "", min_level: int
             prefix += f"({context}) "
         builtins.print(f"{prefix}{message}", flush=True)
 
-    from datetime import datetime
+    ctx_dict = context_dict if context_dict is not None else context
     DEBUG_OBJECT["messages"].append({
         "level": min_level,
         "timestamp": datetime.now().isoformat(),
         "module": module,
-        "context": context,
-        "message": message,
+        "context": ctx_dict,
+        "message": {"description": message},
     })
 
-def log_warning(message: str, module: str = "", context: str = "") -> None:
+def log_warning(message: str, module: str = "", context: str = "", context_dict: Optional[Dict] = None) -> None:
     if DEBUG_LEVEL >= 2:
         prefix = _get_indent()
         if module:
@@ -49,16 +50,16 @@ def log_warning(message: str, module: str = "", context: str = "") -> None:
             prefix += f"({context}) "
         builtins.print(f"{prefix}[DEBUG] {message}", flush=True)
 
-    from datetime import datetime
+    ctx_dict = context_dict if context_dict is not None else context
     DEBUG_OBJECT["messages"].append({
         "level": 2,
         "timestamp": datetime.now().isoformat(),
         "module": module,
-        "context": context,
-        "message": message,
+        "context": ctx_dict,
+        "message": {"description": message},
     })
 
-def log_trace(message: str, module: str = "", context: str = "") -> None:
+def log_trace(message: str, module: str = "", context: str = "", context_dict: Optional[Dict] = None) -> None:
     if DEBUG_LEVEL >= 3:
         prefix = _get_indent()
         if module:
@@ -67,48 +68,75 @@ def log_trace(message: str, module: str = "", context: str = "") -> None:
             prefix += f"({context}) "
         builtins.print(f"{prefix}[TRACE] {message}", flush=True)
 
-    from datetime import datetime
+    ctx_dict = context_dict if context_dict is not None else context
     DEBUG_OBJECT["messages"].append({
         "level": 3,
         "timestamp": datetime.now().isoformat(),
         "module": module,
-        "context": context,
-        "message": message,
+        "context": ctx_dict,
+        "message": {"description": message},
     })
 
-def log_error(message: str, module: str = "", context: str = "", fatal: bool = False, severity: Optional[str] = None, show_summary: bool = True) -> None:
+def log_error(
+    message: str = None, module: str = "", context: str = "",
+    fatal: bool = False, severity: Optional[str] = None, show_summary: bool = True,
+    error_code: str = None, description: str = None,
+    row: int = None, column: str = None, context_dict: Optional[Dict] = None
+) -> None:
     if severity is None:
         severity = "CRITICAL" if fatal else "ERROR"
+
+    # Build structured message dict
+    msg_dict = {
+        "error_code": error_code,
+        "description": description or message,
+        "row": row,
+        "column": column,
+    }
+    msg_dict = {k: v for k, v in msg_dict.items() if v is not None}
+
+    # Build structured context dict
+    ctx_dict = context_dict or {}
+    if context and not ctx_dict:
+        ctx_dict = context
+
+    # Compose display string for console output
+    display_msg = message or ""
+    if error_code and not display_msg.startswith(f"[{error_code}]"):
+        display_msg = f"[{error_code}] {description or ''}"
+    if row is not None:
+        display_msg += f" (Row: {row + 1})"
+    if column:
+        display_msg += f" (Col: {column})"
 
     prefix = _get_indent()
     if module:
         prefix += f"[{module}] "
-    if context:
+    if context and isinstance(context, str):
         prefix += f"({context}) "
 
     if DEBUG_LEVEL >= 3:
-        builtins.print(f"{prefix}[ERROR] {message}", flush=True, file=sys.stderr)
+        builtins.print(f"{prefix}[ERROR] {display_msg}", flush=True, file=sys.stderr)
     elif DEBUG_LEVEL == 2:
-        short_msg = message[:97] + "..." if len(message) > 100 else message
+        short_msg = display_msg[:97] + "..." if len(display_msg) > 100 else display_msg
         builtins.print(f"{prefix}[ERROR] {short_msg}", flush=True, file=sys.stderr)
     elif DEBUG_LEVEL == 1:
         pass
     else:
         if severity == "CRITICAL" or fatal:
-            builtins.print(f"{prefix}[ERROR] {message}", flush=True, file=sys.stderr)
+            builtins.print(f"{prefix}[ERROR] {display_msg}", flush=True, file=sys.stderr)
 
-    from datetime import datetime
     DEBUG_OBJECT["errors"].append({
         "timestamp": datetime.now().isoformat(),
         "module": module,
-        "context": context,
-        "message": message,
+        "context": ctx_dict,
+        "message": msg_dict,
         "fatal": fatal,
         "severity": severity
     })
 
     if fatal:
-        raise RuntimeError(f"[{module}] {context}: {message}")
+        raise RuntimeError(f"[{module}] {context}: {display_msg}")
 
 
 def setup_logger(debug_mode: bool = False) -> None:

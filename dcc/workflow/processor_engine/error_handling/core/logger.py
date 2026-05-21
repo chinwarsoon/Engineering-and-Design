@@ -109,45 +109,41 @@ class StructuredLogger:
         except ImportError:
             pass
         
+        # Build structured context dict
+        ctx_dict = {
+            "phase": phase,
+            "layer": layer,
+            "source": "StructuredLogger"
+        }
+        ctx_dict = {k: v for k, v in ctx_dict.items() if v is not None}
+        
+        # Merge with global context
+        ctx_dict.update(self._context)
+        
+        # Merge with provided context
+        if context:
+            ctx_dict.update(context)
+        
+        # Add exception info if provided
+        if exception:
+            ctx_dict["exception_type"] = type(exception).__name__
+            ctx_dict["exception_message"] = str(exception)
+        
         # Suppress at level 1 (default) - only CRITICAL shows
         if current_level <= 1 and severity != "CRITICAL":
             # Still bridge to init_log_error for debug_log.json persistence
             if HAS_INITIATION_LOGGING:
-                msg_with_code = f"[{error_code}] {message}"
-                if row is not None:
-                    msg_with_code += f" (Row: {row+1})"
-                if column:
-                    msg_with_code += f" (Col: {column})"
                 init_log_error(
-                    msg_with_code,
+                    description=message,
+                    error_code=error_code,
+                    row=row,
+                    column=column,
                     module="processor",
-                    context=f"phase:{phase}, layer:{layer}, source:StructuredLogger",
+                    context_dict=ctx_dict,
                     fatal=False,
                     show_summary=False  # Don't print, just store
                 )
             return
-        
-        extra = {
-            "error_code": error_code,
-            "error_severity": severity,
-            "row": row,
-            "column": column,
-            "phase": phase,
-            "layer": layer,
-            "remediation_type": remediation_type,
-        }
-        
-        # Merge with global context
-        extra.update(self._context)
-        
-        # Merge with provided context
-        if context:
-            extra.update(context)
-        
-        # Add exception info if provided
-        if exception:
-            extra["exception_type"] = type(exception).__name__
-            extra["exception_message"] = str(exception)
         
         # Map severity to logging level
         level_map = {
@@ -160,21 +156,18 @@ class StructuredLogger:
         level = level_map.get(severity, logging.ERROR)
         
         # 1. Log to standard logger (stdout JSON)
-        self._logger.log(level, message, extra={"structured": extra})
+        self._logger.log(level, message, extra={"structured": ctx_dict})
         
         # 2. Bridge to initiation_engine for debug_log.json
         if HAS_INITIATION_LOGGING:
-            msg_with_code = f"[{error_code}] {message}"
-            if row is not None:
-                msg_with_code += f" (Row: {row+1})"
-            if column:
-                msg_with_code += f" (Col: {column})"
-                
             init_log_error(
-                msg_with_code, 
-                module=extra.get("module", "processor"),
-                context=f"phase:{phase}, layer:{layer}, source:StructuredLogger",
-                fatal=False # Fail-fast is handled by the detector
+                description=message,
+                error_code=error_code,
+                row=row,
+                column=column,
+                module=ctx_dict.get("module", "processor"),
+                context_dict=ctx_dict,
+                fatal=False  # Fail-fast is handled by the detector
             )
     
     def log_phase_transition(

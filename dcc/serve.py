@@ -13,6 +13,8 @@ Usage:
 
 import http.server
 import socketserver
+import sys
+import logging
 import os
 import argparse
 import json
@@ -277,6 +279,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 class ReusableTCPServer(socketserver.TCPServer):
     allow_reuse_address = True
+
+    def handle_error(self, request, client_address):
+        import traceback
+        etype, value, _ = sys.exc_info()
+        if etype is ConnectionResetError:
+            logging.debug("Connection reset by %s (client closed connection)", client_address)
+            return
+        traceback.print_exc()
 
 
 if __name__ == "__main__":

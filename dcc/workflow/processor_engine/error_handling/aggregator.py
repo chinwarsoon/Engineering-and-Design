@@ -51,42 +51,51 @@ class ErrorAggregator:
         debug_obj = get_debug_object()
         debug_errors = debug_obj.get("errors", [])
         
-        # Track already synced messages to avoid duplicates
-        existing_msgs = {e.message for e in self._errors}
+        # Track already synced errors using hashable keys (code, row, column)
+        existing_keys = {(e.error_code, e.row, e.column) for e in self._errors}
         synced_count = 0
         
         for err in debug_errors:
             # Skip errors that came from StructuredLogger (bridged logs)
-            # they are already in the aggregator via detector.detect()
-            context_str = err.get("context", "")
-            if "source:StructuredLogger" in context_str:
+            context_val = err.get("context", {})
+            if isinstance(context_val, dict) and context_val.get("source") == "StructuredLogger":
+                continue
+            if isinstance(context_val, str) and "source:StructuredLogger" in context_val:
                 continue
                 
-            msg = err.get("message", "")
-            if msg in existing_msgs:
+            msg_val = err.get("message", {})
+            if isinstance(msg_val, dict):
+                error_code = msg_val.get("error_code", "G-L-O-0000")
+                clean_msg = msg_val.get("description", "")
+                row = msg_val.get("row")
+                column = msg_val.get("column")
+            else:
+                # Legacy string format fallback
+                code_match = re.search(r'\[([A-Z0-9]+-[A-Z]-[A-Z]-\d{4}(?:-[A-Z])?)\]', msg_val)
+                error_code = code_match.group(1) if code_match else "G-L-O-0000"
+                col_match = re.search(r'\(Col: ([^)]+)\)', msg_val)
+                column = col_match.group(1) if col_match else None
+                row_match = re.search(r'\(Row: (\d+)\)', msg_val)
+                row = int(row_match.group(1)) - 1 if row_match else None
+                clean_msg = msg_val
+                if code_match:
+                    clean_msg = clean_msg.replace(code_match.group(0), "").strip()
+                # Strip row/column annotations from message
+                clean_msg = re.sub(r'\s*\(Row: \d+\)', '', clean_msg).strip()
+                clean_msg = re.sub(r'\s*\(Col: [^)]+\)', '', clean_msg).strip()
+            
+            # Skip if already synced (using hashable key)
+            row_key = row if row is not None else -1
+            key = (error_code, row_key, column)
+            if key in existing_keys:
                 continue
-                
-            # Attempt to parse E-M-F-U code from message [P-C-P-0101]
-            code_match = re.search(r'\[([A-Z]-[A-Z]-[A-Z]-\d{4})\]', msg)
-            error_code = code_match.group(1) if code_match else "G-L-O-0000"
-            
-            # Extract column if present (Col: Name)
-            col_match = re.search(r'\(Col: ([^)]+)\)', msg)
-            column = col_match.group(1) if col_match else None
-            
-            # Extract row if present (Row: N)
-            row_match = re.search(r'\(Row: (\d+)\)', msg)
-            row = int(row_match.group(1)) - 1 if row_match else None
             
             # Extract layer from context
-            context_str = err.get("context", "")
-            layer_match = re.search(r'layer:([^,]+)', context_str)
-            layer = layer_match.group(1) if layer_match else "L1"
-            
-            # Clean up message (remove code prefix)
-            clean_msg = msg
-            if code_match:
-                clean_msg = msg.replace(code_match.group(0), "").strip()
+            if isinstance(context_val, dict):
+                layer = context_val.get("layer", "L1")
+            else:
+                layer_match = re.search(r'layer:([^,]+)', str(context_val))
+                layer = layer_match.group(1) if layer_match else "L1"
             
             result = DetectionResult(
                 error_code=error_code,
@@ -99,6 +108,7 @@ class ErrorAggregator:
                 context={"module": err.get("module"), "source": "initiation_sync"}
             )
             
+            existing_keys.add(key)
             self._errors.append(result)
             synced_count += 1
             

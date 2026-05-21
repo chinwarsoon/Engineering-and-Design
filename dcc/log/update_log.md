@@ -8,10 +8,152 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-21-phase1-5-1-6-complete"></a>
+## 2026-05-21 — Phase 1.5 (Structured JSON Output) & Phase 1.6 (Aggregator Fix) Complete
+
+### COMPLETED: Phase 1.5 — Structured JSON `context` and `message` in `debug_log.json`
+
+**Summary:** Converted `context` and `message` fields in `debug_log.json` from flat strings to structured JSON objects. This eliminates fragile regex parsing in the dashboard and aligns with `PipelineErrorEvent` schema.
+
+**Changes:**
+- `workflow/initiation_engine/utils/logging.py` — `log_error()`, `log_status()`, `log_warning()`, `log_trace()` accept structured params (`error_code`, `description`, `row`, `column`, `context_dict`). Store dicts in `DEBUG_OBJECT`. Console output composed from structured dict before printing (unchanged format).
+- `workflow/core_engine/logging/log_handlers.py` — `log_error()` updated with same structured params pattern.
+- `workflow/processor_engine/error_handling/core/logger.py` — `StructuredLogger.log_error()` passes structured dict directly to `init_log_error()` instead of composing string.
+
+**Impact:** `debug_log.json` now stores structured JSON for `context` and `message` fields. Console output unchanged. Backward compatible — existing callers work without changes.
+
+### COMPLETED: Phase 1.6 — Fix `unhashable type: 'dict'` in `ErrorAggregator`
+
+**Summary:** Fixed `TypeError: unhashable type: 'dict'` in `ErrorAggregator.sync_with_initiation_logging()` caused by Phase 1.5 structured dict changes.
+
+**Root Cause:** `aggregator.py:55` used `{e.message for e in self._errors}` to deduplicate — `e.message` is now a dict (unhashable). Lines 60-70 expected string `context` and `message` for regex parsing.
+
+**Changes:**
+- `workflow/processor_engine/error_handling/aggregator.py` — `sync_with_initiation_logging()` rewritten:
+  - Deduplication uses hashable tuple keys `(error_code, row, column)` instead of message strings
+  - Structured dict fields extracted directly (`msg_val.get("error_code")`, etc.)
+  - Legacy string format fallback with improved regex for extended codes (`P2-I-V-0204-E`, `F4-C-F-0401-A`)
+  - Message cleanup strips `[CODE]`, `(Row: N)`, `(Col: X)` annotations from legacy strings
+
+**Test Results:**
+- Structured dict sync: PASS (1 error synced, fields correct)
+- Deduplication: PASS (duplicate correctly skipped)
+- Legacy string fallback: PASS (code `P2-I-V-0204-E` extracted, row/column parsed)
+- Unit tests: 31/33 pass (2 pre-existing failures unrelated to this change)
+
+**Files Modified:**
+- `dcc/workplan/error_handling/integration/error_handling_integration_workplan.md` — v1.3.0, Phase 1.5 marked COMPLETE, Phase 1.6 added and marked COMPLETE
+- `dcc/workflow/initiation_engine/utils/logging.py` — Structured params for all logging functions
+- `dcc/workflow/core_engine/logging/log_handlers.py` — Structured params for `log_error()`
+- `dcc/workflow/processor_engine/error_handling/core/logger.py` — Bridge passes structured dict
+- `dcc/workflow/processor_engine/error_handling/aggregator.py` — Fixed unhashable dict, added legacy fallback
+
+**Link to Issue Log:** [issue-err-003](#issue-err-003)
+
+<a id="update-2026-05-21-phase4-v22-ui-complete"></a>
+## 2026-05-21 — Phase 4 v2.2 UI Implementation Complete (Structured JSON Consumption)
+
+### COMPLETED: Phase 4 v2.2 — Dashboard reads structured `context` and `message` from `debug_log.json`
+
+**Summary:** Updated `error_diagnostic_dashboard.html` to consume structured JSON `context` and `message` fields directly from `debug_log.json`, eliminating regex parsing for new-format entries while maintaining backward compatibility with legacy string-format files.
+
+**Changes by Sub-Task:**
+
+| ID | Task | Detail |
+|---|---|---|
+| 4.20 | `parseDebugErrors()` structured field reading | Added `typeof msg === 'object' && msg.error_code` check. Reads `error_code`, `row`, `column`, `description` directly. Legacy string format falls back to regex (`ERR_CODE_RE`, `ERR_ROW_RE`, `ERR_COL_RE`). Console log now reports structured vs legacy counts. |
+| 4.21 | `renderDebugContext()` and `renderPipelineTrace()` structured handling | `renderDebugContext()` checks `typeof msgVal === 'object'` — compares `error_code` and `column` fields directly. `renderPipelineTrace()` extracts `displayMsg` from structured dict (`description` or `error_code`). Both functions render correctly for both formats. |
+| 4.22 | Serialization verification | Python-side `json.dumps(DEBUG_OBJECT, indent=2, default=str)` already handles nested dicts correctly (verified in Phase 1.5). No UI-side changes needed. |
+
+**Backward Compatibility:**
+- `parseDebugErrors()`: Structured entries parsed directly; legacy entries parsed via regex; mixed-format files supported
+- `renderDebugContext()`: Structured `message` dicts compared by field; legacy strings use `includes()`
+- `renderPipelineTrace()`: Structured `message` dicts extract `description`; legacy strings rendered as-is
+
+**Console Log Enhancement:**
+- Before: `parseDebugErrors: 4601 parsed, 0 skipped, 8 unique codes, 18 unique columns`
+- After: `parseDebugErrors: 4601 parsed (4601 structured, 0 legacy), 0 skipped, 8 unique codes, 18 unique columns`
+
+**Files Modified:**
+- `dcc/ui/error_diagnostic_dashboard.html` — `parseDebugErrors()`, `renderDebugContext()`, `renderPipelineTrace()`
+- `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.14, Phase 4 v2.2 added and marked COMPLETE
+
+**Link to Issue Log:** [issue-ui-004](#issue-ui-004)
+
+<a id="update-2026-05-21-serve-connection-reset"></a>
+## 2026-05-21 — `serve.py` ConnectionResetError Suppression
+
+### COMPLETED: Suppress benign `ConnectionResetError` traceback in `serve.py`
+
+**Summary:** `serve.py` was printing full Python tracebacks for `ConnectionResetError: [WinError 10054]` whenever the browser refreshed or navigated away while a response was being sent.
+
+**Root Cause:** `socketserver.TCPServer` has no custom error handler — all exceptions print full tracebacks. `ConnectionResetError` is benign (client closed connection).
+
+**Changes:**
+- Added `handle_error()` override to `ReusableTCPServer` class
+- `ConnectionResetError` logged at DEBUG level (hidden by default)
+- All other exceptions still print full tracebacks
+- Added `import sys` and `import logging`
+
+**Files Modified:**
+- `dcc/serve.py` — `ReusableTCPServer.handle_error()` added
+
+**Link to Issue Log:** [issue-ui-007](#issue-ui-007)
+
+<a id="update-2026-05-21-phase4-v24-standalone-file-protocol"></a>
+## 2026-05-21 — Phase 4 v2.4 Standalone `file://` Protocol Support Complete
+
+### COMPLETED: Phase 4 v2.4 — Dashboard works without server via folder picker
+
+**Summary:** Dashboard now works standalone when opened directly via `file://` protocol. Tries `fetch()` first (works in Firefox), falls back to folder picker if blocked (Chrome). Shows clear status when fetch is blocked.
+
+**Changes:**
+- `init()`: On `file://` protocol, tries `fetch()` first. If blocked, shows "Direct file load blocked by browser" with 🚫 icon. Shows "Select Output Folder" button.
+- `updateFileStatusList()`: Added `'blocked'` state (🚫 Blocked, red) and `'waiting'` state (⏸️ Waiting).
+- `promptFolderLoad()`: Creates `<input type="file" webkitdirectory>` — user selects output folder. Scans files for target JSON names. Loads each via `loadFileViaReader()`.
+- `loadFileViaReader()`: New function — loads a single file via FileReader, routes to dashboard or debug log handler. Calls `updateFilterOptions()` when debug log loaded without dashboard data.
+- `handleFile()`: Added `else updateFilterOptions()` branch for same reason.
+- `setupFileHandlers()`: Drop zone now processes all dropped files (was only processing first file). Wired folder picker button click.
+- HTML: Added "📁 Select Output Folder" button in Data Sources panel.
+
+**Impact:**
+- No server required — open HTML file directly in browser
+- Firefox: files load automatically via `fetch()`
+- Chrome/Edge: user clicks folder picker or drops files
+- Clear visual feedback: ✅ Loaded, 🚫 Blocked (red), ⏸️ Waiting, ⚪ Missing
+- Drop zone supports dropping entire folder contents
+- `fetch()` path still works when served from a server
+
+**Files Modified:**
+- `dcc/ui/error_diagnostic_dashboard.html` — `init()`, `updateFileStatusList()`, `promptFolderLoad()`, `loadFileViaReader()`, `handleFile()`, `setupFileHandlers()`, Data Sources panel HTML
+- `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.16, Phase 4 v2.4 added and marked COMPLETE
+
+<a id="update-2026-05-21-phase4-v23-filter-priority"></a>
+## 2026-05-21 — Phase 4 v2.3 Filter Source Priority Complete
+
+### COMPLETED: Phase 4 v2.3 — Filters populated from `error_dashboard_data.json` primary, `debug_log.json` fallback
+
+**Summary:** Fixed `updateFilterOptions()` to always use `error_dashboard_data.json` as the primary source for filter dropdowns, falling back to `debug_log.json` parsed errors only when dashboard data is missing. Uses `error_types[]` (all unique codes) and `column_health[]` (all columns) instead of `recent_errors[]` (capped at 50). Eliminates race condition from parallel loaders.
+
+**Changes:**
+- `updateFilterOptions()`: Uses `rawData.error_types` for codes (all unique error codes with counts) and `rawData.column_health` for columns (all columns with errors). Falls back to `parsedErrors` only when dashboard data is missing. Console log reports which source was used.
+- `loadDebugLog()`: Added `else { updateFilterOptions(); }` branch — when `rawData` is null (dashboard failed), filters are populated from `parsedErrors`.
+- `loadData()`: No change needed — `processData()` already calls `updateFilterOptions()` on success.
+
+**Impact:**
+- Filters always reflect deduplicated error types from `error_dashboard_data.json` (50 entries, clean codes/columns)
+- When dashboard data unavailable, filters reflect all parsed errors from `debug_log.json` (4,601 entries)
+- Detail table source toggle remains independent — user still chooses which source populates the error detail table
+- No race condition — whichever file loads first populates filters; second load re-populates with correct priority
+
+**Files Modified:**
+- `dcc/ui/error_diagnostic_dashboard.html` — `updateFilterOptions()`, `loadDebugLog()`
+- `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.15, Phase 4 v2.3 added and marked COMPLETE
+
+**Link to Issue Log:** [issue-ui-005](#issue-ui-005)
+
 <a id="update-2026-05-20-phase4-workplan-approval"></a>
 ## 2026-05-20 — Phase 4 Workplan v2.1 Revised for Approval
-
-### COMPLETED: Phase 4 Workplan v2.1 Revised for Approval
 
 **Summary:** Updated `web_interface_workplan.md` to v3.11 reflecting Phase 4 (Error Diagnostic Dashboard) v2.0 completion and v2.1 revised proposal. Key correction: `debug_log.json["errors"]` contains **4,601 row-level errors** (not just process-level logs). Message parsing required to extract code/row/column from formatted message strings.
 
