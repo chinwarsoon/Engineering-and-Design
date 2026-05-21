@@ -160,3 +160,8 @@
 
 # Section 12. Data health, score, and errors
 1. each business logic must have independent error code defined to trace related error.
+
+# Section 13. Compact workplans, records, and logs
+1. ultra-compact and scannable.
+2. Bulleted list of what is done, include timestamp, previousent status or issues to be resolved, contexts, changes be done or to be done, critical architecture decisions/reasons, next immediate steps.
+

@@ -372,10 +372,18 @@
     async function probe(base, file) {
       const url = `${base}/${file}?t=${Date.now()}`;
       try {
-        const resp = await fetch(url);
+        const resp = await fetch(url, { method: 'HEAD' });
         if (resp.ok) {
-          console.log(`probe OK: ${url}`);
-          return await resp.text();
+          const size = parseInt(resp.headers.get('content-length') || '0', 10);
+          if (size > 100 * 1024 * 1024) {
+            console.log(`probe SKIP: ${url} (${(size/1024/1024).toFixed(1)}MB exceeds 100MB limit)`);
+            return { skipped: true, size };
+          }
+          const resp2 = await fetch(url);
+          if (resp2.ok) {
+            console.log(`probe OK: ${url}`);
+            return await resp2.text();
+          }
         }
         console.log(`probe ${resp.status}: ${url}`);
       } catch (e) {
@@ -388,6 +396,12 @@
       const bases = [DATA_BASE, 'output', '/output', '.'];
       for (const b of bases) {
         const res = await probe(b, DATA_FILE);
+        if (res && res.skipped) {
+          fileStatus.dashboard = 'oversized';
+          updateFileStatusList();
+          updateStatus('warning', `${DATA_FILE} is ${(res.size/1024/1024).toFixed(1)}MB — too large for browser, use folder picker`);
+          return;
+        }
         if (res) {
           try {
             rawData = JSON.parse(res);
@@ -412,6 +426,12 @@
       const bases = [DATA_BASE, 'output', '/output', '.'];
       for (const b of bases) {
         const res = await probe(b, DEBUG_LOG_FILE);
+        if (res && res.skipped) {
+          fileStatus.debugLog = 'oversized';
+          updateFileStatusList();
+          updateStatus('warning', `${DEBUG_LOG_FILE} is ${(res.size/1024/1024).toFixed(1)}MB — too large for browser, use folder picker`);
+          return;
+        }
         if (res) {
           try {
             debugLogData = JSON.parse(res);
@@ -447,12 +467,13 @@
       container.innerHTML = files.map(f => {
         const isLoaded = f.status === true;
         const isLoading = f.status === 'loading';
+        const isOversized = f.status === 'oversized';
         const isBlocked = f.status === 'blocked';
         const isWaiting = f.status === 'waiting';
         const isFailed = f.status === false;
-        const icon = isLoaded ? '✅' : isLoading ? '⏳' : isBlocked ? '🚫' : isWaiting ? '⏸️' : '⚪';
-        const label = isLoaded ? 'Loaded' : isLoading ? 'Loading...' : isBlocked ? 'Blocked' : isWaiting ? 'Waiting' : 'Missing';
-        const color = isLoaded ? 'var(--text)' : isLoading ? 'var(--text2)' : isBlocked ? 'var(--danger)' : 'var(--text3)';
+        const icon = isLoaded ? '✅' : isLoading ? '⏳' : isOversized ? '📦' : isBlocked ? '🚫' : isWaiting ? '⏸️' : '⚪';
+        const label = isLoaded ? 'Loaded' : isLoading ? 'Loading...' : isOversized ? 'Too Large' : isBlocked ? 'Blocked' : isWaiting ? 'Waiting' : 'Missing';
+        const color = isLoaded ? 'var(--text)' : isLoading ? 'var(--text2)' : isOversized ? 'var(--warning)' : isBlocked ? 'var(--danger)' : 'var(--text3)';
         return `
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;color:${color}">
           <span>${icon}</span>
@@ -672,6 +693,10 @@
     }
 
     function handleFile(file) {
+      if (file.size > 100 * 1024 * 1024) {
+        updateStatus('error', `${file.name} is ${(file.size/1024/1024).toFixed(1)}MB — exceeds 100MB browser limit`);
+        return;
+      }
       const reader = new FileReader();
       reader.onload = e => {
         try {
@@ -708,6 +733,10 @@
         let dashboardLoaded = false;
         let debugLogLoaded = false;
         for (const f of input.files) {
+          if (f.size > 100 * 1024 * 1024) {
+            console.log(`Skipping ${f.name}: ${(f.size/1024/1024).toFixed(1)}MB exceeds limit`);
+            continue;
+          }
           if (f.name === 'error_dashboard_data.json' && !dashboardLoaded) {
             loadFileViaReader(f, 'dashboard');
             dashboardLoaded = true;
@@ -718,7 +747,7 @@
           if (dashboardLoaded && debugLogLoaded) break;
         }
         if (!dashboardLoaded && !debugLogLoaded) {
-          updateStatus('error', 'No data files found in selected folder');
+          updateStatus('error', 'No data files found in selected folder (or files exceed 100MB limit)');
         }
       };
       input.click();
@@ -861,14 +890,12 @@
       
       // Primary: error_dashboard_data.json (full uncapped sets), Fallback: debug_log.json parsed errors
       if (rawData?.error_types?.length > 0) {
-        // Use error_types[] (all unique codes) and column_health[] (all columns with errors)
         const codes = rawData.error_types.map(t => t.code).filter(Boolean).sort();
-        const cols = rawData.column_health.map(c => c.column).filter(Boolean).sort();
+        const cols = (rawData.column_health || []).map(c => c.column).filter(Boolean).sort();
         codeSelect.innerHTML = '<option value="">All Errors</option>' + codes.map(c => `<option value="${c}">${c}</option>`).join('');
         colSelect.innerHTML = '<option value="">All Columns</option>' + cols.map(c => `<option value="${c}">${c}</option>`).join('');
         console.log('updateFilterOptions: source=dashboard (error_types+column_health), codes=', codes.length, 'cols=', cols.length);
       } else if (parsedErrors.length > 0) {
-        // Fallback: derive from parsed debug_log errors
         const codes = [...new Set(parsedErrors.map(e => e.code).filter(Boolean))].sort();
         const cols = [...new Set(parsedErrors.map(e => e.column).filter(Boolean))].sort();
         codeSelect.innerHTML = '<option value="">All Errors</option>' + codes.map(c => `<option value="${c}">${c}</option>`).join('');
