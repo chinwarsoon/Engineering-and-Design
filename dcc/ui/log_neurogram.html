@@ -186,6 +186,18 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
             <div style="margin-top:12px">
               <button id="btnFitView" style="width:100%;padding:6px;background:var(--accent,#007acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">Fit View</button>
             </div>
+            <div style="display:flex;gap:4px;margin-top:6px">
+              <button id="btnFocusSelected" style="flex:1;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Focus Selected</button>
+              <button id="btnClearFocus" style="flex:1;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Clear Focus</button>
+            </div>
+            <div style="margin-top:6px">
+              <select id="focusDepthSelect" style="width:100%;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;font-size:12px">
+                <option value="immediate" selected>Focus: Immediate nodes only</option>
+                <option value="1">Focus Depth: 1-hop</option>
+                <option value="2">Focus Depth: 2-hop</option>
+                <option value="3">Focus Depth: 3-hop</option>
+              </select>
+            </div>
             <div style="margin-top:6px">
               <select id="layoutSelect" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;font-size:12px;cursor:pointer">
                 <option value="barnesHut">Layout: BarnesHut</option>
@@ -251,9 +263,13 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
             <button id="btnSelectAllSeverity" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Select All</button>
             <button id="btnUnselectAllSeverity" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Unselect All</button>
           </div>
-          <div class="filter-group" id="domainFilters">
+          <div class="filter-group" id="domainFilterGroup">
             <label style="font-weight:600;margin-bottom:4px">Domain</label>
             <div id="domainFilters"></div>
+          </div>
+          <div class="filter-group" id="edgeFilterGroup">
+            <label style="font-weight:600;margin-bottom:4px">Edge Type</label>
+            <div id="edgeTypeFilters"></div>
           </div>
         </div>
       </div>
@@ -264,17 +280,101 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
         <div class="panel-content">
           <div class="filter-group">
             <label><input type="checkbox" id="chkPhysics" checked> Physics enabled</label>
+            <label><input type="checkbox" id="chkNodeIcons" checked> Show node icons</label>
             <label><input type="checkbox" id="chkLabels" checked> Show labels</label>
+            <label><input type="checkbox" id="chkEdgeLabels"> Show edge labels</label>
             <label><input type="checkbox" id="chkTimeSlider" checked> Show time slider</label>
+            <label><input type="checkbox" id="chkSearchFilter"> Search filters graph</label>
           </div>
           <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:4px">Node Spacing</label>
-            <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-              <span style="font-size:11px;color:var(--text2,#888)">Tight</span>
-              <input type="range" id="repulsionSlider" min="1000" max="200000" value="6000" step="1000" style="flex:1">
-              <span style="font-size:11px;color:var(--text2,#888)">Spread</span>
+            <label style="font-weight:600;margin-bottom:2px">Repulsion / Node Distance</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">Low</span>
+              <input type="range" id="repulsionSlider" min="1000" max="200000" value="30000" step="1000" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">High</span>
             </div>
-            <div style="font-size:11px;color:var(--text2,#888);text-align:center" id="repulsionValue">6000</div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="repulsionValue">30000</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Central Gravity</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">0</span>
+              <input type="range" id="gravitySlider" min="0" max="100" value="5" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">1</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="gravityValue">0.05</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Spring Length</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">Short</span>
+              <input type="range" id="springSlider" min="50" max="500" value="360" step="10" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">Long</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="springValue">360</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Spring Constant</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">Slack</span>
+              <input type="range" id="springConstSlider" min="1" max="50" value="4" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">Stiff</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="springConstValue">0.04</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Damping (friction)</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">Bouncy</span>
+              <input type="range" id="dampingSlider" min="1" max="100" value="9" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">Stiff</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="dampingValue">0.09</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Stabilization Iterations</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">Fast</span>
+              <input type="range" id="iterSlider" min="50" max="1000" value="500" step="50" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">Accurate</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="iterValue">500</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Label Font Size</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">8</span>
+              <input type="range" id="fontSlider" min="8" max="24" value="11" step="1" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">24</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="fontValue">11</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Node Size Multiplier</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">0.5×</span>
+              <input type="range" id="nodeSizeSlider" min="5" max="30" value="10" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">3×</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="nodeSizeValue">1.0×</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Edge Width</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">Thin</span>
+              <input type="range" id="edgeWidthSlider" min="1" max="10" value="2" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">Thick</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="edgeWidthValue">1.0</div>
+          </div>
+          <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Tooltip Delay (ms)</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">Fast</span>
+              <input type="range" id="tooltipSlider" min="0" max="1000" value="100" step="50" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">Slow</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="tooltipValue">100ms</div>
           </div>
           <div class="filter-group">
             <label style="font-weight:600;margin-bottom:4px">Highlight Depth</label>
@@ -292,9 +392,12 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
           <p><strong>Navigation:</strong> Pan by dragging, zoom with scroll wheel.</p>
           <p><strong>Click a node</strong> to see details in the right panel.</p>
           <p><strong>Double-click</strong> a node to focus and highlight its connections.</p>
+          <p><strong>Focus Selected</strong> limits the graph to the selected node neighborhood.</p>
           <p><strong>Double-click background</strong> to reset the view.</p>
           <p><strong>Filter:</strong> Toggle node types in the Graph panel or use Advanced Filter.</p>
+          <p><strong>Edge filters:</strong> Toggle relationship types in Advanced Filter.</p>
           <p><strong>Search:</strong> Type in the search bar to find nodes.</p>
+          <p><strong>Search filters graph:</strong> Turn this on in Settings to show matches plus neighbors.</p>
           <p><strong>Timeline:</strong> Use the slider at the bottom to filter by date.</p>
           <p><strong>Export:</strong> Download the current view as PNG or filtered data as JSON.</p>
           <p><strong>Themes:</strong> Click 🎨 to switch between 5 color themes.</p>
@@ -331,6 +434,8 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
       </div>
     </div>
 
+    <div class="resize-handle" id="rightResizeHandle"></div>
+
     <!-- Right Panel -->
     <div class="right-panel hidden" id="rightPanel">
       <div class="panel-header">Node Details</div>
@@ -366,12 +471,41 @@ let allEdges = [];
 let nodeMap = {};
 let currentPanel = 'graph';
 let selectedNodeId = null;
+let focusNodeId = null;
+let currentSearchQuery = '';
 
-  let TYPE_COLORS = {};
-  let TYPE_SHAPES = {};
-  let TYPE_ICONS = {};
-  let NODE_TYPES_META = {};  // type_id -> {layer, label, color, ...}
-  let activeLayers = new Set([1, 2]);  // Layer 1+2 on by default
+let TYPE_COLORS = {};
+let TYPE_SHAPES = {};
+let TYPE_ICONS = {};
+let NODE_TYPES_META = {};  // type_id -> {layer, label, color, ...}
+let activeLayers = new Set([1, 2]);  // Layer 1+2 on by default
+
+function edgeId(index) {
+  return `edge-${index}`;
+}
+
+function hydrateGraphData(data) {
+  graphData = data;
+  allNodes = graphData.nodes || [];
+  allEdges = graphData.edges || [];
+  nodeMap = {};
+  TYPE_COLORS = {};
+  TYPE_SHAPES = {};
+  TYPE_ICONS = {};
+  NODE_TYPES_META = {};
+
+  allNodes.forEach(n => nodeMap[n.id] = n);
+  (graphData.node_types || []).forEach(t => {
+    TYPE_COLORS[t.id] = t.color;
+    TYPE_SHAPES[t.id] = t.shape;
+    TYPE_ICONS[t.id] = t.icon || '';
+    NODE_TYPES_META[t.id] = t;
+  });
+}
+
+function getEdgeTypeLabel(type) {
+  return String(type || 'related');
+}
 
 // ============================================================
 // Load Data
@@ -380,20 +514,11 @@ async function loadData() {
   try {
     const resp = await fetch(GRAPH_DATA_URL);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    graphData = await resp.json();
-    allNodes = graphData.nodes;
-    allEdges = graphData.edges;
-    allNodes.forEach(n => nodeMap[n.id] = n);
-    // Build type maps from schema
-    (graphData.node_types || []).forEach(t => {
-      TYPE_COLORS[t.id] = t.color;
-      TYPE_SHAPES[t.id] = t.shape;
-      TYPE_ICONS[t.id] = t.icon || '';
-      NODE_TYPES_META[t.id] = t;
-    });
+    hydrateGraphData(await resp.json());
     buildTypeFilters();
     buildTree();
     buildDomainFilters();
+    buildEdgeTypeFilters();
     initGraph();
     applyFilters();
     updateStatus();
@@ -413,13 +538,13 @@ function showFilePicker() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      graphData = JSON.parse(ev.target.result);
-      allNodes = graphData.nodes;
-      allEdges = graphData.edges;
-      allNodes.forEach(n => nodeMap[n.id] = n);
+      hydrateGraphData(JSON.parse(ev.target.result));
+      buildTypeFilters();
       buildTree();
       buildDomainFilters();
+      buildEdgeTypeFilters();
       initGraph();
+      applyFilters();
       updateStatus();
       document.getElementById('statusLeft').textContent = `Loaded from file: ${allNodes.length} nodes, ${allEdges.length} edges`;
     };
@@ -499,7 +624,7 @@ function buildTypeFilters() {
       layerTypes.map(t => {
         const checked = (t.layer === 1 || t.layer === 2) ? 'checked' : '';
         const count = typeCounts[t.id] || 0;
-        return `<label><input type="checkbox" ${checked} data-filter="${t.id}"> <span class="type-dot" style="background:${t.color}"></span> ${t.label} <span class="type-count">${count}</span></label>`;
+        return `<label><input type="checkbox" ${checked} data-filter="${t.id}"> <span class="type-dot" style="background:${t.color}"></span> <span style="color:${t.color};min-width:14px;text-align:center">${t.icon || ''}</span> ${t.label} <span class="type-count">${count}</span></label>`;
       }).join('');
   }
   document.querySelectorAll('[data-filter]').forEach(cb => {
@@ -513,43 +638,145 @@ function buildDomainFilters() {
   container.innerHTML = domains.sort().map(d =>
     `<label><input type="checkbox" checked data-domain="${d}"> ${d}</label>`
   ).join('');
+  document.querySelectorAll('[data-domain]').forEach(cb => {
+    cb.addEventListener('change', applyFilters);
+  });
+}
+
+function buildEdgeTypeFilters() {
+  const edgeCounts = {};
+  allEdges.forEach(e => {
+    const type = getEdgeTypeLabel(e.type);
+    edgeCounts[type] = (edgeCounts[type] || 0) + 1;
+  });
+
+  const container = document.getElementById('edgeTypeFilters');
+  container.innerHTML = Object.keys(edgeCounts).sort().map(type =>
+    `<label><input type="checkbox" checked data-edge-filter="${type}"> ${type} <span class="type-count">${edgeCounts[type]}</span></label>`
+  ).join('');
+
+  document.querySelectorAll('[data-edge-filter]').forEach(cb => {
+    cb.addEventListener('change', applyFilters);
+  });
 }
 
 // ============================================================
 // Init Graph
 // ============================================================
+function getReportNodeLayout(n, index, total) {
+  if (n.type !== 'report' || index === undefined) return {};
+
+  const angle = index * 137.508 * Math.PI / 180;
+  const radius = 380 + Math.sqrt(index + 1) * 95;
+
+  return {
+    x: Math.round(Math.cos(angle) * radius),
+    y: Math.round(Math.sin(angle) * radius),
+    mass: 2
+  };
+}
+
+function isReportRelatedEdge(e) {
+  return nodeMap[e.from]?.type === 'report' || nodeMap[e.to]?.type === 'report';
+}
+
+function isReportToReportEdge(e) {
+  return nodeMap[e.from]?.type === 'report' && nodeMap[e.to]?.type === 'report';
+}
+
+function getEdgeLength(e) {
+  return isReportRelatedEdge(e) ? 420 : undefined;
+}
+
+function getCurrentLabelSize() {
+  if (!document.getElementById('chkLabels').checked) return 0;
+  return parseInt(document.getElementById('fontSlider').value);
+}
+
+function getNodeColor(n) {
+  const color = TYPE_COLORS[n.type] || '#888';
+  return { background: color, border: color, highlight: { background: color, border: '#fff' } };
+}
+
+function getNodeLabel(n) {
+  if (!document.getElementById('chkLabels').checked) return '';
+  const label = String(n.label || n.id || '');
+  if (n.type !== 'report') return label.substring(0, 30);
+  return label
+    .replace(/\.md$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getNodeIconCode(n) {
+  return TYPE_ICONS[n.type] || '';
+}
+
+function getNodeVisual(n) {
+  const color = TYPE_COLORS[n.type] || '#888';
+  const icon = getNodeIconCode(n);
+  if (document.getElementById('chkNodeIcons').checked && icon) {
+    return {
+      shape: 'icon',
+      icon: {
+        face: 'Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif',
+        code: icon,
+        size: Math.max(18, Math.round(getNodeSize(n) * 1.4)),
+        color
+      }
+    };
+  }
+
+  return { shape: TYPE_SHAPES[n.type] || 'dot' };
+}
+
+function getNodeRender(n) {
+  return {
+    label: getNodeLabel(n),
+    color: getNodeColor(n),
+    font: { size: getCurrentLabelSize(), color: '#ccc', face: 'Segoe UI, sans-serif' },
+    ...getNodeVisual(n)
+  };
+}
+
 function initGraph() {
+  if (network) {
+    network.destroy();
+    network = null;
+  }
+
+  const reportNodes = allNodes.filter(n => n.type === 'report');
+  const reportIndexById = new Map(reportNodes.map((n, i) => [n.id, i]));
+
   const visNodes = new vis.DataSet(allNodes.map(n => ({
     id: n.id,
-    label: n.label.substring(0, 30),
-    color: { background: TYPE_COLORS[n.type] || '#888', border: TYPE_COLORS[n.type] || '#888' },
-    shape: TYPE_SHAPES[n.type] || 'dot',
     size: getNodeSize(n),
-    font: { size: 11, color: '#ccc', face: 'Segoe UI, sans-serif' },
     type: n.type,
-    data: n
+    data: n,
+    ...getNodeRender(n),
+    ...getReportNodeLayout(n, reportIndexById.get(n.id), reportNodes.length)
   })));
 
-  const visEdges = new vis.DataSet(allEdges.map(e => ({
+  const visEdges = new vis.DataSet(allEdges.map((e, index) => ({
+    id: edgeId(index),
     from: e.from,
     to: e.to,
-    label: e.type,
+    label: document.getElementById('chkEdgeLabels').checked ? getEdgeTypeLabel(e.type) : '',
+    title: getEdgeTypeLabel(e.type),
     color: { color: '#555', highlight: '#007acc' },
     font: { size: 9, color: '#888', align: 'top' },
     smooth: { type: 'continuous', roundness: 0.2 },
     width: 1,
     arrows: { to: { enabled: e.type === 'resolved_by' || e.type === 'blocks' || e.type === 'depends_on', scaleFactor: 0.5 } },
-    type: e.type
+    type: e.type,
+    length: getEdgeLength(e),
+    physics: !isReportToReportEdge(e)
   })));
 
   const container = document.getElementById('network');
   const options = {
-    physics: {
-      enabled: true,
-      solver: 'barnesHut',
-      barnesHut: { gravitationalConstant: -6000, centralGravity: 0.2, springLength: 250, springConstant: 0.04, damping: 0.09 },
-      stabilization: { iterations: 200, fit: true }
-    },
+    physics: getPhysicsFromSliders('barnesHut'),
     interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true, dragNodes: true },
     layout: { improvedLayout: true },
     edges: { selectionWidth: 2, hoverWidth: 1.5 }
@@ -622,14 +849,12 @@ function getNodeSize(n) {
 function selectNode(nodeId) {
   selectedNodeId = nodeId;
   const node = nodeMap[nodeId];
-  if (!node) return;
+  if (!network || !node) return;
 
   const rightPanel = document.getElementById('rightPanel');
   rightPanel.classList.remove('hidden');
   const leftPanel = document.getElementById('leftPanel');
   leftPanel.classList.remove('hidden');
-  const detailPanel = document.getElementById('panelDetail');
-  if (detailPanel) detailPanel.style.display = '';
 
   const content = document.getElementById('detailContent');
   let html = `<h3>${TYPE_ICONS[node.type] || ''} ${node.label}</h3>`;
@@ -688,7 +913,7 @@ function clearSelection() {
 }
 
 function focusNode(nodeId) {
-  if (!nodeMap[nodeId]) return;
+  if (!network || !nodeMap[nodeId]) return;
   network.selectNodes([nodeId]);
   network.focus(nodeId, { scale: 1.2, animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
   selectNode(nodeId);
@@ -698,6 +923,7 @@ function focusNode(nodeId) {
 // Highlight Connections
 // ============================================================
 function highlightConnections(nodeId) {
+  if (!network) return;
   const depth = parseInt(document.querySelector('input[name="depth"]:checked')?.value || '2');
   const connected = new Set();
   connected.add(nodeId);
@@ -717,31 +943,32 @@ function highlightConnections(nodeId) {
 
   visNodes.update(allNodes.map(n => ({
     id: n.id,
-    color: connected.has(n.id) ? { background: TYPE_COLORS[n.type] || '#888', border: '#fff' } : { background: '#333', border: '#333' },
+    color: connected.has(n.id) ? { ...getNodeColor(n), border: '#fff' } : { background: '#333', border: '#333' },
     font: { size: connected.has(n.id) ? 12 : 8, color: connected.has(n.id) ? '#fff' : '#555' },
     opacity: connected.has(n.id) ? 1 : 0.2
   })));
 
-  visEdges.update(allEdges.map(e => ({
-    id: e.from + '-' + e.to,
+  visEdges.update(allEdges.map((e, index) => ({
+    id: edgeId(index),
     color: { color: (connected.has(e.from) && connected.has(e.to)) ? '#007acc' : '#222' },
     opacity: (connected.has(e.from) && connected.has(e.to)) ? 1 : 0.1
   })));
 }
 
 function resetHighlight() {
+  if (!network) return;
   const visNodes = network.body.data.nodes;
   const visEdges = network.body.data.edges;
 
   visNodes.update(allNodes.map(n => ({
     id: n.id,
-    color: { background: TYPE_COLORS[n.type] || '#888', border: TYPE_COLORS[n.type] || '#888' },
-    font: { size: 11, color: '#ccc' },
-    opacity: 1
+    ...getNodeRender(n),
+    opacity: 1,
+    size: getNodeSize(n) * (parseInt(document.getElementById('nodeSizeSlider').value) / 10)
   })));
 
-  visEdges.update(allEdges.map(e => ({
-    id: e.from + '-' + e.to,
+  visEdges.update(allEdges.map((e, index) => ({
+    id: edgeId(index),
     color: { color: '#555' },
     opacity: 1
   })));
@@ -772,13 +999,13 @@ function showPanel(panelId) {
     else rightPanel.classList.add('hidden');
   }
 
-  setTimeout(() => network.redraw(), 50);
+  if (network) setTimeout(() => network.redraw(), 50);
 }
 
 // ============================================================
 // Filtering
 // ============================================================
-function applyFilters() {
+function getActiveFilterState() {
   const activeTypes = new Set();
   document.querySelectorAll('[data-filter]').forEach(cb => {
     if (cb.checked) activeTypes.add(cb.dataset.filter);
@@ -794,12 +1021,116 @@ function applyFilters() {
     if (cb.checked) activeSeverities.add(cb.dataset.severity);
   });
 
+  const activeDomains = new Set();
+  document.querySelectorAll('[data-domain]').forEach(cb => {
+    if (cb.checked) activeDomains.add(cb.dataset.domain);
+  });
+
+  const activeEdgeTypes = new Set();
+  document.querySelectorAll('[data-edge-filter]').forEach(cb => {
+    if (cb.checked) activeEdgeTypes.add(cb.dataset.edgeFilter);
+  });
+
+  return { activeTypes, activeStatuses, activeSeverities, activeDomains, activeEdgeTypes };
+}
+
+function getTimeCutoff() {
+  const val = document.getElementById('timeRange').value;
+  const startDate = new Date('2026-04-12');
+  const endDate = new Date('2026-05-21');
+  const cutoff = new Date(startDate.getTime() + (endDate - startDate) * (val / 100));
+  return cutoff.toISOString().split('T')[0];
+}
+
+function isNodeVisible(n, filters, cutoffStr) {
+  if (!filters.activeTypes.has(n.type)) return false;
+  if (n.status && !filters.activeStatuses.has(n.status)) return false;
+  if (n.severity && !filters.activeSeverities.has(n.severity)) return false;
+  if (n.type === 'workplan' && n.domain && !filters.activeDomains.has(n.domain)) return false;
+  if (n.date && n.date > cutoffStr) return false;
+  return true;
+}
+
+function getSearchMatchIds() {
+  if (!currentSearchQuery) return null;
+  const query = currentSearchQuery.toLowerCase();
+  const matches = new Set(allNodes
+    .filter(n =>
+      n.label.toLowerCase().includes(query) ||
+      (n.id && n.id.toLowerCase().includes(query)) ||
+      (n.type && n.type.toLowerCase().includes(query))
+    )
+    .map(n => n.id));
+  const withNeighbors = new Set(matches);
+  allEdges.forEach(e => {
+    if (matches.has(e.from)) withNeighbors.add(e.to);
+    if (matches.has(e.to)) withNeighbors.add(e.from);
+  });
+  return withNeighbors;
+}
+
+function getNeighborhoodIds(startId, depth) {
+  const visible = new Set();
+  if (!startId) return visible;
+
+  visible.add(startId);
+  let frontier = new Set([startId]);
+  for (let level = 0; level < depth; level += 1) {
+    const next = new Set();
+    allEdges.forEach(e => {
+      if (frontier.has(e.from) && !visible.has(e.to)) next.add(e.to);
+      if (frontier.has(e.to) && !visible.has(e.from)) next.add(e.from);
+    });
+    next.forEach(id => visible.add(id));
+    frontier = next;
+    if (frontier.size === 0) break;
+  }
+  return visible;
+}
+
+function getFocusDepthValue() {
+  const value = document.getElementById('focusDepthSelect').value;
+  return value === 'immediate' ? 1 : parseInt(value);
+}
+
+function isEdgeVisibleInFocus(e) {
+  if (!focusNodeId) return true;
+  if (document.getElementById('focusDepthSelect').value !== 'immediate') return true;
+  return e.from === focusNodeId || e.to === focusNodeId;
+}
+
+function applyFilters() {
+  if (!network) return;
+  const filters = getActiveFilterState();
+  const cutoffStr = getTimeCutoff();
+  document.getElementById('timeLabel').textContent = cutoffStr;
+
+  const searchMatchIds = document.getElementById('chkSearchFilter').checked ? getSearchMatchIds() : null;
+  const focusIds = focusNodeId ? getNeighborhoodIds(focusNodeId, getFocusDepthValue()) : null;
+
   const visNodes = network.body.data.nodes;
-  visNodes.update(allNodes.map(n => {
-    let hidden = !activeTypes.has(n.type);
-    if (!hidden && n.status && !activeStatuses.has(n.status)) hidden = true;
-    if (!hidden && n.severity && !activeSeverities.has(n.severity)) hidden = true;
-    return { id: n.id, hidden };
+  const visibleNodeIds = new Set();
+  const nodeUpdates = allNodes.map(n => {
+    let visible = isNodeVisible(n, filters, cutoffStr);
+    if (visible && searchMatchIds) visible = searchMatchIds.has(n.id);
+    if (visible && focusIds) visible = focusIds.has(n.id);
+    if (visible) visibleNodeIds.add(n.id);
+    return { id: n.id, hidden: !visible };
+  });
+  visNodes.update(nodeUpdates);
+
+  const showEdgeLabels = document.getElementById('chkEdgeLabels').checked;
+  const visEdges = network.body.data.edges;
+  visEdges.update(allEdges.map((e, index) => {
+    const visible = visibleNodeIds.has(e.from) &&
+      visibleNodeIds.has(e.to) &&
+      filters.activeEdgeTypes.has(getEdgeTypeLabel(e.type)) &&
+      isEdgeVisibleInFocus(e);
+    return {
+      id: edgeId(index),
+      hidden: !visible,
+      label: showEdgeLabels ? getEdgeTypeLabel(e.type) : ''
+    };
   }));
 
   updateStatus();
@@ -809,22 +1140,7 @@ function applyFilters() {
 // Time Slider
 // ============================================================
 function applyTimeFilter() {
-  const val = document.getElementById('timeRange').value;
-  const startDate = new Date('2026-04-12');
-  const endDate = new Date('2026-05-21');
-  const cutoff = new Date(startDate.getTime() + (endDate - startDate) * (val / 100));
-  const cutoffStr = cutoff.toISOString().split('T')[0];
-
-  document.getElementById('timeLabel').textContent = cutoffStr;
-
-  const visNodes = network.body.data.nodes;
-  visNodes.update(allNodes.map(n => {
-    const nodeDate = n.date || '';
-    const show = !nodeDate || nodeDate <= cutoffStr;
-    return { id: n.id, hidden: !show };
-  }));
-
-  updateStatus();
+  applyFilters();
 }
 
 // ============================================================
@@ -835,7 +1151,8 @@ function updateStatus() {
   if (!visNodes) return;
   const visible = visNodes.get({ filter: n => !n.hidden });
   const visibleIds = new Set(visible.map(n => n.id));
-  const visibleEdges = allEdges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to));
+  const edgeData = network?.body?.data?.edges;
+  const visibleEdges = edgeData ? edgeData.get({ filter: e => !e.hidden }) : [];
 
   document.getElementById('statusNodes').textContent = `nodes: ${visible.length}`;
   document.getElementById('statusEdges').textContent = `edges: ${visibleEdges.length}`;
@@ -845,6 +1162,7 @@ function updateStatus() {
 // Export
 // ============================================================
 function exportPNG() {
+  if (!network) return;
   const canvas = document.querySelector('#network canvas');
   if (!canvas) return;
   const link = document.createElement('a');
@@ -854,13 +1172,16 @@ function exportPNG() {
 }
 
 function exportJSON() {
+  if (!network || !graphData) return;
   const visNodes = network.body.data.nodes;
   const visible = visNodes.get({ filter: n => !n.hidden });
   const visibleIds = new Set(visible.map(n => n.id));
+  const visEdges = network.body.data.edges;
+  const visibleEdgeIds = new Set(visEdges.get({ filter: e => !e.hidden }).map(e => e.id));
   const filtered = {
     metadata: graphData.metadata,
     nodes: allNodes.filter(n => visibleIds.has(n.id)),
-    edges: allEdges.filter(e => visibleIds.has(e.from) && visibleIds.has(e.to))
+    edges: allEdges.filter((e, index) => visibleEdgeIds.has(edgeId(index)))
   };
   const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: 'application/json' });
   const link = document.createElement('a');
@@ -912,15 +1233,87 @@ document.getElementById('btnUnselectAllSeverity').addEventListener('click', () =
 
 document.getElementById('timeRange').addEventListener('input', applyTimeFilter);
 
-document.getElementById('btnFitView').addEventListener('click', () => network.fit({ animation: true }));
+document.getElementById('btnFitView').addEventListener('click', () => {
+  if (network) network.fit({ animation: true });
+});
 
-const DEFAULT_PHYSICS = {
-  enabled: true, solver: 'barnesHut',
-  barnesHut: { gravitationalConstant: -6000, centralGravity: 0.2, springLength: 250, springConstant: 0.04, damping: 0.09 },
-  stabilization: { iterations: 200, fit: true }
-};
+function setFocusMode(nodeId) {
+  if (!network || !nodeMap[nodeId]) return;
+  focusNodeId = nodeId;
+  applyFilters();
+  const focusIds = [...getNeighborhoodIds(focusNodeId, getFocusDepthValue())]
+    .filter(id => !network.body.data.nodes.get(id)?.hidden);
+  if (focusIds.length) network.fit({ nodes: focusIds, animation: true });
+  document.getElementById('statusLeft').textContent = `Focus: ${nodeMap[nodeId].label}`;
+}
+
+function clearFocusMode() {
+  focusNodeId = null;
+  applyFilters();
+  if (network) network.fit({ animation: true });
+}
+
+document.getElementById('btnFocusSelected').addEventListener('click', () => {
+  if (selectedNodeId) setFocusMode(selectedNodeId);
+});
+
+document.getElementById('btnClearFocus').addEventListener('click', clearFocusMode);
+
+document.getElementById('focusDepthSelect').addEventListener('change', () => {
+  if (focusNodeId) setFocusMode(focusNodeId);
+});
+
+function getPhysicsFromSliders(solver) {
+  const gravity = parseInt(document.getElementById('gravitySlider').value) / 100;
+  const springLen = parseInt(document.getElementById('springSlider').value);
+  const springConst = parseInt(document.getElementById('springConstSlider').value) / 100;
+  const damping = parseInt(document.getElementById('dampingSlider').value) / 100;
+  const iter = parseInt(document.getElementById('iterSlider').value);
+  const repVal = parseInt(document.getElementById('repulsionSlider').value);
+  const nodeDistance = Math.max(80, Math.round(repVal / 40));
+  const base = { enabled: true, stabilization: { iterations: iter, fit: true } };
+  if (solver === 'repulsion') {
+    base.solver = 'repulsion';
+    base.repulsion = { nodeDistance, centralGravity: gravity, springLength: springLen, springConstant: springConst, damping };
+  } else if (solver === 'forceAtlas2Based') {
+    base.solver = 'forceAtlas2Based';
+    base.forceAtlas2Based = { gravitationalConstant: -repVal / 10, centralGravity: gravity / 40, springLength: springLen, springConstant: springConst, damping };
+  } else {
+    base.solver = 'barnesHut';
+    base.barnesHut = { gravitationalConstant: -repVal, centralGravity: gravity, springLength: springLen, springConstant: springConst, damping, avoidOverlap: 1 };
+  }
+  return base;
+}
+
+function getActivePhysicsSolver() {
+  const mode = document.getElementById('layoutSelect').value;
+  if (mode === 'repulsion') return 'repulsion';
+  if (mode === 'forceAtlas2') return 'forceAtlas2Based';
+  return 'barnesHut';
+}
+
+function getActivePhysicsFromSliders() {
+  const solver = getActivePhysicsSolver();
+  const physics = getPhysicsFromSliders(solver);
+  if (physics.forceAtlas2Based) {
+    physics.forceAtlas2Based.centralGravity = parseFloat(document.getElementById('gravitySlider').value) / 4000;
+  }
+  return physics;
+}
+
+function applyActivePhysicsFromSliders(fit = false) {
+  if (!network) return;
+  const mode = document.getElementById('layoutSelect').value;
+  if (mode.startsWith('tree') || mode === 'circle') return;
+
+  const physics = getActivePhysicsFromSliders();
+  physics.stabilization.fit = fit;
+  network.setOptions({ physics });
+  document.getElementById('chkPhysics').checked = true;
+}
 
 document.getElementById('layoutSelect').addEventListener('change', () => {
+  if (!network) return;
   const mode = document.getElementById('layoutSelect').value;
   const visNodes = network.body.data.nodes;
   const chkPhysics = document.getElementById('chkPhysics');
@@ -932,21 +1325,13 @@ document.getElementById('layoutSelect').addEventListener('change', () => {
   });
 
   if (mode === 'barnesHut') {
-    network.setOptions({ physics: DEFAULT_PHYSICS, layout: { improvedLayout: true }, clustering: { enabled: false } });
+    network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
     chkPhysics.checked = true;
   } else if (mode === 'repulsion') {
-    network.setOptions({ physics: {
-      enabled: true, solver: 'repulsion',
-      repulsion: { nodeDistance: 200, centralGravity: 0.2, springLength: 250, springConstant: 0.04, damping: 0.09 },
-      stabilization: { iterations: 200, fit: true }
-    }, layout: { improvedLayout: true }, clustering: { enabled: false } });
+    network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
     chkPhysics.checked = true;
   } else if (mode === 'forceAtlas2') {
-    network.setOptions({ physics: {
-      enabled: true, solver: 'forceAtlas2Based',
-      forceAtlas2Based: { gravitationalConstant: -80, centralGravity: 0.005, springLength: 250, springConstant: 0.04, damping: 0.4 },
-      stabilization: { iterations: 200, fit: true }
-    }, layout: { improvedLayout: true }, clustering: { enabled: false } });
+    network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
     chkPhysics.checked = true;
   } else if (mode === 'circle') {
     try {
@@ -988,19 +1373,31 @@ document.getElementById('layoutSelect').addEventListener('change', () => {
   }
 });
 
+function openAllClusters() {
+  if (!network) return;
+  let clusterIds = Object.keys(network.body.nodes).filter(id => network.isCluster(id));
+  let passes = 0;
+  while (clusterIds.length > 0 && passes < 20) {
+    clusterIds.forEach(id => network.openCluster(id));
+    clusterIds = Object.keys(network.body.nodes).filter(id => network.isCluster(id));
+    passes += 1;
+  }
+}
+
 document.getElementById('selCluster').addEventListener('change', function () {
+  if (!network) return;
   const val = this.value;
+  openAllClusters();
   if (val === 'none') {
-    network.openCluster();
     network.setOptions({ clustering: { enabled: false } });
   } else if (val === 'type') {
     network.setOptions({ clustering: { enabled: true } });
     const types = [...new Set(allNodes.map(n => n.type))];
     types.forEach(type => {
       const clusterOptions = {
-        joinCondition: n => n.type === type,
-        processProperties: (clusterProps) => {
-          clusterProps.label = `${TYPE_ICONS[type]} ${type} (${clusterProps.numberOfNodes})`;
+        joinCondition: n => n.type === type && !n.hidden,
+        processProperties: (clusterProps, childNodes) => {
+          clusterProps.label = `${TYPE_ICONS[type]} ${type} (${childNodes.length})`;
           clusterProps.color = TYPE_COLORS[type];
           clusterProps.shape = 'hexagon';
           clusterProps.size = 20;
@@ -1033,7 +1430,19 @@ document.addEventListener('click', () => {
 });
 
 document.getElementById('btnLayout').addEventListener('click', () => {
-  document.getElementById('leftPanel').classList.toggle('hidden');
+  const left = document.getElementById('leftPanel');
+  const right = document.getElementById('rightPanel');
+  if (!left.classList.contains('hidden') && right.classList.contains('hidden')) {
+    // left only → both
+    right.classList.remove('hidden');
+  } else if (!left.classList.contains('hidden') && !right.classList.contains('hidden')) {
+    // both → right only
+    left.classList.add('hidden');
+  } else {
+    // right only → left only
+    right.classList.add('hidden');
+    left.classList.remove('hidden');
+  }
 });
 
 // Panel Resize
@@ -1061,35 +1470,123 @@ document.getElementById('btnLayout').addEventListener('click', () => {
   }
 })();
 
+(function() {
+  const handle = document.getElementById('rightResizeHandle');
+  const panel = document.getElementById('rightPanel');
+  let startX, startWidth;
+  handle.addEventListener('mousedown', (e) => {
+    startX = e.clientX;
+    startWidth = panel.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+  function onMove(e) {
+    const w = Math.max(150, Math.min(600, startWidth - (e.clientX - startX)));
+    panel.style.width = w + 'px';
+  }
+  function onUp() {
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+})();
+
 document.getElementById('chkPhysics').addEventListener('change', (e) => {
+  if (!network) return;
   network.setOptions({ physics: { enabled: e.target.checked } });
 });
 
 document.getElementById('repulsionSlider').addEventListener('input', (e) => {
   const val = parseInt(e.target.value);
   document.getElementById('repulsionValue').textContent = val;
-  const physics = network.body.viewOptions.physics || {};
-  const opts = { physics: { enabled: true } };
-  if (physics.solver === 'repulsion') {
-    opts.physics.repulsion = { nodeDistance: val };
-  } else if (physics.solver === 'forceAtlas2Based') {
-    opts.physics.forceAtlas2Based = { gravitationalConstant: -val / 10 };
-  } else {
-    opts.physics.barnesHut = { gravitationalConstant: -val };
-  }
-  network.setOptions(opts);
+  applyActivePhysicsFromSliders();
 });
-
-document.getElementById('chkLabels').addEventListener('change', (e) => {
-  const visNodes = network.body.data.nodes;
-  visNodes.update(allNodes.map(n => ({
-    id: n.id,
-    font: { size: e.target.checked ? 11 : 0, color: '#ccc' }
-  })));
+document.getElementById('gravitySlider').addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  document.getElementById('gravityValue').textContent = (val / 100).toFixed(2);
+  applyActivePhysicsFromSliders();
+});
+document.getElementById('springSlider').addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  document.getElementById('springValue').textContent = val;
+  applyActivePhysicsFromSliders();
+});
+document.getElementById('springConstSlider').addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  document.getElementById('springConstValue').textContent = (val / 100).toFixed(2);
+  applyActivePhysicsFromSliders();
+});
+document.getElementById('dampingSlider').addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  document.getElementById('dampingValue').textContent = (val / 100).toFixed(2);
+  applyActivePhysicsFromSliders();
+});
+document.getElementById('iterSlider').addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  document.getElementById('iterValue').textContent = val;
+  applyActivePhysicsFromSliders();
 });
 
 document.getElementById('chkTimeSlider').addEventListener('change', (e) => {
   document.getElementById('timeSlider').style.display = e.target.checked ? 'flex' : 'none';
+});
+
+document.getElementById('chkEdgeLabels').addEventListener('change', applyFilters);
+
+document.getElementById('chkSearchFilter').addEventListener('change', () => {
+  resetHighlight();
+  applyFilters();
+  if (currentSearchQuery && network) {
+    const visibleIds = network.body.data.nodes.get({ filter: n => !n.hidden }).map(n => n.id);
+    if (visibleIds.length) network.fit({ nodes: visibleIds, animation: true });
+  }
+});
+
+function updateNodeRendering() {
+  if (!network) return;
+  const mult = parseInt(document.getElementById('nodeSizeSlider').value) / 10;
+  const visNodes = network.body.data.nodes;
+  visNodes.update(allNodes.map(n => ({
+    id: n.id,
+    size: Math.round(getNodeSize(n) * mult),
+    ...getNodeRender(n)
+  })));
+}
+
+document.getElementById('chkNodeIcons').addEventListener('change', updateNodeRendering);
+
+document.getElementById('chkLabels').addEventListener('change', (e) => {
+  updateNodeRendering();
+});
+
+document.getElementById('fontSlider').addEventListener('input', (e) => {
+  const val = e.target.value;
+  document.getElementById('fontValue').textContent = val;
+  updateNodeRendering();
+});
+
+document.getElementById('nodeSizeSlider').addEventListener('input', (e) => {
+  if (!network) return;
+  const mult = parseInt(e.target.value) / 10;
+  document.getElementById('nodeSizeValue').textContent = mult.toFixed(1) + '×';
+  updateNodeRendering();
+});
+
+document.getElementById('edgeWidthSlider').addEventListener('input', (e) => {
+  if (!network) return;
+  const val = parseInt(e.target.value) / 2;
+  document.getElementById('edgeWidthValue').textContent = val.toFixed(1);
+  network.setOptions({ edges: { width: val } });
+});
+
+document.getElementById('tooltipSlider').addEventListener('input', (e) => {
+  if (!network) return;
+  const val = parseInt(e.target.value);
+  document.getElementById('tooltipValue').textContent = val + 'ms';
+  network.setOptions({ interaction: { tooltipDelay: val } });
 });
 
 // Layer Toggles
@@ -1119,24 +1616,37 @@ document.querySelectorAll('.layer-btn').forEach(btn => {
   });
 });
 
-// Inline Search
-document.getElementById('searchInput').addEventListener('input', (e) => {
-  const query = e.target.value.trim().toLowerCase();
+function handleInlineSearch(query) {
+  if (!network) return;
+  currentSearchQuery = query.trim().toLowerCase();
   const countEl = document.getElementById('searchCount');
-  if (!query) {
+  if (!currentSearchQuery) {
     countEl.textContent = '';
     resetHighlight();
+    applyFilters();
     return;
   }
   const matches = allNodes.filter(n =>
-    n.label.toLowerCase().includes(query) ||
-    (n.id && n.id.toLowerCase().includes(query))
+    n.label.toLowerCase().includes(currentSearchQuery) ||
+    (n.id && n.id.toLowerCase().includes(currentSearchQuery)) ||
+    (n.type && n.type.toLowerCase().includes(currentSearchQuery))
   );
   if (matches.length === 0) {
     countEl.textContent = '0 matches';
+    applyFilters();
     return;
   }
   countEl.textContent = `${matches.length} match${matches.length > 1 ? 'es' : ''}`;
+
+  if (document.getElementById('chkSearchFilter').checked) {
+    resetHighlight();
+    applyFilters();
+    const visibleIds = network.body.data.nodes.get({ filter: n => !n.hidden }).map(n => n.id);
+    if (visibleIds.length) network.fit({ nodes: visibleIds, animation: true });
+    return;
+  }
+
+  applyFilters();
   const matchIds = new Set(matches.map(n => n.id));
   const visNodes = network.body.data.nodes;
   visNodes.update(allNodes.map(n => ({
@@ -1150,11 +1660,17 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
     }
   })));
   network.fit({ nodes: matches.map(n => n.id), animation: true });
+}
+
+// Inline Search
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  handleInlineSearch(e.target.value);
 });
 
 // Search (legacy button — uses inline input)
 let searchTimeout;
 document.getElementById('btnSearch').addEventListener('click', () => {
+  if (!network) return;
   const query = prompt('Search nodes:');
   if (!query) return;
   const matches = allNodes.filter(n =>
@@ -1169,15 +1685,8 @@ document.getElementById('btnSearch').addEventListener('click', () => {
   if (matches.length === 1) {
     focusNode(matches[0].id);
   } else {
-    // Highlight all matches
-    const matchIds = new Set(matches.map(n => n.id));
-    const visNodes = network.body.data.nodes;
-    visNodes.update(allNodes.map(n => ({
-      id: n.id,
-      color: matchIds.has(n.id) ? { background: '#fff', border: '#007acc' } : { background: '#333', border: '#333' },
-      font: { size: matchIds.has(n.id) ? 14 : 8, color: matchIds.has(n.id) ? '#000' : '#555' }
-    })));
-    network.fit({ nodes: matches.map(n => n.id), animation: true });
+    document.getElementById('searchInput').value = query;
+    handleInlineSearch(query);
     document.getElementById('statusLeft').textContent = `Found ${matches.length} matches for "${query}"`;
   }
 });
