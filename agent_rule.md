@@ -163,5 +163,6 @@
 
 # Section 13. Compact workplans, records, and logs
 1. ultra-compact and scannable.
-2. Bulleted list of what is done, include timestamp, previousent status or issues to be resolved, contexts, changes be done or to be done, critical architecture decisions/reasons, next immediate steps.
+2. Bulleted list of what is done, include timestamp, previousent status or issues to be resolved, contexts, list of dependencies, changes be done or to be done, critical architecture decisions/reasons, next immediate steps.
+3. generate nurogram network json file dcc_log_graph.json in dcc/output folder
 

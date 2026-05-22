@@ -185,5 +185,31 @@
       "version": "3.1.0",
       "description": "Visualizes pipeline validation results and data health metrics. Includes debug log integration for full error coverage."
     }
+  },
+  "neurogram": {
+    "help": {
+      "title": "Log Neurogram Help",
+      "sections": [
+        {"heading": "Getting Started", "text": "The graph loads automatically from <code>../output/dcc_log_graph.json</code>. Use the icon bar on the left to switch views. Click any node to see details."},
+        {"heading": "Navigation", "text": "Pan: drag background. Zoom: scroll wheel. Focus node: double-click. Reset view: double-click background or click Fit View."},
+        {"heading": "Filtering", "text": "Toggle node types in the Graph panel. Use Advanced Filter for status, severity, and domain filters."},
+        {"heading": "Search", "text": "Click 🔍 Search to find nodes by name, ID, or type. Single match focuses automatically; multiple matches highlight all."},
+        {"heading": "Timeline", "text": "Use the time slider at the bottom to filter nodes by date, from 2026-04-12 to 2026-05-21."},
+        {"heading": "Tree View", "text": "Click 🌳 Tree for a hierarchical view of engines, workplans, and issues. Click any tree node to focus it in the graph."},
+        {"heading": "Connections", "text": "Double-click a node to highlight its connections (1-hop, 2-hop, or full path based on Settings). Click linked nodes in the detail panel to navigate."},
+        {"heading": "Export", "text": "Click Export PNG to download the current view. Click Export Filtered JSON to download visible nodes and edges."},
+        {"heading": "Themes", "text": "Click 🎨 Theme to switch between Dark, Light, Sky, Ocean, and Presentation themes. Theme is saved to localStorage."},
+        {"heading": "Node Types", "text": "🔴 Issues &nbsp; 🔵 Updates &nbsp; 🟢 Tests &nbsp; 🟡 Files &nbsp; 🟣 Phases &nbsp; ⚪ Error Codes &nbsp; 🟠 Engines &nbsp; ⭐ Workplans &nbsp; 📄 Reports &nbsp; 💾 Sessions"}
+      ]
+    },
+    "about": {
+      "title": "DCC Log Neurogram",
+      "version": "1.0",
+      "description": "Interactive network graph visualizing the complete DCC project history. Data extracted from 4 log files and 159 workplan files across 15 domain folders."
+    },
+    "defaults": {
+      "graph_data_file": "../output/dcc_log_graph.json",
+      "help_file": "ui_help.json"
+    }
   }
 }

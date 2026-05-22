@@ -1,0 +1,255 @@
+{
+  "$schema": "https://dcc-pipeline.internal/schemas/log_neurogram/v1",
+  "metadata": {
+    "generated": "2026-05-21T20:00:34.858798",
+    "source_logs": [
+      "issue_log.md",
+      "update_log.md",
+      "test_log.md",
+      "gemini.md"
+    ],
+    "source_workplans": "dcc/workplan/ (0 files, 0 domain folders)",
+    "date_range": {
+      "start": "2026-04-12",
+      "end": "2026-05-21"
+    },
+    "counts": {
+      "nodes": 8,
+      "edges": 0,
+      "engine": 8
+    }
+  },
+  "node_types": [
+    {
+      "id": "issue",
+      "label": "Issue",
+      "color": "#e74c3c",
+      "shape": "dot",
+      "icon": "\ud83d\udd34"
+    },
+    {
+      "id": "update",
+      "label": "Update",
+      "color": "#3498db",
+      "shape": "square",
+      "icon": "\ud83d\udd35"
+    },
+    {
+      "id": "test",
+      "label": "Test",
+      "color": "#2ecc71",
+      "shape": "diamond",
+      "icon": "\ud83d\udfe2"
+    },
+    {
+      "id": "file",
+      "label": "File",
+      "color": "#f1c40f",
+      "shape": "triangle",
+      "icon": "\ud83d\udfe1"
+    },
+    {
+      "id": "phase",
+      "label": "Phase",
+      "color": "#9b59b6",
+      "shape": "hexagon",
+      "icon": "\ud83d\udfe3"
+    },
+    {
+      "id": "error_code",
+      "label": "Error Code",
+      "color": "#ecf0f1",
+      "shape": "dot",
+      "icon": "\u26aa"
+    },
+    {
+      "id": "engine",
+      "label": "Engine",
+      "color": "#e67e22",
+      "shape": "dot",
+      "icon": "\ud83d\udfe0"
+    },
+    {
+      "id": "workplan",
+      "label": "Workplan",
+      "color": "#1abc9c",
+      "shape": "star",
+      "icon": "\u2b50"
+    },
+    {
+      "id": "report",
+      "label": "Report",
+      "color": "#34495e",
+      "shape": "database",
+      "icon": "\ud83d\udcc4"
+    },
+    {
+      "id": "session",
+      "label": "Session",
+      "color": "#95a5a6",
+      "shape": "database",
+      "icon": "\ud83d\udcbe"
+    }
+  ],
+  "edge_types": [
+    {
+      "id": "resolved_by",
+      "label": "Resolved By",
+      "color": "#2ecc71",
+      "dashes": false
+    },
+    {
+      "id": "verified_by",
+      "label": "Verified By",
+      "color": "#3498db",
+      "dashes": false
+    },
+    {
+      "id": "tested_by",
+      "label": "Tested By",
+      "color": "#2ecc71",
+      "dashes": true
+    },
+    {
+      "id": "modifies",
+      "label": "Modifies",
+      "color": "#f1c40f",
+      "dashes": false
+    },
+    {
+      "id": "affects",
+      "label": "Affects",
+      "color": "#e74c3c",
+      "dashes": false
+    },
+    {
+      "id": "related_to",
+      "label": "Related To",
+      "color": "#95a5a6",
+      "dashes": true
+    },
+    {
+      "id": "blocks",
+      "label": "Blocks",
+      "color": "#e74c3c",
+      "dashes": false,
+      "arrows": "to"
+    },
+    {
+      "id": "depends_on",
+      "label": "Depends On",
+      "color": "#f39c12",
+      "dashes": false,
+      "arrows": "to"
+    },
+    {
+      "id": "implements",
+      "label": "Implements",
+      "color": "#9b59b6",
+      "dashes": false
+    },
+    {
+      "id": "belongs_to",
+      "label": "Belongs To",
+      "color": "#1abc9c",
+      "dashes": true
+    },
+    {
+      "id": "introduces",
+      "label": "Introduces",
+      "color": "#e74c3c",
+      "dashes": false
+    },
+    {
+      "id": "fixes",
+      "label": "Fixes",
+      "color": "#2ecc71",
+      "dashes": false
+    },
+    {
+      "id": "session_for",
+      "label": "Session For",
+      "color": "#95a5a6",
+      "dashes": true
+    },
+    {
+      "id": "addresses",
+      "label": "Addresses",
+      "color": "#1abc9c",
+      "dashes": false,
+      "arrows": "to"
+    },
+    {
+      "id": "references",
+      "label": "References",
+      "color": "#95a5a6",
+      "dashes": true,
+      "arrows": "to"
+    },
+    {
+      "id": "documented_by",
+      "label": "Documented By",
+      "color": "#34495e",
+      "dashes": false
+    }
+  ],
+  "nodes": [
+    {
+      "id": "engine-core_engine",
+      "type": "engine",
+      "label": "Core Engine",
+      "name": "core_engine",
+      "connection_count": 0
+    },
+    {
+      "id": "engine-initiation_engine",
+      "type": "engine",
+      "label": "Initiation Engine",
+      "name": "initiation_engine",
+      "connection_count": 0
+    },
+    {
+      "id": "engine-processor_engine",
+      "type": "engine",
+      "label": "Processor Engine",
+      "name": "processor_engine",
+      "connection_count": 0
+    },
+    {
+      "id": "engine-reporting_engine",
+      "type": "engine",
+      "label": "Reporting Engine",
+      "name": "reporting_engine",
+      "connection_count": 0
+    },
+    {
+      "id": "engine-utility_engine",
+      "type": "engine",
+      "label": "Utility Engine",
+      "name": "utility_engine",
+      "connection_count": 0
+    },
+    {
+      "id": "engine-schema_engine",
+      "type": "engine",
+      "label": "Schema Engine",
+      "name": "schema_engine",
+      "connection_count": 0
+    },
+    {
+      "id": "engine-mapper_engine",
+      "type": "engine",
+      "label": "Mapper Engine",
+      "name": "mapper_engine",
+      "connection_count": 0
+    },
+    {
+      "id": "engine-ai_ops_engine",
+      "type": "engine",
+      "label": "AI Ops Engine",
+      "name": "ai_ops_engine",
+      "connection_count": 0
+    }
+  ],
+  "edges": []
+}
