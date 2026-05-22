@@ -1,13 +1,270 @@
 # Log Neurogram Network — Interactive DCC Log Explorer
 
 **Document ID:** WP-UI-LOG-001  
-**Current Version:** 1.4  
-**Status:** ✅ COMPLETE  
-**Last Updated:** 2026-05-21  
+**Current Version:** 1.5  
+**Status:** ✅ APPROVED  
+**Last Updated:** 2026-05-22  
 **Lead:** Franklin Song
 
 ---
+## Requirements
+1. consider following nodes as core pillars:
+- `folder`
+- `engine`
+- `workplan`
+- `issue`
+- `error code`
+- `update`
+- `test`
+- `reprot`
+- other markdown `reference file`
+2. consider semantic relationships
+- `folder` -> contain -> `log`, `report`, `workplan`, `reference file`
+- `workpan` -> contain -> `scope`, `dependency`, `milesonte`, `phase` or `section`, `step`, `success criteria`, `reference file`
+- `workplan` -> address -> `issue`, `requirement`,
+- `workplan` -> target -> `engine`, `schema file`, `reference file`, `deliverables`
+- `reprot` -> evaluate -> `workplan`
+- `issue` -> address -> `error` -> target -> `error code`
+- `update` -> fix -> `issue`
+- `update` -> resolve -> `error code`
+- `update` -> affect -> `engine`, `schema file`, `reference file`
+- `test` -> evaluate -> `update`
+- `test` -> target -> `engine`, `schema file`, `reference file`
+3. multi-layer topology toggle
+- layer 1: executive/architectural view. show only `folder`, `engine`, `workplan`, `report`, `issue`
+- layer 2: operational view: show `update`, `error code`, `milestone`, `phase`, `step`
+- layer 3: micro-audit view (hidden by defulat): expose underline `phase`, `step`, `success criteria`, and other sub nodes when a user clicks on or inspects a specific high-level node.
+4. parent files (such as workplan, reports, update_log, issue_log, test_log, other markdown files) as the promary entity and store inner structures as structured metadata inside it.
+- store sections and steps as an array of json objects inside a properties.content field.
+- only extract `step` or `action` as an independent node if it explicitly linkes out to an external dependency, a code file, or a specific error_code. otherwise, roll up.
+5. Embed the timestamp direclty as a flat property within the relevant node. use graph UI timeline filters to filter by date instead of using physical nodes.
+6. use a hierarchical naming convention for node IDs or add a `path` property. such as `"context": "wp-document_id_handling.section-1.step-3"`, which will reserve graph edges exclusively for **semantic connections**.
+---
+## Data Model Specification (Derived from Requirements 1–6)
 
+### Node Types
+
+Each node becomes a **graph entity** in Vis.js. Nodes marked "embedded" are stored in the parent's `properties.content[]` array (not as graph nodes), per Req 4.
+
+| # | Node Type | Layer | Storage | Source |
+|---|-----------|-------|---------|--------|
+| 1 | `folder` | 1 | Graph node | Directory tree under `dcc/workplan/` |
+| 2 | `engine` | 1 | Graph node | Core DCC engines (core, initiation, processor, reporting, utility, schema, mapper, ai_ops) |
+| 3 | `workplan` | 1 | Graph node | `*_workplan.md` files |
+| 4 | `issue` | 1 | Graph node | `issue_log.md` |
+| 5 | `report` | 1 | Graph node | `reports/*.md` files |
+| 6 | `update` | 2 | Graph node | `update_log.md` |
+| 7 | `error_code` | 2 | Graph node | `L3-L-V-0302` patterns in logs |
+| 8 | `milestone` | 2 | Embedded | Workplan milestone tables |
+| 9 | `phase` | 2–3 | Graph node (layer 2) / Embedded sub-items (layer 3) | Workplan phase sections |
+| 10 | `step` | 2–3 | Graph node only if external ref; else embedded | Numbered lists in workplans |
+| 11 | `success_criteria` | 3 | Embedded | `- [x] ...` checklist items |
+| 12 | `scope` | 3 | Embedded | Workplan scope fields |
+| 13 | `dependency` | 3 | Embedded | Dependency sections |
+| 14 | `reference_file` | 3 | Graph node only if linked | External `.md`/`.py`/`.json` file refs |
+| 15 | `session` | 3 | Graph node | `gemini.md` UUIDs |
+
+### Node Field Structures
+
+#### Graph Nodes (stored as top-level objects in `nodes[]`)
+
+**folder**
+```json
+{ "id": "folder-pipeline_architecture", "type": "folder", "label": "pipeline_architecture",
+  "path": "pipeline_architecture", "depth": 1 }
+```
+
+**engine**
+```json
+{ "id": "engine-core_engine", "type": "engine", "label": "Core Engine",
+  "name": "core_engine", "connection_count": 0 }
+```
+
+**workplan**
+```json
+{ "id": "wp-wp-ui-log-001", "type": "workplan", "label": "Log Neurogram Network",
+  "wid": "WP-UI-LOG-001", "version": "1.5", "status": "PENDING APPROVAL",
+  "date": "2026-05-22", "domain": "ui_design", "path": "ui_design/log_neurogram/...",
+  "properties": {
+    "content": [
+      {"type": "section", "title": "Objective", "order": 0},
+      {"type": "section", "title": "Scope Summary", "order": 1},
+      {"type": "scope", "text": "Parse 4 log files + 159 workplan files"},
+      {"type": "milestone", "id": "M1", "text": "Data extraction", "status": "COMPLETE"},
+      {"type": "dependency", "text": "Log Files at dcc/log/"},
+      {"type": "phase", "id": "Phase 1", "status": "COMPLETE", "timeline": "Day 1"},
+      {"type": "criteria", "text": "All 4 log files parsed", "status": "PENDING"}
+    ],
+    "references": ["dcc/log/issue_log.md", "dcc/log/update_log.md"]
+  }
+}
+```
+Notes per Req 4:
+- `properties.content[]` stores sections, steps, criteria, milestones, scopes, dependencies as embedded JSON
+- Only promotes to graph node if the item has an explicit external reference (e.g., `step` that mentions `dcc/core_engine/foo.py` or error code `L3-L-V-0302`)
+- `properties.references[]` stores cross-file reference paths
+
+**issue**
+```json
+{ "id": "issue-BLV-001", "type": "issue", "label": "BLV-001",
+  "title": "Business Logic Validation Failed", "status": "RESOLVED",
+  "date": "2026-04-15", "severity": "HIGH", "root_cause": "Missing null check...",
+  "rows_affected": 1500, "files_changed": ["dcc/core_engine/validator.py"],
+  "related_issues": ["BLV-002"], "error_codes": ["L3-L-V-0302"] }
+```
+
+**report**
+```json
+{ "id": "report-phase1_report", "type": "report", "label": "Phase 1 Report",
+  "date": "2026-05-21", "path": "pipeline_architecture/reports/phase1_report.md",
+  "report_id": "RPT-001", "version": "1.0", "status": "COMPLETE",
+  "findings": [], "files_modified": [], "test_results": [] }
+```
+
+**update**
+```json
+{ "id": "update-2026-05-20-fix-validation", "type": "update", "label": "Fix validation bug",
+  "date": "2026-05-20", "summary": "Added null check in validator.py",
+  "phases": ["Phase 3"], "files_modified": ["dcc/core_engine/validator.py"],
+  "linked_issue": "issue-BLV-001", "linked_test": "test-TC-042" }
+```
+
+**error_code**
+```json
+{ "id": "ec-L3-L-V-0302", "type": "error_code", "label": "L3-L-V-0302",
+  "severity": "HIGH", "status": "fixed" }
+```
+
+**test**
+```json
+{ "id": "test-TC-042", "type": "test", "label": "TC-042",
+  "date": "2026-05-20", "result": "PASS", "scope": "Validates null handling",
+  "checks": ["Null input returns error"], "linked_issue": "issue-BLV-001",
+  "linked_update": "update-2026-05-20-fix-validation" }
+```
+
+**phase** (graph node — only when needed as connection hub)
+```json
+{ "id": "phase-pipe-simp-001-1", "type": "phase", "label": "Phase 1",
+  "phase_id": "1", "status": "COMPLETE", "timeline": "Day 1",
+  "tasks": ["Parse log files"], "deliverables": ["Entity list"],
+  "success_criteria": ["100% coverage"], "risks": ["Format inconsistency"] }
+```
+
+**step** (graph node — only when external ref exists)
+```json
+{ "id": "step-wp-eh-data-001-3", "type": "step", "label": "Run validation on input",
+  "order": 3, "context": "wp-wp-eh-data-001.section-2.step-3",
+  "link": "dcc/core_engine/validator.py" }
+```
+
+**session**
+```json
+{ "id": "session-a1b2c3d4", "type": "session", "label": "Session a1b2c3d4",
+  "session_id": "a1b2c3d4-e5f6-..." }
+```
+
+**reference_file** (graph node — only when referenced from logs/workplans)
+```json
+{ "id": "file-validator-py", "type": "file", "label": "validator.py",
+  "path": "dcc/core_engine/validator.py", "engine": "core_engine",
+  "touch_count": 5}
+```
+
+#### Embedded Content (stored in `properties.content[]` — NOT graph nodes)
+
+These items appear inside a parent node's `properties.content[]` array. Per Req 4, they are **not** independent graph entities unless they carry an external link.
+
+```json
+// Section
+{"type": "section", "title": "Objective", "order": 0}
+{"type": "section", "title": "Scope Summary", "order": 1}
+
+// Step (embedded — no external ref)
+{"type": "step", "text": "Install dependencies", "order": 1}
+
+// Step (promoted to graph node — has external ref)
+// This becomes a standalone node; omitted from properties.content
+// Example: "step-wp-eh-data-001-3" above
+
+// Success Criteria
+{"type": "criteria", "text": "All 4 log files parsed", "status": "PENDING"}
+
+// Scope
+{"type": "scope", "text": "Parse 4 log files + 159 workplan files"}
+
+// Dependency
+{"type": "dependency", "text": "Log Files at dcc/log/",
+ "link": "dcc/log/issue_log.md"}
+
+// Milestone
+{"type": "milestone", "id": "M1", "text": "Data extraction complete",
+ "status": "COMPLETE"}
+
+// Phase (embedded summary — full phase details stored in graph node if promoted)
+{"type": "phase", "id": "Phase 1", "status": "COMPLETE", "timeline": "Day 1"}
+```
+
+### Edge Types (Semantic Connections Only — Per Req 6)
+
+Edges are reserved exclusively for **semantic connections** between graph nodes. Embedded items use the parent's edges, not their own.
+
+| Edge Type | Source → Target | Req Source |
+|-----------|----------------|------------|
+| `contains` | `folder` → `log`, `report`, `workplan`, `reference_file` | Req 2 |
+| `contains` | `workplan` → `phase`, `step`, `scope`, `dependency`, `milestone`, `success_criteria`, `reference_file` | Req 2 |
+| `addresses` | `workplan` → `issue` | Req 2 |
+| `targets` | `workplan` → `engine`, `schema_file`, `reference_file`, `deliverable` | Req 2 |
+| `evaluates` | `report` → `workplan` | Req 2 ("reprot" typo) |
+| `addresses` | `issue` → `error_code` (via `error` → `error code`) | Req 2 |
+| `fixes` | `update` → `issue` | Req 2 |
+| `resolves` | `update` → `error_code` | Req 2 |
+| `affects` | `update` → `engine`, `schema_file`, `reference_file` | Req 2 |
+| `evaluates` | `test` → `update` | Req 2 |
+| `targets` | `test` → `engine`, `schema_file`, `reference_file` | Req 2 |
+
+**Additional cross-reference edges** (inferred from log structure, not from Req 2):
+
+| Edge Type | Source → Target | Purpose |
+|-----------|----------------|---------|
+| `verified_by` | `update` → `test` | Update verified by test |
+| `tested_by` | `issue` → `test` | Issue tested by test |
+| `related_to` | `issue` → `issue` | Issues are related |
+| `blocks` | `issue` → `issue` | One issue blocks another |
+| `depends_on` | `issue` → `issue` | One issue depends on another |
+| `belongs_to` | `phase` → `workplan` | Phase belongs to workplan |
+| `belongs_to` | `report` → `workplan` | Report belongs to workplan |
+| `belongs_to` | `file` → `engine` | File belongs to engine |
+| `references` | `workplan` → `workplan` | Workplan references another |
+| `session_for` | `session` → `issue` | Gemini session worked on issue |
+| `documented_by` | `phase` → `report` | Phase documented by report |
+
+### Storage Rules (Per Req 4–6)
+
+1. **Parent-as-primary**: Every markdown file (workplan, report, log) becomes a graph node. Its internal structure (sections, steps, criteria, milestones, scopes, dependencies) is stored in `properties.content[]` as an ordered array of JSON objects.
+
+2. **Promotion rule** (Req 4): A `step` or `action` is promoted from `properties.content[]` to an independent graph node **only if** its text contains an explicit link to:
+   - A file path (`` `path/to/file.py` ``)
+   - An error code (`L3-L-V-0302`)
+   - A cross-reference (`Issue #123`, `Update #456`)
+   - Otherwise, it stays embedded.
+
+3. **Timestamp rule** (Req 5): Every node that has a date gets a flat `"date": "YYYY-MM-DD"` property. No physical `timestamp` nodes are created. The HTML time slider filters using this property.
+
+4. **Naming convention** (Req 6): Node IDs follow hierarchical patterns:
+   - `wp-{workplan_id}` for workplans
+   - `issue-{issue_id}` for issues
+   - `ec-{error_code}` for error codes
+   - `folder-{path}` for folders
+   - A `context` property stores hierarchical path for sub-elements: `"wp-document_id_handling.section-1.step-3"`
+
+5. **Layer visibility** (Req 3): Each node type has a `layer` field (1, 2, or 3). The HTML provides 3 toggle buttons:
+   - Layer 1 ON → executive nodes visible
+   - Layer 2 ON → operational nodes visible
+   - Layer 3 ON → micro-audit nodes visible (default: OFF)
+   - Multiple layers can be active simultaneously.
+
+---
 ## Revision Control & Version History
 
 | Version | Date | Author | Summary of Changes |
@@ -17,6 +274,7 @@
 | 1.2 | 2026-05-21 | System | Updated graph data output path from `dcc/output/log_neurogram/dcc_log_graph.json` to `dcc/output/dcc_log_graph.json` (project root output folder). |
 | 1.3 | 2026-05-21 | System | Updated `log_neurogram.html` output path to `dcc/ui/` folder (alongside other UI files). Updated `ui_help.json` to reference existing file at `dcc/ui/ui_help.json` (append, not create). |
 | 1.4 | 2026-05-21 | System | All phases complete. Graph data generated (588 nodes, 341 edges). HTML webpage built with DCC shell layout, Vis.js force graph, tree view, filtering, search, timeline, export. ui_help.json updated with neurogram entries. |
+| 1.5 | 2026-05-22 | System | Proposed fixes (PENDING APPROVAL): 8 gaps identified against Requirements (Sec 0) and spec. Added: 10.1 workplan coverage audit (105/159 files found, 12/15 domains). Existing gaps: graph data bloat (7919 nodes vs ~350), multi-layer toggle, timestamp-as-nodes, missing phase reports/log entries, `graphEdges` bug, missing features. See Sec 10 for full Implementation Plan. |
 
 ---
 
@@ -34,13 +292,16 @@ Create a standalone interactive webpage that visualizes the complete DCC project
 | 2 | Generate `dcc_log_graph.json` — SSOT compacted graph data | Data Generation | ✅ Complete |
 | 3 | Build `log_neurogram.html` — Vis.js force graph + DCC shell layout | UI Development | ✅ Complete |
 | 4 | Update `ui_help.json` — add neurogram help/about/revision text | Documentation | ✅ Complete |
-| 5 | Test via `file://` protocol — verify all interactions | Testing | ✅ Complete |
-| 6 | Log issue + generate phase report | Logging & Reporting | ✅ Complete |
+| 5 | Test via `file://` protocol — verify all interactions | Testing | ⏳ Requires verification (7 gaps found) |
+| 6 | Log issue + generate phase report | Logging & Reporting | ⏳ PENDING (reports empty, no log entries) |
 
 ---
 
 ## 3. Index of Content
 
+0. [Requirements](#requirements)
+0. [Data Model Specification](#data-model-specification-derived-from-requirements-1-6)
+0. [Revision Control & Version History](#revision-control--version-history)
 1. [Objective](#1-objective)
 2. [Scope Summary](#2-scope-summary)
 3. [Dependencies & Alignment](#4-dependencies--alignment)
@@ -55,7 +316,8 @@ Create a standalone interactive webpage that visualizes the complete DCC project
 6. [Success Criteria](#7-success-criteria)
 7. [Risks & Mitigation](#8-risks--mitigation)
 8. [Known Limitations & Future Issues](#9-known-limitations--future-issues)
-9. [References](#10-references)
+9. [Requirements Implementation Plan (Proposed)](#10-requirements-implementation-plan-proposed--pending-approval)
+10. [References](#11-references)
 
 ---
 
@@ -396,7 +658,7 @@ Append neurogram-specific help/about/revision entries to the existing `dcc/ui/ui
 ### Phase 5: Testing & Verification
 
 **Timeline:** Day 3  
-**Status:** ✅ COMPLETE
+**Status:** ⏳ PENDING REWORK (see Sec 10)
 
 #### Test Cases
 
@@ -428,7 +690,7 @@ Append neurogram-specific help/about/revision entries to the existing `dcc/ui/ui
 ### Phase 6: Logging & Reporting
 
 **Timeline:** Day 3  
-**Status:** ✅ COMPLETE
+**Status:** ⏳ PENDING REWORK (see Sec 10)
 
 #### Actions
 
@@ -510,7 +772,224 @@ Append neurogram-specific help/about/revision entries to the existing `dcc/ui/ui
 
 ---
 
-## 10. References
+---
+
+## 10. Requirements Implementation Plan (Proposed — PENDING APPROVAL)
+
+*This section documents the gaps between the current v1.4 implementation and the Requirements defined in Section 0, and proposes specific implementation changes. Status of each item will be updated upon approval.*
+
+### 10.1 Gap: Missing Nodes — Workplan Coverage Audit
+
+**Problem:** The parser may be missing workplan files or entities due to format variations, unexpected folder structures, or regex failures. The workplan claims 159 files across 15 domain folders, but the parser found 105 files across 12 domains. The actual number of workplan files, reports, issues, updates, and tests in the graph may not match the ground truth in the repository.
+
+**Implementation:**
+
+1. **Enumerate complete file inventory** at parse time and compare against expected counts:
+   ```python
+   def audit_coverage():
+       actual_files = list(WORKPLAN_DIR.rglob("*.md"))
+       actual_reports = [f for f in actual_files if '/reports/' in str(f)]
+       actual_workplans = [f for f in actual_files if 'workplan' in f.name or 'work_plan' in f.name]
+       actual_domains = set(f.relative_to(WORKPLAN_DIR).parts[0] for f in actual_files if f.parent != WORKPLAN_DIR)
+       
+       # Compare against metadata claims
+       coverage = {
+           "total_files_found": len(actual_files),
+           "workplans_found": len(actual_workplans),
+           "reports_found": len(actual_reports),
+           "domains_found": len(actual_domains),
+           "domains_list": sorted(actual_domains),
+           "files_missing_from_graph": [
+               str(f.relative_to(WORKPLAN_DIR)) 
+               for f in actual_files 
+               if safe_id(f.stem) not in node_ids and 'workplan' in f.name
+           ]
+       }
+       return coverage
+   ```
+2. **Log orphan/unmatched files** — After parsing, report which `.md` files in the workplan tree were not turned into any node (by filename or extracted ID):
+   ```python
+   all_parsed_ids = set(n['id'] for n in nodes)
+   uncovered = []
+   for f in all_wp_files:
+       stem_id = safe_id(f.stem)
+       # Check if any node ID or label contains the filename stem
+       if not any(stem_id in n['id'] or stem_id in (n.get('path','') or '') for n in nodes):
+           uncovered.append(str(f.relative_to(WORKPLAN_DIR)))
+   ```
+3. **Validate domain folders** — Ensure all 15 expected domains are represented. Flag missing ones in metadata output and phase reports.
+4. **Cross-check log entity counts** — Parse `issue_log.md`, `update_log.md`, `test_log.md` with a lightweight header counter (count `## Issue #` / `<a id="issue-"` patterns) and compare against actual node counts:
+   ```python
+   issue_count_expected = len(re.findall(r'<a id="issue-', issue_text))
+   issue_count_actual = sum(1 for n in nodes if n['type'] == 'issue')
+   if issue_count_expected != issue_count_actual:
+       warnings.append(f"Issue count mismatch: expected {issue_count_expected}, got {issue_count_actual}")
+   ```
+5. **Output coverage report** — Include a `coverage` section in the graph JSON metadata:
+   ```json
+   "coverage": {
+       "expected_files": 159,
+       "parsed_files": 105,
+       "missing_domains": ["code_quality", "project_setup"],
+       "missing_workplans": ["..."],
+       "issue_coverage_pct": 100.0,
+       "update_coverage_pct": 94.2
+   }
+   ```
+
+### 10.2 Gap: Graph Data Bloat — `parse_file_content()` Creates Too Many Nodes
+
+**Problem:** `parse_file_content()` at `parse_logs.py:306` creates independent graph nodes for every section header, step, action, criteria, milestone, deliverable, finding, lesson, table, analysis, dependency, case, scenario, scope, reason, and timestamp found in workplan/report files. This inflated the graph from the estimated ~350 nodes to 7,919 nodes (22× overshoot), making the graph visually unusable.
+
+**Implementation:**
+
+1. **Collapse sub-elements into `properties.content` arrays** (Req 4 — "store sections and steps as an array of JSON objects inside a `properties.content` field"):
+   ```python
+   # In parse_file_content(), replace individual node creation with content array:
+   parent_node["properties"] = parent_node.get("properties", {})
+   parent_node["properties"]["content"] = [
+       {"type": "section", "title": "...", "order": 0},
+       {"type": "step", "text": "...", "order": 1},
+       {"type": "criteria", "text": "...", "status": "COMPLETE"},
+   ]
+   ```
+2. **Promote only cross-referencing sub-elements to nodes** (Req 4 — "only extract step/action as an independent node if it explicitly links out to an external dependency, a code file, or a specific error_code; otherwise, roll up"):
+   ```python
+   # Before creating a node for a step, check for external references
+   def has_external_ref(text):
+       return bool(re.search(r'`[\w/.-]+\.\w+`', text)       # file reference
+                   or re.search(r'[A-Z]\d-[A-Z]-[A-Z]-\d{4}', text)  # error code
+                   or re.search(r'(?:issue|update|test)[-\s][\w-]+', text, re.I))  # cross-ref
+   ```
+3. **Target node count:** ~400–500 nodes (core pillars + promoted cross-references only).
+
+### 10.3 Gap: Multi-Layer Topology Toggle Not Implemented (Req 3)
+
+**Problem:** The HTML has a flat filter checkbox list (25 node types). Req 3 specifies three zoomable layers:
+- Layer 1 — Executive/Architectural: `folder`, `engine`, `workplan`, `report`, `issue`
+- Layer 2 — Operational: `update`, `error_code`, `milestone`, `phase`, `step`
+- Layer 3 — Micro-audit: `phase`, `step`, `success_criteria`, sub-nodes (hidden by default)
+
+**Implementation:**
+
+1. Add `layer` field to each node type in `parse_logs.py` `node_types` array:
+   ```python
+   {"id": "issue", "label": "Issue", "layer": 1, ...},
+   {"id": "update", "label": "Update", "layer": 2, ...},
+   {"id": "criteria", "label": "Criteria", "layer": 3, ...},
+   ```
+2. Include `layer` in output JSON's `node_types` schema.
+3. In `log_neurogram.html`, replace flat checkboxes with 3 layer toggle buttons at top:
+   ```html
+   <div id="layerToggles">
+     <button data-layer="1" class="active">🏛️ Executive</button>
+     <button data-layer="2">⚙️ Operational</button>
+     <button data-layer="3">🔬 Micro-Audit</button>
+   </div>
+   ```
+4. `applyFilters()` reads active layer(s) and auto-filters node types belonging to those layers.
+
+### 10.4 Gap: Timestamps as Physical Nodes (Violates Req 5)
+
+**Problem:** Req 5 states "embed the timestamp directly as a flat property within the relevant node. Use graph UI timeline filters to filter by date instead of using physical nodes." The parser creates 130 `timestamp` sub-nodes.
+
+**Implementation:**
+
+1. In `parse_file_content()`, remove the "Extract Timestamps" block (lines 320–325):
+   - Delete: `timestamps = re.findall(...)` and the loop that creates `tsid` nodes
+2. Instead, ensure every parent node has a `date` property set to the file's `Last Updated` or `Date` field.
+3. The time slider in HTML already filters by `n.date` — no change needed on the frontend.
+
+### 10.5 Gap: Phase Reports Not Generated
+
+**Problem:** The workplan's Phase 6 requires 4 phase reports in `dcc/workplan/ui_design/log_neurogram/reports/`:
+- `phase1_report.md` — Data Extraction Report
+- `phase2_report.md` — Graph Generation Report  
+- `phase3_report.md` — UI Build Report
+- `phase5_test_report.md` — Test Results Report
+
+The `reports/` directory exists but is empty.
+
+**Implementation:**
+
+1. Add a `--reports` flag to `parse_logs.py` that generates markdown reports:
+   ```python
+   def generate_report(phase, data):
+       report = f"# Phase {phase} Report\n\n"
+       report += f"**Date:** {datetime.now().date()}\n\n"
+       report += f"## Summary\n\n{data['summary']}\n\n"
+       report += f"## Statistics\n\n{json.dumps(data['stats'], indent=2)}\n\n"
+       (REPORTS_DIR / f"phase{phase}_report.md").write_text(report)
+   ```
+2. Reports contain: entity counts, files parsed, edge types generated, any warnings/orphan edges.
+
+### 10.6 Gap: No Log Entries for Neurogram
+
+**Problem:** Phase 6 requires entries in `dcc/log/issue_log.md`, `update_log.md`, and `test_log.md` for the neurogram work, but none exist.
+
+**Implementation:**
+
+1. **Issue log entry** — Create a new issue in `issue_log.md`:
+   ```
+   <a id="issue-log-neurogram-001"></a>
+   ### Issue Log Neurogram — Requirements Gap Fixes
+   **Status:** OPEN
+   **Date:** 2026-05-22
+   **Severity:** MEDIUM
+   **Description:** 7 gaps identified in log_neurogram v1.4 against Requirements section of the workplan. See workplan Sec 11.
+   **Files Changed:** dcc/workplan/ui_design/log_neurogram/log_neurogram_workplan.md, parse_logs.py, dcc/ui/log_neurogram.html
+   ```
+2. **Update log entry** — One or more entries in `update_log.md` for phases as they are completed.
+3. **Test log entry** — After fixes, a test entry logging verification results.
+
+### 10.7 Gap: `graphEdges` Bug in `showFilePicker()`
+
+**Problem:** `log_neurogram.html:410` references the undefined variable `graphEdges` instead of `graphData.edges`. Will throw `ReferenceError` if fetch fails and user picks a file.
+
+**Implementation:**
+- Change line 410: `graphEdges = ...` → `graphData.edges`
+
+### 10.8 Gap: Missing Features vs Interactive Features Table (Phase 3)
+
+**Problem:** Several features listed in the Phase 3 Interactive Features table are missing or incomplete:
+
+| # | Feature | Status | Implementation |
+| :--- | :--- | :--- | :--- |
+| 7 | Search | `prompt()` dialog | Replace with inline `<input>` in title bar; implement real fuzzy search (simple Levenshtein or prefix match) |
+| 13 | Mini-map | Missing | Add `<div id="minimap">` with a second vis.DataSet representing a zoomed-out overview; or use Vis.js built-in `network.setOptions({configure: ...})` + a canvas overlay |
+| 14 | file:// FileReader fallback | Buggy (`graphEdges`) | Fix bug; add explicit folder-picker UI in Load panel |
+| 16–18 | Layout toggle, resizable panels, collapsible panels | Minimal | Implement `split.js` or manual mouse-drag resize on left/right panels; add collapse animation |
+| 15 | Theme toggle | Works | Already functional — no change needed |
+
+**Implementation:**
+
+1. **Inline search bar** (`log_neurogram.html`):
+   ```html
+   <div class="actions" style="display:flex;align-items:center;gap:4px">
+     <input id="searchInput" type="text" placeholder="Search nodes..." 
+            style="width:160px;padding:2px 6px;font-size:12px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);border-radius:3px">
+     <span id="searchCount" style="font-size:11px;color:var(--text2);min-width:40px"></span>
+   </div>
+   ```
+   Add `input` event listener that filters nodes in real time.
+
+2. **Mini-map** — Use Vis.js `network.setOptions({configure: ...})` or a dedicated mini canvas. Simplest approach: add a small `<canvas>` overlay in the bottom-right corner of the graph area that mirrors the main network.
+
+3. **Resizable panels** — Add `mousedown` listeners on panel borders:
+   ```javascript
+   function makeResizable(panelId, handleId, direction) {
+     const handle = document.getElementById(handleId);
+     const panel = document.getElementById(panelId);
+     handle.addEventListener('mousedown', (e) => {
+       document.addEventListener('mousemove', resize);
+       document.addEventListener('mouseup', () => document.removeEventListener('mousemove', resize));
+     });
+   }
+   ```
+
+---
+
+## 11. References
 
 | Reference | Path |
 | :--- | :--- |

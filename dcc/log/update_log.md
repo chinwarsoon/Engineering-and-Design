@@ -128,6 +128,25 @@
 - `dcc/ui/error_diagnostic_dashboard.html` — `init()`, `updateFileStatusList()`, `promptFolderLoad()`, `loadFileViaReader()`, `handleFile()`, `setupFileHandlers()`, Data Sources panel HTML
 - `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.16, Phase 4 v2.4 added and marked COMPLETE
 
+<a id="update-2026-05-22-neurogram-layouts-clustering"></a>
+## 2026-05-22 — Neurogram: All vis.js Layouts, Sunflower Spiral, Cluster Dropdown
+
+### COMPLETED: Layout & Clustering Enhancements for Log Neurogram
+
+**Summary:** Replaced the 3-layout dropdown with all 8 available vis.js layout options. Replaced the concentric-ring Circle layout (which had ring gaps and center congestion) with a Fermat (sunflower) spiral that fills space with uniform density. Replaced separate Cluster/Uncluster buttons with a single dropdown.
+
+**Changes:**
+
+| Change | Detail |
+|--------|--------|
+| **Layout dropdown expanded** | From 3 options (Dynamic/Circle/Tree) to 8: BarnesHut, Repulsion, ForceAtlas2 (physics-based), Circle/Spiral (custom), Tree UD/DU/LR/RL (hierarchical) |
+| **Repulsion slider multi-solver** | Slider adjusts `gravitationalConstant` for BarnesHut/ForceAtlas2, `nodeDistance` for Repulsion, detected from current `physics.solver` |
+| **Circle → Sunflower Spiral** | Replaced concentric-ring layout (wasted ring gaps, center congestion) with Fermat spiral: `radius = sqrt(i) * spacing`, `angle = i * 137.508°`. Nodes sorted by type for contiguous color grouping. Uniform density, no gaps. |
+| **Cluster dropdown** | Replaced separate Cluster by Type / Uncluster buttons with `<select>`: "Clustering: None" / "Clustering: By Type". Selecting by type clusters all visible nodes by `n.type`; selecting none calls `network.openCluster()`. |
+
+**Files Modified:**
+- `dcc/ui/log_neurogram.html` — Layout dropdown (8 options), circle layout → Fermat spiral, cluster dropdown, repulsion slider multi-solver
+
 <a id="update-2026-05-21-phase4-v23-filter-priority"></a>
 ## 2026-05-21 — Phase 4 v2.3 Filter Source Priority Complete
 
@@ -5802,3 +5821,23 @@ Only the **latest submission row** of a terminally approved/voided document gets
 - [Impact:] Phase 5 tasks complete. Column ingestion gap resolved, validation error codes consistent across modules, and taxonomy fully documented. 25/28 tests pass (pre-existing failures unrelated).
 - [Link to Test Log:] N/A — no new tests written (existing test suite used)
 - [Link to Issue Log:] Issue #062
+
+## Update # 2026-05-22-neurogram-gap-fixes
+- [Date:] 2026-05-22 12:00 UTC+08:00
+- [Context:] Log Neurogram (WP-UI-LOG-001) — Addressed 8 requirement gaps identified in workplan audit. Rewrote data extraction to use `properties.content` embedding per Req 4, added coverage audit, fixed FileReader bug, added multi-layer topology toggle, inline search, and generated phase reports.
+- [Changes Made:]
+  - **parse_logs.py rewrite:** `parse_file_content()` now stores sub-elements as `properties.content[]` arrays instead of graph nodes. Only steps/actions with external references are promoted to nodes. Added `has_external_ref()` checker, coverage audit phase, `layer` field on node types, `context` hierarchical paths. Removed timestamp node creation.
+  - **log_neurogram.html fixes:** Fixed `graphEdges` ReferenceError in `showFilePicker()`. Replaced flat filter list with dynamic type filters from schema. Added 3-layer topology toggle buttons (Executive/Operational/Micro). Replaced prompt()-based search with inline text input. Added live search results count.
+  - **Reports generated:** 4 phase reports in `dcc/workplan/ui_design/log_neurogram/reports/`.
+  - **Workplan updated:** v1.5 with Data Model Specification (15 node types, 21 edge types, 5 storage rules) and Implementation Plan (8 gaps).
+- [Files Updated:]
+  - `dcc/workplan/ui_design/log_neurogram/parse_logs.py` — major rewrite
+  - `dcc/ui/log_neurogram.html` — bug fix + layer/search features
+  - `dcc/workplan/ui_design/log_neurogram/log_neurogram_workplan.md` — v1.5 spec + plan
+  - `dcc/output/dcc_log_graph.json` — regenerated (1,463 nodes, 4,649 edges)
+  - `dcc/workplan/ui_design/log_neurogram/reports/phase1_report.md` — new
+  - `dcc/workplan/ui_design/log_neurogram/reports/phase2_report.md` — new
+  - `dcc/workplan/ui_design/log_neurogram/reports/phase3_report.md` — new
+  - `dcc/workplan/ui_design/log_neurogram/reports/phase5_report.md` — new
+- [Impact:] Graph nodes reduced 81% (7,919 → 1,463). All 8 gaps closed. Requirements 1–6 now properly implemented.
+- [Link to Issue Log:] issue-neurogram-001

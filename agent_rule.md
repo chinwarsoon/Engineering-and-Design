@@ -127,6 +127,7 @@
 5. always log issues to issue_log.md file under the parent folder of workplan folder
 6. always generate report for each phase in the subfolder reports which is under related workplan file folder
 7. always update logs in log folder which is under parent folder of workplan folder
+8. timestamp for all phases and steps
 
 # Section 9. Reports for workplans
 1. always conduct test after updates per workplan each phase. test reports for workplan phases will be generated in <project folder>/workplan/reports/ folder.
@@ -144,6 +145,8 @@
 3. always log issues to issue_log.md file under the parent folder of workplan folder
 4. always update update_log.md in <project folder>/log/ folder.
 5. link reports to workplan files for cross reference.
+6. timestamp for all phases and steps
+
 
 # Section 10. Function Table and Call Graph
 1. showing all functions in a module/engine/class
@@ -162,7 +165,6 @@
 1. each business logic must have independent error code defined to trace related error.
 
 # Section 13. Compact workplans, records, and logs
-1. ultra-compact and scannable.
-2. Bulleted list of what is done, include timestamp, previousent status or issues to be resolved, contexts, list of dependencies, changes be done or to be done, critical architecture decisions/reasons, next immediate steps.
-3. generate nurogram network json file dcc_log_graph.json in dcc/output folder
+1. refer to workplan in folder dcc/workplan/ui_design/log_neurogram/, generate nurogram network json file dcc_log_graph.json in dcc/output folder.
+2. make sure details can be compacted into the json file.
 

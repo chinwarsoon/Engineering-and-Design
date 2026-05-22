@@ -44,8 +44,13 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font-ui, 'Segoe 
 /* Left Panel */
 .left-panel { width: 300px; background: var(--bg-panel, #1e1e1e); display: flex; flex-direction: column; border-right: 1px solid var(--border, #333); flex-shrink: 0; overflow: hidden; }
 .left-panel.hidden { display: none; }
+.panel-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.resize-handle { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; position: relative; z-index: 10; }
+.resize-handle:hover, .resize-handle.dragging { background: var(--accent, #007acc); }
 .panel-header { padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text2, #888); border-bottom: 1px solid var(--border, #333); flex-shrink: 0; }
-.panel-content { flex: 1; overflow-y: auto; padding: 8px; }
+.panel-content { flex: 1; padding: 8px; display: flex; flex-direction: column; min-height: 0; }
+.panel-view:not(#panelGraph) > .panel-content { overflow-y: auto; }
+.panel-content button:active { opacity: 0.6; }
 
 /* Graph Area */
 .graph-area { flex: 1; position: relative; overflow: hidden; }
@@ -79,9 +84,14 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font-ui, 'Segoe 
 
 /* Filter Panel */
 .filter-group { margin-bottom: 12px; }
+.filter-group { margin-bottom: 12px; }
 .filter-group label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text, #ccc); cursor: pointer; padding: 2px 0; }
 .filter-group input[type="checkbox"] { accent-color: var(--accent, #007acc); }
 .filter-group .type-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.filter-group .type-count { margin-left: auto; font-size: 10px; color: var(--text2, #888); min-width: 20px; text-align: right; }
+.filter-group label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text, #ccc); cursor: pointer; padding: 2px 0; }
+.layer-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text2, #888); padding: 8px 0 4px; }
+.layer-separator { height: 1px; background: var(--border, #333); margin: 8px 0; }
 
 /* Search */
 .search-box { padding: 8px; border-bottom: 1px solid var(--border, #333); }
@@ -115,9 +125,11 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
 <body class="theme-dark">
 <div class="shell">
   <!-- Title Bar -->
-  <div class="title-bar">
+    <div class="title-bar">
     <span class="title">📊 Log Neurogram — DCC Project History</span>
     <div class="actions">
+      <input id="searchInput" type="text" placeholder="Search nodes..." style="width:180px;padding:2px 6px;font-size:12px;background:var(--bg-input,#2a2a2a);border:1px solid var(--border,#444);color:var(--text,#ccc);border-radius:3px">
+      <span id="searchCount" style="font-size:11px;color:var(--text2,#888);min-width:40px"></span>
       <button id="btnSearch" title="Search">🔍</button>
       <button id="btnTheme" title="Theme">🎨</button>
       <button id="btnLayout" title="Layout">☰</button>
@@ -150,54 +162,54 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
       <!-- Graph Panel (default) -->
       <div class="panel-view" id="panelGraph">
         <div class="panel-header">Graph Controls</div>
-        <div class="panel-content">
-          <div class="filter-group" id="typeFilters">
-            <label><input type="checkbox" checked data-filter="issue"> <span class="type-dot" style="background:var(--neuro-issue)"></span> Issues</label>
-            <label><input type="checkbox" checked data-filter="update"> <span class="type-dot" style="background:var(--neuro-update)"></span> Updates</label>
-            <label><input type="checkbox" checked data-filter="test"> <span class="type-dot" style="background:var(--neuro-test)"></span> Tests</label>
-            <label><input type="checkbox" checked data-filter="file"> <span class="type-dot" style="background:var(--neuro-file)"></span> Files</label>
-            <label><input type="checkbox" checked data-filter="phase"> <span class="type-dot" style="background:var(--neuro-phase)"></span> Phases</label>
-            <label><input type="checkbox" checked data-filter="error_code"> <span class="type-dot" style="background:var(--neuro-ec)"></span> Error Codes</label>
-            <label><input type="checkbox" checked data-filter="engine"> <span class="type-dot" style="background:var(--neuro-engine)"></span> Engines</label>
-            <label><input type="checkbox" checked data-filter="workplan"> <span class="type-dot" style="background:var(--neuro-wp)"></span> Workplans</label>
-            <label><input type="checkbox" checked data-filter="report"> <span class="type-dot" style="background:var(--neuro-report)"></span> Reports</label>
-            <label><input type="checkbox" checked data-filter="session"> <span class="type-dot" style="background:var(--neuro-session)"></span> Sessions</label>
-            <label><input type="checkbox" checked data-filter="action"> <span class="type-dot" style="background:#16a085"></span> Actions</label>
-            <label><input type="checkbox" checked data-filter="criteria"> <span class="type-dot" style="background:#8e44ad"></span> Criteria</label>
-            <label><input type="checkbox" checked data-filter="milestone"> <span class="type-dot" style="background:#2980b9"></span> Milestones</label>
-            <label><input type="checkbox" checked data-filter="finding"> <span class="type-dot" style="background:#c0392b"></span> Findings</label>
-            <label><input type="checkbox" checked data-filter="lesson"> <span class="type-dot" style="background:#d35400"></span> Lessons</label>
-            <label><input type="checkbox" checked data-filter="deliverable"> <span class="type-dot" style="background:#27ae60"></span> Deliverables</label>
-            <label><input type="checkbox" checked data-filter="folder"> <span class="type-dot" style="background:#7f8c8d"></span> Folders</label>
-            <label><input type="checkbox" checked data-filter="section"> <span class="type-dot" style="background:#3498db"></span> Sections</label>
-            <label><input type="checkbox" checked data-filter="step"> <span class="type-dot" style="background:#2ecc71"></span> Steps</label>
-            <label><input type="checkbox" checked data-filter="scope"> <span class="type-dot" style="background:#9b59b6"></span> Scopes</label>
-            <label><input type="checkbox" checked data-filter="reason"> <span class="type-dot" style="background:#e67e22"></span> Reasons</label>
-            <label><input type="checkbox" checked data-filter="case"> <span class="type-dot" style="background:#1abc9c"></span> Cases</label>
-            <label><input type="checkbox" checked data-filter="scenario"> <span class="type-dot" style="background:#3498db"></span> Scenarios</label>
-            <label><input type="checkbox" checked data-filter="table"> <span class="type-dot" style="background:#95a5a6"></span> Tables</label>
-            <label><input type="checkbox" checked data-filter="analysis"> <span class="type-dot" style="background:#8e44ad"></span> Analysis</label>
-            <label><input type="checkbox" checked data-filter="timestamp"> <span class="type-dot" style="background:#7f8c8d"></span> Timestamps</label>
-            <label><input type="checkbox" checked data-filter="dependency"> <span class="type-dot" style="background:#e74c3c"></span> Dependencies</label>
+        <div class="panel-content" style="padding:0;display:flex;flex-direction:column">
+          <div style="flex:1;overflow-y:auto;min-height:0;padding:8px 8px 0">
+            <!-- Layer Toggles -->
+            <div id="layerToggles" style="display:flex;gap:4px;margin-bottom:8px">
+              <button data-layer="1" class="layer-btn active" style="flex:1;padding:4px;font-size:11px;background:var(--accent,#007acc);color:#fff;border:none;border-radius:4px;cursor:pointer">🏛️ Executive</button>
+              <button data-layer="2" class="layer-btn active" style="flex:1;padding:4px;font-size:11px;background:var(--accent,#007acc);color:#fff;border:none;border-radius:4px;cursor:pointer">⚙️ Operational</button>
+              <button data-layer="3" class="layer-btn" style="flex:1;padding:4px;font-size:11px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer">🔬 Micro</button>
+            </div>
+            <div class="filter-group" id="typeFilters" style="min-height:0">
+              <div id="layer1Filters"></div>
+              <div class="layer-separator"></div>
+              <div id="layer2Filters"></div>
+              <div class="layer-separator"></div>
+              <div id="layer3Filters"></div>
+            </div>
           </div>
-          <div style="display:flex;gap:4px;margin-top:8px">
-            <button id="btnSelectAll" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Select All</button>
-            <button id="btnUnselectAll" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Unselect All</button>
-          </div>
-          <div style="margin-top:12px">
-            <button id="btnFitView" style="width:100%;padding:6px;background:var(--accent,#007acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">Fit View</button>
-          </div>
-          <div style="margin-top:6px">
-            <button id="btnCluster" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:12px">Cluster by Type</button>
-          </div>
-          <div style="margin-top:6px">
-            <button id="btnUncluster" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:12px">Uncluster</button>
-          </div>
-          <div style="margin-top:6px">
-            <button id="btnExportPNG" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:12px">Export PNG</button>
-          </div>
-          <div style="margin-top:6px">
-            <button id="btnExportJSON" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:12px">Export Filtered JSON</button>
+          <div style="padding:0 8px 8px">
+            <div style="display:flex;gap:4px;margin-top:8px">
+              <button id="btnSelectAll" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Select All</button>
+              <button id="btnUnselectAll" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Unselect All</button>
+            </div>
+            <div style="margin-top:12px">
+              <button id="btnFitView" style="width:100%;padding:6px;background:var(--accent,#007acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">Fit View</button>
+            </div>
+            <div style="margin-top:6px">
+              <select id="layoutSelect" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;font-size:12px;cursor:pointer">
+                <option value="barnesHut">Layout: BarnesHut</option>
+                <option value="repulsion">Layout: Repulsion</option>
+                <option value="forceAtlas2">Layout: ForceAtlas2</option>
+                <option value="circle">Layout: Circle (Spiral)</option>
+                <option value="treeUD">Layout: Tree (Top-Bottom)</option>
+                <option value="treeDU">Layout: Tree (Bottom-Top)</option>
+                <option value="treeLR">Layout: Tree (Left-Right)</option>
+                <option value="treeRL">Layout: Tree (Right-Left)</option>
+              </select>
+            </div>
+            <div style="margin-top:6px">
+              <select id="selCluster" style="width:100%;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;font-size:12px">
+                <option value="none">Clustering: None</option>
+                <option value="type">Clustering: By Type</option>
+              </select>
+            </div>
+            <div style="margin-top:6px">
+              <button id="btnExportPNG" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:12px">Export PNG</button>
+            </div>
+            <div style="margin-top:6px">
+              <button id="btnExportJSON" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:12px">Export Filtered JSON</button>
+            </div>
           </div>
         </div>
       </div>
@@ -256,6 +268,15 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
             <label><input type="checkbox" id="chkTimeSlider" checked> Show time slider</label>
           </div>
           <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:4px">Node Spacing</label>
+            <div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+              <span style="font-size:11px;color:var(--text2,#888)">Tight</span>
+              <input type="range" id="repulsionSlider" min="1000" max="200000" value="6000" step="1000" style="flex:1">
+              <span style="font-size:11px;color:var(--text2,#888)">Spread</span>
+            </div>
+            <div style="font-size:11px;color:var(--text2,#888);text-align:center" id="repulsionValue">6000</div>
+          </div>
+          <div class="filter-group">
             <label style="font-weight:600;margin-bottom:4px">Highlight Depth</label>
             <label><input type="radio" name="depth" value="1"> 1-hop</label>
             <label><input type="radio" name="depth" value="2" checked> 2-hop</label>
@@ -297,6 +318,8 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
         </div>
       </div>
     </div>
+
+    <div class="resize-handle" id="resizeHandle"></div>
 
     <!-- Graph Area -->
     <div class="graph-area">
@@ -344,35 +367,11 @@ let nodeMap = {};
 let currentPanel = 'graph';
 let selectedNodeId = null;
 
-const TYPE_COLORS = {
-  issue: '#e74c3c', update: '#3498db', test: '#2ecc71',
-  file: '#f1c40f', phase: '#9b59b6', error_code: '#bdc3c7',
-  engine: '#e67e22', workplan: '#1abc9c', report: '#34495e', session: '#95a5a6',
-  action: '#16a085', criteria: '#8e44ad', milestone: '#2980b9', finding: '#c0392b', lesson: '#d35400',
-  deliverable: '#27ae60', folder: '#7f8c8d', section: '#3498db', step: '#2ecc71',
-  scope: '#9b59b6', reason: '#e67e22', case: '#1abc9c', scenario: '#3498db',
-  table: '#95a5a6', analysis: '#8e44ad', timestamp: '#7f8c8d', dependency: '#e74c3c'
-};
-
-const TYPE_SHAPES = {
-  issue: 'dot', update: 'square', test: 'diamond',
-  file: 'triangle', phase: 'hexagon', error_code: 'dot',
-  engine: 'dot', workplan: 'star', report: 'database', session: 'database',
-  action: 'dot', criteria: 'diamond', milestone: 'hexagon', finding: 'triangle', lesson: 'square',
-  deliverable: 'square', folder: 'box', section: 'ellipse', step: 'dot',
-  scope: 'ellipse', reason: 'ellipse', case: 'diamond', scenario: 'diamond',
-  table: 'box', analysis: 'ellipse', timestamp: 'dot', dependency: 'triangle'
-};
-
-const TYPE_ICONS = {
-  issue: '🔴', update: '🔵', test: '🟢', file: '🟡',
-  phase: '🟣', error_code: '⚪', engine: '🟠', workplan: '⭐',
-  report: '▪️', session: '💾', action: '📋', criteria: '✅',
-  milestone: '🏁', finding: '⚠️', lesson: '💡', deliverable: '📦',
-  folder: '📁', section: '📑', step: '👣', scope: '🎯',
-  reason: '❓', case: '📋', scenario: '🎭', table: '📊',
-  analysis: '🔬', timestamp: '🕐', dependency: '🔗'
-};
+  let TYPE_COLORS = {};
+  let TYPE_SHAPES = {};
+  let TYPE_ICONS = {};
+  let NODE_TYPES_META = {};  // type_id -> {layer, label, color, ...}
+  let activeLayers = new Set([1, 2]);  // Layer 1+2 on by default
 
 // ============================================================
 // Load Data
@@ -385,9 +384,18 @@ async function loadData() {
     allNodes = graphData.nodes;
     allEdges = graphData.edges;
     allNodes.forEach(n => nodeMap[n.id] = n);
+    // Build type maps from schema
+    (graphData.node_types || []).forEach(t => {
+      TYPE_COLORS[t.id] = t.color;
+      TYPE_SHAPES[t.id] = t.shape;
+      TYPE_ICONS[t.id] = t.icon || '';
+      NODE_TYPES_META[t.id] = t;
+    });
+    buildTypeFilters();
     buildTree();
     buildDomainFilters();
     initGraph();
+    applyFilters();
     updateStatus();
     document.getElementById('statusLeft').textContent = `Loaded: ${allNodes.length} nodes, ${allEdges.length} edges`;
   } catch (e) {
@@ -407,7 +415,7 @@ function showFilePicker() {
     reader.onload = (ev) => {
       graphData = JSON.parse(ev.target.result);
       allNodes = graphData.nodes;
-      allEdges = graphEdges;
+      allEdges = graphData.edges;
       allNodes.forEach(n => nodeMap[n.id] = n);
       buildTree();
       buildDomainFilters();
@@ -476,6 +484,29 @@ function toggleTree(el) {
   }
 }
 
+function buildTypeFilters() {
+  const types = (graphData.node_types || []).filter(t => t.id !== 'folder');
+  const typeCounts = {};
+  (graphData.nodes || []).forEach(n => {
+    typeCounts[n.type] = (typeCounts[n.type] || 0) + 1;
+  });
+  const layerNames = { 1: 'Executive', 2: 'Operational', 3: 'Micro' };
+  for (let layer = 1; layer <= 3; layer++) {
+    const container = document.getElementById(`layer${layer}Filters`);
+    const layerTypes = types.filter(t => t.layer === layer);
+    container.innerHTML =
+      `<div class="layer-header">${layerNames[layer]}</div>` +
+      layerTypes.map(t => {
+        const checked = (t.layer === 1 || t.layer === 2) ? 'checked' : '';
+        const count = typeCounts[t.id] || 0;
+        return `<label><input type="checkbox" ${checked} data-filter="${t.id}"> <span class="type-dot" style="background:${t.color}"></span> ${t.label} <span class="type-count">${count}</span></label>`;
+      }).join('');
+  }
+  document.querySelectorAll('[data-filter]').forEach(cb => {
+    cb.addEventListener('change', applyFilters);
+  });
+}
+
 function buildDomainFilters() {
   const domains = [...new Set(allNodes.filter(n => n.type === 'workplan').map(n => n.domain).filter(Boolean))];
   const container = document.getElementById('domainFilters');
@@ -516,7 +547,7 @@ function initGraph() {
     physics: {
       enabled: true,
       solver: 'barnesHut',
-      barnesHut: { gravitationalConstant: -3000, centralGravity: 0.3, springLength: 120, springConstant: 0.04, damping: 0.09 },
+      barnesHut: { gravitationalConstant: -6000, centralGravity: 0.2, springLength: 250, springConstant: 0.04, damping: 0.09 },
       stabilization: { iterations: 200, fit: true }
     },
     interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true, dragNodes: true },
@@ -593,9 +624,12 @@ function selectNode(nodeId) {
   const node = nodeMap[nodeId];
   if (!node) return;
 
-  const panel = document.getElementById('rightPanel');
-  panel.classList.remove('hidden');
-  showPanel('detail');
+  const rightPanel = document.getElementById('rightPanel');
+  rightPanel.classList.remove('hidden');
+  const leftPanel = document.getElementById('leftPanel');
+  leftPanel.classList.remove('hidden');
+  const detailPanel = document.getElementById('panelDetail');
+  if (detailPanel) detailPanel.style.display = '';
 
   const content = document.getElementById('detailContent');
   let html = `<h3>${TYPE_ICONS[node.type] || ''} ${node.label}</h3>`;
@@ -658,7 +692,6 @@ function focusNode(nodeId) {
   network.selectNodes([nodeId]);
   network.focus(nodeId, { scale: 1.2, animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
   selectNode(nodeId);
-  showPanel('detail');
 }
 
 // ============================================================
@@ -881,28 +914,102 @@ document.getElementById('timeRange').addEventListener('input', applyTimeFilter);
 
 document.getElementById('btnFitView').addEventListener('click', () => network.fit({ animation: true }));
 
-document.getElementById('btnCluster').addEventListener('click', () => {
-  network.setOptions({ clustering: { enabled: true } });
-  // Cluster by type
-  const types = [...new Set(allNodes.map(n => n.type))];
-  types.forEach(type => {
-    const clusterOptions = {
-      joinCondition: n => n.type === type,
-      processProperties: (clusterProps) => {
-        clusterProps.label = `${TYPE_ICONS[type]} ${type} (${clusterProps.numberOfNodes})`;
-        clusterProps.color = TYPE_COLORS[type];
-        clusterProps.shape = 'hexagon';
-        clusterProps.size = 20;
-        return clusterProps;
-      }
-    };
-    network.cluster(clusterOptions);
+const DEFAULT_PHYSICS = {
+  enabled: true, solver: 'barnesHut',
+  barnesHut: { gravitationalConstant: -6000, centralGravity: 0.2, springLength: 250, springConstant: 0.04, damping: 0.09 },
+  stabilization: { iterations: 200, fit: true }
+};
+
+document.getElementById('layoutSelect').addEventListener('change', () => {
+  const mode = document.getElementById('layoutSelect').value;
+  const visNodes = network.body.data.nodes;
+  const chkPhysics = document.getElementById('chkPhysics');
+
+  visNodes.get().forEach(n => {
+    if (n.fixed && (n.fixed.x || n.fixed.y)) {
+      visNodes.update({ id: n.id, fixed: { x: false, y: false } });
+    }
   });
+
+  if (mode === 'barnesHut') {
+    network.setOptions({ physics: DEFAULT_PHYSICS, layout: { improvedLayout: true }, clustering: { enabled: false } });
+    chkPhysics.checked = true;
+  } else if (mode === 'repulsion') {
+    network.setOptions({ physics: {
+      enabled: true, solver: 'repulsion',
+      repulsion: { nodeDistance: 200, centralGravity: 0.2, springLength: 250, springConstant: 0.04, damping: 0.09 },
+      stabilization: { iterations: 200, fit: true }
+    }, layout: { improvedLayout: true }, clustering: { enabled: false } });
+    chkPhysics.checked = true;
+  } else if (mode === 'forceAtlas2') {
+    network.setOptions({ physics: {
+      enabled: true, solver: 'forceAtlas2Based',
+      forceAtlas2Based: { gravitationalConstant: -80, centralGravity: 0.005, springLength: 250, springConstant: 0.04, damping: 0.4 },
+      stabilization: { iterations: 200, fit: true }
+    }, layout: { improvedLayout: true }, clustering: { enabled: false } });
+    chkPhysics.checked = true;
+  } else if (mode === 'circle') {
+    try {
+      const center = network.getViewPosition();
+      const sliderVal = parseInt(document.getElementById('repulsionSlider').value);
+      const spacing = Math.max(5, sliderVal / 500);
+      const updates = [];
+      const typeOrder = ['engine','issue','folder','error_code','update','test','dependency','session','phase','step','action','workplan','report','file'];
+      const allVisible = visNodes.get({ filter: n => !n.hidden });
+      allVisible.sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
+      allVisible.forEach((n, i) => {
+        const angle = i * 137.508 * Math.PI / 180;
+        const radius = Math.sqrt(i + 1) * spacing;
+        updates.push({ id: n.id, x: center.x + radius * Math.cos(angle), y: center.y + radius * Math.sin(angle), fixed: { x: true, y: true } });
+      });
+      if (updates.length) {
+        visNodes.update(updates);
+        network.setOptions({ physics: { enabled: false }, layout: { improvedLayout: true } });
+        network.fit({ animation: true });
+      }
+    } catch(e) { console.error('Circle layout error:', e); }
+    chkPhysics.checked = false;
+  } else if (mode === 'treeUD') {
+    network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'UD', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
+    network.fit({ animation: true });
+    chkPhysics.checked = false;
+  } else if (mode === 'treeDU') {
+    network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'DU', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
+    network.fit({ animation: true });
+    chkPhysics.checked = false;
+  } else if (mode === 'treeLR') {
+    network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'LR', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
+    network.fit({ animation: true });
+    chkPhysics.checked = false;
+  } else if (mode === 'treeRL') {
+    network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'RL', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
+    network.fit({ animation: true });
+    chkPhysics.checked = false;
+  }
 });
 
-document.getElementById('btnUncluster').addEventListener('click', () => {
-  network.openCluster();
-  network.setOptions({ clustering: { enabled: false } });
+document.getElementById('selCluster').addEventListener('change', function () {
+  const val = this.value;
+  if (val === 'none') {
+    network.openCluster();
+    network.setOptions({ clustering: { enabled: false } });
+  } else if (val === 'type') {
+    network.setOptions({ clustering: { enabled: true } });
+    const types = [...new Set(allNodes.map(n => n.type))];
+    types.forEach(type => {
+      const clusterOptions = {
+        joinCondition: n => n.type === type,
+        processProperties: (clusterProps) => {
+          clusterProps.label = `${TYPE_ICONS[type]} ${type} (${clusterProps.numberOfNodes})`;
+          clusterProps.color = TYPE_COLORS[type];
+          clusterProps.shape = 'hexagon';
+          clusterProps.size = 20;
+          return clusterProps;
+        }
+      };
+      network.cluster(clusterOptions);
+    });
+  }
 });
 
 document.getElementById('btnExportPNG').addEventListener('click', exportPNG);
@@ -926,20 +1033,51 @@ document.addEventListener('click', () => {
 });
 
 document.getElementById('btnLayout').addEventListener('click', () => {
-  // Toggle between layouts (simplified)
-  const left = document.getElementById('leftPanel');
-  const right = document.getElementById('rightPanel');
-  if (left.classList.contains('hidden') && right.classList.contains('hidden')) {
-    left.classList.remove('hidden');
-    showPanel('graph');
-  } else if (!left.classList.contains('hidden')) {
-    left.classList.add('hidden');
-    if (selectedNodeId) right.classList.remove('hidden');
-  }
+  document.getElementById('leftPanel').classList.toggle('hidden');
 });
+
+// Panel Resize
+(function() {
+  const handle = document.getElementById('resizeHandle');
+  const panel = document.getElementById('leftPanel');
+  let startX, startWidth;
+  handle.addEventListener('mousedown', (e) => {
+    startX = e.clientX;
+    startWidth = panel.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+  function onMove(e) {
+    const w = Math.max(150, Math.min(600, startWidth + e.clientX - startX));
+    panel.style.width = w + 'px';
+  }
+  function onUp() {
+    handle.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+})();
 
 document.getElementById('chkPhysics').addEventListener('change', (e) => {
   network.setOptions({ physics: { enabled: e.target.checked } });
+});
+
+document.getElementById('repulsionSlider').addEventListener('input', (e) => {
+  const val = parseInt(e.target.value);
+  document.getElementById('repulsionValue').textContent = val;
+  const physics = network.body.viewOptions.physics || {};
+  const opts = { physics: { enabled: true } };
+  if (physics.solver === 'repulsion') {
+    opts.physics.repulsion = { nodeDistance: val };
+  } else if (physics.solver === 'forceAtlas2Based') {
+    opts.physics.forceAtlas2Based = { gravitationalConstant: -val / 10 };
+  } else {
+    opts.physics.barnesHut = { gravitationalConstant: -val };
+  }
+  network.setOptions(opts);
 });
 
 document.getElementById('chkLabels').addEventListener('change', (e) => {
@@ -954,7 +1092,67 @@ document.getElementById('chkTimeSlider').addEventListener('change', (e) => {
   document.getElementById('timeSlider').style.display = e.target.checked ? 'flex' : 'none';
 });
 
-// Search
+// Layer Toggles
+document.querySelectorAll('.layer-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const layer = parseInt(btn.dataset.layer);
+    if (activeLayers.has(layer)) {
+      activeLayers.delete(layer);
+      btn.style.background = 'var(--surface2,#333)';
+      btn.style.color = 'var(--text,#ccc)';
+      btn.style.border = '1px solid var(--border,#444)';
+    } else {
+      activeLayers.add(layer);
+      btn.style.background = 'var(--accent,#007acc)';
+      btn.style.color = '#fff';
+      btn.style.border = 'none';
+    }
+    // Update checkboxes to match active layers
+    document.querySelectorAll('[data-filter]').forEach(cb => {
+      const typeId = cb.dataset.filter;
+      const meta = NODE_TYPES_META[typeId];
+      if (meta && meta.layer) {
+        cb.checked = activeLayers.has(meta.layer);
+      }
+    });
+    applyFilters();
+  });
+});
+
+// Inline Search
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  const query = e.target.value.trim().toLowerCase();
+  const countEl = document.getElementById('searchCount');
+  if (!query) {
+    countEl.textContent = '';
+    resetHighlight();
+    return;
+  }
+  const matches = allNodes.filter(n =>
+    n.label.toLowerCase().includes(query) ||
+    (n.id && n.id.toLowerCase().includes(query))
+  );
+  if (matches.length === 0) {
+    countEl.textContent = '0 matches';
+    return;
+  }
+  countEl.textContent = `${matches.length} match${matches.length > 1 ? 'es' : ''}`;
+  const matchIds = new Set(matches.map(n => n.id));
+  const visNodes = network.body.data.nodes;
+  visNodes.update(allNodes.map(n => ({
+    id: n.id,
+    color: matchIds.has(n.id)
+      ? { background: '#fff', border: '#007acc' }
+      : { background: '#333', border: '#333' },
+    font: {
+      size: matchIds.has(n.id) ? 14 : 8,
+      color: matchIds.has(n.id) ? '#000' : '#555'
+    }
+  })));
+  network.fit({ nodes: matches.map(n => n.id), animation: true });
+});
+
+// Search (legacy button — uses inline input)
 let searchTimeout;
 document.getElementById('btnSearch').addEventListener('click', () => {
   const query = prompt('Search nodes:');

@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 
-ROOT = Path(__file__).resolve().parent.parent.parent.parent  # dcc/
+ROOT = Path(__file__).resolve().parent.parent  # dcc/
 LOG_DIR = ROOT / "log"
 WORKPLAN_DIR = ROOT / "workplan"
 OUTPUT_FILE = ROOT / "output" / "dcc_log_graph.json"
@@ -64,6 +64,25 @@ def parse_status(text):
         return "FAIL"
     return text.strip()[:30]
 
+def normalize_status(text):
+    """Normalize status to known filter values, or None if unrecognized."""
+    if not text:
+        return None
+    t = text.upper().strip()
+    if 'COMPLETE' in t or 'DONE' in t or '✅' in t:
+        return 'COMPLETE'
+    if 'RESOLVED' in t:
+        return 'RESOLVED'
+    if 'IN PROGRESS' in t:
+        return 'IN PROGRESS'
+    if 'PENDING' in t:
+        return 'PENDING'
+    if 'PASS' in t:
+        return 'PASS'
+    if 'FAIL' in t or '❌' in t:
+        return 'FAIL'
+    return None
+
 def parse_severity(text):
     if not text:
         return None
@@ -95,6 +114,17 @@ def extract_sections(text):
         sections.append({"title": title, "content": content, "offset": m.start()})
     return sections
 
+def has_external_ref(text):
+    if not text:
+        return False
+    if re.search(r'`[\w/.-]+\.\w+`', text):
+        return True
+    if re.search(r'[A-Z]\d-[A-Z]-[A-Z]-\d{4}', text):
+        return True
+    if re.search(r'(?:issue|update|test)[-\s][\w-]+', text, re.I):
+        return True
+    return False
+
 # ============================================================
 # PHASE 1.0: Build Folder Hierarchy
 # ============================================================
@@ -102,8 +132,20 @@ print("=== Phase 1.0: Building Folder Hierarchy ===")
 
 folder_ids = {}
 all_wp_files = list(WORKPLAN_DIR.rglob("*.md"))
-wp_main = [f for f in all_wp_files if '/reports/' not in str(f) and f.name != 'README.md']
-rpt_files = [f for f in all_wp_files if '/reports/' in str(f)]
+
+def _is_report_file(f):
+    rel = str(f.relative_to(WORKPLAN_DIR))
+    if '/reports/' in rel:
+        return True
+    stem = f.stem.lower()
+    if stem.endswith('_report') or stem.endswith('-report') or stem == 'report':
+        return True
+    if re.search(r'phase[_\s]*\d+.*report', stem):
+        return True
+    return False
+
+rpt_files = [f for f in all_wp_files if _is_report_file(f)]
+wp_main = [f for f in all_wp_files if not _is_report_file(f) and f.name != 'README.md']
 
 # Collect all unique folders
 all_folders = set()
@@ -304,206 +346,301 @@ if tfile.exists():
 print("\n=== Phase 1.2: Parsing Workplan & Report Files ===")
 
 def parse_file_content(text, parent_nid, file_type, source_name):
-    """Generic file content parser - extracts all context as sub-nodes"""
+    """Parse file content, collapsing sub-elements into content items.
+    Only creates standalone graph nodes for items with external references."""
+    content_items = []
     sub_nodes_created = 0
-    
-    # --- Extract Sections ---
-    sections = extract_sections(text)
-    for si, sec in enumerate(sections):
-        sid = f"section-{safe_id(source_name)}-{si}"
-        add_node(sid, "section", sec["title"][:80],
-                 file_type=file_type, source=source_name, order=si)
-        add_edge(sid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Timestamps ---
-    timestamps = re.findall(r'(\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?)', text)
-    for ti, ts in enumerate(list(set(timestamps))[:10]):
-        tsid = f"timestamp-{safe_id(source_name)}-{safe_id(ts)}"
-        add_node(tsid, "timestamp", ts, file_type=file_type, source=source_name)
-        add_edge(tsid, parent_nid, "mentioned_in")
-        sub_nodes_created += 1
-    
+
+    # --- Build section ranges for context tracking ---
+    raw_sections = extract_sections(text)
+    section_ranges = []
+    for si, sec in enumerate(raw_sections):
+        sec_start = sec["offset"]
+        sec_end = raw_sections[si + 1]["offset"] if si + 1 < len(raw_sections) else len(text)
+        section_ranges.append((si, sec_start, sec_end))
+
+    def find_containing_section(pos):
+        for s_idx, s_start, s_end in section_ranges:
+            if s_start <= pos < s_end:
+                return s_idx
+        return None
+
+    def build_context(type_name, index, pos=None):
+        if pos is not None:
+            sec_idx = find_containing_section(pos)
+            if sec_idx is not None:
+                return f"{parent_nid}.section-{sec_idx}.{type_name}-{index}"
+        return f"{parent_nid}.{type_name}-{index}"
+
+    # --- Extract Sections (always embedded, never graph nodes) ---
+    for si, sec in enumerate(raw_sections):
+        content_items.append({
+            "type": "section",
+            "title": sec["title"],
+            "content": sec["content"][:500] if sec["content"] else "",
+            "order": si
+        })
+
     # --- Extract Error Codes ---
     error_codes = extract_error_codes(text)
     for ec in error_codes[:15]:
         ec_nid = f"ec-{ec}"
-        add_node(ec_nid, "error_code", ec, status="referenced")
+        add_node(ec_nid, "error_code", ec, status="referenced",
+                 context=f"{parent_nid}.error_code")
         add_edge(ec_nid, parent_nid, "referenced_by")
         sub_nodes_created += 1
-    
+
     # --- Extract Phases ---
-    phase_refs = re.findall(r'(?:Phase|Sub-Phase|P)\s*([\dA-Z.]+)', text)
-    for pi, pid in enumerate(list(set(phase_refs))[:15]):
-        pid = pid.strip()
+    for pi, pm in enumerate(re.finditer(r'(?:Phase|Sub-Phase|P)\s*([\dA-Z.]+)', text)):
+        if pi >= 15:
+            break
+        pid = pm.group(1).strip()
+        pos = pm.start()
         if pid.lower() in ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']:
             pnid = f"phase-ref-{safe_id(source_name)}-{pid.lower()}"
-            add_node(pnid, "phase", f"Phase {pid}", file_type=file_type, source=source_name, phase_id=pid)
+            add_node(pnid, "phase", f"Phase {pid}", file_type=file_type, source=source_name,
+                     phase_id=pid, context=build_context("phase", pi, pos))
             add_edge(pnid, parent_nid, "belongs_to")
             sub_nodes_created += 1
-    
-    # --- Extract Milestones ---
-    milestone_tables = re.findall(r'\|\s*(M\d+[\d.]*)\s*\|\s*([^|]+)\|\s*([^|]+)', text)
-    for mi, (mid, mdeliverable, mstatus) in enumerate(milestone_tables[:20]):
+
+    # --- Extract Milestones (always embedded) ---
+    for mi, mm in enumerate(re.finditer(r'\|\s*(M\d+[\d.]*)\s*\|\s*([^|]+)\|\s*([^|]+)', text)):
+        if mi >= 20:
+            break
+        mid = mm.group(1)
+        mdeliverable = mm.group(2)
+        mstatus = mm.group(3)
         ms = "COMPLETE" if '✅' in mstatus or 'DONE' in mstatus.upper() or 'COMPLETE' in mstatus.upper() else "PENDING"
-        mnid = f"milestone-{safe_id(source_name)}-{safe_id(mid)}"
-        add_node(mnid, "milestone", f"{mid}: {mdeliverable.strip()[:60]}",
-                 milestone_id=mid, status=ms, file_type=file_type, source=source_name)
-        add_edge(mnid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Success Criteria ---
-    criteria_lines = re.findall(r'-\s*\[([ xX])\]\s*([^\n]+)', text)
-    for ci, (ccheck, ctext) in enumerate(criteria_lines[:30]):
-        ctext = ctext.strip()
+        content_items.append({
+            "type": "milestone",
+            "id": mid,
+            "deliverable": mdeliverable.strip(),
+            "status": ms,
+            "order": mi
+        })
+
+    # --- Extract Success Criteria (always embedded) ---
+    for ci, cm in enumerate(re.finditer(r'-\s*\[([ xX])\]\s*([^\n]+)', text)):
+        if ci >= 30:
+            break
+        ccheck = cm.group(1)
+        ctext = cm.group(2).strip()
         if not ctext or len(ctext) < 3:
             continue
-        cid = f"criteria-{safe_id(source_name)}-{ci}"
         cstatus = "COMPLETE" if ccheck.lower() == 'x' else "PENDING"
-        add_node(cid, "criteria", ctext[:80], status=cstatus, file_type=file_type, source=source_name)
-        add_edge(cid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Deliverables ---
-    del_items = re.findall(r'-\s*\*\*([^*]{3,})\*\*\s*[:\-]\s*([^\n]{3,})', text)
-    for dli, (dtitle, ddesc) in enumerate(del_items[:20]):
-        dnid = f"deliverable-{safe_id(source_name)}-{dli}"
-        add_node(dnid, "deliverable", f"{dtitle.strip()[:60]}: {ddesc.strip()[:40]}",
-                 description=ddesc.strip()[:200], file_type=file_type, source=source_name)
-        add_edge(dnid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Findings ---
-    finding_sections = re.findall(r'(?:Findings|Issues|Recommendations)[^\n]*\n(.+?)(?=\n##|\n---|\Z)', text, re.DOTALL)
-    for fi_idx, fs_content in enumerate(finding_sections):
-        findings = re.findall(r'\|\s*([^|]{5,})\s*\|\s*([^|]+)\s*\|', fs_content)
-        for fi, (ffinding, fresolution) in enumerate(findings[:10]):
-            ffinding = ffinding.strip()
+        content_items.append({
+            "type": "criteria",
+            "text": ctext[:80],
+            "status": cstatus,
+            "order": ci
+        })
+
+    # --- Extract Deliverables (always embedded) ---
+    for dli, dm in enumerate(re.finditer(r'-\s*\*\*([^*]{3,})\*\*\s*[:\-]\s*([^\n]{3,})', text)):
+        if dli >= 20:
+            break
+        dtitle = dm.group(1)
+        ddesc = dm.group(2)
+        content_items.append({
+            "type": "deliverable",
+            "title": dtitle.strip(),
+            "description": ddesc.strip()[:200],
+            "order": dli
+        })
+
+    # --- Extract Findings (always embedded) ---
+    for fi_idx, fs_match in enumerate(re.finditer(r'(?:Findings|Issues|Recommendations)[^\n]*\n(.+?)(?=\n##|\n---|\Z)', text, re.DOTALL)):
+        fs_content = fs_match.group(1)
+        for fi, fm in enumerate(re.finditer(r'\|\s*([^|]{5,})\s*\|\s*([^|]+)\s*\|', fs_content)):
+            if fi >= 10:
+                break
+            ffinding = fm.group(1).strip()
+            fresolution = fm.group(2)
             if ffinding.lower() in ['finding', 'issue', 'resolution', 'recommendation', 'finding', 'details']:
                 continue
-            fnid = f"finding-{safe_id(source_name)}-{fi_idx}-{fi}"
-            add_node(fnid, "finding", ffinding[:80],
-                     resolution=fresolution.strip()[:150], file_type=file_type, source=source_name)
-            add_edge(fnid, parent_nid, "belongs_to")
-            sub_nodes_created += 1
-    
-    # --- Extract Lessons ---
-    lessons_sections = re.findall(r'(?:Lessons Learned|Lessons)[^\n]*\n(.+?)(?=\n##|\n---|\Z)', text, re.DOTALL)
-    for ls_content in lessons_sections:
-        lesson_lines = re.findall(r'-\s*([^\n]+)', ls_content)
-        for li, lesson in enumerate(lesson_lines[:10]):
-            lesson = lesson.strip()
+            content_items.append({
+                "type": "finding",
+                "finding": ffinding,
+                "resolution": fresolution.strip()[:150],
+                "order": fi
+            })
+
+    # --- Extract Lessons (always embedded) ---
+    for ls_match in re.finditer(r'(?:Lessons Learned|Lessons)[^\n]*\n(.+?)(?=\n##|\n---|\Z)', text, re.DOTALL):
+        ls_content = ls_match.group(1)
+        for li, lm in enumerate(re.finditer(r'-\s*([^\n]+)', ls_content)):
+            if li >= 10:
+                break
+            lesson = lm.group(1).strip()
             if not lesson or len(lesson) < 5:
                 continue
-            lnid = f"lesson-{safe_id(source_name)}-{li}"
-            add_node(lnid, "lesson", lesson[:100], file_type=file_type, source=source_name)
-            add_edge(lnid, parent_nid, "belongs_to")
-            sub_nodes_created += 1
-    
+            content_items.append({
+                "type": "lesson",
+                "text": lesson,
+                "order": li
+            })
+
     # --- Extract Steps ---
-    step_lines = re.findall(r'(?:\d+\.\s*)([^\n]{5,})', text)
-    for sti, step in enumerate(step_lines[:20]):
-        step = step.strip()
+    for sti, sm in enumerate(re.finditer(r'(?:\d+\.\s*)([^\n]{5,})', text)):
+        if sti >= 20:
+            break
+        step = sm.group(1).strip()
+        pos = sm.start()
         if not step or len(step) < 5:
             continue
-        stid = f"step-{safe_id(source_name)}-{sti}"
-        add_node(stid, "step", step[:80], order=sti, file_type=file_type, source=source_name)
-        add_edge(stid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Scopes ---
-    scope_sections = re.findall(r'(?:Scope|scope)[:\s]*(.+?)(?:\n|$)', text)
-    for sci, scope_text in enumerate(scope_sections[:5]):
-        scope_text = scope_text.strip()
+        if has_external_ref(step):
+            stid = f"step-{safe_id(source_name)}-{sti}"
+            add_node(stid, "step", step[:80], order=sti, file_type=file_type, source=source_name,
+                     context=build_context("step", sti, pos))
+            add_edge(stid, parent_nid, "belongs_to")
+            sub_nodes_created += 1
+        else:
+            content_items.append({
+                "type": "step",
+                "text": step,
+                "order": sti
+            })
+
+    # --- Extract Scopes (always embedded) ---
+    for sci, sm in enumerate(re.finditer(r'(?:Scope|scope)[:\s]*(.+?)(?:\n|$)', text)):
+        if sci >= 5:
+            break
+        scope_text = sm.group(1).strip()
         if not scope_text or len(scope_text) < 5:
             continue
-        scid = f"scope-{safe_id(source_name)}-{sci}"
-        add_node(scid, "scope", scope_text[:80], file_type=file_type, source=source_name)
-        add_edge(scid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Reasons ---
-    reason_lines = re.findall(r'(?:Reason|reason|Rationale|rationale)[:\s]*(.+?)(?:\n|$)', text)
-    for ri, reason in enumerate(reason_lines[:10]):
-        reason = reason.strip()
+        content_items.append({
+            "type": "scope",
+            "text": scope_text,
+            "order": sci
+        })
+
+    # --- Extract Reasons (always embedded) ---
+    for ri, rm in enumerate(re.finditer(r'(?:Reason|reason|Rationale|rationale)[:\s]*(.+?)(?:\n|$)', text)):
+        if ri >= 10:
+            break
+        reason = rm.group(1).strip()
         if not reason or len(reason) < 5:
             continue
-        rnid = f"reason-{safe_id(source_name)}-{ri}"
-        add_node(rnid, "reason", reason[:80], file_type=file_type, source=source_name)
-        add_edge(rnid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Cases ---
-    case_lines = re.findall(r'(?:Case|case|Test Case|use case)[:\s]*(.+?)(?:\n|$)', text)
-    for cai, case in enumerate(case_lines[:10]):
-        case = case.strip()
+        content_items.append({
+            "type": "reason",
+            "text": reason,
+            "order": ri
+        })
+
+    # --- Extract Cases (always embedded) ---
+    for cai, cm in enumerate(re.finditer(r'(?:Case|case|Test Case|use case)[:\s]*(.+?)(?:\n|$)', text)):
+        if cai >= 10:
+            break
+        case = cm.group(1).strip()
         if not case or len(case) < 3:
             continue
-        cnid = f"case-{safe_id(source_name)}-{cai}"
-        add_node(cnid, "case", case[:80], file_type=file_type, source=source_name)
-        add_edge(cnid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Scenarios ---
-    scenario_lines = re.findall(r'(?:Scenario|scenario)[:\s]*(.+?)(?:\n|$)', text)
-    for sni, scenario in enumerate(scenario_lines[:10]):
-        scenario = scenario.strip()
+        content_items.append({
+            "type": "case",
+            "text": case,
+            "order": cai
+        })
+
+    # --- Extract Scenarios (always embedded) ---
+    for sni, sm in enumerate(re.finditer(r'(?:Scenario|scenario)[:\s]*(.+?)(?:\n|$)', text)):
+        if sni >= 10:
+            break
+        scenario = sm.group(1).strip()
         if not scenario or len(scenario) < 3:
             continue
-        snid = f"scenario-{safe_id(source_name)}-{sni}"
-        add_node(snid, "scenario", scenario[:80], file_type=file_type, source=source_name)
-        add_edge(snid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Tables ---
-    tables = re.findall(r'(\|[\s\w\-\*\.\(\)/:,]+\|[\s\w\-\*\.\(\)/:,]+\|[\s\w\-\*\.\(\)/:,|]+\|)', text)
-    for ti, table in enumerate(tables[:10]):
-        # Get table header
+        content_items.append({
+            "type": "scenario",
+            "text": scenario,
+            "order": sni
+        })
+
+    # --- Extract Tables (always embedded) ---
+    for ti, tm in enumerate(re.finditer(r'(\|[\s\w\-\*\.\(\)/:,]+\|[\s\w\-\*\.\(\)/:,]+\|[\s\w\-\*\.\(\)/:,|]+\|)', text)):
+        if ti >= 10:
+            break
+        table = tm.group(1)
         header_m = re.search(r'\|([^|]+)\|([^|]+)\|', table)
         if header_m:
             tlabel = f"Table: {header_m.group(1).strip()[:40]}"
-            tnid = f"table-{safe_id(source_name)}-{ti}"
-            add_node(tnid, "table", tlabel, file_type=file_type, source=source_name)
-            add_edge(tnid, parent_nid, "belongs_to")
-            sub_nodes_created += 1
-    
-    # --- Extract Analysis ---
-    analysis_sections = re.findall(r'(?:Analysis|analysis|Detailed Evaluation|detailed evaluation)[^\n]*\n(.+?)(?=\n##|\n---|\Z)', text, re.DOTALL)
-    for ai, analysis in enumerate(analysis_sections):
-        analysis = analysis.strip()[:200]
+            content_items.append({
+                "type": "table",
+                "title": tlabel,
+                "content": table[:200],
+                    "order": ti
+                })
+
+    # --- Extract Analysis (always embedded) ---
+    for ai, am in enumerate(re.finditer(r'(?:Analysis|analysis|Detailed Evaluation|detailed evaluation)[^\n]*\n(.+?)(?=\n##|\n---|\Z)', text, re.DOTALL)):
+        analysis = am.group(1).strip()[:200]
         if not analysis or len(analysis) < 10:
             continue
-        anid = f"analysis-{safe_id(source_name)}-{ai}"
-        add_node(anid, "analysis", analysis[:80], file_type=file_type, source=source_name)
-        add_edge(anid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Dependencies ---
-    dep_lines = re.findall(r'(?:Depends on|depends on|Dependency|dependency|Requires|requires)[:\s]*(.+?)(?:\n|$)', text)
-    for di, dep in enumerate(dep_lines[:10]):
-        dep = dep.strip()
+        content_items.append({
+            "type": "analysis",
+            "title": analysis[:80],
+            "content": analysis[:200],
+            "order": ai
+        })
+
+    # --- Extract Dependencies (always embedded) ---
+    for di, dm in enumerate(re.finditer(r'(?:Depends on|depends on|Dependency|dependency|Requires|requires)[:\s]*(.+?)(?:\n|$)', text)):
+        if di >= 10:
+            break
+        dep = dm.group(1).strip()
         if not dep or len(dep) < 3:
             continue
-        dnid = f"dependency-{safe_id(source_name)}-{di}"
-        add_node(dnid, "dependency", dep[:80], file_type=file_type, source=source_name)
-        add_edge(dnid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
+        content_items.append({
+            "type": "dependency",
+            "text": dep,
+            "order": di
+        })
+
+    # --- Extract Dependencies ---
+    for di, dm in enumerate(re.finditer(r'(?:Depends on|depends on|Dependency|dependency|Requires|requires)[:\s]*(.+?)(?:\n|$)', text)):
+        if di >= 10:
+            break
+        dep = dm.group(1).strip()
+        pos = dm.start()
+        if not dep or len(dep) < 3:
+            continue
+        if has_external_ref(dep):
+            dnid = f"dependency-{safe_id(source_name)}-{di}"
+            add_node(dnid, "dependency", dep[:80], file_type=file_type, source=source_name,
+                     context=build_context("dependency", di, pos))
+            add_edge(dnid, parent_nid, "belongs_to")
+            sub_nodes_created += 1
+        else:
+            content_items.append({
+                "type": "dependency",
+                "text": dep,
+                "order": di
+            })
+
     # --- Extract Actions/Tasks ---
-    task_lines = re.findall(r'(?:\d+\.\s*(?:✅\s*)?)([^\n]{5,})', text)
-    for ti, task in enumerate(task_lines[:20]):
-        task = task.strip()
+    for ti, tm in enumerate(re.finditer(r'(?:\d+\.\s*(?:✅\s*)?)([^\n]{5,})', text)):
+        if ti >= 20:
+            break
+        task = tm.group(1).strip()
+        pos = tm.start()
         if not task or len(task) < 5:
             continue
-        tid = f"action-{safe_id(source_name)}-{ti}"
-        tstatus = "COMPLETE" if '✅' in task else "PENDING"
-        add_node(tid, "action", task[:80], status=tstatus, file_type=file_type, source=source_name)
-        add_edge(tid, parent_nid, "belongs_to")
-        sub_nodes_created += 1
-    
-    # --- Extract Updates/Changes ---
-    change_sections = re.findall(r'(?:Changes and Updates|What will be Updated|What Was Changed)[^\n]*\n(.+?)(?=\n\*\*|\n---|\n##|\Z)', text, re.DOTALL)
-    for ci, cs_content in enumerate(change_sections):
+        if has_external_ref(task):
+            tid = f"action-{safe_id(source_name)}-{ti}"
+            tstatus = "COMPLETE" if '✅' in task else "PENDING"
+            add_node(tid, "action", task[:80], status=tstatus, file_type=file_type, source=source_name,
+                     context=build_context("action", ti, pos))
+            add_edge(tid, parent_nid, "belongs_to")
+            sub_nodes_created += 1
+        else:
+            tstatus = "COMPLETE" if '✅' in task else "PENDING"
+            content_items.append({
+                "type": "action",
+                "text": task,
+                "status": tstatus,
+                "order": ti
+            })
+
+    # --- Extract Updates/Changes (always embedded) ---
+    for ci, cs_match in enumerate(re.finditer(r'(?:Changes and Updates|What will be Updated|What Was Changed)[^\n]*\n(.+?)(?=\n\*\*|\n---|\n##|\Z)', text, re.DOTALL)):
+        cs_content = cs_match.group(1)
         change_lines = re.findall(r'-\s*\*\*([^*]+)\*\*\s*[:\-]?\s*([^\n]*)', cs_content)
         if not change_lines:
             change_lines = [(line.strip().lstrip('- ').strip(), '') for line in cs_content.strip().split('\n') if line.strip().startswith('-')]
@@ -511,21 +648,23 @@ def parse_file_content(text, parent_nid, file_type, source_name):
             ul_title = ul_title.strip()
             if not ul_title:
                 continue
-            ulid = f"update-{safe_id(source_name)}-{ci}-{ui}"
-            add_node(ulid, "update", f"{ul_title[:60]}" + (f": {ul_desc.strip()[:40]}" if ul_desc.strip() else ""),
-                     summary=ul_desc.strip()[:200], file_type=file_type, source=source_name)
-            add_edge(ulid, parent_nid, "belongs_to")
-            sub_nodes_created += 1
-    
+            content_items.append({
+                "type": "change",
+                "title": ul_title[:60],
+                "description": ul_desc.strip()[:200],
+                "order": ui
+            })
+
     # --- Extract Files ---
     files = extract_files(text)
     for fi, fp in enumerate(files[:15]):
         fnid = f"file-{fp.replace('/', '-').replace('.', '_')}"
         if fnid not in node_ids:
-            add_node(fnid, "file", fp.split('/')[-1], path=fp, touch_count=1)
+            add_node(fnid, "file", fp.split('/')[-1], path=fp, touch_count=1,
+                     context=build_context("file", fi, None))
         add_edge(fnid, parent_nid, "referenced_by")
         sub_nodes_created += 1
-    
+
     # --- Extract Issues ---
     issue_refs = re.findall(r'(?:issue-?|Issue\s+)([\w-]+)', text)
     for ir in issue_refs[:10]:
@@ -534,7 +673,14 @@ def parse_file_content(text, parent_nid, file_type, source_name):
             ir_nid = f"issue-{ir.lower()}"
             if ir_nid in node_ids:
                 add_edge(parent_nid, ir_nid, "addresses")
-    
+
+    # --- Store content items in parent properties ---
+    if content_items:
+        parent_node = next((n for n in nodes if n['id'] == parent_nid), None)
+        if parent_node:
+            parent_node["properties"] = parent_node.get("properties", {})
+            parent_node["properties"]["content"] = content_items
+
     return sub_nodes_created
 
 # Parse workplans
@@ -552,12 +698,12 @@ for wf in wp_main:
     if not wid and 'workplan' in wf.name.lower():
         wid = wf.stem.replace('_workplan', '').replace('_work_plan', '')
     if not wid:
-        continue
+        wid = safe_id(wf.stem)
     
     ver_m = re.search(r'(?:Current Version|Version)[:\s]*([\d.]+)', text)
     version = ver_m.group(1) if ver_m else "1.0"
-    stat_m = re.search(r'\*\*Status:\*\*\s*([^\n*]+)', text)
-    status = stat_m.group(1).strip()[:50] if stat_m else "UNKNOWN"
+    stat_m = re.search(r'(?:\*\*Status:\*\*|Status)[:\s\*]*([^\n]+)', text)
+    status = normalize_status(stat_m.group(1).strip().strip('*').strip()) if stat_m else None
     title_m = re.search(r'#\s+(.+?)(?:\n|$)', text)
     title = title_m.group(1).strip()[:80] if title_m else wf.stem
     date_m = re.search(r'(?:Last Updated|Date)[:\s]*(\d{4}-\d{2}-\d{2})', text)
@@ -605,7 +751,7 @@ for rf in rpt_files:
     ver_m = re.search(r'(?:Version|version)[:\s]*([\d.]+)', text)
     version = ver_m.group(1) if ver_m else "1.0"
     stat_m = re.search(r'(?:\*\*Status:\*\*|Status)[:\s\*]*([^\n]+)', text)
-    status = stat_m.group(1).strip().strip('*').strip()[:30] if stat_m else "UNKNOWN"
+    status = normalize_status(stat_m.group(1).strip().strip('*').strip()) if stat_m else None
     
     # Find parent workplan
     parent_wp_nid = None
@@ -673,6 +819,34 @@ for rf in rpt_files:
     subs = parse_file_content(text, nid, "report", nid)
 
 print(f"  Reports parsed: {rpt_found}")
+
+# ============================================================
+# PHASE 1.2b: Fallback — add unmatched .md files as file-type nodes
+# ============================================================
+print("\n=== Phase 1.2b: Fallback for Unmatched .md Files ===")
+# Collect paths already covered by workplan/report nodes
+covered_paths = set()
+for n in nodes:
+    if n['type'] in ('workplan', 'report') and 'path' in n:
+        covered_paths.add(n['path'])
+fallback_added = 0
+for f in sorted(all_wp_files):
+    rel = str(f.relative_to(WORKPLAN_DIR))
+    if rel in covered_paths:
+        continue
+    fnid = f"file-{rel.replace('/', '-').replace('.', '_')}"
+    if fnid in node_ids:
+        continue
+    text = f.read_text()
+    title_m = re.search(r'#\s+(.+?)(?:\n|$)', text)
+    title = title_m.group(1).strip()[:80] if title_m else f.stem
+    add_node(fnid, "file", title, path=rel, touch_count=1)
+    # Link to containing folder
+    folder_path = str(f.parent.relative_to(WORKPLAN_DIR))
+    if folder_path in folder_ids:
+        add_edge(fnid, folder_ids[folder_path], "contained_in")
+    fallback_added += 1
+print(f"  Fallback files added: {fallback_added}")
 
 # ============================================================
 # PHASE 1.3: File Entities from Logs
@@ -777,6 +951,76 @@ for iid, addressers in issue_to_nodes.items():
                 add_edge(addressers[i], addressers[j], "related_to")
 
 # ============================================================
+# PHASE 1.X: Coverage Audit
+# ============================================================
+print("\n=== Phase 1.X: Coverage Audit ===")
+
+actual_md_count = len(all_wp_files)
+wp_count = len(wp_main)
+rpt_count = len(rpt_files)
+
+unique_domains = sorted(set(
+    str(f.relative_to(WORKPLAN_DIR)).split('/')[0]
+    for f in all_wp_files
+    if '/' in str(f.relative_to(WORKPLAN_DIR))
+))
+
+# Cross-check workplan IDs against node_ids
+missing_workplan_ids = []
+for wf in wp_main:
+    try:
+        wtext = wf.read_text()
+        wid_m = re.search(r'(?:Document ID|Workplan ID)[\s\*:]*([#\w-]+)', wtext)
+        if not wid_m:
+            wid_m = re.search(r'(WP-[\w-]+)', wtext)
+        wid = wid_m.group(1) if wid_m else wf.stem.replace('_workplan', '').replace('_work_plan', '')
+        expected_nid = f"wp-{wid.lower().replace(' ', '-')}"
+        if expected_nid not in node_ids:
+            missing_workplan_ids.append(expected_nid)
+    except:
+        pass
+
+# Count expected anchors in log files
+issue_anchor_count = 0
+update_anchor_count = 0
+test_anchor_count = 0
+
+if (LOG_DIR / "issue_log.md").exists():
+    issue_anchor_count = len(re.findall(r'<a id="issue-', (LOG_DIR / "issue_log.md").read_text()))
+if (LOG_DIR / "update_log.md").exists():
+    update_anchor_count = len(re.findall(r'<a id="update-', (LOG_DIR / "update_log.md").read_text()))
+if (LOG_DIR / "test_log.md").exists():
+    test_anchor_count = len(re.findall(r'<a id="test-', (LOG_DIR / "test_log.md").read_text()))
+
+actual_issue_nodes = sum(1 for n in nodes if n['type'] == 'issue')
+actual_update_nodes = sum(1 for n in nodes if n['type'] == 'update')
+actual_test_nodes = sum(1 for n in nodes if n['type'] == 'test')
+
+coverage = {
+    "total_md_files": actual_md_count,
+    "workplan_files": wp_count,
+    "report_files": rpt_count,
+    "unique_domain_folders": len(unique_domains),
+    "domain_folders": unique_domains,
+    "workplan_ids_missing_from_graph": missing_workplan_ids,
+    "expected_issues": issue_anchor_count,
+    "actual_issue_nodes": actual_issue_nodes,
+    "expected_updates": update_anchor_count,
+    "actual_update_nodes": actual_update_nodes,
+    "expected_tests": test_anchor_count,
+    "actual_test_nodes": actual_test_nodes,
+}
+
+print(f"  Total .md files: {actual_md_count}")
+print(f"  Workplan files: {wp_count}")
+print(f"  Report files: {rpt_count}")
+print(f"  Unique domain folders: {len(unique_domains)} -> {unique_domains}")
+print(f"  Missing workplan IDs: {missing_workplan_ids}")
+print(f"  Issues: {actual_issue_nodes}/{issue_anchor_count}")
+print(f"  Updates: {actual_update_nodes}/{update_anchor_count}")
+print(f"  Tests: {actual_test_nodes}/{test_anchor_count}")
+
+# ============================================================
 # PHASE 1.6: Generate Output
 # ============================================================
 print("\n=== Phase 1.6: Generating dcc_log_graph.json ===")
@@ -787,33 +1031,32 @@ for n in nodes:
     type_counts[t] = type_counts.get(t, 0) + 1
 
 node_types = [
-    {"id": "issue", "label": "Issue", "color": "#e74c3c", "shape": "dot", "icon": "🔴"},
-    {"id": "update", "label": "Update", "color": "#3498db", "shape": "square", "icon": "🔵"},
-    {"id": "test", "label": "Test", "color": "#2ecc71", "shape": "diamond", "icon": "🟢"},
-    {"id": "file", "label": "File", "color": "#f1c40f", "shape": "triangle", "icon": "🟡"},
-    {"id": "phase", "label": "Phase", "color": "#9b59b6", "shape": "hexagon", "icon": "🟣"},
-    {"id": "error_code", "label": "Error Code", "color": "#bdc3c7", "shape": "dot", "icon": "⚪"},
-    {"id": "engine", "label": "Engine", "color": "#e67e22", "shape": "dot", "icon": "🟠"},
-    {"id": "workplan", "label": "Workplan", "color": "#1abc9c", "shape": "star", "icon": "⭐"},
-    {"id": "report", "label": "Report", "color": "#34495e", "shape": "database", "icon": "📄"},
-    {"id": "session", "label": "Session", "color": "#95a5a6", "shape": "database", "icon": "💾"},
-    {"id": "action", "label": "Action", "color": "#16a085", "shape": "dot", "icon": "📋"},
-    {"id": "criteria", "label": "Criteria", "color": "#8e44ad", "shape": "diamond", "icon": "✅"},
-    {"id": "milestone", "label": "Milestone", "color": "#2980b9", "shape": "hexagon", "icon": "🏁"},
-    {"id": "finding", "label": "Finding", "color": "#c0392b", "shape": "triangle", "icon": "⚠️"},
-    {"id": "lesson", "label": "Lesson", "color": "#d35400", "shape": "square", "icon": "💡"},
-    {"id": "deliverable", "label": "Deliverable", "color": "#27ae60", "shape": "square", "icon": "📦"},
-    {"id": "folder", "label": "Folder", "color": "#7f8c8d", "shape": "box", "icon": "📁"},
-    {"id": "section", "label": "Section", "color": "#3498db", "shape": "ellipse", "icon": "📑"},
-    {"id": "step", "label": "Step", "color": "#2ecc71", "shape": "dot", "icon": "👣"},
-    {"id": "scope", "label": "Scope", "color": "#9b59b6", "shape": "ellipse", "icon": "🎯"},
-    {"id": "reason", "label": "Reason", "color": "#e67e22", "shape": "ellipse", "icon": "❓"},
-    {"id": "case", "label": "Case", "color": "#1abc9c", "shape": "diamond", "icon": "📋"},
-    {"id": "scenario", "label": "Scenario", "color": "#3498db", "shape": "diamond", "icon": "🎭"},
-    {"id": "table", "label": "Table", "color": "#95a5a6", "shape": "box", "icon": "📊"},
-    {"id": "analysis", "label": "Analysis", "color": "#8e44ad", "shape": "ellipse", "icon": "🔬"},
-    {"id": "timestamp", "label": "Timestamp", "color": "#7f8c8d", "shape": "dot", "icon": "🕐"},
-    {"id": "dependency", "label": "Dependency", "color": "#e74c3c", "shape": "triangle", "icon": "🔗"},
+    {"id": "issue", "label": "Issue", "color": "#e74c3c", "shape": "dot", "icon": "🔴", "layer": 1},
+    {"id": "update", "label": "Update", "color": "#3498db", "shape": "square", "icon": "🔵", "layer": 2},
+    {"id": "test", "label": "Test", "color": "#2ecc71", "shape": "diamond", "icon": "🟢", "layer": 2},
+    {"id": "file", "label": "File", "color": "#f1c40f", "shape": "triangle", "icon": "🟡", "layer": 3},
+    {"id": "phase", "label": "Phase", "color": "#9b59b6", "shape": "hexagon", "icon": "🟣", "layer": 2},
+    {"id": "error_code", "label": "Error Code", "color": "#bdc3c7", "shape": "dot", "icon": "⚪", "layer": 2},
+    {"id": "engine", "label": "Engine", "color": "#e67e22", "shape": "dot", "icon": "🟠", "layer": 1},
+    {"id": "workplan", "label": "Workplan", "color": "#1abc9c", "shape": "star", "icon": "⭐", "layer": 1},
+    {"id": "report", "label": "Report", "color": "#34495e", "shape": "database", "icon": "📄", "layer": 1},
+    {"id": "session", "label": "Session", "color": "#95a5a6", "shape": "database", "icon": "💾", "layer": 3},
+    {"id": "action", "label": "Action", "color": "#16a085", "shape": "dot", "icon": "📋", "layer": 3},
+    {"id": "criteria", "label": "Criteria", "color": "#8e44ad", "shape": "diamond", "icon": "✅", "layer": 3},
+    {"id": "milestone", "label": "Milestone", "color": "#2980b9", "shape": "hexagon", "icon": "🏁", "layer": 2},
+    {"id": "finding", "label": "Finding", "color": "#c0392b", "shape": "triangle", "icon": "⚠️", "layer": 3},
+    {"id": "lesson", "label": "Lesson", "color": "#d35400", "shape": "square", "icon": "💡", "layer": 3},
+    {"id": "deliverable", "label": "Deliverable", "color": "#27ae60", "shape": "square", "icon": "📦", "layer": 3},
+    {"id": "folder", "label": "Folder", "color": "#7f8c8d", "shape": "box", "icon": "📁", "layer": 1},
+    {"id": "section", "label": "Section", "color": "#3498db", "shape": "ellipse", "icon": "📑", "layer": 3},
+    {"id": "step", "label": "Step", "color": "#2ecc71", "shape": "dot", "icon": "👣", "layer": 2},
+    {"id": "scope", "label": "Scope", "color": "#9b59b6", "shape": "ellipse", "icon": "🎯", "layer": 3},
+    {"id": "reason", "label": "Reason", "color": "#e67e22", "shape": "ellipse", "icon": "❓", "layer": 3},
+    {"id": "case", "label": "Case", "color": "#1abc9c", "shape": "diamond", "icon": "📋", "layer": 3},
+    {"id": "scenario", "label": "Scenario", "color": "#3498db", "shape": "diamond", "icon": "🎭", "layer": 3},
+    {"id": "table", "label": "Table", "color": "#95a5a6", "shape": "box", "icon": "📊", "layer": 3},
+    {"id": "analysis", "label": "Analysis", "color": "#8e44ad", "shape": "ellipse", "icon": "🔬", "layer": 3},
+    {"id": "dependency", "label": "Dependency", "color": "#e74c3c", "shape": "triangle", "icon": "🔗", "layer": 3},
 ]
 
 edge_types = [
@@ -850,7 +1093,8 @@ graph_data = {
         "source_logs": ["issue_log.md", "update_log.md", "test_log.md", "gemini.md"],
         "source_workplans": f"dcc/workplan/ ({len(wp_main)} files, {len(set(str(f.relative_to(WORKPLAN_DIR).parts[0]) for f in wp_main))} domain folders)",
         "date_range": {"start": "2026-04-12", "end": "2026-05-21"},
-        "counts": {"nodes": len(clean_nodes), "edges": len(valid_edges), **type_counts}
+        "counts": {"nodes": len(clean_nodes), "edges": len(valid_edges), **type_counts},
+        "coverage": coverage
     },
     "node_types": node_types,
     "edge_types": edge_types,

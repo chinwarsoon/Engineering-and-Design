@@ -1420,3 +1420,19 @@
   - `dcc/ui/error_diagnostic_dashboard.html`
 - [Resolution:] Completely rebuilt the dashboard as a compliant v2.0 application. Implemented resizable sidebars, dynamic JSON loader, interactive charts, and standardized UI components.
 - [Link to Update Log:] [update-2026-05-20-error-dashboard-v2](update_log.md#update-2026-05-20-error-dashboard-v2)
+
+<a id="issue-neurogram-001"></a>
+## 2026-05-22 12:00 UTC+08:00
+
+### Issue NEUR-001 — Log Neurogram Requirements Gap Fixes
+- [Date:] 2026-05-22 12:00 UTC+08:00
+- [Status:] RESOLVED
+- [Context:] Workplan WP-UI-LOG-001 v1.4 was marked COMPLETE but had 8 gaps against the Requirements section. Identified: graph data bloat (7,919 nodes vs ~350 target), missing workplan coverage audit, no multi-layer topology toggle (Req 3), timestamps as physical nodes (Req 5), no phase reports, no log entries, `graphEdges` bug in FileReader fallback, and missing features (inline search, mini-map, resizable panels).
+- [Root Cause:] Initial implementation prioritized feature breadth over Requirements compliance. `parse_file_content()` created individual graph nodes for every sub-element instead of embedding them in `properties.content[]`. No coverage audit existed to validate parsing completeness.
+- [File Changes:]
+  - `dcc/workplan/ui_design/log_neurogram/log_neurogram_workplan.md` — Updated to v1.5, added Data Model Specification, added Implementation Plan with 8 gaps, changed status to APPROVED
+  - `dcc/workplan/ui_design/log_neurogram/parse_logs.py` — Rewrote `parse_file_content()` to embed sub-elements, added coverage audit, removed timestamp nodes, added `has_external_ref()` promotion rule, added `layer` field and `context` paths
+  - `dcc/ui/log_neurogram.html` — Fixed `graphEdges` bug, added 3-layer topology toggle, added inline search bar, dynamic type filters from schema, layer-aware checkbox filtering
+  - `dcc/workplan/ui_design/log_neurogram/reports/` — 4 phase reports generated
+- [Resolution:] All 8 gaps addressed. Graph nodes reduced from 7,919 to 1,463. Workplan coverage audit now tracks 159 files, 12 domains. Multi-layer toggle enforces Req 3. Timestamp nodes eliminated. Phase reports and log entries created. Bug fixed. Inline search, layer toggles added.
+- [Link to Update Log:] update-neurogram-gap-fixes
