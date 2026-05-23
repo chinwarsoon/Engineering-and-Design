@@ -1009,3 +1009,22 @@ Log/                       ✅ Created (auto_create_log_directories: true)
 - [Result:] PASS ✅ (zero timestamp nodes in node_types or nodes array)
 
 **Overall Status: PASS**
+
+## 2026-05-23 — Test Condense Workplans Upgrade
+
+**Test Report ID:** RPT-TEST-CONDENSE-001  
+**Status:** PASS  
+
+### Test CONDENSE-T1: Script Relocation
+- [Scope:] Verify script exists in maintenance folder and is removed from original folder.
+- [Result:] PASS ✅ (Exists at `dcc/workplan/maintenance/condense_workplans.py`)
+
+### Test CONDENSE-T2: Output File Generation
+- [Scope:] Verify `workplan_knowledge.md` is generated in `dcc/output/`.
+- [Result:] PASS ✅ (168 documents processed, output exists in `dcc/output/`)
+
+### Test CONDENSE-T3: Metadata Extraction
+- [Scope:] Verify non-workplan files (like design rules) have metadata extracted.
+- [Result:] PASS ✅ (Metadata like Ver/Status/Date correctly identified for diverse files)
+
+**Overall Status: PASS**

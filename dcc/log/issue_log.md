@@ -1436,3 +1436,16 @@
   - `dcc/workplan/ui_design/log_neurogram/reports/` — 4 phase reports generated
 - [Resolution:] All 8 gaps addressed. Graph nodes reduced from 7,919 to 1,463. Workplan coverage audit now tracks 159 files, 12 domains. Multi-layer toggle enforces Req 3. Timestamp nodes eliminated. Phase reports and log entries created. Bug fixed. Inline search, layer toggles added.
 - [Link to Update Log:] update-neurogram-gap-fixes
+
+<a id="issue-condense-001"></a>
+## 2026-05-23 10:00 UTC+08:00
+
+### Issue CONDENSE-001 — condense_workplans.py Limited Scope and Wrong Output Path
+- [Date:] 2026-05-23 10:00 UTC+08:00
+- [Status:] RESOLVED
+- [Context:] `condense_workplans.py` was originally designed with a hardcoded list of "key support docs" and only included `*_workplan.md` files. It also output results to the `dcc/workplan/` folder instead of the centralized `dcc/output/` folder, which limited its utility for project-wide knowledge consolidation.
+- [Root Cause:] Initial script design prioritized a narrow subset of workplans and lacked alignment with the project's standard output directory structure.
+- [File Changes:]
+  - `dcc/workplan/maintenance/condense_workplans.py` — Moved from `dcc/workplan/`, rewrote logic to process all files and output to `dcc/output/`.
+- [Resolution:] Relocated script to maintenance folder. Rewrote file discovery to include all 160+ files in the workplan directory. Standardized output to `dcc/output/workplan_knowledge.md`.
+- [Link to Update Log:] [update-2026-05-23-condense-upgrade](#update-2026-05-23-condense-upgrade)

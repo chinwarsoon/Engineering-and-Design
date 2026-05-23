@@ -31,6 +31,7 @@
 | 3.14 | 2026-05-21 | System | Phase 4 v2.2 implemented: All 3 UI sub-tasks (4.20–4.22) completed. `parseDebugErrors()` reads structured fields directly with legacy regex fallback. `renderDebugContext()` and `renderPipelineTrace()` handle structured `message` and `context` dicts. Backward compatible with legacy string-format `debug_log.json` files. |
 | 3.15 | 2026-05-21 | System | Phase 4 v2.3 implemented: Filter dropdowns (`errorCodeFilter`, `columnFilter`) now populated from `error_dashboard_data.json` when available, falling back to `debug_log.json` parsed errors only when dashboard data is missing. Eliminates race condition from parallel loaders. |
 | 3.16 | 2026-05-21 | System | Phase 4 v2.4 implemented: Standalone `file://` protocol support via folder picker (`webkitdirectory`). Dashboard prompts user to select the output folder, automatically finds and loads `error_dashboard_data.json` and `debug_log.json`. Drop zone now processes all dropped files (not just first). |
+| 3.17 | 2026-05-23 | System | Phase 2 v3.1 proposed: Functional "Run" button integration. Proposed wiring the "Run" button to the backend `POST /api/v1/pipeline/run` endpoint using the `UIRequest` schema. Added task for backend status polling, dynamic UI feedback, and a live output console popup. |
 
 ---
 
@@ -45,7 +46,7 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
 | ID | Detail | Category | Status |
 | :--- | :--- | :--- | :--- |
 | 1 | DCC UI Design System — shared CSS with 5 themes, 25+ components | Foundation | ✅ Completed |
-| 2 | Pipeline Dashboard — run status, KPIs, output links | Monitoring | ✅ Completed |
+| 2 | Pipeline Dashboard — run status, KPIs, output links | Monitoring | 🟠 Phase 2 v3.1 Proposed |
 | 3 | Excel Explorer Pro — data loading, filtering, validation highlighting | Exploration | ✅ Completed |
 | 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down, debug log integration, structured JSON context/message, filter priority, standalone file:// support | Diagnostics | ✅ v2.4 Completed |
 | 5 | Schema Manager — browse, inspect, edit schema files | Management | ✅ Completed |
@@ -271,9 +272,43 @@ Initial static mockup: central hub showing pipeline run status, output file link
 - [x] Activity table populated from debug log
 - [x] Theme dots match actual theme background colors
 - [x] Graceful fallback when data files are missing
-- [x] No hardcoded mock data remains in the script
+- No hardcoded mock data remains in the script
+
+#### v3.1 Revision Scope — Functional Run Integration
+
+**Status:** 🟠 PENDING APPROVAL  
+**Data Sources:** `../output/error_dashboard_data.json`, `../output/processing_summary.txt`, `../output/debug_log.json`  
+**API Endpoints:** `POST /api/v1/pipeline/run`, `GET /api/v1/pipeline/status`
+
+The v3.1 revision upgrades the Pipeline Dashboard from a read-only monitoring tool to a functional execution controller. The "Run" button will be wired to the backend API to trigger `dcc_engine_pipeline.py` and provide real-time feedback.
+
+**4 Sub-Tasks for v3.1 Revision:**
+
+| ID | Task | Detail | Priority |
+| :--- | :--- | :--- | :--- |
+| 2.10 | **Implement `triggerPipelineRun()`** | Update `toolbarRunBtn` handler to send a `POST` request to `/api/v1/pipeline/run`. Send the current `base_path` and `upload_file_name` extracted from the sidebar. Handle 202 Accepted and error responses. | High |
+| 2.11 | **Real-time Status Polling** | Implement a polling mechanism (e.g., every 2s) after a run is triggered. Call `/api/v1/pipeline/status` (or equivalent) to get the current stage and progress. Update the stage cards and progress bars dynamically. | High |
+| 2.12 | **Execution Lock & Feedback** | Disable the "Run" button and show a spinner/loading state while the pipeline is active. Show a toast notification on completion or failure. | Medium |
+| 2.13 | **Auto-Refresh on Completion** | Trigger a full `loadAllData()` refresh once the pipeline status reaches 'COMPLETED' to show the latest KPIs and output files. | Medium |
+| 2.14 | **Live Output Console / Popup** | Implement a modal window or collapsible console panel that displays real-time `stdout`/`stderr` or log messages from the running pipeline. Use the status polling response to append new log lines. | Medium |
+
+#### Risks & Mitigation (v3.1)
+
+| Risk | Likelihood | Impact | Mitigation |
+| :--- | :--- | :--- | :--- |
+| API endpoint not reachable on `file://` protocol | High | High | Disable "Run" button on `file://` with a tooltip explaining that a server is required for execution. |
+| Long-running pipeline causes browser timeout | Medium | Medium | Use asynchronous polling; ensure backend doesn't block the request. |
+| Race condition between polling and data loading | Low | Low | Only reload static data files after polling confirms completion. |
+
+#### Success Criteria (v3.1)
+- [ ] "Run" button successfully triggers the backend pipeline via API.
+- [ ] UI provides visual feedback (loading state, disabled button) during execution.
+- [ ] Stage cards and progress bars update dynamically during the run.
+- [ ] Dashboard automatically refreshes with new data upon completion.
+- [ ] Graceful handling of API errors or network timeouts.
 
 #### References
+
 - Report: `web_interface_report.md`
 - User guide: `../../../ui/user_guide.md`
 - Data files: `dcc/output/error_dashboard_data.json`, `dcc/output/processing_summary.txt`, `dcc/output/debug_log.json`

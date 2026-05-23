@@ -5841,3 +5841,22 @@ Only the **latest submission row** of a terminally approved/voided document gets
   - `dcc/workplan/ui_design/log_neurogram/reports/phase5_report.md` — new
 - [Impact:] Graph nodes reduced 81% (7,919 → 1,463). All 8 gaps closed. Requirements 1–6 now properly implemented.
 - [Link to Issue Log:] issue-neurogram-001
+
+<a id="update-2026-05-23-condense-upgrade"></a>
+## 2026-05-23 — Upgrade Condense Workplans Script
+
+**Summary:** Relocated `condense_workplans.py` to `dcc/workplan/maintenance/` and upgraded it to process all files in `dcc/workplan/` (168 files) and output to `dcc/output/workplan_knowledge.md`.
+
+**Changes:**
+- **Relocation:** Moved script to `dcc/workplan/maintenance/` per standard project structure for maintenance tools.
+- **File Discovery:** Replaced hardcoded file list with a recursive scan of `dcc/workplan/` to include all Markdown documents.
+- **Output Redirection:** Changed output target to `dcc/output/workplan_knowledge.md` for better visibility.
+- **Standardization:** Added docstrings, breadcrumb comments, and more robust metadata extraction patterns.
+
+**Impact:** Dramatically increased the breadth of the workplan knowledge base, providing a single source of truth for all project documentation.
+
+**Files Modified:**
+- `dcc/workplan/maintenance/condense_workplans.py` (Relocated and upgraded)
+- `dcc/workplan/maintenance/condense_workplans_upgrade_workplan.md` (Updated status)
+
+**Link to Issue Log:** [issue-condense-001](#issue-condense-001)

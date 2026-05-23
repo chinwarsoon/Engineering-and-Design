@@ -1,1719 +1,2644 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DCC Log Neurogram</title>
-<link rel="stylesheet" href="dcc-design-system.css">
-<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-<style>
-:root {
-  --neuro-issue: #e74c3c;
-  --neuro-update: #3498db;
-  --neuro-test: #2ecc71;
-  --neuro-file: #f1c40f;
-  --neuro-phase: #9b59b6;
-  --neuro-ec: #bdc3c7;
-  --neuro-engine: #e67e22;
-  --neuro-wp: #1abc9c;
-  --neuro-report: #34495e;
-  --neuro-session: #95a5a6;
-}
-
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { height: 100%; overflow: hidden; font-family: var(--font-ui, 'Segoe UI', sans-serif); }
-
-/* Shell Layout */
-.shell { display: flex; flex-direction: column; height: 100vh; }
-.title-bar { height: 32px; background: var(--bg-title, #1e1e1e); display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--border, #333); color: var(--text, #ccc); font-size: 13px; flex-shrink: 0; }
-.title-bar .title { flex: 1; font-weight: 600; }
-.title-bar .actions { display: flex; gap: 8px; }
-.title-bar .actions button { background: none; border: none; color: var(--text, #ccc); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 3px; }
-.title-bar .actions button:hover { background: var(--surface-hover, #333); }
-
-.main-body { display: flex; flex: 1; overflow: hidden; }
-
-/* Icon Bar */
-.icon-bar { width: 48px; background: var(--bg-iconbar, #252526); display: flex; flex-direction: column; align-items: center; padding-top: 4px; flex-shrink: 0; border-right: 1px solid var(--border, #333); }
-.icon-bar .icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 20px; color: var(--text2, #888); position: relative; }
-.icon-bar .icon:hover { color: var(--text, #ccc); }
-.icon-bar .icon.active { color: var(--text, #fff); }
-.icon-bar .icon.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; background: var(--accent, #007acc); }
-.icon-bar .divider { width: 32px; height: 1px; background: var(--border, #444); margin: 4px 0; }
-
-/* Left Panel */
-.left-panel { width: 300px; background: var(--bg-panel, #1e1e1e); display: flex; flex-direction: column; border-right: 1px solid var(--border, #333); flex-shrink: 0; overflow: hidden; }
-.left-panel.hidden { display: none; }
-.panel-view { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.resize-handle { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; position: relative; z-index: 10; }
-.resize-handle:hover, .resize-handle.dragging { background: var(--accent, #007acc); }
-.panel-header { padding: 8px 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text2, #888); border-bottom: 1px solid var(--border, #333); flex-shrink: 0; }
-.panel-content { flex: 1; padding: 8px; display: flex; flex-direction: column; min-height: 0; }
-.panel-view:not(#panelGraph) > .panel-content { overflow-y: auto; }
-.panel-content button:active { opacity: 0.6; }
-
-/* Graph Area */
-.graph-area { flex: 1; position: relative; overflow: hidden; }
-#network { width: 100%; height: 100%; }
-
-/* Right Panel */
-.right-panel { width: 350px; background: var(--bg-panel, #1e1e1e); display: flex; flex-direction: column; border-left: 1px solid var(--border, #333); flex-shrink: 0; overflow: hidden; }
-.right-panel.hidden { display: none; }
-.detail-content { flex: 1; overflow-y: auto; padding: 12px; }
-.detail-content h3 { font-size: 14px; margin-bottom: 8px; color: var(--text, #eee); }
-.detail-content .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-right: 4px; }
-.detail-content .meta { font-size: 12px; color: var(--text2, #888); margin: 4px 0; }
-.detail-content .desc { font-size: 12px; color: var(--text, #ccc); margin: 8px 0; line-height: 1.5; }
-.detail-content .links { margin: 8px 0; }
-.detail-content .links a { display: block; padding: 4px 8px; font-size: 12px; color: var(--accent, #007acc); cursor: pointer; text-decoration: none; border-radius: 3px; }
-.detail-content .links a:hover { background: var(--surface-hover, #333); }
-
-/* Status Bar */
-.status-bar { height: 24px; background: var(--bg-statusbar, #007acc); display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #fff; flex-shrink: 0; }
-.status-bar .left { flex: 1; }
-.status-bar .right { display: flex; gap: 16px; }
-
-/* Tree View */
-.tree-node { padding: 2px 0; }
-.tree-label { cursor: pointer; padding: 2px 4px; font-size: 12px; border-radius: 3px; display: flex; align-items: center; gap: 4px; }
-.tree-label:hover { background: var(--surface-hover, #333); }
-.tree-label .toggle { width: 16px; text-align: center; font-size: 10px; color: var(--text2, #666); }
-.tree-label .icon { font-size: 12px; }
-.tree-children { padding-left: 16px; }
-.tree-children.collapsed { display: none; }
-
-/* Filter Panel */
-.filter-group { margin-bottom: 12px; }
-.filter-group { margin-bottom: 12px; }
-.filter-group label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text, #ccc); cursor: pointer; padding: 2px 0; }
-.filter-group input[type="checkbox"] { accent-color: var(--accent, #007acc); }
-.filter-group .type-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.filter-group .type-count { margin-left: auto; font-size: 10px; color: var(--text2, #888); min-width: 20px; text-align: right; }
-.filter-group label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text, #ccc); cursor: pointer; padding: 2px 0; }
-.layer-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text2, #888); padding: 8px 0 4px; }
-.layer-separator { height: 1px; background: var(--border, #333); margin: 8px 0; }
-
-/* Search */
-.search-box { padding: 8px; border-bottom: 1px solid var(--border, #333); }
-.search-box input { width: 100%; padding: 6px 8px; background: var(--bg-input, #2a2a2a); border: 1px solid var(--border, #444); color: var(--text, #ccc); border-radius: 4px; font-size: 12px; }
-.search-box input:focus { outline: none; border-color: var(--accent, #007acc); }
-
-/* Theme dropdown */
-.theme-dropdown { position: absolute; top: 32px; right: 8px; background: var(--bg-panel, #1e1e1e); border: 1px solid var(--border, #444); border-radius: 4px; padding: 4px; display: none; z-index: 100; }
-.theme-dropdown.show { display: block; }
-.theme-dropdown button { display: block; width: 100%; padding: 6px 12px; background: none; border: none; color: var(--text, #ccc); cursor: pointer; font-size: 12px; text-align: left; border-radius: 3px; }
-.theme-dropdown button:hover { background: var(--surface-hover, #333); }
-
-/* Time slider */
-.time-slider { position: absolute; bottom: 0; left: 0; right: 0; height: 36px; background: var(--bg-panel, #1e1e1e); border-top: 1px solid var(--border, #333); display: flex; align-items: center; padding: 0 12px; gap: 8px; }
-.time-slider input[type="range"] { flex: 1; accent-color: var(--accent, #007acc); }
-.time-slider .label { font-size: 11px; color: var(--text2, #888); white-space: nowrap; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--bg, #1e1e1e); }
-::-webkit-scrollbar-thumb { background: var(--border, #444); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #555; }
-
-/* Themes */
-body.theme-light { --bg-title: #f3f3f3; --bg-iconbar: #e8e8e8; --bg-panel: #f8f8f8; --bg: #fff; --border: #ddd; --text: #333; --text2: #666; --surface-hover: #e0e0e0; --bg-input: #fff; --bg-statusbar: #007acc; }
-body.theme-sky { --bg-title: #e3f2fd; --bg-iconbar: #bbdefb; --bg-panel: #e3f2fd; --bg: #f0f8ff; --border: #90caf9; --text: #1565c0; --text2: #42a5f5; --surface-hover: #bbdefb; --bg-input: #fff; --bg-statusbar: #1976d2; }
-body.theme-ocean { --bg-title: #1a237e; --bg-iconbar: #283593; --bg-panel: #1a237e; --bg: #0d1b3e; --border: #3949ab; --text: #e8eaf6; --text2: #9fa8da; --surface-hover: #283593; --bg-input: #1a237e; --bg-statusbar: #3f51b5; }
-body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel: #fafafa; --bg: #fff; --border: #e0e0e0; --text: #212121; --text2: #757575; --surface-hover: #e0e0e0; --bg-input: #fff; --bg-statusbar: #616161; }
-</style>
-</head>
-<body class="theme-dark">
-<div class="shell">
-  <!-- Title Bar -->
-    <div class="title-bar">
-    <span class="title">📊 Log Neurogram — DCC Project History</span>
-    <div class="actions">
-      <input id="searchInput" type="text" placeholder="Search nodes..." style="width:180px;padding:2px 6px;font-size:12px;background:var(--bg-input,#2a2a2a);border:1px solid var(--border,#444);color:var(--text,#ccc);border-radius:3px">
-      <span id="searchCount" style="font-size:11px;color:var(--text2,#888);min-width:40px"></span>
-      <button id="btnSearch" title="Search">🔍</button>
-      <button id="btnTheme" title="Theme">🎨</button>
-      <button id="btnLayout" title="Layout">☰</button>
-    </div>
-    <div class="theme-dropdown" id="themeDropdown">
-      <button data-theme="theme-dark">🌑 Dark</button>
-      <button data-theme="theme-light">☀️ Light</button>
-      <button data-theme="theme-sky">🌤️ Sky</button>
-      <button data-theme="theme-ocean">🌊 Ocean</button>
-      <button data-theme="theme-presentation">📋 Presentation</button>
-    </div>
-  </div>
-
-  <div class="main-body">
-    <!-- Icon Bar -->
-    <div class="icon-bar">
-      <div class="icon active" data-panel="graph" title="Graph">📊</div>
-      <div class="icon" data-panel="tree" title="Tree">🌳</div>
-      <div class="icon" data-panel="filter" title="Filter">🔍</div>
-      <div class="divider"></div>
-      <div class="icon" data-panel="settings" title="Settings">⚙️</div>
-      <div class="icon" data-panel="help" title="Help">❓</div>
-      <div class="icon" data-panel="about" title="About">ℹ️</div>
-      <div style="flex:1"></div>
-      <div class="icon" data-panel="detail" title="Detail">ℹ️</div>
-    </div>
-
-    <!-- Left Panel -->
-    <div class="left-panel" id="leftPanel">
-      <!-- Graph Panel (default) -->
-      <div class="panel-view" id="panelGraph">
-        <div class="panel-header">Graph Controls</div>
-        <div class="panel-content" style="padding:0;display:flex;flex-direction:column">
-          <div style="flex:1;overflow-y:auto;min-height:0;padding:8px 8px 0">
-            <!-- Layer Toggles -->
-            <div id="layerToggles" style="display:flex;gap:4px;margin-bottom:8px">
-              <button data-layer="1" class="layer-btn active" style="flex:1;padding:4px;font-size:11px;background:var(--accent,#007acc);color:#fff;border:none;border-radius:4px;cursor:pointer">🏛️ Executive</button>
-              <button data-layer="2" class="layer-btn active" style="flex:1;padding:4px;font-size:11px;background:var(--accent,#007acc);color:#fff;border:none;border-radius:4px;cursor:pointer">⚙️ Operational</button>
-              <button data-layer="3" class="layer-btn" style="flex:1;padding:4px;font-size:11px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer">🔬 Micro</button>
-            </div>
-            <div class="filter-group" id="typeFilters" style="min-height:0">
-              <div id="layer1Filters"></div>
-              <div class="layer-separator"></div>
-              <div id="layer2Filters"></div>
-              <div class="layer-separator"></div>
-              <div id="layer3Filters"></div>
-            </div>
-          </div>
-          <div style="padding:0 8px 8px">
-            <div style="display:flex;gap:4px;margin-top:8px">
-              <button id="btnSelectAll" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Select All</button>
-              <button id="btnUnselectAll" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Unselect All</button>
-            </div>
-            <div style="margin-top:12px">
-              <button id="btnFitView" style="width:100%;padding:6px;background:var(--accent,#007acc);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px">Fit View</button>
-            </div>
-            <div style="display:flex;gap:4px;margin-top:6px">
-              <button id="btnFocusSelected" style="flex:1;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Focus Selected</button>
-              <button id="btnClearFocus" style="flex:1;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Clear Focus</button>
-            </div>
-            <div style="margin-top:6px">
-              <select id="focusDepthSelect" style="width:100%;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;font-size:12px">
-                <option value="immediate" selected>Focus: Immediate nodes only</option>
-                <option value="1">Focus Depth: 1-hop</option>
-                <option value="2">Focus Depth: 2-hop</option>
-                <option value="3">Focus Depth: 3-hop</option>
-              </select>
-            </div>
-            <div style="margin-top:6px">
-              <select id="layoutSelect" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;font-size:12px;cursor:pointer">
-                <option value="barnesHut">Layout: BarnesHut</option>
-                <option value="repulsion">Layout: Repulsion</option>
-                <option value="forceAtlas2">Layout: ForceAtlas2</option>
-                <option value="circle">Layout: Circle (Spiral)</option>
-                <option value="treeUD">Layout: Tree (Top-Bottom)</option>
-                <option value="treeDU">Layout: Tree (Bottom-Top)</option>
-                <option value="treeLR">Layout: Tree (Left-Right)</option>
-                <option value="treeRL">Layout: Tree (Right-Left)</option>
-              </select>
-            </div>
-            <div style="margin-top:6px">
-              <select id="selCluster" style="width:100%;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;font-size:12px">
-                <option value="none">Clustering: None</option>
-                <option value="type">Clustering: By Type</option>
-              </select>
-            </div>
-            <div style="margin-top:6px">
-              <button id="btnExportPNG" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:12px">Export PNG</button>
-            </div>
-            <div style="margin-top:6px">
-              <button id="btnExportJSON" style="width:100%;padding:6px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:12px">Export Filtered JSON</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tree Panel -->
-      <div class="panel-view" id="panelTree" style="display:none">
-        <div class="panel-header">Project Hierarchy</div>
-        <div class="panel-content" id="treeContent">
-          <div style="color:var(--text2);font-size:12px;padding:8px">Loading tree...</div>
-        </div>
-      </div>
-
-      <!-- Filter Panel -->
-      <div class="panel-view" id="panelFilter" style="display:none">
-        <div class="panel-header">Advanced Filter</div>
-        <div class="panel-content">
-          <div class="filter-group" id="statusFilters">
-            <label style="font-weight:600;margin-bottom:4px">Status</label>
-            <label><input type="checkbox" checked data-status="RESOLVED"> Resolved</label>
-            <label><input type="checkbox" checked data-status="COMPLETE"> Complete</label>
-            <label><input type="checkbox" checked data-status="PASS"> Pass</label>
-            <label><input type="checkbox" checked data-status="IN PROGRESS"> In Progress</label>
-            <label><input type="checkbox" checked data-status="PENDING"> Pending</label>
-            <label><input type="checkbox" checked data-status="FAIL"> Fail</label>
-          </div>
-          <div style="display:flex;gap:4px;margin-top:4px;margin-bottom:8px">
-            <button id="btnSelectAllStatus" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Select All</button>
-            <button id="btnUnselectAllStatus" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Unselect All</button>
-          </div>
-          <div class="filter-group" id="severityFilters">
-            <label style="font-weight:600;margin-bottom:4px">Severity</label>
-            <label><input type="checkbox" checked data-severity="CRITICAL"> Critical</label>
-            <label><input type="checkbox" checked data-severity="HIGH"> High</label>
-            <label><input type="checkbox" checked data-severity="MEDIUM"> Medium</label>
-            <label><input type="checkbox" checked data-severity="WARNING"> Warning</label>
-            <label><input type="checkbox" checked data-severity="LOW"> Low</label>
-          </div>
-          <div style="display:flex;gap:4px;margin-top:4px;margin-bottom:8px">
-            <button id="btnSelectAllSeverity" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Select All</button>
-            <button id="btnUnselectAllSeverity" style="flex:1;padding:4px;background:var(--surface2,#333);color:var(--text,#ccc);border:1px solid var(--border,#444);border-radius:4px;cursor:pointer;font-size:11px">Unselect All</button>
-          </div>
-          <div class="filter-group" id="domainFilterGroup">
-            <label style="font-weight:600;margin-bottom:4px">Domain</label>
-            <div id="domainFilters"></div>
-          </div>
-          <div class="filter-group" id="edgeFilterGroup">
-            <label style="font-weight:600;margin-bottom:4px">Edge Type</label>
-            <div id="edgeTypeFilters"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Settings Panel -->
-      <div class="panel-view" id="panelSettings" style="display:none">
-        <div class="panel-header">Settings</div>
-        <div class="panel-content">
-          <div class="filter-group">
-            <label><input type="checkbox" id="chkPhysics" checked> Physics enabled</label>
-            <label><input type="checkbox" id="chkNodeIcons" checked> Show node icons</label>
-            <label><input type="checkbox" id="chkLabels" checked> Show labels</label>
-            <label><input type="checkbox" id="chkEdgeLabels"> Show edge labels</label>
-            <label><input type="checkbox" id="chkTimeSlider" checked> Show time slider</label>
-            <label><input type="checkbox" id="chkSearchFilter"> Search filters graph</label>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Repulsion / Node Distance</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">Low</span>
-              <input type="range" id="repulsionSlider" min="1000" max="200000" value="30000" step="1000" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">High</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="repulsionValue">30000</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Central Gravity</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">0</span>
-              <input type="range" id="gravitySlider" min="0" max="100" value="5" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">1</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="gravityValue">0.05</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Spring Length</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">Short</span>
-              <input type="range" id="springSlider" min="50" max="500" value="360" step="10" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">Long</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="springValue">360</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Spring Constant</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">Slack</span>
-              <input type="range" id="springConstSlider" min="1" max="50" value="4" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">Stiff</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="springConstValue">0.04</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Damping (friction)</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">Bouncy</span>
-              <input type="range" id="dampingSlider" min="1" max="100" value="9" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">Stiff</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="dampingValue">0.09</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Stabilization Iterations</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">Fast</span>
-              <input type="range" id="iterSlider" min="50" max="1000" value="500" step="50" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">Accurate</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="iterValue">500</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Label Font Size</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">8</span>
-              <input type="range" id="fontSlider" min="8" max="24" value="11" step="1" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">24</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="fontValue">11</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Node Size Multiplier</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">0.5×</span>
-              <input type="range" id="nodeSizeSlider" min="5" max="30" value="10" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">3×</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="nodeSizeValue">1.0×</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Edge Width</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">Thin</span>
-              <input type="range" id="edgeWidthSlider" min="1" max="10" value="2" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">Thick</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="edgeWidthValue">1.0</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Icon Size Multiplier</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">0.5×</span>
-              <input type="range" id="iconSizeSlider" min="5" max="30" value="14" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">3×</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="iconSizeValue">1.4×</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:2px">Tooltip Delay (ms)</label>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="font-size:10px;color:var(--text2)">Fast</span>
-              <input type="range" id="tooltipSlider" min="0" max="1000" value="100" step="50" style="flex:1">
-              <span style="font-size:10px;color:var(--text2)">Slow</span>
-            </div>
-            <div style="font-size:10px;color:var(--text2);text-align:center" id="tooltipValue">100ms</div>
-          </div>
-          <div class="filter-group">
-            <label style="font-weight:600;margin-bottom:4px">Highlight Depth</label>
-            <label><input type="radio" name="depth" value="1"> 1-hop</label>
-            <label><input type="radio" name="depth" value="2" checked> 2-hop</label>
-            <label><input type="radio" name="depth" value="0"> Full path</label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Help Panel -->
-      <div class="panel-view" id="panelHelp" style="display:none">
-        <div class="panel-header">Help</div>
-        <div class="panel-content" style="font-size:12px;color:var(--text,#ccc);line-height:1.6">
-          <p><strong>Navigation:</strong> Pan by dragging, zoom with scroll wheel.</p>
-          <p><strong>Click a node</strong> to see details in the right panel.</p>
-          <p><strong>Double-click</strong> a node to focus and highlight its connections.</p>
-          <p><strong>Focus Selected</strong> limits the graph to the selected node neighborhood.</p>
-          <p><strong>Double-click background</strong> to reset the view.</p>
-          <p><strong>Filter:</strong> Toggle node types in the Graph panel or use Advanced Filter.</p>
-          <p><strong>Edge filters:</strong> Toggle relationship types in Advanced Filter.</p>
-          <p><strong>Search:</strong> Type in the search bar to find nodes.</p>
-          <p><strong>Search filters graph:</strong> Turn this on in Settings to show matches plus neighbors.</p>
-          <p><strong>Timeline:</strong> Use the slider at the bottom to filter by date.</p>
-          <p><strong>Export:</strong> Download the current view as PNG or filtered data as JSON.</p>
-          <p><strong>Themes:</strong> Click 🎨 to switch between 5 color themes.</p>
-        </div>
-      </div>
-
-      <!-- About Panel -->
-      <div class="panel-view" id="panelAbout" style="display:none">
-        <div class="panel-header">About</div>
-        <div class="panel-content" style="font-size:12px;color:var(--text,#ccc);line-height:1.6">
-          <h3 style="margin-bottom:8px">DCC Log Neurogram</h3>
-          <p>Visualizes the complete DCC project history as an interactive network graph.</p>
-          <p style="margin-top:8px"><strong>Version:</strong> 1.0</p>
-          <p><strong>Date:</strong> 2026-05-21</p>
-          <p><strong>Author:</strong> Franklin Song</p>
-          <p style="margin-top:8px"><strong>Data sources:</strong></p>
-          <ul style="padding-left:16px">
-            <li>4 log files (issue, update, test, gemini)</li>
-            <li>159 workplan files across 15 domain folders</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <div class="resize-handle" id="resizeHandle"></div>
-
-    <!-- Graph Area -->
-    <div class="graph-area">
-      <div id="network"></div>
-      <div class="time-slider" id="timeSlider">
-        <span class="label">2026-04-12</span>
-        <input type="range" id="timeRange" min="0" max="100" value="100">
-        <span class="label" id="timeLabel">2026-05-21</span>
-      </div>
-    </div>
-
-    <div class="resize-handle" id="rightResizeHandle"></div>
-
-    <!-- Right Panel -->
-    <div class="right-panel hidden" id="rightPanel">
-      <div class="panel-header">Node Details</div>
-      <div class="detail-content" id="detailContent">
-        <div style="color:var(--text2);font-size:12px;padding:20px;text-align:center">Click a node to see details</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Status Bar -->
-  <div class="status-bar">
-    <span class="left" id="statusLeft">Loading...</span>
-    <span class="right">
-      <span id="statusNodes">nodes: 0</span>
-      <span id="statusEdges">edges: 0</span>
-      <span>v1.0</span>
-    </span>
-  </div>
-</div>
-
-<script>
-// ============================================================
-// Log Neurogram — Interactive DCC Log Explorer
-// ============================================================
-
-const GRAPH_DATA_URL = '../output/dcc_log_graph.json';
-const HELP_FILE_URL = 'ui_help.json';
-
-let graphData = null;
-let network = null;
-let allNodes = [];
-let allEdges = [];
-let nodeMap = {};
-let currentPanel = 'graph';
-let selectedNodeId = null;
-let focusNodeId = null;
-let currentSearchQuery = '';
-
-let TYPE_COLORS = {};
-let TYPE_SHAPES = {};
-let TYPE_ICONS = {};
-let NODE_TYPES_META = {};  // type_id -> {layer, label, color, ...}
-let activeLayers = new Set([1, 2]);  // Layer 1+2 on by default
-
-function edgeId(index) {
-  return `edge-${index}`;
-}
-
-function hydrateGraphData(data) {
-  graphData = data;
-  allNodes = graphData.nodes || [];
-  allEdges = graphData.edges || [];
-  nodeMap = {};
-  TYPE_COLORS = {};
-  TYPE_SHAPES = {};
-  TYPE_ICONS = {};
-  NODE_TYPES_META = {};
-
-  allNodes.forEach(n => nodeMap[n.id] = n);
-  (graphData.node_types || []).forEach(t => {
-    TYPE_COLORS[t.id] = t.color;
-    TYPE_SHAPES[t.id] = t.shape;
-    TYPE_ICONS[t.id] = t.icon || '';
-    NODE_TYPES_META[t.id] = t;
-  });
-}
-
-function getEdgeTypeLabel(type) {
-  return String(type || 'related');
-}
-
-// ============================================================
-// Load Data
-// ============================================================
-async function loadData() {
-  try {
-    const resp = await fetch(GRAPH_DATA_URL);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    hydrateGraphData(await resp.json());
-    buildTypeFilters();
-    buildTree();
-    buildDomainFilters();
-    buildEdgeTypeFilters();
-    initGraph();
-    applyFilters();
-    updateStatus();
-    document.getElementById('statusLeft').textContent = `Loaded: ${allNodes.length} nodes, ${allEdges.length} edges`;
-  } catch (e) {
-    document.getElementById('statusLeft').textContent = `Error: ${e.message}. Use folder picker to load dcc_log_graph.json`;
-    showFilePicker();
-  }
-}
-
-function showFilePicker() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      hydrateGraphData(JSON.parse(ev.target.result));
-      buildTypeFilters();
-      buildTree();
-      buildDomainFilters();
-      buildEdgeTypeFilters();
-      initGraph();
-      applyFilters();
-      updateStatus();
-      document.getElementById('statusLeft').textContent = `Loaded from file: ${allNodes.length} nodes, ${allEdges.length} edges`;
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
-
-// ============================================================
-// Build Tree
-// ============================================================
-function buildTree() {
-  const engines = allNodes.filter(n => n.type === 'engine');
-  const workplans = allNodes.filter(n => n.type === 'workplan');
-  const issues = allNodes.filter(n => n.type === 'issue');
-  const container = document.getElementById('treeContent');
-
-  let html = '';
-  // Group by domain/engine
-  const domains = {};
-  workplans.forEach(wp => {
-    const d = wp.domain || 'other';
-    if (!domains[d]) domains[d] = [];
-    domains[d].push(wp);
-  });
-
-  html += `<div class="tree-node"><div class="tree-label" onclick="toggleTree(this)"><span class="toggle">▶</span><span class="icon">🟠</span> Engines (${engines.length})</div><div class="tree-children collapsed">`;
-  engines.forEach(eng => {
-    html += `<div class="tree-node"><div class="tree-label" onclick="focusNode('${eng.id}')"><span class="toggle"></span><span class="icon">🟠</span> ${eng.label}</div></div>`;
-  });
-  html += `</div></div>`;
-
-  html += `<div class="tree-node"><div class="tree-label" onclick="toggleTree(this)"><span class="toggle">▶</span><span class="icon">⭐</span> Workplans (${workplans.length})</div><div class="tree-children collapsed">`;
-  Object.keys(domains).sort().forEach(d => {
-    html += `<div class="tree-node"><div class="tree-label" onclick="toggleTree(this)"><span class="toggle">▶</span><span class="icon">📁</span> ${d} (${domains[d].length})</div><div class="tree-children collapsed">`;
-    domains[d].forEach(wp => {
-      html += `<div class="tree-node"><div class="tree-label" onclick="focusNode('${wp.id}')"><span class="toggle"></span><span class="icon">⭐</span> ${wp.label.substring(0, 40)}</div></div>`;
-    });
-    html += `</div></div>`;
-  });
-  html += `</div></div>`;
-
-  html += `<div class="tree-node"><div class="tree-label" onclick="toggleTree(this)"><span class="toggle">▶</span><span class="icon">🔴</span> Issues (${issues.length})</div><div class="tree-children collapsed">`;
-  issues.forEach(iss => {
-    html += `<div class="tree-node"><div class="tree-label" onclick="focusNode('${iss.id}')"><span class="toggle"></span><span class="icon">🔴</span> ${iss.label} <span style="color:var(--text2);font-size:10px">${iss.status || ''}</span></div></div>`;
-  });
-  html += `</div></div>`;
-
-  container.innerHTML = html;
-}
-
-function toggleTree(el) {
-  const toggle = el.querySelector('.toggle');
-  const children = el.parentElement.querySelector('.tree-children');
-  if (!children) return;
-  if (children.classList.contains('collapsed')) {
-    children.classList.remove('collapsed');
-    toggle.textContent = '▼';
-  } else {
-    children.classList.add('collapsed');
-    toggle.textContent = '▶';
-  }
-}
-
-function buildTypeFilters() {
-  const types = (graphData.node_types || []).filter(t => t.id !== 'folder');
-  const typeCounts = {};
-  (graphData.nodes || []).forEach(n => {
-    typeCounts[n.type] = (typeCounts[n.type] || 0) + 1;
-  });
-  const layerNames = { 1: 'Executive', 2: 'Operational', 3: 'Micro' };
-  for (let layer = 1; layer <= 3; layer++) {
-    const container = document.getElementById(`layer${layer}Filters`);
-    const layerTypes = types.filter(t => t.layer === layer);
-    container.innerHTML =
-      `<div class="layer-header">${layerNames[layer]}</div>` +
-      layerTypes.map(t => {
-        const checked = (t.layer === 1 || t.layer === 2) ? 'checked' : '';
-        const count = typeCounts[t.id] || 0;
-        return `<label><input type="checkbox" ${checked} data-filter="${t.id}"> <span class="type-dot" style="background:${t.color}"></span> <span style="color:${t.color};min-width:14px;text-align:center">${t.icon || ''}</span> ${t.label} <span class="type-count">${count}</span></label>`;
-      }).join('');
-  }
-  document.querySelectorAll('[data-filter]').forEach(cb => {
-    cb.addEventListener('change', applyFilters);
-  });
-}
-
-function buildDomainFilters() {
-  const domains = [...new Set(allNodes.filter(n => n.type === 'workplan').map(n => n.domain).filter(Boolean))];
-  const container = document.getElementById('domainFilters');
-  container.innerHTML = domains.sort().map(d =>
-    `<label><input type="checkbox" checked data-domain="${d}"> ${d}</label>`
-  ).join('');
-  document.querySelectorAll('[data-domain]').forEach(cb => {
-    cb.addEventListener('change', applyFilters);
-  });
-}
-
-function buildEdgeTypeFilters() {
-  const edgeCounts = {};
-  allEdges.forEach(e => {
-    const type = getEdgeTypeLabel(e.type);
-    edgeCounts[type] = (edgeCounts[type] || 0) + 1;
-  });
-
-  const container = document.getElementById('edgeTypeFilters');
-  container.innerHTML = Object.keys(edgeCounts).sort().map(type =>
-    `<label><input type="checkbox" checked data-edge-filter="${type}"> ${type} <span class="type-count">${edgeCounts[type]}</span></label>`
-  ).join('');
-
-  document.querySelectorAll('[data-edge-filter]').forEach(cb => {
-    cb.addEventListener('change', applyFilters);
-  });
-}
-
-// ============================================================
-// Init Graph
-// ============================================================
-function getReportNodeLayout(n, index, total) {
-  if (n.type !== 'report' || index === undefined) return {};
-
-  const angle = index * 137.508 * Math.PI / 180;
-  const radius = 380 + Math.sqrt(index + 1) * 95;
-
-  return {
-    x: Math.round(Math.cos(angle) * radius),
-    y: Math.round(Math.sin(angle) * radius),
-    mass: 2
-  };
-}
-
-function isReportRelatedEdge(e) {
-  return nodeMap[e.from]?.type === 'report' || nodeMap[e.to]?.type === 'report';
-}
-
-function isReportToReportEdge(e) {
-  return nodeMap[e.from]?.type === 'report' && nodeMap[e.to]?.type === 'report';
-}
-
-function getEdgeLength(e) {
-  return isReportRelatedEdge(e) ? 420 : undefined;
-}
-
-function getCurrentLabelSize() {
-  if (!document.getElementById('chkLabels').checked) return 0;
-  return parseInt(document.getElementById('fontSlider').value);
-}
-
-function getNodeColor(n) {
-  const color = TYPE_COLORS[n.type] || '#888';
-  return { background: color, border: color, highlight: { background: color, border: '#fff' } };
-}
-
-function getNodeLabel(n) {
-  if (!document.getElementById('chkLabels').checked) return '';
-  const label = String(n.label || n.id || '');
-  if (n.type !== 'report') return label.substring(0, 30);
-  return label
-    .replace(/\.md$/i, '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function getNodeIconCode(n) {
-  return TYPE_ICONS[n.type] || '';
-}
-
-function getNodeVisual(n) {
-  const color = TYPE_COLORS[n.type] || '#888';
-  const icon = getNodeIconCode(n);
-  if (document.getElementById('chkNodeIcons').checked && icon) {
-    return {
-      shape: 'icon',
-      icon: {
-        face: 'Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif',
-        code: icon,
-        size: Math.max(12, Math.round(getNodeSize(n) * (parseInt(document.getElementById('iconSizeSlider')?.value || '14') / 10))),
-        color
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DCC Log Neurogram</title>
+    <link rel="stylesheet" href="dcc-design-system.css" />
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+      :root {
+        --neuro-issue: #e74c3c;
+        --neuro-update: #3498db;
+        --neuro-test: #2ecc71;
+        --neuro-file: #f1c40f;
+        --neuro-phase: #9b59b6;
+        --neuro-ec: #bdc3c7;
+        --neuro-engine: #e67e22;
+        --neuro-wp: #1abc9c;
+        --neuro-report: #34495e;
+        --neuro-session: #95a5a6;
       }
-    };
-  }
 
-  return { shape: TYPE_SHAPES[n.type] || 'dot' };
-}
-
-function getNodeRender(n) {
-  return {
-    label: getNodeLabel(n),
-    color: getNodeColor(n),
-    font: { size: getCurrentLabelSize(), color: '#ccc', face: 'Segoe UI, sans-serif' },
-    ...getNodeVisual(n)
-  };
-}
-
-function initGraph() {
-  if (network) {
-    network.destroy();
-    network = null;
-  }
-
-  const reportNodes = allNodes.filter(n => n.type === 'report');
-  const reportIndexById = new Map(reportNodes.map((n, i) => [n.id, i]));
-
-  const visNodes = new vis.DataSet(allNodes.map(n => ({
-    id: n.id,
-    size: getNodeSize(n),
-    type: n.type,
-    data: n,
-    ...getNodeRender(n),
-    ...getReportNodeLayout(n, reportIndexById.get(n.id), reportNodes.length)
-  })));
-
-  const visEdges = new vis.DataSet(allEdges.map((e, index) => ({
-    id: edgeId(index),
-    from: e.from,
-    to: e.to,
-    label: document.getElementById('chkEdgeLabels').checked ? getEdgeTypeLabel(e.type) : '',
-    title: getEdgeTypeLabel(e.type),
-    color: { color: '#555', highlight: '#007acc' },
-    font: { size: 9, color: '#888', align: 'top' },
-    smooth: { type: 'continuous', roundness: 0.2 },
-    width: 1,
-    arrows: { to: { enabled: e.type === 'resolved_by' || e.type === 'blocks' || e.type === 'depends_on', scaleFactor: 0.5 } },
-    type: e.type,
-    length: getEdgeLength(e),
-    physics: !isReportToReportEdge(e)
-  })));
-
-  const container = document.getElementById('network');
-  const options = {
-    physics: getPhysicsFromSliders('barnesHut'),
-    interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true, dragNodes: true },
-    layout: { improvedLayout: true },
-    edges: { selectionWidth: 2, hoverWidth: 1.5 }
-  };
-
-  network = new vis.Network(container, { nodes: visNodes, edges: visEdges }, options);
-
-  network.on('click', (params) => {
-    if (params.nodes.length > 0) {
-      const nodeId = params.nodes[0];
-      selectNode(nodeId);
-    } else {
-      clearSelection();
-    }
-  });
-
-  network.on('doubleClick', (params) => {
-    if (params.nodes.length > 0) {
-      const nodeId = params.nodes[0];
-      highlightConnections(nodeId);
-    } else {
-      resetHighlight();
-    }
-  });
-
-  network.on('hoverNode', (params) => {
-    container.style.cursor = 'pointer';
-  });
-  network.on('blurNode', () => {
-    container.style.cursor = 'default';
-  });
-}
-
-function getNodeSize(n) {
-  switch (n.type) {
-    case 'issue': return 15 + (n.severity === 'HIGH' ? 10 : n.severity === 'CRITICAL' ? 15 : n.severity === 'MEDIUM' ? 5 : 0);
-    case 'engine': return 25;
-    case 'workplan': return 15 + (n.phases ? n.phases.length * 2 : 0);
-    case 'file': return 8 + (n.touch_count || 1) * 2;
-    case 'update': return 12;
-    case 'test': return 10;
-    case 'phase': return 10;
-    case 'report': return 6;
-    case 'error_code': return 6;
-    case 'session': return 12;
-    case 'action': return 8;
-    case 'criteria': return 7;
-    case 'milestone': return 10;
-    case 'finding': return 9;
-    case 'lesson': return 8;
-    case 'deliverable': return 9;
-    case 'folder': return 20;
-    case 'section': return 12;
-    case 'step': return 7;
-    case 'scope': return 9;
-    case 'reason': return 8;
-    case 'case': return 8;
-    case 'scenario': return 8;
-    case 'table': return 10;
-    case 'analysis': return 10;
-    case 'timestamp': return 5;
-    case 'dependency': return 8;
-    default: return 10;
-  }
-}
-
-// ============================================================
-// Node Selection & Detail Panel
-// ============================================================
-function selectNode(nodeId) {
-  selectedNodeId = nodeId;
-  const node = nodeMap[nodeId];
-  if (!network || !node) return;
-
-  const rightPanel = document.getElementById('rightPanel');
-  rightPanel.classList.remove('hidden');
-  const leftPanel = document.getElementById('leftPanel');
-  leftPanel.classList.remove('hidden');
-
-  const content = document.getElementById('detailContent');
-  let html = `<h3>${TYPE_ICONS[node.type] || ''} ${node.label}</h3>`;
-  html += `<div class="meta"><span class="badge" style="background:${TYPE_COLORS[node.type]};color:#fff">${node.type}</span>`;
-  if (node.status) html += ` <span class="badge" style="background:${node.status === 'RESOLVED' || node.status === 'PASS' || node.status === 'COMPLETE' ? '#2ecc71' : node.status === 'FAIL' ? '#e74c3c' : '#f39c12'};color:#fff">${node.status}</span>`;
-  html += `</div>`;
-
-  if (node.date) html += `<div class="meta">📅 ${node.date}</div>`;
-  if (node.severity) html += `<div class="meta">⚠️ Severity: ${node.severity}</div>`;
-  if (node.version) html += `<div class="meta">📌 Version: ${node.version}</div>`;
-  if (node.rows_affected) html += `<div class="meta">📊 Rows affected: ${node.rows_affected.toLocaleString()}</div>`;
-  if (node.result) html += `<div class="meta">✅ Result: ${node.result}</div>`;
-
-  if (node.title) html += `<div class="desc"><strong>${node.title}</strong></div>`;
-  if (node.summary) html += `<div class="desc">${node.summary.substring(0, 300)}${node.summary.length > 300 ? '...' : ''}</div>`;
-  if (node.root_cause) html += `<div class="desc"><strong>Root Cause:</strong> ${node.root_cause}</div>`;
-  if (node.scope) html += `<div class="desc"><strong>Scope:</strong> ${node.scope}</div>`;
-  if (node.path) html += `<div class="desc"><strong>Path:</strong> ${node.path}</div>`;
-
-  // Linked nodes
-  const linkedEdges = allEdges.filter(e => e.from === nodeId || e.to === nodeId);
-  if (linkedEdges.length > 0) {
-    html += `<div style="margin-top:12px"><strong style="font-size:12px;color:var(--text)">Connections (${linkedEdges.length})</strong></div>`;
-    html += `<div class="links">`;
-    const grouped = {};
-    linkedEdges.forEach(e => {
-      const other = e.from === nodeId ? e.to : e.from;
-      const dir = e.from === nodeId ? '→' : '←';
-      if (!grouped[e.type]) grouped[e.type] = [];
-      grouped[e.type].push({ id: other, label: nodeMap[other]?.label || other, dir });
-    });
-    Object.keys(grouped).forEach(type => {
-      html += `<div style="font-size:11px;color:var(--text2);margin-top:4px">${type}</div>`;
-      grouped[type].forEach(link => {
-        html += `<a onclick="focusNode('${link.id}')">${link.dir} ${link.label.substring(0, 50)}</a>`;
-      });
-    });
-    html += `</div>`;
-  }
-
-  // Files changed
-  if (node.files_changed && node.files_changed.length > 0) {
-    html += `<div style="margin-top:12px"><strong style="font-size:12px;color:var(--text)">Files Changed (${node.files_changed.length})</strong></div>`;
-    html += `<div style="font-size:11px;color:var(--text2);margin-top:4px;max-height:150px;overflow-y:auto">`;
-    node.files_changed.forEach(f => { html += `<div style="padding:2px 0">📄 ${f}</div>`; });
-    html += `</div>`;
-  }
-
-  content.innerHTML = html;
-  updateStatus();
-}
-
-function clearSelection() {
-  selectedNodeId = null;
-  resetHighlight();
-}
-
-function focusNode(nodeId) {
-  if (!network || !nodeMap[nodeId]) return;
-  network.selectNodes([nodeId]);
-  network.focus(nodeId, { scale: 1.2, animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
-  selectNode(nodeId);
-}
-
-// ============================================================
-// Highlight Connections
-// ============================================================
-function highlightConnections(nodeId) {
-  if (!network) return;
-  const depth = parseInt(document.querySelector('input[name="depth"]:checked')?.value || '2');
-  const connected = new Set();
-  connected.add(nodeId);
-
-  function findConnected(id, d) {
-    if (d <= 0) return;
-    allEdges.forEach(e => {
-      if (e.from === id && !connected.has(e.to)) { connected.add(e.to); findConnected(e.to, d - 1); }
-      if (e.to === id && !connected.has(e.from)) { connected.add(e.from); findConnected(e.from, d - 1); }
-    });
-  }
-
-  findConnected(nodeId, depth === 0 ? 99 : depth);
-
-  const visNodes = network.body.data.nodes;
-  const visEdges = network.body.data.edges;
-
-  visNodes.update(allNodes.map(n => ({
-    id: n.id,
-    color: connected.has(n.id) ? { ...getNodeColor(n), border: '#fff' } : { background: '#333', border: '#333' },
-    font: { size: connected.has(n.id) ? 12 : 8, color: connected.has(n.id) ? '#fff' : '#555' },
-    opacity: connected.has(n.id) ? 1 : 0.2
-  })));
-
-  visEdges.update(allEdges.map((e, index) => ({
-    id: edgeId(index),
-    color: { color: (connected.has(e.from) && connected.has(e.to)) ? '#007acc' : '#222' },
-    opacity: (connected.has(e.from) && connected.has(e.to)) ? 1 : 0.1
-  })));
-}
-
-function resetHighlight() {
-  if (!network) return;
-  const visNodes = network.body.data.nodes;
-  const visEdges = network.body.data.edges;
-
-  visNodes.update(allNodes.map(n => ({
-    id: n.id,
-    ...getNodeRender(n),
-    opacity: 1,
-    size: getNodeSize(n) * (parseInt(document.getElementById('nodeSizeSlider').value) / 10)
-  })));
-
-  visEdges.update(allEdges.map((e, index) => ({
-    id: edgeId(index),
-    color: { color: '#555' },
-    opacity: 1
-  })));
-}
-
-// ============================================================
-// Panel Management
-// ============================================================
-function showPanel(panelId) {
-  currentPanel = panelId;
-  document.querySelectorAll('.panel-view').forEach(p => p.style.display = 'none');
-  const panel = document.getElementById('panel' + panelId.charAt(0).toUpperCase() + panelId.slice(1));
-  if (panel) panel.style.display = '';
-
-  document.querySelectorAll('.icon-bar .icon').forEach(i => i.classList.remove('active'));
-  const icon = document.querySelector(`.icon-bar .icon[data-panel="${panelId}"]`);
-  if (icon) icon.classList.add('active');
-
-  const leftPanel = document.getElementById('leftPanel');
-  const rightPanel = document.getElementById('rightPanel');
-
-  if (panelId === 'detail') {
-    leftPanel.classList.add('hidden');
-    rightPanel.classList.remove('hidden');
-  } else {
-    leftPanel.classList.remove('hidden');
-    if (selectedNodeId) rightPanel.classList.remove('hidden');
-    else rightPanel.classList.add('hidden');
-  }
-
-  if (network) setTimeout(() => network.redraw(), 50);
-}
-
-// ============================================================
-// Filtering
-// ============================================================
-function getActiveFilterState() {
-  const activeTypes = new Set();
-  document.querySelectorAll('[data-filter]').forEach(cb => {
-    if (cb.checked) activeTypes.add(cb.dataset.filter);
-  });
-
-  const activeStatuses = new Set();
-  document.querySelectorAll('[data-status]').forEach(cb => {
-    if (cb.checked) activeStatuses.add(cb.dataset.status);
-  });
-
-  const activeSeverities = new Set();
-  document.querySelectorAll('[data-severity]').forEach(cb => {
-    if (cb.checked) activeSeverities.add(cb.dataset.severity);
-  });
-
-  const activeDomains = new Set();
-  document.querySelectorAll('[data-domain]').forEach(cb => {
-    if (cb.checked) activeDomains.add(cb.dataset.domain);
-  });
-
-  const activeEdgeTypes = new Set();
-  document.querySelectorAll('[data-edge-filter]').forEach(cb => {
-    if (cb.checked) activeEdgeTypes.add(cb.dataset.edgeFilter);
-  });
-
-  return { activeTypes, activeStatuses, activeSeverities, activeDomains, activeEdgeTypes };
-}
-
-function getTimeCutoff() {
-  const val = document.getElementById('timeRange').value;
-  const startDate = new Date('2026-04-12');
-  const endDate = new Date('2026-05-21');
-  const cutoff = new Date(startDate.getTime() + (endDate - startDate) * (val / 100));
-  return cutoff.toISOString().split('T')[0];
-}
-
-function isNodeVisible(n, filters, cutoffStr) {
-  if (!filters.activeTypes.has(n.type)) return false;
-  if (n.status && !filters.activeStatuses.has(n.status)) return false;
-  if (n.severity && !filters.activeSeverities.has(n.severity)) return false;
-  if (n.type === 'workplan' && n.domain && !filters.activeDomains.has(n.domain)) return false;
-  if (n.date && n.date > cutoffStr) return false;
-  return true;
-}
-
-function getSearchMatchIds() {
-  if (!currentSearchQuery) return null;
-  const query = currentSearchQuery.toLowerCase();
-  const matches = new Set(allNodes
-    .filter(n =>
-      n.label.toLowerCase().includes(query) ||
-      (n.id && n.id.toLowerCase().includes(query)) ||
-      (n.type && n.type.toLowerCase().includes(query))
-    )
-    .map(n => n.id));
-  const withNeighbors = new Set(matches);
-  allEdges.forEach(e => {
-    if (matches.has(e.from)) withNeighbors.add(e.to);
-    if (matches.has(e.to)) withNeighbors.add(e.from);
-  });
-  return withNeighbors;
-}
-
-function getNeighborhoodIds(startId, depth) {
-  const visible = new Set();
-  if (!startId) return visible;
-
-  visible.add(startId);
-  let frontier = new Set([startId]);
-  for (let level = 0; level < depth; level += 1) {
-    const next = new Set();
-    allEdges.forEach(e => {
-      if (frontier.has(e.from) && !visible.has(e.to)) next.add(e.to);
-      if (frontier.has(e.to) && !visible.has(e.from)) next.add(e.from);
-    });
-    next.forEach(id => visible.add(id));
-    frontier = next;
-    if (frontier.size === 0) break;
-  }
-  return visible;
-}
-
-function getFocusDepthValue() {
-  const value = document.getElementById('focusDepthSelect').value;
-  return value === 'immediate' ? 1 : parseInt(value);
-}
-
-function isEdgeVisibleInFocus(e) {
-  if (!focusNodeId) return true;
-  if (document.getElementById('focusDepthSelect').value !== 'immediate') return true;
-  return e.from === focusNodeId || e.to === focusNodeId;
-}
-
-function applyFilters() {
-  if (!network) return;
-  const filters = getActiveFilterState();
-  const cutoffStr = getTimeCutoff();
-  document.getElementById('timeLabel').textContent = cutoffStr;
-
-  const searchMatchIds = document.getElementById('chkSearchFilter').checked ? getSearchMatchIds() : null;
-  const focusIds = focusNodeId ? getNeighborhoodIds(focusNodeId, getFocusDepthValue()) : null;
-
-  const visNodes = network.body.data.nodes;
-  const visibleNodeIds = new Set();
-  const nodeUpdates = allNodes.map(n => {
-    let visible = isNodeVisible(n, filters, cutoffStr);
-    if (visible && searchMatchIds) visible = searchMatchIds.has(n.id);
-    if (visible && focusIds) visible = focusIds.has(n.id);
-    if (visible) visibleNodeIds.add(n.id);
-    return { id: n.id, hidden: !visible };
-  });
-  visNodes.update(nodeUpdates);
-
-  const showEdgeLabels = document.getElementById('chkEdgeLabels').checked;
-  const visEdges = network.body.data.edges;
-  visEdges.update(allEdges.map((e, index) => {
-    const visible = visibleNodeIds.has(e.from) &&
-      visibleNodeIds.has(e.to) &&
-      filters.activeEdgeTypes.has(getEdgeTypeLabel(e.type)) &&
-      isEdgeVisibleInFocus(e);
-    return {
-      id: edgeId(index),
-      hidden: !visible,
-      label: showEdgeLabels ? getEdgeTypeLabel(e.type) : ''
-    };
-  }));
-
-  updateStatus();
-}
-
-// ============================================================
-// Time Slider
-// ============================================================
-function applyTimeFilter() {
-  applyFilters();
-}
-
-// ============================================================
-// Status Bar
-// ============================================================
-function updateStatus() {
-  const visNodes = network?.body?.data?.nodes;
-  if (!visNodes) return;
-  const visible = visNodes.get({ filter: n => !n.hidden });
-  const visibleIds = new Set(visible.map(n => n.id));
-  const edgeData = network?.body?.data?.edges;
-  const visibleEdges = edgeData ? edgeData.get({ filter: e => !e.hidden }) : [];
-
-  document.getElementById('statusNodes').textContent = `nodes: ${visible.length}`;
-  document.getElementById('statusEdges').textContent = `edges: ${visibleEdges.length}`;
-}
-
-// ============================================================
-// Export
-// ============================================================
-function exportPNG() {
-  if (!network) return;
-  const canvas = document.querySelector('#network canvas');
-  if (!canvas) return;
-  const link = document.createElement('a');
-  link.download = 'log_neurogram.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-}
-
-function exportJSON() {
-  if (!network || !graphData) return;
-  const visNodes = network.body.data.nodes;
-  const visible = visNodes.get({ filter: n => !n.hidden });
-  const visibleIds = new Set(visible.map(n => n.id));
-  const visEdges = network.body.data.edges;
-  const visibleEdgeIds = new Set(visEdges.get({ filter: e => !e.hidden }).map(e => e.id));
-  const filtered = {
-    metadata: graphData.metadata,
-    nodes: allNodes.filter(n => visibleIds.has(n.id)),
-    edges: allEdges.filter((e, index) => visibleEdgeIds.has(edgeId(index)))
-  };
-  const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: 'application/json' });
-  const link = document.createElement('a');
-  link.download = 'log_neurogram_filtered.json';
-  link.href = URL.createObjectURL(blob);
-  link.click();
-}
-
-// ============================================================
-// Event Handlers
-// ============================================================
-document.querySelectorAll('.icon-bar .icon').forEach(icon => {
-  icon.addEventListener('click', () => showPanel(icon.dataset.panel));
-});
-
-document.querySelectorAll('[data-filter]').forEach(cb => {
-  cb.addEventListener('change', applyFilters);
-});
-
-document.getElementById('btnSelectAll').addEventListener('click', () => {
-  document.querySelectorAll('[data-filter]').forEach(cb => cb.checked = true);
-  applyFilters();
-});
-
-document.getElementById('btnUnselectAll').addEventListener('click', () => {
-  document.querySelectorAll('[data-filter]').forEach(cb => cb.checked = false);
-  applyFilters();
-});
-
-document.getElementById('btnSelectAllStatus').addEventListener('click', () => {
-  document.querySelectorAll('[data-status]').forEach(cb => cb.checked = true);
-  applyFilters();
-});
-
-document.getElementById('btnUnselectAllStatus').addEventListener('click', () => {
-  document.querySelectorAll('[data-status]').forEach(cb => cb.checked = false);
-  applyFilters();
-});
-
-document.getElementById('btnSelectAllSeverity').addEventListener('click', () => {
-  document.querySelectorAll('[data-severity]').forEach(cb => cb.checked = true);
-  applyFilters();
-});
-
-document.getElementById('btnUnselectAllSeverity').addEventListener('click', () => {
-  document.querySelectorAll('[data-severity]').forEach(cb => cb.checked = false);
-  applyFilters();
-});
-
-document.getElementById('timeRange').addEventListener('input', applyTimeFilter);
-
-document.getElementById('btnFitView').addEventListener('click', () => {
-  if (network) network.fit({ animation: true });
-});
-
-function setFocusMode(nodeId) {
-  if (!network || !nodeMap[nodeId]) return;
-  focusNodeId = nodeId;
-  applyFilters();
-  const focusIds = [...getNeighborhoodIds(focusNodeId, getFocusDepthValue())]
-    .filter(id => !network.body.data.nodes.get(id)?.hidden);
-  if (focusIds.length) network.fit({ nodes: focusIds, animation: true });
-  document.getElementById('statusLeft').textContent = `Focus: ${nodeMap[nodeId].label}`;
-}
-
-function clearFocusMode() {
-  focusNodeId = null;
-  applyFilters();
-  if (network) network.fit({ animation: true });
-}
-
-document.getElementById('btnFocusSelected').addEventListener('click', () => {
-  if (selectedNodeId) setFocusMode(selectedNodeId);
-});
-
-document.getElementById('btnClearFocus').addEventListener('click', clearFocusMode);
-
-document.getElementById('focusDepthSelect').addEventListener('change', () => {
-  if (focusNodeId) setFocusMode(focusNodeId);
-});
-
-function getPhysicsFromSliders(solver) {
-  const gravity = parseInt(document.getElementById('gravitySlider').value) / 100;
-  const springLen = parseInt(document.getElementById('springSlider').value);
-  const springConst = parseInt(document.getElementById('springConstSlider').value) / 100;
-  const damping = parseInt(document.getElementById('dampingSlider').value) / 100;
-  const iter = parseInt(document.getElementById('iterSlider').value);
-  const repVal = parseInt(document.getElementById('repulsionSlider').value);
-  const nodeDistance = Math.max(80, Math.round(repVal / 40));
-  const base = { enabled: true, stabilization: { iterations: iter, fit: true } };
-  if (solver === 'repulsion') {
-    base.solver = 'repulsion';
-    base.repulsion = { nodeDistance, centralGravity: gravity, springLength: springLen, springConstant: springConst, damping };
-  } else if (solver === 'forceAtlas2Based') {
-    base.solver = 'forceAtlas2Based';
-    base.forceAtlas2Based = { gravitationalConstant: -repVal / 10, centralGravity: gravity / 40, springLength: springLen, springConstant: springConst, damping };
-  } else {
-    base.solver = 'barnesHut';
-    base.barnesHut = { gravitationalConstant: -repVal, centralGravity: gravity, springLength: springLen, springConstant: springConst, damping, avoidOverlap: 1 };
-  }
-  return base;
-}
-
-function getActivePhysicsSolver() {
-  const mode = document.getElementById('layoutSelect').value;
-  if (mode === 'repulsion') return 'repulsion';
-  if (mode === 'forceAtlas2') return 'forceAtlas2Based';
-  return 'barnesHut';
-}
-
-function getActivePhysicsFromSliders() {
-  const solver = getActivePhysicsSolver();
-  const physics = getPhysicsFromSliders(solver);
-  if (physics.forceAtlas2Based) {
-    physics.forceAtlas2Based.centralGravity = parseFloat(document.getElementById('gravitySlider').value) / 4000;
-  }
-  return physics;
-}
-
-function applyActivePhysicsFromSliders(fit = false) {
-  if (!network) return;
-  const mode = document.getElementById('layoutSelect').value;
-  if (mode.startsWith('tree') || mode === 'circle') return;
-
-  const physics = getActivePhysicsFromSliders();
-  physics.stabilization.fit = fit;
-  network.setOptions({ physics });
-  document.getElementById('chkPhysics').checked = true;
-}
-
-document.getElementById('layoutSelect').addEventListener('change', () => {
-  if (!network) return;
-  const mode = document.getElementById('layoutSelect').value;
-  const visNodes = network.body.data.nodes;
-  const chkPhysics = document.getElementById('chkPhysics');
-
-  visNodes.get().forEach(n => {
-    if (n.fixed && (n.fixed.x || n.fixed.y)) {
-      visNodes.update({ id: n.id, fixed: { x: false, y: false } });
-    }
-  });
-
-  if (mode === 'barnesHut') {
-    network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
-    chkPhysics.checked = true;
-  } else if (mode === 'repulsion') {
-    network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
-    chkPhysics.checked = true;
-  } else if (mode === 'forceAtlas2') {
-    network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
-    chkPhysics.checked = true;
-  } else if (mode === 'circle') {
-    try {
-      const center = network.getViewPosition();
-      const sliderVal = parseInt(document.getElementById('repulsionSlider').value);
-      const spacing = Math.max(5, sliderVal / 500);
-      const updates = [];
-      const typeOrder = ['engine','issue','folder','error_code','update','test','dependency','session','phase','step','action','workplan','report','file'];
-      const allVisible = visNodes.get({ filter: n => !n.hidden });
-      allVisible.sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
-      allVisible.forEach((n, i) => {
-        const angle = i * 137.508 * Math.PI / 180;
-        const radius = Math.sqrt(i + 1) * spacing;
-        updates.push({ id: n.id, x: center.x + radius * Math.cos(angle), y: center.y + radius * Math.sin(angle), fixed: { x: true, y: true } });
-      });
-      if (updates.length) {
-        visNodes.update(updates);
-        network.setOptions({ physics: { enabled: false }, layout: { improvedLayout: true } });
-        network.fit({ animation: true });
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
-    } catch(e) { console.error('Circle layout error:', e); }
-    chkPhysics.checked = false;
-  } else if (mode === 'treeUD') {
-    network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'UD', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
-    network.fit({ animation: true });
-    chkPhysics.checked = false;
-  } else if (mode === 'treeDU') {
-    network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'DU', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
-    network.fit({ animation: true });
-    chkPhysics.checked = false;
-  } else if (mode === 'treeLR') {
-    network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'LR', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
-    network.fit({ animation: true });
-    chkPhysics.checked = false;
-  } else if (mode === 'treeRL') {
-    network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'RL', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
-    network.fit({ animation: true });
-    chkPhysics.checked = false;
-  }
-});
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+        font-family: var(--font-ui, 'Segoe UI', sans-serif);
+      }
 
-function openAllClusters() {
-  if (!network) return;
-  let clusterIds = Object.keys(network.body.nodes).filter(id => network.isCluster(id));
-  let passes = 0;
-  while (clusterIds.length > 0 && passes < 20) {
-    clusterIds.forEach(id => network.openCluster(id));
-    clusterIds = Object.keys(network.body.nodes).filter(id => network.isCluster(id));
-    passes += 1;
-  }
-}
+      /* Shell Layout */
+      .shell {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+      .title-bar {
+        height: 32px;
+        background: var(--bg-title, #1e1e1e);
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--border, #333);
+        color: var(--text, #ccc);
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+      .title-bar .title {
+        flex: 1;
+        font-weight: 600;
+      }
+      .title-bar .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .title-bar .actions button {
+        background: none;
+        border: none;
+        color: var(--text, #ccc);
+        cursor: pointer;
+        font-size: 14px;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+      .title-bar .actions button:hover {
+        background: var(--surface-hover, #333);
+      }
 
-document.getElementById('selCluster').addEventListener('change', function () {
-  if (!network) return;
-  const val = this.value;
-  openAllClusters();
-  if (val === 'none') {
-    network.setOptions({ clustering: { enabled: false } });
-  } else if (val === 'type') {
-    network.setOptions({ clustering: { enabled: true } });
-    const types = [...new Set(allNodes.map(n => n.type))];
-    types.forEach(type => {
-      const clusterOptions = {
-        joinCondition: n => n.type === type && !n.hidden,
-        processProperties: (clusterProps, childNodes) => {
-          clusterProps.label = `${TYPE_ICONS[type]} ${type} (${childNodes.length})`;
-          clusterProps.color = TYPE_COLORS[type];
-          clusterProps.shape = 'hexagon';
-          clusterProps.size = 20;
-          return clusterProps;
-        }
+      .main-body {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* Icon Bar */
+      .icon-bar {
+        width: 48px;
+        background: var(--bg-iconbar, #252526);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 4px;
+        flex-shrink: 0;
+        border-right: 1px solid var(--border, #333);
+      }
+      .icon-bar .icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 20px;
+        color: var(--text2, #888);
+        position: relative;
+      }
+      .icon-bar .icon:hover {
+        color: var(--text, #ccc);
+      }
+      .icon-bar .icon.active {
+        color: var(--text, #fff);
+      }
+      .icon-bar .icon.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 8px;
+        bottom: 8px;
+        width: 2px;
+        background: var(--accent, #007acc);
+      }
+      .icon-bar .divider {
+        width: 32px;
+        height: 1px;
+        background: var(--border, #444);
+        margin: 4px 0;
+      }
+
+      /* Left Panel */
+      .left-panel {
+        width: 300px;
+        background: var(--bg-panel, #1e1e1e);
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--border, #333);
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+      .left-panel.hidden {
+        display: none;
+      }
+      .panel-view {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+      .resize-handle {
+        width: 4px;
+        cursor: col-resize;
+        background: transparent;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 10;
+      }
+      .resize-handle:hover,
+      .resize-handle.dragging {
+        background: var(--accent, #007acc);
+      }
+      .panel-header {
+        padding: 8px 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text2, #888);
+        border-bottom: 1px solid var(--border, #333);
+        flex-shrink: 0;
+      }
+      .panel-content {
+        flex: 1;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .panel-view:not(#panelGraph) > .panel-content {
+        overflow-y: auto;
+      }
+      .panel-content button:active {
+        opacity: 0.6;
+      }
+
+      /* Graph Area */
+      .graph-area {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      #network {
+        width: 100%;
+        height: 100%;
+      }
+
+      /* Right Panel */
+      .right-panel {
+        width: 350px;
+        background: var(--bg-panel, #1e1e1e);
+        display: flex;
+        flex-direction: column;
+        border-left: 1px solid var(--border, #333);
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+      .right-panel.hidden {
+        display: none;
+      }
+      .detail-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+      }
+      .detail-content h3 {
+        font-size: 14px;
+        margin-bottom: 8px;
+        color: var(--text, #eee);
+      }
+      .detail-content .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-right: 4px;
+      }
+      .detail-content .meta {
+        font-size: 12px;
+        color: var(--text2, #888);
+        margin: 4px 0;
+      }
+      .detail-content .desc {
+        font-size: 12px;
+        color: var(--text, #ccc);
+        margin: 8px 0;
+        line-height: 1.5;
+      }
+      .detail-content .links {
+        margin: 8px 0;
+      }
+      .detail-content .links a {
+        display: block;
+        padding: 4px 8px;
+        font-size: 12px;
+        color: var(--accent, #007acc);
+        cursor: pointer;
+        text-decoration: none;
+        border-radius: 3px;
+      }
+      .detail-content .links a:hover {
+        background: var(--surface-hover, #333);
+      }
+
+      /* Status Bar */
+      .status-bar {
+        height: 24px;
+        background: var(--bg-statusbar, #007acc);
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        font-size: 12px;
+        color: #fff;
+        flex-shrink: 0;
+      }
+      .status-bar .left {
+        flex: 1;
+      }
+      .status-bar .right {
+        display: flex;
+        gap: 16px;
+      }
+
+      /* Tree View */
+      .tree-node {
+        padding: 2px 0;
+      }
+      .tree-label {
+        cursor: pointer;
+        padding: 2px 4px;
+        font-size: 12px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .tree-label:hover {
+        background: var(--surface-hover, #333);
+      }
+      .tree-label .toggle {
+        width: 16px;
+        text-align: center;
+        font-size: 10px;
+        color: var(--text2, #666);
+      }
+      .tree-label .icon {
+        font-size: 12px;
+      }
+      .tree-children {
+        padding-left: 16px;
+      }
+      .tree-children.collapsed {
+        display: none;
+      }
+
+      /* Filter Panel */
+      .filter-group {
+        margin-bottom: 12px;
+      }
+      .filter-group {
+        margin-bottom: 12px;
+      }
+      .filter-group label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text, #ccc);
+        cursor: pointer;
+        padding: 2px 0;
+      }
+      .filter-group input[type='checkbox'] {
+        accent-color: var(--accent, #007acc);
+      }
+      .filter-group .type-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .filter-group .type-count {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--text2, #888);
+        min-width: 20px;
+        text-align: right;
+      }
+      .filter-group label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text, #ccc);
+        cursor: pointer;
+        padding: 2px 0;
+      }
+      .layer-header {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text2, #888);
+        padding: 8px 0 4px;
+      }
+      .layer-separator {
+        height: 1px;
+        background: var(--border, #333);
+        margin: 8px 0;
+      }
+
+      /* Search */
+      .search-box {
+        padding: 8px;
+        border-bottom: 1px solid var(--border, #333);
+      }
+      .search-box input {
+        width: 100%;
+        padding: 6px 8px;
+        background: var(--bg-input, #2a2a2a);
+        border: 1px solid var(--border, #444);
+        color: var(--text, #ccc);
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      .search-box input:focus {
+        outline: none;
+        border-color: var(--accent, #007acc);
+      }
+
+      /* Theme dropdown */
+      .theme-dropdown {
+        position: absolute;
+        top: 32px;
+        right: 8px;
+        background: var(--bg-panel, #1e1e1e);
+        border: 1px solid var(--border, #444);
+        border-radius: 4px;
+        padding: 4px;
+        display: none;
+        z-index: 100;
+      }
+      .theme-dropdown.show {
+        display: block;
+      }
+      .theme-dropdown button {
+        display: block;
+        width: 100%;
+        padding: 6px 12px;
+        background: none;
+        border: none;
+        color: var(--text, #ccc);
+        cursor: pointer;
+        font-size: 12px;
+        text-align: left;
+        border-radius: 3px;
+      }
+      .theme-dropdown button:hover {
+        background: var(--surface-hover, #333);
+      }
+
+      /* Time slider */
+      .time-slider {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 36px;
+        background: var(--bg-panel, #1e1e1e);
+        border-top: 1px solid var(--border, #333);
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        gap: 8px;
+      }
+      .time-slider input[type='range'] {
+        flex: 1;
+        accent-color: var(--accent, #007acc);
+      }
+      .time-slider .label {
+        font-size: 11px;
+        color: var(--text2, #888);
+        white-space: nowrap;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg, #1e1e1e);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border, #444);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+
+      /* Themes */
+      body.theme-light {
+        --bg-title: #f3f3f3;
+        --bg-iconbar: #e8e8e8;
+        --bg-panel: #f8f8f8;
+        --bg: #fff;
+        --border: #ddd;
+        --text: #333;
+        --text2: #666;
+        --surface-hover: #e0e0e0;
+        --bg-input: #fff;
+        --bg-statusbar: #007acc;
+      }
+      body.theme-sky {
+        --bg-title: #e3f2fd;
+        --bg-iconbar: #bbdefb;
+        --bg-panel: #e3f2fd;
+        --bg: #f0f8ff;
+        --border: #90caf9;
+        --text: #1565c0;
+        --text2: #42a5f5;
+        --surface-hover: #bbdefb;
+        --bg-input: #fff;
+        --bg-statusbar: #1976d2;
+      }
+      body.theme-ocean {
+        --bg-title: #1a237e;
+        --bg-iconbar: #283593;
+        --bg-panel: #1a237e;
+        --bg: #0d1b3e;
+        --border: #3949ab;
+        --text: #e8eaf6;
+        --text2: #9fa8da;
+        --surface-hover: #283593;
+        --bg-input: #1a237e;
+        --bg-statusbar: #3f51b5;
+      }
+      body.theme-presentation {
+        --bg-title: #f5f5f5;
+        --bg-iconbar: #e0e0e0;
+        --bg-panel: #fafafa;
+        --bg: #fff;
+        --border: #e0e0e0;
+        --text: #212121;
+        --text2: #757575;
+        --surface-hover: #e0e0e0;
+        --bg-input: #fff;
+        --bg-statusbar: #616161;
+      }
+    </style>
+  </head>
+  <body class="theme-dark">
+    <div class="shell">
+      <!-- Title Bar -->
+      <div class="title-bar">
+        <span class="title">📊 Log Neurogram — DCC Project History</span>
+        <div class="actions">
+          <input
+            id="searchInput"
+            type="text"
+            placeholder="Search nodes..."
+            style="
+              width: 180px;
+              padding: 2px 6px;
+              font-size: 12px;
+              background: var(--bg-input, #2a2a2a);
+              border: 1px solid var(--border, #444);
+              color: var(--text, #ccc);
+              border-radius: 3px;
+            "
+          />
+          <span
+            id="searchCount"
+            style="font-size: 11px; color: var(--text2, #888); min-width: 40px"
+          ></span>
+          <button id="btnSearch" title="Search">🔍</button>
+          <button id="btnTheme" title="Theme">🎨</button>
+          <button id="btnLayout" title="Layout">☰</button>
+        </div>
+        <div class="theme-dropdown" id="themeDropdown">
+          <button data-theme="theme-dark">🌑 Dark</button>
+          <button data-theme="theme-light">☀️ Light</button>
+          <button data-theme="theme-sky">🌤️ Sky</button>
+          <button data-theme="theme-ocean">🌊 Ocean</button>
+          <button data-theme="theme-presentation">📋 Presentation</button>
+        </div>
+      </div>
+
+      <div class="main-body">
+        <!-- Icon Bar -->
+        <div class="icon-bar">
+          <div class="icon active" data-panel="graph" title="Graph">📊</div>
+          <div class="icon" data-panel="tree" title="Tree">🌳</div>
+          <div class="icon" data-panel="filter" title="Filter">🔍</div>
+          <div class="divider"></div>
+          <div class="icon" data-panel="settings" title="Settings">⚙️</div>
+          <div class="icon" data-panel="help" title="Help">❓</div>
+          <div class="icon" data-panel="about" title="About">ℹ️</div>
+          <div style="flex: 1"></div>
+          <div class="icon" data-panel="detail" title="Detail">ℹ️</div>
+        </div>
+
+        <!-- Left Panel -->
+        <div class="left-panel" id="leftPanel">
+          <!-- Graph Panel (default) -->
+          <div class="panel-view" id="panelGraph">
+            <div class="panel-header">Graph Controls</div>
+            <div class="panel-content" style="padding: 0; display: flex; flex-direction: column">
+              <div style="flex: 1; overflow-y: auto; min-height: 0; padding: 8px 8px 0">
+                <!-- Layer Toggles -->
+                <div id="layerToggles" style="display: flex; gap: 4px; margin-bottom: 8px">
+                  <button
+                    data-layer="1"
+                    class="layer-btn active"
+                    style="
+                      flex: 1;
+                      padding: 4px;
+                      font-size: 11px;
+                      background: var(--accent, #007acc);
+                      color: #fff;
+                      border: none;
+                      border-radius: 4px;
+                      cursor: pointer;
+                    "
+                  >
+                    🏛️ Executive
+                  </button>
+                  <button
+                    data-layer="2"
+                    class="layer-btn active"
+                    style="
+                      flex: 1;
+                      padding: 4px;
+                      font-size: 11px;
+                      background: var(--accent, #007acc);
+                      color: #fff;
+                      border: none;
+                      border-radius: 4px;
+                      cursor: pointer;
+                    "
+                  >
+                    ⚙️ Operational
+                  </button>
+                  <button
+                    data-layer="3"
+                    class="layer-btn"
+                    style="
+                      flex: 1;
+                      padding: 4px;
+                      font-size: 11px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      cursor: pointer;
+                    "
+                  >
+                    🔬 Micro
+                  </button>
+                </div>
+                <div class="filter-group" id="typeFilters" style="min-height: 0">
+                  <div id="layer1Filters"></div>
+                  <div class="layer-separator"></div>
+                  <div id="layer2Filters"></div>
+                  <div class="layer-separator"></div>
+                  <div id="layer3Filters"></div>
+                </div>
+              </div>
+              <div style="padding: 0 8px 8px">
+                <div style="display: flex; gap: 4px; margin-top: 8px">
+                  <button
+                    id="btnSelectAll"
+                    style="
+                      flex: 1;
+                      padding: 4px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 11px;
+                    "
+                  >
+                    Select All
+                  </button>
+                  <button
+                    id="btnUnselectAll"
+                    style="
+                      flex: 1;
+                      padding: 4px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 11px;
+                    "
+                  >
+                    Unselect All
+                  </button>
+                </div>
+                <div style="margin-top: 12px">
+                  <button
+                    id="btnFitView"
+                    style="
+                      width: 100%;
+                      padding: 6px;
+                      background: var(--accent, #007acc);
+                      color: #fff;
+                      border: none;
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 12px;
+                    "
+                  >
+                    Fit View
+                  </button>
+                </div>
+                <div style="display: flex; gap: 4px; margin-top: 6px">
+                  <button
+                    id="btnFocusSelected"
+                    style="
+                      flex: 1;
+                      padding: 6px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 11px;
+                    "
+                  >
+                    Focus Selected
+                  </button>
+                  <button
+                    id="btnClearFocus"
+                    style="
+                      flex: 1;
+                      padding: 6px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 11px;
+                    "
+                  >
+                    Clear Focus
+                  </button>
+                </div>
+                <div style="margin-top: 6px">
+                  <select
+                    id="focusDepthSelect"
+                    style="
+                      width: 100%;
+                      padding: 4px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      font-size: 12px;
+                    "
+                  >
+                    <option value="immediate" selected>Focus: Immediate nodes only</option>
+                    <option value="1">Focus Depth: 1-hop</option>
+                    <option value="2">Focus Depth: 2-hop</option>
+                    <option value="3">Focus Depth: 3-hop</option>
+                  </select>
+                </div>
+                <div style="margin-top: 6px">
+                  <select
+                    id="layoutSelect"
+                    style="
+                      width: 100%;
+                      padding: 6px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      font-size: 12px;
+                      cursor: pointer;
+                    "
+                  >
+                    <option value="barnesHut">Layout: BarnesHut</option>
+                    <option value="repulsion">Layout: Repulsion</option>
+                    <option value="forceAtlas2">Layout: ForceAtlas2</option>
+                    <option value="circle">Layout: Circle (Spiral)</option>
+                    <option value="treeUD">Layout: Tree (Top-Bottom)</option>
+                    <option value="treeDU">Layout: Tree (Bottom-Top)</option>
+                    <option value="treeLR">Layout: Tree (Left-Right)</option>
+                    <option value="treeRL">Layout: Tree (Right-Left)</option>
+                  </select>
+                </div>
+                <div style="margin-top: 6px">
+                  <select
+                    id="selCluster"
+                    style="
+                      width: 100%;
+                      padding: 4px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      font-size: 12px;
+                    "
+                  >
+                    <option value="none">Clustering: None</option>
+                    <option value="type">Clustering: By Type</option>
+                  </select>
+                </div>
+                <div style="margin-top: 6px">
+                  <button
+                    id="btnExportPNG"
+                    style="
+                      width: 100%;
+                      padding: 6px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 12px;
+                    "
+                  >
+                    Export PNG
+                  </button>
+                </div>
+                <div style="margin-top: 6px">
+                  <button
+                    id="btnExportJSON"
+                    style="
+                      width: 100%;
+                      padding: 6px;
+                      background: var(--surface2, #333);
+                      color: var(--text, #ccc);
+                      border: 1px solid var(--border, #444);
+                      border-radius: 4px;
+                      cursor: pointer;
+                      font-size: 12px;
+                    "
+                  >
+                    Export Filtered JSON
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tree Panel -->
+          <div class="panel-view" id="panelTree" style="display: none">
+            <div class="panel-header">Project Hierarchy</div>
+            <div class="panel-content" id="treeContent">
+              <div style="color: var(--text2); font-size: 12px; padding: 8px">Loading tree...</div>
+            </div>
+          </div>
+
+          <!-- Filter Panel -->
+          <div class="panel-view" id="panelFilter" style="display: none">
+            <div class="panel-header">Advanced Filter</div>
+            <div class="panel-content">
+              <div class="filter-group" id="statusFilters">
+                <label style="font-weight: 600; margin-bottom: 4px">Status</label>
+                <label><input type="checkbox" checked data-status="RESOLVED" /> Resolved</label>
+                <label><input type="checkbox" checked data-status="COMPLETE" /> Complete</label>
+                <label><input type="checkbox" checked data-status="PASS" /> Pass</label>
+                <label
+                  ><input type="checkbox" checked data-status="IN PROGRESS" /> In Progress</label
+                >
+                <label><input type="checkbox" checked data-status="PENDING" /> Pending</label>
+                <label><input type="checkbox" checked data-status="FAIL" /> Fail</label>
+              </div>
+              <div style="display: flex; gap: 4px; margin-top: 4px; margin-bottom: 8px">
+                <button
+                  id="btnSelectAllStatus"
+                  style="
+                    flex: 1;
+                    padding: 4px;
+                    background: var(--surface2, #333);
+                    color: var(--text, #ccc);
+                    border: 1px solid var(--border, #444);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 11px;
+                  "
+                >
+                  Select All
+                </button>
+                <button
+                  id="btnUnselectAllStatus"
+                  style="
+                    flex: 1;
+                    padding: 4px;
+                    background: var(--surface2, #333);
+                    color: var(--text, #ccc);
+                    border: 1px solid var(--border, #444);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 11px;
+                  "
+                >
+                  Unselect All
+                </button>
+              </div>
+              <div class="filter-group" id="severityFilters">
+                <label style="font-weight: 600; margin-bottom: 4px">Severity</label>
+                <label><input type="checkbox" checked data-severity="CRITICAL" /> Critical</label>
+                <label><input type="checkbox" checked data-severity="HIGH" /> High</label>
+                <label><input type="checkbox" checked data-severity="MEDIUM" /> Medium</label>
+                <label><input type="checkbox" checked data-severity="WARNING" /> Warning</label>
+                <label><input type="checkbox" checked data-severity="LOW" /> Low</label>
+              </div>
+              <div style="display: flex; gap: 4px; margin-top: 4px; margin-bottom: 8px">
+                <button
+                  id="btnSelectAllSeverity"
+                  style="
+                    flex: 1;
+                    padding: 4px;
+                    background: var(--surface2, #333);
+                    color: var(--text, #ccc);
+                    border: 1px solid var(--border, #444);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 11px;
+                  "
+                >
+                  Select All
+                </button>
+                <button
+                  id="btnUnselectAllSeverity"
+                  style="
+                    flex: 1;
+                    padding: 4px;
+                    background: var(--surface2, #333);
+                    color: var(--text, #ccc);
+                    border: 1px solid var(--border, #444);
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 11px;
+                  "
+                >
+                  Unselect All
+                </button>
+              </div>
+              <div class="filter-group" id="domainFilterGroup">
+                <label style="font-weight: 600; margin-bottom: 4px">Domain</label>
+                <div id="domainFilters"></div>
+              </div>
+              <div class="filter-group" id="edgeFilterGroup">
+                <label style="font-weight: 600; margin-bottom: 4px">Edge Type</label>
+                <div id="edgeTypeFilters"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings Panel -->
+          <div class="panel-view" id="panelSettings" style="display: none">
+            <div class="panel-header">Settings</div>
+            <div class="panel-content">
+              <div class="filter-group">
+                <label><input type="checkbox" id="chkPhysics" checked /> Physics enabled</label>
+                <label><input type="checkbox" id="chkNodeIcons" checked /> Show node icons</label>
+                <label><input type="checkbox" id="chkLabels" checked /> Show labels</label>
+                <label><input type="checkbox" id="chkEdgeLabels" /> Show edge labels</label>
+                <label><input type="checkbox" id="chkTimeSlider" checked /> Show time slider</label>
+                <label><input type="checkbox" id="chkSearchFilter" /> Search filters graph</label>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px"
+                  >Repulsion / Node Distance</label
+                >
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">Low</span>
+                  <input
+                    type="range"
+                    id="repulsionSlider"
+                    min="1000"
+                    max="200000"
+                    value="30000"
+                    step="1000"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">High</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="repulsionValue"
+                >
+                  30000
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Central Gravity</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">0</span>
+                  <input
+                    type="range"
+                    id="gravitySlider"
+                    min="0"
+                    max="100"
+                    value="5"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">1</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="gravityValue"
+                >
+                  0.05
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Spring Length</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">Short</span>
+                  <input
+                    type="range"
+                    id="springSlider"
+                    min="50"
+                    max="500"
+                    value="360"
+                    step="10"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">Long</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="springValue"
+                >
+                  360
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Spring Constant</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">Slack</span>
+                  <input
+                    type="range"
+                    id="springConstSlider"
+                    min="1"
+                    max="50"
+                    value="4"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">Stiff</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="springConstValue"
+                >
+                  0.04
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Damping (friction)</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">Bouncy</span>
+                  <input
+                    type="range"
+                    id="dampingSlider"
+                    min="1"
+                    max="100"
+                    value="9"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">Stiff</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="dampingValue"
+                >
+                  0.09
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Stabilization Iterations</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">Fast</span>
+                  <input
+                    type="range"
+                    id="iterSlider"
+                    min="50"
+                    max="1000"
+                    value="500"
+                    step="50"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">Accurate</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="iterValue"
+                >
+                  500
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Label Font Size</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">8</span>
+                  <input
+                    type="range"
+                    id="fontSlider"
+                    min="8"
+                    max="24"
+                    value="11"
+                    step="1"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">24</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="fontValue"
+                >
+                  11
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Node Size Multiplier</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">0.5×</span>
+                  <input
+                    type="range"
+                    id="nodeSizeSlider"
+                    min="5"
+                    max="30"
+                    value="10"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">3×</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="nodeSizeValue"
+                >
+                  1.0×
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Edge Width</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">Thin</span>
+                  <input
+                    type="range"
+                    id="edgeWidthSlider"
+                    min="1"
+                    max="10"
+                    value="2"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">Thick</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="edgeWidthValue"
+                >
+                  1.0
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Icon Size Multiplier</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">0.5×</span>
+                  <input
+                    type="range"
+                    id="iconSizeSlider"
+                    min="5"
+                    max="30"
+                    value="14"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">3×</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="iconSizeValue"
+                >
+                  1.4×
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 2px">Tooltip Delay (ms)</label>
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span style="font-size: 10px; color: var(--text2)">Fast</span>
+                  <input
+                    type="range"
+                    id="tooltipSlider"
+                    min="0"
+                    max="1000"
+                    value="100"
+                    step="50"
+                    style="flex: 1"
+                  />
+                  <span style="font-size: 10px; color: var(--text2)">Slow</span>
+                </div>
+                <div
+                  style="font-size: 10px; color: var(--text2); text-align: center"
+                  id="tooltipValue"
+                >
+                  100ms
+                </div>
+              </div>
+              <div class="filter-group">
+                <label style="font-weight: 600; margin-bottom: 4px">Highlight Depth</label>
+                <label><input type="radio" name="depth" value="1" /> 1-hop</label>
+                <label><input type="radio" name="depth" value="2" checked /> 2-hop</label>
+                <label><input type="radio" name="depth" value="0" /> Full path</label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Help Panel -->
+          <div class="panel-view" id="panelHelp" style="display: none">
+            <div class="panel-header">Help</div>
+            <div
+              class="panel-content"
+              style="font-size: 12px; color: var(--text, #ccc); line-height: 1.6"
+            >
+              <p><strong>Navigation:</strong> Pan by dragging, zoom with scroll wheel.</p>
+              <p><strong>Click a node</strong> to see details in the right panel.</p>
+              <p><strong>Double-click</strong> a node to focus and highlight its connections.</p>
+              <p>
+                <strong>Focus Selected</strong> limits the graph to the selected node neighborhood.
+              </p>
+              <p><strong>Double-click background</strong> to reset the view.</p>
+              <p>
+                <strong>Filter:</strong> Toggle node types in the Graph panel or use Advanced
+                Filter.
+              </p>
+              <p><strong>Edge filters:</strong> Toggle relationship types in Advanced Filter.</p>
+              <p><strong>Search:</strong> Type in the search bar to find nodes.</p>
+              <p>
+                <strong>Search filters graph:</strong> Turn this on in Settings to show matches plus
+                neighbors.
+              </p>
+              <p><strong>Timeline:</strong> Use the slider at the bottom to filter by date.</p>
+              <p>
+                <strong>Export:</strong> Download the current view as PNG or filtered data as JSON.
+              </p>
+              <p><strong>Themes:</strong> Click 🎨 to switch between 5 color themes.</p>
+            </div>
+          </div>
+
+          <!-- About Panel -->
+          <div class="panel-view" id="panelAbout" style="display: none">
+            <div class="panel-header">About</div>
+            <div
+              class="panel-content"
+              style="font-size: 12px; color: var(--text, #ccc); line-height: 1.6"
+            >
+              <h3 style="margin-bottom: 8px">DCC Log Neurogram</h3>
+              <p>Visualizes the complete DCC project history as an interactive network graph.</p>
+              <p style="margin-top: 8px"><strong>Version:</strong> 1.0</p>
+              <p><strong>Date:</strong> 2026-05-21</p>
+              <p><strong>Author:</strong> Franklin Song</p>
+              <p style="margin-top: 8px"><strong>Data sources:</strong></p>
+              <ul style="padding-left: 16px">
+                <li>4 log files (issue, update, test, gemini)</li>
+                <li>159 workplan files across 15 domain folders</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="resize-handle" id="resizeHandle"></div>
+
+        <!-- Graph Area -->
+        <div class="graph-area">
+          <div id="network"></div>
+          <div class="time-slider" id="timeSlider">
+            <span class="label">2026-04-12</span>
+            <input type="range" id="timeRange" min="0" max="100" value="100" />
+            <span class="label" id="timeLabel">2026-05-21</span>
+          </div>
+        </div>
+
+        <div class="resize-handle" id="rightResizeHandle"></div>
+
+        <!-- Right Panel -->
+        <div class="right-panel hidden" id="rightPanel">
+          <div class="panel-header">Node Details</div>
+          <div class="detail-content" id="detailContent">
+            <div style="color: var(--text2); font-size: 12px; padding: 20px; text-align: center">
+              Click a node to see details
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <span class="left" id="statusLeft">Loading...</span>
+        <span class="right">
+          <span id="statusNodes">nodes: 0</span>
+          <span id="statusEdges">edges: 0</span>
+          <span>v1.0</span>
+        </span>
+      </div>
+    </div>
+
+    <script>
+      // ============================================================
+      // Log Neurogram — Interactive DCC Log Explorer
+      // ============================================================
+
+      // Configuration Constants
+      const CONFIG = {
+        GRAPH_DATA_URL: '../output/dcc_log_graph.json',
+        PHYSICS_SCALING: {
+          NODE_SIZE_DIVISOR: 10,
+          ICON_SIZE_DIVISOR: 10,
+          GRAVITY_DIVISOR: 100,
+          SPRING_CONST_DIVISOR: 100,
+          DAMPING_DIVISOR: 100,
+          EDGE_WIDTH_DIVISOR: 2,
+          REPULSION_TO_NODE_DISTANCE: 40,
+          FORCE_ATLAS_GRAVITY_DIVISOR: 4000,
+          FORCE_ATLAS_GRAV_CONST_DIVISOR: 10
+        },
+        REPORT_LAYOUT: {
+          BASE_RADIUS: 380,
+          RADIUS_GROWTH_FACTOR: 95,
+          GOLDEN_ANGLE: 137.508,
+          MASS: 2
+        },
+        CLUSTER_MAX_PASSES: 20,
+        DEFAULT_NODE_SIZE: 10
       };
-      network.cluster(clusterOptions);
-    });
-  }
-});
 
-document.getElementById('btnExportPNG').addEventListener('click', exportPNG);
-document.getElementById('btnExportJSON').addEventListener('click', exportJSON);
+      let graphData = null;
+      let network = null;
+      let allNodes = [];
+      let allEdges = [];
+      let nodeMap = {};
+      let currentPanel = 'graph';
+      let selectedNodeId = null;
+      let focusNodeId = null;
+      let currentSearchQuery = '';
+      let dateRange = { min: null, max: null };
 
-document.getElementById('btnTheme').addEventListener('click', (e) => {
-  e.stopPropagation();
-  document.getElementById('themeDropdown').classList.toggle('show');
-});
+      // Cached DOM elements for performance
+      let domCache = {};
 
-document.querySelectorAll('.theme-dropdown button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.body.className = btn.dataset.theme;
-    localStorage.setItem('neurogram-theme', btn.dataset.theme);
-    document.getElementById('themeDropdown').classList.remove('show');
-  });
-});
+      let TYPE_COLORS = {};
+      let TYPE_SHAPES = {};
+      let TYPE_ICONS = {};
+      let NODE_TYPES_META = {};  // type_id -> {layer, label, color, ...}
+      let activeLayers = new Set([1, 2]);  // Layer 1+2 on by default
 
-document.addEventListener('click', () => {
-  document.getElementById('themeDropdown').classList.remove('show');
-});
-
-document.getElementById('btnLayout').addEventListener('click', () => {
-  const left = document.getElementById('leftPanel');
-  const right = document.getElementById('rightPanel');
-  if (!left.classList.contains('hidden') && right.classList.contains('hidden')) {
-    // left only → both
-    right.classList.remove('hidden');
-  } else if (!left.classList.contains('hidden') && !right.classList.contains('hidden')) {
-    // both → right only
-    left.classList.add('hidden');
-  } else {
-    // right only → left only
-    right.classList.add('hidden');
-    left.classList.remove('hidden');
-  }
-});
-
-// Panel Resize
-(function() {
-  const handle = document.getElementById('resizeHandle');
-  const panel = document.getElementById('leftPanel');
-  let startX, startWidth;
-  handle.addEventListener('mousedown', (e) => {
-    startX = e.clientX;
-    startWidth = panel.offsetWidth;
-    handle.classList.add('dragging');
-    document.body.style.cursor = 'col-resize';
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  });
-  function onMove(e) {
-    const w = Math.max(150, Math.min(600, startWidth + e.clientX - startX));
-    panel.style.width = w + 'px';
-  }
-  function onUp() {
-    handle.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  }
-})();
-
-(function() {
-  const handle = document.getElementById('rightResizeHandle');
-  const panel = document.getElementById('rightPanel');
-  let startX, startWidth;
-  handle.addEventListener('mousedown', (e) => {
-    startX = e.clientX;
-    startWidth = panel.offsetWidth;
-    handle.classList.add('dragging');
-    document.body.style.cursor = 'col-resize';
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  });
-  function onMove(e) {
-    const w = Math.max(150, Math.min(600, startWidth - (e.clientX - startX)));
-    panel.style.width = w + 'px';
-  }
-  function onUp() {
-    handle.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  }
-})();
-
-document.getElementById('chkPhysics').addEventListener('change', (e) => {
-  if (!network) return;
-  network.setOptions({ physics: { enabled: e.target.checked } });
-});
-
-document.getElementById('repulsionSlider').addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  document.getElementById('repulsionValue').textContent = val;
-  applyActivePhysicsFromSliders();
-});
-document.getElementById('gravitySlider').addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  document.getElementById('gravityValue').textContent = (val / 100).toFixed(2);
-  applyActivePhysicsFromSliders();
-});
-document.getElementById('springSlider').addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  document.getElementById('springValue').textContent = val;
-  applyActivePhysicsFromSliders();
-});
-document.getElementById('springConstSlider').addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  document.getElementById('springConstValue').textContent = (val / 100).toFixed(2);
-  applyActivePhysicsFromSliders();
-});
-document.getElementById('dampingSlider').addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  document.getElementById('dampingValue').textContent = (val / 100).toFixed(2);
-  applyActivePhysicsFromSliders();
-});
-document.getElementById('iterSlider').addEventListener('input', (e) => {
-  const val = parseInt(e.target.value);
-  document.getElementById('iterValue').textContent = val;
-  applyActivePhysicsFromSliders();
-});
-
-document.getElementById('chkTimeSlider').addEventListener('change', (e) => {
-  document.getElementById('timeSlider').style.display = e.target.checked ? 'flex' : 'none';
-});
-
-document.getElementById('chkEdgeLabels').addEventListener('change', applyFilters);
-
-document.getElementById('chkSearchFilter').addEventListener('change', () => {
-  resetHighlight();
-  applyFilters();
-  if (currentSearchQuery && network) {
-    const visibleIds = network.body.data.nodes.get({ filter: n => !n.hidden }).map(n => n.id);
-    if (visibleIds.length) network.fit({ nodes: visibleIds, animation: true });
-  }
-});
-
-function updateNodeRendering() {
-  if (!network) return;
-  const mult = parseInt(document.getElementById('nodeSizeSlider').value) / 10;
-  const visNodes = network.body.data.nodes;
-  visNodes.update(allNodes.map(n => ({
-    id: n.id,
-    size: Math.round(getNodeSize(n) * mult),
-    ...getNodeRender(n)
-  })));
-}
-
-document.getElementById('chkNodeIcons').addEventListener('change', updateNodeRendering);
-
-document.getElementById('chkLabels').addEventListener('change', (e) => {
-  updateNodeRendering();
-});
-
-document.getElementById('fontSlider').addEventListener('input', (e) => {
-  const val = e.target.value;
-  document.getElementById('fontValue').textContent = val;
-  updateNodeRendering();
-});
-
-document.getElementById('nodeSizeSlider').addEventListener('input', (e) => {
-  if (!network) return;
-  const mult = parseInt(e.target.value) / 10;
-  document.getElementById('nodeSizeValue').textContent = mult.toFixed(1) + '×';
-  updateNodeRendering();
-});
-
-document.getElementById('edgeWidthSlider').addEventListener('input', (e) => {
-  if (!network) return;
-  const val = parseInt(e.target.value) / 2;
-  document.getElementById('edgeWidthValue').textContent = val.toFixed(1);
-  network.setOptions({ edges: { width: val } });
-});
-
-document.getElementById('iconSizeSlider').addEventListener('input', (e) => {
-  if (!network) return;
-  const val = parseInt(e.target.value) / 10;
-  document.getElementById('iconSizeValue').textContent = val.toFixed(1) + '×';
-  updateNodeRendering();
-});
-
-document.getElementById('tooltipSlider').addEventListener('input', (e) => {
-  if (!network) return;
-  const val = parseInt(e.target.value);
-  document.getElementById('tooltipValue').textContent = val + 'ms';
-  network.setOptions({ interaction: { tooltipDelay: val } });
-});
-
-// Layer Toggles
-document.querySelectorAll('.layer-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const layer = parseInt(btn.dataset.layer);
-    if (activeLayers.has(layer)) {
-      activeLayers.delete(layer);
-      btn.style.background = 'var(--surface2,#333)';
-      btn.style.color = 'var(--text,#ccc)';
-      btn.style.border = '1px solid var(--border,#444)';
-    } else {
-      activeLayers.add(layer);
-      btn.style.background = 'var(--accent,#007acc)';
-      btn.style.color = '#fff';
-      btn.style.border = 'none';
-    }
-    // Update checkboxes to match active layers
-    document.querySelectorAll('[data-filter]').forEach(cb => {
-      const typeId = cb.dataset.filter;
-      const meta = NODE_TYPES_META[typeId];
-      if (meta && meta.layer) {
-        cb.checked = activeLayers.has(meta.layer);
+      function edgeId(index) {
+        return `edge-${index}`;
       }
-    });
-    applyFilters();
-  });
-});
 
-function handleInlineSearch(query) {
-  if (!network) return;
-  currentSearchQuery = query.trim().toLowerCase();
-  const countEl = document.getElementById('searchCount');
-  if (!currentSearchQuery) {
-    countEl.textContent = '';
-    resetHighlight();
-    applyFilters();
-    return;
-  }
-  const matches = allNodes.filter(n =>
-    n.label.toLowerCase().includes(currentSearchQuery) ||
-    (n.id && n.id.toLowerCase().includes(currentSearchQuery)) ||
-    (n.type && n.type.toLowerCase().includes(currentSearchQuery))
-  );
-  if (matches.length === 0) {
-    countEl.textContent = '0 matches';
-    applyFilters();
-    return;
-  }
-  countEl.textContent = `${matches.length} match${matches.length > 1 ? 'es' : ''}`;
+      function hydrateGraphData(data) {
+        graphData = data;
+        allNodes = graphData.nodes || [];
+        allEdges = graphData.edges || [];
+        nodeMap = {};
+        TYPE_COLORS = {};
+        TYPE_SHAPES = {};
+        TYPE_ICONS = {};
+        NODE_TYPES_META = {};
 
-  if (document.getElementById('chkSearchFilter').checked) {
-    resetHighlight();
-    applyFilters();
-    const visibleIds = network.body.data.nodes.get({ filter: n => !n.hidden }).map(n => n.id);
-    if (visibleIds.length) network.fit({ nodes: visibleIds, animation: true });
-    return;
-  }
+        allNodes.forEach(n => nodeMap[n.id] = n);
+        (graphData.node_types || []).forEach(t => {
+          TYPE_COLORS[t.id] = t.color;
+          TYPE_SHAPES[t.id] = t.shape;
+          TYPE_ICONS[t.id] = t.icon || '';
+          NODE_TYPES_META[t.id] = t;
+        });
 
-  applyFilters();
-  const matchIds = new Set(matches.map(n => n.id));
-  const visNodes = network.body.data.nodes;
-  visNodes.update(allNodes.map(n => ({
-    id: n.id,
-    color: matchIds.has(n.id)
-      ? { background: '#fff', border: '#007acc' }
-      : { background: '#333', border: '#333' },
-    font: {
-      size: matchIds.has(n.id) ? 14 : 8,
-      color: matchIds.has(n.id) ? '#000' : '#555'
-    }
-  })));
-  network.fit({ nodes: matches.map(n => n.id), animation: true });
-}
+        // Calculate date range from data
+        calculateDateRange();
+      }
 
-// Inline Search
-document.getElementById('searchInput').addEventListener('input', (e) => {
-  handleInlineSearch(e.target.value);
-});
+      function calculateDateRange() {
+        const dates = allNodes
+          .map(n => n.date)
+          .filter(d => d)
+          .sort();
 
-// Search (legacy button — uses inline input)
-let searchTimeout;
-document.getElementById('btnSearch').addEventListener('click', () => {
-  if (!network) return;
-  const query = prompt('Search nodes:');
-  if (!query) return;
-  const matches = allNodes.filter(n =>
-    n.label.toLowerCase().includes(query.toLowerCase()) ||
-    (n.id && n.id.toLowerCase().includes(query.toLowerCase())) ||
-    (n.type && n.type.toLowerCase().includes(query.toLowerCase()))
-  );
-  if (matches.length === 0) {
-    alert('No matches found');
-    return;
-  }
-  if (matches.length === 1) {
-    focusNode(matches[0].id);
-  } else {
-    document.getElementById('searchInput').value = query;
-    handleInlineSearch(query);
-    document.getElementById('statusLeft').textContent = `Found ${matches.length} matches for "${query}"`;
-  }
-});
+        if (dates.length > 0) {
+          dateRange.min = dates[0];
+          dateRange.max = dates[dates.length - 1];
+        } else {
+          // Fallback to current date if no dates in data
+          const today = new Date().toISOString().split('T')[0];
+          const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          dateRange.min = monthAgo;
+          dateRange.max = today;
+        }
+      }
 
-// ============================================================
-// Init
-// ============================================================
-const savedTheme = localStorage.getItem('neurogram-theme');
-if (savedTheme) document.body.className = savedTheme;
+      function getEdgeTypeLabel(type) {
+        return String(type || 'related');
+      }
 
-loadData();
-</script>
-</body>
+      // ============================================================
+      // Load Data
+      // ============================================================
+      function cacheDOMElements() {
+        const ids = [
+          'statusLeft', 'statusNodes', 'statusEdges', 'searchCount', 'searchInput',
+          'chkLabels', 'chkNodeIcons', 'chkEdgeLabels', 'chkPhysics', 'chkSearchFilter', 'chkTimeSlider',
+          'fontSlider', 'nodeSizeSlider', 'iconSizeSlider', 'edgeWidthSlider', 'tooltipSlider',
+          'repulsionSlider', 'gravitySlider', 'springSlider', 'springConstSlider', 'dampingSlider', 'iterSlider',
+          'fontValue', 'nodeSizeValue', 'iconSizeValue', 'edgeWidthValue', 'tooltipValue',
+          'repulsionValue', 'gravityValue', 'springValue', 'springConstValue', 'dampingValue', 'iterValue',
+          'timeRange', 'timeLabel', 'timeSlider', 'layoutSelect', 'focusDepthSelect', 'selCluster',
+          'leftPanel', 'rightPanel', 'detailContent', 'treeContent', 'themeDropdown'
+        ];
+
+        ids.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) domCache[id] = el;
+        });
+      }
+
+      async function loadData() {
+        try {
+          const resp = await fetch(CONFIG.GRAPH_DATA_URL);
+          if (!resp.ok) {
+            throw new Error(`Failed to fetch data: HTTP ${resp.status} ${resp.statusText}`);
+          }
+
+          const text = await resp.text();
+          let data;
+          try {
+            data = JSON.parse(text);
+          } catch (parseError) {
+            throw new Error(`Invalid JSON format: ${parseError.message}`);
+          }
+
+          // Validate data structure
+          if (!data.nodes || !Array.isArray(data.nodes)) {
+            throw new Error('Invalid data: missing or invalid "nodes" array');
+          }
+          if (!data.edges || !Array.isArray(data.edges)) {
+            throw new Error('Invalid data: missing or invalid "edges" array');
+          }
+
+          hydrateGraphData(data);
+          cacheDOMElements();
+          buildTypeFilters();
+          buildTree();
+          buildDomainFilters();
+          buildEdgeTypeFilters();
+          initTimeSlider();
+          initGraph();
+          applyFilters();
+          updateStatus();
+          domCache.statusLeft.textContent = `Loaded: ${allNodes.length} nodes, ${allEdges.length} edges (${dateRange.min} to ${dateRange.max})`;
+        } catch (e) {
+          console.error('Load error:', e);
+          const statusEl = document.getElementById('statusLeft');
+          if (statusEl) {
+            statusEl.textContent = `Error: ${e.message}. Click to load file manually.`;
+            statusEl.style.cursor = 'pointer';
+            statusEl.onclick = showFilePicker;
+          }
+        }
+      }
+
+      function showFilePicker() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            try {
+              const data = JSON.parse(ev.target.result);
+              hydrateGraphData(data);
+              cacheDOMElements();
+              buildTypeFilters();
+              buildTree();
+              buildDomainFilters();
+              buildEdgeTypeFilters();
+              initTimeSlider();
+              initGraph();
+              applyFilters();
+              updateStatus();
+              const statusEl = document.getElementById('statusLeft');
+              if (statusEl) {
+                statusEl.textContent = `Loaded from file: ${allNodes.length} nodes, ${allEdges.length} edges`;
+                statusEl.style.cursor = '';
+                statusEl.onclick = null;
+              }
+            } catch (err) {
+              alert(`Error loading file: ${err.message}`);
+            }
+          };
+          reader.readAsText(file);
+        };
+        input.click();
+      }
+
+      // ============================================================
+      // Build Tree
+      // ============================================================
+      function buildTree() {
+        const engines = allNodes.filter(n => n.type === 'engine');
+        const workplans = allNodes.filter(n => n.type === 'workplan');
+        const issues = allNodes.filter(n => n.type === 'issue');
+        const container = document.getElementById('treeContent');
+
+        let html = '';
+        // Group by domain/engine
+        const domains = {};
+        workplans.forEach(wp => {
+          const d = wp.domain || 'other';
+          if (!domains[d]) domains[d] = [];
+          domains[d].push(wp);
+        });
+
+        html += `<div class="tree-node"><div class="tree-label" onclick="toggleTree(this)"><span class="toggle">▶</span><span class="icon">🟠</span> Engines (${engines.length})</div><div class="tree-children collapsed">`;
+        engines.forEach(eng => {
+          html += `<div class="tree-node"><div class="tree-label" onclick="focusNode('${eng.id}')"><span class="toggle"></span><span class="icon">🟠</span> ${eng.label}</div></div>`;
+        });
+        html += `</div></div>`;
+
+        html += `<div class="tree-node"><div class="tree-label" onclick="toggleTree(this)"><span class="toggle">▶</span><span class="icon">⭐</span> Workplans (${workplans.length})</div><div class="tree-children collapsed">`;
+        Object.keys(domains).sort().forEach(d => {
+          html += `<div class="tree-node"><div class="tree-label" onclick="toggleTree(this)"><span class="toggle">▶</span><span class="icon">📁</span> ${d} (${domains[d].length})</div><div class="tree-children collapsed">`;
+          domains[d].forEach(wp => {
+            html += `<div class="tree-node"><div class="tree-label" onclick="focusNode('${wp.id}')"><span class="toggle"></span><span class="icon">⭐</span> ${wp.label.substring(0, 40)}</div></div>`;
+          });
+          html += `</div></div>`;
+        });
+        html += `</div></div>`;
+
+        html += `<div class="tree-node"><div class="tree-label" onclick="toggleTree(this)"><span class="toggle">▶</span><span class="icon">🔴</span> Issues (${issues.length})</div><div class="tree-children collapsed">`;
+        issues.forEach(iss => {
+          html += `<div class="tree-node"><div class="tree-label" onclick="focusNode('${iss.id}')"><span class="toggle"></span><span class="icon">🔴</span> ${iss.label} <span style="color:var(--text2);font-size:10px">${iss.status || ''}</span></div></div>`;
+        });
+        html += `</div></div>`;
+
+        container.innerHTML = html;
+      }
+
+      function toggleTree(el) {
+        const toggle = el.querySelector('.toggle');
+        const children = el.parentElement.querySelector('.tree-children');
+        if (!children) return;
+        if (children.classList.contains('collapsed')) {
+          children.classList.remove('collapsed');
+          toggle.textContent = '▼';
+        } else {
+          children.classList.add('collapsed');
+          toggle.textContent = '▶';
+        }
+      }
+
+      function buildTypeFilters() {
+        const types = (graphData.node_types || []).filter(t => t.id !== 'folder');
+        const typeCounts = {};
+        (graphData.nodes || []).forEach(n => {
+          typeCounts[n.type] = (typeCounts[n.type] || 0) + 1;
+        });
+        const layerNames = { 1: 'Executive', 2: 'Operational', 3: 'Micro' };
+        for (let layer = 1; layer <= 3; layer++) {
+          const container = document.getElementById(`layer${layer}Filters`);
+          const layerTypes = types.filter(t => t.layer === layer);
+          container.innerHTML =
+            `<div class="layer-header">${layerNames[layer]}</div>` +
+            layerTypes.map(t => {
+              const checked = (t.layer === 1 || t.layer === 2) ? 'checked' : '';
+              const count = typeCounts[t.id] || 0;
+              return `<label><input type="checkbox" ${checked} data-filter="${t.id}"> <span class="type-dot" style="background:${t.color}"></span> <span style="color:${t.color};min-width:14px;text-align:center">${t.icon || ''}</span> ${t.label} <span class="type-count">${count}</span></label>`;
+            }).join('');
+        }
+        document.querySelectorAll('[data-filter]').forEach(cb => {
+          cb.addEventListener('change', applyFilters);
+        });
+      }
+
+      function buildDomainFilters() {
+        const domains = [...new Set(allNodes.filter(n => n.type === 'workplan').map(n => n.domain).filter(Boolean))];
+        const container = document.getElementById('domainFilters');
+        container.innerHTML = domains.sort().map(d =>
+          `<label><input type="checkbox" checked data-domain="${d}"> ${d}</label>`
+        ).join('');
+        document.querySelectorAll('[data-domain]').forEach(cb => {
+          cb.addEventListener('change', applyFilters);
+        });
+      }
+
+      function buildEdgeTypeFilters() {
+        const edgeCounts = {};
+        allEdges.forEach(e => {
+          const type = getEdgeTypeLabel(e.type);
+          edgeCounts[type] = (edgeCounts[type] || 0) + 1;
+        });
+
+        const container = document.getElementById('edgeTypeFilters');
+        container.innerHTML = Object.keys(edgeCounts).sort().map(type =>
+          `<label><input type="checkbox" checked data-edge-filter="${type}"> ${type} <span class="type-count">${edgeCounts[type]}</span></label>`
+        ).join('');
+
+        document.querySelectorAll('[data-edge-filter]').forEach(cb => {
+          cb.addEventListener('change', applyFilters);
+        });
+      }
+
+      // ============================================================
+      // Init Graph
+      // ============================================================
+      function getReportNodeLayout(n, index, total) {
+        if (n.type !== 'report' || index === undefined) return {};
+
+        // Adaptive radius based on total report count
+        const baseRadius = CONFIG.REPORT_LAYOUT.BASE_RADIUS;
+        const growthFactor = CONFIG.REPORT_LAYOUT.RADIUS_GROWTH_FACTOR;
+        const scalingFactor = Math.max(0.5, Math.min(2, Math.sqrt(total / 50))); // Scale between 0.5x and 2x
+
+        const angle = index * CONFIG.REPORT_LAYOUT.GOLDEN_ANGLE * Math.PI / 180;
+        const radius = baseRadius + Math.sqrt(index + 1) * growthFactor * scalingFactor;
+
+        return {
+          x: Math.round(Math.cos(angle) * radius),
+          y: Math.round(Math.sin(angle) * radius),
+          mass: CONFIG.REPORT_LAYOUT.MASS
+        };
+      }
+
+      function isReportRelatedEdge(e) {
+        return nodeMap[e.from]?.type === 'report' || nodeMap[e.to]?.type === 'report';
+      }
+
+      function isReportToReportEdge(e) {
+        return nodeMap[e.from]?.type === 'report' && nodeMap[e.to]?.type === 'report';
+      }
+
+      function getEdgeLength(e) {
+        return isReportRelatedEdge(e) ? 420 : undefined;
+      }
+
+      function getCurrentLabelSize() {
+        const chkLabels = domCache.chkLabels || document.getElementById('chkLabels');
+        const fontSlider = domCache.fontSlider || document.getElementById('fontSlider');
+        if (!chkLabels || !chkLabels.checked) return 0;
+        return fontSlider ? parseInt(fontSlider.value) : 11;
+      }
+
+      function getNodeColor(n) {
+        const color = TYPE_COLORS[n.type] || '#888';
+        return { background: color, border: color, highlight: { background: color, border: '#fff' } };
+      }
+
+      function getNodeLabel(n) {
+        if (!document.getElementById('chkLabels').checked) return '';
+        const label = String(n.label || n.id || '');
+        if (n.type !== 'report') return label.substring(0, 30);
+        return label
+          .replace(/\.md$/i, '')
+          .replace(/[_-]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }
+
+      function getNodeIconCode(n) {
+        return TYPE_ICONS[n.type] || '';
+      }
+
+      function getNodeVisual(n) {
+        const color = TYPE_COLORS[n.type] || '#888';
+        const icon = getNodeIconCode(n);
+        const chkNodeIcons = domCache.chkNodeIcons || document.getElementById('chkNodeIcons');
+        const iconSizeSlider = domCache.iconSizeSlider || document.getElementById('iconSizeSlider');
+
+        if (chkNodeIcons && chkNodeIcons.checked && icon) {
+          const iconSizeValue = iconSizeSlider ? parseInt(iconSizeSlider.value) : 14;
+          return {
+            shape: 'icon',
+            icon: {
+              face: 'Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif',
+              code: icon,
+              size: Math.max(12, Math.round(getNodeSize(n) * (iconSizeValue / CONFIG.PHYSICS_SCALING.ICON_SIZE_DIVISOR))),
+              color
+            }
+          };
+        }
+
+        return { shape: TYPE_SHAPES[n.type] || 'dot' };
+      }
+
+      function getNodeRender(n) {
+        return {
+          label: getNodeLabel(n),
+          color: getNodeColor(n),
+          font: { size: getCurrentLabelSize(), color: '#ccc', face: 'Segoe UI, sans-serif' },
+          ...getNodeVisual(n)
+        };
+      }
+
+      function initGraph() {
+        if (network) {
+          network.destroy();
+          network = null;
+        }
+
+        const reportNodes = allNodes.filter(n => n.type === 'report');
+        const reportIndexById = new Map(reportNodes.map((n, i) => [n.id, i]));
+
+        const visNodes = new vis.DataSet(allNodes.map(n => ({
+          id: n.id,
+          size: getNodeSize(n),
+          type: n.type,
+          data: n,
+          ...getNodeRender(n),
+          ...getReportNodeLayout(n, reportIndexById.get(n.id), reportNodes.length)
+        })));
+
+        const visEdges = new vis.DataSet(allEdges.map((e, index) => ({
+          id: edgeId(index),
+          from: e.from,
+          to: e.to,
+          label: document.getElementById('chkEdgeLabels').checked ? getEdgeTypeLabel(e.type) : '',
+          title: getEdgeTypeLabel(e.type),
+          color: { color: '#555', highlight: '#007acc' },
+          font: { size: 9, color: '#888', align: 'top' },
+          smooth: { type: 'continuous', roundness: 0.2 },
+          width: 1,
+          arrows: { to: { enabled: e.type === 'resolved_by' || e.type === 'blocks' || e.type === 'depends_on', scaleFactor: 0.5 } },
+          type: e.type,
+          length: getEdgeLength(e),
+          physics: !isReportToReportEdge(e)
+        })));
+
+        const container = document.getElementById('network');
+        const options = {
+          physics: getPhysicsFromSliders('barnesHut'),
+          interaction: { hover: true, tooltipDelay: 100, zoomView: true, dragView: true, dragNodes: true },
+          layout: { improvedLayout: true },
+          edges: { selectionWidth: 2, hoverWidth: 1.5 }
+        };
+
+        network = new vis.Network(container, { nodes: visNodes, edges: visEdges }, options);
+
+        network.on('click', (params) => {
+          if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            selectNode(nodeId);
+          } else {
+            clearSelection();
+          }
+        });
+
+        network.on('doubleClick', (params) => {
+          if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            highlightConnections(nodeId);
+          } else {
+            resetHighlight();
+          }
+        });
+
+        network.on('hoverNode', (params) => {
+          container.style.cursor = 'pointer';
+        });
+        network.on('blurNode', () => {
+          container.style.cursor = 'default';
+        });
+      }
+
+      function getNodeSize(n) {
+        // Try to get size from node_types metadata first
+        const typeMeta = NODE_TYPES_META[n.type];
+        if (typeMeta && typeMeta.size) {
+          return typeMeta.size;
+        }
+
+        // Fallback to hardcoded sizes for backwards compatibility
+        switch (n.type) {
+          case 'issue': return 15 + (n.severity === 'HIGH' ? 10 : n.severity === 'CRITICAL' ? 15 : n.severity === 'MEDIUM' ? 5 : 0);
+          case 'engine': return 25;
+          case 'workplan': return 15 + (n.phases ? n.phases.length * 2 : 0);
+          case 'file': return 8 + (n.touch_count || 1) * 2;
+          case 'update': return 12;
+          case 'test': return 10;
+          case 'phase': return 10;
+          case 'report': return 6;
+          case 'error_code': return 6;
+          case 'session': return 12;
+          case 'action': return 8;
+          case 'criteria': return 7;
+          case 'milestone': return 10;
+          case 'finding': return 9;
+          case 'lesson': return 8;
+          case 'deliverable': return 9;
+          case 'folder': return 20;
+          case 'section': return 12;
+          case 'step': return 7;
+          case 'scope': return 9;
+          case 'reason': return 8;
+          case 'case': return 8;
+          case 'scenario': return 8;
+          case 'table': return 10;
+          case 'analysis': return 10;
+          case 'timestamp': return 5;
+          case 'dependency': return 8;
+          default: return CONFIG.DEFAULT_NODE_SIZE;
+        }
+      }
+
+      // ============================================================
+      // Node Selection & Detail Panel
+      // ============================================================
+      function selectNode(nodeId) {
+        selectedNodeId = nodeId;
+        const node = nodeMap[nodeId];
+        if (!network || !node) return;
+
+        const rightPanel = document.getElementById('rightPanel');
+        rightPanel.classList.remove('hidden');
+        const leftPanel = document.getElementById('leftPanel');
+        leftPanel.classList.remove('hidden');
+
+        const content = document.getElementById('detailContent');
+        let html = `<h3>${TYPE_ICONS[node.type] || ''} ${node.label}</h3>`;
+        html += `<div class="meta"><span class="badge" style="background:${TYPE_COLORS[node.type]};color:#fff">${node.type}</span>`;
+        if (node.status) html += ` <span class="badge" style="background:${node.status === 'RESOLVED' || node.status === 'PASS' || node.status === 'COMPLETE' ? '#2ecc71' : node.status === 'FAIL' ? '#e74c3c' : '#f39c12'};color:#fff">${node.status}</span>`;
+        html += `</div>`;
+
+        if (node.date) html += `<div class="meta">📅 ${node.date}</div>`;
+        if (node.severity) html += `<div class="meta">⚠️ Severity: ${node.severity}</div>`;
+        if (node.version) html += `<div class="meta">📌 Version: ${node.version}</div>`;
+        if (node.rows_affected) html += `<div class="meta">📊 Rows affected: ${node.rows_affected.toLocaleString()}</div>`;
+        if (node.result) html += `<div class="meta">✅ Result: ${node.result}</div>`;
+
+        if (node.title) html += `<div class="desc"><strong>${node.title}</strong></div>`;
+        if (node.summary) html += `<div class="desc">${node.summary.substring(0, 300)}${node.summary.length > 300 ? '...' : ''}</div>`;
+        if (node.root_cause) html += `<div class="desc"><strong>Root Cause:</strong> ${node.root_cause}</div>`;
+        if (node.scope) html += `<div class="desc"><strong>Scope:</strong> ${node.scope}</div>`;
+        if (node.path) html += `<div class="desc"><strong>Path:</strong> ${node.path}</div>`;
+
+        // Linked nodes
+        const linkedEdges = allEdges.filter(e => e.from === nodeId || e.to === nodeId);
+        if (linkedEdges.length > 0) {
+          html += `<div style="margin-top:12px"><strong style="font-size:12px;color:var(--text)">Connections (${linkedEdges.length})</strong></div>`;
+          html += `<div class="links">`;
+          const grouped = {};
+          linkedEdges.forEach(e => {
+            const other = e.from === nodeId ? e.to : e.from;
+            const dir = e.from === nodeId ? '→' : '←';
+            if (!grouped[e.type]) grouped[e.type] = [];
+            grouped[e.type].push({ id: other, label: nodeMap[other]?.label || other, dir });
+          });
+          Object.keys(grouped).forEach(type => {
+            html += `<div style="font-size:11px;color:var(--text2);margin-top:4px">${type}</div>`;
+            grouped[type].forEach(link => {
+              html += `<a onclick="focusNode('${link.id}')">${link.dir} ${link.label.substring(0, 50)}</a>`;
+            });
+          });
+          html += `</div>`;
+        }
+
+        // Files changed
+        if (node.files_changed && node.files_changed.length > 0) {
+          html += `<div style="margin-top:12px"><strong style="font-size:12px;color:var(--text)">Files Changed (${node.files_changed.length})</strong></div>`;
+          html += `<div style="font-size:11px;color:var(--text2);margin-top:4px;max-height:150px;overflow-y:auto">`;
+          node.files_changed.forEach(f => { html += `<div style="padding:2px 0">📄 ${f}</div>`; });
+          html += `</div>`;
+        }
+
+        content.innerHTML = html;
+        updateStatus();
+      }
+
+      function clearSelection() {
+        selectedNodeId = null;
+        resetHighlight();
+      }
+
+      function focusNode(nodeId) {
+        if (!network || !nodeMap[nodeId]) return;
+        network.selectNodes([nodeId]);
+        network.focus(nodeId, { scale: 1.2, animation: { duration: 300, easingFunction: 'easeInOutQuad' } });
+        selectNode(nodeId);
+      }
+
+      // ============================================================
+      // Highlight Connections
+      // ============================================================
+      function highlightConnections(nodeId) {
+        if (!network) return;
+        const depth = parseInt(document.querySelector('input[name="depth"]:checked')?.value || '2');
+        const connected = new Set();
+        connected.add(nodeId);
+
+        function findConnected(id, d) {
+          if (d <= 0) return;
+          allEdges.forEach(e => {
+            if (e.from === id && !connected.has(e.to)) { connected.add(e.to); findConnected(e.to, d - 1); }
+            if (e.to === id && !connected.has(e.from)) { connected.add(e.from); findConnected(e.from, d - 1); }
+          });
+        }
+
+        findConnected(nodeId, depth === 0 ? 99 : depth);
+
+        const visNodes = network.body.data.nodes;
+        const visEdges = network.body.data.edges;
+
+        visNodes.update(allNodes.map(n => ({
+          id: n.id,
+          color: connected.has(n.id) ? { ...getNodeColor(n), border: '#fff' } : { background: '#333', border: '#333' },
+          font: { size: connected.has(n.id) ? 12 : 8, color: connected.has(n.id) ? '#fff' : '#555' },
+          opacity: connected.has(n.id) ? 1 : 0.2
+        })));
+
+        visEdges.update(allEdges.map((e, index) => ({
+          id: edgeId(index),
+          color: { color: (connected.has(e.from) && connected.has(e.to)) ? '#007acc' : '#222' },
+          opacity: (connected.has(e.from) && connected.has(e.to)) ? 1 : 0.1
+        })));
+      }
+
+      function resetHighlight() {
+        if (!network) return;
+        const visNodes = network.body.data.nodes;
+        const visEdges = network.body.data.edges;
+
+        visNodes.update(allNodes.map(n => ({
+          id: n.id,
+          ...getNodeRender(n),
+          opacity: 1,
+          size: getNodeSize(n) * (parseInt(document.getElementById('nodeSizeSlider').value) / 10)
+        })));
+
+        visEdges.update(allEdges.map((e, index) => ({
+          id: edgeId(index),
+          color: { color: '#555' },
+          opacity: 1
+        })));
+      }
+
+      // ============================================================
+      // Panel Management
+      // ============================================================
+      function showPanel(panelId) {
+        currentPanel = panelId;
+        document.querySelectorAll('.panel-view').forEach(p => p.style.display = 'none');
+        const panel = document.getElementById('panel' + panelId.charAt(0).toUpperCase() + panelId.slice(1));
+        if (panel) panel.style.display = '';
+
+        document.querySelectorAll('.icon-bar .icon').forEach(i => i.classList.remove('active'));
+        const icon = document.querySelector(`.icon-bar .icon[data-panel="${panelId}"]`);
+        if (icon) icon.classList.add('active');
+
+        const leftPanel = document.getElementById('leftPanel');
+        const rightPanel = document.getElementById('rightPanel');
+
+        if (panelId === 'detail') {
+          leftPanel.classList.add('hidden');
+          rightPanel.classList.remove('hidden');
+        } else {
+          leftPanel.classList.remove('hidden');
+          if (selectedNodeId) rightPanel.classList.remove('hidden');
+          else rightPanel.classList.add('hidden');
+        }
+
+        if (network) setTimeout(() => network.redraw(), 50);
+      }
+
+      // ============================================================
+      // Filtering
+      // ============================================================
+      function getActiveFilterState() {
+        const activeTypes = new Set();
+        document.querySelectorAll('[data-filter]').forEach(cb => {
+          if (cb.checked) activeTypes.add(cb.dataset.filter);
+        });
+
+        const activeStatuses = new Set();
+        document.querySelectorAll('[data-status]').forEach(cb => {
+          if (cb.checked) activeStatuses.add(cb.dataset.status);
+        });
+
+        const activeSeverities = new Set();
+        document.querySelectorAll('[data-severity]').forEach(cb => {
+          if (cb.checked) activeSeverities.add(cb.dataset.severity);
+        });
+
+        const activeDomains = new Set();
+        document.querySelectorAll('[data-domain]').forEach(cb => {
+          if (cb.checked) activeDomains.add(cb.dataset.domain);
+        });
+
+        const activeEdgeTypes = new Set();
+        document.querySelectorAll('[data-edge-filter]').forEach(cb => {
+          if (cb.checked) activeEdgeTypes.add(cb.dataset.edgeFilter);
+        });
+
+        return { activeTypes, activeStatuses, activeSeverities, activeDomains, activeEdgeTypes };
+      }
+
+      function getTimeCutoff() {
+        const timeRange = domCache.timeRange || document.getElementById('timeRange');
+        if (!timeRange) return dateRange.max;
+
+        const val = parseInt(timeRange.value);
+        const startDate = new Date(dateRange.min);
+        const endDate = new Date(dateRange.max);
+        const cutoff = new Date(startDate.getTime() + (endDate - startDate) * (val / 100));
+        return cutoff.toISOString().split('T')[0];
+      }
+
+      function initTimeSlider() {
+        const timeRange = domCache.timeRange || document.getElementById('timeRange');
+        const timeLabel = domCache.timeLabel || document.getElementById('timeLabel');
+        const timeSlider = domCache.timeSlider || document.getElementById('timeSlider');
+
+        if (timeSlider && timeLabel) {
+          // Update slider label to show actual date range
+          const firstLabel = timeSlider.querySelector('.label');
+          if (firstLabel) firstLabel.textContent = dateRange.min;
+          if (timeLabel) timeLabel.textContent = dateRange.max;
+        }
+
+        if (timeRange) {
+          timeRange.value = 100; // Start at max (show all data)
+        }
+      }
+
+      function isNodeVisible(n, filters, cutoffStr) {
+        if (!filters.activeTypes.has(n.type)) return false;
+        if (n.status && !filters.activeStatuses.has(n.status)) return false;
+        if (n.severity && !filters.activeSeverities.has(n.severity)) return false;
+        if (n.type === 'workplan' && n.domain && !filters.activeDomains.has(n.domain)) return false;
+        if (n.date && n.date > cutoffStr) return false;
+        return true;
+      }
+
+      function getSearchMatchIds() {
+        if (!currentSearchQuery) return null;
+        const query = currentSearchQuery.toLowerCase();
+        const matches = new Set(allNodes
+          .filter(n =>
+            n.label.toLowerCase().includes(query) ||
+            (n.id && n.id.toLowerCase().includes(query)) ||
+            (n.type && n.type.toLowerCase().includes(query))
+          )
+          .map(n => n.id));
+        const withNeighbors = new Set(matches);
+        allEdges.forEach(e => {
+          if (matches.has(e.from)) withNeighbors.add(e.to);
+          if (matches.has(e.to)) withNeighbors.add(e.from);
+        });
+        return withNeighbors;
+      }
+
+      function getNeighborhoodIds(startId, depth) {
+        const visible = new Set();
+        if (!startId) return visible;
+
+        visible.add(startId);
+        let frontier = new Set([startId]);
+        for (let level = 0; level < depth; level += 1) {
+          const next = new Set();
+          allEdges.forEach(e => {
+            if (frontier.has(e.from) && !visible.has(e.to)) next.add(e.to);
+            if (frontier.has(e.to) && !visible.has(e.from)) next.add(e.from);
+          });
+          next.forEach(id => visible.add(id));
+          frontier = next;
+          if (frontier.size === 0) break;
+        }
+        return visible;
+      }
+
+      function getFocusDepthValue() {
+        const value = document.getElementById('focusDepthSelect').value;
+        return value === 'immediate' ? 1 : parseInt(value);
+      }
+
+      function isEdgeVisibleInFocus(e) {
+        if (!focusNodeId) return true;
+        if (document.getElementById('focusDepthSelect').value !== 'immediate') return true;
+        return e.from === focusNodeId || e.to === focusNodeId;
+      }
+
+      function applyFilters() {
+        if (!network) return;
+        const filters = getActiveFilterState();
+        const cutoffStr = getTimeCutoff();
+        const timeLabel = domCache.timeLabel || document.getElementById('timeLabel');
+        if (timeLabel) timeLabel.textContent = cutoffStr;
+
+        const chkSearchFilter = domCache.chkSearchFilter || document.getElementById('chkSearchFilter');
+        const searchMatchIds = (chkSearchFilter && chkSearchFilter.checked) ? getSearchMatchIds() : null;
+        const focusIds = focusNodeId ? getNeighborhoodIds(focusNodeId, getFocusDepthValue()) : null;
+
+        const visNodes = network.body.data.nodes;
+        const visibleNodeIds = new Set();
+        const nodeUpdates = allNodes.map(n => {
+          let visible = isNodeVisible(n, filters, cutoffStr);
+          if (visible && searchMatchIds) visible = searchMatchIds.has(n.id);
+          if (visible && focusIds) visible = focusIds.has(n.id);
+          if (visible) visibleNodeIds.add(n.id);
+          return { id: n.id, hidden: !visible };
+        });
+        visNodes.update(nodeUpdates);
+
+        const chkEdgeLabels = domCache.chkEdgeLabels || document.getElementById('chkEdgeLabels');
+        const showEdgeLabels = chkEdgeLabels && chkEdgeLabels.checked;
+        const visEdges = network.body.data.edges;
+        visEdges.update(allEdges.map((e, index) => {
+          const visible = visibleNodeIds.has(e.from) &&
+            visibleNodeIds.has(e.to) &&
+            filters.activeEdgeTypes.has(getEdgeTypeLabel(e.type)) &&
+            isEdgeVisibleInFocus(e);
+          return {
+            id: edgeId(index),
+            hidden: !visible,
+            label: showEdgeLabels ? getEdgeTypeLabel(e.type) : ''
+          };
+        }));
+
+        updateStatus();
+      }
+
+      // ============================================================
+      // Time Slider
+      // ============================================================
+      // Removed applyTimeFilter() wrapper - applyFilters() is called directly
+
+      // ============================================================
+      // Status Bar
+      // ============================================================
+      function updateStatus() {
+        const visNodes = network?.body?.data?.nodes;
+        if (!visNodes) return;
+        const visible = visNodes.get({ filter: n => !n.hidden });
+        const visibleIds = new Set(visible.map(n => n.id));
+        const edgeData = network?.body?.data?.edges;
+        const visibleEdges = edgeData ? edgeData.get({ filter: e => !e.hidden }) : [];
+
+        const statusNodes = domCache.statusNodes || document.getElementById('statusNodes');
+        const statusEdges = domCache.statusEdges || document.getElementById('statusEdges');
+
+        if (statusNodes) statusNodes.textContent = `nodes: ${visible.length}`;
+        if (statusEdges) statusEdges.textContent = `edges: ${visibleEdges.length}`;
+      }
+
+      // ============================================================
+      // Export
+      // ============================================================
+      function exportPNG() {
+        if (!network) return;
+        const canvas = document.querySelector('#network canvas');
+        if (!canvas) return;
+        const link = document.createElement('a');
+        link.download = 'log_neurogram.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }
+
+      function exportJSON() {
+        if (!network || !graphData) return;
+        const visNodes = network.body.data.nodes;
+        const visible = visNodes.get({ filter: n => !n.hidden });
+        const visibleIds = new Set(visible.map(n => n.id));
+        const visEdges = network.body.data.edges;
+        const visibleEdgeIds = new Set(visEdges.get({ filter: e => !e.hidden }).map(e => e.id));
+        const filtered = {
+          metadata: graphData.metadata,
+          nodes: allNodes.filter(n => visibleIds.has(n.id)),
+          edges: allEdges.filter((e, index) => visibleEdgeIds.has(edgeId(index)))
+        };
+        const blob = new Blob([JSON.stringify(filtered, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.download = 'log_neurogram_filtered.json';
+        link.href = URL.createObjectURL(blob);
+        link.click();
+      }
+
+      // ============================================================
+      // Event Handlers
+      // ============================================================
+      document.querySelectorAll('.icon-bar .icon').forEach(icon => {
+        icon.addEventListener('click', () => showPanel(icon.dataset.panel));
+      });
+
+      document.querySelectorAll('[data-filter]').forEach(cb => {
+        cb.addEventListener('change', applyFilters);
+      });
+
+      document.getElementById('btnSelectAll').addEventListener('click', () => {
+        document.querySelectorAll('[data-filter]').forEach(cb => cb.checked = true);
+        applyFilters();
+      });
+
+      document.getElementById('btnUnselectAll').addEventListener('click', () => {
+        document.querySelectorAll('[data-filter]').forEach(cb => cb.checked = false);
+        applyFilters();
+      });
+
+      document.getElementById('btnSelectAllStatus').addEventListener('click', () => {
+        document.querySelectorAll('[data-status]').forEach(cb => cb.checked = true);
+        applyFilters();
+      });
+
+      document.getElementById('btnUnselectAllStatus').addEventListener('click', () => {
+        document.querySelectorAll('[data-status]').forEach(cb => cb.checked = false);
+        applyFilters();
+      });
+
+      document.getElementById('btnSelectAllSeverity').addEventListener('click', () => {
+        document.querySelectorAll('[data-severity]').forEach(cb => cb.checked = true);
+        applyFilters();
+      });
+
+      document.getElementById('btnUnselectAllSeverity').addEventListener('click', () => {
+        document.querySelectorAll('[data-severity]').forEach(cb => cb.checked = false);
+        applyFilters();
+      });
+
+      document.getElementById('timeRange').addEventListener('input', applyFilters);
+
+      document.getElementById('btnFitView').addEventListener('click', () => {
+        if (network) network.fit({ animation: true });
+      });
+
+      function setFocusMode(nodeId) {
+        if (!network || !nodeMap[nodeId]) return;
+        focusNodeId = nodeId;
+        applyFilters();
+        const focusIds = [...getNeighborhoodIds(focusNodeId, getFocusDepthValue())]
+          .filter(id => !network.body.data.nodes.get(id)?.hidden);
+        if (focusIds.length) network.fit({ nodes: focusIds, animation: true });
+        document.getElementById('statusLeft').textContent = `Focus: ${nodeMap[nodeId].label}`;
+      }
+
+      function clearFocusMode() {
+        focusNodeId = null;
+        applyFilters();
+        if (network) network.fit({ animation: true });
+      }
+
+      document.getElementById('btnFocusSelected').addEventListener('click', () => {
+        if (selectedNodeId) setFocusMode(selectedNodeId);
+      });
+
+      document.getElementById('btnClearFocus').addEventListener('click', clearFocusMode);
+
+      document.getElementById('focusDepthSelect').addEventListener('change', () => {
+        if (focusNodeId) setFocusMode(focusNodeId);
+      });
+
+      function getPhysicsFromSliders(solver) {
+        const gravitySlider = domCache.gravitySlider || document.getElementById('gravitySlider');
+        const springSlider = domCache.springSlider || document.getElementById('springSlider');
+        const springConstSlider = domCache.springConstSlider || document.getElementById('springConstSlider');
+        const dampingSlider = domCache.dampingSlider || document.getElementById('dampingSlider');
+        const iterSlider = domCache.iterSlider || document.getElementById('iterSlider');
+        const repulsionSlider = domCache.repulsionSlider || document.getElementById('repulsionSlider');
+
+        const gravity = parseInt(gravitySlider?.value || 5) / CONFIG.PHYSICS_SCALING.GRAVITY_DIVISOR;
+        const springLen = parseInt(springSlider?.value || 360);
+        const springConst = parseInt(springConstSlider?.value || 4) / CONFIG.PHYSICS_SCALING.SPRING_CONST_DIVISOR;
+        const damping = parseInt(dampingSlider?.value || 9) / CONFIG.PHYSICS_SCALING.DAMPING_DIVISOR;
+        const iter = parseInt(iterSlider?.value || 500);
+        const repVal = parseInt(repulsionSlider?.value || 30000);
+        const nodeDistance = Math.max(80, Math.round(repVal / CONFIG.PHYSICS_SCALING.REPULSION_TO_NODE_DISTANCE));
+        const base = { enabled: true, stabilization: { iterations: iter, fit: true } };
+        if (solver === 'repulsion') {
+          base.solver = 'repulsion';
+          base.repulsion = { nodeDistance, centralGravity: gravity, springLength: springLen, springConstant: springConst, damping };
+        } else if (solver === 'forceAtlas2Based') {
+          base.solver = 'forceAtlas2Based';
+          base.forceAtlas2Based = { gravitationalConstant: -repVal / 10, centralGravity: gravity / 40, springLength: springLen, springConstant: springConst, damping };
+        } else {
+          base.solver = 'barnesHut';
+          base.barnesHut = { gravitationalConstant: -repVal, centralGravity: gravity, springLength: springLen, springConstant: springConst, damping, avoidOverlap: 1 };
+        }
+        return base;
+      }
+
+      function getActivePhysicsSolver() {
+        const layoutSelect = domCache.layoutSelect || document.getElementById('layoutSelect');
+        const mode = layoutSelect?.value || 'barnesHut';
+        if (mode === 'repulsion') return 'repulsion';
+        if (mode === 'forceAtlas2') return 'forceAtlas2Based';
+        return 'barnesHut';
+      }
+
+      function getActivePhysicsFromSliders() {
+        const solver = getActivePhysicsSolver();
+        const physics = getPhysicsFromSliders(solver);
+        return physics;
+      }
+
+      function applyActivePhysicsFromSliders(fit = false) {
+        if (!network) return;
+        const mode = document.getElementById('layoutSelect').value;
+        if (mode.startsWith('tree') || mode === 'circle') return;
+
+        const physics = getActivePhysicsFromSliders();
+        physics.stabilization.fit = fit;
+        network.setOptions({ physics });
+        document.getElementById('chkPhysics').checked = true;
+      }
+
+      document.getElementById('layoutSelect').addEventListener('change', () => {
+        if (!network) return;
+        const mode = document.getElementById('layoutSelect').value;
+        const visNodes = network.body.data.nodes;
+        const chkPhysics = document.getElementById('chkPhysics');
+
+        visNodes.get().forEach(n => {
+          if (n.fixed && (n.fixed.x || n.fixed.y)) {
+            visNodes.update({ id: n.id, fixed: { x: false, y: false } });
+          }
+        });
+
+        if (mode === 'barnesHut') {
+          network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
+          chkPhysics.checked = true;
+        } else if (mode === 'repulsion') {
+          network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
+          chkPhysics.checked = true;
+        } else if (mode === 'forceAtlas2') {
+          network.setOptions({ physics: getActivePhysicsFromSliders(), layout: { improvedLayout: true }, clustering: { enabled: false } });
+          chkPhysics.checked = true;
+        } else if (mode === 'circle') {
+          try {
+            const center = network.getViewPosition();
+            const sliderVal = parseInt(document.getElementById('repulsionSlider').value);
+            const spacing = Math.max(5, sliderVal / 500);
+            const updates = [];
+            const typeOrder = ['engine','issue','folder','error_code','update','test','dependency','session','phase','step','action','workplan','report','file'];
+            const allVisible = visNodes.get({ filter: n => !n.hidden });
+            allVisible.sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
+            allVisible.forEach((n, i) => {
+              const angle = i * 137.508 * Math.PI / 180;
+              const radius = Math.sqrt(i + 1) * spacing;
+              updates.push({ id: n.id, x: center.x + radius * Math.cos(angle), y: center.y + radius * Math.sin(angle), fixed: { x: true, y: true } });
+            });
+            if (updates.length) {
+              visNodes.update(updates);
+              network.setOptions({ physics: { enabled: false }, layout: { improvedLayout: true } });
+              network.fit({ animation: true });
+            }
+          } catch(e) { console.error('Circle layout error:', e); }
+          chkPhysics.checked = false;
+        } else if (mode === 'treeUD') {
+          network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'UD', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
+          network.fit({ animation: true });
+          chkPhysics.checked = false;
+        } else if (mode === 'treeDU') {
+          network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'DU', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
+          network.fit({ animation: true });
+          chkPhysics.checked = false;
+        } else if (mode === 'treeLR') {
+          network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'LR', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
+          network.fit({ animation: true });
+          chkPhysics.checked = false;
+        } else if (mode === 'treeRL') {
+          network.setOptions({ layout: { hierarchical: { enabled: true, direction: 'RL', sortMethod: 'directed', nodeSpacing: 150, levelSeparation: 200 } }, physics: { enabled: false } });
+          network.fit({ animation: true });
+          chkPhysics.checked = false;
+        }
+      });
+
+      function openAllClusters() {
+        if (!network) return;
+        let clusterIds = Object.keys(network.body.nodes).filter(id => network.isCluster(id));
+        let passes = 0;
+        while (clusterIds.length > 0 && passes < 20) {
+          clusterIds.forEach(id => network.openCluster(id));
+          clusterIds = Object.keys(network.body.nodes).filter(id => network.isCluster(id));
+          passes += 1;
+        }
+      }
+
+      document.getElementById('selCluster').addEventListener('change', function () {
+        if (!network) return;
+        const val = this.value;
+        openAllClusters();
+        if (val === 'none') {
+          network.setOptions({ clustering: { enabled: false } });
+        } else if (val === 'type') {
+          network.setOptions({ clustering: { enabled: true } });
+          const types = [...new Set(allNodes.map(n => n.type))];
+          types.forEach(type => {
+            const clusterOptions = {
+              joinCondition: n => n.type === type && !n.hidden,
+              processProperties: (clusterProps, childNodes) => {
+                clusterProps.label = `${TYPE_ICONS[type]} ${type} (${childNodes.length})`;
+                clusterProps.color = TYPE_COLORS[type];
+                clusterProps.shape = 'hexagon';
+                clusterProps.size = 20;
+                return clusterProps;
+              }
+            };
+            network.cluster(clusterOptions);
+          });
+        }
+      });
+
+      document.getElementById('btnExportPNG').addEventListener('click', exportPNG);
+      document.getElementById('btnExportJSON').addEventListener('click', exportJSON);
+
+      document.getElementById('btnTheme').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('themeDropdown').classList.toggle('show');
+      });
+
+      document.querySelectorAll('.theme-dropdown button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.body.className = btn.dataset.theme;
+          localStorage.setItem('neurogram-theme', btn.dataset.theme);
+          document.getElementById('themeDropdown').classList.remove('show');
+        });
+      });
+
+      document.addEventListener('click', () => {
+        document.getElementById('themeDropdown').classList.remove('show');
+      });
+
+      document.getElementById('btnLayout').addEventListener('click', () => {
+        const left = document.getElementById('leftPanel');
+        const right = document.getElementById('rightPanel');
+        if (!left.classList.contains('hidden') && right.classList.contains('hidden')) {
+          // left only → both
+          right.classList.remove('hidden');
+        } else if (!left.classList.contains('hidden') && !right.classList.contains('hidden')) {
+          // both → right only
+          left.classList.add('hidden');
+        } else {
+          // right only → left only
+          right.classList.add('hidden');
+          left.classList.remove('hidden');
+        }
+      });
+
+      // Panel Resize
+      (function() {
+        const handle = document.getElementById('resizeHandle');
+        const panel = document.getElementById('leftPanel');
+        let startX, startWidth;
+        handle.addEventListener('mousedown', (e) => {
+          startX = e.clientX;
+          startWidth = panel.offsetWidth;
+          handle.classList.add('dragging');
+          document.body.style.cursor = 'col-resize';
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+        function onMove(e) {
+          const w = Math.max(150, Math.min(600, startWidth + e.clientX - startX));
+          panel.style.width = w + 'px';
+        }
+        function onUp() {
+          handle.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+      })();
+
+      (function() {
+        const handle = document.getElementById('rightResizeHandle');
+        const panel = document.getElementById('rightPanel');
+        let startX, startWidth;
+        handle.addEventListener('mousedown', (e) => {
+          startX = e.clientX;
+          startWidth = panel.offsetWidth;
+          handle.classList.add('dragging');
+          document.body.style.cursor = 'col-resize';
+          document.addEventListener('mousemove', onMove);
+          document.addEventListener('mouseup', onUp);
+        });
+        function onMove(e) {
+          const w = Math.max(150, Math.min(600, startWidth - (e.clientX - startX)));
+          panel.style.width = w + 'px';
+        }
+        function onUp() {
+          handle.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+        }
+      })();
+
+      document.getElementById('chkPhysics').addEventListener('change', (e) => {
+        if (!network) return;
+        network.setOptions({ physics: { enabled: e.target.checked } });
+      });
+
+      document.getElementById('repulsionSlider').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('repulsionValue').textContent = val;
+        applyActivePhysicsFromSliders();
+      });
+      document.getElementById('gravitySlider').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('gravityValue').textContent = (val / 100).toFixed(2);
+        applyActivePhysicsFromSliders();
+      });
+      document.getElementById('springSlider').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('springValue').textContent = val;
+        applyActivePhysicsFromSliders();
+      });
+      document.getElementById('springConstSlider').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('springConstValue').textContent = (val / 100).toFixed(2);
+        applyActivePhysicsFromSliders();
+      });
+      document.getElementById('dampingSlider').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('dampingValue').textContent = (val / 100).toFixed(2);
+        applyActivePhysicsFromSliders();
+      });
+      document.getElementById('iterSlider').addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        document.getElementById('iterValue').textContent = val;
+        applyActivePhysicsFromSliders();
+      });
+
+      document.getElementById('chkTimeSlider').addEventListener('change', (e) => {
+        document.getElementById('timeSlider').style.display = e.target.checked ? 'flex' : 'none';
+      });
+
+      document.getElementById('chkEdgeLabels').addEventListener('change', applyFilters);
+
+      document.getElementById('chkSearchFilter').addEventListener('change', () => {
+        resetHighlight();
+        applyFilters();
+        if (currentSearchQuery && network) {
+          const visibleIds = network.body.data.nodes.get({ filter: n => !n.hidden }).map(n => n.id);
+          if (visibleIds.length) network.fit({ nodes: visibleIds, animation: true });
+        }
+      });
+
+      function updateNodeRendering() {
+        if (!network) return;
+        const mult = parseInt(document.getElementById('nodeSizeSlider').value) / 10;
+        const visNodes = network.body.data.nodes;
+        visNodes.update(allNodes.map(n => ({
+          id: n.id,
+          size: Math.round(getNodeSize(n) * mult),
+          ...getNodeRender(n)
+        })));
+      }
+
+      document.getElementById('chkNodeIcons').addEventListener('change', updateNodeRendering);
+
+      document.getElementById('chkLabels').addEventListener('change', (e) => {
+        updateNodeRendering();
+      });
+
+      document.getElementById('fontSlider').addEventListener('input', (e) => {
+        const val = e.target.value;
+        document.getElementById('fontValue').textContent = val;
+        updateNodeRendering();
+      });
+
+      document.getElementById('nodeSizeSlider').addEventListener('input', (e) => {
+        if (!network) return;
+        const mult = parseInt(e.target.value) / 10;
+        document.getElementById('nodeSizeValue').textContent = mult.toFixed(1) + '×';
+        updateNodeRendering();
+      });
+
+      document.getElementById('edgeWidthSlider').addEventListener('input', (e) => {
+        if (!network) return;
+        const val = parseInt(e.target.value) / 2;
+        document.getElementById('edgeWidthValue').textContent = val.toFixed(1);
+        network.setOptions({ edges: { width: val } });
+      });
+
+      document.getElementById('iconSizeSlider').addEventListener('input', (e) => {
+        if (!network) return;
+        const val = parseInt(e.target.value) / 10;
+        document.getElementById('iconSizeValue').textContent = val.toFixed(1) + '×';
+        updateNodeRendering();
+      });
+
+      document.getElementById('tooltipSlider').addEventListener('input', (e) => {
+        if (!network) return;
+        const val = parseInt(e.target.value);
+        document.getElementById('tooltipValue').textContent = val + 'ms';
+        network.setOptions({ interaction: { tooltipDelay: val } });
+      });
+
+      // Layer Toggles
+      document.querySelectorAll('.layer-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const layer = parseInt(btn.dataset.layer);
+          if (activeLayers.has(layer)) {
+            activeLayers.delete(layer);
+            btn.style.background = 'var(--surface2,#333)';
+            btn.style.color = 'var(--text,#ccc)';
+            btn.style.border = '1px solid var(--border,#444)';
+          } else {
+            activeLayers.add(layer);
+            btn.style.background = 'var(--accent,#007acc)';
+            btn.style.color = '#fff';
+            btn.style.border = 'none';
+          }
+          // Update checkboxes to match active layers
+          document.querySelectorAll('[data-filter]').forEach(cb => {
+            const typeId = cb.dataset.filter;
+            const meta = NODE_TYPES_META[typeId];
+            if (meta && meta.layer) {
+              cb.checked = activeLayers.has(meta.layer);
+            }
+          });
+          applyFilters();
+        });
+      });
+
+      function handleInlineSearch(query) {
+        if (!network) return;
+        currentSearchQuery = query.trim().toLowerCase();
+        const countEl = document.getElementById('searchCount');
+        if (!currentSearchQuery) {
+          countEl.textContent = '';
+          resetHighlight();
+          applyFilters();
+          return;
+        }
+        const matches = allNodes.filter(n =>
+          n.label.toLowerCase().includes(currentSearchQuery) ||
+          (n.id && n.id.toLowerCase().includes(currentSearchQuery)) ||
+          (n.type && n.type.toLowerCase().includes(currentSearchQuery))
+        );
+        if (matches.length === 0) {
+          countEl.textContent = '0 matches';
+          applyFilters();
+          return;
+        }
+        countEl.textContent = `${matches.length} match${matches.length > 1 ? 'es' : ''}`;
+
+        if (document.getElementById('chkSearchFilter').checked) {
+          resetHighlight();
+          applyFilters();
+          const visibleIds = network.body.data.nodes.get({ filter: n => !n.hidden }).map(n => n.id);
+          if (visibleIds.length) network.fit({ nodes: visibleIds, animation: true });
+          return;
+        }
+
+        applyFilters();
+        const matchIds = new Set(matches.map(n => n.id));
+        const visNodes = network.body.data.nodes;
+        visNodes.update(allNodes.map(n => ({
+          id: n.id,
+          color: matchIds.has(n.id)
+            ? { background: '#fff', border: '#007acc' }
+            : { background: '#333', border: '#333' },
+          font: {
+            size: matchIds.has(n.id) ? 14 : 8,
+            color: matchIds.has(n.id) ? '#000' : '#555'
+          }
+        })));
+        network.fit({ nodes: matches.map(n => n.id), animation: true });
+      }
+
+      // Inline Search
+      document.getElementById('searchInput').addEventListener('input', (e) => {
+        handleInlineSearch(e.target.value);
+      });
+
+      // Search (legacy button — uses inline input)
+      let searchTimeout;
+      document.getElementById('btnSearch').addEventListener('click', () => {
+        if (!network) return;
+        const query = prompt('Search nodes:');
+        if (!query) return;
+        const matches = allNodes.filter(n =>
+          n.label.toLowerCase().includes(query.toLowerCase()) ||
+          (n.id && n.id.toLowerCase().includes(query.toLowerCase())) ||
+          (n.type && n.type.toLowerCase().includes(query.toLowerCase()))
+        );
+        if (matches.length === 0) {
+          alert('No matches found');
+          return;
+        }
+        if (matches.length === 1) {
+          focusNode(matches[0].id);
+        } else {
+          document.getElementById('searchInput').value = query;
+          handleInlineSearch(query);
+          document.getElementById('statusLeft').textContent = `Found ${matches.length} matches for "${query}"`;
+        }
+      });
+
+      // ============================================================
+      // Init
+      // ============================================================
+      const savedTheme = localStorage.getItem('neurogram-theme');
+      if (savedTheme) document.body.className = savedTheme;
+
+      loadData();
+    </script>
+  </body>
 </html>
