@@ -17,6 +17,34 @@
   - [Resolution]
   - [Link to Update Log:]
 
+<a id="issue-ui-008"></a>
+## 2026-05-23 — Issue UI-008 — Pipeline Dashboard "Run" button was a no-op (only triggered data refresh)
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-23
+- **Context:** The "Run" button in `pipeline_dashboard.html` (v3.0) only called `loadAllData()` — it refreshed the display but did not actually trigger the pipeline. Users had no way to start a pipeline run from the dashboard.
+- **Root Cause:** v3.0 revision focused on data display compliance. The Run button handler was left as a stub (`updateStatus('loading', 'Running pipeline...'); await loadAllData()`).
+- **Impact:** Users clicking "Run" saw a brief loading state then the same data — no pipeline execution occurred.
+- **Resolution Summary:** Implemented `triggerPipelineRun()` (Phase 2 v3.1): POST to `/api/v1/pipeline/run`, 2s status polling, execution lock, live console modal, auto-refresh on completion. `file://` protocol guard disables button with tooltip.
+- **File Changes:**
+  - `dcc/ui/pipeline_dashboard.html` — `triggerPipelineRun()`, `startPolling()`, `setRunBusy()`, `showToast()`, `openConsoleModal()`, `appendConsoleLine()` added; `toolbarRunBtn` handler updated; `file://` guard in init.
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 2 v3.1
+- **Link to Update Log:** [update-2026-05-23-phase2-v31-phase7-v22-complete](update_log.md#update-2026-05-23-phase2-v31-phase7-v22-complete)
+
+<a id="issue-ui-009"></a>
+## 2026-05-23 — Issue UI-009 — Submittal Dashboard: 8 data accuracy issues in detail tables and KPI logic
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-23
+- **Context:** `submittal_dashboard.html` v2.1 had 8 identified data accuracy issues: overdue table used string sort on dates and showed duplicate rows per doc; delay table showed first-seen row not max delay; awaiting table used first row not latest submission; approval codes were hardcoded arrays; trend chart was row-level not doc-level; open/awaiting tables missing plan date and delay columns; KPI click handler used fragile positional index.
+- **Root Cause:** v2.1 implementation focused on schema-driven validation and KPI additions. Detail table aggregation logic was not updated to handle multi-row documents correctly.
+- **Impact:** Overdue table showed wrong sort order and duplicate rows. Delay table understated delay for multi-submission docs. Awaiting table showed wrong approval state. Hardcoded approval codes would break silently on schema changes. Trend chart inconsistent with KPI tile. Missing actionable columns in open/awaiting tables. KPI click handler would break on card reorder.
+- **Resolution Summary:** All 7 sub-tasks (7.25–7.31) implemented. Dedup+date sort for overdue, max aggregation for delay, latest-row resolution for awaiting, schema-driven approval codes from `approval_code_schema.json`, doc-level trend chart, enriched open/awaiting tables, `data-kpi` attribute dispatch.
+- **File Changes:**
+  - `dcc/ui/submittal_dashboard.html` — `showDetailOverdue()`, `showDetailDelay()`, `showDetailAwaiting()`, `showDetailOpen()`, `loadApprovalCodes()`, trend chart logic, KPI click handler all updated.
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.2
+- **Link to Update Log:** [update-2026-05-23-phase2-v31-phase7-v22-complete](update_log.md#update-2026-05-23-phase2-v31-phase7-v22-complete)
+
 ## Issue # 001
 - [Date:] 2026-05-09 11:20 UTC+08:00
 - [Status:] COMPLETED

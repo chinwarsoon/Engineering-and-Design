@@ -1,9 +1,9 @@
 # Web Interface Workplan — Universal UI Toolkit
 
 **Document ID:** WP-UI-001  
-**Current Version:** 3.16  
-**Status:** ✅ PHASE 4 v2.4 COMPLETE  
-**Last Updated:** 2026-05-21  
+**Current Version:** 3.18  
+**Status:** ✅ PHASE 2 v3.1 & PHASE 7 v2.2 COMPLETE  
+**Last Updated:** 2026-05-23  
 **Lead:** Franklin Song
 
 ---
@@ -32,6 +32,7 @@
 | 3.15 | 2026-05-21 | System | Phase 4 v2.3 implemented: Filter dropdowns (`errorCodeFilter`, `columnFilter`) now populated from `error_dashboard_data.json` when available, falling back to `debug_log.json` parsed errors only when dashboard data is missing. Eliminates race condition from parallel loaders. |
 | 3.16 | 2026-05-21 | System | Phase 4 v2.4 implemented: Standalone `file://` protocol support via folder picker (`webkitdirectory`). Dashboard prompts user to select the output folder, automatically finds and loads `error_dashboard_data.json` and `debug_log.json`. Drop zone now processes all dropped files (not just first). |
 | 3.17 | 2026-05-23 | System | Phase 2 v3.1 proposed: Functional "Run" button integration. Proposed wiring the "Run" button to the backend `POST /api/v1/pipeline/run` endpoint using the `UIRequest` schema. Added task for backend status polling, dynamic UI feedback, and a live output console popup. |
+| 3.18 | 2026-05-23 | System | Phase 2 v3.1 implemented: All 5 sub-tasks (2.10–2.14) completed. `triggerPipelineRun()` sends POST to `/api/v1/pipeline/run`. Status polling every 2s via `/api/v1/pipeline/status`. Execution lock (disabled button + spinner). Auto-refresh on completion via `loadAllData()`. Live output console modal with clear/close controls. `file://` protocol guard disables Run button with tooltip. Phase 7 v2.2 implemented: All 7 sub-tasks (7.25–7.31) completed. Overdue table dedup+date sort, delay table max aggregation, awaiting table latest-row resolution, schema-driven approval codes from `approval_code_schema.json`, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay, KPI click handler `data-kpi` attribute dispatch. |
 
 ---
 
@@ -46,12 +47,12 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
 | ID | Detail | Category | Status |
 | :--- | :--- | :--- | :--- |
 | 1 | DCC UI Design System — shared CSS with 5 themes, 25+ components | Foundation | ✅ Completed |
-| 2 | Pipeline Dashboard — run status, KPIs, output links | Monitoring | 🟠 Phase 2 v3.1 Proposed |
+| 2 | Pipeline Dashboard — run status, KPIs, output links | Monitoring | ✅ Phase 2 v3.1 Completed |
 | 3 | Excel Explorer Pro — data loading, filtering, validation highlighting | Exploration | ✅ Completed |
 | 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down, debug log integration, structured JSON context/message, filter priority, standalone file:// support | Diagnostics | ✅ v2.4 Completed |
 | 5 | Schema Manager — browse, inspect, edit schema files | Management | ✅ Completed |
 | 6 | Log Explorer Pro — multi-format log browser with search | Logging | ✅ Completed |
-| 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation | Analytics | 🟠 v2.2 Pending Approval |
+| 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation | Analytics | ✅ v2.2 Completed |
 | 8 | Common JSON Tools — tree viewer, formatter, JSONPath, validation | Utilities | ✅ Completed |
 | 9 | Excel → Schema Generator — auto-generate schema from Excel headers | Generation | ✅ Completed |
 | 10 | AI Analysis Dashboard — risk findings, evidence trace, trends, recommendations, markdown report viewer, data table, Ollama chat assistant | Analytics | ✅ Completed |
@@ -276,7 +277,7 @@ Initial static mockup: central hub showing pipeline run status, output file link
 
 #### v3.1 Revision Scope — Functional Run Integration
 
-**Status:** 🟠 PENDING APPROVAL  
+**Status:** ✅ COMPLETED  
 **Data Sources:** `../output/error_dashboard_data.json`, `../output/processing_summary.txt`, `../output/debug_log.json`  
 **API Endpoints:** `POST /api/v1/pipeline/run`, `GET /api/v1/pipeline/status`
 
@@ -301,11 +302,12 @@ The v3.1 revision upgrades the Pipeline Dashboard from a read-only monitoring to
 | Race condition between polling and data loading | Low | Low | Only reload static data files after polling confirms completion. |
 
 #### Success Criteria (v3.1)
-- [ ] "Run" button successfully triggers the backend pipeline via API.
-- [ ] UI provides visual feedback (loading state, disabled button) during execution.
-- [ ] Stage cards and progress bars update dynamically during the run.
-- [ ] Dashboard automatically refreshes with new data upon completion.
-- [ ] Graceful handling of API errors or network timeouts.
+- [x] "Run" button successfully triggers the backend pipeline via API.
+- [x] UI provides visual feedback (loading state, disabled button) during execution.
+- [x] Stage cards and progress bars update dynamically during the run.
+- [x] Dashboard automatically refreshes with new data upon completion.
+- [x] Graceful handling of API errors or network timeouts.
+- [x] `file://` protocol guard disables Run button with tooltip explaining server requirement.
 
 #### References
 
@@ -893,7 +895,7 @@ v2.1 revision of the data-driven dashboard. Replaces complex client-side Documen
 
 #### v2.2 Revision Scope
 
-**Status:** 🟠 PENDING APPROVAL  
+**Status:** ✅ COMPLETED  
 **Data Sources:** `../output/processed_dcc_universal.csv`, `../config/schemas/data_error_config.json`, `../config/schemas/approval_code_schema.json`
 
 ##### Issues Identified
@@ -940,17 +942,17 @@ v2.1 revision of the data-driven dashboard. Replaces complex client-side Documen
 | Schema approval code structure changes between pipeline versions | Low | Medium | Validate required fields on load; fallback to hardcoded arrays |
 
 ##### Success Criteria (v2.2)
-- [ ] `approval_code_schema.json` loaded on init; `terminalCodes`, `pendingCodes`, `approvedCodes` derived dynamically
-- [ ] `showDetailOverdue` deduplicates by `Document_ID`; sorted oldest `Resubmission_Plan_Date` first using `Date` comparison
-- [ ] `showDetailDelay` shows maximum `Delay_of_Resubmission` per doc; sorted descending
-- [ ] `showDetailAwaiting` resolves `Latest_Approval_Code` from latest submission row per doc
-- [ ] `showDetailOpen` and `showDetailAwaiting` include `Resubmission_Plan_Date` and `Delay_of_Resubmission` columns
-- [ ] Approval rate trend chart uses unique doc counts per month, not row counts
-- [ ] KPI card click handlers use `data-kpi` attribute dispatch, not positional index
-- [ ] All fallbacks verified: missing schema files, missing CSV columns, invalid date strings
-- [ ] No regressions in existing v2.1 features (schema-driven validation, 7 KPIs, 4 charts, filters, status bar)
-- [ ] JS syntax validated (balanced braces)
-- [ ] Workplan, issue log, and update log updated on completion
+- [x] `approval_code_schema.json` loaded on init; `terminalCodes`, `pendingCodes`, `approvedCodes` derived dynamically
+- [x] `showDetailOverdue` deduplicates by `Document_ID`; sorted oldest `Resubmission_Plan_Date` first using `Date` comparison
+- [x] `showDetailDelay` shows maximum `Delay_of_Resubmission` per doc; sorted descending
+- [x] `showDetailAwaiting` resolves `Latest_Approval_Code` from latest submission row per doc
+- [x] `showDetailOpen` and `showDetailAwaiting` include `Resubmission_Plan_Date` and `Delay_of_Resubmission` columns
+- [x] Approval rate trend chart uses unique doc counts per month, not row counts
+- [x] KPI card click handlers use `data-kpi` attribute dispatch, not positional index
+- [x] All fallbacks verified: missing schema files, missing CSV columns, invalid date strings
+- [x] No regressions in existing v2.1 features (schema-driven validation, 7 KPIs, 4 charts, filters, status bar)
+- [x] JS syntax validated (balanced braces)
+- [x] Workplan, issue log, and update log updated on completion
 
 
 ---
@@ -1110,7 +1112,7 @@ A full DCC design system-compliant dashboard that consumes `ai_insight_summary.j
 - [x] Phase 7 v2.0 revision: CSV data loading, dynamic KPIs, data-driven charts, dynamic filters, overdue table
 - [x] Phase 7 v2.1 revision: 5th KPI (Awaiting Response), schema-driven validation via Validation_Errors column + data_error_config.json, pre-filter at load time
 - [x] Phase 4 v2.0 revision: full DCC shell compliance, dynamic data loader, resizable panels, icon bar toggling, nav tree, ui_help.json loading, global search, dynamic charts — **COMPLETED** (8 bugs documented, 4 remaining items for future)
-- [x] Phase 7 v2.2 revision: overdue/delay/awaiting table fixes, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay — **PENDING APPROVAL**
+- [x] Phase 7 v2.2 revision: overdue/delay/awaiting table fixes, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay — **COMPLETED**
 - [x] Phase 10 v1.5 complete and functional: DCC shell, data loader, 5 themes, KPI row, risk cards with evidence, trends & recs, report viewer, data table, Ollama chat with model selector, schema-driven AI prompts, FILTER: command
 - [x] All 10 phases complete and functional
 - [x] Comprehensive documentation provided (implementation plan, user guide, completion report)

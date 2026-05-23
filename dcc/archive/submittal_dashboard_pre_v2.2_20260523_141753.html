@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DCC Submittal Tracker Dashboard</title>
+  <link rel="stylesheet" href="dcc-design-system.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    .content-scroll { flex: 1; overflow-y: auto; padding: 16px; min-height: 0; }
+    .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .chart-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 16px; position: relative; height: 280px; }
+    .chart-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .filter-bar { display: flex; gap: 8px; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; align-items: center; }
+    .filter-bar select { font-size: 11px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+    .dcc-sidebar-right { width: 220px; background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; transition: width 0.2s; }
+    .dcc-sidebar-right.collapsed { width: 0; border-left: none; }
+    .sb-section-body { font-size: 11px; color: var(--text2); line-height: 1.8; }
+    .sb-section-body strong { color: var(--text); }
+    .dt-container { overflow-x: auto; max-height: 300px; overflow-y: auto; }
+    .dt-container table { width: 100%; font-size: 10px; border-collapse: collapse; }
+    .dt-container th { padding: 4px 6px; text-align: left; border: 1px solid var(--border); background: var(--surface2); position: sticky; top: 0; cursor: pointer; white-space: nowrap; }
+    .dt-container th:hover { background: var(--surface3); }
+    .dt-container td { padding: 4px 6px; border: 1px solid var(--border); }
+    .dt-container tr:hover { background: var(--surface2); }
+    .kpi-card { cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .kpi-card:hover { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+    .download-opt:hover { background: var(--surface2); }
+  </style>
+</head>
+<body>
+  <div class="dcc-titlebar">
+    <div class="dcc-titlebar-logo">
+      <span class="logo-icon">📤</span>
+      <span class="logo-name">Submittal <span class="logo-accent">Tracker</span></span>
+    </div>
+    <div class="dcc-titlebar-breadcrumb">
+      <span class="bc-active">Analytics Dashboard</span>
+    </div>
+    <div class="dcc-titlebar-actions">
+      <button class="dcc-iconbar-btn" id="layoutBtn" title="Toggle Layout" style="width:28px;height:28px;font-size:13px;background:none;border:none;cursor:pointer;">🔲</button>
+      <div class="theme-picker">
+        <button class="theme-btn" id="themeBtn">
+          <span class="theme-dot" id="themeDot"></span>
+          <span id="themeName">Dark</span>
+        </button>
+        <div class="theme-menu" id="themeMenu">
+          <div class="theme-opt active" data-theme="dark"><span class="theme-dot" style="background:#0d1117;"></span> Dark</div>
+          <div class="theme-opt" data-theme="light"><span class="theme-dot" style="background:#f0f4f8;"></span> Light</div>
+          <div class="theme-opt" data-theme="sky"><span class="theme-dot" style="background:#e0f2fe;"></span> Sky</div>
+          <div class="theme-opt" data-theme="ocean"><span class="theme-dot" style="background:#071520;"></span> Ocean</div>
+          <div class="theme-opt" data-theme="presentation"><span class="theme-dot" style="background:#f8fafc;"></span> Presentation</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dcc-shell">
+    <div class="dcc-iconbar">
+      <button class="dcc-iconbar-btn active" data-panel="sidebar" title="Toggle Filters">📂</button>
+      <div class="dcc-iconbar-spacer"></div>
+      <div class="dcc-iconbar-bottom">
+        <div class="dcc-iconbar-sep"></div>
+        <button class="dcc-iconbar-btn" data-panel="right-sidebar" title="Settings">⚙️</button>
+        <button class="dcc-iconbar-btn" data-panel="help" title="Help">❓</button>
+      </div>
+    </div>
+
+    <div class="dcc-sidebar" id="leftSidebar" style="position:relative;">
+      <div class="dcc-sidebar-resizer left-resizer" data-resize="left"></div>
+      <div class="dcc-sidebar-header"><span>Filters</span></div>
+      <div class="dcc-sidebar-body" id="filterSidebarBody">
+        <div class="sb-section">
+          <div class="sb-section-header"><span>🏢 Project</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterProject" style="width:100%;"><option value="">All Projects</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>🏭 Facility</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterFacility" style="width:100%;"><option value="">All Facilities</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>📐 Discipline</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterDiscipline" style="width:100%;"><option value="">All Disciplines</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>🏢 Department</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterDepartment" style="width:100%;"><option value="">All Departments</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>✍️ Submitted By</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterSubmittedBy" style="width:100%;"><option value="">All Submitters</option></select></div>
+        </div>
+          <div class="sb-section">
+          <div class="sb-section-header"><span>📋 Latest_Approval_Status</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body"><select id="filterApprovalStatus" style="width:100%;"><option value="">All Statuses</option></select></div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>📄 Data Info</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.6;">
+            <div><strong>Rows:</strong> <span id="dataRowCount">—</span></div>
+            <div><strong>Columns:</strong> <span id="dataColCount">—</span></div>
+            <div><strong>Source:</strong> <span id="dataSource">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcc-content">
+      <div class="toolbar">
+        <span style="font-weight:600;color:var(--text);">Submittal Analytics</span>
+        <div class="toolbar-spacer"></div>
+        <span id="loadedInfo" style="font-size:10px;color:var(--text3);">no data loaded</span>
+        <button class="btn btn-sm btn-secondary" id="loadBtn">📂 Load CSV</button>
+        <button class="btn btn-sm btn-primary" id="refreshBtn">🔄 Refresh</button>
+      </div>
+
+      <div class="content-scroll">
+        <div class="kpi-row" id="kpiRow">
+          <div class="kpi-card" data-kpi="allDocs"><div class="kpi-value" id="kpiDocs">—</div><div class="kpi-label">Total Documents</div><div class="kpi-sub">unique valid doc IDs</div></div>
+          <div class="kpi-card" data-kpi="open"><div class="kpi-value" id="kpiOpen">—</div><div class="kpi-label">Open Submissions</div><div class="kpi-sub">unique valid doc IDs, not closed</div></div>
+          <div class="kpi-card" data-kpi="overdue"><div class="kpi-value" id="kpiOverdue">—</div><div class="kpi-label">Overdue</div><div class="kpi-sub">unique valid doc IDs, overdue</div></div>
+          <div class="kpi-card" data-kpi="approval"><div class="kpi-value" id="kpiApproval">—</div><div class="kpi-label">Approval Rate</div><div class="kpi-sub">approved over unique valid doc IDs</div></div>
+          <div class="kpi-card" data-kpi="awaiting"><div class="kpi-value" id="kpiAwaiting">—</div><div class="kpi-label">Awaiting Response</div><div class="kpi-sub">unique valid doc IDs, pending approval</div></div>
+          <div class="kpi-card" data-kpi="longReview"><div class="kpi-value" id="kpiLongReview">—</div><div class="kpi-label">Review >30 Days</div><div class="kpi-sub">unique valid doc IDs, duration over 30 days</div></div>
+          <div class="kpi-card" data-kpi="delay"><div class="kpi-value" id="kpiDelay">—</div><div class="kpi-label">Delay >30 Days</div><div class="kpi-sub">unique valid doc IDs, resubmission delay over 30 days</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="chart-container"><div class="chart-title">📅 Submission Timeline <span style="font-weight:400;color:var(--text3);">(unique docs per month)</span></div><canvas id="timelineChart"></canvas></div>
+          <div class="chart-container"><div class="chart-title">✓ Approval Status <span style="font-weight:400;color:var(--text3);">(per unique document, by Latest_Approval_Status)</span></div><canvas id="statusChart"></canvas></div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-container"><div class="chart-title">📐 Documents by Discipline</div><canvas id="disciplineChart"></canvas></div>
+          <div class="chart-container"><div class="chart-title">📈 Approval Rate Trend <span style="font-weight:400;color:var(--text3);">(per unique document, by month)</span></div><canvas id="trendChart"></canvas></div>
+        </div>
+
+          <div style="margin-bottom:20px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+            <span id="detailTableTitle">⚠️ Overdue Resubmissions</span>
+            <span id="detailTableCount" style="font-weight:400;color:var(--text2);font-size:10px;"></span>
+            <div style="margin-left:auto;position:relative;">
+              <button class="btn btn-xs btn-secondary" id="downloadBtn" style="font-size:10px;padding:2px 8px;">⬇ Download</button>
+              <div id="downloadMenu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--border);border-radius:4px;z-index:20;min-width:90px;overflow:hidden;">
+                <div class="download-opt" data-format="csv" style="padding:4px 10px;font-size:11px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);">📄 CSV</div>
+                <div class="download-opt" data-format="excel" style="padding:4px 10px;font-size:11px;cursor:pointer;color:var(--text);">📊 Excel</div>
+              </div>
+            </div>
+          </div>
+          <div class="dt-container" id="detailTableContainer"><div style="color:var(--text3);padding:8px;font-size:11px;">Click a KPI card above to view details. <strong>All Documents</strong> shown by default.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dcc-sidebar-right" id="rightSidebar" style="position:relative;width:var(--right-sidebar-w, 220px);">
+      <div class="dcc-sidebar-resizer right-resizer" data-resize="right"></div>
+      <div class="dcc-sidebar-header"><span>Settings</span></div>
+      <div class="dcc-sidebar-body" id="rightSidebarBody">
+        <div class="sb-section">
+          <div class="sb-section-header"><span>⚙️ Options</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body">
+            <div style="font-size:11px;color:var(--text2);line-height:1.8;">
+              <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="autoRefresh" checked> Auto-refresh on load</label></div>
+            </div>
+          </div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-section-header"><span>ℹ️ About</span><span class="sb-section-arrow">▼</span></div>
+          <div class="sb-section-body" style="font-size:11px;color:var(--text3);line-height:1.6;">
+            <div>DCC Submittal Tracker</div>
+            <div>v3.0.0</div>
+            <div style="margin-top:4px;">Analytics from pipeline CSV output.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dcc-statusbar status-ok">
+    <div class="sb-item">✓ <span id="statusMsg">Ready</span></div>
+    <div class="sb-item"><span id="statusFile">No file loaded</span></div>
+    <div class="sb-item"><span id="statusDocCount"></span></div>
+    <div class="sb-item-right">v3.0.0</div>
+  </div>
+
+  <script>
+    const DATA_BASE = '../output';
+    const CSV_FILE = 'processed_dcc_universal.csv';
+    let allData = [];
+    let filteredData = [];
+    let chartInstances = {};
+    let docIdRules = { docIdCodes: [], checkUncertain: true,
+      uncertainValues: ['na','n/a','nan','unknown','tbd','to be determined','pending','draft','temp','temporary','-','none','nil','null','undefined','0'] };
+    // v2.2 (7.28): schema-driven approval codes — populated from approval_code_schema.json
+    let approvalCodes = {
+      terminal:  ['APP','VOID','INF','AWC'],          // fallback
+      pending:   ['PEN','PENDING'],                   // fallback
+      approved:  ['APP','APR','APPROVED','A','AWC','INF','INFO','VOID']  // fallback
+    };
+
+    async function loadDocIdRules() {
+      try {
+        const resp = await fetch('../config/schemas/data_error_config.json');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const config = await resp.json();
+        const errors = config.data_logic_errors;
+        if (!errors || typeof errors !== 'object') throw new Error('Invalid data_logic_errors');
+        const codes = [];
+        Object.values(errors).forEach(e => {
+          if (!e || typeof e !== 'object') return;
+          const cols = (String(e.column) || '').split(',').map(c => c.trim());
+          if (!cols.includes('Document_ID')) return;
+          if (e.code) codes.push(e.code);
+        });
+        docIdRules.docIdCodes = codes;
+        updateStatus('ok', `Doc ID rules loaded (${codes.length} codes)`);
+      } catch (err) {
+        updateStatus('warning', 'Using default Doc ID rules');
+      }
+    }
+
+    // v2.2 (7.28): load approval codes from approval_code_schema.json
+    async function loadApprovalCodes() {
+      try {
+        const resp = await fetch('../config/schemas/approval_code_schema.json');
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const schema = await resp.json();
+        const entries = schema.approval_codes || [];
+        if (!entries.length) throw new Error('Empty approval_codes');
+        const tmp = { terminal: [], pending: [], approved: [] };
+        entries.forEach(e => {
+          if (!e || !e.code) return;
+          const code = e.code.toUpperCase();
+          const status = (e.status || '').toLowerCase();
+          if (['approved','void','for information'].includes(status)) {
+            tmp.terminal.push(code);
+            tmp.approved.push(code);
+          } else if (['pending','awaiting'].includes(status) || code === 'PEN') {
+            tmp.pending.push(code);
+          }
+        });
+        if (tmp.terminal.length) approvalCodes = tmp;
+      } catch (err) {
+        // keep hardcoded fallback arrays
+      }
+    }
+
+    // ─── THEME ───────────────────────────────────────────────────────────────
+    const themeBtn = document.getElementById('themeBtn');
+    const themeMenu = document.getElementById('themeMenu');
+    const themeName = document.getElementById('themeName');
+    const themeDot = document.getElementById('themeDot');
+    const themeOpts = document.querySelectorAll('.theme-opt');
+    const themeColors = { dark:'#0d1117', light:'#f0f4f8', sky:'#e0f2fe', ocean:'#071520', presentation:'#f8fafc' };
+
+    themeBtn.addEventListener('click', () => themeMenu.classList.toggle('open'));
+    themeOpts.forEach(o => o.addEventListener('click', () => {
+      const t = o.dataset.theme; applyTheme(t);
+      localStorage.setItem('dcc-theme', t);
+      themeOpts.forEach(x => x.classList.remove('active'));
+      o.classList.add('active');
+      themeMenu.classList.remove('open');
+    }));
+    function applyTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      themeName.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+      themeDot.style.background = themeColors[t] || '#0d1117';
+      setTimeout(rebuildCharts, 100);
+    }
+    const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
+    applyTheme(savedTheme);
+    document.querySelector(`[data-theme="${savedTheme}"]`)?.classList.add('active');
+
+    // ─── LAYOUT TOGGLE ───────────────────────────────────────────────────────
+    const leftSidebar = document.getElementById('leftSidebar');
+    const rightSidebar = document.getElementById('rightSidebar');
+    const layoutBtn = document.getElementById('layoutBtn');
+    let layoutMode = 0;
+    layoutBtn.addEventListener('click', () => {
+      layoutMode = (layoutMode + 1) % 3;
+      leftSidebar.classList.toggle('collapsed', layoutMode === 1);
+      rightSidebar.classList.toggle('collapsed', layoutMode === 0);
+      layoutBtn.textContent = layoutMode === 0 ? '🔲' : layoutMode === 1 ? '📐' : '📦';
+    });
+
+    // ─── SIDEBAR RESIZE ──────────────────────────────────────────────────────
+    let resizeTarget = null, resizeStartX = 0, resizeStartW = 0;
+    document.addEventListener('mousedown', e => {
+      const h = e.target.closest('.dcc-sidebar-resizer'); if (!h) return;
+      const sb = h.parentElement;
+      resizeTarget = h.dataset.resize; resizeStartX = e.clientX; resizeStartW = sb.offsetWidth;
+      h.classList.add('dragging'); document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e => {
+      if (!resizeTarget) return;
+      requestAnimationFrame(() => {
+        const dx = e.clientX - resizeStartX;
+        const w = Math.max(120, Math.min(600, resizeTarget === 'left' ? resizeStartW + dx : resizeStartW - dx));
+        document.documentElement.style.setProperty(resizeTarget === 'left' ? '--sidebar-w' : '--right-sidebar-w', w + 'px');
+      });
+    });
+    document.addEventListener('mouseup', () => {
+      if (!resizeTarget) return;
+      document.querySelector('.dcc-sidebar-resizer.dragging')?.classList.remove('dragging');
+      document.body.style.cursor = ''; document.body.style.userSelect = ''; resizeTarget = null;
+    });
+
+    // ─── ICON BAR ────────────────────────────────────────────────────────────
+    const iconBtns = document.querySelectorAll('.dcc-iconbar-btn[data-panel]');
+    let helpActive = false;
+    const rightSidebarHeader = document.querySelector('#rightSidebar .dcc-sidebar-header span');
+    const rightSidebarBody = document.getElementById('rightSidebarBody');
+
+    iconBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const panel = btn.dataset.panel;
+        if (panel === 'sidebar') { leftSidebar.classList.toggle('collapsed'); btn.classList.toggle('active'); }
+        else if (panel === 'right-sidebar') {
+          rightSidebar.classList.toggle('collapsed'); btn.classList.toggle('active');
+          if (helpActive && rightSidebar.classList.contains('collapsed')) { helpActive = false; showSettingsPanel(); }
+        } else if (panel === 'help') showHelp();
+      });
+    });
+
+    function showSettingsPanel() {
+      helpActive = false;
+      rightSidebarHeader.textContent = 'Settings';
+      rightSidebarBody.innerHTML = `
+        <div class="sb-section"><div class="sb-section-header"><span>⚙️ Options</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body"><div style="font-size:11px;color:var(--text2);line-height:1.8;">
+        <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="autoRefresh" checked> Auto-refresh on load</label></div></div></div></div>
+        <div class="sb-section"><div class="sb-section-header"><span>ℹ️ About</span><span class="sb-section-arrow">▼</span></div>
+        <div class="sb-section-body" style="font-size:11px;color:var(--text3);line-height:1.6;">
+        <div>DCC Submittal Tracker Dashboard</div><div>v3.0.0</div></div></div>`;
+    }
+
+    function buildSubmittalHelp() {
+      const s = (t, c) => `<div class="sb-section"><div class="sb-section-header"><span>${t}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${c}</div></div>`;
+      const fl = (items) => items.map(i => `<div><strong>${esc(i[0])}</strong> ${i[1]}</div>`).join('');
+      return s('📂 Data Source', fl([['Load CSV','Click <strong>Load CSV</strong> to pick a local file, or <strong>Refresh</strong> to fetch from <code>../output/processed_dcc_universal.csv</code>.'],
+        ['Data Info','Left sidebar shows row count, column count, and source filename after loading.']])) +
+        s('📊 Submittal Analytics', fl([['Total Documents','Distinct count of <code>Document_ID</code> values in the filtered data set. <strong>Click</strong> to view document list in the detail table below.'],
+        ['Open Submissions','Unique documents where <code>Submission_Closed</code> is not <strong>YES</strong>. A document is considered closed if any of its rows has <code>Submission_Closed=YES</code>. <strong>Click</strong> to view open documents.'],
+        ['Overdue','Unique documents that have at least one row where <code>Resubmission_Overdue_Status</code> is <strong>Overdue</strong>. <strong>Click</strong> to view overdue details.'],
+        ['Approval Rate','Percentage of unique documents with a terminal/resolution code (<strong>APP</strong>, <strong>AWC</strong>, <strong>INFO</strong>, <strong>VOID</strong>) among all unique valid Document_IDs. <strong>Click</strong> to view approval breakdown.'],
+        ['Awaiting Response','Unique documents with no terminal approval code — <code>Latest_Approval_Code</code> is empty, <strong>PEN</strong>, or <strong>PENDING</strong>. These documents are still under review and awaiting a decision. <strong>Click</strong> to view pending documents.'],
+        ['Review >30 Days','Unique documents where <code>Duration_of_Review</code> exceeds 30 days. <strong>Click</strong> to view documents sorted by duration descending.'],
+        ['Delay >30 Days','Unique documents where <code>Delay_of_Resubmission</code> exceeds 30 days. <strong>Click</strong> to view documents sorted by delay descending.']])) +
+        s('📅 Timeline', 'Unique <strong>Document_ID</strong> values per month from <code>Submission_Date</code>. A document with multiple submissions in the same month is counted once. Uses current theme accent color.') +
+        s('✓ Approval Status', '<div style="margin-bottom:6px;">Per unique <strong>Document_ID</strong> using the <code>Latest_Approval_Status</code> column. Label shows count in parentheses.</div><div>Click <strong>Help</strong> for full approval code legend.</div>') +
+        s('📐 Discipline Chart', 'Document count per distinct <code>Discipline</code> value, sorted highest to lowest. Uses theme accent color.') +
+        s('📈 Trend Chart', 'Monthly approval rate per unique document: approved unique docs divided by total unique docs per month. Range 0\u2013100%. Uses success (green) color.') +
+        s('🏢 Filters', fl([['Project','Filter by <code>Project_Code</code>, populated from distinct values.'],
+        ['Facility','Filter by <code>Facility_Code</code>, populated from distinct values.'],
+        ['Discipline','Filter by <code>Discipline</code>, populated from distinct values.'],
+        ['Department','Filter by <code>Department</code>, populated from distinct values.'],
+        ['Submitted By','Filter by <code>Submitted_By</code>, populated from distinct values.'],
+        ['Approval Status','Filter by <code>Latest_Approval_Status</code>, populated from distinct values.']])) +
+        s('📊 Status Bar', 'Bottom bar shows overall status (Ready/Loading/Error/Warning), loaded filename, unique valid/total document counts, and version number.') +
+        s('📋 Detail Table', 'Click any KPI card to show a detail table with row-level data for that metric. Includes a search box and clickable column headers for sorting. Default shows <strong>All Documents</strong> on load.');
+    }
+
+    async function showHelp() {
+      helpActive = !helpActive;
+      rightSidebar.classList.remove('collapsed');
+      document.querySelector('.dcc-iconbar-btn[data-panel="right-sidebar"]')?.classList.add('active');
+      rightSidebarHeader.textContent = helpActive ? 'Help' : 'Settings';
+      if (helpActive) {
+        let body = '';
+        try {
+          const r = await fetch('ui_help.json'); const h = await r.json();
+          const sec = (title, content) => `<div class="sb-section"><div class="sb-section-header"><span>${title}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${content}</div></div>`;
+          const secFields = (title, fields) => sec(title, (fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
+          const secIntro = (title, data) => sec(title, `<div>${data.intro||''}</div>${data.details ? `<div style="margin-top:6px;">${data.details}</div>` : ''}`);
+          if (h.help?.submittal_data_source) body += secFields('📂 Data Source', h.help.submittal_data_source.fields);
+          if (h.help?.submittal_analytics) body += secFields('📊 Submittal Analytics', h.help.submittal_analytics.fields);
+          if (h.help?.submittal_timeline) body += secIntro('📅 Timeline', h.help.submittal_timeline);
+          if (h.help?.submittal_status_chart) body += secFields('✓ Approval Status', h.help.submittal_status_chart.fields);
+          if (h.help?.submittal_discipline_chart) body += secIntro('📐 Discipline Chart', h.help.submittal_discipline_chart);
+          if (h.help?.submittal_trend_chart) body += secIntro('📈 Trend Chart', h.help.submittal_trend_chart);
+          if (h.help?.submittal_filters) body += secFields('🏢 Filters', h.help.submittal_filters.fields);
+          if (h.help?.submittal_status_bar) body += secIntro('📊 Status Bar', h.help.submittal_status_bar);
+          if (h.help?.submittal_detail_table) body += secIntro('📋 Detail Table', h.help.submittal_detail_table);
+        } catch {}
+        rightSidebarBody.innerHTML = body || buildSubmittalHelp();
+      } else showSettingsPanel();
+    }
+
+    // ─── SIDEBAR ACCORDION ───────────────────────────────────────────────────
+    document.addEventListener('click', e => {
+      const h = e.target.closest('.sb-section-header'); if (h) h.parentElement.classList.toggle('closed');
+    });
+
+    // ─── CSV LOADER ──────────────────────────────────────────────────────────
+    document.getElementById('loadBtn').addEventListener('click', () => {
+      const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv';
+      input.addEventListener('change', e => {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const text = ev.target.result;
+          parseCSV(text, file.name);
+        };
+        reader.readAsText(file);
+      });
+      input.click();
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', loadFromPipeline);
+
+    async function loadFromPipeline() {
+      updateStatus('loading', 'Loading CSV...');
+      try {
+        const resp = await fetch(`${DATA_BASE}/${CSV_FILE}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const text = await resp.text();
+        parseCSV(text, CSV_FILE);
+      } catch (err) {
+        updateStatus('error', `Failed to load: ${err.message}`);
+        document.getElementById('loadedInfo').textContent = 'load failed';
+      }
+    }
+
+    function parseCSV(text, sourceName) {
+      const result = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: true });
+      if (result.errors.length > 0) console.warn('CSV parse errors:', result.errors);
+      const allRows = result.data.filter(r => r.Document_ID);
+      const totalUnique = new Set(allRows.map(r => String(r.Document_ID).trim())).size;
+      allData = allRows.filter(r => isValidDocId(r.Document_ID, r));
+      const validUnique = new Set(allData.map(r => String(r.Document_ID).trim())).size;
+      document.getElementById('dataSource').textContent = sourceName;
+      document.getElementById('dataRowCount').textContent = allData.length;
+      document.getElementById('dataColCount').textContent = result.meta.fields?.length || '—';
+      document.getElementById('statusDocCount').textContent = `Unique Docs: ${validUnique} (Valid) / ${totalUnique} (Total)`;
+      populateFilters();
+      applyFilters();
+      updateStatus('ok', `Loaded ${allData.length} rows`);
+      document.getElementById('loadedInfo').textContent = `${allData.length} rows from ${sourceName}`;
+    }
+
+    // ─── FILTERS ─────────────────────────────────────────────────────────────
+    function populateFilters() {
+      const unique = (col) => { const v = new Set(); allData.forEach(r => { if (r[col]) v.add(r[col]); }); return [...v].sort(); };
+      populateSelect('filterProject', unique('Project_Code'));
+      populateSelect('filterFacility', unique('Facility_Code'));
+      populateSelect('filterDiscipline', unique('Discipline'));
+      populateSelect('filterDepartment', unique('Department'));
+      populateSelect('filterSubmittedBy', unique('Submitted_By'));
+      populateSelect('filterApprovalStatus', unique('Latest_Approval_Status'));
+    }
+
+    function populateSelect(id, values) {
+      const sel = document.getElementById(id);
+      const current = sel.value;
+      sel.innerHTML = '<option value="">All ' + id.replace('filter','') + '</option>' + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+      sel.value = current;
+    }
+
+    document.getElementById('filterProject').addEventListener('change', applyFilters);
+    document.getElementById('filterFacility').addEventListener('change', applyFilters);
+    document.getElementById('filterDiscipline').addEventListener('change', applyFilters);
+    document.getElementById('filterDepartment').addEventListener('change', applyFilters);
+    document.getElementById('filterSubmittedBy').addEventListener('change', applyFilters);
+    document.getElementById('filterApprovalStatus').addEventListener('change', applyFilters);
+
+    function applyFilters() {
+      const p = document.getElementById('filterProject').value;
+      const f = document.getElementById('filterFacility').value;
+      const d = document.getElementById('filterDiscipline').value;
+      const dept = document.getElementById('filterDepartment').value;
+      const sub = document.getElementById('filterSubmittedBy').value;
+      const as = document.getElementById('filterApprovalStatus').value;
+      filteredData = allData.filter(r =>
+        (!p || r.Project_Code === p) && (!f || r.Facility_Code === f) && (!d || r.Discipline === d) &&
+        (!dept || r.Department === dept) && (!sub || r.Submitted_By === sub) &&
+        (!as || r.Latest_Approval_Status === as)
+      );
+      renderDashboard();
+    }
+
+    // ─── KPI CALCULATIONS (per unique Document_ID) ─────────────────────────
+    function computeKPIs(data) {
+      const docMap = {};
+      data.forEach(r => {
+        const id = r.Document_ID; if (!isValidDocId(id, r)) return;
+        if (!docMap[id]) docMap[id] = { closed: null, overdue: null, approval: null, longReview: false, delay: false };
+        const c = String(r.Submission_Closed || '').toUpperCase();
+        if (c === 'YES' || c === '1') docMap[id].closed = true;
+        else if (c === 'NO' || c === '0') docMap[id].closed = false;
+        if (String(r.Resubmission_Overdue_Status || '').toLowerCase() === 'overdue') docMap[id].overdue = true;
+        const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
+        if (code) docMap[id].approval = code;
+        const dur = Number(r.Duration_of_Review);
+        if (!isNaN(dur) && dur > 30) docMap[id].longReview = true;
+        const del = Number(r.Delay_of_Resubmission);
+        if (!isNaN(del) && del > 30) docMap[id].delay = true;
+      });
+      const docs = Object.keys(docMap).length;
+      const open = Object.values(docMap).filter(d => d.closed === false).length;
+      const overdue = Object.values(docMap).filter(d => d.overdue === true).length;
+      const awaiting = Object.values(docMap).filter(d => !d.approval || approvalCodes.pending.includes(d.approval)).length;
+      const approved = Object.values(docMap).filter(d => d.approval && approvalCodes.approved.includes(d.approval)).length;
+      const longReview = Object.values(docMap).filter(d => d.longReview).length;
+      const delay = Object.values(docMap).filter(d => d.delay).length;
+      const rate = docs > 0 ? (approved / docs * 100) : 0;
+      return { docs, open, overdue, awaiting, longReview, delay, rate };
+    }
+
+    // ─── RENDER ──────────────────────────────────────────────────────────────
+    function renderDashboard() {
+      const data = filteredData.length > 0 ? filteredData : allData;
+      if (data.length === 0) { setEmptyState(); return; }
+      const kpi = computeKPIs(data);
+      document.getElementById('kpiDocs').textContent = formatNum(kpi.docs);
+      document.getElementById('kpiOpen').textContent = formatNum(kpi.open);
+      document.getElementById('kpiOverdue').textContent = formatNum(kpi.overdue);
+      document.getElementById('kpiAwaiting').textContent = formatNum(kpi.awaiting);
+      document.getElementById('kpiLongReview').textContent = formatNum(kpi.longReview);
+      document.getElementById('kpiDelay').textContent = formatNum(kpi.delay);
+      document.getElementById('kpiApproval').textContent = kpi.rate.toFixed(1) + '%';
+      showDetailAllDocs(data);
+      rebuildCharts();
+    }
+
+    function setEmptyState() {
+      ['kpiDocs','kpiOpen','kpiOverdue','kpiAwaiting','kpiLongReview','kpiDelay','kpiApproval'].forEach(id => document.getElementById(id).textContent = '—');
+      document.getElementById('detailTableContainer').innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No data to display.</div>';
+    }
+
+    function formatNum(n) { if (n == null) return '—'; if (n >= 1000000) return (n/1000000).toFixed(1)+'M'; if (n >= 1000) return (n/1000).toFixed(1)+'K'; return String(n); }
+
+    function isValidDocId(id, row) {
+      if (!id) return false;
+      const s = String(id).trim().toLowerCase();
+      if (!s) return false;
+      if (docIdRules.checkUncertain && docIdRules.uncertainValues.includes(s)) return false;
+      if (docIdRules.docIdCodes.length > 0 && row) {
+        const errs = row['Validation_Errors'];
+        if (errs) {
+          const errStr = String(errs);
+          for (let i = 0; i < docIdRules.docIdCodes.length; i++) {
+            if (errStr.includes(docIdRules.docIdCodes[i])) return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    // ─── CHARTS ──────────────────────────────────────────────────────────────
+    function getChartColors() {
+      const s = getComputedStyle(document.documentElement);
+      return { text:s.getPropertyValue('--text').trim(), text2:s.getPropertyValue('--text2').trim(), accent:s.getPropertyValue('--accent').trim(), danger:s.getPropertyValue('--danger').trim(), warning:s.getPropertyValue('--warning').trim(), success:s.getPropertyValue('--success').trim(), info:s.getPropertyValue('--info').trim()||'#58a6ff', surface:s.getPropertyValue('--surface').trim(), border:s.getPropertyValue('--border').trim() };
+    }
+
+    function rebuildCharts() {
+      const data = filteredData.length > 0 ? filteredData : allData;
+      Object.values(chartInstances).forEach(c => { if (c) { c.destroy(); } }); chartInstances = {};
+      if (data.length === 0) return;
+      const c = getChartColors();
+
+      // Timeline — unique Document_ID per month
+      const monthlyDocs = {}; data.forEach(r => {
+        if (r.Submission_Date && isValidDocId(r.Document_ID, r)) {
+          const m = String(r.Submission_Date).slice(0,7);
+          if (!monthlyDocs[m]) monthlyDocs[m] = new Set();
+          monthlyDocs[m].add(r.Document_ID);
+        }
+      });
+      const tl = Object.entries(monthlyDocs).sort(([a],[b]) => a.localeCompare(b)).map(([k,v]) => [k, v.size]);
+      chartInstances.timeline = new Chart(document.getElementById('timelineChart').getContext('2d'), { type:'line', data:{ labels:tl.map(([k])=>k), datasets:[{ label:'Submissions', data:tl.map(([,v])=>v), borderColor:c.accent, backgroundColor:c.accent+'20', tension:0.4, fill:true, pointBackgroundColor:c.accent }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
+
+      // Status donut — per unique Document_ID using Latest_Approval_Status
+      const docStatuses = {};
+      data.forEach(r => {
+        const docId = r.Document_ID; if (!isValidDocId(docId, r)) return;
+        const status = r.Latest_Approval_Status;
+        if (status && !docStatuses[docId]) docStatuses[docId] = status;
+      });
+      const statusCounts = {};
+      Object.values(docStatuses).forEach(s => { statusCounts[s] = (statusCounts[s]||0)+1; });
+      const sl = Object.keys(statusCounts);
+      const palette = [c.success, '#58a6ff', c.danger, c.warning, '#8b949e', '#6e7681', c.text2];
+      chartInstances.status = new Chart(document.getElementById('statusChart').getContext('2d'), { type:'doughnut', data:{ labels:sl.map(k=>k+' ('+statusCounts[k]+')'), datasets:[{ data:sl.map(k=>statusCounts[k]), backgroundColor:palette.slice(0,sl.length), borderColor:c.surface }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:c.text2 } } } } });
+
+      // Discipline bar
+      const discCounts = {}; data.forEach(r => { if (r.Discipline) discCounts[r.Discipline] = (discCounts[r.Discipline]||0)+1; });
+      const dl = Object.entries(discCounts).sort(([,a],[,b]) => b-a);
+      chartInstances.discipline = new Chart(document.getElementById('disciplineChart').getContext('2d'), { type:'bar', data:{ labels:dl.map(([k])=>k), datasets:[{ label:'Documents', data:dl.map(([,v])=>v), backgroundColor:c.accent, borderColor:c.border, borderWidth:1 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
+
+      // Approval rate trend by month — v2.2 (7.29): doc-level, consistent with KPI tile
+      const trendDocs = {};
+      data.forEach(r => {
+        if (!r.Submission_Date || !isValidDocId(r.Document_ID, r)) return;
+        const m = String(r.Submission_Date).slice(0,7);
+        if (!trendDocs[m]) trendDocs[m] = { docs: new Set(), approved: new Set() };
+        trendDocs[m].docs.add(r.Document_ID);
+        const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
+        if (approvalCodes.approved.includes(code)) trendDocs[m].approved.add(r.Document_ID);
+      });
+      const tld = Object.entries(trendDocs).sort(([a],[b]) => a.localeCompare(b));
+      chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), { type:'line', data:{ labels:tld.map(([k])=>k), datasets:[{ label:'Approval Rate', data:tld.map(([,v])=>v.docs.size>0?(v.approved.size/v.docs.size*100):0), borderColor:c.success, backgroundColor:c.success+'20', tension:0.4, fill:true, pointBackgroundColor:c.success }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100, ticks:{ color:c.text2, callback:v=>v+'%' }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
+    }
+
+    // ─── DYNAMIC DETAIL TABLE ────────────────────────────────────────────────
+    let dtState = { title: '', columns: [], rows: [], sortCol: null, sortAsc: true, search: '' };
+
+    function renderDetailTable(title, columns, rows) {
+      dtState = { title, columns, rows, sortCol: null, sortAsc: true, search: '' };
+      buildDetailTable();
+    }
+
+    function buildDetailTable() {
+      const { title, columns, rows, sortCol, sortAsc, search } = dtState;
+      document.getElementById('detailTableTitle').textContent = title;
+      let filtered = rows;
+      if (search) {
+        const q = search.toLowerCase();
+        filtered = rows.filter(r => columns.some(c => String(r[c] != null ? r[c] : '').toLowerCase().includes(q)));
+      }
+      if (sortCol !== null) {
+        const col = columns[sortCol];
+        filtered = [...filtered].sort((a, b) => {
+          const va = a[col], vb = b[col];
+          const na = parseFloat(va), nb = parseFloat(vb);
+          if (!isNaN(na) && !isNaN(nb)) return sortAsc ? na - nb : nb - na;
+          return sortAsc ? String(va||'').localeCompare(String(vb||'')) : String(vb||'').localeCompare(String(va||''));
+        });
+      }
+      document.getElementById('detailTableCount').textContent = filtered.length + ' / ' + rows.length + ' items';
+      const container = document.getElementById('detailTableContainer');
+      if (filtered.length === 0) { container.innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No matching items.</div>'; return; }
+      const arrow = (i) => sortCol === i ? (sortAsc ? ' ▲' : ' ▼') : '';
+      container.innerHTML =
+        '<div style="margin-bottom:6px;"><input id="dtSearch" type="text" placeholder="Filter table..." style="width:100%;padding:4px 8px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);box-sizing:border-box;" value="' + esc(search) + '"></div>' +
+        '<table><thead><tr>' + columns.map((c, i) => '<th data-col="' + i + '" style="cursor:pointer;user-select:none;">' + esc(c) + arrow(i) + '</th>').join('') + '</tr></thead><tbody>' +
+        filtered.map(r => '<tr>' + columns.map(c => '<td>' + esc(r[c] != null ? r[c] : '') + '</td>').join('') + '</tr>').join('') +
+        '</tbody></table>';
+      document.getElementById('dtSearch')?.addEventListener('input', function() { dtState.search = this.value; buildDetailTable(); });
+      container.querySelectorAll('th[data-col]').forEach(th => th.addEventListener('click', function() {
+        const i = parseInt(this.dataset.col);
+        if (dtState.sortCol === i) dtState.sortAsc = !dtState.sortAsc;
+        else { dtState.sortCol = i; dtState.sortAsc = true; }
+        buildDetailTable();
+      }));
+    }
+
+    // v2.2 (7.25): dedup by Document_ID (keep oldest plan date), sort ascending (most overdue first)
+    function showDetailOverdue(data) {
+      const docMap = {};
+      data.forEach(r => {
+        if (String(r.Resubmission_Overdue_Status).toLowerCase() !== 'overdue') return;
+        if (!isValidDocId(r.Document_ID, r)) return;
+        const planStr = r.Resubmission_Plan_Date || '';
+        const planDate = planStr ? new Date(planStr) : null;
+        const existing = docMap[r.Document_ID];
+        if (!existing || (planDate && !isNaN(planDate) && (!existing._planDate || planDate < existing._planDate))) {
+          docMap[r.Document_ID] = {
+            Document_ID: r.Document_ID,
+            Department: r.Department || '',
+            Submitted_By: r.Submitted_By || '',
+            Discipline: r.Discipline || '',
+            Resubmission_Plan_Date: planStr,
+            Resubmission_Overdue_Status: r.Resubmission_Overdue_Status || '',
+            _planDate: planDate && !isNaN(planDate) ? planDate : null
+          };
+        }
+      });
+      const rows = Object.values(docMap)
+        .sort((a, b) => {
+          if (!a._planDate && !b._planDate) return 0;
+          if (!a._planDate) return 1;
+          if (!b._planDate) return -1;
+          return a._planDate - b._planDate; // oldest first = most overdue first
+        })
+        .map(({ _planDate, ...r }) => r); // strip internal field
+      renderDetailTable('⚠️ Overdue Resubmissions', ['Document_ID','Department','Submitted_By','Discipline','Resubmission_Plan_Date','Resubmission_Overdue_Status'], rows);
+    }
+
+    function showDetailAllDocs(data) {
+      const seen = new Set(); const rows = [];
+      data.forEach(r => { if (isValidDocId(r.Document_ID, r) && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Project_Code: r.Project_Code||'', Latest_Approval_Code: r.Latest_Approval_Code||r.This_Submission_Approval_Code||'' }); } });
+      renderDetailTable('📄 All Documents', ['Document_ID','Department','Submitted_By','Discipline','Project_Code','Latest_Approval_Code'], rows);
+    }
+
+    // v2.2 (7.30): open table enriched with Resubmission_Plan_Date and Delay_of_Resubmission from latest row
+    function showDetailOpen(data) {
+      const docStatus = {};
+      const latestRow = {}; // latest submission row per doc
+      data.forEach(r => {
+        if (!isValidDocId(r.Document_ID, r)) return;
+        const id = r.Document_ID;
+        if (!docStatus[id]) docStatus[id] = { closed: null };
+        const c = String(r.Submission_Closed||'').toUpperCase();
+        if (c==='YES'||c==='1') docStatus[id].closed = true;
+        else if (c==='NO'||c==='0') docStatus[id].closed = false;
+        // track latest submission row
+        const subDate = r.Submission_Date ? new Date(r.Submission_Date) : null;
+        if (!latestRow[id] || (subDate && !isNaN(subDate) && subDate > latestRow[id]._date)) {
+          latestRow[id] = { _date: subDate, row: r };
+        }
+      });
+      const openIds = new Set(Object.entries(docStatus).filter(([,s]) => s.closed === false).map(([id]) => id));
+      const seen = new Set(); const rows = [];
+      data.forEach(r => {
+        if (!isValidDocId(r.Document_ID, r) || !openIds.has(r.Document_ID) || seen.has(r.Document_ID)) return;
+        seen.add(r.Document_ID);
+        const lr = latestRow[r.Document_ID]?.row || r;
+        rows.push({
+          Document_ID: r.Document_ID,
+          Department: r.Department||'',
+          Submitted_By: r.Submitted_By||'',
+          Discipline: r.Discipline||'',
+          Resubmission_Plan_Date: lr.Resubmission_Plan_Date||'',
+          Delay_of_Resubmission: lr.Delay_of_Resubmission != null ? lr.Delay_of_Resubmission : ''
+        });
+      });
+      rows.sort((a,b) => (Number(b.Delay_of_Resubmission)||0) - (Number(a.Delay_of_Resubmission)||0));
+      renderDetailTable('📂 Open Submissions', ['Document_ID','Department','Submitted_By','Discipline','Resubmission_Plan_Date','Delay_of_Resubmission'], rows);
+    }
+
+    function showDetailApproval(data) {
+      const docMap = {}; data.forEach(r => { if (!isValidDocId(r.Document_ID, r)) return; const code = (r.Latest_Approval_Code||r.This_Submission_Approval_Code||'').toUpperCase(); if (code) docMap[r.Document_ID] = code; });
+      const seen = new Set(); const rows = [];
+      data.forEach(r => { if (isValidDocId(r.Document_ID, r) && docMap[r.Document_ID] && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Latest_Approval_Code: docMap[r.Document_ID] }); } });
+      renderDetailTable('✓ Approval Rate', ['Document_ID','Department','Submitted_By','Latest_Approval_Code'], rows);
+    }
+
+    // v2.2 (7.27, 7.30): resolve Latest_Approval_Code from latest submission row; add plan date + delay
+    function showDetailAwaiting(data) {
+      // Build latest-row map per doc
+      const latestRow = {};
+      data.forEach(r => {
+        if (!isValidDocId(r.Document_ID, r)) return;
+        const id = r.Document_ID;
+        const subDate = r.Submission_Date ? new Date(r.Submission_Date) : null;
+        if (!latestRow[id] || (subDate && !isNaN(subDate) && subDate > latestRow[id]._date)) {
+          latestRow[id] = { _date: subDate, row: r };
+        }
+      });
+      const seen = new Set(); const rows = [];
+      Object.entries(latestRow).forEach(([id, { row: lr }]) => {
+        if (seen.has(id)) return;
+        const code = (lr.Latest_Approval_Code || lr.This_Submission_Approval_Code || '').toUpperCase();
+        // Awaiting = no code, or pending code (not terminal, not rejected)
+        if (!code || approvalCodes.pending.includes(code)) {
+          seen.add(id);
+          rows.push({
+            Document_ID: id,
+            Department: lr.Department||'',
+            Submitted_By: lr.Submitted_By||'',
+            Discipline: lr.Discipline||'',
+            Latest_Approval_Code: code || '—',
+            Resubmission_Plan_Date: lr.Resubmission_Plan_Date||'',
+            Delay_of_Resubmission: lr.Delay_of_Resubmission != null ? lr.Delay_of_Resubmission : ''
+          });
+        }
+      });
+      rows.sort((a,b) => (Number(b.Delay_of_Resubmission)||0) - (Number(a.Delay_of_Resubmission)||0));
+      renderDetailTable('⏳ Awaiting Response', ['Document_ID','Department','Submitted_By','Discipline','Latest_Approval_Code','Resubmission_Plan_Date','Delay_of_Resubmission'], rows);
+    }
+
+    function showDetailLongReview(data) {
+      const seen = new Set(); const rows = [];
+      data.forEach(r => {
+        if (!isValidDocId(r.Document_ID, r)) return;
+        const dur = Number(r.Duration_of_Review);
+        if (!isNaN(dur) && dur > 30 && !seen.has(r.Document_ID)) {
+          seen.add(r.Document_ID);
+          rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Duration_of_Review: dur });
+        }
+      });
+      rows.sort((a,b) => b.Duration_of_Review - a.Duration_of_Review);
+      renderDetailTable('⏱ Review >30 Days', ['Document_ID','Department','Submitted_By','Discipline','Duration_of_Review'], rows);
+    }
+
+    // v2.2 (7.26): aggregate max Delay_of_Resubmission per doc (not first-seen row)
+    function showDetailDelay(data) {
+      const docMax = {};
+      data.forEach(r => {
+        if (!isValidDocId(r.Document_ID, r)) return;
+        const del = Number(r.Delay_of_Resubmission);
+        if (isNaN(del) || del <= 30) return;
+        const id = r.Document_ID;
+        if (!docMax[id] || del > docMax[id].Delay_of_Resubmission) {
+          docMax[id] = {
+            Document_ID: id,
+            Department: r.Department||'',
+            Submitted_By: r.Submitted_By||'',
+            Discipline: r.Discipline||'',
+            Delay_of_Resubmission: del
+          };
+        }
+      });
+      const rows = Object.values(docMax).sort((a,b) => b.Delay_of_Resubmission - a.Delay_of_Resubmission);
+      renderDetailTable('⏳ Delay >30 Days', ['Document_ID','Department','Submitted_By','Discipline','Delay_of_Resubmission'], rows);
+    }
+
+    // v2.2 (7.31): data-kpi attribute dispatch — not positional index
+    const kpiHandlers = {
+      allDocs:    showDetailAllDocs,
+      open:       showDetailOpen,
+      overdue:    showDetailOverdue,
+      approval:   showDetailApproval,
+      awaiting:   showDetailAwaiting,
+      longReview: showDetailLongReview,
+      delay:      showDetailDelay
+    };
+    document.querySelectorAll('.kpi-card[data-kpi]').forEach(card => {
+      card.addEventListener('click', () => {
+        const d = filteredData.length > 0 ? filteredData : allData;
+        if (!d.length) return;
+        const handler = kpiHandlers[card.dataset.kpi];
+        if (handler) handler(d);
+      });
+    });
+
+    // ─── DOWNLOAD TABLE ──────────────────────────────────────────────────────
+    document.getElementById('downloadBtn').addEventListener('click', e => {
+      e.stopPropagation();
+      const menu = document.getElementById('downloadMenu');
+      menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+    });
+    document.addEventListener('click', () => { document.getElementById('downloadMenu').style.display = 'none'; });
+    document.getElementById('downloadMenu').addEventListener('click', e => e.stopPropagation());
+    document.querySelectorAll('.download-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        downloadTable(opt.dataset.format);
+        document.getElementById('downloadMenu').style.display = 'none';
+      });
+    });
+
+    function downloadTable(format) {
+      const { columns, rows } = dtState;
+      if (!rows || rows.length === 0) return;
+      let data = rows;
+      if (dtState.search) {
+        const q = dtState.search.toLowerCase();
+        data = rows.filter(r => columns.some(c => String(r[c] != null ? r[c] : '').toLowerCase().includes(q)));
+      }
+      if (dtState.sortCol !== null) {
+        const col = columns[dtState.sortCol];
+        data = [...data].sort((a, b) => {
+          const va = a[col], vb = b[col];
+          const na = parseFloat(va), nb = parseFloat(vb);
+          if (!isNaN(na) && !isNaN(nb)) return dtState.sortAsc ? na - nb : nb - na;
+          return dtState.sortAsc ? String(va||'').localeCompare(String(vb||'')) : String(vb||'').localeCompare(String(va||''));
+        });
+      }
+      const exportData = data.map(r => {
+        const obj = {};
+        columns.forEach(c => { obj[c] = r[c] != null ? r[c] : ''; });
+        return obj;
+      });
+      if (format === 'csv') {
+        const csv = Papa.unparse(exportData);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'submittal_table.csv';
+        link.click();
+        URL.revokeObjectURL(link.href);
+      } else if (format === 'excel') {
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const colWidths = columns.map(c => ({ wch: Math.max(c.length, 10) }));
+        ws['!cols'] = colWidths;
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Submittal');
+        XLSX.writeFile(wb, 'submittal_table.xlsx');
+      }
+    }
+
+    // ─── STATUS BAR ──────────────────────────────────────────────────────────
+    function updateStatus(type, msg) {
+      const bar = document.querySelector('.dcc-statusbar');
+      const msgEl = document.getElementById('statusMsg');
+      bar.className = 'dcc-statusbar status-' + type;
+      msgEl.textContent = msg;
+      document.getElementById('statusFile').textContent = document.getElementById('dataSource').textContent || 'No file loaded';
+    }
+
+    // ─── INIT ────────────────────────────────────────────────────────────────
+    // v2.2 (7.28): load both rule sets in parallel on init
+    (async function init() {
+      await Promise.all([loadDocIdRules(), loadApprovalCodes()]);
+      if (document.getElementById('autoRefresh')?.checked !== false) {
+        await loadFromPipeline();
+      }
+    })();
+  </script>
+</body>
+</html>

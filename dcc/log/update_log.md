@@ -8,6 +8,85 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-23-serve-pipeline-api"></a>
+## 2026-05-23 — serve.py: Added `/api/v1/pipeline/run` and `/api/v1/pipeline/status` endpoints
+
+### COMPLETED: Pipeline API endpoints built directly into serve.py
+
+**Summary:** `serve.py` previously proxied all `/api/*` to port 8000 (FastAPI backend that doesn't exist for DCC). Added native `/api/v1/pipeline/run` (POST) and `/api/v1/pipeline/status` (GET) endpoints that launch `dcc_engine_pipeline.py` as a subprocess and stream its output back to the dashboard.
+
+**Root Cause of Original Issue:** The dashboard's Run button sent `POST /api/v1/pipeline/run` but `serve.py` tried to proxy it to `localhost:8000` which has no server — resulting in a 502 error. No FastAPI backend exists for the DCC pipeline.
+
+**Changes:**
+
+| Component | Detail |
+|---|---|
+| `_run_state` dict | In-memory run state: `run_id`, `status` (IDLE/RUNNING/COMPLETED/FAILED), `message`, `log_lines[]`, `started_at`, `ended_at`, `stages[]` |
+| `_run_lock` | `threading.Lock()` protecting `_run_state` from concurrent access |
+| `_run_pipeline_async()` | Background thread function. Launches `dcc_engine_pipeline.py` via `subprocess.Popen` with `--base-path` and `--upload-file` args. Captures stdout/stderr line-by-line. Parses stage transitions from output keywords. Updates `_run_state` on completion. |
+| `_parse_stage_from_line()` | Maps pipeline output lines to stage IDs (stage1–stage6) by keyword matching. |
+| `_handle_pipeline_run()` | POST handler. Rejects if already running (409). Resets state, launches background thread, returns 202 Accepted with `run_id`. |
+| `_handle_pipeline_status()` | GET handler. Returns full `_run_state` snapshot as JSON including all `log_lines[]` and `stages[]`. |
+| `do_GET` routing | `/api/v1/pipeline/status` checked before generic `/api/*` proxy. |
+| `do_POST` routing | `/api/v1/pipeline/run` checked before generic `/api/*` proxy. |
+| Dashboard fix | `_lastLogCount` variable tracks how many log lines have been shown. Polling only appends new lines (slices from `_lastLogCount`). Prevents duplicate lines on each 2s poll. |
+
+**Files Modified:**
+- `dcc/serve.py` — Added imports (`subprocess`, `threading`, `time`, `uuid`), `_run_state`, `_run_lock`, `_run_pipeline_async()`, `_parse_stage_from_line()`, `_handle_pipeline_run()`, `_handle_pipeline_status()`, routing in `do_GET`/`do_POST`.
+- `dcc/ui/pipeline_dashboard.html` — Added `_lastLogCount` variable, updated `startPolling()` to slice new lines only, reset `_lastLogCount` in `triggerPipelineRun()`.
+
+**Impact:** Clicking "Run" in the dashboard now actually executes `dcc_engine_pipeline.py`. Console modal streams live output. Stage cards update as pipeline progresses. Dashboard auto-refreshes KPIs on completion.
+
+
+## 2026-05-23 — Phase 2 v3.1 (Run Button Integration) & Phase 7 v2.2 (Submittal Fixes) Complete
+
+### COMPLETED: Phase 2 v3.1 — Functional "Run" Button Integration
+
+**Summary:** Upgraded `pipeline_dashboard.html` from a read-only monitoring tool to a functional execution controller. The "Run" button now triggers the backend pipeline via `POST /api/v1/pipeline/run`, polls for status, and provides real-time feedback.
+
+**Changes by Sub-Task:**
+
+| ID | Task | Implementation Detail |
+|---|---|---|
+| 2.10 | `triggerPipelineRun()` | Sends `POST /api/v1/pipeline/run` with `base_path` and `upload_file_name` extracted from sidebar source display. Handles 202 Accepted (async), 200 OK (sync), and error responses. |
+| 2.11 | Real-time status polling | `startPolling()` calls `GET /api/v1/pipeline/status` every 2s. Updates stage cards and progress bars from `data.stages[]`. Stops on COMPLETED/FAILED. |
+| 2.12 | Execution lock & feedback | `setRunBusy(true/false)` disables button + shows spinner. `showToast()` displays 4s toast notifications on completion/failure. |
+| 2.13 | Auto-refresh on completion | `loadAllData()` called automatically when polling detects COMPLETED status. |
+| 2.14 | Live output console | `openConsoleModal()` creates a modal with scrollable `<pre>` output. `appendConsoleLine()` streams log lines. Clear/close controls. Badge shows Running/Completed/Error state. |
+| Guard | `file://` protocol | Run button disabled on `file://` with tooltip and toast explaining server requirement. |
+
+**Files Modified:**
+- `dcc/ui/pipeline_dashboard.html` — Added `triggerPipelineRun()`, `startPolling()`, `stopPolling()`, `setRunBusy()`, `showToast()`, `openConsoleModal()`, `appendConsoleLine()`, `setConsoleBadge()`. Updated `toolbarRunBtn` handler. Added `file://` guard in init. Added `title` attribute to Run button.
+- `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.18, Phase 2 v3.1 marked COMPLETE, success criteria all checked.
+
+---
+
+### COMPLETED: Phase 7 v2.2 — Submittal Tracker Dashboard Data Quality & Logic Fixes
+
+**Summary:** Fixed 8 data accuracy and logic issues in `submittal_dashboard.html`. All 7 sub-tasks (7.25–7.31) implemented.
+
+**Changes by Sub-Task:**
+
+| ID | Task | Implementation Detail |
+|---|---|---|
+| 7.25 | Fix overdue table — date sort + dedup | `showDetailOverdue()` deduplicates by `Document_ID` (keeps row with oldest `Resubmission_Plan_Date`). Sorts ascending by `Resubmission_Plan_Date` using `new Date()` comparison — oldest plan date first = most overdue first. Strips internal `_planDate` field before rendering. |
+| 7.26 | Fix delay table — max delay per doc | `showDetailDelay()` aggregates all rows per `Document_ID` and shows the maximum `Delay_of_Resubmission`. Sorts descending by max delay. |
+| 7.27 | Fix awaiting table — latest submission row | `showDetailAwaiting()` builds `latestRow` map per doc (max `Submission_Date`). Reads `Latest_Approval_Code` from latest row. Awaiting = no code or pending code. |
+| 7.28 | Schema-driven approval codes | `loadApprovalCodes()` fetches `approval_code_schema.json` on init. Derives `terminal`, `pending`, `approved` code arrays dynamically. Fallback to hardcoded arrays if fetch fails. Loaded in parallel with `loadDocIdRules()`. |
+| 7.29 | Fix approval rate trend chart — doc-level | Trend chart uses `Set` per month for unique docs and unique approved docs. Rate = `approved.size / docs.size * 100`. Consistent with KPI tile. |
+| 7.30 | Add plan date and delay to open/awaiting tables | `showDetailOpen()` and `showDetailAwaiting()` include `Resubmission_Plan_Date` and `Delay_of_Resubmission` from latest submission row. Awaiting table sorted by `Delay_of_Resubmission` descending. |
+| 7.31 | Replace positional KPI click handler | `kpiHandlers` map keyed by `data-kpi` attribute value. `querySelectorAll('.kpi-card[data-kpi]')` dispatches to handler by attribute. No positional index dependency. |
+
+**Files Modified:**
+- `dcc/ui/submittal_dashboard.html` — All 7 sub-tasks implemented (already present in file from prior session).
+- `dcc/workplan/ui_design/web_interface/web_interface_workplan.md` — v3.18, Phase 7 v2.2 marked COMPLETE, success criteria all checked.
+
+**Archived Files:**
+- `dcc/archive/pipeline_dashboard_pre_v3.1_<timestamp>.html`
+- `dcc/archive/submittal_dashboard_pre_v2.2_<timestamp>.html`
+
+
+
 <a id="update-2026-05-21-phase1-5-1-6-complete"></a>
 ## 2026-05-21 — Phase 1.5 (Structured JSON Output) & Phase 1.6 (Aggregator Fix) Complete
 

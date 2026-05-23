@@ -159,7 +159,7 @@
         <span style="font-weight: 600; color: var(--text);">Pipeline Execution Monitor</span>
         <div class="toolbar-spacer"></div>
         <button class="btn btn-sm btn-secondary" id="toolbarRefreshBtn">🔄 Refresh</button>
-        <button class="btn btn-sm btn-primary" id="toolbarRunBtn" title="Trigger pipeline run via POST /api/v1/pipeline/run (requires http:// server)">▶ Run</button>
+        <button class="btn btn-sm btn-primary" id="toolbarRunBtn">▶ Run</button>
       </div>
 
       <div class="content-scroll">
@@ -1161,266 +1161,14 @@
       }
     }
 
-    // ─── PIPELINE RUN — v3.1 ────────────────────────────────────────────────
-    // API endpoints (relative to the server serving this dashboard)
-    const API_RUN    = '/api/v1/pipeline/run';
-    const API_STATUS = '/api/v1/pipeline/status';
-
-    let pollTimer = null;          // setInterval handle for status polling
-    let runConsoleLines = [];      // accumulated console output lines
-    let consoleModal = null;       // reference to the live console modal element
-
-    /** Disable/enable the Run button and show a spinner while pipeline is active */
-    function setRunBusy(busy) {
-      const btn = document.getElementById('toolbarRunBtn');
-      if (!btn) return;
-      btn.disabled = busy;
-      btn.textContent = busy ? '⏳ Running…' : '▶ Run';
-      btn.style.opacity = busy ? '0.6' : '';
-      btn.style.cursor  = busy ? 'not-allowed' : '';
-    }
-
-    /** Show a toast notification at the bottom of the screen */
-    function showToast(msg, type) {
-      // type: 'ok' | 'error' | 'warning'
-      const colors = { ok: 'var(--success)', error: 'var(--danger)', warning: 'var(--warning)' };
-      const toast = document.createElement('div');
-      toast.style.cssText = [
-        'position:fixed;bottom:36px;right:16px;z-index:9999',
-        'padding:8px 14px;border-radius:var(--radius)',
-        'background:var(--surface2);border:1px solid ' + (colors[type] || 'var(--border)'),
-        'color:var(--text);font-size:12px;box-shadow:0 4px 12px rgba(0,0,0,0.4)',
-        'transition:opacity 0.4s;max-width:320px;word-break:break-word'
-      ].join(';');
-      toast.textContent = msg;
-      document.body.appendChild(toast);
-      setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 4000);
-    }
-
-    /** Open (or reuse) the live output console modal */
-    function openConsoleModal() {
-      if (consoleModal) { consoleModal.style.display = 'flex'; return; }
-      const overlay = document.createElement('div');
-      overlay.id = 'consoleOverlay';
-      overlay.style.cssText = [
-        'position:fixed;inset:0;z-index:8000',
-        'background:rgba(0,0,0,0.6)',
-        'display:flex;align-items:center;justify-content:center'
-      ].join(';');
-      overlay.innerHTML = `
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-                    width:680px;max-width:95vw;max-height:70vh;display:flex;flex-direction:column;overflow:hidden;">
-          <div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);
-                      background:var(--surface2);">
-            <span style="font-size:12px;font-weight:600;color:var(--text);flex:1;">📋 Pipeline Console</span>
-            <span id="consoleBadge" style="font-size:10px;padding:2px 6px;border-radius:10px;
-                  background:var(--accent);color:#fff;margin-right:8px;">Running</span>
-            <button id="consoleCloseBtn" style="background:none;border:none;cursor:pointer;
-                    color:var(--text2);font-size:14px;padding:2px 6px;">✕</button>
-          </div>
-          <pre id="consoleOutput" style="flex:1;overflow-y:auto;margin:0;padding:10px 12px;
-               font-family:var(--font-mono);font-size:10px;line-height:1.6;
-               color:var(--text2);background:var(--bg);white-space:pre-wrap;word-break:break-all;"></pre>
-          <div style="padding:6px 12px;border-top:1px solid var(--border);background:var(--surface2);
-                      display:flex;justify-content:flex-end;gap:6px;">
-            <button id="consoleClearBtn" class="btn btn-xs btn-secondary" style="font-size:10px;">🗑 Clear</button>
-            <button id="consoleCloseBtn2" class="btn btn-xs btn-secondary" style="font-size:10px;">Close</button>
-          </div>
-        </div>`;
-      document.body.appendChild(overlay);
-      consoleModal = overlay;
-      overlay.querySelector('#consoleCloseBtn').addEventListener('click',  () => { overlay.style.display = 'none'; });
-      overlay.querySelector('#consoleCloseBtn2').addEventListener('click', () => { overlay.style.display = 'none'; });
-      overlay.querySelector('#consoleClearBtn').addEventListener('click',  () => {
-        runConsoleLines = [];
-        const out = overlay.querySelector('#consoleOutput');
-        if (out) out.textContent = '';
-      });
-    }
-
-    /** Append a line to the console modal output */
-    function appendConsoleLine(line) {
-      openConsoleModal();
-      runConsoleLines.push(line);
-      const out = consoleModal?.querySelector('#consoleOutput');
-      if (!out) return;
-      out.textContent += line + '\n';
-      out.scrollTop = out.scrollHeight;
-    }
-
-    /** Update the console badge label */
-    function setConsoleBadge(label, color) {
-      const badge = consoleModal?.querySelector('#consoleBadge');
-      if (!badge) return;
-      badge.textContent = label;
-      badge.style.background = color || 'var(--accent)';
-    }
-
-    /** Stop the polling timer */
-    function stopPolling() {
-      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    }
-
-    /**
-     * Poll /api/v1/pipeline/status every 2 s.
-     * Updates stage cards and progress bars dynamically.
-     * Stops when status reaches COMPLETED or FAILED.
-     */
-    let _lastLogCount = 0; // track how many log lines we've already shown
-
-    function startPolling() {
-      stopPolling();
-      _lastLogCount = 0;
-      pollTimer = setInterval(async () => {
-        try {
-          const resp = await fetch(API_STATUS, { cache: 'no-store' });
-          if (!resp.ok) return; // server not ready yet — keep polling
-          const data = await resp.json();
-
-          // Append only NEW log lines since last poll
-          const lines = data.log_lines || [];
-          const newLines = lines.slice(_lastLogCount);
-          newLines.forEach(l => appendConsoleLine(l));
-          _lastLogCount = lines.length;
-
-          // Update stage cards if stage info is available
-          if (data.stages && Array.isArray(data.stages)) {
-            data.stages.forEach(st => {
-              const statusEl = document.getElementById(st.id + 'Status');
-              const barEl    = document.getElementById(st.id + 'Bar');
-              if (!statusEl || !barEl) return;
-              const s = (st.status || '').toUpperCase();
-              if (s === 'PASS' || s === 'COMPLETED') {
-                statusEl.textContent = '✓ PASS'; statusEl.style.color = 'var(--success)';
-                barEl.style.width = '100%'; barEl.style.background = 'var(--success)';
-              } else if (s === 'RUNNING' || s === 'IN_PROGRESS') {
-                statusEl.textContent = '⏳ Running…'; statusEl.style.color = 'var(--accent)';
-                barEl.style.width = (st.progress != null ? st.progress : 50) + '%';
-                barEl.style.background = 'var(--accent)';
-              } else if (s === 'FAIL' || s === 'FAILED' || s === 'ERROR') {
-                statusEl.textContent = '✗ FAIL'; statusEl.style.color = 'var(--danger)';
-                barEl.style.width = '100%'; barEl.style.background = 'var(--danger)';
-              } else if (s === 'WARNING') {
-                statusEl.textContent = '⚠ Warning'; statusEl.style.color = 'var(--warning)';
-                barEl.style.width = '100%'; barEl.style.background = 'var(--warning)';
-              }
-            });
-          }
-
-          // Check terminal states
-          const overallStatus = (data.status || '').toUpperCase();
-          if (overallStatus === 'COMPLETED' || overallStatus === 'SUCCESS') {
-            stopPolling();
-            setRunBusy(false);
-            setConsoleBadge('Completed', 'var(--success)');
-            appendConsoleLine('\n✓ Pipeline completed successfully.');
-            showToast('✓ Pipeline completed — refreshing data…', 'ok');
-            updateStatus('ok', '✓ Pipeline completed');
-            await loadAllData(); // auto-refresh KPIs and output files
-          } else if (overallStatus === 'FAILED' || overallStatus === 'ERROR') {
-            stopPolling();
-            setRunBusy(false);
-            setConsoleBadge('Failed', 'var(--danger)');
-            appendConsoleLine('\n✗ Pipeline failed: ' + (data.message || 'unknown error'));
-            showToast('✗ Pipeline failed: ' + (data.message || 'check console'), 'error');
-            updateStatus('error', '✗ Pipeline failed');
-          }
-        } catch (err) {
-          // Network error during polling — keep trying silently
-          appendConsoleLine('[poll error] ' + err.message);
-        }
-      }, 2000);
-    }
-
-    /**
-     * Task 2.10 — triggerPipelineRun()
-     * Sends POST /api/v1/pipeline/run with base_path and upload_file_name.
-     * Handles 202 Accepted and error responses.
-     * Disabled on file:// protocol (no server available).
-     */
-    async function triggerPipelineRun() {
-      // Guard: file:// protocol has no backend server
-      if (window.location.protocol === 'file:') {
-        showToast('⚠ Run requires a server. Open via http:// (e.g. python serve.py)', 'warning');
-        return;
-      }
-
-      // Extract base_path and upload_file_name from sidebar source display
-      let basePath = DATA_BASE;
-      let uploadFileName = '';
-      const srcEl = document.getElementById('sourceFileDisplay');
-      if (srcEl) {
-        const fullPath = srcEl.querySelector('span')?.textContent || srcEl.textContent || '';
-        if (fullPath) {
-          const parts = fullPath.replace(/\\/g, '/').split('/');
-          uploadFileName = parts.pop() || '';
-          basePath = parts.join('/') || DATA_BASE;
-        }
-      }
-
-      // Lock UI and open console
-      setRunBusy(true);
-      runConsoleLines = [];
-      _lastLogCount = 0;
-      openConsoleModal();
-      setConsoleBadge('Running', 'var(--accent)');
-      appendConsoleLine('[' + new Date().toISOString().slice(0,19).replace('T',' ') + '] Triggering pipeline run…');
-      appendConsoleLine('  base_path:        ' + basePath);
-      appendConsoleLine('  upload_file_name: ' + (uploadFileName || '(from config)'));
-      updateStatus('loading', '⏳ Pipeline running…');
-
-      try {
-        const payload = { base_path: basePath };
-        if (uploadFileName) payload.upload_file_name = uploadFileName;
-
-        const resp = await fetch(API_RUN, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (resp.status === 202) {
-          // Accepted — pipeline started asynchronously
-          const data = await resp.json().catch(() => ({}));
-          appendConsoleLine('[' + new Date().toISOString().slice(0,19).replace('T',' ') + '] Pipeline accepted (202). Polling for status…');
-          if (data.run_id) appendConsoleLine('  run_id: ' + data.run_id);
-          startPolling(); // Task 2.11
-        } else if (resp.status === 200) {
-          // Synchronous completion (some backends return 200 immediately)
-          const data = await resp.json().catch(() => ({}));
-          appendConsoleLine('[' + new Date().toISOString().slice(0,19).replace('T',' ') + '] Pipeline completed synchronously (200).');
-          setRunBusy(false);
-          setConsoleBadge('Completed', 'var(--success)');
-          showToast('✓ Pipeline completed — refreshing data…', 'ok');
-          updateStatus('ok', '✓ Pipeline completed');
-          await loadAllData();
-        } else {
-          // Error response
-          let errMsg = 'HTTP ' + resp.status;
-          try { const d = await resp.json(); errMsg = d.message || d.error || errMsg; } catch {}
-          appendConsoleLine('[ERROR] ' + errMsg);
-          setRunBusy(false);
-          setConsoleBadge('Error', 'var(--danger)');
-          showToast('✗ Run failed: ' + errMsg, 'error');
-          updateStatus('error', '✗ Run failed: ' + errMsg);
-        }
-      } catch (err) {
-        // Network error — server not reachable
-        appendConsoleLine('[ERROR] Cannot reach server: ' + err.message);
-        setRunBusy(false);
-        setConsoleBadge('Error', 'var(--danger)');
-        showToast('✗ Cannot reach server: ' + err.message, 'error');
-        updateStatus('error', '✗ Server unreachable');
-      }
-    }
-
     // ─── BUTTON HANDLERS ────────────────────────────────────────────────────
     document.getElementById('toolbarRefreshBtn')?.addEventListener('click', async () => {
       await loadAllData();
     });
 
     document.getElementById('toolbarRunBtn')?.addEventListener('click', async () => {
-      await triggerPipelineRun();
+      updateStatus('loading', 'Running pipeline...');
+      await loadAllData();
     });
 
     // ─── INIT ────────────────────────────────────────────────────────────────
@@ -1429,20 +1177,6 @@
       rightSidebarBody.innerHTML = buildDefaultSidebarHtml();
       renderOutputFileLinks();
       loadAllData();
-
-      // v3.1: Disable Run button on file:// protocol — no backend available
-      if (window.location.protocol === 'file:') {
-        const runBtn = document.getElementById('toolbarRunBtn');
-        if (runBtn) {
-          runBtn.title = '⚠ Run requires a server. Open via http:// (e.g. python serve.py)';
-          runBtn.style.opacity = '0.45';
-          runBtn.style.cursor = 'not-allowed';
-          runBtn.addEventListener('click', e => {
-            e.stopImmediatePropagation();
-            showToast('⚠ Run requires a server. Open via http:// (e.g. python serve.py)', 'warning');
-          }, true);
-        }
-      }
 
       document.querySelectorAll('.kpi-card').forEach((el, i) => {
         el.addEventListener('click', () => showKpiDetail(i));

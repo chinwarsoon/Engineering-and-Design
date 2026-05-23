@@ -3,11 +3,8 @@ serve.py — DCC local HTTP server with HTML file picker.
 Serves all .html files under dcc/ and presents a VS Code-styled
 index page at / so the user can click any tool to open it.
 
-Also handles /api/v1/pipeline/* endpoints directly (run + status)
-so the browser can trigger dcc_engine_pipeline.py and poll for results.
-
-Falls back to proxying other /api/* → FastAPI backend (port 8000) for
-any other API calls (e.g. Ollama proxy, etc.).
+Also proxies /api/* → FastAPI backend (port 8000) so the browser
+never needs to reach a second port (avoids Codespaces private-port issues).
 
 Usage:
     python serve.py              # default port 5000
@@ -21,10 +18,6 @@ import logging
 import os
 import argparse
 import json
-import subprocess
-import threading
-import time
-import uuid
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -42,230 +35,6 @@ FOLDER_LABELS = {
     "tracer":  ("⚙️",  "Tracer"),
     "publish": ("📦", "Published"),
 }
-
-# ─── PIPELINE RUN STATE ──────────────────────────────────────────────────────
-# Tracks the currently active (or last completed) pipeline run.
-# Only one run is allowed at a time.
-
-_run_lock = threading.Lock()
-
-_run_state = {
-    "run_id":    None,
-    "status":    "IDLE",      # IDLE | RUNNING | COMPLETED | FAILED
-    "message":   "",
-    "log_lines": [],          # stdout/stderr lines captured so far
-    "started_at": None,
-    "ended_at":  None,
-    "stages":    [],          # populated from pipeline output parsing
-}
-
-_PIPELINE_SCRIPT = ROOT / "workflow" / "dcc_engine_pipeline.py"
-
-# Stage keywords to detect in pipeline stdout and map to stage card IDs
-_STAGE_PATTERNS = [
-    ("stage1", ["File Upload", "upload", "input file"]),
-    ("stage2", ["Sheet Selection", "sheet", "header row"]),
-    ("stage3", ["Column Mapping", "column mapping", "mapper"]),
-    ("stage4", ["Data Validation", "validation", "processor"]),
-    ("stage5", ["Processing", "calculation", "reorder"]),
-    ("stage6", ["Export", "export", "CSV", "Excel"]),
-]
-
-
-def _parse_stage_from_line(line: str) -> str | None:
-    """Return stage id if the line matches a known stage keyword."""
-    lower = line.lower()
-    for stage_id, keywords in _STAGE_PATTERNS:
-        if any(kw.lower() in lower for kw in keywords):
-            return stage_id
-    return None
-
-
-def _run_pipeline_async(run_id: str, base_path: str, upload_file_name: str) -> None:
-    """
-    Execute dcc_engine_pipeline.py in a subprocess.
-    Captures stdout/stderr line-by-line into _run_state["log_lines"].
-    Updates _run_state["status"] on completion.
-    """
-    global _run_state
-
-    cmd = [
-        sys.executable,
-        str(_PIPELINE_SCRIPT),
-        "--base-path", base_path,
-    ]
-    if upload_file_name:
-        cmd += ["--upload-file", upload_file_name]
-
-    env = os.environ.copy()
-    env["PYTHONUNBUFFERED"] = "1"
-
-    active_stages = {}  # stage_id -> status
-
-    try:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            bufsize=1,
-            cwd=str(ROOT / "workflow"),
-            env=env,
-        )
-
-        with _run_lock:
-            _run_state["log_lines"].append(
-                f"[{time.strftime('%H:%M:%S')}] Pipeline started (PID {proc.pid})"
-            )
-            _run_state["log_lines"].append(
-                f"[{time.strftime('%H:%M:%S')}] Command: {' '.join(cmd)}"
-            )
-
-        for raw_line in proc.stdout:
-            line = raw_line.rstrip()
-            ts = time.strftime("%H:%M:%S")
-            entry = f"[{ts}] {line}"
-
-            # Detect stage transitions from output
-            stage_id = _parse_stage_from_line(line)
-            if stage_id and stage_id not in active_stages:
-                active_stages[stage_id] = "RUNNING"
-
-            # Mark previous stages as PASS when a new one starts
-            stage_ids = [s[0] for s in _STAGE_PATTERNS]
-            if stage_id:
-                idx = stage_ids.index(stage_id)
-                for prev in stage_ids[:idx]:
-                    if active_stages.get(prev) == "RUNNING":
-                        active_stages[prev] = "PASS"
-
-            # Detect export completion → mark all stages PASS
-            if "export" in line.lower() and ("✓" in line or "complete" in line.lower()):
-                for sid in stage_ids:
-                    if active_stages.get(sid) in ("RUNNING", None):
-                        active_stages[sid] = "PASS"
-
-            # Build stages list for status response
-            stages_snapshot = [
-                {"id": sid, "status": active_stages.get(sid, "PENDING")}
-                for sid in stage_ids
-            ]
-
-            with _run_lock:
-                _run_state["log_lines"].append(entry)
-                _run_state["stages"] = stages_snapshot
-
-        proc.wait()
-        ended = time.strftime("%Y-%m-%dT%H:%M:%S")
-
-        # Mark all stages that were running as PASS/FAIL based on return code
-        final_stage_status = "PASS" if proc.returncode == 0 else "FAIL"
-        for sid in [s[0] for s in _STAGE_PATTERNS]:
-            if active_stages.get(sid) in ("RUNNING", None) and active_stages.get(sid) != "PASS":
-                active_stages[sid] = final_stage_status
-
-        stages_final = [
-            {"id": sid, "status": active_stages.get(sid, "PENDING")}
-            for sid in [s[0] for s in _STAGE_PATTERNS]
-        ]
-
-        with _run_lock:
-            _run_state["ended_at"] = ended
-            _run_state["stages"] = stages_final
-            if proc.returncode == 0:
-                _run_state["status"] = "COMPLETED"
-                _run_state["message"] = "Pipeline completed successfully."
-                _run_state["log_lines"].append(
-                    f"[{time.strftime('%H:%M:%S')}] ✓ Pipeline exited with code 0"
-                )
-            else:
-                _run_state["status"] = "FAILED"
-                _run_state["message"] = f"Pipeline exited with code {proc.returncode}."
-                _run_state["log_lines"].append(
-                    f"[{time.strftime('%H:%M:%S')}] ✗ Pipeline exited with code {proc.returncode}"
-                )
-
-    except Exception as exc:
-        with _run_lock:
-            _run_state["status"] = "FAILED"
-            _run_state["message"] = str(exc)
-            _run_state["ended_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
-            _run_state["log_lines"].append(f"[ERROR] {exc}")
-
-
-def _handle_pipeline_run(handler) -> None:
-    """Handle POST /api/v1/pipeline/run"""
-    global _run_state
-
-    # Read request body
-    length = int(handler.headers.get("Content-Length", 0))
-    body = handler.rfile.read(length) if length else b"{}"
-    try:
-        payload = json.loads(body)
-    except Exception:
-        payload = {}
-
-    base_path = payload.get("base_path", str(ROOT))
-    upload_file_name = payload.get("upload_file_name", "")
-
-    # Reject if already running
-    with _run_lock:
-        if _run_state["status"] == "RUNNING":
-            resp = json.dumps({
-                "error": "Pipeline already running",
-                "run_id": _run_state["run_id"],
-            }).encode()
-            handler.send_response(409)
-            handler.send_header("Content-Type", "application/json")
-            handler.send_header("Content-Length", str(len(resp)))
-            handler.send_header("Access-Control-Allow-Origin", "*")
-            handler.end_headers()
-            handler.wfile.write(resp)
-            return
-
-        # Reset state for new run
-        run_id = str(uuid.uuid4())[:8]
-        _run_state.update({
-            "run_id":    run_id,
-            "status":    "RUNNING",
-            "message":   "Pipeline started",
-            "log_lines": [],
-            "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "ended_at":  None,
-            "stages":    [],
-        })
-
-    # Launch pipeline in background thread
-    t = threading.Thread(
-        target=_run_pipeline_async,
-        args=(run_id, base_path, upload_file_name),
-        daemon=True,
-    )
-    t.start()
-
-    resp = json.dumps({"run_id": run_id, "status": "RUNNING", "message": "Pipeline started"}).encode()
-    handler.send_response(202)
-    handler.send_header("Content-Type", "application/json")
-    handler.send_header("Content-Length", str(len(resp)))
-    handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.end_headers()
-    handler.wfile.write(resp)
-
-
-def _handle_pipeline_status(handler) -> None:
-    """Handle GET /api/v1/pipeline/status"""
-    with _run_lock:
-        # Return new log lines since last poll (tracked by client via ?since= param)
-        # For simplicity, always return all lines (client deduplicates by appending)
-        snapshot = dict(_run_state)
-
-    resp = json.dumps(snapshot).encode()
-    handler.send_response(200)
-    handler.send_header("Content-Type", "application/json")
-    handler.send_header("Content-Length", str(len(resp)))
-    handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.end_headers()
-    handler.wfile.write(resp)
 
 
 def _proxy(handler, method: str) -> None:
@@ -471,47 +240,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def do_POST(self):
-        path = unquote(self.path).split("?")[0]
-        if path == "/api/v1/pipeline/run":
-            _handle_pipeline_run(self)
-            return
-        # Safety net: catch any other /api/v1/pipeline/* that wasn't matched above
-        if path.startswith("/api/v1/pipeline/"):
-            msg = json.dumps({"error": f"Unknown pipeline endpoint: {path}"}).encode()
-            self.send_response(404)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(msg)))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(msg)
-            return
-        if path.startswith("/api/"):
-            _proxy(self, "POST")
-            return
-        if path.startswith("/ollama/"):
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(content_length) if content_length else b""
-            _proxy_ollama(self, path.replace("/ollama", ""), "POST", body)
-            return
-        self.send_response(405)
-        self.end_headers()
-
     def do_GET(self):
         path = unquote(self.path).split("?")[0]
-        if path == "/api/v1/pipeline/status":
-            _handle_pipeline_status(self)
-            return
-        # Safety net: catch any other /api/v1/pipeline/* that wasn't matched above
-        if path.startswith("/api/v1/pipeline/"):
-            msg = json.dumps({"error": f"Unknown pipeline endpoint: {path}"}).encode()
-            self.send_response(404)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(msg)))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(msg)
-            return
         if path.startswith("/api/"):
             _proxy(self, "GET")
             return
@@ -527,6 +257,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(body)
         else:
             super().do_GET()
+
+    def do_POST(self):
+        path = unquote(self.path).split("?")[0]
+        if path.startswith("/api/"):
+            _proxy(self, "POST")
+            return
+        if path.startswith("/ollama/"):
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(content_length) if content_length else b""
+            _proxy_ollama(self, path.replace("/ollama", ""), "POST", body)
+            return
+        self.send_response(405)
+        self.end_headers()
 
     def log_message(self, fmt, *args):
         code = args[1] if len(args) > 1 else "?"
