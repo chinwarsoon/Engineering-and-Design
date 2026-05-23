@@ -1,0 +1,18 @@
+# DCC Pipeline Dependencies
+# Updated: 2026-05-23 - Added tqdm for progress indicators
+
+# Core dependencies
+pandas>=1.5.0
+openpyxl>=3.0.0
+jsonschema>=4.0.0
+psutil>=5.9.0
+
+# Progress indicators (Phase 2: Progress Bar Implementation)
+tqdm>=4.66.0
+
+# Fuzzy matching
+fuzzywuzzy>=0.18.0
+python-Levenshtein>=0.12.0
+
+# Optional AI operations
+requests>=2.28.0

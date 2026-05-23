@@ -21,48 +21,35 @@ if str(workflow_path) not in sys.path:
     sys.path.insert(0, str(workflow_path))
 
 # Engine imports
+from ai_ops_engine import run_ai_ops
 from core_engine.context.context_pipeline import (
     PipelineContext,
+)
+from core_engine.errors.error_manager import (
+    handle_system_error,
+    validate_schema_ready,
+    validate_setup_ready,
+    wrap_engine_execution,
+)
+from core_engine.errors.pipeline_result_handler import (
+    handle_pipeline_error,
+    handle_pipeline_results,
+)
+from core_engine.io import load_excel_data
+from core_engine.logging import (
+    DEBUG_LEVEL,
+    save_debug_log,
+    set_debug_level,
+    setup_logger,
 )
 from core_engine.paths import (
     resolve_pipeline_base_path,
 )
-from core_engine.logging import (
-    setup_logger,
-    set_debug_level,
-    save_debug_log,
-    DEBUG_LEVEL,
-)
-from core_engine.io import load_excel_data
-
-from utility_engine.console import (
-    status_print,
-    milestone_print,
-    print_framework_banner,
-)
-from utility_engine.cli import (
-    parse_cli_args,
-    VERBOSE_LEVELS,
-)
-from utility_engine.bootstrap.boot_pipeline import BootstrapManager, BootstrapError
-from core_engine.errors.error_manager import (
-    handle_system_error,
-    validate_setup_ready,
-    validate_schema_ready,
-    wrap_engine_execution,
-)
-from core_engine.errors.pipeline_result_handler import (
-    handle_pipeline_results,
-    handle_pipeline_error,
-)
-
 from initiation_engine import (
     ProjectSetupValidator,
-    format_report as format_setup_report,
 )
-from schema_engine import (
-    SchemaValidator,
-    write_validation_status,
+from initiation_engine import (
+    format_report as format_setup_report,
 )
 from mapper_engine import ColumnMapperEngine
 from processor_engine import (
@@ -73,12 +60,28 @@ from processor_engine import (
 from reporting_engine import (
     write_processing_summary,
 )
-from ai_ops_engine import run_ai_ops
+from schema_engine import (
+    SchemaValidator,
+    write_validation_status,
+)
+from utility_engine.bootstrap.boot_pipeline import BootstrapError, BootstrapManager
+from utility_engine.cli import (
+    VERBOSE_LEVELS,
+    parse_cli_args,
+)
+from utility_engine.console import (
+    create_progress_bar,
+    create_progress_spinner,
+    milestone_print,
+    print_framework_banner,
+    status_print,
+)
 
 
 @dataclass(frozen=True)
 class PipelineStep:
     """Registered pipeline step with standardized execution metadata."""
+
     engine_name: str
     phase: str
     runner: Callable[[PipelineContext], Any]
@@ -89,13 +92,17 @@ def _run_initiation(context: PipelineContext) -> Dict[str, Any]:
     setup_results = setup_validator.run()
     context.state.setup_results = setup_results
 
-    if not validate_setup_ready(context, setup_results, engine="initiation_engine", phase="step1_initiation"):
+    if not validate_setup_ready(
+        context, setup_results, engine="initiation_engine", phase="step1_initiation"
+    ):
         if context.should_fail_fast("system"):
             raise ValueError(format_setup_report(setup_results))
     else:
         total_folders = setup_validator.get_total_folders(setup_results)
         total_files = setup_validator.get_total_files(setup_results)
-        milestone_print("Setup validated", f"{total_folders} folders, {total_files} files")
+        milestone_print(
+            "Setup validated", f"{total_folders} folders, {total_files} files"
+        )
 
     return setup_results
 
@@ -118,20 +125,32 @@ def _run_schema(context: PipelineContext) -> Dict[str, Any]:
         raise FileNotFoundError(f"Schema file not found: {schema_path}")
 
     schema_validator = SchemaValidator(context)
-    status_print("Validating schema and resolving dependencies...", min_level=3)
-    schema_results = schema_validator.run()
+
+    # Stage 1: BEFORE
+    status_print("⏳ Starting: Schema validation...", min_level=1)
+
+    # Stage 2: DURING - Progress indicator for schema validation
+    with create_progress_spinner("   Schema validation") as spinner:
+        schema_results = schema_validator.run()
+        spinner.update(1)
+
     context.state.schema_results = schema_results
     write_validation_status(schema_results)
 
-    if not validate_schema_ready(context, schema_results, engine="schema_engine", phase="step2_schema_validation"):
+    if not validate_schema_ready(
+        context, schema_results, engine="schema_engine", phase="step2_schema_validation"
+    ):
         if context.should_fail_fast("system"):
             raise ValueError(json.dumps(schema_results, indent=2))
 
     schema_validator.build_blueprint(context)
 
+    # Stage 3: AFTER
     total_columns = schema_validator.get_total_columns(schema_results)
     total_refs = schema_validator.get_total_references(schema_results)
-    milestone_print("Schema loaded", f"{total_columns} columns, {total_refs} references")
+    milestone_print(
+        "Completed: Schema loaded", f"{total_columns} columns, {total_refs} references"
+    )
     return schema_results
 
 
@@ -158,10 +177,26 @@ def _run_mapper(context: PipelineContext) -> Dict[str, Any]:
         context=context,
     )
 
-    mapper = ColumnMapperEngine(context)
-    result = mapper.run()
+    # Phase 2: Progress indicator for column mapping
+    total_headers = len(context.data.df_raw.columns)
+
+    # Stage 1: BEFORE
+    status_print(
+        f"⏳ Starting: Column mapping ({total_headers} columns)...", min_level=1
+    )
+
+    # Stage 2: DURING
+    with create_progress_spinner("   Column mapping") as spinner:
+        mapper = ColumnMapperEngine(context)
+        result = mapper.run()
+        spinner.update(1)
+
+    # Stage 3: AFTER
     mapping_result = context.state.mapping_result
-    milestone_print("Columns mapped", f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})")
+    milestone_print(
+        "Completed: Columns mapped",
+        f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})",
+    )
     return result
 
 
@@ -181,7 +216,9 @@ def _write_summary(context: PipelineContext, df_processed: Any) -> None:
         df_mapped=context.data.df_mapped,
         df_processed=df_processed,
         mapping_result=context.state.mapping_result,
-        schema_reference_count=len(context.state.resolved_schema.get("schema_references", {})),
+        schema_reference_count=len(
+            context.state.resolved_schema.get("schema_references", {})
+        ),
         csv_path=context.paths.csv_output_path,
         excel_path=context.paths.excel_output_path,
     )
@@ -200,7 +237,9 @@ def _run_processor(context: PipelineContext) -> Dict[str, Any]:
 
         status_print("Generating data health diagnostics...", min_level=2)
         context.state.error_summary = processor.get_error_summary()
-        dashboard_json_path = processor.error_reporter.export_dashboard_json(len(df_processed))
+        dashboard_json_path = processor.error_reporter.export_dashboard_json(
+            len(df_processed)
+        )
         status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
         return result
     except Exception:
@@ -213,7 +252,9 @@ def _run_processor(context: PipelineContext) -> Dict[str, Any]:
 
 
 def _run_reorder(context: PipelineContext) -> Dict[str, Any]:
-    schema_processor = SchemaProcessorFactory.create(context.state.resolved_schema, context=context)
+    schema_processor = SchemaProcessorFactory.create(
+        context.state.resolved_schema, context=context
+    )
     context.data.df_processed = schema_processor.reorder_dataframe(
         context.data.df_processed,
         status_print_fn=status_print,
@@ -225,10 +266,32 @@ def _run_reorder(context: PipelineContext) -> Dict[str, Any]:
 
 def _run_export(context: PipelineContext) -> Dict[str, Any]:
     df_processed = context.data.df_processed
-    df_processed.to_excel(context.paths.excel_output_path, index=False)
-    df_processed.to_csv(context.paths.csv_output_path, index=False)
-    _write_summary(context, df_processed)
-    save_debug_log(output_path=context.paths.debug_log_path)
+
+    # Phase 2: Progress indicators for export operations
+    export_steps = [
+        (
+            "💾 Excel",
+            lambda: df_processed.to_excel(context.paths.excel_output_path, index=False),
+        ),
+        (
+            "💾 CSV",
+            lambda: df_processed.to_csv(context.paths.csv_output_path, index=False),
+        ),
+        ("💾 Summary", lambda: _write_summary(context, df_processed)),
+        (
+            "💾 Debug Log",
+            lambda: save_debug_log(output_path=context.paths.debug_log_path),
+        ),
+    ]
+
+    for step_name, step_func in export_steps:
+        # Stage 1: BEFORE
+        status_print(f"⏳ Starting: {step_name} export...", min_level=1)
+
+        # Stage 2: DURING
+        with create_progress_spinner(f"   {step_name} export") as spinner:
+            step_func()
+            spinner.update(1)
 
     status_print("✓ Processing complete")
     status_print(f"CSV: {context.paths.csv_output_path.name}")
@@ -240,15 +303,30 @@ def _run_export(context: PipelineContext) -> Dict[str, Any]:
 
 
 def _run_ai(context: PipelineContext) -> Dict[str, Any]:
-    status_print("Running AI operations analysis...")
-    ai_insight = run_ai_ops(
-        context=context,
-        effective_parameters=context.parameters,
-    )
+    # Stage 1: BEFORE
+    status_print("⏳ Starting: AI operations...", min_level=1)
+
+    # Stage 2: DURING - Progress indicator for AI operations
+    with create_progress_spinner("   AI analysis") as spinner:
+        ai_insight = run_ai_ops(
+            context=context,
+            effective_parameters=context.parameters,
+        )
+        spinner.update(1)
+
+    # Stage 3: AFTER
     if ai_insight:
-        status_print(f"✓ AI analysis complete — Risk: {ai_insight.risk_level}, Provider: {ai_insight.provider}")
-        ai_summary_filename = context.parameters.get("ai_insight_summary_filename", "ai_insight_summary.json")
-        status_print(f"AI Insight: {context.paths.csv_output_path.parent / ai_summary_filename}")
+        milestone_print(
+            "Completed: AI analysis",
+            f"Risk: {ai_insight.risk_level}, Provider: {ai_insight.provider}",
+        )
+        ai_summary_filename = context.parameters.get(
+            "ai_insight_summary_filename", "ai_insight_summary.json"
+        )
+        status_print(
+            f"AI Insight: {context.paths.csv_output_path.parent / ai_summary_filename}",
+            min_level=2,
+        )
         return {
             "risk_level": ai_insight.risk_level,
             "provider": ai_insight.provider,
@@ -317,16 +395,16 @@ def run_engine_pipeline_with_ui(
 ) -> Dict[str, Any]:
     """
     Run pipeline with UI-selected paths and parameters using BootstrapManager.
-    
+
     Breadcrumb: UI params -> BootstrapManager -> bootstrap_for_ui() -> to_pipeline_context() -> run_engine_pipeline()
-    
+
     Simplified UI mode initialization using BootstrapManager instead of manual contracts.
-    
+
     Precedence (highest to lowest):
         1. UI Overrides (this function - passed to BootstrapManager)
         2. Schema Configuration
         3. Native Defaults
-    
+
     Args:
         base_path: Base directory selected by user (contains data/ folder)
         upload_file_name: Excel file name selected by user
@@ -334,10 +412,10 @@ def run_engine_pipeline_with_ui(
         schema_file_name: Optional custom schema file
         debug_mode: Enable debug logging
         nrows: Optional row limit for testing
-        
+
     Returns:
         Pipeline execution results dictionary
-        
+
     Example:
         >>> result = run_engine_pipeline_with_ui(
         ...     base_path=Path("/home/user/dcc"),
@@ -353,21 +431,21 @@ def run_engine_pipeline_with_ui(
             output_folder=output_folder,
             schema_file_name=schema_file_name,
             debug_mode=debug_mode,
-            nrows=nrows
+            nrows=nrows,
         )
-        
+
         # Convert to PipelineContext
         context = manager.to_pipeline_context()
         context.nrows = nrows or 0
         context.debug_mode = debug_mode
-        
+
         # Run pipeline
         status_print(f"🚀 UI Pipeline: {upload_file_name}")
         status_print(f"   Base: {base_path}")
         status_print(f"   Debug: {debug_mode} | Rows: {nrows or 'ALL'}")
-        
+
         return run_engine_pipeline(context)
-        
+
     except BootstrapError as e:
         # Handle bootstrap failures
         code, message = e.to_system_error()
@@ -380,13 +458,13 @@ def run_engine_pipeline_with_ui(
 def main() -> int:
     """
     Main entry point for DCC Engine Pipeline using BootstrapManager.
-    
+
     Breadcrumb: sys.argv -> resolve_pipeline_base_path() -> parse_cli_args() -> BootstrapManager -> bootstrap_all() -> to_pipeline_context() -> run_engine_pipeline()
-    
+
     The pipeline start position is determined by:
         1. --base-path CLI argument (explicit)
         2. Current working directory (execution context)
-    
+
     Simplified from ~400 lines to ~50 lines using BootstrapManager for initialization.
     """
     # Resolve pipeline start position before parsing CLI args
@@ -396,38 +474,40 @@ def main() -> int:
 
     # return actual pipeline start position
     pipeline_start = resolve_pipeline_base_path()
-    
+
     # if pipeline started in "workflow" folder, need to strip the "workflow" folder from the pipeline_start path. this will
     # allow the pipeline to start in the "workflow" folder.
     # pipeline base path will be the parent of the "workflow" folder.
     if pipeline_start.name == pipeline_dir:
         pipeline_start = pipeline_start.parent
-    
+
     # Parse CLI args using the resolved pipeline start position and expected pipeline directory
     # args: parsed Namespace with typed fields (base_path, verbose, nrows, json, etc.)
     # cli_args: raw dict of CLI-provided values for downstream precedence resolution
     # cli_overrides_provided: bool flag indicating whether any CLI overrides were explicitly passed
-    args, cli_args, cli_overrides_provided = parse_cli_args(pipeline_start, pipeline_dir)
-    
+    args, cli_args, cli_overrides_provided = parse_cli_args(
+        pipeline_start, pipeline_dir
+    )
+
     # Setup logger early with verbose level from CLI (before any bootstrap operations)
     setup_logger()
     verbose_level = VERBOSE_LEVELS.get(args.verbose, 1)
     set_debug_level(verbose_level)
-    
+
     try:
         # Bootstrap all initialization phases in one call
         # Bootstrap will load schema, validate paths, resolve parameters per precedence of CLI > config > defaults
         # Bootsrap will return a BootstrapManager instance with all initialized components
         # if any error, Bootstrap will raise BootstrapError
-        
+
         manager = BootstrapManager(Path(args.base_path)).bootstrap_all(cli_args)
-        
+
         # Convert to PipelineContext (this also builds postload trace via Phase P3)
         context = manager.to_pipeline_context()
         context.nrows = args.nrows
-        
+
         # Update debug mode based on DEBUG_LEVEL
-        context.debug_mode = (DEBUG_LEVEL >= 2)
+        context.debug_mode = DEBUG_LEVEL >= 2
 
         # Phase P3: Attach preload and postload traces from BootstrapManager to the pipeline context.
         # Preload trace captures the parameter resolution state before schema/config loading (always present).
@@ -436,7 +516,7 @@ def main() -> int:
         context.set_preload_state(manager.preload_trace)
         if manager.postload_trace:
             context.set_postload_state(manager.postload_trace)
-        
+
         # Print banner after bootstrap (now that we have effective_parameters)
         # Use dynamic bootstrap summary for status display
         summary = manager.bootstrap_summary
@@ -446,13 +526,13 @@ def main() -> int:
             output_dir=manager.effective_parameters.get("download_file_path"),
             cli_overrides=cli_args if cli_overrides_provided else None,
             bootstrap_status=summary["status"],
-            bootstrap_phases=summary["completed_count"]
+            bootstrap_phases=summary["completed_count"],
         )
-        
+
         # Run pipeline
         milestone_print("Pipeline Execution", "Starting engine pipeline")
         results = run_engine_pipeline(context)
-        
+
     except BootstrapError as exc:
         return handle_pipeline_error(exc, json_output=args.json)
     except Exception as exc:

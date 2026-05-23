@@ -14,19 +14,19 @@ Usage:
     python serve.py --port 8080  # custom port
 """
 
+import argparse
 import http.server
-import socketserver
-import sys
+import json
 import logging
 import os
-import argparse
-import json
+import socketserver
 import subprocess
+import sys
 import threading
 import time
-import uuid
-import urllib.request
 import urllib.error
+import urllib.request
+import uuid
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -38,8 +38,8 @@ OLLAMA_BASE = "http://localhost:11434"
 SCAN_DIRS = ["ui", "tracer", "publish"]
 EXCLUDE_DIRS = {"node_modules", "archive", "backup", "__pycache__"}
 FOLDER_LABELS = {
-    "ui":      ("🖥️",  "UI Tools"),
-    "tracer":  ("⚙️",  "Tracer"),
+    "ui": ("🖥️", "UI Tools"),
+    "tracer": ("⚙️", "Tracer"),
     "publish": ("📦", "Published"),
 }
 
@@ -50,16 +50,40 @@ FOLDER_LABELS = {
 _run_lock = threading.Lock()
 
 _run_state = {
-    "run_id":    None,
-    "status":    "IDLE",      # IDLE | RUNNING | COMPLETED | FAILED
-    "message":   "",
-    "log_lines": [],          # stdout/stderr lines captured so far
+    "run_id": None,
+    "status": "IDLE",  # IDLE | RUNNING | COMPLETED | FAILED
+    "message": "",
+    "log_lines": [],  # stdout/stderr lines captured so far
     "started_at": None,
-    "ended_at":  None,
-    "stages":    [],          # populated from pipeline output parsing
+    "ended_at": None,
+    "stages": [],  # populated from pipeline output parsing
 }
 
 _PIPELINE_SCRIPT = ROOT / "workflow" / "dcc_engine_pipeline.py"
+
+
+def _resolve_project_root(base_path: str) -> str:
+    """
+    Normalize base_path to the project root that contains config/schemas/.
+
+    The UI sends the directory of the selected Excel file (e.g. .../dcc/data/).
+    The pipeline expects the project root (e.g. .../dcc/) which contains
+    config/schemas/dcc_register_setup.json.
+
+    Strategy: walk up from the provided path until a directory containing
+    config/schemas/ is found. Falls back to the original path if not found
+    within 5 levels (avoids walking past the project boundary).
+    """
+    current = Path(base_path).resolve()
+    for _ in range(5):
+        if (current / "config" / "schemas").is_dir():
+            return str(current)
+        parent = current.parent
+        if parent == current:  # reached filesystem root
+            break
+        current = parent
+    return base_path  # fallback: return original, let pipeline report the error
+
 
 # Stage keywords to detect in pipeline stdout and map to stage card IDs
 _STAGE_PATTERNS = [
@@ -92,7 +116,8 @@ def _run_pipeline_async(run_id: str, base_path: str, upload_file_name: str) -> N
     cmd = [
         sys.executable,
         str(_PIPELINE_SCRIPT),
-        "--base-path", base_path,
+        "--base-path",
+        base_path,
     ]
     if upload_file_name:
         cmd += ["--upload-file", upload_file_name]
@@ -118,8 +143,12 @@ def _run_pipeline_async(run_id: str, base_path: str, upload_file_name: str) -> N
                 f"[{time.strftime('%H:%M:%S')}] Pipeline started (PID {proc.pid})"
             )
             _run_state["log_lines"].append(
-                f"[{time.strftime('%H:%M:%S')}] Command: {' '.join(cmd)}"
+                f"[{time.strftime('%H:%M:%S')}] base_path: {base_path}"
             )
+            if upload_file_name:
+                _run_state["log_lines"].append(
+                    f"[{time.strftime('%H:%M:%S')}] upload_file: {upload_file_name}"
+                )
 
         for raw_line in proc.stdout:
             line = raw_line.rstrip()
@@ -161,7 +190,10 @@ def _run_pipeline_async(run_id: str, base_path: str, upload_file_name: str) -> N
         # Mark all stages that were running as PASS/FAIL based on return code
         final_stage_status = "PASS" if proc.returncode == 0 else "FAIL"
         for sid in [s[0] for s in _STAGE_PATTERNS]:
-            if active_stages.get(sid) in ("RUNNING", None) and active_stages.get(sid) != "PASS":
+            if (
+                active_stages.get(sid) in ("RUNNING", None)
+                and active_stages.get(sid) != "PASS"
+            ):
                 active_stages[sid] = final_stage_status
 
         stages_final = [
@@ -205,16 +237,22 @@ def _handle_pipeline_run(handler) -> None:
     except Exception:
         payload = {}
 
-    base_path = payload.get("base_path", str(ROOT))
+    raw_base_path = payload.get("base_path", str(ROOT))
     upload_file_name = payload.get("upload_file_name", "")
+
+    # Normalize: the UI sends the directory of the selected file (e.g. .../dcc/data/).
+    # The pipeline needs the project root that contains config/schemas/.
+    base_path = _resolve_project_root(raw_base_path)
 
     # Reject if already running
     with _run_lock:
         if _run_state["status"] == "RUNNING":
-            resp = json.dumps({
-                "error": "Pipeline already running",
-                "run_id": _run_state["run_id"],
-            }).encode()
+            resp = json.dumps(
+                {
+                    "error": "Pipeline already running",
+                    "run_id": _run_state["run_id"],
+                }
+            ).encode()
             handler.send_response(409)
             handler.send_header("Content-Type", "application/json")
             handler.send_header("Content-Length", str(len(resp)))
@@ -225,15 +263,17 @@ def _handle_pipeline_run(handler) -> None:
 
         # Reset state for new run
         run_id = str(uuid.uuid4())[:8]
-        _run_state.update({
-            "run_id":    run_id,
-            "status":    "RUNNING",
-            "message":   "Pipeline started",
-            "log_lines": [],
-            "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "ended_at":  None,
-            "stages":    [],
-        })
+        _run_state.update(
+            {
+                "run_id": run_id,
+                "status": "RUNNING",
+                "message": "Pipeline started",
+                "log_lines": [],
+                "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "ended_at": None,
+                "stages": [],
+            }
+        )
 
     # Launch pipeline in background thread
     t = threading.Thread(
@@ -243,7 +283,9 @@ def _handle_pipeline_run(handler) -> None:
     )
     t.start()
 
-    resp = json.dumps({"run_id": run_id, "status": "RUNNING", "message": "Pipeline started"}).encode()
+    resp = json.dumps(
+        {"run_id": run_id, "status": "RUNNING", "message": "Pipeline started"}
+    ).encode()
     handler.send_response(202)
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(resp)))
@@ -280,13 +322,17 @@ def _proxy(handler, method: str) -> None:
         target_url,
         data=body,
         method=method,
-        headers={"Content-Type": handler.headers.get("Content-Type", "application/json")},
+        headers={
+            "Content-Type": handler.headers.get("Content-Type", "application/json")
+        },
     )
     try:
         with urllib.request.urlopen(req, timeout=120) as resp:
             payload = resp.read()
             handler.send_response(resp.status)
-            handler.send_header("Content-Type", resp.headers.get("Content-Type", "application/json"))
+            handler.send_header(
+                "Content-Type", resp.headers.get("Content-Type", "application/json")
+            )
             handler.send_header("Content-Length", str(len(payload)))
             handler.send_header("Access-Control-Allow-Origin", "*")
             handler.end_headers()
@@ -367,7 +413,7 @@ def _build_index():
             f'<a class="file-link" href="/{f["rel"]}">'
             f'<span class="file-icon">📄</span>'
             f'<span class="file-name">{f["name"]}</span>'
-            f'</a>'
+            f"</a>"
             for f in files
         )
         cards_html += f"""
@@ -539,20 +585,27 @@ class ReusableTCPServer(socketserver.TCPServer):
 
     def handle_error(self, request, client_address):
         import traceback
+
         etype, value, _ = sys.exc_info()
         if etype is ConnectionResetError:
-            logging.debug("Connection reset by %s (client closed connection)", client_address)
+            logging.debug(
+                "Connection reset by %s (client closed connection)", client_address
+            )
             return
         traceback.print_exc()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="DCC local tool server")
-    parser.add_argument("--port", type=int, default=PORT, help="Port to listen on (default 5000)")
+    parser.add_argument(
+        "--port", type=int, default=PORT, help="Port to listen on (default 5000)"
+    )
     args = parser.parse_args()
     PORT = args.port
 
     with ReusableTCPServer(("0.0.0.0", PORT), Handler) as httpd:
         print(f"DCC Tool Launcher → http://localhost:{PORT}")
-        print(f"Serving {sum(len(v) for v in _collect_html(SCAN_DIRS).values())} tools from {ROOT}")
+        print(
+            f"Serving {sum(len(v) for v in _collect_html(SCAN_DIRS).values())} tools from {ROOT}"
+        )
         httpd.serve_forever()

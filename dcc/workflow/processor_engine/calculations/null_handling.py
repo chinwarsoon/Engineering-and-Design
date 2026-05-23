@@ -53,20 +53,87 @@ def _record_fill_history(
 ):
     """
     Record fill operation to engine.fill_history for error detection.
+    Optimized to handle large numbers of filled indices efficiently.
     """
+    debug_print(f"[FILL-HISTORY] Recording fill for {column}, operation: {operation_type}, rows affected: {len(filled_indices)}")
+    
     # Initialize fill_history if not exists
     if not hasattr(engine, 'fill_history'):
         engine.fill_history = []
     
     if not filled_indices:
+        debug_print(f"[FILL-HISTORY] No filled indices, returning early")
         return
+    
+    # OPTIMIZATION: For large fills (>5000 rows), use a simplified history record
+    # to avoid expensive sorting and iteration
+    if len(filled_indices) > 5000:
+        debug_print(f"[FILL-HISTORY] Large fill detected ({len(filled_indices)} rows), using simplified record")
+        # Just record the range without iterating through all indices
+        try:
+            first_idx = filled_indices[0]
+            last_idx = filled_indices[-1]
+        except (IndexError, TypeError):
+            debug_print(f"[FILL-HISTORY] Could not extract first/last index, aborting record")
+            return
+        
+        row_jump = last_idx - first_idx if last_idx > first_idx else 0
+        
+        fill_record = {
+            'operation_type': operation_type,
+            'column': column,
+            'from_row': {'row_index': first_idx},
+            'to_row': {'row_index': last_idx},
+            'row_jump': row_jump,
+            'group_by': group_by or [],
+            'filled_value': fill_value,
+            'session_boundary_crossed': False,
+            'source_session': None,
+            'target_session': None,
+            'levels_applied': levels_applied,
+            'all_levels_failed': all_levels_failed,
+            'default_applied': default_applied,
+            'timestamp': pd.Timestamp.now().isoformat(),
+            '_optimization_note': f'Large fill: {len(filled_indices)} rows, simplified record used'
+        }
+        
+        engine.fill_history.append(fill_record)
+        debug_print(f"[FILL-HISTORY] Recorded simplified history for {len(filled_indices)} rows")
+        return
+    
+    # Original logic for smaller fills
+    debug_print(f"[FILL-HISTORY] Processing {len(filled_indices)} indices with detailed tracking")
     
     # Group consecutive filled indices to detect row jumps
     from_idx = None
     to_idx = None
     prev_idx = None
     
-    for idx in sorted(filled_indices):
+    try:
+        debug_print(f"[FILL-HISTORY] Sorting {len(filled_indices)} indices...")
+        sorted_indices = sorted(filled_indices, key=lambda x: int(x) if not isinstance(x, int) else x)
+        debug_print(f"[FILL-HISTORY] Sorted successfully, processing...")
+    except Exception as e:
+        debug_print(f"[FILL-HISTORY] Error during sorting: {e}, aborting detailed record")
+        # Fallback to simple range record
+        try:
+            fill_record = {
+                'operation_type': operation_type,
+                'column': column,
+                'group_by': group_by or [],
+                'filled_value': fill_value,
+                'levels_applied': levels_applied,
+                'all_levels_failed': all_levels_failed,
+                'default_applied': default_applied,
+                'timestamp': pd.Timestamp.now().isoformat(),
+                '_error_note': f'Could not sort indices: {str(e)}'
+            }
+            engine.fill_history.append(fill_record)
+        except:
+            pass
+        return
+    
+    for idx in sorted_indices:
         if from_idx is None:
             from_idx = idx
             to_idx = idx
