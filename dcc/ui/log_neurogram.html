@@ -368,6 +368,15 @@ body.theme-presentation { --bg-title: #f5f5f5; --bg-iconbar: #e0e0e0; --bg-panel
             <div style="font-size:10px;color:var(--text2);text-align:center" id="edgeWidthValue">1.0</div>
           </div>
           <div class="filter-group">
+            <label style="font-weight:600;margin-bottom:2px">Icon Size Multiplier</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:10px;color:var(--text2)">0.5×</span>
+              <input type="range" id="iconSizeSlider" min="5" max="30" value="14" style="flex:1">
+              <span style="font-size:10px;color:var(--text2)">3×</span>
+            </div>
+            <div style="font-size:10px;color:var(--text2);text-align:center" id="iconSizeValue">1.4×</div>
+          </div>
+          <div class="filter-group">
             <label style="font-weight:600;margin-bottom:2px">Tooltip Delay (ms)</label>
             <div style="display:flex;align-items:center;gap:6px">
               <span style="font-size:10px;color:var(--text2)">Fast</span>
@@ -722,7 +731,7 @@ function getNodeVisual(n) {
       icon: {
         face: 'Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif',
         code: icon,
-        size: Math.max(18, Math.round(getNodeSize(n) * 1.4)),
+        size: Math.max(12, Math.round(getNodeSize(n) * (parseInt(document.getElementById('iconSizeSlider')?.value || '14') / 10))),
         color
       }
     };
@@ -1580,6 +1589,13 @@ document.getElementById('edgeWidthSlider').addEventListener('input', (e) => {
   const val = parseInt(e.target.value) / 2;
   document.getElementById('edgeWidthValue').textContent = val.toFixed(1);
   network.setOptions({ edges: { width: val } });
+});
+
+document.getElementById('iconSizeSlider').addEventListener('input', (e) => {
+  if (!network) return;
+  const val = parseInt(e.target.value) / 10;
+  document.getElementById('iconSizeValue').textContent = val.toFixed(1) + '×';
+  updateNodeRendering();
 });
 
 document.getElementById('tooltipSlider').addEventListener('input', (e) => {
