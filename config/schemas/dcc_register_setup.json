@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/dcc_register_setup",
+  "title": "DCC Register Setup Schema",
+  "description": "Schema for defining register-specific structures, classifications, and column rules. Decoupled from project infrastructure setup.",
+  "version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base"}
+  ],
+  "properties": {
+    "departments": {
+      "type": "array",
+      "description": "Department classifications for project",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/department_entry"}
+    },
+    "disciplines": {
+      "type": "array",
+      "description": "Engineering discipline classifications",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/discipline_entry"}
+    },
+    "facilities": {
+      "type": "array",
+      "description": "Facility classifications and codes",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/facility_entry"}
+    },
+    "document_types": {
+      "type": "array",
+      "description": "Document type classifications",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/document_type_entry"}
+    },
+    "projects": {
+      "type": "array",
+      "description": "Project classifications and codes",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/project_entry"}
+    },
+    "column_types": {
+      "type": "array",
+      "description": "Column type definitions and configurations",
+      "items": {"type": "object"}
+    },
+    "column_patterns": {
+      "type": "array", 
+      "description": "Reusable validation patterns for column definitions",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/validation_patterns"}
+    },
+    "column_strategies": {
+      "type": "array",
+      "description": "Reusable null handling strategies for columns",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/null_handling_strategies"}
+    },
+    "column_groups": {
+      "type": "object",
+      "description": "Logical groupings of columns for processing and validation",
+      "additionalProperties": false,
+      "properties": {
+        "document_info": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "submission_info": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "review_info": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "metadata": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    },
+    "column_sequence": {
+      "type": "array",
+      "description": "Processing sequence order for columns",
+      "items": {"type": "string"}
+    },
+    "dcc_parameters": {
+      "type": "array",
+      "description": "DCC parameter definitions for Excel paths, column settings, review durations, and DCC-specific configuration. These parameters are used by the DCC register processing pipeline.",
+      "items": {
+        "$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/dcc_parameter_entry"
+      }
+    },
+    "approval_codes": {
+      "type": "array",
+      "description": "List of approval codes with status mappings and aliases",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/approval_entry"}
+    }
+  }
+}

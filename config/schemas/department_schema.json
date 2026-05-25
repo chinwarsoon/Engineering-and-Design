@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/department_schema",
+  "title": "DCC Department Schema",
+  "description": "Standard department classifications for document management with built-in validation rules.",
+  "version": "2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/department_entry"}],
+  "departments": [
+    {"code": "PRJ", "description": "Project"},
+    {"code": "QAQC", "description": "Quality Assurance and Quality Control"},
+    {"code": "CNT", "description": "Contract"},
+    {"code": "PRC", "description": "Procurement"},
+    {"code": "PRC", "description": "Process"},
+    {"code": "PIP", "description": "Piping"},
+    {"code": "CSA", "description": "Civil, Structural, and Architectural"},
+    {"code": "ARC", "description": "Architecture"},
+    {"code": "CIV", "description": "Civil"},
+    {"code": "STR", "description": "Structural"},
+    {"code": "BSV", "description": "Building Service"},
+    {"code": "ELE", "description": "Electrical"},
+    {"code": "ICA", "description": "Instrumentation and Control"},
+    {"code": "MEC", "description": "Mechanical"},
+    {"code": "PMT", "description": "Project Management"},
+    {"code": "BIM", "description": "Building Information Modeling"},
+    {"code": "NA", "description": "Not Applicable"}
+  ]
+}

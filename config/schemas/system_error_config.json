@@ -1,0 +1,498 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/error-code/system-config",
+  "title": "System Error Configuration",
+  "description": "Actual system error code values (S-C-S-XXXX format)",
+  "version": "1.0.0",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://dcc-pipeline.internal/schemas/error-code/setup" }
+  ],
+  "metadata": {
+    "version": "1.1.0",
+    "last_updated": "2026-05-03",
+    "total_codes": 38,
+    "system_codes": 38,
+    "data_logic_codes": 0,
+    "system_format": "S-C-S-XXXX",
+    "data_logic_format": "LL-M-F-XXXX"
+  },
+  "system_error_ranges": {
+    "environment": {
+      "prefix": "S-E-S-01xx",
+      "description": "Environment errors (Python, packages, imports)",
+      "count": 6,
+      "start_id": "S-E-S-0101",
+      "end_id": "S-E-S-0106"
+    },
+    "file_io": {
+      "prefix": "S-F-S-02xx",
+      "description": "File/IO errors (not found, unreadable, permissions)",
+      "count": 12,
+      "start_id": "S-F-S-0201",
+      "end_id": "S-F-S-0212"
+    },
+    "config": {
+      "prefix": "S-C-S-03xx",
+      "description": "Configuration errors (schema, parameters, setup)",
+      "count": 11,
+      "start_id": "S-C-S-0301",
+      "end_id": "S-C-S-0311"
+    },
+    "runtime": {
+      "prefix": "S-R-S-04xx",
+      "description": "Runtime errors (exceptions, memory, fail-fast)",
+      "count": 7,
+      "start_id": "S-R-S-0401",
+      "end_id": "S-R-S-0407"
+    },
+    "ai": {
+      "prefix": "S-A-S-05xx",
+      "description": "AI/Optional service errors (non-fatal)",
+      "count": 5,
+      "start_id": "S-A-S-0501",
+      "end_id": "S-A-S-0505"
+    },
+    "bootstrap": {
+      "prefix": "S-B-S-06xx",
+      "description": "Bootstrap initialization errors (Phase P1-P8, trace building)",
+      "count": 10,
+      "start_id": "S-B-S-0601",
+      "end_id": "S-B-S-0610"
+    }
+  },
+  "system_errors": {
+    "S-E-S-0101": {
+      "code": "S-E-S-0101",
+      "name": "MISSING_PACKAGE",
+      "message": "Required Python package is not installed",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0102": {
+      "code": "S-E-S-0102",
+      "name": "WRONG_PYTHON_VERSION",
+      "message": "Python version does not meet requirements",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0103": {
+      "code": "S-E-S-0103",
+      "name": "ENV_TEST_FAILED",
+      "message": "Environment validation test failed",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0104": {
+      "code": "S-E-S-0104",
+      "name": "IMPORT_ERROR",
+      "message": "Failed to import required module",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0105": {
+      "code": "S-E-S-0105",
+      "name": "ENVIRONMENT_NOT_READY",
+      "message": "Environment is not ready for pipeline execution",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-E-S-0106": {
+      "code": "S-E-S-0106",
+      "name": "ENVIRONMENT_TEST_FAILED",
+      "message": "Environment test failed unexpectedly",
+      "severity": "FATAL",
+      "category": "Environment",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0201": {
+      "code": "S-F-S-0201",
+      "name": "INPUT_FILE_NOT_FOUND",
+      "message": "Input file not found at specified path",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0202": {
+      "code": "S-F-S-0202",
+      "name": "INPUT_FILE_UNREADABLE",
+      "message": "Input file exists but cannot be read",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0203": {
+      "code": "S-F-S-0203",
+      "name": "OUTPUT_DIR_NOT_WRITABLE",
+      "message": "Output directory is not writable",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0204": {
+      "code": "S-F-S-0204",
+      "name": "SCHEMA_FILE_NOT_FOUND",
+      "message": "Schema configuration file not found",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0205": {
+      "code": "S-F-S-0205",
+      "name": "CONFIG_FILE_NOT_FOUND",
+      "message": "Configuration file not found",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0206": {
+      "code": "S-F-S-0206",
+      "name": "BASE_PATH_VALIDATION_FAILED",
+      "message": "Base path validation failed",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0207": {
+      "code": "S-F-S-0207",
+      "name": "PATH_VALIDATION_ERROR",
+      "message": "Path validation encountered an unexpected error",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0208": {
+      "code": "S-F-S-0208",
+      "name": "FALLBACK_VALIDATION_ERROR",
+      "message": "Fallback validation encountered an error",
+      "severity": "WARNING",
+      "category": "File",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-F-S-0209": {
+      "code": "S-F-S-0209",
+      "name": "SCHEMA_VALIDATION_FAILED",
+      "message": "Schema file validation failed",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0210": {
+      "code": "S-F-S-0210",
+      "name": "INPUT_FILE_NOT_SPECIFIED",
+      "message": "No input file specified for pipeline execution",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0211": {
+      "code": "S-F-S-0211",
+      "name": "INPUT_FILE_VALIDATION_FAILED",
+      "message": "Input file validation failed",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-F-S-0212": {
+      "code": "S-F-S-0212",
+      "name": "OUTPUT_DIR_CREATION_FAILED",
+      "message": "Cannot create output directory",
+      "severity": "FATAL",
+      "category": "File",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0301": {
+      "code": "S-C-S-0301",
+      "name": "INVALID_PARAMETER",
+      "message": "Invalid parameter provided to pipeline",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0302": {
+      "code": "S-C-S-0302",
+      "name": "SCHEMA_PARSE_ERROR",
+      "message": "Failed to parse schema JSON",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0303": {
+      "code": "S-C-S-0303",
+      "name": "SCHEMA_VALIDATION_FAILED",
+      "message": "Schema validation failed against schema definition",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0304": {
+      "code": "S-C-S-0304",
+      "name": "MISSING_REQUIRED_CONFIG",
+      "message": "Required configuration is missing",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0305": {
+      "code": "S-C-S-0305",
+      "name": "PROJECT_SETUP_FAILED",
+      "message": "Project setup validation failed",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0306": {
+      "code": "S-C-S-0306",
+      "name": "REGISTRY_LOADING_FAILED",
+      "message": "Parameter registry loading failed",
+      "severity": "WARNING",
+      "category": "Config",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-C-S-0307": {
+      "code": "S-C-S-0307",
+      "name": "NATIVE_DEFAULTS_BUILD_FAILED",
+      "message": "Native defaults building failed",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0308": {
+      "code": "S-C-S-0308",
+      "name": "SCHEMA_RESOLUTION_ERROR",
+      "message": "Schema resolution failed unexpectedly",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0309": {
+      "code": "S-C-S-0309",
+      "name": "PARAMETER_RESOLUTION_FAILED",
+      "message": "Parameter resolution failed",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0310": {
+      "code": "S-C-S-0310",
+      "name": "UI_PARAMETER_RESOLUTION_FAILED",
+      "message": "UI parameter resolution failed",
+      "severity": "FATAL",
+      "category": "Config",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-C-S-0311": {
+      "code": "S-C-S-0311",
+      "name": "ERROR_CATALOG_LOAD_FAILED",
+      "message": "Failed to load error catalog",
+      "severity": "WARNING",
+      "category": "Config",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-R-S-0401": {
+      "code": "S-R-S-0401",
+      "name": "STEP_EXCEPTION_INIT",
+      "message": "Exception during initiation step",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 1 (Initiation):"
+    },
+    "S-R-S-0402": {
+      "code": "S-R-S-0402",
+      "name": "FAIL_FAST_TRIGGERED",
+      "message": "Fail-fast condition triggered - stopping pipeline",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-R-S-0403": {
+      "code": "S-R-S-0403",
+      "name": "MEMORY_ERROR",
+      "message": "Memory allocation failed",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-R-S-0404": {
+      "code": "S-R-S-0404",
+      "name": "STEP_EXCEPTION_SCHEMA",
+      "message": "Exception during schema validation step",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 2 (Schema):"
+    },
+    "S-R-S-0405": {
+      "code": "S-R-S-0405",
+      "name": "STEP_EXCEPTION_MAPPING",
+      "message": "Exception during column mapping step",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 3 (Mapping):"
+    },
+    "S-R-S-0406": {
+      "code": "S-R-S-0406",
+      "name": "STEP_EXCEPTION_PROC",
+      "message": "Exception during processing step",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true,
+      "promotion_text": "Step 4 (Processing):"
+    },
+    "S-R-S-0407": {
+      "code": "S-R-S-0407",
+      "name": "PRE_PIPELINE_VALIDATION_FAILED",
+      "message": "Pre-pipeline validation failed",
+      "severity": "FATAL",
+      "category": "Runtime",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-A-S-0501": {
+      "code": "S-A-S-0501",
+      "name": "AI_OPS_FAILED",
+      "message": "AI operations failed to complete",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-A-S-0502": {
+      "code": "S-A-S-0502",
+      "name": "DUCKDB_UNAVAILABLE",
+      "message": "DuckDB is not available for AI operations",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-A-S-0503": {
+      "code": "S-A-S-0503",
+      "name": "OLLAMA_UNAVAILABLE",
+      "message": "Ollama service is not available",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-A-S-0504": {
+      "code": "S-A-S-0504",
+      "name": "OLLAMA_API_FAILED",
+      "message": "Ollama API request failed during AI insight generation",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-A-S-0505": {
+      "code": "S-A-S-0505",
+      "name": "OLLAMA_RESPONSE_INVALID",
+      "message": "Ollama returned an invalid or unparseable response",
+      "severity": "WARNING",
+      "category": "AI",
+      "stops_pipeline": false,
+      "promote_detail": true
+    },
+    "S-B-S-0601": {
+      "code": "S-B-S-0601",
+      "name": "BOOTSTRAP_NOT_COMPLETE",
+      "message": "Bootstrap must be completed before accessing preload trace",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-B-S-0602": {
+      "code": "S-B-S-0602",
+      "name": "BOOTSTRAP_TRACE_NOT_BUILT",
+      "message": "Preload trace not built - pre-pipeline validation may have failed",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-B-S-0603": {
+      "code": "S-B-S-0603",
+      "name": "BOOTSTRAP_TRACE_BUILD_FAILED",
+      "message": "Failed to build preload trace during bootstrap",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-B-S-0604": {
+      "code": "S-B-S-0604",
+      "name": "BOOTSTRAP_GATE_VALIDATION_FAILED",
+      "message": "Pre-context validation gate failed - invalid preload fields detected",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    },
+    "S-B-S-0605": {
+      "code": "S-B-S-0605",
+      "name": "BOOTSTRAP_GATE_TRACE_MISSING",
+      "message": "Cannot validate gate: preload trace not built",
+      "severity": "FATAL",
+      "category": "Bootstrap",
+      "stops_pipeline": true,
+      "promote_detail": true
+    }
+  },
+  "migration_log": {
+    "date": "2026-04-24",
+    "description": "Initial system error code configuration following S-C-S-XXXX format",
+    "changes": [
+      "Migrated from initiation_engine/error_handling/config/system_error_codes.json",
+      "Implemented proper separation per agent_rule.md Section 2.3",
+      "Base: error_code_base.json, Properties: error_code_setup.json, Values: this file"
+    ],
+    "references": {
+      "base": "error_code_base.json",
+      "setup": "error_code_setup.json",
+      "original": "initiation_engine/error_handling/config/system_error_codes.json"
+    }
+  }
+}

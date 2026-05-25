@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/error-code/setup",
+  "title": "Error Code Setup Schema",
+  "description": "Error code schema structure with properties (references base definitions only)",
+  "version": "1.0.0",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://dcc-pipeline.internal/schemas/error-code/base" }
+  ],
+  "properties": {
+    "metadata": {
+      "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_catalog_metadata"
+    },
+    "system_error_ranges": {
+      "type": "object",
+      "description": "System error code ranges by category",
+      "additionalProperties": false,
+      "properties": {
+        "environment": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "file_io": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "config": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "runtime": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "ai": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        }
+      }
+    },
+    "data_error_ranges": {
+      "type": "object",
+      "description": "Data/logic error code ranges by layer/phase",
+      "additionalProperties": false,
+      "properties": {
+        "phase_1_anchor": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "phase_2_identity": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "layer_3_logic": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "validation_schema": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "system_input_file": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        },
+        "system_input_validation": {
+          "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/error_category_range"
+        }
+      }
+    },
+    "system_errors": {
+      "type": "object",
+      "description": "System error definitions (actual values in system_error_config.json)",
+      "additionalProperties": {
+        "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/system_error_entry"
+      }
+    },
+    "data_logic_errors": {
+      "type": "object",
+      "description": "Data/logic error definitions (actual values in data_error_config.json)",
+      "additionalProperties": {
+        "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/data_error_entry"
+      }
+    },
+    "migration_log": {
+      "$ref": "https://dcc-pipeline.internal/schemas/error-code/base#/definitions/migration_log_entry"
+    }
+  },
+  "additionalProperties": false
+}

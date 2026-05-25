@@ -40,10 +40,13 @@ class ErrorAggregator:
         if error:
             self._errors.append(error)
 
-    def sync_with_initiation_logging(self) -> int:
+    def sync_with_initiation_logging(self, error_catalog: Optional[Dict[str, Any]] = None) -> int:
         """
         Pull errors from core_engine's DEBUG_OBJECT.
         Returns the number of new errors synced.
+        
+        Args:
+            error_catalog: Optional error catalog (SSOT) to hydrate "Dry" error logs.
         """
         if not HAS_INITIATION_LOGGING:
             return 0
@@ -64,11 +67,21 @@ class ErrorAggregator:
                 continue
                 
             msg_val = err.get("message", {})
+            remediation = None
+            remediation_type = None
+
             if isinstance(msg_val, dict):
                 error_code = msg_val.get("error_code", "G-L-O-0000")
                 clean_msg = msg_val.get("description", "")
                 row = msg_val.get("row")
                 column = msg_val.get("column")
+                
+                # Smart Hydration: If message is missing (Dry Logging), resolve from catalog
+                if not clean_msg and error_catalog:
+                    entry = error_catalog.get(error_code, {})
+                    clean_msg = entry.get("message_template", entry.get("message", f"Error {error_code}"))
+                    remediation = entry.get("remediation")
+                    remediation_type = entry.get("remediation_type")
             else:
                 # Legacy string format fallback
                 code_match = re.search(r'\[([A-Z0-9]+-[A-Z]-[A-Z]-\d{4}(?:-[A-Z])?)\]', msg_val)
@@ -105,7 +118,9 @@ class ErrorAggregator:
                 severity=err.get("severity", "ERROR"),
                 layer=layer,
                 detected_at=datetime.fromisoformat(err.get("timestamp")) if err.get("timestamp") else datetime.utcnow(),
-                context={"module": err.get("module"), "source": "initiation_sync"}
+                context={"module": err.get("module"), "source": "initiation_sync"},
+                remediation=remediation,
+                remediation_type=remediation_type
             )
             
             existing_keys.add(key)

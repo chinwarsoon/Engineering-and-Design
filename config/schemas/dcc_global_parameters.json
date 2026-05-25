@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/dcc_global_parameters",
+  "title": "DCC Global Processing Parameter Values",
+  "description": "Actual runtime values for data processing parameters. Values-only file - definitions are in dcc_register_base#/definitions/dcc_parameter_entry. Referenced by dcc_register_config.json via $ref.",
+  "version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base"}
+  ],
+  "dcc_parameters": {
+    "duration_is_working_day": true,
+    "start_col": "P",
+    "end_col": "AP",
+    "header_row_index": 4,
+    "first_review_duration": 20,
+    "second_review_duration": 14,
+    "resubmission_duration": 14,
+    "upload_sheet_name": "Prolog Submittals ",
+    "win_upload_file": "data/Submittal and RFI Tracker Lists.xlsx",
+    "win_download_path": "output",
+    "linux_upload_file": "data/Submittal and RFI Tracker Lists.xlsx",
+    "linux_download_path": "output",
+    "colab_upload_file": "/content/sample_data/Submittal and RFI Tracker Lists.xlsx",
+    "colab_download_path": "/content/output",
+    "upload_file_name": "data/Submittal and RFI Tracker Lists.xlsx",
+    "download_file_path": "output",
+    "output_filename_pattern": "processed_dcc_universal",
+    "summary_filename": "processing_summary.txt",
+    "error_dashboard_filename": "error_dashboard_data.json",
+    "error_diagnostic_log_filename": "error_diagnostic_log.csv",
+    "debug_log_filename": "debug_log.json",
+    "ai_insight_summary_filename": "ai_insight_summary.json",
+    "ai_insight_report_filename": "ai_insight_report.md",
+    "ai_insight_trace_filename": "ai_insight_trace.json",
+    "schema_validation_status_filename": "schema_validation_status.json",
+    "ai_runs_db_filename": "dcc_runs.duckdb",
+    "pending_status": {
+      "schema": "approval_code_schema",
+      "code": "PEN",
+      "field": "status",
+      "description": "Resolved from approval_code_schema approval entry with code 'PEN'. Ensures single source of truth for pending status."
+    },
+    "dynamic_column_creation": {
+      "enabled": true,
+      "missing_column_action": "create_with_default",
+      "default_value": "NA",
+      "description": "Executed by _initialize_missing_columns. If a schema column is not found in the input data, it is created using the global or column-specific default value."
+    },
+    "fill_jump_limit": 20,
+    "fill_max_percentage": 80.0,
+    "submission_count_warning_threshold": 100,
+    "health_pass_threshold": 90.0,
+    "health_fail_threshold": 60.0,
+    "health_grade_thresholds": {
+      "A+": 99.0,
+      "A":  95.0,
+      "A-": 90.0,
+      "B+": 85.0,
+      "B":  80.0,
+      "C":  70.0,
+      "D":  60.0,
+      "F":  0.0
+    }
+  }
+}

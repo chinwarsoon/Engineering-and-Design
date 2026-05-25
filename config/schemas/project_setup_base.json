@@ -1,0 +1,564 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project_setup_base",
+  "title": "DCC Project Setup Base Schema",
+  "description": "Base schema with reusable definitions for project setup validation",
+  "version": "3.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "file_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Generic file entry with common metadata",
+      "properties": {
+        "filename": {
+          "type": "string",
+          "description": "Filename or relative path"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this file is mandatory"
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose of this file"
+        },
+        "approximate_size": {
+          "type": "string",
+          "description": "Expected approximate file size"
+        }
+      },
+      "required": ["filename", "required", "description"]
+    },
+    "typed_file_entry": {
+      "allOf": [
+        {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/file_entry"}
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Typed file entry with file type specification",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["json", "yml", "yaml", "md", "txt", "py", "other"],
+          "description": "File type extension"
+        }
+      },
+      "required": ["filename", "required", "type", "description"]
+    },
+    "python_module_entry": {
+      "allOf": [
+        {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/typed_file_entry"}
+      ],
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Python module file entry",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type of Python module"
+        }
+      },
+      "required": ["filename", "required", "type", "description"]
+    },
+    "path_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "File system path entry",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Relative path from project root"
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of path entry"
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose of this path"
+        }
+      },
+      "required": ["path", "type", "description"]
+    },
+    "folder_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Folder/directory entry",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Relative path of the folder from project root"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this folder is mandatory"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Description of the folder's purpose"
+        },
+        "auto_created": {
+          "type": "boolean",
+          "description": "Whether this folder is auto-created on first run",
+          "default": false
+        }
+      },
+      "required": ["name", "required", "purpose"]
+    },
+    "root_file_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "File at project root level",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Filename at root level"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this file is mandatory"
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Description of the file's purpose"
+        },
+        "extension": {
+          "type": "string",
+          "enum": ["yml", "yaml", "md", "txt", "py", "json", "other"],
+          "description": "File type extension"
+        }
+      },
+      "required": ["name", "required", "purpose"]
+    },
+    "pattern_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Pattern-based discovery rule",
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "File pattern to match"
+        },
+        "directory": {
+          "type": "string",
+          "description": "Directory to search in"
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Whether to search recursively",
+          "default": false
+        },
+        "auto_register": {
+          "type": "boolean",
+          "description": "Whether to auto-register discovered files",
+          "default": false
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of discovered files"
+        },
+        "exclude_patterns": {
+          "type": "array",
+          "description": "Patterns to exclude",
+          "items": {"type": "string"}
+        }
+      },
+      "required": ["pattern", "directory", "category"]
+    },
+    "validation_rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Validation rule configuration",
+      "properties": {
+        "rule": {
+          "type": "string",
+          "description": "Validation rule identifier"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this rule is active",
+          "default": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose of this validation rule"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"],
+          "default": "error",
+          "description": "Validation failure severity level"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Rule-specific configuration parameters"
+        }
+      },
+      "required": ["rule", "description"]
+    },
+    "validation_rule_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Individual validation rule configuration",
+      "properties": {
+        "rule": {
+          "type": "string",
+          "description": "Validation rule identifier"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether this rule is active",
+          "default": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose of this validation rule"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"],
+          "default": "error",
+          "description": "Validation failure severity level"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Rule-specific configuration parameters"
+        }
+      },
+      "required": ["rule", "description"]
+    },
+    "dependency_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Python module dependency",
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "Python module name"
+        },
+        "members": {
+          "type": "array",
+          "description": "Required classes/functions from this module",
+          "items": {"type": "string"}
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "Whether this dependency is optional",
+          "default": false
+        }
+      },
+      "required": ["module"]
+    },
+    "engine_dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Engine module dependency with required members",
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "Python module name"
+        },
+        "members": {
+          "type": "array",
+          "description": "Required classes/functions from this module",
+          "items": {"type": "string"}
+        },
+        "optional": {
+          "type": "boolean",
+          "description": "Whether this dependency is optional",
+          "default": false
+        }
+      },
+      "required": ["module"]
+    },
+    "dependencies_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Complete dependencies configuration",
+      "properties": {
+        "required": {
+          "type": "array",
+          "description": "Required Python packages",
+          "items": {"type": "string"}
+        },
+        "optional": {
+          "type": "array",
+          "description": "Optional Python packages",
+          "items": {"type": "string"}
+        },
+        "engines": {
+          "type": "array",
+          "description": "Engine modules with their exports",
+          "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/engine_dependency"}
+        }
+      },
+      "required": ["required"]
+    },
+    "environment_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Environment specification (conda, pip, etc.)",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Environment name (e.g., conda, venv)"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this environment is mandatory"
+        },
+        "file": {
+          "type": "string",
+          "description": "Environment specification file (e.g., dcc.yml, requirements.txt)"
+        },
+        "location": {
+          "type": "string",
+          "enum": ["root", "config", "tools"],
+          "description": "Where the environment file is located"
+        },
+        "setup_commands": {
+          "type": "array",
+          "description": "Commands to set up the environment",
+          "items": {"type": "string"}
+        },
+        "key_dependencies": {
+          "type": "array",
+          "description": "Primary dependencies for this project",
+          "items": {"type": "string"}
+        }
+      },
+      "required": ["name", "required"]
+    },
+    "engine_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Processing engine module configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Engine name"
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative path to engine module"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["folder", "python_module", "documentation", "init_file", "test_file"],
+          "description": "Type of engine component"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this engine component is mandatory"
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose of this engine component"
+        }
+      },
+      "required": ["name", "path", "type", "required", "description"]
+    },
+    "project_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Project metadata and identification",
+      "properties": {
+        "project_id": {
+          "type": "string",
+          "description": "Unique project identifier"
+        },
+        "project_name": {
+          "type": "string",
+          "description": "Human-readable project name"
+        },
+        "version": {
+          "type": "string",
+          "description": "Project version"
+        },
+        "created_date": {
+          "type": "string",
+          "format": "date",
+          "description": "Project creation date"
+        },
+        "last_modified": {
+          "type": "string",
+          "format": "date",
+          "description": "Last modification date"
+        }
+      },
+      "required": ["project_id", "project_name", "version"]
+    },
+    "schema_registry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Schema file registry configuration",
+      "properties": {
+        "schema_files": {
+          "type": "array",
+          "description": "List of schema files",
+          "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/file_entry"}
+        },
+        "discovery_enabled": {
+          "type": "boolean",
+          "description": "Whether auto-discovery is enabled",
+          "default": true
+        },
+        "strict_validation": {
+          "type": "boolean",
+          "description": "Whether to enforce strict validation",
+          "default": true
+        }
+      },
+      "required": ["schema_files"]
+    },
+    "global_parameters": {
+      "type": "object",
+      "description": "Global processing parameters"
+    },
+    "global_parameters_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Global parameter definition with type metadata and validation rules for type-driven validation",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Canonical parameter key name used across CLI, schema, and native defaults"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["file", "directory", "scalar", "boolean", "integer", "object"],
+          "description": "Parameter data type for validation dispatch"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable parameter description"
+        },
+        "default_value": {
+          "description": "Default value if not provided by CLI or schema"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this parameter is mandatory"
+        },
+        "check_exists": {
+          "type": "boolean",
+          "default": true,
+          "description": "For file/directory types: whether path must exist"
+        },
+        "create_if_missing": {
+          "type": "boolean",
+          "default": false,
+          "description": "For directory type: whether to create if not exists"
+        },
+        "file_extensions": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "For file type: allowed file extensions"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "For scalar type: regex pattern for validation"
+        },
+        "min_value": {
+          "type": "integer",
+          "description": "For integer type: minimum allowed value"
+        },
+        "max_value": {
+          "type": "integer",
+          "description": "For integer type: maximum allowed value"
+        },
+        "cli_arg_name": {
+          "type": "string",
+          "description": "CLI argument name (e.g., --excel-file)"
+        },
+        "cli_arg_short": {
+          "type": "string",
+          "description": "Short CLI argument name (e.g., -e)"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Alternative key names for backward compatibility"
+        }
+      },
+      "required": ["key", "type", "description"]
+    },
+    "system_parameter_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "System/Infrastructure parameter definition for environment, debug flags, and execution mode. Used by project_setup domain.",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Canonical parameter key name used across CLI, schema, and native defaults"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["boolean", "scalar", "integer"],
+          "description": "Parameter data type for validation dispatch (system params don't use file/directory types)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable parameter description"
+        },
+        "default_value": {
+          "description": "Default value if not provided by CLI or schema"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this parameter is mandatory"
+        },
+        "enum": {
+          "type": "array",
+          "description": "Allowed values for scalar type parameters"
+        },
+        "min_value": {
+          "type": "integer",
+          "description": "For integer type: minimum allowed value"
+        },
+        "max_value": {
+          "type": "integer",
+          "description": "For integer type: maximum allowed value"
+        },
+        "cli_arg_name": {
+          "type": "string",
+          "description": "CLI argument name (e.g., --debug-mode)"
+        },
+        "cli_arg_short": {
+          "type": "string",
+          "description": "Short CLI argument name (e.g., -d)"
+        },
+        "aliases": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Alternative key names for backward compatibility"
+        }
+      },
+      "required": ["key", "type", "description"]
+    },
+    "null_handling_strategies": {
+      "type": "object",
+      "description": "Reusable null handling strategy definitions",
+      "properties": {
+        "forward_fill_with_padding": {
+          "type": "object",
+          "properties": {
+            "strategy": {"type": "string", "const": "forward_fill"},
+            "formatting": {"type": "object"}
+          }
+        },
+        "multi_level_forward_fill": {
+          "type": "object",
+          "properties": {
+            "strategy": {"type": "string", "const": "multi_level_forward_fill"},
+            "levels": {"type": "array"}
+          }
+        }
+      }
+    }
+  }
+}

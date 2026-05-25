@@ -70,6 +70,16 @@
   - In Progress: processor_engine/core/engine.py, schema_engine/validator/schema_validator.py, core_engine/paths/path_schema.py
 - [Resolution:] Continue with schema-driven filename implementation and error catalog externalization (Phase C).
 
+<a id="issue-log-001"></a>
+## 2026-05-25 — Issue LOG-001 — `debug_log.json` file size reached 1.4GB, blocking dashboard loading
+
+- **Status:** 🚧 IN PROGRESS
+- **Context:** During a large-scale processing run, the `debug_log.json` file grew to 1.4GB. The Error Diagnostic Dashboard has a 100MB limit and fails to load the file, reporting it as "too large."
+- **Root Cause:** The pipeline's logging engine appends full error definitions (remediations, descriptions, source file paths) for every single error occurrence. With thousands of errors, this redundancy creates massive file bloat.
+- **Impact:** Users cannot use the Diagnostic Dashboard to analyze results from large runs. High memory pressure during JSON serialization in the pipeline.
+- **Proposed Resolution:** Implement "Dry Logging" in the JSON file (storing only error codes and instance data) and perform "Hydration" (looking up details from schemas) in the dashboard and other exporters.
+- **Workplan:** [pipeline_messaging_plan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_plan.md) — Phase 3 v3.0
+
 # Section 1. Pending Issues
 
 <a id="issue-ui-007"></a>

@@ -144,6 +144,7 @@
                   <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="HIGH" checked> High</label>
                   <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="MEDIUM" checked> Medium</label>
                   <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="WARNING" checked> Warning</label>
+                  <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;"><input type="checkbox" value="INFO" checked> Info</label>
                 </div>
               </div>
             </div>
@@ -486,6 +487,32 @@
 
     document.addEventListener('DOMContentLoaded', init);
 
+    let errorCatalog = {};
+
+    async function loadDefaultCatalogs() {
+      // Try to load standardized catalogs from relative paths
+      const paths = [
+        '../config/schemas/data_error_config.json',
+        '../config/schemas/system_error_config.json'
+      ];
+      for (const p of paths) {
+        try {
+          const resp = await fetch(p);
+          if (resp.ok) {
+            const json = await resp.json();
+            if (json.data_logic_errors) {
+              Object.assign(errorCatalog, json.data_logic_errors);
+            } else if (json.errors) {
+              Object.assign(errorCatalog, json.errors);
+            }
+            console.log(`Loaded default catalog from ${p}, total keys:`, Object.keys(errorCatalog).length);
+          }
+        } catch (e) {
+          console.warn(`Could not load default catalog ${p}:`, e);
+        }
+      }
+    }
+
     async function init() {
       setupTheme();
       setupIconBar();
@@ -498,6 +525,7 @@
       setupRefresh();
       setupExport();
       await loadHelpData();
+      await loadDefaultCatalogs();
       renderRightSidebar('settings');
       const os = getOS();
       console.log(`OS: ${os}`);
@@ -810,7 +838,14 @@
           const code = msg.error_code;
           const row = msg.row !== undefined ? msg.row : null;
           const column = msg.column || 'Unknown';
-          const description = msg.description || '';
+          let description = msg.description || '';
+          
+          // Smart Hydration: If description is missing (Dry Logging), resolve from catalog
+          if (!description && errorCatalog[code]) {
+            const cat = errorCatalog[code];
+            description = cat.message_template || cat.message || `Error ${code}`;
+          }
+
           parsedErrors.push({
             row: row,
             column: column,
@@ -927,63 +962,90 @@
     }
 
     function applyFilters() {
-      if (!rawData) {
-        console.warn('applyFilters: rawData is null');
+      // If neither source is available, warn and stop
+      if (!rawData && parsedErrors.length === 0) {
+        console.warn('applyFilters: no data available');
         return;
       }
       
       const code = document.getElementById('errorCodeFilter').value;
       const col = document.getElementById('columnFilter').value;
-      const sevs = [...document.getElementById('severityFilters').querySelectorAll('input:checked')].map(i => i.value);
+      // Normalize checked severities to uppercase for reliable matching
+      const sevs = [...document.getElementById('severityFilters').querySelectorAll('input:checked')].map(i => i.value.toUpperCase());
       const search = document.getElementById('globalSearch').value.toLowerCase();
 
       console.log('applyFilters: code=', code, 'col=', col, 'sevs=', sevs, 'search=', search);
-      console.log('applyFilters: error_types=', rawData.error_types?.length, 'column_health=', rawData.column_health?.length, 'recent_errors=', rawData.recent_errors?.length);
 
-      const filteredTypes = (rawData.error_types || []).filter(t => {
+      // 1. Filter Error Types (for bar chart)
+      const filteredTypes = (rawData?.error_types || []).filter(t => {
         if (code && t.code !== code) return false;
-        if (!sevs.includes(t.severity)) return false;
+        if (!sevs.includes((t.severity || '').toUpperCase())) return false;
         return true;
       });
 
-      const filteredColumns = (rawData.column_health || []).filter(c => {
+      // 2. Filter Column Health (for heatmap)
+      const filteredColumns = (rawData?.column_health || []).filter(c => {
         if (col && c.column !== col) return false;
         return true;
       });
 
-      const filteredPhases = (rawData.phase_breakdown || []).filter(p => {
-        if (code) {
-          const phaseCodes = (rawData.recent_errors || []).filter(e => e.code === code).map(e => {
-            const phase = findPhaseForError(e);
-            return phase;
-          });
-        }
-        return true;
-      });
-
+      // 3. Determine Error Source and Filter Details Table
       let sourceErrors;
       if (errorDataSource === 'debug_log' && parsedErrors.length > 0) {
         sourceErrors = parsedErrors;
         console.log('applyFilters: using debug_log source, errors=', parsedErrors.length);
       } else {
-        sourceErrors = (rawData.recent_errors || []).map(e => ({...e, severity: e.severity || resolveSeverity(e.code)}));
+        sourceErrors = (rawData?.recent_errors || []).map(e => {
+          let msg = e.message || '';
+          // Smart Hydration: If message is missing (Dry Logging), resolve from catalog
+          if (!msg && errorCatalog[e.code]) {
+            const cat = errorCatalog[e.code];
+            msg = cat.message_template || cat.message || `Error ${e.code}`;
+          }
+          return {
+            ...e, 
+            message: msg, 
+            severity: e.severity || resolveSeverity(e.code)
+          };
+        });
         console.log('applyFilters: using dashboard source, errors=', sourceErrors.length);
       }
 
       filteredErrors = sourceErrors.filter(e => {
         if (code && e.code !== code) return false;
         if (col && e.column !== col) return false;
-        if (!sevs.includes(e.severity)) return false;
+        const eSev = (e.severity || '').toUpperCase();
+        if (!sevs.includes(eSev)) return false;
         if (search && !JSON.stringify(e).toLowerCase().includes(search)) return false;
         return true;
       });
 
-      console.log('applyFilters: filteredErrors=', filteredErrors.length, 'filteredTypes=', filteredTypes.length, 'filteredColumns=', filteredColumns.length);
+      // 4. Calculate Filtered Phase Breakdown (re-aggregate from filtered errors if filtered)
+      let phaseDisplay = rawData?.phase_breakdown || [];
+      if (code || col || search) {
+         const phaseMap = {};
+         filteredErrors.forEach(e => {
+            const phase = findPhaseForError(e) || 'Other';
+            if (!phaseMap[phase]) {
+               phaseMap[phase] = { Phase: phase, Total: 0, Critical: 0, High: 0, Medium: 0, 'Warning/Info': 0 };
+            }
+            const p = phaseMap[phase];
+            p.Total++;
+            const sev = (e.severity || '').toUpperCase();
+            if (sev === 'CRITICAL') p.Critical++;
+            else if (sev === 'HIGH') p.High++;
+            else if (sev === 'MEDIUM') p.Medium++;
+            else p['Warning/Info']++;
+         });
+         phaseDisplay = Object.values(phaseMap).sort((a,b) => a.Phase.localeCompare(b.Phase));
+      }
+
+      console.log('applyFilters: filteredErrors=', filteredErrors.length, 'filteredTypes=', filteredTypes.length);
 
       try {
         renderCharts(filteredTypes);
         renderHeatmap(filteredColumns);
-        renderPhases(rawData.phase_breakdown);
+        renderPhases(phaseDisplay);
         renderDebugContext(code, col);
         renderTable(filteredErrors);
       } catch (e) {
@@ -992,7 +1054,7 @@
     }
 
     function findPhaseForError(error) {
-      if (!rawData || !rawData.phase_breakdown) return null;
+      if (!error || !error.code) return null;
       const codePrefix = error.code.split('-')[0];
       const phaseMap = { P1: 'P1', P2: 'P2', 'P2.5': 'P2.5', P3: 'P3', P4: 'P4', F4: 'P4', L3: 'P3', C6: 'P3', V5: 'P4' };
       return phaseMap[codePrefix] || null;

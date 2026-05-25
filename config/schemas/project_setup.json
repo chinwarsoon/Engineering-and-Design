@@ -1,0 +1,217 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/project_setup",
+  "title": "DCC Project Setup Validation Schema",
+  "description": "Schema for validating required folders, files, schemas, engines, instructions, tools for DCC project distribution and setup. Follows agent_rule.md Section 2.3 inheritance pattern.",
+  "version": "4.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base"}
+  ],
+  "properties": {
+    "folders": {
+      "type": "array",
+      "description": "All required and optional directories for the DCC project",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/folder_entry"}
+    },
+    "root_files": {
+      "type": "array",
+      "description": "Files required at the project root level",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/root_file_entry"}
+    },
+    "schema_files": {
+      "type": "array",
+      "description": "Required JSON schema definition files (located in config/schemas). Supports auto-discovery via discovery_rules.",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/file_entry"}
+    },
+    "discovery_rules": {
+      "type": "array",
+      "description": "Pattern-based rules for auto-discovering schema files. See agent_rule.md Section 2.8",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/pattern_rule"}
+    },
+    "workflow_files": {
+      "type": "array",
+      "description": "Required workflow notebooks and Python modules (located in workflow)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/typed_file_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["notebook", "python_module", "documentation"],
+            "description": "Type of workflow file"
+          }
+        },
+        "required": ["filename", "required", "type", "description"]
+      }
+    },
+    "tool_files": {
+      "type": "array",
+      "description": "Required utility and setup script files (located in tools)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/python_module_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["python_script", "shell_script", "other"],
+            "description": "Type of tool file"
+          }
+        },
+        "required": ["filename", "required", "type", "description"]
+      }
+    },
+    "processor_engine": {
+      "type": "array",
+      "description": "Document processor engine modules (located in workflow/processor_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file", "test_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "mapper_engine": {
+      "type": "array",
+      "description": "Column mapper engine modules (located in workflow/mapper_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "schema_validation": {
+      "type": "array",
+      "description": "Schema validation modules (located in workflow)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/python_module_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["python_module"],
+            "description": "Type of validation module"
+          }
+        },
+        "required": ["filename", "required", "type", "description"]
+      }
+    },
+    "schema_engine": {
+      "type": "array",
+      "description": "Schema engine modules (located in workflow/schema_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "initiation_engine": {
+      "type": "array",
+      "description": "Initiation engine modules (located in workflow/initiation_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "reporting_engine": {
+      "type": "array",
+      "description": "Reporting engine modules (located in workflow/reporting_engine)",
+      "items": {
+        "allOf": [
+          {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/path_entry"}
+        ],
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["folder", "python_module", "documentation", "init_file"],
+            "description": "Type of engine component"
+          }
+        },
+        "required": ["path", "type", "description"]
+      }
+    },
+    "environment": {
+      "type": "array",
+      "description": "Environment specifications for the project",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/environment_entry"}
+    },
+    "validation_rules": {
+      "type": "array",
+      "description": "Validation rules for project setup",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/validation_rule_entry"}
+    },
+    "dependencies": {
+      "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/dependencies_config"
+    },
+    "project_metadata": {
+      "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/project_metadata"
+    },
+    "global_parameters": {
+      "type": "array",
+      "description": "[DEPRECATED: Use system_parameters instead] Global parameter definitions with type metadata for type-driven validation.",
+      "items": {
+        "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/global_parameters_entry"
+      }
+    },
+    "system_parameters": {
+      "type": "array",
+      "description": "System/Infrastructure parameter definitions for environment, debug flags, and execution mode. Used by CLI, schema, and native defaults for system-level configuration.",
+      "items": {
+        "$ref": "https://dcc-pipeline.internal/schemas/project_setup_base#/definitions/system_parameter_entry"
+      }
+    }
+  },
+  "required": ["project_id", "project_name", "version", "folders", "root_files", "schema_files", "discovery_rules", "workflow_files", "tool_files", "environment", "dependencies", "validation_rules", "project_metadata"]
+}

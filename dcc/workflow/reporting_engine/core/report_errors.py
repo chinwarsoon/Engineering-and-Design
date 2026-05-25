@@ -35,12 +35,14 @@ class ErrorReporter:
         self.output_dir = output_dir or Path("output")
         self.effective_parameters = effective_parameters or {}
         
-    def generate_summary_stats(self, total_rows: int) -> Dict[str, Any]:
+    def generate_summary_stats(self, total_rows: int, error_catalog: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Generate overall error statistics and Health KPIs.
         """
         # Sync with early-stage errors before calculating stats
-        self.aggregator.sync_with_initiation_logging()
+        # Smart Hydration: Use catalog from args or parameters to hydrate "Dry" logs
+        catalog = error_catalog or self.effective_parameters.get("error_catalog")
+        self.aggregator.sync_with_initiation_logging(error_catalog=catalog)
         
         errors = self.aggregator.get_all_errors()
         kpi = HealthCalculator.get_kpi(total_rows, errors)
@@ -66,6 +68,10 @@ class ErrorReporter:
         """
         Generates a human-readable text summary of all errors.
         """
+        # Ensure latest errors are synced (Smart Hydration)
+        catalog = self.effective_parameters.get("error_catalog")
+        self.aggregator.sync_with_initiation_logging(error_catalog=catalog)
+
         unique_errors = self.aggregator.deduplicate_errors()
         if not unique_errors:
             return "CHECK PASSED: No errors detected."
@@ -87,6 +93,10 @@ class ErrorReporter:
         """
         Generate a DataFrame showing error distribution across phases.
         """
+        # Ensure latest errors are synced (Smart Hydration)
+        catalog = self.effective_parameters.get("error_catalog")
+        self.aggregator.sync_with_initiation_logging(error_catalog=catalog)
+
         phase_errors = self.aggregator.aggregate_phase_errors()
         report_data = []
         
@@ -102,10 +112,14 @@ class ErrorReporter:
             
         return pd.DataFrame(report_data)
         
-    def export_full_diagnostic_log(self, filename: str = None) -> Path:
+    def export_full_diagnostic_log(self, filename: str = None, error_catalog: Optional[Dict[str, Any]] = None) -> Path:
         """
         Exports a detailed, per-instance error log to CSV for external analysis.
         """
+        # Sync with early-stage errors before exporting
+        catalog = error_catalog or self.effective_parameters.get("error_catalog")
+        self.aggregator.sync_with_initiation_logging(error_catalog=catalog)
+
         # Task B5c: Use filename from parameters if available (SSOT)
         if filename is None:
             filename = self.effective_parameters.get('error_diagnostic_log_filename', 'error_diagnostic_log.csv')
@@ -138,6 +152,7 @@ class ErrorReporter:
         self, 
         total_rows: int, 
         filename: Optional[str] = None,
+        error_catalog: Optional[Dict[str, Any]] = None,
     ) -> Path:
         """
         Exports a rich JSON object containing all telemetry for the UI dashboard.
@@ -147,6 +162,7 @@ class ErrorReporter:
         Args:
             total_rows: Total number of rows processed
             filename: Optional override filename (uses schema default if not provided)
+            error_catalog: Optional error catalog for hydration
             
         Returns:
             Path to exported JSON file
@@ -157,7 +173,7 @@ class ErrorReporter:
                 "error_dashboard_filename", 
                 "error_dashboard_data.json"
             )
-        stats = self.generate_summary_stats(total_rows)
+        stats = self.generate_summary_stats(total_rows, error_catalog=error_catalog)
         unique_errors = self.aggregator.deduplicate_errors()
         phase_breakdown = self.generate_phase_breakdown().to_dict(orient="records")
         

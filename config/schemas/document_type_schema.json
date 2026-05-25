@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/document_type_schema",
+  "title": "DCC Document Type Schema",
+  "description": "Standard document type classifications with built-in validation rules.",
+  "version": "2.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [{"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/document_type_entry"}],
+  "document_types": [
+    {"code": "AD", "description": "Addendum"},
+    {"code": "AL", "description": "Approval Letter"},
+    {"code": "BR", "description": "Brochure"},
+    {"code": "CA", "description": "Calculation"},
+    {"code": "CT", "description": "Certificate"},
+    {"code": "CH", "description": "Chart"},
+    {"code": "CL", "description": "Checklist"},
+    {"code": "DS", "description": "Data Sheet"},
+    {"code": "DW", "description": "Drawing"},
+    {"code": "IT", "description": "Inspection and Test Plan"},
+    {"code": "LY", "description": "Layout"},
+    {"code": "MS", "description": "Method Statement"},
+    {"code": "PR", "description": "Procedure"},
+    {"code": "RE", "description": "Report"},
+    {"code": "SP", "description": "Specification"}
+  ]
+}

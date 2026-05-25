@@ -1,0 +1,223 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/error-code/base",
+  "title": "Error Code Base Schema",
+  "description": "Base definitions for error code taxonomy (definitions only - no properties)",
+  "version": "1.0.0",
+  "type": "object",
+  "definitions": {
+    "layer_code": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]{2}$",
+      "description": "2-character layer/phase code (P1, P2, L3, S1, V5, S-E, S-F, S-C, S-R, S-A)"
+    },
+    "module_code": {
+      "type": "string",
+      "enum": ["C", "V", "A", "D", "S", "F", "L", "G", "E", "P", "I"],
+      "description": "Single letter code representing the module within the engine"
+    },
+    "function_code": {
+      "type": "string",
+      "enum": ["P", "V", "C", "F", "S"],
+      "description": "Single letter code representing the function type (S=System)"
+    },
+    "unique_id": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$",
+      "description": "4-digit sequential number (0001-9999)"
+    },
+    "error_severity": {
+      "type": "string",
+      "enum": ["FATAL", "CRITICAL", "HIGH", "MEDIUM", "WARNING", "INFO"],
+      "description": "Error severity level"
+    },
+    "system_category": {
+      "type": "string",
+      "enum": ["Environment", "File", "Config", "Runtime", "AI"],
+      "description": "System error category"
+    },
+    "error_code_format": {
+      "type": "string",
+      "pattern": "^[A-Z0-9]{2}-[A-Z]-[A-Z]-[0-9]{4}$",
+      "description": "Complete error code in LL-M-F-XXXX format (Layer-Module-Function-ID)"
+    },
+    "system_error_code_format": {
+      "type": "string",
+      "pattern": "^S-[A-Z]-S-[0-9]{4}$",
+      "description": "System error code in S-C-S-XXXX format (System-Category-System-ID)"
+    },
+    "error_code_components": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "layer": {
+          "type": "object",
+          "required": ["code", "name"],
+          "properties": {
+            "code": { "$ref": "#/definitions/layer_code" },
+            "name": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "module": {
+          "type": "object",
+          "required": ["code", "name"],
+          "properties": {
+            "code": { "$ref": "#/definitions/module_code" },
+            "name": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "function": {
+          "type": "object",
+          "required": ["code", "name"],
+          "properties": {
+            "code": { "$ref": "#/definitions/function_code" },
+            "name": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "unique_id": {
+          "type": "object",
+          "required": ["number", "padded"],
+          "properties": {
+            "number": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9999
+            },
+            "padded": { "$ref": "#/definitions/unique_id" },
+            "family_code": {
+              "type": "string",
+              "pattern": "^[0-9]$",
+              "description": "First digit of unique_id indicates error family"
+            }
+          }
+        }
+      }
+    },
+    "system_error_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "name", "severity", "category", "stops_pipeline"],
+      "properties": {
+        "code": { "$ref": "#/definitions/system_error_code_format" },
+        "name": {
+          "type": "string",
+          "description": "Unique error name identifier"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "severity": { "$ref": "#/definitions/error_severity" },
+        "category": { "$ref": "#/definitions/system_category" },
+        "stops_pipeline": {
+          "type": "boolean",
+          "description": "Whether this error stops the pipeline execution"
+        },
+        "promote_detail": {
+          "type": "boolean",
+          "description": "Whether to promote error details to user"
+        },
+        "promotion_text": {
+          "type": "string",
+          "description": "Custom promotion text for step identification"
+        }
+      }
+    },
+    "data_error_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "name", "severity", "layer", "module", "function"],
+      "properties": {
+        "code": { "$ref": "#/definitions/error_code_format" },
+        "name": {
+          "type": "string",
+          "description": "Unique error name identifier"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "severity": { "$ref": "#/definitions/error_severity" },
+        "layer": { "type": "string" },
+        "module": { "$ref": "#/definitions/module_code" },
+        "function": { "$ref": "#/definitions/function_code" },
+        "column": {
+          "type": "string",
+          "description": "Affected column(s) for this error"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source file and line number reference"
+        },
+        "migrated_from": {
+          "type": "string",
+          "description": "Original string code if migrated"
+        },
+        "workplan_reference": {
+          "type": "string",
+          "description": "Reference to workplan documentation"
+        },
+        "health_score_impact": {
+          "type": "integer",
+          "description": "Health score deduction per occurrence"
+        }
+      }
+    },
+    "error_category_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prefix", "description", "count"],
+      "properties": {
+        "prefix": { "type": "string" },
+        "description": { "type": "string" },
+        "count": { "type": "integer" },
+        "start_id": { "type": "string" },
+        "end_id": { "type": "string" }
+      }
+    },
+    "error_catalog_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "last_updated", "total_codes"],
+      "properties": {
+        "version": { "type": "string" },
+        "last_updated": { "type": "string" },
+        "total_codes": { "type": "integer" },
+        "system_codes": { "type": "integer" },
+        "data_logic_codes": { "type": "integer" },
+        "data_logic_format": {
+          "type": "string",
+          "enum": ["LL-M-F-XXXX"]
+        },
+        "system_format": {
+          "type": "string",
+          "enum": ["S-C-S-XXXX"]
+        }
+      }
+    },
+    "migration_log_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "description", "changes"],
+      "properties": {
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "changes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "pending_phase_2": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "references": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    }
+  }
+}

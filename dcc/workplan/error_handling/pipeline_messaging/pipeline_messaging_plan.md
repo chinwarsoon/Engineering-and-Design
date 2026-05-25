@@ -1,12 +1,12 @@
 # Pipeline Messaging Workplan (Redesigned)
 
-**Status:** ACTIVE - Phase 2 Planning 🚧  
+**Status:** ACTIVE - Phase 3 Planning 🚧  
 **Document ID:** WP-PIPE-MSG-001  
 **Date Created:** 2026-04-19  
-**Last Updated:** 2026-05-23  
-**Revision:** v2.0 - Added progress bar implementation  
+**Last Updated:** 2026-05-25  
+**Revision:** v3.0 - Added log optimization and schema hydration  
 **Lead:** Franklin Song  
-**Supersedes:** Previous version (marked COMPLETE but not implemented)
+**Supersedes:** v2.0
 
 **Completion Log:** See `dcc/Log/update_log.md` entry `#pipeline-messaging-complete`
 
@@ -17,7 +17,8 @@
 | Version | Date | Changes | Status |
 |---------|------|---------|--------|
 | v1.0 | 2026-04-19 | Initial workplan for tiered messaging | COMPLETE ✅ |
-| v2.0 | 2026-05-23 | Added progress bar implementation using tqdm | PLANNING 📋 |
+| v2.0 | 2026-05-23 | Added progress bar implementation using tqdm | COMPLETE ✅ |
+| v3.0 | 2026-05-25 | Added log optimization & schema-driven hydration | PLANNING 📋 |
 
 ---
 
@@ -427,5 +428,71 @@ The detailed implementation plan includes:
 
 ---
 
-*Last updated: 2026-05-23*  
+*Last updated: 2026-05-25*  
 *Status: ✅ COMPLETE*
+
+---
+
+## 9. Phase 3: Log Optimization & Schema-Driven Hydration ⭐ NEW
+
+**Status:** PLANNING 📋  
+**Priority:** CRITICAL - System Performance & Dashboard Stability  
+**Date Created:** 2026-05-25
+
+### 9.1 Problem Statement
+
+The `debug_log.json` file has grown to **1.4GB**, which:
+- Blocks the browser-based Diagnostic Dashboard from loading (100MB limit).
+- Causes significant memory pressure during pipeline serialization.
+- Contains ~90% redundant information (error remediations/descriptions repeated for every row).
+
+### 9.2 Proposed Solution
+
+Implement a **Schema-Reference ("Dry Logging")** strategy:
+1.  **Compact Logs**: Pipeline only logs "instance-specific" data (code, row, col) to `debug_log.json`.
+2.  **Schema Hydration**: Consumers (Dashboard/Aggregator) look up "static" data (remediation/text) from error schemas.
+3.  **Cross-Output Integrity**: Ensure CSV/Excel exports remain fully "Wet" (self-contained) for user convenience.
+
+### 9.3 Implementation Details
+
+| Component | Task | Logic |
+|-----------|------|-------|
+| **Logging Engine** | Dry Logging | Modify `log_error` to strip definition fields before appending to `DEBUG_OBJECT`. |
+| **Aggregator** | Smart Hydration | Update `ErrorAggregator` to re-populate details from schema before CSV/Excel export. |
+| **Dashboard** | Dynamic Lookup | Update HTML UI to load error schemas and perform client-side hydration. |
+| **Utility** | One-time Compact | Create `dcc/tools/compact_log.py` to "dry out" the existing 1.4GB log. |
+
+### 9.4 Dependencies
+
+- **Schemas**: `dcc/config/schemas/data_error_config.json` and `system_error_config.json`.
+- **UI**: `dcc/ui/error_diagnostic_dashboard.html`.
+- **Core**: `dcc/workflow/core_engine/logging/log_handlers.py`.
+
+### 9.5 Files to Modify
+
+| File | Change |
+|------|--------|
+| `dcc/workflow/core_engine/logging/log_handlers.py` | Implement field stripping in `log_error`. |
+| `dcc/workflow/processor_engine/error_handling/aggregator.py` | Implement detail hydration for exports. |
+| `dcc/ui/error_diagnostic_dashboard.html` | Implement schema loading and dynamic detail resolution. |
+| `dcc/tools/compact_log.py` | **NEW** - Standalone utility for log compaction. |
+
+### 9.6 Testing Strategy
+
+- **Size Check**: Verify a 10,000-error run produces a `debug_log.json` < 10MB.
+- **Export Check**: Verify `processed_dcc_universal.csv` still contains full error text.
+- **Dashboard Check**: Verify "Remediation" column in UI is correctly populated for "Dry" logs.
+
+### 9.7 Success Criteria
+
+- [ ] `debug_log.json` size reduced by >90%.
+- [ ] Dashboard successfully loads previously "oversized" logs.
+- [ ] All exported user files remain self-contained and descriptive.
+- [ ] No regression in error detection or health score calculation.
+
+### 9.8 Implementation Timeline
+
+- **Day 1**: Logging Engine & Aggregator refactor.
+- **Day 2**: Dashboard hydration & Compaction utility.
+- **Day 3**: Validation & Final Report.
+

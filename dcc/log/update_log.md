@@ -8,6 +8,30 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-25-phase3-log-compaction"></a>
+## 2026-05-25 18:30:00 — Pipeline Messaging Phase 3: Log Optimization & Schema-Driven Hydration
+
+### PLANNED: Resolve 1.4GB `debug_log.json` via Schema-Driven Hydration
+
+**Status:** 🚧 IN PROGRESS — Phase 3 Planning
+**Workplan:** [pipeline_messaging_plan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_plan.md) — Phase 3 v3.0
+**Issue Reference:** [Issue LOG-001](issue_log.md#issue-log-001)
+
+**Summary:** The `debug_log.json` file reached 1.4GB due to redundant error definitions (remediations/descriptions) being repeated for every occurrence. This blocks the Diagnostic Dashboard (100MB limit) and strains memory.
+
+**Proposed Changes:**
+- **Dry Logging**: Update `log_error` in `log_handlers.py` to store only "instance-specific" data (code, row, col) in `debug_log.json`. Static definitions (remediation/text) are dropped to save space.
+- **Smart Hydration (Aggregator)**: Update `ErrorAggregator` to re-populate full details from schemas before exporting to CSV/Excel, ensuring `processed_dcc_universal.csv` remains self-contained and descriptive for end-users.
+- **Dynamic Hydration (Dashboard)**: Update `error_diagnostic_dashboard.html` to load error schemas and dynamically look up remediation text when displaying "Dry" logs.
+- **Compaction Utility**: Create `dcc/tools/compact_log.py` as a standalone tool to "dry out" the existing 1.4GB log for immediate dashboard use.
+
+**Impact:**
+- `debug_log.json` size expected to drop from 1.4GB to <50MB (95%+ reduction).
+- Dashboard stability improved; memory usage during pipeline execution reduced.
+- 100% compatibility with existing CSV/Excel workflows (no data loss in end-user files).
+
+---
+
 <a id="update-2026-05-23-spinner-live-timer"></a>
 ## 2026-05-23 20:30:00 — Progress Spinner: Live Timer Fix (Background Refresh Thread)
 

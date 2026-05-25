@@ -450,7 +450,12 @@ class CalculationEngine(BaseProcessor):
                 min_level=2,
             )
 
-            # Phase 4: Aggregation - Populate Validation_Errors column (Step 46)
+            # Phase 4: Aggregation - Sync and Populate Validation_Errors column (Step 46)
+            # Smart Hydration: Ensure early logs are hydrated from catalog (SSOT)
+            self.error_aggregator.sync_with_initiation_logging(
+                error_catalog=self.context.blueprint.error_catalog
+            )
+
             # Task A4: Resolve column names from blueprint (SSOT)
             p3_cols = self.context.blueprint.get_columns_by_phase("P3")
             validation_errors_col = next(
@@ -491,7 +496,10 @@ class CalculationEngine(BaseProcessor):
 
     def get_error_summary(self) -> Dict[str, Any]:
         """Phase 5: Returns structured error summary for reporting."""
-        return self.error_reporter.generate_summary_stats(self._last_processed_rows)
+        return self.error_reporter.generate_summary_stats(
+            self._last_processed_rows, 
+            error_catalog=self.context.blueprint.error_catalog
+        )
 
     def _apply_phase_null_handling(
         self, df: pd.DataFrame, column_names: List[str]

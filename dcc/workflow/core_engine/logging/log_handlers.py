@@ -32,14 +32,15 @@ def log_status(message: str, module: str = "", context: str = "", min_level: int
             prefix += f"({context}) "
         builtins.print(f"{prefix}{message}", flush=True)
 
-    ctx_dict = context_dict if context_dict is not None else context
-    DEBUG_OBJECT["messages"].append({
-        "level": min_level,
-        "timestamp": datetime.now().isoformat(),
-        "module": module,
-        "context": ctx_dict,
-        "message": {"description": message},
-    })
+        # Dry Logging: Only store messages in JSON if they match the current debug level
+        ctx_dict = context_dict if context_dict is not None else context
+        DEBUG_OBJECT["messages"].append({
+            "level": min_level,
+            "timestamp": datetime.now().isoformat(),
+            "module": module,
+            "context": ctx_dict,
+            "message": {"description": message},
+        })
 
 def log_warning(message: str, module: str = "", context: str = "", context_dict: Optional[Dict] = None) -> None:
     if DEBUG_LEVEL >= 2:
@@ -50,14 +51,15 @@ def log_warning(message: str, module: str = "", context: str = "", context_dict:
             prefix += f"({context}) "
         builtins.print(f"{prefix}[DEBUG] {message}", flush=True)
 
-    ctx_dict = context_dict if context_dict is not None else context
-    DEBUG_OBJECT["messages"].append({
-        "level": 2,
-        "timestamp": datetime.now().isoformat(),
-        "module": module,
-        "context": ctx_dict,
-        "message": {"description": message},
-    })
+        # Dry Logging: Respect level for storage
+        ctx_dict = context_dict if context_dict is not None else context
+        DEBUG_OBJECT["messages"].append({
+            "level": 2,
+            "timestamp": datetime.now().isoformat(),
+            "module": module,
+            "context": ctx_dict,
+            "message": {"description": message},
+        })
 
 def log_trace(message: str, module: str = "", context: str = "", context_dict: Optional[Dict] = None) -> None:
     if DEBUG_LEVEL >= 3:
@@ -68,14 +70,15 @@ def log_trace(message: str, module: str = "", context: str = "", context_dict: O
             prefix += f"({context}) "
         builtins.print(f"{prefix}[TRACE] {message}", flush=True)
 
-    ctx_dict = context_dict if context_dict is not None else context
-    DEBUG_OBJECT["messages"].append({
-        "level": 3,
-        "timestamp": datetime.now().isoformat(),
-        "module": module,
-        "context": ctx_dict,
-        "message": {"description": message},
-    })
+        # Dry Logging: Trace data is largest, only store if level is exactly TRACE
+        ctx_dict = context_dict if context_dict is not None else context
+        DEBUG_OBJECT["messages"].append({
+            "level": 3,
+            "timestamp": datetime.now().isoformat(),
+            "module": module,
+            "context": ctx_dict,
+            "message": {"description": message},
+        })
 
 def log_error(
     message: str = None, module: str = "", context: str = "",
@@ -87,12 +90,23 @@ def log_error(
         severity = "CRITICAL" if fatal else "ERROR"
 
     # Build structured message dict
+    # Dry Logging: If error_code is provided, we omit the 'description' to save space.
+    # The dashboard and reporters will "hydrate" the description from the error schemas.
     msg_dict = {
         "error_code": error_code,
-        "description": description or message,
         "row": row,
         "column": column,
     }
+    
+    # We only include description if:
+    # 1. No error_code is provided (unstructured system error)
+    # 2. It was explicitly provided and likely contains dynamic instance info
+    if not error_code:
+        msg_dict["description"] = description or message
+    elif description and description != message:
+        # If both are provided and different, 'description' might be specific context
+        msg_dict["description"] = description
+
     msg_dict = {k: v for k, v in msg_dict.items() if v is not None}
 
     # Build structured context dict
@@ -100,7 +114,16 @@ def log_error(
     if context and not ctx_dict:
         ctx_dict = context
 
-    # Compose display string for console output
+    # Dry Logging: Strip massive redundant objects from context (SSOT)
+    # These are already available in schema files; logging them per-error caused 1.4GB bloat.
+    if isinstance(ctx_dict, dict):
+        ctx_dict = ctx_dict.copy() # Don't mutate caller's dict
+        ctx_dict.pop("schema_data", None)
+        ctx_dict.pop("error_catalog", None)
+        ctx_dict.pop("blueprint", None)
+        ctx_dict.pop("fill_history", None) # Also potentially large
+
+    # Compose display string for console output (always remains descriptive)
     display_msg = message or ""
     if error_code and not display_msg.startswith(f"[{error_code}]"):
         display_msg = f"[{error_code}] {description or ''}"
