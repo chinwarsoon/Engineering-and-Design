@@ -17,7 +17,30 @@
   - [Resolution]
   - [Link to Update Log:]
 
-<a id="issue-ui-008"></a>
+<a id="issue-log-002"></a>
+## 2026-05-26 — Issue LOG-002 — `DEBUG_LEVEL` stale import copies break verbosity system
+
+- **Status:** 📋 LOGGED — Planned for Phase 4 fix
+- **Resolution Date:** Pending
+- **Context:** End-to-end pipeline testing revealed `--verbose quiet` (level 0) and `--verbose debug` (level 2) have no effect on banner display, progress spinners, or `context.debug_mode`. Banner always shows "Mode: normal"; spinners are always visible.
+- **Root Cause:** `from module import name` creates local copies at import time. `set_debug_level()` in `log_handlers.py` rebinds its own `DEBUG_LEVEL` but does NOT update:
+  1. `log_state.DEBUG_LEVEL` (SSOT source — remains at initial value `1`)
+  2. `console_output.DEBUG_LEVEL` (stale import)
+  3. `progress.DEBUG_LEVEL` (stale import)
+  4. `dcc_engine_pipeline.DEBUG_LEVEL` (stale import)
+- **Impact:** Verbosity filtering partially broken. Quiet mode users see spinners. Debug mode banner is incorrect. `context.debug_mode` unreliable.
+- **Resolution Summary:** Phase 4 planned: add `get_debug_level()` getter to `log_handlers.py`, sync `log_state.DEBUG_LEVEL`, update all consumer modules to use runtime getter.
+- **File Changes (planned):**
+  - `core_engine/logging/log_handlers.py` — Add `get_debug_level()` getter; sync `log_state.DEBUG_LEVEL` in `set_debug_level()`
+  - `utility_engine/console/console_output.py` — Replace stale `import DEBUG_LEVEL` with getter
+  - `utility_engine/console/progress.py` — Replace stale `import DEBUG_LEVEL` with getter
+  - `dcc_engine_pipeline.py` — Replace stale `import DEBUG_LEVEL` with getter
+- **Workplan:** [pipeline_messaging_plan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_plan.md) — Phase 4
+- **Link to Update Log:** Pending
+
+---
+
+
 ## 2026-05-23 — Issue UI-008 — Pipeline Dashboard "Run" button was a no-op (only triggered data refresh)
 
 - **Status:** ✅ RESOLVED
@@ -1487,3 +1510,11 @@
   - `dcc/workplan/maintenance/condense_workplans.py` — Moved from `dcc/workplan/`, rewrote logic to process all files and output to `dcc/output/`.
 - [Resolution:] Relocated script to maintenance folder. Rewrote file discovery to include all 160+ files in the workplan directory. Standardized output to `dcc/output/workplan_knowledge.md`.
 - [Link to Update Log:] [update-2026-05-23-condense-upgrade](#update-2026-05-23-condense-upgrade)
+
+ # # #   [ 2 0 2 6 - 0 5 - 2 6   1 5 : 4 5 ]   S t r u c t u r a l   M i s a l i g n m e n t :   P i p e l i n e   M e s s a g i n g   W o r k p l a n   v s .   C o d e b a s e 
+ -   S t a t u s :   O P E N 
+ -   D e s c r i p t i o n :   T h e   p i p e l i n e _ m e s s a g i n g _ p l a n . m d   a s s u m e s   a   f o l d e r - c e n t r i c   a r c h i t e c t u r e   f o r   p i p e l i n e   p h a s e s   ( e . g . ,   e x p o r t _ e n g i n e ,   r e o r d e r _ e n g i n e   f o l d e r s ) ,   b u t   t h e   a c t u a l   i m p l e m e n t a t i o n   i n   d c c _ e n g i n e _ p i p e l i n e . p y   t r e a t s   t h e s e   a s   f u n c t i o n a l   e x e c u t i o n   s t e p s   e m b e d d e d   w i t h i n   t h e   w o r k f l o w   o r   r e p o r t i n g _ e n g i n e . 
+ -   I m p a c t :   T h e   ' F i l e s   t o   M o d i f y '   t a b l e   i n   t h e   w o r k p l a n   i s   t e c h n i c a l l y   i n a c c u r a t e ,   r e q u i r i n g   a   m a p p i n g   o f   l o g i c a l   p h a s e s   t o   a c t u a l   c o d e   f u n c t i o n s   i n   d c c _ e n g i n e _ p i p e l i n e . p y   r a t h e r   t h a n   d i r e c t   f i l e   e d i t s   t o   n o n - e x i s t e n t   f o l d e r s . 
+ -   R e s o l u t i o n   P l a n :   U p d a t e   t h e   w o r k p l a n   m a p p i n g   o r   i m p l e m e n t   u s i n g   f u n c t i o n a l   e x e c u t i o n   p a t h   m a p p i n g .   U p d a t e s   w i l l   b e   t r a c k e d   i n   u p d a t e _ l o g . m d   a n d   p h a s e   r e p o r t s . 
+  
+ 
