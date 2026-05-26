@@ -101,7 +101,7 @@ def _run_initiation(context: PipelineContext) -> Dict[str, Any]:
         total_folders = setup_validator.get_total_folders(setup_results)
         total_files = setup_validator.get_total_files(setup_results)
         milestone_print(
-            "Setup validated", f"{total_folders} folders, {total_files} files"
+            "MILESTONE_SETUP_VALIDATED", f"{total_folders} folders, {total_files} files"
         )
 
     return setup_results
@@ -109,7 +109,7 @@ def _run_initiation(context: PipelineContext) -> Dict[str, Any]:
 
 def _run_schema(context: PipelineContext) -> Dict[str, Any]:
     schema_path = context.paths.schema_path
-    status_print(f"Main schema: {schema_path}", min_level=3)
+    status_print("STATUS_MAIN_SCHEMA", path=schema_path, min_level=3)
 
     if not handle_system_error(
         context=context,
@@ -127,10 +127,10 @@ def _run_schema(context: PipelineContext) -> Dict[str, Any]:
     schema_validator = SchemaValidator(context)
 
     # Stage 1: BEFORE
-    status_print("⏳ Starting: Schema validation...", min_level=1)
+    status_print("STATUS_SCHEMA_VAL_START")
 
     # Stage 2: DURING - Progress indicator for schema validation
-    with create_progress_spinner("   Schema validation") as spinner:
+    with create_progress_spinner("PROGRESS_SCHEMA_VAL") as spinner:
         schema_results = schema_validator.run()
         spinner.update(1)
 
@@ -149,7 +149,7 @@ def _run_schema(context: PipelineContext) -> Dict[str, Any]:
     total_columns = schema_validator.get_total_columns(schema_results)
     total_refs = schema_validator.get_total_references(schema_results)
     milestone_print(
-        "Completed: Schema loaded", f"{total_columns} columns, {total_refs} references"
+        "MILESTONE_SCHEMA_LOADED", f"{total_columns} columns, {total_refs} references"
     )
     return schema_results
 
@@ -181,12 +181,10 @@ def _run_mapper(context: PipelineContext) -> Dict[str, Any]:
     total_headers = len(context.data.df_raw.columns)
 
     # Stage 1: BEFORE
-    status_print(
-        f"⏳ Starting: Column mapping ({total_headers} columns)...", min_level=1
-    )
+    status_print("STATUS_MAPPER_START", count=total_headers)
 
     # Stage 2: DURING
-    with create_progress_spinner("   Column mapping") as spinner:
+    with create_progress_spinner("PROGRESS_COLUMN_MAP") as spinner:
         mapper = ColumnMapperEngine(context)
         result = mapper.run()
         spinner.update(1)
@@ -194,7 +192,7 @@ def _run_mapper(context: PipelineContext) -> Dict[str, Any]:
     # Stage 3: AFTER
     mapping_result = context.state.mapping_result
     milestone_print(
-        "Completed: Columns mapped",
+        "MILESTONE_COLUMNS_MAPPED",
         f"{mapping_result['matched_count']:.0f} / {mapping_result['total_headers']:.0f}  ({mapping_result['match_rate']:.0%})",
     )
     return result
@@ -229,22 +227,22 @@ def _run_processor(context: PipelineContext) -> Dict[str, Any]:
         context=context,
         schema_data=context.state.resolved_schema,
     )
-    status_print("Using DI-enabled CalculationEngine", min_level=3)
+    status_print("STATUS_DI_ENGINE", engine="CalculationEngine", min_level=3)
 
     try:
         result = processor.run()
         df_processed = context.data.df_processed
 
-        status_print("Generating data health diagnostics...", min_level=2)
+        status_print("STATUS_HEALTH_DIAG")
         context.state.error_summary = processor.get_error_summary()
         dashboard_json_path = processor.error_reporter.export_dashboard_json(
             len(df_processed)
         )
-        status_print(f"✓ Dashboard JSON exported: {dashboard_json_path}", min_level=3)
+        status_print("STATUS_DASHBOARD_EXPORT", path=dashboard_json_path, min_level=3)
         return result
     except Exception:
         if context.should_fail_fast("data"):
-            status_print("Generating diagnostic report for captured errors...")
+            status_print("STATUS_DIAG_REPORT")
             context.state.error_summary = processor.get_error_summary()
             processor.error_reporter.export_dashboard_json(len(context.data.df_mapped))
             _write_summary(context, context.data.df_mapped)
@@ -270,32 +268,32 @@ def _run_export(context: PipelineContext) -> Dict[str, Any]:
     # Phase 2: Progress indicators for export operations
     export_steps = [
         (
-            "💾 Excel",
+            "Excel",
             lambda: df_processed.to_excel(context.paths.excel_output_path, index=False),
         ),
         (
-            "💾 CSV",
+            "CSV",
             lambda: df_processed.to_csv(context.paths.csv_output_path, index=False),
         ),
-        ("💾 Summary", lambda: _write_summary(context, df_processed)),
+        ("Summary", lambda: _write_summary(context, df_processed)),
         (
-            "💾 Debug Log",
+            "Debug Log",
             lambda: save_debug_log(output_path=context.paths.debug_log_path),
         ),
     ]
 
     for step_name, step_func in export_steps:
         # Stage 1: BEFORE
-        status_print(f"⏳ Starting: {step_name} export...", min_level=1)
+        status_print("STATUS_EXPORT_START", name=step_name)
 
         # Stage 2: DURING
-        with create_progress_spinner(f"   {step_name} export") as spinner:
+        with create_progress_spinner("PROGRESS_EXPORT", name=step_name) as spinner:
             step_func()
             spinner.update(1)
 
-    status_print("✓ Processing complete")
-    status_print(f"CSV: {context.paths.csv_output_path.name}")
-    status_print(f"Excel: {context.paths.excel_output_path.name}")
+    status_print("STATUS_PROC_COMPLETE")
+    status_print("STATUS_CSV_PATH", name=context.paths.csv_output_path.name)
+    status_print("STATUS_EXCEL_PATH", name=context.paths.excel_output_path.name)
     return {
         "csv_output_path": str(context.paths.csv_output_path),
         "excel_output_path": str(context.paths.excel_output_path),
@@ -304,10 +302,10 @@ def _run_export(context: PipelineContext) -> Dict[str, Any]:
 
 def _run_ai(context: PipelineContext) -> Dict[str, Any]:
     # Stage 1: BEFORE
-    status_print("⏳ Starting: AI operations...", min_level=1)
+    status_print("STATUS_AI_START")
 
     # Stage 2: DURING - Progress indicator for AI operations
-    with create_progress_spinner("   AI analysis") as spinner:
+    with create_progress_spinner("PROGRESS_AI_ANALYSIS") as spinner:
         ai_insight = run_ai_ops(
             context=context,
             effective_parameters=context.parameters,
@@ -317,22 +315,22 @@ def _run_ai(context: PipelineContext) -> Dict[str, Any]:
     # Stage 3: AFTER
     if ai_insight:
         milestone_print(
-            "Completed: AI analysis",
+            "MILESTONE_AI_COMPLETE",
             f"Risk: {ai_insight.risk_level}, Provider: {ai_insight.provider}",
         )
         ai_summary_filename = context.parameters.get(
             "ai_insight_summary_filename", "ai_insight_summary.json"
         )
         status_print(
-            f"AI Insight: {context.paths.csv_output_path.parent / ai_summary_filename}",
-            min_level=2,
+            "STATUS_AI_INSIGHT",
+            path=context.paths.csv_output_path.parent / ai_summary_filename,
         )
         return {
             "risk_level": ai_insight.risk_level,
             "provider": ai_insight.provider,
         }
 
-    status_print("⚠ AI analysis skipped or failed (non-blocking)")
+    status_print("STATUS_AI_SKIP")
     return {"skipped": True}
 
 
@@ -440,9 +438,9 @@ def run_engine_pipeline_with_ui(
         context.debug_mode = debug_mode
 
         # Run pipeline
-        status_print(f"🚀 UI Pipeline: {upload_file_name}")
-        status_print(f"   Base: {base_path}")
-        status_print(f"   Debug: {debug_mode} | Rows: {nrows or 'ALL'}")
+        status_print("STATUS_UI_PIPELINE", name=upload_file_name)
+        status_print("STATUS_BASE_PATH", path=base_path)
+        status_print("STATUS_DEBUG_MODE", mode=debug_mode, rows=nrows or "ALL")
 
         return run_engine_pipeline(context)
 
@@ -530,7 +528,7 @@ def main() -> int:
         )
 
         # Run pipeline
-        milestone_print("Pipeline Execution", "Starting engine pipeline")
+        milestone_print("MILESTONE_PIPELINE_START")
         results = run_engine_pipeline(context)
 
     except BootstrapError as exc:

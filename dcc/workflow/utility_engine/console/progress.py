@@ -13,10 +13,11 @@ Updated: 2026-05-23 - Live timer via background refresh thread
 
 import threading
 from contextlib import contextmanager
-from typing import Callable, Generator, Optional
+from typing import Any, Callable, Generator, Optional
 
 from core_engine.logging import DEBUG_LEVEL
 from tqdm import tqdm
+from .console_output import get_message
 
 # Refresh interval for the live timer (seconds)
 _REFRESH_INTERVAL = 0.5
@@ -24,50 +25,25 @@ _REFRESH_INTERVAL = 0.5
 
 @contextmanager
 def create_progress_spinner(
-    desc: str = "Processing",
+    msg_id: str = "Processing",
     disable: Optional[bool] = None,
     leave: bool = False,
     refresh_interval: float = _REFRESH_INTERVAL,
+    **context: Any,
 ) -> Generator[tqdm, None, None]:
     """
     Create a live-timer spinner for indeterminate operations.
-
-    Displays an incrementing elapsed-time counter (e.g. "Schema validation: 00:03")
-    that ticks every second while the operation runs, giving users clear visual
-    feedback that the pipeline is active.
-
-    A background daemon thread calls spinner.refresh() at refresh_interval so the
-    display updates continuously without any changes to calling code.
-
-    Args:
-        desc: Label shown before the timer (e.g. "   Schema validation")
-        disable: Force disable (None = auto from DEBUG_LEVEL; level 0 = off)
-        leave: Keep the final line after completion (default: False = erase)
-        refresh_interval: Seconds between live refreshes (default: 0.5)
-
-    Yields:
-        tqdm spinner instance  (caller should call spinner.update(1) when done)
-
-    Example:
-        >>> with create_progress_spinner("   Schema validation") as spinner:
-        ...     result = schema_validator.run()
-        ...     spinner.update(1)
-        # Live output while running:
-        #    Schema validation: 00:01
-        #    Schema validation: 00:02
-        #    Schema validation: 00:03  (cleared on exit)
-
-    Breadcrumb:
-        - Called by: dcc_engine_pipeline._run_schema/mapper/export/ai
-        - Called by: processor_engine.core.engine.apply_phased_processing
-        - Refresh thread: daemon, stopped via threading.Event on context exit
-        - Respects: DEBUG_LEVEL from core_engine.logging
+    Supports message IDs from the catalog.
     """
     if disable is None:
         disable = DEBUG_LEVEL < 1
 
+    # Look up message ID in catalog, or use msg_id as literal desc
+    desc, _, icon = get_message(msg_id, **context)
+    full_desc = f"{icon} {desc}" if icon else desc
+
     with tqdm(
-        desc=desc,
+        desc=full_desc,
         bar_format="{desc}: {elapsed}",
         disable=disable,
         leave=leave,

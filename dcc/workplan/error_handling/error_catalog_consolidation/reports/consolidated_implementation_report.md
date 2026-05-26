@@ -231,7 +231,7 @@ dcc/
     ├── data_error_handling_workplan.md         # Implementation guide
     ├── system_error_handling_workplan.md
     ├── error_handling_module_workplan.md
-    ├── pipeline_messaging_plan.md
+    ├── pipeline_messaging_workplan.md
     ├── reports/
     │   └── consolidated_implementation_report.md  # This file
     └── archive/                       # Phase 1-3 workplans

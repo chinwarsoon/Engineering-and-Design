@@ -16,7 +16,7 @@ from .paths import default_base_path, get_schema_path, normalize_path
 
 def test_environment(base_path: Path | None = None) -> Dict[str, Any]:
     """Test environment and required libraries."""
-    status_print("Testing environment and required libraries...", min_level=2)
+    status_print("STATUS_ENV_TEST_START")
 
     # Ensure workflow/ is in sys.path so engine module imports resolve
     # regardless of the working directory the pipeline is launched from.
@@ -92,15 +92,15 @@ def test_environment(base_path: Path | None = None) -> Dict[str, Any]:
 
     results["ready"] = not results["errors"]
     if results["ready"]:
-        status_print("Environment test passed.", min_level=3)
+        status_print("STATUS_ENV_TEST_PASS")
     else:
-        status_print("Environment test failed. Missing required packages:", min_level=2)
+        status_print("WARNING_ENV_TEST_FAIL")
         for err in results["errors"]:
-            status_print(f"  ✗ {err}", min_level=2)
-        status_print("Run: pip install " + " ".join(
+            status_print("WARNING_MISSING_PKG", name=err)
+        status_print("WARNING_PIP_INSTALL", packages=" ".join(
             m for m in required_modules
             if results["required_modules"].get(m, "").startswith("error")
-        ), min_level=2)
+        ))
 
     debug_print(f"Environment details: {results}")
     return results

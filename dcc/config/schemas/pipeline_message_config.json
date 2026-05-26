@@ -1,0 +1,301 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/pipeline-message/config",
+  "title": "Pipeline Message Configuration",
+  "description": "Actual pipeline message definitions (SSOT)",
+  "version": "1.0.0",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://dcc-pipeline.internal/schemas/pipeline-message/setup" }
+  ],
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-05-26",
+    "total_messages": 25
+  },
+  "messages": {
+    "MILESTONE_SETUP_VALIDATED": {
+      "template": "Setup validated",
+      "icon": "✓",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_SCHEMA_LOADED": {
+      "template": "Completed: Schema loaded",
+      "icon": "✓",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_COLUMNS_MAPPED": {
+      "template": "Completed: Columns mapped",
+      "icon": "✓",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_PHASE_COMPLETE": {
+      "template": "Phase {phase} complete",
+      "icon": "✓",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_EXPORT_COMPLETE": {
+      "template": "Exported",
+      "icon": "✓",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_AI_COMPLETE": {
+      "template": "AI analysis complete",
+      "icon": "✓",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_AI_INSIGHT": {
+      "template": "AI Analysis",
+      "icon": "🤖",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_PIPELINE_START": {
+      "template": "Starting engine pipeline",
+      "icon": "Pipeline Execution",
+      "level": 1,
+      "category": "milestone"
+    },
+    "STATUS_SCHEMA_VAL_START": {
+      "template": "⏳ Starting: Schema validation...",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_MAPPER_START": {
+      "template": "⏳ Starting: Column mapping ({count} columns)...",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_EXPORT_START": {
+      "template": "⏳ Starting: {name} export...",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_AI_START": {
+      "template": "⏳ Starting: AI operations...",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_PROC_COMPLETE": {
+      "template": "✓ Processing complete",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_CSV_PATH": {
+      "template": "CSV: {name}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_EXCEL_PATH": {
+      "template": "Excel: {name}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_AI_SKIP": {
+      "template": "⚠ AI analysis skipped or failed (non-blocking)",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_DI_ENGINE": {
+      "template": "Using DI-enabled {engine}",
+      "level": 3,
+      "category": "status"
+    },
+    "STATUS_HEALTH_DIAG": {
+      "template": "Generating data health diagnostics...",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_DASHBOARD_EXPORT": {
+      "template": "✓ Dashboard JSON exported: {path}",
+      "level": 3,
+      "category": "status"
+    },
+    "STATUS_DIAG_REPORT": {
+      "template": "Generating diagnostic report for captured errors...",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_AI_INSIGHT": {
+      "template": "AI Insight: {path}",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_UI_PIPELINE": {
+      "template": "🚀 UI Pipeline: {name}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_BASE_PATH": {
+      "template": "   Base: {path}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_DEBUG_MODE": {
+      "template": "   Debug: {mode} | Rows: {rows}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_LOADING_SCHEMA": {
+      "template": "Loading schema from: {path} for validation",
+      "level": 3,
+      "category": "status"
+    },
+    "STATUS_MAIN_SCHEMA": {
+      "template": "Main schema: {path}",
+      "level": 3,
+      "category": "status"
+    },
+    "STATUS_PHASE_COMPLETE": {
+      "template": "✓ Completed: Phase {id} ({count} columns processed)",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_PHASE_START": {
+      "template": "⏳ Starting: Phase {id} - {desc} ({count} columns)...",
+      "level": 1,
+      "category": "status"
+    },
+    "DEBUG_PHASE_METHOD": {
+      "template": "[PHASED] Calling {name} for phase {id}",
+      "level": 2,
+      "category": "status"
+    },
+    "DEBUG_PHASE_COMPLETE": {
+      "template": "[PHASED] Completed {name} for phase {id}, df shape: {shape}",
+      "level": 2,
+      "category": "status"
+    },
+    "PROGRESS_SCHEMA_VAL": {
+      "template": "   Schema validation",
+      "level": 1,
+      "category": "progress"
+    },
+    "PROGRESS_COLUMN_MAP": {
+      "template": "   Column mapping",
+      "level": 1,
+      "category": "progress"
+    },
+    "PROGRESS_EXPORT": {
+      "template": "   {name} export",
+      "level": 1,
+      "category": "progress"
+    },
+    "PROGRESS_AI_ANALYSIS": {
+      "template": "   AI analysis",
+      "level": 1,
+      "category": "progress"
+    },
+    "PROGRESS_PHASE": {
+      "template": "   Phase {id}",
+      "level": 1,
+      "category": "progress"
+    },
+    "STATUS_ENV_TEST_START": {
+      "template": "Testing environment and required libraries...",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_ENV_TEST_PASS": {
+      "template": "Environment test passed.",
+      "level": 3,
+      "category": "status"
+    },
+    "WARNING_ENV_TEST_FAIL": {
+      "template": "Environment test failed. Missing required packages:",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_MISSING_PKG": {
+      "template": "  ✗ {name}",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_PIP_INSTALL": {
+      "template": "Run: pip install {packages}",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_FLATTEN_TUPLE": {
+      "template": "WARNING: Flattened tuple header {raw} to '{name}'",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_MISSING_REQUIRED": {
+      "template": "WARNING: Required input column missing during mapping detection: {name}",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_FLATTEN_MULTIINDEX": {
+      "template": "WARNING: Flattening MultiIndex columns in rename_dataframe_columns",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_FLATTEN_TUPLE_RENAME": {
+      "template": "WARNING: Flattening tuple columns in rename_dataframe_columns",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_REMOVE_DUP_COLS": {
+      "template": "WARNING: Removing {count} duplicate columns after rename: {names}",
+      "level": 2,
+      "category": "warning"
+    },
+    "STATUS_RENAMED_COLS": {
+      "template": "Renamed {count} columns to schema names",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_FINAL_DF_SHAPE": {
+      "template": "Final DataFrame: {rows} rows × {cols} columns",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_LOAD_EXCEL": {
+      "template": "📁 Loading Excel file: {path}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_LOAD_SHEET": {
+      "template": "   Sheet: '{name}'",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_HEADER_ROW": {
+      "template": "   Header row: {row} (0-indexed: {index})",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_COL_RANGE": {
+      "template": "   Column range: {range}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_ROW_LIMIT": {
+      "template": "   Row limit: {limit}",
+      "level": 1,
+      "category": "status"
+    },
+    "WARNING_FLATTEN_MULTIINDEX": {
+      "template": "   ⚠️  Flattening MultiIndex columns",
+      "level": 1,
+      "category": "warning"
+    },
+    "WARNING_REMOVE_DUP_COLS": {
+      "template": "   ⚠️  Removing {count} duplicate columns",
+      "level": 1,
+      "category": "warning"
+    },
+    "STATUS_LOAD_COMPLETE": {
+      "template": "   ✓ Loaded {rows} rows × {cols} columns",
+      "level": 1,
+      "category": "status"
+    }
+  }
+}

@@ -27,7 +27,7 @@ Shared reference docs remain at the top level (e.g., `error_handling_taxonomy.md
 - **System error handling (implemented)**: `system_error_handling/system_error_handling_workplan.md`
   - Report: `system_error_handling/reports/system_error_handling_completion_report.md`
 - **Data error handling (reference / implemented in processor subsystem)**: `data_error_handling/data_error_handling_workplan.md`
-- **Pipeline messaging (implemented)**: `pipeline_messaging/pipeline_messaging_plan.md`
+- **Pipeline messaging (implemented)**: `pipeline_messaging/pipeline_messaging_workplan.md`
   - Report: `pipeline_messaging/reports/pipeline_messaging_plan_report.md`
 - **Error catalog consolidation + standardization (implemented; Phase artifacts archived)**: `error_catalog_consolidation/error_catalog_consolidation_plan.md`
   - Reports:

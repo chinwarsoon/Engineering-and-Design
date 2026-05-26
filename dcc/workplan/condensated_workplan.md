@@ -12462,8 +12462,8 @@ Shared reference docs remain at the top level (e.g., `error_handling_taxonomy.md
 - **System error handling (implemented)**: `system_error_handling/system_error_handling_workplan.md`
   - Report: `system_error_handling/reports/system_error_handling_completion_report.md`
 - **Data error handling (reference / implemented in processor subsystem)**: `data_error_handling/data_error_handling_workplan.md`
-- **Pipeline messaging (implemented)**: `pipeline_messaging/pipeline_messaging_plan.md`
-  - Report: `pipeline_messaging/reports/pipeline_messaging_plan_report.md`
+- **Pipeline messaging (implemented)**: `pipeline_messaging/pipeline_messaging_workplan.md`
+  - Report: `pipeline_messaging/reports/pipeline_messaging_workplan_phase1_report.md`
 - **Error catalog consolidation + standardization (implemented; Phase artifacts archived)**: `error_catalog_consolidation/error_catalog_consolidation_plan.md`
   - Reports:
     - `error_catalog_consolidation/reports/consolidated_implementation_report.md`
@@ -13330,7 +13330,7 @@ dcc/
     ├── data_error_handling_workplan.md         # Implementation guide
     ├── system_error_handling_workplan.md
     ├── error_handling_module_workplan.md
-    ├── pipeline_messaging_plan.md
+    ├── pipeline_messaging_workplan.md
     ├── reports/
     │   └── consolidated_implementation_report.md  # This file
     └── archive/                       # Phase 1-3 workplans
@@ -18220,7 +18220,7 @@ The Resolution Module implementation is **fully complete** with all 7 modules im
 
 ---
 
-## File: workplan/error_handling/pipeline_messaging/pipeline_messaging_plan.md
+## File: workplan/error_handling/pipeline_messaging/pipeline_messaging_workplan.md
 
 # Pipeline Messaging Workplan (Redesigned)
 
@@ -18544,11 +18544,11 @@ Changes affect output across all 7 engine modules. Once approved, implementation
 
 ---
 
-## File: workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_plan_report.md
+## File: workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_workplan_phase1_report.md
 
 # Pipeline Messaging Plan Completion Report
 
-**Workplan:** `../pipeline_messaging_plan.md`  
+**Workplan:** `../pipeline_messaging_workplan.md`  
 **Status:** ✅ COMPLETE  
 **Date:** 2026-04-19  
 **Duration:** 1 day
@@ -18850,7 +18850,7 @@ The Pipeline Messaging Plan implementation is **complete**. All completion crite
 ---
 
 **Report Generated:** 2026-04-19  
-**Report Location:** `dcc/workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_plan_report.md`  
+**Report Location:** `dcc/workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_workplan_phase1_report.md`  
 **Archived Under:** `dcc/workplan/error_handling/pipeline_messaging/reports/`  
 
 ---
@@ -18904,7 +18904,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | Topic | Location |
 |-------|----------|
 | **System Errors** (S-C-S-XXXX) | [`../system_error_handling/system_error_handling_workplan.md`](../system_error_handling/system_error_handling_workplan.md) |
-| **Real-time error reporting UI** | [`../pipeline_messaging/pipeline_messaging_plan.md`](../pipeline_messaging/pipeline_messaging_plan.md) |
+| **Real-time error reporting UI** | [`../pipeline_messaging/pipeline_messaging_workplan.md`](../pipeline_messaging/pipeline_messaging_workplan.md) |
 | **Error remediation workflows** | [`../module/error_handling_module_workplan.md`](../module/error_handling_module_workplan.md) |
 | **System error messages** | `initiation_engine/error_handling/config/messages/system_en.json` |
 
@@ -18988,7 +18988,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 |------|--------------|--------|
 | [System Error Handling](../system_error_handling_workplan.md) | S-C-S-XXXX codes complement LL-M-F-XXXX | ✅ Complete |
 | [Error Handling Taxonomy](../error_handling_taxonomy.md) | Master reference for all codes | ✅ Complete |
-| [Pipeline Messaging](../pipeline_messaging_plan.md) | UI display of error messages | ✅ Complete |
+| [Pipeline Messaging](../pipeline_messaging_workplan.md) | UI display of error messages | ✅ Complete |
 
 ### External Dependencies
 
@@ -19760,7 +19760,7 @@ def test_F4_C_F_0401_A_jump_limit():
 |----------|-------|----------|
 | System Error Handling | S-C-S-XXXX environment/pipeline errors | [system_error_handling_workplan.md](system_error_handling_workplan.md) |
 | Error Handling Taxonomy | Complete error code reference | [error_handling_taxonomy.md](error_handling_taxonomy.md) |
-| Pipeline Messaging Plan | UI/UX error display | [pipeline_messaging_plan.md](pipeline_messaging_plan.md) |
+| Pipeline Messaging Plan | UI/UX error display | [pipeline_messaging_workplan.md](pipeline_messaging_workplan.md) |
 | Error Handling Module | Remediation workflows | [error_handling_module_workplan.md](error_handling_module_workplan.md) |
 | Error Catalog Consolidation | Master workplan | [error_catalog_consolidation_plan.md](error_catalog_consolidation_plan.md) |
 
@@ -20555,7 +20555,7 @@ raise BootstrapError("S-F-S-0206", msg, "paths")
 | **Status** | ✅ COMPLETE (Phases SE1-SE4) |
 | **Scope** | **SYSTEM ERRORS ONLY** - Environment, file, config, runtime failures |
 | **Data Errors** | See [data error handling workplan](../data_error_handling/data_error_handling_workplan.md) for LL-M-F-XXXX data/logic errors |
-| **Depends on** | `../module/error_handling_module_workplan.md`, `../pipeline_messaging/pipeline_messaging_plan.md` |
+| **Depends on** | `../module/error_handling_module_workplan.md`, `../pipeline_messaging/pipeline_messaging_workplan.md` |
 | **Related Issues** | #55 (Silent Stop), #56 (Windows Encoding) |
 | **Completion Report** | [`reports/system_error_handling_completion_report.md`](reports/system_error_handling_completion_report.md) |
 
@@ -20661,7 +20661,7 @@ To implement system-level error handling for the DCC pipeline that:
 |------|--------------|--------|
 | [Data Error Handling Workplan](../data_error_handling/data_error_handling_workplan.md) | Complementary — data errors use LL-M-F-XXXX | ✅ Complete |
 | [Error Handling Taxonomy](../error_handling_taxonomy.md) | Master reference includes S-C-S-XXXX codes | ✅ Complete |
-| [Pipeline Messaging Plan](../pipeline_messaging/pipeline_messaging_plan.md) | `milestone_print()` integration | ✅ Complete |
+| [Pipeline Messaging Plan](../pipeline_messaging/pipeline_messaging_workplan.md) | `milestone_print()` integration | ✅ Complete |
 | [Error Handling Module](../module/error_handling_module_workplan.md) | Shared error handling infrastructure | ✅ Complete |
 | [Bootstrap Error Standardization](../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md) | Standardizes B-XXXX-NNN codes to S-C-S-XXXX | 🔄 In Progress |
 
@@ -20922,7 +20922,7 @@ Each step in `run_engine_pipeline()` wrapped with specific error code:
 |----------|-------|----------|
 | Data Error Handling | LL-M-F-XXXX data/logic errors | [`../data_error_handling/data_error_handling_workplan.md`](../data_error_handling/data_error_handling_workplan.md) |
 | Error Handling Taxonomy | Complete code reference | [`../error_handling_taxonomy.md`](../error_handling_taxonomy.md) |
-| Pipeline Messaging Plan | UI/UX integration | [`../pipeline_messaging/pipeline_messaging_plan.md`](../pipeline_messaging/pipeline_messaging_plan.md) |
+| Pipeline Messaging Plan | UI/UX integration | [`../pipeline_messaging/pipeline_messaging_workplan.md`](../pipeline_messaging/pipeline_messaging_workplan.md) |
 | Error Handling Module | Remediation workflows | [`../module/error_handling_module_workplan.md`](../module/error_handling_module_workplan.md) |
 | Bootstrap Error Standardization | B-XXXX-NNN to S-C-S-XXXX migration | [`../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md`](../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md) |
 

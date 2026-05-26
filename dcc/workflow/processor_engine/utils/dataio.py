@@ -49,11 +49,11 @@ def load_excel_data(
     usecols = f"{start_col}:{end_col}"
     
     if verbose:
-        status_print(f"📁 Loading Excel file: {excel_path}")
-        status_print(f"   Sheet: '{sheet_name}'")
-        status_print(f"   Header row: {header_row + 1} (0-indexed: {header_row})")
-        status_print(f"   Column range: {start_col}:{end_col}")
-        status_print(f"   Row limit: {nrows if nrows else 'all'}")
+        status_print("STATUS_LOAD_EXCEL", path=excel_path)
+        status_print("STATUS_LOAD_SHEET", name=sheet_name)
+        status_print("STATUS_HEADER_ROW", row=header_row + 1, index=header_row)
+        status_print("STATUS_COL_RANGE", range=usecols)
+        status_print("STATUS_ROW_LIMIT", limit=nrows if nrows else 'all')
     
     df = pd.read_excel(
         excel_path,
@@ -70,20 +70,20 @@ def load_excel_data(
     # Flatten MultiIndex columns if present
     if isinstance(df.columns, pd.MultiIndex):
         if verbose:
-            status_print("   ⚠️  Flattening MultiIndex columns")
+            status_print("WARNING_FLATTEN_MULTIINDEX")
         df.columns = ['_'.join(str(level) for level in levels).strip('_') for levels in df.columns]
     
     # Remove duplicate columns
     if df.columns.duplicated().any():
         dup_cols = df.columns[df.columns.duplicated()].tolist()
         if verbose:
-            status_print(f"   ⚠️  Removing {len(dup_cols)} duplicate columns")
+            status_print("WARNING_REMOVE_DUP_COLS", count=len(dup_cols))
         df = df.loc[:, ~df.columns.duplicated()].copy()
     
     # Remove empty columns
     df = df.dropna(axis=1, how='all')
     
     if verbose:
-        status_print(f"   ✓ Loaded {len(df)} rows × {len(df.columns)} columns")
+        status_print("STATUS_LOAD_COMPLETE", rows=len(df), cols=len(df.columns))
     
     return df

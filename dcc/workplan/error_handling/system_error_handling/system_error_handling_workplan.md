@@ -8,7 +8,7 @@
 | **Status** | ✅ COMPLETE (Phases SE1-SE4) |
 | **Scope** | **SYSTEM ERRORS ONLY** - Environment, file, config, runtime failures |
 | **Data Errors** | See [data error handling workplan](../data_error_handling/data_error_handling_workplan.md) for LL-M-F-XXXX data/logic errors |
-| **Depends on** | `../module/error_handling_module_workplan.md`, `../pipeline_messaging/pipeline_messaging_plan.md` |
+| **Depends on** | `../module/error_handling_module_workplan.md`, `../pipeline_messaging/pipeline_messaging_workplan.md` |
 | **Related Issues** | #55 (Silent Stop), #56 (Windows Encoding) |
 | **Completion Report** | [`reports/system_error_handling_completion_report.md`](reports/system_error_handling_completion_report.md) |
 
@@ -114,7 +114,7 @@ To implement system-level error handling for the DCC pipeline that:
 |------|--------------|--------|
 | [Data Error Handling Workplan](../data_error_handling/data_error_handling_workplan.md) | Complementary — data errors use LL-M-F-XXXX | ✅ Complete |
 | [Error Handling Taxonomy](../error_handling_taxonomy.md) | Master reference includes S-C-S-XXXX codes | ✅ Complete |
-| [Pipeline Messaging Plan](../pipeline_messaging/pipeline_messaging_plan.md) | `milestone_print()` integration | ✅ Complete |
+| [Pipeline Messaging Workplan](../pipeline_messaging/pipeline_messaging_workplan.md) | `milestone_print()` integration | ✅ Complete |
 | [Error Handling Module](../module/error_handling_module_workplan.md) | Shared error handling infrastructure | ✅ Complete |
 | [Bootstrap Error Standardization](../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md) | Standardizes B-XXXX-NNN codes to S-C-S-XXXX | 🔄 In Progress |
 
@@ -375,7 +375,7 @@ Each step in `run_engine_pipeline()` wrapped with specific error code:
 |----------|-------|----------|
 | Data Error Handling | LL-M-F-XXXX data/logic errors | [`../data_error_handling/data_error_handling_workplan.md`](../data_error_handling/data_error_handling_workplan.md) |
 | Error Handling Taxonomy | Complete code reference | [`../error_handling_taxonomy.md`](../error_handling_taxonomy.md) |
-| Pipeline Messaging Plan | UI/UX integration | [`../pipeline_messaging/pipeline_messaging_plan.md`](../pipeline_messaging/pipeline_messaging_plan.md) |
+| Pipeline Messaging Plan | UI/UX integration | [`../pipeline_messaging/pipeline_messaging_workplan.md`](../pipeline_messaging/pipeline_messaging_workplan.md) |
 | Error Handling Module | Remediation workflows | [`../module/error_handling_module_workplan.md`](../module/error_handling_module_workplan.md) |
 | Bootstrap Error Standardization | B-XXXX-NNN to S-C-S-XXXX migration | [`../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md`](../bootstrap_error_standardization/bootstrap_error_standardization_workplan.md) |
 

@@ -1,6 +1,6 @@
 # Pipeline Messaging Plan Completion Report
 
-**Workplan:** `../pipeline_messaging_plan.md`  
+**Workplan:** `../pipeline_messaging_workplan.md`  
 **Status:** ✅ COMPLETE  
 **Date:** 2026-04-19  
 **Duration:** 1 day
@@ -302,5 +302,5 @@ The Pipeline Messaging Plan implementation is **complete**. All completion crite
 ---
 
 **Report Generated:** 2026-04-19  
-**Report Location:** `dcc/workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_plan_report.md`  
+**Report Location:** `dcc/workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_workplan_phase1_report.md`  
 **Archived Under:** `dcc/workplan/error_handling/pipeline_messaging/reports/`  

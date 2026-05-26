@@ -45,7 +45,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 | Topic | Location |
 |-------|----------|
 | **System Errors** (S-C-S-XXXX) | [`../system_error_handling/system_error_handling_workplan.md`](../system_error_handling/system_error_handling_workplan.md) |
-| **Real-time error reporting UI** | [`../pipeline_messaging/pipeline_messaging_plan.md`](../pipeline_messaging/pipeline_messaging_plan.md) |
+| **Real-time error reporting UI** | [`../pipeline_messaging/pipeline_messaging_workplan.md`](../pipeline_messaging/pipeline_messaging_workplan.md) |
 | **Error remediation workflows** | [`../module/error_handling_module_workplan.md`](../module/error_handling_module_workplan.md) |
 | **System error messages** | `initiation_engine/error_handling/config/messages/system_en.json` |
 
@@ -129,7 +129,7 @@ To establish a comprehensive error coding and validation framework for the DCC p
 |------|--------------|--------|
 | [System Error Handling](../system_error_handling_workplan.md) | S-C-S-XXXX codes complement LL-M-F-XXXX | ✅ Complete |
 | [Error Handling Taxonomy](../error_handling_taxonomy.md) | Master reference for all codes | ✅ Complete |
-| [Pipeline Messaging](../pipeline_messaging_plan.md) | UI display of error messages | ✅ Complete |
+| [Pipeline Messaging](../pipeline_messaging_workplan.md) | UI display of error messages | ✅ Complete |
 
 ### External Dependencies
 
@@ -901,7 +901,7 @@ def test_F4_C_F_0401_A_jump_limit():
 |----------|-------|----------|
 | System Error Handling | S-C-S-XXXX environment/pipeline errors | [system_error_handling_workplan.md](system_error_handling_workplan.md) |
 | Error Handling Taxonomy | Complete error code reference | [error_handling_taxonomy.md](error_handling_taxonomy.md) |
-| Pipeline Messaging Plan | UI/UX error display | [pipeline_messaging_plan.md](pipeline_messaging_plan.md) |
+| Pipeline Messaging Plan | UI/UX error display | [pipeline_messaging_workplan.md](pipeline_messaging_workplan.md) |
 | Error Handling Module | Remediation workflows | [error_handling_module_workplan.md](error_handling_module_workplan.md) |
 | Error Catalog Consolidation | Master workplan | [error_catalog_consolidation_plan.md](error_catalog_consolidation_plan.md) |
 

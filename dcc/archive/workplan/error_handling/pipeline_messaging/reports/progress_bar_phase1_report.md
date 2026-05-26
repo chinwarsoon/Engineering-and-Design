@@ -4,7 +4,7 @@
 **Phase:** Phase 1 (HIGH Priority) - COMPLETE ✅  
 **Date:** 2026-05-23  
 **Duration:** 2 hours  
-**Parent Plan:** [progress_bar_implementation_plan.md](progress_bar_implementation_plan.md)
+**Parent Plan:** [pipeline_messaging_workplan.md](../pipeline_messaging_workplan.md)
 
 ---
 

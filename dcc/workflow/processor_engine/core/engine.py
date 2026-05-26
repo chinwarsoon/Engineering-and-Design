@@ -366,26 +366,24 @@ class CalculationEngine(BaseProcessor):
 
                 # Stage 1: BEFORE
                 status_print(
-                    f"⏳ Starting: Phase {phase_id} - {config['desc']} ({len(phase_cols)} columns)...",
-                    min_level=1,
+                    "STATUS_PHASE_START", id=phase_id, desc=config["desc"], count=len(phase_cols)
                 )
 
                 # Stage 2: DURING
-                with create_progress_spinner(f"   Phase {phase_id}") as spinner:
+                with create_progress_spinner("PROGRESS_PHASE", id=phase_id) as spinner:
                     # Apply phase-specific processing
                     debug_print(
-                        f"[PHASED] Calling {config['method'].__name__} for phase {phase_id}"
+                        "DEBUG_PHASE_METHOD", name=config["method"].__name__, id=phase_id
                     )
                     df_processed = config["method"](df_processed, phase_cols)
                     debug_print(
-                        f"[PHASED] Completed {config['method'].__name__} for phase {phase_id}, df shape: {df_processed.shape}"
+                        "DEBUG_PHASE_COMPLETE", name=config["method"].__name__, id=phase_id, shape=df_processed.shape
                     )
                     spinner.update(1)
 
                 # Stage 3: AFTER
                 status_print(
-                    f"✓ Completed: Phase {phase_id} ({len(phase_cols)} columns processed)",
-                    min_level=1,
+                    "STATUS_PHASE_COMPLETE", id=phase_id, count=len(phase_cols)
                 )
 
                 # Emit checkpoint after phase completion

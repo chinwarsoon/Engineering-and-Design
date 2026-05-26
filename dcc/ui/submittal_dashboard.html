@@ -75,27 +75,31 @@
       <div class="dcc-sidebar-body" id="filterSidebarBody">
         <div class="sb-section">
           <div class="sb-section-header"><span>🏢 Project</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body"><select id="filterProject" style="width:100%;"><option value="">All Projects</option></select></div>
+          <div class="sb-section-body" id="filterProjectContainer" style="max-height:150px; overflow-y:auto;"></div>
         </div>
         <div class="sb-section">
           <div class="sb-section-header"><span>🏭 Facility</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body"><select id="filterFacility" style="width:100%;"><option value="">All Facilities</option></select></div>
+          <div class="sb-section-body" id="filterFacilityContainer" style="max-height:150px; overflow-y:auto;"></div>
         </div>
         <div class="sb-section">
           <div class="sb-section-header"><span>📐 Discipline</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body"><select id="filterDiscipline" style="width:100%;"><option value="">All Disciplines</option></select></div>
+          <div class="sb-section-body" id="filterDisciplineContainer" style="max-height:150px; overflow-y:auto;"></div>
         </div>
         <div class="sb-section">
           <div class="sb-section-header"><span>🏢 Department</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body"><select id="filterDepartment" style="width:100%;"><option value="">All Departments</option></select></div>
+          <div class="sb-section-body" id="filterDepartmentContainer" style="max-height:150px; overflow-y:auto;">
+            <!-- Populated by JS -->
+          </div>
         </div>
         <div class="sb-section">
           <div class="sb-section-header"><span>✍️ Submitted By</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body"><select id="filterSubmittedBy" style="width:100%;"><option value="">All Submitters</option></select></div>
+          <div class="sb-section-body" id="filterSubmittedByContainer" style="max-height:150px; overflow-y:auto;">
+            <!-- Populated by JS -->
+          </div>
         </div>
           <div class="sb-section">
           <div class="sb-section-header"><span>📋 Latest_Approval_Status</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body"><select id="filterApprovalStatus" style="width:100%;"><option value="">All Statuses</option></select></div>
+          <div class="sb-section-body" id="filterApprovalStatusContainer" style="max-height:150px; overflow-y:auto;"></div>
         </div>
         <div class="sb-section">
           <div class="sb-section-header"><span>📄 Data Info</span><span class="sb-section-arrow">▼</span></div>
@@ -133,7 +137,7 @@
           <div class="chart-container"><div class="chart-title">✓ Approval Status <span style="font-weight:400;color:var(--text3);">(per unique document, by Latest_Approval_Status)</span></div><canvas id="statusChart"></canvas></div>
         </div>
         <div class="grid-2">
-          <div class="chart-container"><div class="chart-title">📐 Documents by Discipline</div><canvas id="disciplineChart"></canvas></div>
+          <div class="chart-container"><div class="chart-title">📐 Documents by Department</div><canvas id="departmentChart"></canvas></div>
           <div class="chart-container"><div class="chart-title">📈 Approval Rate Trend <span style="font-weight:400;color:var(--text3);">(per unique document, by month)</span></div><canvas id="trendChart"></canvas></div>
         </div>
 
@@ -442,41 +446,61 @@
     }
 
     // ─── FILTERS ─────────────────────────────────────────────────────────────
+    function populateMultiSelect(containerId, values) {
+      const container = document.getElementById(containerId);
+      container.style.maxHeight = '';
+      container.style.overflow = '';
+      const innerId = containerId + '_list';
+      const toolbar =
+        '<div style="display:flex;gap:4px;margin-bottom:4px;">' +
+        '<button class="btn btn-xs btn-secondary" data-act="selall" data-cid="' + containerId + '" style="font-size:9px;padding:1px 6px;">✓ All</button>' +
+        '<button class="btn btn-xs btn-secondary" data-act="clrall" data-cid="' + containerId + '" style="font-size:9px;padding:1px 6px;">✕ Clear</button>' +
+        '</div>';
+      container.innerHTML = toolbar + '<div id="' + innerId + '" style="max-height:125px;overflow-y:auto;">' +
+        values.map(v =>
+          `<label style="display:block;cursor:pointer;"><input type="checkbox" value="${esc(v)}" checked> ${esc(v)}</label>`
+        ).join("") +
+        '</div>';
+      document.getElementById(innerId).querySelectorAll("input").forEach(cb => cb.addEventListener("change", applyFilters));
+      container.querySelectorAll('[data-act]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const checked = btn.dataset.act === 'selall';
+          document.getElementById(innerId).querySelectorAll("input").forEach(cb => cb.checked = checked);
+          applyFilters();
+        });
+      });
+    }
+
     function populateFilters() {
-      const unique = (col) => { const v = new Set(); allData.forEach(r => { if (r[col]) v.add(r[col]); }); return [...v].sort(); };
-      populateSelect('filterProject', unique('Project_Code'));
-      populateSelect('filterFacility', unique('Facility_Code'));
-      populateSelect('filterDiscipline', unique('Discipline'));
-      populateSelect('filterDepartment', unique('Department'));
-      populateSelect('filterSubmittedBy', unique('Submitted_By'));
-      populateSelect('filterApprovalStatus', unique('Latest_Approval_Status'));
+      const unique = (col) => { const v = new Set(); allData.forEach(r => { if (r[col]) v.add(String(r[col]).trim()); }); return [...v].sort(); };
+      populateMultiSelect("filterProjectContainer", unique("Project_Code"));
+      populateMultiSelect("filterFacilityContainer", unique("Facility_Code"));
+      populateMultiSelect("filterDisciplineContainer", unique("Discipline"));
+      populateMultiSelect("filterApprovalStatusContainer", unique("Latest_Approval_Status"));
+      populateMultiSelect("filterDepartmentContainer", unique("Department"));
+      populateMultiSelect("filterSubmittedByContainer", unique("Submitted_By"));
     }
-
-    function populateSelect(id, values) {
-      const sel = document.getElementById(id);
-      const current = sel.value;
-      sel.innerHTML = '<option value="">All ' + id.replace('filter','') + '</option>' + values.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-      sel.value = current;
-    }
-
-    document.getElementById('filterProject').addEventListener('change', applyFilters);
-    document.getElementById('filterFacility').addEventListener('change', applyFilters);
-    document.getElementById('filterDiscipline').addEventListener('change', applyFilters);
-    document.getElementById('filterDepartment').addEventListener('change', applyFilters);
-    document.getElementById('filterSubmittedBy').addEventListener('change', applyFilters);
-    document.getElementById('filterApprovalStatus').addEventListener('change', applyFilters);
 
     function applyFilters() {
-      const p = document.getElementById('filterProject').value;
-      const f = document.getElementById('filterFacility').value;
-      const d = document.getElementById('filterDiscipline').value;
-      const dept = document.getElementById('filterDepartment').value;
-      const sub = document.getElementById('filterSubmittedBy').value;
-      const as = document.getElementById('filterApprovalStatus').value;
+      const getCheckState = (containerId) => {
+        const all = document.getElementById(containerId).querySelectorAll("input");
+        const checked = Array.from(all).filter(cb => cb.checked).map(cb => cb.value);
+        return { all: all.length, checked };
+      };
+      const p = getCheckState("filterProjectContainer");
+      const f = getCheckState("filterFacilityContainer");
+      const d = getCheckState("filterDisciplineContainer");
+      const s = getCheckState("filterApprovalStatusContainer");
+      const dept = getCheckState("filterDepartmentContainer");
+      const sub = getCheckState("filterSubmittedByContainer");
+
       filteredData = allData.filter(r =>
-        (!p || r.Project_Code === p) && (!f || r.Facility_Code === f) && (!d || r.Discipline === d) &&
-        (!dept || r.Department === dept) && (!sub || r.Submitted_By === sub) &&
-        (!as || r.Latest_Approval_Status === as)
+        (p.checked.length === p.all || p.checked.includes(String(r.Project_Code||"").trim())) &&
+        (f.checked.length === f.all || f.checked.includes(String(r.Facility_Code||"").trim())) &&
+        (d.checked.length === d.all || d.checked.includes(String(r.Discipline||"").trim())) &&
+        (s.checked.length === s.all || s.checked.includes(String(r.Latest_Approval_Status||"").trim())) &&
+        (dept.checked.length === dept.all || dept.checked.includes(String(r.Department||"").trim())) &&
+        (sub.checked.length === sub.all || sub.checked.includes(String(r.Submitted_By||"").trim()))
       );
       renderDashboard();
     }
@@ -511,7 +535,7 @@
 
     // ─── RENDER ──────────────────────────────────────────────────────────────
     function renderDashboard() {
-      const data = filteredData.length > 0 ? filteredData : allData;
+      const data = filteredData;
       if (data.length === 0) { setEmptyState(); return; }
       const kpi = computeKPIs(data);
       document.getElementById('kpiDocs').textContent = formatNum(kpi.docs);
@@ -558,7 +582,7 @@
     }
 
     function rebuildCharts() {
-      const data = filteredData.length > 0 ? filteredData : allData;
+      const data = filteredData;
       Object.values(chartInstances).forEach(c => { if (c) { c.destroy(); } }); chartInstances = {};
       if (data.length === 0) return;
       const c = getChartColors();
@@ -587,10 +611,10 @@
       const palette = [c.success, '#58a6ff', c.danger, c.warning, '#8b949e', '#6e7681', c.text2];
       chartInstances.status = new Chart(document.getElementById('statusChart').getContext('2d'), { type:'doughnut', data:{ labels:sl.map(k=>k+' ('+statusCounts[k]+')'), datasets:[{ data:sl.map(k=>statusCounts[k]), backgroundColor:palette.slice(0,sl.length), borderColor:c.surface }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:c.text2 } } } } });
 
-      // Discipline bar
-      const discCounts = {}; data.forEach(r => { if (r.Discipline) discCounts[r.Discipline] = (discCounts[r.Discipline]||0)+1; });
-      const dl = Object.entries(discCounts).sort(([,a],[,b]) => b-a);
-      chartInstances.discipline = new Chart(document.getElementById('disciplineChart').getContext('2d'), { type:'bar', data:{ labels:dl.map(([k])=>k), datasets:[{ label:'Documents', data:dl.map(([,v])=>v), backgroundColor:c.accent, borderColor:c.border, borderWidth:1 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
+      // Department bar
+      const deptCounts = {}; data.forEach(r => { if (r.Department) deptCounts[r.Department] = (deptCounts[r.Department]||0)+1; });
+      const dl = Object.entries(deptCounts).sort(([,a],[,b]) => b-a);
+      chartInstances.department = new Chart(document.getElementById('departmentChart').getContext('2d'), { type:'bar', data:{ labels:dl.map(([k])=>k), datasets:[{ label:'Documents', data:dl.map(([,v])=>v), backgroundColor:c.accent, borderColor:c.border, borderWidth:1 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
 
       // Approval rate trend by month — v2.2 (7.29): doc-level, consistent with KPI tile
       const trendDocs = {};
@@ -812,7 +836,7 @@
     };
     document.querySelectorAll('.kpi-card[data-kpi]').forEach(card => {
       card.addEventListener('click', () => {
-        const d = filteredData.length > 0 ? filteredData : allData;
+        const d = filteredData;
         if (!d.length) return;
         const handler = kpiHandlers[card.dataset.kpi];
         if (handler) handler(d);

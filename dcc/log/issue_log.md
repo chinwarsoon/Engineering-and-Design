@@ -35,7 +35,7 @@
   - `utility_engine/console/console_output.py` — Replace stale `import DEBUG_LEVEL` with getter
   - `utility_engine/console/progress.py` — Replace stale `import DEBUG_LEVEL` with getter
   - `dcc_engine_pipeline.py` — Replace stale `import DEBUG_LEVEL` with getter
-- **Workplan:** [pipeline_messaging_plan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_plan.md) — Phase 4
+- **Workplan:** [pipeline_messaging_workplan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_workplan.md) — Phase 4
 - **Link to Update Log:** Pending
 
 ---
@@ -101,7 +101,7 @@
 - **Root Cause:** The pipeline's logging engine appends full error definitions (remediations, descriptions, source file paths) for every single error occurrence. With thousands of errors, this redundancy creates massive file bloat.
 - **Impact:** Users cannot use the Diagnostic Dashboard to analyze results from large runs. High memory pressure during JSON serialization in the pipeline.
 - **Proposed Resolution:** Implement "Dry Logging" in the JSON file (storing only error codes and instance data) and perform "Hydration" (looking up details from schemas) in the dashboard and other exporters.
-- **Workplan:** [pipeline_messaging_plan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_plan.md) — Phase 3 v3.0
+- **Workplan:** [pipeline_messaging_workplan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_workplan.md) — Phase 3 v3.0
 
 # Section 1. Pending Issues
 
@@ -878,7 +878,7 @@
   7. Renamed `data_error_handling.md` → `data_error_handling_workplan.md` per naming convention
 - **Architecture:** agent_rule.md Section 2.3 compliant (base → setup → config)
 - **Final Deliverables:**
-  - **Active Workplans (6):** README.md, error_handling_taxonomy.md, error_catalog_consolidation_plan.md, data_error_handling_workplan.md, system_error_handling_workplan.md, error_handling_module_workplan.md, pipeline_messaging_plan.md
+  - **Active Workplans (6):** README.md, error_handling_taxonomy.md, error_catalog_consolidation_plan.md, data_error_handling_workplan.md, system_error_handling_workplan.md, error_handling_module_workplan.md, pipeline_messaging_workplan.md
   - **Reports (4):** consolidated_implementation_report.md, phase4_consolidation_test_report.md, pipeline_messaging_plan_report.md, resolution_module_implementation_report.md, system_error_handling_completion_report.md
   - **Archive (4 phases):** 7 workplans archived in phase1/, phase2/, phase3/, phase4/
 - **Links:**

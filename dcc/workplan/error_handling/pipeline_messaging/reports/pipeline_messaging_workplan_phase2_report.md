@@ -5,7 +5,7 @@
 **Status:** ✅ COMPLETE  
 **Completion Date:** 2026-05-23  
 **Total Duration:** 4.5 hours (across 3 phases)  
-**Parent Plan:** [pipeline_messaging_plan.md](../pipeline_messaging_plan.md)
+**Parent Plan:** [pipeline_messaging_workplan.md](../pipeline_messaging_workplan.md)
 
 ---
 
@@ -44,7 +44,7 @@ Implemented comprehensive progress indicators using the `tqdm` library across al
 ### Phase 1: HIGH Priority - Foundation ✅
 **Duration:** 2 hours  
 **Status:** COMPLETE  
-**Report:** [progress_bar_phase1_report.md](progress_bar_phase1_report.md)
+**Report:** [../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase1_report.md](../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase1_report.md)
 
 #### Deliverables
 1. **Dependency Management**
@@ -78,7 +78,7 @@ Implemented comprehensive progress indicators using the `tqdm` library across al
 ### Phase 2: MEDIUM Priority - Processing Phases ✅
 **Duration:** 1.5 hours  
 **Status:** COMPLETE  
-**Report:** [progress_bar_phase2_report.md](progress_bar_phase2_report.md)
+**Report:** [../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase2_report.md](../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase2_report.md)
 
 #### Deliverables
 1. **Phase-Level Progress Spinners**
@@ -97,7 +97,7 @@ Implemented comprehensive progress indicators using the `tqdm` library across al
 ### Phase 3: LOW Priority - Export and AI ✅
 **Duration:** 1 hour  
 **Status:** COMPLETE  
-**Report:** [progress_bar_phase3_report.md](progress_bar_phase3_report.md)
+**Report:** [../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase3_report.md](../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase3_report.md)
 
 #### Deliverables
 1. **Export Operation Spinners**
@@ -666,11 +666,11 @@ The Progress Bar Implementation project has been successfully completed across a
 
 ## Related Documents
 
-- [Pipeline Messaging Plan](../pipeline_messaging_plan.md) - Parent workplan
+- [Pipeline Messaging Workplan](../pipeline_messaging_workplan.md) - Parent workplan
 - [Progress Bar Implementation Plan](progress_bar_implementation_plan.md) - Detailed plan
-- [Phase 1 Report](progress_bar_phase1_report.md) - Schema and mapping
-- [Phase 2 Report](progress_bar_phase2_report.md) - Processing phases
-- [Phase 3 Report](progress_bar_phase3_report.md) - Export and AI
+- [Phase 1 Report](../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase1_report.md) - Schema and mapping
+- [Phase 2 Report](../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase2_report.md) - Processing phases
+- [Phase 3 Report](../../../archive/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase3_report.md) - Export and AI
 - [Progress Bar Flow Diagram](progress_bar_flow_diagram.md) - Visual flow
 
 ---

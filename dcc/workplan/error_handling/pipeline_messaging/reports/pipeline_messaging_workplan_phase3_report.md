@@ -33,7 +33,7 @@ This report summarizes the successful implementation of Phase 3, aimed at resolv
 - **UI Functionality**: Confirmed that the diagnostic dashboard correctly resolves error details via schema hydration.
 
 ## 6. Project Artifacts
-- **Workplan**: [pipeline_messaging_plan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_plan.md)
+- **Workplan**: [pipeline_messaging_workplan.md](../pipeline_messaging_workplan.md)
 - **Issue Log**: [issue_log.md](../log/issue_log.md#issue-log-001)
 - **Update Log**: [update_log.md](../log/update_log.md#update-2026-05-25-phase3-log-compaction)
 

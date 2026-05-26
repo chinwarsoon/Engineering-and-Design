@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dcc-pipeline.internal/schemas/pipeline-message/base",
+  "title": "Pipeline Message Base Schema",
+  "description": "Base definitions for pipeline terminal messages",
+  "version": "1.0.0",
+  "type": "object",
+  "definitions": {
+    "message_id": {
+      "type": "string",
+      "pattern": "^[A-Z_]+$",
+      "description": "Unique identifier for the message (e.g., MILESTONE_SETUP_VALIDATED)"
+    },
+    "verbosity_level": {
+      "type": "integer",
+      "enum": [0, 1, 2, 3],
+      "description": "Verbosity level (0=quiet, 1=normal, 2=debug, 3=trace)"
+    },
+    "template": {
+      "type": "string",
+      "description": "Message template with Python-style placeholders (e.g., 'Loaded {count} items')"
+    },
+    "icon": {
+      "type": "string",
+      "description": "Emoji or icon for the message"
+    },
+    "message_category": {
+      "type": "string",
+      "enum": ["milestone", "status", "progress", "warning", "error"],
+      "description": "Category of the message"
+    },
+    "message_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "last_updated"],
+      "properties": {
+        "version": { "type": "string" },
+        "last_updated": { "type": "string" },
+        "total_messages": { "type": "integer" }
+      }
+    }
+  }
+}

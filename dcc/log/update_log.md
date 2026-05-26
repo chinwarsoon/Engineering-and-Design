@@ -14,7 +14,7 @@
 ### PLANNED: Resolve 1.4GB `debug_log.json` via Schema-Driven Hydration
 
 **Status:** 🚧 IN PROGRESS — Phase 3 Planning
-**Workplan:** [pipeline_messaging_plan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_plan.md) — Phase 3 v3.0
+**Workplan:** [pipeline_messaging_workplan.md](../workplan/error_handling/pipeline_messaging/pipeline_messaging_workplan.md) — Phase 3 v3.0
 **Issue Reference:** [Issue LOG-001](issue_log.md#issue-log-001)
 
 **Summary:** The `debug_log.json` file reached 1.4GB due to redundant error definitions (remediations/descriptions) being repeated for every occurrence. This blocks the Diagnostic Dashboard (100MB limit) and strains memory.
@@ -144,7 +144,7 @@
 - `workflow/processor_engine/core/engine.py`:
   - `apply_phased_processing()` — Each phase loop now emits "⏳ Starting: Phase X..." before spinner and "✓ Completed: Phase X" after spinner
 
-**Workplan:** `dcc/workplan/error_handling/pipeline_messaging/progress_message_flow_plan.md`
+**Workplan:** `dcc/workplan/error_handling/pipeline_messaging/pipeline_messaging_workplan.md`
 
 **Status:** ✅ COMPLETE
 
@@ -166,25 +166,25 @@
 - `pipeline_messaging/reports/progress_bar_implementation_plan.md` — details merged into workplan
 
 **Files Created:**
-- `pipeline_messaging/progress_bar_workplan.md` — Single comprehensive workplan (576 lines) containing: scope summary, problem statement, all 3 implementation phases with code examples, mermaid flow diagrams, testing strategy, success criteria, timeline, results, and references
-- `pipeline_messaging/progress_message_flow_plan.md` — Separate workplan for the three-stage message flow improvement (approved and implemented same day)
+- `pipeline_messaging/pipeline_messaging_workplan.md` — Single comprehensive workplan (576 lines) containing: scope summary, problem statement, all 3 implementation phases with code examples, mermaid flow diagrams, testing strategy, success criteria, timeline, results, and references
+- `pipeline_messaging/pipeline_messaging_workplan.md` — Separate workplan for the three-stage message flow improvement (approved and implemented same day)
 - `pipeline_messaging/README.md` — Index file linking all workplan and report documents
-- `pipeline_messaging/TROUBLESHOOTING.md` — 10 common errors with fixes, validation checklist, rollback instructions
+- `pipeline_messaging/pipeline_messaging_workplan.md` — 10 common errors with fixes, validation checklist, rollback instructions
 
 **Final structure:**
 ```
 pipeline_messaging/
 ├── README.md
-├── pipeline_messaging_plan.md        (Phase 1 — Tiered Messaging)
-├── progress_bar_workplan.md          (Phase 2 — Progress Bars)
-├── progress_message_flow_plan.md     (Phase 2 update — Start/Progress/Complete pattern)
-├── TROUBLESHOOTING.md
+├── pipeline_messaging_workplan.md        (Phase 1 — Tiered Messaging)
+├── pipeline_messaging_workplan.md          (Phase 2 — Progress Bars)
+├── pipeline_messaging_workplan.md     (Phase 2 update — Start/Progress/Complete pattern)
+├── pipeline_messaging_workplan.md
 └── reports/
     ├── progress_bar_phase1_report.md
     ├── progress_bar_phase2_report.md
     ├── progress_bar_phase3_report.md
-    ├── progress_bar_completion_report.md
-    └── pipeline_messaging_plan_report.md
+    ├── pipeline_messaging_workplan_phase2_report.md
+    └── pipeline_messaging_workplan_phase1_report.md
 ```
 
 **Status:** ✅ COMPLETE
@@ -230,7 +230,7 @@ pipeline_messaging/
 - `dcc/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase1_report.md`
 - `dcc/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase2_report.md`
 - `dcc/workplan/error_handling/pipeline_messaging/reports/progress_bar_phase3_report.md`
-- `dcc/workplan/error_handling/pipeline_messaging/reports/progress_bar_completion_report.md`
+- `dcc/workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_workplan_phase2_report.md`
 
 **Testing Results:**
 - ✅ All unit tests pass (DEBUG_LEVEL, cleanup, elapsed time)
@@ -4281,7 +4281,7 @@ is_json = col_def.get('data_type') == 'json' or col_def.get('column_type') == 'j
 
 **Problem:** Default level (normal/level 1) still outputs internal function call trees, full absolute paths, step bracket notation, CLI override messages, third-party library warnings, and WARNING messages. Previous workplan was marked COMPLETE but implementation was not done.
 
-**Workplan redesigned:** `dcc/workplan/error_handling/pipeline_messaging_plan.md`
+**Workplan redesigned:** `dcc/workplan/error_handling/pipeline_messaging_workplan.md`
 
 **Key changes in redesign:**
 - Added precise message samples for all 4 levels (0/1/2/3)
@@ -6483,3 +6483,10 @@ cat README.md  # Start here
  -   F i n d i n g s :   d e b u g _ l o g . j s o n   s i z e   r e d u c e d   b y   > 9 0 % .   D a s h b o a r d   s t a b i l i t y   c o n f i r m e d . 
   
  
+## 2026-05-26: Phase 4 Messaging Compliance Complete
+- **Summary:** Completed migration of all hardcoded terminal strings to a schema-driven, centralized message catalog (SSOT).
+- **Consolidation:** Finalized consolidated pipeline messaging workplan `dcc/workplan/error_handling/pipeline_messaging/pipeline_messaging_workplan.md`.
+- **Schema Design:** Implemented 3-tier schema (base, setup, config) for pipeline messaging in `dcc/config/schemas/`.
+- **Migration:** Refactored console utilities and pipeline engines to use ID-based message lookups, supporting dynamic hydration and improved maintainability.
+- **Verification:** Successfully validated pipeline execution with 11,851 rows using new messaging architecture.
+- **Reference:** See `workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_workplan_phase4_report.md` for full implementation details.

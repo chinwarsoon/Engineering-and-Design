@@ -4,7 +4,7 @@
 **Phase:** Phase 2 (MEDIUM Priority) - COMPLETE ✅  
 **Date:** 2026-05-23  
 **Duration:** 1.5 hours  
-**Parent Plan:** [progress_bar_implementation_plan.md](progress_bar_implementation_plan.md)
+**Parent Plan:** [pipeline_messaging_workplan.md](../pipeline_messaging_workplan.md)
 
 ---
 

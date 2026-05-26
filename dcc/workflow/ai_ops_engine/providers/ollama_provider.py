@@ -78,7 +78,7 @@ class OllamaProvider(BaseProvider):
             insight.provider = "ollama"
             insight.fallback_used = False
             logger.info(f"[ollama] Generated insight: risk={insight.risk_level}")
-            milestone_print("AI Analysis", f"Ollama insight generated — risk={insight.risk_level}", ok=True)
+            milestone_print("MILESTONE_AI_INSIGHT", f"Ollama insight generated — risk={insight.risk_level}", ok=True)
             return insight
         except Exception as exc:
             logger.warning(f"[ollama] Provider failed ({exc}), using rule-based fallback")

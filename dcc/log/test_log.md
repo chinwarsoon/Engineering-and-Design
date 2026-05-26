@@ -638,7 +638,7 @@ Log/                       ✅ Created (auto_create_log_directories: true)
      - `UserWarning: Print area cannot be set to Defined name...` ❌
      - `WARNING: Required input column missing...` ❌
      - `[Phase X] col: Applying strategy` ❌
-   - **Workplan redesigned:** `dcc/workplan/error_handling/pipeline_messaging_plan.md`
+   - **Workplan redesigned:** `dcc/workplan/error_handling/pipeline_messaging_workplan.md`
    - **Status:** Awaiting approval before implementation
    - **Related Issue:** [Issue #33](issue_log.md)
 - `Status: PENDING APPROVAL`
