@@ -137,7 +137,7 @@
           <div class="chart-container"><div class="chart-title">✓ Approval Status <span style="font-weight:400;color:var(--text3);">(per unique document, by Latest_Approval_Status)</span></div><canvas id="statusChart"></canvas></div>
         </div>
         <div class="grid-2">
-          <div class="chart-container"><div class="chart-title">📐 Documents by Department</div><canvas id="departmentChart"></canvas></div>
+          <div class="chart-container"><div class="chart-title">📐 Documents by Department <span style="font-weight:400;color:var(--text3);">(per unique document)</span></div><canvas id="departmentChart"></canvas></div>
           <div class="chart-container"><div class="chart-title">📈 Approval Rate Trend <span style="font-weight:400;color:var(--text3);">(per unique document, by month)</span></div><canvas id="trendChart"></canvas></div>
         </div>
 
@@ -194,6 +194,8 @@
     const CSV_FILE = 'processed_dcc_universal.csv';
     let allData = [];
     let filteredData = [];
+    let allDocData = [];
+    let filteredDocData = [];
     let chartInstances = {};
     let docIdRules = { docIdCodes: [], checkUncertain: true,
       uncertainValues: ['na','n/a','nan','unknown','tbd','to be determined','pending','draft','temp','temporary','-','none','nil','null','undefined','0'] };
@@ -434,6 +436,7 @@
       const allRows = result.data.filter(r => r.Document_ID);
       const totalUnique = new Set(allRows.map(r => String(r.Document_ID).trim())).size;
       allData = allRows.filter(r => isValidDocId(r.Document_ID, r));
+      allDocData = buildDocData(allData);
       const validUnique = new Set(allData.map(r => String(r.Document_ID).trim())).size;
       document.getElementById('dataSource').textContent = sourceName;
       document.getElementById('dataRowCount').textContent = allData.length;
@@ -443,6 +446,39 @@
       applyFilters();
       updateStatus('ok', `Loaded ${allData.length} rows`);
       document.getElementById('loadedInfo').textContent = `${allData.length} rows from ${sourceName}`;
+    }
+
+    // ─── DEDUP ────────────────────────────────────────────────────────────────
+    function buildDocData(rows) {
+      const map = {};
+      rows.forEach(r => {
+        const id = r.Document_ID;
+        if (!id || !isValidDocId(id, r)) return;
+        if (!map[id]) map[id] = { _rows: [] };
+        map[id]._rows.push(r);
+      });
+      return Object.values(map).map(e => {
+        const all = e._rows;
+        // Find row with the latest Submission_Date as the base
+        let latest = all[0], latestSd = all[0].Submission_Date || '';
+        all.forEach(r => {
+          const sd = r.Submission_Date || '';
+          if (sd > latestSd) { latestSd = sd; latest = r; }
+        });
+        const doc = { ...latest };
+        // Merge other rows
+        all.forEach(r => {
+          if (r === latest) return;
+          if (String(r.Submission_Closed||'').toUpperCase()==='YES') doc.Submission_Closed='YES';
+          if (String(r.Resubmission_Overdue_Status||'').toLowerCase()==='overdue') doc.Resubmission_Overdue_Status='Overdue';
+          const ac = r.Latest_Approval_Code||r.This_Submission_Approval_Code||'';
+          if (ac && !doc.Latest_Approval_Code&&!doc.This_Submission_Approval_Code) { doc.Latest_Approval_Code=r.Latest_Approval_Code; doc.This_Submission_Approval_Code=r.This_Submission_Approval_Code; }
+          if (Number(r.Duration_of_Review) > Number(doc.Duration_of_Review||0)) doc.Duration_of_Review=r.Duration_of_Review;
+          if (Number(r.Delay_of_Resubmission) > Number(doc.Delay_of_Resubmission||0)) doc.Delay_of_Resubmission=r.Delay_of_Resubmission;
+          ['Department','Submitted_By','Discipline','Project_Code','Latest_Approval_Status'].forEach(f => { if (!doc[f] && r[f]) doc[f] = r[f]; });
+        });
+        return doc;
+      });
     }
 
     // ─── FILTERS ─────────────────────────────────────────────────────────────
@@ -502,40 +538,30 @@
         (dept.checked.length === dept.all || dept.checked.includes(String(r.Department||"").trim())) &&
         (sub.checked.length === sub.all || sub.checked.includes(String(r.Submitted_By||"").trim()))
       );
+      filteredDocData = buildDocData(filteredData);
       renderDashboard();
     }
 
     // ─── KPI CALCULATIONS (per unique Document_ID) ─────────────────────────
     function computeKPIs(data) {
-      const docMap = {};
+      let docs=0, open=0, overdue=0, awaiting=0, approved=0, longReview=0, delay=0;
       data.forEach(r => {
-        const id = r.Document_ID; if (!isValidDocId(id, r)) return;
-        if (!docMap[id]) docMap[id] = { closed: null, overdue: null, approval: null, longReview: false, delay: false };
-        const c = String(r.Submission_Closed || '').toUpperCase();
-        if (c === 'YES' || c === '1') docMap[id].closed = true;
-        else if (c === 'NO' || c === '0') docMap[id].closed = false;
-        if (String(r.Resubmission_Overdue_Status || '').toLowerCase() === 'overdue') docMap[id].overdue = true;
-        const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
-        if (code) docMap[id].approval = code;
-        const dur = Number(r.Duration_of_Review);
-        if (!isNaN(dur) && dur > 30) docMap[id].longReview = true;
-        const del = Number(r.Delay_of_Resubmission);
-        if (!isNaN(del) && del > 30) docMap[id].delay = true;
+        docs++;
+        const c = String(r.Submission_Closed||'').toUpperCase();
+        if (c==='NO'||c==='0') open++;
+        if (String(r.Resubmission_Overdue_Status||'').toLowerCase()==='overdue') overdue++;
+        const code = (r.Latest_Approval_Code||r.This_Submission_Approval_Code||'').toUpperCase();
+        if (!code || approvalCodes.pending.includes(code)) awaiting++;
+        if (code && approvalCodes.approved.includes(code)) approved++;
+        if (Number(r.Duration_of_Review) > 30) longReview++;
+        if (Number(r.Delay_of_Resubmission) > 30) delay++;
       });
-      const docs = Object.keys(docMap).length;
-      const open = Object.values(docMap).filter(d => d.closed === false).length;
-      const overdue = Object.values(docMap).filter(d => d.overdue === true).length;
-      const awaiting = Object.values(docMap).filter(d => !d.approval || approvalCodes.pending.includes(d.approval)).length;
-      const approved = Object.values(docMap).filter(d => d.approval && approvalCodes.approved.includes(d.approval)).length;
-      const longReview = Object.values(docMap).filter(d => d.longReview).length;
-      const delay = Object.values(docMap).filter(d => d.delay).length;
-      const rate = docs > 0 ? (approved / docs * 100) : 0;
-      return { docs, open, overdue, awaiting, longReview, delay, rate };
+      return { docs, open, overdue, awaiting, longReview, delay, rate: docs>0?approved/docs*100:0 };
     }
 
     // ─── RENDER ──────────────────────────────────────────────────────────────
     function renderDashboard() {
-      const data = filteredData;
+      const data = filteredDocData;
       if (data.length === 0) { setEmptyState(); return; }
       const kpi = computeKPIs(data);
       document.getElementById('kpiDocs').textContent = formatNum(kpi.docs);
@@ -582,14 +608,15 @@
     }
 
     function rebuildCharts() {
-      const data = filteredData;
       Object.values(chartInstances).forEach(c => { if (c) { c.destroy(); } }); chartInstances = {};
-      if (data.length === 0) return;
+      if (filteredDocData.length === 0) return;
+      const docs = filteredDocData;
+      const rows = filteredData;
       const c = getChartColors();
 
-      // Timeline — unique Document_ID per month
-      const monthlyDocs = {}; data.forEach(r => {
-        if (r.Submission_Date && isValidDocId(r.Document_ID, r)) {
+      // Timeline — unique Document_ID per month (uses row-level data for multi-month tracking)
+      const monthlyDocs = {}; rows.forEach(r => {
+        if (r.Submission_Date) {
           const m = String(r.Submission_Date).slice(0,7);
           if (!monthlyDocs[m]) monthlyDocs[m] = new Set();
           monthlyDocs[m].add(r.Document_ID);
@@ -599,27 +626,22 @@
       chartInstances.timeline = new Chart(document.getElementById('timelineChart').getContext('2d'), { type:'line', data:{ labels:tl.map(([k])=>k), datasets:[{ label:'Submissions', data:tl.map(([,v])=>v), borderColor:c.accent, backgroundColor:c.accent+'20', tension:0.4, fill:true, pointBackgroundColor:c.accent }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
 
       // Status donut — per unique Document_ID using Latest_Approval_Status
-      const docStatuses = {};
-      data.forEach(r => {
-        const docId = r.Document_ID; if (!isValidDocId(docId, r)) return;
-        const status = r.Latest_Approval_Status;
-        if (status && !docStatuses[docId]) docStatuses[docId] = status;
-      });
       const statusCounts = {};
-      Object.values(docStatuses).forEach(s => { statusCounts[s] = (statusCounts[s]||0)+1; });
+      docs.forEach(r => { const s = r.Latest_Approval_Status; if (s) statusCounts[s] = (statusCounts[s]||0)+1; });
       const sl = Object.keys(statusCounts);
       const palette = [c.success, '#58a6ff', c.danger, c.warning, '#8b949e', '#6e7681', c.text2];
       chartInstances.status = new Chart(document.getElementById('statusChart').getContext('2d'), { type:'doughnut', data:{ labels:sl.map(k=>k+' ('+statusCounts[k]+')'), datasets:[{ data:sl.map(k=>statusCounts[k]), backgroundColor:palette.slice(0,sl.length), borderColor:c.surface }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:c.text2 } } } } });
 
-      // Department bar
-      const deptCounts = {}; data.forEach(r => { if (r.Department) deptCounts[r.Department] = (deptCounts[r.Department]||0)+1; });
+      // Department bar — per unique Document_ID
+      const deptCounts = {};
+      docs.forEach(r => { if (r.Department) deptCounts[r.Department] = (deptCounts[r.Department]||0)+1; });
       const dl = Object.entries(deptCounts).sort(([,a],[,b]) => b-a);
       chartInstances.department = new Chart(document.getElementById('departmentChart').getContext('2d'), { type:'bar', data:{ labels:dl.map(([k])=>k), datasets:[{ label:'Documents', data:dl.map(([,v])=>v), backgroundColor:c.accent, borderColor:c.border, borderWidth:1 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
 
-      // Approval rate trend by month — v2.2 (7.29): doc-level, consistent with KPI tile
+      // Approval rate trend by month (uses row-level data for multi-month tracking)
       const trendDocs = {};
-      data.forEach(r => {
-        if (!r.Submission_Date || !isValidDocId(r.Document_ID, r)) return;
+      rows.forEach(r => {
+        if (!r.Submission_Date) return;
         const m = String(r.Submission_Date).slice(0,7);
         if (!trendDocs[m]) trendDocs[m] = { docs: new Set(), approved: new Set() };
         trendDocs[m].docs.add(r.Document_ID);
@@ -706,8 +728,7 @@
     }
 
     function showDetailAllDocs(data) {
-      const seen = new Set(); const rows = [];
-      data.forEach(r => { if (isValidDocId(r.Document_ID, r) && !seen.has(r.Document_ID)) { seen.add(r.Document_ID); rows.push({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Project_Code: r.Project_Code||'', Latest_Approval_Code: r.Latest_Approval_Code||r.This_Submission_Approval_Code||'' }); } });
+      const rows = data.map(r => ({ Document_ID: r.Document_ID, Department: r.Department||'', Submitted_By: r.Submitted_By||'', Discipline: r.Discipline||'', Project_Code: r.Project_Code||'', Latest_Approval_Code: r.Latest_Approval_Code||r.This_Submission_Approval_Code||'' }));
       renderDetailTable('📄 All Documents', ['Document_ID','Department','Submitted_By','Discipline','Project_Code','Latest_Approval_Code'], rows);
     }
 
@@ -836,7 +857,7 @@
     };
     document.querySelectorAll('.kpi-card[data-kpi]').forEach(card => {
       card.addEventListener('click', () => {
-        const d = filteredData;
+        const d = filteredDocData;
         if (!d.length) return;
         const handler = kpiHandlers[card.dataset.kpi];
         if (handler) handler(d);
