@@ -32,7 +32,7 @@ def main():
     
     # Import and run the pipeline
     try:
-        from workflow.dcc_engine_pipeline import main as pipeline_main
+        from dcc.archive.workflow.dcc_engine_pipeline import main as pipeline_main
         
         # Start tracing
         print("Starting trace...")
