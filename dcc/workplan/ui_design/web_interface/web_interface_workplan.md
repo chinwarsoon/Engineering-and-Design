@@ -1,9 +1,9 @@
 # Web Interface Workplan — Universal UI Toolkit
 
 **Document ID:** WP-UI-001  
-**Current Version:** 3.18  
-**Status:** ✅ PHASE 2 v3.1 & PHASE 7 v2.2 COMPLETE  
-**Last Updated:** 2026-05-23  
+**Current Version:** 3.20  
+**Status:** ✅ PHASE 2 v3.1 & PHASE 7 v2.3 COMPLETE  
+**Last Updated:** 2026-05-28  
 **Lead:** Franklin Song
 
 ---
@@ -33,6 +33,8 @@
 | 3.16 | 2026-05-21 | System | Phase 4 v2.4 implemented: Standalone `file://` protocol support via folder picker (`webkitdirectory`). Dashboard prompts user to select the output folder, automatically finds and loads `error_dashboard_data.json` and `debug_log.json`. Drop zone now processes all dropped files (not just first). |
 | 3.17 | 2026-05-23 | System | Phase 2 v3.1 proposed: Functional "Run" button integration. Proposed wiring the "Run" button to the backend `POST /api/v1/pipeline/run` endpoint using the `UIRequest` schema. Added task for backend status polling, dynamic UI feedback, and a live output console popup. |
 | 3.18 | 2026-05-23 | System | Phase 2 v3.1 implemented: All 5 sub-tasks (2.10–2.14) completed. `triggerPipelineRun()` sends POST to `/api/v1/pipeline/run`. Status polling every 2s via `/api/v1/pipeline/status`. Execution lock (disabled button + spinner). Auto-refresh on completion via `loadAllData()`. Live output console modal with clear/close controls. `file://` protocol guard disables Run button with tooltip. Phase 7 v2.2 implemented: All 7 sub-tasks (7.25–7.31) completed. Overdue table dedup+date sort, delay table max aggregation, awaiting table latest-row resolution, schema-driven approval codes from `approval_code_schema.json`, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay, KPI click handler `data-kpi` attribute dispatch. |
+| 3.19 | 2026-05-28 | System | Phase 7 v2.3 proposed: Dashboard scope expansion to include and count invalid Document IDs. Added 8 sub-tasks (7.32–7.39) to add "Show Invalid IDs" toggle, 8th KPI "Invalid Documents", refactor parser to tag validity, update KPIs to handle dual-scope, and add invalid detail table. |
+| 3.20 | 2026-05-28 | System | Phase 7 v2.3 implemented: All 9 sub-tasks (7.32–7.40) completed. "SHOW INVALID DOC IDS" toggle in sidebar, "UNIQUE INVALID DOC IDS" KPI card, refactored parser/aggregation to propagate `_isValid` flag, red highlights for raw data scope (figures, charts, tables), strictly uppercase titles and sub-titles in "PER..." format, synchronized sidebar filters with selection preservation. |
 
 ---
 
@@ -52,7 +54,7 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
 | 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down, debug log integration, structured JSON context/message, filter priority, standalone file:// support | Diagnostics | ✅ v2.4 Completed |
 | 5 | Schema Manager — browse, inspect, edit schema files | Management | ✅ Completed |
 | 6 | Log Explorer Pro — multi-format log browser with search | Logging | ✅ Completed |
-| 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation | Analytics | ✅ v2.2 Completed |
+| 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation, invalid ID support | Analytics | ✅ v2.3 Completed |
 | 8 | Common JSON Tools — tree viewer, formatter, JSONPath, validation | Utilities | ✅ Completed |
 | 9 | Excel → Schema Generator — auto-generate schema from Excel headers | Generation | ✅ Completed |
 | 10 | AI Analysis Dashboard — risk findings, evidence trace, trends, recommendations, markdown report viewer, data table, Ollama chat assistant | Analytics | ✅ Completed |
@@ -957,6 +959,61 @@ v2.1 revision of the data-driven dashboard. Replaces complex client-side Documen
 
 ---
 
+#### v2.3 Revision Scope
+
+**Status:** 🔄 PROPOSED  
+**Data Sources:** `../output/processed_dcc_universal.csv`, `../config/schemas/data_error_config.json`, `../ui/ui_help.json`
+
+##### Issues Identified
+
+| ID | Issue | Root Cause | Impact |
+| :--- | :--- | :--- | :--- |
+| I | Dashboard hides invalid Document IDs | `parseCSV` filters out rows where `isValidDocId` is false | Understates total submission count; hides data quality issues |
+| J | No visibility into specific data validation errors | Invalid rows never enter `allData` | Users cannot diagnose why IDs are failing validation |
+| K | Fixed "Valid Only" scope | Hardcoded filter in data loader | Users cannot toggle to see "Raw" data stats |
+
+##### v2.3 Sub-Tasks
+
+| ID | Task | Detail | Priority |
+| :--- | :--- | :--- | :--- |
+| 7.32 | **Add "Show Invalid IDs" toggle** | Add checkbox `includeInvalid` in the left sidebar "Options" section. Default to unchecked. | High |
+| 7.33 | **Add 8th KPI: Invalid Documents** | New `kpi-card` in the `kpiRow` showing unique doc count where `_isValid === false`. | High |
+| 7.34 | **Refactor parser to tag validity** | Modify `parseCSV` to retain all rows with a `Document_ID`. Add `_isValid` flag to each row using the existing `isValidDocId` logic. | High |
+| 7.35 | **Refactor doc-level aggregation** | Update `buildDocData` to include `_isValid` in the aggregated doc object (true if any row is valid). | High |
+| 7.36 | **Update KPI aggregation for dual-scope** | Update `computeKPIs` and `renderDashboard` to handle `filteredDocData` containing invalid IDs. KPIs like Approval Rate and Timeline should continue to use valid-only data by default. | High |
+| 7.37 | **Update Detail Tables with validity columns** | Add `Validity` and `Validation_Errors` columns to the "All Documents" detail table. | Medium |
+| 7.38 | **Implement Invalid detail table handler** | Add `showDetailInvalid` to display Document_ID, Department, and specific error codes for invalid documents. | Medium |
+| 7.39 | **Update UI Help for data scope** | Add section to `ui_help.json` explaining the difference between Valid and All document counts. | Low |
+| 7.40 | **Dynamic UI Titles for Data Scope** | Implement logic to update titles of KPI cards, Charts, and Detail Tables based on the selected scope (e.g., "Total Valid Documents" vs "Total Documents (Inc. Invalid)"). | Medium |
+
+##### Data Behavior Matrix (Default: Unique Valid Doc IDs)
+
+| UI Component | Valid Doc IDs | Invalid Doc IDs | Duplicate Rows (Revisions) | Dynamic Title Example |
+| :--- | :--- | :--- | :--- | :--- |
+| **KPI: Total Doc IDs** | Included | Toggle-Dep. | Counted as 1 (Unique) | "**Unique Valid Doc IDs**" vs "**Unique Doc IDs** (Inc. **Invalid**)" |
+| **KPI: Invalid Doc IDs**| Excluded | **Included** | Counted as 1 (Unique) | "**Unique Invalid Doc IDs**" |
+| **KPI: Approval Rate** | Included | **Excluded** | Counted as 1 (Unique) | "Approval Rate (**Unique Valid Doc IDs**)" |
+| **Charts (All)** | Included | **Excluded** | Counted as 1 (Unique) | "Timeline (**Unique Valid Doc IDs**)" |
+| **Table: All Rows (Raw)** | Included | **Included** | **Included (All)** | "**All Valid** + **Invalid Doc IDs**" |
+| **Table: All Doc IDs** | Included | Toggle-Dep. | One row per ID (Unique)| "**Unique Valid Doc IDs**" vs "**Unique Doc IDs**" |
+| **Table: Invalid Doc IDs** | Excluded | **Included** | One row per ID (Unique)| "**Unique Invalid Doc IDs**" |
+
+##### Features (v2.3 additions)
+- **Data Scope Toggle:** Sidebar control to include/exclude invalid data from dashboard analytics
+- **Invalid Documents KPI:** At-a-glance count of documents failing validation rules
+- **Invalid ID Diagnostics:** Dedicated detail table showing error codes from `data_error_config.json`
+- **Tagged Validity:** Data structure retains validity status for every document
+
+##### Risks & Mitigation (v2.3)
+
+| Risk | Likelihood | Impact | Mitigation |
+| :--- | :--- | :--- | :--- |
+| Including invalid data skews timeline/approval charts | Medium | Medium | Maintain valid-only filter within chart data generators even when toggle is on |
+| Large volumes of invalid data impact performance | Low | Low | Invalid data is typically a small fraction of total submissions |
+| User confusion between "Valid" and "Total" counts | Medium | Low | Clear labelling in status bar and help panel |
+
+---
+
 ### Phase 8: Common JSON Tools
 
 **Timeline:** Days 9–10  
@@ -1196,6 +1253,17 @@ A full DCC design system-compliant dashboard that consumes `ai_insight_summary.j
 - `dcc/output/processed_dcc_universal.csv`
 - `dcc/config/dcc_register_enhanced.json`
 - `dcc/config/schemas/*.json`
+- `dcc/Log/debug_log.json`
+- `dcc/Log/issue_log.md`
+- `dcc/Log/update_log.md`
+- `dcc/Log/test_log.md`
+- `dcc/output/ai_insight_summary.json`
+- `dcc/output/ai_insight_trace.json`
+- `dcc/output/ai_insight_report.md`
+
+### Standards
+- `agent_rule.md` — project governance and workplan standards
+on`
 - `dcc/Log/debug_log.json`
 - `dcc/Log/issue_log.md`
 - `dcc/Log/update_log.md`

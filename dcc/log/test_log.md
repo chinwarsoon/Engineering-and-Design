@@ -7,6 +7,32 @@
 
 # Section 2. Test log entries
 
+<a id="test-2026-05-28-phase7-v23"></a>
+## 2026-05-28 — Test UI-010 — Dashboard Scope Expansion (v2.3) Verification
+
+- **Status:** ✅ PASS
+- **Tested By:** Franklin Song
+- **Environment:** Linux / Browser
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.3
+
+### Test Cases
+
+| ID | Description | Result | Details |
+| :--- | :--- | :--- | :--- |
+| T1 | Default load scope | PASS | Dashboard loads with "UNIQUE VALID DOC IDS" scope by default. |
+| T2 | Toggle "Show Invalid Doc IDs" | PASS | Total Doc IDs count turns RED and includes invalid IDs. "UNIQUE INVALID DOC IDS" KPI is visible. |
+| T3 | Sidebar Filter Sync | PASS | Filters refresh to show/hide invalid items (in red font) based on toggle. Selections preserved. |
+| T4 | KPI Stability (Issue UI-010) | PASS | Analytic KPIs (Open, Overdue, Approval Rate) remain unchanged when toggle is flipped. |
+| T5 | Chart Red Highlights | PASS | All chart titles and sub-titles turn RED when "Show Invalid Doc IDs" is ON. |
+| T6 | Detail Table Red Highlights| PASS | Detail table title turns RED when showing "UNIQUE DOC IDS (INC. INVALID)" or "UNIQUE INVALID DOC IDS". |
+| T7 | Uppercase Consistency | PASS | All UI primary and sub-titles verified as strictly UPPERCASE. |
+| T8 | "PER..." Format | PASS | All sub-titles verified to follow `PER UNIQUE [VALID] DOC ID` pattern. |
+
+### Summary
+The v2.3 revision successfully delivers high-transparency diagnostic capabilities for invalid Document IDs while maintaining perfect analytical integrity for valid-only metrics. The UI standardization pass (uppercase/format) has been applied globally.
+
+---
+
 <a id="test-2026-05-18-blv-008-phase8"></a>
 ## 2026-05-18
 

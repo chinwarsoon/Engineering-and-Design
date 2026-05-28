@@ -105,6 +105,22 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-ui-010"></a>
+## 2026-05-28 — Issue UI-010 — Dashboard Scope Expansion: KPI Drift on Mixed-Validity Documents
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-28
+- **Context:** During the implementation of the "Show Invalid Doc IDs" toggle, it was discovered that valid documents could have their status incorrectly changed if an invalid "garbage" row was merged into the document object. Specifically, the "Open Submissions" count would drop if an invalid row for a valid document happened to have `Submission_Closed=YES`.
+- **Root Cause:** The `buildDocData` aggregation logic was merging metadata from all rows (including invalid ones) into the document's analytical state. It did not distinguish between "data info" (like Department/Project) and "analytic status" (like Closed/Overdue).
+- **Impact:** KPI cards (Open, Overdue, Approval Rate) were unstable and would change values when the "Show Invalid Doc IDs" toggle was enabled, even though the valid document count remained the same.
+- **Resolution Summary:** Refactored `buildDocData` to strictly separate metadata from analytic status. A document is now marked valid if ANY of its rows are valid. Analytic status (Closed, Overdue, Approval Code) is now derived EXCLUSIVELY from the valid rows subset. Invalid rows only contribute to the "Total" count and the "Invalid" card.
+- **File Changes:**
+  - `dcc/ui/submittal_dashboard.html` — `buildDocData()` and `computeKPIs()` refactored for stable analytics.
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.3
+- **Link to Update Log:** [update-2026-05-28-phase7-v23-complete](update_log.md#update-2026-05-28-phase7-v23-complete)
+
+---
+
 <a id="issue-ui-007"></a>
 ## 2026-05-21 18:30:00
 

@@ -8,6 +8,25 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-28-phase7-v23-complete"></a>
+## 2026-05-28 16:00:00 — Phase 7 v2.3 — Submittal Dashboard Scope Expansion
+
+**Status:** ✅ COMPLETE
+**Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.3
+**Issue Reference:** [Issue UI-010](issue_log.md#issue-ui-010)
+
+**Summary:** Implemented Dashboard scope expansion to include and count invalid Document IDs. Added "SHOW INVALID DOC IDS" toggle to sidebar, added "UNIQUE INVALID DOC IDS" KPI card, refactored parser and aggregation logic to retain and tag invalid rows while maintaining stable analytics for valid documents. Standardized UI with uppercase titles and "PER..." sub-title format.
+
+**Key Changes:**
+- **UI Architecture**: Moved scope toggle to top of filter sidebar for high visibility; added 8th KPI tile for invalid doc counts; implemented dynamic red highlights for figures/titles when raw data is active.
+- **Data Logic**: `parseCSV` now retains all rows and tags them with `_isValid` using existing pipeline validation rules. `buildDocData` refactored to ensure document-level validity is preserved if any row is valid. Analytic status (Closed, Overdue, Approval Code) is strictly derived from valid rows to prevent KPI drift.
+- **UI Standardization**: All titles and sub-titles converted to uppercase; standardized sub-titles to "PER..." format; sidebar filters now synchronize with the active data scope while preserving user selections.
+- **Documentation**: Updated `ui_help.json` with new terminology and toggle details.
+
+**Impact:** Improved data transparency. Users can now see total submissions and diagnose data quality issues directly in the dashboard without losing the analytical integrity of valid-only metrics.
+
+---
+
 <a id="update-2026-05-25-phase3-log-compaction"></a>
 ## 2026-05-25 18:30:00 — Pipeline Messaging Phase 3: Log Optimization & Schema-Driven Hydration
 

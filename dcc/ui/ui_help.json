@@ -54,15 +54,16 @@
       ]
     },
     "submittal_analytics": {
-      "intro": "Seven KPI tiles summarize the loaded submission data at a glance. All values are computed per <strong>unique Document_ID</strong> from the active (filtered) data set. <strong>Click any KPI card</strong> to view its detail table below the charts.",
+      "intro": "Eight KPI tiles summarize the loaded submission data at a glance. All values are computed per <strong>unique Doc ID</strong> from the active (filtered) data set. <strong>Click any KPI card</strong> to view its detail table below the charts.",
       "fields": [
-        { "label": "Total Documents", "text": "distinct count of <code>Document_ID</code> values. Not affected by duplicate submission rows. Click to view document list." },
-        { "label": "Open Submissions", "text": "unique documents where <code>Submission_Closed</code> is not <strong>YES</strong> — submissions still awaiting final closure. A doc is considered closed if any of its rows has <code>Submission_Closed=YES</code>. Click to view open documents." },
-        { "label": "Overdue", "text": "unique documents that have at least one row where <code>Resubmission_Overdue_Status</code> equals <strong>Overdue</strong> — resubmissions past their planned return date. Click to view overdue details." },
-        { "label": "Approval Rate", "text": "percentage of unique documents with a terminal/resolution code (<strong>APP</strong>, <strong>AWC</strong>, <strong>INFO</strong>, <strong>VOID</strong>) among all unique valid Document_IDs. Click to view approval breakdown." },
-        { "label": "Awaiting Response", "text": "unique documents with no terminal approval code — <code>Latest_Approval_Code</code> is empty, <strong>PEN</strong>, or <strong>PENDING</strong>. These documents are still under review and awaiting a decision. Click to view pending documents." },
-        { "label": "Review >30 Days", "text": "unique documents where <code>Duration_of_Review</code> exceeds 30 days. Click to view documents sorted by duration descending." },
-        { "label": "Delay >30 Days", "text": "unique documents where <code>Delay_of_Resubmission</code> exceeds 30 days. Click to view documents sorted by delay descending." }
+        { "label": "Unique Valid Doc IDs", "text": "distinct count of <code>Document_ID</code> values passing all validation rules. Not affected by duplicate submission rows. Click to view document list." },
+        { "label": "Unique Invalid Doc IDs", "text": "distinct count of <code>Document_ID</code> values failing validation rules from <code>data_error_config.json</code>. Click to view diagnostic details." },
+        { "label": "Open Submissions", "text": "unique valid Doc IDs where <code>Submission_Closed</code> is not <strong>YES</strong> — submissions still awaiting final closure. A doc is considered closed if any of its rows has <code>Submission_Closed=YES</code>. Click to view open documents." },
+        { "label": "Overdue", "text": "unique valid Doc IDs that have at least one row where <code>Resubmission_Overdue_Status</code> equals <strong>Overdue</strong> — resubmissions past their planned return date. Click to view overdue details." },
+        { "label": "Approval Rate", "text": "percentage of unique valid Doc IDs with a terminal/resolution code (<strong>APP</strong>, <strong>AWC</strong>, <strong>INFO</strong>, <strong>VOID</strong>) among all unique valid Doc IDs. Click to view approval breakdown." },
+        { "label": "Awaiting Response", "text": "unique valid Doc IDs with no terminal approval code — <code>Latest_Approval_Code</code> is empty, <strong>PEN</strong>, or <strong>PENDING</strong>. These documents are still under review and awaiting a decision. Click to view pending documents." },
+        { "label": "Review >30 Days", "text": "unique valid Doc IDs where <code>Duration_of_Review</code> exceeds 30 days. Click to view documents sorted by duration descending." },
+        { "label": "Delay >30 Days", "text": "unique valid Doc IDs where <code>Delay_of_Resubmission</code> exceeds 30 days. Click to view documents sorted by delay descending." }
       ]
     },
     "submittal_timeline": {
@@ -107,7 +108,7 @@
     "submittal_settings": {
       "intro": "The Settings panel provides configuration options and version information.",
       "fields": [
-        { "label": "Options", "text": "the <strong>Auto-refresh on load</strong> checkbox controls whether the dashboard automatically fetches pipeline data from <code>../output/processed_dcc_universal.csv</code> on page load. Uncheck this to start with an empty state and load a local file manually." },
+        { "label": "Options", "text": "the <strong>Auto-refresh on load</strong> checkbox controls whether the dashboard automatically fetches pipeline data from <code>../output/processed_dcc_universal.csv</code> on page load. The <strong>Show Invalid Doc IDs</strong> toggle allows including documents that failed validation in the overall counts and detail tables." },
         { "label": "About", "text": "shows the dashboard name, version number (<strong>v3.0.0</strong>), and a brief description. The Submittal Tracker Dashboard is Phase 7 of the DCC UI Toolkit, consuming processed pipeline CSV output for analytics and monitoring." }
       ]
     },
