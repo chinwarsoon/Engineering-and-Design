@@ -282,8 +282,7 @@
       document.documentElement.setAttribute('data-theme', t);
       themeName.textContent = t.charAt(0).toUpperCase() + t.slice(1);
       themeDot.style.background = themeColors[t] || '#0d1117';
-      // Full recreate on theme switch so all colors update correctly
-      setTimeout(rebuildCharts, 80);
+      setTimeout(rebuildCharts, 100);
     }
     const savedTheme = localStorage.getItem('dcc-theme') || 'dark';
     applyTheme(savedTheme);
@@ -520,12 +519,6 @@
     }
 
     // ─── FILTERS ─────────────────────────────────────────────────────────────
-    // Debounce applyFilters so rapid checkbox changes batch into one render
-    let _filterTimer = null;
-    function scheduleApplyFilters() {
-      clearTimeout(_filterTimer);
-      _filterTimer = setTimeout(applyFilters, 80);
-    }
     function populateMultiSelect(containerId, items) {
       const container = document.getElementById(containerId);
       const innerId = containerId + '_list';
@@ -549,12 +542,12 @@
           return `<label style="display:block;cursor:pointer;${style}"><input type="checkbox" value="${esc(v)}" ${isChecked ? 'checked' : ''}> ${esc(v)}</label>`;
         }).join("") +
         '</div>';
-      document.getElementById(innerId).querySelectorAll("input").forEach(cb => cb.addEventListener("change", scheduleApplyFilters));
+      document.getElementById(innerId).querySelectorAll("input").forEach(cb => cb.addEventListener("change", applyFilters));
       container.querySelectorAll('[data-act]').forEach(btn => {
         btn.addEventListener('click', () => {
           const checked = btn.dataset.act === 'selall';
           document.getElementById(innerId).querySelectorAll("input").forEach(cb => cb.checked = checked);
-          scheduleApplyFilters();
+          applyFilters();
         });
       });
     }
@@ -706,12 +699,7 @@
       } else {
          showDetailAllDocs(data.filter(d => d._isValid));
       }
-      // Use updateCharts (fast path) for filter changes; rebuildCharts only on first load / theme switch
-      if (_chartsCreated) {
-        updateCharts();
-      } else {
-        rebuildCharts();
-      }
+      rebuildCharts();
     }
 
     function setEmptyState() {
@@ -746,33 +734,38 @@
       return { text:s.getPropertyValue('--text').trim(), text2:s.getPropertyValue('--text2').trim(), accent:s.getPropertyValue('--accent').trim(), danger:s.getPropertyValue('--danger').trim(), warning:s.getPropertyValue('--warning').trim(), success:s.getPropertyValue('--success').trim(), info:s.getPropertyValue('--info').trim()||'#58a6ff', surface:s.getPropertyValue('--surface').trim(), border:s.getPropertyValue('--border').trim() };
     }
 
-    // ─── CHART HELPERS ───────────────────────────────────────────────────────
-    // Build chart datasets without creating Chart instances — used by both
-    // createCharts() (first load) and updateCharts() (filter/theme change).
-    function buildChartDatasets(docs, rows, c) {
-      // Timeline — unique Document_ID per month
-      const monthlyDocs = {};
-      rows.forEach(r => {
+    function rebuildCharts() {
+      Object.values(chartInstances).forEach(c => { if (c) { c.destroy(); } }); chartInstances = {};
+      if (filteredDocData.length === 0) return;
+      const docs = filteredDocData;
+      const rows = filteredData;
+      const c = getChartColors();
+
+      // Timeline — unique Document_ID per month (uses row-level data for multi-month tracking)
+      const monthlyDocs = {}; rows.forEach(r => {
         if (r.Submission_Date) {
           const m = String(r.Submission_Date).slice(0,7);
           if (!monthlyDocs[m]) monthlyDocs[m] = new Set();
           monthlyDocs[m].add(r.Document_ID);
         }
       });
-      const tl = Object.entries(monthlyDocs).sort(([a],[b]) => a.localeCompare(b));
+      const tl = Object.entries(monthlyDocs).sort(([a],[b]) => a.localeCompare(b)).map(([k,v]) => [k, v.size]);
+      chartInstances.timeline = new Chart(document.getElementById('timelineChart').getContext('2d'), { type:'line', data:{ labels:tl.map(([k])=>k), datasets:[{ label:'Submissions', data:tl.map(([,v])=>v), borderColor:c.accent, backgroundColor:c.accent+'20', tension:0.4, fill:true, pointBackgroundColor:c.accent }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
 
-      // Status donut
+      // Status donut — per unique Document_ID using Latest_Approval_Status
       const statusCounts = {};
       docs.forEach(r => { const s = r.Latest_Approval_Status; if (s) statusCounts[s] = (statusCounts[s]||0)+1; });
       const sl = Object.keys(statusCounts);
       const palette = [c.success, '#58a6ff', c.danger, c.warning, '#8b949e', '#6e7681', c.text2];
+      chartInstances.status = new Chart(document.getElementById('statusChart').getContext('2d'), { type:'doughnut', data:{ labels:sl.map(k=>k+' ('+statusCounts[k]+')'), datasets:[{ data:sl.map(k=>statusCounts[k]), backgroundColor:palette.slice(0,sl.length), borderColor:c.surface }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'bottom', labels:{ color:c.text2 } } } } });
 
-      // Department bar
+      // Department bar — per unique Document_ID
       const deptCounts = {};
       docs.forEach(r => { if (r.Department) deptCounts[r.Department] = (deptCounts[r.Department]||0)+1; });
       const dl = Object.entries(deptCounts).sort(([,a],[,b]) => b-a);
+      chartInstances.department = new Chart(document.getElementById('departmentChart').getContext('2d'), { type:'bar', data:{ labels:dl.map(([k])=>k), datasets:[{ label:'Documents', data:dl.map(([,v])=>v), backgroundColor:c.accent, borderColor:c.border, borderWidth:1 }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ticks:{ color:c.text2 }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
 
-      // Approval rate trend
+      // Approval rate trend by month (uses row-level data for multi-month tracking)
       const trendDocs = {};
       rows.forEach(r => {
         if (!r.Submission_Date) return;
@@ -783,114 +776,7 @@
         if (approvalCodes.approved.includes(code)) trendDocs[m].approved.add(r.Document_ID);
       });
       const tld = Object.entries(trendDocs).sort(([a],[b]) => a.localeCompare(b));
-
-      return { tl, sl, statusCounts, dl, deptCounts, tld, palette };
-    }
-
-    function createCharts() {
-      // Destroy any existing instances first
-      Object.values(chartInstances).forEach(ch => ch && ch.destroy());
-      chartInstances = {};
-
-      if (filteredDocData.length === 0) return;
-      const docs = filteredDocData;
-      const rows = filteredData;
-      const c = getChartColors();
-      const { tl, sl, statusCounts, dl, tld, palette } = buildChartDatasets(docs, rows, c);
-
-      const gridOpts = (axis) => ({ ticks: { color: c.text2 }, grid: { color: c.border } });
-
-      chartInstances.timeline = new Chart(document.getElementById('timelineChart').getContext('2d'), {
-        type: 'line',
-        data: { labels: tl.map(([k])=>k), datasets: [{ label:'Submissions', data: tl.map(([,v])=>v.size), borderColor:c.accent, backgroundColor:c.accent+'20', tension:0.4, fill:true, pointBackgroundColor:c.accent, pointRadius:3 }] },
-        options: { responsive:true, maintainAspectRatio:false, animation:{ duration:400 }, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ...gridOpts() }, x:{ ...gridOpts() } } }
-      });
-
-      chartInstances.status = new Chart(document.getElementById('statusChart').getContext('2d'), {
-        type: 'doughnut',
-        data: { labels: sl.map(k=>k+' ('+statusCounts[k]+')'), datasets: [{ data: sl.map(k=>statusCounts[k]), backgroundColor: palette.slice(0,sl.length), borderColor: c.surface }] },
-        options: { responsive:true, maintainAspectRatio:false, animation:{ duration:400 }, plugins:{ legend:{ position:'bottom', labels:{ color:c.text2 } } } }
-      });
-
-      chartInstances.department = new Chart(document.getElementById('departmentChart').getContext('2d'), {
-        type: 'bar',
-        data: { labels: dl.map(([k])=>k), datasets: [{ label:'Documents', data: dl.map(([,v])=>v), backgroundColor:c.accent, borderColor:c.border, borderWidth:1 }] },
-        options: { responsive:true, maintainAspectRatio:false, animation:{ duration:400 }, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, ...gridOpts() }, x:{ ...gridOpts() } } }
-      });
-
-      chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), {
-        type: 'line',
-        data: { labels: tld.map(([k])=>k), datasets: [{ label:'Approval Rate', data: tld.map(([,v])=>v.docs.size>0?(v.approved.size/v.docs.size*100):0), borderColor:c.success, backgroundColor:c.success+'20', tension:0.4, fill:true, pointBackgroundColor:c.success, pointRadius:3 }] },
-        options: { responsive:true, maintainAspectRatio:false, animation:{ duration:400 }, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100, ticks:{ color:c.text2, callback:v=>v+'%' }, grid:{ color:c.border } }, x:{ ...gridOpts() } } }
-      });
-    }
-
-    // updateCharts: reuse existing Chart instances — update data + colors without destroy/recreate.
-    // ~5× faster than createCharts() for filter changes.
-    function updateCharts() {
-      if (!chartInstances.timeline) { createCharts(); return; }
-      if (filteredDocData.length === 0) {
-        Object.values(chartInstances).forEach(ch => { if (ch) { ch.data.labels=[]; ch.data.datasets[0].data=[]; ch.update('none'); } });
-        return;
-      }
-      const docs = filteredDocData;
-      const rows = filteredData;
-      const c = getChartColors();
-      const { tl, sl, statusCounts, dl, tld, palette } = buildChartDatasets(docs, rows, c);
-
-      // Timeline
-      const tlChart = chartInstances.timeline;
-      tlChart.data.labels = tl.map(([k])=>k);
-      tlChart.data.datasets[0].data = tl.map(([,v])=>v.size);
-      tlChart.data.datasets[0].borderColor = c.accent;
-      tlChart.data.datasets[0].backgroundColor = c.accent+'20';
-      tlChart.data.datasets[0].pointBackgroundColor = c.accent;
-      tlChart.options.scales.x.ticks.color = c.text2;
-      tlChart.options.scales.x.grid.color = c.border;
-      tlChart.options.scales.y.ticks.color = c.text2;
-      tlChart.options.scales.y.grid.color = c.border;
-      tlChart.update('active');
-
-      // Status donut
-      const stChart = chartInstances.status;
-      stChart.data.labels = sl.map(k=>k+' ('+statusCounts[k]+')');
-      stChart.data.datasets[0].data = sl.map(k=>statusCounts[k]);
-      stChart.data.datasets[0].backgroundColor = palette.slice(0,sl.length);
-      stChart.data.datasets[0].borderColor = c.surface;
-      stChart.options.plugins.legend.labels.color = c.text2;
-      stChart.update('active');
-
-      // Department bar
-      const dChart = chartInstances.department;
-      dChart.data.labels = dl.map(([k])=>k);
-      dChart.data.datasets[0].data = dl.map(([,v])=>v);
-      dChart.data.datasets[0].backgroundColor = c.accent;
-      dChart.data.datasets[0].borderColor = c.border;
-      dChart.options.scales.x.ticks.color = c.text2;
-      dChart.options.scales.x.grid.color = c.border;
-      dChart.options.scales.y.ticks.color = c.text2;
-      dChart.options.scales.y.grid.color = c.border;
-      dChart.update('active');
-
-      // Trend
-      const trChart = chartInstances.trend;
-      trChart.data.labels = tld.map(([k])=>k);
-      trChart.data.datasets[0].data = tld.map(([,v])=>v.docs.size>0?(v.approved.size/v.docs.size*100):0);
-      trChart.data.datasets[0].borderColor = c.success;
-      trChart.data.datasets[0].backgroundColor = c.success+'20';
-      trChart.data.datasets[0].pointBackgroundColor = c.success;
-      trChart.options.scales.x.ticks.color = c.text2;
-      trChart.options.scales.x.grid.color = c.border;
-      trChart.options.scales.y.ticks.color = c.text2;
-      trChart.options.scales.y.grid.color = c.border;
-      trChart.update('active');
-    }
-
-    // rebuildCharts: called on first load (creates) or theme switch (recreates for color correctness)
-    let _chartsCreated = false;
-    function rebuildCharts() {
-      createCharts();
-      _chartsCreated = true;
+      chartInstances.trend = new Chart(document.getElementById('trendChart').getContext('2d'), { type:'line', data:{ labels:tld.map(([k])=>k), datasets:[{ label:'Approval Rate', data:tld.map(([,v])=>v.docs.size>0?(v.approved.size/v.docs.size*100):0), borderColor:c.success, backgroundColor:c.success+'20', tension:0.4, fill:true, pointBackgroundColor:c.success }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true, max:100, ticks:{ color:c.text2, callback:v=>v+'%' }, grid:{ color:c.border } }, x:{ ticks:{ color:c.text2 }, grid:{ color:c.border } } } } });
     }
 
     // ─── DYNAMIC DETAIL TABLE ────────────────────────────────────────────────
@@ -908,7 +794,13 @@
       
       const upperTitle = title.toUpperCase();
       titleEl.textContent = upperTitle;
-      titleEl.style.color = (upperTitle.includes('INVALID') || (includeInvalid && upperTitle.includes('ALL DOC IDS'))) ? 'var(--danger)' : '';
+      
+      // Highlight red if table contains invalid data
+      if (upperTitle.includes('INVALID') || (includeInvalid && upperTitle.includes('ALL DOC IDS'))) {
+          titleEl.style.color = 'var(--danger)';
+      } else {
+          titleEl.style.color = '';
+      }
 
       let filtered = rows;
       if (search) {
@@ -927,63 +819,12 @@
       document.getElementById('detailTableCount').textContent = filtered.length + ' / ' + rows.length + ' items';
       const container = document.getElementById('detailTableContainer');
       if (filtered.length === 0) { container.innerHTML = '<div style="color:var(--text3);padding:8px;font-size:11px;">No matching items.</div>'; return; }
-
       const arrow = (i) => sortCol === i ? (sortAsc ? ' ▲' : ' ▼') : '';
-
-      // Build table using DocumentFragment — avoids repeated reflow for large datasets
-      const frag = document.createDocumentFragment();
-
-      const searchWrap = document.createElement('div');
-      searchWrap.style.marginBottom = '6px';
-      const searchInput = document.createElement('input');
-      searchInput.id = 'dtSearch';
-      searchInput.type = 'text';
-      searchInput.placeholder = 'Filter table...';
-      searchInput.value = search;
-      searchInput.style.cssText = 'width:100%;padding:4px 8px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);box-sizing:border-box;';
-      searchWrap.appendChild(searchInput);
-      frag.appendChild(searchWrap);
-
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      columns.forEach((col, i) => {
-        const th = document.createElement('th');
-        th.dataset.col = i;
-        th.style.cssText = 'cursor:pointer;user-select:none;';
-        th.textContent = col + arrow(i);
-        headerRow.appendChild(th);
-      });
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-      // Cap display at 500 rows for performance; show indicator if truncated
-      const displayRows = filtered.length > 500 ? filtered.slice(0, 500) : filtered;
-      displayRows.forEach(r => {
-        const tr = document.createElement('tr');
-        columns.forEach(c => {
-          const td = document.createElement('td');
-          td.textContent = r[c] != null ? r[c] : '';
-          tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-      });
-      if (filtered.length > 500) {
-        const tr = document.createElement('tr');
-        const td = document.createElement('td');
-        td.colSpan = columns.length;
-        td.style.cssText = 'padding:4px 6px;text-align:center;color:var(--text3);font-size:10px;font-style:italic;';
-        td.textContent = `Showing 500 of ${filtered.length} rows — use search to narrow results`;
-        tr.appendChild(td);
-        tbody.appendChild(tr);
-      }
-      table.appendChild(tbody);
-      frag.appendChild(table);
-
-      container.innerHTML = '';
-      container.appendChild(frag);
-
+      container.innerHTML =
+        '<div style="margin-bottom:6px;"><input id="dtSearch" type="text" placeholder="Filter table..." style="width:100%;padding:4px 8px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);box-sizing:border-box;" value="' + esc(search) + '"></div>' +
+        '<table><thead><tr>' + columns.map((c, i) => '<th data-col="' + i + '" style="cursor:pointer;user-select:none;">' + esc(c) + arrow(i) + '</th>').join('') + '</tr></thead><tbody>' +
+        filtered.map(r => '<tr>' + columns.map(c => '<td>' + esc(r[c] != null ? r[c] : '') + '</td>').join('') + '</tr>').join('') +
+        '</tbody></table>';
       document.getElementById('dtSearch')?.addEventListener('input', function() { dtState.search = this.value; buildDetailTable(); });
       container.querySelectorAll('th[data-col]').forEach(th => th.addEventListener('click', function() {
         const i = parseInt(this.dataset.col);
@@ -1055,19 +896,39 @@
       renderDetailTable('❌ UNIQUE INVALID DOC IDS', ['Document_ID', 'Department', 'Discipline', 'Validation_Errors'], rows);
     }
 
-    // v2.2 (7.30): open table — data is already doc-level from buildDocData
+    // v2.2 (7.30): open table enriched with Resubmission_Plan_Date and Delay_of_Resubmission from latest row
     function showDetailOpen(data) {
+      const docStatus = {};
+      const latestRow = {}; // latest submission row per doc
+      // Ensure we only look at valid docs for these KPIs
       const validDocs = data.filter(d => d._isValid);
-      const rows = validDocs
-        .filter(r => String(r.Submission_Closed||'').toUpperCase() === 'NO' || String(r.Submission_Closed||'').toUpperCase() === '0')
-        .map(r => ({
+      validDocs.forEach(r => {
+        const id = r.Document_ID;
+        if (!docStatus[id]) docStatus[id] = { closed: null };
+        const c = String(r.Submission_Closed||'').toUpperCase();
+        if (c==='YES'||c==='1') docStatus[id].closed = true;
+        else if (c==='NO'||c==='0') docStatus[id].closed = false;
+        // track latest submission row
+        const subDate = r.Submission_Date ? new Date(r.Submission_Date) : null;
+        if (!latestRow[id] || (subDate && !isNaN(subDate) && subDate > latestRow[id]._date)) {
+          latestRow[id] = { _date: subDate, row: r };
+        }
+      });
+      const openIds = new Set(Object.entries(docStatus).filter(([,s]) => s.closed === false).map(([id]) => id));
+      const seen = new Set(); const rows = [];
+      validDocs.forEach(r => {
+        if (!openIds.has(r.Document_ID) || seen.has(r.Document_ID)) return;
+        seen.add(r.Document_ID);
+        const lr = latestRow[r.Document_ID]?.row || r;
+        rows.push({
           Document_ID: r.Document_ID,
           Department: r.Department||'',
           Submitted_By: r.Submitted_By||'',
           Discipline: r.Discipline||'',
-          Resubmission_Plan_Date: r.Resubmission_Plan_Date||'',
-          Delay_of_Resubmission: r.Delay_of_Resubmission != null ? r.Delay_of_Resubmission : ''
-        }));
+          Resubmission_Plan_Date: lr.Resubmission_Plan_Date||'',
+          Delay_of_Resubmission: lr.Delay_of_Resubmission != null ? lr.Delay_of_Resubmission : ''
+        });
+      });
       rows.sort((a,b) => (Number(b.Delay_of_Resubmission)||0) - (Number(a.Delay_of_Resubmission)||0));
       renderDetailTable('📂 OPEN SUBMISSIONS', ['Document_ID','Department','Submitted_By','Discipline','Resubmission_Plan_Date','Delay_of_Resubmission'], rows);
     }
@@ -1080,26 +941,36 @@
       renderDetailTable('✓ APPROVAL RATE', ['Document_ID','Department','Submitted_By','Latest_Approval_Code'], rows);
     }
 
-    // v2.2 (7.27, 7.30): data is already doc-level from buildDocData — Latest_Approval_Code already resolved
+    // v2.2 (7.27, 7.30): resolve Latest_Approval_Code from latest submission row; add plan date + delay
     function showDetailAwaiting(data) {
       const validDocs = data.filter(d => d._isValid);
-      const rows = validDocs
-        .filter(r => {
-          const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
-          return !code || approvalCodes.pending.includes(code);
-        })
-        .map(r => {
-          const code = (r.Latest_Approval_Code || r.This_Submission_Approval_Code || '').toUpperCase();
-          return {
-            Document_ID: r.Document_ID,
-            Department: r.Department||'',
-            Submitted_By: r.Submitted_By||'',
-            Discipline: r.Discipline||'',
+      // Build latest-row map per doc
+      const latestRow = {};
+      validDocs.forEach(r => {
+        const id = r.Document_ID;
+        const subDate = r.Submission_Date ? new Date(r.Submission_Date) : null;
+        if (!latestRow[id] || (subDate && !isNaN(subDate) && subDate > latestRow[id]._date)) {
+          latestRow[id] = { _date: subDate, row: r };
+        }
+      });
+      const seen = new Set(); const rows = [];
+      Object.entries(latestRow).forEach(([id, { row: lr }]) => {
+        if (seen.has(id)) return;
+        const code = (lr.Latest_Approval_Code || lr.This_Submission_Approval_Code || '').toUpperCase();
+        // Awaiting = no code, or pending code (not terminal, not rejected)
+        if (!code || approvalCodes.pending.includes(code)) {
+          seen.add(id);
+          rows.push({
+            Document_ID: id,
+            Department: lr.Department||'',
+            Submitted_By: lr.Submitted_By||'',
+            Discipline: lr.Discipline||'',
             Latest_Approval_Code: code || '—',
-            Resubmission_Plan_Date: r.Resubmission_Plan_Date||'',
-            Delay_of_Resubmission: r.Delay_of_Resubmission != null ? r.Delay_of_Resubmission : ''
-          };
-        });
+            Resubmission_Plan_Date: lr.Resubmission_Plan_Date||'',
+            Delay_of_Resubmission: lr.Delay_of_Resubmission != null ? lr.Delay_of_Resubmission : ''
+          });
+        }
+      });
       rows.sort((a,b) => (Number(b.Delay_of_Resubmission)||0) - (Number(a.Delay_of_Resubmission)||0));
       renderDetailTable('⏳ AWAITING RESPONSE', ['Document_ID','Department','Submitted_By','Discipline','Latest_Approval_Code','Resubmission_Plan_Date','Delay_of_Resubmission'], rows);
     }
