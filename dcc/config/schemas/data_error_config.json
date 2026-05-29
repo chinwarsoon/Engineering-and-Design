@@ -213,6 +213,22 @@
       "remediation": "Align Document_ID segments with source column values",
       "remediation_type": "MANUAL_FIX"
     },
+    "P2-I-V-0204-W": {
+      "code": "P2-I-V-0204-W",
+      "name": "DOCUMENT_ID_AFFIX_MISMATCH",
+      "message": "Document_ID segment contains affix from source column",
+      "message_template": "Document_ID segment contains affix from source column",
+      "severity": "WARNING",
+      "layer": "P2",
+      "module": "I",
+      "function": "V",
+      "column": "Document_ID",
+      "source": "processor_engine/error_handling/detectors/row_validator.py:278",
+      "health_score_impact": -5,
+      "processing_phase": "P2",
+      "remediation": "Review affix extraction logic if necessary",
+      "remediation_type": "INFO_ONLY"
+    },
     "P2-I-V-0204-D": {
       "code": "P2-I-V-0204-D",
       "name": "DOCUMENT_ID_NA_SEGMENTS",

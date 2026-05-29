@@ -8,6 +8,50 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-05-29-blv-phase9-planned"></a>
+## 2026-05-29 — Phase 9 (Planned): Affix-Aware Composite Validation
+
+**Status:** 🕒 PLANNED
+**Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 9
+**Issue Reference:** [Issue BLV-009](issue_log.md#issue-blv-009)
+
+**Summary:** Investigated root cause of false-positive [P2-I-V-0204-C] errors for documents with affixes embedded in source columns (e.g. 5101 vs 5101_ST609). Planned a logic upgrade to downgrade these specific mismatches to Warnings (P2-I-V-0204-W) when the base segment matches upon adding the extracted affix.
+
+**Key Planned Changes:**
+- **Logic Refinement:** Update `RowValidator` to be affix-aware during segment comparison.
+- **Catalog Update:** Add `P2-I-V-0204-W` (Warning) to `data_error_config.json` with reduced health score impact.
+- **Translation:** Add user-friendly messages for the new warning code in EN/ZH.
+
+---
+
+<a id="update-2026-05-29-phase7-v24-v25-complete"></a>
+## 2026-05-29 — Phase 7 v2.4 & v2.5: Submittal Dashboard Manual Load & KPI Refinement
+
+**Status:** ✅ COMPLETED
+**Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.4 & v2.5
+**Issue Reference:** [Issue UI-011](issue_log.md#issue-ui-011)
+
+**Summary:** Enhanced the Submittal Tracker Dashboard with a dedicated manual file loading system and refined KPI logic to improve transparency and UX robustness. Consolidated specialized workplans into the master UI roadmap.
+
+**Key Changes:**
+- **v2.4 (Independent File Loading Panel):** 
+  - Realigned side icon bar: `📂` reserved for Files, `🔍` for Filters.
+  - Refactored left sidebar into toggleable containers (`#sidePanelFiles`, `#sidePanelFilters`).
+  - Implemented session-based file history registry (`loadedFiles`) with reactive UI list.
+  - Added Pipeline/Local source toggle buttons and dedicated Drag & Drop zone in sidebar.
+  - Implemented centered `#loadingOverlay` for auto-failure manual fallback.
+  - Enabled global drag-and-drop for CSV files across the entire dashboard.
+- **v2.5 (KPI & Styling Refinement):**
+  - Updated "Review/Delay >30 Days" to **"MAX DURATION/DELAY PER DOC ID"** to reflect peak-value aggregation logic.
+  - Implemented dynamic scope-aware suffixes: `(>30D)` vs **`(INC. INVALID)`**.
+  - Restricted Open, Overdue, Rate, and Awaiting KPIs to **Valid Documents Only** to ensure analytical integrity.
+  - Refined `updateTitles` and `renderDashboard` to target red highlights exclusively to numerical values when invalid data is included.
+  - Fully refactored help system to be strictly schema-driven via `ui_help.json`.
+
+**Impact:** Dramatically improved UX for local file analysis and fetch-failure scenarios. Increased data transparency by explicitly labeling aggregation logic and providing targeted visual cues for invalid data. Streamlined project documentation by consolidating workplans into a single source of truth.
+
+---
+
 <a id="update-2026-05-28-submittal-bugfix-perf"></a>
 ## 2026-05-28 — Submittal Dashboard: Bug Fixes & Chart Performance Optimization
 

@@ -105,6 +105,42 @@
 
 # Section 1. Pending Issues
 
+<a id="issue-blv-009"></a>
+## 2026-05-29 — Issue BLV-009 — Affix-induced composite mismatch flagged as error (e.g. 5101 vs 5101_ST609)
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-29
+- **Resolution Summary:**
+  1. Updated `RowValidator` to allow warnings (`P2-I-V-0204-W`) if segment + affix == source column value.
+  2. Added `P2-I-V-0204-W` to `data_error_config.json` with severity: warning, health_score_impact: -5.
+  3. Added EN/ZH translations for the new warning.
+- **File Changes:**
+  - `workflow/processor_engine/error_handling/detectors/row_validator.py`
+  - `config/schemas/data_error_config.json`
+  - `workflow/processor_engine/error_handling/config/messages/en.json`
+  - `workflow/processor_engine/error_handling/config/messages/zh.json`
+- **Link to Update Log:** [update-2026-05-29-phase9-complete](update_log.md#update-2026-05-29-phase9-complete)
+
+<a id="issue-ui-011"></a>
+## 2026-05-29 — Issue UI-011 — Submittal Dashboard: Missing Manual Loading Path & Ambiguous KPI Labels
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-29
+- **Context:** The Submittal Tracker Dashboard lacked a robust manual file loading interface, relying purely on a hardcoded pipeline path. This caused "frozen" states if the background data fetch failed. Additionally, KPI labels for "Review/Delay >30 Days" did not clearly communicate the peak-duration aggregation logic, leading to user confusion over multi-revision documents.
+- **Root Cause:** Original UI design assumed stable pipeline access and used simplified KPI labels that didn't reflect the full historical aggregation implemented in the parser.
+- **Impact:** UX friction on fetch failure; lack of transparency in data processing logic.
+- **Resolution Summary:** 
+  1. Implemented specialized **File Loading Panel** (Rule 9) with Pipeline/Local source toggle and session history.
+  2. Added centered **Auto-Failure Prompt** overlay for seamless manual fallback.
+  3. Realigned KPI terminology to **"MAX DURATION/DELAY PER DOC ID"** with dynamic scope-aware suffixes (INC. INVALID).
+  4. Restricted business-critical KPIs (Open, Overdue, Rate) to valid documents only.
+  5. Targeted visual highlights (red) exclusively to affected numerical values.
+- **File Changes:**
+  - `dcc/ui/submittal_dashboard.html` — refactored icon bar, sidebar, and status bar; implemented overlay and D&D handlers; refined KPI calculation and rendering logic.
+  - `dcc/ui/ui_help.json` — synchronized documentation with new features and terminology.
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.4 & v2.5
+- **Link to Update Log:** [update-2026-05-29-phase7-v24-v25-complete](update_log.md#update-2026-05-29-phase7-v24-v25-complete)
+
 <a id="issue-ui-010"></a>
 ## 2026-05-28 — Issue UI-010 — Dashboard Scope Expansion: KPI Drift on Mixed-Validity Documents
 

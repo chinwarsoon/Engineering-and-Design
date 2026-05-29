@@ -47,23 +47,23 @@
       "text": "Each output file link points to a file inside <code>dcc/output/</code> and opens in a new browser tab."
     },
     "submittal_data_source": {
-      "intro": "The Submittal Tracker loads data from the processed pipeline CSV output.",
+      "intro": "The Submittal Tracker loads data from the processed pipeline CSV output or manually uploaded files.",
       "fields": [
-        { "label": "Load CSV", "text": "click the <strong>Load CSV</strong> button to pick a local CSV file via FileReader. The <strong>Refresh</strong> button fetches the default file from <code>../output/processed_dcc_universal.csv</code>. Loaded row count and source filename appear in the toolbar and status bar." },
-        { "label": "Data Info", "text": "the left sidebar <strong>Data Info</strong> section shows the total row count, column count, and source filename after loading." }
+        { "label": "File Loading Panel", "text": "Click the 📂 icon to open the dedicated panel. Use <strong>Fetch Pipeline CSV</strong> to load <code>../output/processed_dcc_universal.csv</code>, or <strong>Load Local File</strong> to pick a CSV from your disk. You can also drag and drop a CSV anywhere onto the dashboard." },
+        { "label": "Loaded Files List", "text": "The panel maintains a session history of all loaded files, highlighting the active one. The status bar at the bottom also displays the current filename." }
       ]
     },
     "submittal_analytics": {
       "intro": "Eight KPI tiles summarize the loaded submission data at a glance. All values are computed per <strong>unique Doc ID</strong> from the active (filtered) data set. <strong>Click any KPI card</strong> to view its detail table below the charts.",
       "fields": [
-        { "label": "Unique Valid Doc IDs", "text": "distinct count of <code>Document_ID</code> values passing all validation rules. Not affected by duplicate submission rows. Click to view document list." },
-        { "label": "Unique Invalid Doc IDs", "text": "distinct count of <code>Document_ID</code> values failing validation rules from <code>data_error_config.json</code>. Click to view diagnostic details." },
-        { "label": "Open Submissions", "text": "unique valid Doc IDs where <code>Submission_Closed</code> is not <strong>YES</strong> — submissions still awaiting final closure. A doc is considered closed if any of its rows has <code>Submission_Closed=YES</code>. Click to view open documents." },
-        { "label": "Overdue", "text": "unique valid Doc IDs that have at least one row where <code>Resubmission_Overdue_Status</code> equals <strong>Overdue</strong> — resubmissions past their planned return date. Click to view overdue details." },
-        { "label": "Approval Rate", "text": "percentage of unique valid Doc IDs with a terminal/resolution code (<strong>APP</strong>, <strong>AWC</strong>, <strong>INFO</strong>, <strong>VOID</strong>) among all unique valid Doc IDs. Click to view approval breakdown." },
-        { "label": "Awaiting Response", "text": "unique valid Doc IDs with no terminal approval code — <code>Latest_Approval_Code</code> is empty, <strong>PEN</strong>, or <strong>PENDING</strong>. These documents are still under review and awaiting a decision. Click to view pending documents." },
-        { "label": "Review >30 Days", "text": "unique valid Doc IDs where <code>Duration_of_Review</code> exceeds 30 days. Click to view documents sorted by duration descending." },
-        { "label": "Delay >30 Days", "text": "unique valid Doc IDs where <code>Delay_of_Resubmission</code> exceeds 30 days. Click to view documents sorted by delay descending." }
+        { "label": "Unique Valid Doc IDs", "text": "distinct count of <code>Document_ID</code> values passing all validation rules. Not affected by duplicate submission rows." },
+        { "label": "Unique Invalid Doc IDs", "text": "distinct count of <code>Document_ID</code> values failing validation rules. Always turn <strong style=\"color:var(--danger);\">red</strong> if count > 0." },
+        { "label": "Open Submissions", "text": "unique valid Doc IDs where <code>Submission_Closed</code> is not <strong>YES</strong>. This metric <em>never</em> includes invalid document IDs." },
+        { "label": "Overdue", "text": "unique valid Doc IDs with at least one <strong>Overdue</strong> resubmission status. This metric <em>never</em> includes invalid document IDs." },
+        { "label": "Approval Rate", "text": "percentage of unique valid Doc IDs with a terminal approval code. This metric <em>never</em> includes invalid document IDs." },
+        { "label": "Awaiting Response", "text": "unique valid Doc IDs with no terminal approval code. This metric <em>never</em> includes invalid document IDs." },
+        { "label": "Max Duration per Doc ID", "text": "unique Doc IDs where the <strong>MAX</strong> <code>Duration_of_Review</code> among all revisions exceeds 30 days. Includes invalid IDs only if toggled in Settings." },
+        { "label": "Max Delay per Doc ID", "text": "unique Doc IDs where the <strong>MAX</strong> <code>Delay_of_Resubmission</code> among all revisions exceeds 30 days. Includes invalid IDs only if toggled in Settings." }
       ]
     },
     "submittal_timeline": {
@@ -100,10 +100,6 @@
         { "label": "Submitted By", "text": "filter by <code>Submitted_By</code>. Populated from distinct values in the loaded data." },
         { "label": "Approval Status", "text": "filter by <code>Latest_Approval_Status</code>. Populated from distinct values in the loaded data." }
       ]
-    },
-    "submittal_overdue_table": {
-      "intro": "The Overdue Resubmissions table lists unique documents with <code>Resubmission_Overdue_Status</code> equal to <strong>Overdue</strong>, deduplicated by <code>Document_ID</code>.",
-      "details": "When multiple rows exist for the same document, the row with the oldest <code>Resubmission_Plan_Date</code> is kept (most overdue first). The table is sorted by <code>Resubmission_Plan_Date</code> ascending. Columns shown: <code>Document_ID</code>, <code>Department</code>, <code>Submitted_By</code>, <code>Discipline</code>, <code>Resubmission_Plan_Date</code>, <code>Resubmission_Overdue_Status</code>. Click column headers to toggle sort order. An empty state message is shown when no overdue items exist."
     },
     "submittal_settings": {
       "intro": "The Settings panel provides configuration options and version information.",

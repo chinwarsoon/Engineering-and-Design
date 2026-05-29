@@ -7,6 +7,55 @@
 
 # Section 2. Test log entries
 
+<a id="test-2026-05-29-phase9-complete"></a>
+## 2026-05-29 — Test BLV-009 — Affix-Aware Composite Validation (Phase 9) Verification
+
+- **Status:** ✅ PASS
+- **Tested By:** AI Agent
+- **Environment:** Linux / Local Processor Engine
+- **Workplan:** [business_logic_validation_workplan.md](../workplan/column_processing/business_logic_validation_workplan.md) — Phase 9
+
+### Test Cases
+
+| ID | Description | Result | Details |
+| :--- | :--- | :--- | :--- |
+| T1 | Affix Mismatch Detection | PASS | ID segment + affix == source column triggers `P2-I-V-0204-W` (Warning). |
+| T2 | Genuine Mismatch Detection | PASS | Invalid ID segment triggers `P2-I-V-0204-C` (Error). |
+| T3 | Exact Match | PASS | Perfect segment match passes validation. |
+| T4 | Health Score Impact | PASS | Warnings deduct 5pts, errors deduct 20pts as defined in `data_error_config.json`. |
+
+### Summary
+The `RowValidator` logic now correctly identifies affix-related mismatches as warnings, significantly improving data quality reporting by reducing false-positive error flags for IDs like `131242-WST02-DR-S-5101`.
+
+---
+
+<a id="test-2026-05-29-phase7-v24-v25"></a>
+## 2026-05-29 — Test UI-011 — Submittal Dashboard Enhancements (v2.4 & v2.5) Verification
+
+- **Status:** ✅ PASS
+- **Tested By:** Franklin Song
+- **Environment:** Linux / Browser
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.4 & v2.5
+
+### Test Cases
+
+| ID | Description | Result | Details |
+| :--- | :--- | :--- | :--- |
+| T1 | Manual Load Panel Toggle | PASS | `📂` opens File Panel; `🔍` opens Filter Panel. Selection state is clear. |
+| T2 | Pipeline Fetch | PASS | "Fetch Pipeline CSV" correctly triggers `loadFromPipeline` and updates UI. |
+| T3 | Local File Load | PASS | "Load Local File" and Drag & Drop correctly parse CSVs and add to session history. |
+| T4 | Auto-Failure Overlay | PASS | Simulate fetch error; `#loadingOverlay` appears with clear manual load options. |
+| T5 | KPI Subtitle "MAX" Terminology | PASS | Labels show "MAX DURATION PER DOC ID" and "MAX DELAY PER DOC ID". |
+| T6 | Dynamic Subtitle Suffix | PASS | Subtitles toggle correctly between `(>30D)` and `(INC. INVALID)` based on scope. |
+| T7 | Valid-Only KPI Restriction | PASS | Open, Overdue, Rate, and Awaiting counts are unaffected by invalid doc scope. |
+| T8 | Targeted Numerical Highlights | PASS | Only affected numbers turn RED in "Include Invalid" mode; subtitles stay theme color. |
+| T9 | Schema-Driven Help | PASS | Help panel loads content dynamically from `ui_help.json`. Terminology is synchronized. |
+
+### Summary
+Today's enhancements significantly harden the Submittal Dashboard's UX by providing a robust manual loading path and high-transparency KPI labeling. The implementation is 100% compliant with the `html_design_rule.md` and maintains full analytical integrity for core metrics.
+
+---
+
 <a id="test-2026-05-28-phase7-v23"></a>
 ## 2026-05-28 — Test UI-010 — Dashboard Scope Expansion (v2.3) Verification
 

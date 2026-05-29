@@ -271,11 +271,30 @@ class RowValidator(BaseDetector):
 
             # Compare each segment against its source column
             mismatches = []
+            warnings = []
             for seg_idx, col in enumerate(doc_id_segments):
                 expected = str(df.at[idx, col]).strip() if pd.notna(df.at[idx, col]) else ""
                 actual = parts[seg_idx].strip()
                 if expected and actual != expected:
-                    mismatches.append(f"{col}: expected '{expected}' got '{actual}'")
+                    # Check for affix warning (segment is prefix of expected)
+                    if expected.startswith(actual):
+                        warnings.append(f"{col}: expected '{expected}' got '{actual}' (Affix detected)")
+                    else:
+                        mismatches.append(f"{col}: expected '{expected}' got '{actual}'")
+
+            if warnings:
+                self.detect_error(
+                    error_code="P2-I-V-0204-W",
+                    message=self._format_message("P2-I-V-0204-W"),
+                    row=idx,
+                    column="Document_ID",
+                    fail_fast=False,
+                    additional_context={
+                        "error_key": "COMPOSITE_WARNING",
+                        "base_id": base_id,
+                        "warnings": warnings,
+                    },
+                )
 
             if mismatches:
                 self.detect_error(

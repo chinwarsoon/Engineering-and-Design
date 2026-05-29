@@ -77,6 +77,7 @@
     "P2-I-V-0204-A": "Document_ID format does not match expected pattern",
     "P2-I-V-0204-B": "Document_ID has fewer than 5 segments",
     "P2-I-V-0204-C": "Document_ID composite segment mismatch",
+    "P2-I-V-0204-W": "Document_ID segment contains affix from source column",
     "P2-I-V-0204-D": "Document_ID contains NA segments from null source columns",
     "P2-I-V-0204-E": "Document_ID field contains reply/comment reference",
     "P2-I-V-0204-F": "Document_ID segments contain spaces",

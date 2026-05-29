@@ -31,9 +31,32 @@
     .kpi-label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
     .kpi-sub { font-size: 10px; color: var(--text2); margin-top: 4px; text-transform: uppercase; }
     .download-opt:hover { background: var(--surface2); }
+    /* Loading Overlay */
+    #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+    .overlay-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px; text-align: center; max-width: 400px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+    .overlay-icon { font-size: 48px; margin-bottom: 20px; }
+    .overlay-title { font-size: 18px; font-weight: 600; margin-bottom: 10px; color: var(--text); }
+    .overlay-text { font-size: 13px; color: var(--text2); margin-bottom: 30px; line-height: 1.6; }
+    .file-item { padding: 6px 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .file-item:hover { background: var(--surface2); }
+    .file-item.active { border-left: 2px solid var(--accent); background: var(--surface3); }
+    .file-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-item-time { font-size: 9px; color: var(--text3); }
   </style>
 </head>
 <body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="overlay-card">
+      <div class="overlay-icon">📂</div>
+      <div class="overlay-title">Manual Data Load Required</div>
+      <div class="overlay-text">Automatic pipeline data could not be loaded. Please drag and drop a CSV file here or select one manually.</div>
+      <div style="display:flex; gap:12px; justify-content:center;">
+        <button class="btn btn-primary" id="overlayLoadBtn">Select CSV File</button>
+        <button class="btn btn-secondary" id="overlayRetryBtn">Retry Pipeline</button>
+      </div>
+    </div>
+  </div>
   <div class="dcc-titlebar">
     <div class="dcc-titlebar-logo">
       <span class="logo-icon">📤</span>
@@ -62,7 +85,8 @@
 
   <div class="dcc-shell">
     <div class="dcc-iconbar">
-      <button class="dcc-iconbar-btn active" data-panel="sidebar" title="Toggle Filters">📂</button>
+      <button class="dcc-iconbar-btn active" data-panel="files" title="File Loading Panel">📂</button>
+      <button class="dcc-iconbar-btn" data-panel="filters" title="Data Filters">🔍</button>
       <div class="dcc-iconbar-spacer"></div>
       <div class="dcc-iconbar-bottom">
         <div class="dcc-iconbar-sep"></div>
@@ -73,48 +97,80 @@
 
     <div class="dcc-sidebar" id="leftSidebar" style="position:relative;">
       <div class="dcc-sidebar-resizer left-resizer" data-resize="left"></div>
-      <div class="dcc-sidebar-header"><span>Filters</span></div>
-      <div class="dcc-sidebar-body" id="filterSidebarBody">
-        <div class="sb-section">
-          <div class="sb-section-header"><span>🔍 DATA SCOPE</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
-            <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--danger);font-weight:600;"><input type="checkbox" id="includeInvalid"> SHOW INVALID DOC IDS</label></div>
-          </div>
-        </div>
-        <div class="sb-section">
-          <div class="sb-section-header"><span>🏢 Project</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body" id="filterProjectContainer" style="max-height:150px; overflow-y:auto;"></div>
-        </div>
-        <div class="sb-section">
-          <div class="sb-section-header"><span>🏭 Facility</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body" id="filterFacilityContainer" style="max-height:150px; overflow-y:auto;"></div>
-        </div>
-        <div class="sb-section">
-          <div class="sb-section-header"><span>📐 Discipline</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body" id="filterDisciplineContainer" style="max-height:150px; overflow-y:auto;"></div>
-        </div>
-        <div class="sb-section">
-          <div class="sb-section-header"><span>🏢 Department</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body" id="filterDepartmentContainer" style="max-height:150px; overflow-y:auto;">
-            <!-- Populated by JS -->
-          </div>
-        </div>
-        <div class="sb-section">
-          <div class="sb-section-header"><span>✍️ Submitted By</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body" id="filterSubmittedByContainer" style="max-height:150px; overflow-y:auto;">
-            <!-- Populated by JS -->
-          </div>
-        </div>
+      
+      <!-- File Loading Panel -->
+      <div id="sidePanelFiles" class="side-panel">
+        <div class="dcc-sidebar-header"><span>File Loading</span></div>
+        <div class="dcc-sidebar-body">
           <div class="sb-section">
-          <div class="sb-section-header"><span>📋 Latest_Approval_Status</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body" id="filterApprovalStatusContainer" style="max-height:150px; overflow-y:auto;"></div>
+            <div class="sb-section-header"><span>📂 LOAD SOURCE</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="display:flex; flex-direction:column; gap:8px; padding:12px;">
+              <button class="btn btn-sm btn-primary" id="sideRefreshBtn" style="width:100%;">🔄 Fetch Pipeline CSV</button>
+              <button class="btn btn-sm btn-secondary" id="sideLoadBtn" style="width:100%;">💻 Load Local File</button>
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📥 DRAG & DROP</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="padding:12px;">
+              <div id="sideDropZone" style="border:2px dashed var(--border); border-radius:var(--radius); padding:20px; text-align:center; color:var(--text3); font-size:11px; cursor:pointer;">
+                Drop CSV here
+              </div>
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📋 LOADED FILES</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="loadedFilesList" style="font-size:11px; color:var(--text2); line-height:1.6; padding:8px 12px;">
+              <div style="font-style:italic; color:var(--text3);">No files loaded in this session</div>
+            </div>
+          </div>
         </div>
-        <div class="sb-section">
-          <div class="sb-section-header"><span>📄 Data Info</span><span class="sb-section-arrow">▼</span></div>
-          <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.6;">
-            <div><strong>Rows:</strong> <span id="dataRowCount">—</span></div>
-            <div><strong>Columns:</strong> <span id="dataColCount">—</span></div>
-            <div><strong>Source:</strong> <span id="dataSource">—</span></div>
+      </div>
+
+      <!-- Filters Panel -->
+      <div id="sidePanelFilters" class="side-panel" style="display:none;">
+        <div class="dcc-sidebar-header"><span>Filters</span></div>
+        <div class="dcc-sidebar-body" id="filterSidebarBody">
+          <div class="sb-section">
+            <div class="sb-section-header"><span>🔍 DATA SCOPE</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.8;">
+              <div><label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--danger);font-weight:600;"><input type="checkbox" id="includeInvalid"> SHOW INVALID DOC IDS</label></div>
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>🏢 Project</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="filterProjectContainer" style="max-height:150px; overflow-y:auto;"></div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>🏭 Facility</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="filterFacilityContainer" style="max-height:150px; overflow-y:auto;"></div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📐 Discipline</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="filterDisciplineContainer" style="max-height:150px; overflow-y:auto;"></div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>🏢 Department</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="filterDepartmentContainer" style="max-height:150px; overflow-y:auto;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>✍️ Submitted By</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="filterSubmittedByContainer" style="max-height:150px; overflow-y:auto;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+            <div class="sb-section">
+            <div class="sb-section-header"><span>📋 Latest_Approval_Status</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" id="filterApprovalStatusContainer" style="max-height:150px; overflow-y:auto;"></div>
+          </div>
+          <div class="sb-section">
+            <div class="sb-section-header"><span>📄 Data Info</span><span class="sb-section-arrow">▼</span></div>
+            <div class="sb-section-body" style="font-size:11px;color:var(--text2);line-height:1.6;">
+              <div><strong>Rows:</strong> <span id="dataRowCount">—</span></div>
+              <div><strong>Columns:</strong> <span id="dataColCount">—</span></div>
+              <div><strong>Source:</strong> <span id="dataSource">—</span></div>
+            </div>
           </div>
         </div>
       </div>
@@ -125,8 +181,6 @@
         <span style="font-weight:600;color:var(--text);">Submittal Analytics</span>
         <div class="toolbar-spacer"></div>
         <span id="loadedInfo" style="font-size:10px;color:var(--text3);">no data loaded</span>
-        <button class="btn btn-sm btn-secondary" id="loadBtn">📂 Load CSV</button>
-        <button class="btn btn-sm btn-primary" id="refreshBtn">🔄 Refresh</button>
       </div>
 
       <div class="content-scroll">
@@ -137,8 +191,8 @@
           <div class="kpi-card" data-kpi="overdue"><div class="kpi-value" id="kpiOverdue">—</div><div class="kpi-label">OVERDUE</div><div class="kpi-sub">PER UNIQUE VALID DOC ID (OVERDUE)</div></div>
           <div class="kpi-card" data-kpi="approval"><div class="kpi-value" id="kpiApproval">—</div><div class="kpi-label" id="labelApprovalRate">APPROVAL RATE</div><div class="kpi-sub" id="subApprovalRate">PER UNIQUE VALID DOC ID</div></div>
           <div class="kpi-card" data-kpi="awaiting"><div class="kpi-value" id="kpiAwaiting">—</div><div class="kpi-label">AWAITING RESPONSE</div><div class="kpi-sub">PER UNIQUE VALID DOC ID (PENDING)</div></div>
-          <div class="kpi-card" data-kpi="longReview"><div class="kpi-value" id="kpiLongReview">—</div><div class="kpi-label">REVIEW >30 DAYS</div><div class="kpi-sub">PER UNIQUE VALID DOC ID (>30D)</div></div>
-          <div class="kpi-card" data-kpi="delay"><div class="kpi-value" id="kpiDelay">—</div><div class="kpi-label">DELAY >30 DAYS</div><div class="kpi-sub">PER UNIQUE VALID DOC ID (DELAY >30D)</div></div>
+          <div class="kpi-card" data-kpi="longReview"><div class="kpi-value" id="kpiLongReview">—</div><div class="kpi-label">REVIEW >30 DAYS</div><div class="kpi-sub" id="subLongReview">MAX DURATION PER DOC ID (>30D)</div></div>
+          <div class="kpi-card" data-kpi="delay"><div class="kpi-value" id="kpiDelay">—</div><div class="kpi-label">DELAY >30 DAYS</div><div class="kpi-sub" id="subDelay">MAX DELAY PER DOC ID (>30D)</div></div>
         </div>
 
         <div class="grid-2">
@@ -325,21 +379,141 @@
     });
 
     // ─── ICON BAR ────────────────────────────────────────────────────────────
+    // ─── ICON BAR ────────────────────────────────────────────────────────────
     const iconBtns = document.querySelectorAll('.dcc-iconbar-btn[data-panel]');
     let helpActive = false;
     const rightSidebarHeader = document.querySelector('#rightSidebar .dcc-sidebar-header span');
     const rightSidebarBody = document.getElementById('rightSidebarBody');
+    const loadedFiles = []; // Session file history
 
     iconBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const panel = btn.dataset.panel;
-        if (panel === 'sidebar') { leftSidebar.classList.toggle('collapsed'); btn.classList.toggle('active'); }
+        if (panel === 'files' || panel === 'filters') {
+          showPanel(panel);
+          iconBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          if (leftSidebar.classList.contains('collapsed')) leftSidebar.classList.remove('collapsed');
+        }
         else if (panel === 'right-sidebar') {
           rightSidebar.classList.toggle('collapsed'); btn.classList.toggle('active');
           if (helpActive && rightSidebar.classList.contains('collapsed')) { helpActive = false; showSettingsPanel(); }
         } else if (panel === 'help') showHelp();
       });
     });
+
+    function showPanel(type) {
+      document.getElementById('sidePanelFiles').style.display = type === 'files' ? 'block' : 'none';
+      document.getElementById('sidePanelFilters').style.display = type === 'filters' ? 'block' : 'none';
+    }
+
+    // ─── FILE LOADING ENHANCEMENTS ──────────────────────────────────────────
+    function addToLoadedFiles(name, rowCount) {
+      const time = new Date().toLocaleTimeString();
+      loadedFiles.unshift({ name, rowCount, time });
+      updateLoadedFilesUI();
+    }
+
+    function updateLoadedFilesUI() {
+      const list = document.getElementById('loadedFilesList');
+      if (loadedFiles.length === 0) {
+        list.innerHTML = '<div style="font-style:italic; color:var(--text3);">No files loaded in this session</div>';
+        return;
+      }
+      list.innerHTML = loadedFiles.map((f, i) => `
+        <div class="file-item ${i === 0 ? 'active' : ''}">
+          <span class="file-item-name" title="${esc(f.name)}">${esc(f.name)}</span>
+          <span class="file-item-time">${f.time}</span>
+        </div>
+      `).join('');
+    }
+
+    const manualLoad = () => {
+      const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv';
+      input.addEventListener('change', e => {
+        const file = e.target.files[0]; if (!file) return;
+        handleFileSelect(file);
+      });
+      input.click();
+    };
+
+    function handleFileSelect(file) {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        parseCSV(ev.target.result, file.name);
+        document.getElementById('loadingOverlay').style.display = 'none';
+      };
+      reader.readAsText(file);
+    }
+
+    // Drag & Drop
+    const prevent = e => { e.preventDefault(); e.stopPropagation(); };
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => {
+      document.addEventListener(evt, prevent, false);
+    });
+    document.addEventListener('drop', e => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0 && files[0].name.toLowerCase().endsWith('.csv')) {
+        handleFileSelect(files[0]);
+      }
+    });
+
+    document.getElementById('sideLoadBtn').addEventListener('click', manualLoad);
+    document.getElementById('sideRefreshBtn').addEventListener('click', loadFromPipeline);
+    document.getElementById('overlayLoadBtn').addEventListener('click', manualLoad);
+    document.getElementById('overlayRetryBtn').addEventListener('click', loadFromPipeline);
+    document.getElementById('sideDropZone').addEventListener('click', manualLoad);
+
+    async function loadFromPipeline() {
+      updateStatus('loading', 'Loading CSV...');
+      try {
+        const resp = await fetch(`${DATA_BASE}/${CSV_FILE}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const text = await resp.text();
+        parseCSV(text, CSV_FILE);
+      } catch (err) {
+        updateStatus('error', `Failed to load: ${err.message}`);
+        document.getElementById('loadedInfo').textContent = 'load failed';
+        if (allData.length === 0) {
+          document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+      }
+    }
+
+    function parseCSV(text, sourceName) {
+      const result = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: true });
+      if (result.errors.length > 0) console.warn('CSV parse errors:', result.errors);
+      
+      const allRows = result.data.filter(r => r.Document_ID).map(r => {
+        r._isValid = isValidDocId(r.Document_ID, r);
+        return r;
+      });
+
+      if (allRows.length === 0) {
+        updateStatus('error', 'No valid Document_ID rows found');
+        return;
+      }
+
+      addToLoadedFiles(sourceName, allRows.length);
+      
+      allData = allRows;
+      allDocData = buildDocData(allData);
+      
+      const totalUnique = new Set(allRows.map(r => String(r.Document_ID).trim())).size;
+      const invalidUnique = new Set(allRows.filter(r => !r._isValid).map(r => String(r.Document_ID).trim())).size;
+      const validUnique = totalUnique - invalidUnique;
+
+      document.getElementById('dataSource').textContent = sourceName;
+      document.getElementById('dataRowCount').textContent = allData.length;
+      document.getElementById('dataColCount').textContent = result.meta.fields?.length || '—';
+      document.getElementById('statusDocCount').textContent = `Doc IDs: ${validUnique} (Valid) / ${totalUnique} (Total)`;
+      
+      populateFilters();
+      applyFilters();
+      updateStatus('ok', `Loaded ${allData.length} rows`);
+      document.getElementById('loadedInfo').textContent = `${allData.length} rows from ${sourceName}`;
+      document.getElementById('loadingOverlay').style.display = 'none';
+    }
 
     function showSettingsPanel() {
       helpActive = false;
@@ -355,28 +529,27 @@
 
     function buildSubmittalHelp() {
       const s = (t, c) => `<div class="sb-section"><div class="sb-section-header"><span>${t}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${c}</div></div>`;
-      const fl = (items) => items.map(i => `<div><strong>${esc(i[0])}</strong> ${i[1]}</div>`).join('');
-      return s('📂 Data Source', fl([['Load CSV','Click <strong>Load CSV</strong> to pick a local file, or <strong>Refresh</strong> to fetch from <code>../output/processed_dcc_universal.csv</code>.'],
-        ['Data Info','Left sidebar shows row count, column count, and source filename after loading.']])) +
-        s('📊 Submittal Analytics', fl([['Total Documents','Distinct count of <code>Document_ID</code> values in the filtered data set. <strong>Click</strong> to view document list in the detail table below.'],
-        ['Open Submissions','Unique documents where <code>Submission_Closed</code> is not <strong>YES</strong>. A document is considered closed if any of its rows has <code>Submission_Closed=YES</code>. <strong>Click</strong> to view open documents.'],
-        ['Overdue','Unique documents that have at least one row where <code>Resubmission_Overdue_Status</code> is <strong>Overdue</strong>. <strong>Click</strong> to view overdue details.'],
-        ['Approval Rate','Percentage of unique documents with a terminal/resolution code (<strong>APP</strong>, <strong>AWC</strong>, <strong>INFO</strong>, <strong>VOID</strong>) among all unique valid Document_IDs. <strong>Click</strong> to view approval breakdown.'],
-        ['Awaiting Response','Unique documents with no terminal approval code — <code>Latest_Approval_Code</code> is empty, <strong>PEN</strong>, or <strong>PENDING</strong>. These documents are still under review and awaiting a decision. <strong>Click</strong> to view pending documents.'],
-        ['Review >30 Days','Unique documents where <code>Duration_of_Review</code> exceeds 30 days. <strong>Click</strong> to view documents sorted by duration descending.'],
-        ['Delay >30 Days','Unique documents where <code>Delay_of_Resubmission</code> exceeds 30 days. <strong>Click</strong> to view documents sorted by delay descending.']])) +
-        s('📅 Timeline', 'Unique <strong>Document_ID</strong> values per month from <code>Submission_Date</code>. A document with multiple submissions in the same month is counted once. Uses current theme accent color.') +
-        s('✓ Approval Status', '<div style="margin-bottom:6px;">Per unique <strong>Document_ID</strong> using the <code>Latest_Approval_Status</code> column. Label shows count in parentheses.</div><div>Click <strong>Help</strong> for full approval code legend.</div>') +
-        s('📐 Discipline Chart', 'Document count per distinct <code>Discipline</code> value, sorted highest to lowest. Uses theme accent color.') +
-        s('📈 Trend Chart', 'Monthly approval rate per unique document: approved unique docs divided by total unique docs per month. Range 0\u2013100%. Uses success (green) color.') +
-        s('🏢 Filters', fl([['Project','Filter by <code>Project_Code</code>, populated from distinct values.'],
-        ['Facility','Filter by <code>Facility_Code</code>, populated from distinct values.'],
-        ['Discipline','Filter by <code>Discipline</code>, populated from distinct values.'],
-        ['Department','Filter by <code>Department</code>, populated from distinct values.'],
-        ['Submitted By','Filter by <code>Submitted_By</code>, populated from distinct values.'],
-        ['Approval Status','Filter by <code>Latest_Approval_Status</code>, populated from distinct values.']])) +
-        s('📊 Status Bar', 'Bottom bar shows overall status (Ready/Loading/Error/Warning), loaded filename, unique valid/total document counts, and version number.') +
-        s('📋 Detail Table', 'Click any KPI card to show a detail table with row-level data for that metric. Includes a search box and clickable column headers for sorting. Default shows <strong>All Documents</strong> on load.');
+      const fl = (items) => (items||[]).map(i => `<div><strong>${esc(i.label||i[0])}</strong> ${i.text||i[1]}</div>`).join('');
+      
+      return s('📂 Data Source', fl([
+        ['File Loading Panel', 'Click the 📂 icon to open the dedicated panel. Use <strong>Fetch Pipeline CSV</strong> to load the default pipeline output, or <strong>Load Local File</strong> to pick a CSV from your disk.'],
+        ['Loaded Files List', 'The panel maintains a session history of all loaded files, highlighting the active one.']
+      ])) +
+      s('📊 Submittal Analytics', fl([
+        ['Unique Valid Doc IDs', 'Count of unique valid Document_ID values passing all rules.'],
+        ['Unique Invalid Doc IDs', 'Count of unique Document_ID values failing validation rules.'],
+        ['Open Submissions', 'Unique valid Doc IDs where any row has <code>Submission_Closed</code> not equal to <strong>YES</strong>.'],
+        ['Overdue', 'Unique valid Doc IDs with any row marked as <strong>Overdue</strong>.'],
+        ['Approval Rate', 'Percentage of unique valid Doc IDs with terminal approval codes.'],
+        ['Awaiting Response', 'Unique valid Doc IDs with no terminal approval code.'],
+        ['Max Duration per Doc ID', 'Unique Doc IDs where the <strong>MAX</strong> <code>Duration_of_Review</code> among all revisions exceeds 30 days.'],
+        ['Max Delay per Doc ID', 'Unique Doc IDs where the <strong>MAX</strong> <code>Delay_of_Resubmission</code> among all revisions exceeds 30 days.']
+      ])) +
+      s('📅 Timeline', 'Unique <strong>Document_ID</strong> values per month. A document with multiple submissions in the same month is counted once.') +
+      s('✓ Approval Status', 'Doughnut chart of unique <strong>Document_ID</strong> values grouped by their latest approval code.') +
+      s('📈 Trend Chart', 'Monthly approval rate per unique document. The trend line uses the success (green) color.') +
+      s('🏢 Filters', 'Use the 🔍 panel to narrow the data set by Project, Facility, Discipline, Department, Submitter, or Status.') +
+      s('📋 Detail Table', 'Click any KPI card to show a detail table with searchable, sortable row-level data for that metric.');
     }
 
     async function showHelp() {
@@ -384,90 +557,49 @@
       rightSidebar.classList.remove('collapsed');
       document.querySelector('.dcc-iconbar-btn[data-panel="right-sidebar"]')?.classList.add('active');
       rightSidebarHeader.textContent = helpActive ? 'Help' : 'Settings';
+      
       if (helpActive) {
         let body = '';
         try {
-          const r = await fetch('ui_help.json'); const h = await r.json();
+          const r = await fetch('ui_help.json'); 
+          const h = await r.json();
+          const helpData = h.help || {};
+          
           const sec = (title, content) => `<div class="sb-section"><div class="sb-section-header"><span>${title}</span><span class="sb-section-arrow">▼</span></div><div class="sb-section-body" style="padding:8px 12px;font-size:11px;color:var(--text2);line-height:1.8;">${content}</div></div>`;
           const secFields = (title, fields) => sec(title, (fields||[]).map(i => `<div><strong>${esc(i.label)}</strong> ${i.text}</div>`).join(''));
           const secIntro = (title, data) => sec(title, `<div>${data.intro||''}</div>${data.details ? `<div style="margin-top:6px;">${data.details}</div>` : ''}`);
-          if (h.help?.submittal_data_source) body += secFields('📂 Data Source', h.help.submittal_data_source.fields);
-          if (h.help?.submittal_analytics) body += secFields('📊 Submittal Analytics', h.help.submittal_analytics.fields);
-          if (h.help?.submittal_timeline) body += secIntro('📅 Timeline', h.help.submittal_timeline);
-          if (h.help?.submittal_status_chart) body += secFields('✓ Approval Status', h.help.submittal_status_chart.fields);
-          if (h.help?.submittal_discipline_chart) body += secIntro('📐 Discipline Chart', h.help.submittal_discipline_chart);
-          if (h.help?.submittal_trend_chart) body += secIntro('📈 Trend Chart', h.help.submittal_trend_chart);
-          if (h.help?.submittal_filters) body += secFields('🏢 Filters', h.help.submittal_filters.fields);
-          if (h.help?.submittal_status_bar) body += secIntro('📊 Status Bar', h.help.submittal_status_bar);
-          if (h.help?.submittal_detail_table) body += secIntro('📋 Detail Table', h.help.submittal_detail_table);
-        } catch {}
+          
+          const submittalMapping = [
+            { key: 'submittal_data_source', title: '📂 Data Source', type: 'fields' },
+            { key: 'submittal_analytics', title: '📊 Submittal Analytics', type: 'fields' },
+            { key: 'submittal_timeline', title: '📅 Timeline', type: 'intro' },
+            { key: 'submittal_status_chart', title: '✓ Approval Status', type: 'fields' },
+            { key: 'submittal_discipline_chart', title: '📐 Discipline Chart', type: 'intro' },
+            { key: 'submittal_trend_chart', title: '📈 Trend Chart', type: 'intro' },
+            { key: 'submittal_filters', title: '🏢 Filters', type: 'fields' },
+            { key: 'submittal_status_bar', title: '📊 Status Bar', type: 'intro' },
+            { key: 'submittal_detail_table', title: '📋 Detail Table', type: 'intro' }
+          ];
+
+          submittalMapping.forEach(m => {
+            if (helpData[m.key]) {
+              if (m.type === 'fields') body += secFields(m.title, helpData[m.key].fields);
+              else if (m.type === 'intro') body += secIntro(m.title, helpData[m.key]);
+            }
+          });
+        } catch (e) {
+          console.warn('Help schema load failed, using fallback.', e);
+        }
         rightSidebarBody.innerHTML = body || buildSubmittalHelp();
-      } else showSettingsPanel();
+      } else {
+        showSettingsPanel();
+      }
     }
 
     // ─── SIDEBAR ACCORDION ───────────────────────────────────────────────────
     document.addEventListener('click', e => {
       const h = e.target.closest('.sb-section-header'); if (h) h.parentElement.classList.toggle('closed');
     });
-
-    // ─── CSV LOADER ──────────────────────────────────────────────────────────
-    document.getElementById('loadBtn').addEventListener('click', () => {
-      const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv';
-      input.addEventListener('change', e => {
-        const file = e.target.files[0]; if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-          const text = ev.target.result;
-          parseCSV(text, file.name);
-        };
-        reader.readAsText(file);
-      });
-      input.click();
-    });
-
-    document.getElementById('refreshBtn').addEventListener('click', loadFromPipeline);
-
-    async function loadFromPipeline() {
-      updateStatus('loading', 'Loading CSV...');
-      try {
-        const resp = await fetch(`${DATA_BASE}/${CSV_FILE}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const text = await resp.text();
-        parseCSV(text, CSV_FILE);
-      } catch (err) {
-        updateStatus('error', `Failed to load: ${err.message}`);
-        document.getElementById('loadedInfo').textContent = 'load failed';
-      }
-    }
-
-    function parseCSV(text, sourceName) {
-      const result = Papa.parse(text, { header: true, skipEmptyLines: true, dynamicTyping: true });
-      if (result.errors.length > 0) console.warn('CSV parse errors:', result.errors);
-      
-      const allRows = result.data.filter(r => r.Document_ID).map(r => {
-        r._isValid = isValidDocId(r.Document_ID, r);
-        return r;
-      });
-
-      const totalUnique = new Set(allRows.map(r => String(r.Document_ID).trim())).size;
-      const invalidUnique = new Set(allRows.filter(r => !r._isValid).map(r => String(r.Document_ID).trim())).size;
-      
-      // allData will hold both valid and invalid rows
-      allData = allRows;
-      allDocData = buildDocData(allData);
-      
-      const validUnique = totalUnique - invalidUnique;
-      
-      document.getElementById('dataSource').textContent = sourceName;
-      document.getElementById('dataRowCount').textContent = allData.length;
-      document.getElementById('dataColCount').textContent = result.meta.fields?.length || '—';
-      document.getElementById('statusDocCount').textContent = `Doc IDs: ${validUnique} (Valid) / ${totalUnique} (Total)`;
-      
-      populateFilters();
-      applyFilters();
-      updateStatus('ok', `Loaded ${allData.length} rows`);
-      document.getElementById('loadedInfo').textContent = `${allData.length} rows from ${sourceName}`;
-    }
 
     // ─── DEDUP ────────────────────────────────────────────────────────────────
     function buildDocData(rows) {
@@ -631,6 +763,10 @@
       document.getElementById('labelApprovalRate').textContent = "APPROVAL RATE";
       document.getElementById('subApprovalRate').textContent = validSub;
 
+      const maxSuffix = includeInvalid ? "(INC. INVALID)" : "(>30D)";
+      document.getElementById('subLongReview').textContent = `MAX DURATION PER DOC ID ${maxSuffix}`;
+      document.getElementById('subDelay').textContent = `MAX DELAY PER DOC ID ${maxSuffix}`;
+
       const highlightColor = includeInvalid ? 'var(--danger)' : '';
       const subHighlightColor = includeInvalid ? 'var(--danger)' : 'var(--text3)';
 
@@ -651,7 +787,9 @@
 
     // ─── KPI CALCULATIONS (per unique Document_ID) ─────────────────────────
     function computeKPIs(data) {
+      const includeInvalid = document.getElementById('includeInvalid')?.checked || false;
       let docs=0, open=0, overdue=0, awaiting=0, approved=0, longReview=0, delay=0, invalid=0;
+      
       data.forEach(r => {
         if (r._isValid) {
           docs++;
@@ -661,19 +799,26 @@
           const code = (r.Latest_Approval_Code||r.This_Submission_Approval_Code||'').toUpperCase();
           if (!code || approvalCodes.pending.includes(code)) awaiting++;
           if (code && approvalCodes.approved.includes(code)) approved++;
+          
           if (Number(r.Duration_of_Review) > 30) longReview++;
           if (Number(r.Delay_of_Resubmission) > 30) delay++;
         } else {
           invalid++;
+          if (includeInvalid) {
+            if (Number(r.Duration_of_Review) > 30) longReview++;
+            if (Number(r.Delay_of_Resubmission) > 30) delay++;
+          }
         }
       });
-      // Denominator for KPIs is always unique valid docs to avoid skewing
-      const totalForKpis = docs; 
-      const includeInvalid = document.getElementById('includeInvalid')?.checked || false;
+
+      const totalDocs = includeInvalid ? (docs + invalid) : docs; 
+      // Approval Rate is always based on valid docs only per requirement
+      const rate = docs > 0 ? (approved / docs * 100) : 0;
+
       return { 
-        docs: includeInvalid ? (docs + invalid) : docs, 
+        docs: totalDocs, 
         open, overdue, awaiting, longReview, delay, invalid,
-        rate: totalForKpis>0 ? approved/totalForKpis*100 : 0 
+        rate
       };
     }
 
@@ -687,6 +832,12 @@
 
       const kpiDocsEl = document.getElementById('kpiDocs');
       const kpiInvalidEl = document.getElementById('kpiInvalid');
+      const kpiOpenEl = document.getElementById('kpiOpen');
+      const kpiOverdueEl = document.getElementById('kpiOverdue');
+      const kpiAwaitingEl = document.getElementById('kpiAwaiting');
+      const kpiLongReviewEl = document.getElementById('kpiLongReview');
+      const kpiDelayEl = document.getElementById('kpiDelay');
+      const kpiApprovalEl = document.getElementById('kpiApproval');
 
       kpiDocsEl.textContent = formatNum(kpi.docs);
       kpiDocsEl.style.color = highlightColor;
@@ -694,12 +845,23 @@
       kpiInvalidEl.textContent = formatNum(kpi.invalid);
       kpiInvalidEl.style.color = kpi.invalid > 0 ? 'var(--danger)' : '';
 
-      document.getElementById('kpiOpen').textContent = formatNum(kpi.open);
-      document.getElementById('kpiOverdue').textContent = formatNum(kpi.overdue);
-      document.getElementById('kpiAwaiting').textContent = formatNum(kpi.awaiting);
-      document.getElementById('kpiLongReview').textContent = formatNum(kpi.longReview);
-      document.getElementById('kpiDelay').textContent = formatNum(kpi.delay);
-      document.getElementById('kpiApproval').textContent = kpi.rate.toFixed(1) + '%';
+      kpiOpenEl.textContent = formatNum(kpi.open);
+      kpiOpenEl.style.color = ''; // Never red
+
+      kpiOverdueEl.textContent = formatNum(kpi.overdue);
+      kpiOverdueEl.style.color = ''; // Never red
+
+      kpiAwaitingEl.textContent = formatNum(kpi.awaiting);
+      kpiAwaitingEl.style.color = ''; // Never red
+
+      kpiLongReviewEl.textContent = formatNum(kpi.longReview);
+      kpiLongReviewEl.style.color = highlightColor;
+
+      kpiDelayEl.textContent = formatNum(kpi.delay);
+      kpiDelayEl.style.color = highlightColor;
+
+      kpiApprovalEl.textContent = kpi.rate.toFixed(1) + '%';
+      kpiApprovalEl.style.color = ''; // Never red
       
       if (includeInvalid) {
          showDetailAllDocs(data);
