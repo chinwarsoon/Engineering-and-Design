@@ -276,9 +276,19 @@ class RowValidator(BaseDetector):
                 expected = str(df.at[idx, col]).strip() if pd.notna(df.at[idx, col]) else ""
                 actual = parts[seg_idx].strip()
                 if expected and actual != expected:
-                    # Check for affix warning (segment is prefix of expected)
-                    if expected.startswith(actual):
-                        warnings.append(f"{col}: expected '{expected}' got '{actual}' (Affix detected)")
+                    # Check for affix/padding warning
+                    # Case 1: Affix - segment is prefix of expected (e.g., "5101" vs "5101_ST609")
+                    # Case 2: Zero-padding - one is zero-padded version of the other (e.g., "1247" vs "01247")
+                    is_affix = expected.startswith(actual)
+                    is_zero_padded = (
+                        expected.lstrip('0') == actual.lstrip('0') and 
+                        expected.isdigit() and actual.isdigit() and
+                        len(expected) != len(actual)
+                    )
+                    
+                    if is_affix or is_zero_padded:
+                        warning_type = "Affix" if is_affix else "Zero-padding"
+                        warnings.append(f"{col}: expected '{expected}' got '{actual}' ({warning_type} detected)")
                     else:
                         mismatches.append(f"{col}: expected '{expected}' got '{actual}'")
 
