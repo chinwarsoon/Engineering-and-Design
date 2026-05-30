@@ -260,7 +260,7 @@
     let allDocData = [];
     let filteredDocData = [];
     let chartInstances = {};
-    let docIdRules = { docIdCodes: [], checkUncertain: true,
+    let docIdRules = { docIdDetails: [], checkUncertain: true,
       uncertainValues: ['na','n/a','nan','unknown','tbd','to be determined','pending','draft','temp','temporary','-','none','nil','null','undefined','0'] };
     // v2.2 (7.28): schema-driven approval codes — populated from approval_code_schema.json
     let approvalCodes = {
@@ -276,15 +276,20 @@
         const config = await resp.json();
         const errors = config.data_logic_errors;
         if (!errors || typeof errors !== 'object') throw new Error('Invalid data_logic_errors');
-        const codes = [];
+        const details = [];
+        const filtered = [];
         Object.values(errors).forEach(e => {
           if (!e || typeof e !== 'object') return;
           const cols = (String(e.column) || '').split(',').map(c => c.trim());
           if (!cols.includes('Document_ID')) return;
-          if (e.code) codes.push(e.code);
+          if (!e.code) return;
+          const severity = (e.severity || 'HIGH').toUpperCase();
+          details.push({ code: e.code, severity });
+          if (severity === 'WARNING') filtered.push(e.code);
         });
-        docIdRules.docIdCodes = codes;
-        updateStatus('ok', `Doc ID rules loaded (${codes.length} codes)`);
+        docIdRules.docIdDetails = details;
+        if (filtered.length) console.log(`[v2.4] Filtered WARNING codes from invalidation: ${filtered.join(', ')}`);
+        updateStatus('ok', `Doc ID rules loaded (${details.length} codes, ${details.length - filtered.length} active)`);
       } catch (err) {
         updateStatus('warning', 'Using default Doc ID rules');
       }
@@ -883,17 +888,25 @@
 
     function formatNum(n) { if (n == null) return '—'; if (n >= 1000000) return (n/1000000).toFixed(1)+'M'; if (n >= 1000) return (n/1000).toFixed(1)+'K'; return String(n); }
 
+    // v2.4: regex for extracting exact error codes from bracket-delimited Validation_Errors
+    const VALIDATION_ERR_RE = /\[([A-Z0-9]+(?:-[A-Z0-9]+)+)\]/g;
+
     function isValidDocId(id, row) {
       if (!id) return false;
       const s = String(id).trim().toLowerCase();
       if (!s) return false;
       if (docIdRules.checkUncertain && docIdRules.uncertainValues.includes(s)) return false;
-      if (docIdRules.docIdCodes.length > 0 && row) {
+      if (docIdRules.docIdDetails.length > 0 && row) {
         const errs = row['Validation_Errors'];
         if (errs) {
           const errStr = String(errs);
-          for (let i = 0; i < docIdRules.docIdCodes.length; i++) {
-            if (errStr.includes(docIdRules.docIdCodes[i])) return false;
+          const errCodes = new Set();
+          let m;
+          VALIDATION_ERR_RE.lastIndex = 0;
+          while ((m = VALIDATION_ERR_RE.exec(errStr)) !== null) errCodes.add(m[1]);
+          for (const d of docIdRules.docIdDetails) {
+            if (d.severity === 'WARNING') continue;
+            if (errCodes.has(d.code)) return false;
           }
         }
       }

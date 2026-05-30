@@ -6584,3 +6584,43 @@ cat README.md  # Start here
 - **Migration:** Refactored console utilities and pipeline engines to use ID-based message lookups, supporting dynamic hydration and improved maintainability.
 - **Verification:** Successfully validated pipeline execution with 11,851 rows using new messaging architecture.
 - **Reference:** See `workplan/error_handling/pipeline_messaging/reports/pipeline_messaging_workplan_phase4_report.md` for full implementation details.
+
+<a id="update-2026-05-30-phase7-v24-complete"></a>
+## 2026-05-30 — Phase 7 v2.4: WARNING-Severity Error Code Filtering
+
+**Status:** ✅ COMPLETED
+**Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.4
+**Issue Reference:** [Issue UI-012](issue_log.md#issue-ui-012)
+
+**Summary:** Fixed `P2-I-V-0204-W` (DOCUMENT_ID_AFFIX_MISMATCH, WARNING severity) being incorrectly treated as invalid in the Submittal Tracker Dashboard. The `loadDocIdRules()` function loaded all 11 Document_ID error codes without filtering by severity, and `isValidDocId()` treated all codes equally.
+
+**Key Changes:**
+- **Data Structure (7.43):** Changed `docIdRules` from `{docIdCodes: string[]}` to `{docIdDetails: {code, severity}[]}` for severity-aware validation.
+- **Severity Filtering (7.41):** `loadDocIdRules()` now reads `severity` field from `data_error_config.json` and logs filtered WARNING codes.
+- **Severity-Aware Validation (7.42):** `isValidDocId()` skips codes with `severity === 'WARNING'` when checking `Validation_Errors`.
+
+**Files Changed:**
+- `dcc/ui/submittal_dashboard.html` — Updated `docIdRules` structure, `loadDocIdRules()`, and `isValidDocId()`
+
+---
+
+<a id="update-2026-05-30-phase7-v24-regex-fix"></a>
+## 2026-05-30 — Phase 7 v2.4 Follow-up: Regex Exact Match for Error Code Extraction
+
+**Status:** ✅ COMPLETED
+**Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.4 (sub-task 7.44)
+**Issue Reference:** [Issue UI-012](issue_log.md#issue-ui-012)
+
+**Summary:** Discovered that `isValidDocId()` naive `errStr.includes(d.code)` caused false positives — `P2-I-V-0204` (HIGH) is a prefix substring of `P2-I-V-0204-W` (WARNING), so `includes()` matched both. This affected 1,603 rows in the pipeline output (11,851 total rows).
+
+**Root Cause:** `errStr.includes('P2-I-V-0204')` returns `true` for strings containing `[P2-I-V-0204-W]` because `P2-I-V-0204` is a prefix of `P2-I-V-0204-W`.
+
+**Fix:** Replaced `includes()` with regex extraction `VALIDATION_ERR_RE = /\[([A-Z0-9]+(?:-[A-Z0-9]+)+)\]/g` (same pattern as `error_diagnostic_dashboard.html:361`). Codes are extracted into a `Set` and compared with `Set.has()` for exact match only.
+
+**Impact:**
+- Standalone `P2-I-V-0204-W` rows (1,238): Invalid → **Valid**
+- Mixed rows with other HIGH codes (418): Invalid → Invalid (correct)
+- Total valid rows: 10,124 → **11,727** (+1,603)
+
+**Files Changed:**
+- `dcc/ui/submittal_dashboard.html` — Added `VALIDATION_ERR_RE` regex constant; rewrote `isValidDocId()` with regex + `Set.has()`

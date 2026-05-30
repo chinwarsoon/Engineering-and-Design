@@ -1103,3 +1103,31 @@ Log/                       ✅ Created (auto_create_log_directories: true)
 - [Result:] PASS ✅ (Metadata like Ver/Status/Date correctly identified for diverse files)
 
 **Overall Status: PASS**
+
+<a id="test-2026-05-30-phase7-v24"></a>
+## 2026-05-30 — Test UI-012 — Submittal Dashboard v2.4: WARNING-Severity Filtering & Regex Fix
+
+- **Status:** ✅ PASS
+- **Tested By:** AI Agent
+- **Environment:** Linux / Browser
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.4
+
+### Test Cases
+
+| ID | Description | Result | Details |
+| :--- | :--- | :--- | :--- |
+| T1 | `loadDocIdRules()` loads severity from config | PASS | `docIdDetails` array contains `{code, severity}` objects for all 11 Document_ID codes. |
+| T2 | WARNING codes filtered from invalidation | PASS | Console logs `[v2.4] Filtered WARNING codes from invalidation: P2-I-V-0204-W`. Status bar shows `11 codes, 10 active`. |
+| T3 | `isValidDocId()` skips WARNING severity | PASS | Code iterates `docIdDetails`, checks `d.severity === 'WARNING'` then `continue`. Only CRITICAL/HIGH/MEDIUM codes checked. |
+| T4 | Regex extracts exact codes from bracket format | PASS | `VALIDATION_ERR_RE` extracts `["P2-I-V-0204-W"]` from `[P2-I-V-0204-W] Document_ID segment...`. No prefix false positives. |
+| T5 | Standalone `P2-I-V-0204-W` rows marked valid | PASS | 1,238 rows with only `[P2-I-V-0204-W]` in `Validation_Errors` now have `_isValid = true`. |
+| T6 | Mixed rows with HIGH codes remain invalid | PASS | 418 rows with `[P2-I-V-0204-W]` + other HIGH codes (e.g., `-A`, `-D`) correctly remain invalid. |
+| T7 | Total valid rows increased by +1,603 | PASS | Valid rows: 10,124 (old) to 11,727 (new). Difference: +1,603 rows. |
+| T8 | JS syntax balanced | PASS | Braces: 293/293, Parens: 942/942, Brackets: 168/168 — all balanced. |
+| T9 | No regressions in v2.3 features | PASS | Invalid ID toggle, 8th KPI, dual-scope aggregation all functional. |
+
+### Summary
+
+Phase 7 v2.4 correctly addresses both the WARNING-severity filtering (Issue L/M/N) and the substring false positive (Issue O). The root cause of the false positive was `P2-I-V-0204` (HIGH) being a prefix substring of `P2-I-V-0204-W` (WARNING), causing `errStr.includes()` to match both. The regex-based exact match fix resolves this completely. +1,603 rows now correctly classified as valid.
+
+**Overall Status: PASS**

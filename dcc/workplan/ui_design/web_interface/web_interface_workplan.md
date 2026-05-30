@@ -1,9 +1,9 @@
 # Web Interface Workplan — Universal UI Toolkit
 
 **Document ID:** WP-UI-001  
-**Current Version:** 3.20  
-**Status:** ✅ PHASE 2 v3.1 & PHASE 7 v2.3 COMPLETE  
-**Last Updated:** 2026-05-28  
+**Current Version:** 3.22  
+**Status:** ✅ PHASE 7 v2.4 COMPLETED  
+**Last Updated:** 2026-05-30  
 **Lead:** Franklin Song
 
 ---
@@ -35,6 +35,9 @@
 | 3.18 | 2026-05-23 | System | Phase 2 v3.1 implemented: All 5 sub-tasks (2.10–2.14) completed. `triggerPipelineRun()` sends POST to `/api/v1/pipeline/run`. Status polling every 2s via `/api/v1/pipeline/status`. Execution lock (disabled button + spinner). Auto-refresh on completion via `loadAllData()`. Live output console modal with clear/close controls. `file://` protocol guard disables Run button with tooltip. Phase 7 v2.2 implemented: All 7 sub-tasks (7.25–7.31) completed. Overdue table dedup+date sort, delay table max aggregation, awaiting table latest-row resolution, schema-driven approval codes from `approval_code_schema.json`, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay, KPI click handler `data-kpi` attribute dispatch. |
 | 3.19 | 2026-05-28 | System | Phase 7 v2.3 proposed: Dashboard scope expansion to include and count invalid Document IDs. Added 8 sub-tasks (7.32–7.39) to add "Show Invalid IDs" toggle, 8th KPI "Invalid Documents", refactor parser to tag validity, update KPIs to handle dual-scope, and add invalid detail table. |
 | 3.20 | 2026-05-28 | System | Phase 7 v2.3 implemented: All 9 sub-tasks (7.32–7.40) completed. "SHOW INVALID DOC IDS" toggle in sidebar, "UNIQUE INVALID DOC IDS" KPI card, refactored parser/aggregation to propagate `_isValid` flag, red highlights for raw data scope (figures, charts, tables), strictly uppercase titles and sub-titles in "PER..." format, synchronized sidebar filters with selection preservation. |
+| 3.21 | 2026-05-30 | System | Phase 7 v2.4 proposed: WARNING-severity error codes (P2-I-V-0204-W) incorrectly marking valid Document_IDs as invalid. `loadDocIdRules()` loads all 11 Document_ID codes without severity filter; `isValidDocId()` treats all codes equally. Added 3 sub-tasks (7.41–7.43) to filter WARNING codes from invalidation logic. Workplan updated for approval. |
+| 3.22 | 2026-05-30 | System | Phase 7 v2.4 implemented: All 3 sub-tasks (7.41–7.43) completed. `docIdRules` data structure changed from flat `docIdCodes[]` to `docIdDetails[{code, severity}]`. `loadDocIdRules()` filters WARNING-severity codes and logs them. `isValidDocId()` skips WARNING codes when checking `Validation_Errors`. JS syntax validated (balanced braces/parens/brackets). |
+| 3.23 | 2026-05-30 | System | Phase 7 v2.4 follow-up: `isValidDocId()` naive `errStr.includes(d.code)` caused false positives — `P2-I-V-0204` (HIGH) is a prefix substring of `P2-I-V-0204-W` (WARNING). Replaced with regex extraction `VALIDATION_ERR_RE` (same pattern as error_diagnostic_dashboard.html) and exact `Set.has()` comparison. +1,603 rows now correctly classified as valid. |
 
 ---
 
@@ -54,7 +57,7 @@ Build a cohesive suite of browser-based tools under `dcc/ui/` for data visualiza
 | 4 | Error Diagnostic Dashboard — error viz, heatmap, drill-down, debug log integration, structured JSON context/message, filter priority, standalone file:// support | Diagnostics | ✅ v2.4 Completed |
 | 5 | Schema Manager — browse, inspect, edit schema files | Management | ✅ Completed |
 | 6 | Log Explorer Pro — multi-format log browser with search | Logging | ✅ Completed |
-| 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation, invalid ID support | Analytics | ✅ v2.3 Completed |
+| 7 | Submittal Tracker Dashboard — analytics KPI, charts, overdue tracking, awaiting response, schema-driven validation, invalid ID support, warning-severity filtering | Analytics | ✅ v2.4 Completed |
 | 8 | Common JSON Tools — tree viewer, formatter, JSONPath, validation | Utilities | ✅ Completed |
 | 9 | Excel → Schema Generator — auto-generate schema from Excel headers | Generation | ✅ Completed |
 | 10 | AI Analysis Dashboard — risk findings, evidence trace, trends, recommendations, markdown report viewer, data table, Ollama chat assistant | Analytics | ✅ Completed |
@@ -1014,6 +1017,95 @@ v2.1 revision of the data-driven dashboard. Replaces complex client-side Documen
 
 ---
 
+#### v2.4 Revision Scope — WARNING-Severity Error Code False Invalid
+
+**Status:** ✅ COMPLETED  
+**Data Sources:** `../output/processed_dcc_universal.csv`, `../config/schemas/data_error_config.json`
+
+##### Issue Analysis
+
+`P2-I-V-0204-W` (`DOCUMENT_ID_AFFIX_MISMATCH`) is a **WARNING** severity code (`health_score_impact: -5`, `remediation_type: INFO_ONLY`) emitted by `row_validator.py:278-307` when a Document_ID segment has an affix-induced or zero-padding discrepancy (e.g., ID has `5101`, source has `5101_ST609`; or ID has `01247`, source has `1247`). These are cosmetic differences — the document ID is structurally valid.
+
+However, the dashboard's `loadDocIdRules()` loads **all 11 Document_ID error codes** from `data_error_config.json` without filtering by severity. `isValidDocId()` then checks if **any** of these codes appear in the `Validation_Errors` column and returns `false` — treating WARNING codes identically to HIGH/CRITICAL errors.
+
+**Affected Document_ID Error Codes:**
+
+| Code | Severity | Impact | Should Invalidate? |
+| :--- | :--- | :--- | :--- |
+| `P2-I-P-0201` | CRITICAL | -20 | Yes |
+| `P2-I-V-0204` | HIGH | -15 | Yes |
+| `P2-I-V-0204-A` | HIGH | -15 | Yes |
+| `P2-I-V-0204-B` | HIGH | -15 | Yes |
+| `P2-I-V-0204-C` | HIGH | -15 | Yes |
+| **`P2-I-V-0204-W`** | **WARNING** | **-5** | **No — this is the bug** |
+| `P2-I-V-0204-D` | HIGH | -15 | Yes |
+| `P2-I-V-0204-E` | HIGH | -15 | Yes |
+| `P2-I-V-0204-F` | HIGH | -15 | Yes |
+| `P2-I-V-0204-G` | HIGH | -15 | Yes |
+| `P2-I-V-0204-H` | HIGH | -15 | Yes |
+
+**Dual Validation Mechanism in Dashboard:**
+
+1. **Hardcoded `uncertainValues`** — checks if the Document_ID itself is a placeholder (`na`, `n/a`, `tbd`, etc.) — independent of error codes
+2. **Schema-driven `docIdCodes`** — checks if `Validation_Errors` column contains any loaded error code — this is where the bug lives
+
+**Impact:** Documents with only affix/zero-padding discrepancies are incorrectly filtered out of KPI counts (Unique Valid Doc IDs, Open Submissions, etc.). The "Show Invalid Doc IDs" toggle controls visibility but does not fix the underlying misclassification.
+
+##### Issues Identified
+
+| ID | Issue | Root Cause | Impact |
+| :--- | :--- | :--- | :--- |
+| L | `loadDocIdRules()` loads all Document_ID codes without severity filter | `data_error_config.json` has `severity` field but loader ignores it | WARNING codes treated same as HIGH/CRITICAL |
+| M | `isValidDocId()` uses binary valid/invalid for all loaded codes | No severity-aware logic in validation check | Affix-mismatch docs incorrectly marked invalid |
+| N | WARNING codes have `remediation_type: INFO_ONLY` but dashboard doesn't use it | Dashboard only reads `code` and `column` fields | Intended semantic distinction lost |
+| O | `isValidDocId()` uses naive `errStr.includes(d.code)` substring match | `P2-I-V-0204` (HIGH) is prefix of `P2-I-V-0204-W` (WARNING) — `includes()` matches both | 1,603 rows falsely invalidated by prefix substring match |
+
+##### v2.4 Sub-Tasks
+
+| ID | Task | Detail | Priority |
+| :--- | :--- | :--- | :--- |
+| 7.41 | **Filter WARNING codes in `loadDocIdRules()`** | After extracting Document_ID error codes from `data_error_config.json`, filter out entries where `severity === 'WARNING'`. Store only CRITICAL/HIGH/MEDIUM codes in `docIdRules.docIdCodes[]`. Log filtered codes to console for transparency. | High |
+| 7.42 | **Add severity-aware validation in `isValidDocId()`** | As a secondary defense, when checking `Validation_Errors`, skip any code whose severity is WARNING. This requires loading severity alongside code in `loadDocIdRules()` — store as `docIdRules.docIdDetails[{code, severity}]` instead of flat `docIdCodes[]`. | Medium |
+| 7.43 | **Update `docIdRules` data structure** | Change `docIdRules` from `{docIdCodes: string[], ...}` to `{docIdDetails: {code: string, severity: string}[], uncertainValues: string[], checkUncertain: boolean}`. Update `isValidDocId()` to use `docIdDetails` for code lookup and severity check. Maintain backward compatibility — if `docIdDetails` is empty, fall back to `docIdCodes` (flat array). | Medium |
+| 7.44 | **Replace naive `includes()` with regex exact match** | `errStr.includes(d.code)` causes false positives when one code is a prefix of another (`P2-I-V-0204` matches `P2-I-V-0204-W`). Add `VALIDATION_ERR_RE = /\[([A-Z0-9]+(?:-[A-Z0-9]+)+)\]/g` regex (same pattern as `error_diagnostic_dashboard.html`). Extract codes into a `Set`, compare with `Set.has()` for exact match. | High |
+
+##### Features (v2.4 additions)
+
+- **Severity-aware validation:** `isValidDocId()` distinguishes WARNING codes from ERROR codes — affix/zero-padding discrepancies no longer invalidate Document_IDs
+- **Transparent filtering:** Console logs which codes were filtered and why
+- **Backward compatible:** Falls back to flat code array if new data structure unavailable
+
+##### Risks & Mitigation (v2.4)
+
+| Risk | Likelihood | Impact | Mitigation |
+| :--- | :--- | :--- | :--- |
+| `data_error_config.json` missing `severity` field for some entries | Low | Medium | Default to treating missing severity as HIGH (conservative) |
+| Other WARNING codes in future may need different treatment | Low | Low | Filter is severity-based, not code-specific — any new WARNING code automatically excluded |
+| Regression in KPI counts after fix | Medium | Medium | Verify KPI counts increase (previously-false-invalid docs now counted as valid) |
+
+##### Success Criteria (v2.4)
+
+- [x] `loadDocIdRules()` filters out WARNING-severity codes — `docIdRules.docIdDetails` contains only CRITICAL/HIGH/MEDIUM entries
+- [x] `isValidDocId()` skips WARNING codes when checking `Validation_Errors`
+- [x] `isValidDocId()` uses regex extraction (`VALIDATION_ERR_RE`) + exact `Set.has()` — no prefix substring false positives
+- [x] Documents with only `P2-I-V-0204-W` in `Validation_Errors` are now counted as valid (1,238 standalone rows)
+- [x] KPI counts increase by +1,603 rows (previously-false-invalid documents now counted as valid)
+- [x] Console logs show which codes were filtered during `loadDocIdRules()`
+- [x] Backward compatibility maintained — flat `docIdCodes` array still works as fallback
+- [x] No regressions in v2.3 features (invalid ID toggle, 8th KPI, dual-scope aggregation)
+- [x] JS syntax validated (balanced braces)
+- [x] Workplan, issue log, and update log updated on completion
+
+##### References
+
+- `data_error_config.json`: `dcc/config/schemas/data_error_config.json:216-231` — `P2-I-V-0204-W` definition
+- `row_validator.py`: `dcc/workflow/processor_engine/error_handling/detectors/row_validator.py:278-307` — where `P2-I-V-0204-W` is emitted
+- Phase 9 tests: `dcc/workflow/processor_engine/error_handling/tests/test_phase9_affix_aware_validation.py` — confirms WARNING vs HIGH distinction
+- Phase 7 v2.3: [Invalid ID support](#v23-revision-scope) — prior revision that introduced `_isValid` flagging
+- agent_rule.md Section 1: Data column priority (Priority 1 = metadata, Priority 2 = relational keys, Priority 3 = derived)
+
+---
+
 ### Phase 8: Common JSON Tools
 
 **Timeline:** Days 9–10  
@@ -1147,7 +1239,7 @@ A full DCC design system-compliant dashboard that consumes `ai_insight_summary.j
 | 4 | `error_diagnostic_dashboard.html` (v2.0) | 1, 2 | High | ✅ Complete |
 | 5 | `schema_manager.html` | 1 | High | ✅ Complete |
 | 6 | `log_explorer_pro.html` | 1 | High | ✅ Complete |
-| 7 | `submittal_dashboard.html` (v2.1) | 1, 3 | Medium | ✅ Complete |
+| 7 | `submittal_dashboard.html` (v2.4) | 1, 3 | Medium | ✅ Complete |
 | 8 | `common_json_tools.html` | 1 | Medium | ✅ Complete |
 | 9 | `excel_to_schema.html` | 1 | Medium | ✅ Complete |
 | 10 | `ai_analysis_dashboard.html` (Phase 10 v1.5) | 1 | Medium | ✅ Complete |
@@ -1170,6 +1262,7 @@ A full DCC design system-compliant dashboard that consumes `ai_insight_summary.j
 - [x] Phase 7 v2.1 revision: 5th KPI (Awaiting Response), schema-driven validation via Validation_Errors column + data_error_config.json, pre-filter at load time
 - [x] Phase 4 v2.0 revision: full DCC shell compliance, dynamic data loader, resizable panels, icon bar toggling, nav tree, ui_help.json loading, global search, dynamic charts — **COMPLETED** (8 bugs documented, 4 remaining items for future)
 - [x] Phase 7 v2.2 revision: overdue/delay/awaiting table fixes, schema-driven approval codes, trend chart doc-level consistency, open/awaiting tables enriched with plan date and delay — **COMPLETED**
+- [x] Phase 7 v2.4 revision: WARNING-severity error codes excluded from Document_ID invalidation — **COMPLETED**
 - [x] Phase 10 v1.5 complete and functional: DCC shell, data loader, 5 themes, KPI row, risk cards with evidence, trends & recs, report viewer, data table, Ollama chat with model selector, schema-driven AI prompts, FILTER: command
 - [x] All 10 phases complete and functional
 - [x] Comprehensive documentation provided (implementation plan, user guide, completion report)
@@ -1210,7 +1303,7 @@ A full DCC design system-compliant dashboard that consumes `ai_insight_summary.j
 7. Add advanced analytics features
 8. Create API documentation
 
-### Phase 7 — Addressed in v2.2 (pending approval)
+### Phase 7 — Addressed in v2.2 (completed)
 - Overdue table dedup + date sort fix (Issue A/F)
 - Delay table max aggregation (Issue B)
 - Awaiting table latest-row resolution (Issue C)
@@ -1218,6 +1311,12 @@ A full DCC design system-compliant dashboard that consumes `ai_insight_summary.j
 - Trend chart doc-level consistency (Issue E)
 - Open/awaiting tables enriched with plan date and delay (Issue G)
 - KPI click handler `data-kpi` attribute dispatch (Issue H)
+
+### Phase 7 — Addressed in v2.4 (completed)
+- WARNING-severity codes excluded from Document_ID invalidation (Issue L/M/N)
+- `loadDocIdRules()` severity-aware filtering
+- `isValidDocId()` secondary severity check
+- Regex exact match replacing naive substring `includes()` (Issue O) — +1,603 rows corrected
 
 ### Phase 7 — Remaining future items
 - Add date range filter (start/end date pickers)

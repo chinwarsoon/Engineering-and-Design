@@ -121,6 +121,23 @@
   - `workflow/processor_engine/error_handling/config/messages/zh.json`
 - **Link to Update Log:** [update-2026-05-29-phase9-complete](update_log.md#update-2026-05-29-phase9-complete)
 
+<a id="issue-ui-012"></a>
+## 2026-05-30 — Issue UI-012 — Submittal Dashboard: `isValidDocId()` substring false positive on prefix error codes
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-05-30
+- **Context:** After implementing v2.4 (WARNING-severity filtering), documents with only `P2-I-V-0204-W` in `Validation_Errors` were still marked as invalid. The v2.4 fix correctly skipped WARNING codes, but the document remained invalid due to a secondary issue in the code-matching logic.
+- **Root Cause:** `isValidDocId()` used naive `errStr.includes(d.code)` substring matching. Error code `P2-I-V-0204` (HIGH severity, DOCUMENT_ID_INVALID) is a **prefix substring** of `P2-I-V-0204-W` (WARNING, DOCUMENT_ID_AFFIX_MISMATCH). The `includes()` check matched `P2-I-V-0204` inside the string `[P2-I-V-0204-W]`, falsely flagging the row as invalid even though only the WARNING code was present. This affected **1,603 rows** in the pipeline output.
+- **Impact:** 1,603 rows incorrectly classified as invalid. Standalone `P2-I-V-0204-W` rows (1,238) were falsely invalidated. KPI counts (Unique Valid Doc IDs, Open Submissions, etc.) understated by 1,603 documents.
+- **Resolution Summary:**
+  1. Replaced naive `includes()` with regex extraction `VALIDATION_ERR_RE = /\[([A-Z0-9]+(?:-[A-Z0-9]+)+)\]/g` — same pattern used in `error_diagnostic_dashboard.html`.
+  2. Extracted error codes into a `Set` and compared with `Set.has()` for exact match only.
+  3. Verified against actual CSV data: +1,603 rows now correctly classified as valid.
+- **File Changes:**
+  - `dcc/ui/submittal_dashboard.html` — Added `VALIDATION_ERR_RE` regex constant; rewrote `isValidDocId()` to extract exact codes via regex + `Set.has()` instead of naive substring `includes()`.
+- **Workplan:** [web_interface_workplan.md](../workplan/ui_design/web_interface/web_interface_workplan.md) — Phase 7 v2.4 (sub-task 7.44)
+- **Link to Update Log:** [update-2026-05-30-phase7-v24-regex-fix](update_log.md#update-2026-05-30-phase7-v24-regex-fix)
+
 <a id="issue-ui-011"></a>
 ## 2026-05-29 — Issue UI-011 — Submittal Dashboard: Missing Manual Loading Path & Ambiguous KPI Labels
 
