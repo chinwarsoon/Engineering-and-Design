@@ -100,6 +100,12 @@ class AiInsight:
         model_used: LLM model name
         provider: Provider name (ollama / rule_based)
         fallback_used: True if rule-based fallback was used
+        model_family: Schema-driven model family (Phase 5.6)
+        model_capability: Schema-driven capability (chat/embed/code/vision)
+        free_ram_mb: Available system RAM at selection time (MB)
+        required_ram_mb: Model-required RAM at selection time (MB)
+        selection_reason: schema_default | explicit_override | no_model_fits |
+            no_model_pool
     """
     run_id: str = ""
     timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -112,6 +118,12 @@ class AiInsight:
     model_used: str = ""
     provider: str = ""
     fallback_used: bool = False
+    # Phase 5.6: schema-driven model selection telemetry
+    model_family: str = ""
+    model_capability: str = ""
+    free_ram_mb: int = 0
+    required_ram_mb: int = 0
+    selection_reason: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize to JSON-safe dict."""
@@ -146,6 +158,11 @@ class AiInsight:
             "model_used": self.model_used,
             "provider": self.provider,
             "fallback_used": self.fallback_used,
+            "model_family": self.model_family,
+            "model_capability": self.model_capability,
+            "free_ram_mb": self.free_ram_mb,
+            "required_ram_mb": self.required_ram_mb,
+            "selection_reason": self.selection_reason,
         }
 
 

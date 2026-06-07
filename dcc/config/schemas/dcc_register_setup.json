@@ -85,6 +85,20 @@
         "$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/dcc_parameter_entry"
       }
     },
+    "model_pool": {
+      "type": "array",
+      "description": "Ordered Ollama chat model preference list (schema-driven). Phase 5.6: replaces hardcoded _DEFAULT_MODEL in ollama_provider.py.",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/model_entry"}
+    },
+    "embed_model_pool": {
+      "type": "array",
+      "description": "Embedding model pool (not RAM-selected; used by name).",
+      "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/model_entry"}
+    },
+    "model_memory_headroom_gb": {
+      "type": "number",
+      "description": "Fixed GB reserved for OS + Python process + Ollama runtime overhead, on top of model RAM estimate."
+    },
     "approval_codes": {
       "type": "array",
       "description": "List of approval codes with status mappings and aliases",

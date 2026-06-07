@@ -1,9 +1,9 @@
 # Web Interface Workplan — Universal UI Toolkit
 
 **Document ID:** WP-UI-001  
-**Current Version:** 3.22  
+**Current Version:** 3.24  
 **Status:** ✅ PHASE 7 v2.4 COMPLETED  
-**Last Updated:** 2026-05-30  
+**Last Updated:** 2026-06-07  
 **Lead:** Franklin Song
 
 ---
@@ -38,6 +38,7 @@
 | 3.21 | 2026-05-30 | System | Phase 7 v2.4 proposed: WARNING-severity error codes (P2-I-V-0204-W) incorrectly marking valid Document_IDs as invalid. `loadDocIdRules()` loads all 11 Document_ID codes without severity filter; `isValidDocId()` treats all codes equally. Added 3 sub-tasks (7.41–7.43) to filter WARNING codes from invalidation logic. Workplan updated for approval. |
 | 3.22 | 2026-05-30 | System | Phase 7 v2.4 implemented: All 3 sub-tasks (7.41–7.43) completed. `docIdRules` data structure changed from flat `docIdCodes[]` to `docIdDetails[{code, severity}]`. `loadDocIdRules()` filters WARNING-severity codes and logs them. `isValidDocId()` skips WARNING codes when checking `Validation_Errors`. JS syntax validated (balanced braces/parens/brackets). |
 | 3.23 | 2026-05-30 | System | Phase 7 v2.4 follow-up: `isValidDocId()` naive `errStr.includes(d.code)` caused false positives — `P2-I-V-0204` (HIGH) is a prefix substring of `P2-I-V-0204-W` (WARNING). Replaced with regex extraction `VALIDATION_ERR_RE` (same pattern as error_diagnostic_dashboard.html) and exact `Set.has()` comparison. +1,603 rows now correctly classified as valid. |
+| 3.24 | 2026-06-07 | System | Phase 2 v3.2 proposed: Stage metadata visualization. Proposed adding `execution_context` to stage cards to show filename, worksheet, and record counts. Updated `ui_help.json` with `meta_key` mappings. |
 
 ---
 
@@ -297,6 +298,21 @@ The v3.1 revision upgrades the Pipeline Dashboard from a read-only monitoring to
 | 2.12 | **Execution Lock & Feedback** | Disable the "Run" button and show a spinner/loading state while the pipeline is active. Show a toast notification on completion or failure. | Medium |
 | 2.13 | **Auto-Refresh on Completion** | Trigger a full `loadAllData()` refresh once the pipeline status reaches 'COMPLETED' to show the latest KPIs and output files. | Medium |
 | 2.14 | **Live Output Console / Popup** | Implement a modal window or collapsible console panel that displays real-time `stdout`/`stderr` or log messages from the running pipeline. Use the status polling response to append new log lines. | Medium |
+
+#### v3.2 Scope — Stage Metadata Visualization
+
+**Status:** ✅ COMPLETED (2026-06-07)  
+**Data Sources:** `../output/error_dashboard_data.json` (`execution_context`)
+
+The v3.2 revision enriches the pipeline stage cards with specific execution metadata (e.g., filename for upload stage, worksheet name for selection stage) to provide better context during and after a run.
+
+**3 Sub-Tasks for v3.2 Revision:**
+
+| ID | Task | Detail | Priority |
+| :--- | :--- | :--- | :--- |
+| 2.15 | **Extend `ui_help.json` Stages** | Add `meta_key` mappings to the `stages` array (e.g., `stage1: filename`, `stage2: sheet_name`) to tell the UI which metadata belongs to which card. | ✅ |
+| 2.16 | **Update `stage-card` UI** | Add a `.stage-meta` container to the HTML template for each stage card. Style it as small, subtle text below the stage name. | ✅ |
+| 2.17 | **Implement Metadata Rendering** | Update `renderStages()` to extract values from `execution_context` in `error_dashboard_data.json` based on the `meta_key` and inject them into the cards. | ✅ |
 
 #### Risks & Mitigation (v3.1)
 

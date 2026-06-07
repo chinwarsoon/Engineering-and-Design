@@ -9,7 +9,9 @@ class ErrorReporterInterface(ABC):
     """Interface for error reporting implementations."""
 
     @abstractmethod
-    def export_dashboard_json(self, total_rows: int, filename: Optional[str] = None) -> str:
+    def export_dashboard_json(
+        self, total_rows: int, filename: Optional[str] = None, context: Optional[Any] = None
+    ) -> str:
         """Export error summary as JSON dashboard."""
         pass
 

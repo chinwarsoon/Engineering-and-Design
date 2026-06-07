@@ -153,6 +153,7 @@ class ErrorReporter:
         total_rows: int, 
         filename: Optional[str] = None,
         error_catalog: Optional[Dict[str, Any]] = None,
+        context: Optional[Any] = None,
     ) -> Path:
         """
         Exports a rich JSON object containing all telemetry for the UI dashboard.
@@ -163,9 +164,9 @@ class ErrorReporter:
             total_rows: Total number of rows processed
             filename: Optional override filename (uses schema default if not provided)
             error_catalog: Optional error catalog for hydration
-            
+            context: Optional PipelineContext for enriched metadata
+
         Returns:
-            Path to exported JSON file
         """
         # Use schema-driven filename with fallback to default
         if filename is None:
@@ -176,20 +177,61 @@ class ErrorReporter:
         stats = self.generate_summary_stats(total_rows, error_catalog=error_catalog)
         unique_errors = self.aggregator.deduplicate_errors()
         phase_breakdown = self.generate_phase_breakdown().to_dict(orient="records")
-        
+
         # Aggregate errors by column for column-health analysis
         column_stats = {}
         for e in self.aggregator.get_all_errors():
             if e.column:
                 column_stats[e.column] = column_stats.get(e.column, 0) + 1
-        
+
+        # Build execution context metadata (Phase 6)
+        execution_context = {}
+        if context:
+            # Input metadata
+            execution_context["input"] = {
+                "filename": context.paths.excel_path.name,
+                "sheet_name": context.parameters.get("upload_sheet_name"),
+                "header_row_index": context.parameters.get("header_row_index"),
+                "column_range": context.parameters.get("column_range"),
+            }
+            # Data shape metadata
+            execution_context["shape"] = {
+                "total_rows_raw": len(context.data.df_raw) if context.data.df_raw is not None else 0,
+                "total_rows_processed": total_rows,
+                "column_count_raw": len(context.data.df_raw.columns) if context.data.df_raw is not None else 0,
+                "column_count_processed": len(context.data.df_processed.columns) if context.data.df_processed is not None else 0,
+            }
+            # Processing specs
+            execution_context["specs"] = {
+                "schema_name": context.parameters.get("schema_register_file", "default"),
+                "schema_version": context.parameters.get("schema_version", "1.0.0"),
+                "pipeline_version": "3.0.0", # Target version for modular pipeline
+            }
+            # Performance metadata
+            execution_context["performance"] = {
+                "start_time": context.telemetry.execution_times.get("start_time"),
+                "end_time": datetime.now().isoformat(),
+                "duration_seconds": sum(context.telemetry.execution_times.values()) if context.telemetry.execution_times else 0,
+                "peak_memory_mb": context.telemetry.memory_usage.get("peak_mb", 0),
+            }
+            # Mapping summary
+            execution_context["mapping"] = {
+                "match_rate": context.state.mapping_result.get("match_rate", 0),
+                "mapped_column_count": context.state.mapping_result.get("matched_count", 0),
+                "unmapped_column_count": len(context.state.mapping_result.get("unmatched_headers", [])),
+            }
+            # Environment
+            execution_context["environment"] = context.state.environment
+
         dashboard_data = {
             "metadata": {
                 "generated_at": datetime.now().isoformat(),
                 "total_rows": total_rows,
-                "dataset_name": "DCC Processing Report"
+                "dataset_name": "DCC Processing Report",
+                "execution_context": execution_context
             },
             "summary": stats,
+
             "phase_breakdown": phase_breakdown,
             "column_health": [
                 {"column": col, "error_count": count} 

@@ -82,6 +82,25 @@ class RunStore:
                 fallback_used    BOOLEAN
             )
         """)
+        # Phase 5.6: extend ai_insights with model selection telemetry.
+        # ALTER TABLE ADD COLUMN is idempotent in DuckDB only via error
+        # suppression — try once per column, ignore "already exists".
+        new_columns = [
+            ("model_family", "VARCHAR"),
+            ("model_capability", "VARCHAR"),
+            ("free_ram_mb", "INTEGER"),
+            ("required_ram_mb", "INTEGER"),
+            ("selection_reason", "VARCHAR"),
+        ]
+        for col_name, col_type in new_columns:
+            try:
+                conn.execute(
+                    f"ALTER TABLE ai_insights ADD COLUMN {col_name} {col_type}"
+                )
+                logger.debug(f"[run_store] Added column ai_insights.{col_name}")
+            except Exception:
+                # Column already exists; safe to ignore.
+                pass
         logger.debug("[run_store] DuckDB tables initialised")
 
     def save_run(self, record: PipelineRunRecord) -> None:
@@ -111,6 +130,11 @@ class RunStore:
         """
         Persist an AI insight payload.
 
+        Phase 5.6: persists model_family, model_capability, free_ram_mb,
+        required_ram_mb, and selection_reason alongside the existing
+        model_used/provider/fallback_used fields. Missing fields default
+        to safe values so legacy AiInsight payloads still save.
+
         Args:
             insight: AiInsight to save
         """
@@ -119,11 +143,14 @@ class RunStore:
             return
         try:
             conn.execute("""
-                INSERT OR REPLACE INTO ai_insights VALUES (?,?,?,?,?,?,?,?)
+                INSERT OR REPLACE INTO ai_insights VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, [
                 insight.run_id, insight.timestamp, insight.risk_level,
                 insight.executive_summary, json.dumps(insight.to_dict()),
                 insight.model_used, insight.provider, insight.fallback_used,
+                insight.model_family, insight.model_capability,
+                insight.free_ram_mb, insight.required_ram_mb,
+                insight.selection_reason,
             ])
             logger.info(f"[run_store] Saved insight {insight.run_id}")
         except Exception as exc:

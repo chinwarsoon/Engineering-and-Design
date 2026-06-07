@@ -219,6 +219,8 @@ def _write_summary(context: PipelineContext, df_processed: Any) -> None:
         ),
         csv_path=context.paths.csv_output_path,
         excel_path=context.paths.excel_output_path,
+        upload_sheet_name=context.parameters.get("upload_sheet_name"),
+        header_row_index=context.parameters.get("header_row_index"),
     )
 
 
@@ -236,7 +238,7 @@ def _run_processor(context: PipelineContext) -> Dict[str, Any]:
         status_print("STATUS_HEALTH_DIAG")
         context.state.error_summary = processor.get_error_summary()
         dashboard_json_path = processor.error_reporter.export_dashboard_json(
-            len(df_processed)
+            len(df_processed), context=context
         )
         status_print("STATUS_DASHBOARD_EXPORT", path=dashboard_json_path, min_level=3)
         return result
@@ -244,7 +246,9 @@ def _run_processor(context: PipelineContext) -> Dict[str, Any]:
         if context.should_fail_fast("data"):
             status_print("STATUS_DIAG_REPORT")
             context.state.error_summary = processor.get_error_summary()
-            processor.error_reporter.export_dashboard_json(len(context.data.df_mapped))
+            processor.error_reporter.export_dashboard_json(
+                len(context.data.df_mapped), context=context
+            )
             _write_summary(context, context.data.df_mapped)
         raise
 

@@ -17,6 +17,55 @@
   - [Resolution]
   - [Link to Update Log:]
 
+<a id="issue-log-003"></a>
+## 2026-06-07 — Issue LOG-003 — Hardcoded `llama3.1:8b` default ignores schema-driven `ai_model`; `gemma4:e4b` hangs on 11 GiB host
+
+- **Status:** ✅ RESOLVED
+- **Resolution Date:** 2026-06-07
+- **Context:** The AI Operations Engine's Ollama provider used a hardcoded `_DEFAULT_MODEL = "llama3.1:8b"` in `ai_ops_engine/providers/ollama_provider.py:33`, while the active schema-driven value in `config/schemas/dcc_global_parameters.json:39` is `llama3.2:3b`. Per precedence CLI > schema > native defaults, the schema value should win, but in practice the `_DEFAULT_MODEL` leaked through when the param resolution path was not fully wired. Separately, end-to-end Ollama tests on 11 GiB host revealed `gemma4:e4b` (9.6 GB) hangs indefinitely and exceeds available RAM budget (~14 GB needed vs. 9.5 GB available).
+- **Root Cause:**
+  1. Hardcoded default in provider code did not respect schema-driven `ai_model` parameter.
+  2. No runtime memory check before model invocation — any model in `/api/tags` was treated as viable.
+  3. No model pool / candidate list at schema level — operator had no way to constrain selection.
+- **Impact:** (a) User-intended model (`llama3.2:3b`) was silently overridden. (b) Memory exhaustion / hang on under-resourced hosts. (c) No audit trail of why a particular model was chosen.
+- **Resolution Summary:** Phase 5.6 (workplan `WP-PHASE5.6-MSMD`, v1.2.0) implemented and approved. 15/15 unit tests pass. Live smoke test confirms `llama3.2:3b` selected on 9.01 GB free host.
+- **File Changes (all completed 2026-06-07):**
+  - `config/schemas/dcc_register_base.json` — added `model_entry` definition; extended `dcc_parameter_entry` with `model_pool`/`embed_model_pool`/`model_memory_headroom_gb`.
+  - `config/schemas/dcc_register_setup.json` — declared the new properties.
+  - `config/schemas/dcc_global_parameters.json` — added default `model_pool` (6 entries; `gemma4:e4b.enabled=false`), `embed_model_pool`, `model_memory_headroom_gb=2.0`.
+  - `workflow/ai_ops_engine/core/engine.py` — added `_select_model_by_memory()` helper and `_resolve_model_selection()` method. All metadata flows from schema-resolved params.
+  - `workflow/ai_ops_engine/core/contracts.py` — `AiInsight` gained 5 fields: `model_family`, `model_capability`, `free_ram_mb`, `required_ram_mb`, `selection_reason`.
+  - `workflow/ai_ops_engine/providers/ollama_provider.py` — **removed `_DEFAULT_MODEL`**, accepts `model_metadata` for logging/explainability only, added defense-in-depth memory check in `is_available()`. Provider is now metadata-free.
+  - `workflow/ai_ops_engine/persistence/run_store.py` — added idempotent `ALTER TABLE` for 5 new columns; `save_insight()` persists 13 columns.
+  - `test/test_phase5_6_model_selection.py` — 15 unit tests (5 test classes), all pass in 0.139s.
+  - `workplan/ai_operations/ai_operations_workplan.md` — v1.2.0 (Phase 5.6 complete).
+  - `workplan/ai_operations/phase5_test_strategy.md` — added Phase 5.6 test cases.
+  - `workplan/ai_operations/reports/phase5.6_report.md` — created.
+- **Workplan:** [ai_operations_workplan.md](../workplan/ai_operations/ai_operations_workplan.md) — Phase 5.6 (v1.2.0) ✅ COMPLETE
+- **Test Report:** [phase5.6_report.md](../workplan/ai_operations/reports/phase5.6_report.md) — 15/15 PASS
+- **Link to Update Log:** [update-2026-06-07-phase5.6-implemented](./update_log.md#update-2026-06-07-phase56-implemented)
+- **Context:** The AI Operations Engine's Ollama provider uses a hardcoded `_DEFAULT_MODEL = "llama3.1:8b"` in `ai_ops_engine/providers/ollama_provider.py:33`, while the active schema-driven value in `config/schemas/dcc_global_parameters.json:39` is `llama3.2:3b`. Per precedence CLI > schema > native defaults, the schema value should win, but in practice the `_DEFAULT_MODEL` leaks through when the param resolution path is not fully wired. Separately, end-to-end Ollama tests on 11 GiB host revealed `gemma4:e4b` (9.6 GB) hangs indefinitely and exceeds available RAM budget (~14 GB needed vs. 9.5 GB available).
+- **Root Cause:**
+  1. Hardcoded default in provider code does not respect schema-driven `ai_model` parameter.
+  2. No runtime memory check before model invocation — any model in `/api/tags` is treated as viable.
+  3. No model pool / candidate list at schema level — operator has no way to constrain selection.
+- **Impact:** (a) User-intended model (`llama3.2:3b`) may be silently overridden. (b) Memory exhaustion / hang on under-resourced hosts. (c) No audit trail of why a particular model was chosen.
+- **Resolution Summary:** Phase 5.6 planned (workplan `WP-PHASE5.6-MSMD`, v1.2.0): (1) Add `model_entry` definition to `dcc_register_base.json#definitions` with `name`/`size_gb`/`family`/`capability`/`ram_multiplier`/`enabled`/`notes`; (2) Extend `dcc_parameter_entry` with `model_pool`/`embed_model_pool`/`model_memory_headroom_gb`; (3) Declare in `dcc_register_setup.json` properties; (4) Value in `dcc_global_parameters.json`; (5) Selector in `core/engine.py` reads schema-resolved params (no hardcoded sizes); (6) Make Ollama provider **metadata-free** (remove `_DEFAULT_MODEL`, no model-name strings in code); (7) Block `gemma4:e4b` via `enabled: false` in schema; (8) Persist memory + family + capability + selection_reason to DuckDB.
+- **File Changes (planned):**
+  - `config/schemas/dcc_register_base.json` — add `model_entry` definition; extend `dcc_parameter_entry` with `model_pool`/`embed_model_pool`/`model_memory_headroom_gb`.
+  - `config/schemas/dcc_register_setup.json` — declare new properties.
+  - `config/schemas/dcc_global_parameters.json` — add default `model_pool` (array of `model_entry` objects), `embed_model_pool`, `model_memory_headroom_gb`.
+  - `workflow/ai_ops_engine/core/engine.py` — add `_select_model_by_memory(model_pool, headroom_gb)` reading metadata from schema; refactor `_run_provider`.
+  - `workflow/ai_ops_engine/providers/ollama_provider.py` — **remove `_DEFAULT_MODEL = "llama3.1:8b"`**; add defense-in-depth memory check in `is_available()`; provider is metadata-free.
+  - `workflow/ai_ops_engine/persistence/run_store.py` — add `model_family`, `model_capability`, `free_ram_mb`, `required_ram_mb`, `selection_reason` columns.
+  - `workflow/requirements.txt` — add `psutil` if missing.
+  - `workplan/ai_operations/ai_operations_workplan.md` — v1.2.0: full schema-driven model pool.
+  - `workplan/ai_operations/reports/phase5.6_report.md` — (post-implementation) test report.
+- **Workplan:** [ai_operations_workplan.md](../workplan/ai_operations/ai_operations_workplan.md) — Phase 5.6 (v1.2.0)
+- **Link to Update Log:** [update-2026-06-07-phase5.6-workplan-v1.2.0](./update_log.md#update-2026-06-07-phase56-workplan-v120)
+
+---
+
 <a id="issue-log-002"></a>
 ## 2026-05-26 — Issue LOG-002 — `DEBUG_LEVEL` stale import copies break verbosity system
 

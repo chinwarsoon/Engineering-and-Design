@@ -30,7 +30,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_MODEL = "llama3.1:8b"
 _OLLAMA_URL = "http://localhost:11434/api/chat"
 _TIMEOUT = 120  # seconds
 
@@ -43,21 +42,32 @@ class OllamaProvider(BaseProvider):
     structured JSON response. Falls back to RuleBasedProvider on
     any connection or parse error.
 
+    Phase 5.6: This provider is metadata-free — no model names, sizes,
+    or families are hardcoded. The model name is supplied by the caller
+    (which in turn resolves it from the schema-driven model_pool in
+    AiOpsEngine._resolve_model_selection). Optional `model_metadata` is
+    used only for logging/explainability, never for selection logic.
+
     Args:
-        model: Ollama model name (default: llama3.1:8b)
+        model: Ollama model name (must be supplied by caller; no default)
         base_url: Ollama API base URL
         timeout: Request timeout in seconds
+        model_metadata: Optional schema-driven model_entry dict for
+            logging context (family, capability, size_gb). Never used
+            for control flow.
     """
 
     def __init__(
         self,
-        model: str = _DEFAULT_MODEL,
+        model: str,
         base_url: str = _OLLAMA_URL,
         timeout: int = _TIMEOUT,
+        model_metadata: Optional[dict] = None,
     ):
         self.model = model
         self.base_url = base_url
         self.timeout = timeout
+        self.model_metadata = model_metadata
         self._fallback = RuleBasedProvider()
 
     def generate(self, ctx: AiContext) -> AiInsight:
@@ -191,9 +201,43 @@ class OllamaProvider(BaseProvider):
         """
         Check if Ollama is running and the model is available.
 
+        Phase 5.6: Adds defense-in-depth memory check using
+        model_metadata (if provided) — if the model's required RAM
+        exceeds available RAM + headroom, returns False even if Ollama
+        is running. This complements the engine-level selector and
+        prevents loading a model that would OOM the host.
+
         Returns:
-            True if Ollama responds to a health check
+            True if Ollama responds to a health check AND the model
+            passes the memory check.
         """
+        if not self.model:
+            logger.warning("[ollama] No model name supplied to provider")
+            return False
+
+        # Defense-in-depth memory check (uses schema-provided metadata)
+        if isinstance(self.model_metadata, dict):
+            try:
+                import psutil
+                size_gb = float(self.model_metadata.get("size_gb", 0))
+                mult = float(self.model_metadata.get("ram_multiplier", 1.5))
+                headroom_gb = float(
+                    self.model_metadata.get("model_memory_headroom_gb", 2.0)
+                )
+                required_gb = size_gb * mult
+                available_gb = psutil.virtual_memory().available / (1024 ** 3)
+                if required_gb + headroom_gb > available_gb:
+                    logger.warning(
+                        f"[ollama] Memory check failed: model={self.model} "
+                        f"requires {required_gb:.2f}GB + {headroom_gb:.2f}GB "
+                        f"headroom, only {available_gb:.2f}GB available"
+                    )
+                    return False
+            except Exception:
+                # If psutil missing or metadata malformed, fall through
+                # to standard health check rather than fail closed.
+                pass
+
         try:
             req = urllib.request.Request(
                 "http://localhost:11434/api/tags",

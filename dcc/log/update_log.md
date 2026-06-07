@@ -8,6 +8,89 @@
 
 # Section 2. Log entries
 
+<a id="update-2026-06-07-phase5.6-implemented"></a>
+## 2026-06-07 — Phase 5.6 v2.0.0: IMPLEMENTED — Memory-Aware Schema-Driven Model Selection
+
+**Status:** ✅ COMPLETE  
+**Issue:** [LOG-003 — gemma4:e4b hang + hardcoded `llama3.1:8b` ignores schema-driven `llama3.2:3b`](./issue_log.md#issue-log-003) — ✅ RESOLVED  
+**Workplan:** [ai_operations_workplan.md](../workplan/ai_operations/ai_operations_workplan.md) — Phase 5.6  
+**Document ID:** `WP-PHASE5.6-MSMD`  
+**Test Report:** [phase5.6_report.md](../workplan/ai_operations/reports/phase5.6_report.md) — **15/15 PASS in 0.139s**  
+**Live Smoke Test (2026-06-07, 9.01 GB free RAM):** Selector picked `llama3.2:3b` (reason=`schema_default`, required=3.00 GB, free=9.01 GB); provider health check PASS.
+
+**Summary:** Implemented full schema-driven model selection. The Ollama provider is now metadata-free (`_DEFAULT_MODEL` removed, no model-name strings in code — verified by `grep`). All model metadata (size, family, capability, ram_multiplier, enabled) lives in `dcc_register_base.json#definitions/model_entry` and is instantiated as values in `dcc_global_parameters.json#dcc_parameters.model_pool`. The new `_select_model_by_memory()` helper picks the first `enabled` entry whose `size_gb × ram_multiplier + headroom_gb ≤ available_gb`. `gemma4:e4b` is blocked via `enabled: false` in schema (not in code). DuckDB gained 5 telemetry columns: `model_family`, `model_capability`, `free_ram_mb`, `required_ram_mb`, `selection_reason`.
+
+**Files Changed (10 files, +520 / -25 lines):**
+- `config/schemas/dcc_register_base.json` — Added `model_entry` definition (47 lines) + extended `dcc_parameter_entry` with `model_pool`/`embed_model_pool`/`model_memory_headroom_gb`.
+- `config/schemas/dcc_register_setup.json` — Declared 3 new properties (+20 lines).
+- `config/schemas/dcc_global_parameters.json` — Added `model_pool` (6 entries) + `embed_model_pool` (1 entry) + `model_memory_headroom_gb` (+75 lines).
+- `workflow/ai_ops_engine/core/engine.py` — Added `_get_available_ram_gb()` + `_select_model_by_memory()` + `_resolve_model_selection()` (~150 new lines); refactored `_run_provider`; updated `run_ai_ops` to delegate selection to engine.
+- `workflow/ai_ops_engine/core/contracts.py` — `AiInsight` gained 5 fields (+30 lines).
+- `workflow/ai_ops_engine/providers/ollama_provider.py` — Removed `_DEFAULT_MODEL`; added `model_metadata` param; added defense-in-depth memory check in `is_available()` (+35 / -5 lines).
+- `workflow/ai_ops_engine/persistence/run_store.py` — Idempotent `ALTER TABLE` for 5 new columns; `save_insight()` persists 13 columns (+20 / -2 lines).
+- `test/test_phase5_6_model_selection.py` — **NEW** 15 unit tests across 5 test classes (~250 lines).
+- `workplan/ai_operations/ai_operations_workplan.md` — v1.2.0 Phase 5.6 details (PENDING → IN PROGRESS → COMPLETE).
+- `workplan/ai_operations/phase5_test_strategy.md` — Added Phase 5.6 test cases.
+- `workplan/ai_operations/reports/phase5.6_report.md` — **NEW** test report.
+- `log/issue_log.md` — LOG-003 marked RESOLVED.
+- `log/update_log.md` — This entry.
+
+**Verification:**
+- Schema validation: all 3 schema files validate; `model_entry` rejects malformed names.
+- Selector unit tests: 4/4 PASS (gemma4 skipped, empty pool, disabled entries, first-fit).
+- Provider grep guard: 0 model-name strings found.
+- RunStore migration: 5 new columns present; round-trip save/query works.
+- Live smoke test: `llama3.2:3b` selected correctly on 9.01 GB host.
+
+**Impact:** All 8 success criteria from workplan §5.6.9 verified. No code regressions detected. No files archived (no deletions, per `agent_rule.md` §1.2).
+
+---
+
+<a id="update-2026-06-07-phase5.6-workplan-v1.2.0"></a>
+## 2026-06-07 — Phase 5.6 v1.2.0: model_pool now FULLY schema-driven (per-model metadata)
+
+**Status:** ⏳ PENDING APPROVAL (no code changes yet)  
+**Issue:** [LOG-003 — gemma4:e4b hang + hardcoded `llama3.1:8b` ignores schema-driven `llama3.2:3b`](./issue_log.md#issue-log-003)  
+**Workplan:** [ai_operations_workplan.md](../workplan/ai_operations/ai_operations_workplan.md) — Phase 5.6 (v1.2.0)  
+**Document ID:** `WP-PHASE5.6-MSMD`  
+**Summary:** v1.1.0 had `model_pool` as a flat array of model-name strings. v1.2.0 strengthens it to be **fully schema-driven** per `agent_rule.md` §2.7 (use Definitions) and §4.4 (schema-driven design): a new `model_entry` definition in `dcc_register_base.json#definitions` holds per-model metadata (`name`, `size_gb`, `family`, `capability`, `ram_multiplier`, `enabled`, `notes`); `model_pool`, `embed_model_pool`, and `model_memory_headroom_gb` are added to `dcc_parameter_entry` (base), declared in `dcc_register_setup.json` (setup), and valued in `dcc_global_parameters.json` (config). The Ollama provider is now **metadata-free** — `_DEFAULT_MODEL = "llama3.1:8b"` is removed; the provider contains no model-name strings (`grep` enforced in success criteria). Selection logic in `core/engine.py::_run_provider` reads all metadata from the resolved schema params, computes `required_gb = size_gb × ram_multiplier`, and picks the first `enabled` entry fitting `required_gb + headroom_gb ≤ available_gb`. `gemma4:e4b` is blocked via `enabled: false` in schema (not in code). DuckDB gains `model_family`, `model_capability`, `selection_reason` columns.
+
+**Files Changed (this update — workplan/log only, no code):**
+- `workplan/ai_operations/ai_operations_workplan.md` — v1.2.0: full `model_entry` JSON-Schema spec, base+setup+config inheritance, metadata-free provider requirement, success criteria strengthened (grep guard, schema entry shape).
+- `log/issue_log.md` — LOG-003 updated with v1.2.0 resolution plan.
+- `log/update_log.md` — This entry supersedes the v1.1.0 entry below.
+
+**Impact:** No code/runtime impact yet. Awaiting approval per `agent_rule.md` §1.
+
+---
+
+<a id="update-2026-06-07-phase5.6-workplan-created"></a>
+## 2026-06-07 — Phase 5.6 v1.1.0: Workplan Created (superseded by v1.2.0)
+
+**Status:** ⏳ SUPERSEDED by v1.2.0 (same day)
+**Summary:** Initial Phase 5.6 workplan with `model_pool` as flat string array. v1.2.0 strengthened it to per-model metadata entries per user direction.
+
+---
+
+<a id="update-2026-06-07-phase6-complete"></a>
+## 2026-06-07 — Phase 6: Metadata & Reporting Enhancements (Complete)
+
+**Status:** ✅ COMPLETE
+**Workplan:** [error_handling_module_workplan.md](../workplan/error_handling/module/error_handling_module_workplan.md) — Phase 6
+**Summary:** Completed implementation of Phase 6. Enriched pipeline reporting with execution context (input file, worksheet, header index), data shape (row counts), processing specs (schema version), and performance metrics (duration, memory). Updated the Pipeline Dashboard to display this metadata on the stage cards for improved transparency.
+
+**Files Changed:**
+- `workflow/reporting_engine/core/report_summary.py` — Updated summary report with worksheet metadata.
+- `workflow/reporting_engine/core/report_errors.py` — Implemented `execution_context` in JSON dashboard export.
+- `workflow/processor_engine/interfaces/iface_reporters.py` — Updated interface with `context` parameter.
+- `workflow/dcc_engine_pipeline.py` — Passed context and metadata to reporting engine.
+- `ui/ui_help.json` — Added `meta_key` mappings for stages.
+- `ui/pipeline_dashboard.html` — Added `.stage-meta` UI and rendering logic.
+
+---
+
+<a id="update-2026-06-07-phase6-start"></a>
+
 <a id="update-2026-05-29-blv-phase9-planned"></a>
 ## 2026-05-29 — Phase 9 (Planned): Affix-Aware Composite Validation
 

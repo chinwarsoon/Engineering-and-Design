@@ -1,8 +1,8 @@
 # DCC Column Data Error Handling Module - Work Plan (WRAPPED UP)
 
-**Version:** 3.0  
-**Date:** April 12, 2026  
-**Status:** Implementation Phase - Core Operational ✅  
+**Version:** 3.1  
+**Date:** June 7, 2026  
+**Status:** Phase 6 - Proposed ⏳  
 **Based on:** `data_error_handling_workplan.md` and `processing_pipeline_issues.md`
 **Core Philosophy:** **"Fail Fast, Inform Well, Resolve Smart"**
 **Pattern:** **Decorator/Interceptor Pattern (AOP-style)**
@@ -1463,7 +1463,6 @@ class ErrorInterceptor:
 **Goal:** Implement comprehensive logging, monitoring, reporting, and UI integration
 
 #### Tasks:
-
 1. [✅] **Implement comprehensive logging throughout pipeline** - COMPLETE
 1. [✅] **Comprehensive logging implementation** - COMPLETE
    - Integrated `StructuredLogger` into `CalculationEngine` and `BusinessDetector`
@@ -1530,12 +1529,6 @@ class ErrorInterceptor:
            }
    ```
 
-8. [x] **Documentation** ✅
-   - Created comprehensive `README.md` for Error Handling module
-   - Documented all 6 layers, JSON registry, and KPI calculations
-   - Estimated: 6 hours
-   - Output: Complete documentation
-
 **Phase 5 Deliverables:**
 - Comprehensive logging throughout pipeline
 - Error reporting module with taxonomy support
@@ -1546,6 +1539,31 @@ class ErrorInterceptor:
 - % Clean Run metrics ← NEW
 - Log analysis tools
 - Complete documentation
+---
+
+### Phase 6: Metadata & Reporting Enhancements
+**Goal:** Enrich pipeline outputs with execution context and performance metadata.
+
+#### Tasks:
+1. [x] **Update reporting signature**
+   - Update `write_processing_summary()` to include `upload_sheet_name` and `header_row_index`.
+2. [x] **Implement `execution_context` in `error_dashboard_data.json`**
+   - **Input:** `filename`, `sheet_name`, `header_row_index`, `column_range`.
+   - **Shape:** `total_rows_raw`, `total_rows_processed`, `column_count_raw`, `column_count_processed`.
+   - **Specs:** `schema_name`, `schema_version`, `pipeline_version`.
+   - **Performance:** `start_time`, `end_time`, `duration_seconds`, `peak_memory_mb`.
+   - **Mapping:** `match_rate`, `mapped_column_count`, `unmapped_column_count`.
+- Estimated: 8 hours
+- Output: Enriched `summary.txt` and `error_dashboard_data.json`
+- **Status:** ✅ COMPLETE (2026-06-07)
+
+8. [x] **Documentation** ✅
+   - Created comprehensive `README.md` for Error Handling module
+   - Documented all 6 layers, JSON registry, and KPI calculations
+   - Estimated: 6 hours
+   - Output: Complete documentation
+
+
 
 ---
 
@@ -1979,7 +1997,8 @@ Data health logic is implemented in `reporting_engine/data_health.py`. It provid
 | **Phase 3** | 1 week | Business Logic | Layer 3 detectors (P1-P2-P2.5-P3), all 24 error types |
 | **Phase 4** | 1 week | Integration | Aggregation, engine integration, localization (en/zh) |
 | **Phase 5** | 1 week | Logging, Reporting, KPI | Structured logging, reports, dashboard, data health KPI |
-| **Total** | **5 weeks** | | **Complete module** |
+| **Phase 6** | 1 day | Metadata | Enriched execution context, performance metadata |
+| **Total** | **~5 weeks** | | **Complete module** |
 
 ### Resource Requirements
 - **Developer:** 1 FTE for 5 weeks

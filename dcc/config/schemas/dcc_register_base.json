@@ -599,9 +599,72 @@
           "type": "array",
           "items": {"type": "string"},
           "description": "Alternative key names for backward compatibility"
+        },
+        "model_pool": {
+          "type": "array",
+          "description": "Ordered preference list of Ollama models for AI ops. The selector iterates this list and picks the first enabled entry whose size_gb * ram_multiplier + model_memory_headroom_gb fits the host's free RAM at runtime.",
+          "minItems": 1,
+          "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/model_entry"}
+        },
+        "model_memory_headroom_gb": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 16,
+          "default": 2.0,
+          "description": "Fixed GB reserved for OS + Python process + Ollama runtime overhead, on top of model RAM estimate."
+        },
+        "embed_model_pool": {
+          "type": "array",
+          "description": "Embedding models (not RAM-selected; used by name). Same model_entry shape, but capability: embed.",
+          "items": {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base#/definitions/model_entry"}
         }
       },
       "required": ["key", "type", "description"]
+    },
+    "model_entry": {
+      "type": "object",
+      "description": "Single Ollama model descriptor. All model metadata lives in schema; provider code never hardcodes size/family/capability.",
+      "additionalProperties": false,
+      "required": ["name", "size_gb", "family", "capability"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9._:-]+$",
+          "description": "Ollama model tag (e.g. 'llama3.2:3b'). Must match `ollama list` output."
+        },
+        "size_gb": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 100,
+          "description": "On-disk model weight size in GB. Drives RAM headroom calculation."
+        },
+        "family": {
+          "type": "string",
+          "enum": ["llama", "llama3", "llama3.1", "llama3.2", "gemma", "gemma3", "gemma4", "qwen", "qwen2", "qwen2.5", "deepseek", "deepseek-coder", "nomic", "other"],
+          "description": "Model family for capability/telemetry grouping."
+        },
+        "capability": {
+          "type": "string",
+          "enum": ["chat", "embed", "code", "vision"],
+          "description": "What the model is used for in the pipeline."
+        },
+        "ram_multiplier": {
+          "type": "number",
+          "minimum": 1.0,
+          "maximum": 3.0,
+          "default": 1.5,
+          "description": "Multiplier applied to size_gb to estimate runtime RAM. Default 1.5 reflects Ollama's typical overhead."
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Per-model kill-switch without removing the entry. Used to block known-bad models (e.g. gemma4:e4b) defensively."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-text rationale, e.g. 'hangs on 11 GiB host - do not enable'."
+        }
+      }
     }
   }
 }

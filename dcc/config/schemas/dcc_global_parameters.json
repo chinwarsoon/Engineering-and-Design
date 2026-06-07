@@ -36,6 +36,75 @@
     "ai_insight_trace_filename": "ai_insight_trace.json",
     "schema_validation_status_filename": "schema_validation_status.json",
     "ai_runs_db_filename": "dcc_runs.duckdb",
+    "ai_model": "llama3.2:3b",
+    "model_memory_headroom_gb": 2.0,
+    "model_pool": [
+      {
+        "name": "llama3.2:3b",
+        "size_gb": 2.0,
+        "family": "llama3.2",
+        "capability": "chat",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Schema default. Best fit/quality balance for 9.5 GB available RAM."
+      },
+      {
+        "name": "qwen2.5-coder:3b",
+        "size_gb": 1.9,
+        "family": "qwen2.5",
+        "capability": "code",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Backup candidate for code-heavy prompts."
+      },
+      {
+        "name": "deepseek-coder:1.3b",
+        "size_gb": 0.776,
+        "family": "deepseek-coder",
+        "capability": "code",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Low-RAM fallback. Tested OK on 1.2 GB available."
+      },
+      {
+        "name": "gemma3:4b",
+        "size_gb": 3.3,
+        "family": "gemma3",
+        "capability": "chat",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Marginal headroom; use when 5+ GB free."
+      },
+      {
+        "name": "gemma4:e4b",
+        "size_gb": 9.6,
+        "family": "gemma4",
+        "capability": "chat",
+        "ram_multiplier": 1.5,
+        "enabled": false,
+        "notes": "Confirmed hang on 11 GiB host (60s timeout, exceeds 14 GB requirement). Hard-blocked via enabled=false."
+      },
+      {
+        "name": "llama3.1:8b",
+        "size_gb": 4.9,
+        "family": "llama3.1",
+        "capability": "chat",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Original hardcoded default. Slow (19.8s) but works; available if free RAM > 9.4 GB."
+      }
+    ],
+    "embed_model_pool": [
+      {
+        "name": "nomic-embed-text",
+        "size_gb": 0.27,
+        "family": "nomic",
+        "capability": "embed",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Fixed embedding model. Not RAM-selected; used by name."
+      }
+    ],
     "pending_status": {
       "schema": "approval_code_schema",
       "code": "PEN",

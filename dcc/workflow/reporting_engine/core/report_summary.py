@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 
 def write_processing_summary(
@@ -29,6 +29,8 @@ def write_processing_summary(
     schema_reference_count: int,
     csv_path: Path,
     excel_path: Path,
+    upload_sheet_name: Optional[str] = None,
+    header_row_index: Optional[int] = None,
 ) -> None:
     """Write comprehensive processing summary to file.
 
@@ -114,6 +116,10 @@ def write_processing_summary(
 
         handle.write("Input and Output Files:\n")
         handle.write(f"  Input Data File: {input_file}\n")
+        if upload_sheet_name:
+            handle.write(f"  Input Sheet Name: {upload_sheet_name}\n")
+        if header_row_index is not None:
+            handle.write(f"  Header Row Index: {header_row_index}\n")
         handle.write(f"  CSV Export: {csv_path}\n")
         handle.write(f"  Excel Export: {excel_path}\n")
         handle.write(f"  Summary Report: {summary_path}\n\n")

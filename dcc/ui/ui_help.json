@@ -161,11 +161,11 @@
     }
   },
   "stages": [
-    { "id": "stage1", "name": "File Upload", "phase": "P1" },
-    { "id": "stage2", "name": "Sheet Selection", "phase": "P1" },
-    { "id": "stage3", "name": "Column Mapping", "phase": "P2.5" },
-    { "id": "stage4", "name": "Data Validation", "phase": "P3" },
-    { "id": "stage5", "name": "Processing", "phase": "P4" },
+    { "id": "stage1", "name": "File Upload", "phase": "P1", "meta_key": "input.filename" },
+    { "id": "stage2", "name": "Sheet Selection", "phase": "P1", "meta_key": "input.sheet_name" },
+    { "id": "stage3", "name": "Column Mapping", "phase": "P2.5", "meta_key": "mapping.match_rate" },
+    { "id": "stage4", "name": "Data Validation", "phase": "P3", "meta_key": "shape.total_rows_processed" },
+    { "id": "stage5", "name": "Processing", "phase": "P4", "meta_key": "performance.duration_seconds" },
     { "id": "stage6", "name": "Export", "phase": null }
   ],
   "output_files": [
