@@ -7,7 +7,9 @@
   "type": "object",
   "additionalProperties": false,
   "allOf": [
-    {"$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base"}
+    {
+      "$ref": "https://dcc-pipeline.internal/schemas/dcc_register_base"
+    }
   ],
   "dcc_parameters": {
     "duration_is_working_day": true,
@@ -92,6 +94,60 @@
         "ram_multiplier": 1.5,
         "enabled": true,
         "notes": "Original hardcoded default. Slow (19.8s) but works; available if free RAM > 9.4 GB."
+      },
+      {
+        "name": "hermes3:8b",
+        "size_gb": 4.7,
+        "family": "hermes3",
+        "capability": "chat",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Hermes 3 8B model available locally."
+      },
+      {
+        "name": "hermes3:latest",
+        "size_gb": 4.7,
+        "family": "hermes3",
+        "capability": "chat",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Hermes 3 latest available locally."
+      },
+      {
+        "name": "qwen:latest",
+        "size_gb": 2.3,
+        "family": "qwen",
+        "capability": "chat",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Qwen latest model available locally."
+      },
+      {
+        "name": "qwen2.5-coder:14b",
+        "size_gb": 9.0,
+        "family": "qwen2.5",
+        "capability": "code",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Large coder model available locally."
+      },
+      {
+        "name": "gemma4:e2b",
+        "size_gb": 7.2,
+        "family": "gemma4",
+        "capability": "chat",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Gemma 4 e2b variant available locally."
+      },
+      {
+        "name": "qwen2.5-coder:1.5b-base",
+        "size_gb": 0.986,
+        "family": "qwen2.5",
+        "capability": "code",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Small coder base model available locally."
       }
     ],
     "embed_model_pool": [
@@ -103,6 +159,15 @@
         "ram_multiplier": 1.5,
         "enabled": true,
         "notes": "Fixed embedding model. Not RAM-selected; used by name."
+      },
+      {
+        "name": "nomic-embed-text:latest",
+        "size_gb": 0.274,
+        "family": "nomic",
+        "capability": "embed",
+        "ram_multiplier": 1.5,
+        "enabled": true,
+        "notes": "Latest version of nomic-embed-text available locally."
       }
     ],
     "pending_status": {
@@ -124,13 +189,13 @@
     "health_fail_threshold": 60.0,
     "health_grade_thresholds": {
       "A+": 99.0,
-      "A":  95.0,
+      "A": 95.0,
       "A-": 90.0,
       "B+": 85.0,
-      "B":  80.0,
-      "C":  70.0,
-      "D":  60.0,
-      "F":  0.0
+      "B": 80.0,
+      "C": 70.0,
+      "D": 60.0,
+      "F": 0.0
     }
   }
 }
