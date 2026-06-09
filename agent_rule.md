@@ -4,10 +4,11 @@
 3. whenever there is an issue, always log the issue, test, and update to logs under log folder.
 
 # Project Folders:
-1. `dcc folder` folder is for Document Control project.
+1. `dcc` folder is for Document Control project.
 2. `code_tracer` folder is for static and dynamic pyhton code tracing project.
 3. `release` folder is for released versions for different packages.
-4. Each project folder will have the followign subfolders:
+4. `EKS` folder is for Engineering Knowledge System project.
+5. Each project folder will have the followign subfolders:
 - `archive` folder for archiving purpose
 - `config` folder for configuration files, and schema files.
 - `data` folder for data input files.
@@ -165,6 +166,6 @@
 1. each business logic must have independent error code defined to trace related error.
 
 # Section 13. Compact workplans, records, and logs
-1. refer to workplan in folder dcc/workplan/ui_design/log_neurogram/, generate nurogram network json file dcc_log_graph.json in dcc/output folder.
+1. refer to workplan in folder dcc/workplan/ui_design/log_neurogram/, generate nurogram network json file dcc_log_graph.json in respective <project folder>/output folder.
 2. make sure details can be compacted into the json file.
 
