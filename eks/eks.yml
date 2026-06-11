@@ -1,0 +1,77 @@
+name: eks
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  # ── Core Python ─────────────────────────────────────────────────────────────
+  - python=3.13
+  - pip
+
+  # ── Jupyter / Dev Tools ──────────────────────────────────────────────────────
+  - ipykernel
+  - ipython
+  - jupyter_client
+  - jupyter_core
+  - tqdm
+
+  # ── Data Processing ──────────────────────────────────────────────────────────
+  - numpy
+  - pandas
+  - openpyxl          # XLSX read/write (Phase 1 parser)
+  - xlsxwriter        # XLSX write support
+
+  # ── System / Utilities ───────────────────────────────────────────────────────
+  - psutil            # Memory profiling for tiered logger (Phase 1)
+  - python-dateutil
+  - packaging
+  - six
+
+  # ── pip-managed packages ─────────────────────────────────────────────────────
+  - pip:
+      # ── Phase 1: Document Registry ──────────────────────────────────────────
+      - duckdb==1.5.1              # Metadata DB (default; swappable with PostgreSQL)
+      - psycopg2-binary==2.9.9     # PostgreSQL driver (optional alternative)
+
+      # ── Phase 1: Document Parsers ───────────────────────────────────────────
+      - pymupdf==1.24.5            # PDF parsing (fitz) — text, metadata, page numbers
+      - python-docx==1.1.2         # DOCX parsing — text, metadata, sections
+      - openpyxl==3.1.5            # XLSX already in conda; pinned here for consistency
+
+      # ── Phase 1: Schema / Config ────────────────────────────────────────────
+      - jsonschema==4.23.0         # JSON schema validation and $ref resolution
+
+      # ── Phase 1: Logging / Debug ────────────────────────────────────────────
+      - structlog==24.1.0          # Structured logging support
+
+      # ── Phase 2: Chunking & Embedding ───────────────────────────────────────
+      - tiktoken==0.7.0            # Token counting for chunk size management
+      - sentence-transformers==3.0.1  # Local embedding models (optional)
+      - openai==1.35.0             # OpenAI embeddings + LLM API (Phase 2 + 4)
+      - ollama==0.2.1              # Ollama local embeddings + LLM client (Phase 2 + 4)
+
+      # ── Phase 2: Vector Storage ──────────────────────────────────────────────
+      - qdrant-client==1.10.1      # Qdrant vector DB client
+
+      # ── Phase 3: Knowledge Graph ─────────────────────────────────────────────
+      - neo4j==5.21.0              # Neo4j Python driver
+
+      # ── Phase 3: Engineering Object Extraction ───────────────────────────────
+      - spacy==3.7.5               # NLP for rule-based entity extraction
+      - regex==2024.5.15           # Advanced regex for tag pattern matching
+
+      # ── Phase 4: Retrieval & Scoring ─────────────────────────────────────────
+      - rank-bm25==0.2.2           # BM25 keyword search implementation
+      - numpy==2.4.3               # Already above; pinned for retrieval scoring
+
+      # ── Phase 5: Web UI & Cache ───────────────────────────────────────────────
+      - fastapi==0.111.0           # Backend API framework
+      - uvicorn==0.30.1            # ASGI server for FastAPI
+      - jinja2==3.1.4              # HTML templating for UI
+      - python-multipart==0.0.9    # File upload support for /ingest endpoint
+      - redis==5.0.6               # Redis cache client (optional; Phase 5)
+      - httpx==0.27.0              # Async HTTP client (internal service calls)
+
+      # ── Utilities ────────────────────────────────────────────────────────────
+      - python-dotenv==1.0.1       # .env file support for API keys / config
+      - pydantic==2.8.2            # Data validation and settings management
+      - loguru==0.7.2              # Structured logging (complements tiered logger)

@@ -1,0 +1,189 @@
+# EKS Phase 5 — UI, Retrieval Cache & System Integration
+
+**Document ID**: WP-EKS-P5-001  
+**Current Version**: 0.1  
+**Status**: 🔵 DRAFT — PENDING APPROVAL  
+**Last Updated**: 2026-06-11  
+**Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
+**Phase Dependency**: Phase 4 must be complete and approved  
+
+---
+
+## 1. Title and Description
+
+Build the standalone interactive user inquiry interface, implement the retrieval cache layer for performance, and conduct full end-to-end system integration testing. This phase closes the loop from document ingestion to user-facing query and answer. Complete system documentation per agent_rule Section 7 is produced as a final deliverable.
+
+---
+
+## 2. Revision Control & Version History
+
+| Version | Date       | Author | Summary of Changes                        |
+| :------ | :--------- | :----- | :---------------------------------------- |
+| 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
+
+---
+
+## 3. Objective
+
+- Design and implement a standalone web-based interactive query UI
+- Implement retrieval cache to reduce repeated query latency
+- Conduct full system integration testing: ingest → chunk → embed → graph → retrieve → answer
+- Produce complete system documentation per agent_rule.md Section 7 (16-section standard)
+- Update all logs, issue logs, and mark workplan complete
+
+---
+
+## 4. Scope Summary
+
+| ID   | Category       | Requirement                              | Details                                                             | Status     |
+| :--- | :------------- | :--------------------------------------- | :------------------------------------------------------------------ | :--------: |
+| R32  | UI             | Standalone Interactive Inquiry Interface | User-facing web UI for natural language query and document retrieval | 🔷 PLANNED |
+| C-01 | Cache          | Retrieval Cache Layer                    | Cache repeated query results to reduce pipeline latency             | 🔷 PLANNED |
+| I-01 | Integration    | Full System Integration Test             | End-to-end: ingest → chunk → embed → graph → retrieve → answer     | 🔷 PLANNED |
+| D-01 | Documentation  | System Documentation                    | 16-section documentation per agent_rule Section 7                  | 🔷 PLANNED |
+
+**Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED  
+*Note: C-01, I-01, D-01 are phase-specific items not in the master requirements list.*
+
+---
+
+## 5. Index of Content
+
+- [1. Title and Description](#1-title-and-description)
+- [2. Revision Control & Version History](#2-revision-control--version-history)
+- [3. Objective](#3-objective)
+- [4. Scope Summary](#4-scope-summary)
+- [5. Index of Content](#5-index-of-content)
+- [6. Evaluation and Alignment](#6-evaluation-and-alignment-with-existing-architecture)
+- [7. Dependencies](#7-dependencies-with-other-tasks)
+- [8. Task Breakdown](#8-task-breakdown)
+- [9. Files and Modules](#9-files-and-modules-to-createupdate)
+- [10. Risks and Mitigation](#10-risks-and-mitigation)
+- [11. Potential Future Issues](#11-potential-future-issues)
+- [12. Success Criteria](#12-success-criteria)
+- [13. Deliverables](#13-deliverables)
+- [14. References](#14-references)
+
+---
+
+## 6. Evaluation and Alignment with Existing Architecture
+
+- **All prior phases required**: UI wraps the Phase 4 retrieval pipeline as its backend
+- **UI design rules**: Refer to `dcc/workplan/ui_design/html_design_rule.md` per agent_rule Section 11
+- **Cache**: Retrieval cache sits between UI request and Phase 4 pipeline; keyed on query + filter hash
+- **Documentation**: Follows agent_rule Section 7 16-section documentation standard (same as DCC docs)
+- **Integration testing**: Validates the full ingest-to-answer chain across all 5 phases
+
+---
+
+## 7. Dependencies with Other Tasks
+
+1. **Phase 1–4 (WP-EKS-P1/P2/P3/P4)** — All prior phases must be complete
+2. **dcc/workplan/ui_design/html_design_rule.md** — UI design rules reference
+3. **External**: FastAPI or Flask for backend; frontend framework (HTML/JS or React); Redis or in-memory cache
+4. **Final phase**: No downstream phase dependency; this phase completes the EKS system
+
+---
+
+## 8. Task Breakdown
+
+**Timeline**: TBD — starts after Phase 4 approval and completion  
+**Estimated Effort**: High (UI + integration + documentation)
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T5.1 | Design UI layout and interaction flow | Query input, filter panel (project, discipline, doc type, revision), result display with citations | 🔷 |
+| T5.2 | Implement backend API | FastAPI/Flask endpoints: `/query`, `/ingest`, `/status`, `/health` | 🔷 |
+| T5.3 | Implement retrieval cache interface | `retrieval_cache.py`: abstract cache interface — get(), set(), invalidate() | 🔷 |
+| T5.4 | Implement in-memory cache | Default cache backed by Python dict or LRU cache; keyed on query hash + filters | 🔷 |
+| T5.5 | Implement Redis cache (optional) | `redis_cache.py`: Redis-backed cache for persistent/distributed caching | 🔷 |
+| T5.6 | Integrate cache into retrieval pipeline | Pipeline checks cache before executing full retrieval; stores result on miss | 🔷 |
+| T5.7 | Implement frontend query interface | HTML/JS or lightweight React: query input, filter controls, result cards with source citations | 🔷 |
+| T5.8 | Implement result display with citations | Show answer + source cards: doc_number, revision, page, section, chunk_id | 🔷 |
+| T5.9 | Implement document ingestion UI | Upload interface for adding new documents to the knowledge base | 🔷 |
+| T5.10 | Full system integration test — ingest | Test: upload doc → parse → chunk → embed → store in vector DB + graph | 🔷 |
+| T5.11 | Full system integration test — retrieval | Test: submit query → filter → expand → search → rerank → assemble → LLM answer | 🔷 |
+| T5.12 | Full system integration test — cache | Test: repeat query → cache hit → lower latency response | 🔷 |
+| T5.13 | Generate system documentation | 16-section doc per agent_rule Section 7 covering all modules across all phases | 🔷 |
+| T5.14 | Update all workplan statuses | Mark all phase workplans COMPLETE; update master index | 🔷 |
+| T5.15 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 |
+
+---
+
+## 9. Files and Modules to Create/Update
+
+| File/Folder                                  | Action | Purpose                                                           |
+| :------------------------------------------- | :----- | :---------------------------------------------------------------- |
+| `eks/ui/app.py`                              | Create | FastAPI/Flask main application entry point                        |
+| `eks/ui/routes/query.py`                     | Create | `/query` endpoint — accepts user query, returns answer + citations|
+| `eks/ui/routes/ingest.py`                    | Create | `/ingest` endpoint — accepts document upload and triggers ingestion|
+| `eks/ui/routes/status.py`                    | Create | `/status`, `/health` endpoints                                    |
+| `eks/ui/static/`                             | Create | Frontend static assets (HTML, CSS, JS)                            |
+| `eks/ui/templates/index.html`                | Create | Main query interface template                                     |
+| `eks/engine/cache/__init__.py`               | Create | Retrieval cache package init                                      |
+| `eks/engine/cache/retrieval_cache.py`        | Create | Abstract retrieval cache interface                                |
+| `eks/engine/cache/memory_cache.py`           | Create | In-memory LRU cache implementation                                |
+| `eks/engine/cache/redis_cache.py`            | Create | Redis cache implementation (optional)                             |
+| `eks/engine/retrieval/pipeline.py`           | Update | Integrate cache check into pipeline orchestrator                  |
+| `eks/docs/eks_system_documentation.md`       | Create | Full 16-section system documentation                              |
+| `eks/test/test_phase5.py`                    | Create | Full system integration tests                                     |
+| `eks/workplan/eks_system_workplan.md`        | Update | Mark all phases COMPLETE; final status update                     |
+
+---
+
+## 10. Risks and Mitigation
+
+| Risk                                               | Likelihood | Impact | Mitigation                                                         |
+| :------------------------------------------------- | :--------: | :----: | :----------------------------------------------------------------- |
+| UI integration reveals bottlenecks in pipeline     | Medium     | Medium | Retrieval cache + async endpoint handling; profile slow stages     |
+| Full integration test reveals data gaps            | Medium     | High   | Per-phase integration tests in prior phases reduce surprises       |
+| Cache invalidation strategy unclear                | Medium     | Medium | Define explicit cache key schema; invalidate on document re-ingest |
+| Documentation effort underestimated                | Medium     | Low    | Start documentation in parallel with integration testing           |
+
+---
+
+## 11. Potential Future Issues
+
+- Real-time streaming LLM responses (token-by-token) requires WebSocket or SSE infrastructure
+- Mobile or embedded UI variants may require simplified component subsets
+- Multi-user concurrent query handling may require task queue (Celery, RQ) for heavy workloads
+- Cache eviction policies may need tuning based on query volume and knowledge base change frequency
+
+---
+
+## 12. Success Criteria
+
+- [ ] Interactive UI operational: users can submit natural language queries and receive cited answers
+- [ ] Filter controls working: filter by project, discipline, document type, revision
+- [ ] Document ingestion UI operational: users can upload new documents
+- [ ] Retrieval cache reduces repeated query latency (measurable improvement)
+- [ ] Full system integration test passing: ingest → chunk → embed → graph → retrieve → answer
+- [ ] Source citations displayed in UI: doc_number, revision, page, section
+- [ ] System documentation complete per agent_rule Section 7 (all 16 sections)
+- [ ] All phase workplans updated to COMPLETE status
+- [ ] All logs updated with final entries
+
+---
+
+## 13. Deliverables
+
+- UI modules: `app.py`, `routes/query.py`, `routes/ingest.py`, `routes/status.py`
+- Frontend: `static/` assets, `templates/index.html`
+- Cache modules: `retrieval_cache.py`, `memory_cache.py`, `redis_cache.py`
+- System documentation: `eks/docs/eks_system_documentation.md`
+- Test file: `test_phase5.py`
+- Report: `eks/workplan/reports/phase_5_ui_integration_report.md`
+- Updated master workplan: `eks_system_workplan.md` (all phases COMPLETE)
+
+---
+
+## 14. References
+
+1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
+2. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
+3. [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md)
+4. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md)
+5. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
+6. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
+7. [dcc/workplan/ui_design/html_design_rule.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/ui_design/html_design_rule.md) — UI design rules
+8. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)

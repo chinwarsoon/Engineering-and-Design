@@ -1,0 +1,188 @@
+# EKS Phase 3 — Knowledge Graph & Engineering Object Metadata
+
+**Document ID**: WP-EKS-P3-001  
+**Current Version**: 0.1  
+**Status**: 🔵 DRAFT — PENDING APPROVAL  
+**Last Updated**: 2026-06-11  
+**Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
+**Phase Dependency**: Phase 2 must be complete and approved  
+
+---
+
+## 1. Title and Description
+
+Build the Neo4j knowledge relationship graph capturing all engineering knowledge connections: document-to-document, document-to-engineering-object, object-to-object, and object-to-metadata. Implement plug-in metadata extractors for engineering objects (equipment, instruments, valves, pipelines). Add CAD format parser stubs (DWG/DGN) and implement superseded document revision chain lookup.
+
+---
+
+## 2. Revision Control & Version History
+
+| Version | Date       | Author | Summary of Changes                        |
+| :------ | :--------- | :----- | :---------------------------------------- |
+| 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
+
+---
+
+## 3. Objective
+
+- Integrate Neo4j as the knowledge graph database
+- Define the graph schema: document nodes, engineering object nodes, and all relationship types
+- Implement five relationship categories: doc↔doc, doc↔object, object↔object, object↔metadata, metadata↔metadata
+- Implement superseded document lookup via revision chain graph traversal
+- Implement plug-in metadata extractors for engineering objects (equipment, instrument, valve, pipeline)
+- Add DWG/DGN parser stubs (full implementation if CAD library available, else interface stubs)
+
+---
+
+## 4. Scope Summary
+
+| ID  | Category             | Requirement                    | Details                                                                          | Status     |
+| :-- | :------------------- | :----------------------------- | :------------------------------------------------------------------------------- | :--------: |
+| R05 | Knowledge Base       | Knowledge Graph                | Neo4j graph for doc-to-doc, doc-to-object, object-to-object relationships       | 🔷 PLANNED |
+| R11 | Metadata             | Engineering Object Metadata    | Plant item, item tag, tag properties; cross-reference metadata                   | 🔷 PLANNED |
+| R23 | Revision Management  | Superseded Lookup              | Support querying superseded document revisions via graph traversal               | 🔷 PLANNED |
+| R27 | Plug-in Architecture | Metadata Extractor Plugins     | Plug-in extractors for equipment, instrument, valve, pipeline metadata           | 🔷 PLANNED |
+| R31 | Infrastructure       | Graph DB                       | Neo4j for knowledge relationship graph                                           | 🔷 PLANNED |
+
+**Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
+
+---
+
+## 5. Index of Content
+
+- [1. Title and Description](#1-title-and-description)
+- [2. Revision Control & Version History](#2-revision-control--version-history)
+- [3. Objective](#3-objective)
+- [4. Scope Summary](#4-scope-summary)
+- [5. Index of Content](#5-index-of-content)
+- [6. Evaluation and Alignment](#6-evaluation-and-alignment-with-existing-architecture)
+- [7. Dependencies](#7-dependencies-with-other-tasks)
+- [8. Task Breakdown](#8-task-breakdown)
+- [9. Files and Modules](#9-files-and-modules-to-createupdate)
+- [10. Risks and Mitigation](#10-risks-and-mitigation)
+- [11. Potential Future Issues](#11-potential-future-issues)
+- [12. Success Criteria](#12-success-criteria)
+- [13. Deliverables](#13-deliverables)
+- [14. References](#14-references)
+
+---
+
+## 6. Evaluation and Alignment with Existing Architecture
+
+- **Phase 1/2 dependency**: Requires document registry (registry.py), chunk registry, and schema from prior phases
+- **New pattern**: Graph DB integration is entirely new to this workspace — no DCC precedent
+- **Schema-driven**: Graph node and relationship types defined in schema; no hardcoded graph structure
+- **Plug-in pattern**: Engineering object extractors follow the same abstract base interface pattern as document parsers (Phase 1)
+
+---
+
+## 7. Dependencies with Other Tasks
+
+1. **Phase 1 (WP-EKS-P1-001)** — Document registry, schema, logger
+2. **Phase 2 (WP-EKS-P2-001)** — Chunk registry and vector store for graph-aware retrieval in Phase 4
+3. **External**: Neo4j service (Docker or cloud), `neo4j` Python driver
+4. **Next Phase**: Phase 4 retrieval pipeline uses graph expansion from this phase
+
+---
+
+## 8. Task Breakdown
+
+**Timeline**: TBD — starts after Phase 2 approval and completion  
+**Estimated Effort**: High (new infrastructure + extraction logic)
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T3.1 | Set up Neo4j integration | Docker Compose setup; `neo4j` Python driver; connection config in `eks_config.json` | 🔷 |
+| T3.2 | Define graph schema — node types | Document, Revision, Chunk, EngineeringObject, Tag, Metadata node labels | 🔷 |
+| T3.3 | Define graph schema — relationship types | REFERENCES, SUPERSEDES, CONTAINS, RELATES_TO, HAS_TAG, HAS_PROPERTY, CROSS_REFERENCES | 🔷 |
+| T3.4 | Implement graph store interface | `graph_store.py`: abstract interface — create_node(), create_relationship(), query() | 🔷 |
+| T3.5 | Implement Neo4j graph store | `neo4j_store.py`: Neo4j-specific implementation of graph store interface | 🔷 |
+| T3.6 | Implement doc-to-doc relationship builder | Detect cross-references between documents and create REFERENCES edges | 🔷 |
+| T3.7 | Implement doc-to-object relationship builder | Link documents to engineering objects they describe | 🔷 |
+| T3.8 | Implement superseded revision lookup | Traverse SUPERSEDES chain to find all revisions of a document | 🔷 |
+| T3.9 | Implement abstract extractor interface | `base_extractor.py`: extract(text, metadata) → list[EngineeringObject] | 🔷 |
+| T3.10 | Implement equipment extractor | `equipment_extractor.py`: extract equipment items and tags from text | 🔷 |
+| T3.11 | Implement instrument extractor | `instrument_extractor.py`: extract instrument tags and properties | 🔷 |
+| T3.12 | Implement valve extractor | `valve_extractor.py`: extract valve tags and specifications | 🔷 |
+| T3.13 | Implement pipeline extractor | `pipeline_extractor.py`: extract pipeline identifiers and properties | 🔷 |
+| T3.14 | Add DWG/DGN parser stubs | Stub plug-in interface for CAD formats; log deferred status | 🔷 |
+| T3.15 | Write integration tests | Graph CRUD, relationship builders, extractors, superseded lookup | 🔷 |
+| T3.16 | Update schema and config | Add graph node/relationship definitions to `eks_base_schema.json`; Neo4j settings to `eks_config.json` | 🔷 |
+| T3.17 | Update logs | `update_log.md`, `issue_log.md` | 🔷 |
+
+---
+
+## 9. Files and Modules to Create/Update
+
+| File/Folder                                         | Action | Purpose                                                    |
+| :-------------------------------------------------- | :----- | :--------------------------------------------------------- |
+| `eks/engine/graph/__init__.py`                      | Create | Graph DB package init                                      |
+| `eks/engine/graph/graph_store.py`                   | Create | Abstract graph store interface                             |
+| `eks/engine/graph/neo4j_store.py`                   | Create | Neo4j implementation of graph store interface              |
+| `eks/engine/graph/graph_schema.py`                  | Create | Node label and relationship type definitions               |
+| `eks/engine/graph/relationship_builders.py`         | Create | Doc-to-doc, doc-to-object relationship construction logic  |
+| `eks/engine/extractors/__init__.py`                 | Create | Metadata extractor plug-in package init                    |
+| `eks/engine/extractors/base_extractor.py`           | Create | Abstract metadata extractor interface                      |
+| `eks/engine/extractors/equipment_extractor.py`      | Create | Equipment metadata extractor                               |
+| `eks/engine/extractors/instrument_extractor.py`     | Create | Instrument metadata extractor                              |
+| `eks/engine/extractors/valve_extractor.py`          | Create | Valve metadata extractor                                   |
+| `eks/engine/extractors/pipeline_extractor.py`       | Create | Pipeline metadata extractor                                |
+| `eks/engine/parsers/dwg_parser_stub.py`             | Create | DWG parser stub (deferred implementation)                  |
+| `eks/engine/parsers/dgn_parser_stub.py`             | Create | DGN parser stub (deferred implementation)                  |
+| `eks/config/eks_base_schema.json`                   | Update | Add graph node/relationship type schema definitions        |
+| `eks/config/eks_config.json`                        | Update | Add Neo4j connection settings                              |
+| `eks/test/test_phase3.py`                           | Create | Integration tests for Phase 3 components                   |
+
+---
+
+## 10. Risks and Mitigation
+
+| Risk                                             | Likelihood | Impact | Mitigation                                                        |
+| :----------------------------------------------- | :--------: | :----: | :---------------------------------------------------------------- |
+| Neo4j setup complexity in local/dev environment  | Medium     | Medium | Provide Docker Compose setup; document setup steps in docs        |
+| Engineering object extraction accuracy low       | High       | Medium | Start with rule-based extractors; ML-based extraction deferred    |
+| Graph schema changes cascade to retrieval logic  | Medium     | High   | Abstract graph interface; version graph node/relationship schema  |
+| CAD library unavailable for DWG/DGN parsing      | High       | Low    | Stub interfaces only in this phase; full implementation deferred  |
+
+---
+
+## 11. Potential Future Issues
+
+- ML-based entity extraction may significantly improve engineering object recognition accuracy
+- Graph query performance may require index tuning and query optimization for large document sets
+- Multi-hop graph traversal for complex engineering relationships may introduce latency
+- CAD parsing (DWG/DGN) may require commercial library licenses
+
+---
+
+## 12. Success Criteria
+
+- [ ] Neo4j integration operational with Docker Compose setup documented
+- [ ] Graph schema defined: all required node labels and relationship types
+- [ ] Document-to-document REFERENCES relationships populated from cross-reference detection
+- [ ] Document-to-object relationships populated from extractor output
+- [ ] Superseded document lookup functional via SUPERSEDES chain traversal
+- [ ] Equipment and instrument extractor plug-ins operational (minimum 2)
+- [ ] DWG/DGN parser stubs in place with correct interface signature
+- [ ] Integration tests passing for graph CRUD, relationship builders, and extractors
+
+---
+
+## 13. Deliverables
+
+- Graph DB modules: `graph_store.py`, `neo4j_store.py`, `graph_schema.py`, `relationship_builders.py`
+- Extractor modules: `base_extractor.py`, `equipment_extractor.py`, `instrument_extractor.py`, `valve_extractor.py`, `pipeline_extractor.py`
+- Parser stubs: `dwg_parser_stub.py`, `dgn_parser_stub.py`
+- Updated schema: `eks_base_schema.json`, `eks_config.json`
+- Test file: `test_phase3.py`
+- Report: `eks/workplan/reports/phase_3_knowledge_graph_report.md`
+
+---
+
+## 14. References
+
+1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
+2. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Phase 1 prerequisite
+3. [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md) — Phase 2 prerequisite
+4. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
+5. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
