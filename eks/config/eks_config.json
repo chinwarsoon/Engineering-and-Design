@@ -1,0 +1,57 @@
+{
+    "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
+    "$id": "https://eks.engineering/configs/eks_config_default.json",
+    "version": "1.0.0",
+    "title": "EKS Default Project Configuration",
+    "project_rules_registry": {
+        "P123": {
+            "allowed_disciplines": ["PI", "EL", "IN"],
+            "revision_pattern": "^[A-Z0-9]{1,2}$"
+        },
+        "P456": {
+            "allowed_disciplines": ["CI", "AR"],
+            "revision_pattern": "^[0-9]{3}$"
+        }
+    },
+    "discipline_registry": {
+        "P123": [
+            {"code": "PI", "description": "Piping"},
+            {"code": "EL", "description": "Electrical"},
+            {"code": "IN", "description": "Instrumentation"}
+        ],
+        "P456": [
+            {"code": "CI", "description": "Civil"},
+            {"code": "AR", "description": "Architectural"}
+        ]
+    },
+    "global_paths": {
+        "data_dir": "data",
+        "output_dir": "output",
+        "archive_dir": "archive",
+        "config_dir": "config"
+    },
+    "registry": {
+        "type": "duckdb",
+        "connection_string": "data/eks_registry.db",
+        "timeout": 30
+    },
+    "parsers": {
+        ".pdf": "engine.parsers.pdf_parser.PDFParser",
+        ".docx": "engine.parsers.docx_parser.DOCXParser",
+        ".xlsx": "engine.parsers.xlsx_parser.XLSXParser"
+    },
+    "embedding": {
+        "active_provider": "openai",
+        "model_name": "text-embedding-3-small",
+        "dimensions": 1536
+    },
+    "vector_store": {
+        "url": "http://localhost:6333",
+        "collection_name": "eks_chunks",
+        "distance_metric": "Cosine"
+    },
+    "logging": {
+        "default_level": 1,
+        "debug_file_path": "output/debug_log.json"
+    }
+}

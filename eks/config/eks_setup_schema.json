@@ -1,0 +1,34 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://eks.engineering/schemas/eks_setup_schema.json",
+    "version": "1.2.0",
+    "title": "EKS Setup Schema - Declarations",
+    "description": "Global property declarations. Includes project-specific validation rules and metadata support for the config instance.",
+    "type": "object",
+    "properties": {
+        "$schema": { "type": "string" },
+        "$id": { "type": "string" },
+        "version": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "project_rules_registry": {
+            "type": "object",
+            "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/project_rules_def" }
+        },
+        "discipline_registry": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "array",
+                "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discipline_entry_def" }
+            }
+        },
+        "global_paths": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/global_paths_def" },
+        "registry": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/registry_def" },
+        "parsers": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/parsers_def" },
+        "embedding": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/embedding_def" },
+        "vector_store": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/vector_store_def" },
+        "logging": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/logging_def" }
+    },
+    "required": ["project_rules_registry", "discipline_registry", "global_paths", "registry", "parsers", "embedding", "vector_store", "logging"],
+    "additionalProperties": false
+}

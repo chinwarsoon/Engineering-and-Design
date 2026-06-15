@@ -56,6 +56,7 @@
 8. use pattern-based discovery rule for organizing schema files.
 9. set additional property false for important property control.
 10. define 'required' for properties if applicable.
+11. each schema file should have $schema, $id, title, description, version, $ref calls if applicable.
 
 
 # Section 3. files and context:

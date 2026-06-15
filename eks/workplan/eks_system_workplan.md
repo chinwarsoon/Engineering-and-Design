@@ -1,9 +1,9 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 0.2  
+**Current Version**: 0.3  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-11  
+**Last Updated**: 2026-06-15  
 
 ---
 
@@ -21,6 +21,7 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | :------ | :--------- | :----- | :------------------------------------------------------------------------------ |
 | 0.1     | 2026-06-11 | System | Initial workplan draft — full scope from eks/readme.md                          |
 | 0.2     | 2026-06-11 | System | Restructured: master index only. Phase details moved to individual workplan files |
+| 0.3     | 2026-06-15 | System | Added project asset data requirements R36–R38: universal plant item schema, structured asset loader, asset-aware retrieval. Updated Phase 1–5 workplans accordingly |
 
 ---
 
@@ -28,8 +29,9 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 
 Design and implement a production-ready Engineering Knowledge System (EKS) that:
 - Ingests and indexes multi-format engineering documents (PDF, DOCX, XLSX, DWG, DGN)
+- Ingests structured project asset data (equipment, instruments, pipelines, valves, motors) from Excel datadrop
 - Stores and manages structured metadata, vector embeddings, and a knowledge graph
-- Provides an interactive user inquiry interface
+- Provides an interactive user inquiry interface for both documents and plant assets
 - Retrieves, re-ranks, and assembles context for LLM-based answering
 - Supports SSOT + schema-driven extensibility (no code changes to add new doc types or metadata)
 - Enforces revision management, source traceability, and plug-in architecture
@@ -40,15 +42,15 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 
 | ID  | Category             | Requirement                              | Details                                                                                      | Status     | Phase |
 | :-- | :------------------- | :--------------------------------------- | :------------------------------------------------------------------------------------------- | :--------: | :---: |
-| R01 | Knowledge Base       | Document Ingestion                       | Ingest PDF, DOCX, XLSX, DWG, DGN formats via plug-in parsers                                | 🔷 PLANNED | 1     |
-| R02 | Knowledge Base       | Document Registry                        | Store document metadata in structured DB (PostgreSQL/DuckDB)                                 | 🔷 PLANNED | 1     |
+| R01 | Knowledge Base       | Document Ingestion                       | Ingest PDF, DOCX, XLSX, DWG, DGN formats via plug-in parsers                                | ✅ PASS    | 1     |
+| R02 | Knowledge Base       | Document Registry                        | Store document metadata in structured DB (PostgreSQL/DuckDB)                                 | ✅ PASS    | 1     |
 | R03 | Knowledge Base       | Chunk Registry                           | Parent-child chunking strategy with chunk metadata                                           | 🔷 PLANNED | 2     |
 | R04 | Knowledge Base       | Vector Storage                           | Embed chunks and store in vector DB (Qdrant)                                                 | 🔷 PLANNED | 2     |
 | R05 | Knowledge Base       | Knowledge Graph                          | Neo4j graph for doc-to-doc, doc-to-object, object-to-object relationships                   | 🔷 PLANNED | 3     |
-| R06 | Schema               | SSOT Schema-Driven Design                | Metadata schema reuses dcc/config/schemas pattern; project_setup_base / setup / config       | 🔷 PLANNED | 1     |
-| R07 | Schema               | Canonical Data Model                     | Foundation for metadata schemas, retrieval filters, relationship graphs, future integrations | 🔷 PLANNED | 1     |
-| R08 | Schema               | Schema Fragment Pattern                  | Fragment-based, inheritance (base + project) pattern per agent_rule Section 2                | 🔷 PLANNED | 1     |
-| R09 | Metadata             | Project & Document Metadata              | project_title, project_number, area, discipline, department, document_type, document_number  | 🔷 PLANNED | 1     |
+| R06 | Schema               | SSOT Schema-Driven Design                | Metadata schema reuses dcc/config/schemas pattern; project_setup_base / setup / config       | ✅ PASS    | 1     |
+| R07 | Schema               | Canonical Data Model                     | Foundation for metadata schemas, retrieval filters, relationship graphs, future integrations | ✅ PASS    | 1     |
+| R08 | Schema               | Schema Fragment Pattern                  | Fragment-based, inheritance (base + project) pattern per agent_rule Section 2                | ✅ PASS    | 1     |
+| R09 | Metadata             | Project & Document Metadata              | project_title, project_number, area, discipline, department, document_type, document_number  | ✅ PASS    | 1     |
 | R10 | Metadata             | Source Location Metadata                 | file name, file location, section/paragraph, page                                            | 🔷 PLANNED | 2     |
 | R11 | Metadata             | Engineering Object Metadata              | Plant item, item tag, tag properties; cross-reference metadata                               | 🔷 PLANNED | 3     |
 | R12 | Metadata             | Multi-Level Metadata                     | Project-level, document-level, and chunk-level metadata hierarchy                            | 🔷 PLANNED | 2     |
@@ -60,21 +62,24 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 | R18 | Retrieval Pipeline   | Vector + Keyword Search                  | Hybrid semantic + keyword search                                                             | 🔷 PLANNED | 4     |
 | R19 | Retrieval Pipeline   | Retrieval Scoring & Reranking            | Score and re-rank retrieved chunks for relevance                                             | 🔷 PLANNED | 4     |
 | R20 | Retrieval Pipeline   | Context Assembly & LLM Answering         | Assemble final context and pass to LLM for response generation                              | 🔷 PLANNED | 4     |
-| R21 | Revision Management  | Preserve All Revisions                   | All document revisions retained; no overwrite                                                | 🔷 PLANNED | 1     |
-| R22 | Revision Management  | Latest Revision Filtering                | Support filtering to latest revision only                                                    | 🔷 PLANNED | 1     |
+| R21 | Revision Management  | Preserve All Revisions                   | All document revisions retained; no overwrite                                                | ✅ PASS    | 1     |
+| R22 | Revision Management  | Latest Revision Filtering                | Support filtering to latest revision only                                                    | ✅ PASS    | 1     |
 | R23 | Revision Management  | Superseded Lookup                        | Support querying superseded document revisions                                               | 🔷 PLANNED | 3     |
 | R24 | Revision Management  | Revision-Aware Retrieval                 | Retrieval pipeline respects document revision context                                        | 🔷 PLANNED | 4     |
 | R25 | Traceability         | Source Traceability                      | document_number, revision, page, section, chunk_id, source_file per retrieved chunk         | 🔷 PLANNED | 2     |
-| R26 | Plug-in Architecture | Document Parser Plugins                  | Plug-in parsers for PDF, DOCX, XLSX, DWG, DGN                                              | 🔷 PLANNED | 1     |
+| R26 | Plug-in Architecture | Document Parser Plugins                  | Plug-in parsers for PDF, DOCX, XLSX, DWG, DGN                                              | ✅ PASS    | 1     |
 | R27 | Plug-in Architecture | Metadata Extractor Plugins               | Plug-in extractors for equipment, instrument, valve, pipeline metadata                      | 🔷 PLANNED | 3     |
 | R28 | Plug-in Architecture | Vector DB Plug-in                        | Swappable vector DB provider (Qdrant default)                                               | 🔷 PLANNED | 2     |
-| R29 | Infrastructure       | Metadata DB                              | PostgreSQL or DuckDB for structured metadata storage                                        | 🔷 PLANNED | 1     |
+| R29 | Infrastructure       | Metadata DB                              | PostgreSQL or DuckDB for structured metadata storage                                        | ✅ PASS    | 1     |
 | R30 | Infrastructure       | Vector DB                                | Qdrant for vector storage                                                                    | 🔷 PLANNED | 2     |
 | R31 | Infrastructure       | Graph DB                                 | Neo4j for knowledge relationship graph                                                       | 🔷 PLANNED | 3     |
 | R32 | UI                   | Standalone Interactive Inquiry Interface | User-facing query interface for natural language retrieval                                   | 🔷 PLANNED | 5     |
-| R33 | Logging & Debug      | Tiered Logging (levels 0–3)              | Per agent_rule Section 6: status, warning, trace levels                                     | 🔷 PLANNED | 1     |
-| R34 | Logging & Debug      | Debug Object & Structured Trace Table    | Debug dict → debug_log.json, trace table with timestamps                                    | 🔷 PLANNED | 1     |
-| R35 | Module Design        | SSOT Global Parameters                   | All global keys, paths, codes in schema-driven config; no hardcoding                        | 🔷 PLANNED | 1     |
+| R33 | Logging & Debug      | Tiered Logging (levels 0–3)              | Per agent_rule Section 6: status, warning, trace levels                                     | ✅ PASS    | 1     |
+| R34 | Logging & Debug      | Debug Object & Structured Trace Table    | Debug dict → debug_log.json, trace table with timestamps                                    | ✅ PASS    | 1     |
+| R35 | Module Design        | SSOT Global Parameters                   | All global keys, paths, codes in schema-driven config; no hardcoding                        | ✅ PASS    | 1     |
+| R36 | Schema               | Universal Plant Item Schema              | Fragment-based asset schema covering Equipment, Inline Component, Instrument, Motor, Pipeline, Control Valve, Manual Valve | 🔷 PLANNED | 1     |
+| R37 | Knowledge Base       | Structured Asset Ingestion               | Load and index project asset data from Excel datadrop into knowledge graph + document registry | 🔷 PLANNED | 3     |
+| R38 | Retrieval Pipeline   | Asset-Aware Retrieval                    | Filter and expand context by asset attributes (unit, service, tag_type, pipeline) and asset-to-document relationships | 🔷 PLANNED | 4     |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -110,9 +115,11 @@ The EKS project is a **clean-slate build** under `eks/`. The only existing artif
 - Parent-child chunking strategy
 - Hybrid retrieval pipeline (metadata → graph → vector → rerank → assemble)
 - Revision-aware retrieval logic
+- Universal plant item schema with fragment composition (10 reusable fragments)
+- Structured asset ingestion (bypasses document chunking; loads directly into graph DB)
 
 **Gap Assessment:**
-- 35 requirements identified, all PLANNED
+- 38 requirements identified (35 original + 3 asset data)
 - Full greenfield build — no prior EKS implementation exists
 
 ---
@@ -124,6 +131,7 @@ The EKS project is a **clean-slate build** under `eks/`. The only existing artif
 3. **dcc/workplan/** — Reference workplans for format and conventions
 4. External: PostgreSQL or DuckDB, Qdrant, Neo4j installations/services
 5. External: Embedding provider (OpenAI API key or Ollama local instance)
+6. **Project asset datadrop** — Structured Excel file at `eks/data/twrp/datadrop/Datadrop Summary.xlsx` with 7 sheets covering 7,681 plant items across 447,867 fields
 
 ---
 
@@ -133,10 +141,10 @@ Each phase is an independent workplan file. Phase execution requires approval be
 
 | Phase | Title                                          | Doc ID        | Status     | Requirements        | Workplan File |
 | :---: | :--------------------------------------------- | :------------ | :--------: | :------------------ | :------------ |
-| 1     | Foundation — Project Structure, Schema & Registry | WP-EKS-P1-001 | 🔷 PLANNED | R01,R02,R06–R09,R21,R22,R26,R29,R33–R35 | [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) |
+| 1     | Foundation — Project Structure, Schema & Registry | WP-EKS-P1-001 | ✅ PASS    | R01,R02,R06–R09,R21,R22,R26,R29,R33–R35,R36 | [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) |
 | 2     | Chunking, Embedding & Vector Storage           | WP-EKS-P2-001 | 🔷 PLANNED | R03,R04,R10,R12–R15,R25,R28,R30 | [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md) |
-| 3     | Knowledge Graph & Engineering Object Metadata  | WP-EKS-P3-001 | 🔷 PLANNED | R05,R11,R23,R27,R31 | [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) |
-| 4     | Retrieval & Scoring Pipeline                   | WP-EKS-P4-001 | 🔷 PLANNED | R16–R20,R24 | [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md) |
+| 3     | Knowledge Graph & Structured Asset Ingestion   | WP-EKS-P3-001 | 🔷 PLANNED | R05,R11,R23,R27,R31,R37 | [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) |
+| 4     | Retrieval & Scoring Pipeline                   | WP-EKS-P4-001 | 🔷 PLANNED | R16–R20,R24,R38 | [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md) |
 | 5     | UI, Retrieval Cache & System Integration       | WP-EKS-P5-001 | 🔷 PLANNED | R32 + cache | [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md) |
 
 **Phase Dependency Chain:** Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5  

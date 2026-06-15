@@ -1,9 +1,9 @@
 # EKS Phase 5 — UI, Retrieval Cache & System Integration
 
 **Document ID**: WP-EKS-P5-001  
-**Current Version**: 0.1  
+**Current Version**: 0.2  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-11  
+**Last Updated**: 2026-06-15  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: Phase 4 must be complete and approved  
 
@@ -20,14 +20,15 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | Version | Date       | Author | Summary of Changes                        |
 | :------ | :--------- | :----- | :---------------------------------------- |
 | 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
+| 0.2     | 2026-06-15 | System | Added asset browsing/filtering UI (unit, service, tag_type, pipeline tag) and asset-aware query endpoints. Updated integration test scope to include asset graph queries |
 
 ---
 
 ## 3. Objective
 
-- Design and implement a standalone web-based interactive query UI
+- Design and implement a standalone web-based interactive query UI with asset browsing
 - Implement retrieval cache to reduce repeated query latency
-- Conduct full system integration testing: ingest → chunk → embed → graph → retrieve → answer
+- Conduct full system integration testing: ingest → chunk → embed → graph (document + asset) → retrieve → answer
 - Produce complete system documentation per agent_rule.md Section 7 (16-section standard)
 - Update all logs, issue logs, and mark workplan complete
 
@@ -37,10 +38,11 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 
 | ID   | Category       | Requirement                              | Details                                                             | Status     |
 | :--- | :------------- | :--------------------------------------- | :------------------------------------------------------------------ | :--------: |
-| R32  | UI             | Standalone Interactive Inquiry Interface | User-facing web UI for natural language query and document retrieval | 🔷 PLANNED |
+| R32  | UI             | Standalone Interactive Inquiry Interface | User-facing web UI for natural language query, document retrieval, and asset browsing | 🔷 PLANNED |
 | C-01 | Cache          | Retrieval Cache Layer                    | Cache repeated query results to reduce pipeline latency             | 🔷 PLANNED |
-| I-01 | Integration    | Full System Integration Test             | End-to-end: ingest → chunk → embed → graph → retrieve → answer     | 🔷 PLANNED |
+| I-01 | Integration    | Full System Integration Test             | End-to-end: ingest → chunk → embed → graph (document + asset) → retrieve → answer | 🔷 PLANNED |
 | D-01 | Documentation  | System Documentation                    | 16-section documentation per agent_rule Section 7                  | 🔷 PLANNED |
+| A-01 | UI             | Asset Browsing & Filtering              | Filter panel for unit, service, tag_type, pipeline tag; display asset cards with attributes and linked documents | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED  
 *Note: C-01, I-01, D-01 are phase-specific items not in the master requirements list.*
@@ -68,11 +70,12 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 
 ## 6. Evaluation and Alignment with Existing Architecture
 
-- **All prior phases required**: UI wraps the Phase 4 retrieval pipeline as its backend
+- **All prior phases required**: UI wraps the Phase 4 retrieval pipeline (document + asset) as its backend
 - **UI design rules**: Refer to `dcc/workplan/ui_design/html_design_rule.md` per agent_rule Section 11
-- **Cache**: Retrieval cache sits between UI request and Phase 4 pipeline; keyed on query + filter hash
+- **Cache**: Retrieval cache sits between UI request and Phase 4 pipeline; keyed on query + filter hash (document + asset dimensions)
 - **Documentation**: Follows agent_rule Section 7 16-section documentation standard (same as DCC docs)
-- **Integration testing**: Validates the full ingest-to-answer chain across all 5 phases
+- **Integration testing**: Validates the full ingest-to-answer chain across all 5 phases, including asset graph queries
+- **Asset UI**: Adds asset-specific filter controls and result display cards beyond the document-centric interface
 
 ---
 
@@ -92,21 +95,23 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 
 | # | Task | Details | Status |
 | :- | :--- | :------ | :----: |
-| T5.1 | Design UI layout and interaction flow | Query input, filter panel (project, discipline, doc type, revision), result display with citations | 🔷 |
-| T5.2 | Implement backend API | FastAPI/Flask endpoints: `/query`, `/ingest`, `/status`, `/health` | 🔷 |
+| T5.1 | Design UI layout and interaction flow | Query input, filter panel (project, discipline, doc type, revision + unit, service, tag_type, pipeline tag), result display with citations and asset cards | 🔷 |
+| T5.2 | Implement backend API | FastAPI/Flask endpoints: `/query` (document + asset), `/ingest`, `/assets` (asset search/filter), `/status`, `/health` | 🔷 |
 | T5.3 | Implement retrieval cache interface | `retrieval_cache.py`: abstract cache interface — get(), set(), invalidate() | 🔷 |
 | T5.4 | Implement in-memory cache | Default cache backed by Python dict or LRU cache; keyed on query hash + filters | 🔷 |
 | T5.5 | Implement Redis cache (optional) | `redis_cache.py`: Redis-backed cache for persistent/distributed caching | 🔷 |
 | T5.6 | Integrate cache into retrieval pipeline | Pipeline checks cache before executing full retrieval; stores result on miss | 🔷 |
-| T5.7 | Implement frontend query interface | HTML/JS or lightweight React: query input, filter controls, result cards with source citations | 🔷 |
-| T5.8 | Implement result display with citations | Show answer + source cards: doc_number, revision, page, section, chunk_id | 🔷 |
-| T5.9 | Implement document ingestion UI | Upload interface for adding new documents to the knowledge base | 🔷 |
-| T5.10 | Full system integration test — ingest | Test: upload doc → parse → chunk → embed → store in vector DB + graph | 🔷 |
-| T5.11 | Full system integration test — retrieval | Test: submit query → filter → expand → search → rerank → assemble → LLM answer | 🔷 |
-| T5.12 | Full system integration test — cache | Test: repeat query → cache hit → lower latency response | 🔷 |
-| T5.13 | Generate system documentation | 16-section doc per agent_rule Section 7 covering all modules across all phases | 🔷 |
-| T5.14 | Update all workplan statuses | Mark all phase workplans COMPLETE; update master index | 🔷 |
-| T5.15 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 |
+| T5.7 | Implement frontend query interface | HTML/JS or lightweight React: query input, filter controls (document + asset), result cards with source citations and asset cards | 🔷 |
+| T5.8 | Implement result display with citations | Show answer + source cards: doc_number, revision, page, section, chunk_id, asset tag | 🔷 |
+| T5.9 | Implement asset browsing UI | Asset search/filter panel by unit, service, tag_type, pipeline tag; display asset attributes and linked documents | 🔷 |
+| T5.10 | Implement document ingestion UI | Upload interface for adding new documents to the knowledge base | 🔷 |
+| T5.11 | Full system integration test — ingest | Test: upload doc → parse → chunk → embed → store in vector DB + graph + asset load from Excel | 🔷 |
+| T5.12 | Full system integration test — retrieval | Test: submit query (document + asset) → filter → expand → search → rerank → assemble → LLM answer | 🔷 |
+| T5.13 | Full system integration test — asset | Test: browse/filter assets by unit, service, tag_type; verify asset card data and linked documents | 🔷 |
+| T5.14 | Full system integration test — cache | Test: repeat query → cache hit → lower latency response | 🔷 |
+| T5.15 | Generate system documentation | 16-section doc per agent_rule Section 7 covering all modules across all phases | 🔷 |
+| T5.16 | Update all workplan statuses | Mark all phase workplans COMPLETE; update master index | 🔷 |
+| T5.17 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 |
 
 ---
 
@@ -115,8 +120,9 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | File/Folder                                  | Action | Purpose                                                           |
 | :------------------------------------------- | :----- | :---------------------------------------------------------------- |
 | `eks/ui/app.py`                              | Create | FastAPI/Flask main application entry point                        |
-| `eks/ui/routes/query.py`                     | Create | `/query` endpoint — accepts user query, returns answer + citations|
+| `eks/ui/routes/query.py`                     | Create | `/query` endpoint — accepts user query, returns answer + citations + asset results |
 | `eks/ui/routes/ingest.py`                    | Create | `/ingest` endpoint — accepts document upload and triggers ingestion|
+| `eks/ui/routes/assets.py`                    | Create | `/assets` endpoint — asset search/filter by unit, service, tag_type, pipeline tag |
 | `eks/ui/routes/status.py`                    | Create | `/status`, `/health` endpoints                                    |
 | `eks/ui/static/`                             | Create | Frontend static assets (HTML, CSS, JS)                            |
 | `eks/ui/templates/index.html`                | Create | Main query interface template                                     |
@@ -154,11 +160,13 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 ## 12. Success Criteria
 
 - [ ] Interactive UI operational: users can submit natural language queries and receive cited answers
-- [ ] Filter controls working: filter by project, discipline, document type, revision
+- [ ] Filter controls working: filter by document attributes (project, discipline, doc type, revision) AND asset attributes (unit, service, tag_type, pipeline tag)
+- [ ] Asset browsing UI operational: search/filter assets, view attribute cards and linked documents
 - [ ] Document ingestion UI operational: users can upload new documents
+- [ ] Asset ingestion operational: structured Excel data loaded into graph DB
 - [ ] Retrieval cache reduces repeated query latency (measurable improvement)
-- [ ] Full system integration test passing: ingest → chunk → embed → graph → retrieve → answer
-- [ ] Source citations displayed in UI: doc_number, revision, page, section
+- [ ] Full system integration test passing: ingest → chunk → embed → graph (document + asset) → retrieve → answer
+- [ ] Source citations displayed in UI: doc_number, revision, page, section, asset tag
 - [ ] System documentation complete per agent_rule Section 7 (all 16 sections)
 - [ ] All phase workplans updated to COMPLETE status
 - [ ] All logs updated with final entries
@@ -167,8 +175,8 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 
 ## 13. Deliverables
 
-- UI modules: `app.py`, `routes/query.py`, `routes/ingest.py`, `routes/status.py`
-- Frontend: `static/` assets, `templates/index.html`
+- UI modules: `app.py`, `routes/query.py`, `routes/ingest.py`, `routes/assets.py`, `routes/status.py`
+- Frontend: `static/` assets, `templates/index.html`, asset card components
 - Cache modules: `retrieval_cache.py`, `memory_cache.py`, `redis_cache.py`
 - System documentation: `eks/docs/eks_system_documentation.md`
 - Test file: `test_phase5.py`
@@ -187,3 +195,5 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 6. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
 7. [dcc/workplan/ui_design/html_design_rule.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/ui_design/html_design_rule.md) — UI design rules
 8. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
+9. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Asset schema (R36) for filter dimensions
+10. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) — Asset graph for browsing

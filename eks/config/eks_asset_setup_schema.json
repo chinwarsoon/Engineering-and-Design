@@ -1,0 +1,58 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://eks.engineering/schemas/eks_asset_setup_schema.json",
+    "version": "1.0.0",
+    "title": "EKS Asset Setup Schema — Registry & Column Normalization",
+    "description": "Declares the asset_type_registry (type→fragment mapping) and column normalization rules for ingesting the TWRP Excel datadrop.",
+    "type": "object",
+    "properties": {
+        "$schema": { "type": "string" },
+        "$id": { "type": "string" },
+        "version": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "asset_type_registry": {
+            "type": "object",
+            "description": "Maps each AT_ tag_type to its composed fragment list",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "label": { "type": "string" },
+                    "fragments": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "item_core",
+                                "process_conditions",
+                                "manufacturer",
+                                "asset_lifecycle",
+                                "control_system",
+                                "piping_connection",
+                                "valve_internals",
+                                "actuator",
+                                "rotating_equipment",
+                                "instrumentation",
+                                "pipeline_route"
+                            ]
+                        },
+                        "minItems": 2
+                    }
+                },
+                "required": ["label", "fragments"],
+                "additionalProperties": false
+            }
+        },
+        "column_normalization": {
+            "type": "object",
+            "description": "Maps sheet-specific column names to canonical fields per sheet",
+            "additionalProperties": {
+                "type": "object",
+                "description": "Sheet name → canonical field mapping",
+                "additionalProperties": { "type": "string" }
+            }
+        }
+    },
+    "required": ["asset_type_registry", "column_normalization"],
+    "additionalProperties": false
+}

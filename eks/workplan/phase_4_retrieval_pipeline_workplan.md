@@ -1,9 +1,9 @@
 # EKS Phase 4 — Retrieval & Scoring Pipeline
 
 **Document ID**: WP-EKS-P4-001  
-**Current Version**: 0.1  
+**Current Version**: 0.2  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-11  
+**Last Updated**: 2026-06-15  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: Phase 3 must be complete and approved  
 
@@ -11,7 +11,7 @@
 
 ## 1. Title and Description
 
-Build the full hybrid retrieval and scoring pipeline that transforms a natural language query into a grounded, cited LLM response. The pipeline stages are: metadata filtering → knowledge graph relationship expansion → hybrid vector + keyword search → scoring & reranking → context assembly → LLM answering. Revision-aware retrieval is enforced throughout.
+Build the full hybrid retrieval and scoring pipeline that transforms a natural language query into a grounded, cited LLM response. The pipeline stages are: metadata filtering (documents + assets) → knowledge graph relationship expansion (document + asset graph) → hybrid vector + keyword search → scoring & reranking → context assembly → LLM answering. Revision-aware retrieval and asset-aware retrieval are enforced throughout.
 
 ---
 
@@ -20,18 +20,20 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | Version | Date       | Author | Summary of Changes                        |
 | :------ | :--------- | :----- | :---------------------------------------- |
 | 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
+| 0.2     | 2026-06-15 | System | Added asset-aware metadata filtering (unit, service, tag_type) and asset relationship expansion (CONNECTS_TO pipeline-to-component, REFERENCED_BY_DWG P&ID links). Updated scope, tasks, success criteria for R38 |
 
 ---
 
 ## 3. Objective
 
-- Implement metadata filtering to narrow candidate chunks by project, discipline, doc type, revision
-- Implement knowledge graph relationship expansion to surface related documents and objects
+- Implement metadata filtering to narrow candidates by project, discipline, doc type, revision, AND asset attributes (unit, service, tag_type, pipeline tag)
+- Implement knowledge graph relationship expansion to surface related documents, assets, and pipeline-to-component connections
 - Implement hybrid vector + keyword search across Qdrant and document registry
 - Implement retrieval scoring and reranking to select top-k most relevant chunks
 - Implement context assembly (chunk selection, ordering, truncation for LLM context window)
-- Integrate LLM answering with source citations (doc_number, revision, page, chunk_id)
+- Integrate LLM answering with source citations (doc_number, revision, page, chunk_id, asset tag)
 - Enforce revision-aware retrieval (latest or specific revision filtering)
+- Enforce asset-aware retrieval (filter by unit, service, tag_type)
 - Build the pipeline orchestrator that connects all stages end-to-end
 
 ---
@@ -40,12 +42,13 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 
 | ID  | Category           | Requirement                      | Details                                                                    | Status     |
 | :-- | :----------------- | :------------------------------- | :------------------------------------------------------------------------- | :--------: |
-| R16 | Retrieval Pipeline | Metadata Filtering               | Filter candidates by project, discipline, document type, revision          | 🔷 PLANNED |
-| R17 | Retrieval Pipeline | Relationship Expansion           | Use knowledge graph to expand context with related docs/objects            | 🔷 PLANNED |
+| R16 | Retrieval Pipeline | Metadata Filtering               | Filter candidates by project, discipline, doc type, revision, AND asset attributes (unit, service, tag_type) | 🔷 PLANNED |
+| R17 | Retrieval Pipeline | Relationship Expansion           | Use knowledge graph to expand context with related docs, assets, and pipeline-to-component connections | 🔷 PLANNED |
 | R18 | Retrieval Pipeline | Vector + Keyword Search          | Hybrid semantic + keyword search                                           | 🔷 PLANNED |
 | R19 | Retrieval Pipeline | Retrieval Scoring & Reranking    | Score and re-rank retrieved chunks for relevance                           | 🔷 PLANNED |
 | R20 | Retrieval Pipeline | Context Assembly & LLM Answering | Assemble final context and pass to LLM for response generation            | 🔷 PLANNED |
 | R24 | Revision Management| Revision-Aware Retrieval         | Retrieval pipeline respects document revision context                      | 🔷 PLANNED |
+| R38 | Retrieval Pipeline | Asset-Aware Retrieval            | Filter and expand context by asset attributes and asset-to-document graph relationships | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -72,10 +75,11 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 
 ## 6. Evaluation and Alignment with Existing Architecture
 
-- **All prior phases required**: Uses document registry (Phase 1), chunk/vector store (Phase 2), and knowledge graph (Phase 3)
-- **Schema-driven**: Retrieval pipeline configuration (top_k, reranker settings, LLM provider, context window) managed via `eks_config.json`
+- **All prior phases required**: Uses document registry (Phase 1), chunk/vector store (Phase 2), knowledge graph + asset graph (Phase 3)
+- **Schema-driven**: Retrieval pipeline configuration (top_k, reranker settings, LLM provider, context window, asset filter dimensions) managed via `eks_config.json`
 - **Plug-in pattern**: LLM interface follows same abstract provider pattern as embedding providers
 - **New pattern**: Multi-stage hybrid retrieval pipeline is entirely new to this workspace
+- **Asset awareness**: Metadata filter and graph expander gain asset-specific dimensions from the Phase 3 asset graph (CONNECTS_TO, REFERENCED_BY_DWG relationships)
 
 ---
 
@@ -96,9 +100,9 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 
 | # | Task | Details | Status |
 | :- | :--- | :------ | :----: |
-| T4.1 | Implement metadata filter | Filter chunk candidates by project, discipline, doc_type, is_latest revision flags | 🔷 |
+| T4.1 | Implement metadata filter | Filter chunk candidates by project, discipline, doc_type, is_latest revision flags + asset attributes (unit, service, tag_type, pipeline_tag) | 🔷 |
 | T4.2 | Implement revision-aware filter | Apply latest/specific revision filter as part of metadata filtering stage | 🔷 |
-| T4.3 | Implement graph relationship expander | Query Neo4j for related documents and objects; expand candidate set | 🔷 |
+| T4.3 | Implement graph relationship expander | Query Neo4j for related documents, assets, and pipeline-to-component connections (CONNECTS_TO, REFERENCED_BY_DWG); expand candidate set | 🔷 |
 | T4.4 | Implement vector search | Similarity search via Qdrant using query embedding | 🔷 |
 | T4.5 | Implement keyword search | BM25 or full-text search over document registry for keyword matching | 🔷 |
 | T4.6 | Implement hybrid search merger | Merge and deduplicate vector + keyword search results | 🔷 |
@@ -160,14 +164,15 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 
 ## 12. Success Criteria
 
-- [ ] Metadata filtering reduces candidate set to relevant documents only
-- [ ] Graph expansion surfaces related engineering objects and cross-referenced documents
+- [ ] Metadata filtering reduces candidate set by both document attributes AND asset attributes (unit, service, tag_type)
+- [ ] Graph expansion surfaces related documents, engineering assets, and pipeline-to-component connections
 - [ ] Hybrid search returns more relevant chunks than vector-only or keyword-only alone
 - [ ] Reranking improves top-k precision versus unranked results
 - [ ] Context assembler respects LLM context window limit
-- [ ] LLM answers include source citations: doc_number, revision, page, chunk_id
+- [ ] LLM answers include source citations: doc_number, revision, page, chunk_id, asset tag
 - [ ] Revision-aware retrieval: latest revision returned by default; specific revision queryable
-- [ ] End-to-end pipeline tests passing with sample engineering documents and queries
+- [ ] Asset-aware retrieval: filter by unit, service, tag_type; expand via pipeline CONNECTS_TO
+- [ ] End-to-end pipeline tests passing with sample engineering documents and asset queries
 
 ---
 
@@ -192,3 +197,4 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 4. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) — Phase 3 prerequisite
 5. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
 6. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
+7. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Asset schema (R36) for metadata filter dimensions

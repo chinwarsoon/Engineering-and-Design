@@ -1,0 +1,114 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://eks.engineering/schemas/eks_base_schema.json",
+    "version": "1.1.0",
+    "title": "EKS Base Schema - Definitions",
+    "description": "Canonical definitions and reusable fragments. Generic types are defined here; project-specific constraints (enums/patterns) are provided via Config.",
+    "type": "object",
+    "definitions": {
+        "discipline_entry_def": {
+            "type": "object",
+            "properties": {
+                "code": { "type": "string" },
+                "description": { "type": "string" }
+            },
+            "required": ["code", "description"],
+            "additionalProperties": false
+        },
+        "project_rules_def": {
+            "type": "object",
+            "properties": {
+                "allowed_disciplines": { "type": "array", "items": { "type": "string" } },
+                "revision_pattern": { "type": "string" }
+            },
+            "required": ["allowed_disciplines", "revision_pattern"],
+            "additionalProperties": false
+        },
+        "discipline_code": {
+            "type": "string",
+            "description": "Generic discipline code placeholder. Project-specific enums defined in Config."
+        },
+        "revision_id": {
+            "type": "string",
+            "description": "Generic revision identifier placeholder. Project-specific patterns defined in Config."
+        },
+        "global_paths_def": {
+            "type": "object",
+            "properties": {
+                "data_dir": { "type": "string" },
+                "output_dir": { "type": "string" },
+                "archive_dir": { "type": "string" },
+                "config_dir": { "type": "string" }
+            },
+            "required": ["data_dir", "output_dir", "archive_dir", "config_dir"],
+            "additionalProperties": false
+        },
+        "registry_def": {
+            "type": "object",
+            "properties": {
+                "type": { "type": "string", "enum": ["duckdb", "postgresql"] },
+                "connection_string": { "type": "string" },
+                "timeout": { "type": "integer", "default": 30 }
+            },
+            "required": ["type", "connection_string"],
+            "additionalProperties": false
+        },
+        "parsers_def": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+        },
+        "embedding_def": {
+            "type": "object",
+            "properties": {
+                "active_provider": { "type": "string", "enum": ["openai", "ollama"] },
+                "model_name": { "type": "string" },
+                "dimensions": { "type": "integer" }
+            },
+            "required": ["active_provider", "model_name", "dimensions"],
+            "additionalProperties": false
+        },
+        "vector_store_def": {
+            "type": "object",
+            "properties": {
+                "url": { "type": "string" },
+                "collection_name": { "type": "string" },
+                "distance_metric": { "type": "string", "enum": ["Cosine", "Euclidean", "Dot"] }
+            },
+            "required": ["url", "collection_name", "distance_metric"],
+            "additionalProperties": false
+        },
+        "logging_def": {
+            "type": "object",
+            "properties": {
+                "default_level": { "type": "integer", "enum": [0, 1, 2, 3], "default": 1 },
+                "debug_file_path": { "type": "string" }
+            },
+            "required": ["default_level"],
+            "additionalProperties": false
+        },
+        "project_metadata_def": {
+            "type": "object",
+            "properties": {
+                "project_title": { "type": "string" },
+                "project_number": { "type": "string" },
+                "area": { "type": "string" },
+                "discipline": { "$ref": "#/definitions/discipline_code" },
+                "department": { "type": "string" }
+            },
+            "required": ["project_title", "project_number"],
+            "additionalProperties": false
+        },
+        "document_metadata_def": {
+            "type": "object",
+            "properties": {
+                "document_type": { "type": "string" },
+                "document_number": { "type": "string" },
+                "revision": { "$ref": "#/definitions/revision_id" },
+                "status": { "type": "string" },
+                "is_latest": { "type": "boolean", "default": true }
+            },
+            "required": ["document_type", "document_number", "revision"],
+            "additionalProperties": false
+        }
+    }
+}

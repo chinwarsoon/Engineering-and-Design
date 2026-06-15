@@ -1,0 +1,214 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://eks.engineering/schemas/eks_asset_base_schema.json",
+    "version": "1.0.0",
+    "title": "EKS Asset Base Schema — Fragment Definitions",
+    "description": "Reusable property fragments for universal plant item schema. Each fragment is a named set of properties composed per asset type via the asset_type_registry.",
+    "type": "object",
+    "definitions": {
+        "item_core": {
+            "type": "object",
+            "description": "Universal identity fields for every plant item",
+            "properties": {
+                "keytag": { "type": "string" },
+                "tag_type": { "type": "string" },
+                "tag_no": { "type": "string" },
+                "project_prefix": { "type": "string" },
+                "unit": { "type": "string" },
+                "service": { "type": "string" },
+                "tag_loop_number": { "type": "string" },
+                "tag_suffix": { "type": "string" },
+                "description": { "type": "string" },
+                "short_description": { "type": "string" },
+                "hazardous_zone": { "type": "string" },
+                "contract_info": { "type": "string" },
+                "device_type_code": { "type": "string" },
+                "p_and_id_file": { "type": "string" }
+            },
+            "required": ["keytag", "tag_type", "tag_no"],
+            "additionalProperties": false
+        },
+        "process_conditions": {
+            "type": "object",
+            "description": "Design and operating conditions",
+            "properties": {
+                "design_pressure": { "type": "number" },
+                "pressure_rating": { "type": "string" },
+                "operating_pressure_normal": { "type": "number" },
+                "operating_pressure_min": { "type": "number" },
+                "operating_pressure_max": { "type": "number" },
+                "operating_temperature_normal": { "type": "number" },
+                "flow_rate_nominal": { "type": "number" },
+                "flow_rate_min": { "type": "number" },
+                "flow_rate_max": { "type": "number" },
+                "test_pressure": { "type": "number" }
+            },
+            "additionalProperties": false
+        },
+        "manufacturer": {
+            "type": "object",
+            "description": "Manufacturer and product details",
+            "properties": {
+                "brand": { "type": "string" },
+                "model_number": { "type": "string" },
+                "serial_number": { "type": "string" },
+                "manufacturer_name": { "type": "string" },
+                "manufacturer_website": { "type": "string" },
+                "manufacturer_phone": { "type": "string" },
+                "manufacturer_email": { "type": "string" },
+                "manufacturer_location": { "type": "string" },
+                "lot_number": { "type": "string" },
+                "manufacture_date": { "type": "string", "format": "date" },
+                "model_2d_file": { "type": "string" },
+                "model_3d_file": { "type": "string" }
+            },
+            "additionalProperties": false
+        },
+        "asset_lifecycle": {
+            "type": "object",
+            "description": "Asset lifecycle, financial, and ACE fields",
+            "properties": {
+                "ace_category": { "type": "string" },
+                "generic_equipment_type": { "type": "string" },
+                "ace_asset_class": { "type": "string" },
+                "life_span": { "type": "string" },
+                "supplier": { "type": "string" },
+                "cost_center": { "type": "string" },
+                "replacement_cost": { "type": "number" },
+                "wbs_element": { "type": "string" },
+                "est_replacement_date": { "type": "string", "format": "date" },
+                "date_of_commission": { "type": "string", "format": "date" },
+                "warranty_terms": { "type": "string" },
+                "warranty_start_date": { "type": "string", "format": "date" },
+                "warranty_expiry_date": { "type": "string", "format": "date" },
+                "product_certification": { "type": "string" },
+                "ace_asset_number": { "type": "string" },
+                "ace_asset_sub_number": { "type": "string" }
+            },
+            "additionalProperties": false
+        },
+        "control_system": {
+            "type": "object",
+            "description": "Control and I&C interface",
+            "properties": {
+                "lcs_type": { "type": "string" },
+                "plc_panel": { "type": "string" },
+                "plc_panel_location": { "type": "string" },
+                "rio_panel": { "type": "string" },
+                "rio_panel_location": { "type": "string" }
+            },
+            "additionalProperties": false
+        },
+        "piping_connection": {
+            "type": "object",
+            "description": "Piping interface for inline components, valves, and instruments",
+            "properties": {
+                "pipe_size_nominal_mm": { "type": "number" },
+                "pipeline_tag_number": { "type": "string" },
+                "lining_material": { "type": "string" },
+                "end_condition": { "type": "string" }
+            },
+            "additionalProperties": false
+        },
+        "valve_internals": {
+            "type": "object",
+            "description": "Valve trim, body, and closure element",
+            "properties": {
+                "valve_duty": { "type": "string" },
+                "body_material": { "type": "string" },
+                "stem_material": { "type": "string" },
+                "closure_element": { "type": "string" },
+                "seat_material": { "type": "string" }
+            },
+            "additionalProperties": false
+        },
+        "actuator": {
+            "type": "object",
+            "description": "Electric actuator specs for control valves",
+            "properties": {
+                "actuator_tag_number": { "type": "string" },
+                "actuator_rpm": { "type": "number" },
+                "actuator_torque_range": { "type": "string" },
+                "actuator_rated_voltage": { "type": "number" },
+                "actuator_rated_frequency": { "type": "number" },
+                "actuator_rated_current": { "type": "number" },
+                "actuator_motor_rating_kw": { "type": "number" },
+                "actuator_stem_direction": { "type": "string" },
+                "actuator_brand": { "type": "string" },
+                "actuator_model": { "type": "string" },
+                "actuator_serial": { "type": "string" },
+                "actuator_manufacturer": { "type": "string" },
+                "actuator_ace_category": { "type": "string" },
+                "actuator_ace_asset_class": { "type": "string" },
+                "actuator_life_span": { "type": "string" }
+            },
+            "additionalProperties": false
+        },
+        "rotating_equipment": {
+            "type": "object",
+            "description": "Pump, motor, and compressor rotating equipment data",
+            "properties": {
+                "rpm": { "type": "number" },
+                "efficiency": { "type": "number" },
+                "impeller_type": { "type": "string" },
+                "impeller_material": { "type": "string" },
+                "rotor_material": { "type": "string" },
+                "stator_material": { "type": "string" },
+                "seal_type": { "type": "string" },
+                "npsh_min": { "type": "number" },
+                "head_loss": { "type": "number" },
+                "suction_nozzle_size": { "type": "number" },
+                "discharge_nozzle_size": { "type": "number" },
+                "design_capacity": { "type": "number" },
+                "design_capacity_unit": { "type": "string" },
+                "duty_standby": { "type": "string" },
+                "casing_material": { "type": "string" },
+                "voltage": { "type": "number" },
+                "frequency": { "type": "number" },
+                "phase": { "type": "string" },
+                "motor_rating": { "type": "number" }
+            },
+            "additionalProperties": false
+        },
+        "instrumentation": {
+            "type": "object",
+            "description": "Sensor, transmitter, and alarm specifications",
+            "properties": {
+                "isa_instrument_id": { "type": "string" },
+                "measurement_principle": { "type": "string" },
+                "sensor_model": { "type": "string" },
+                "sensor_material": { "type": "string" },
+                "sensor_ip_rating": { "type": "string" },
+                "sensor_range": { "type": "string" },
+                "sensor_wetted_parts": { "type": "string" },
+                "output_signal": { "type": "string" },
+                "accuracy": { "type": "string" },
+                "calibration_range": { "type": "string" },
+                "supply_voltage": { "type": "string" },
+                "alarm_limit_hh": { "type": "number" },
+                "alarm_limit_h": { "type": "number" },
+                "alarm_limit_l": { "type": "number" },
+                "alarm_limit_ll": { "type": "number" },
+                "set_point": { "type": "number" },
+                "tube_material": { "type": "string" },
+                "tube_size": { "type": "string" }
+            },
+            "additionalProperties": false
+        },
+        "pipeline_route": {
+            "type": "object",
+            "description": "Piping geometry, routing, and connectivity (unique to AT_PROCESS)",
+            "properties": {
+                "pipe_material": { "type": "string" },
+                "outside_diameter_mm": { "type": "number" },
+                "wall_thickness_mm": { "type": "number" },
+                "design_specification": { "type": "string" },
+                "insulation_material": { "type": "string" },
+                "insulation_thickness": { "type": "number" },
+                "from_component": { "type": "string" },
+                "to_component": { "type": "string" }
+            },
+            "additionalProperties": false
+        }
+    }
+}

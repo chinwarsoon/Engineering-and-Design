@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 0.3  
-**Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-11  
+**Current Version**: 0.6  
+**Status**: ✅ COMPLETE  
+**Last Updated**: 2026-06-15  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
 
@@ -11,7 +11,8 @@
 
 ## 1. Title and Description
 
-Establish the EKS project foundation: folder structure, canonical schema design, document ingestion plug-ins for common formats (PDF, DOCX, XLSX), document registry (metadata DB), revision management, and foundational logging/debug infrastructure. This phase creates the bedrock that all subsequent phases build upon.
+Establish the EKS project foundation: folder structure, canonical schema design (including project-specific discipline registries), document ingestion plug-ins for common formats (PDF, DOCX, XLSX), document registry (metadata DB), revision management, and foundational logging/debug infrastructure.
+ This phase creates the bedrock that all subsequent phases build upon.
 
 ---
 
@@ -22,6 +23,9 @@ Establish the EKS project foundation: folder structure, canonical schema design,
 | 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval     |
 | 0.2     | 2026-06-11 | System | Added Section 7b: Proposed Project Folder Structure (full tree across all phases); added eks.yml task; fixed duplicate T1.5 numbering |
 | 0.3     | 2026-06-11 | System | T1.1 complete: EKS folder scaffolding created. T1.2 complete: eks.yml created with all Phase 1–5 dependencies. Log files created. |
+| 0.4     | 2026-06-15 | System | Remediation: created missing `__init__.py` files (I001); generated Phase 1 test report (I002); migrated `schema_loader.py` and `verify_schema_metadata.py` from deprecated `RefResolver` to `referencing` library (I003); logged all issues to `eks/log/issue_log.md` |
+| 0.5     | 2026-06-15 | System | Added universal plant item asset schema (R36): 11 reusable fragment definitions covering all 7 datadrop categories. Appendix A added to workplan with fragment tables, type composition map, relationship graph, and column normalization. |
+| 0.6     | 2026-06-15 | opencode | Created and validated actual schema files: `eks_asset_base_schema.json` (11 fragment $defs), `eks_asset_setup_schema.json` (registry + normalization declarations), `eks_asset_config.json` (14 AT_ mappings + 7-sheet column map). Appendix A extracted to stand-alone file. Fixed "10 fragments"→"11 fragments" in 4 locations. |
 
 ---
 
@@ -242,6 +246,94 @@ eks/
 
 ---
 
+## 7c. Detailed Schema Design (T1.3 - T1.5)
+
+Following the standards in `agent_rule.md` Section 2 (Schema Fragments & Inheritance) and Section 4 (SSOT), the EKS canonical schema is designed across three files to separate definitions, declarations, and actual values.
+
+### T1.3: `eks_base_schema.json` (Definitions)
+- **Purpose**: Store reusable fragments and type definitions (`definitions` or `$defs`).
+- **Standard**: Flat structure, use array of objects, `additionalProperties: false`.
+- **Key Definitions**:
+    - `discipline_code`: Enum (PI, EL, IN, CI, ME, etc.) for engineering discipline identification.
+    - `revision_id`: String with regex pattern (e.g., `^[A-Z0-9]{1,2}$`) for strict revision control.
+    - `ProjectMetadata`: Shared fragment for project identification (title, number, area, discipline, department).
+    - `DocumentMetadata`: Shared fragment for document identification (type, number, revision, status, latest_flag).
+    - `EngineeringObject`: Fragment for engineering items (tag, object_type, properties dict).
+    - `SourceTraceability`: Fragment for chunk source tracking (file_path, page, section, chunk_id).
+        - **Asset Schema Fragments (R36)** — 11 fragments for universal plant item schema (see [appendix_a_asset_schema.md](appendix_a_asset_schema.md)):
+        - `item_core_def`: Universal identity fields for all plant items (keytag, tag_type, tag_no, project, unit, service).
+        - `process_conditions_def`: Design/operating pressure, temperature, flow rates, test pressure.
+        - `manufacturer_def`: Brand, model, serial, manufacturer contact and location.
+        - `asset_lifecycle_def`: ACE category, replacement cost, warranty terms, commission dates.
+        - `control_system_def`: LCS type, PLC/RIO panel references and locations.
+        - `piping_connection_def`: Pipe size, pipeline tag, lining material, end condition.
+        - `valve_internals_def`: Body/stem/seat material, closure element, valve duty.
+        - `actuator_def`: Electric actuator specs and sub-manufacturer info (for control valves).
+        - `rotating_equipment_def`: RPM, efficiency, impeller, NPSH, nozzle sizes (pumps, motors).
+        - `instrumentation_def`: Sensor specs, output signal, alarm limits, calibration range.
+        - `pipeline_route_def`: Pipe material, OD/wall thickness, insulation, from/to component connections.
+
+### T1.4: `eks_setup_schema.json` (Declarations / Properties)
+- **Purpose**: Define the structure and metadata of the system configuration (`properties`).
+- **Standard**: One-to-one match with `eks_base_schema.json` via `$ref`.
+- **Sections**:
+    - `global_paths`: Mandatory directory paths (data, output, archive, config).
+    - `registry`: Metadata database configuration (type, connection_string, timeout).
+    - `parsers`: Configuration for document parser plugins (enabled list, specific parser settings).
+    - `embedding`: SSOT for embedding provider settings (active_provider, model_name, dimensions).
+    - `vector_store`: Vector database configuration (qdrant_url, collection_name, distance_metric).
+    - `graph_db`: Knowledge graph settings (neo4j_uri, credentials, relationship_labels).
+    - `logging`: Tiered logging configuration (default_level, debug_file_path).
+    - `asset_type_registry`: Tag-type-to-fragment mapping registry declaring which fragments compose each AT_ category.
+
+### T1.5: `eks_config.json` (Actual Values / Config)
+- **Purpose**: Store the actual runtime values used by the EKS engine.
+- **Standard**: Validates strictly against `eks_setup_schema.json`.
+- **Example SSOT Values**:
+    - `registry.type`: "duckdb"
+    - `registry.connection`: "data/eks_registry.db"
+    - `embedding.active_provider`: "openai"
+    - `vector_store.collection_name`: "eks_chunks"
+    - `logging.default_level`: 1
+    - `project_assets.WSD11.datadrop_path`: "data/twrp/datadrop/Datadrop Summary.xlsx"
+    - `asset_type_registry.AT_EQUIP.fragments`: ["core", "process_conditions", "manufacturer", "asset_lifecycle", "control_system", "rotating_equipment"]
+
+---
+
+## 7d. Independent Parser Module Architecture (T1.8 - T1.11)
+
+To support diverse engineering document types (PDF, Word, Excel, AutoCAD, DGN) while maintaining system extensibility, EKS implements a **Plug-in Parser Architecture**.
+
+### 1. The Parser Interface (`BaseParser`)
+Every independent parser module must inherit from the `BaseParser` abstract class located in `engine/parsers/base_parser.py`.
+- **`parse(file_path)`**: Returns a list of standardized content dictionaries.
+- **`extract_metadata(file_path)`**: Returns file-level metadata (e.g., author, system properties).
+- **`get_source_location(element_id)`**: Maps content back to its physical/logical source (e.g., page, sheet, layer, coordinates).
+
+### 2. Standardized Output Format
+Regardless of the file type, parsers must output a unified structure to prevent downstream logic pollution:
+- **Textual Data**: Content string with associated formatting hints.
+- **Structural Metadata**: Section headings, table identifiers, or sheet names.
+- **Source Context**: Page numbers (PDF/DOCX), Cell references (XLSX), or Layer names/Coordinates (DWG/DGN).
+
+### 3. Schema-Driven Discovery (SSOT)
+Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses this mapping to dynamically instantiate the correct parser at runtime:
+```json
+"parsers": {
+    ".pdf": "engine.parsers.pdf_parser.PDFParser",
+    ".docx": "engine.parsers.docx_parser.DocxParser",
+    ".xlsx": "engine.parsers.xlsx_parser.XlsxParser",
+    ".dwg": "engine.parsers.dwg_parser.DWGParserStub",
+    ".dgn": "engine.parsers.dgn_parser.DGNParserStub"
+}
+```
+
+### 4. Implementation Strategy
+- **Phase 1**: Full implementation of PDF, DOCX, and XLSX parsers.
+- **CAD Support**: `DWGParserStub` and `DGNParserStub` will be created to define the interface requirements, returning "Format supported - Implementation Pending" for future Phase 3 integration.
+
+---
+
 ## 8. Task Breakdown
 
 **Timeline**: TBD — starts after approval  
@@ -251,20 +343,23 @@ eks/
 | :- | :--- | :------ | :----: |
 | T1.1 | Create EKS folder structure | archive, config, data, output, engine, log, docs, workplan, test, ui | ✅ |
 | T1.2 | Create environment file `eks.yml` | Conda environment with all Phase 1–5 dependencies (Python, DuckDB, FastAPI, parsers, vector DB, graph DB clients, embedding providers) | ✅ |
-| T1.3 | Design canonical schema — base | `eks_base_schema.json`: definitions for all shared types | 🔷 |
-| T1.4 | Design canonical schema — setup | `eks_setup_schema.json`: property declarations using base definitions | 🔷 |
-| T1.5 | Design canonical schema — config | `eks_config.json`: actual values (paths, DB settings, provider settings) | 🔷 |
-| T1.6 | Implement schema loader | Load and resolve base/setup/config with $ref support (reuse dcc pattern) | 🔷 |
-| T1.6 | Implement document registry | CRUD interface for document metadata backed by DuckDB/PostgreSQL | 🔷 |
-| T1.7 | Implement revision management | Preserve all revisions; is_latest flag; revision chain lookup | 🔷 |
-| T1.8 | Implement abstract base parser | `base_parser.py`: plug-in interface with parse(), extract_metadata() | 🔷 |
-| T1.9 | Implement PDF parser | `pdf_parser.py`: extract text, metadata, page numbers | 🔷 |
-| T1.10 | Implement DOCX parser | `docx_parser.py`: extract text, metadata, sections | 🔷 |
-| T1.11 | Implement XLSX parser | `xlsx_parser.py`: extract sheet data, metadata | 🔷 |
-| T1.12 | Implement tiered logger | `logger.py`: levels 0–3, debug object, trace table, depth counter | 🔷 |
-| T1.13 | Implement SSOT config registry | Global parameter access via schema-driven config; no hardcoding | 🔷 |
-| T1.14 | Write unit tests | Schema loader, document registry, revision management, parsers, logger | 🔷 |
-| T1.15 | Create log files | `update_log.md`, `issue_log.md` under `eks/log/` | 🔷 |
+| T1.3 | Design canonical schema — base | `eks_base_schema.json`: definitions for all shared types & project-scoped fragments | ✅ |
+| T1.4 | Design canonical schema — setup | `eks_setup_schema.json`: registry-based declarations for project-scoped config | ✅ |
+| T1.5 | Design canonical schema — config | `eks_config.json`: project-namespaced values (discipline/rules registries) | ✅ |
+| T1.6 | Implement schema loader | Load and resolve base/setup/config with $ref support (reuse dcc pattern) | ✅ |
+| T1.7 | Implement document registry | CRUD interface for document metadata backed by DuckDB/PostgreSQL | ✅ |
+| T1.8 | Implement revision management | Preserve all revisions; is_latest flag; revision chain lookup | ✅ |
+| T1.9 | Implement abstract base parser | `base_parser.py`: plug-in interface with parse(), extract_metadata() | ✅ |
+| T1.10 | Implement PDF parser | `pdf_parser.py`: extract text, metadata, page numbers | ✅ |
+| T1.11 | Implement XLSX parser | `xlsx_parser.py`: extract sheet data, metadata | ✅ |
+| T1.12 | Implement DOCX parser | `docx_parser.py`: extract text, metadata, sections | ✅ |
+| T1.13 | Implement tiered logger | `logger.py`: levels 0–3, debug object, trace table, depth counter | ✅ |
+| T1.14 | Implement SSOT config registry | Global parameter access via schema-driven config; no hardcoding | ✅ |
+| T1.15 | Write unit tests | Schema loader, document registry, revision management, parsers, logger | ✅ |
+| T1.16 | Create log files | `update_log.md`, `issue_log.md` under `eks/log/` | ✅ |
+| T1.17 | Design asset schema — fragment definitions | Add 11 reusable asset fragments to `eks_base_schema.json` (item_core, process_conditions, manufacturer, asset_lifecycle, control_system, piping_connection, valve_internals, actuator, rotating_equipment, instrumentation, pipeline_route) | ✅ |
+| T1.18 | Design asset schema — type registry | Add `asset_type_registry` to `eks_setup_schema.json`; map all 14 AT_ categories to their fragment compositions in `eks_config.json` | ✅ |
+| T1.19 | Update config with asset source | Add project asset datadrop path and per-project config to `eks_config.json` | ✅ |
 
 ---
 
@@ -290,7 +385,14 @@ eks/
 | `eks/config/eks_config.json`          | Create | Actual config values (paths, DB, provider settings)   |
 | `eks/log/update_log.md`               | Create | Update log                                            |
 | `eks/log/issue_log.md`                | Create | Issue log                                             |
+| `eks/engine/__init__.py`              | Create | Engine package init with version info                  |
+| `eks/engine/core/__init__.py`         | Create | Core package init with import statements               |
+| `eks/engine/parsers/__init__.py`      | Create | Parsers package init with import statements             |
+| `eks/engine/logging/__init__.py`      | Create | Logging package init with import statements             |
 | `eks/test/test_phase1.py`             | Create | Unit tests for all Phase 1 components                 |
+| `eks/config/eks_asset_base_schema.json` | Create | Universal plant item schema — 10 reusable fragment definitions |
+| `eks/config/eks_asset_setup_schema.json` | Create | Asset schema — type-to-fragment mapping registry        |
+| `eks/config/eks_asset_config.json`    | Create | Project-specific asset config (WSD11 datadrop)         |
 
 ---
 
@@ -317,15 +419,20 @@ eks/
 
 - [x] EKS folder structure created and compliant with agent_rule.md project folder conventions
 - [x] `eks.yml` created and environment activates cleanly (`conda env create -f eks.yml`)
-- [ ] Canonical schema files (base/setup/config) created with one-to-one mapping
-- [ ] Schema loader resolves all $ref types (string, object, nested, recursive)
-- [ ] Document registry operational: CRUD for document metadata
-- [ ] Revision management working: preserve all revisions, is_latest flag, chain lookup
-- [ ] PDF, DOCX, XLSX parsers functional via abstract plug-in interface
-- [ ] Tiered logger (levels 0–3), debug object, trace table all operational
-- [ ] SSOT config registry operational; zero hardcoded global parameters
-- [ ] All unit tests passing for Phase 1 components
-- [ ] `update_log.md` and `issue_log.md` created under `eks/log/`
+- [x] Canonical schema files (base/setup/config) created with one-to-one mapping
+- [x] Schema loader resolves all $ref types (string, object, nested, recursive)
+- [x] Document registry operational: CRUD for document metadata
+- [x] Revision management working: preserve all revisions, is_latest flag, chain lookup
+- [x] PDF, DOCX, XLSX parsers functional via abstract plug-in interface
+- [x] Tiered logger (levels 0–3), debug object, trace table all operational
+- [x] SSOT config registry operational; zero hardcoded global parameters
+- [x] All unit tests passing for Phase 1 components
+- [x] `update_log.md` and `issue_log.md` created under `eks/log/`
+- [x] `__init__.py` files created for all engine packages per agent_rule §4.2
+- [x] `jsonschema.RefResolver` deprecation resolved — migrated to `referencing` library
+- [x] Phase 1 test report generated at `eks/workplan/reports/phase_1_foundation_report.md`
+- [x] Universal plant item schema designed: 11 fragments in `eks_asset_base_schema.json` covering all 7 datadrop categories
+- [x] Asset type registry mapped: all 14 AT_ categories composed from fragments in `eks_asset_config.json`
 
 ---
 
@@ -339,6 +446,8 @@ eks/
 - Logging module: `logger.py`
 - Test file: `test_phase1.py`
 - Log files: `update_log.md`, `issue_log.md`
+- Package init files: `engine/__init__.py`, `engine/core/__init__.py`, `engine/parsers/__init__.py`, `engine/logging/__init__.py`
+- Asset schema files: `eks_asset_base_schema.json`, `eks_asset_setup_schema.json`, `eks_asset_config.json`
 - Report: `eks/workplan/reports/phase_1_foundation_report.md`
 
 ---
@@ -349,3 +458,4 @@ eks/
 2. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
 3. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
 4. [dcc/config/schemas](/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas) — Schema pattern reference
+5. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema appendix

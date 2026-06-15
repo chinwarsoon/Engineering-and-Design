@@ -1,0 +1,132 @@
+{
+    "$schema": "https://eks.engineering/schemas/eks_asset_setup_schema.json",
+    "$id": "https://eks.engineering/configs/eks_asset_config_wsd11.json",
+    "version": "1.0.0",
+    "title": "EKS Asset Config — WSD11 Project",
+    "asset_type_registry": {
+        "AT_EQUIP": {
+            "label": "Equipment",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "control_system", "rotating_equipment"]
+        },
+        "AT_EQPMP": {
+            "label": "Pump",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "control_system", "rotating_equipment"]
+        },
+        "AT_EQTNK": {
+            "label": "Tank",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle"]
+        },
+        "AT_EQVES": {
+            "label": "Vessel",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle"]
+        },
+        "AT_EQEXC": {
+            "label": "Heat Exchanger",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle"]
+        },
+        "AT_INCOMP": {
+            "label": "Inline Component",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "piping_connection"]
+        },
+        "AT_INST_": {
+            "label": "Instrument",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "control_system", "piping_connection", "instrumentation"]
+        },
+        "AT_INST_CS": {
+            "label": "Control System Instrument",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "control_system", "piping_connection", "instrumentation"]
+        },
+        "AT_INST_FLO": {
+            "label": "Flow Instrument",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "control_system", "piping_connection", "instrumentation"]
+        },
+        "AT_MOTOR": {
+            "label": "Motor",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "control_system", "rotating_equipment"]
+        },
+        "AT_PROCESS": {
+            "label": "Pipeline",
+            "fragments": ["item_core", "process_conditions", "piping_connection", "pipeline_route"]
+        },
+        "AT_CVALVE": {
+            "label": "Control Valve",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "control_system", "piping_connection", "valve_internals", "actuator"]
+        },
+        "AT_PSV": {
+            "label": "Safety Valve",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "piping_connection", "valve_internals"]
+        },
+        "AT_HVALVE": {
+            "label": "Manual Valve",
+            "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "piping_connection", "valve_internals"]
+        }
+    },
+    "column_normalization": {
+        "Equipment": {
+            "PID NUMBER": "p_and_id_file",
+            "UNIT": "unit",
+            "DESCRIPTION": "description",
+            "SHORT DESCR": "short_description",
+            "PUB_ACE_CATEGORY": "ace_category",
+            "MANUFACTURER 2D MODEL FILE NAME": "manufacturer_2d_file",
+            "MANUFACTURER 3D MODEL FILE NAME": "manufacturer_3d_file"
+        },
+        "Inline Component": {
+            "P&ID FILE": "p_and_id_file",
+            "UNIT": "unit",
+            "DESCRIPTION": "description",
+            "SHORT DESCR": "short_description",
+            "PIPE SIZE - NOMINAL (MM)": "pipe_size_nominal_mm",
+            "ACE CATEGORY": "ace_category",
+            "MANUFACTURER 2D MODEL FILE NAME": "manufacturer_2d_file",
+            "MANUFACTURER 3D MODEL FILE NAME": "manufacturer_3d_file"
+        },
+        "Instrument": {
+            "DOC_FNAME": "p_and_id_file",
+            "UNIT_PROCESS_NO": "unit",
+            "DESCRIPTION": "description",
+            "SHORT DESCR": "short_description",
+            "PIPE SIZE - NOMINAL": "pipe_size_nominal_mm",
+            "PUB_ACE_CATEGORY": "ace_category",
+            "LINING MATERIAL": "lining_material"
+        },
+        "Motor": {
+            "P&ID DRAWING": "p_and_id_file",
+            "UNIT": "unit",
+            "NAME": "description",
+            "SHORT DESCR": "short_description",
+            "ACE CATEGORY": "ace_category",
+            "MANUFACTURER 2D MODEL FILE NAME": "manufacturer_2d_file",
+            "MANUFACTURER 3D MODEL FILE NAME": "manufacturer_3d_file"
+        },
+        "Pipeline": {
+            "DOC_FNAME": "p_and_id_file",
+            "UNIT": "unit",
+            "DESCRIPTION": "description",
+            "DESIGN SIZE - NOMINAL (MM)": "pipe_size_nominal_mm",
+            "LINING MATERIAL": "lining_material"
+        },
+        "CONTROLVALVE": {
+            "P&ID FILENAME": "p_and_id_file",
+            "UNIT": "unit",
+            "NAME": "description",
+            "SHORT DESCR": "short_description",
+            "PIPE SIZE - NOMINAL (MM)": "pipe_size_nominal_mm",
+            "ACE CATEGORY": "ace_category",
+            "VALVE/ACTUATOR MANUFACTURER 2D": "manufacturer_2d_file",
+            "MANUFACTURER 3D MODEL FILE NAME": "manufacturer_3d_file",
+            "LINING MATERIAL": "lining_material"
+        },
+        "MANUALVALVE": {
+            "DOC_FNAME": "p_and_id_file",
+            "UNIT": "unit",
+            "DESCRIPTION": "description",
+            "SHORT DESCR": "short_description",
+            "PIPE SIZE - NOMINAL (MM)": "pipe_size_nominal_mm",
+            "ACE CATEGORY": "ace_category",
+            "MANUFACTURER 2D MODEL FILE NAME": "manufacturer_2d_file",
+            "MANUFACTURER 3D MODEL FILE NAME": "manufacturer_3d_file",
+            "LINING MATERIAL": "lining_material"
+        }
+    }
+}
