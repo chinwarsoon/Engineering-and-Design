@@ -286,6 +286,100 @@ Asset data is a **relationship database** with the following entity-relationship
 | `BELONGS_TO_SERVICE` | Asset (any) | Service | M:1 | SERVICE |
 | `SUPERSEDES` | Document Revision | Document Revision | 1:1 | Revision chain |
 
+### A4.1 Concrete Example — Unit 003 / Service G2D Subgraph
+
+The following is a **real-data example** drawn from the WSD11 datadrop showing three assets in Unit 003 / Service G2D (G2D Booster Pump system) all referenced on the same P&ID drawing.
+
+#### Current State (as-populated in datadrop)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    131242-WSD11-DR-P-6200.dgn                     │
+│                          (P&ID Drawing)                           │
+└──────────────────────────────────────────────────────────────────┘
+        │ REFERENCED_BY_DWG               │                         │
+        ▼                                 ▼                         ▼
+┌──────────────────┐        ┌──────────────────┐     ┌──────────────────────┐
+│   AT_EQPMP       │        │   AT_HVALVE      │     │   AT_PROCESS         │
+│  WSD11-003-P-0101│        │  WSD11-003-HV-0001│    │WSD11-003-G2D-00001… │
+│ G2D BOOSTER PUMP │        │  (manual valve)   │    │ 300mm SS16 pipeline  │
+└──────────────────┘        └──────────────────┘     └──────────────────────┘
+        │ BELONGS_TO_UNIT           │                         │
+        └────────────┬──────────────┴─────────────────────────┘
+                     ▼
+            ┌────────────────┐      ┌────────────────┐
+            │   Unit 003     │      │  Service G2D   │
+            └────────────────┘      └────────────────┘
+                     ▲                         ▲
+                     └─────────────┬───────────┘
+                                   │ BELONGS_TO_SERVICE
+                                   │ (all three assets)
+```
+
+**Key observations from current data:**
+- P&ID file references are **universally populated** (3,368/3,368 pipelines; 336/337 equipment; 1,838/1,838 manual valves) — the `REFERENCED_BY_DWG` edges are immediately available
+- Unit and Service fields are also fully populated — `BELONGS_TO_UNIT` and `BELONGS_TO_SERVICE` edges are ready
+- `FROM_COMPONENT` / `TO_COMPONENT` are **entirely null** (~44% of datadrop fields are pending data entry) — `CONNECTS_TO` edges are not yet available
+
+#### Future State (when FROM/TO data is entered)
+
+Once the `FROM_COMPONENT` / `TO_COMPONENT` fields are populated, the graph gains the physical connectivity layer:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                     131242-WSD11-DR-P-6200.dgn                        │
+│                           (P&ID Drawing)                              │
+└──────────────────────────────────────────────────────────────────────┘
+        │ REFERENCED_BY_DWG                       │
+        ▼                                         ▼
+┌─────────────────────┐             ┌─────────────────────────┐
+│    AT_EQPMP         │             │    AT_HVALVE             │
+│ WSD11-003-P-0101   │◄────────────│ WSD11-003-HV-0001       │
+│ G2D BOOSTER PUMP A │  CONNECTS_TO│ (manual isolation valve) │
+└─────────────────────┘   (from)   └─────────────────────────┘
+        ▲                                        │
+        │                                CONNECTS_TO (from)
+        │                                        │
+        │                              ┌─────────▼──────────────┐
+        │                              │    AT_CVALVE            │
+        │                              │ WSD11-003-FCV-0101    │
+        │                              │ (control valve, unit   │
+        │                              │  003/G2D, actuator     │
+        │                              │  ref: ACT-003-001)     │
+        │                              └─────────┬──────────────┘
+        │                                        │
+        │                                        ▼
+        │                              ┌─────────────────────────┐
+        │                              │    AT_PROCESS           │
+        │                              │ WSD11-003-G2D-00001…  │
+        │                              │ 300mm SS16 pipeline    │
+        └──────────────────────────────┤   CONNECTS_TO          │
+                  CONNECTS_TO (from)   │   → WSD11-003-P-0101   │
+                                       │   → WSD11-003-HV-0001  │
+                                       │   → WSD11-003-FCV-0101 │
+                                       └─────────────────────────┘
+```
+
+**Neo4j query example (future state):**
+```cypher
+// Find all components connected to a given pipeline
+MATCH (p:AT_PROCESS {tag_no: 'WSD11-003-G2D-00001-300-SS16'})
+      -[:CONNECTS_TO]->(asset)
+RETURN p.tag_no, asset.tag_no, asset.tag_type, asset.description
+
+// Trace all assets on a P&ID drawing
+MATCH (dwg:Document {filename: '131242-WSD11-DR-P-6200.dgn'})
+      <-[:REFERENCED_BY_DWG]-(asset)
+OPTIONAL MATCH (asset)-[:CONNECTS_TO]->(connected)
+RETURN asset.tag_no, asset.tag_type, connected.tag_no
+
+// Navigation: pipeline → connected assets → their P&ID
+MATCH (p:AT_PROCESS {tag_no: 'WSD11-003-G2D-00001-300-SS16'})
+      -[:CONNECTS_TO]->(asset)
+      -[:REFERENCED_BY_DWG]->(dwg)
+RETURN p.tag_no, asset.tag_no, dwg.filename
+```
+
 ---
 
 ## A5. Column Normalization Map
