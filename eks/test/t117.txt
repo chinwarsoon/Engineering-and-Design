@@ -1,0 +1,2 @@
+T1.17 | Design asset schema — fragment definitions | Add 11 reusable asset fragments to `eks_base_schema.json` (item_core, process_conditions, manufacturer, asset_lifecycle, control_system, piping_connection, valve_internals, actuator, rotating_equipment, instrumentation, pipeline_route) | ✅ |
+| T1.18 | Design asset schema — type registry | Add `asset_type_registry` to `eks_setup_schema.json`; map

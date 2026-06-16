@@ -1,9 +1,9 @@
 # EKS Phase 5 — UI, Retrieval Cache & System Integration
 
 **Document ID**: WP-EKS-P5-001  
-**Current Version**: 0.2  
+**Current Version**: 0.4  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-15  
+**Last Updated**: 2026-06-16  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: Phase 4 must be complete and approved  
 
@@ -21,6 +21,8 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | :------ | :--------- | :----- | :---------------------------------------- |
 | 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
 | 0.2     | 2026-06-15 | System | Added asset browsing/filtering UI (unit, service, tag_type, pipeline tag) and asset-aware query endpoints. Updated integration test scope to include asset graph queries |
+| 0.3     | 2026-06-16 | System | Added Timestamp column to task breakdown table per agent_rule Section 8.8. Updated dependency note: Phase 5 /assets endpoint depends on T4.18 query_assets handler from Phase 4. |
+| 0.4     | 2026-06-16 | System | Added T5.18: Manual Metadata Verification UI workflow. |
 
 ---
 
@@ -81,7 +83,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 
 ## 7. Dependencies with Other Tasks
 
-1. **Phase 1–4 (WP-EKS-P1/P2/P3/P4)** — All prior phases must be complete
+1. **Phase 1–4 (WP-EKS-P1/P2/P3/P4)** — All prior phases must be complete; Phase 5 `/assets` endpoint specifically depends on T4.18 (`query_assets` handler in `pipeline.py`) from Phase 4
 2. **dcc/workplan/ui_design/html_design_rule.md** — UI design rules reference
 3. **External**: FastAPI or Flask for backend; frontend framework (HTML/JS or React); Redis or in-memory cache
 4. **Final phase**: No downstream phase dependency; this phase completes the EKS system
@@ -93,25 +95,26 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 **Timeline**: TBD — starts after Phase 4 approval and completion  
 **Estimated Effort**: High (UI + integration + documentation)
 
-| # | Task | Details | Status |
-| :- | :--- | :------ | :----: |
-| T5.1 | Design UI layout and interaction flow | Query input, filter panel (project, discipline, doc type, revision + unit, service, tag_type, pipeline tag), result display with citations and asset cards | 🔷 |
-| T5.2 | Implement backend API | FastAPI/Flask endpoints: `/query` (document + asset), `/ingest`, `/assets` (asset search/filter), `/status`, `/health` | 🔷 |
-| T5.3 | Implement retrieval cache interface | `retrieval_cache.py`: abstract cache interface — get(), set(), invalidate() | 🔷 |
-| T5.4 | Implement in-memory cache | Default cache backed by Python dict or LRU cache; keyed on query hash + filters | 🔷 |
-| T5.5 | Implement Redis cache (optional) | `redis_cache.py`: Redis-backed cache for persistent/distributed caching | 🔷 |
-| T5.6 | Integrate cache into retrieval pipeline | Pipeline checks cache before executing full retrieval; stores result on miss | 🔷 |
-| T5.7 | Implement frontend query interface | HTML/JS or lightweight React: query input, filter controls (document + asset), result cards with source citations and asset cards | 🔷 |
-| T5.8 | Implement result display with citations | Show answer + source cards: doc_number, revision, page, section, chunk_id, asset tag | 🔷 |
-| T5.9 | Implement asset browsing UI | Asset search/filter panel by unit, service, tag_type, pipeline tag; display asset attributes and linked documents | 🔷 |
-| T5.10 | Implement document ingestion UI | Upload interface for adding new documents to the knowledge base | 🔷 |
-| T5.11 | Full system integration test — ingest | Test: upload doc → parse → chunk → embed → store in vector DB + graph + asset load from Excel | 🔷 |
-| T5.12 | Full system integration test — retrieval | Test: submit query (document + asset) → filter → expand → search → rerank → assemble → LLM answer | 🔷 |
-| T5.13 | Full system integration test — asset | Test: browse/filter assets by unit, service, tag_type; verify asset card data and linked documents | 🔷 |
-| T5.14 | Full system integration test — cache | Test: repeat query → cache hit → lower latency response | 🔷 |
-| T5.15 | Generate system documentation | 16-section doc per agent_rule Section 7 covering all modules across all phases | 🔷 |
-| T5.16 | Update all workplan statuses | Mark all phase workplans COMPLETE; update master index | 🔷 |
-| T5.17 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 |
+| # | Task | Details | Status | Timestamp |
+| :- | :--- | :------ | :----: | :-------- |
+| T5.1 | Design UI layout and interaction flow | Query input, filter panel (project, discipline, doc type, revision + unit, service, tag_type, pipeline tag), result display with citations and asset cards | 🔷 | — |
+| T5.2 | Implement backend API | FastAPI/Flask endpoints: `/query` (document + asset), `/ingest`, `/assets` (asset search/filter via pipeline.query_assets), `/status`, `/health` | 🔷 | — |
+| T5.3 | Implement retrieval cache interface | `retrieval_cache.py`: abstract cache interface — get(), set(), invalidate() | 🔷 | — |
+| T5.4 | Implement in-memory cache | Default cache backed by Python dict or LRU cache; keyed on query hash + filters | 🔷 | — |
+| T5.5 | Implement Redis cache (optional) | `redis_cache.py`: Redis-backed cache for persistent/distributed caching | 🔷 | — |
+| T5.6 | Integrate cache into retrieval pipeline | Pipeline checks cache before executing full retrieval; stores result on miss | 🔷 | — |
+| T5.7 | Implement frontend query interface | HTML/JS or lightweight React: query input, filter controls (document + asset), result cards with source citations and asset cards | 🔷 | — |
+| T5.8 | Implement result display with citations | Show answer + source cards: doc_number, revision, page, section, chunk_id, asset tag | 🔷 | — |
+| T5.9 | Implement asset browsing UI | Asset search/filter panel by unit, service, tag_type, pipeline tag; display asset attributes and linked documents | 🔷 | — |
+| T5.10 | Implement document ingestion UI | Upload interface for adding new documents to the knowledge base | 🔷 | — |
+| T5.11 | Full system integration test — ingest | Test: upload doc → parse → chunk → embed → store in vector DB + graph + asset load from Excel | 🔷 | — |
+| T5.12 | Full system integration test — retrieval | Test: submit query (document + asset) → filter → expand → search → rerank → assemble → LLM answer | 🔷 | — |
+| T5.13 | Full system integration test — asset | Test: browse/filter assets by unit, service, tag_type; verify asset card data and linked documents | 🔷 | — |
+| T5.14 | Full system integration test — cache | Test: repeat query → cache hit → lower latency response | 🔷 | — |
+| T5.15 | Generate system documentation | 16-section doc per agent_rule Section 7 covering all modules across all phases | 🔷 | — |
+| T5.16 | Update all workplan statuses | Mark all phase workplans COMPLETE; update master index | 🔷 | — |
+| T5.17 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 | — |
+| T5.18 | Manual Verification UI | Implement "Manual Verification Dashboard" to review auto-extracted metadata (Phase 3) and set `verified_by` status. | 🔷 | — |
 
 ---
 
@@ -167,6 +170,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 - [ ] Retrieval cache reduces repeated query latency (measurable improvement)
 - [ ] Full system integration test passing: ingest → chunk → embed → graph (document + asset) → retrieve → answer
 - [ ] Source citations displayed in UI: doc_number, revision, page, section, asset tag
+- [ ] Manual Verification workflow operational: UI allows reviewing auto-extracted metadata and setting `verified_by` status
 - [ ] System documentation complete per agent_rule Section 7 (all 16 sections)
 - [ ] All phase workplans updated to COMPLETE status
 - [ ] All logs updated with final entries

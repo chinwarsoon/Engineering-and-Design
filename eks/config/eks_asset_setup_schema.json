@@ -1,42 +1,63 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_asset_setup_schema.json",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "title": "EKS Asset Setup Schema — Registry & Column Normalization",
-    "description": "Declares the asset_type_registry (type→fragment mapping) and column normalization rules for ingesting the TWRP Excel datadrop.",
+    "description": "Declares the asset_type_registry (type→fragment mapping including conditional_fragments for zero-code extensibility) and column normalization rules for ingesting the project Excel datadrop.",
     "type": "object",
+    "definitions": {
+        "fragment_name": {
+            "type": "string",
+            "enum": [
+                "item_core",
+                "process_conditions",
+                "manufacturer",
+                "asset_lifecycle",
+                "control_system",
+                "piping_connection",
+                "valve_internals",
+                "actuator",
+                "rotating_equipment",
+                "instrumentation",
+                "pipeline_route",
+                "specialist_equipment",
+                "motor_control"
+            ]
+        },
+        "conditional_fragment_rule": {
+            "type": "object",
+            "description": "A rule that applies a fragment only when a specified field value matches a set of values",
+            "properties": {
+                "fragment": { "$ref": "#/definitions/fragment_name" },
+                "when":     { "type": "string", "description": "Field name in item_core to evaluate" },
+                "in":       { "type": "array", "items": { "type": "string" }, "minItems": 1, "description": "List of values that trigger the fragment" }
+            },
+            "required": ["fragment", "when", "in"],
+            "additionalProperties": false
+        }
+    },
     "properties": {
-        "$schema": { "type": "string" },
-        "$id": { "type": "string" },
-        "version": { "type": "string" },
-        "title": { "type": "string" },
+        "$schema":     { "type": "string" },
+        "$id":         { "type": "string" },
+        "version":     { "type": "string" },
+        "title":       { "type": "string" },
         "description": { "type": "string" },
         "asset_type_registry": {
             "type": "object",
-            "description": "Maps each AT_ tag_type to its composed fragment list",
+            "description": "Maps each AT_ tag_type to its fragment list and optional conditional fragment rules. Adding a new asset type requires only a new entry here — no code changes.",
             "additionalProperties": {
                 "type": "object",
                 "properties": {
                     "label": { "type": "string" },
                     "fragments": {
                         "type": "array",
-                        "items": {
-                            "type": "string",
-                            "enum": [
-                                "item_core",
-                                "process_conditions",
-                                "manufacturer",
-                                "asset_lifecycle",
-                                "control_system",
-                                "piping_connection",
-                                "valve_internals",
-                                "actuator",
-                                "rotating_equipment",
-                                "instrumentation",
-                                "pipeline_route"
-                            ]
-                        },
+                        "items": { "$ref": "#/definitions/fragment_name" },
                         "minItems": 2
+                    },
+                    "conditional_fragments": {
+                        "type": "array",
+                        "description": "Optional rules to include additional fragments based on field values at ingest time",
+                        "items": { "$ref": "#/definitions/conditional_fragment_rule" }
                     }
                 },
                 "required": ["label", "fragments"],
@@ -45,10 +66,9 @@
         },
         "column_normalization": {
             "type": "object",
-            "description": "Maps sheet-specific column names to canonical fields per sheet",
+            "description": "Maps sheet-specific column names to canonical field names per sheet",
             "additionalProperties": {
                 "type": "object",
-                "description": "Sheet name → canonical field mapping",
                 "additionalProperties": { "type": "string" }
             }
         }

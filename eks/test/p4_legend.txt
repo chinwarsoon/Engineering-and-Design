@@ -1,0 +1,1 @@
+'l pipeline respects document revision context                      | 🔷 PLANNED |\n| R38 | Retrieval Pipeline | Asset-Aware Retrieval            | Filter and expand context by asset attributes and asset-to-document graph relationships | 🔷 PLANNED |\n\n**Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED\n\n--'

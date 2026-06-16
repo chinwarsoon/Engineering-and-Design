@@ -1,0 +1,2 @@
+T4.4 | Implement vector search | Similarity search via Qdrant using query embedding | 🔷 |
+| T4.5 | Implement keyword search | BM25 or full-text search over document registry for keyword matching | 🔷 |

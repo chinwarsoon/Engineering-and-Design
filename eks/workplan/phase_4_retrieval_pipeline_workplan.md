@@ -1,9 +1,9 @@
 # EKS Phase 4 — Retrieval & Scoring Pipeline
 
 **Document ID**: WP-EKS-P4-001  
-**Current Version**: 0.2  
+**Current Version**: 0.5  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-15  
+**Last Updated**: 2026-06-16  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: Phase 3 must be complete and approved  
 
@@ -21,6 +21,9 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | :------ | :--------- | :----- | :---------------------------------------- |
 | 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
 | 0.2     | 2026-06-15 | System | Added asset-aware metadata filtering (unit, service, tag_type) and asset relationship expansion (CONNECTS_TO pipeline-to-component, REFERENCED_BY_DWG P&ID links). Updated scope, tasks, success criteria for R38 |
+| 0.3     | 2026-06-16 | System | Added T4.18 asset query handler, reranker model guidance, Timestamp column in task table. |
+| 0.4     | 2026-06-18 | System | Added R40 to scope: dual-collection vector search (eks_chunks + eks_assets). Added T4.19 dual-collection merger. Updated success criteria. |
+| 0.5     | 2026-06-16 | System | Updated T4.1 to include new metadata dimensions: `originator_company` and `security_class`. |
 
 ---
 
@@ -49,6 +52,7 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | R20 | Retrieval Pipeline | Context Assembly & LLM Answering | Assemble final context and pass to LLM for response generation            | 🔷 PLANNED |
 | R24 | Revision Management| Revision-Aware Retrieval         | Retrieval pipeline respects document revision context                      | 🔷 PLANNED |
 | R38 | Retrieval Pipeline | Asset-Aware Retrieval            | Filter and expand context by asset attributes and asset-to-document graph relationships | 🔷 PLANNED |
+| R40 | Retrieval Pipeline | Asset Semantic Search            | Query `eks_assets` Qdrant collection for fuzzy/semantic asset property queries; merge with Neo4j structured results before scoring | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -100,10 +104,10 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 
 | # | Task | Details | Status |
 | :- | :--- | :------ | :----: |
-| T4.1 | Implement metadata filter | Filter chunk candidates by project, discipline, doc_type, is_latest revision flags + asset attributes (unit, service, tag_type, pipeline_tag) | 🔷 |
+| T4.1 | Implement metadata filter | Filter chunk candidates by project, discipline, doc_type, originator, security_class, is_latest revision flags + asset attributes (unit, service, tag_type, pipeline_tag) | 🔷 |
 | T4.2 | Implement revision-aware filter | Apply latest/specific revision filter as part of metadata filtering stage | 🔷 |
 | T4.3 | Implement graph relationship expander | Query Neo4j for related documents, assets, and pipeline-to-component connections (CONNECTS_TO, REFERENCED_BY_DWG); expand candidate set | 🔷 |
-| T4.4 | Implement vector search | Similarity search via Qdrant using query embedding | 🔷 |
+| T4.4 | Implement vector search | Similarity search via Qdrant using query embedding — query `eks_chunks` (documents) and `eks_assets` (asset semantic search, R40); collection selected by query context | 🔷 |
 | T4.5 | Implement keyword search | BM25 or full-text search over document registry for keyword matching | 🔷 |
 | T4.6 | Implement hybrid search merger | Merge and deduplicate vector + keyword search results | 🔷 |
 | T4.7 | Implement retrieval scorer | Score candidates by relevance (cosine similarity + keyword score) | 🔷 |
@@ -172,6 +176,11 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 - [ ] LLM answers include source citations: doc_number, revision, page, chunk_id, asset tag
 - [ ] Revision-aware retrieval: latest revision returned by default; specific revision queryable
 - [ ] Asset-aware retrieval: filter by unit, service, tag_type; expand via pipeline CONNECTS_TO
+- [ ] Asset query handler (`query_assets`) in `pipeline.py` operational for Phase 5 `/assets` endpoint
+
+- [ ] `eks_assets` Qdrant collection queried for semantic asset property searches (R40)
+
+- [ ] Dual-collection search results merged and scored consistently
 - [ ] End-to-end pipeline tests passing with sample engineering documents and asset queries
 
 ---

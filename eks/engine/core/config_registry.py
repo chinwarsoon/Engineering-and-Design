@@ -13,9 +13,15 @@ class ConfigRegistry:
     _instance: Optional['ConfigRegistry'] = None
     _config: Dict[str, Any] = {}
 
-    def __new__(cls, config_dir: str | Path = "config"):
+    def __new__(cls, config_dir: str | Path = "eks/config"):
         if cls._instance is None:
             cls._instance = super(ConfigRegistry, cls).__new__(cls)
+            # Try eks/config if config doesn't exist (handle root execution)
+            if not Path(config_dir).exists() and Path("config").exists():
+                 config_dir = "config"
+            elif not Path(config_dir).exists():
+                 # Last ditch effort for common dev layouts
+                 pass 
             cls._instance._config = load_eks_config(config_dir)
         return cls._instance
 

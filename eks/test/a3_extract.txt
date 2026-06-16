@@ -1,0 +1,10 @@
+A3. Type Composition Map
+
+Each `AT_` tag_type is composed of fragments. The composition is registered in `eks_asset_config.json` under `asset_type_registry`.
+
+```
+Legend:  ● = always included   ○ = conditional   — = not included
+
+tag_type          Label                 frag_core  proc_cond  mfr  lifecycle  ctrl_sys  piping  valve  actuator  rotating  instrum  pipeline_route
+──────            ─────                 ────────   ────────   ───  ─────────  ────────  ──────  ─────  ────────  ────────  ───────  ──────────────
+AT_EQUIP          Equipment             ●          ●          ●    ●        

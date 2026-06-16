@@ -21,10 +21,12 @@ class RevisionManager:
 
     @log_depth
     def get_revision_history(self, document_number: str) -> List[Dict[str, Any]]:
-        """Retrieve all revisions of a document, sorted by ingested_at."""
-        all_revs = self.registry.list_documents(filters={"document_number": document_number}, latest_only=False)
-        # DuckDB sort might be better, but we can sort in Python too
-        return sorted(all_revs, key=lambda x: x.get("ingested_at", ""), reverse=True)
+        """Retrieve all revisions of a document, sorted by ingested_at DESC via SQL."""
+        return self.registry.list_documents(
+            filters={"document_number": document_number}, 
+            latest_only=False,
+            order_by="ingested_at DESC"
+        )
 
     @log_depth
     def is_latest(self, document_number: str, revision: str) -> bool:

@@ -1,0 +1,8 @@
+# EKS Phase 4 — Retrieval & Scoring Pipeline
+
+**Document ID**: WP-EKS-P4-001  
+**Current Version**: 0.2  
+**Status**: 🔵 DRAFT — PENDING APPROVAL  
+**Last Updated**: 2026-06-15  
+**Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
+**Phase Dependency**: Phase 3 must be complete and

@@ -1,0 +1,3 @@
+R40 present: True
+R40 | Retrieval: False
+Status Legend found: True

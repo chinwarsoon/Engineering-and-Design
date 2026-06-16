@@ -1,9 +1,9 @@
 # EKS Phase 2 — Chunking, Embedding & Vector Storage
 
 **Document ID**: WP-EKS-P2-001  
-**Current Version**: 0.1  
+**Current Version**: 0.3  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-11  
+**Last Updated**: 2026-06-18  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: Phase 1 must be complete and approved  
 
@@ -20,6 +20,8 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | Version | Date       | Author | Summary of Changes                        |
 | :------ | :--------- | :----- | :---------------------------------------- |
 | 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
+| 0.2     | 2026-06-16 | System | Added Timestamp column to task breakdown table per agent_rule Section 8.8. Added CAD/DWG/DGN vector store gap note to Section 11: chunking pipeline has no ingestion path for CAD content; deferred to Phase 3 stubs only. |
+| 0.3     | 2026-06-18 | System | Added R40 (Asset Embedding Strategy) and R41 (Asset Chunk Registry Extension) to scope and task breakdown. Asset text builder and dedicated Qdrant eks_assets collection added. Updated success criteria and deliverables. |
 
 ---
 
@@ -48,6 +50,8 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | R25 | Traceability         | Source Traceability            | doc_number, revision, page, section, chunk_id, source_file per chunk| 🔷 PLANNED |
 | R28 | Plug-in Architecture | Vector DB Plug-in              | Swappable vector DB provider (Qdrant default)                        | 🔷 PLANNED |
 | R30 | Infrastructure       | Vector DB                      | Qdrant for vector storage                                            | 🔷 PLANNED |
+| R40 | Embedding            | Asset Embedding Strategy       | Contextual header + key field summary per asset; store vectors in `eks_assets` Qdrant collection; prevent null/code pollution per R13 | 🔷 PLANNED |
+| R41 | Knowledge Base       | Asset Chunk Registry Extension | Extend DuckDB chunk registry to support asset records keyed on `keytag`; metadata: keytag, tag_type, tag_no, unit, service, p_and_id_file | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -95,23 +99,27 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 **Timeline**: TBD — starts after Phase 1 approval and completion  
 **Estimated Effort**: Medium-High
 
-| # | Task | Details | Status |
-| :- | :--- | :------ | :----: |
-| T2.1 | Implement abstract chunker interface | `chunker.py`: base interface with chunk(), get_metadata() methods | 🔷 |
-| T2.2 | Implement size-based chunker | Fixed token/character window with configurable overlap | 🔷 |
-| T2.3 | Implement section-aware chunker | Split on document section/heading boundaries | 🔷 |
-| T2.4 | Implement chunk registry | `chunk_registry.py`: parent-child relationship, chunk CRUD, metadata storage | 🔷 |
-| T2.5 | Define chunk metadata schema | Extend eks_base_schema with chunk fields: chunk_id, parent_id, doc_number, revision, page, section, source_file | 🔷 |
-| T2.6 | Implement multi-level metadata hierarchy | Project → Document → Chunk metadata inheritance and flattening | 🔷 |
-| T2.7 | Implement abstract embedder interface | `base_embedder.py`: embed(text) → vector, supports batch | 🔷 |
-| T2.8 | Implement OpenAI embedder | `openai_embedder.py`: calls OpenAI embeddings API | 🔷 |
-| T2.9 | Implement Ollama embedder | `ollama_embedder.py`: calls local Ollama embeddings endpoint | 🔷 |
-| T2.10 | Implement hybrid embedding strategy | Prepend contextual header to text before embedding; store full metadata separately | 🔷 |
-| T2.11 | Implement abstract vector store interface | `base_vector_store.py`: upsert(), search(), delete() methods | 🔷 |
-| T2.12 | Implement Qdrant vector store | `qdrant_store.py`: Qdrant collection management, upsert, similarity search | 🔷 |
-| T2.13 | Implement chunk → embed → store pipeline | End-to-end: parse output → chunk → embed → store in Qdrant | 🔷 |
-| T2.14 | Write unit and integration tests | Chunker, chunk registry, embedders, vector store, end-to-end pipeline | 🔷 |
-| T2.15 | Update logs | `update_log.md`, `issue_log.md` under `eks/log/` | 🔷 |
+| # | Task | Details | Status | Timestamp |
+| :- | :--- | :------ | :----: | :-------- |
+| T2.1 | Implement abstract chunker interface | `chunker.py`: base interface with chunk(), get_metadata() methods | 🔷 | — |
+| T2.2 | Implement size-based chunker | Fixed token/character window with configurable overlap | 🔷 | — |
+| T2.3 | Implement section-aware chunker | Split on document section/heading boundaries | 🔷 | — |
+| T2.4 | Implement chunk registry | `chunk_registry.py`: parent-child relationship, chunk CRUD, metadata storage | 🔷 | — |
+| T2.5 | Define chunk metadata schema | Extend eks_base_schema with chunk fields: chunk_id, parent_id, doc_number, revision, page, section, source_file | 🔷 | — |
+| T2.6 | Implement multi-level metadata hierarchy | Project → Document → Chunk metadata inheritance and flattening | 🔷 | — |
+| T2.7 | Implement abstract embedder interface | `base_embedder.py`: embed(text) → vector, supports batch | 🔷 | — |
+| T2.8 | Implement OpenAI embedder | `openai_embedder.py`: calls OpenAI embeddings API | 🔷 | — |
+| T2.9 | Implement Ollama embedder | `ollama_embedder.py`: calls local Ollama embeddings endpoint | 🔷 | — |
+| T2.10 | Implement hybrid embedding strategy | Prepend contextual header to text before embedding; store full metadata separately | 🔷 | — |
+| T2.11 | Implement abstract vector store interface | `base_vector_store.py`: upsert(), search(), delete() methods | 🔷 | — |
+| T2.12 | Implement Qdrant vector store | `qdrant_store.py`: Qdrant collection management, upsert, similarity search | 🔷 | — |
+| T2.13 | Implement chunk → embed → store pipeline | End-to-end: parse output → chunk → embed → store in Qdrant | 🔷 | — |
+| T2.14 | Write unit and integration tests | Chunker, chunk registry, embedders, vector store, end-to-end pipeline | 🔷 | — |
+| T2.15 | Update logs | `update_log.md`, `issue_log.md` under `eks/log/` | 🔷 | — |
+| T2.16 | Extend chunk registry for asset records | Add `asset_records` table to DuckDB chunk registry: keytag (PK), tag_type, tag_no, unit, service, p_and_id_file, embedded_at; no parent-child fields needed | 🔷 | — |
+| T2.17 | Implement asset text builder | `asset_text_builder.py`: build contextual text representation per asset — "[{tag_type} \| Unit {unit} \| Svc {service}] {description}: {key properties summary}"; select fields by fragment type, skip nulls | 🔷 | — |
+| T2.18 | Add eks_assets Qdrant collection | Configure second Qdrant collection `eks_assets` in `eks_config.json`; same abstract vector store interface (R28); payload: keytag, tag_no, tag_type, unit, service, p_and_id_file | 🔷 | — |
+| T2.19 | Write tests for R40/R41 additions | Asset text builder output, asset chunk registry CRUD, eks_assets collection upsert | 🔷 | — |
 
 ---
 
@@ -132,7 +140,9 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | `eks/engine/vector_store/base_vector_store.py` | Create | Abstract vector store interface                       |
 | `eks/engine/vector_store/qdrant_store.py`      | Create | Qdrant vector store implementation                    |
 | `eks/config/eks_base_schema.json`              | Update | Add chunk metadata schema definitions                 |
-| `eks/config/eks_config.json`                   | Update | Add chunk_size, overlap, embedding_provider, qdrant settings |
+| `eks/config/eks_config.json`                   | Update | Add chunk_size, overlap, embedding_provider, qdrant settings, eks_assets collection config |
+| `eks/engine/chunking/asset_text_builder.py`    | Create | Asset contextual text builder for embedding (R40) |
+| `eks/engine/vector_store/asset_store.py`       | Create | Qdrant collection management for eks_assets (R40, R28) |
 | `eks/test/test_phase2.py`                      | Create | Unit and integration tests for Phase 2 components     |
 
 ---
@@ -153,6 +163,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 - Fine-tuned domain-specific embeddings may outperform general models for engineering documents
 - Chunk overlap strategy may need per-document-type tuning
 - Very large documents may require streaming chunking to avoid memory issues
+- **CAD/DWG/DGN content gap**: This phase has no ingestion path for CAD format content. DWG/DGN parser stubs are deferred to Phase 3 (interface-only). Until full CAD parsing is implemented in a future phase, CAD drawings will not enter the vector store and will not be retrievable via semantic search. This is a known gap — document-to-asset links via REFERENCED_BY_DWG (Phase 3) partially mitigate this by surfacing CAD-referenced assets, but the drawing content itself remains unsearchable.
 
 ---
 
@@ -165,6 +176,9 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 - [ ] Qdrant vector store operational; abstract interface allows provider swap
 - [ ] Multi-level metadata hierarchy (project → document → chunk) correctly propagated
 - [ ] Integration tests passing for: chunk → embed → store pipeline
+- [ ] Asset text builder produces clean contextual summaries (no nulls, no raw codes)
+- [ ] Asset records stored in DuckDB chunk registry with correct metadata (R41)
+- [ ] Asset vectors stored in `eks_assets` Qdrant collection with keytag payload (R40)
 - [ ] All unit tests passing for Phase 2 components
 
 ---
@@ -176,6 +190,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 - Vector store modules: `base_vector_store.py`, `qdrant_store.py`
 - Updated schema: `eks_base_schema.json` (chunk definitions), `eks_config.json`
 - Test file: `test_phase2.py`
+- Asset embedding modules: `asset_text_builder.py`, `asset_store.py`
 - Report: `eks/workplan/reports/phase_2_chunking_embedding_report.md`
 
 ---

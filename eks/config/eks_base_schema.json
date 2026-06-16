@@ -101,13 +101,37 @@
         "document_metadata_def": {
             "type": "object",
             "properties": {
+                "source_type": { 
+                    "type": "string", 
+                    "enum": ["ingested", "referenced", "stub"],
+                    "default": "ingested"
+                },
                 "document_type": { "type": "string" },
                 "document_number": { "type": "string" },
                 "revision": { "$ref": "#/definitions/revision_id" },
                 "status": { "type": "string" },
-                "is_latest": { "type": "boolean", "default": true }
+                "is_latest": { "type": "boolean", "default": true },
+                "created_by": { "type": "string" },
+                "checked_by": { "type": "string" },
+                "approved_by": { "type": "string" },
+                "originator_company": { "type": "string" },
+                "security_class": { "type": "string" },
+                "asset_tags": { 
+                    "type": "array", 
+                    "items": { "type": "string" },
+                    "default": []
+                },
+                "page_count": { "type": "integer" },
+                "extract_status": { 
+                    "type": "string", 
+                    "enum": ["pending", "success", "partial", "failed"],
+                    "default": "pending"
+                },
+                "extraction_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                "extraction_notes": { "type": "string" },
+                "verified_by": { "type": "string" }
             },
-            "required": ["document_type", "document_number", "revision"],
+            "required": ["source_type", "document_type", "document_number", "revision"],
             "additionalProperties": false
         }
     }

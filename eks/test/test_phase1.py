@@ -34,6 +34,11 @@ class TestPhase1(unittest.TestCase):
         # Initialize ConfigRegistry first (Singleton)
         cls.config_reg = ConfigRegistry(cls.config_dir)
         
+        # Delete existing DB for clean test state
+        db_path = Path("data/eks_registry.db")
+        if db_path.exists():
+            db_path.unlink()
+
         # Initialize Registry
         cls.registry = DocumentRegistry()
         cls.rev_manager = RevisionManager(cls.registry)
@@ -124,13 +129,141 @@ class TestPhase1(unittest.TestCase):
         self.assertEqual(len(history), 2)
         self.assertEqual(history[0]["revision"], "B") # Latest first
 
-    # Parsers require real files. For unit testing, we can check if they handle FileNotFoundError
-    # or use mock files if possible. 
-    # Since I cannot easily create binary PDF/DOCX here without more code, 
-    # I'll just test the error handling for now.
+    def test_remediation_t121_source_type(self):
+        """T1.21 G1: Verify source_type is stored and defaults correctly."""
+        # Explicit source_type
+        self.registry.register_document({
+            "document_number": "DOC-X", "revision": "0", "document_type": "SPEC",
+            "source_type": "referenced"
+        })
+        doc = self.registry.get_document("DOC-X")
+        self.assertEqual(doc.get("source_type"), "referenced")
+
+        # Default source_type
+        self.registry.register_document({
+            "document_number": "DOC-Y", "revision": "0", "document_type": "SPEC"
+        })
+        doc2 = self.registry.get_document("DOC-Y")
+        self.assertEqual(doc2.get("source_type"), "ingested")
+
+    def test_remediation_t121_sql_injection_protection(self):
+        """T1.21 G2: Verify column allowlist prevents untrusted filters."""
+        # Should return all latest (DOC-001, DOC-X, DOC-Y, DOC-META) = 4
+        # The bad filter should be ignored
+        res = self.registry.list_documents(filters={"1=1; DROP TABLE documents; --": "bad"})
+        self.assertEqual(len(res), 4)
+
+    def test_remediation_t121_sql_sorting(self):
+        """T1.21 G3: Verify history sorting is handled by SQL."""
+        # Register in specific order
+        import time
+        self.registry.register_document({"document_number": "DOC-SORT", "revision": "A", "document_type": "SPEC"})
+        time.sleep(0.01)
+        self.registry.register_document({"document_number": "DOC-SORT", "revision": "B", "document_type": "SPEC"})
+        
+        history = self.rev_manager.get_revision_history("DOC-SORT")
+        self.assertEqual(history[0]["revision"], "B")
+        self.assertEqual(history[1]["revision"], "A")
+
+    def test_extended_metadata_t122(self):
+        """T1.22: Verify extended metadata fields and JSON array storage."""
+        meta = {
+            "document_number": "DOC-META",
+            "revision": "0",
+            "document_type": "SPEC",
+            "created_by": "John Doe",
+            "originator_company": "Engineering Corp",
+            "asset_tags": ["P-101", "V-202", "HE-301"],
+            "page_count": 42,
+            "extract_status": "success",
+            "extraction_confidence": 0.95
+        }
+        self.registry.register_document(meta)
+        
+        doc = self.registry.get_document("DOC-META")
+        self.assertEqual(doc.get("created_by"), "John Doe")
+        self.assertEqual(doc.get("originator_company"), "Engineering Corp")
+        self.assertEqual(doc.get("page_count"), 42)
+        self.assertEqual(doc.get("extract_status"), "success")
+        self.assertEqual(doc.get("extraction_confidence"), 0.95)
+        
+        # Verify JSON array deserialization
+        import json
+        tags = json.loads(doc.get("asset_tags"))
+        self.assertIsInstance(tags, list)
+        self.assertEqual(len(tags), 3)
+        self.assertIn("P-101", tags)
+
     def test_parser_errors(self):
         with self.assertRaises(FileNotFoundError):
             PDFParser("non_existent.pdf")
+
+    def test_asset_schema_files_exist(self):
+        """T1.20: Verify all 3 asset schema files exist in config directory."""
+        for fname in ['eks_asset_base_schema.json', 'eks_asset_setup_schema.json', 'eks_asset_config.json']:
+            path = self.config_dir / fname
+            self.assertTrue(path.exists(), f"Missing asset schema file: {fname}")
+
+    def test_asset_base_schema_fragments(self):
+        """T1.20: Verify eks_asset_base_schema.json contains all 13 fragment definitions."""
+        import json
+        path = self.config_dir / 'eks_asset_base_schema.json'
+        schema = json.load(open(path, encoding='utf-8'))
+        defs = schema.get('definitions', {})
+        expected = {
+            'item_core', 'process_conditions', 'manufacturer', 'asset_lifecycle',
+            'control_system', 'piping_connection', 'valve_internals', 'actuator',
+            'rotating_equipment', 'instrumentation', 'pipeline_route',
+            'specialist_equipment', 'motor_control'
+        }
+        self.assertEqual(set(defs.keys()), expected, f"Fragment mismatch. Found: {set(defs.keys())}")
+
+    def test_asset_schema_validation(self):
+        """T1.20 / R39: Verify eks_asset_config.json validates against eks_asset_setup_schema.json."""
+        import json
+        from referencing import Registry
+        from referencing.jsonschema import DRAFT7
+        from jsonschema import validate
+
+        base   = json.load(open(self.config_dir / 'eks_asset_base_schema.json',  encoding='utf-8'))
+        setup  = json.load(open(self.config_dir / 'eks_asset_setup_schema.json', encoding='utf-8'))
+        config = json.load(open(self.config_dir / 'eks_asset_config.json',        encoding='utf-8'))
+
+        resources = {s['$id']: DRAFT7.create_resource(s) for s in [base, setup] if '$id' in s}
+        registry = Registry().with_resources(resources.items())
+        validate(instance=config, schema=setup, registry=registry)  # raises on failure
+
+    def test_r39_conditional_fragments(self):
+        """R39: Verify conditional_fragments structure is present and well-formed for AT_EQUIP and AT_MOTOR."""
+        import json
+        config = json.load(open(self.config_dir / 'eks_asset_config.json', encoding='utf-8'))
+        registry = config.get('asset_type_registry', {})
+
+        # AT_EQUIP must have conditional_fragments
+        at_equip = registry.get('AT_EQUIP', {})
+        self.assertIn('conditional_fragments', at_equip, "AT_EQUIP missing conditional_fragments")
+        rule = at_equip['conditional_fragments'][0]
+        self.assertIn('fragment', rule)
+        self.assertIn('when', rule)
+        self.assertIn('in', rule)
+        self.assertEqual(rule['fragment'], 'specialist_equipment')
+        self.assertEqual(rule['when'], 'device_type_code')
+        self.assertIsInstance(rule['in'], list)
+        self.assertGreater(len(rule['in']), 0)
+
+        # AT_MOTOR must include motor_control in fragments
+        at_motor = registry.get('AT_MOTOR', {})
+        self.assertIn('motor_control', at_motor.get('fragments', []), "AT_MOTOR missing motor_control fragment")
+
+        # All fragment names in config must exist in base schema definitions
+        base = json.load(open(self.config_dir / 'eks_asset_base_schema.json', encoding='utf-8'))
+        base_frags = set(base.get('definitions', {}).keys())
+        for at_code, entry in registry.items():
+            for f in entry.get('fragments', []):
+                self.assertIn(f, base_frags, f"{at_code}: fragment '{f}' not in base schema definitions")
+            for rule in entry.get('conditional_fragments', []):
+                self.assertIn(rule['fragment'], base_frags,
+                    f"{at_code}: conditional fragment '{rule['fragment']}' not in base schema definitions")
 
 if __name__ == "__main__":
     unittest.main()

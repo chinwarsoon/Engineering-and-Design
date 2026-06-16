@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/update_log.md`  
-**Last Updated**: 2026-06-15  
+**Last Updated**: 2026-06-18  
 
 ---
 
@@ -25,6 +25,15 @@
 | U014 | 2026-06-15 | Phase 1 | T1.13 | Generated Phase 1 foundation test report at `eks/workplan/reports/phase_1_foundation_report.md` | Gemini CLI | ✅ Done |
 | U015 | 2026-06-15 | Phase 1 | — | Logged 4 issues (I001-I004) to `eks/log/issue_log.md` | Gemini CLI | ✅ Done |
 | U016 | 2026-06-15 | Phase 1 | T1.17-T1.19 | Created asset schema files: `eks_asset_base_schema.json` (11 fragment definitions), `eks_asset_setup_schema.json` (asset_type_registry + column normalization declarations), `eks_asset_config.json` (14 AT_ type→fragment mappings + 7-sheet column normalization map). Appendix A extracted to `eks/workplan/appendix_a_asset_schema.md`. Validated config against setup schema. | opencode | ✅ Done |
+| U017 | 2026-06-16 | Phase 1 | T1.20 | Gap analysis against actual datadrop Excel (7 sheets). Found 14 unmapped Equipment columns, 10 Motor columns, 33 CONTROLVALVE actuator columns, 12 Instrument columns, 3 MANUALVALVE columns, 612 duplicate Pipeline KEYTAGs. Updated `eks_asset_base_schema.json` to 13 fragments (added `specialist_equipment`, `motor_control`; expanded `actuator`, `rotating_equipment`, `instrumentation`, `valve_internals`). Updated `appendix_a_asset_schema.md` v0.2. | System | ✅ Done |
+| U018 | 2026-06-17 | Phase 1 | R39 | Added R39 zero-code asset extensibility. Updated `eks_asset_setup_schema.json` with `conditional_fragments` structure and 13-fragment enum. Updated `eks_asset_config.json` with `conditional_fragments` rules for AT_EQUIP and AT_MOTOR; full column normalization across all 7 sheets. Validated all 3 schema files. | System | ✅ Done |
+| U019 | 2026-06-17 | Phase 1 | — | Added A7 (How to Add a New Plant Asset Type) to `appendix_a_asset_schema.md` v0.3. Three scenarios documented: existing fragments only, conditional fragment, new fragment. Decision guide and validation step included. | System | ✅ Done |
+| U020 | 2026-06-18 | Phase 1 | T1.15 | Added 7 new test cases to `eks/test/test_asset_schema.py` covering T1.20 and R39: schema file existence, 13-fragment definitions, config validation, conditional_fragments structure (AT_EQUIP), motor_control fragment (AT_MOTOR), all fragment names in base, all 14 AT_ types registered. All 7 tests pass. | System | ✅ Done |
+| U021 | 2026-06-18 | Phase 1 | — | Updated `phase_1_foundation_workplan.md` v0.9 to COMPLETE. Marked T1.20 ✅, all scope R-items ✅, all success criteria ✅. Updated `eks_system_workplan.md` v0.6: Phase 1 status back to PASS. Updated `phase_1_foundation_report.md` v0.2. | System | ✅ Done |
+| U022 | 2026-06-18 | Planning | — | Added R40 (Asset Embedding Strategy), R41 (Asset Chunk Registry Extension), R42 (Asset Vector Upsert) to `eks_system_workplan.md` v0.7. Added Section 10: EKS Pipeline Architecture workflow diagram. Updated Phase 2 v0.3 (T2.16–T2.19), Phase 3 v0.5 (T3.20), Phase 4 v0.4 (T4.19) workplans with new tasks and success criteria. | System | ✅ Done |
+| U023 | 2026-06-16 | Phase 1 | — | Logged issue I006 (Document Registry Technical Gaps G1-G3) to `eks/log/issue_log.md` following Appendix B recommendation | Gemini CLI | ✅ Done |
+| U024 | 2026-06-16 | Phase 1 | T1.21 | Implemented Document Registry remediation (G1-G3): Added `source_type` column to registry; implemented SQL column allowlist for `list_documents` (G2); migrated history sorting to SQL `ORDER BY` (G3). Updated `eks_base_schema.json`. | Gemini CLI | ✅ Done |
+| U025 | 2026-06-16 | Phase 1 | T1.22 | Implemented Extended Document Metadata: Added 11 new fields to schema and DB; implemented automatic `ALTER TABLE` migration in `registry.py`; added JSON serialization for `asset_tags` array. | Gemini CLI | ✅ Done |
 
 ---
 

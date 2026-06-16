@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry — Test Report
 
 **Report ID**: RP-EKS-P1-001  
-**Current Version**: 0.1  
+**Current Version**: 0.4  
 **Status**: ✅ COMPLETE  
-**Last Updated**: 2026-06-15  
+**Last Updated**: 2026-06-16  
 **Parent Workplan**: [phase_1_foundation_workplan.md](../phase_1_foundation_workplan.md)  
 **Parent Master**: [eks_system_workplan.md](../eks_system_workplan.md)
 
@@ -20,6 +20,9 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 | Version | Date | Author | Summary of Changes |
 | :------ | :--- | :----- | :----------------- |
 | 0.1 | 2026-06-15 | System | Initial test report — Phase 1 foundation verified |
+| 0.2 | 2026-06-18 | System | Updated for T1.17–T1.20 and R39: added test results for asset schema files (13 fragments), conditional_fragments structure, all 14 AT_ type registrations. 7 new test cases in `test_asset_schema.py` — all pass. I004 resolved; I005 raised for placeholder project data. |
+| 0.3 | 2026-06-16 | System | Updated for T1.21: Document Registry remediation (G1-G3). Added 3 test cases for source_type, column allowlist, and SQL sorting. I006 resolved. |
+| 0.4 | 2026-06-16 | System | Updated for T1.22: Extended Document Metadata. Added test case for 11 new fields and JSON array storage for asset_tags. |
 
 ---
 
@@ -51,6 +54,8 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 - RevisionManager revision history and latest-revision filtering
 - EKSLogger tiered logging (levels 0-3), debug object, trace table
 - Parser base interface and concrete implementations (PDF, DOCX, XLSX)
+- Document Registry G1-G3 remediation (T1.21)
+- Extended Document Metadata support (T1.22)
 - Missing `__init__.py` files remediated
 - Deprecated API usage resolved
 
@@ -60,14 +65,14 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 
 | Category | Count |
 | :------- | :---- |
-| Test cases planned | 7 |
-| Test cases executed | 7 |
-| Test cases passed | 7 |
+| Test cases planned | 18 |
+| Test cases executed | 18 |
+| Test cases passed | 18 |
 | Test cases failed | 0 |
-| Issues found | 4 (all resolved) |
+| Issues found | 6 (I001–I004, I006 resolved; I005 deferred) |
 | Blockers | 0 |
 
-**Execution Date**: 2026-06-15  
+**Execution Date**: 2026-06-16 (T1.22 addition)  
 **Execution Duration**: < 1 second  
 **Executor**: System (automated test suite)
 
@@ -131,6 +136,42 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 
 ---
 
+### 7.7 Asset Schema Files (T1.17–T1.20)
+
+| # | Test Case | Expected | Result | Notes |
+| :- | :-------- | :------- | :----: | :---- |
+| 9  | `test_asset_schema_files_exist` | All 3 asset schema files present in `eks/config/` | ✅ PASS | `eks_asset_base_schema.json`, `eks_asset_setup_schema.json`, `eks_asset_config.json` |
+| 10  | `test_asset_base_schema_fragments` | Exactly 13 fragment `$defs` present | ✅ PASS | All 13 fragments confirmed including `specialist_equipment` and `motor_control` |
+| 11 | `test_asset_schema_validation` | `eks_asset_config.json` validates against `eks_asset_setup_schema.json` | ✅ PASS | `referencing` registry used for `$ref` resolution |
+
+### 7.8 Zero-Code Extensibility (R39)
+
+| # | Test Case | Expected | Result | Notes |
+| :- | :-------- | :------- | :----: | :---- |
+| 12 | `test_r39_conditional_fragments` | AT_EQUIP has `conditional_fragments` with valid `when`/`in` rule for `specialist_equipment` | ✅ PASS | `when: device_type_code`, `in: [UV, FILT, CONV, SCR, DOSING]` |
+| 13 | `test_r39_motor_control_fragment` | AT_MOTOR includes `motor_control` in fragments list | ✅ PASS | |
+| 14 | `test_r39_all_config_fragments_in_base` | Every fragment name in config exists in base schema `definitions` | ✅ PASS | All 13 names cross-validated |
+
+---
+
+### 7.9 Document Registry Remediation (T1.21)
+
+| # | Test Case | Expected | Result | Notes |
+| :- | :-------- | :------- | :----: | :---- |
+| 15 | `test_remediation_t121_source_type` | `source_type` stored as 'referenced'; defaults to 'ingested' | ✅ PASS | Verified in DuckDB metadata table |
+| 16 | `test_remediation_t121_sql_injection_protection` | Untrusted filter columns are ignored and logged as warnings | ✅ PASS | COLUMN_ALLOWLIST protects `list_documents` |
+| 17 | `test_remediation_t121_sql_sorting` | Revision history sorted by `ingested_at DESC` at the SQL level | ✅ PASS | Python-side sorting removed; verified revision order C -> B -> A |
+
+---
+
+### 7.10 Extended Metadata (T1.22)
+
+| # | Test Case | Expected | Result | Notes |
+| :- | :-------- | :------- | :----: | :---- |
+| 18 | `test_extended_metadata_t122` | 11 new fields stored correctly; `asset_tags` stored as JSON array | ✅ PASS | Verified JSON serialization/deserialization for tags |
+
+---
+
 ## 8. Test Success Criteria and Checklist
 
 | Criterion | Status | Evidence |
@@ -144,11 +185,20 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 | PDF, DOCX, XLSX parsers via abstract plug-in interface | ✅ | BaseParser abstract; concrete parsers implement interface |
 | Tiered logger (levels 0-3), debug object, trace table | ✅ | test_logger passed |
 | SSOT config registry; zero hardcoded global params | ✅ | All paths via ConfigRegistry.get() |
-| All unit tests passing | ✅ | 7/7 passed |
+| All unit tests passing | ✅ | 18/18 passed |
+| Document Registry G1-G3 remediation (T1.21) | ✅ | test_remediation_t121_cases pass |
+| Extended Metadata Support (T1.22) | ✅ | 11 fields supported; asset_tags JSON array passed |
 | `__init__.py` files created per agent_rule §4.2 | ✅ | engine, core, parsers, logging |
 | Phase 1 report generated | ✅ | This document |
 | Deprecated API usage resolved | ✅ | `RefResolver` → `referencing` |
-| `update_log.md` and `issue_log.md` current | ✅ | U011-U015, I001-I004 logged |
+| Asset schema files present (T1.20): 3 files, 13 fragments | ✅ | `test_asset_schema_files_exist`, `test_asset_base_schema_fragments` |
+| Asset config validates against setup schema (T1.20) | ✅ | `test_asset_schema_validation` |
+| R39 zero-code extensibility: `conditional_fragments` in setup schema and config | ✅ | `test_r39_conditional_fragments_structure`, `test_r39_motor_control_fragment` |
+| All 14 AT_ types registered; all fragment names resolve to base schema | ✅ | `test_r39_all_config_fragments_in_base`, `test_r39_all_at_types_present` |
+| I004 resolved — schema metadata fields removed from properties | ✅ | U013 |
+| I005 raised — placeholder project data in `eks_config.json` | ⏸️ Deferred | Replace with WSD11 data when confirmed |
+| I006 resolved — Document Registry technical gaps & Extended Metadata fixed | ✅ | T1.21, T1.22 |
+| `update_log.md` and `issue_log.md` current | ✅ | U011-U025, I001-I006 logged |
 
 ---
 
@@ -160,17 +210,27 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 - `eks/engine/parsers/__init__.py` — Parsers package init with imports
 - `eks/engine/logging/__init__.py` — Logging package init with imports
 - `eks/workplan/reports/phase_1_foundation_report.md` — This report
+- `eks/config/eks_asset_base_schema.json` — 13 fragment definitions (v1.1.0)
+- `eks/config/eks_asset_setup_schema.json` — conditional_fragments structure, 13-fragment enum (v1.1.0)
+- `eks/config/eks_asset_config.json` — 14 AT_ types, conditional rules, full column normalization (v1.1.0)
+- `eks/workplan/appendix_a_asset_schema.md` — Universal Plant Item Schema appendix (v0.3)
+- `eks/test/test_asset_schema.py` — 7 asset schema and R39 test cases
 
 ### Files Modified
-- `eks/log/issue_log.md` — Added issues I001-I004
-- `eks/log/update_log.md` — Added updates U011-U015
+- `eks/log/issue_log.md` — Added issues I001-I006; resolved I006
+- `eks/log/update_log.md` — Added updates U011-U025
 - `eks/engine/core/schema_loader.py` — Migrated to `referencing` API
+- `eks/engine/core/registry.py` — Implemented T1.21/T1.22 remediation
+- `eks/engine/core/revision.py` — Implemented T1.21 remediation
+- `eks/engine/core/config_registry.py` — Added eks/config default path support
+- `eks/config/eks_base_schema.json` — Added source_type and extended metadata fields
+- `eks/config/eks_config.json` — Removed _note to fix validation
 - `eks/test/verify_schema_metadata.py` — Migrated to `referencing` API
+- `eks/test/test_phase1.py` — Added T1.21/T1.22 test cases; added DB cleanup
 
 ### Files Verified (no changes needed)
 - All Phase 1 implementation files in `engine/core/`, `engine/parsers/`, `engine/logging/`
-- `eks/config/eks_base_schema.json`, `eks_setup_schema.json`, `eks_config.json`
-- `eks/test/test_phase1.py`
+- `eks/config/eks_setup_schema.json`
 - `eks/eks.yml`
 - `eks/readme.md`
 
@@ -179,25 +239,25 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 ## 10. Recommendations for Future Actions
 
 1. **Phase 2 readiness**: All Phase 1 dependencies (document registry, parsers, schema, logger) are verified and ready for chunking/embedding/vector storage workplan execution.
-2. **Schema metadata clean-up** (I004): The `$schema`, `$id`, `version`, `title`, `description` fields in `eks_setup_schema.json` properties should be removed and the config should strip these before validation. Deferred as low priority since validation passes correctly.
-3. **Test coverage expansion**: Consider adding integration tests for the full ingest pipeline (parse → register → revise) using sample documents.
-4. **Report generation automation**: Future phase reports should be generated immediately upon phase completion to avoid gaps.
+2. **Document Registry verified**: Remediation completed in T1.21/T1.22 has successfully addressed technical gaps and extended metadata support.
+3. **Replace placeholder project data**: `eks_config.json` `project_rules_registry` and `discipline_registry` contain P123/P456 example entries (I005). Replace with actual WSD11 disciplines once confirmed by project team.
 
 ---
 
 ## 11. Lessons Learned
 
-1. **Import paths**: Test file uses `from eks.engine.core...` imports requiring execution from the parent project root. This is fragile — consider using relative imports or a conftest/pytest configuration for future phases.
-2. **Namespace packages**: Missing `__init__.py` files did not block execution (Python 3.3+ implicit namespace packages), but violated agent_rule convention. All `__init__.py` files now created with proper import statements and version info.
-3. **Schema validation dependency**: The `jsonschema.RefResolver` deprecation went unnoticed because the code still worked. The new `referencing` API is cleaner and more aligned with JSON Schema specification.
+1. **Database Schema Evolution**: DuckDB `IF NOT EXISTS` for table creation does not handle column additions. Manual schema migration using `ALTER TABLE` was necessary to support existing databases.
+2. **Schema Validation Rigor**: Strict `additionalProperties: false` in setup schemas requires config files to be strictly compliant, precluding descriptive notes or comments within the JSON.
+3. **Structured Data in Relational DB**: Using the `JSON` data type for fields like `asset_tags` allows for flexible, multi-valued storage within a standard SQL table structure.
 
 ---
 
 ## 12. References
 
-1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v0.3
-2. [EKS Master Workplan](../eks_system_workplan.md) — WP-EKS-001 v0.2
+1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v1.1
+2. [EKS Master Workplan](../eks_system_workplan.md) — WP-EKS-001 v0.7
 3. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
 4. [Issue Log](../../log/issue_log.md)
 5. [Update Log](../../log/update_log.md)
-6. [Test File](../../test/test_phase1.py)
+6. [Test File — Phase 1 Foundation](../../test/test_phase1.py)
+7. [Test File — Asset Schema & R39](../../test/test_asset_schema.py)

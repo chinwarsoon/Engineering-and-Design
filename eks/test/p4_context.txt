@@ -1,0 +1,11 @@
+R38 | Retrieval Pipeline | Asset-Aware Retrieval            | Filter and expand context by asset attributes and asset-to-document graph relationships | 🔷 PLANNED |
+
+**Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
+
+---
+
+## 5. Index of Content
+
+- [1. Title and Description](#1-title-and-description)
+- [2. Revision Control & Version History](#2-revision-control--version-history)
+- [3. Objec

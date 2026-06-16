@@ -1,0 +1,20 @@
+PASS: p4_version_0.4
+PASS: p4_R40_scope
+PASS: p4_T4.19
+PASS: p4_eks_assets
+PASS: p4_dual_criteria
+PASS: log_U022
+PASS: master_section10
+PASS: master_R40
+PASS: master_R41
+PASS: master_R42
+PASS: master_version_0.7
+PASS: p2_version_0.3
+PASS: p2_T2.16
+PASS: p2_T2.17
+PASS: p2_T2.18
+PASS: p3_version_0.5
+PASS: p3_T3.20
+PASS: p3_R42
+
+Overall: ALL PASS
