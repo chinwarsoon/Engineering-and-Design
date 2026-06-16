@@ -1,6 +1,6 @@
 # Appendix B — Document Registry
 
-**Version**: 0.4  
+**Version**: 0.5  
 **Last Updated**: 2026-06-16  
 **Phase**: 1 — Foundation  
 **Status**: ✅ Implemented & Tested  
@@ -86,7 +86,7 @@ The registry is config-driven — the DB path and backend type are read from `ek
 | | `approved_by` | VARCHAR | YES | NULL | Approver (Auto-extracted) |
 | **Origin** | `originator_company`| VARCHAR | YES | NULL | Producing company (Auto-extracted) |
 | | `security_class` | VARCHAR | YES | NULL | Security classification (Manual) |
-| | **`asset_tags`** | **JSON** | YES | NULL | **List of tags found (e.g. `["P-101", "V-202"]`)** |
+| | **`asset_tags`** | **VARCHAR** | YES | NULL | **List of asset tags found (e.g. `["P-101", "V-202"]`). Stored as a JSON-serialized string in DuckDB VARCHAR column. Python lists are auto-serialized via `json.dumps()` on write and deserialized via `json.loads()` on read. DuckDB's native JSON type is not used to maintain PostgreSQL compatibility.** |
 | **Technical** | `page_count` | INTEGER | YES | NULL | Total pages (Auto-extracted) |
 | **Quality** | `extract_status` | VARCHAR | YES | 'pending' | Enum: `pending`, `success`, `partial`, `failed` |
 | | `extraction_confidence`| DOUBLE | YES | NULL | Confidence score (0.0 - 1.0) |
@@ -105,18 +105,18 @@ Initialises the registry. Implements **Automatic Schema Migration**: checks for 
 
 ### B4.2 `DocumentRegistry.register_document(metadata) → str`
 
-Registers a new revision. If keys like `asset_tags` are provided as Python lists, the registry automatically serializes them to JSON strings for database storage.
+Registers a new revision. If keys like `asset_tags` are provided as Python lists, the registry automatically serializes them to JSON strings (`json.dumps()`) for storage in the VARCHAR column. On read, callers receive the raw JSON string and should deserialize with `json.loads()` if a list is needed.
 
 **Metadata Keys (Extended):**
 - `source_type`: `ingested`, `referenced`, `stub`
-- `asset_tags`: List of strings (Auto-serialized to JSON)
+- `asset_tags`: List of strings — auto-serialized to JSON string on write (e.g. `'["P-101", "V-202"]'`)
 - `extract_status`: `pending` (default), `success`, `partial`, `failed`
 - `extraction_confidence`: Float 0.0 - 1.0
 - `verified_by`: String (null until manual verification)
 
 ---
 
-## B11. Extraction & Verification Workflow
+## B5. Extraction & Verification Workflow
 
 The extended metadata fields support a hybrid automated/manual workflow implemented across Phase 3 and Phase 5.
 
@@ -134,7 +134,7 @@ The extended metadata fields support a hybrid automated/manual workflow implemen
 
 ---
 
-## B12. References
+## B6. References
 
 1. [`registry.py`](../engine/core/registry.py) — DocumentRegistry implementation
 2. [Phase 1 Foundation Workplan](phase_1_foundation_workplan.md) — T1.21, T1.22

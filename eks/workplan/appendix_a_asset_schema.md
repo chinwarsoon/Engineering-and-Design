@@ -1,10 +1,11 @@
 # Appendix A — Universal Plant Item Schema
 
-**Version**: 0.3  
+**Version**: 0.4  
 **Last Updated**: 2026-06-17  
 **Summary of Changes**:  
 v0.2 — Gap analysis against actual datadrop Excel. Added 14 unmapped Equipment columns (`specialist_equipment` fragment, A2.12), 10 Motor columns to `rotating_equipment` and new `motor_control` fragment (A2.13), full actuator manufacturer+lifecycle block to `actuator` fragment (A2.8), 12 Instrument columns to `instrumentation` fragment (A2.10), 3 MANUALVALVE columns to `valve_internals` (A2.7). Added pipeline duplicate KEYTAG ingestion rule (A5). Updated composition map (A3) and column normalization map (A5).  
-v0.3 — Added A7: How to Add a New Plant Asset Type. Three scenarios covered (existing fragments only, conditional fragment, new fragment). Decision guide and validation step included. Supports R39 zero-code extensibility.
+v0.3 — Added A7: How to Add a New Plant Asset Type. Three scenarios covered (existing fragments only, conditional fragment, new fragment). Decision guide and validation step included. Supports R39 zero-code extensibility.  
+v0.4 — Review corrections: `pipeline_route.p_and_id_files` changed to array of strings to support multi-P&ID pipeline deduplication. Added known-overlap note to `submergence_min` in A2.12 (`specialist_equipment`).
 
 ---
 
@@ -245,6 +246,7 @@ The CONTROLVALVE sheet carries **two full manufacturer+lifecycle blocks** — on
 | `insulation_thickness` | number | INSULATION THICKNESS | Insulation thickness (mm) |
 | `from_component` | string | FROM_COMPONENT, FROM_COMPONENT1 | Source equipment/pipeline tag (null = pending data entry) |
 | `to_component` | string | TO_COMPONENT, TO_COMPONENT1 | Destination equipment/pipeline tag (null = pending data entry) |
+| `p_and_id_files` | array of strings | DOC_FNAME (multi-row) | All P&ID drawing filenames referencing this pipeline — multi-value because 612 pipeline KEYTAGs appear on multiple P&ID sheets. Stored as JSON array; produces one `REFERENCED_BY_DWG` graph edge per entry. |
 
 **Note on `from_component` / `to_component`**: The Pipeline sheet contains up to 4 connectivity columns (`TO_COMPONENT`, `FROM_COMPONENT`, `TO_COMPONENT1`, `FROM_COMPONENT1`). All are currently null in the datadrop. The loader must handle multi-value connectivity by creating one `CONNECTS_TO` edge per non-null value.
 
@@ -260,7 +262,7 @@ Equipment columns not covered by `rotating_equipment` that are specific to UV tr
 | `uv_lamp_type` | string | UV_LAMP_TYPE | UV lamp type (UV treatment equipment) |
 | `removal_dosage` | number | REMOVAL_DOSAGE | UV/chemical removal dosage |
 | `flux` | number | FLUX | UV flux value |
-| `submergence_min` | number | SUBMERGENCE - MIN | Minimum submergence depth (m) — also in `rotating_equipment` for pumps |
+| `submergence_min` | number | SUBMERGENCE - MIN | Minimum submergence depth (m) — also in `rotating_equipment` for pumps. **Known overlap**: both fragments may be included for certain AT_EQUIP rows (e.g. submersible pumps classified under specialist equipment). The loader takes the value from whichever fragment is present; no conflict since the canonical field name is identical. |
 | `manufacturer_fax` | string | MANUFACTURER FAX | Manufacturer fax number *(present across Equipment, Motor, CONTROLVALVE, MANUALVALVE)* |
 
 **Note**: `manufacturer_fax` is present across 4 sheets but was omitted from the `manufacturer` fragment as it is rarely populated. It is captured here as an optional field. The column normalization map should include it universally.

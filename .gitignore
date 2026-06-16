@@ -210,3 +210,6 @@ __marimo__/
 dcc/output/
 *.log
 .aider*
+
+# EKS data files
+eks/data

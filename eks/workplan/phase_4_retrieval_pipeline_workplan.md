@@ -1,7 +1,7 @@
 # EKS Phase 4 — Retrieval & Scoring Pipeline
 
 **Document ID**: WP-EKS-P4-001  
-**Current Version**: 0.5  
+**Current Version**: 0.7  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
 **Last Updated**: 2026-06-16  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -24,6 +24,8 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | 0.3     | 2026-06-16 | System | Added T4.18 asset query handler, reranker model guidance, Timestamp column in task table. |
 | 0.4     | 2026-06-18 | System | Added R40 to scope: dual-collection vector search (eks_chunks + eks_assets). Added T4.19 dual-collection merger. Updated success criteria. |
 | 0.5     | 2026-06-16 | System | Updated T4.1 to include new metadata dimensions: `originator_company` and `security_class`. |
+| 0.6     | 2026-06-16 | System | Added T4.20–T4.21 for dynamic ontology-aware query expansion and unlimited path depth connectivity tracing. Linked Appendix C. |
+| 0.7     | 2026-06-16 | System | Ontology Option C gap closure: added T4.22 (dedicated ontology_resolver.py module); T4.23 (CONTROLS + FEEDS_FROM traversal in graph expander); T4.24 (PhysicalObject lookup via INSTALLED_AT). Added success criteria for all three. Added ontology_resolver.py to files table. |
 
 ---
 
@@ -53,6 +55,8 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | R24 | Revision Management| Revision-Aware Retrieval         | Retrieval pipeline respects document revision context                      | 🔷 PLANNED |
 | R38 | Retrieval Pipeline | Asset-Aware Retrieval            | Filter and expand context by asset attributes and asset-to-document graph relationships | 🔷 PLANNED |
 | R40 | Retrieval Pipeline | Asset Semantic Search            | Query `eks_assets` Qdrant collection for fuzzy/semantic asset property queries; merge with Neo4j structured results before scoring | 🔷 PLANNED |
+| R44 | Schema             | ISO 15926 Ontology Integration   | Separate FunctionalObject (Tag) and PhysicalObject (Equipment) properties in ontology schema; zero-code config-driven classes and relationships | 🔷 PLANNED |
+| R46 | Retrieval Pipeline | Ontology-Aware Retrieval         | Dynamic query expansion via T-Box subclass traversal; trace piping connections at unlimited depth | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -121,6 +125,13 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | T4.15 | Write end-to-end tests | Test full pipeline with sample engineering documents and queries | 🔷 |
 | T4.16 | Update config | Add retrieval settings: top_k, reranker_model, llm_provider, context_window to `eks_config.json` | 🔷 |
 | T4.17 | Update logs | `update_log.md`, `issue_log.md` | 🔷 |
+| T4.18 | Implement asset query handler | Add `query_assets` in `pipeline.py` to retrieve asset card details and P&ID links for UI (R38) | 🔷 |
+| T4.19 | Implement dual-collection search merger | Merge `eks_chunks` and `eks_assets` vector search results using RRF or normalized scores (R40) | 🔷 |
+| T4.20 | Implement ontology-aware query expansion | Update `metadata_filter.py` to resolve subclass hierarchies dynamically from Neo4j T-Box (R46) | 🔷 |
+| T4.21 | Implement unlimited-depth connectivity path tracing | Update `graph_expander.py` to trace CONNECTS_TO* downstream/upstream paths with no depth limits (R46) | 🔷 |
+| T4.22 | Implement OntologyResolver module | Create `ontology_resolver.py`: `resolve_class(user_label) → [AT_codes]` — queries Neo4j T-Box using dynamic Cypher: `MATCH (parent:OntologyClass {label: $label})<-[:SUBCLASS_OF*0..10]-(sub) RETURN collect(sub.name)`; maps returned class names to AT_ codes via `ontology_class_map`; returns list for metadata filter — zero hardcoded class lists in Python | 🔷 |
+| T4.23 | Extend graph expander with CONTROLS + FEEDS_FROM | Update `graph_expander.py` to traverse `CONTROLS` relationships (instrument→asset: "what controls this pump?") and `FEEDS_FROM` relationships; add to the candidate expansion set alongside existing CONNECTS_TO and REFERENCED_BY_DWG traversals | 🔷 |
+| T4.24 | Implement PhysicalObject lookup via INSTALLED_AT | Add query path in `graph_expander.py`: when query targets a tag node (FunctionalObject), traverse `INSTALLED_AT` in reverse to find linked PhysicalObject nodes; include manufacturer, serial_number, brand in LLM context assembly for physical equipment queries | 🔷 |
 
 ---
 
@@ -181,6 +192,8 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 - [ ] `eks_assets` Qdrant collection queried for semantic asset property searches (R40)
 
 - [ ] Dual-collection search results merged and scored consistently
+- [ ] Ontology-aware query expansion dynamically resolves subclasses from Neo4j T-Box (T4.20)
+- [ ] Unlimited-depth connectivity path tracing (`CONNECTS_TO*`) tracing is operational in retrieval pipeline (T4.21)
 - [ ] End-to-end pipeline tests passing with sample engineering documents and asset queries
 
 ---
@@ -207,3 +220,4 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 5. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
 6. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
 7. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Asset schema (R36) for metadata filter dimensions
+8. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology

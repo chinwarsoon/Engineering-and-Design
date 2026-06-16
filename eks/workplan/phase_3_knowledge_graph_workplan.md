@@ -1,7 +1,7 @@
 # EKS Phase 3 — Knowledge Graph & Engineering Object Metadata
 
 **Document ID**: WP-EKS-P3-001  
-**Current Version**: 0.6  
+**Current Version**: 0.8  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
 **Last Updated**: 2026-06-16  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -25,6 +25,8 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | 0.4     | 2026-06-17 | System | Added R39 to scope. Updated T3.9 base asset loader to read conditional_fragments from config and evaluate when/in conditions at runtime — zero code changes needed to add new asset types. Schema loader confirmed no update needed (file-agnostic). |
 | 0.5     | 2026-06-18 | System | Added R40 (asset embedding trigger after Neo4j load) and R42 (asset vector upsert on datadrop reload) to scope and tasks. T3.15 sheet orchestrator updated to trigger Phase 2 asset text builder + Qdrant upsert after each node batch. |
 | 0.6     | 2026-06-16 | System | Added R43: Automated Document Metadata Extraction. Added T3.21 to task breakdown. |
+| 0.7     | 2026-06-16 | System | Added T3.22–T3.24 for dynamic ISO 15926-aligned ontology node & relationship loading in Neo4j. Linked Appendix C. |
+| 0.8     | 2026-06-16 | System | Ontology Option C gap closure: added T3.25 (PhysicalObject nodes + INSTALLED_AT edges from serial numbers); T3.26 (SHACL constraint validation post-load); T3.27 (T-Box reload strategy + version control). Updated T3.24 to include conditional PhysicalObject logic. Added success criteria for all three. |
 
 ---
 
@@ -56,6 +58,10 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | R40 | Embedding            | Asset Embedding Trigger        | After loading each asset batch to Neo4j, call asset text builder and upsert vectors into `eks_assets` Qdrant collection | 🔷 PLANNED |
 | R42 | Knowledge Base       | Asset Vector Upsert            | On datadrop reload: upsert Neo4j nodes + invalidate and re-embed corresponding `eks_assets` vectors for changed keytags | 🔷 PLANNED |
 | R43 | Metadata             | Automated Metadata Extraction | Automated extraction of 11 extended fields (Accountability, Origin, Quality) from doc cover sheets during ingestion | 🔷 PLANNED |
+| R44 | Schema               | ISO 15926 Ontology Integration | Separate FunctionalObject (Tag) and PhysicalObject (Equipment) properties in ontology schema; zero-code config-driven classes and relationships | 🔷 PLANNED |
+| R45 | Knowledge Base       | Dynamic Ontology Ingestion    | Load T-Box taxonomy dynamically from config; map assets to ontology classes; create IS_A and INSTALLED_AT relationships in Neo4j | 🔷 PLANNED |
+| R48 | Knowledge Base | PhysicalObject + INSTALLED_AT | When serial_number is non-null on an asset row, create a separate PhysicalObject node and link it to the FunctionalObject (tag) via INSTALLED_AT; enables physical equipment traceability (ISO 15926 Part 2) | 🔷 PLANNED |
+| R49 | Knowledge Base | SHACL Constraint Validation | Post-load SHACL validation against ingested asset nodes; violations logged to issue_log.md | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -128,6 +134,12 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | T3.17 | Write integration tests | Graph CRUD, relationship builders, asset loaders, pipeline-to-component links, superseded lookup | 🔷 | — |
 | T3.18 | Update schema and config | Add graph node/relationship definitions to `eks_base_schema.json`; asset loader config to `eks_config.json` | 🔷 | — |
 | T3.19 | Update logs | `update_log.md`, `issue_log.md` | 🔷 | — |
+| T3.22 | Define ontology graph nodes | Update `graph_schema.py` to add `OntologyClass` node properties | 🔷 | — |
+| T3.23 | Implement dynamic T-Box loader | Add `TBoxImporter` in `neo4j_store.py` to dynamically load classes and SUBCLASS_OF hierarchy from `eks_ontology.json` | 🔷 | — |
+| T3.24 | Map A-Box instances to ontology | Refactor `base_asset_loader.py` to: (1) look up ontology class from `ontology_class_map[tag_type]` in `eks_asset_config.json`; (2) create IS_A edge from asset instance node to its OntologyClass node; (3) if `serial_number` is non-null, create PhysicalObject sub-node and INSTALLED_AT edge from PhysicalObject → FunctionalObject (tag); all class resolution is dynamic via T-Box — no hardcoded class names in Python | 🔷 | — |
+| T3.25 | Create PhysicalObject nodes from serial numbers | For each asset row where `serial_number` is non-null: create a `:PhysicalObject` node with properties (serial_number, brand, model_number, manufacture_date); create `INSTALLED_AT` edge from PhysicalObject → FunctionalObject (the asset tag node); enables physical equipment traceability per ISO 15926 Part 2 | 🔷 | — |
+| T3.26 | Implement SHACL constraint validation | After each sheet load batch, run SHACL shape validation against loaded nodes (e.g. every PumpTag must have unit and service; every PipelineTag must have pipe_material); log violations to `eks/log/issue_log.md` with keytag, constraint name, and severity | 🔷 | — |
+| T3.27 | Define T-Box reload strategy | Add `version` field to `eks_ontology.json`; on Neo4j startup, compare stored version node with config version; skip T-Box reload if version unchanged; support `force_reload` flag in `eks_config.json`; log reload event to `update_log.md` | 🔷 | — |
 
 ---
 
@@ -195,6 +207,8 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 - [ ] Asset embeddings upserted to `eks_assets` after each datadrop load batch (R40)
 - [ ] Asset vector upsert on reload: changed keytags re-embedded, stale vectors removed (R42)
 - [ ] Automated Document Metadata Extraction (R43) operational: extract 11 extended fields from cover sheets; store in Registry
+- [ ] Ontology classes and relationships loaded dynamically into Neo4j (T3.23)
+- [ ] Ingested asset instances linked dynamically to ontology classes via `IS_A` edges (T3.24)
 - [ ] DWG/DGN parser stubs in place with correct interface signature
 - [ ] Integration tests passing for graph CRUD, asset loaders, relationship builders
 
@@ -222,3 +236,4 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 5. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
 6. [eks/data/twrp/datadrop/Datadrop Summary.xlsx](/home/franklin/dsai/Engineering-and-Design/eks/data/twrp/datadrop/Datadrop%20Summary.xlsx) — Project asset datadrop (7 sheets)
 7. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Phase 1 asset schema fragments (R36)
+8. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology

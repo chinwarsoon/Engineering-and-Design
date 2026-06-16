@@ -30,21 +30,22 @@ dependencies:
   - pip:
       # ── Phase 1: Document Registry ──────────────────────────────────────────
       - duckdb==1.5.1              # Metadata DB (default; swappable with PostgreSQL)
-      - psycopg2-binary==2.9.9     # PostgreSQL driver (optional alternative)
+      - psycopg2-binary>=2.9       # PostgreSQL driver (2.9.9 has no Py3.13 wheel; 2.9.12 installed)
 
       # ── Phase 1: Document Parsers ───────────────────────────────────────────
-      - pymupdf==1.24.5            # PDF parsing (fitz) — text, metadata, page numbers
+      - pymupdf==1.27.2            # PDF parsing (fitz) — text, metadata, page numbers
       - python-docx==1.1.2         # DOCX parsing — text, metadata, sections
       - openpyxl==3.1.5            # XLSX already in conda; pinned here for consistency
 
       # ── Phase 1: Schema / Config ────────────────────────────────────────────
       - jsonschema==4.23.0         # JSON schema validation and $ref resolution
+      - referencing==0.35.1        # JSON schema $ref resolution (required by jsonschema)
 
       # ── Phase 1: Logging / Debug ────────────────────────────────────────────
       - structlog==24.1.0          # Structured logging support
 
       # ── Phase 2: Chunking & Embedding ───────────────────────────────────────
-      - tiktoken==0.7.0            # Token counting for chunk size management
+      - tiktoken==0.13.0           # Token counting for chunk size management (0.7.0 requires Rust; 0.13.0 has pre-built wheel)
       - sentence-transformers==3.0.1  # Local embedding models (optional)
       - openai==1.35.0             # OpenAI embeddings + LLM API (Phase 2 + 4)
       - ollama==0.2.1              # Ollama local embeddings + LLM client (Phase 2 + 4)
@@ -61,7 +62,6 @@ dependencies:
 
       # ── Phase 4: Retrieval & Scoring ─────────────────────────────────────────
       - rank-bm25==0.2.2           # BM25 keyword search implementation
-      - numpy==2.4.3               # Already above; pinned for retrieval scoring
 
       # ── Phase 5: Web UI & Cache ───────────────────────────────────────────────
       - fastapi==0.111.0           # Backend API framework

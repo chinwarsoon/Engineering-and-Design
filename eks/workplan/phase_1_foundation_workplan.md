@@ -1,7 +1,7 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
-**Current Version**: 1.1  
-**Status**: ✅ COMPLETE  
+**Current Version**: 1.4  
+**Status**: 🔶 PARTIAL  
 **Last Updated**: 2026-06-16  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
@@ -29,7 +29,10 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | 0.8     | 2026-06-17 | System | Added R39: zero-code asset extensibility. Added T1.20: update 3 asset schema files with gap analysis findings (13 fragments, expanded fields, conditional_fragments structure). Phase 1 status set to PARTIAL pending T1.20 completion. |
 | 0.9     | 2026-06-18 | System | T1.20 complete: all 3 asset schema files updated and validated. Added asset schema + R39 test cases to test_phase1.py. Updated update_log.md (U017-U021) and issue_log.md (I004 resolved, I005 added). Updated phase_1_foundation_report.md to v0.2. Marked eks_config.json placeholder data. Phase status set to COMPLETE. |
 | 1.0     | 2026-06-18 | System | Added T1.21: Document Registry Remediation (G1-G3 gaps identified in Appendix B). Reverted status to PARTIAL. |
-| 1.1     | 2026-06-16 | System | Added T1.22: Extended Document Metadata Schema & Migration logic (11 new fields, JSON array support). |
+| 1.1     | 2026-06-18 | System | Added T1.22: Extended Document Metadata Schema & Migration logic (11 new fields, JSON array support). |
+| 1.2     | 2026-06-16 | System | Review corrections: fixed v1.1 date typo; added R36 and R39 to Section 4 scope table; corrected `pipeline_route.p_and_id_files` to array in Appendix A; added `submergence_min` overlap note in A2.12; renumbered B11/B12 → B5/B6 in Appendix B; clarified `asset_tags` as VARCHAR JSON string. |
+| 1.3     | 2026-06-16 | System | Added T1.23–T1.26 for dynamic ISO 15926-aligned ontology. Set phase status to PARTIAL. |
+| 1.4     | 2026-06-16 | System | Ontology Option C gap closure: added `rdflib` to eks.yml dependency note in T1.2; added SHACL constraint reference to T1.23; added T1.27 (ontology_class_map validation in eks_asset_config.json); added `eks_ontology_schema.json` SHACL note to files table. |
 
 ---
 
@@ -62,6 +65,9 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | R33 | Logging & Debug      | Tiered Logging (levels 0–3) | Per agent_rule Section 6: status, warning, trace levels                                   | ✅ PASS |
 | R34 | Logging & Debug      | Debug Object & Trace Table | Debug dict → debug_log.json, trace table with timestamps                                   | ✅ PASS |
 | R35 | Module Design        | SSOT Global Parameters    | All global keys, paths, codes in schema-driven config; no hardcoding                        | ✅ PASS |
+| R36 | Asset Schema         | Universal Plant Item Schema | 13 reusable fragment definitions covering all 7 datadrop categories; base/setup/config pattern | ✅ PASS |
+| R39 | Asset Schema         | Zero-Code Asset Extensibility | New asset types added via config only; no code changes required; `conditional_fragments` structure | ✅ PASS |
+| R44 | Schema               | ISO 15926 Ontology Integration | Define dynamic, config-driven ontology schema (classes, properties, relationships) for EKS | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -336,7 +342,7 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | # | Task | Details | Status |
 | :- | :--- | :------ | :----: |
 | T1.1 | Create EKS folder structure | archive, config, data, output, engine, log, docs, workplan, test, ui | ✅ |
-| T1.2 | Create environment file `eks.yml` | Conda environment with all Phase 1–5 dependencies (Python, DuckDB, FastAPI, parsers, vector DB, graph DB clients, embedding providers) | ✅ |
+| T1.2 | Create environment file `eks.yml` | Conda environment with all Phase 1–5 dependencies (Python, DuckDB, FastAPI, parsers, vector DB, graph DB clients, embedding providers, rdflib for ontology OWL/Turtle file parsing) | ✅ |
 | T1.3 | Design canonical schema — base | `eks_base_schema.json`: definitions for all shared types & project-scoped fragments | ✅ |
 | T1.4 | Design canonical schema — setup | `eks_setup_schema.json`: registry-based declarations for project-scoped config | ✅ |
 | T1.5 | Design canonical schema — config | `eks_config.json`: project-namespaced values (discipline/rules registries) | ✅ |
@@ -357,6 +363,11 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | T1.20 | Update asset schema files for R39 + gap analysis | (1) `eks_asset_base_schema.json`: add `specialist_equipment` and `motor_control` fragment `$defs`; expand `actuator`, `rotating_equipment`, `instrumentation`, `valve_internals` with gap analysis fields. (2) `eks_asset_setup_schema.json`: update fragment enum to 13 names; add `conditional_fragments` object structure to registry. (3) `eks_asset_config.json`: add `conditional_fragments` entries for AT_EQUIP and AT_MOTOR; add missing column normalization entries (manufacturer_fax, valve_internal_type, dual alarm TP columns) | ✅ |
 | T1.21 | Document Registry Remediation (G1-G3) | Add `source_type` column (G1); implement column allowlist for `list_documents` (G2); migrate `get_revision_history` sorting to SQL `ORDER BY` (G3). Update schema files accordingly. | ✅ |
 | T1.22 | Extended Document Metadata | Implement 11 new fields (Accountability, Quality, Technical groups); support `asset_tags` as JSON array; implement `ALTER TABLE` migration logic in `registry.py` for schema evolution. | ✅ |
+| T1.23 | Design ontology schema | `eks_ontology_schema.json`: validate classes, properties, and relationship types; include SHACL constraint definitions for data quality rules (e.g. every PumpTag must have unit and service) | 🔷 |
+| T1.24 | Create ontology config | `eks_ontology.json`: define classes, inheritance, and relationship properties (ISO 15926 aligned) | 🔷 |
+| T1.25 | Extend schema loader | Update `schema_loader.py` to validate and load the ontology registry dynamically at startup | 🔷 |
+| T1.26 | Write ontology unit tests | Test ontology schema validation and loading in `test_phase1.py` | 🔷 |
+| T1.27 | Validate ontology_class_map in asset config | Add `ontology_class_map` section to `eks_asset_config.json` mapping each AT_ code to its ontology class name (e.g. `AT_EQPMP` → `PumpTag`); validate one-to-one match with classes defined in `eks_ontology.json`; add validation test to `test_phase1.py` | 🔷 |
 
 ---
 
@@ -380,12 +391,14 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | `eks/config/eks_base_schema.json`     | Update | Canonical schema — add `source_type` to metadata + Extended Metadata definitions |
 | `eks/config/eks_setup_schema.json`    | Create | Canonical schema — property declarations              |
 | `eks/config/eks_config.json`          | Update | Actual config values (paths, DB, provider settings)   |
+| `eks/config/eks_ontology_schema.json` | Create | Ontology schema — property declarations for ontology; includes SHACL constraint definitions |
+| `eks/config/eks_ontology.json`        | Create | Engineering ontology config (dynamic classes, relationships) |
 | `eks/log/update_log.md`               | Create | Update log                                            |
 | `eks/log/issue_log.md`                | Create | Issue log                                             |
 | `eks/test/test_phase1.py`             | Update | Unit tests for all Phase 1 components + Extended Metadata |
 | `eks/config/eks_asset_base_schema.json` | Create | Universal plant item schema — 13 fragment definitions (gap analysis additions included) |
 | `eks/config/eks_asset_setup_schema.json` | Create | Asset schema — type-to-fragment mapping registry        |
-| `eks/config/eks_asset_config.json`    | Create | Project-specific asset config (WSD11 datadrop)         |
+| `eks/config/eks_asset_config.json`    | Update | Project-specific asset config (WSD11 datadrop); add `ontology_class_map` section mapping AT_ codes to ontology class names |
 
 ---
 
@@ -432,6 +445,9 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - [x] All 13 fragment `$defs` present and correct in `eks_asset_base_schema.json` (includes gap analysis additions)
 - [x] Document Registry G1-G3 resolved: `source_type` supported, SQL injection protection in place, SQL-level sorting implemented.
 - [x] Extended Metadata Support (T1.22): 11 new fields added to schema and DB; JSON array support for asset_tags; migration logic verified.
+- [ ] ISO 15926-aligned ontology schema design and dynamic config file implemented (T1.23, T1.24)
+- [ ] Schema loader extended to validate and load the ontology registry dynamically (T1.25)
+- [ ] Ontology unit tests passing in test_phase1.py (T1.26)
 
 ---
 
@@ -447,6 +463,7 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - Log files: `update_log.md`, `issue_log.md`
 - Package init files: `engine/__init__.py`, `engine/core/__init__.py`, `engine/parsers/__init__.py`, `engine/logging/__init__.py`
 - Asset schema files: `eks_asset_base_schema.json` (13 fragments), `eks_asset_setup_schema.json` (conditional_fragments structure), `eks_asset_config.json` (conditional rules + full column normalization)
+- Ontology files: `eks_ontology_schema.json`, `eks_ontology.json`
 - Report: `eks/workplan/reports/phase_1_foundation_report.md`
 
 ---
@@ -458,3 +475,4 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 3. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
 4. [dcc/config/schemas](/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas) — Schema pattern reference
 5. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema appendix
+6. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology

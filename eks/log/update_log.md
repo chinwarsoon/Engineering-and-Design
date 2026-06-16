@@ -34,6 +34,10 @@
 | U023 | 2026-06-16 | Phase 1 | — | Logged issue I006 (Document Registry Technical Gaps G1-G3) to `eks/log/issue_log.md` following Appendix B recommendation | Gemini CLI | ✅ Done |
 | U024 | 2026-06-16 | Phase 1 | T1.21 | Implemented Document Registry remediation (G1-G3): Added `source_type` column to registry; implemented SQL column allowlist for `list_documents` (G2); migrated history sorting to SQL `ORDER BY` (G3). Updated `eks_base_schema.json`. | Gemini CLI | ✅ Done |
 | U025 | 2026-06-16 | Phase 1 | T1.22 | Implemented Extended Document Metadata: Added 11 new fields to schema and DB; implemented automatic `ALTER TABLE` migration in `registry.py`; added JSON serialization for `asset_tags` array. | Gemini CLI | ✅ Done |
+| U026 | 2026-06-16 | Phase 1 | Review | Applied 6 review corrections: fixed v1.1 date typo in phase_1_foundation_workplan.md; added R36/R39 to Section 4 scope table; `pipeline_route.p_and_id_files` changed to array of strings in Appendix A; added `submergence_min` overlap note in A2.12; renumbered B11/B12→B5/B6 in Appendix B; clarified `asset_tags` as VARCHAR JSON string | System | ✅ Done |
+| U027 | 2026-06-16 | Phase 1 | Testing | Full test run: 22/22 unit tests pass (test_phase1.py + test_asset_schema.py), validate_asset_schema.py PASS, verify_all.py ALL PASS (18/18). Fixed stale version assertions in verify_all.py (p3: 0.5→0.6, p4: 0.4→0.5) | System | ✅ Done |
+| U028 | 2026-06-16 | Phase 1 | T1.2 | Created `eks` conda environment from `eks.yml`. Resolved 3 compatibility issues: (1) pymupdf pinned to 1.27.2 (1.24.5 unavailable); (2) tiktoken changed from 0.7.0→0.13.0 (0.7.0 requires Rust compiler, no pre-built Py3.13 wheel); (3) psycopg2-binary relaxed to >=2.9 (2.9.9 has no Py3.13 wheel, 2.9.12 installed). Added `referencing==0.35.1` and `pytest` to env. All 22 Phase 1 tests pass in `eks` env. | System | ✅ Done |
+| U029 | 2026-06-16 | Planning | — | Created `appendix_c_ontology.md` and updated Master workplan (`eks_system_workplan.md`) plus all 5 Phase workplans to include dynamic ISO 15926-aligned ontology implementation tasks (R44, R45, R46). Reverted Phase 1 status to PARTIAL. | System | ✅ Done |
 
 ---
 
@@ -41,3 +45,4 @@
 - Each entry corresponds to a workplan task or phase milestone
 - Timestamp format: YYYY-MM-DD
 - Link phase reports here once generated: `eks/workplan/reports/`
+==0.35.1` and `pytest` to env. All 22 Phase 1 tests pass in `eks` env. | System | ✅ Done |

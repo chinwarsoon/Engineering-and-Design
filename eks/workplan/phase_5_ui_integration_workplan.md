@@ -1,7 +1,7 @@
 # EKS Phase 5 — UI, Retrieval Cache & System Integration
 
 **Document ID**: WP-EKS-P5-001  
-**Current Version**: 0.4  
+**Current Version**: 0.6  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
 **Last Updated**: 2026-06-16  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -23,6 +23,8 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | 0.2     | 2026-06-15 | System | Added asset browsing/filtering UI (unit, service, tag_type, pipeline tag) and asset-aware query endpoints. Updated integration test scope to include asset graph queries |
 | 0.3     | 2026-06-16 | System | Added Timestamp column to task breakdown table per agent_rule Section 8.8. Updated dependency note: Phase 5 /assets endpoint depends on T4.18 query_assets handler from Phase 4. |
 | 0.4     | 2026-06-16 | System | Added T5.18: Manual Metadata Verification UI workflow. |
+| 0.5     | 2026-06-16 | System | Added T5.19 for adding an ontology navigator tree view in the EKS UI. Linked Appendix C. |
+| 0.6     | 2026-06-16 | System | Ontology Option C gap closure: added R47 (Ontology-Driven UI Facets) to scope table; added T5.20 (/api/ontology/classes endpoint + routes/ontology.py); T5.21 (SHACL violation badges on asset cards). Added routes/ontology.py to files table. |
 
 ---
 
@@ -45,6 +47,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | I-01 | Integration    | Full System Integration Test             | End-to-end: ingest → chunk → embed → graph (document + asset) → retrieve → answer | 🔷 PLANNED |
 | D-01 | Documentation  | System Documentation                    | 16-section documentation per agent_rule Section 7                  | 🔷 PLANNED |
 | A-01 | UI             | Asset Browsing & Filtering              | Filter panel for unit, service, tag_type, pipeline tag; display asset cards with attributes and linked documents | 🔷 PLANNED |
+| O-01 | UI | Ontology-Driven UI Facets (R47) | Hierarchical class tree in UI sidebar showing ontology class hierarchy with asset instance counts per class; backed by `/api/ontology/classes` endpoint querying Neo4j T-Box | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED  
 *Note: C-01, I-01, D-01 are phase-specific items not in the master requirements list.*
@@ -115,6 +118,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | T5.16 | Update all workplan statuses | Mark all phase workplans COMPLETE; update master index | 🔷 | — |
 | T5.17 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 | — |
 | T5.18 | Manual Verification UI | Implement "Manual Verification Dashboard" to review auto-extracted metadata (Phase 3) and set `verified_by` status. | 🔷 | — |
+| T5.19 | Implement ontology navigator tree | Add a hierarchical tree explorer component in the sidebar of `index.html` to browse assets via ontology classes | 🔷 | — |
 
 ---
 
@@ -172,6 +176,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 - [ ] Source citations displayed in UI: doc_number, revision, page, section, asset tag
 - [ ] Manual Verification workflow operational: UI allows reviewing auto-extracted metadata and setting `verified_by` status
 - [ ] System documentation complete per agent_rule Section 7 (all 16 sections)
+- [ ] Ontology navigator tree view operational in UI sidebar enabling hierarchical asset browsing (T5.19)
 - [ ] All phase workplans updated to COMPLETE status
 - [ ] All logs updated with final entries
 
@@ -201,3 +206,4 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 8. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
 9. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Asset schema (R36) for filter dimensions
 10. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) — Asset graph for browsing
+11. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology

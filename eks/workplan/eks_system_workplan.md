@@ -1,7 +1,7 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 0.7  
+**Current Version**: 0.8  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
 **Last Updated**: 2026-06-18  
 
@@ -26,6 +26,7 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | 0.5     | 2026-06-17 | System | Added R39: Zero-code asset extensibility — conditional_fragments structure in schema enables adding new plant asset types/sub-types without code changes. Assigned to Phase 1 (schema) and Phase 3 (loader). |
 | 0.6     | 2026-06-18 | System | Phase 1 marked PASS: T1.20 complete, all success criteria met, test_phase1.py updated, logs and report updated. R36 and R39 status updated to PASS in master scope table. |
 | 0.7     | 2026-06-18 | System | Added Section 10: EKS Pipeline Architecture — full workflow diagram covering ingestion, embedding, graph, retrieval, and UI across all 5 phases. Added R40 (Asset Embedding Strategy), R41 (Asset Chunk Registry Extension), R42 (Asset Vector Upsert) based on datadrop embedding analysis. Updated scope table, phase index, and index of content. |
+| 0.8     | 2026-06-16 | System | Ontology Option C gap closure: added R45 (Ontology-Enriched Embedding Headers) and R47 (Ontology-Driven UI Facets) to scope table; added R48 (PhysicalObject + INSTALLED_AT) and R49 (SHACL Constraint Validation) to scope table; updated Phase 3 pipeline architecture description to include PhysicalObject nodes and INSTALLED_AT relationship; added Appendix C reference to references section. |
 
 ---
 
@@ -88,6 +89,13 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 | R40 | Embedding            | Asset Embedding Strategy                 | Define asset-to-text representation (contextual header + key field summary); store asset vectors in separate Qdrant collection `eks_assets`; prevent null/code pollution | 🔷 PLANNED | 2,3   |
 | R41 | Knowledge Base       | Asset Chunk Registry Extension           | Extend chunk registry to support asset records keyed on `keytag` (no parent-child); asset metadata schema: keytag, tag_type, unit, service, tag_no, p_and_id_file | 🔷 PLANNED | 2     |
 | R42 | Knowledge Base       | Asset Vector Upsert                      | When datadrop is re-exported, invalidate and re-embed affected asset vectors in `eks_assets` collection; align with Neo4j node upsert strategy | 🔷 PLANNED | 3     |
+| R44 | Schema               | ISO 15926 Ontology Integration           | Separate FunctionalObject (Tag) and PhysicalObject (Equipment) properties in ontology schema; zero-code config-driven classes and relationships | 🔷 PLANNED | 1,2,3,5|
+| R45 | Knowledge Base       | Dynamic Ontology Ingestion               | Load T-Box taxonomy dynamically from config; map assets to ontology classes; create IS_A and INSTALLED_AT relationships in Neo4j | 🔷 PLANNED | 3     |
+| R46 | Retrieval Pipeline   | Ontology-Aware Retrieval                 | Dynamic query expansion via T-Box subclass traversal; trace piping connections at unlimited depth | 🔷 PLANNED | 4     |
+| R45 | Embedding | Ontology-Enriched Embedding Headers | Replace AT_ code in contextual embedding header with human-readable ontology taxonomy path resolved from T-Box (e.g. `[Pump \| Rotating Equipment \| Equipment \| Unit 003 \| Svc G2D]`) | 🔷 PLANNED | 2 |
+| R47 | UI | Ontology-Driven UI Facets | Hierarchical class tree in UI sidebar showing ontology class hierarchy with asset instance counts per class; backed by `/api/ontology/classes` endpoint | 🔷 PLANNED | 5 |
+| R48 | Knowledge Base | PhysicalObject + INSTALLED_AT | When serial_number is non-null, create PhysicalObject node and INSTALLED_AT edge to FunctionalObject tag; enables physical equipment traceability per ISO 15926 Part 2 | 🔷 PLANNED | 3 |
+| R49 | Knowledge Base | SHACL Constraint Validation | Post-load SHACL shape validation against ingested asset nodes; violations logged to issue_log.md | 🔷 PLANNED | 3 |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -150,11 +158,11 @@ Each phase is an independent workplan file. Phase execution requires approval be
 
 | Phase | Title                                          | Doc ID        | Status     | Requirements        | Workplan File |
 | :---: | :--------------------------------------------- | :------------ | :--------: | :------------------ | :------------ |
-| 1     | Foundation — Project Structure, Schema & Registry | WP-EKS-P1-001 | ✅ PASS    | R01,R02,R06–R09,R21,R22,R26,R29,R33–R35,R36,R39(schema) | [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) |
-| 2     | Chunking, Embedding & Vector Storage           | WP-EKS-P2-001 | 🔷 PLANNED | R03,R04,R10,R12–R15,R25,R28,R30,R40,R41 | [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md) |
-| 3     | Knowledge Graph & Structured Asset Ingestion   | WP-EKS-P3-001 | 🔷 PLANNED | R05,R11,R23,R27,R31,R37,R39(loader),R40(asset embed),R42 | [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) |
-| 4     | Retrieval & Scoring Pipeline                   | WP-EKS-P4-001 | 🔷 PLANNED | R16–R20,R24,R38,R40(retrieval) | [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md) |
-| 5     | UI, Retrieval Cache & System Integration       | WP-EKS-P5-001 | 🔷 PLANNED | R32 + cache | [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md) |
+| 1     | Foundation — Project Structure, Schema & Registry | WP-EKS-P1-001 | 🔶 PARTIAL | R01,R02,R06–R09,R21,R22,R26,R29,R33–R35,R36,R39(schema),R44 | [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) |
+| 2     | Chunking, Embedding & Vector Storage           | WP-EKS-P2-001 | 🔷 PLANNED | R03,R04,R10,R12–R15,R25,R28,R30,R40,R41,R45,R44(embedding) | [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md) |
+| 3     | Knowledge Graph & Structured Asset Ingestion   | WP-EKS-P3-001 | 🔷 PLANNED | R05,R11,R23,R27,R31,R37,R39(loader),R40(asset embed),R42,R45(trigger),R48,R49,R43,R44(loader) | [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) |
+| 4     | Retrieval & Scoring Pipeline                   | WP-EKS-P4-001 | 🔷 PLANNED | R16–R20,R24,R38,R40(retrieval),R46 | [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md) |
+| 5     | UI, Retrieval Cache & System Integration       | WP-EKS-P5-001 | 🔷 PLANNED | R32,R47 + cache,R44(UI) | [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md) |
 
 **Phase Dependency Chain:** Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5  
 Each phase must be approved and completed before the next phase begins.
@@ -406,6 +414,8 @@ Full end-to-end workflow across all 5 phases. Two parallel ingestion paths (docu
   └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
+**Note (v0.8)**: Phase 3 also creates PhysicalObject nodes linked via INSTALLED_AT to FunctionalObject tag nodes when serial numbers are present (R48, ISO 15926 Part 2).
+
 **Data store summary:**
 
 | Store | Technology | Contents | Phase |
@@ -429,3 +439,4 @@ Full end-to-end workflow across all 5 phases. Two parallel ingestion paths (docu
 7. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md)
 8. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
 9. [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md)
+10. [appendix_c_ontology.md](appendix_c_ontology.md)
