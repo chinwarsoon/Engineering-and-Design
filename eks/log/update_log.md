@@ -43,6 +43,8 @@
 | U032 | 2026-06-18 | Phase 1 | Refactor | Refactored all schemas to the Triple-File Pattern (Base, Setup, Config) with explicit `allOf` inheritance. Renamed `eks_ontology.json` to `eks_ontology_config.json` for consistency. | Gemini CLI | ✅ Done |
 | U033 | 2026-06-18 | Phase 1 | Testing | Verified refactored architecture with full test suite: `test_phase1.py`, `test_asset_schema.py`, `validate_ontology.py`, and `test_loader_full.py` all PASS. | Gemini CLI | ✅ Done |
 | U034 | 2026-06-18 | Phase 1 | Documentation | Updated `phase_1_foundation_workplan.md` to v1.5 COMPLETE. Updated `appendix_c_ontology.md` to v1.1. Synchronized all phase workplans with new naming conventions. | Gemini CLI | ✅ Done |
+| U035 | 2026-06-18 | Phase 1/3 | Planning | Implemented Specialized Relationship Gap Closure: Updated Appendices A & C, Phase 1 & 3 Workplans, and Asset/Ontology schemas to include 5 new relationship pairs (Flow, Power, Control, Governance, Set Points) and target classes (Infrastructure, Governance) per agent_rule standards. | Gemini CLI | ✅ Done |
+| U036 | 2026-06-18 | Phase 1/3 | Planning | Implemented Document Ontology & Lifecycle: Updated Appendix B & C, Asset/Ontology schemas, and Phase 3 Workplan to include Document Class Hierarchy (Drawing, Spec, Manual) and lifecycle relations (SUPERSEDES, SUPPLEMENTS, REFERENCES_DOC) per registry-to-graph mapping rules. | Gemini CLI | ✅ Done |
 
 ---
 

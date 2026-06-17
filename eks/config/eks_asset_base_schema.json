@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_asset_base_schema.json",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "title": "EKS Asset Base Schema — Fragment Definitions",
-    "description": "Reusable property fragments for universal plant item schema. 13 fragments composed per asset type via asset_type_registry. Includes conditional_fragments support for zero-code extensibility.",
+    "description": "Reusable property fragments for universal plant item schema. 13 fragments composed per asset type via asset_type_registry. Includes relationship metadata annotations per agent_rule Section 2.",
     "type": "object",
     "definitions": {
         "item_core": {
@@ -23,7 +23,8 @@
                 "hazardous_zone":       { "type": "string" },
                 "contract_info":        { "type": "string" },
                 "device_type_code":     { "type": "string" },
-                "p_and_id_file":        { "type": ["string", "array"], "items": { "type": "string" } }
+                "p_and_id_file":        { "type": ["string", "array"], "items": { "type": "string" }, "description": "Trigger: REFERENCED_BY_DWG" },
+                "design_specification": { "type": "string", "description": "Trigger: GOVERNED_BY" }
             },
             "required": ["keytag", "tag_type", "tag_no"],
             "additionalProperties": false
@@ -51,7 +52,7 @@
             "properties": {
                 "brand":                { "type": "string" },
                 "model_number":         { "type": "string" },
-                "serial_number":        { "type": "string" },
+                "serial_number":        { "type": "string", "description": "Trigger: INSTALLED_AT (PhysicalObject link)" },
                 "manufacturer_name":    { "type": "string" },
                 "manufacturer_website": { "type": "string" },
                 "manufacturer_phone":   { "type": "string" },
@@ -93,9 +94,9 @@
             "description": "Control and I&C interface",
             "properties": {
                 "lcs_type":             { "type": "string" },
-                "plc_panel":            { "type": "string" },
+                "plc_panel":            { "type": "string", "description": "Trigger: CONTROLLED_BY" },
                 "plc_panel_location":   { "type": "string" },
-                "rio_panel":            { "type": "string" },
+                "rio_panel":            { "type": "string", "description": "Trigger: CONTROLLED_BY" },
                 "rio_panel_location":   { "type": "string" }
             },
             "additionalProperties": false
@@ -105,7 +106,7 @@
             "description": "Piping interface for inline components, valves, and instruments",
             "properties": {
                 "pipe_size_nominal_mm":     { "type": "number" },
-                "pipeline_tag_number":      { "type": "string" },
+                "pipeline_tag_number":      { "type": "string", "description": "Trigger: CONNECTS_TO" },
                 "lining_material":          { "type": "string" },
                 "end_condition":            { "type": "string" }
             },
@@ -129,7 +130,7 @@
             "type": "object",
             "description": "Actuator specs for control valves including full actuator manufacturer and ACE lifecycle block",
             "properties": {
-                "actuator_tag_number":              { "type": "string" },
+                "actuator_tag_number":              { "type": "string", "description": "Trigger: HAS_ACTUATOR" },
                 "actuator_display_label":           { "type": "string" },
                 "actuator_internal_type":           { "type": "string" },
                 "fail_mode":                        { "type": "string" },
@@ -233,11 +234,11 @@
                 "accuracy":                 { "type": "string" },
                 "calibration_range":        { "type": "string" },
                 "supply_voltage":           { "type": "string" },
-                "alarm_limit_hh":           { "type": "number" },
-                "alarm_limit_h":            { "type": "number" },
-                "alarm_limit_l":            { "type": "number" },
-                "alarm_limit_ll":           { "type": "number" },
-                "set_point":                { "type": "number" },
+                "alarm_limit_hh":           { "type": "number", "description": "Trigger: SET_POINT_IN" },
+                "alarm_limit_h":            { "type": "number", "description": "Trigger: SET_POINT_IN" },
+                "alarm_limit_l":            { "type": "number", "description": "Trigger: SET_POINT_IN" },
+                "alarm_limit_ll":           { "type": "number", "description": "Trigger: SET_POINT_IN" },
+                "set_point":                { "type": "number", "description": "Trigger: SET_POINT_IN" },
                 "tube_material":            { "type": "string" },
                 "tube_size":                { "type": "string" },
                 "ams_category":             { "type": "string" }
@@ -251,11 +252,11 @@
                 "pipe_material":            { "type": "string" },
                 "outside_diameter_mm":      { "type": "number" },
                 "wall_thickness_mm":        { "type": "number" },
-                "design_specification":     { "type": "string" },
+                "design_specification":     { "type": "string", "description": "Trigger: GOVERNED_BY" },
                 "insulation_material":      { "type": "string" },
                 "insulation_thickness":     { "type": "number" },
-                "from_component":           { "type": ["string", "null"] },
-                "to_component":             { "type": ["string", "null"] }
+                "from_component":           { "type": ["string", "null"], "description": "Trigger: FLOW_FROM / CONNECTS_TO" },
+                "to_component":             { "type": ["string", "null"], "description": "Trigger: FLOW_TO / CONNECTS_TO" }
             },
             "additionalProperties": false
         },
@@ -277,8 +278,8 @@
             "description": "Motor electrical control and MCC interface fields (AT_MOTOR only)",
             "properties": {
                 "starter_type":     { "type": "string" },
-                "mcc_fed_from":     { "type": "string" },
-                "equipment_number": { "type": "string" }
+                "mcc_fed_from":     { "type": "string", "description": "Trigger: ENERGIZED_BY" },
+                "equipment_number": { "type": "string", "description": "Trigger: CONTROLLED_BY / RELATES_TO" }
             },
             "additionalProperties": false
         }

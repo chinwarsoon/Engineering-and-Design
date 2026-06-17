@@ -1,6 +1,7 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
-**Current Version**: 1.5  
+**Document ID**: WP-EKS-P1-001  
+**Current Version**: 1.7  
 **Status**: ✅ COMPLETE  
 **Last Updated**: 2026-06-18  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -34,6 +35,8 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | 1.3     | 2026-06-16 | System | Added T1.23–T1.26 for dynamic ISO 15926-aligned ontology. Set phase status to PARTIAL. |
 | 1.4     | 2026-06-16 | System | Ontology Option C gap closure: added `rdflib` to eks.yml dependency note in T1.2; added SHACL constraint reference to T1.23; added T1.27 (ontology_class_map planning in eks_asset_config.json); added `eks_ontology_schema.json` SHACL note to files table. |
 | 1.5     | 2026-06-18 | Gemini CLI | Phase 1 marked COMPLETE. T1.23–T1.27 pass: ontology schema/config implemented, schema_loader extended with cross-validation, asset fragments categorized (functional/physical) and linked to ontology classes. |
+| 1.6     | 2026-06-18 | Gemini CLI | Added T1.28: Embedded Relationship Metadata in Asset Schemas per agent_rule Section 2 & 4. |
+| 1.7     | 2026-06-18 | Gemini CLI | Added T1.29: Document Ontology & Mapping Metadata (Triggers for SUPERSEDES, Asset Tag Linking) to Phase 1 foundation per approved Document Ontology implementation (U036). |
 
 ---
 
@@ -340,62 +343,61 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 **Timeline**: TBD — starts after approval  
 **Estimated Effort**: Medium (foundation build)
 
-| # | Task | Details | Status |
-| :- | :--- | :------ | :----: |
-| T1.1 | Create EKS folder structure | archive, config, data, output, engine, log, docs, workplan, test, ui | ✅ |
-| T1.2 | Create environment file `eks.yml` | Conda environment with all Phase 1–5 dependencies (Python, DuckDB, FastAPI, parsers, vector DB, graph DB clients, embedding providers, rdflib for ontology OWL/Turtle file parsing) | ✅ |
-| T1.3 | Design canonical schema — base | `eks_base_schema.json`: definitions for all shared types & project-scoped fragments | ✅ |
-| T1.4 | Design canonical schema — setup | `eks_setup_schema.json`: registry-based declarations for project-scoped config | ✅ |
-| T1.5 | Design canonical schema — config | `eks_config.json`: project-namespaced values (discipline/rules registries) | ✅ |
-| T1.6 | Implement schema loader | Load and resolve base/setup/config with $ref support (reuse dcc pattern) | ✅ |
-| T1.7 | Implement document registry | CRUD interface for document metadata backed by DuckDB/PostgreSQL | ✅ |
-| T1.8 | Implement revision management | Preserve all revisions; is_latest flag; revision chain lookup | ✅ |
-| T1.9 | Implement abstract base parser | `base_parser.py`: plug-in interface with parse(), extract_metadata() | ✅ |
-| T1.10 | Implement PDF parser | `pdf_parser.py`: extract text, metadata, page numbers | ✅ |
-| T1.11 | Implement XLSX parser | `xlsx_parser.py`: extract sheet data, metadata | ✅ |
-| T1.12 | Implement DOCX parser | `docx_parser.py`: extract text, metadata, sections | ✅ |
-| T1.13 | Implement tiered logger | `logger.py`: levels 0–3, debug object, trace table, depth counter | ✅ |
-| T1.14 | Implement SSOT config registry | Global parameter access via schema-driven config; no hardcoding | ✅ |
-| T1.15 | Write unit tests | Schema loader, document registry, revision management, parsers, logger | ✅ |
-| T1.16 | Create log files | `update_log.md`, `issue_log.md` under `eks/log/` | ✅ |
-| T1.17 | Design asset schema — fragment definitions | Add 13 reusable asset fragments to `eks_asset_base_schema.json` (item_core, process_conditions, manufacturer, asset_lifecycle, control_system, piping_connection, valve_internals, actuator, rotating_equipment, instrumentation, pipeline_route, specialist_equipment, motor_control) | ✅ |
-| T1.18 | Design asset schema — type registry | Add `asset_type_registry` to `eks_setup_schema.json`; map all 14 AT_ categories to their fragment compositions in `eks_config.json` | ✅ |
-| T1.19 | Update config with asset source | Add project asset datadrop path and per-project config to `eks_config.json` | ✅ |
-| T1.20 | Update asset schema files for R39 + gap analysis | (1) `eks_asset_base_schema.json`: add `specialist_equipment` and `motor_control` fragment `$defs`; expand `actuator`, `rotating_equipment`, `instrumentation`, `valve_internals` with gap analysis fields. (2) `eks_asset_setup_schema.json`: update fragment enum to 13 names; add `conditional_fragments` object structure to registry. (3) `eks_asset_config.json`: add `conditional_fragments` entries for AT_EQUIP and AT_MOTOR; add missing column normalization entries (manufacturer_fax, valve_internal_type, dual alarm TP columns) | ✅ |
-| T1.21 | Document Registry Remediation (G1-G3) | Add `source_type` column (G1); implement column allowlist for `list_documents` (G2); migrate `get_revision_history` sorting to SQL `ORDER BY` (G3). Update schema files accordingly. | ✅ |
-| T1.22 | Extended Document Metadata | Implement 11 new fields (Accountability, Quality, Technical groups); support `asset_tags` as JSON array; implement `ALTER TABLE` migration logic in `registry.py` for schema evolution. | ✅ |
-| T1.23 | Design ontology schema | `eks_ontology_schema.json`: validate classes, properties, and relationship types; include SHACL constraint definitions for data quality rules (e.g. every PumpTag must have unit and service) | ✅ |
-| T1.24 | Create ontology config | `eks_ontology_config.json`: define classes, inheritance, and relationship properties (ISO 15926 aligned) | ✅ |
-| T1.25 | Extend schema loader | Update `schema_loader.py` to validate and load the ontology registry dynamically at startup | ✅ |
-| T1.26 | Write ontology unit tests | Test ontology schema validation and loading in `test_phase1.py` | ✅ |
-| T1.27 | Plan alias-aware ontology mapping | Define alias support and `ontology_class_map` design for `eks_asset_config.json`; document AT_ code-to-ontology class mapping and alias-driven asset onboarding; hold actual schema/code updates pending approval | ✅ |
+| # | Task | Details | Status | Timestamp |
+| :- | :--- | :------ | :----: | :-------- |
+| T1.1 | Create EKS folder structure | archive, config, data, output, engine, log, docs, workplan, test, ui | ✅ | — |
+| T1.2 | Create environment file `eks.yml` | Conda environment with all Phase 1–5 dependencies (Python, DuckDB, FastAPI, parsers, vector DB, graph DB clients, embedding providers, rdflib for ontology OWL/Turtle file parsing) | ✅ | — |
+| T1.3 | Design canonical schema — base | `eks_base_schema.json`: definitions for all shared types & project-scoped fragments | ✅ | — |
+| T1.4 | Design canonical schema — setup | `eks_setup_schema.json`: registry-based declarations for project-scoped config | ✅ | — |
+| T1.5 | Design canonical schema — config | `eks_config.json`: project-namespaced values (discipline/rules registries) | ✅ | — |
+| T1.6 | Implement schema loader | Load and resolve base/setup/config with $ref support (reuse dcc pattern) | ✅ | — |
+| T1.7 | Implement document registry | CRUD interface for document metadata backed by DuckDB/PostgreSQL | ✅ | — |
+| T1.8 | Implement revision management | Preserve all revisions; is_latest flag; revision chain lookup | ✅ | — |
+| T1.9 | Implement abstract base parser | `base_parser.py`: plug-in interface with parse(), extract_metadata() | ✅ | — |
+| T1.10 | Implement PDF parser | `pdf_parser.py`: extract text, metadata, page numbers | ✅ | — |
+| T1.11 | Implement XLSX parser | `xlsx_parser.py`: extract sheet data, metadata | ✅ | — |
+| T1.12 | Implement DOCX parser | `docx_parser.py`: extract text, metadata, sections | ✅ | — |
+| T1.13 | Implement tiered logger | `logger.py`: levels 0–3, debug object, trace table, depth counter | ✅ | — |
+| T1.14 | Implement SSOT config registry | Global parameter access via schema-driven config; no hardcoding | ✅ | — |
+| T1.15 | Write unit tests | Schema loader, document registry, revision management, parsers, logger | ✅ | — |
+| T1.16 | Create log files | `update_log.md`, `issue_log.md` under `eks/log/` | ✅ | — |
+| T1.17 | Design asset schema — fragment definitions | Add 13 reusable asset fragments to `eks_asset_base_schema.json` (item_core, process_conditions, manufacturer, asset_lifecycle, control_system, piping_connection, valve_internals, actuator, rotating_equipment, instrumentation, pipeline_route, specialist_equipment, motor_control) | ✅ | — |
+| T1.18 | Design asset schema — type registry | Add `asset_type_registry` to `eks_setup_schema.json`; map all 14 AT_ categories to their fragment compositions in `eks_config.json` | ✅ | — |
+| T1.19 | Update config with asset source | Add project asset datadrop path and per-project config to `eks_config.json` | ✅ | — |
+| T1.20 | Update asset schema files for R39 + gap analysis | (1) `eks_asset_base_schema.json`: add `specialist_equipment` and `motor_control` fragment `$defs`; expand `actuator`, `rotating_equipment`, `instrumentation`, `valve_internals` with gap analysis fields. (2) `eks_asset_setup_schema.json`: update fragment enum to 13 names; add `conditional_fragments` object structure to registry. (3) `eks_asset_config.json`: add `conditional_fragments` entries for AT_EQUIP and AT_MOTOR; add missing column normalization entries (manufacturer_fax, valve_internal_type, dual alarm TP columns) | ✅ | — |
+| T1.21 | Document Registry Remediation (G1-G3) | Add `source_type` column (G1); implement column allowlist for `list_documents` (G2); migrate `get_revision_history` sorting to SQL `ORDER BY` (G3). Update schema files accordingly. | ✅ | — |
+| T1.22 | Extended Document Metadata | Implement 11 new fields (Accountability, Quality, Technical groups); support `asset_tags` as JSON array; implement `ALTER TABLE` migration logic in `registry.py` for schema evolution. | ✅ | — |
+| T1.23 | Design ontology schema | `eks_ontology_schema.json`: validate classes, properties, and relationship types; include SHACL constraint definitions for data quality rules (e.g. every PumpTag must have unit and service) | ✅ | — |
+| T1.24 | Create ontology config | `eks_ontology_config.json`: define classes, inheritance, and relationship properties (ISO 15926 aligned) | ✅ | — |
+| T1.25 | Extend schema loader | Update `schema_loader.py` to validate and load the ontology registry dynamically at startup | ✅ | — |
+| T1.26 | Write ontology unit tests | Test ontology schema validation and loading in `test_phase1.py` | ✅ | — |
+| T1.27 | Plan alias-aware ontology mapping | Define alias support and `ontology_class_map` design for `eks_asset_config.json`; document AT_ code-to-ontology class mapping and alias-driven asset onboarding; hold actual schema/code updates pending approval | ✅ | — |
+| T1.28 | Embedded Relationship Metadata | Update `eks_asset_base_schema.json` to annotate relationship-triggering fields; update `eks_asset_config.json` with `relationship_triggers` section mapping fields to graph edges (Flow, Power, Control, Governance, Set Points) | ✅ | — |
+| T1.29 | Document Ontology & Mapping Metadata | Update `eks_ontology_config.json` with Document hierarchy (Drawing, Spec, Manual) and lifecycle relationships (SUPERSEDES, SUPPLEMENTS, REFERENCES_DOC); update `eks_asset_config.json` with `document_triggers` section mapping registry fields to graph edges. | ✅ | — |
 
 ---
 
 ## 9. Files and Modules to Create/Update
 
-| File/Folder                           | Action | Purpose                                               |
-| :------------------------------------ | :----- | :---------------------------------------------------- |
-| `eks/eks.yml`                         | Create | Conda environment file with all EKS dependencies      |
-| `eks/engine/__init__.py`              | Create | Package init with version info                        |
-| `eks/engine/core/__init__.py`         | Create | Core engine package init                              |
-| `eks/engine/core/registry.py`         | Update | Document registry — implement G1-G3 remediation + Extended Metadata |
-| `eks/engine/core/revision.py`         | Create | Revision management — preserve, filter, chain lookup  |
-| `eks/engine/core/config_registry.py`  | Create | SSOT global parameter access via schema config        |
-| `eks/engine/parsers/__init__.py`      | Create | Parser plug-in package init                           |
-| `eks/engine/parsers/base_parser.py`   | Create | Abstract base parser interface                        |
-| `eks/engine/parsers/pdf_parser.py`    | Create | PDF document parser                                   |
-| `eks/engine/parsers/docx_parser.py`   | Create | DOCX document parser                                  |
-| `eks/engine/parsers/xlsx_parser.py"   | Create | XLSX document parser                                  |
-| `eks/engine/logging/__init__.py`      | Create | Logging package init                                  |
-| `eks/engine/logging/logger.py`        | Create | Tiered logger (levels 0–3), debug object, trace table |
-| `eks/config/eks_base_schema.json`     | Update | Canonical schema — add `source_type` to metadata + Extended Metadata definitions |
-| `eks/config/eks_setup_schema.json`    | Create | Canonical schema — property declarations              |
-| `eks/config/eks_config.json`          | Update | Actual config values (paths, DB, provider settings)   |
-| `eks/config/eks_ontology_base_schema.json` | Create | Ontology base schema — canonical definitions |
-| `eks/config/eks_ontology_setup_schema.json` | Create | Ontology setup schema — property declarations; implements inheritance via `allOf` |
-| `eks/config/eks_ontology_config.json`        | Update | Engineering ontology config (dynamic classes, relationships); points to new setup schema |
-| `eks/engine/core/schema_loader.py`    | Update | Extended to validate ontology and asset fragments alignment; supports Triple-File inheritance pattern |
+| File/Folder                                         | Action | Purpose                                                    |
+| :-------------------------------------------------- | :----- | :--------------------------------------------------------- |
+| `eks/eks.yml`                                       | Create | Conda environment file with all EKS dependencies           |
+| `eks/engine/__init__.py`                            | Create | Package init with version info                             |
+| `eks/engine/core/__init__.py`                       | Create | Core engine package init                                   |
+| `eks/engine/core/registry.py`                       | Update | Document registry — implement G1-G3 remediation + Extended Metadata |
+| `eks/engine/core/revision.py`                       | Create | Revision management — preserve, filter, chain lookup       |
+| `eks/engine/core/config_registry.py"                | Create | SSOT global parameter access via schema config             |
+| `eks/engine/parsers/__init__.py`                    | Create | Parser plug-in package init                                |
+| `eks/engine/parsers/base_parser.py`                 | Create | Abstract base parser interface                             |
+| `eks/engine/parsers/pdf_parser.py`                  | Create | PDF document parser                                        |
+| `eks/engine/parsers/docx_parser.py`                 | Create | DOCX document parser                                       |
+| `eks/engine/parsers/xlsx_parser.py"                 | Create | XLSX document parser                                       |
+| `eks/engine/logging/__init__.py`                    | Create | Logging package init                                       |
+| `eks/engine/logging/logger.py`                      | Create | Tiered logger (levels 0–3), debug object, trace table      |
+| `eks/config/eks_base_schema.json`                   | Update | Canonical schema — add relationship annotations            |
+| `eks/config/eks_asset_config.json`                  | Update | Add `relationship_triggers` and `document_triggers` sections |
+| `eks/config/eks_ontology_config.json"               | Update | Add new relationship pairs and classes (Asset & Document)  |
+| `eks/engine/core/schema_loader.py`                  | Update | Extended to validate ontology and asset fragments alignment |
 
 ---
 
@@ -447,6 +449,8 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - [x] Schema loader extended to validate and load the ontology registry dynamically (T1.25)
 - [x] Ontology unit tests passing in test_phase1.py and test_loader_full.py (T1.26)
 - [x] Asset schema compliant with ontology: fragments categorized (functional/physical) and linked to ontology classes (T1.27)
+- [x] Relationship metadata embedded in asset schemas (T1.28)
+- [x] Document ontology hierarchy and lifecycle mapping triggers implemented (T1.29)
 
 ---
 

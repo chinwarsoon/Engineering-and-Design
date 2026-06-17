@@ -1,9 +1,9 @@
 {
   "$schema": "https://eks.engineering/schemas/eks_ontology_setup_schema.json",
   "$id": "https://eks.engineering/configs/eks_ontology_config.json",
-  "version": "1.2.0",
+  "version": "1.5.0",
   "title": "EKS ISO 15926-Aligned Dynamic Ontology",
-  "description": "Dynamic ontology configuration for EKS classes, inheritance, tag type mapping, aliases, and relationships. Updated for asset fragment alignment.",
+  "description": "Dynamic ontology configuration for EKS classes, inheritance, tag type mapping, aliases, and relationships. Expanded with Document hierarchy and lifecycle relationships.",
   "classes": [
     { 
       "name": "ISO15926_Entity", 
@@ -26,6 +26,8 @@
       "label": "Document", 
       "subClassOf": "ISO15926_Entity" 
     },
+    { "name": "InfrastructureObject", "label": "Infrastructure Object", "subClassOf": "ISO15926_Entity" },
+    { "name": "GovernanceObject", "label": "Governance Object", "subClassOf": "ISO15926_Entity" },
     
     { "name": "TaggedEquipment", "label": "Tagged Equipment", "subClassOf": "FunctionalObject" },
     { 
@@ -78,7 +80,7 @@
     { 
       "name": "ValveTag", 
       "label": "Valve Tag", 
-      "subClassOf": "TaggedPiping",
+      "subClassOf": "TaggedPiping", 
       "fragments": ["valve_internals"]
     },
     { 
@@ -99,15 +101,34 @@
     { "name": "MotorUnit", "label": "Motor Unit", "subClassOf": "PhysicalObject" },
     { "name": "InstrumentUnit", "label": "Instrument Unit", "subClassOf": "PhysicalObject" },
     { "name": "EquipmentUnit", "label": "Equipment Unit", "subClassOf": "PhysicalObject" },
-    { "name": "ActuatorUnit", "label": "Actuator Unit", "subClassOf": "PhysicalObject" }
+    { "name": "ActuatorUnit", "label": "Actuator Unit", "subClassOf": "PhysicalObject" },
+
+    { "name": "ElectricalPanel", "label": "Electrical Panel (MCC)", "subClassOf": "InfrastructureObject" },
+    { "name": "ControlPanel", "label": "Control Panel (PLC/RIO)", "subClassOf": "InfrastructureObject" },
+    { "name": "EngineeringStandard", "label": "Engineering Standard/Spec", "subClassOf": "GovernanceObject" },
+    { "name": "Originator", "label": "Document Originator (Company)", "subClassOf": "GovernanceObject" },
+
+    { "name": "Drawing", "label": "Engineering Drawing", "subClassOf": "Document", "document_type_mapping": "DWG" },
+    { "name": "PID_Drawing", "label": "P&ID Drawing", "subClassOf": "Drawing", "document_type_mapping": "PI-PID" },
+    { "name": "Specification", "label": "Technical Specification", "subClassOf": "Document", "document_type_mapping": "SPC" },
+    { "name": "Manual", "label": "Vendor O&M Manual", "subClassOf": "Document", "document_type_mapping": "MAN" },
+    { "name": "Report", "label": "Technical Report", "subClassOf": "Document", "document_type_mapping": "RPT" }
   ],
   "relationships": [
     { "name": "SUBCLASS_OF", "inverse": "SUPERCLASS_OF", "transitive": true, "description": "Establishes class hierarchy." },
     { "name": "IS_A", "transitive": false, "description": "Links instance to its ontology class." },
-    { "name": "CONNECTS_TO", "symmetric": true, "transitive": true, "description": "Connectivity between functional objects." },
+    { "name": "CONNECTS_TO", "symmetric": true, "transitive": false, "description": "Generic physical connectivity between objects (not transitive)." },
+    { "name": "FLOWS_TO", "inverse": "FLOWS_FROM", "transitive": true, "symmetric": false, "description": "Directional process flow (transitive)." },
     { "name": "INSTALLED_AT", "inverse": "HAS_PHYSICAL", "transitive": false, "description": "Links equipment instance to its tag." },
     { "name": "REFERENCED_BY_DWG", "inverse": "REFERENCES_ASSET", "symmetric": false, "description": "Document references a functional object." },
-    { "name": "CONTROLS", "transitive": false, "description": "Control signal relationship." },
-    { "name": "FEEDS_FROM", "transitive": false, "description": "Material or energy feed relationship." }
+    { "name": "CONTROLS", "inverse": "CONTROLLED_BY", "transitive": true, "description": "Hierarchical control signal relationship (transitive)." },
+    { "name": "ENERGIZED_BY", "inverse": "POWERS", "transitive": true, "description": "Electrical power distribution link (transitive)." },
+    { "name": "GOVERNED_BY", "inverse": "VALIDATES_ASSET", "transitive": true, "description": "Hierarchical governance/standards link (transitive)." },
+    { "name": "SET_POINT_IN", "inverse": "SPECIFIES_SET_POINT", "transitive": false, "description": "Links operating parameter to source doc." },
+    { "name": "SUPERSEDES", "inverse": "SUPERSEDED_BY", "transitive": true, "description": "Links new revision to its predecessor." },
+    { "name": "SUPPLEMENTS", "inverse": "SUPPLEMENTED_BY", "transitive": true, "description": "Links Annexes/Addendums to primary docs." },
+    { "name": "REFERENCES_DOC", "inverse": "REFERENCED_BY_DOC", "transitive": true, "description": "Cross-reference found in document text." },
+    { "name": "PRODUCED_BY", "inverse": "ORIGINATED", "transitive": false, "description": "Links document to Originating company." },
+    { "name": "FEEDS_FROM", "transitive": false, "description": "Legacy material or energy feed relationship." }
   ]
 }

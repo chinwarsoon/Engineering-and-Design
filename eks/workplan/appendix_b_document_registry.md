@@ -1,7 +1,7 @@
 # Appendix B — Document Registry
 
-**Version**: 0.5  
-**Last Updated**: 2026-06-16  
+**Version**: 0.6  
+**Last Updated**: 2026-06-18  
 **Phase**: 1 — Foundation  
 **Status**: ✅ Implemented & Tested  
 **Related Files**:
@@ -94,6 +94,17 @@ The registry is config-driven — the DB path and backend type are read from `ek
 | | `verified_by` | VARCHAR | YES | NULL | Name of manual validator |
 
 **Primary key**: `id` (`{document_number}-{revision}`) — guarantees one row per document+revision pair.
+
+### B3.1. Ontology Mapping (Knowledge Graph Triggers)
+
+The following registry fields are mapped to Ontology classes and relationships during Phase 3 ingestion:
+
+| Registry Field | Ontology Trigger | Logic / Edge Produced |
+| :--- | :--- | :--- |
+| `document_type` | Class Assignment | Maps to `Drawing`, `Specification`, `Manual`, or `Report`. |
+| `document_number`| `SUPERSEDES` | Links revisions of the same number in a time-ordered chain. |
+| `asset_tags` | `REFERENCES_ASSET`| Produces M:N edges to `FunctionalObject` (Tag) nodes. |
+| `originator_company`| `PRODUCED_BY` | Links Document to a `GovernanceObject` (Company/Entity). |
 
 ---
 

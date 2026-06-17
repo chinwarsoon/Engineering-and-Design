@@ -1,8 +1,30 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_asset_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_asset_config_wsd11.json",
-    "version": "1.1.0",
+    "version": "1.3.0",
     "title": "EKS Asset Config — WSD11 Project",
+    "relationship_triggers": {
+        "p_and_id_file":        "REFERENCED_BY_DWG",
+        "mcc_fed_from":         "ENERGIZED_BY",
+        "plc_panel":            "CONTROLLED_BY",
+        "rio_panel":            "CONTROLLED_BY",
+        "design_specification": "GOVERNED_BY",
+        "set_point":            "SET_POINT_IN",
+        "alarm_limit_hh":       "SET_POINT_IN",
+        "alarm_limit_h":        "SET_POINT_IN",
+        "alarm_limit_l":        "SET_POINT_IN",
+        "alarm_limit_ll":       "SET_POINT_IN",
+        "to_component":         "FLOWS_TO",
+        "from_component":       "FLOWS_FROM",
+        "pipeline_tag_number":  "CONNECTS_TO",
+        "actuator_tag_number":  "HAS_ACTUATOR",
+        "serial_number":        "INSTALLED_AT"
+    },
+    "document_triggers": {
+        "document_number":      "SUPERSEDES",
+        "asset_tags":           "REFERENCES_ASSET",
+        "originator_company":   "PRODUCED_BY"
+    },
     "asset_type_registry": {
         "AT_EQUIP": {
             "label": "Equipment",

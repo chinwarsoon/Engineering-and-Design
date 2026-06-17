@@ -1,11 +1,12 @@
 # Appendix A — Universal Plant Item Schema
 
-**Version**: 0.4  
-**Last Updated**: 2026-06-17  
+**Version**: 0.5  
+**Last Updated**: 2026-06-18  
 **Summary of Changes**:  
 v0.2 — Gap analysis against actual datadrop Excel. Added 14 unmapped Equipment columns (`specialist_equipment` fragment, A2.12), 10 Motor columns to `rotating_equipment` and new `motor_control` fragment (A2.13), full actuator manufacturer+lifecycle block to `actuator` fragment (A2.8), 12 Instrument columns to `instrumentation` fragment (A2.10), 3 MANUALVALVE columns to `valve_internals` (A2.7). Added pipeline duplicate KEYTAG ingestion rule (A5). Updated composition map (A3) and column normalization map (A5).  
 v0.3 — Added A7: How to Add a New Plant Asset Type. Three scenarios covered (existing fragments only, conditional fragment, new fragment). Decision guide and validation step included. Supports R39 zero-code extensibility.  
-v0.4 — Review corrections: `pipeline_route.p_and_id_files` changed to array of strings to support multi-P&ID pipeline deduplication. Added known-overlap note to `submergence_min` in A2.12 (`specialist_equipment`).
+v0.4 — Review corrections: `pipeline_route.p_and_id_files` changed to array of strings to support multi-P&ID pipeline deduplication. Added known-overlap note to `submergence_min` in A2.12 (`specialist_equipment`).  
+v0.5 — Added specialized engineering relations (Flow, Power, Control, Governance, Set Points) mapping Appendix A fields to Appendix C relations per agent_rule Section 2 & 4.
 
 ---
 
@@ -379,6 +380,15 @@ Asset data is a **relationship database** with the following entity-relationship
 | `BELONGS_TO_UNIT` | Asset (any) | Unit | M:1 | UNIT |
 | `BELONGS_TO_SERVICE` | Asset (any) | Service | M:1 | SERVICE |
 | `SUPERSEDES` | Document Revision | Document Revision | 1:1 | Revision chain |
+
+**Functional, Electrical, and Governance Relationships:**
+| Relationship | Source Node | Target Node | Cardinality | Origin Field |
+| :----------- | :---------- | :---------- | :---------- | :----------- |
+| `FLOWS_TO` | Pipeline / Component | Pipeline / Component | M:N | `TO_COMPONENT` |
+| `ENERGIZED_BY` | Asset (AT_MOTOR, etc.) | `ElectricalPanel` | M:1 | `MCC FED FROM` |
+| `CONTROLLED_BY`| Asset (AT_MOTOR, AT_CVALVE)| `ControlPanel` | M:1 | `PLC_PANEL` / `RIO_PANEL` |
+| `GOVERNED_BY` | Asset (any) | `EngineeringStandard`| M:N | `DESIGN SPECIFICATION` |
+| `SET_POINT_IN` | Instrument (AT_INST_) | Document | M:N | `SET POINT` / `ALARM LIMIT` |
 
 ### A4.1 Concrete Example — Unit 003 / Service G2D Subgraph
 
