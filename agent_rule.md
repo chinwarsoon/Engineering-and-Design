@@ -1,11 +1,11 @@
 # Important:
 1. always plan and wait for approval to make changes.
-2. when delete any files, always archive them into respectie archive folders first.
+2. when delete any files, always archive them into respective archive folders first.
 3. whenever there is an issue, always log the issue, test, and update to logs under log folder.
 
 # Project Folders:
 1. `dcc` folder is for Document Control project.
-2. `code_tracer` folder is for static and dynamic pyhton code tracing project.
+2. `code_tracer` folder is for static and dynamic python code tracing project.
 3. `release` folder is for released versions for different packages.
 4. `EKS` folder is for Engineering Knowledge System project.
 5. Each project folder will have the followign subfolders:
@@ -15,7 +15,7 @@
 - `output` folder for data output files.
 - `test` folder for testing purpose.
 - `ui` folder for user interface files.
-- `enginge` or `workflow` folder for code engines and modules.
+- `engine` or `workflow` folder for code engines and modules.
 - `log` folder for recording issues, updates and tests.
 - `docs` folder for user and developer instructions and documentation.
 - `workplan` folder for coding planning and reports.
@@ -46,8 +46,8 @@
   - Calculate Priority 3: Run the logic from submission_closed_schema.json to determine which rows are RESUBMITTED, PEN, or YES/NO.
 
 # Section 2. Schema:
-1. always check and enure compliance with schema standard.
-2. when create a schema, alway consider a flat schema structure, use array of objects, and avoid using array of list.
+1. always check and ensure compliance with schema standard.
+2. when create a schema, always consider a flat schema structure, use array of objects, and avoid using array of list.
 3. use project_setup_base.json as base schema to store "definitions", project_setup.json to store "properties", and use project_config.json to store actual items. Similarly, 'definitions' will in base schema, 'properties' in setup schema, and actual values in config schema. always check one to one match in different schema files.
 4. schema loader must support different types of $ref (string, object, nested object, recursive, etc.). also use Unified Schema Registry (URIs) giving every schema a unique, permanent "Digital ID" that the engine can find regardless of where the file actually sits on the drive.
 5. adopt schema fragment pattern for better maintainability and reusability always.
@@ -65,7 +65,7 @@
 3. ignore md files.
 4. ignore test folders
 
-# Section 4. Moudle design:
+# Section 4. Module design:
 1. always consider module design for functions and classes.
 2. __init__.py file shall only contain import statements and version information.
 3. always consider SSOT, single source of truth for 'global' parameters, variables, keys, codes, values, names, paths, files, etc, which will not have lifetime within a specific function.
@@ -82,7 +82,7 @@
    - level 2: warning/debug; to show warnings / detailed information for debugging / variable values and path resolutions
    - level 3: trace; deep technical info, like OS specific path slashes, JSON raw extraction etc.
 2. Use Debug Object, collect all debug info into a single results dictionary. Save it to a debug_log.json file. Pass it to format_report function. And print it at the end of the workflow.
-3. Use structured trace table to track parameter flow, resolved values, soruce, and status. add timestamp or duration field for each step in the table.
+3. Use structured trace table to track parameter flow, resolved values, source, and status. add timestamp or duration field for each step in the table.
 4. Indent print messages per hierarchy level of calling functions. Use a global depth counter that increments when entering a function and decrements on exit.
 5. Always include function name or module name, and calling context in warning/debug/trace print messages.
 6. Trace global parameters, log the state before and after a major transformation.
@@ -106,6 +106,20 @@
 14. development test result
 15. dependencies and environment
 16. coding and programming engineering standard achieved
+
+# Section 7a. Revision Control
+1. apply revision control to every file created or modified in the project.
+2. include the following revision metadata in all files:
+   - Revision number
+   - Date
+   - Summary of change
+   - Author
+3. for markdown and documentation files, maintain a top-of-file revision table with columns `Revision`, `Date`, `Author`, and `Summary`.
+4. for code files, add a header comment block or module docstring containing the revision metadata.
+5. for config and schema files, include standard metadata fields where supported (e.g. `version`, `title`, `description`, and a short `revisionHistory` note), and also keep file-level revision metadata in comments if necessary.
+6. update `update_log.md` in the project `log/` folder whenever a file revision is made.
+7. preserve revision entries when archiving or renaming files; archived files must retain their revision history in the archive folder.
+8. use consistent revision numbering semantics (e.g. `0.1`, `1.0`, `1.1`, `2.0`) and increment for each substantive update.
 
 # Section 8. Workplan
 1. always create workplan file for each given task. workplans will be generated in <project folder>/workplan/ folder.

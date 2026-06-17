@@ -3,7 +3,7 @@ SSOT Config Registry for EKS - Centralized access to global parameters.
 """
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from .schema_loader import load_eks_config
+from .schema_loader import SchemaLoader, load_eks_config
 
 class ConfigRegistry:
     """
@@ -22,8 +22,31 @@ class ConfigRegistry:
             elif not Path(config_dir).exists():
                  # Last ditch effort for common dev layouts
                  pass 
-            cls._instance._config = load_eks_config(config_dir)
+            loader = SchemaLoader(config_dir)
+            cls._instance._config = loader.load_all()
+            cls._instance._loader = loader
         return cls._instance
+
+    @property
+    def ontology(self) -> Dict[str, Any]:
+        return getattr(self, '_loader', None).ontology if getattr(self, '_loader', None) else {}
+
+    @property
+    def asset_config(self) -> Dict[str, Any]:
+        return getattr(self, '_loader', None).asset_config if getattr(self, '_loader', None) else {}
+
+    def resolve_ontology_class(self, tag_type: str) -> Optional[str]:
+        loader = getattr(self, '_loader', None)
+        if loader is None:
+            return None
+        return loader.resolve_ontology_class(tag_type)
+
+    @property
+    def asset_ontology_class_map(self) -> Dict[str, str]:
+        loader = getattr(self, '_loader', None)
+        if loader is None:
+            return {}
+        return loader.asset_ontology_class_map
 
     @property
     def config(self) -> Dict[str, Any]:

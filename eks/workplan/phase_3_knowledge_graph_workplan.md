@@ -135,11 +135,11 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | T3.18 | Update schema and config | Add graph node/relationship definitions to `eks_base_schema.json`; asset loader config to `eks_config.json` | 🔷 | — |
 | T3.19 | Update logs | `update_log.md`, `issue_log.md` | 🔷 | — |
 | T3.22 | Define ontology graph nodes | Update `graph_schema.py` to add `OntologyClass` node properties | 🔷 | — |
-| T3.23 | Implement dynamic T-Box loader | Add `TBoxImporter` in `neo4j_store.py` to dynamically load classes and SUBCLASS_OF hierarchy from `eks_ontology.json` | 🔷 | — |
+| T3.23 | Implement dynamic T-Box loader | Add `TBoxImporter` in `neo4j_store.py` to dynamically load classes and SUBCLASS_OF hierarchy from `eks_ontology_config.json` | 🔷 | — |
 | T3.24 | Map A-Box instances to ontology | Refactor `base_asset_loader.py` to: (1) look up ontology class from `ontology_class_map[tag_type]` in `eks_asset_config.json`; (2) create IS_A edge from asset instance node to its OntologyClass node; (3) if `serial_number` is non-null, create PhysicalObject sub-node and INSTALLED_AT edge from PhysicalObject → FunctionalObject (tag); all class resolution is dynamic via T-Box — no hardcoded class names in Python | 🔷 | — |
 | T3.25 | Create PhysicalObject nodes from serial numbers | For each asset row where `serial_number` is non-null: create a `:PhysicalObject` node with properties (serial_number, brand, model_number, manufacture_date); create `INSTALLED_AT` edge from PhysicalObject → FunctionalObject (the asset tag node); enables physical equipment traceability per ISO 15926 Part 2 | 🔷 | — |
 | T3.26 | Implement SHACL constraint validation | After each sheet load batch, run SHACL shape validation against loaded nodes (e.g. every PumpTag must have unit and service; every PipelineTag must have pipe_material); log violations to `eks/log/issue_log.md` with keytag, constraint name, and severity | 🔷 | — |
-| T3.27 | Define T-Box reload strategy | Add `version` field to `eks_ontology.json`; on Neo4j startup, compare stored version node with config version; skip T-Box reload if version unchanged; support `force_reload` flag in `eks_config.json`; log reload event to `update_log.md` | 🔷 | — |
+| T3.27 | Define T-Box reload strategy | Add `version` field to `eks_ontology_config.json`; on Neo4j startup, compare stored version node with config version; skip T-Box reload if version unchanged; support `force_reload` flag in `eks_config.json`; log reload event to `update_log.md` | 🔷 | — |
 
 ---
 

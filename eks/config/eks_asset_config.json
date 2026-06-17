@@ -64,6 +64,37 @@
             "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle", "piping_connection", "valve_internals"]
         }
     },
+    "ontology_class_map": {
+        "AT_EQUIP": "TaggedEquipment",
+        "AT_EQPMP": "PumpTag",
+        "AT_EQTNK": "TankTag",
+        "AT_EQVES": "VesselTag",
+        "AT_EQEXC": "HeatExchangerTag",
+        "AT_INCOMP": "InlineComponentTag",
+        "AT_INST_": "TaggedInstrument",
+        "AT_INST_CS": "ControlSystemInstrumentTag",
+        "AT_INST_FLO": "FlowInstrumentTag",
+        "AT_MOTOR": "MotorTag",
+        "AT_PROCESS": "PipelineTag",
+        "AT_CVALVE": "ControlValveTag",
+        "AT_PSV": "SafetyValveTag",
+        "AT_HVALVE": "ManualValveTag"
+    },
+    "fragment_category_registry": {
+        "item_core":            "functional",
+        "process_conditions":   "functional",
+        "manufacturer":         "physical",
+        "asset_lifecycle":      "physical",
+        "control_system":       "functional",
+        "piping_connection":    "functional",
+        "valve_internals":      "functional",
+        "actuator":             "physical",
+        "rotating_equipment":   "functional",
+        "instrumentation":      "functional",
+        "pipeline_route":       "functional",
+        "specialist_equipment": "functional",
+        "motor_control":        "functional"
+    },
     "column_normalization": {
         "Equipment": {
             "PID NUMBER":                       "p_and_id_file",

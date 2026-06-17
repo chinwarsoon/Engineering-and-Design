@@ -4,6 +4,9 @@
     "version": "1.1.0",
     "title": "EKS Asset Setup Schema — Registry & Column Normalization",
     "description": "Declares the asset_type_registry (type→fragment mapping including conditional_fragments for zero-code extensibility) and column normalization rules for ingesting the project Excel datadrop.",
+    "allOf": [
+        { "$ref": "eks_asset_base_schema.json" }
+    ],
     "type": "object",
     "definitions": {
         "fragment_name": {
@@ -62,6 +65,19 @@
                 },
                 "required": ["label", "fragments"],
                 "additionalProperties": false
+            }
+        },
+        "ontology_class_map": {
+            "type": "object",
+            "description": "Maps AT_ tag types to ontology class names for dynamic A-Box creation.",
+            "additionalProperties": { "type": "string" }
+        },
+        "fragment_category_registry": {
+            "type": "object",
+            "description": "Categorizes each fragment as functional (slot/design) or physical (equipment instance) per ISO 15926 Part 2.",
+            "additionalProperties": {
+                "type": "string",
+                "enum": ["functional", "physical"]
             }
         },
         "column_normalization": {

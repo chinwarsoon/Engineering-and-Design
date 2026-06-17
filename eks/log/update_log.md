@@ -38,6 +38,11 @@
 | U027 | 2026-06-16 | Phase 1 | Testing | Full test run: 22/22 unit tests pass (test_phase1.py + test_asset_schema.py), validate_asset_schema.py PASS, verify_all.py ALL PASS (18/18). Fixed stale version assertions in verify_all.py (p3: 0.5→0.6, p4: 0.4→0.5) | System | ✅ Done |
 | U028 | 2026-06-16 | Phase 1 | T1.2 | Created `eks` conda environment from `eks.yml`. Resolved 3 compatibility issues: (1) pymupdf pinned to 1.27.2 (1.24.5 unavailable); (2) tiktoken changed from 0.7.0→0.13.0 (0.7.0 requires Rust compiler, no pre-built Py3.13 wheel); (3) psycopg2-binary relaxed to >=2.9 (2.9.9 has no Py3.13 wheel, 2.9.12 installed). Added `referencing==0.35.1` and `pytest` to env. All 22 Phase 1 tests pass in `eks` env. | System | ✅ Done |
 | U029 | 2026-06-16 | Planning | — | Created `appendix_c_ontology.md` and updated Master workplan (`eks_system_workplan.md`) plus all 5 Phase workplans to include dynamic ISO 15926-aligned ontology implementation tasks (R44, R45, R46). Reverted Phase 1 status to PARTIAL. | System | ✅ Done |
+| U030 | 2026-06-18 | Phase 1 | T1.23-T1.27 | Implemented ISO 15926-aligned ontology: Created `eks_ontology_base_schema.json`, `eks_ontology_setup_schema.json`, and `eks_ontology_config.json`. Categorized 13 asset fragments as functional/physical; linked ontology classes to fragments. | Gemini CLI | ✅ Done |
+| U031 | 2026-06-18 | Phase 1 | T1.25 | Extended `SchemaLoader.py` with cross-schema validation: verifies ontology fragments exist in asset base schema and config class map references real ontology classes. | Gemini CLI | ✅ Done |
+| U032 | 2026-06-18 | Phase 1 | Refactor | Refactored all schemas to the Triple-File Pattern (Base, Setup, Config) with explicit `allOf` inheritance. Renamed `eks_ontology.json` to `eks_ontology_config.json` for consistency. | Gemini CLI | ✅ Done |
+| U033 | 2026-06-18 | Phase 1 | Testing | Verified refactored architecture with full test suite: `test_phase1.py`, `test_asset_schema.py`, `validate_ontology.py`, and `test_loader_full.py` all PASS. | Gemini CLI | ✅ Done |
+| U034 | 2026-06-18 | Phase 1 | Documentation | Updated `phase_1_foundation_workplan.md` to v1.5 COMPLETE. Updated `appendix_c_ontology.md` to v1.1. Synchronized all phase workplans with new naming conventions. | Gemini CLI | ✅ Done |
 
 ---
 
@@ -45,4 +50,3 @@
 - Each entry corresponds to a workplan task or phase milestone
 - Timestamp format: YYYY-MM-DD
 - Link phase reports here once generated: `eks/workplan/reports/`
-==0.35.1` and `pytest` to env. All 22 Phase 1 tests pass in `eks` env. | System | ✅ Done |

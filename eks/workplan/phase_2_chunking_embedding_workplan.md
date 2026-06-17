@@ -23,7 +23,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | 0.2     | 2026-06-16 | System | Added Timestamp column to task breakdown table per agent_rule Section 8.8. Added CAD/DWG/DGN vector store gap note to Section 11: chunking pipeline has no ingestion path for CAD content; deferred to Phase 3 stubs only. |
 | 0.3     | 2026-06-18 | System | Added R40 (Asset Embedding Strategy) and R41 (Asset Chunk Registry Extension) to scope and task breakdown. Asset text builder and dedicated Qdrant eks_assets collection added. Updated success criteria and deliverables. |
 | 0.4     | 2026-06-16 | System | Added T2.20–T2.21 for enriching chunk contextual headers with ontology taxonomy paths. Linked Appendix C. |
-| 0.5     | 2026-06-16 | System | Ontology Option C gap closure: added R45 (Ontology-Enriched Embedding Headers) to scope table; updated T2.20 with exact taxonomy-path header format spec per Appendix C. |
+| 0.5     | 2026-06-16 | System | Ontology Option C gap closure: added R50 (Ontology-Enriched Embedding Headers) to scope table; updated T2.20 with exact taxonomy-path header format spec per Appendix C. |
 
 ---
 
@@ -55,7 +55,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | R40 | Embedding            | Asset Embedding Strategy       | Contextual header + key field summary per asset; store vectors in `eks_assets` Qdrant collection; prevent null/code pollution per R13 | 🔷 PLANNED |
 | R41 | Knowledge Base       | Asset Chunk Registry Extension | Extend DuckDB chunk registry to support asset records keyed on `keytag`; metadata: keytag, tag_type, tag_no, unit, service, p_and_id_file | 🔷 PLANNED |
 | R44 | Schema               | ISO 15926 Ontology Integration | Define dynamic, config-driven ontology schema (classes, properties, relationships) for EKS | 🔷 PLANNED |
-| R45 | Embedding | Ontology-Enriched Embedding Headers | Replace AT_ code in contextual embedding header with human-readable ontology taxonomy path resolved from T-Box (e.g. `[Pump \| Rotating Equipment \| Equipment \| Unit 003 \| Svc G2D]`); improves semantic similarity for class-based queries | 🔷 PLANNED |
+| R50 | Embedding | Ontology-Enriched Embedding Headers | Replace AT_ code in contextual embedding header with human-readable ontology taxonomy path resolved from T-Box (e.g. `[Pump \| Rotating Equipment \| Equipment \| Unit 003 \| Svc G2D]`); improves semantic similarity for class-based queries | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -124,7 +124,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | T2.17 | Implement asset text builder | `asset_text_builder.py`: build contextual text representation per asset — "[{tag_type} \| Unit {unit} \| Svc {service}] {description}: {key properties summary}"; select fields by fragment type, skip nulls | 🔷 | — |
 | T2.18 | Add eks_assets Qdrant collection | Configure second Qdrant collection `eks_assets` in `eks_config.json`; same abstract vector store interface (R28); payload: keytag, tag_no, tag_type, unit, service, p_and_id_file | 🔷 | — |
 | T2.19 | Write tests for R40/R41 additions | Asset text builder output, asset chunk registry CRUD, eks_assets collection upsert | 🔷 | — |
-| T2.20 | Enrich chunk contextual headers with ontology | Update `hybrid_strategy.py` to resolve the full ontology ancestry path for each asset from the Neo4j T-Box (e.g. PumpTag → TaggedRotating → TaggedEquipment → FunctionalObject) and prepend human-readable class labels as header: `"[{leaf_label} | {parent_label} | ... | Unit {unit} | Svc {service}]"`. Labels come from `eks_ontology.json` class definitions — never AT_ codes. Resolves subclass chain via C5.4 Cypher query at embedding time. | 🔷 | — |
+| T2.20 | Enrich chunk contextual headers with ontology | Update `hybrid_strategy.py` to resolve the full ontology ancestry path for each asset from the Neo4j T-Box (e.g. PumpTag → TaggedRotating → TaggedEquipment → FunctionalObject) and prepend human-readable class labels as header: `"[{leaf_label} | {parent_label} | ... | Unit {unit} | Svc {service}]"`. Labels come from `eks_ontology_config.json` class definitions — never AT_ codes. Resolves subclass chain via C5.4 Cypher query at embedding time. | 🔷 | — |
 | T2.21 | Write ontology enrichment tests | Verify that taxonomy hierarchy is correctly prepended to headers before embedding | 🔷 | — |
 
 ---
@@ -186,7 +186,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 - [ ] Asset records stored in DuckDB chunk registry with correct metadata (R41)
 - [ ] Asset vectors stored in `eks_assets` Qdrant collection with keytag payload (R40)
 - [ ] Ontology taxonomy paths correctly prepended to contextual chunk headers (T2.20)
-- [ ] Embedding contextual header uses ontology class label path (not AT_ code); verified by T2.21 tests (R45)
+- [ ] Embedding contextual header uses ontology class label path (not AT_ code); verified by T2.21 tests (R50)
 - [ ] All unit tests passing for Phase 2 components
 
 ---

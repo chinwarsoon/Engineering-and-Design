@@ -532,6 +532,8 @@ This follows the same base/setup/config inheritance pattern as the main EKS sche
 
 The schema is designed for **zero-code extensibility** (R39). Adding a new plant asset type — or a new conditional sub-type — requires only config and schema file edits. No Python code changes.
 
+This plan also anticipates future project asset onboarding with alias-aware mapping. New projects may introduce alternate `AT_` values or source sheet headers; the loader should normalize these using `aliases` in `asset_type_registry` and `column_normalization` so the same fragment-based ingest path remains valid without code changes.
+
 There are three scenarios depending on what the new type needs.
 
 ---
@@ -548,6 +550,7 @@ There are three scenarios depending on what the new type needs.
 ```json
 "AT_NEWTYPE": {
     "label": "My New Asset Type",
+    "aliases": ["AT_NEWTYPE_ALT", "AT_NEWTYPE2"],
     "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle"]
 }
 ```
@@ -577,6 +580,7 @@ That's it. The Phase 3 loader reads the registry at runtime and composes the nod
 ```json
 "AT_NEWTYPE": {
     "label": "My New Asset Type",
+    "aliases": ["AT_NEWTYPE_ALT", "AT_NEWTYPE2"],
     "fragments": ["item_core", "process_conditions", "manufacturer", "asset_lifecycle"],
     "conditional_fragments": [
         { "fragment": "specialist_equipment", "when": "device_type_code", "in": ["UV", "FILT"] }

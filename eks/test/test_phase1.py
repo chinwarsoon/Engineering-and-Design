@@ -7,9 +7,9 @@ import shutil
 import json
 from typing import List
 from pathlib import Path
+from eks.engine.core import DocumentRegistry
 from eks.engine.core.schema_loader import SchemaLoader, load_eks_config
 from eks.engine.core.config_registry import ConfigRegistry
-from eks.engine.core.registry import DocumentRegistry
 from eks.engine.core.revision import RevisionManager
 from eks.engine.logging.logger import EKSLogger
 from eks.engine.parsers.pdf_parser import PDFParser
@@ -49,6 +49,32 @@ class TestPhase1(unittest.TestCase):
         self.assertIn("project_rules_registry", config)
         self.assertIn("discipline_registry", config)
         self.assertEqual(config["registry"]["type"], "duckdb")
+
+    def test_ontology_loader_and_alias_resolution(self):
+        """Validate ontology config is loaded and alias-aware tag resolution works."""
+        registry = ConfigRegistry(self.config_dir)
+        self.assertTrue(hasattr(registry, 'ontology'))
+        self.assertIn('classes', registry.ontology)
+        self.assertIn('relationships', registry.ontology)
+
+        # Canonical tag type mapping should resolve to ontology class name
+        self.assertEqual(registry.resolve_ontology_class('AT_EQPMP'), 'PumpTag')
+        self.assertEqual(registry.resolve_ontology_class('AT_MOTOR'), 'MotorTag')
+
+        # Aliases should also resolve to the same ontology class name
+        self.assertEqual(registry.resolve_ontology_class('AT_PMP'), 'PumpTag')
+        self.assertEqual(registry.resolve_ontology_class('AT_MTR'), 'MotorTag')
+        self.assertEqual(registry.resolve_ontology_class('at_pump'), 'PumpTag')
+
+        # Values not in ontology should return None
+        self.assertIsNone(registry.resolve_ontology_class('AT_UNKNOWN'))
+
+    def test_asset_ontology_class_map_validation(self):
+        """Verify ontology_class_map values are valid ontology classes."""
+        registry = ConfigRegistry(self.config_dir)
+        self.assertIn('ontology_class_map', registry.asset_config)
+        self.assertEqual(registry.asset_config['ontology_class_map'].get('AT_EQPMP'), 'PumpTag')
+        self.assertEqual(registry.asset_config['ontology_class_map'].get('AT_MOTOR'), 'MotorTag')
 
     def test_project_scoped_config(self):
         """Test project-scoped discipline registry lookups."""
@@ -264,6 +290,31 @@ class TestPhase1(unittest.TestCase):
             for rule in entry.get('conditional_fragments', []):
                 self.assertIn(rule['fragment'], base_frags,
                     f"{at_code}: conditional fragment '{rule['fragment']}' not in base schema definitions")
+
+    def test_ontology_files_exist(self):
+        """T1.23/T1.24: Verify ontology schema and config files exist."""
+        for fname in ['eks_ontology_base_schema.json', 'eks_ontology_setup_schema.json', 'eks_ontology_config.json']:
+            path = self.config_dir / fname
+            self.assertTrue(path.exists(), f"Missing ontology file: {fname}")
+
+    def test_ontology_validation(self):
+        """T1.23/T1.24: Verify ontology config validates against ontology schema and loader loads ontology files."""
+        from eks.engine.core.schema_loader import SchemaLoader
+        loader = SchemaLoader(self.config_dir)
+        config = loader.load_all()
+        self.assertIsInstance(config, dict)
+        self.assertTrue(hasattr(loader, 'ontology'))
+        self.assertIn('classes', loader.ontology)
+
+    def test_ontology_class_map_references_defined_class(self):
+        """T1.27: Verify ontology_class_map only references classes defined in eks_ontology_config.json."""
+        import json
+        ontology = json.load(open(self.config_dir / 'eks_ontology_config.json', encoding='utf-8'))
+        class_names = {c['name'] for c in ontology.get('classes', [])}
+        config = json.load(open(self.config_dir / 'eks_asset_config.json', encoding='utf-8'))
+        for target_class in config.get('ontology_class_map', {}).values():
+            self.assertIn(target_class, class_names,
+                f"ontology_class_map references undefined ontology class: {target_class}")
 
 if __name__ == "__main__":
     unittest.main()

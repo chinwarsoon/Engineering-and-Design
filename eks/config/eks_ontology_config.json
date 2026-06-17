@@ -1,0 +1,113 @@
+{
+  "$schema": "https://eks.engineering/schemas/eks_ontology_setup_schema.json",
+  "$id": "https://eks.engineering/configs/eks_ontology_config.json",
+  "version": "1.2.0",
+  "title": "EKS ISO 15926-Aligned Dynamic Ontology",
+  "description": "Dynamic ontology configuration for EKS classes, inheritance, tag type mapping, aliases, and relationships. Updated for asset fragment alignment.",
+  "classes": [
+    { 
+      "name": "ISO15926_Entity", 
+      "label": "ISO 15926 Entity" 
+    },
+    { 
+      "name": "FunctionalObject", 
+      "label": "Functional Object (Tag)", 
+      "subClassOf": "ISO15926_Entity",
+      "fragments": ["item_core", "process_conditions"]
+    },
+    { 
+      "name": "PhysicalObject", 
+      "label": "Physical Object (Equipment)", 
+      "subClassOf": "ISO15926_Entity",
+      "fragments": ["manufacturer", "asset_lifecycle"]
+    },
+    { 
+      "name": "Document", 
+      "label": "Document", 
+      "subClassOf": "ISO15926_Entity" 
+    },
+    
+    { "name": "TaggedEquipment", "label": "Tagged Equipment", "subClassOf": "FunctionalObject" },
+    { 
+      "name": "TaggedRotating", 
+      "label": "Tagged Rotating Equipment", 
+      "subClassOf": "TaggedEquipment",
+      "fragments": ["rotating_equipment"]
+    },
+    { 
+      "name": "TaggedStatic", 
+      "label": "Tagged Static Equipment", 
+      "subClassOf": "TaggedEquipment"
+    },
+    
+    { 
+      "name": "TaggedPiping", 
+      "label": "Tagged Piping Component", 
+      "subClassOf": "FunctionalObject",
+      "fragments": ["piping_connection"]
+    },
+    { 
+      "name": "TaggedInstrument", 
+      "label": "Tagged Instrument", 
+      "subClassOf": "FunctionalObject",
+      "fragments": ["instrumentation"]
+    },
+    
+    { "name": "PumpTag", "label": "Pump Tag", "subClassOf": "TaggedRotating", "tag_type_mapping": "AT_EQPMP", "tag_type_aliases": ["AT_PMP", "AT_PUMP"] },
+    { 
+      "name": "MotorTag", 
+      "label": "Motor Tag", 
+      "subClassOf": "TaggedRotating", 
+      "tag_type_mapping": "AT_MOTOR", 
+      "tag_type_aliases": ["AT_MTR", "AT_MOTOR_UNIT"],
+      "fragments": ["motor_control"]
+    },
+    { "name": "TankTag", "label": "Tank Tag", "subClassOf": "TaggedStatic", "tag_type_mapping": "AT_EQTNK", "tag_type_aliases": ["AT_TANK"] },
+    { "name": "VesselTag", "label": "Vessel Tag", "subClassOf": "TaggedStatic", "tag_type_mapping": "AT_EQVES", "tag_type_aliases": ["AT_VESSEL"] },
+    { "name": "HeatExchangerTag", "label": "Heat Exchanger Tag", "subClassOf": "TaggedStatic", "tag_type_mapping": "AT_EQEXC", "tag_type_aliases": ["AT_HE_EX", "AT_HEAT_EXCHANGER"] },
+    
+    { 
+      "name": "PipelineTag", 
+      "label": "Pipeline Tag", 
+      "subClassOf": "TaggedPiping", 
+      "tag_type_mapping": "AT_PROCESS",
+      "fragments": ["pipeline_route"]
+    },
+    { "name": "InlineComponentTag", "label": "Inline Component Tag", "subClassOf": "TaggedPiping", "tag_type_mapping": "AT_INCOMP" },
+    
+    { 
+      "name": "ValveTag", 
+      "label": "Valve Tag", 
+      "subClassOf": "TaggedPiping",
+      "fragments": ["valve_internals"]
+    },
+    { 
+      "name": "ControlValveTag", 
+      "label": "Control Valve Tag", 
+      "subClassOf": "ValveTag", 
+      "tag_type_mapping": "AT_CVALVE",
+      "fragments": ["actuator"]
+    },
+    { "name": "SafetyValveTag", "label": "Safety Valve Tag", "subClassOf": "ValveTag", "tag_type_mapping": "AT_PSV" },
+    { "name": "ManualValveTag", "label": "Manual Valve Tag", "subClassOf": "ValveTag", "tag_type_mapping": "AT_HVALVE" },
+    
+    { "name": "ControlSystemInstrumentTag", "label": "Control System Instrument Tag", "subClassOf": "TaggedInstrument", "tag_type_mapping": "AT_INST_CS" },
+    { "name": "FlowInstrumentTag", "label": "Flow Instrument Tag", "subClassOf": "TaggedInstrument", "tag_type_mapping": "AT_INST_FLO" },
+
+    { "name": "PumpUnit", "label": "Pump Unit", "subClassOf": "PhysicalObject" },
+    { "name": "ValveUnit", "label": "Valve Unit", "subClassOf": "PhysicalObject" },
+    { "name": "MotorUnit", "label": "Motor Unit", "subClassOf": "PhysicalObject" },
+    { "name": "InstrumentUnit", "label": "Instrument Unit", "subClassOf": "PhysicalObject" },
+    { "name": "EquipmentUnit", "label": "Equipment Unit", "subClassOf": "PhysicalObject" },
+    { "name": "ActuatorUnit", "label": "Actuator Unit", "subClassOf": "PhysicalObject" }
+  ],
+  "relationships": [
+    { "name": "SUBCLASS_OF", "inverse": "SUPERCLASS_OF", "transitive": true, "description": "Establishes class hierarchy." },
+    { "name": "IS_A", "transitive": false, "description": "Links instance to its ontology class." },
+    { "name": "CONNECTS_TO", "symmetric": true, "transitive": true, "description": "Connectivity between functional objects." },
+    { "name": "INSTALLED_AT", "inverse": "HAS_PHYSICAL", "transitive": false, "description": "Links equipment instance to its tag." },
+    { "name": "REFERENCED_BY_DWG", "inverse": "REFERENCES_ASSET", "symmetric": false, "description": "Document references a functional object." },
+    { "name": "CONTROLS", "transitive": false, "description": "Control signal relationship." },
+    { "name": "FEEDS_FROM", "transitive": false, "description": "Material or energy feed relationship." }
+  ]
+}

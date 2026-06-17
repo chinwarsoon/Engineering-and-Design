@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/eks_ontology_base_schema.json",
+  "version": "1.1.0",
+  "title": "EKS Ontology Base Schema — Definitions",
+  "description": "Canonical definitions for ontology classes and relationships in EKS.",
+  "type": "object",
+  "definitions": {
+    "ontology_class": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "subClassOf": { "type": "string" },
+        "tag_type_mapping": { "type": "string" },
+        "tag_type_aliases": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "fragments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of asset schema fragments that apply to this class."
+        }
+      },
+      "required": ["name", "label"],
+      "additionalProperties": false
+    },
+    "relationship": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "inverse": { "type": "string" },
+        "transitive": { "type": "boolean" },
+        "symmetric": { "type": "boolean" },
+        "description": { "type": "string" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    }
+  }
+}

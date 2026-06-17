@@ -4,6 +4,9 @@
     "version": "1.2.0",
     "title": "EKS Setup Schema - Declarations",
     "description": "Global property declarations. Includes project-specific validation rules and metadata support for the config instance.",
+    "allOf": [
+        { "$ref": "eks_base_schema.json" }
+    ],
     "type": "object",
     "properties": {
         "$schema": { "type": "string" },
