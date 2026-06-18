@@ -127,4 +127,36 @@ Each class entry in `eks_ontology_config.json` supports the following sub-keys f
 
 ## C7. ISO 15926 Compliance Strategy
 
-...
+Compliance is enforced through the categorization of data into **Functional (Slot)** and **Physical (Unit)** entities.
+
+1.  **A-Box Creation**: When a row in the datadrop contains both a Tag and a Serial Number, the Phase 3 loader creates *two* nodes:
+    *   A `FunctionalObject` node (e.g., `PumpTag`) identified by the Tag.
+    *   A `PhysicalObject` node (e.g., `PumpUnit`) identified by the Serial Number.
+    *   An `INSTALLED_AT` relationship linking them.
+2.  **Property Routing**: Properties are routed based on their fragment's category (defined in `eks_asset_config.json`).
+    *   `rotating_equipment` properties go to the `FunctionalObject`.
+    *   `manufacturer` properties go to the `PhysicalObject`.
+
+This separation allows EKS to track the entire lifecycle of a design slot independently of the physical equipment currently residing in it.
+
+----
+
+## C8. SSOT & Schema-Driven Design (Zero-Code Extensibility)
+
+The EKS architecture strictly adheres to the Single Source of Truth (SSOT) principle by isolating all domain knowledge within the configuration layer. This design ensures that the system can be expanded or modified without requiring updates to the Python source code.
+
+### C8.1. Dynamic Discovery
+*   **Agnostic Engine**: The core engine (SchemaLoader, Neo4j Importer) operates on generic `classes` and `relationships` arrays. It does not contain hardcoded strings for specific engineering types.
+*   **Runtime Resolution**: Class inheritance, tag type aliases, and fragment associations are resolved at runtime. Adding a new specialized pump type or a new control relationship only requires a JSON entry in `eks_ontology_config.json`.
+
+### C8.2. Automated Integrity
+*   **Cross-Schema Validation**: The system automatically enforces consistency between the ontology and the asset schema. The loader verifies that every referenced fragment is defined in the base schema and every project mapping points to a valid ontology class.
+*   **SHACL Integration**: Data quality rules (e.g., "every motor must have a starter type") are defined in the schema and validated post-ingestion, ensuring the knowledge graph remains semantically correct as it scales.
+
+### C8.3. Future-Proofing
+This configuration-driven approach allows for rapid adaptation to new project requirements:
+1.  **New Asset Types**: Define the AT_ code and fragment composition in config.
+2.  **New Taxonomy**: Add the ontology class and its `subClassOf` parent in config.
+3.  **New Relationships**: Add the relationship name and its inverse logic in config.
+
+The EKS engine will automatically recognize and process these new entities upon the next startup or data reload.
