@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/error-code/base",
+  "title": "EKS Error Code Base Schema",
+  "description": "Base definitions for EKS error code taxonomy (definitions only - no properties)",
+  "version": "1.0.0",
+  "type": "object",
+  "definitions": {
+    "layer_code": {
+      "type": "string",
+      "pattern": "^P[0-9]$",
+      "description": "Phase/layer code (P1=Discovery, P2=Parsing, P3=Extraction, P4=Ingestion)"
+    },
+    "module_code": {
+      "type": "string",
+      "enum": ["D", "P", "E", "X", "R", "G", "S", "C", "F", "V"],
+      "description": "Module code: D=Discovery, P=Parse, E=Extract, X=Cross-Ref, R=Register, G=Graph, S=Structure, C=Config, F=File, V=Validation"
+    },
+    "function_code": {
+      "type": "string",
+      "enum": ["P", "V", "C", "F", "S"],
+      "description": "Function type code: P=Process, V=Validate, C=Calculate, F=Filter, S=System"
+    },
+    "unique_id": {
+      "type": "string",
+      "pattern": "^[0-9]{4}$",
+      "description": "4-digit sequential number (0001-9999)"
+    },
+    "error_severity": {
+      "type": "string",
+      "enum": ["FATAL", "CRITICAL", "HIGH", "MEDIUM", "WARNING", "INFO"],
+      "description": "Error severity level"
+    },
+    "system_category": {
+      "type": "string",
+      "enum": ["Environment", "File", "Config", "Runtime", "AI", "Bootstrap"],
+      "description": "System error category"
+    },
+    "error_code_format": {
+      "type": "string",
+      "pattern": "^P[0-9]-[A-Z]-[A-Z]-[0-9]{4}$",
+      "description": "Data error code in P{M}-{Module}-{Function}-{ID} format"
+    },
+    "system_error_code_format": {
+      "type": "string",
+      "pattern": "^S-[A-Z]-S-[0-9]{4}$",
+      "description": "System error code in S-{Category}-S-{ID} format"
+    },
+    "data_error_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "name", "severity", "layer", "module", "function"],
+      "properties": {
+        "code": { "$ref": "#/definitions/error_code_format" },
+        "name": { "type": "string", "description": "Unique error name identifier" },
+        "message": { "type": "string", "description": "Human-readable error message" },
+        "severity": { "$ref": "#/definitions/error_severity" },
+        "layer": { "type": "string", "pattern": "^P[0-9]$" },
+        "module": { "type": "string", "enum": ["D", "P", "E", "X", "R", "G", "S", "C", "F", "V"] },
+        "function": { "$ref": "#/definitions/function_code" },
+        "column": { "type": "string", "description": "Affected column(s)" },
+        "source": { "type": "string", "description": "Source file reference" },
+        "health_score_impact": { "type": "integer", "description": "Health score deduction per occurrence" },
+        "remediation": { "type": "string", "description": "Suggested fix" },
+        "remediation_type": { "type": "string", "enum": ["MANUAL_FIX", "REVIEW", "CALCULATION", "INFO_ONLY"] }
+      }
+    },
+    "system_error_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "name", "severity", "category", "stops_pipeline"],
+      "properties": {
+        "code": { "$ref": "#/definitions/system_error_code_format" },
+        "name": { "type": "string", "description": "Unique error name identifier" },
+        "message": { "type": "string", "description": "Human-readable error message" },
+        "severity": { "$ref": "#/definitions/error_severity" },
+        "category": { "$ref": "#/definitions/system_category" },
+        "stops_pipeline": { "type": "boolean", "description": "Whether this error stops execution" },
+        "promote_detail": { "type": "boolean", "description": "Whether to promote details to user" },
+        "promotion_text": { "type": "string", "description": "Custom promotion text" }
+      }
+    },
+    "error_category_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["prefix", "description", "count"],
+      "properties": {
+        "prefix": { "type": "string" },
+        "description": { "type": "string" },
+        "count": { "type": "integer" },
+        "start_id": { "type": "string" },
+        "end_id": { "type": "string" }
+      }
+    },
+    "error_catalog_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "last_updated", "total_codes"],
+      "properties": {
+        "version": { "type": "string" },
+        "last_updated": { "type": "string" },
+        "total_codes": { "type": "integer" },
+        "system_codes": { "type": "integer" },
+        "data_logic_codes": { "type": "integer" },
+        "data_logic_format": { "type": "string", "enum": ["P{phase}-{module}-{function}-{id}"] },
+        "system_format": { "type": "string", "enum": ["S-{category}-S-{id}"] }
+      }
+    },
+    "migration_log_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "description", "changes"],
+      "properties": {
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "changes": { "type": "array", "items": { "type": "string" } },
+        "references": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    }
+  }
+}

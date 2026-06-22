@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/pipeline-message/base",
+  "title": "EKS Pipeline Message Base Schema",
+  "description": "Base definitions for EKS pipeline terminal messages",
+  "version": "1.0.0",
+  "type": "object",
+  "definitions": {
+    "message_id": {
+      "type": "string",
+      "pattern": "^[A-Z_]+$",
+      "description": "Unique identifier for the message (e.g., MILESTONE_PIPELINE_START)"
+    },
+    "verbosity_level": {
+      "type": "integer",
+      "enum": [0, 1, 2, 3],
+      "description": "Verbosity level (0=quiet, 1=normal, 2=debug, 3=trace)"
+    },
+    "template": {
+      "type": "string",
+      "description": "Message template with Python-style placeholders (e.g., 'Processing {count} files')"
+    },
+    "message_category": {
+      "type": "string",
+      "enum": ["milestone", "status", "progress", "warning", "error"],
+      "description": "Category of the message"
+    },
+    "message_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "last_updated"],
+      "properties": {
+        "version": { "type": "string" },
+        "last_updated": { "type": "string" },
+        "total_messages": { "type": "integer" }
+      }
+    },
+    "message_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["template", "level"],
+      "properties": {
+        "template": { "$ref": "#/definitions/template" },
+        "level": { "$ref": "#/definitions/verbosity_level" },
+        "category": { "$ref": "#/definitions/message_category" }
+      }
+    }
+  }
+}

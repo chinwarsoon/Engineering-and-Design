@@ -58,6 +58,7 @@
 | U047 | 2026-06-19 | Phase 1 | Documentation | Updated `appendix_d_pipeline_messages_errors.md` to v0.3: added D7.10 Structural Elements Table (`document_elements`); revised D7 to 6-dimension composite (added structural completeness 20%); added 8 structural error codes (D5), 8 structural messages (D6); updated D9 implementation files (added `structure_detector.py`); updated D8 status lifecycle. | opencode | ✅ Done |
 | U048 | 2026-06-19 | Planning | Documentation | Updated `eks_system_workplan.md` to v0.9: added `document_elements` to data store summary, added Appendix D reference, updated R51 description for 6-dimension scoring. | opencode | ✅ Done |
 | U049 | 2026-06-19 | Phase 1 | Documentation | Updated `phase_1_foundation_workplan.md` to v1.9: updated T1.30–T1.32 for 6-dimension health scoring, structure_detector.py, document_elements table; updated R51 description; updated deliverables with health_scorer.py and structure_detector.py. | opencode | ✅ Done |
+| U050 | 2026-06-22 | Phase 1 | T1.30–T1.32 | Implemented T1.30 (error code schema), T1.31 (message schema), T1.32 (error_manager, message_manager, health_scorer, structure_detector, document_elements table). Created 9 files, modified 1 (registry.py). 47 new T1.32 tests + 20 existing Phase 1 tests all passing (67 total). Created test report `phase_1_t130_t132_report.md`. Updated `phase_1_foundation_workplan.md` to v2.0 — Phase 1 complete. | opencode | ✅ Done |
 
 ---
 

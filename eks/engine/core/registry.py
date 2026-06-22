@@ -104,6 +104,92 @@ class DocumentRegistry:
                 if col not in existing_cols:
                     self.logger.info(f"Migrating schema: Adding column '{col}' to documents table.")
                     conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {col_type}")
+
+            # Create document_elements table if not exists
+            self._init_document_elements(conn)
+        finally:
+            conn.close()
+
+    @log_depth
+    def _init_document_elements(self, conn):
+        """Create the document_elements table if it does not exist."""
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS document_elements (
+                doc_id VARCHAR NOT NULL,
+                element_type VARCHAR NOT NULL,
+                element_id VARCHAR,
+                title VARCHAR,
+                content TEXT,
+                confidence DOUBLE,
+                source VARCHAR NOT NULL DEFAULT 'heuristic'
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_elements_doc_id ON document_elements(doc_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_elements_type ON document_elements(element_type)")
+        self.logger.debug("document_elements table ready", context="DocumentRegistry._init_document_elements")
+
+    @log_depth
+    def store_elements(self, doc_id: str, elements: List[Dict[str, Any]]) -> int:
+        """Insert structural elements for a document. Returns count inserted."""
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            count = 0
+            for el in elements:
+                conn.execute("""
+                    INSERT INTO document_elements
+                    (doc_id, element_type, element_id, title, content, confidence, source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, [
+                    doc_id,
+                    el.get("element_type", "unknown"),
+                    el.get("element_id"),
+                    el.get("title"),
+                    el.get("content"),
+                    el.get("confidence"),
+                    el.get("source", "heuristic"),
+                ])
+                count += 1
+            self.logger.info(f"Stored {count} elements for {doc_id}", context="DocumentRegistry.store_elements")
+            return count
+        finally:
+            conn.close()
+
+    @log_depth
+    def get_elements(self, doc_id: str) -> List[Dict[str, Any]]:
+        """Retrieve all structural elements for a document."""
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            res = conn.execute(
+                "SELECT * FROM document_elements WHERE doc_id = ? ORDER BY doc_id, element_type", [doc_id]
+            ).fetchall()
+            cols = [d[0] for d in conn.description]
+            return [dict(zip(cols, row)) for row in res]
+        finally:
+            conn.close()
+
+    @log_depth
+    def get_elements_by_type(self, doc_id: str, element_type: str) -> List[Dict[str, Any]]:
+        """Retrieve structural elements of a specific type for a document."""
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            res = conn.execute(
+                "SELECT * FROM document_elements WHERE doc_id = ? AND element_type = ? ORDER BY doc_id",
+                [doc_id, element_type]
+            ).fetchall()
+            cols = [d[0] for d in conn.description]
+            return [dict(zip(cols, row)) for row in res]
+        finally:
+            conn.close()
+
+    @log_depth
+    def delete_elements(self, doc_id: str) -> int:
+        """Delete all structural elements for a document. Returns count deleted."""
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            before = conn.execute("SELECT COUNT(*) FROM document_elements WHERE doc_id = ?", [doc_id]).fetchone()[0]
+            conn.execute("DELETE FROM document_elements WHERE doc_id = ?", [doc_id])
+            self.logger.info(f"Deleted {before} elements for {doc_id}", context="DocumentRegistry.delete_elements")
+            return before
         finally:
             conn.close()
 

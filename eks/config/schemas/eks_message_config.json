@@ -1,0 +1,175 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/pipeline-message/config",
+  "title": "EKS Pipeline Message Configuration",
+  "description": "Actual pipeline message definitions for EKS (SSOT)",
+  "version": "1.0.0",
+  "type": "object",
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-06-19",
+    "total_messages": 33
+  },
+  "messages": {
+    "MILESTONE_PIPELINE_START": {
+      "template": "Starting EKS pipeline for {target}",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_FILE_DISCOVERY": {
+      "template": "Discovered {count} files in {target}",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_PARSE_COMPLETE": {
+      "template": "Parsed {count} files ({success}/{failed} ok)",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_EXTRACTION_COMPLETE": {
+      "template": "Extraction complete for {count} documents",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_REGISTRATION_COMPLETE": {
+      "template": "Registered {count} documents in registry",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_PHASE_COMPLETE": {
+      "template": "Phase {phase} complete — {summary}",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_HEALTH_SCORED": {
+      "template": "Health scored {count} documents (avg: {avg_score})",
+      "level": 1,
+      "category": "milestone"
+    },
+    "MILESTONE_PIPELINE_DONE": {
+      "template": "EKS pipeline complete — {total} documents processed ({elapsed}s)",
+      "level": 1,
+      "category": "milestone"
+    },
+    "STATUS_PARSING_FILE": {
+      "template": "Parsing: {filename}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_EXTRACTING": {
+      "template": "Extracting metadata from {filename}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_REGISTERING": {
+      "template": "Registering document: {doc_id}",
+      "level": 1,
+      "category": "status"
+    },
+    "STATUS_DETECTING_STRUCTURE": {
+      "template": "Detecting structural elements in {filename}",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_STORING_ELEMENTS": {
+      "template": "Storing {count} elements for {doc_id}",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_HEALTH_SCORE": {
+      "template": "Scoring {doc_id}: completeness={c:.2f} confidence={e:.2f} structural={s:.2f}",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_XREF_CHECK": {
+      "template": "Cross-referencing {count} asset tags for {doc_id}",
+      "level": 2,
+      "category": "status"
+    },
+    "STATUS_BATCH_PROGRESS": {
+      "template": "Progress: [{current}/{total}] {percent}%",
+      "level": 1,
+      "category": "status"
+    },
+    "PROGRESS_PARSING": {
+      "template": "  {filename}",
+      "level": 1,
+      "category": "progress"
+    },
+    "PROGRESS_EXTRACTION": {
+      "template": "  Extracting fields from {filename}",
+      "level": 1,
+      "category": "progress"
+    },
+    "PROGRESS_REGISTRATION": {
+      "template": "  Registering {count} documents",
+      "level": 1,
+      "category": "progress"
+    },
+    "PROGRESS_HEALTH_SCORE": {
+      "template": "  Health scoring document {n}/{total}",
+      "level": 1,
+      "category": "progress"
+    },
+    "WARNING_SCANNED_PDF": {
+      "template": "Scanned PDF detected (no text layer): {filename}",
+      "level": 1,
+      "category": "warning"
+    },
+    "WARNING_LOW_CONFIDENCE": {
+      "template": "Low extraction confidence ({score}%): {filename}",
+      "level": 1,
+      "category": "warning"
+    },
+    "WARNING_NO_MATCH": {
+      "template": "Asset tag \"{tag}\" has no datadrop match",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_AMBIGUOUS_MATCH": {
+      "template": "Asset tag \"{tag}\" matches {count} keytags: {matches}",
+      "level": 2,
+      "category": "warning"
+    },
+    "WARNING_SKIPPED_FILE": {
+      "template": "Skipped: {filename} — {reason}",
+      "level": 1,
+      "category": "warning"
+    },
+    "WARNING_NO_COVER_PAGE": {
+      "template": "No cover page detected: {filename}",
+      "level": 1,
+      "category": "warning"
+    },
+    "WARNING_NO_REVISION_TABLE": {
+      "template": "No revision history table: {filename}",
+      "level": 1,
+      "category": "warning"
+    },
+    "WARNING_STRUCTURE_LOW": {
+      "template": "Low structural completeness ({score}%): {filename}",
+      "level": 1,
+      "category": "warning"
+    },
+    "ERROR_EXTRACTION_FAILED": {
+      "template": "Extraction failed for {filename}: {detail}",
+      "level": 0,
+      "category": "error"
+    },
+    "ERROR_REGISTRATION_FAILED": {
+      "template": "Registration failed for {doc_id}: {detail}",
+      "level": 0,
+      "category": "error"
+    },
+    "ERROR_GRAPH_FAILED": {
+      "template": "Graph operation failed: {detail}",
+      "level": 0,
+      "category": "error"
+    },
+    "ERROR_INGESTION_ABORTED": {
+      "template": "Ingestion aborted at [{current}/{total}]: {detail}",
+      "level": 0,
+      "category": "error"
+    }
+  }
+}

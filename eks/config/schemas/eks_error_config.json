@@ -1,0 +1,307 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/error-code/config",
+  "title": "EKS Error Code Configuration",
+  "description": "Full error code catalog for EKS (system + data domains)",
+  "version": "1.0.0",
+  "type": "object",
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-06-19",
+    "total_codes": 65,
+    "system_codes": 30,
+    "data_logic_codes": 35,
+    "system_format": "S-{category}-S-{id}",
+    "data_logic_format": "P{phase}-{module}-{function}-{id}"
+  },
+  "system_error_ranges": {
+    "environment": {
+      "prefix": "S-E-S-01xx",
+      "description": "Environment errors (Python, packages, imports)",
+      "count": 5,
+      "start_id": "S-E-S-0101",
+      "end_id": "S-E-S-0105"
+    },
+    "file_io": {
+      "prefix": "S-F-S-02xx",
+      "description": "File/IO errors (not found, unreadable, permissions)",
+      "count": 6,
+      "start_id": "S-F-S-0201",
+      "end_id": "S-F-S-0206"
+    },
+    "config": {
+      "prefix": "S-C-S-03xx",
+      "description": "Configuration errors (schema, parameters, setup)",
+      "count": 8,
+      "start_id": "S-C-S-0301",
+      "end_id": "S-C-S-0308"
+    },
+    "runtime": {
+      "prefix": "S-R-S-04xx",
+      "description": "Runtime errors (exceptions, memory, fail-fast)",
+      "count": 6,
+      "start_id": "S-R-S-0401",
+      "end_id": "S-R-S-0406"
+    },
+    "ai": {
+      "prefix": "S-A-S-05xx",
+      "description": "AI/Optional service errors (non-fatal)",
+      "count": 3,
+      "start_id": "S-A-S-0501",
+      "end_id": "S-A-S-0503"
+    },
+    "bootstrap": {
+      "prefix": "S-B-S-06xx",
+      "description": "Bootstrap initialization errors",
+      "count": 2,
+      "start_id": "S-B-S-0601",
+      "end_id": "S-B-S-0602"
+    }
+  },
+  "system_errors": {
+    "S-E-S-0101": {
+      "code": "S-E-S-0101", "name": "MISSING_PACKAGE", "message": "Required Python package is not installed", "severity": "FATAL", "category": "Environment", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-E-S-0102": {
+      "code": "S-E-S-0102", "name": "WRONG_PYTHON_VERSION", "message": "Python version does not meet requirements", "severity": "FATAL", "category": "Environment", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-E-S-0103": {
+      "code": "S-E-S-0103", "name": "IMPORT_ERROR", "message": "Failed to import required module", "severity": "FATAL", "category": "Environment", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-E-S-0104": {
+      "code": "S-E-S-0104", "name": "ENVIRONMENT_NOT_READY", "message": "Environment validation failed", "severity": "FATAL", "category": "Environment", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-E-S-0105": {
+      "code": "S-E-S-0105", "name": "DUCKDB_UNAVAILABLE", "message": "DuckDB not available for pipeline execution", "severity": "FATAL", "category": "Environment", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0201": {
+      "code": "S-F-S-0201", "name": "INPUT_FILE_NOT_FOUND", "message": "Input file not found at specified path", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0202": {
+      "code": "S-F-S-0202", "name": "FILE_UNREADABLE", "message": "File exists but cannot be read", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0203": {
+      "code": "S-F-S-0203", "name": "OUTPUT_DIR_NOT_WRITABLE", "message": "Output directory is not writable", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0204": {
+      "code": "S-F-S-0204", "name": "SCHEMA_FILE_NOT_FOUND", "message": "Schema configuration file not found", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0205": {
+      "code": "S-F-S-0205", "name": "CONFIG_FILE_NOT_FOUND", "message": "Configuration file not found", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0206": {
+      "code": "S-F-S-0206", "name": "OUTPUT_DIR_CREATION_FAILED", "message": "Cannot create output directory", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-C-S-0301": {
+      "code": "S-C-S-0301", "name": "INVALID_PARAMETER", "message": "Invalid parameter provided to pipeline", "severity": "FATAL", "category": "Config", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-C-S-0302": {
+      "code": "S-C-S-0302", "name": "SCHEMA_PARSE_ERROR", "message": "Failed to parse schema JSON", "severity": "FATAL", "category": "Config", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-C-S-0303": {
+      "code": "S-C-S-0303", "name": "SCHEMA_VALIDATION_FAILED", "message": "Schema validation failed against schema definition", "severity": "FATAL", "category": "Config", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-C-S-0304": {
+      "code": "S-C-S-0304", "name": "MISSING_REQUIRED_CONFIG", "message": "Required configuration is missing", "severity": "FATAL", "category": "Config", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-C-S-0305": {
+      "code": "S-C-S-0305", "name": "ERROR_CATALOG_LOAD_FAILED", "message": "Failed to load error catalog", "severity": "WARNING", "category": "Config", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-C-S-0306": {
+      "code": "S-C-S-0306", "name": "MESSAGE_CATALOG_LOAD_FAILED", "message": "Failed to load message catalog", "severity": "WARNING", "category": "Config", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-C-S-0307": {
+      "code": "S-C-S-0307", "name": "REGISTRY_CONNECTION_FAILED", "message": "Failed to connect to document registry", "severity": "FATAL", "category": "Config", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-C-S-0308": {
+      "code": "S-C-S-0308", "name": "SCHEMA_RESOLUTION_ERROR", "message": "Schema resolution failed via $ref chain", "severity": "FATAL", "category": "Config", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-R-S-0401": {
+      "code": "S-R-S-0401", "name": "FAIL_FAST_TRIGGERED", "message": "Fail-fast condition triggered - stopping pipeline", "severity": "FATAL", "category": "Runtime", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-R-S-0402": {
+      "code": "S-R-S-0402", "name": "PIPELINE_ABORTED", "message": "Pipeline execution aborted by user or timeout", "severity": "FATAL", "category": "Runtime", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-R-S-0403": {
+      "code": "S-R-S-0403", "name": "MEMORY_ERROR", "message": "Memory allocation failed during processing", "severity": "FATAL", "category": "Runtime", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-R-S-0404": {
+      "code": "S-R-S-0404", "name": "BATCH_PROCESSING_FAILED", "message": "Batch processing encountered an unrecoverable error", "severity": "FATAL", "category": "Runtime", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-R-S-0405": {
+      "code": "S-R-S-0405", "name": "GRAPH_ENGINE_FAILED", "message": "Graph engine operation failed", "severity": "HIGH", "category": "Runtime", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-R-S-0406": {
+      "code": "S-R-S-0406", "name": "PRE_PIPELINE_VALIDATION_FAILED", "message": "Pre-pipeline validation failed", "severity": "FATAL", "category": "Runtime", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-A-S-0501": {
+      "code": "S-A-S-0501", "name": "AI_OPS_FAILED", "message": "AI operations failed to complete", "severity": "WARNING", "category": "AI", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-A-S-0502": {
+      "code": "S-A-S-0502", "name": "EMBEDDING_SERVICE_FAILED", "message": "Embedding service not available", "severity": "WARNING", "category": "AI", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-A-S-0503": {
+      "code": "S-A-S-0503", "name": "OLLAMA_UNAVAILABLE", "message": "Ollama service is not available", "severity": "WARNING", "category": "AI", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-B-S-0601": {
+      "code": "S-B-S-0601", "name": "BOOTSTRAP_NOT_COMPLETE", "message": "Bootstrap must be completed before pipeline execution", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-B-S-0602": {
+      "code": "S-B-S-0602", "name": "PHASE_DEPENDENCY_FAILED", "message": "Required prior phase has not completed successfully", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    }
+  },
+  "data_error_ranges": {
+    "phase_1_discovery": {
+      "prefix": "P1-D-P-01xx",
+      "description": "Phase 1 - File discovery errors",
+      "count": 2,
+      "start_id": "P1-D-P-0001",
+      "end_id": "P1-D-P-0002"
+    },
+    "phase_2_parse": {
+      "prefix": "P2-P-P-02xx",
+      "description": "Phase 2 - File parsing errors",
+      "count": 8,
+      "start_id": "P2-P-P-0001",
+      "end_id": "P2-P-P-0008"
+    },
+    "phase_3_extract": {
+      "prefix": "P3-E-E-03xx",
+      "description": "Phase 3 - Metadata extraction errors",
+      "count": 17,
+      "start_id": "P3-E-E-0001",
+      "end_id": "P3-E-E-0017"
+    },
+    "phase_3_xref": {
+      "prefix": "P3-X-X-04xx",
+      "description": "Phase 3 - Cross-reference errors",
+      "count": 5,
+      "start_id": "P3-X-X-0001",
+      "end_id": "P3-X-X-0005"
+    },
+    "phase_3_graph": {
+      "prefix": "P3-G-G-05xx",
+      "description": "Phase 3 - Graph node/edge errors",
+      "count": 3,
+      "start_id": "P3-G-G-0001",
+      "end_id": "P3-G-G-0003"
+    }
+  },
+  "data_logic_errors": {
+    "P1-D-P-0001": {
+      "code": "P1-D-P-0001", "name": "FILE_DISCOVERY_FAILED", "message": "File walk/discovery failed for target directory", "severity": "CRITICAL", "layer": "P1", "module": "D", "function": "P", "source": "eks/engine/core/discovery.py", "health_score_impact": -5
+    },
+    "P1-D-P-0002": {
+      "code": "P1-D-P-0002", "name": "DIRECTORY_NOT_FOUND", "message": "Target directory does not exist or is inaccessible", "severity": "CRITICAL", "layer": "P1", "module": "D", "function": "P", "source": "eks/engine/core/discovery.py", "health_score_impact": -5
+    },
+    "P2-P-P-0001": {
+      "code": "P2-P-P-0001", "name": "PDF_PARSE_OPEN_FAIL", "message": "Failed to open PDF file for parsing", "severity": "HIGH", "layer": "P2", "module": "P", "function": "P", "source": "eks/engine/parsers/pdf_parser.py", "health_score_impact": -3
+    },
+    "P2-P-P-0002": {
+      "code": "P2-P-P-0002", "name": "PDF_PAGE_EXTRACT_FAIL", "message": "Failed to extract a specific page from PDF", "severity": "HIGH", "layer": "P2", "module": "P", "function": "P", "source": "eks/engine/parsers/pdf_parser.py", "health_score_impact": -3
+    },
+    "P2-P-P-0003": {
+      "code": "P2-P-P-0003", "name": "PDF_NO_TEXT_LAYER", "message": "PDF has no selectable text layer (scanned)", "severity": "WARNING", "layer": "P2", "module": "P", "function": "P", "source": "eks/engine/parsers/pdf_parser.py", "health_score_impact": -3
+    },
+    "P2-P-P-0004": {
+      "code": "P2-P-P-0004", "name": "PDF_ENCRYPTED", "message": "PDF is password-protected or encrypted", "severity": "HIGH", "layer": "P2", "module": "P", "function": "P", "source": "eks/engine/parsers/pdf_parser.py", "health_score_impact": -3
+    },
+    "P2-P-P-0005": {
+      "code": "P2-P-P-0005", "name": "PDF_IMAGE_EXTRACT_FAIL", "message": "Failed to extract image from PDF", "severity": "WARNING", "layer": "P2", "module": "P", "function": "P", "source": "eks/engine/parsers/pdf_parser.py", "health_score_impact": -2
+    },
+    "P2-P-P-0006": {
+      "code": "P2-P-P-0006", "name": "PDF_TABLE_EXTRACT_FAIL", "message": "Failed to extract table from PDF page", "severity": "WARNING", "layer": "P2", "module": "P", "function": "P", "source": "eks/engine/parsers/pdf_parser.py", "health_score_impact": -2
+    },
+    "P2-P-P-0007": {
+      "code": "P2-P-P-0007", "name": "DOCX_PARSE_FAIL", "message": "DOCX structure invalid or corrupt", "severity": "HIGH", "layer": "P2", "module": "P", "function": "P", "source": "eks/engine/parsers/docx_parser.py", "health_score_impact": -3
+    },
+    "P2-P-P-0008": {
+      "code": "P2-P-P-0008", "name": "DGN_UNSUPPORTED", "message": "DGN file format not yet supported", "severity": "HIGH", "layer": "P2", "module": "P", "function": "P", "source": "eks/engine/parsers/dgn_parser.py", "health_score_impact": -3
+    },
+    "P3-E-E-0001": {
+      "code": "P3-E-E-0001", "name": "COVERSHEET_UNRECOGNIZED", "message": "Cover sheet format not identified", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "column": "document_type", "source": "eks/engine/core/structure_detector.py", "health_score_impact": -2
+    },
+    "P3-E-E-0002": {
+      "code": "P3-E-E-0002", "name": "DOC_NUMBER_EXTRACT_FAIL", "message": "Could not extract document number", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "column": "document_number", "source": "eks/engine/core/extractor.py", "health_score_impact": -2
+    },
+    "P3-E-E-0003": {
+      "code": "P3-E-E-0003", "name": "REVISION_EXTRACT_FAIL", "message": "Could not extract revision", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "column": "revision", "source": "eks/engine/core/extractor.py", "health_score_impact": -2
+    },
+    "P3-E-E-0004": {
+      "code": "P3-E-E-0004", "name": "DISCIPLINE_EXTRACT_FAIL", "message": "Could not extract discipline code", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "column": "discipline", "source": "eks/engine/core/extractor.py", "health_score_impact": -1
+    },
+    "P3-E-E-0005": {
+      "code": "P3-E-E-0005", "name": "STATUS_EXTRACT_FAIL", "message": "Could not extract approval status", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "column": "status", "source": "eks/engine/core/extractor.py", "health_score_impact": -1
+    },
+    "P3-E-E-0006": {
+      "code": "P3-E-E-0006", "name": "CREATED_BY_EXTRACT_FAIL", "message": "Could not extract author", "severity": "INFO", "layer": "P3", "module": "E", "function": "E", "column": "created_by", "source": "eks/engine/core/extractor.py", "health_score_impact": 0
+    },
+    "P3-E-E-0007": {
+      "code": "P3-E-E-0007", "name": "ORIGINATOR_EXTRACT_FAIL", "message": "Could not extract originator company", "severity": "INFO", "layer": "P3", "module": "E", "function": "E", "column": "originator_company", "source": "eks/engine/core/extractor.py", "health_score_impact": 0
+    },
+    "P3-E-E-0008": {
+      "code": "P3-E-E-0008", "name": "METADATA_INCOMPLETE", "message": "Some optional fields missing", "severity": "INFO", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/extractor.py", "health_score_impact": 0
+    },
+    "P3-E-E-0009": {
+      "code": "P3-E-E-0009", "name": "CONFIDENCE_LOW", "message": "Extraction confidence below threshold", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/health_scorer.py", "health_score_impact": -2
+    },
+    "P3-E-E-0010": {
+      "code": "P3-E-E-0010", "name": "COVER_PAGE_MISSING", "message": "No cover page / title block detected", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/structure_detector.py", "health_score_impact": -3
+    },
+    "P3-E-E-0011": {
+      "code": "P3-E-E-0011", "name": "REVISION_TABLE_MISSING", "message": "No revision history table detected", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/structure_detector.py", "health_score_impact": -2
+    },
+    "P3-E-E-0012": {
+      "code": "P3-E-E-0012", "name": "SECTIONS_MISSING", "message": "No section headings detected", "severity": "INFO", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/structure_detector.py", "health_score_impact": 0
+    },
+    "P3-E-E-0013": {
+      "code": "P3-E-E-0013", "name": "TABLES_EMPTY", "message": "No data tables detected in body", "severity": "INFO", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/structure_detector.py", "health_score_impact": 0
+    },
+    "P3-E-E-0014": {
+      "code": "P3-E-E-0014", "name": "IMAGES_DETECTED", "message": "Document contains images/charts", "severity": "INFO", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/structure_detector.py", "health_score_impact": 0
+    },
+    "P3-E-E-0015": {
+      "code": "P3-E-E-0015", "name": "SCANNED_PAGES_FOUND", "message": "Some pages have no text layer", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/structure_detector.py", "health_score_impact": -2
+    },
+    "P3-E-E-0016": {
+      "code": "P3-E-E-0016", "name": "ELEMENT_STORAGE_FAIL", "message": "Detected element failed to store in DB", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/registry.py", "health_score_impact": -1
+    },
+    "P3-E-E-0017": {
+      "code": "P3-E-E-0017", "name": "STRUCTURE_LOW_SCORE", "message": "Structural completeness below 0.5", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/health_scorer.py", "health_score_impact": -2
+    },
+    "P3-X-X-0001": {
+      "code": "P3-X-X-0001", "name": "KEYTAG_NO_MATCH", "message": "asset_tag has no matching datadrop keytag", "severity": "WARNING", "layer": "P3", "module": "X", "function": "X", "column": "asset_tags", "source": "eks/engine/core/xref.py", "health_score_impact": -1
+    },
+    "P3-X-X-0002": {
+      "code": "P3-X-X-0002", "name": "KEYTAG_AMBIGUOUS", "message": "asset_tag matches multiple keytags", "severity": "WARNING", "layer": "P3", "module": "X", "function": "X", "column": "asset_tags", "source": "eks/engine/core/xref.py", "health_score_impact": -1
+    },
+    "P3-X-X-0003": {
+      "code": "P3-X-X-0003", "name": "KEYTAG_FORMAT_INVALID", "message": "asset_tag format does not match expected pattern", "severity": "WARNING", "layer": "P3", "module": "X", "function": "X", "column": "asset_tags", "source": "eks/engine/core/xref.py", "health_score_impact": -1
+    },
+    "P3-X-X-0004": {
+      "code": "P3-X-X-0004", "name": "DATADROP_LOAD_FAIL", "message": "Cannot load datadrop Excel file", "severity": "CRITICAL", "layer": "P3", "module": "X", "function": "X", "source": "eks/engine/core/xref.py", "health_score_impact": -5
+    },
+    "P3-X-X-0005": {
+      "code": "P3-X-X-0005", "name": "DATADROP_SHEET_MISSING", "message": "Expected datadrop sheet not found", "severity": "HIGH", "layer": "P3", "module": "X", "function": "X", "source": "eks/engine/core/xref.py", "health_score_impact": -3
+    },
+    "P3-G-G-0001": {
+      "code": "P3-G-G-0001", "name": "NODE_CREATION_FAILED", "message": "Graph node creation failed", "severity": "WARNING", "layer": "P3", "module": "G", "function": "G", "source": "eks/engine/core/graph_engine.py", "health_score_impact": -2
+    },
+    "P3-G-G-0002": {
+      "code": "P3-G-G-0002", "name": "EDGE_CREATION_FAILED", "message": "Graph edge creation failed", "severity": "WARNING", "layer": "P3", "module": "G", "function": "G", "source": "eks/engine/core/graph_engine.py", "health_score_impact": -2
+    },
+    "P3-G-G-0003": {
+      "code": "P3-G-G-0003", "name": "GRAPH_QUERY_FAILED", "message": "Graph query execution failed", "severity": "WARNING", "layer": "P3", "module": "G", "function": "G", "source": "eks/engine/core/graph_engine.py", "health_score_impact": -2
+    }
+  },
+  "migration_log": {
+    "date": "2026-06-19",
+    "description": "Initial EKS error catalog following P{phase}-{module}-{function}-{id} and S-{category}-S-{id} formats",
+    "changes": [
+      "Created system error catalog (30 codes): 6 categories (Environment, File, Config, Runtime, AI, Bootstrap)",
+      "Created data error catalog (35 codes): 5 phases (P1 Discovery, P2 Parsing, P3 Extract, P3 XRef, P3 Graph)",
+      "Includes 8 structural detection error codes (P3-E-E-0010 to P3-E-E-0017)",
+      "Follows DCC pattern from dcc/config/schemas/error_code_base.json"
+    ]
+  }
+}
