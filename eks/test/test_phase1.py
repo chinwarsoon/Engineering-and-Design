@@ -23,10 +23,10 @@ class TestPhase1(unittest.TestCase):
         cls.test_dir = Path("test_output")
         cls.test_dir.mkdir(exist_ok=True)
         
-        # Determine config dir based on cwd
-        cls.config_dir = Path("config")
+        # Determine config dir based on cwd - prefer eks/config over root config
+        cls.config_dir = Path("eks/config")
         if not cls.config_dir.exists():
-            cls.config_dir = Path("eks/config")
+            cls.config_dir = Path("config")
             
         if not cls.config_dir.exists():
             raise FileNotFoundError(f"Could not find config directory at {Path('config').absolute()} or {Path('eks/config').absolute()}")
@@ -35,7 +35,7 @@ class TestPhase1(unittest.TestCase):
         cls.config_reg = ConfigRegistry(cls.config_dir)
         
         # Delete existing DB for clean test state
-        db_path = Path("data/eks_registry.db")
+        db_path = Path("eks/output/eks_registry.db")
         if db_path.exists():
             db_path.unlink()
 

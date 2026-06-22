@@ -2,7 +2,21 @@
 
 **Version**: 0.5  
 **Last Updated**: 2026-06-18  
-**Summary of Changes**:  
+**Phase**: 1 — Foundation  
+**Status**: ✅ Implemented & Tested  
+
+### Revision History
+
+| Revision | Date | Author | Summary |
+| :------- | :--- | :----- | :------ |
+| 0.1 | 2026-06-15 | Gemini CLI | Initial draft: A1–A5 (Overview, Fragment Definitions, Composition Map, Ontology Alignment, Column Normalization) |
+| 0.2 | 2026-06-16 | System | Gap analysis against actual datadrop Excel. Added `specialist_equipment` (A2.12), `motor_control` (A2.13), expanded `actuator`, `rotating_equipment`, `instrumentation`, `valve_internals`. Added pipeline duplicate KEYTAG rule (A5). |
+| 0.3 | 2026-06-16 | System | Added A7: How to Add a New Plant Asset Type. Three scenarios (existing fragments, conditional fragment, new fragment). Supports R39 zero-code extensibility. |
+| 0.4 | 2026-06-17 | opencode | Review corrections: `pipeline_route.p_and_id_files` changed to array of strings. Added `submergence_min` overlap note in A2.12. |
+| 0.5 | 2026-06-17 | opencode | Added specialized engineering relations (Flow, Power, Control, Governance, Set Points) mapping Appendix A fields to Appendix C relations. |
+
+### Summary of Changes
+
 v0.2 — Gap analysis against actual datadrop Excel. Added 14 unmapped Equipment columns (`specialist_equipment` fragment, A2.12), 10 Motor columns to `rotating_equipment` and new `motor_control` fragment (A2.13), full actuator manufacturer+lifecycle block to `actuator` fragment (A2.8), 12 Instrument columns to `instrumentation` fragment (A2.10), 3 MANUALVALVE columns to `valve_internals` (A2.7). Added pipeline duplicate KEYTAG ingestion rule (A5). Updated composition map (A3) and column normalization map (A5).  
 v0.3 — Added A7: How to Add a New Plant Asset Type. Three scenarios covered (existing fragments only, conditional fragment, new fragment). Decision guide and validation step included. Supports R39 zero-code extensibility.  
 v0.4 — Review corrections: `pipeline_route.p_and_id_files` changed to array of strings to support multi-P&ID pipeline deduplication. Added known-overlap note to `submergence_min` in A2.12 (`specialist_equipment`).  

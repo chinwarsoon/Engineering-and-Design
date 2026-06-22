@@ -14,6 +14,7 @@
         "description": { "type": "string" },
         "subClassOf": { "type": "string" },
         "tag_type_mapping": { "type": "string" },
+        "document_type_mapping": { "type": "string" },
         "tag_type_aliases": {
           "type": "array",
           "items": { "type": "string" },

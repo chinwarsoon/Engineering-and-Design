@@ -26,7 +26,14 @@ class DocumentRegistry:
     def __init__(self, logger: Optional[EKSLogger] = None):
         self.config = ConfigRegistry()
         settings = self.config.registry_settings
-        self.db_path = Path(settings.get("connection_string", "data/eks_registry.db"))
+        conn_str = settings.get("connection_string", "output/eks_registry.db")
+        # Resolve relative paths relative to config directory
+        loader = getattr(self.config, '_loader', None)
+        if loader and hasattr(loader, 'config_dir'):
+            config_dir = Path(loader.config_dir)
+            self.db_path = (config_dir.parent / conn_str).resolve()
+        else:
+            self.db_path = Path(conn_str)
         self.logger = logger or EKSLogger("Registry", level=1)
         self._init_db()
         self._migrate_schema()

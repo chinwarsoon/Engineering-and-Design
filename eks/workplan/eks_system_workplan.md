@@ -1,9 +1,9 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 0.8  
+**Current Version**: 0.9  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-18  
+**Last Updated**: 2026-06-19  
 
 ---
 
@@ -27,6 +27,7 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | 0.6     | 2026-06-18 | System | Phase 1 marked PASS: T1.20 complete, all success criteria met, test_phase1.py updated, logs and report updated. R36 and R39 status updated to PASS in master scope table. |
 | 0.7     | 2026-06-18 | System | Added Section 10: EKS Pipeline Architecture — full workflow diagram covering ingestion, embedding, graph, retrieval, and UI across all 5 phases. Added R40 (Asset Embedding Strategy), R41 (Asset Chunk Registry Extension), R42 (Asset Vector Upsert) based on datadrop embedding analysis. Updated scope table, phase index, and index of content. |
 | 0.8     | 2026-06-16 | System | Ontology Option C gap closure: added R50 (Ontology-Enriched Embedding Headers) and R47 (Ontology-Driven UI Facets) to scope table; added R48 (PhysicalObject + INSTALLED_AT) and R49 (SHACL Constraint Validation) to scope table; updated Phase 3 pipeline architecture description to include PhysicalObject nodes and INSTALLED_AT relationship; added Appendix C reference to references section. |
+| 0.9 | 2026-06-19 | opencode | Added R51: Pipeline Messages & Error Codes (schema-driven error catalog, message catalog, 6-dimension health scoring, structural elements table). Added Appendix D reference. Added document_elements to data store summary. |
 
 ---
 
@@ -101,6 +102,7 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 | R47 | UI | Ontology-Driven UI Facets | Hierarchical class tree in UI sidebar showing ontology class hierarchy with asset instance counts per class; backed by `/api/ontology/classes` endpoint | 🔷 PLANNED | 5 |
 | R48 | Knowledge Base | PhysicalObject + INSTALLED_AT | When serial_number is non-null, create PhysicalObject node and INSTALLED_AT edge to FunctionalObject tag; enables physical equipment traceability per ISO 15926 Part 2 | 🔷 PLANNED | 3 |
 | R49 | Knowledge Base | SHACL Constraint Validation | Post-load SHACL shape validation against ingested asset nodes; violations logged to issue_log.md | 🔷 PLANNED | 3 |
+| R51 | Logging & Debug | Pipeline Messages & Error Codes | Schema-driven error catalog (system + data domains), pipeline message catalog, per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency), structural elements table (`document_elements`), pipeline health grades per AGENTS.md §19 | 🔷 PLANNED | 1/3 |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -141,7 +143,7 @@ The EKS project is a **clean-slate build** under `eks/`. The only existing artif
 - Structured asset ingestion (bypasses document chunking; loads directly into graph DB)
 
 **Gap Assessment:**
-- 42 requirements identified (35 original + 3 asset data + 1 schema extensibility + 3 asset embedding)
+- 43 requirements identified (35 original + 3 asset data + 1 schema extensibility + 3 asset embedding + 1 pipeline messages)
 - Full greenfield build — no prior EKS implementation exists
 
 ---
@@ -426,6 +428,7 @@ Full end-to-end workflow across all 5 phases. Two parallel ingestion paths (docu
 | Store | Technology | Contents | Phase |
 | :---- | :--------- | :------- | :---: |
 | Document Registry | DuckDB | Document metadata, revision flags | 1 |
+| Document Elements | DuckDB | Structural elements (cover pages, revision tables, sections, tables, images) | 1/3 |
 | Asset Chunk Registry | DuckDB | Asset record metadata (keytag, tag_type, unit, service) | 2 |
 | Vector Store — Documents | Qdrant `eks_chunks` | Document chunk vectors + payload | 2 |
 | Vector Store — Assets | Qdrant `eks_assets` | Asset contextual summary vectors + payload | 2/3 |
@@ -445,3 +448,5 @@ Full end-to-end workflow across all 5 phases. Two parallel ingestion paths (docu
 8. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
 9. [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md)
 10. [appendix_c_ontology.md](appendix_c_ontology.md)
+11. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)
+11. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline messages & error codes

@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/issue_log.md`  
-**Last Updated**: 2026-06-18  
+**Last Updated**: 2026-06-19  
 
 ---
 
@@ -18,6 +18,7 @@
 | I006 | 2026-06-16 | Phase 1 | 🟠 High | Document Registry Technical Gaps (G1-G3) & Extended Metadata | Critical gaps identified in Phase 1 registry: missing `source_type` (G1) for P&ID references; SQL injection risk in filters (G2); Python-side sorting in `get_revision_history` (G3). Added 11 extended metadata fields for extraction/verification workflow. | ✅ Resolved | Fixed in T1.21/T1.22: Added `source_type` and 11 extended fields to schema/DB; implemented COLUMN_ALLOWLIST for filters; migrated sorting to SQL ORDER BY; added JSON array support for asset_tags. |
 | I007 | 2026-06-18 | Phase 1 | 🟠 High | Ontology Schema Refactor to Triple-File Pattern | `eks_ontology_schema.json` did not follow the Base/Setup/Config pattern required by `agent_rule.md`. Modular inheritance was missing. | ✅ Resolved | Split into `eks_ontology_base_schema.json` and `eks_ontology_setup_schema.json` with explicit `allOf` inheritance. Updated `SchemaLoader`. |
 | I008 | 2026-06-18 | Phase 1 | 🟡 Medium | Inconsistent Ontology Config Filename | `eks_ontology.json` name was inconsistent with the `_config.json` suffix used by other schema components. | ✅ Resolved | Renamed to `eks_ontology_config.json` and updated all internal/external references across code, tests, and docs. |
+| I009 | 2026-06-19 | Phase 3 Prep | 🟠 High | Pre-ingestion metadata extraction gap — 572 TWRP documents not registered | Document registry contains 7 test records only; 0 of 572 real TWRP documents ingested. 7 components missing before bulk ingestion can proceed: (1) FilenameParser — extract discipline/doc_type/area/doc_number from filenames; (2) CoverSheetParser — extract 8 fields from PDF cover sheets (Type A/B/D/E); (3) ScannedPDFHandler — detect/handle Type C image-only PDFs; (4) DatadropCrossRef — fuzzy match asset_tags to datadrop KEYTAGs; (5) WSD11 project config — replace P123/P456 placeholders (linked to I005); (6) Bulk ingestion script — walk directory tree, register all documents; (7) Extraction confidence scoring — compute quality score per document. | ⏸️ Deferred | To be evaluated as sub-phase workplan for Phase 3. Blocks Phase 3 bulk ingestion. See Appendix B B6.3 for TWRP ingestion steps. |
 
 ---
 

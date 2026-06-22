@@ -45,6 +45,16 @@
         "version":     { "type": "string" },
         "title":       { "type": "string" },
         "description": { "type": "string" },
+        "relationship_triggers": {
+            "type": "object",
+            "description": "Maps asset config fields to graph relationship types for auto-creating edges at ingest",
+            "additionalProperties": { "type": "string" }
+        },
+        "document_triggers": {
+            "type": "object",
+            "description": "Maps document registry fields to graph relationship types for doc-asset linking at ingest",
+            "additionalProperties": { "type": "string" }
+        },
         "asset_type_registry": {
             "type": "object",
             "description": "Maps each AT_ tag_type to its fragment list and optional conditional fragment rules. Adding a new asset type requires only a new entry here — no code changes.",

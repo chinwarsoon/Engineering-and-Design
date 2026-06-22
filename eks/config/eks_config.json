@@ -32,7 +32,7 @@
     },
     "registry": {
         "type": "duckdb",
-        "connection_string": "data/eks_registry.db",
+        "connection_string": "output/eks_registry.db",
         "timeout": 30
     },
     "parsers": {

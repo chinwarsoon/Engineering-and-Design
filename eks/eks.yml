@@ -4,7 +4,7 @@ channels:
   - conda-forge
 dependencies:
   # ── Core Python ─────────────────────────────────────────────────────────────
-  - python=3.13
+  - python=3.11
   - pip
 
   # ── Jupyter / Dev Tools ──────────────────────────────────────────────────────
@@ -45,7 +45,7 @@ dependencies:
       - structlog==24.1.0          # Structured logging support
 
       # ── Phase 2: Chunking & Embedding ───────────────────────────────────────
-      - tiktoken==0.13.0           # Token counting for chunk size management (0.7.0 requires Rust; 0.13.0 has pre-built wheel)
+      - tiktoken==0.13.0           # Token counting for chunk size management
       - sentence-transformers==3.0.1  # Local embedding models (optional)
       - openai==1.35.0             # OpenAI embeddings + LLM API (Phase 2 + 4)
       - ollama==0.2.1              # Ollama local embeddings + LLM client (Phase 2 + 4)

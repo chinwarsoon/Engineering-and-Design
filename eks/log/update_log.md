@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/update_log.md`  
-**Last Updated**: 2026-06-18  
+**Last Updated**: 2026-06-19  
 
 ---
 
@@ -45,6 +45,19 @@
 | U034 | 2026-06-18 | Phase 1 | Documentation | Updated `phase_1_foundation_workplan.md` to v1.5 COMPLETE. Updated `appendix_c_ontology.md` to v1.1. Synchronized all phase workplans with new naming conventions. | Gemini CLI | ✅ Done |
 | U035 | 2026-06-18 | Phase 1/3 | Planning | Implemented Specialized Relationship Gap Closure: Updated Appendices A & C, Phase 1 & 3 Workplans, and Asset/Ontology schemas to include 5 new relationship pairs (Flow, Power, Control, Governance, Set Points) and target classes (Infrastructure, Governance) per agent_rule standards. | Gemini CLI | ✅ Done |
 | U036 | 2026-06-18 | Phase 1/3 | Planning | Implemented Document Ontology & Lifecycle: Updated Appendix B & C, Asset/Ontology schemas, and Phase 3 Workplan to include Document Class Hierarchy (Drawing, Spec, Manual) and lifecycle relations (SUPERSEDES, SUPPLEMENTS, REFERENCES_DOC) per registry-to-graph mapping rules. | Gemini CLI | ✅ Done |
+| U037 | 2026-06-19 | Phase 1 | Documentation | Renumbered Appendix B sections for sequential ordering: B7→B6 (Document Registry Establishment Summary), B8→B7 (References). Updated all subsection numbers (B6.1–B6.3). | opencode | ✅ Done |
+| U038 | 2026-06-19 | Phase 1 | Refactor | Moved `eks_registry.db` from `eks/data/` to `eks/output/` to separate source input data (TWRP PDFs, Datadrop) from generated artifacts. Updated `connection_string` in `eks_config.json` and default fallback in `registry.py`. | opencode | ✅ Done |
+| U039 | 2026-06-19 | Phase 1 | Refactor | Updated 8 files for DB path relocation: `eks_config.json`, `registry.py`, `test_phase1.py`, `.gitignore`, `AGENTS.md`, `appendix_b_document_registry.md` (×2), `phase_1_foundation_workplan.md`. Added `eks/output/` to `.gitignore`. All 20 Phase 1 tests + ontology validation pass. | opencode | ✅ Done |
+| U040 | 2026-06-19 | Phase 1 | Documentation | Added revision history table (v0.1–v0.7) to `appendix_b_document_registry.md` per AGENTS.md §13. Bumped version to 0.7. Traces all changes from initial draft through section renumbering and DB path update. | opencode | ✅ Done |
+| U041 | 2026-06-19 | Phase 1 | Documentation | Added revision history table (v0.1–v0.5) to `appendix_a_asset_schema.md` per AGENTS.md §13. Added `Phase` and `Status` metadata fields. Preserved existing inline summary notes. | opencode | ✅ Done |
+| U042 | 2026-06-19 | Phase 3 Prep | Issue | Logged I009: Pre-ingestion metadata extraction gap. 572 TWRP documents not registered; 7 components identified (FilenameParser, CoverSheetParser, ScannedPDFHandler, DatadropCrossRef, WSD11 config, bulk ingestion script, confidence scoring). Deferred for Phase 3 evaluation. | opencode | ✅ Done |
+| U043 | 2026-06-19 | Phase 1 | Documentation | Created `appendix_d_pipeline_messages_errors.md` v0.1: D1–D10 covering error code taxonomy (P{phase}-{module}-{function}-{id} + S-C-S-XXXX), system error catalog (30 codes), data error catalog (35 codes), pipeline message catalog (25 messages), health scoring formula, status lifecycle, implementation files. | opencode | ✅ Done |
+| U044 | 2026-06-19 | Planning | Documentation | Updated `eks_system_workplan.md` to v0.9: added R51 (Pipeline Messages & Error Codes), added Appendix D reference, updated requirement count to 43. | opencode | ✅ Done |
+| U045 | 2026-06-19 | Phase 1 | Documentation | Updated `phase_1_foundation_workplan.md` to v1.8: added T1.30 (error code taxonomy schema), T1.31 (pipeline message catalog schema), T1.32 (error/message manager modules), added Appendix D reference, updated deliverables. | opencode | ✅ Done |
+| U046 | 2026-06-19 | Phase 1 | Documentation | Updated `appendix_d_pipeline_messages_errors.md` to v0.2: revised D7 Health Scoring to all-column design — 18 scorable columns across 3 weight tiers, 5-dimension weighted composite formula, extraction_notes JSON format, 3 worked examples. Moved `health_scorer.py` to Phase 1 (T1.32). Updated R51 description in master workplan. | opencode | ✅ Done |
+| U047 | 2026-06-19 | Phase 1 | Documentation | Updated `appendix_d_pipeline_messages_errors.md` to v0.3: added D7.10 Structural Elements Table (`document_elements`); revised D7 to 6-dimension composite (added structural completeness 20%); added 8 structural error codes (D5), 8 structural messages (D6); updated D9 implementation files (added `structure_detector.py`); updated D8 status lifecycle. | opencode | ✅ Done |
+| U048 | 2026-06-19 | Planning | Documentation | Updated `eks_system_workplan.md` to v0.9: added `document_elements` to data store summary, added Appendix D reference, updated R51 description for 6-dimension scoring. | opencode | ✅ Done |
+| U049 | 2026-06-19 | Phase 1 | Documentation | Updated `phase_1_foundation_workplan.md` to v1.9: updated T1.30–T1.32 for 6-dimension health scoring, structure_detector.py, document_elements table; updated R51 description; updated deliverables with health_scorer.py and structure_detector.py. | opencode | ✅ Done |
 
 ---
 

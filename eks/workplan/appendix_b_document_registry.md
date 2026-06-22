@@ -1,7 +1,7 @@
 # Appendix B — Document Registry
 
-**Version**: 0.6  
-**Last Updated**: 2026-06-18  
+**Version**: 0.7  
+**Last Updated**: 2026-06-19  
 **Phase**: 1 — Foundation  
 **Status**: ✅ Implemented & Tested  
 **Related Files**:
@@ -10,6 +10,18 @@
 - [`eks/engine/core/config_registry.py`](../engine/core/config_registry.py)
 - [`eks/config/eks_config.json`](../config/eks_config.json)
 - [`eks/config/eks_base_schema.json`](../config/eks_base_schema.json)
+
+### Revision History
+
+| Revision | Date | Author | Summary |
+| :------- | :--- | :----- | :------ |
+| 0.1 | 2026-06-16 | Gemini CLI | Initial draft: B1–B4 (Overview, Architecture, Schema, Functions) |
+| 0.2 | 2026-06-16 | Gemini CLI | Added B5 (Extraction & Verification Workflow), B6 (References) |
+| 0.3 | 2026-06-16 | Gemini CLI | Added extended metadata fields (T1.22), renumbered B5→B5, B6→B6 |
+| 0.4 | 2026-06-16 | Gemini CLI | Added B7 (Establishment Summary) with TWRP data assets and workflow |
+| 0.5 | 2026-06-16 | Gemini CLI | Added TWRP ingestion next steps table (B7.3) |
+| 0.6 | 2026-06-18 | opencode | Added B3.1 Ontology Mapping (Knowledge Graph Triggers); updated version/date |
+| 0.7 | 2026-06-19 | opencode | Renumbered B7→B6, B8→B7 for sequential ordering; updated DB path from `data/eks_registry.db` to `output/eks_registry.db` |
 
 ---
 
@@ -62,7 +74,7 @@ The registry is config-driven — the DB path and backend type are read from `ek
 ## B3. Database Schema
 
 **Table**: `documents`  
-**Backend**: DuckDB (`data/eks_registry.db`) — configurable to PostgreSQL  
+**Backend**: DuckDB (`output/eks_registry.db`) — configurable to PostgreSQL  
 **Created by**: `_init_db()` on first instantiation (`CREATE TABLE IF NOT EXISTS`)
 
 | Group | Column | Type | Nullable | Default | Description |
@@ -145,7 +157,48 @@ The extended metadata fields support a hybrid automated/manual workflow implemen
 
 ---
 
-## B6. References
+## B6. Document Registry Establishment Summary (TWRP Project)
+
+### B6.1. Existing Data Assets (`eks/data/twrp/`)
+
+| Category | Contents | Count/Size |
+|----------|----------|------------|
+| **Engineering Drawings (PDF)** | Civil (C), Electrical (E), Instrumentation (I), Piping (P), Structural (S) | 100+ PDFs across Volume 5 Part-IA & Part-IB |
+| **CAD Drawings (DGN)** | MicroStation DGN files | 6 files (Part-II) |
+| **Structured Asset Datadrop** | `Datadrop Summary.xlsx` (7 sheets, 7,681 plant items) | 1.3 MB |
+
+### B6.2. Establishment Workflow
+
+**Phase 1 — Foundation (✅ COMPLETE — T1.7, T1.8, T1.21, T1.22):**
+1. **Registry Initialization** — `DocumentRegistry()` auto-creates `eks/output/eks_registry.db` with full 27-column schema
+2. **Parser Plug-ins** — PDF, DOCX, XLSX parsers extract metadata (`created_by`, `originator_company`, `page_count`, etc.)
+3. **Revision Control** — Each ingestion sets prior revision `is_latest=FALSE`, inserts new with `is_latest=TRUE`
+4. **Test Verification** — Registry tested successfully (2026-06-19): register, retrieve, list, revision history all passing
+
+**Phase 3 — Knowledge Graph Ingestion (🔷 PLANNED):**
+1. **Bulk Ingestion** — Walk `eks/data/twrp/spec/` recursively
+2. **Metadata Extraction** — Parse cover sheets via LLM/regex for: project_number (WSD11), discipline, document_number, revision, asset_tags
+3. **Asset Linking** — Cross-reference `asset_tags` against datadrop `keytag` values to create `REFERENCES_ASSET` edges
+4. **Document Ontology** — Classify by `document_type` → `Drawing`/`Specification`/`Manual`/`Report`; create `SUPERSEDES` chains
+
+**Phase 5 — Manual Verification (🔷 PLANNED):**
+1. **Dashboard** — Present auto-extracted metadata for human review
+2. **Correction** — Set `security_class`, fix extraction errors
+3. **Validation** — Record `verified_by` = reviewer name → marks "Project Final"
+
+### B6.3. Next Steps for TWRP Ingestion (Require Approval)
+
+| Step | Action | Dependencies |
+|------|--------|--------------|
+| 1 | Define ingestion script to walk `eks/data/twrp/spec/` | Phase 1 registry + parsers ready |
+| 2 | Implement cover-sheet metadata extraction (LLM/regex) | Phase 3 extractors |
+| 3 | Map `asset_tags` → datadrop `keytag` for graph edges | Phase 3 asset graph |
+| 4 | Configure `document_type` → ontology class mapping | `eks_ontology_config.json` (T1.29 ✅) |
+| 5 | Build Manual Verification UI | Phase 5 |
+
+---
+
+## B7. References
 
 1. [`registry.py`](../engine/core/registry.py) — DocumentRegistry implementation
 2. [Phase 1 Foundation Workplan](phase_1_foundation_workplan.md) — T1.21, T1.22

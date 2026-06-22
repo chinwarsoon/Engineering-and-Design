@@ -213,3 +213,6 @@ dcc/output/
 
 # EKS data files
 eks/data
+
+# EKS output files (generated DB, logs, debug artifacts)
+eks/output/

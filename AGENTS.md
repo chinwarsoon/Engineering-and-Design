@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-## Projects
+## 1. Projects
 
 | Folder | Purpose | Python Version |
 |--------|---------|----------------|
@@ -9,7 +9,52 @@
 | `dcc/` | Document Control (legacy, data processing) | 3.13 (conda) |
 | `releases/` | Packaged zip releases | — |
 
-## Key Commands
+## 2. Project Knowledge Base
+
+1. Project Knowledge Base will explain how a project is planned and implemented. It will be used by team for maintainance, troubleshooting, furture development with AI assistance. The main purpose is not for human consumption but for AI assistance and automation. It essentially serves as the machine-readable `software blueprint and project charter`.
+2. Each project will contain following entities:
+- folders and files
+- modules, engines, clasess, tests, functions with codes
+- schema files and environment for project setups
+- input data
+- output data
+- user interface
+- documentation for workplan, test reprots, logs
+3. entities will have:
+- metadata: such as name, version, date, description, purpose
+- logics and relationships: such as dependencies, relationships, intergration points, workflows, functions, data flows, etc.
+- actions: such as tests, workflows, functions, etc.
+- permissions: such as boundaries, domains area, etc
+4. Each project must maintain a `knowledge.json` file at the project root containing:
+
+- **Project metadata**: name, version, description, purpose
+- **Architecture overview**: key modules, data flows, integration points
+- **Domain concepts**: core entities, relationships, terminology
+- **Key schemas**: references to primary schema files (from `config/`)
+- **Workflows**: primary operational workflows and entry points
+- **Functions**: primary functions, entry points, data processing pipelines
+- **Data flows**: data flow diagrams, data flow details, data quality checks
+- **Dependencies**: external services, libraries, infrastructure
+- **Known issues**: technical debt, limitations, open questions
+
+**Location**: `<project>/knowledge.json`
+**Schema**: Defined in `config/schemas/knowledge_base_schema.json` (shared)
+
+5. Automated troubleshooting agent must manage the project effectively:
+- automated root-cause analysis (RCA)
+- Automomous Testing Execution (ATE)
+- Change Impact Traveability (CIT)
+
+## 3. Shared Configuration
+
+A shared `config/` folder exists at the repository root for cross-project schemas and configuration:
+
+```
+config/
+  schemas/           # Shared schema definitions (e.g., knowledge_base_schema.json)
+```
+
+## 4. Key Commands
 
 ```bash
 # code_tracer — install and run
@@ -35,7 +80,7 @@ conda env create -f eks/eks.yml
 conda activate eks
 ```
 
-## Critical Workflow Rules (from `agent_rule.md`)
+## 5. Critical Workflow Rules (from `agent_rule.md`)
 
 1. **Plan before code**: Always create a workplan, wait for approval, then implement.
 2. **Archive before delete**: Move files to `archive/` before removing.
@@ -45,19 +90,21 @@ conda activate eks
 6. **Revision control**: Every file carries revision metadata (number, date, author, summary).
 7. **Review related workplans** before starting any implementation.
 8. **Messaging and errors**: All modules, engines, functions must utilize messaging and error logging to report status, errors, warnings and issues for data quality and data integrity, and healthyness of coding execution.
+9. **Knowledge base required**: Every project must have a `knowledge.json` at root. Update it when architecture, schemas, or key workflows change.
 
-## Folder Convention (all projects)
+## 6. Folder Convention (all projects)
 
 Each project must use this subfolder layout:
 
 ```
 archive/    config/     data/       output/     test/
 ui/         engine/     log/        docs/       workplan/
+knowledge.json          # Required at project root
 ```
 
 Do not add unexpected top-level directories.
 
-## Files and Context
+## 7. Files and Context
 
 When scanning code for context, ignore:
 - Files under any `backup/` folder
@@ -65,7 +112,10 @@ When scanning code for context, ignore:
 - Markdown files (`.md`) not in `workplan` folder
 - Test folders
 
-## Data Column Priority (EKS / dcc)
+Also include:
+- `<project>/knowledge.json` — project knowledge base (high priority)
+
+## 8. Data Column Priority (EKS / dcc)
 
 When processing tabular data:
 
@@ -84,7 +134,7 @@ When processing tabular data:
 2. Validate Priority 2: such as ensure every document has an ID and a Revision.
 3. Calculate Priority 3: such as run logic from `submission_closed_schema.json`.
 
-## Schema Pattern
+## 9. Schema Pattern
 
 Schemas follow a 3-layer inheritance model:
 - `*_base_schema.json` — shared `definitions`
@@ -98,26 +148,26 @@ Three parallel schema sets: **core** (eks_*), **asset** (eks_asset_*), **ontolog
 - Use `definitions` for repetitive objects.
 - `additionalProperties: false` on important property controls.
 - Define `required` for properties if applicable.
-- Each schema file must have `$schema`, `$id`, `title`, `description`, `version`, `$ref` calls if applicable.
+- Each schema file must have `$schema`, `$id`, `title`, `description`, `version`, `allof`, `$ref` calls if applicable.
 - Schema loader must support all `$ref` types: string, object, nested object, recursive.
 - Use Unified Schema Registry (URIs) — every schema gets a unique permanent `$id`.
 - Pattern-based discovery for organizing schema files.
 
 **Fragment pattern (asset):** Asset types compose schema fragments defined in `eks_asset_base_schema.json` (13 fragments: item_core, process_conditions, manufacturer, etc.). Conditional fragments bind to `device_type_code` values.
 
-## Module Design
+## 10. Module Design
 
 - Module design for all functions and classes.
 - `__init__.py` shall only contain import statements and version information.
 - SSOT (Single Source of Truth) for all global parameters, variables, keys, codes, values, names, paths, files that outlive a single function.
 - Schema-driven design for global parameters that outlive a single function.
 
-## Function Coding
+## 11. Function Coding
 
 - Every function gets a standardized docstring explaining purpose, parameters, and return values.
 - Breadcrumb comments tracing parameter flow.
 
-## Debugging (agent_rule.md Section 6)
+## 12. Debugging (agent_rule.md Section 6)
 
 **Tiered logging** (categorized by severity):
 - Level 0: silent / only errors
@@ -137,7 +187,7 @@ Three parallel schema sets: **core** (eks_*), **asset** (eks_asset_*), **ontolog
 
 **Fail-fast:** Implement fail-fast metadata in functions to stop execution on critical errors.
 
-## Revision Control (Section 7a)
+## 13. Revision Control
 
 Apply revision control to every file created or modified:
 
@@ -149,7 +199,7 @@ Apply revision control to every file created or modified:
 - **Archiving:** Preserve revision entries when archiving or renaming; archived files retain history.
 - **Numbering:** Use consistent semantics (e.g. `0.1`, `1.0`, `1.1`, `2.0`); increment for each substantive update.
 
-## Documentation (Section 7)
+## 14. Documentation
 
 Documentation must include all that apply:
 1. Overall summary
@@ -169,7 +219,7 @@ Documentation must include all that apply:
 15. Dependencies and environment
 16. Coding/programming engineering standard achieved
 
-## Workplan (Section 8)
+## 15. Workplan
 
 Every task gets a workplan in `<project>/workplan/`:
 
@@ -197,7 +247,7 @@ Every task gets a workplan in `<project>/workplan/`:
 - Always update logs in `<project>/log/`.
 - Timestamp all phases and steps.
 
-## Test Reports (Section 9)
+## 16. Test Reports
 
 Test reports go in `<project>/workplan/reports/` after each workplan phase:
 
@@ -219,7 +269,7 @@ Test reports go in `<project>/workplan/reports/` after each workplan phase:
 - Cross-reference reports to workplan files.
 - Timestamp all phases and steps.
 
-## Function Table and Call Graph (Section 10)
+## 17. Function Table and Call Graph
 
 When documenting modules, provide:
 - All functions in a module/engine/class
@@ -231,7 +281,7 @@ When documenting modules, provide:
 - Function tracing and status reporting
 - Function UI and interaction
 
-## UI Web Design (Section 11)
+## 18. UI Web Design
 
 All HTML files must follow these rules:
 
@@ -277,21 +327,21 @@ All HTML files must follow these rules:
 - Store help text, about text, revision text, default file names/folders/definitions in `ui_help.json`.
 - HTML files load values from this JSON file.
 
-## Data Health, Score, and Errors (Section 12)
+## 19. Data Health, Score, and Errors
 
 Each business logic must have an independent error code defined to trace related errors.
 
-## Neurogram / Compact Records (Section 13)
+## 20. Neurogram, Compact Workplans, Records, and Logs for Knowledge of Each Project Folder
 
 Refer to `dcc/workplan/ui_design/log_neurogram/`. Generate a neurogram network JSON file (`dcc_log_graph.json`) in the respective `<project>/output/` folder. Ensure details can be compacted into the JSON file.
 
-## Testing Notes
+## 21. Testing Notes
 
 - `code_tracer` tests use `unittest`; `eks` tests use `pytest`.
 - EKS tests expect config files at `eks/config/` (relative to repo root).
-- EKS tests create/clean `eks/test_output/` and `data/eks_registry.db`.
+- EKS tests create/clean `eks/test_output/` and `eks/output/eks_registry.db`.
 - code_tracer tests use `unittest.main()` and can be run directly or via pytest.
 
-## Formatting
+## 22. Formatting
 
 - Prettier config at root: `printWidth: 100`, `singleQuote: true`, `endOfLine: "lf"`.
