@@ -1,9 +1,9 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 0.9  
+**Current Version**: 1.1  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-19  
+**Last Updated**: 2026-06-22  
 
 ---
 
@@ -28,6 +28,10 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | 0.7     | 2026-06-18 | System | Added Section 10: EKS Pipeline Architecture — full workflow diagram covering ingestion, embedding, graph, retrieval, and UI across all 5 phases. Added R40 (Asset Embedding Strategy), R41 (Asset Chunk Registry Extension), R42 (Asset Vector Upsert) based on datadrop embedding analysis. Updated scope table, phase index, and index of content. |
 | 0.8     | 2026-06-16 | System | Ontology Option C gap closure: added R50 (Ontology-Enriched Embedding Headers) and R47 (Ontology-Driven UI Facets) to scope table; added R48 (PhysicalObject + INSTALLED_AT) and R49 (SHACL Constraint Validation) to scope table; updated Phase 3 pipeline architecture description to include PhysicalObject nodes and INSTALLED_AT relationship; added Appendix C reference to references section. |
 | 0.9 | 2026-06-19 | opencode | Added R51: Pipeline Messages & Error Codes (schema-driven error catalog, message catalog, 6-dimension health scoring, structural elements table). Added Appendix D reference. Added document_elements to data store summary. |
+| 1.0 | 2026-06-22 | opencode | Phase 1 status corrected to ✅ COMPLETE. R51 corrected to ✅ PASS. Added R52 (Document Schema Extraction, ✅ PASS) and R53 (Enhanced Document Schema v2, ✅ PASS). Fixed requirement count: 43 → 48. Fixed Phase 1 R-list (added R51, R52, R53). Added document_elements to data store summary. |
+| 1.1 | 2026-06-22 | opencode | R54–R58 (T1.36–T1.40) marked ✅ PASS: Auto-DDL, FileScanner, ParserRouter, PipelineOrchestrator, ManualReviewManager. Phase 1 status confirmed ✅ COMPLETE. Requirement count updated: 48 → 53. |
+| 1.2 | 2026-06-22 | opencode | Restructured master workplan: removed detailed phase Mermaid diagrams (§10.2–10.6) to respective phase workplans. Master now contains only high-level overview (§10.1), data store summary (§10.7), and notes (§10.8). Phase-specific diagrams added to Phase 1–5 workplans. |
+| 1.3 | 2026-06-22 | opencode | Added §8.1: Phase 1 Summary — inputs, outputs, functionality, key modules, parsers, schemas, test coverage, requirements met, and downstream handoff to Phase 2. |
 
 ---
 
@@ -102,7 +106,14 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 | R47 | UI | Ontology-Driven UI Facets | Hierarchical class tree in UI sidebar showing ontology class hierarchy with asset instance counts per class; backed by `/api/ontology/classes` endpoint | 🔷 PLANNED | 5 |
 | R48 | Knowledge Base | PhysicalObject + INSTALLED_AT | When serial_number is non-null, create PhysicalObject node and INSTALLED_AT edge to FunctionalObject tag; enables physical equipment traceability per ISO 15926 Part 2 | 🔷 PLANNED | 3 |
 | R49 | Knowledge Base | SHACL Constraint Validation | Post-load SHACL shape validation against ingested asset nodes; violations logged to issue_log.md | 🔷 PLANNED | 3 |
-| R51 | Logging & Debug | Pipeline Messages & Error Codes | Schema-driven error catalog (system + data domains), pipeline message catalog, per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency), structural elements table (`document_elements`), pipeline health grades per AGENTS.md §19 | 🔷 PLANNED | 1/3 |
+| R51 | Logging & Debug | Pipeline Messages & Error Codes | Schema-driven error catalog (system + data domains), pipeline message catalog, per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency), structural elements table (`document_elements`), pipeline health grades per AGENTS.md §19 | ✅ PASS | 1 |
+| R52 | Schema | Document Schema Extraction | Separate document definitions from pipeline config into dedicated 3-layer pattern (`eks_doc_base/setup/config`); align with asset schema pattern for SSOT compliance | ✅ PASS | 1 |
+| R53 | Schema | Enhanced Document Schema v2 | Document type codes (7), file type codes (5), element type codes (8) with enums; 3 registries (document_type, file_type, element_type); element expectations keyed by document type codes | ✅ PASS | 1 |
+| R54 | Infrastructure | Auto-DDL Generation | Auto-generate SQL DDL from JSON schema `definitions`; replaces hard-coded DDL in `registry.py` | 🔷 PLANNED | 1 |
+| R55 | Infrastructure | File Scanner | Walk project directory; validate extensions against `file_type_registry`; register placeholder rows with `extract_status = 'pending'` | 🔷 PLANNED | 1 |
+| R56 | Plug-in Architecture | Parser Router | Map `file_type` → parser class from `file_type_registry`; instantiate parser; call parse + extract_metadata + detect in sequence | 🔷 PLANNED | 1 |
+| R57 | Pipeline | Pipeline Orchestration | Coordinate scan → register → route → parse → detect → score → update; error handling, logging, rollback | 🔷 PLANNED | 1 |
+| R58 | Pipeline | Manual Review Workflow | Surface flagged docs; correct metadata; confirm elements; recalculate score; lock for Phase 2 | 🔷 PLANNED | 1 |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -118,8 +129,12 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 - [6. Evaluation and Alignment with Existing Architecture](#6-evaluation-and-alignment-with-existing-architecture)
 - [7. Dependencies with Other Tasks](#7-dependencies-with-other-tasks)
 - [8. Phase Workplan Index](#8-phase-workplan-index)
+  - [8.1 Phase 1 Summary — Foundation](#81-phase-1-summary--foundation-complete)
 - [9. References](#9-references)
 - [10. EKS Pipeline Architecture](#10-eks-pipeline-architecture)
+  - [10.1 High-Level Pipeline Overview](#101-high-level-pipeline-overview)
+  - [10.2 Data Store Summary](#102-data-store-summary)
+  - [10.3 Notes](#103-notes)
 
 ---
 
@@ -143,7 +158,7 @@ The EKS project is a **clean-slate build** under `eks/`. The only existing artif
 - Structured asset ingestion (bypasses document chunking; loads directly into graph DB)
 
 **Gap Assessment:**
-- 43 requirements identified (35 original + 3 asset data + 1 schema extensibility + 3 asset embedding + 1 pipeline messages)
+- 53 requirements identified (35 original + 3 asset data + 1 schema extensibility + 3 asset embedding + 3 pipeline messages + 2 document schema + 5 pipeline workflow)
 - Full greenfield build — no prior EKS implementation exists
 
 ---
@@ -165,7 +180,7 @@ Each phase is an independent workplan file. Phase execution requires approval be
 
 | Phase | Title                                          | Doc ID        | Status     | Requirements        | Workplan File |
 | :---: | :--------------------------------------------- | :------------ | :--------: | :------------------ | :------------ |
-| 1     | Foundation — Project Structure, Schema & Registry | WP-EKS-P1-001 | 🔶 PARTIAL | R01,R02,R06–R09,R21,R22,R26,R29,R33–R35,R36,R39(schema),R44 | [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) |
+| 1     | Foundation — Project Structure, Schema & Registry | WP-EKS-P1-001 | ✅ COMPLETE | R01,R02,R06–R09,R21,R22,R26,R29,R33–R35,R36,R39(schema),R44,R51,R52,R53,R54–R58 | [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) |
 | 2     | Chunking, Embedding & Vector Storage           | WP-EKS-P2-001 | 🔷 PLANNED | R03,R04,R10,R12–R15,R25,R28,R30,R40,R41,R50,R44(embedding) | [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md) |
 | 3     | Knowledge Graph & Structured Asset Ingestion   | WP-EKS-P3-001 | 🔷 PLANNED | R05,R11,R23,R27,R31,R37,R39(loader),R40(asset embed),R42,R45(trigger),R48,R49,R43,R44(loader) | [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) |
 | 4     | Retrieval & Scoring Pipeline                   | WP-EKS-P4-001 | 🔷 PLANNED | R16–R20,R24,R38,R40(retrieval),R46 | [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md) |
@@ -174,7 +189,19 @@ Each phase is an independent workplan file. Phase execution requires approval be
 **Phase Dependency Chain:** Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5  
 Each phase must be approved and completed before the next phase begins.
 
----
+### 8.1 Phase 1 Summary — Foundation (✅ COMPLETE)
+
+| Aspect | Details |
+| :----- | :------ |
+| **Inputs** | Engineering documents (PDF, DOCX, XLSX, DWG, DGN); project asset datadrop (Excel, 7 sheets, 7,681 items); JSON schema definitions (17 files in `eks/config/schemas/`) |
+| **Outputs** | DuckDB document registry (`documents` + `document_elements` tables, auto-generated DDL); 17 schema/config JSON files; parsed document metadata; health scores; structural element detection; manual review queue |
+| **Functionality** | Schema-driven 3-layer design (base/setup/config) for core, asset, document, ontology, error, and message schemas; plug-in parsers (PDF, DOCX, XLSX, DGN stub, DWG stub); file discovery with type validation; auto-DDL from JSON schema; 6-dimension health scoring; structural element detection; manual review workflow with metadata correction and document locking; tiered logging (levels 0–3); SSOT global parameters |
+| **Key Modules** | `schema_loader.py`, `registry.py`, `schema_to_ddl.py`, `file_scanner.py`, `parser_router.py`, `pipeline_orchestrator.py`, `review_manager.py`, `health_scorer.py`, `structure_detector.py`, `error_manager.py`, `message_manager.py` |
+| **Parsers** | `pdf_parser.py`, `docx_parser.py`, `xlsx_parser.py`, `dgn_parser.py` (stub), `dwg_parser.py` (stub) |
+| **Schemas** | Core: `eks_base/setup/config.json`; Asset: `eks_asset_base/setup/config.json` (13 fragments, 14 AT_ types); Document: `eks_doc_base/setup/config.json` (7 doc types, 5 file types, 8 element types); Ontology: `eks_ontology_base/setup/config.json`; Error: `eks_error_code_base.json`, `eks_error_config.json` (65 codes); Message: `eks_message_base.json`, `eks_message_config.json` (33 messages) |
+| **Test Coverage** | 53/53 tests passing (`test_phase1.py`) — schema validation, registry CRUD, parser routing, pipeline orchestration, review workflow, health scoring, error/message handling |
+| **Requirements Met** | R01, R02, R06–R09, R21, R22, R26, R29, R33–R35, R36, R39(schema), R44, R51, R52, R53, R54–R58 (22 requirements) |
+| **Feeds Into** | Phase 2: Parsed documents + metadata → chunking; Document registry → chunk registry; Schema patterns → embedding config |
 
 ---
 
@@ -182,258 +209,90 @@ Each phase must be approved and completed before the next phase begins.
 
 Full end-to-end workflow across all 5 phases. Two parallel ingestion paths (documents and assets) converge at the retrieval stage.
 
-```
-╔═════════════════════════════════════════════════════════════════════════════════════╗
-║                        EKS — FULL PIPELINE ARCHITECTURE                            ║
-╚═════════════════════════════════════════════════════════════════════════════════════╝
+### 10.1 High-Level Pipeline Overview
 
- INPUT SOURCES
- ─────────────────────────────────────────────────────────────────────────────────────
-  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────────────┐
-  │  PDF Files  │  │ DOCX Files  │  │ XLSX Files  │  │   Datadrop Excel             │
-  │ (drawings,  │  │ (specs,     │  │ (sheets,    │  │   7 sheets · 7,681 items     │
-  │  reports)   │  │  procedures)│  │  registers) │  │   Equipment / Instrument /   │
-  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  │   Valve / Pipeline / Motor   │
-         └────────────────┴────────────────┘          └──────────────┬───────────────┘
-                          │                                           │
-               DOCUMENT PATH (Phase 1–2)               ASSET PATH (Phase 1,3)
-                          │                                           │
- ════════════════════════════════════════════════════════════════════════════════════
-  PHASE 1 — PARSE & REGISTER
- ════════════════════════════════════════════════════════════════════════════════════
-                          │                                           │
-                          ▼                                           ▼
-            ┌─────────────────────────┐             ┌─────────────────────────────┐
-            │   Plug-in Parser        │             │   Structured Asset Loader   │
-            │   PDFParser             │             │                             │
-            │   DOCXParser            │             │ 1. Read sheet + header row  │
-            │   XLSXParser            │             │ 2. Apply column norm map    │
-            │   DWGParserStub (P3)    │             │ 3. Lookup tag_type in       │
-            │   DGNParserStub (P3)    │             │    asset_type_registry      │
-            │                         │             │ 4. Evaluate conditional_    │
-            │ Output:                 │             │    fragments rules (R39)    │
-            │  raw text + structure   │             │ 5. Compose property dict    │
-            │  doc-level metadata     │             │ 6. Deduplicate Pipeline     │
-            └────────────┬────────────┘             │    KEYTAGs (merge rows)     │
-                         │                          └──────────────┬──────────────┘
-                         ▼                                         │
-            ┌─────────────────────────┐                           │
-            │   Document Registry     │                           │
-            │   DuckDB                │                           │
-            │                         │                           │
-            │  doc_number, revision   │                           │
-            │  discipline, doc_type   │                           │
-            │  is_latest flag         │                           │
-            │  file_path              │                           │
-            └────────────┬────────────┘                           │
-                         │                                        │
- ════════════════════════════════════════════════════════════════════════════════════
-  PHASE 2 — CHUNK, EMBED & VECTOR STORAGE (Documents + Asset Records)
- ════════════════════════════════════════════════════════════════════════════════════
-                         │                                        │
-                         ▼                                        │
-            ┌─────────────────────────┐                          │
-            │   Chunker               │                          │
-            │   section_chunker.py    │                          │
-            │   chunker.py            │                          │
-            │                         │                          │
-            │  PDF/DOCX → section     │                          │
-            │  XLSX     → row/table   │                          │
-            │  size-based fallback    │                          │
-            │                         │                          │
-            │  Output per chunk:      │                          │
-            │   chunk_id, parent_id   │                          │
-            │   text, page, section   │                          │
-            └────────────┬────────────┘                          │
-                         │                                        │
-                         ▼                                        ▼
-            ┌─────────────────────────┐          ┌───────────────────────────────┐
-            │   Chunk Registry        │          │   Asset Chunk Registry        │
-            │   DuckDB                │          │   DuckDB (R41)                │
-            │                         │          │                               │
-            │  chunk_id → parent_id   │          │  keytag (primary key)         │
-            │  doc_number, revision   │          │  tag_type, tag_no             │
-            │  page, section          │          │  unit, service                │
-            │  source_file            │          │  p_and_id_file                │
-            └────────────┬────────────┘          └──────────────┬────────────────┘
-                         │                                       │
-                         ▼                                       ▼
-            ┌─────────────────────────┐          ┌───────────────────────────────┐
-            │   Hybrid Embedding      │          │   Asset Text Builder (R40)    │
-            │   Strategy              │          │                               │
-            │   hybrid_strategy.py    │          │  Build contextual summary:    │
-            │                         │          │  "[{tag_type} | Unit {unit}   │
-            │  Header prepended:      │          │   | Svc {service}]            │
-            │  "[{discipline} |        │          │   {description}:             │
-            │   {doc_type} |          │          │   {key property fields}"      │
-            │   {doc_no} Rev {rev} |  │          │                               │
-            │   p.{page} §{section}]" │          │  Full metadata stored         │
-            │                         │          │  in asset chunk registry      │
-            │  Full metadata stored   │          │  NOT embedded (R13)           │
-            │  in chunk registry      │          └──────────────┬────────────────┘
-            │  NOT embedded (R13)     │                         │
-            └────────────┬────────────┘                         │
-                         │                                       │
-                         └─────────────────┬─────────────────────┘
-                                           │
-                                           ▼
-                            ┌──────────────────────────┐
-                            │   Embedding Provider     │
-                            │   openai_embedder.py     │
-                            │   ollama_embedder.py     │
-                            │                          │
-                            │  Input:  header + text   │
-                            │  Output: vector [n-dim]  │
-                            │  Batch:  supported       │
-                            └──────────┬───────────────┘
-                                       │
-                         ┌─────────────┴─────────────┐
-                         │                           │
-                         ▼                           ▼
-            ┌────────────────────────┐  ┌────────────────────────────┐
-            │  Qdrant: eks_chunks    │  │  Qdrant: eks_assets (R40)  │
-            │                        │  │                            │
-            │  Payload:              │  │  Payload:                  │
-            │  • chunk_id            │  │  • keytag, tag_no          │
-            │  • doc_number, rev     │  │  • tag_type                │
-            │  • page, section       │  │  • unit, service           │
-            │  • project, discipline │  │  • p_and_id_file           │
-            │  • source_file         │  │                            │
-            │                        │  │  Enables semantic search   │
-            │  Doc content search    │  │  over asset properties     │
-            └────────────────────────┘  └────────────────────────────┘
+```mermaid
+graph LR
+    subgraph INPUT
+        PDF[PDF Files]
+        DOCX[DOCX Files]
+        XLSX[XLSX Files]
+        DATA[Datadrop Excel]
+    end
 
- ════════════════════════════════════════════════════════════════════════════════════
-  PHASE 3 — KNOWLEDGE GRAPH & ASSET INGESTION
- ════════════════════════════════════════════════════════════════════════════════════
+    subgraph PH1["Phase 1 — Parse, Score & Review"]
+        direction TB
+        A1[SchemaToDDL] --> A2[sync_schema]
+        A2 --> A3[FileScanner]
+        A3 --> A4[ParserRouter]
+        A4 --> A5[Plug-in Parser]
+        A5 --> A6[StructureDetector]
+        A6 --> A7[HealthScorer]
+        A7 --> A8[Document Registry]
+        A8 --> A9[Manual Review]
+    end
 
-                    Document nodes          Asset nodes (from loader)
-                         │                          │
-                         ▼                          ▼
-            ┌──────────────────────────────────────────────────────────────┐
-            │                    Neo4j Graph DB                            │
-            │                                                              │
-            │  Document nodes:     Asset nodes (14 AT_ types):            │
-            │  • Document          • AT_EQPMP, AT_EQUIP, AT_EQTNK …       │
-            │  • Revision          • AT_INST_, AT_INST_CS, AT_INST_FLO    │
-            │  • Chunk             • AT_MOTOR, AT_CVALVE, AT_HVALVE …     │
-            │                      • AT_PROCESS, AT_INCOMP, AT_PSV        │
-            │  Relationships:                                              │
-            │  REFERENCES          REFERENCED_BY_DWG   (asset → P&ID)    │
-            │  SUPERSEDES          BELONGS_TO_UNIT      (asset → unit)    │
-            │  CONTAINS            BELONGS_TO_SERVICE   (asset → svc)     │
-            │  RELATES_TO          CONNECTS_TO          (pipeline → comp) │
-            │                      HAS_ACTUATOR         (valve → act)     │
-            └──────────────────────────────────────────────────────────────┘
-                         │                          │
-                         │    Asset vector upsert   │
-                         │    on datadrop reload     │
-                         │    (R42) ◄───────────────┘
-                         │
- ════════════════════════════════════════════════════════════════════════════════════
-  PHASE 4 — RETRIEVAL & SCORING PIPELINE
- ════════════════════════════════════════════════════════════════════════════════════
+    subgraph PH2["Phase 2 — Chunk, Embed & Vector"]
+        direction TB
+        B1[Chunker] --> B2[Chunk Registry]
+        B2 --> B3[Hybrid Embedding]
+        B3 --> B4[Qdrant eks_chunks]
+        B5[Asset Text Builder] --> B3
+        B3 --> B6[Qdrant eks_assets]
+    end
 
-  User Query (natural language)
-         │
-         ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  STAGE 1 — Metadata Filter                                                   │
-  │  Document: project, discipline, doc_type, is_latest, revision                │
-  │  Asset:    unit, service, tag_type, pipeline_tag (R38)                       │
-  └──────────────────────────────┬───────────────────────────────────────────────┘
-                                 │
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  STAGE 2 — Graph Relationship Expansion                                      │
-  │  Doc→Doc:   REFERENCES, SUPERSEDES                                           │
-  │  Doc→Asset: REFERENCED_BY_DWG  ←  surface docs linked to matching assets    │
-  │  Asset→Asset: CONNECTS_TO, HAS_ACTUATOR  ←  expand pipeline subgraphs       │
-  └──────────────────────────────┬───────────────────────────────────────────────┘
-                                 │
-                     ┌───────────┴───────────┐
-                     │                       │
-                     ▼                       ▼
-  ┌──────────────────────────┐  ┌───────────────────────────────────────────────┐
-  │  STAGE 3a                │  │  STAGE 3b                                     │
-  │  Hybrid Search           │  │  Asset Query (R38, R40)                       │
-  │  (Documents)             │  │                                               │
-  │                          │  │  Structured: Neo4j Cypher for exact tag,      │
-  │  Vector: eks_chunks      │  │  unit, service, pipeline lookups              │
-  │  BM25 keyword            │  │                                               │
-  │  Merge + deduplicate     │  │  Semantic: eks_assets vector search for       │
-  └──────────────┬───────────┘  │  fuzzy property queries (R40)                │
-                 │              └───────────────────────────┬───────────────────┘
-                 └──────────────────────┬────────────────────┘
-                                        │
-                                        ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  STAGE 4 — Scorer                                                            │
-  │  cosine similarity score + keyword score + graph proximity boost             │
-  └──────────────────────────────┬───────────────────────────────────────────────┘
-                                 │
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  STAGE 5 — Reranker                                                          │
-  │  Rule-based (default) or cross-encoder (sentence-transformers, optional)     │
-  └──────────────────────────────┬───────────────────────────────────────────────┘
-                                 │
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  STAGE 6 — Context Assembler                                                 │
-  │  Select top-k chunks + asset records → fit LLM context window               │
-  └──────────────────────────────┬───────────────────────────────────────────────┘
-                                 │
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  STAGE 7 — LLM Answering                                                     │
-  │  OpenAI / Ollama provider (plug-in)                                          │
-  │  Response includes source citations:                                         │
-  │  doc_number · revision · page · chunk_id · asset keytag                     │
-  └──────────────────────────────┬───────────────────────────────────────────────┘
-                                 │
- ════════════════════════════════════════════════════════════════════════════════════
-  PHASE 5 — UI, CACHE & SYSTEM INTEGRATION
- ════════════════════════════════════════════════════════════════════════════════════
-                                 │
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  Retrieval Cache (memory / Redis)                                            │
-  │  Keyed on query hash + filter hash → skip pipeline on hit                   │
-  └──────────────────────────────┬───────────────────────────────────────────────┘
-                                 │
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  FastAPI Backend                                                             │
-  │  /query   → full retrieval pipeline + LLM answer + citations                │
-  │  /assets  → asset browse/filter (unit, service, tag_type, pipeline_tag)     │
-  │  /ingest  → document upload + parse + chunk + embed trigger                 │
-  │  /status  → system health                                                   │
-  └──────────────────────────────┬───────────────────────────────────────────────┘
-                                 │
-                                 ▼
-  ┌──────────────────────────────────────────────────────────────────────────────┐
-  │  Web UI                                                                      │
-  │  • Query input + filter panel (doc + asset dimensions)                      │
-  │  • Answer display with source citation cards                                 │
-  │  • Asset browsing panel (attributes + linked P&ID documents)                │
-  │  • Document ingestion upload                                                 │
-  └──────────────────────────────────────────────────────────────────────────────┘
+    subgraph PH3["Phase 3 — Knowledge Graph"]
+        direction TB
+        C1[Neo4j Graph DB]
+        C2[Dynamic Ontology]
+        C1 --> C2
+    end
+
+    subgraph PH4["Phase 4 — Retrieval Pipeline"]
+        direction TB
+        D1[Metadata Filter] --> D2[Graph Expansion]
+        D2 --> D3[Hybrid Search]
+        D3 --> D4[Scorer]
+        D4 --> D5[Reranker]
+        D5 --> D6[Context Assembler]
+        D6 --> D7[LLM Answering]
+    end
+
+    subgraph PH5["Phase 5 — UI & Integration"]
+        direction TB
+        E1[Retrieval Cache] --> E2[FastAPI Backend]
+        E2 --> E3[Web UI]
+    end
+
+    PDF & DOCX & XLSX --> PH1
+    DATA --> PH1
+    PH1 --> PH2
+    PH1 --> PH3
+    PH2 --> PH4
+    PH3 --> PH4
+    PH4 --> PH5
 ```
 
-**Note (v0.8)**: Phase 3 also creates PhysicalObject nodes linked via INSTALLED_AT to FunctionalObject tag nodes when serial numbers are present (R48, ISO 15926 Part 2).
-
-**Data store summary:**
+### 10.2 Data Store Summary
 
 | Store | Technology | Contents | Phase |
 | :---- | :--------- | :------- | :---: |
-| Document Registry | DuckDB | Document metadata, revision flags | 1 |
-| Document Elements | DuckDB | Structural elements (cover pages, revision tables, sections, tables, images) | 1/3 |
-| Asset Chunk Registry | DuckDB | Asset record metadata (keytag, tag_type, unit, service) | 2 |
+| Document Registry | DuckDB | Document metadata, revision flags, health scores, extract_status | 1 |
+| Document Elements | DuckDB | Structural elements (cover pages, revision tables, sections, tables, images) — 7 columns per `document_element_def` | 1 |
+| Chunk Registry | DuckDB | Parent-child chunk metadata (chunk_id, parent_id, doc_number, page, section) | 2 |
+| Asset Chunk Registry | DuckDB | Asset record metadata (keytag, tag_type, unit, service, p_and_id_file) | 2 |
 | Vector Store — Documents | Qdrant `eks_chunks` | Document chunk vectors + payload | 2 |
 | Vector Store — Assets | Qdrant `eks_assets` | Asset contextual summary vectors + payload | 2/3 |
-| Knowledge Graph | Neo4j | All nodes (docs, chunks, assets) + all relationships | 3 |
+| Knowledge Graph | Neo4j | Document nodes, Asset nodes (14 AT_ types), Chunks, all relationships | 3 |
 | Retrieval Cache | Memory / Redis | Query result cache keyed on query+filter hash | 5 |
+
+### 10.3 Notes
+
+- **Phase 1 (v3.2)**: Pipeline workflow complete — SchemaToDDL (T1.36), FileScanner (T1.37), ParserRouter (T1.38), PipelineOrchestrator (T1.39), Manual Review (T1.40). Database tables auto-generated from JSON schema definitions.
+- **Phase 3**: Also creates PhysicalObject nodes linked via INSTALLED_AT to FunctionalObject tag nodes when serial numbers are present (R48, ISO 15926 Part 2).
+- **Two ingestion paths**: Documents (PDF/DOCX/XLSX) and Assets (Datadrop Excel) run in parallel through Phase 1–3, converge at Phase 4 retrieval.
+- **Schema-driven**: All registries (document_type, file_type, element_type, asset_type) are config-driven — no code changes needed to add new types.
+- **Detailed Mermaid diagrams**: Each phase's detailed pipeline diagram is maintained in its respective phase workplan file (Phase 1–5).
 
 
 ## 9. References

@@ -1,15 +1,16 @@
 # Appendix B — Document Registry
 
-**Version**: 0.7  
-**Last Updated**: 2026-06-19  
+**Version**: 0.9  
+**Last Updated**: 2026-06-22  
 **Phase**: 1 — Foundation  
 **Status**: ✅ Implemented & Tested  
 **Related Files**:
 - [`eks/engine/core/registry.py`](../engine/core/registry.py)
 - [`eks/engine/core/revision.py`](../engine/core/revision.py)
 - [`eks/engine/core/config_registry.py`](../engine/core/config_registry.py)
-- [`eks/config/eks_config.json`](../config/eks_config.json)
-- [`eks/config/eks_base_schema.json`](../config/eks_base_schema.json)
+- [`eks/config/schemas/eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) — Document column definitions
+- [`eks/config/schemas/eks_doc_setup_schema.json`](../config/schemas/eks_doc_setup_schema.json) — Table declarations, extraction rules, health scoring
+- [`eks/config/schemas/eks_doc_config.json`](../config/schemas/eks_doc_config.json) — Element expectations, score tiers
 
 ### Revision History
 
@@ -22,6 +23,8 @@
 | 0.5 | 2026-06-16 | Gemini CLI | Added TWRP ingestion next steps table (B7.3) |
 | 0.6 | 2026-06-18 | opencode | Added B3.1 Ontology Mapping (Knowledge Graph Triggers); updated version/date |
 | 0.7 | 2026-06-19 | opencode | Renumbered B7→B6, B8→B7 for sequential ordering; updated DB path from `data/eks_registry.db` to `output/eks_registry.db` |
+| 0.8 | 2026-06-22 | opencode | Updated schema references to new dedicated doc schema files (`eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json`) per T1.34. |
+| 0.9 | 2026-06-22 | opencode | Added B3.2 Document Type Registry, B3.3 File Type Registry, B3.4 Element Type Registry per T1.35; added `file_type` column to B3 table. |
 
 ---
 
@@ -30,6 +33,14 @@
 The Document Registry is the central metadata store for all engineering documents ingested into EKS. It is backed by DuckDB (configurable to PostgreSQL) and managed through the `DocumentRegistry` class in `engine/core/registry.py`. It records every document revision that enters the system, tracks which revision is current (`is_latest`), and provides filtered query access for the retrieval pipeline.
 
 The registry is config-driven — the DB path and backend type are read from `eks_config.json` at startup via `ConfigRegistry`. No hardcoded paths or connection strings exist in the implementation.
+
+**General Business Logic**
+- Document will be organized per project, area, discipline, type, sequence number, and revision.
+- Different documents can have different file formats, such as doc, pdf, pptx, xlx, dwg, dgn, etc.
+- Different documents can have different metadata.
+- Different documents can have different elements, such as coversheet, index of content, sections, table, figure, sections, appendix, references, etc.
+- Same asset tags can be associated to different documents.
+- Relationship between documents can be defined.
 
 ---
 
@@ -75,7 +86,8 @@ The registry is config-driven — the DB path and backend type are read from `ek
 
 **Table**: `documents`  
 **Backend**: DuckDB (`output/eks_registry.db`) — configurable to PostgreSQL  
-**Created by**: `_init_db()` on first instantiation (`CREATE TABLE IF NOT EXISTS`)
+**Created by**: `_init_db()` on first instantiation (`CREATE TABLE IF NOT EXISTS`)  
+**Schema source**: [`eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) (definitions), [`eks_doc_setup_schema.json`](../config/schemas/eks_doc_setup_schema.json) (declarations), [`eks_doc_config.json`](../config/schemas/eks_doc_config.json) (runtime values)
 
 | Group | Column | Type | Nullable | Default | Description |
 | :--- | :----- | :--- | :------: | :------ | :---------- |
@@ -92,6 +104,7 @@ The registry is config-driven — the DB path and backend type are read from `ek
 | | `status` | VARCHAR | YES | NULL | Workflow status (APPROVED, IFR, IFC, etc.) |
 | | `is_latest` | BOOLEAN | YES | TRUE | TRUE for current active revision only |
 | | `file_path` | VARCHAR | YES | NULL | Relative path to source file |
+| | `file_type` | VARCHAR | YES | NULL | Source file format (pdf, dgn, docx, xlsx, dwg) |
 | | `ingested_at` | TIMESTAMP | YES | CURRENT_TIMESTAMP | UTC timestamp of ingestion |
 | **Account** | `created_by` | VARCHAR | YES | NULL | Author (Auto-extracted) |
 | | `checked_by` | VARCHAR | YES | NULL | Reviewer (Auto-extracted) |
@@ -117,6 +130,69 @@ The following registry fields are mapped to Ontology classes and relationships d
 | `document_number`| `SUPERSEDES` | Links revisions of the same number in a time-ordered chain. |
 | `asset_tags` | `REFERENCES_ASSET`| Produces M:N edges to `FunctionalObject` (Tag) nodes. |
 | `originator_company`| `PRODUCED_BY` | Links Document to a `GovernanceObject` (Company/Entity). |
+| `file_type` | `HAS_FORMAT` | Links Document to a `FileFormat` node indicating source format. |
+
+---
+
+### B3.2. Document Type Registry
+
+The following document type codes are defined in `eks_doc_config.json` → `document_type_registry`. They map to ontology classes (Appendix C) and expected file formats for TWRP ingestion.
+
+| Code | Label | Ontology Class | Description | Expected File Types |
+|:---- |:----- |:-------------- |:----------- |:------------------- |
+| `DWG` | Engineering Drawing | `Drawing` | Engineering design drawing | `pdf` |
+| `PI-PID` | P&ID Drawing | `PID_Drawing` | Piping and instrumentation diagram | `pdf`, `dgn` |
+| `SPC` | Technical Specification | `Specification` | Technical specification document | `pdf`, `docx` |
+| `DS` | Data Sheet | `Specification` | Equipment/instrument data sheet | `pdf`, `xlsx` |
+| `MAN` | Vendor O&M Manual | `Manual` | Vendor operation and maintenance manual | `pdf` |
+| `OM` | Operation Manual | `Manual` | System operation manual | `pdf`, `docx` |
+| `RPT` | Technical Report | `Report` | Technical report or study | `pdf`, `docx` |
+
+**Alignment**:
+- Ontology class hierarchy per Appendix C §C4: `Drawing` → `PID_Drawing`; `Specification` covers `SPC` and `DS`; `Manual` covers `MAN` and `OM`.
+- TWRP assets per Appendix B §B6.1: 100+ PDF drawings (DWG/PI-PID), 6 DGN drawings (PI-PID), specifications, manuals, reports.
+- Phase 3 extraction per Appendix B §B6.2: cover sheet parsing extracts `document_type` → ontology class assignment.
+
+---
+
+### B3.3. File Type Registry
+
+Maps source file extensions to parser implementations (Phase 1 plug-in architecture per Appendix B §B4/B5) and MIME types.
+
+| Extension | Display Name | Parser Class | TWRP Use | MIME Type |
+|:--------- |:------------ |:------------ |:-------- |:--------- |
+| `pdf` | PDF Document | `engine.parsers.pdf_parser.PDFParser` | Drawings (100+), Specs, Manuals, Reports | `application/pdf` |
+| `dgn` | DGN Drawing | `engine.parsers.dgn_parser.DGNParserStub` | CAD Drawings (6) | `image/vnd.dgn` |
+| `docx` | Word Document | `engine.parsers.docx_parser.DOCXParser` | Specs, Manuals, Reports | `application/vnd.openxmlformats...` |
+| `xlsx` | Excel Workbook | `engine.parsers.xlsx_parser.XLSXParser` | Data Sheets, Datadrop | `application/vnd.openxmlformats...` |
+| `dwg` | AutoCAD Drawing | `engine.parsers.dwg_parser.DWGParserStub` | Future CAD support | `image/vnd.dwg` |
+
+**Alignment**:
+- Parser plug-ins defined in `eks_config.json` → `parsers` section (Appendix B §B2).
+- Phase 1 implements PDF, DOCX, XLSX; DWG/DGN are stubs for Phase 3 (Appendix B §B6.2).
+- `file_type` column in registry (B3 table) stores extension for format tracking.
+
+---
+
+### B3.4. Element Type Registry
+
+Structural element types per Appendix D §D7.10, used for structural completeness scoring and Phase 2/3 knowledge graph population.
+
+| Element Type | Description | Source Method | Phase 2 Use | Phase 3 Use | Expected By Cover Type |
+|:------------ |:----------- |:------------- |:----------- |:----------- |:---------------------- |
+| `cover_page` | Cover page fields from page 1 | `regex` | Section anchor | Document-type node | A, B, D, E |
+| `revision_table` | Revision history table from page 1 | `table` | Change tracking | Revision nodes | A, B |
+| `section` | Section heading (regex `\d+\.\d+`) | `regex` | Chunk boundary | Section nodes | A, B, D, E |
+| `table` | Data table on page | `heuristic` | Context chunks | Table nodes | E |
+| `image` | Image/chart on page | `heuristic` | Skip | Figure nodes | A, B |
+| `link` | URL or file path reference | `regex` | Skip | Reference edges | (all) |
+| `legend` | Page legend/symbol key | `heuristic` | Skip | Legend nodes | A, B |
+| `note` | Page 1 annotation block | `heuristic` | Skip | Annotation nodes | A, B |
+
+**Alignment**:
+- `structure_detector.py` (T1.32) detects elements and stores in `document_elements` table (Appendix B §B6.2).
+- Structural completeness scoring (Appendix D §D7.3) uses `element_expectations` keyed by document type.
+- Cover types (A–E) preserved for backward compatibility with `structure_detector.py` logic.
 
 ---
 

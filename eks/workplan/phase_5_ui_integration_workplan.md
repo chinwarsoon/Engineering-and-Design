@@ -69,7 +69,8 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 - [11. Potential Future Issues](#11-potential-future-issues)
 - [12. Success Criteria](#12-success-criteria)
 - [13. Deliverables](#13-deliverables)
-- [14. References](#14-references)
+- [14. Phase 5 Pipeline Architecture (Detailed)](#14-phase-5-pipeline-architecture-detailed)
+- [15. References](#15-references)
 
 ---
 
@@ -194,7 +195,22 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 
 ---
 
-## 14. References
+## 14. Phase 5 Pipeline Architecture (Detailed)
+
+```mermaid
+graph TB
+    CACHE["Retrieval Cache<br/>memory / Redis<br/>Keyed on query hash + filter hash<br/>→ skip pipeline on hit"]
+    
+    API["FastAPI Backend<br/>/query → full retrieval pipeline<br/>+ LLM answer + citations<br/>/assets → asset browse/filter<br/>/ingest → document upload<br/>+ parse + chunk + embed trigger<br/>/status → system health"]
+    
+    UI["Web UI<br/>• Query input + filter panel<br/>  (doc + asset dimensions)<br/>• Answer display with<br/>  source citation cards<br/>• Asset browsing panel<br/>  (attributes + linked P&ID)<br/>• Document ingestion upload"]
+    
+    CACHE --> API --> UI
+```
+
+---
+
+## 15. References
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
 2. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)

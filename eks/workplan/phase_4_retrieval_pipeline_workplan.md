@@ -77,7 +77,8 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 - [11. Potential Future Issues](#11-potential-future-issues)
 - [12. Success Criteria](#12-success-criteria)
 - [13. Deliverables](#13-deliverables)
-- [14. References](#14-references)
+- [14. Phase 4 Pipeline Architecture (Detailed)](#14-phase-4-pipeline-architecture-detailed)
+- [15. References](#15-references)
 
 ---
 
@@ -211,7 +212,39 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 
 ---
 
-## 14. References
+## 14. Phase 4 Pipeline Architecture (Detailed)
+
+```mermaid
+graph TB
+    QUERY["User Query<br/>(natural language)"]
+    
+    STAGE1["Stage 1: Metadata Filter<br/>Document: project, discipline<br/>doc_type, is_latest, revision<br/>Asset: unit, service, tag_type<br/>pipeline_tag (R38)"]
+    
+    STAGE2["Stage 2: Graph Expansion<br/>Doc→Doc: REFERENCES, SUPERSEDES<br/>Doc→Asset: REFERENCED_BY_DWG<br/>Asset→Asset: CONNECTS_TO<br/>HAS_ACTUATOR"]
+    
+    STAGE3A["Stage 3a: Hybrid Search<br/>(Documents)<br/>Vector: eks_chunks<br/>BM25 keyword<br/>Merge + deduplicate"]
+    
+    STAGE3B["Stage 3b: Asset Query (R38, R40)<br/>Structured: Neo4j Cypher<br/>exact tag, unit, service lookups<br/>Semantic: eks_assets vector<br/>fuzzy property queries"]
+    
+    STAGE4["Stage 4: Scorer<br/>cosine similarity<br/>+ keyword score<br/>+ graph proximity boost"]
+    
+    STAGE5["Stage 5: Reranker<br/>Rule-based (default)<br/>cross-encoder (optional)"]
+    
+    STAGE6["Stage 6: Context Assembler<br/>Select top-k chunks<br/>+ asset records<br/>→ fit LLM context window"]
+    
+    STAGE7["Stage 7: LLM Answering<br/>OpenAI / Ollama provider<br/>Response includes source citations:<br/>doc_number · revision · page<br/>chunk_id · asset keytag"]
+
+    QUERY --> STAGE1 --> STAGE2
+    STAGE2 --> STAGE3A
+    STAGE2 --> STAGE3B
+    STAGE3A --> STAGE4
+    STAGE3B --> STAGE4
+    STAGE4 --> STAGE5 --> STAGE6 --> STAGE7
+```
+
+---
+
+## 15. References
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
 2. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Phase 1 prerequisite

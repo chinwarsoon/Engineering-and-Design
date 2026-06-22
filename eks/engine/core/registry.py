@@ -1,27 +1,57 @@
 """
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
+DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 """
 import duckdb
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
 from .config_registry import ConfigRegistry
+from .schema_to_ddl import SchemaToDDL
 from ..logging.logger import EKSLogger, log_depth
 
 class DocumentRegistry:
     """
     Manages document metadata storage and retrieval.
     Backed by DuckDB (or PostgreSQL if configured).
+    DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
     """
-    COLUMN_ALLOWLIST = {
-        "id", "project_title", "project_number", "area", "discipline", 
-        "department", "document_type", "document_number", "revision", 
-        "status", "is_latest", "file_path", "ingested_at", "source_type",
-        "created_by", "checked_by", "approved_by", "originator_company",
-        "security_class", "asset_tags", "page_count", "extract_status",
-        "extraction_confidence", "extraction_notes", "verified_by"
-    }
+
+    _SCHEMA_DERIVED_ALLOWLIST: Optional[set] = None
+
+    @classmethod
+    def _get_column_allowlist(cls) -> set:
+        """
+        Derive COLUMN_ALLOWLIST from JSON schema definitions.
+        Falls back to static set if schema is unavailable.
+        """
+        if cls._SCHEMA_DERIVED_ALLOWLIST is not None:
+            return cls._SCHEMA_DERIVED_ALLOWLIST
+        try:
+            from .schema_to_ddl import SchemaToDDL
+            config_dir = Path("eks/config")
+            schema = SchemaToDDL.load_doc_base_schema(config_dir)
+            gen = SchemaToDDL(schema)
+            project_props = gen.definitions.get("project_metadata_def", {}).get("properties", {})
+            document_props = gen.definitions.get("document_metadata_def", {}).get("properties", {})
+            all_cols = set(project_props.keys()) | set(document_props.keys())
+            all_cols.add("id")
+            cls._SCHEMA_DERIVED_ALLOWLIST = all_cols
+            return all_cols
+        except Exception:
+            return {
+                "id", "project_title", "project_number", "area", "discipline",
+                "department", "document_type", "document_number", "revision",
+                "status", "is_latest", "file_path", "ingested_at", "source_type",
+                "created_by", "checked_by", "approved_by", "originator_company",
+                "security_class", "asset_tags", "page_count", "extract_status",
+                "extraction_confidence", "extraction_notes", "verified_by"
+            }
+
+    @property
+    def COLUMN_ALLOWLIST(self) -> set:
+        return self._get_column_allowlist()
 
     def __init__(self, logger: Optional[EKSLogger] = None):
         self.config = ConfigRegistry()
@@ -40,93 +70,107 @@ class DocumentRegistry:
 
     @log_depth
     def _init_db(self):
-        """Initialize the metadata database table with the full extended schema."""
+        """Initialize the metadata database tables with DDL auto-generated from JSON schema."""
         self.logger.status(f"Initializing Document Registry at {self.db_path}")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        conn = duckdb.connect(str(self.db_path))
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS documents (
-                id VARCHAR PRIMARY KEY,
-                source_type VARCHAR DEFAULT 'ingested',
-                project_title VARCHAR,
-                project_number VARCHAR,
-                area VARCHAR,
-                discipline VARCHAR,
-                department VARCHAR,
-                document_type VARCHAR,
-                document_number VARCHAR,
-                revision VARCHAR,
-                status VARCHAR,
-                is_latest BOOLEAN DEFAULT TRUE,
-                file_path VARCHAR,
-                ingested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_by VARCHAR,
-                checked_by VARCHAR,
-                approved_by VARCHAR,
-                originator_company VARCHAR,
-                security_class VARCHAR,
-                asset_tags JSON,
-                page_count INTEGER,
-                extract_status VARCHAR DEFAULT 'pending',
-                extraction_confidence DOUBLE,
-                extraction_notes TEXT,
-                verified_by VARCHAR
-            )
-        """)
-        conn.close()
 
-    @log_depth
-    def _migrate_schema(self):
-        """Handle schema evolution by adding missing columns to existing tables."""
+        loader = getattr(self.config, '_loader', None)
+        if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
+            schema_to_ddl = SchemaToDDL(loader.doc_base_schema, self.logger)
+            docs_ddl = schema_to_ddl.generate_documents_ddl()
+            els_ddl = schema_to_ddl.generate_document_elements_ddl()
+            indexes = schema_to_ddl.generate_indexes()
+        else:
+            docs_ddl = SchemaToDDL(self._load_doc_schema()).generate_documents_ddl()
+            els_ddl = SchemaToDDL(self._load_doc_schema()).generate_document_elements_ddl()
+            indexes = SchemaToDDL(self._load_doc_schema()).generate_indexes()
+
         conn = duckdb.connect(str(self.db_path))
         try:
-            # Get existing columns
-            res = conn.execute("PRAGMA table_info('documents')").fetchall()
-            existing_cols = {row[1] for row in res}
-            
-            # Map of column to type (subset of full schema)
-            new_cols = {
-                "created_by": "VARCHAR",
-                "checked_by": "VARCHAR",
-                "approved_by": "VARCHAR",
-                "originator_company": "VARCHAR",
-                "security_class": "VARCHAR",
-                "asset_tags": "JSON",
-                "page_count": "INTEGER",
-                "extract_status": "VARCHAR DEFAULT 'pending'",
-                "extraction_confidence": "DOUBLE",
-                "extraction_notes": "TEXT",
-                "verified_by": "VARCHAR"
-            }
-            
-            for col, col_type in new_cols.items():
-                if col not in existing_cols:
-                    self.logger.info(f"Migrating schema: Adding column '{col}' to documents table.")
-                    conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {col_type}")
-
-            # Create document_elements table if not exists
-            self._init_document_elements(conn)
+            conn.execute(docs_ddl)
+            conn.execute(els_ddl)
+            for idx_stmt in indexes:
+                conn.execute(idx_stmt)
         finally:
             conn.close()
 
     @log_depth
-    def _init_document_elements(self, conn):
-        """Create the document_elements table if it does not exist."""
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS document_elements (
-                doc_id VARCHAR NOT NULL,
-                element_type VARCHAR NOT NULL,
-                element_id VARCHAR,
-                title VARCHAR,
-                content TEXT,
-                confidence DOUBLE,
-                source VARCHAR NOT NULL DEFAULT 'heuristic'
-            )
-        """)
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_elements_doc_id ON document_elements(doc_id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_elements_type ON document_elements(element_type)")
-        self.logger.debug("document_elements table ready", context="DocumentRegistry._init_document_elements")
+    def _migrate_schema(self):
+        """Handle schema evolution by adding missing columns via SchemaToDDL."""
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            for table_name in ["documents", "document_elements"]:
+                res = conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
+                existing_cols = {row[1] for row in res}
+
+                loader = getattr(self.config, '_loader', None)
+                if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
+                    ddl_gen = SchemaToDDL(loader.doc_base_schema, self.logger)
+                else:
+                    ddl_gen = SchemaToDDL(self._load_doc_schema())
+
+                migration_stmts = ddl_gen.generate_migration_ddl(table_name, existing_cols)
+                for stmt in migration_stmts:
+                    conn.execute(stmt)
+        finally:
+            conn.close()
+
+    def _load_doc_schema(self) -> Dict[str, Any]:
+        """Load eks_doc_base_schema.json as fallback when loader is unavailable."""
+        loader = getattr(self.config, '_loader', None)
+        if loader and hasattr(loader, 'config_dir'):
+            config_dir = Path(loader.config_dir)
+        else:
+            config_dir = Path("eks/config")
+        return SchemaToDDL.load_doc_base_schema(config_dir)
+
+    @log_depth
+    def sync_schema(self) -> Dict[str, Any]:
+        """
+        Synchronize database schema with JSON schema definitions.
+        Compares current DB columns against schema and applies any missing
+        columns via ALTER TABLE ADD COLUMN.
+
+        Returns a summary dict with keys:
+            - documents_added: list of column names added to documents
+            - document_elements_added: list of column names added to document_elements
+            - indexes_created: list of index names created
+        """
+        self.logger.status("Syncing database schema with JSON schema definitions")
+        summary = {"documents_added": [], "document_elements_added": [], "indexes_created": []}
+
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            loader = getattr(self.config, '_loader', None)
+            if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
+                ddl_gen = SchemaToDDL(loader.doc_base_schema, self.logger)
+            else:
+                ddl_gen = SchemaToDDL(self._load_doc_schema())
+
+            for table_name, key in [("documents", "documents_added"), ("document_elements", "document_elements_added")]:
+                res = conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
+                existing_cols = {row[1] for row in res}
+                migration_stmts = ddl_gen.generate_migration_ddl(table_name, existing_cols)
+                for stmt in migration_stmts:
+                    conn.execute(stmt)
+                    col_name = stmt.split("ADD COLUMN ")[1].split()[0]
+                    summary[key].append(col_name)
+
+            for idx_stmt in ddl_gen.generate_indexes():
+                idx_name = idx_stmt.split("IF NOT EXISTS ")[1].split()[0]
+                res = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='index' AND name=?", [idx_name]
+                ).fetchone()
+                if not res:
+                    conn.execute(idx_stmt)
+                    summary["indexes_created"].append(idx_name)
+
+        finally:
+            conn.close()
+
+        total = sum(len(v) for v in summary.values())
+        self.logger.status(f"Schema sync complete: {total} changes applied")
+        return summary
 
     @log_depth
     def store_elements(self, doc_id: str, elements: List[Dict[str, Any]]) -> int:
@@ -221,11 +265,11 @@ class DocumentRegistry:
             conn.execute("""
                 INSERT OR REPLACE INTO documents 
                 (id, source_type, project_title, project_number, area, discipline, department, 
-                 document_type, document_number, revision, status, is_latest, file_path,
+                 document_type, document_number, revision, status, is_latest, file_path, file_type,
                  created_by, checked_by, approved_by, originator_company, security_class,
                  asset_tags, page_count, extract_status, extraction_confidence, 
                  extraction_notes, verified_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, [
                 doc_id,
                 metadata.get("source_type", "ingested"),
@@ -240,6 +284,7 @@ class DocumentRegistry:
                 metadata.get("status"),
                 True,
                 metadata.get("file_path"),
+                metadata.get("file_type"),
                 metadata.get("created_by"),
                 metadata.get("checked_by"),
                 metadata.get("approved_by"),

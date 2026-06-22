@@ -1,7 +1,7 @@
 {
   "$schema": "https://eks.engineering/schemas/eks_ontology_setup_schema.json",
   "$id": "https://eks.engineering/configs/eks_ontology_config.json",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "title": "EKS ISO 15926-Aligned Dynamic Ontology",
   "description": "Dynamic ontology configuration for EKS classes, inheritance, tag type mapping, aliases, and relationships. Expanded with Document hierarchy and lifecycle relationships.",
   "classes": [
@@ -111,7 +111,9 @@
     { "name": "Drawing", "label": "Engineering Drawing", "subClassOf": "Document", "document_type_mapping": "DWG" },
     { "name": "PID_Drawing", "label": "P&ID Drawing", "subClassOf": "Drawing", "document_type_mapping": "PI-PID" },
     { "name": "Specification", "label": "Technical Specification", "subClassOf": "Document", "document_type_mapping": "SPC" },
+    { "name": "DataSheet", "label": "Equipment Data Sheet", "subClassOf": "Specification", "document_type_mapping": "DS" },
     { "name": "Manual", "label": "Vendor O&M Manual", "subClassOf": "Document", "document_type_mapping": "MAN" },
+    { "name": "OpsManual", "label": "Operation Manual", "subClassOf": "Manual", "document_type_mapping": "OM" },
     { "name": "Report", "label": "Technical Report", "subClassOf": "Document", "document_type_mapping": "RPT" }
   ],
   "relationships": [

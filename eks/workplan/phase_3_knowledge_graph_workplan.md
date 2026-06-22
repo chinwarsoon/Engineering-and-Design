@@ -118,6 +118,41 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 
 ---
 
-## 13. Deliverables
+## 13. Phase 3 Pipeline Architecture (Detailed)
+
+```mermaid
+graph TB
+    subgraph "Document Graph"
+        DOC_NODES["Document Nodes<br/>Document · Revision · Chunk"]
+        DOC_BUILDERS["Relationship Builders<br/>REFERENCES · SUPERSEDES<br/>CONTAINS · RELATES_TO"]
+        DOC_NODES --> DOC_BUILDERS
+    end
+
+    subgraph "Asset Graph"
+        ASSET_NODES["Asset Nodes (14 AT_ types)<br/>AT_EQPMP · AT_EQUIP · AT_EQTNK<br/>AT_MOTOR · AT_CVALVE · AT_HVALVE<br/>AT_PROCESS · AT_INCOMP · AT_PSV<br/>AT_INST_CS · AT_INST_FLO ..."]
+        ASSET_BUILDERS["Relationship Builders<br/>REFERENCED_BY_DWG · BELONGS_TO_UNIT<br/>BELONGS_TO_SERVICE · CONNECTS_TO<br/>HAS_ACTUATOR"]
+        ASSET_NODES --> ASSET_BUILDERS
+    end
+
+    subgraph "Dynamic Ontology"
+        ONTOLOGY["T-Box Classes<br/>ISO 15926-aligned<br/>IS_A · INSTALLED_AT<br/>PhysicalObject (R48)"]
+    end
+
+    subgraph "Neo4j Graph DB"
+        NEO4J[("Neo4j")]
+        DOC_BUILDERS --> NEO4J
+        ASSET_BUILDERS --> NEO4J
+        ONTOLOGY --> NEO4J
+    end
+
+    subgraph "Post-Load Validation"
+        SHACL["SHACL Constraint Validation (R49)<br/>Data quality rules<br/>Violations logged"]
+        NEO4J --> SHACL
+    end
+```
+
+---
+
+## 14. Deliverables
 
 ...

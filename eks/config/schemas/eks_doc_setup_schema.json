@@ -1,0 +1,146 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
+    "version": "1.1.0",
+    "title": "EKS Document Setup Schema - Declarations",
+    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, health scoring configuration, and element expectations per Appendix B, C & D. Updated per T1.35.",
+    "allOf": [
+        { "$ref": "eks_doc_base_schema.json" }
+    ],
+    "type": "object",
+    "properties": {
+        "$schema": { "type": "string" },
+        "$id": { "type": "string" },
+        "version": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "ontology_triggers": {
+            "type": "object",
+            "description": "Maps document registry fields to knowledge graph relationship types for Phase 3 ingestion",
+            "additionalProperties": { "type": "string" }
+        },
+        "health_scoring": {
+            "type": "object",
+            "description": "6-dimension health scoring configuration per Appendix D D7.3-D7.5",
+            "properties": {
+                "dimensions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": { "type": "string" },
+                            "weight": { "type": "number", "minimum": 0, "maximum": 1 }
+                        },
+                        "required": ["name", "weight"],
+                        "additionalProperties": false
+                    }
+                },
+                "score_tiers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "min_score": { "type": "number", "minimum": 0, "maximum": 1 },
+                            "max_score": { "type": "number", "minimum": 0, "maximum": 1 },
+                            "status": { "type": "string", "enum": ["success", "partial", "failed"] },
+                            "action": { "type": "string" }
+                        },
+                        "required": ["min_score", "max_score", "status"],
+                        "additionalProperties": false
+                    }
+                },
+                "weight_tiers": {
+                    "type": "object",
+                    "description": "Multiplier per column priority tier for extraction confidence scoring",
+                    "additionalProperties": { "type": "number" }
+                }
+            },
+            "required": ["dimensions", "score_tiers"],
+            "additionalProperties": false
+        },
+        "document_type_registry": {
+            "type": "array",
+            "description": "Canonical registry of document type codes mapped to ontology classes (Appendix C). Validated at load time against ontology config.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "code": { "$ref": "eks_doc_base_schema.json#/definitions/document_type_code" },
+                    "label": { "type": "string" },
+                    "ontology_class": { "type": "string" },
+                    "description": { "type": "string" },
+                    "expected_file_types": {
+                        "type": "array",
+                        "items": { "$ref": "eks_doc_base_schema.json#/definitions/file_type_code" }
+                    }
+                },
+                "required": ["code", "label", "ontology_class"],
+                "additionalProperties": false
+            },
+            "minItems": 1
+        },
+        "file_type_registry": {
+            "type": "array",
+            "description": "Canonical registry of file format codes mapped to parser implementations (Appendix B B4/B5). Validated at load time for importable parser classes.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "extension": { "$ref": "eks_doc_base_schema.json#/definitions/file_type_code" },
+                    "display_name": { "type": "string" },
+                    "parser_class": { "type": "string" },
+                    "description": { "type": "string" },
+                    "mime_type": { "type": "string" }
+                },
+                "required": ["extension", "display_name", "parser_class"],
+                "additionalProperties": false
+            },
+            "minItems": 1
+        },
+        "element_type_registry": {
+            "type": "array",
+            "description": "Canonical registry of structural element types per Appendix D D7.10 with Phase 2/3 routing metadata.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "element_type": { "$ref": "eks_doc_base_schema.json#/definitions/element_type_code" },
+                    "description": { "type": "string" },
+                    "source_method": { "type": "string", "enum": ["regex", "table", "heuristic"] },
+                    "phase_2_use": { "type": "string" },
+                    "phase_3_use": { "type": "string" },
+                    "expected_by_cover_types": {
+                        "type": "array",
+                        "items": { "type": "string", "enum": ["A", "B", "C", "D", "E"] }
+                    }
+                },
+                "required": ["element_type", "description", "source_method"],
+                "additionalProperties": false
+            },
+            "minItems": 1
+        },
+        "element_expectations": {
+            "type": "object",
+            "description": "Expected structural elements per document type for structural completeness scoring (Appendix D D7.10). Keys are document_type_code values from document_type_registry.",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "expected_elements": {
+                        "type": "array",
+                        "items": { "$ref": "eks_doc_base_schema.json#/definitions/element_type_code" }
+                    },
+                    "threshold": { "type": "integer", "minimum": 0 },
+                    "cover_type": {
+                        "type": "string",
+                        "enum": ["A", "B", "C", "D", "E"],
+                        "description": "Backward-compatible cover type for structure_detector.py routing."
+                    }
+                },
+                "required": ["expected_elements"],
+                "additionalProperties": false
+            },
+            "propertyNames": {
+                "pattern": "^(DWG|PI-PID|SPC|DS|MAN|OM|RPT)$"
+            }
+        }
+    },
+    "required": ["ontology_triggers", "health_scoring", "element_expectations"],
+    "additionalProperties": false
+}

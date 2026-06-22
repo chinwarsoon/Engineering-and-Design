@@ -18,8 +18,8 @@
     },
     "function_code": {
       "type": "string",
-      "enum": ["P", "V", "C", "F", "S"],
-      "description": "Function type code: P=Process, V=Validate, C=Calculate, F=Filter, S=System"
+      "enum": ["P", "V", "C", "F", "S", "X", "G", "E"],
+      "description": "Function type code: P=Process, V=Validate, C=Calculate, F=Filter, S=System, X=Cross-reference, G=Graph, E=Extract"
     },
     "unique_id": {
       "type": "string",

@@ -1,0 +1,71 @@
+{
+    "$schema": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
+    "$id": "https://eks.engineering/configs/eks_doc_config_default.json",
+    "version": "1.1.0",
+    "title": "EKS Document Configuration",
+    "description": "Document schema config v2: document type registry (7 codes aligned with ontology), file type registry (5 formats with parser classes), element type registry (8 types per D7.10), ontology triggers, health scoring, and refactored element expectations keyed by document type codes per T1.35.",
+    "ontology_triggers": {
+        "document_type": "IS_A",
+        "document_number": "SUPERSEDES",
+        "asset_tags": "REFERENCES_ASSET",
+        "originator_company": "PRODUCED_BY",
+        "file_type": "HAS_FORMAT"
+    },
+    "health_scoring": {
+        "dimensions": [
+            { "name": "completeness", "weight": 0.20 },
+            { "name": "extraction_confidence", "weight": 0.20 },
+            { "name": "structural_completeness", "weight": 0.20 },
+            { "name": "source_quality", "weight": 0.15 },
+            { "name": "xref_quality", "weight": 0.15 },
+            { "name": "consistency", "weight": 0.10 }
+        ],
+        "score_tiers": [
+            { "min_score": 0.90, "max_score": 1.00, "status": "success", "action": "auto_register" },
+            { "min_score": 0.70, "max_score": 0.89, "status": "success", "action": "optional_review" },
+            { "min_score": 0.50, "max_score": 0.69, "status": "partial", "action": "flag_review" },
+            { "min_score": 0.20, "max_score": 0.49, "status": "partial", "action": "mandatory_review" },
+            { "min_score": 0.00, "max_score": 0.19, "status": "failed", "action": "manual_entry" }
+        ],
+        "weight_tiers": {
+            "tier1_critical": 2.0,
+            "tier2_standard": 1.0,
+            "tier3_optional": 0.5
+        }
+    },
+    "document_type_registry": [
+        { "code": "DWG",    "label": "Engineering Drawing",    "ontology_class": "Drawing",       "description": "Engineering design drawing",           "expected_file_types": ["pdf"] },
+        { "code": "PI-PID", "label": "P&ID Drawing",           "ontology_class": "PID_Drawing",   "description": "Piping and instrumentation diagram",  "expected_file_types": ["pdf", "dgn"] },
+        { "code": "SPC",    "label": "Technical Specification","ontology_class": "Specification",  "description": "Technical specification document",    "expected_file_types": ["pdf", "docx"] },
+        { "code": "DS",     "label": "Data Sheet",             "ontology_class": "Specification",  "description": "Equipment/instrument data sheet",     "expected_file_types": ["pdf", "xlsx"] },
+        { "code": "MAN",    "label": "Vendor O&M Manual",      "ontology_class": "Manual",         "description": "Vendor operation and maintenance manual", "expected_file_types": ["pdf"] },
+        { "code": "OM",     "label": "Operation Manual",       "ontology_class": "Manual",         "description": "System operation manual",             "expected_file_types": ["pdf", "docx"] },
+        { "code": "RPT",    "label": "Technical Report",       "ontology_class": "Report",         "description": "Technical report or study",          "expected_file_types": ["pdf", "docx"] }
+    ],
+    "file_type_registry": [
+        { "extension": "pdf",  "display_name": "PDF Document",   "parser_class": "eks.engine.parsers.pdf_parser.PDFParser",    "description": "Portable Document Format",  "mime_type": "application/pdf" },
+        { "extension": "dgn",  "display_name": "DGN Drawing",    "parser_class": "eks.engine.parsers.dgn_parser.DGNParserStub", "description": "MicroStation DGN CAD Drawing", "mime_type": "image/vnd.dgn" },
+        { "extension": "docx", "display_name": "Word Document",  "parser_class": "eks.engine.parsers.docx_parser.DOCXParser",  "description": "Microsoft Word Document",   "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+        { "extension": "xlsx", "display_name": "Excel Workbook", "parser_class": "eks.engine.parsers.xlsx_parser.XLSXParser",  "description": "Microsoft Excel Workbook",  "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+        { "extension": "dwg",  "display_name": "AutoCAD Drawing","parser_class": "eks.engine.parsers.dwg_parser.DWGParserStub", "description": "AutoCAD Drawing",           "mime_type": "image/vnd.dwg" }
+    ],
+    "element_type_registry": [
+        { "element_type": "cover_page",     "description": "Cover page fields from page 1",                                                "source_method": "regex",     "phase_2_use": "Section anchor",   "phase_3_use": "Document-type node",    "expected_by_cover_types": ["A", "B", "D", "E"] },
+        { "element_type": "revision_table", "description": "Revision history table from page 1",                                         "source_method": "table",     "phase_2_use": "Change tracking",  "phase_3_use": "Revision nodes",        "expected_by_cover_types": ["A", "B"] },
+        { "element_type": "section",        "description": "Section heading (regex \\d+\\.\\d+)",                                        "source_method": "regex",     "phase_2_use": "Chunk boundary",   "phase_3_use": "Section nodes",         "expected_by_cover_types": ["A", "B", "D", "E"] },
+        { "element_type": "table",          "description": "Data table on page",                                                        "source_method": "heuristic", "phase_2_use": "Context chunks",   "phase_3_use": "Table nodes",           "expected_by_cover_types": ["E"] },
+        { "element_type": "image",          "description": "Image/chart on page",                                                       "source_method": "heuristic", "phase_2_use": "Skip",             "phase_3_use": "Figure nodes",          "expected_by_cover_types": ["A", "B"] },
+        { "element_type": "link",           "description": "URL or file path reference",                                                "source_method": "regex",     "phase_2_use": "Skip",             "phase_3_use": "Reference edges",       "expected_by_cover_types": ["A", "B", "C", "D", "E"] },
+        { "element_type": "legend",         "description": "Page legend/symbol key",                                                    "source_method": "heuristic", "phase_2_use": "Skip",             "phase_3_use": "Legend nodes",          "expected_by_cover_types": ["A", "B"] },
+        { "element_type": "note",           "description": "Page 1 annotation block",                                                   "source_method": "heuristic", "phase_2_use": "Skip",             "phase_3_use": "Annotation nodes",      "expected_by_cover_types": ["A", "B"] }
+    ],
+    "element_expectations": {
+        "DWG":    { "expected_elements": ["cover_page", "revision_table", "section", "image", "link"], "threshold": 4, "cover_type": "A" },
+        "PI-PID": { "expected_elements": ["cover_page", "revision_table", "section", "image", "link"], "threshold": 4, "cover_type": "B" },
+        "SPC":    { "expected_elements": [], "threshold": 0, "cover_type": "C" },
+        "DS":     { "expected_elements": ["cover_page", "section", "table"], "threshold": 2, "cover_type": "E" },
+        "MAN":    { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" },
+        "OM":     { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" },
+        "RPT":    { "expected_elements": ["cover_page", "section", "table"], "threshold": 2, "cover_type": "E" }
+    }
+}

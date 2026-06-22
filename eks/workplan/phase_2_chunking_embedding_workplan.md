@@ -24,6 +24,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | 0.3     | 2026-06-18 | System | Added R40 (Asset Embedding Strategy) and R41 (Asset Chunk Registry Extension) to scope and task breakdown. Asset text builder and dedicated Qdrant eks_assets collection added. Updated success criteria and deliverables. |
 | 0.4     | 2026-06-16 | System | Added T2.20–T2.21 for enriching chunk contextual headers with ontology taxonomy paths. Linked Appendix C. |
 | 0.5     | 2026-06-16 | System | Ontology Option C gap closure: added R50 (Ontology-Enriched Embedding Headers) to scope table; updated T2.20 with exact taxonomy-path header format spec per Appendix C. |
+| 0.6     | 2026-06-22 | opencode | Added §14: Phase 2 Pipeline Architecture (detailed Mermaid diagram) moved from master workplan §10.3. |
 
 ---
 
@@ -76,7 +77,8 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 - [11. Potential Future Issues](#11-potential-future-issues)
 - [12. Success Criteria](#12-success-criteria)
 - [13. Deliverables](#13-deliverables)
-- [14. References](#14-references)
+- [14. Phase 2 Pipeline Architecture (Detailed)](#14-phase-2-pipeline-architecture-detailed)
+- [15. References](#15-references)
 
 ---
 
@@ -203,7 +205,41 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 
 ---
 
-## 14. References
+## 14. Phase 2 Pipeline Architecture (Detailed)
+
+```mermaid
+graph TB
+    subgraph "Document Path"
+        CHUNKER["Chunker<br/>section_chunker.py · chunker.py<br/>PDF/DOCX → section-based<br/>XLSX → row/table<br/>size-based fallback"]
+        CHUNK_REG["Chunk Registry<br/>DuckDB<br/>chunk_id → parent_id<br/>doc_number, revision<br/>page, section, source_file"]
+        CHUNKER --> CHUNK_REG
+    end
+
+    subgraph "Asset Path"
+        ASSET_CHUNK["Asset Chunk Registry<br/>DuckDB (R41)<br/>keytag (PK)<br/>tag_type, tag_no<br/>unit, service, p_and_id_file"]
+        ASSET_TEXT["Asset Text Builder (R40)<br/>Build contextual summary:<br/>[{tag_type} | Unit {unit}<br/>| Svc {service}]<br/>Full metadata NOT embedded (R13)"]
+        ASSET_CHUNK --> ASSET_TEXT
+    end
+
+    subgraph "Embedding"
+        HYBRID["Hybrid Embedding Strategy<br/>hybrid_strategy.py<br/>Header prepended:<br/>[{discipline} | {doc_type}<br/>| {doc_no} Rev {rev}<br/>| p.{page} §{section}]<br/>Full metadata stored in registry (R13)"]
+        EMBED["Embedding Provider<br/>openai_embedder.py<br/>ollama_embedder.py<br/>Input: header + text<br/>Output: vector [n-dim]"]
+        CHUNK_REG --> HYBRID
+        ASSET_TEXT --> HYBRID
+        HYBRID --> EMBED
+    end
+
+    subgraph "Vector Storage"
+        QDRANT_DOC["Qdrant: eks_chunks<br/>Payload: chunk_id, doc_number<br/>rev, page, section<br/>project, discipline, source_file"]
+        QDRANT_ASSET["Qdrant: eks_assets (R40)<br/>Payload: keytag, tag_no<br/>tag_type, unit, service<br/>p_and_id_file"]
+        EMBED --> QDRANT_DOC
+        EMBED --> QDRANT_ASSET
+    end
+```
+
+---
+
+## 15. References
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
 2. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Phase 1 prerequisite

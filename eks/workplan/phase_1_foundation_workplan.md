@@ -1,7 +1,7 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 2.0  
+**Current Version**: 3.3  
 **Status**: ✅ COMPLETE  
 **Last Updated**: 2026-06-22  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -40,6 +40,16 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | 1.8 | 2026-06-19 | opencode | Added T1.30 (error code taxonomy schema), T1.31 (pipeline message catalog schema), T1.32 (error/message manager modules) for R51 Pipeline Messages & Error Codes. Added Appendix D reference. |
 | 1.9 | 2026-06-19 | opencode | Updated T1.30–T1.32 for 6-dimension health scoring (added structural completeness), structure_detector.py module, document_elements table. Updated R51 description. |
 | 2.0 | 2026-06-22 | opencode | Implemented T1.30 (error code schema), T1.31 (message schema), T1.32 (error_manager, message_manager, health_scorer, structure_detector, document_elements). All 47 new tests + 20 existing tests passing. Phase 1 complete. |
+| 2.1 | 2026-06-22 | opencode | Added T1.33: Reorganize core, asset, and ontology schemas/configs under `eks/config/schemas/` to comply with DCC and AGENTS.md pattern. Set status to PARTIAL. |
+| 2.2 | 2026-06-22 | opencode | T1.33 complete: all 13 schema/config files confirmed in `eks/config/schemas/`; `test_phase1.py` updated to resolve `config_dir` to `eks/config/schemas/` (schemas/-first fallback chain); section 7b folder tree updated to reflect canonical layout; issue log (I010) and update log (U051) updated. Phase 1 status COMPLETE. |
+| 2.3 | 2026-06-22 | opencode | Added T1.34: Reorganize document schema into dedicated 3-layer pattern (`eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json`) following asset schema pattern. Separates document definitions from pipeline config. Set status to PARTIAL. |
+| 2.4 | 2026-06-22 | opencode | T1.34 complete: Created 3 doc schema files (`eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json`). Removed `document_metadata_def` and `project_metadata_def` from `eks_base_schema.json`. Updated `schema_loader.py` to load and validate doc schemas. Added 6 new tests verifying doc schema existence, definitions, validation, and pipeline base cleanup. All 73 tests pass. Phase 1 status COMPLETE. |
+| 2.5 | 2026-06-22 | opencode | **T1.35 COMPLETE**: Enhanced Document Schema v2 — Added 3 enums (7 doc type codes, 5 file type codes, 8 element type codes); created 3 registries (document_type, file_type, element_type) in `eks_doc_config.json`; refactored element_expectations keyed by doc type codes with backward-compatible `cover_type` field; added `_validate_doc_registries()` to schema_loader (ontology class, parser import, element type, expectation key validation); added 6 new tests; created DGN/DWG parser stubs; added DataSheet/OpsManual to ontology with document_type_mapping; 31/31 tests pass. Phase 1 COMPLETE. |
+| 3.0 | 2026-06-22 | opencode | Added T1.36–T1.40: Pipeline integration workflow — auto-DDL from schema, file scanner with type validation, parser router, pipeline orchestrator, manual review workflow. Added R54–R58 to scope. Status: PARTIAL. |
+| 3.1 | 2026-06-22 | opencode | T1.36 complete: `SchemaToDDL` auto-generates DDL from JSON schema; `registry.py` refactored with generated DDL, `sync_schema()`, schema-derived `COLUMN_ALLOWLIST`; 8 new tests; 39/39 pass. |
+| 3.2 | 2026-06-22 | opencode | T1.37–T1.40 complete: FileScanner (T1.37), ParserRouter (T1.38), PipelineOrchestrator (T1.39), ManualReviewManager (T1.40). Fixed DGN/DWG stubs. All R54–R58 PASS. 53/53 tests pass. Phase 1 COMPLETE. |
+| 3.3 | 2026-06-22 | opencode | Added §14: Phase 1 Pipeline Architecture (detailed Mermaid diagram) moved from master workplan §10.2. |
+| 3.4 | 2026-06-22 | opencode | T1.41 complete: Fixed error/message schemas to follow AGENTS.md §9 3-layer pattern. Created `eks_error_setup_schema.json` and `eks_message_setup_schema.json` (allOf + $ref to base). Cleaned config files (removed $schema/$id/title/description/version/type). Updated `eks_error_code_base.json` function_code enum (added X, G, E). Updated `schema_loader.py` with error/message validation methods. I014 resolved. 53/53 tests pass. |
 
 ---
 
@@ -75,7 +85,14 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | R36 | Asset Schema         | Universal Plant Item Schema | 13 reusable fragment definitions covering all 7 datadrop categories; base/setup/config pattern | ✅ PASS |
 | R39 | Asset Schema         | Zero-Code Asset Extensibility | New asset types added via config only; no code changes required; `conditional_fragments` structure | ✅ PASS |
 | R44 | Schema               | ISO 15926 Ontology Integration | Define dynamic, config-driven ontology schema (classes, properties, relationships) for EKS | ✅ PASS |
-| R51 | Logging & Debug      | Pipeline Messages & Error Codes | Schema-driven error catalog (system + data domains), pipeline message catalog, per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency), structural elements table (`document_elements`) per AGENTS.md §19 | 🔷 PLANNED |
+| R51 | Logging & Debug      | Pipeline Messages & Error Codes | Schema-driven error catalog (system + data domains), pipeline message catalog, per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency), structural elements table (`document_elements`) per AGENTS.md §19 | ✅ PASS |
+| R52 | Schema               | Document Schema Reorganization | Separate document definitions from pipeline config into dedicated 3-layer pattern (`eks_doc_base/setup/config`); align with asset schema pattern for SSOT compliance | ✅ PASS |
+| R53 | Schema               | Enhanced Document Schema v2    | Document type codes (7), file type codes (5), element type codes (8) with enums; document type registry (ontology mapping, file expectations); file type registry (parser mapping); element type registry (descriptions, source, Phase 2/3 uses); element expectations keyed by document type | ✅ PASS |
+| R54 | Infrastructure       | Auto-DDL Generation | Auto-generate SQL DDL from JSON schema `definitions`; replaces hard-coded DDL in `registry.py`; supports `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN IF NOT EXISTS` | ✅ PASS |
+| R55 | Infrastructure       | File Scanner | Walk project directory; validate extensions against `file_type_registry`; match expected types against `document_type_registry[].expected_file_types`; register placeholder rows with `extract_status = 'pending'` | ✅ PASS |
+| R56 | Plug-in Architecture | Parser Router | Map `file_type` → parser class from `file_type_registry`; instantiate parser; call `parse()` + `extract_metadata()` + `StructureDetector.detect()` in sequence | ✅ PASS |
+| R57 | Pipeline             | Pipeline Orchestration | Coordinate scan → register → route → parse → detect → score → update; error handling, logging, rollback per AGENTS.md §12 | ✅ PASS |
+| R58 | Pipeline             | Manual Review Workflow | Surface flagged docs (`extract_status != 'success'`); correct metadata; confirm elements; recalculate score; lock for Phase 2 | ✅ PASS |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -97,7 +114,8 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 - [11. Potential Future Issues](#11-potential-future-issues)
 - [12. Success Criteria](#12-success-criteria)
 - [13. Deliverables](#13-deliverables)
-- [14. References](#14-references)
+- [14. Phase 1 Pipeline Architecture (Detailed)](#14-phase-1-pipeline-architecture-detailed)
+- [15. References](#15-references)
 
 ---
 
@@ -131,9 +149,23 @@ eks/
 ├── archive/                        # Archived/superseded files
 │
 ├── config/                         # Schema and configuration files
-│   ├── eks_base_schema.json        # Canonical schema — definitions
-│   ├── eks_setup_schema.json       # Canonical schema — property declarations
-│   └── eks_config.json             # Actual config values (paths, DB, providers)
+│   └── schemas/                    # All schema and config JSON files (AGENTS.md §9)
+│       ├── eks_base_schema.json        # Core schema — definitions
+│       ├── eks_setup_schema.json       # Core schema — property declarations
+│       ├── eks_config.json             # Core config values (paths, DB, providers)
+│       ├── eks_asset_base_schema.json  # Asset schema — 13 fragment definitions
+│       ├── eks_asset_setup_schema.json # Asset schema — declarations
+│       ├── eks_asset_config.json       # Asset config — 14 AT_ type mappings
+│       ├── eks_doc_base_schema.json    # Document schema — column definitions
+│       ├── eks_doc_setup_schema.json   # Document schema — table declarations
+│       ├── eks_doc_config.json         # Document config — DB, thresholds
+│       ├── eks_ontology_base_schema.json  # Ontology schema — base definitions
+│       ├── eks_ontology_setup_schema.json # Ontology schema — property declarations
+│       ├── eks_ontology_config.json    # Ontology config — ISO 15926-aligned classes
+│       ├── eks_error_code_base.json    # Error code taxonomy base schema
+│       ├── eks_error_config.json       # Error code catalog (65 codes)
+│       ├── eks_message_base.json       # Pipeline message base schema
+│       └── eks_message_config.json     # Pipeline message catalog (25 messages)
 │
 ├── data/                           # Input documents for ingestion
 │   └── (user-supplied engineering documents)
@@ -148,7 +180,10 @@ eks/
 │   │   ├── __init__.py
 │   │   ├── registry.py             # Document registry — metadata DB CRUD
 │   │   ├── revision.py             # Revision management logic
-│   │   └── config_registry.py     # SSOT global parameter access
+│   │   ├── config_registry.py     # SSOT global parameter access
+│   │   ├── schema_to_ddl.py       # Auto-generate SQL DDL from JSON schema (T1.36)
+│   │   ├── file_scanner.py        # Directory walk, type validation, placeholder registration (T1.37)
+│   │   └── pipeline_orchestrator.py # Pre-parse → parse → score → review coordinator (T1.39)
 │   │
 │   ├── logging/                    # Tiered logging infrastructure (Phase 1)
 │   │   ├── __init__.py
@@ -160,8 +195,9 @@ eks/
 │   │   ├── pdf_parser.py           # PDF parser
 │   │   ├── docx_parser.py          # DOCX parser
 │   │   ├── xlsx_parser.py          # XLSX parser
-│   │   ├── dwg_parser_stub.py      # DWG stub (Phase 3)
-│   │   └── dgn_parser_stub.py      # DGN stub (Phase 3)
+│   │   ├── dwg_parser.py           # DWG stub (Phase 3)
+│   │   ├── dgn_parser.py           # DGN stub (Phase 3)
+│   │   └── parser_router.py        # File_type → parser class routing (T1.38)
 │   │
 │   ├── chunking/                   # Chunking strategies and registry (Phase 2)
 │   │   ├── __init__.py
@@ -381,6 +417,19 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | T1.30 | Error Code Taxonomy Schema | Create `eks/config/schemas/eks_error_code_base.json` (error code format definitions, severity levels, phase/module/function codes) and `eks/config/schemas/eks_error_config.json` (full system + data error catalog including structural error codes P3-E-E-0010–0017). Follow DCC pattern from `dcc/config/schemas/error_code_base.json`. | ✅ | R51 |
 | T1.31 | Pipeline Message Catalog Schema | Create `eks/config/schemas/eks_message_base.json` (message ID format, verbosity levels, categories) and `eks/config/schemas/eks_message_config.json` (milestone, status, progress, warning, error message templates including structural messages). Follow DCC pattern from `dcc/config/schemas/pipeline_message_base.json`. | ✅ | R51 |
 | T1.32 | Error & Message Manager Modules | Create `eks/engine/core/error_manager.py` (handle_system_error, handle_data_error, fail-fast check, error summary) and `eks/engine/core/message_manager.py` (catalog lookup, template hydration, verbosity control). Create `eks/engine/core/health_scorer.py` (6-dimension scoring: completeness, confidence, structural, source, xref, consistency) and `eks/engine/core/structure_detector.py` (PDF structural element detection). Add `document_elements` table to `registry.py`. Follow DCC pattern from `dcc/workflow/core_engine/errors/error_manager.py`. | ✅ | R51 |
+| T1.33 | Migrate EKS schemas to config/schemas/ | Move core/asset/ontology config & schema files to `eks/config/schemas/`; update SchemaLoader, ErrorManager, MessageManager, tests, and documentation | 🔷 | 2026-06-22 |
+| T1.34 | Reorganize document schema (3-layer) | Create `eks_doc_base_schema.json` (document + element definitions), `eks_doc_setup_schema.json` (table declarations, extraction rules, health scoring schema), `eks_doc_config.json` (ontology triggers, health score tiers, element expectations). Move `document_metadata_def` and `project_metadata_def` from `eks_base_schema.json` to `eks_doc_base_schema.json`. Add `document_element_def` (7 columns) to doc base schema. Update `schema_loader.py` with doc schema loading and validation. Update `eks_base_schema.json` to remove doc defs. Add 6 new tests in `test_phase1.py`. Registry config stays in `eks_config.json` (pipeline-level setting). | ✅ | 2026-06-22 |
+| T1.35.1 | Enhance doc base schema — enums & missing fields | Add `doc_id_format`, `document_type_code` enum (7 codes), `file_type_code` enum (5), `element_type_code` enum (8); add `file_path`, `ingested_at`, `file_type` to `document_metadata_def`; type `document_element_def.element_type` with enum ref | 🔷 | 2026-06-22 |
+| T1.35.2 | Enhance doc setup schema — registries | Add `document_type_registry`, `file_type_registry`, `element_type_registry` property declarations; update `element_expectations` key schema to use document type codes; add all three registries to `required` | 🔷 | 2026-06-22 |
+| T1.35.3 | Enhance doc config — registry values | Populate `document_type_registry` (7 entries with ontology class + expected file types), `file_type_registry` (5 entries with parser class + MIME), `element_type_registry` (8 entries with description + source + Phase 2/3 use); refactor `element_expectations` keys from A-E → DWG/PI-PID/SPC/RPT/MAN/DS/OM | 🔷 | 2026-06-22 |
+| T1.35.4 | Update schema loader — validate new registries | Add `_validate_doc_registries()` for enum value checks, registry completeness, file type parser class references in `load_all()` | 🔷 | 2026-06-22 |
+| T1.35.5 | Update tests — new validation tests | Add tests: `test_doc_type_enum`, `test_doc_type_registry`, `test_file_type_registry`, `test_element_type_registry`, `test_element_expectations_keys`, `test_doc_metadata_complete_fields` | 🔷 | 2026-06-22 |
+| T1.35.6 | Update appendix B — document registry schema | Add B3.2 Document Type Registry, B3.3 File Type Registry, B3.4 Element Type Registry sections; update B3 schema table with `file_type` column; version bump to v0.9 | ✅ | 2026-06-22 |
+| T1.36 | Auto-DDL from schema | Create `eks/engine/core/schema_to_ddl.py`: read `document_metadata_def` + `project_metadata_def` + `document_element_def` from `eks_doc_base_schema.json` and generate `CREATE TABLE` / `ALTER TABLE` SQL. Refactor `registry.py` to use generated DDL instead of hard-coded DDL. Add `sync_schema()` method. | ✅ | 2026-06-22 |
+| T1.37 | File scanner | Create `eks/engine/core/file_scanner.py`: walk project directory; match files to `file_type_registry[].extension`; validate against `document_type_registry[].expected_file_types`; register placeholder rows in `documents` table with `extract_status = 'pending'`, `file_path`, `file_type`, filename-parsed metadata. | ✅ | 2026-06-22 |
+| T1.38 | Parser router | Create `eks/engine/parsers/parser_router.py`: map `file_type` → `file_type_registry[].parser_class`; instantiate parser; call `parse()`, `extract_metadata()`, `StructureDetector.detect()` in sequence; return structured results. | ✅ | 2026-06-22 |
+| T1.39 | Pipeline orchestrator | Create `eks/engine/core/pipeline_orchestrator.py`: coordinate Phase A (scan → register placeholders), Phase B (route → parse → detect → score → update), Phase C (flag for review). Error handling, logging, batch processing. | ✅ | 2026-06-22 |
+| T1.40 | Manual review workflow | Create review surface: query `documents` where `extract_status != 'success'` or `extraction_confidence < 0.70`. Support metadata correction, element confirmation, score recalculation, document lock. Update `test_phase1.py` with tests. | ✅ | 2026-06-22 |
 
 ---
 
@@ -415,6 +464,25 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | `eks/engine/core/structure_detector.py`              | Create | PDF structural element detection (T1.32) |
 | `eks/engine/core/registry.py`                        | Update | Add document_elements table CRUD (T1.32) |
 | `eks/test/test_t132_modules.py`                      | Create | 47 unit tests for T1.32 modules (T1.32) |
+| `eks/config/schemas/eks_doc_base_schema.json`         | Create | Document + element definitions (T1.34) |
+| `eks/config/schemas/eks_doc_setup_schema.json`        | Create | Document table declarations, extraction rules, health scoring (T1.34) |
+| `eks/config/schemas/eks_doc_config.json`              | Create | Ontology triggers, health score tiers, element expectations (T1.34) |
+| `eks/config/schemas/eks_base_schema.json`             | Update | Remove `document_metadata_def`, `project_metadata_def` (T1.34) |
+| `eks/engine/core/schema_loader.py`                    | Update | Add doc schema loading and validation (T1.34) |
+| `eks/test/test_phase1.py`                             | Update | Add 6 doc schema validation tests (T1.34) |
+| `eks/workplan/appendix_b_document_registry.md`        | Update | Reference doc schema files instead of eks_base_schema.json (T1.34) |
+| `eks/config/schemas/eks_doc_base_schema.json`         | Update | Add enums, missing fields, typed element_type (T1.35.1) |
+| `eks/config/schemas/eks_doc_setup_schema.json`        | Update | Add 3 registry declarations, update expectations key (T1.35.2) |
+| `eks/config/schemas/eks_doc_config.json`              | Update | Populate 3 registries, refactor expectations keys (T1.35.3) |
+| `eks/engine/core/schema_loader.py`                    | Update | Add `_validate_doc_registries()` (T1.35.4) |
+| `eks/test/test_phase1.py`                             | Update | Add 6 new doc schema validation tests (T1.35.5) |
+| `eks/workplan/appendix_b_document_registry.md`        | Update | Add B3.2, B3.3, B3.4 sections, update B3 table (T1.35.6) |
+| `eks/engine/core/schema_to_ddl.py`                    | Create | Auto-generate SQL DDL from JSON schema definitions (T1.36) |
+| `eks/engine/core/file_scanner.py`                     | Create | Walk directory, validate file types, register placeholders (T1.37) |
+| `eks/engine/parsers/parser_router.py`                 | Create | Map file_type to parser class, orchestrate parse flow (T1.38) |
+| `eks/engine/core/pipeline_orchestrator.py`            | Create | Pre-parse → parse → score → review pipeline coordinator (T1.39) |
+| `eks/engine/core/registry.py`                         | Update | Replace hard-coded DDL with SchemaToDDL output; add sync_schema() (T1.36) |
+| `eks/test/test_phase1.py`                             | Update | Add pipeline workflow tests (T1.40) |
 
 ---
 
@@ -468,31 +536,105 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - [x] Asset schema compliant with ontology: fragments categorized (functional/physical) and linked to ontology classes (T1.27)
 - [x] Relationship metadata embedded in asset schemas (T1.28)
 - [x] Document ontology hierarchy and lifecycle mapping triggers implemented (T1.29)
+- [x] Core, asset, and ontology schema/config files reorganized under `eks/config/schemas/` folder and verified by all passing tests (T1.33)
+- [x] Document schema reorganized into dedicated 3-layer pattern: `eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json` (T1.34)
+- [x] `eks_base_schema.json` no longer contains document definitions (moved to doc schema) (T1.34)
+- [x] `document_element_def` added to `eks_doc_base_schema.json` (7 columns) (T1.34)
+- [x] `eks_doc_setup_schema.json` declares table structure, extraction rules, health scoring schema (T1.34)
+- [x] `eks_doc_config.json` contains ontology triggers, health scoring dimensions/tiers, element expectations per document type (T1.34)
+- [x] `registry.py` loads doc schema from `eks_doc_base_schema.json` (T1.34)
+- [x] Schema loader discovers doc schema in fallback chain (T1.34)
+- [x] All Phase 1 tests pass after reorganization (T1.34)
+- [x] Document type enum (7 codes) defined and validated in `eks_doc_base_schema.json` (T1.35.1)
+- [x] File type enum (5 codes) defined and validated (T1.35.1)
+- [x] Element type enum (8 codes) defined and validated (T1.35.1)
+- [x] `document_metadata_def` includes `file_path`, `ingested_at`, `file_type` fields (T1.35.1)
+- [x] `document_type_registry` declared in setup and populated in config with 7 entries (T1.35.2, T1.35.3)
+- [x] `file_type_registry` declared in setup and populated in config with 5 entries (T1.35.2, T1.35.3)
+- [x] `element_type_registry` declared in setup and populated in config with 8 entries (T1.35.2, T1.35.3)
+- [x] `element_expectations` keys refactored from cover types (A-E) to document type codes (T1.35.3)
+- [x] Schema loader validates registry completeness and enum values (T1.35.4)
+- [x] 6 new doc schema tests added and passing (T1.35.5)
+- [x] Auto-DDL generated from JSON schema definitions; registry.py uses generated DDL (T1.36)
+- [x] File scanner walks directory, validates extensions, registers placeholder rows (T1.37)
+- [x] Parser router maps file_type to parser class, orchestrates parse flow (T1.38)
+- [x] Pipeline orchestrator coordinates scan → register → route → parse → detect → score → update (T1.39)
+- [x] Manual review workflow surfaces flagged docs, supports correction and lock (T1.40)
 
 ---
 
 ## 13. Deliverables
 
-- EKS project folder structure
+- EKS project folder structure (including `eks/config/schemas/`)
 - `eks/eks.yml` — Conda environment file
-- Canonical schema files (Base/Setup/Config): `eks_base_schema.json`, `eks_setup_schema.json`, `eks_config.json`
+- Canonical schema files (Base/Setup/Config): `eks_base_schema.json`, `eks_setup_schema.json`, `eks_config.json` (moved to `eks/config/schemas/`)
 - Engine modules: `registry.py`, `revision.py`, `config_registry.py`, `schema_loader.py`
 - Parser modules: `base_parser.py`, `pdf_parser.py`, `docx_parser.py`, `xlsx_parser.py`
 - Logging module: `logger.py`
 - Test files: `test_phase1.py`, `test_asset_schema.py`, `test_loader_full.py`, `validate_ontology.py`
 - Log files: `update_log.md`, `issue_log.md`
 - Package init files: `engine/__init__.py`, `engine/core/__init__.py`, `engine/parsers/__init__.py`, `engine/logging/__init__.py`
-- Asset schema files: `eks_asset_base_schema.json` (13 fragments), `eks_asset_setup_schema.json` (fragment categories + inheritance), `eks_asset_config.json` (fragment categories populated)
-- Ontology files: `eks_ontology_base_schema.json`, `eks_ontology_setup_schema.json`, `eks_ontology_config.json`
+- Asset schema files: `eks_asset_base_schema.json` (13 fragments), `eks_asset_setup_schema.json` (fragment categories + inheritance), `eks_asset_config.json` (fragment categories populated) (moved to `eks/config/schemas/`)
+- Ontology files: `eks_ontology_base_schema.json`, `eks_ontology_setup_schema.json`, `eks_ontology_config.json` (moved to `eks/config/schemas/`)
 - Pipeline message & error schema files: `eks_error_code_base.json`, `eks_error_config.json`, `eks_message_base.json`, `eks_message_config.json` (`eks/config/schemas/`)
 - Error/message/scoring modules: `error_manager.py`, `message_manager.py`, `health_scorer.py`, `structure_detector.py`
 - Test file: `test_t132_modules.py` (47 tests, all passing)
 - Reports: `phase_1_foundation_report.md`, `phase_1_t130_t132_report.md`
+- Document schema files (T1.34): `eks_doc_base_schema.json` (document + element definitions), `eks_doc_setup_schema.json` (table declarations, extraction rules, health scoring), `eks_doc_config.json` (ontology triggers, health score tiers, element expectations)
+- Enhanced document schema files (T1.35): `eks_doc_base_schema.json` v1.1 (enums + missing fields), `eks_doc_setup_schema.json` v1.1 (3 registries), `eks_doc_config.json` v1.1 (registry values + refactored expectations)
+- Updated test file: `test_phase1.py` (+6 tests for enhanced doc schema)
+- Updated appendix: `appendix_b_document_registry.md` v0.9 (B3.2, B3.3, B3.4 sections)
+- Auto-DDL module (T1.36): `schema_to_ddl.py` (generates SQL from JSON schema definitions)
+- File scanner module (T1.37): `file_scanner.py` (directory walk, type validation, placeholder registration)
+- Parser router module (T1.38): `parser_router.py` (file_type → parser class routing)
+- Pipeline orchestrator (T1.39): `pipeline_orchestrator.py` (Phase A/B/C coordinator)
+- Manual review workflow (T1.40): `review_manager.py` (query flagged docs, metadata correction, element confirmation, score recalculation, document lock) + 4 tests
 
 
 ---
 
-## 14. References
+## 14. Phase 1 Pipeline Architecture (Detailed)
+
+```mermaid
+graph TB
+    subgraph "Pre-Parse Bootstrap"
+        DDL["SchemaToDDL<br/><i>T1.36</i><br/>Read document_metadata_def<br/>project_metadata_def<br/>document_element_def<br/>from eks_doc_base_schema.json"]
+        SYNC["sync_schema()<br/><i>T1.36</i><br/>CREATE TABLE IF NOT EXISTS<br/>ALTER TABLE ADD COLUMN IF NOT EXISTS"]
+        DDL --> SYNC
+    end
+
+    subgraph "File Discovery"
+        SCANNER["FileScanner<br/><i>T1.37</i><br/>Walk project directory<br/>Match file_type_registry<br/>Validate expected_file_types<br/>Register placeholder rows<br/>extract_status = 'pending'"]
+        SYNC --> SCANNER
+    end
+
+    subgraph "Parse Pipeline"
+        ROUTER["ParserRouter<br/><i>T1.38</i><br/>file_type → parser_class<br/>from file_type_registry"]
+        PARSER["Plug-in Parser<br/>PDFParser · DOCXParser · XLSXParser<br/>DGNParserStub · DWGParserStub"]
+        DETECTOR["StructureDetector<br/>detect()<br/>cover_page · revision_table<br/>section · table · image<br/>link · legend · note"]
+        ROUTER --> PARSER --> DETECTOR
+        SCANNER --> ROUTER
+    end
+
+    subgraph "Scoring"
+        SCORER["HealthScorer.score()<br/>6 Dimensions:<br/>completeness · extraction_confidence<br/>structural_completeness · source_quality<br/>xref_quality · consistency"]
+        DETECTOR --> SCORER
+    end
+
+    subgraph "Registry Update"
+        REGISTRY["Document Registry<br/>DuckDB<br/>documents table<br/>document_elements table"]
+        SCORER --> REGISTRY
+    end
+
+    subgraph "Manual Review"
+        REVIEW["Review Workflow<br/><i>T1.40</i><br/>Flag: extract_status ≠ 'success'<br/>Flag: extraction_confidence < 0.70<br/>→ Correct metadata<br/>→ Confirm elements<br/>→ Recalculate score<br/>→ Lock for Phase 2"]
+        REGISTRY --> REVIEW
+    end
+```
+
+---
+
+## 15. References
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
 2. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)

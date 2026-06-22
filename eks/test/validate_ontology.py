@@ -4,7 +4,9 @@ from referencing.jsonschema import DRAFT7
 from jsonschema import validate
 from pathlib import Path
 
-CONFIG_DIR = Path('eks/config')
+CONFIG_DIR = Path('eks/config/schemas')
+if not CONFIG_DIR.exists():
+    CONFIG_DIR = Path('eks/config')
 
 def test_ontology_validation():
     base   = json.load(open(CONFIG_DIR / 'eks_ontology_base_schema.json',  encoding='utf-8'))

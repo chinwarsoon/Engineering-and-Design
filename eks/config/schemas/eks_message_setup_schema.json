@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/pipeline-message/setup",
+  "title": "EKS Pipeline Message Setup Schema",
+  "description": "Message schema structure with properties (references base definitions only)",
+  "version": "1.0.0",
+  "type": "object",
+  "allOf": [
+    { "$ref": "https://eks.engineering/schemas/pipeline-message/base" }
+  ],
+  "properties": {
+    "metadata": {
+      "$ref": "https://eks.engineering/schemas/pipeline-message/base#/definitions/message_metadata"
+    },
+    "messages": {
+      "type": "object",
+      "description": "Pipeline message definitions (actual values)",
+      "additionalProperties": {
+        "$ref": "https://eks.engineering/schemas/pipeline-message/base#/definitions/message_entry"
+      }
+    }
+  },
+  "additionalProperties": false
+}

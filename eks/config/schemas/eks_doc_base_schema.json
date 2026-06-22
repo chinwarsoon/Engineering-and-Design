@@ -1,0 +1,104 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://eks.engineering/schemas/eks_doc_base_schema.json",
+    "version": "1.1.0",
+    "title": "EKS Document Base Schema - Definitions",
+    "description": "Document metadata, structural element definitions, and shared enums for document type, file type, and element type codes per T1.35.",
+    "type": "object",
+    "definitions": {
+        "doc_id_format": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+-[A-Za-z0-9]+$",
+            "description": "Document identifier format: '{doc_number}-{revision}'."
+        },
+        "revision_id": {
+            "type": "string",
+            "description": "Generic revision identifier placeholder. Project-specific patterns defined in Config."
+        },
+        "discipline_code": {
+            "type": "string",
+            "description": "Generic discipline code placeholder."
+        },
+        "document_type_code": {
+            "type": "string",
+            "enum": ["DWG", "PI-PID", "SPC", "DS", "MAN", "OM", "RPT"],
+            "description": "Document type codes aligned with ontology document_type_mapping (Appendix C) and TWRP assets."
+        },
+        "file_type_code": {
+            "type": "string",
+            "enum": ["pdf", "dgn", "docx", "xlsx", "dwg"],
+            "description": "Source file format codes aligned with TWRP parsers and pipeline parsers config."
+        },
+        "element_type_code": {
+            "type": "string",
+            "enum": ["cover_page", "revision_table", "section", "table", "image", "link", "legend", "note"],
+            "description": "Structural element types per Appendix D D7.10."
+        },
+        "project_metadata_def": {
+            "type": "object",
+            "properties": {
+                "project_title": { "type": "string" },
+                "project_number": { "type": "string" },
+                "area": { "type": "string" },
+                "discipline": { "$ref": "#/definitions/discipline_code" },
+                "department": { "type": "string" }
+            },
+            "required": ["project_title", "project_number"],
+            "additionalProperties": false
+        },
+        "document_metadata_def": {
+            "type": "object",
+            "properties": {
+                "source_type": {
+                    "type": "string",
+                    "enum": ["ingested", "referenced", "stub"],
+                    "default": "ingested"
+                },
+                "document_type": { "$ref": "#/definitions/document_type_code" },
+                "document_number": { "type": "string" },
+                "revision": { "$ref": "#/definitions/revision_id" },
+                "status": { "type": "string" },
+                "is_latest": { "type": "boolean", "default": true },
+                "file_path": { "type": "string", "description": "Relative path to source file on disk" },
+                "file_type": { "$ref": "#/definitions/file_type_code", "description": "Source file format for parser routing" },
+                "ingested_at": { "type": "string", "format": "date-time", "description": "UTC timestamp of ingestion" },
+                "created_by": { "type": "string" },
+                "checked_by": { "type": "string" },
+                "approved_by": { "type": "string" },
+                "originator_company": { "type": "string" },
+                "security_class": { "type": "string" },
+                "asset_tags": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "default": []
+                },
+                "page_count": { "type": "integer" },
+                "extract_status": {
+                    "type": "string",
+                    "enum": ["pending", "success", "partial", "failed"],
+                    "default": "pending"
+                },
+                "extraction_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                "extraction_notes": { "type": "string" },
+                "verified_by": { "type": "string" }
+            },
+            "required": ["source_type", "document_type", "document_number", "revision"],
+            "additionalProperties": false
+        },
+        "document_element_def": {
+            "type": "object",
+            "description": "Structural element extracted from a document (cover page, section, table, image, etc.) per Appendix D D7.10.",
+            "properties": {
+                "doc_id": { "$ref": "#/definitions/doc_id_format", "description": "FK to document_registry.doc_id" },
+                "element_type": { "$ref": "#/definitions/element_type_code" },
+                "element_id": { "type": "string", "description": "Page number or location identifier" },
+                "title": { "type": "string", "description": "Heading, field name, or section title" },
+                "content": { "type": "string", "description": "Raw text or JSON for complex structures" },
+                "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+                "source": { "type": "string", "enum": ["regex", "ocr", "heuristic", "manual"] }
+            },
+            "required": ["doc_id", "element_type", "source"],
+            "additionalProperties": false
+        }
+    }
+}

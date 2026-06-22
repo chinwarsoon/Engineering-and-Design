@@ -1,8 +1,8 @@
 # Appendix C — Dynamic ISO 15926-Aligned Ontology
 
-**Version**: 1.7  
+**Version**: 1.8  
 **Status**: ✅ APPROVED & IMPLEMENTED  
-**Last Updated**: 2026-06-18  
+**Last Updated**: 2026-06-22  
 
 ---
 
@@ -18,6 +18,7 @@
 | 1.5     | 2026-06-18 | Gemini CLI  | Added specialized engineering relations (Flow, Power, Control, Governance, Set Points) and target classes per agent_rule Section 2 & 4. |
 | 1.6     | 2026-06-18 | Gemini CLI  | Refined transitivity logic: Hierarchical/directional relations with inverses (CONTROLS, GOVERNED_BY) set to transitive; Physical connectivity (CONNECTS_TO) set to non-transitive. |
 | 1.7     | 2026-06-18 | Gemini CLI  | Added Document Class Hierarchy and lifecycle relationships (SUPERSEDES, SUPPLEMENTS, REFERENCES_DOC). Linked Appendix B mapping triggers. |
+| 1.8     | 2026-06-22 | opencode    | Added `DataSheet` (subClassOf Specification, document_type_mapping: DS) and `OpsManual` (subClassOf Manual, document_type_mapping: OM) to support T1.35 document type code alignment. Updated C4 class hierarchy table. |
 
 ---
 
@@ -35,7 +36,7 @@ The system is fully dynamic: all classes, inheritance rules, and relationships a
 | :--- | :--- | :--- |
 | `$schema` | `https://eks.engineering/schemas/eks_ontology_setup_schema.json` | Link to property declarations and inheritance. |
 | `$id` | `https://eks.engineering/configs/eks_ontology_config.json` | Canonical URI for the config instance. |
-| `version` | `1.5.0` | Current version of the ontology configuration. |
+| `version` | `1.6.0` | Current version of the ontology configuration. |
 | `title` | `EKS ISO 15926-Aligned Dynamic Ontology` | Descriptive title. |
 | `description` | `Dynamic ontology configuration for EKS classes...` | Scope and purpose statement. |
 
@@ -83,8 +84,10 @@ The following table represents the class taxonomy and its associated fragments/m
 | └─ `Document` | Document | `ISO15926_Entity` | — |
 | &nbsp;&nbsp;&nbsp;├─ `Drawing` | Engineering Drawing | `Document` | `DWG` |
 | &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ `PID_Drawing` | P&ID Drawing | `Drawing` | `PI-PID` |
-| &nbsp;&nbsp;&nbsp;├─ `Specification` | Technical Specification | `Document` | `SPC`, `DS` |
-| &nbsp;&nbsp;&nbsp;├─ `Manual` | Vendor O&M Manual | `Document` | `MAN`, `OM` |
+| &nbsp;&nbsp;&nbsp;├─ `Specification` | Technical Specification | `Document` | `SPC` |
+| &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ `DataSheet` | Equipment Data Sheet | `Specification` | `DS` |
+| &nbsp;&nbsp;&nbsp;├─ `Manual` | Vendor O&M Manual | `Document` | `MAN` |
+| &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ `OpsManual` | Operation Manual | `Manual` | `OM` |
 | &nbsp;&nbsp;&nbsp;└─ `Report` | Technical Report | `Document` | `RPT` |
 
 ---

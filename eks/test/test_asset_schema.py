@@ -8,7 +8,11 @@ import sys
 from pathlib import Path
 
 # Resolve config dir
-CONFIG_DIR = Path('eks/config')
+CONFIG_DIR = Path('eks/config/schemas')
+if not CONFIG_DIR.exists():
+    CONFIG_DIR = Path('eks/config')
+if not CONFIG_DIR.exists():
+    CONFIG_DIR = Path('config/schemas')
 if not CONFIG_DIR.exists():
     CONFIG_DIR = Path('config')
 
