@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://eks.engineering/schemas/pipeline-message/base",
+  "$id": "https://eks.engineering/schemas/eks_message_base.json",
   "title": "EKS Pipeline Message Base Schema",
   "description": "Base definitions for EKS pipeline terminal messages",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "object",
   "definitions": {
     "message_id": {
@@ -12,9 +12,7 @@
       "description": "Unique identifier for the message (e.g., MILESTONE_PIPELINE_START)"
     },
     "verbosity_level": {
-      "type": "integer",
-      "enum": [0, 1, 2, 3],
-      "description": "Verbosity level (0=quiet, 1=normal, 2=debug, 3=trace)"
+      "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/verbosity_level"
     },
     "template": {
       "type": "string",

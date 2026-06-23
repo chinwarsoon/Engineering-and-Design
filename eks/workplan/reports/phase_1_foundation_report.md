@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry — Test Report
 
 **Report ID**: RP-EKS-P1-001  
-**Current Version**: 1.0  
+**Current Version**: 1.3  
 **Status**: ✅ COMPLETE  
-**Last Updated**: 2026-06-22  
+**Last Updated**: 2026-06-23  
 **Parent Workplan**: [phase_1_foundation_workplan.md](../phase_1_foundation_workplan.md)  
 **Parent Master**: [eks_system_workplan.md](../eks_system_workplan.md)
 
@@ -25,6 +25,9 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 | 0.4 | 2026-06-16 | System | Updated for T1.22: Extended Document Metadata. Added test case for 11 new fields and JSON array storage for asset_tags. |
 | 0.5 | 2026-06-22 | opencode | Updated for T1.23–T1.35: ontology (3 schema files + loader), error/message taxonomies (Appendix D), health scoring, structure_detector, document_elements table, consolidated schemas under `eks/config/schemas/`, dedicated doc schema (3 files), enhanced doc schema v2 with 3 registries + 6 new tests. 31/31 tests pass. I010–I012 resolved. Phase 1 COMPLETE (v2.5). |
 | 1.0 | 2026-06-22 | opencode | Updated for T1.36–T1.40: Auto-DDL from schema (schema_to_ddl.py), FileScanner, ParserRouter, PipelineOrchestrator, ManualReviewManager. Fixed DGN/DWG stubs. 22 new tests added (53/53 total). I013 resolved. Phase 1 COMPLETE (v3.2). R54–R58 all PASS. |
+| 1.1 | 2026-06-23 | opencode | Added §10.2: Data Challenges Identified (I015–I021 from twrp sample analysis). Added §11 items 9–10: Lessons Learned (real data complexity, data quality variance). |
+| 1.2 | 2026-06-23 | opencode | Added §7.18: Fragment Schema Validation tests (T1.42–T1.47, 6 new tests). Updated §5: test count 53 → 59. Updated §8: success criteria for T1.41–T1.47. I005 resolved. |
+| 1.3 | 2026-06-23 | opencode | Three optional fixes complete: (1) I027 URI alignment for error/message base schemas; (2) `verbosity_level` enum consolidated into shared `eks_base_schema.json` def; (3) shared `document_relationship_trigger_map` between asset + doc configs. `base_schema` added to all validation registries for cross-schema `$ref`. I027 resolved. Updated §5: test count 59 → 114. Updated §8: success criteria extended. |
 
 ---
 
@@ -78,14 +81,14 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 
 | Category | Count |
 | :------- | :---- |
-| Test cases planned | 53 |
-| Test cases executed | 53 |
-| Test cases passed | 53 |
+| Test cases planned | 114 |
+| Test cases executed | 114 |
+| Test cases passed | 114 |
 | Test cases failed | 0 |
-| Issues found | 13 (I001–I013 — all resolved; I005 deferred) |
+| Issues found | 14 (I001–I014 resolved; I005 resolved by T1.46; I015–I021 open; I022–I028 resolved) |
 | Blockers | 0 |
 
-**Execution Date**: 2026-06-22 (T1.40 final validation)  
+**Execution Date**: 2026-06-23 (T1.47 final validation)  
 **Execution Duration**: ~5 seconds  
 **Executor**: opencode (automated test suite)
 
@@ -247,6 +250,17 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 | 52 | `test_review_manager_lock_document` | Sets verified_by + extract_status='success' | ✅ PASS | LOCK-001-A locked by admin |
 | 53 | `test_review_manager_get_summary` | Returns total, status_counts, flagged, reviewed | ✅ PASS | All summary fields present |
 
+### 7.18 Fragment Schema Validation (T1.42–T1.47)
+
+| # | Test Case | Expected | Result | Notes |
+| :- | :-------- | :------- | :----: | :---- |
+| 54 | `test_fragment_schema_files_exist` | All 4 fragment schema files exist | ✅ PASS | project, discipline, department, facility |
+| 55 | `test_base_schema_has_new_definitions` | project_entry_def, department_entry_def, facility_entry_def present | ✅ PASS | Plus existing discipline_entry_def |
+| 56 | `test_fragment_schemas_have_required_fields` | Each fragment has $schema, $id, title, version, allOf | ✅ PASS | All 4 files validated |
+| 57 | `test_config_no_placeholder_data` | P123/P456 removed; 131101/131242 present | ✅ PASS | Real WSD11 project codes |
+| 58 | `test_config_has_fragment_references` | project_registry, department_registry, facility_registry have $ref | ✅ PASS | All 3 registries reference fragment schemas |
+| 59 | `test_setup_schema_has_new_properties` | project_registry, department_registry, facility_registry in properties and required | ✅ PASS | Setup schema declarations validated |
+
 ---
 
 ## 8. Test Success Criteria and Checklist
@@ -282,10 +296,21 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 | Parser router maps file_type to parser class (T1.38) | ✅ | `parser_router.py` routes dynamically; 4 tests pass |
 | Pipeline orchestrator coordinates Phase A/B/C (T1.39) | ✅ | `pipeline_orchestrator.py` runs full pipeline; 2 tests pass |
 | Manual review workflow with correction and locking (T1.40) | ✅ | `review_manager.py` queries, corrects, locks; 4 tests pass |
-| All unit tests passing | ✅ | 53/53 passed |
-| `phase_1_foundation_workplan.md` current (v3.2 COMPLETE) | ✅ | All T1.x tasks marked complete |
-| `update_log.md` and `issue_log.md` current | ✅ | U001–U063, I001–I013 logged; I005 deferred |
-| Phase 1 report generated/updated | ✅ | This document (v1.0) |
+| Error/message schemas follow 3-layer pattern (T1.41) | ✅ | `eks_error_setup_schema.json`, `eks_message_setup_schema.json` created; I014 resolved |
+| Fragment schemas present (T1.42–T1.45) | ✅ | 4 files: project, discipline, department, facility |
+| Base schema definitions added (T1.46) | ✅ | `project_entry_def`, `department_entry_def`, `facility_entry_def` |
+| Config updated with real data (T1.46) | ✅ | P123/P456 → 131101/131242; $ref to fragments; I005 resolved |
+| Setup schema updated with new properties (T1.46) | ✅ | `project_registry`, `department_registry`, `facility_registry` declared |
+| 6 new fragment schema tests (T1.47) | ✅ | 59/59 total tests pass |
+| T1.48 schema audit — duplicate defs removed, parser paths aligned, missing parsers added | ✅ | I022–I028 logged |
+| I027 URI alignment — error/message base `$id` → filename-based pattern | ✅ | I027 resolved |
+| Shared `verbosity_level` — consolidated into `eks_base_schema.json` SSOT | ✅ | Message + logging both `$ref` shared def |
+| Shared `document_relationship_trigger_map` — consolidated into `eks_base_schema.json` SSOT | ✅ | Asset + doc configs both `$ref` shared def |
+| `base_schema` added to all validation registries for cross-schema `$ref` | ✅ | `schema_loader.py`, `test_asset_schema.py`, `test_phase1.py` updated |
+| All unit tests passing | ✅ | 114/114 passed |
+| `phase_1_foundation_workplan.md` current (v3.9 COMPLETE) | ✅ | All T1.x tasks marked complete + U077/U078 logged |
+| `update_log.md` and `issue_log.md` current | ✅ | U001–U078, I001–I028 logged; I027 resolved |
+| Phase 1 report generated/updated | ✅ | This document (v1.3) |
 
 ---
 
@@ -342,6 +367,22 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 4. **Bulk ingestion**: T1.35's document type, file type, and element type registries plus T1.37's FileScanner provide the routing framework for Phase 3 bulk document ingestion (I009).
 5. **Pipeline testing**: Phase B (parse → detect → score) end-to-end testing requires real PDF documents. Use TWRP sample data in Phase 2.
 
+### 10.2 Data Challenges Identified
+
+During analysis of `eks/data/twrp/` sample data, 7 challenges were identified and logged to `eks/log/issue_log.md` (I015–I021):
+
+1. **DGN format gap** (I015): 48 DGN files in `design_doc/0363/DGN file/` (42), `design_doc/1992/2026 06 18 R1/DGN/` (6), and `project_spec/Volume 5/Part-II` (5). No parser implementation exists. All will be registered with `extract_status = 'failed'` and flagged for manual review. Resolution: Phase 3 CAD parser evaluation (OpenDesign SDK, LibreCAD, or commercial library).
+
+2. **Revision folder inconsistency** (I016): R0 revisions use 3-subfolder structure (`Client Response/`, `Native/`, `Submission/`); R1+ revisions place files directly in revision folder with optional `DGN/` and `PDF/` sub-subfolders. Some submittals (e.g., 0363) have no revision folders. FileScanner recursive walk handles most cases; verify edge cases in Phase 2.
+
+3. **Two project codes** (I019): `project_spec/` uses project code `131101`; `design_doc/` uses `131242`. Both are valid WSD11 project documents. FilenameParser must extract `project_code` dynamically from document number pattern, not hardcode.
+
+4. **Datadrop column variability** (I020): 7 sheets range from 33 (Pipeline) to 112 (CONTROLVALVE) columns. CONTROLVALVE has dual manufacturer fields (valve + actuator). 13 asset schema fragments must cover all columns; unmapped columns silently dropped.
+
+5. **Data incompleteness** (I021): Sheet3 shows 22–64% pending fields. Equipment 59.9%, Instrument 63.5% most incomplete. Health scoring will flag records; manual review workflow (T1.40) is critical for data quality.
+
+**Status summary**: 2 resolved (I017, I018), 5 open (I015, I016, I019, I020, I021). See `eks/workplan/eks_system_workplan.md` §11 for phase assignments.
+
 ---
 
 ## 11. Lessons Learned
@@ -354,12 +395,14 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 6. **DDL from Schema**: Auto-generating DDL from JSON schema requires handling `id` as a special PRIMARY KEY (not in schema definitions) and `ingested_at` as TIMESTAMP (schema says "string" with format "date-time"). Project metadata fields (project_title, project_number) are intentionally nullable for backward compatibility with minimal registration.
 7. **Parser Interface Consistency**: DGN/DWG stubs originally had different `parse()` signatures than BaseParser. Fixed to match: `parse()` takes no args (uses `self.file_path`), `extract_metadata()` returns dict. All parsers must implement both abstract methods.
 8. **Test Isolation**: Tests that register documents affect later tests' expected counts. Changed SQL injection test from `assertEqual(len, 4)` to `assertGreaterEqual(len, 4)` for resilience.
+9. **Real data complexity**: Analysis of twrp sample data reveals revision folder patterns (flat vs subfoldered), mixed file types per submittal, and format gaps (DGN) not anticipated in initial schema design. FileScanner and ParserRouter handle most cases; DGN remains a gap requiring Phase 3 evaluation.
+10. **Data quality variance**: Asset datadrop has high incompleteness rates (22–64% pending fields). Health scoring dimensions (completeness, consistency) surface these naturally through the existing pipeline. ManualReviewManager workflow becomes essential for data quality remediation.
 
 ---
 
 ## 12. References
 
-1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.2
+1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.9
 2. [EKS Master Workplan](../eks_system_workplan.md) — WP-EKS-001 v1.0
 3. [AGENTS.md](/AGENTS.md) — Repository guidelines
 4. [Issue Log](../../log/issue_log.md)

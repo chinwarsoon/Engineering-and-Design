@@ -1,16 +1,16 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://eks.engineering/schemas/error-code/setup",
+  "$id": "https://eks.engineering/schemas/eks_error_setup_schema.json",
   "title": "EKS Error Code Setup Schema",
   "description": "Error code schema structure with properties (references base definitions only)",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "object",
   "allOf": [
-    { "$ref": "https://eks.engineering/schemas/error-code/base" }
+    { "$ref": "https://eks.engineering/schemas/eks_error_code_base.json" }
   ],
   "properties": {
     "metadata": {
-      "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_catalog_metadata"
+      "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_catalog_metadata"
     },
     "system_error_ranges": {
       "type": "object",
@@ -18,22 +18,22 @@
       "additionalProperties": false,
       "properties": {
         "environment": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "file_io": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "config": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "runtime": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "ai": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "bootstrap": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         }
       }
     },
@@ -41,7 +41,7 @@
       "type": "object",
       "description": "System error definitions (actual values)",
       "additionalProperties": {
-        "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/system_error_entry"
+        "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/system_error_entry"
       }
     },
     "data_error_ranges": {
@@ -50,19 +50,19 @@
       "additionalProperties": false,
       "properties": {
         "phase_1_discovery": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "phase_2_parse": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "phase_3_extract": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "phase_3_xref": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "phase_3_graph": {
-          "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/error_category_range"
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         }
       }
     },
@@ -70,11 +70,11 @@
       "type": "object",
       "description": "Data/logic error definitions (actual values)",
       "additionalProperties": {
-        "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/data_error_entry"
+        "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/data_error_entry"
       }
     },
     "migration_log": {
-      "$ref": "https://eks.engineering/schemas/error-code/base#/definitions/migration_log_entry"
+      "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/migration_log_entry"
     }
   },
   "additionalProperties": false

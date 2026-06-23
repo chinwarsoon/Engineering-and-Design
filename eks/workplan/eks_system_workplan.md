@@ -1,9 +1,9 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 1.1  
+**Current Version**: 1.5  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-22  
+**Last Updated**: 2026-06-23  
 
 ---
 
@@ -32,6 +32,8 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | 1.1 | 2026-06-22 | opencode | R54–R58 (T1.36–T1.40) marked ✅ PASS: Auto-DDL, FileScanner, ParserRouter, PipelineOrchestrator, ManualReviewManager. Phase 1 status confirmed ✅ COMPLETE. Requirement count updated: 48 → 53. |
 | 1.2 | 2026-06-22 | opencode | Restructured master workplan: removed detailed phase Mermaid diagrams (§10.2–10.6) to respective phase workplans. Master now contains only high-level overview (§10.1), data store summary (§10.7), and notes (§10.8). Phase-specific diagrams added to Phase 1–5 workplans. |
 | 1.3 | 2026-06-22 | opencode | Added §8.1: Phase 1 Summary — inputs, outputs, functionality, key modules, parsers, schemas, test coverage, requirements met, and downstream handoff to Phase 2. |
+| 1.4 | 2026-06-23 | opencode | Added §11: Known Data Challenges from twrp sample analysis (I015–I021). Added DGN parsing gap and data incompleteness as risks. |
+| 1.5 | 2026-06-23 | opencode | Updated §8.1 Phase 1 Summary: schema count 17 → 21 (added 4 fragment schemas), test count 53 → 59, I005 resolved, I014 resolved. |
 
 ---
 
@@ -198,8 +200,8 @@ Each phase must be approved and completed before the next phase begins.
 | **Functionality** | Schema-driven 3-layer design (base/setup/config) for core, asset, document, ontology, error, and message schemas; plug-in parsers (PDF, DOCX, XLSX, DGN stub, DWG stub); file discovery with type validation; auto-DDL from JSON schema; 6-dimension health scoring; structural element detection; manual review workflow with metadata correction and document locking; tiered logging (levels 0–3); SSOT global parameters |
 | **Key Modules** | `schema_loader.py`, `registry.py`, `schema_to_ddl.py`, `file_scanner.py`, `parser_router.py`, `pipeline_orchestrator.py`, `review_manager.py`, `health_scorer.py`, `structure_detector.py`, `error_manager.py`, `message_manager.py` |
 | **Parsers** | `pdf_parser.py`, `docx_parser.py`, `xlsx_parser.py`, `dgn_parser.py` (stub), `dwg_parser.py` (stub) |
-| **Schemas** | Core: `eks_base/setup/config.json`; Asset: `eks_asset_base/setup/config.json` (13 fragments, 14 AT_ types); Document: `eks_doc_base/setup/config.json` (7 doc types, 5 file types, 8 element types); Ontology: `eks_ontology_base/setup/config.json`; Error: `eks_error_code_base.json`, `eks_error_config.json` (65 codes); Message: `eks_message_base.json`, `eks_message_config.json` (33 messages) |
-| **Test Coverage** | 53/53 tests passing (`test_phase1.py`) — schema validation, registry CRUD, parser routing, pipeline orchestration, review workflow, health scoring, error/message handling |
+| **Schemas** | Core: `eks_base/setup/config.json`; Asset: `eks_asset_base/setup/config.json` (13 fragments, 14 AT_ types); Document: `eks_doc_base/setup/config.json` (7 doc types, 5 file types, 8 element types); Ontology: `eks_ontology_base/setup/config.json`; Error: `eks_error_code_base.json`, `eks_error_config.json` (65 codes); Message: `eks_message_base.json`, `eks_message_config.json` (33 messages); Fragments: `eks_project_code_schema.json`, `eks_discipline_schema.json`, `eks_department_schema.json`, `eks_facility_schema.json` |
+| **Test Coverage** | 59/59 tests passing (`test_phase1.py`) — schema validation, registry CRUD, parser routing, pipeline orchestration, review workflow, health scoring, error/message handling, fragment schema validation |
 | **Requirements Met** | R01, R02, R06–R09, R21, R22, R26, R29, R33–R35, R36, R39(schema), R44, R51, R52, R53, R54–R58 (22 requirements) |
 | **Feeds Into** | Phase 2: Parsed documents + metadata → chunking; Document registry → chunk registry; Schema patterns → embedding config |
 
@@ -295,6 +297,26 @@ graph LR
 - **Detailed Mermaid diagrams**: Each phase's detailed pipeline diagram is maintained in its respective phase workplan file (Phase 1–5).
 
 
+## 11. Known Data Challenges (from twrp sample data)
+
+Analysis of `eks/data/twrp/` sample data identified 7 challenges (I015–I021 in `eks/log/issue_log.md`). These inform downstream phase planning.
+
+| Challenge | Issue | Category | Severity | Phase | Task |
+|-----------|-------|----------|----------|-------|------|
+| DGN parser stub — 48 CAD files unparseable | I015 | Parser | 🟡 Medium | 3 | T3.x |
+| Revision folder hierarchy inconsistency | I016 | FileScanner | 🟢 Low | 2 | T2.x |
+| Two project codes (131101 vs 131242) | I019 | Schema | 🟡 Medium | 2 | T2.x |
+| Datadrop column range (33–112) — fragment coverage | I020 | Schema | 🟡 Medium | 3 | T3.9 |
+| 22–64% data incompleteness across sheets | I021 | Data Quality | 🟠 High | 3 | T3.9 |
+| Mixed file types per submittal | I017 | Pipeline | 🟢 Low | — | RESOLVED (T1.38) |
+| Temp file filtering | I018 | FileScanner | 🟢 Low | — | RESOLVED (T1.37) |
+
+**Notes:**
+- I017 and I018 are resolved in Phase 1 — FileScanner and ParserRouter handle these patterns
+- I015 (DGN gap) is the highest-impact open issue — 48 CAD files will require Phase 3 parser implementation
+- I021 (data incompleteness) is the highest-severity open issue — health scoring and manual review workflow are critical mitigation
+
+
 ## 9. References
 
 1. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
@@ -306,6 +328,8 @@ graph LR
 7. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md)
 8. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
 9. [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md)
-10. [appendix_c_ontology.md](appendix_c_ontology.md)
-11. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)
-11. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline messages & error codes
+10. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema
+11. [appendix_b_document_registry.md](appendix_b_document_registry.md) — Document Registry
+12. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology
+13. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)
+14. [appendix_e_schema_design.md](appendix_e_schema_design.md) — EKS Schema Design (v0.1)

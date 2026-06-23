@@ -1,7 +1,7 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "title": "EKS Document Setup Schema - Declarations",
     "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, health scoring configuration, and element expectations per Appendix B, C & D. Updated per T1.35.",
     "allOf": [
@@ -15,9 +15,8 @@
         "title": { "type": "string" },
         "description": { "type": "string" },
         "ontology_triggers": {
-            "type": "object",
-            "description": "Maps document registry fields to knowledge graph relationship types for Phase 3 ingestion",
-            "additionalProperties": { "type": "string" }
+            "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/document_relationship_trigger_map",
+            "description": "Maps document registry fields to knowledge graph relationship types for Phase 3 ingestion (shared SSOT with asset config)"
         },
         "health_scoring": {
             "type": "object",

@@ -20,10 +20,47 @@
         },
         "discipline_registry": {
             "type": "object",
-            "additionalProperties": {
-                "type": "array",
-                "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discipline_entry_def" }
-            }
+            "description": "Reference to discipline fragment schema or inline array",
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {
+                        "$ref": { "type": "string" }
+                    },
+                    "required": ["$ref"]
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discipline_entry_def" }
+                    }
+                }
+            ]
+        },
+        "project_registry": {
+            "type": "object",
+            "description": "Reference to project code fragment schema",
+            "properties": {
+                "$ref": { "type": "string" }
+            },
+            "required": ["$ref"]
+        },
+        "department_registry": {
+            "type": "object",
+            "description": "Reference to department fragment schema",
+            "properties": {
+                "$ref": { "type": "string" }
+            },
+            "required": ["$ref"]
+        },
+        "facility_registry": {
+            "type": "object",
+            "description": "Reference to facility fragment schema",
+            "properties": {
+                "$ref": { "type": "string" }
+            },
+            "required": ["$ref"]
         },
         "global_paths": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/global_paths_def" },
         "registry": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/registry_def" },
@@ -32,6 +69,6 @@
         "vector_store": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/vector_store_def" },
         "logging": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/logging_def" }
     },
-    "required": ["project_rules_registry", "discipline_registry", "global_paths", "registry", "parsers", "embedding", "vector_store", "logging"],
+    "required": ["project_rules_registry", "discipline_registry", "project_registry", "department_registry", "facility_registry", "global_paths", "registry", "parsers", "embedding", "vector_store", "logging"],
     "additionalProperties": false
 }

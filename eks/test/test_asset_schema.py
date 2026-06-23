@@ -41,11 +41,12 @@ class TestAssetSchema(unittest.TestCase):
         from referencing.jsonschema import DRAFT7
         from jsonschema import validate
 
-        base   = json.load(open(CONFIG_DIR / 'eks_asset_base_schema.json',  encoding='utf-8'))
-        setup  = json.load(open(CONFIG_DIR / 'eks_asset_setup_schema.json', encoding='utf-8'))
-        config = json.load(open(CONFIG_DIR / 'eks_asset_config.json',        encoding='utf-8'))
+        base    = json.load(open(CONFIG_DIR / 'eks_asset_base_schema.json',  encoding='utf-8'))
+        setup   = json.load(open(CONFIG_DIR / 'eks_asset_setup_schema.json', encoding='utf-8'))
+        config  = json.load(open(CONFIG_DIR / 'eks_asset_config.json',        encoding='utf-8'))
+        core_base = json.load(open(CONFIG_DIR / 'eks_base_schema.json',       encoding='utf-8'))
 
-        resources = {s['$id']: DRAFT7.create_resource(s) for s in [base, setup] if '$id' in s}
+        resources = {s['$id']: DRAFT7.create_resource(s) for s in [base, setup, core_base] if '$id' in s}
         registry = Registry().with_resources(resources.items())
         validate(instance=config, schema=setup, registry=registry)
 

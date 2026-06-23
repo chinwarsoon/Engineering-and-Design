@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/eks_project_code_schema.json",
+  "title": "EKS Project Code Schema",
+  "description": "Valid project codes and descriptions for the EKS knowledge base.",
+  "version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {"$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/project_entry_def"}
+  ],
+  "projects": [
+    {"code": "131101", "description": "WSD11 — Project Specifications"},
+    {"code": "131242", "description": "WSD11 — TWRP Design Documents"},
+    {"code": "999999", "description": "Unknown Project"}
+  ]
+}

@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 3.3  
-**Status**: ✅ COMPLETE  
-**Last Updated**: 2026-06-22  
+**Current Version**: 3.8  
+**Status**: ✅ COMPLETE — All Phase 1 tasks (T1.1–T1.48) done. 114/114 tests pass.  
+**Last Updated**: 2026-06-23  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
 
@@ -50,6 +50,11 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | 3.2 | 2026-06-22 | opencode | T1.37–T1.40 complete: FileScanner (T1.37), ParserRouter (T1.38), PipelineOrchestrator (T1.39), ManualReviewManager (T1.40). Fixed DGN/DWG stubs. All R54–R58 PASS. 53/53 tests pass. Phase 1 COMPLETE. |
 | 3.3 | 2026-06-22 | opencode | Added §14: Phase 1 Pipeline Architecture (detailed Mermaid diagram) moved from master workplan §10.2. |
 | 3.4 | 2026-06-22 | opencode | T1.41 complete: Fixed error/message schemas to follow AGENTS.md §9 3-layer pattern. Created `eks_error_setup_schema.json` and `eks_message_setup_schema.json` (allOf + $ref to base). Cleaned config files (removed $schema/$id/title/description/version/type). Updated `eks_error_code_base.json` function_code enum (added X, G, E). Updated `schema_loader.py` with error/message validation methods. I014 resolved. 53/53 tests pass. |
+| 3.5 | 2026-06-23 | opencode | Added §12 success criteria: data challenges documented (I015–I021), DGN gap identified as risk. Added §13 deliverable: data challenge analysis. |
+| 3.6 | 2026-06-23 | opencode | Added T1.41–T1.47 to task list (§8): error/message schema fix, 4 fragment schemas (project, discipline, department, facility), base schema definitions, config/setup updates, validation tests. Updated §9 files table (+15 entries). Updated §12 success criteria (+13 items). Updated §13 deliverables (+6 items). Test count: 53 → 59. Schema count: 17 → 21. I005 resolved. |
+| 3.7 | 2026-06-23 | opencode | Added T1.48: Schema audit — duplicate defs, parser path mismatch, missing parsers, missing `$schema` in error/message configs. Logged I022–I027. |
+| 3.8 | 2026-06-23 | opencode | T1.48 complete: fixed duplicate defs, parser paths, missing parsers. Reverted metadata fields from config files (broke `additionalProperties: false` validation). Logged I028. All 114 tests pass. |
+| 3.9 | 2026-06-23 | opencode | Three optional fixes: (1) I027 — aligned error/message base schema URIs to filename-based pattern; (2) Consolidated `verbosity_level` enum into shared `eks_base_schema.json#/definitions/verbosity_level`; (3) Added shared `document_relationship_trigger_map` def — both asset and doc configs now `$ref` it. Added `base_schema` to all validation registries in `schema_loader.py` and tests. I027 resolved, I028 updated. Bumped 6 file versions. 114/114 tests pass. |
 
 ---
 
@@ -430,6 +435,14 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | T1.38 | Parser router | Create `eks/engine/parsers/parser_router.py`: map `file_type` → `file_type_registry[].parser_class`; instantiate parser; call `parse()`, `extract_metadata()`, `StructureDetector.detect()` in sequence; return structured results. | ✅ | 2026-06-22 |
 | T1.39 | Pipeline orchestrator | Create `eks/engine/core/pipeline_orchestrator.py`: coordinate Phase A (scan → register placeholders), Phase B (route → parse → detect → score → update), Phase C (flag for review). Error handling, logging, batch processing. | ✅ | 2026-06-22 |
 | T1.40 | Manual review workflow | Create review surface: query `documents` where `extract_status != 'success'` or `extraction_confidence < 0.70`. Support metadata correction, element confirmation, score recalculation, document lock. Update `test_phase1.py` with tests. | ✅ | 2026-06-22 |
+| T1.41 | Fix error/message schemas 3-layer pattern | Create `eks_error_setup_schema.json` and `eks_message_setup_schema.json` (allOf + $ref to base). Clean config files (remove $schema/$id/title/description/version). Update `schema_loader.py` with error/message validation methods. Resolve I014. | ✅ | 2026-06-22 |
+| T1.42 | Project code fragment schema | Create `eks_project_code_schema.json` with valid project codes (131101, 131242, 999999). Follow DCC fragment pattern: draft-07, $id URI, allOf/$ref to base, additionalProperties: false. | ✅ | 2026-06-23 |
+| T1.43 | Discipline fragment schema | Create `eks_discipline_schema.json` with 21 valid discipline codes (PI, EL, IN, CI, AR, ME, CL, BQ, QA, VI, M3, DR, DS, SP, RT, CD, CH, PP, IM, SG, NA). Follow DCC fragment pattern. | ✅ | 2026-06-23 |
+| T1.44 | Department fragment schema | Create `eks_department_schema.json` with 11 valid department codes (PRJ, QAQC, CNT, PRC, PIP, CSA, ELE, ICA, MEC, BIM, NA). Follow DCC fragment pattern. | ✅ | 2026-06-23 |
+| T1.45 | Facility fragment schema | Create `eks_facility_schema.json` with 12 valid facility prefixes (WSD11, WSW41, WST02, WIL00, WIL11, WIL12, WIL13, WIL22, WIL23, WSB01, WSE00, WST01). Follow DCC fragment pattern. | ✅ | 2026-06-23 |
+| T1.46 | Update base schema, config, and setup for fragment integration | Add `project_entry_def`, `department_entry_def`, `facility_entry_def` to `eks_base_schema.json`. Replace P123/P456 with real WSD11 codes in `eks_config.json`. Add `$ref` to fragment schemas. Add property declarations for new registries in `eks_setup_schema.json`. Resolve I005. | ✅ | 2026-06-23 |
+| T1.47 | Add fragment schema validation tests | Add 6 new tests: fragment files exist, base definitions exist, fragment required fields, no placeholder data, config has $ref, setup has new properties. Update test_project_scoped_config. 59/59 tests pass. | ✅ | 2026-06-23 |
+| T1.48 | Schema audit — duplicates, inconsistencies, missing validations | (1) Remove duplicate `revision_id` and `discipline_code` from `eks_doc_base_schema.json`; (2) Align parser import paths (`engine.parsers.*` → `eks.engine.parsers.*`); (3) Add dgn/dwg stub parsers to `eks_config.json`; (4) Add `$schema` to `eks_error_config.json` and `eks_message_config.json` (reverted — broke `additionalProperties: false` validation); (5) Log all issues (I022–I028). All 114 tests pass. | ✅ Complete | 2026-06-23 |
 
 ---
 
@@ -483,6 +496,20 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | `eks/engine/core/pipeline_orchestrator.py`            | Create | Pre-parse → parse → score → review pipeline coordinator (T1.39) |
 | `eks/engine/core/registry.py`                         | Update | Replace hard-coded DDL with SchemaToDDL output; add sync_schema() (T1.36) |
 | `eks/test/test_phase1.py`                             | Update | Add pipeline workflow tests (T1.40) |
+| `eks/engine/core/error_manager.py`                   | Update | Add error/message validation methods (T1.41) |
+| `eks/engine/core/message_manager.py`                 | Update | Add error/message validation methods (T1.41) |
+| `eks/config/schemas/eks_error_setup_schema.json`     | Create | Error schema setup layer — allOf + $ref (T1.41) |
+| `eks/config/schemas/eks_message_setup_schema.json`   | Create | Message schema setup layer — allOf + $ref (T1.41) |
+| `eks/config/schemas/eks_error_config.json`           | Update | Remove $schema/$id/title/description/version (T1.41) |
+| `eks/config/schemas/eks_message_config.json`         | Update | Remove $schema/$id/title/description/version (T1.41) |
+| `eks/config/schemas/eks_project_code_schema.json`    | Create | Project code fragment schema (T1.42) |
+| `eks/config/schemas/eks_discipline_schema.json`      | Create | Discipline fragment schema (T1.43) |
+| `eks/config/schemas/eks_department_schema.json`      | Create | Department fragment schema (T1.44) |
+| `eks/config/schemas/eks_facility_schema.json`        | Create | Facility fragment schema (T1.45) |
+| `eks/config/schemas/eks_base_schema.json`            | Update | Add project_entry_def, department_entry_def, facility_entry_def (T1.46) |
+| `eks/config/schemas/eks_config.json`                 | Update | Replace P123/P456 with real codes; add $ref to fragments (T1.46) |
+| `eks/config/schemas/eks_setup_schema.json`           | Update | Add project_registry, department_registry, facility_registry (T1.46) |
+| `eks/test/test_phase1.py`                             | Update | Add 6 fragment schema tests; update test_project_scoped_config (T1.47) |
 
 ---
 
@@ -560,6 +587,24 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - [x] Parser router maps file_type to parser class, orchestrates parse flow (T1.38)
 - [x] Pipeline orchestrator coordinates scan → register → route → parse → detect → score → update (T1.39)
 - [x] Manual review workflow surfaces flagged docs, supports correction and lock (T1.40)
+- [x] Error/message schemas follow 3-layer pattern with setup layer (T1.41)
+- [x] I014 resolved: error/message schema validation now passes
+- [x] Project code fragment schema created with real WSD11 codes (T1.42)
+- [x] Discipline fragment schema created with 21 valid codes (T1.43)
+- [x] Department fragment schema created with 11 valid codes (T1.44)
+- [x] Facility fragment schema created with 12 valid prefixes (T1.45)
+- [x] Base schema updated with project_entry_def, department_entry_def, facility_entry_def (T1.46)
+- [x] Config updated: P123/P456 replaced with 131101/131242; $ref to fragment schemas (T1.46)
+- [x] Setup schema updated with project_registry, department_registry, facility_registry declarations (T1.46)
+- [x] I005 resolved: placeholder data replaced with real project codes
+- [x] 6 new fragment schema tests added and passing (T1.47)
+- [x] 114/114 total Phase 1 tests passing
+- [x] Error/message base schema URIs aligned to filename-based convention (I027 resolved)
+- [x] `verbosity_level` enum consolidated into shared `eks_base_schema.json#/definitions/verbosity_level` (message + logging share SSOT)
+- [x] `document_relationship_trigger_map` shared between asset and doc configs via `eks_base_schema.json` definition
+- [x] `base_schema` added to all validation registries enabling cross-schema `$ref` resolution
+- [x] Data challenges from twrp sample documented in issue_log.md (I015–I021)
+- [x] DGN parser gap identified as risk with Phase 3 mitigation plan
 
 ---
 
@@ -589,6 +634,19 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - Parser router module (T1.38): `parser_router.py` (file_type → parser class routing)
 - Pipeline orchestrator (T1.39): `pipeline_orchestrator.py` (Phase A/B/C coordinator)
 - Manual review workflow (T1.40): `review_manager.py` (query flagged docs, metadata correction, element confirmation, score recalculation, document lock) + 4 tests
+- Error/message schema setup layers (T1.41): `eks_error_setup_schema.json`, `eks_message_setup_schema.json` (allOf + $ref pattern)
+- Fragment schemas (T1.42–T1.45): `eks_project_code_schema.json` (3 projects), `eks_discipline_schema.json` (21 disciplines), `eks_department_schema.json` (11 departments), `eks_facility_schema.json` (12 facilities)
+- Base schema definitions (T1.46): `project_entry_def`, `department_entry_def`, `facility_entry_def` added to `eks_base_schema.json`
+- Config updates (T1.46): `eks_config.json` with real WSD11 codes (131101, 131242) and `$ref` to fragment schemas
+- Setup schema updates (T1.46): `eks_setup_schema.json` with `project_registry`, `department_registry`, `facility_registry` property declarations
+- Fragment schema tests (T1.47): 6 new tests in `test_phase1.py` (59/59 total)
+- Data challenge analysis: I015–I021 logged to `eks/log/issue_log.md`, §11 added to master workplan
+- Schema audit fixes (T1.48): duplicate defs removed, parser paths aligned, missing parsers added, I022–I028 logged
+- URI alignment (I027): error/message base schema `$id` changed to filename-based pattern
+- Shared `verbosity_level` definition in `eks_base_schema.json` (SSOT for message + logging levels)
+- Shared `document_relationship_trigger_map` definition in `eks_base_schema.json` (SSOT for asset + doc trigger mappings)
+- `schema_loader.py` updated: `base_schema` added to all validation registries for cross-schema `$ref` support
+- `test_asset_schema.py` and `test_phase1.py` updated: `eks_base_schema.json` included in validation registries
 
 
 ---
@@ -643,3 +701,4 @@ graph TB
 5. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema appendix
 6. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology
 7. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)
+8. [appendix_e_schema_design.md](appendix_e_schema_design.md) — EKS Schema Design (v0.1)

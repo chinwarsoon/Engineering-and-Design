@@ -88,22 +88,24 @@ class TestPhase1(unittest.TestCase):
         self.assertEqual(registry.asset_config['ontology_class_map'].get('AT_MOTOR'), 'MotorTag')
 
     def test_project_scoped_config(self):
-        """Test project-scoped discipline registry lookups."""
+        """Test project-scoped config lookups with new fragment references."""
         config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
         config = ConfigRegistry(config_parent)
         
-        # Test P123
-        disciplines_p123 = config.get_project_disciplines("P123")
-        self.assertEqual(len(disciplines_p123), 3)
-        self.assertEqual(disciplines_p123[0]["code"], "PI")
+        # Test project rules (still inline in config)
+        rules_131101 = config.get_project_rules("131101")
+        self.assertIn("SP", rules_131101["allowed_disciplines"])
         
-        # Test P456
-        rules_p456 = config.get_project_rules("P456")
-        self.assertEqual(rules_p456["allowed_disciplines"], ["CI", "AR"])
+        rules_131242 = config.get_project_rules("131242")
+        self.assertIn("PI", rules_131242["allowed_disciplines"])
         
         # Test non-existent project
-        disciplines_unknown = config.get_project_disciplines("UNKNOWN")
-        self.assertEqual(disciplines_unknown, [])
+        rules_unknown = config.get_project_rules("UNKNOWN")
+        self.assertEqual(rules_unknown, {})
+        
+        # Test fragment registry references exist
+        self.assertIn("project_registry", config.config)
+        self.assertIn("$ref", config.config["project_registry"])
 
     def test_config_registry(self):
         """Test singleton config registry."""
@@ -264,11 +266,12 @@ class TestPhase1(unittest.TestCase):
         from referencing.jsonschema import DRAFT7
         from jsonschema import validate
 
-        base   = json.load(open(self.config_dir / 'eks_asset_base_schema.json',  encoding='utf-8'))
-        setup  = json.load(open(self.config_dir / 'eks_asset_setup_schema.json', encoding='utf-8'))
-        config = json.load(open(self.config_dir / 'eks_asset_config.json',        encoding='utf-8'))
+        base      = json.load(open(self.config_dir / 'eks_asset_base_schema.json',  encoding='utf-8'))
+        setup     = json.load(open(self.config_dir / 'eks_asset_setup_schema.json', encoding='utf-8'))
+        config    = json.load(open(self.config_dir / 'eks_asset_config.json',        encoding='utf-8'))
+        core_base = json.load(open(self.config_dir / 'eks_base_schema.json',         encoding='utf-8'))
 
-        resources = {s['$id']: DRAFT7.create_resource(s) for s in [base, setup] if '$id' in s}
+        resources = {s['$id']: DRAFT7.create_resource(s) for s in [base, setup, core_base] if '$id' in s}
         registry = Registry().with_resources(resources.items())
         validate(instance=config, schema=setup, registry=registry)  # raises on failure
 
@@ -753,6 +756,63 @@ class TestPhase1(unittest.TestCase):
         self.assertIn("flagged", summary)
         self.assertIn("reviewed", summary)
         self.assertIsInstance(summary["status_counts"], dict)
+
+    def test_fragment_schema_files_exist(self):
+        """T1.42-T1.45: Verify all 4 fragment schema files exist."""
+        for fname in ['eks_project_code_schema.json', 'eks_discipline_schema.json',
+                      'eks_department_schema.json', 'eks_facility_schema.json']:
+            path = self.config_dir / fname
+            self.assertTrue(path.exists(), f"Missing fragment schema: {fname}")
+
+    def test_base_schema_has_new_definitions(self):
+        """T1.46: Verify eks_base_schema.json has project_entry_def, department_entry_def, facility_entry_def."""
+        import json
+        base = json.load(open(self.config_dir / 'eks_base_schema.json', encoding='utf-8'))
+        defs = base.get('definitions', {})
+        for expected_def in ['project_entry_def', 'department_entry_def', 'facility_entry_def']:
+            self.assertIn(expected_def, defs, f"Missing definition: {expected_def}")
+        self.assertIn('discipline_entry_def', defs, "Missing discipline_entry_def")
+
+    def test_fragment_schemas_have_required_fields(self):
+        """T1.42-T1.45: Verify each fragment schema has $schema, $id, title, version, allOf."""
+        import json
+        for fname in ['eks_project_code_schema.json', 'eks_discipline_schema.json',
+                      'eks_department_schema.json', 'eks_facility_schema.json']:
+            schema = json.load(open(self.config_dir / fname, encoding='utf-8'))
+            for field in ['$schema', '$id', 'title', 'version', 'allOf']:
+                self.assertIn(field, schema, f"{fname} missing {field}")
+
+    def test_config_no_placeholder_data(self):
+        """T1.46: Verify eks_config.json has real project codes (no P123/P456)."""
+        import json
+        config = json.load(open(self.config_dir / 'eks_config.json', encoding='utf-8'))
+        rules = config.get('project_rules_registry', {})
+        self.assertNotIn('P123', rules, "Placeholder P123 still in config")
+        self.assertNotIn('P456', rules, "Placeholder P456 still in config")
+        self.assertIn('131101', rules, "Real project code 131101 missing")
+        self.assertIn('131242', rules, "Real project code 131242 missing")
+
+    def test_config_has_fragment_references(self):
+        """T1.46: Verify eks_config.json has $ref to fragment schemas."""
+        import json
+        config = json.load(open(self.config_dir / 'eks_config.json', encoding='utf-8'))
+        self.assertIn('project_registry', config, "Missing project_registry")
+        self.assertIn('$ref', config['project_registry'], "project_registry missing $ref")
+        self.assertIn('department_registry', config, "Missing department_registry")
+        self.assertIn('$ref', config['department_registry'], "department_registry missing $ref")
+        self.assertIn('facility_registry', config, "Missing facility_registry")
+        self.assertIn('$ref', config['facility_registry'], "facility_registry missing $ref")
+
+    def test_setup_schema_has_new_properties(self):
+        """T1.46: Verify eks_setup_schema.json has project_registry, department_registry, facility_registry."""
+        import json
+        setup = json.load(open(self.config_dir / 'eks_setup_schema.json', encoding='utf-8'))
+        props = setup.get('properties', {})
+        for prop in ['project_registry', 'department_registry', 'facility_registry']:
+            self.assertIn(prop, props, f"setup_schema missing property: {prop}")
+        required = setup.get('required', [])
+        for prop in ['project_registry', 'department_registry', 'facility_registry']:
+            self.assertIn(prop, required, f"setup_schema missing required: {prop}")
 
 if __name__ == "__main__":
     unittest.main()

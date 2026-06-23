@@ -1,28 +1,29 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.0.0",
-    "title": "EKS Default Project Configuration",
+    "version": "1.2.0",
+    "title": "EKS Default Project Configuration — v1.2.0",
     "project_rules_registry": {
-        "P123": {
-            "allowed_disciplines": ["PI", "EL", "IN"],
+        "131101": {
+            "allowed_disciplines": ["SP", "DS", "PI", "EL", "IN", "CI", "ME", "QA", "RT"],
             "revision_pattern": "^[A-Z0-9]{1,2}$"
         },
-        "P456": {
-            "allowed_disciplines": ["CI", "AR"],
+        "131242": {
+            "allowed_disciplines": ["PI", "EL", "IN", "CI", "AR", "ME", "CL", "BQ", "QA", "DR", "DS", "SP", "RT"],
             "revision_pattern": "^[0-9]{3}$"
         }
     },
     "discipline_registry": {
-        "P123": [
-            {"code": "PI", "description": "Piping"},
-            {"code": "EL", "description": "Electrical"},
-            {"code": "IN", "description": "Instrumentation"}
-        ],
-        "P456": [
-            {"code": "CI", "description": "Civil"},
-            {"code": "AR", "description": "Architectural"}
-        ]
+        "$ref": "https://eks.engineering/schemas/eks_discipline_schema.json"
+    },
+    "project_registry": {
+        "$ref": "https://eks.engineering/schemas/eks_project_code_schema.json"
+    },
+    "department_registry": {
+        "$ref": "https://eks.engineering/schemas/eks_department_schema.json"
+    },
+    "facility_registry": {
+        "$ref": "https://eks.engineering/schemas/eks_facility_schema.json"
     },
     "global_paths": {
         "data_dir": "data",
@@ -36,9 +37,11 @@
         "timeout": 30
     },
     "parsers": {
-        ".pdf": "engine.parsers.pdf_parser.PDFParser",
-        ".docx": "engine.parsers.docx_parser.DOCXParser",
-        ".xlsx": "engine.parsers.xlsx_parser.XLSXParser"
+        ".pdf": "eks.engine.parsers.pdf_parser.PDFParser",
+        ".docx": "eks.engine.parsers.docx_parser.DOCXParser",
+        ".xlsx": "eks.engine.parsers.xlsx_parser.XLSXParser",
+        ".dgn": "eks.engine.parsers.dgn_parser.DGNParserStub",
+        ".dwg": "eks.engine.parsers.dwg_parser.DWGParserStub"
     },
     "embedding": {
         "active_provider": "openai",

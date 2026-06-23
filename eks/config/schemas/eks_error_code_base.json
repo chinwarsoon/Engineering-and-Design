@@ -1,9 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://eks.engineering/schemas/error-code/base",
+  "$id": "https://eks.engineering/schemas/eks_error_code_base.json",
   "title": "EKS Error Code Base Schema",
   "description": "Base definitions for EKS error code taxonomy (definitions only - no properties)",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "object",
   "definitions": {
     "layer_code": {

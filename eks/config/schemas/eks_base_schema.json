@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
-    "version": "1.2.0",
+    "version": "1.3.1",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34).",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079).",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
@@ -23,10 +23,6 @@
             },
             "required": ["allowed_disciplines", "revision_pattern"],
             "additionalProperties": false
-        },
-        "discipline_code": {
-            "type": "string",
-            "description": "Generic discipline code placeholder. Project-specific enums defined in Config."
         },
         "revision_id": {
             "type": "string",
@@ -80,10 +76,53 @@
         "logging_def": {
             "type": "object",
             "properties": {
-                "default_level": { "type": "integer", "enum": [0, 1, 2, 3], "default": 1 },
+                "default_level": { "$ref": "#/definitions/verbosity_level", "default": 1 },
                 "debug_file_path": { "type": "string" }
             },
             "required": ["default_level"],
+            "additionalProperties": false
+        },
+        "verbosity_level": {
+            "type": "integer",
+            "enum": [0, 1, 2, 3],
+            "description": "Shared verbosity/logging level (0=quiet/errors only, 1=normal, 2=debug, 3=trace)"
+        },
+        "document_relationship_trigger_map": {
+            "type": "object",
+            "description": "Canonical mapping of document metadata fields to ontology relationship types (shared SSOT for asset and doc configs)",
+            "properties": {
+                "document_number": { "type": "string", "enum": ["SUPERSEDES"] },
+                "asset_tags": { "type": "string", "enum": ["REFERENCES_ASSET"] },
+                "originator_company": { "type": "string", "enum": ["PRODUCED_BY"] }
+            },
+            "additionalProperties": { "type": "string" },
+            "required": ["document_number", "asset_tags", "originator_company"]
+        },
+        "project_entry_def": {
+            "type": "object",
+            "properties": {
+                "code": { "type": "string", "description": "Project code identifier" },
+                "description": { "type": "string", "description": "Project name or description" }
+            },
+            "required": ["code", "description"],
+            "additionalProperties": false
+        },
+        "department_entry_def": {
+            "type": "object",
+            "properties": {
+                "code": { "type": "string", "description": "Department code identifier" },
+                "description": { "type": "string", "description": "Department name" }
+            },
+            "required": ["code", "description"],
+            "additionalProperties": false
+        },
+        "facility_entry_def": {
+            "type": "object",
+            "properties": {
+                "prefix": { "type": "string", "description": "Facility prefix code" },
+                "description": { "type": "string", "description": "Facility description" }
+            },
+            "required": ["prefix", "description"],
             "additionalProperties": false
         }
     }

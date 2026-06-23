@@ -132,6 +132,8 @@ class SchemaLoader:
             resources[self.asset_base_schema["$id"]] = DRAFT7.create_resource(self.asset_base_schema)
         if self.asset_setup_schema.get("$id"):
             resources[self.asset_setup_schema["$id"]] = DRAFT7.create_resource(self.asset_setup_schema)
+        if self.base_schema.get("$id"):
+            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
 
         registry = Registry().with_resources(
             (uri, resource) for uri, resource in resources.items()
@@ -204,6 +206,8 @@ class SchemaLoader:
             resources[self.doc_base_schema["$id"]] = DRAFT7.create_resource(self.doc_base_schema)
         if self.doc_setup_schema.get("$id"):
             resources[self.doc_setup_schema["$id"]] = DRAFT7.create_resource(self.doc_setup_schema)
+        if self.base_schema.get("$id"):
+            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
 
         registry = Registry().with_resources(
             (uri, resource) for uri, resource in resources.items()
@@ -287,6 +291,8 @@ class SchemaLoader:
             resources[self.message_base_schema["$id"]] = DRAFT7.create_resource(self.message_base_schema)
         if self.message_setup_schema.get("$id"):
             resources[self.message_setup_schema["$id"]] = DRAFT7.create_resource(self.message_setup_schema)
+        if self.base_schema.get("$id"):
+            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
 
         registry = Registry().with_resources(
             (uri, resource) for uri, resource in resources.items()

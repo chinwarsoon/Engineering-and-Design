@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/eks_facility_schema.json",
+  "title": "EKS Facility Schema",
+  "description": "Valid facility/site codes for the EKS knowledge base.",
+  "version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {"$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/facility_entry_def"}
+  ],
+  "facilities": [
+    {"prefix": "WSD11", "description": "Water Supply District 11"},
+    {"prefix": "WSW41", "description": "WSD11 — Contract W41"},
+    {"prefix": "WST02", "description": "WSD11 — Contract T02 (TWRP)"},
+    {"prefix": "WIL00", "description": "WSD11 — Interconnector Line"},
+    {"prefix": "WIL11", "description": "WSD11 — Interconnector Section 11"},
+    {"prefix": "WIL12", "description": "WSD11 — Interconnector Section 12"},
+    {"prefix": "WIL13", "description": "WSD11 — Interconnector Section 13"},
+    {"prefix": "WIL22", "description": "WSD11 — Interconnector Section 22"},
+    {"prefix": "WIL23", "description": "WSD11 — Interconnector Section 23"},
+    {"prefix": "WSB01", "description": "WSD11 — Service Building 01"},
+    {"prefix": "WSE00", "description": "WSD11 — Electrical Systems"},
+    {"prefix": "WST01", "description": "WSD11 — Contract T01"}
+  ]
+}
