@@ -15,7 +15,7 @@
 | 1.2     | 2026-06-18 | Gemini CLI  | Exhaustive update: listed all classes, relationships, and sub-keys from config.    |
 | 1.3     | 2026-06-18 | Gemini CLI  | Revised Class Taxonomy table into a hierarchical view with indentation.            |
 | 1.4     | 2026-06-18 | Gemini CLI  | Corrected file structure and added C8: SSOT & Schema-Driven Design summary.        |
-| 1.5     | 2026-06-18 | Gemini CLI  | Added specialized engineering relations (Flow, Power, Control, Governance, Set Points) and target classes per agent_rule Section 2 & 4. |
+| 1.5     | 2026-06-18 | Gemini CLI  | Added specialized engineering relations (Flow, Power, Control, Governance, Set Points) and target classes per AGENTS.md Section 2 & 4. |
 | 1.6     | 2026-06-18 | Gemini CLI  | Refined transitivity logic: Hierarchical/directional relations with inverses (CONTROLS, GOVERNED_BY) set to transitive; Physical connectivity (CONNECTS_TO) set to non-transitive. |
 | 1.7     | 2026-06-18 | Gemini CLI  | Added Document Class Hierarchy and lifecycle relationships (SUPERSEDES, SUPPLEMENTS, REFERENCES_DOC). Linked Appendix B mapping triggers. |
 | 1.8     | 2026-06-22 | opencode    | Added `DataSheet` (subClassOf Specification, document_type_mapping: DS) and `OpsManual` (subClassOf Manual, document_type_mapping: OM) to support T1.35 document type code alignment. Updated C4 class hierarchy table. |

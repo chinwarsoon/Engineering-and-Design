@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/issue_log.md`  
-**Last Updated**: 2026-06-23 (I022–I028; I023 resolved)  
+**Last Updated**: 2026-06-24 (I031–I032 resolved)  
 
 ---
 
@@ -38,6 +38,10 @@
 | I025 | 2026-06-23 | Phase 1 | 🟡 Medium | Missing DGN/DWG parsers in `eks_config.json` | `eks_config.json` parsers only has 3 entries (.pdf, .docx, .xlsx), but `eks_doc_config.json` file_type_registry has 5 file types including dgn and dwg. DGN/DWG files cannot be routed from core config. | 🔴 Open | Add DGN/DWG stub parsers to `eks_config.json` parsers to match file_type_registry. |
 | I026 | 2026-06-23 | Phase 1 | 🟠 High | Missing `$schema` in `eks_error_config.json` and `eks_message_config.json` | Both config files lack `$schema` field to reference their setup schemas. Validation chain `config → setup → base` is broken — these configs cannot be validated against `eks_error_setup_schema.json` and `eks_message_setup_schema.json`. | 🔴 Open | Add `$schema` field to both config files referencing their respective setup schemas. |
 | I027 | 2026-06-23 | Phase 1 | 🟢 Low | URI naming inconsistency in error/message base schemas | `eks_error_code_base.json` uses `https://eks.engineering/schemas/error-code/base` (path-based URI) while all other base schemas use filename-based URIs like `https://eks.engineering/schemas/eks_base_schema.json`. Same for message base. Inconsistent but functional. | ✅ Resolved | Aligned to filename-based pattern: `eks_error_code_base.json` and `eks_message_base.json` now use filename-based URIs. Updated all `$ref` in setup schemas. Added `base_schema` to all `Registry().with_resources()` calls in `schema_loader.py` and tests (U078). |
+| I029 | 2026-06-24 | Phase 1 | 🟡 Medium | `discipline_registry` uses `oneOf` violating SSOT | `eks_setup_schema.json` allows `discipline_registry` to be either a `$ref` to `eks_discipline_schema.json` or an inline array — SSOT violation. New disciplines could be embedded in config without updating the canonical registry. | ✅ Resolved | Removed `oneOf`, changed to `$ref`-only. `eks_setup_schema.json` v1.2.0→v1.2.1 (U082). |
+| I030 | 2026-06-24 | Phase 1 | 🟡 Medium | `project_rules` inline in config violates SSOT | `eks_config.json` contained inline `project_rules` values instead of a dedicated fragment file. Inconsistent with disciplines/projects/departments/facilities pattern. Also inconsistent with strict 3-layer naming (`_config` = actual values). | ✅ Resolved | Created `eks_project_rules_config.json` v1.0.0, updated `eks_setup_schema.json` v1.2.1→v1.2.2 and `eks_config.json` v1.2.0→v1.3.0 to `$ref` it (U083). |
+| I031 | 2026-06-24 | Phase 1 | 🟡 Medium | `document_relationship_trigger_map` base layer prescribes actual values | `eks_base_schema.json#/definitions/document_relationship_trigger_map` defines `properties` with `enum` values (document_number→SUPERSEDES, etc.) and `required` — these are actual mapping values, not structural constraints. Base layer should define only shape (`type: object`, `additionalProperties`). Actual entries belong in config files only. | ✅ Resolved | Stripped `properties`/`required` from base definition, keeping only shape (U086). Config files now sole SSOT for trigger values. |
+| I032 | 2026-06-24 | Phase 1 | 🟡 Medium | `revision_id` defined in base schema but only used by doc schema set | `eks_base_schema.json#/definitions/revision_id` is a `{type: string}` consumed only by `eks_doc_base_schema.json#/definitions/document_metadata_def.revision` via `$ref`. Not a cross-cutting type like `verbosity_level`. Should follow doc schema set 3-layer pattern. | ✅ Resolved | Moved `revision_id` to `eks_doc_base_schema.json`, added `revision_validation` to doc setup+config, removed `revision_pattern` from project_rules (U087). |
 
 ---
 

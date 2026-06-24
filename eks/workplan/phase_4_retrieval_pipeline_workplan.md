@@ -116,7 +116,7 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | T4.5 | Implement keyword search | BM25 or full-text search over document registry for keyword matching | 🔷 |
 | T4.6 | Implement hybrid search merger | Merge and deduplicate vector + keyword search results | 🔷 |
 | T4.7 | Implement retrieval scorer | Score candidates by relevance (cosine similarity + keyword score) | 🔷 |
-| T4.8 | Implement reranker | Cross-encoder or rule-based reranking of top-k candidates | 🔷 |
+| T4.8 | Implement reranker | Implement configurable two-tier reranking: (1) rule-based default — boost chunks by graph proximity (related docs + assets), recency (latest revision), and structural element type (table > paragraph); (2) optional cross-encoder model — configurable via `reranker_model` in eks_config.json, falls back to rule-based if model unavailable or slow | 🔷 |
 | T4.9 | Implement context assembler | Select, order, and truncate chunks to fit LLM context window | 🔷 |
 | T4.10 | Implement abstract LLM interface | `llm_interface.py`: generate(prompt, context) → answer, with provider plug-in | 🔷 |
 | T4.11 | Implement OpenAI LLM provider | `openai_llm.py`: calls OpenAI chat completions API | 🔷 |
@@ -196,6 +196,8 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 - [ ] Ontology-aware query expansion dynamically resolves subclasses from Neo4j T-Box (T4.20)
 - [ ] Unlimited-depth connectivity path tracing (`CONNECTS_TO*`) tracing is operational in retrieval pipeline (T4.21)
 - [ ] End-to-end pipeline tests passing with sample engineering documents and asset queries
+- [ ] Retrieval quality evaluated with precision@k and recall@k metrics on known-answer queries
+- [ ] Retrieval quality evaluated with MRR (Mean Reciprocal Rank) for multi-chunk queries
 
 ---
 
@@ -250,7 +252,7 @@ graph TB
 2. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Phase 1 prerequisite
 3. [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md) — Phase 2 prerequisite
 4. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) — Phase 3 prerequisite
-5. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
-6. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
+5. [AGENTS.md](../AGENTS.md) — Repository guidelines
+6. [eks/readme.md](../readme.md) — EKS project overview
 7. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Asset schema (R36) for metadata filter dimensions
 8. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology

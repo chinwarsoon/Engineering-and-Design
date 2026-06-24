@@ -1,17 +1,10 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.2.0",
-    "title": "EKS Default Project Configuration — v1.2.0",
+    "version": "1.3.0",
+    "title": "EKS Default Project Configuration — v1.3.0",
     "project_rules_registry": {
-        "131101": {
-            "allowed_disciplines": ["SP", "DS", "PI", "EL", "IN", "CI", "ME", "QA", "RT"],
-            "revision_pattern": "^[A-Z0-9]{1,2}$"
-        },
-        "131242": {
-            "allowed_disciplines": ["PI", "EL", "IN", "CI", "AR", "ME", "CL", "BQ", "QA", "DR", "DS", "SP", "RT"],
-            "revision_pattern": "^[0-9]{3}$"
-        }
+        "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
     },
     "discipline_registry": {
         "$ref": "https://eks.engineering/schemas/eks_discipline_schema.json"

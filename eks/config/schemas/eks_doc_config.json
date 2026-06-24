@@ -1,9 +1,13 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_doc_config_default.json",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "title": "EKS Document Configuration",
-    "description": "Document schema config v2: document type registry (7 codes aligned with ontology), file type registry (5 formats with parser classes), element type registry (8 types per D7.10), ontology triggers, health scoring, and refactored element expectations keyed by document type codes per T1.35.",
+    "description": "Document schema config v1.2.0: added revision_validation (moved from project_rules_config).",
+    "revision_validation": {
+        "131101": { "pattern": "^[A-Z0-9]{1,2}$" },
+        "131242": { "pattern": "^[0-9]{3}$" }
+    },
     "ontology_triggers": {
         "document_type": "IS_A",
         "document_number": "SUPERSEDES",

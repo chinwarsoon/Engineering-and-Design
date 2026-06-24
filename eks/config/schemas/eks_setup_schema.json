@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_setup_schema.json",
-    "version": "1.2.0",
+    "version": "1.2.2",
     "title": "EKS Setup Schema - Declarations",
-    "description": "Global property declarations. Includes project-specific validation rules and metadata support for the config instance.",
+    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. Includes project-specific validation rules and metadata support for the config instance.",
     "allOf": [
         { "$ref": "eks_base_schema.json" }
     ],
@@ -16,27 +16,19 @@
         "description": { "type": "string" },
         "project_rules_registry": {
             "type": "object",
-            "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/project_rules_def" }
+            "description": "Reference to project rules config (SSOT — update eks_project_rules_config.json for new project rules)",
+            "properties": {
+                "$ref": { "type": "string" }
+            },
+            "required": ["$ref"]
         },
         "discipline_registry": {
             "type": "object",
-            "description": "Reference to discipline fragment schema or inline array",
-            "oneOf": [
-                {
-                    "type": "object",
-                    "properties": {
-                        "$ref": { "type": "string" }
-                    },
-                    "required": ["$ref"]
-                },
-                {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discipline_entry_def" }
-                    }
-                }
-            ]
+            "description": "Reference to discipline fragment schema (SSOT — must update eks_discipline_schema.json for new disciplines)",
+            "properties": {
+                "$ref": { "type": "string" }
+            },
+            "required": ["$ref"]
         },
         "project_registry": {
             "type": "object",

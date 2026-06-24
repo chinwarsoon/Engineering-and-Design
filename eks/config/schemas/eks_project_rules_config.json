@@ -1,0 +1,27 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://eks.engineering/configs/eks_project_rules_config.json",
+    "title": "EKS Project Rules Configuration",
+    "description": "Per-project validation rules (allowed disciplines, fragment required overrides). Fragment required fields defined here are the SSOT — asset base schema is shape-only.",
+    "version": "1.2.0",
+    "type": "object",
+    "additionalProperties": false,
+    "allOf": [
+        {"$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/project_rules_def"}
+    ],
+    "project_rules": {
+        "131101": {
+            "allowed_disciplines": ["SP", "DS", "PI", "EL", "IN", "CI", "ME", "QA", "RT"],
+            "fragment_required_fields": {
+                "item_core": ["keytag", "tag_type", "tag_no", "description"],
+                "manufacturer": ["brand", "model_number"]
+            }
+        },
+        "131242": {
+            "allowed_disciplines": ["PI", "EL", "IN", "CI", "AR", "ME", "CL", "BQ", "QA", "DR", "DS", "SP", "RT"],
+            "fragment_required_fields": {
+                "item_core": ["keytag", "tag_type", "tag_no"]
+            }
+        }
+    }
+}

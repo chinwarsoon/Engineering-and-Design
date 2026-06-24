@@ -3,6 +3,7 @@ SSOT Config Registry for EKS - Centralized access to global parameters.
 """
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import json
 from .schema_loader import SchemaLoader, load_eks_config
 
 class ConfigRegistry:
@@ -26,6 +27,17 @@ class ConfigRegistry:
             cls._instance._config = loader.load_all()
             cls._instance._loader = loader
         return cls._instance
+
+    def _load_ref(self, ref_obj: Dict[str, str]) -> Dict[str, Any]:
+        """Resolve a {'$ref': uri} dict by loading the referenced file."""
+        uri = ref_obj.get("$ref", "")
+        filename = uri.rstrip("/").split("/")[-1]
+        for d in [self._loader.config_dir / "schemas", self._loader.config_dir]:
+            path = d / filename
+            if path.exists():
+                with open(str(path), "r", encoding="utf-8") as f:
+                    return json.load(f)
+        return ref_obj
 
     @property
     def ontology(self) -> Dict[str, Any]:
@@ -54,11 +66,14 @@ class ConfigRegistry:
 
     def get(self, key_path: str, default: Any = None) -> Any:
         """
-        Retrieves a nested value using dot notation (e.g., 'registry.type' or 'discipline_registry.P123').
+        Retrieves a nested value using dot notation (e.g., 'registry.type' or 'discipline_registry.131101').
+        Resolves {'$ref': uri} entries on-the-fly.
         """
         parts = key_path.split(".")
         val = self._config
         for part in parts:
+            if isinstance(val, dict) and "$ref" in val:
+                val = self._load_ref(val)
             if isinstance(val, dict) and part in val:
                 val = val[part]
             else:
@@ -67,10 +82,35 @@ class ConfigRegistry:
 
     # Helper methods for project-scoped data
     def get_project_disciplines(self, project_id: str) -> List[Dict[str, str]]:
-        return self.get(f"discipline_registry.{project_id}", [])
+        rules = self.get(f"discipline_registry", {})
+        if "$ref" in rules:
+            rules = self._load_ref(rules)
+        disciplines = rules.get("disciplines", [])
+        return [d for d in disciplines if d.get("code") == project_id] if project_id else disciplines
 
     def get_project_rules(self, project_id: str) -> Dict[str, Any]:
-        return self.get(f"project_rules_registry.{project_id}", {})
+        rules = self.get(f"project_rules_registry", {})
+        if "$ref" in rules:
+            rules = self._load_ref(rules)
+        return rules.get("project_rules", {}).get(project_id, {})
+
+    def get_fragment_required_fields(self, project_id: str) -> Dict[str, list[str]]:
+        """
+        Returns the per-fragment required field map for a given project.
+        Shape-only definitions in asset base schema carry no required constraints;
+        this is the SSOT for mandatory fragment fields.
+        Returns an empty dict if no overrides are defined.
+        """
+        rules = self.get_project_rules(project_id)
+        return rules.get("fragment_required_fields", {})
+
+    def resolve_required_fields(self, project_id: str, fragment_name: str) -> list[str]:
+        """
+        Resolves the required field list for a specific fragment under a given project.
+        Falls back to an empty list (no required constraints) when undefined.
+        """
+        fields = self.get_fragment_required_fields(project_id)
+        return fields.get(fragment_name, [])
 
     # Common accessors for frequently used paths/settings
     @property

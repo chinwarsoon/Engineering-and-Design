@@ -20,7 +20,7 @@
 v0.2 — Gap analysis against actual datadrop Excel. Added 14 unmapped Equipment columns (`specialist_equipment` fragment, A2.12), 10 Motor columns to `rotating_equipment` and new `motor_control` fragment (A2.13), full actuator manufacturer+lifecycle block to `actuator` fragment (A2.8), 12 Instrument columns to `instrumentation` fragment (A2.10), 3 MANUALVALVE columns to `valve_internals` (A2.7). Added pipeline duplicate KEYTAG ingestion rule (A5). Updated composition map (A3) and column normalization map (A5).  
 v0.3 — Added A7: How to Add a New Plant Asset Type. Three scenarios covered (existing fragments only, conditional fragment, new fragment). Decision guide and validation step included. Supports R39 zero-code extensibility.  
 v0.4 — Review corrections: `pipeline_route.p_and_id_files` changed to array of strings to support multi-P&ID pipeline deduplication. Added known-overlap note to `submergence_min` in A2.12 (`specialist_equipment`).  
-v0.5 — Added specialized engineering relations (Flow, Power, Control, Governance, Set Points) mapping Appendix A fields to Appendix C relations per agent_rule Section 2 & 4.
+v0.5 — Added specialized engineering relations (Flow, Power, Control, Governance, Set Points) mapping Appendix A fields to Appendix C relations per AGENTS.md Section 2 & 4.
 
 ---
 
@@ -546,7 +546,7 @@ eks/config/
 └── eks_asset_config.json             # Project-specific: type→fragment map, datadrop source path, column mappings
 ```
 
-This follows the same base/setup/config inheritance pattern as the main EKS schema (Section 7c), ensuring SSOT compliance per agent_rule §4.
+This follows the same base/setup/config inheritance pattern as the main EKS schema (Section 7c), ensuring SSOT compliance per AGENTS.md §4.
 
 **Fragment count**: 13 total (A2.1 `item_core`, A2.2 `process_conditions`, A2.3 `manufacturer`, A2.4 `asset_lifecycle`, A2.5 `control_system`, A2.6 `piping_connection`, A2.7 `valve_internals`, A2.8 `actuator`, A2.9 `rotating_equipment`, A2.10 `instrumentation`, A2.11 `pipeline_route`, A2.12 `specialist_equipment` *(new)*, A2.13 `motor_control` *(new)*)
 

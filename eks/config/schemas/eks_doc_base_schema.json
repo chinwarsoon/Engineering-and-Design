@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_base_schema.json",
-    "version": "1.1.2",
+    "version": "1.2.0",
     "title": "EKS Document Base Schema - Definitions",
-    "description": "Document metadata, structural element definitions, and shared enums for document type, file type, and element type codes per T1.35. Removed duplicate revision_id (moved to eks_base_schema.json per T1.48). discipline_code consolidated into discipline_entry_def.properties.code.",
+    "description": "Document metadata, structural element definitions, and shared enums for document type, file type, and element type codes per T1.35. revision_id moved from base schema to doc base (v1.2.0). discipline_code consolidated into discipline_entry_def.properties.code.",
     "type": "object",
     "definitions": {
         "doc_id_format": {
@@ -25,6 +25,10 @@
             "type": "string",
             "enum": ["cover_page", "revision_table", "section", "table", "image", "link", "legend", "note"],
             "description": "Structural element types per Appendix D D7.10."
+        },
+        "revision_id": {
+            "type": "string",
+            "description": "Document revision identifier. Validation patterns defined in doc config (revision_validation)."
         },
         "project_metadata_def": {
             "type": "object",
@@ -48,7 +52,7 @@
                 },
                 "document_type": { "$ref": "#/definitions/document_type_code" },
                 "document_number": { "type": "string" },
-                "revision": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/revision_id" },
+                "revision": { "$ref": "#/definitions/revision_id" },
                 "status": { "type": "string" },
                 "is_latest": { "type": "boolean", "default": true },
                 "file_path": { "type": "string", "description": "Relative path to source file on disk" },

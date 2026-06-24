@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 3.8  
-**Status**: ✅ COMPLETE — All Phase 1 tasks (T1.1–T1.48) done. 114/114 tests pass.  
-**Last Updated**: 2026-06-23  
+**Current Version**: 3.12  
+**Status**: ✅ COMPLETE — All Phase 1 tasks (T1.1–T1.50) done. 114/114 tests pass.  
+**Last Updated**: 2026-06-24  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
 
@@ -35,7 +35,7 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | 1.3     | 2026-06-16 | System | Added T1.23–T1.26 for dynamic ISO 15926-aligned ontology. Set phase status to PARTIAL. |
 | 1.4     | 2026-06-16 | System | Ontology Option C gap closure: added `rdflib` to eks.yml dependency note in T1.2; added SHACL constraint reference to T1.23; added T1.27 (ontology_class_map planning in eks_asset_config.json); added `eks_ontology_schema.json` SHACL note to files table. |
 | 1.5     | 2026-06-18 | Gemini CLI | Phase 1 marked COMPLETE. T1.23–T1.27 pass: ontology schema/config implemented, schema_loader extended with cross-validation, asset fragments categorized (functional/physical) and linked to ontology classes. |
-| 1.6     | 2026-06-18 | Gemini CLI | Added T1.28: Embedded Relationship Metadata in Asset Schemas per agent_rule Section 2 & 4. |
+| 1.6     | 2026-06-18 | Gemini CLI | Added T1.28: Embedded Relationship Metadata in Asset Schemas per AGENTS.md Section 2 & 4. |
 | 1.7     | 2026-06-18 | Gemini CLI | Added T1.29: Document Ontology & Mapping Metadata (Triggers for SUPERSEDES, Asset Tag Linking) to Phase 1 foundation per approved Document Ontology implementation (U036). |
 | 1.8 | 2026-06-19 | opencode | Added T1.30 (error code taxonomy schema), T1.31 (pipeline message catalog schema), T1.32 (error/message manager modules) for R51 Pipeline Messages & Error Codes. Added Appendix D reference. |
 | 1.9 | 2026-06-19 | opencode | Updated T1.30–T1.32 for 6-dimension health scoring (added structural completeness), structure_detector.py module, document_elements table. Updated R51 description. |
@@ -55,12 +55,15 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | 3.7 | 2026-06-23 | opencode | Added T1.48: Schema audit — duplicate defs, parser path mismatch, missing parsers, missing `$schema` in error/message configs. Logged I022–I027. |
 | 3.8 | 2026-06-23 | opencode | T1.48 complete: fixed duplicate defs, parser paths, missing parsers. Reverted metadata fields from config files (broke `additionalProperties: false` validation). Logged I028. All 114 tests pass. |
 | 3.9 | 2026-06-23 | opencode | Three optional fixes: (1) I027 — aligned error/message base schema URIs to filename-based pattern; (2) Consolidated `verbosity_level` enum into shared `eks_base_schema.json#/definitions/verbosity_level`; (3) Added shared `document_relationship_trigger_map` def — both asset and doc configs now `$ref` it. Added `base_schema` to all validation registries in `schema_loader.py` and tests. I027 resolved, I028 updated. Bumped 6 file versions. 114/114 tests pass. |
+| 3.10 | 2026-06-24 | opencode | Consolidated T1.30–T1.32 test report into `phase_1_foundation_report.md` (v1.4). Removed `phase_1_t130_t132_report.md`. Updated deliverable list to reflect consolidation. |
+| 3.11 | 2026-06-24 | opencode | T1.49: Cross-cutting workplan remediation — replaced `agent_rule.md` with `AGENTS.md` across 11 files; converted Linux absolute paths to relative; fixed stale statuses; reordered master sections; fixed Phase 2 dates; filled Phase 3 gaps; added reranker criteria and eval metrics to Phase 4; resolved frontend tech, auth note, expanded Mermaid for Phase 5. |
+| 3.12 | 2026-06-24 | opencode | T1.50: Base schema SSOT enforcement — stripped `document_relationship_trigger_map` to shape-only (U086); moved `revision_id` to doc schema set + added `revision_validation` 3-layer chain (U087); removed `revision_pattern` from project_rules. Updated `ConfigRegistry` to resolve `$ref` entries on-the-fly. I031–I032 resolved. 114/114 tests pass. |
 
 ---
 
 ## 3. Objective
 
-- Create the EKS project folder structure compliant with agent_rule.md
+- Create the EKS project folder structure compliant with AGENTS.md
 - Design and implement the canonical schema (base/setup/config pattern)
 - Build the document registry (metadata DB) with full CRUD support
 - Implement plug-in document parsers: PDF, DOCX, XLSX
@@ -78,13 +81,13 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | R02 | Knowledge Base       | Document Registry         | Store document metadata in structured DB (PostgreSQL/DuckDB)                                 | ✅ PASS |
 | R06 | Schema               | SSOT Schema-Driven Design | Metadata schema reuses dcc/config/schemas pattern; project_setup_base / setup / config       | ✅ PASS |
 | R07 | Schema               | Canonical Data Model      | Foundation for metadata schemas, retrieval filters, relationship graphs, future integrations | ✅ PASS |
-| R08 | Schema               | Schema Fragment Pattern   | Fragment-based, inheritance (base + project) pattern per agent_rule Section 2                | ✅ PASS |
+| R08 | Schema               | Schema Fragment Pattern   | Fragment-based, inheritance (base + project) pattern per AGENTS.md Section 2                | ✅ PASS |
 | R09 | Metadata             | Project & Document Metadata | project_title, project_number, area, discipline, department, document_type, document_number | ✅ PASS |
 | R21 | Revision Management  | Preserve All Revisions    | All document revisions retained; no overwrite                                                | ✅ PASS |
 | R22 | Revision Management  | Latest Revision Filtering | Support filtering to latest revision only                                                    | ✅ PASS |
 | R26 | Plug-in Architecture | Document Parser Plugins   | Plug-in parsers for PDF, DOCX, XLSX (abstract base + concrete implementations)              | ✅ PASS |
 | R29 | Infrastructure       | Metadata DB               | PostgreSQL or DuckDB for structured metadata storage                                        | ✅ PASS |
-| R33 | Logging & Debug      | Tiered Logging (levels 0–3) | Per agent_rule Section 6: status, warning, trace levels                                   | ✅ PASS |
+| R33 | Logging & Debug      | Tiered Logging (levels 0–3) | Per AGENTS.md Section 6: status, warning, trace levels                                   | ✅ PASS |
 | R34 | Logging & Debug      | Debug Object & Trace Table | Debug dict → debug_log.json, trace table with timestamps                                   | ✅ PASS |
 | R35 | Module Design        | SSOT Global Parameters    | All global keys, paths, codes in schema-driven config; no hardcoding                        | ✅ PASS |
 | R36 | Asset Schema         | Universal Plant Item Schema | 13 reusable fragment definitions covering all 7 datadrop categories; base/setup/config pattern | ✅ PASS |
@@ -128,14 +131,14 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 
 - **Schema pattern**: Directly adopts `project_setup_base.json / project_setup.json / project_config.json` from `dcc/config/schemas`
 - **Logging**: Directly adopts tiered logging and debug object from `dcc/workflow/core_engine/` patterns
-- **Module design**: SSOT global parameters via schema-driven config per agent_rule Section 4
+- **Module design**: SSOT global parameters via schema-driven config per AGENTS.md Section 4
 - **New**: Document registry with metadata DB is new to this workspace; no prior precedent in DCC
 
 ---
 
 ## 7. Dependencies with Other Tasks
 
-1. **agent_rule.md** — Governs all coding standards, module design, logging
+1. **AGENTS.md** — Governs all coding standards, module design, logging
 2. **dcc/config/schemas** — Schema base/setup/config pattern to replicate
 3. **External**: DuckDB (preferred for dev) or PostgreSQL for metadata DB
 4. **Next Phase**: Phase 2 depends on document registry and parsers from this phase
@@ -144,7 +147,7 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 
 ## 7b. Proposed Project Folder Structure
 
-The EKS project folder follows the standard structure defined in `agent_rule.md`. All folders are created in Phase 1 (T1.1) as empty scaffolding so subsequent phases can populate them without restructuring.
+The EKS project folder follows the standard structure defined in `AGENTS.md`. All folders are created in Phase 1 (T1.1) as empty scaffolding so subsequent phases can populate them without restructuring.
 
 ```
 eks/
@@ -307,7 +310,7 @@ eks/
 
 ## 7c. Detailed Schema Design (T1.3 - T1.5)
 
-Following the standards in `agent_rule.md` Section 2 (Schema Fragments & Inheritance) and Section 4 (SSOT), the EKS canonical schema is designed across three files to separate definitions, declarations, and actual values.
+Following the standards in `AGENTS.md` Section 2 (Schema Fragments & Inheritance) and Section 4 (SSOT), the EKS canonical schema is designed across three files to separate definitions, declarations, and actual values.
 
 ### T1.3: `eks_base_schema.json` (Definitions)
 - **Purpose**: Store reusable fragments and type definitions (`definitions` or `$defs`).
@@ -422,7 +425,7 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | T1.30 | Error Code Taxonomy Schema | Create `eks/config/schemas/eks_error_code_base.json` (error code format definitions, severity levels, phase/module/function codes) and `eks/config/schemas/eks_error_config.json` (full system + data error catalog including structural error codes P3-E-E-0010–0017). Follow DCC pattern from `dcc/config/schemas/error_code_base.json`. | ✅ | R51 |
 | T1.31 | Pipeline Message Catalog Schema | Create `eks/config/schemas/eks_message_base.json` (message ID format, verbosity levels, categories) and `eks/config/schemas/eks_message_config.json` (milestone, status, progress, warning, error message templates including structural messages). Follow DCC pattern from `dcc/config/schemas/pipeline_message_base.json`. | ✅ | R51 |
 | T1.32 | Error & Message Manager Modules | Create `eks/engine/core/error_manager.py` (handle_system_error, handle_data_error, fail-fast check, error summary) and `eks/engine/core/message_manager.py` (catalog lookup, template hydration, verbosity control). Create `eks/engine/core/health_scorer.py` (6-dimension scoring: completeness, confidence, structural, source, xref, consistency) and `eks/engine/core/structure_detector.py` (PDF structural element detection). Add `document_elements` table to `registry.py`. Follow DCC pattern from `dcc/workflow/core_engine/errors/error_manager.py`. | ✅ | R51 |
-| T1.33 | Migrate EKS schemas to config/schemas/ | Move core/asset/ontology config & schema files to `eks/config/schemas/`; update SchemaLoader, ErrorManager, MessageManager, tests, and documentation | 🔷 | 2026-06-22 |
+| T1.33 | Migrate EKS schemas to config/schemas/ | Move core/asset/ontology config & schema files to `eks/config/schemas/`; update SchemaLoader, ErrorManager, MessageManager, tests, and documentation | ✅ | 2026-06-22 |
 | T1.34 | Reorganize document schema (3-layer) | Create `eks_doc_base_schema.json` (document + element definitions), `eks_doc_setup_schema.json` (table declarations, extraction rules, health scoring schema), `eks_doc_config.json` (ontology triggers, health score tiers, element expectations). Move `document_metadata_def` and `project_metadata_def` from `eks_base_schema.json` to `eks_doc_base_schema.json`. Add `document_element_def` (7 columns) to doc base schema. Update `schema_loader.py` with doc schema loading and validation. Update `eks_base_schema.json` to remove doc defs. Add 6 new tests in `test_phase1.py`. Registry config stays in `eks_config.json` (pipeline-level setting). | ✅ | 2026-06-22 |
 | T1.35.1 | Enhance doc base schema — enums & missing fields | Add `doc_id_format`, `document_type_code` enum (7 codes), `file_type_code` enum (5), `element_type_code` enum (8); add `file_path`, `ingested_at`, `file_type` to `document_metadata_def`; type `document_element_def.element_type` with enum ref | 🔷 | 2026-06-22 |
 | T1.35.2 | Enhance doc setup schema — registries | Add `document_type_registry`, `file_type_registry`, `element_type_registry` property declarations; update `element_expectations` key schema to use document type codes; add all three registries to `required` | 🔷 | 2026-06-22 |
@@ -443,6 +446,8 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | T1.46 | Update base schema, config, and setup for fragment integration | Add `project_entry_def`, `department_entry_def`, `facility_entry_def` to `eks_base_schema.json`. Replace P123/P456 with real WSD11 codes in `eks_config.json`. Add `$ref` to fragment schemas. Add property declarations for new registries in `eks_setup_schema.json`. Resolve I005. | ✅ | 2026-06-23 |
 | T1.47 | Add fragment schema validation tests | Add 6 new tests: fragment files exist, base definitions exist, fragment required fields, no placeholder data, config has $ref, setup has new properties. Update test_project_scoped_config. 59/59 tests pass. | ✅ | 2026-06-23 |
 | T1.48 | Schema audit — duplicates, inconsistencies, missing validations | (1) Remove duplicate `revision_id` and `discipline_code` from `eks_doc_base_schema.json`; (2) Align parser import paths (`engine.parsers.*` → `eks.engine.parsers.*`); (3) Add dgn/dwg stub parsers to `eks_config.json`; (4) Add `$schema` to `eks_error_config.json` and `eks_message_config.json` (reverted — broke `additionalProperties: false` validation); (5) Log all issues (I022–I028). All 114 tests pass. | ✅ Complete | 2026-06-23 |
+| T1.49 | Cross-cutting workplan remediation | Fix `agent_rule.md` references → `AGENTS.md`; convert Linux absolute paths to relative; update stale statuses (master DRAFT, T1.33, Appendix D); reorder §9/§11 in master; fix Phase 2 date ordering; fill Phase 3 placeholders (sections, tasks T3.1–T3.27); add reranker criteria and eval metrics to Phase 4; choose React for Phase 5 frontend, expand Mermaid diagram, add auth note. | ✅ Complete | 2026-06-24 |
+| T1.50 | Base schema SSOT enforcement | (1) Strip `document_relationship_trigger_map` to shape-only — remove `properties`/`required` with hardcoded enum values (I031); (2) Move `revision_id` from `eks_base_schema.json` to `eks_doc_base_schema.json`, add `revision_validation` 3-layer chain to doc set, remove `revision_pattern` from `project_rules_def` (I032); (3) Update `ConfigRegistry` to resolve `$ref` entries on-the-fly; (4) Update `schema_inheritance_chain.md` v1.6. 114/114 tests pass. | ✅ Complete | 2026-06-24 |
 
 ---
 
@@ -536,7 +541,7 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 
 ## 12. Success Criteria
 
-- [x] EKS folder structure created and compliant with agent_rule.md project folder conventions
+- [x] EKS folder structure created and compliant with AGENTS.md project folder conventions
 - [x] `eks.yml` created and environment activates cleanly (`conda env create -f eks.yml`)
 - [x] Canonical schema files (base/setup/config) created with Triple-File pattern for all components
 - [x] Schema inheritance implemented: all setup schemas use `allOf` to reference their respective base schemas
@@ -548,7 +553,7 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - [x] SSOT config registry operational; zero hardcoded global parameters
 - [x] All unit tests passing for Phase 1 components
 - [x] `update_log.md` and `issue_log.md` created under `eks/log/`
-- [x] `__init__.py` files created for all engine packages per agent_rule §4.2
+- [x] `__init__.py` files created for all engine packages per AGENTS.md §4.2
 - [x] `jsonschema.RefResolver` deprecation resolved — migrated to `referencing` library
 - [x] Phase 1 test report generated at `eks/workplan/reports/phase_1_foundation_report.md`
 - [x] Universal plant item schema designed: 13 fragments in `eks_asset_base_schema.json` covering all 7 datadrop categories
@@ -605,6 +610,11 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - [x] `base_schema` added to all validation registries enabling cross-schema `$ref` resolution
 - [x] Data challenges from twrp sample documented in issue_log.md (I015–I021)
 - [x] DGN parser gap identified as risk with Phase 3 mitigation plan
+- [x] `document_relationship_trigger_map` stripped to shape-only in base — actual entries SSOT in config files (I031, U086)
+- [x] `revision_id` moved from base to doc schema set with full 3-layer chain (I032, U087)
+- [x] `revision_pattern` removed from project_rules_def; `revision_validation` added to doc setup+config
+- [x] `ConfigRegistry` resolves `$ref` entries on-the-fly for project-scoped data access
+- [x] `schema_inheritance_chain.md` v1.6 updated: document_relationship_trigger_map + revision_id changes
 
 ---
 
@@ -624,7 +634,7 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - Pipeline message & error schema files: `eks_error_code_base.json`, `eks_error_config.json`, `eks_message_base.json`, `eks_message_config.json` (`eks/config/schemas/`)
 - Error/message/scoring modules: `error_manager.py`, `message_manager.py`, `health_scorer.py`, `structure_detector.py`
 - Test file: `test_t132_modules.py` (47 tests, all passing)
-- Reports: `phase_1_foundation_report.md`, `phase_1_t130_t132_report.md`
+- Reports: `phase_1_foundation_report.md` (includes T1.30–T1.32 results consolidated)
 - Document schema files (T1.34): `eks_doc_base_schema.json` (document + element definitions), `eks_doc_setup_schema.json` (table declarations, extraction rules, health scoring), `eks_doc_config.json` (ontology triggers, health score tiers, element expectations)
 - Enhanced document schema files (T1.35): `eks_doc_base_schema.json` v1.1 (enums + missing fields), `eks_doc_setup_schema.json` v1.1 (3 registries), `eks_doc_config.json` v1.1 (registry values + refactored expectations)
 - Updated test file: `test_phase1.py` (+6 tests for enhanced doc schema)
@@ -647,6 +657,12 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - Shared `document_relationship_trigger_map` definition in `eks_base_schema.json` (SSOT for asset + doc trigger mappings)
 - `schema_loader.py` updated: `base_schema` added to all validation registries for cross-schema `$ref` support
 - `test_asset_schema.py` and `test_phase1.py` updated: `eks_base_schema.json` included in validation registries
+- **T1.50 Base schema SSOT enforcement**: `document_relationship_trigger_map` stripped to shape-only (U086), `revision_id` moved to doc schema set + `revision_validation` 3-layer chain (U087), `revision_pattern` removed from `project_rules_def`
+- `eks_doc_setup_schema.json` v1.3.0: added `revision_validation` property
+- `eks_doc_config.json` v1.2.0: added `revision_validation` entries (131101→`^[A-Z0-9]{1,2}$`, 131242→`^[0-9]{3}$`)
+- `eks_project_rules_config.json` v1.1.0: removed `revision_pattern` (now SSOT in doc config)
+- `config_registry.py`: `_load_ref()` + `get()` + helper methods resolve `$ref` on-the-fly
+- `schema_inheritance_chain.md` v1.6: report updated with SSOT changes
 
 
 ---
@@ -695,9 +711,9 @@ graph TB
 ## 15. References
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
-2. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
-3. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
-4. [dcc/config/schemas](/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas) — Schema pattern reference
+2. [AGENTS.md](../AGENTS.md) — Repository guidelines
+3. [eks/readme.md](../readme.md) — EKS project overview
+4. [dcc/config/schemas](../../dcc/config/schemas) — Schema pattern reference
 5. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema appendix
 6. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology
 7. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)

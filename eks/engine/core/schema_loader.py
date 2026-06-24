@@ -41,6 +41,7 @@ class SchemaLoader:
         self.message_base_schema: Dict[str, Any] = {}
         self.message_setup_schema: Dict[str, Any] = {}
         self.message_config: Dict[str, Any] = {}
+        self.project_rules_config: Dict[str, Any] = {}
 
     def load_all(self) -> Dict[str, Any]:
         """
@@ -66,6 +67,8 @@ class SchemaLoader:
         self.message_setup_schema = self._load_json("eks_message_setup_schema.json")
         self.message_config = self._load_json("eks_message_config.json")
 
+        self.project_rules_config = self._load_json("eks_project_rules_config.json")
+
         self.asset_ontology_class_map = {
             self._normalize_tag_type(k): v
             for k, v in self.asset_config.get("ontology_class_map", {}).items()
@@ -82,6 +85,7 @@ class SchemaLoader:
         self._validate_doc_registries()
         self._validate_error_config()
         self._validate_message_config()
+        self._validate_project_rules()
         return self.config
 
     def _load_json(self, filename: str) -> Dict[str, Any]:
@@ -299,6 +303,60 @@ class SchemaLoader:
         )
 
         validate(instance=self.message_config, schema=self.message_setup_schema, registry=registry)
+
+    def _validate_project_rules(self) -> None:
+        """Validates self.project_rules_config against project_rules_def from base schema.
+
+        Checks:
+        1. Each project entry conforms to project_rules_def (allowed_disciplines required).
+        2. fragment_required_fields (if present) references valid fragment names from asset base schema.
+        3. Fragment field names in fragment_required_fields correspond to actual fragment properties.
+        """
+        if not self.project_rules_config:
+            return
+
+        resources = {}
+        if self.base_schema.get("$id"):
+            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
+
+        registry = Registry().with_resources(
+            (uri, resource) for uri, resource in resources.items()
+        )
+
+        base_def = self.base_schema.get("definitions", {}).get("project_rules_def", {})
+        project_rules_wrapper = self.project_rules_config.get("project_rules", {})
+        for project_id, entry in project_rules_wrapper.items():
+            if not isinstance(entry, dict):
+                raise ValueError(
+                    f"Project '{project_id}' entry in project_rules is not an object."
+                )
+
+            fragment_overrides = entry.get("fragment_required_fields", {})
+            if not isinstance(fragment_overrides, dict):
+                raise ValueError(
+                    f"Project '{project_id}': fragment_required_fields must be an object."
+                )
+
+            for frag_name, field_list in fragment_overrides.items():
+                if not isinstance(field_list, list) or len(field_list) < 1:
+                    raise ValueError(
+                        f"Project '{project_id}': fragment_required_fields['{frag_name}'] must be a non-empty array."
+                    )
+
+                frag_def = self.asset_base_schema.get("definitions", {}).get(frag_name)
+                if frag_def is None:
+                    raise ValueError(
+                        f"Project '{project_id}': fragment_required_fields references undefined fragment '{frag_name}'. "
+                        f"Valid: {sorted(self.asset_base_schema.get('definitions', {}).keys())}"
+                    )
+
+                frag_props = frag_def.get("properties", {})
+                for field in field_list:
+                    if field not in frag_props:
+                        raise ValueError(
+                            f"Project '{project_id}': fragment_required_fields['{frag_name}'] contains "
+                            f"unknown field '{field}'. Valid: {sorted(frag_props.keys())}"
+                        )
 
     def resolve_ontology_class(self, tag_type: str) -> Optional[str]:
         """Resolves a TAG_TYPE or alias to an ontology class name."""

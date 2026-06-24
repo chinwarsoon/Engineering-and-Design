@@ -83,14 +83,15 @@ conda activate eks
 ## 5. Critical Workflow Rules (from `agent_rule.md`)
 
 1. **Plan before code**: Always create a workplan, wait for approval, then implement.
-2. **Archive before delete**: Move files to `archive/` before removing.
-3. **Log everything**: Issues → `issue_log.md`, updates → `update_log.md`, tests → `test_log.md`.
-4. **Workplan required**: Every task gets a workplan in `<project>/workplan/`. Update it as work proceeds.
-5. **Test reports after phases**: Generate test reports in `<project>/workplan/reports/` after each workplan phase.
-6. **Revision control**: Every file carries revision metadata (number, date, author, summary).
-7. **Review related workplans** before starting any implementation.
-8. **Messaging and errors**: All modules, engines, functions must utilize messaging and error logging to report status, errors, warnings and issues for data quality and data integrity, and healthyness of coding execution.
-9. **Knowledge base required**: Every project must have a `knowledge.json` at root. Update it when architecture, schemas, or key workflows change.
+2. **No edits without approval**: Do not modify any file until the user explicitly approves the change. Present the proposed change and rationale, then wait for a yes.
+3. **Archive before delete**: Move files to `archive/` before removing.
+4. **Log everything**: Issues → `issue_log.md`, updates → `update_log.md`, tests → `test_log.md`.
+5. **Workplan required**: Every task gets a workplan in `<project>/workplan/`. Update it as work proceeds.
+6. **Test reports after phases**: Generate test reports in `<project>/workplan/reports/` after each workplan phase.
+7. **Revision control**: Every file carries revision metadata (number, date, author, summary).
+8. **Review related workplans** before starting any implementation.
+9. **Messaging and errors**: All modules, engines, functions must utilize messaging and error logging to report status, errors, warnings and issues for data quality and data integrity, and healthyness of coding execution.
+10. **Knowledge base required**: Every project must have a `knowledge.json` at root. Update it when architecture, schemas, or key workflows change.
 
 ## 6. Folder Convention (all projects)
 

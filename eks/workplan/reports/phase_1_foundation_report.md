@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry — Test Report
 
 **Report ID**: RP-EKS-P1-001  
-**Current Version**: 1.3  
+**Current Version**: 1.5  
 **Status**: ✅ COMPLETE  
-**Last Updated**: 2026-06-23  
+**Last Updated**: 2026-06-24  
 **Parent Workplan**: [phase_1_foundation_workplan.md](../phase_1_foundation_workplan.md)  
 **Parent Master**: [eks_system_workplan.md](../eks_system_workplan.md)
 
@@ -28,6 +28,8 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 | 1.1 | 2026-06-23 | opencode | Added §10.2: Data Challenges Identified (I015–I021 from twrp sample analysis). Added §11 items 9–10: Lessons Learned (real data complexity, data quality variance). |
 | 1.2 | 2026-06-23 | opencode | Added §7.18: Fragment Schema Validation tests (T1.42–T1.47, 6 new tests). Updated §5: test count 53 → 59. Updated §8: success criteria for T1.41–T1.47. I005 resolved. |
 | 1.3 | 2026-06-23 | opencode | Three optional fixes complete: (1) I027 URI alignment for error/message base schemas; (2) `verbosity_level` enum consolidated into shared `eks_base_schema.json` def; (3) shared `document_relationship_trigger_map` between asset + doc configs. `base_schema` added to all validation registries for cross-schema `$ref`. I027 resolved. Updated §5: test count 59 → 114. Updated §8: success criteria extended. |
+| 1.4 | 2026-06-24 | opencode | Consolidated T1.30–T1.32 test report (`phase_1_t130_t132_report.md`) into this report. Added §7.19 with detailed T1.30–T1.32 test case tables (47 tests across 6 phases). Merged T1.30–T1.32 success criteria, files, recommendations, and lessons learned. Removed separate report file. |
+| 1.5 | 2026-06-24 | opencode | T1.50: Base schema SSOT enforcement — `document_relationship_trigger_map` stripped to shape-only (U086, I031); `revision_id` moved to doc schema set with `revision_validation` 3-layer chain (U087, I032); `revision_pattern` removed from project_rules. `ConfigRegistry` updated to resolve `$ref` entries on-the-fly. 114/114 tests pass. |
 
 ---
 
@@ -91,6 +93,17 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 **Execution Date**: 2026-06-23 (T1.47 final validation)  
 **Execution Duration**: ~5 seconds  
 **Executor**: opencode (automated test suite)
+
+### Test Distribution (T1.30–T1.32)
+
+| Module | Test Cases | Status |
+| :----- | :--------- | :----- |
+| `error_manager.py` | 11 | ✅ All pass |
+| `message_manager.py` | 9 | ✅ All pass |
+| `health_scorer.py` | 9 | ✅ All pass |
+| `structure_detector.py` | 8 | ✅ All pass |
+| `registry.py` (`document_elements`) | 10 | ✅ All pass |
+| **T1.32 subtotal** | **47** | ✅ **All pass** |
 
 ---
 
@@ -263,6 +276,91 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 
 ---
 
+### 7.19 Error Code Taxonomy & Pipeline Messages (T1.30–T1.32)
+
+#### Schema Validation
+
+| Step | Action | Expected Result | Actual Result | Status |
+| :--- | :----- | :-------------- | :------------ | :----- |
+| 1.1 | Validate `eks_error_code_base.json` is valid JSON and contains required definitions | Valid JSON with `definitions` for code format, severity, phase, module, function | Valid | ✅ |
+| 1.2 | Validate `eks_error_config.json` references base definitions correctly | Config loads without `$ref` resolution errors | Valid | ✅ |
+| 1.3 | Validate `eks_message_base.json` has message ID format, verbosity levels, categories | Valid JSON with `verbosity` enum and `message_category` enum | Valid | ✅ |
+| 1.4 | Validate `eks_message_config.json` has 33 message entries across 5 categories | 33 entries present | 33 entries | ✅ |
+
+#### error_manager.py (11 tests)
+
+| # | Test Case | Expected | Actual | Status |
+| :- | :-------- | :------- | :----- | :----- |
+| 2.1 | `handle_system_error` returns formatted error with correct severity | Dict with `code`, `severity`, `message`, `context`, `timestamp` | Correct | ✅ |
+| 2.2 | `handle_system_error` includes phase/module in `context` | `context` contains `phase`, `module` keys | Correct | ✅ |
+| 2.3 | `handle_system_error` S-E-01xx (system-level) works | Returns proper error dict | Correct | ✅ |
+| 2.4 | `handle_system_error` S-B-06xx (business-level) works | Returns proper error dict | Correct | ✅ |
+| 2.5 | `handle_data_error` returns formatted data error with function context | Dict with phase, module, function info | Correct | ✅ |
+| 2.6 | `fail_fast` raises `SystemExit` on critical errors | `SystemExit` raised | Raised | ✅ |
+| 2.7 | `fail_fast` returns False on non-critical errors | Returns `False` | `False` | ✅ |
+| 2.8 | `fail_fast` with unknown severity returns False | Returns `False` | `False` | ✅ |
+| 2.9 | `get_error_summary` aggregates all recorded errors | List of error dicts | Correct | ✅ |
+| 2.10 | `get_error_summary` returns empty list with no errors | Empty list `[]` | Correct | ✅ |
+| 2.11 | `get_health_impact` calculates impact based on severity | Impact value | Correct | ✅ |
+
+#### message_manager.py (9 tests)
+
+| # | Test Case | Expected | Actual | Status |
+| :- | :-------- | :------- | :----- | :----- |
+| 3.1 | `show` returns rendered message from known ID | Formatted string | Correct | ✅ |
+| 3.2 | `show` supports template hydration with `{placeholders}` | Replaced values | Correct | ✅ |
+| 3.3 | `show` returns None for unknown message ID | `None` | `None` | ✅ |
+| 3.4 | `show` respects verbosity level filtering | Verbose messages filtered | Correct | ✅ |
+| 3.5 | `show` returns all messages at verbosity ≥ 0 | All messages | Correct | ✅ |
+| 3.6 | `show` returns milestone messages correctly | Milestone category | Correct | ✅ |
+| 3.7 | `show` returns warning messages correctly | Warning category | Correct | ✅ |
+| 3.8 | `show` returns error messages correctly | Error category | Correct | ✅ |
+| 3.9 | `list_messages` with category filter returns only matching | Filtered list | Correct | ✅ |
+
+#### health_scorer.py (9 tests)
+
+| # | Test Case | Expected | Actual | Status |
+| :- | :-------- | :------- | :----- | :----- |
+| 4.1 | `score_document` returns dict with all 6 dimensions + composite | 7 keys | Correct | ✅ |
+| 4.2 | `score_document` completeness weight = 0.20 | 20% contribution | Correct | ✅ |
+| 4.3 | `score_document` confidence weight = 0.20 | 20% contribution | Correct | ✅ |
+| 4.4 | `score_document` structural completeness weight = 0.20 | 20% contribution | Correct | ✅ |
+| 4.5 | `score_document` source quality weight = 0.15 | 15% contribution | Correct | ✅ |
+| 4.6 | `score_document` xref weight = 0.15 | 15% contribution | Correct | ✅ |
+| 4.7 | `score_document` consistency weight = 0.10 | 10% contribution | Correct | ✅ |
+| 4.8 | `batch_score_documents` returns list with same length as input | Correct length | Correct | ✅ |
+| 4.9 | `format_notes` returns non-empty string with dimension breakdown | Formatted notes | Correct | ✅ |
+
+#### structure_detector.py (8 tests)
+
+| # | Test Case | Expected | Actual | Status |
+| :- | :-------- | :------- | :----- | :----- |
+| 5.1 | `detect_cover_page` covers Type A (cover page with title, project, doc ID) | Type A + cover_text | Type A | ✅ |
+| 5.2 | `detect_cover_page` covers Type B (cover page with title, project, doc ID, rev table) | Type B | Type B | ✅ |
+| 5.3 | `detect_cover_page` covers Type C (scanned — very little text) | Type C (scanned) + `is_scanned=True` | Type C | ✅ |
+| 5.4 | `detect_cover_page` covers Type D (volume cover) | Type D | Type D | ✅ |
+| 5.5 | `detect_cover_page` covers Type E (specification cover) | Type E | Type E | ✅ |
+| 5.6 | `detect_sections` returns list of section dicts with `title`, `level`, `start_page`, `end_page` | Section list | Correct | ✅ |
+| 5.7 | `detect_tables` returns list of table locations | Table list | Correct | ✅ |
+| 5.8 | `detect_images` returns list of image locations | Image list | Correct | ✅ |
+
+#### registry.py — document_elements table (10 tests)
+
+| # | Test Case | Expected | Actual | Status |
+| :- | :-------- | :------- | :----- | :----- |
+| 6.1 | `store_elements` inserts single element row | Row inserted | Inserted | ✅ |
+| 6.2 | `store_elements` returns count of inserted rows | Count = 1 | Count = 1 | ✅ |
+| 6.3 | `store_elements` inserts multiple elements in batch | All inserted | All inserted | ✅ |
+| 6.4 | `store_elements` returns correct count for batch insert | Count = 3 | Count = 3 | ✅ |
+| 6.5 | `get_elements` returns all rows for a doc_id | Matching rows | Correct | ✅ |
+| 6.6 | `get_elements` returns empty list for unknown doc_id | `[]` | `[]` | ✅ |
+| 6.7 | `get_elements_by_type` filters by element_type | Correct type | Correct | ✅ |
+| 6.8 | `get_elements_by_type` returns empty for unknown type | `[]` | `[]` | ✅ |
+| 6.9 | `delete_elements` removes all rows for a doc_id | Rows removed | Removed | ✅ |
+| 6.10 | `delete_elements` returns count of deleted rows | Correct count | Correct | ✅ |
+
+---
+
 ## 8. Test Success Criteria and Checklist
 
 | Criterion | Status | Evidence |
@@ -286,7 +384,14 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 | R39 zero-code extensibility: conditional_fragments | ✅ | `test_r39_conditional_fragments` |
 | Ontology files present and validated (T1.23–T1.27) | ✅ | 3 files, alias resolution, class map validation |
 | Ontology includes Document hierarchy + DataSheet/OpsManual | ✅ | DWG/PID_Drawing/Specification/DataSheet/Manual/OpsManual/Report |
-| Error code taxonomy and message catalog (T1.30–T1.32) | ✅ | 47 T1.32 tests pass; separate report exists |
+| Error code taxonomy — base + config schema files exist and validate | ✅ | 65 codes (30 system + 35 data); correct format, severity, phase/module/function codes |
+| Message catalog — base + config schema files exist and validate | ✅ | 33 messages (8 milestone, 8 status, 4 progress, 8 warning, 4 error) |
+| Error manager — 5 public functions implemented | ✅ | `handle_system_error`, `handle_data_error`, `fail_fast`, `get_error_summary`, `get_health_impact` |
+| Message manager — `show` + `list_messages` with template hydration | ✅ | Verbosity filtering, category filter |
+| Health scorer — 6-dimension scoring with correct weights | ✅ | completeness 20%, confidence 20%, structural 20%, source 15%, xref 15%, consistency 10% |
+| Structure detector — 4 detection methods + cover type A–E | ✅ | `detect_cover_page`, `detect_sections`, `detect_tables`, `detect_images` |
+| `document_elements` table CRUD — `store_elements`, `get_elements`, `get_elements_by_type`, `delete_elements` | ✅ | 10 tests all passing |
+| All T1.32 unit tests pass (47/47) | ✅ | No regressions in existing tests |
 | All schemas consolidated under `eks/config/schemas/` (T1.33) | ✅ | 13 JSON files in canonical location |
 | Document schema extracted to dedicated 3-layer pattern (T1.34) | ✅ | 3 doc schema files; base clean of doc defs |
 | Enhanced doc schema v2 with enums and registries (T1.35) | ✅ | 3 enums, 3 registries, cross-validation, 6 tests |
@@ -325,7 +430,15 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 - `eks/config/schemas/eks_doc_config.json` — Document config (v1.1.0)
 - `eks/workplan/appendix_c_ontology.md` — Ontology appendix
 - `eks/workplan/appendix_d_pipeline_messages_errors.md` — Pipeline messages & errors appendix
-- `eks/workplan/reports/phase_1_t130_t132_report.md` — T1.30–T1.32 test report
+- `eks/config/schemas/eks_error_code_base.json` — Error code base definitions: format `P{phase}-{module}-{function}-{id}`, severity levels, phase/module/function code enums (T1.30)
+- `eks/config/schemas/eks_error_config.json` — Full error code catalog: 30 system codes + 35 data codes (T1.30)
+- `eks/config/schemas/eks_message_base.json` — Message base definitions: ID format, verbosity levels (0–2), categories (T1.31)
+- `eks/config/schemas/eks_message_config.json` — Full message catalog: 33 messages across 5 categories (T1.31)
+- `eks/engine/core/error_manager.py` — System + data error handling, fail-fast, error summaries, health impact (T1.32)
+- `eks/engine/core/message_manager.py` — Message catalog lookup, template hydration, verbosity control (T1.32)
+- `eks/engine/core/health_scorer.py` — 6-dimension per-document health scoring, batch scoring, notes formatting (T1.32)
+- `eks/engine/core/structure_detector.py` — Structural element detection (cover/sections/tables/images) + cover type A–E classification (T1.32)
+- `eks/test/test_t132_modules.py` — 47 unit tests covering all T1.32 modules
 - `eks/engine/parsers/dgn_parser.py` — DGN parser stub
 - `eks/engine/parsers/dwg_parser.py` — DWG parser stub
 - `eks/engine/core/schema_to_ddl.py` — Auto-DDL generation from JSON schema (T1.36)
@@ -339,7 +452,7 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 - `eks/log/issue_log.md` — Added I006–I013; resolved I010–I013
 - `eks/engine/core/schema_loader.py` — Added ontology validation, doc schema loading, doc registry validation
 - `eks/engine/core/config_registry.py` — Schema directory path resolution
-- `eks/engine/core/registry.py` — Replaced hard-coded DDL with SchemaToDDL; added sync_schema(); COLUMN_ALLOWLIST derived from schema (T1.36)
+- `eks/engine/core/registry.py` — Added `document_elements` table CRUD (T1.32); replaced hard-coded DDL with SchemaToDDL; added sync_schema(); COLUMN_ALLOWLIST derived from schema (T1.36)
 - `eks/config/schemas/eks_base_schema.json` — Removed document_metadata_def, project_metadata_def
 - `eks/config/schemas/eks_ontology_config.json` — v1.6.0: added DataSheet, OpsManual
 - `eks/config/schemas/eks_doc_base_schema.json` — v1.1.0: enums, id field, missing metadata fields
@@ -366,6 +479,10 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 3. **Phase 3 parser stubs**: DGN and DWG parser stubs fixed to implement BaseParser interface; full implementations deferred to Phase 3.
 4. **Bulk ingestion**: T1.35's document type, file type, and element type registries plus T1.37's FileScanner provide the routing framework for Phase 3 bulk document ingestion (I009).
 5. **Pipeline testing**: Phase B (parse → detect → score) end-to-end testing requires real PDF documents. Use TWRP sample data in Phase 2.
+6. **T1.32 integration testing**: Wire error/message/health/structure modules into the actual TWRP ingestion pipeline (Phase 2) to validate end-to-end error/message flow.
+7. **Structure detector coverage**: Current regex-based detection works for test patterns; real TWRP PDFs may require pymupdf-based extraction.
+8. **Health scorer calibration**: Default dimension scores may need tuning after Phase 3 ingestion on real documents.
+9. **Document elements in UI**: Phase 5 Manual Verification UI should display `document_elements` for human review.
 
 ### 10.2 Data Challenges Identified
 
@@ -397,6 +514,10 @@ During analysis of `eks/data/twrp/` sample data, 7 challenges were identified an
 8. **Test Isolation**: Tests that register documents affect later tests' expected counts. Changed SQL injection test from `assertEqual(len, 4)` to `assertGreaterEqual(len, 4)` for resilience.
 9. **Real data complexity**: Analysis of twrp sample data reveals revision folder patterns (flat vs subfoldered), mixed file types per submittal, and format gaps (DGN) not anticipated in initial schema design. FileScanner and ParserRouter handle most cases; DGN remains a gap requiring Phase 3 evaluation.
 10. **Data quality variance**: Asset datadrop has high incompleteness rates (22–64% pending fields). Health scoring dimensions (completeness, consistency) surface these naturally through the existing pipeline. ManualReviewManager workflow becomes essential for data quality remediation.
+11. **DuckDB compatibility (T1.32)**: Avoided auto-increment identity column for `document_elements` table (DuckDB uses `GENERATED ALWAYS AS IDENTITY` rather than `AUTOINCREMENT`); used composite index instead.
+12. **Error code enumeration (T1.30)**: 65 codes is manageable; add code generation script if catalog grows beyond 200+.
+13. **Cover type detection (T1.32)**: Test text patterns with exactly 60 chars for Type B correctly triggers `is_scanned=False`; 50-char threshold is the delimiter between scanned vs. non-scanned.
+14. **Message template hydration (T1.31)**: Using `str.format(**kwargs)` for template variables is simple and sufficient; consider `string.Template` if variable names conflict with format specifiers.
 
 ---
 
@@ -408,7 +529,7 @@ During analysis of `eks/data/twrp/` sample data, 7 challenges were identified an
 4. [Issue Log](../../log/issue_log.md)
 5. [Update Log](../../log/update_log.md)
 6. [Test File — Phase 1](../../test/test_phase1.py)
-7. [T1.30–T1.32 Test Report](./phase_1_t130_t132_report.md)
+7. [Test File — T1.32 Modules](../../test/test_t132_modules.py)
 8. [Appendix A — Asset Schema](../appendix_a_asset_schema.md)
 9. [Appendix B — Document Registry](../appendix_b_document_registry.md)
 10. [Appendix C — Ontology](../appendix_c_ontology.md)

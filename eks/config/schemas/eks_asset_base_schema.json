@@ -8,7 +8,7 @@
     "definitions": {
         "item_core": {
             "type": "object",
-            "description": "Universal identity fields for every plant item",
+            "description": "Universal identity fields for every plant item. Shape-only — no required constraints at base level. Per-project required overrides defined in eks_project_rules_config.json (fragment_required_fields).",
             "properties": {
                 "keytag":               { "type": "string" },
                 "tag_type":             { "type": "string" },
@@ -26,7 +26,6 @@
                 "p_and_id_file":        { "type": ["string", "array"], "items": { "type": "string" }, "description": "Trigger: REFERENCED_BY_DWG" },
                 "design_specification": { "type": "string", "description": "Trigger: GOVERNED_BY" }
             },
-            "required": ["keytag", "tag_type", "tag_no"],
             "additionalProperties": false
         },
         "process_conditions": {

@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "title": "EKS Document Setup Schema - Declarations",
-    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, health scoring configuration, and element expectations per Appendix B, C & D. Updated per T1.35.",
+    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, and element expectations per Appendix B, C & D. v1.3.0: added revision_validation.",
     "allOf": [
         { "$ref": "eks_doc_base_schema.json" }
     ],
@@ -14,6 +14,18 @@
         "version": { "type": "string" },
         "title": { "type": "string" },
         "description": { "type": "string" },
+        "revision_validation": {
+            "type": "object",
+            "description": "Per-project revision validation patterns. Keys are project codes, values contain the regex pattern for valid revisions.",
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "pattern": { "type": "string", "description": "Regex pattern that valid revision strings must match." }
+                },
+                "required": ["pattern"],
+                "additionalProperties": false
+            }
+        },
         "ontology_triggers": {
             "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/document_relationship_trigger_map",
             "description": "Maps document registry fields to knowledge graph relationship types for Phase 3 ingestion (shared SSOT with asset config)"
@@ -140,6 +152,6 @@
             }
         }
     },
-    "required": ["ontology_triggers", "health_scoring", "element_expectations"],
+    "required": ["revision_validation", "ontology_triggers", "health_scoring", "element_expectations"],
     "additionalProperties": false
 }

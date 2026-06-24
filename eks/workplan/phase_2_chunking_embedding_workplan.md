@@ -20,10 +20,10 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | Version | Date       | Author | Summary of Changes                        |
 | :------ | :--------- | :----- | :---------------------------------------- |
 | 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
-| 0.2     | 2026-06-16 | System | Added Timestamp column to task breakdown table per agent_rule Section 8.8. Added CAD/DWG/DGN vector store gap note to Section 11: chunking pipeline has no ingestion path for CAD content; deferred to Phase 3 stubs only. |
-| 0.3     | 2026-06-18 | System | Added R40 (Asset Embedding Strategy) and R41 (Asset Chunk Registry Extension) to scope and task breakdown. Asset text builder and dedicated Qdrant eks_assets collection added. Updated success criteria and deliverables. |
-| 0.4     | 2026-06-16 | System | Added T2.20–T2.21 for enriching chunk contextual headers with ontology taxonomy paths. Linked Appendix C. |
-| 0.5     | 2026-06-16 | System | Ontology Option C gap closure: added R50 (Ontology-Enriched Embedding Headers) to scope table; updated T2.20 with exact taxonomy-path header format spec per Appendix C. |
+| 0.2     | 2026-06-16 | System | Added Timestamp column to task breakdown table per AGENTS.md Section 8.8. Added CAD/DWG/DGN vector store gap note to Section 11: chunking pipeline has no ingestion path for CAD content; deferred to Phase 3 stubs only. |
+| 0.3     | 2026-06-16 | System | Added T2.20–T2.21 for enriching chunk contextual headers with ontology taxonomy paths. Linked Appendix C. |
+| 0.4     | 2026-06-16 | System | Ontology Option C gap closure: added R50 (Ontology-Enriched Embedding Headers) to scope table; updated T2.20 with exact taxonomy-path header format spec per Appendix C. |
+| 0.5     | 2026-06-18 | System | Added R40 (Asset Embedding Strategy) and R41 (Asset Chunk Registry Extension) to scope and task breakdown. Asset text builder and dedicated Qdrant eks_assets collection added. Updated success criteria and deliverables. |
 | 0.6     | 2026-06-22 | opencode | Added §14: Phase 2 Pipeline Architecture (detailed Mermaid diagram) moved from master workplan §10.3. |
 
 ---
@@ -243,6 +243,6 @@ graph TB
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
 2. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Phase 1 prerequisite
-3. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
-4. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
+3. [AGENTS.md](../AGENTS.md) — Repository guidelines
+4. [eks/readme.md](../readme.md) — EKS project overview
 5. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology

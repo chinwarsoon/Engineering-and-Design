@@ -11,7 +11,7 @@
 
 ## 1. Title and Description
 
-Build the standalone interactive user inquiry interface, implement the retrieval cache layer for performance, and conduct full end-to-end system integration testing. This phase closes the loop from document ingestion to user-facing query and answer. Complete system documentation per agent_rule Section 7 is produced as a final deliverable.
+Build the standalone interactive user inquiry interface, implement the retrieval cache layer for performance, and conduct full end-to-end system integration testing. This phase closes the loop from document ingestion to user-facing query and answer. Complete system documentation per AGENTS.md Section 7 is produced as a final deliverable.
 
 ---
 
@@ -21,7 +21,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | :------ | :--------- | :----- | :---------------------------------------- |
 | 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
 | 0.2     | 2026-06-15 | System | Added asset browsing/filtering UI (unit, service, tag_type, pipeline tag) and asset-aware query endpoints. Updated integration test scope to include asset graph queries |
-| 0.3     | 2026-06-16 | System | Added Timestamp column to task breakdown table per agent_rule Section 8.8. Updated dependency note: Phase 5 /assets endpoint depends on T4.18 query_assets handler from Phase 4. |
+| 0.3     | 2026-06-16 | System | Added Timestamp column to task breakdown table per AGENTS.md Section 8.8. Updated dependency note: Phase 5 /assets endpoint depends on T4.18 query_assets handler from Phase 4. |
 | 0.4     | 2026-06-16 | System | Added T5.18: Manual Metadata Verification UI workflow. |
 | 0.5     | 2026-06-16 | System | Added T5.19 for adding an ontology navigator tree view in the EKS UI. Linked Appendix C. |
 | 0.6     | 2026-06-16 | System | Ontology Option C gap closure: added R47 (Ontology-Driven UI Facets) to scope table; added T5.20 (/api/ontology/classes endpoint + routes/ontology.py); T5.21 (SHACL violation badges on asset cards). Added routes/ontology.py to files table. |
@@ -33,7 +33,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 - Design and implement a standalone web-based interactive query UI with asset browsing
 - Implement retrieval cache to reduce repeated query latency
 - Conduct full system integration testing: ingest → chunk → embed → graph (document + asset) → retrieve → answer
-- Produce complete system documentation per agent_rule.md Section 7 (16-section standard)
+- Produce complete system documentation per AGENTS.md Section 7 (16-section standard)
 - Update all logs, issue logs, and mark workplan complete
 
 ---
@@ -45,7 +45,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | R32  | UI             | Standalone Interactive Inquiry Interface | User-facing web UI for natural language query, document retrieval, and asset browsing | 🔷 PLANNED |
 | C-01 | Cache          | Retrieval Cache Layer                    | Cache repeated query results to reduce pipeline latency             | 🔷 PLANNED |
 | I-01 | Integration    | Full System Integration Test             | End-to-end: ingest → chunk → embed → graph (document + asset) → retrieve → answer | 🔷 PLANNED |
-| D-01 | Documentation  | System Documentation                    | 16-section documentation per agent_rule Section 7                  | 🔷 PLANNED |
+| D-01 | Documentation  | System Documentation                    | 16-section documentation per AGENTS.md Section 7                  | 🔷 PLANNED |
 | A-01 | UI             | Asset Browsing & Filtering              | Filter panel for unit, service, tag_type, pipeline tag; display asset cards with attributes and linked documents | 🔷 PLANNED |
 | O-01 | UI | Ontology-Driven UI Facets (R47) | Hierarchical class tree in UI sidebar showing ontology class hierarchy with asset instance counts per class; backed by `/api/ontology/classes` endpoint querying Neo4j T-Box | 🔷 PLANNED |
 
@@ -77,9 +77,9 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 ## 6. Evaluation and Alignment with Existing Architecture
 
 - **All prior phases required**: UI wraps the Phase 4 retrieval pipeline (document + asset) as its backend
-- **UI design rules**: Refer to `dcc/workplan/ui_design/html_design_rule.md` per agent_rule Section 11
+- **UI design rules**: Refer to `dcc/workplan/ui_design/html_design_rule.md` per AGENTS.md Section 11
 - **Cache**: Retrieval cache sits between UI request and Phase 4 pipeline; keyed on query + filter hash (document + asset dimensions)
-- **Documentation**: Follows agent_rule Section 7 16-section documentation standard (same as DCC docs)
+- **Documentation**: Follows AGENTS.md Section 7 16-section documentation standard (same as DCC docs)
 - **Integration testing**: Validates the full ingest-to-answer chain across all 5 phases, including asset graph queries
 - **Asset UI**: Adds asset-specific filter controls and result display cards beyond the document-centric interface
 
@@ -107,7 +107,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | T5.4 | Implement in-memory cache | Default cache backed by Python dict or LRU cache; keyed on query hash + filters | 🔷 | — |
 | T5.5 | Implement Redis cache (optional) | `redis_cache.py`: Redis-backed cache for persistent/distributed caching | 🔷 | — |
 | T5.6 | Integrate cache into retrieval pipeline | Pipeline checks cache before executing full retrieval; stores result on miss | 🔷 | — |
-| T5.7 | Implement frontend query interface | HTML/JS or lightweight React: query input, filter controls (document + asset), result cards with source citations and asset cards | 🔷 | — |
+| T5.7 | Implement frontend query interface | React SPA (recommended) with HTML/JS fallback: query input, filter controls (document + asset), result cards with source citations and asset cards, ontology tree sidebar | 🔷 | — |
 | T5.8 | Implement result display with citations | Show answer + source cards: doc_number, revision, page, section, chunk_id, asset tag | 🔷 | — |
 | T5.9 | Implement asset browsing UI | Asset search/filter panel by unit, service, tag_type, pipeline tag; display asset attributes and linked documents | 🔷 | — |
 | T5.10 | Implement document ingestion UI | Upload interface for adding new documents to the knowledge base | 🔷 | — |
@@ -115,7 +115,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | T5.12 | Full system integration test — retrieval | Test: submit query (document + asset) → filter → expand → search → rerank → assemble → LLM answer | 🔷 | — |
 | T5.13 | Full system integration test — asset | Test: browse/filter assets by unit, service, tag_type; verify asset card data and linked documents | 🔷 | — |
 | T5.14 | Full system integration test — cache | Test: repeat query → cache hit → lower latency response | 🔷 | — |
-| T5.15 | Generate system documentation | 16-section doc per agent_rule Section 7 covering all modules across all phases | 🔷 | — |
+| T5.15 | Generate system documentation | 16-section doc per AGENTS.md Section 7 covering all modules across all phases | 🔷 | — |
 | T5.16 | Update all workplan statuses | Mark all phase workplans COMPLETE; update master index | 🔷 | — |
 | T5.17 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 | — |
 | T5.18 | Manual Verification UI | Implement "Manual Verification Dashboard" to review auto-extracted metadata (Phase 3) and set `verified_by` status. | 🔷 | — |
@@ -162,6 +162,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 - Mobile or embedded UI variants may require simplified component subsets
 - Multi-user concurrent query handling may require task queue (Celery, RQ) for heavy workloads
 - Cache eviction policies may need tuning based on query volume and knowledge base change frequency
+- Authentication and multi-user access control may be required for production deployment; initial version uses single-user mode with no auth
 
 ---
 
@@ -176,8 +177,9 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 - [ ] Full system integration test passing: ingest → chunk → embed → graph (document + asset) → retrieve → answer
 - [ ] Source citations displayed in UI: doc_number, revision, page, section, asset tag
 - [ ] Manual Verification workflow operational: UI allows reviewing auto-extracted metadata and setting `verified_by` status
-- [ ] System documentation complete per agent_rule Section 7 (all 16 sections)
+- [ ] System documentation complete per AGENTS.md Section 7 (all 16 sections)
 - [ ] Ontology navigator tree view operational in UI sidebar enabling hierarchical asset browsing (T5.19)
+- [ ] React frontend builds and serves correctly via FastAPI static files
 - [ ] All phase workplans updated to COMPLETE status
 - [ ] All logs updated with final entries
 
@@ -199,13 +201,34 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 
 ```mermaid
 graph TB
-    CACHE["Retrieval Cache<br/>memory / Redis<br/>Keyed on query hash + filter hash<br/>→ skip pipeline on hit"]
+    subgraph "Frontend (React SPA)"
+        UI["Web UI<br/>• Query input + filter panel<br/>  (doc + asset dimensions)<br/>• Answer display with citation cards<br/>• Asset browsing panel<br/>  (attributes + P&ID links)<br/>• Ontology tree explorer<br/>• Document ingestion upload<br/>• Manual verification dashboard"]
+        ONT_NAV["Ontology Navigator<br/>Hierarchical class tree<br/>Asset counts per class"]
+        UI --- ONT_NAV
+    end
+
+    subgraph "Backend (FastAPI)"
+        API["FastAPI Application<br/>CORS middleware<br/>Static file serving"]
+        Q_EP["/query → pipeline.py<br/>+ LLM answer + citations"]
+        A_EP["/assets → Neo4j Cypher<br/>+ Qdrant semantic search"]
+        I_EP["/ingest → PipelineOrchestrator<br/>parse + chunk + embed + graph"]
+        O_EP["/ontology/classes → Neo4j T-Box<br/>class hierarchy + counts"]
+        S_EP["/status → system health<br/>/health → DB/Vector/Graph checks"]
+        API --- Q_EP
+        API --- A_EP
+        API --- I_EP
+        API --- O_EP
+        API --- S_EP
+    end
+
+    subgraph "Cache Layer"
+        CACHE["Retrieval Cache<br/>memory_cache.py / redis_cache.py<br/>keyed on query + filter hash"]
+    end
+
+    CACHE --> API
+    UI --> API
     
-    API["FastAPI Backend<br/>/query → full retrieval pipeline<br/>+ LLM answer + citations<br/>/assets → asset browse/filter<br/>/ingest → document upload<br/>+ parse + chunk + embed trigger<br/>/status → system health"]
-    
-    UI["Web UI<br/>• Query input + filter panel<br/>  (doc + asset dimensions)<br/>• Answer display with<br/>  source citation cards<br/>• Asset browsing panel<br/>  (attributes + linked P&ID)<br/>• Document ingestion upload"]
-    
-    CACHE --> API --> UI
+    Q_EP -.-> CACHE
 ```
 
 ---
@@ -217,9 +240,9 @@ graph TB
 3. [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md)
 4. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md)
 5. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
-6. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
-7. [dcc/workplan/ui_design/html_design_rule.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/ui_design/html_design_rule.md) — UI design rules
-8. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
+6. [AGENTS.md](../AGENTS.md) — Repository guidelines
+7. [dcc UI design rules](../../dcc/workplan/ui_design/html_design_rule.md) — UI design rules
+8. [eks/readme.md](../readme.md) — EKS project overview
 9. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Asset schema (R36) for filter dimensions
 10. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) — Asset graph for browsing
 11. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology

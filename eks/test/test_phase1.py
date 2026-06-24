@@ -783,14 +783,16 @@ class TestPhase1(unittest.TestCase):
                 self.assertIn(field, schema, f"{fname} missing {field}")
 
     def test_config_no_placeholder_data(self):
-        """T1.46: Verify eks_config.json has real project codes (no P123/P456)."""
+        """T1.46: Verify project rules config has real project codes (no P123/P456)."""
         import json
-        config = json.load(open(self.config_dir / 'eks_config.json', encoding='utf-8'))
-        rules = config.get('project_rules_registry', {})
-        self.assertNotIn('P123', rules, "Placeholder P123 still in config")
-        self.assertNotIn('P456', rules, "Placeholder P456 still in config")
-        self.assertIn('131101', rules, "Real project code 131101 missing")
-        self.assertIn('131242', rules, "Real project code 131242 missing")
+        # project_rules_registry is now $ref; load the referenced file directly
+        rules_file = self.config_dir / 'eks_project_rules_config.json'
+        rules_data = json.load(open(rules_file, encoding='utf-8'))
+        project_rules = rules_data.get('project_rules', {})
+        self.assertNotIn('P123', str(project_rules), "Placeholder P123 still in project rules")
+        self.assertNotIn('P456', str(project_rules), "Placeholder P456 still in project rules")
+        self.assertIn('131101', project_rules, "Real project code 131101 missing")
+        self.assertIn('131242', project_rules, "Real project code 131242 missing")
 
     def test_config_has_fragment_references(self):
         """T1.46: Verify eks_config.json has $ref to fragment schemas."""
@@ -813,6 +815,71 @@ class TestPhase1(unittest.TestCase):
         required = setup.get('required', [])
         for prop in ['project_registry', 'department_registry', 'facility_registry']:
             self.assertIn(prop, required, f"setup_schema missing required: {prop}")
+
+    def test_project_rules_has_fragment_required_fields(self):
+        """T1.50: Verify project_rules_config has fragment_required_fields per project."""
+        import json
+        rules_file = self.config_dir / 'eks_project_rules_config.json'
+        rules_data = json.load(open(rules_file, encoding='utf-8'))
+        project_rules = rules_data.get('project_rules', {})
+        for pid in ['131101', '131242']:
+            self.assertIn(pid, project_rules, f"Missing project: {pid}")
+            entry = project_rules[pid]
+            self.assertIn('fragment_required_fields', entry,
+                f"Project {pid} missing fragment_required_fields")
+            self.assertIsInstance(entry['fragment_required_fields'], dict)
+            self.assertIn('item_core', entry['fragment_required_fields'],
+                f"Project {pid} fragment_required_fields missing item_core")
+            self.assertGreater(len(entry['fragment_required_fields']['item_core']), 0,
+                f"Project {pid} item_core required fields is empty")
+
+    def test_fragment_required_fields_validate_against_base(self):
+        """T1.50: fragment_required_fields fragment names and field paths must exist in asset base schema."""
+        import json
+        rules_file = self.config_dir / 'eks_project_rules_config.json'
+        base_file = self.config_dir / 'eks_asset_base_schema.json'
+        rules_data = json.load(open(rules_file, encoding='utf-8'))
+        base_defs = json.load(open(base_file, encoding='utf-8')).get('definitions', {})
+        project_rules = rules_data.get('project_rules', {})
+        for pid, entry in project_rules.items():
+            overrides = entry.get('fragment_required_fields', {})
+            for frag_name, field_list in overrides.items():
+                self.assertIn(frag_name, base_defs,
+                    f"Project {pid}: fragment '{frag_name}' not in asset base definitions")
+                frag_props = base_defs[frag_name].get('properties', {})
+                for field in field_list:
+                    self.assertIn(field, frag_props,
+                        f"Project {pid}: field '{field}' not in fragment '{frag_name}' properties. "
+                        f"Valid: {sorted(frag_props.keys())}")
+
+    def test_config_registry_resolve_required_fields(self):
+        """T1.50: ConfigRegistry returns correct fragment required fields per project."""
+        registry = ConfigRegistry("eks/config")
+        # 131101 — requires description in addition to keytag/tag_type/tag_no
+        fields_131101 = registry.resolve_required_fields("131101", "item_core")
+        self.assertIn("keytag", fields_131101)
+        self.assertIn("tag_type", fields_131101)
+        self.assertIn("tag_no", fields_131101)
+        self.assertIn("description", fields_131101)
+        # 131242 — only keytag/tag_type/tag_no
+        fields_131242 = registry.resolve_required_fields("131242", "item_core")
+        self.assertIn("keytag", fields_131242)
+        self.assertIn("tag_type", fields_131242)
+        self.assertIn("tag_no", fields_131242)
+        self.assertNotIn("description", fields_131242)
+        # Unknown project — falls back to empty list
+        fields_unknown = registry.resolve_required_fields("999999", "item_core")
+        self.assertEqual(fields_unknown, [])
+
+    def test_asset_base_item_core_no_required_constraint(self):
+        """T1.50: item_core in asset base schema is shape-only — no required array."""
+        import json
+        base_file = self.config_dir / 'eks_asset_base_schema.json'
+        base = json.load(open(base_file, encoding='utf-8'))
+        item_core = base.get('definitions', {}).get('item_core', {})
+        self.assertNotIn('required', item_core,
+            "item_core must not have required at base level. Required constraints "
+            "are defined per-project in eks_project_rules_config.json (fragment_required_fields).")
 
 if __name__ == "__main__":
     unittest.main()

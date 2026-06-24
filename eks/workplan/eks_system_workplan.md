@@ -1,9 +1,9 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 1.5  
-**Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-23  
+**Current Version**: 1.6  
+**Status**: ✅ COMPLETE — Phase 1 complete, Phases 2–5 planned  
+**Last Updated**: 2026-06-24  
 
 ---
 
@@ -34,6 +34,7 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | 1.3 | 2026-06-22 | opencode | Added §8.1: Phase 1 Summary — inputs, outputs, functionality, key modules, parsers, schemas, test coverage, requirements met, and downstream handoff to Phase 2. |
 | 1.4 | 2026-06-23 | opencode | Added §11: Known Data Challenges from twrp sample analysis (I015–I021). Added DGN parsing gap and data incompleteness as risks. |
 | 1.5 | 2026-06-23 | opencode | Updated §8.1 Phase 1 Summary: schema count 17 → 21 (added 4 fragment schemas), test count 53 → 59, I005 resolved, I014 resolved. |
+| 1.6 | 2026-06-24 | opencode | Remediation: replaced all `agent_rule.md` references with `AGENTS.md`; converted Linux absolute paths to relative; fixed §9/§11 section ordering; added §11 to index; updated status from DRAFT to COMPLETE. |
 
 ---
 
@@ -61,7 +62,7 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 | R05 | Knowledge Base       | Knowledge Graph                          | Neo4j graph for doc-to-doc, doc-to-object, object-to-object relationships                   | 🔷 PLANNED | 3     |
 | R06 | Schema               | SSOT Schema-Driven Design                | Metadata schema reuses dcc/config/schemas pattern; project_setup_base / setup / config       | ✅ PASS    | 1     |
 | R07 | Schema               | Canonical Data Model                     | Foundation for metadata schemas, retrieval filters, relationship graphs, future integrations | ✅ PASS    | 1     |
-| R08 | Schema               | Schema Fragment Pattern                  | Fragment-based, inheritance (base + project) pattern per agent_rule Section 2                | ✅ PASS    | 1     |
+| R08 | Schema               | Schema Fragment Pattern                  | Fragment-based, inheritance (base + project) pattern per AGENTS.md Section 2                | ✅ PASS    | 1     |
 | R09 | Metadata             | Project & Document Metadata              | project_title, project_number, area, discipline, department, document_type, document_number  | ✅ PASS    | 1     |
 | R10 | Metadata             | Source Location Metadata                 | file name, file location, section/paragraph, page                                            | 🔷 PLANNED | 2     |
 | R11 | Metadata             | Engineering Object Metadata              | Plant item, item tag, tag properties; cross-reference metadata                               | 🔷 PLANNED | 3     |
@@ -86,7 +87,7 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 | R30 | Infrastructure       | Vector DB                                | Qdrant for vector storage                                                                    | 🔷 PLANNED | 2     |
 | R31 | Infrastructure       | Graph DB                                 | Neo4j for knowledge relationship graph                                                       | 🔷 PLANNED | 3     |
 | R32 | UI                   | Standalone Interactive Inquiry Interface | User-facing query interface for natural language retrieval                                   | 🔷 PLANNED | 5     |
-| R33 | Logging & Debug      | Tiered Logging (levels 0–3)              | Per agent_rule Section 6: status, warning, trace levels                                     | ✅ PASS    | 1     |
+| R33 | Logging & Debug      | Tiered Logging (levels 0–3)              | Per AGENTS.md Section 6: status, warning, trace levels                                     | ✅ PASS    | 1     |
 | R34 | Logging & Debug      | Debug Object & Structured Trace Table    | Debug dict → debug_log.json, trace table with timestamps                                    | ✅ PASS    | 1     |
 | R35 | Module Design        | SSOT Global Parameters                   | All global keys, paths, codes in schema-driven config; no hardcoding                        | ✅ PASS    | 1     |
 | R36 | Schema               | Universal Plant Item Schema              | Fragment-based asset schema covering Equipment, Inline Component, Instrument, Motor, Pipeline, Control Valve, Manual Valve | ✅ PASS    | 1     |
@@ -137,6 +138,7 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
   - [10.1 High-Level Pipeline Overview](#101-high-level-pipeline-overview)
   - [10.2 Data Store Summary](#102-data-store-summary)
   - [10.3 Notes](#103-notes)
+- [11. Known Data Challenges](#11-known-data-challenges-from-twrp-sample-data)
 
 ---
 
@@ -144,11 +146,11 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 
 The EKS project is a **clean-slate build** under `eks/`. The only existing artifact is `eks/readme.md`.
 
-**Alignment with Existing Patterns (DCC / agent_rule.md):**
+**Alignment with Existing Patterns (DCC / AGENTS.md):**
 - Schema design reuses the `project_setup_base.json / project_setup.json / project_config.json` inheritance pattern from `dcc/config/schemas`
-- Module design follows SSOT + schema-driven global parameters (agent_rule Section 4)
-- Tiered logging (levels 0–3) and debug object pattern from agent_rule Section 6
-- Workplan, log, and report structure follows agent_rule Sections 8–9
+- Module design follows SSOT + schema-driven global parameters (AGENTS.md Section 4)
+- Tiered logging (levels 0–3) and debug object pattern from AGENTS.md Section 6
+- Workplan, log, and report structure follows AGENTS.md Sections 8–9
 - Plug-in architecture aligns with DCC's modular engine approach
 
 **New Patterns Required:**
@@ -167,7 +169,7 @@ The EKS project is a **clean-slate build** under `eks/`. The only existing artif
 
 ## 7. Dependencies with Other Tasks
 
-1. **agent_rule.md** — Governs all coding standards, module design, logging, workplan, and documentation rules
+1. **AGENTS.md** — Governs all coding standards, module design, logging, workplan, and documentation rules
 2. **dcc/config/schemas** — Metadata schema patterns to be reused and extended for EKS
 3. **dcc/workplan/** — Reference workplans for format and conventions
 4. External: PostgreSQL or DuckDB, Qdrant, Neo4j installations/services
@@ -297,12 +299,31 @@ graph LR
 - **Detailed Mermaid diagrams**: Each phase's detailed pipeline diagram is maintained in its respective phase workplan file (Phase 1–5).
 
 
+## 9. References
+
+1. [AGENTS.md](../AGENTS.md) — Repository guidelines
+2. [eks/readme.md](../readme.md) — EKS project overview
+3. [dcc/config/schemas](../../dcc/config/schemas) — Schema pattern reference
+4. [dcc pipeline architecture design workplan](../../dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/pipeline_architecture_design_workplan.md) — Workplan format reference
+5. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
+6. [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md)
+7. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md)
+8. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
+9. [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md)
+10. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema
+11. [appendix_b_document_registry.md](appendix_b_document_registry.md) — Document Registry
+12. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology
+13. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)
+14. [appendix_e_schema_design.md](appendix_e_schema_design.md) — EKS Schema Design (v0.1)
+
+---
+
 ## 11. Known Data Challenges (from twrp sample data)
 
 Analysis of `eks/data/twrp/` sample data identified 7 challenges (I015–I021 in `eks/log/issue_log.md`). These inform downstream phase planning.
 
 | Challenge | Issue | Category | Severity | Phase | Task |
-|-----------|-------|----------|----------|-------|------|
+|-----------|-------|----------|----------|------|------|
 | DGN parser stub — 48 CAD files unparseable | I015 | Parser | 🟡 Medium | 3 | T3.x |
 | Revision folder hierarchy inconsistency | I016 | FileScanner | 🟢 Low | 2 | T2.x |
 | Two project codes (131101 vs 131242) | I019 | Schema | 🟡 Medium | 2 | T2.x |
@@ -315,21 +336,3 @@ Analysis of `eks/data/twrp/` sample data identified 7 challenges (I015–I021 in
 - I017 and I018 are resolved in Phase 1 — FileScanner and ParserRouter handle these patterns
 - I015 (DGN gap) is the highest-impact open issue — 48 CAD files will require Phase 3 parser implementation
 - I021 (data incompleteness) is the highest-severity open issue — health scoring and manual review workflow are critical mitigation
-
-
-## 9. References
-
-1. [agent_rule.md](/home/franklin/dsai/Engineering-and-Design/agent_rule.md)
-2. [eks/readme.md](/home/franklin/dsai/Engineering-and-Design/eks/readme.md)
-3. [dcc/config/schemas](/home/franklin/dsai/Engineering-and-Design/dcc/config/schemas) — Schema pattern reference
-4. [dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/pipeline_architecture_design_workplan.md](/home/franklin/dsai/Engineering-and-Design/dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/pipeline_architecture_design_workplan.md) — Workplan format reference
-5. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
-6. [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md)
-7. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md)
-8. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
-9. [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md)
-10. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema
-11. [appendix_b_document_registry.md](appendix_b_document_registry.md) — Document Registry
-12. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology
-13. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)
-14. [appendix_e_schema_design.md](appendix_e_schema_design.md) — EKS Schema Design (v0.1)
