@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/update_log.md`  
-**Last Updated**: 2026-06-24  
+**Last Updated**: 2026-06-25  
 
 ---
 
@@ -96,6 +96,8 @@
 | U085 | 2026-06-24 | Phase 1 | Report | Added "Type" column (Domain/Pipeline) to all tables in `schema_inheritance_chain.md` (v1.4). Classified all keys across 23 schema files into Domain (reference registries) or Pipeline (operational config). | opencode | ✅ Done |
 | U086 | 2026-06-24 | Phase 1 | Schema | Removed `properties`/`required` from `document_relationship_trigger_map` in `eks_base_schema.json` (v1.3.1→v1.4.0). Base now defines only the shape (`type: object`, `additionalProperties`). Actual mapping entries are now SSOT in config files (`eks_asset_config.json`, `eks_doc_config.json`) only. I031 resolved. | opencode | ✅ Done |
 | U087 | 2026-06-24 | Phase 1 | Schema | Moved `revision_id` from `eks_base_schema.json` to `eks_doc_base_schema.json` (v1.1.2→v1.2.0). Added `revision_validation` property to `eks_doc_setup_schema.json` (v1.2.0→v1.3.0) and values to `eks_doc_config.json` (v1.1.0→v1.2.0). Removed `revision_pattern` from `project_rules_def` in base (v1.4.0→v1.5.0) and from `eks_project_rules_config.json` (v1.0.0→v1.1.0). I032 resolved. | opencode | ✅ Done |
+| U088 | 2026-06-25 | Phase 1 | T1.51 | Implemented `asset_context` fragment across all 3 asset schema files (base 1.3.0, setup 1.3.0, config 1.4.0). Added extensible location_hierarchy, system_hierarchy, project_context, asset_relationships (13 types), document_relationships (5 types), lifecycle_context. Updated schema_inheritance_chain.md v1.11, tests (118/118 pass). Phase 1 COMPLETE. | opencode | ✅ Done |
+| U089 | 2026-06-25 | Phase 1 | Docs | Integrated full Schema Inheritance Chain from `schema_inheritance_chain.md` (v1.11) into `appendix_e_schema_design.md` (v0.6): added E11 (per-key Base→Setup→Config→Actual Value trace tables for all 6 schema sets + fragments) and E12 (Business Logic vs Schema Layers). Updated E1 (23 files, asset_context), E2 Mermaid (14 fragments), E5.1/5.3 (14 asset fragments, 55 base defs). Archived `schema_inheritance_chain.md` → `eks/archive/`. | opencode | ✅ Done |
 
 ---
 

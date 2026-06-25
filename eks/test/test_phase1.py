@@ -246,7 +246,7 @@ class TestPhase1(unittest.TestCase):
             self.assertTrue(path.exists(), f"Missing asset schema file: {fname}")
 
     def test_asset_base_schema_fragments(self):
-        """T1.20: Verify eks_asset_base_schema.json contains all 13 fragment definitions."""
+        """T1.51: Verify eks_asset_base_schema.json contains all 14 fragment definitions."""
         import json
         path = self.config_dir / 'eks_asset_base_schema.json'
         schema = json.load(open(path, encoding='utf-8'))
@@ -255,7 +255,7 @@ class TestPhase1(unittest.TestCase):
             'item_core', 'process_conditions', 'manufacturer', 'asset_lifecycle',
             'control_system', 'piping_connection', 'valve_internals', 'actuator',
             'rotating_equipment', 'instrumentation', 'pipeline_route',
-            'specialist_equipment', 'motor_control'
+            'specialist_equipment', 'motor_control', 'asset_context'
         }
         self.assertEqual(set(defs.keys()), expected, f"Fragment mismatch. Found: {set(defs.keys())}")
 

@@ -24,14 +24,14 @@ class TestAssetSchema(unittest.TestCase):
             self.assertTrue((CONFIG_DIR / fname).exists(), f"Missing: {fname}")
 
     def test_asset_base_schema_fragments(self):
-        """T1.20: eks_asset_base_schema.json must contain all 13 fragment definitions."""
+        """T1.51: eks_asset_base_schema.json must contain all 14 fragment definitions."""
         schema = json.load(open(CONFIG_DIR / 'eks_asset_base_schema.json', encoding='utf-8'))
         defs = set(schema.get('definitions', {}).keys())
         expected = {
             'item_core', 'process_conditions', 'manufacturer', 'asset_lifecycle',
             'control_system', 'piping_connection', 'valve_internals', 'actuator',
             'rotating_equipment', 'instrumentation', 'pipeline_route',
-            'specialist_equipment', 'motor_control'
+            'specialist_equipment', 'motor_control', 'asset_context'
         }
         self.assertEqual(defs, expected, f"Fragment mismatch.\nExpected: {sorted(expected)}\nFound:    {sorted(defs)}")
 

@@ -1,0 +1,166 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/knowledge.json",
+  "version": "1.0.0",
+  "title": "EKS Project Knowledge Base",
+  "description": "Engineering Knowledge System - machine-readable project blueprint and charter",
+  "project_metadata": {
+    "name": "Engineering Knowledge System (EKS)",
+    "version": "1.0.0",
+    "description": "Schema-driven document registry and knowledge graph system for engineering asset management",
+    "purpose": "Ingest, extract, and cross-reference engineering documents to build a searchable knowledge graph",
+    "status": "Phase 1 Complete",
+    "last_updated": "2026-06-25"
+  },
+  "architecture_overview": {
+    "key_modules": [
+      "engine/core/ - Foundation: registry, revision, config, schema_loader, pipeline orchestration",
+      "engine/parsers/ - Plug-in document parsers (PDF, DOCX, XLSX, DGN, DWG)",
+      "engine/logging/ - Tiered logging infrastructure (levels 0-3)",
+      "config/schemas/ - 3-layer schema pattern (base/setup/config) for all schema sets"
+    ],
+    "data_flows": [
+      "File Scanner → Parser Router → Parser → Structure Detector → Health Scorer → Document Registry",
+      "Schema Loader validates base/setup/config chain with $ref resolution",
+      "ConfigRegistry provides SSOT access to global parameters"
+    ],
+    "integration_points": [
+      "DuckDB for document metadata storage",
+      "Qdrant for vector embeddings (Phase 2)",
+      "Neo4j for knowledge graph (Phase 3)",
+      "OpenAI/Ollama for embeddings (Phase 2)"
+    ]
+  },
+  "domain_concepts": {
+    "core_entities": [
+      "Document - engineering document with metadata, revisions, structural elements",
+      "Asset - plant equipment/instrument with fragment-based schema",
+      "Ontology - ISO 15926-aligned class and relationship definitions",
+      "Project - WSD11 project codes (131101, 131242)",
+      "Discipline - engineering disciplines (PI, EL, IN, CI, etc.)"
+    ],
+    "relationships": [
+      "SUBCLASS_OF",
+      "SUPERSEDES",
+      "REFERENCES_ASSET",
+      "PRODUCED_BY",
+      "IS_A",
+      "CONNECTS_TO",
+      "FLOWS_TO",
+      "INSTALLED_AT",
+      "CONTROLS",
+      "ENERGIZED_BY",
+      "GOVERNED_BY",
+      "SET_POINT_IN",
+      "SUPPLEMENTS",
+      "REFERENCED_BY_DOC",
+      "FEEDS_FROM"
+    ],
+    "terminology": [
+      "Fragment - reusable property group for asset schema composition",
+      "3-layer pattern - Base (definitions) → Setup (properties) → Config (values)",
+      "SSOT - Single Source of Truth for global parameters",
+      "Health scoring - 6-dimension document quality assessment"
+    ]
+  },
+  "key_schemas": [
+    "config/schemas/eks_base_schema.json - Core pipeline definitions (v1.5.0, 13 defs)",
+    "config/schemas/eks_asset_base_schema.json - Asset fragment definitions (v1.3.0, 14 fragments)",
+    "config/schemas/eks_doc_base_schema.json - Document metadata definitions (v1.2.0, 8 defs)",
+    "config/schemas/eks_ontology_base_schema.json - Ontology class/relationship definitions (v1.1.0, 2 defs)",
+    "config/schemas/eks_error_code_base.json - Error code taxonomy (v1.1.0, 13 defs)",
+    "config/schemas/eks_message_base.json - Pipeline message catalog (v1.1.0, 6 defs)"
+  ],
+  "workflows": [
+    {
+      "name": "Document Ingestion Pipeline",
+      "entry_point": "engine/core/pipeline_orchestrator.py",
+      "phases": [
+        "Phase A: File discovery and placeholder registration",
+        "Phase B: Parse, detect structure, score health",
+        "Phase C: Manual review and locking"
+      ]
+    },
+    {
+      "name": "Schema Validation",
+      "entry_point": "engine/core/schema_loader.py",
+      "description": "Load and validate all schema files with $ref resolution"
+    }
+  ],
+  "functions": [
+    "SchemaLoader.load_all() - Load all schema files with cross-validation",
+    "ConfigRegistry.get() - SSOT access to global parameters",
+    "DocumentRegistry CRUD - Document metadata operations with revision tracking",
+    "RevisionManager - Revision history and latest-revision filtering",
+    "FileScanner - Directory walk, type validation, placeholder registration",
+    "ParserRouter - File type to parser class mapping",
+    "HealthScorer.score_document() - 6-dimension health scoring",
+    "StructureDetector - Cover page, sections, tables, images detection"
+  ],
+  "data_flows": [
+    {
+      "name": "Document Metadata Flow",
+      "source": "Raw engineering documents (PDF, DOCX, XLSX, DGN, DWG)",
+      "transformations": [
+        "Parser extracts text and metadata",
+        "StructureDetector identifies elements",
+        "HealthScorer computes quality score",
+        "DocumentRegistry stores in DuckDB"
+      ],
+      "destination": "DuckDB documents table + document_elements table"
+    },
+    {
+      "name": "Schema Validation Flow",
+      "source": "JSON schema files (base/setup/config)",
+      "transformations": [
+        "SchemaLoader loads with referencing library",
+        "$ref resolution across schema files",
+        "Cross-registry validation (ontology, parsers, fragments)"
+      ],
+      "destination": "Validated schema registry in memory"
+    }
+  ],
+  "data_quality_checks": [
+    "Schema validation against setup schemas",
+    "Ontology class map references valid classes",
+    "Parser classes are importable",
+    "Fragment names match base definitions",
+    "Required fields per project rules"
+  ],
+  "dependencies": {
+    "external_services": [
+      "DuckDB - document metadata storage",
+      "Qdrant - vector embeddings (Phase 2)",
+      "Neo4j - knowledge graph (Phase 3)",
+      "OpenAI API - embeddings (Phase 2)",
+      "Ollama - local embeddings (Phase 2)"
+    ],
+    "libraries": [
+      "jsonschema/referencing - schema validation",
+      "PyMuPDF - PDF parsing",
+      "python-docx - DOCX parsing",
+      "openpyxl - XLSX parsing",
+      "rdflib - ontology OWL/Turtle parsing (Phase 3)"
+    ],
+    "infrastructure": [
+      "Python 3.13 (conda environment)",
+      "DuckDB for local development",
+      "PostgreSQL for production (optional)"
+    ]
+  },
+  "known_issues": [
+    "I015 - DGN parser stub (48 CAD files unparseable) - Phase 3",
+    "I016 - Revision folder hierarchy inconsistency - Phase 2",
+    "I019 - Two project codes (131101 vs 131242) - Phase 2",
+    "I020 - Datadrop column range (33-112) fragment coverage - Phase 3",
+    "I021 - 22-64% data incompleteness across datadrop sheets - Phase 3"
+  ],
+  "revision_history": [
+    {
+      "version": "1.0.0",
+      "date": "2026-06-25",
+      "author": "opencode",
+      "summary": "Initial knowledge.json created for Phase 1 completion"
+    }
+  ]
+}

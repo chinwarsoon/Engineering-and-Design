@@ -1,4 +1,5 @@
 {
+  "$schema": "https://eks.engineering/schemas/eks_message_setup_schema.json",
   "metadata": {
     "version": "1.0.0",
     "last_updated": "2026-06-19",
