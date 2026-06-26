@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 3.14  
+**Current Version**: 3.15  
 **Status**: ✅ COMPLETE — T1.51 implemented with 14th asset_context fragment. 118/118 tests pass.  
-**Last Updated**: 2026-06-25  
+**Last Updated**: 2026-06-26  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
 
@@ -37,29 +37,30 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | 1.5     | 2026-06-18 | Gemini CLI | Phase 1 marked COMPLETE. T1.23–T1.27 pass: ontology schema/config implemented, schema_loader extended with cross-validation, asset fragments categorized (functional/physical) and linked to ontology classes. |
 | 1.6     | 2026-06-18 | Gemini CLI | Added T1.28: Embedded Relationship Metadata in Asset Schemas per AGENTS.md Section 2 & 4. |
 | 1.7     | 2026-06-18 | Gemini CLI | Added T1.29: Document Ontology & Mapping Metadata (Triggers for SUPERSEDES, Asset Tag Linking) to Phase 1 foundation per approved Document Ontology implementation (U036). |
-| 1.8 | 2026-06-19 | opencode | Added T1.30 (error code taxonomy schema), T1.31 (pipeline message catalog schema), T1.32 (error/message manager modules) for R51 Pipeline Messages & Error Codes. Added Appendix D reference. |
-| 1.9 | 2026-06-19 | opencode | Updated T1.30–T1.32 for 6-dimension health scoring (added structural completeness), structure_detector.py module, document_elements table. Updated R51 description. |
-| 2.0 | 2026-06-22 | opencode | Implemented T1.30 (error code schema), T1.31 (message schema), T1.32 (error_manager, message_manager, health_scorer, structure_detector, document_elements). All 47 new tests + 20 existing tests passing. Phase 1 complete. |
-| 2.1 | 2026-06-22 | opencode | Added T1.33: Reorganize core, asset, and ontology schemas/configs under `eks/config/schemas/` to comply with DCC and AGENTS.md pattern. Set status to PARTIAL. |
-| 2.2 | 2026-06-22 | opencode | T1.33 complete: all 13 schema/config files confirmed in `eks/config/schemas/`; `test_phase1.py` updated to resolve `config_dir` to `eks/config/schemas/` (schemas/-first fallback chain); section 7b folder tree updated to reflect canonical layout; issue log (I010) and update log (U051) updated. Phase 1 status COMPLETE. |
-| 2.3 | 2026-06-22 | opencode | Added T1.34: Reorganize document schema into dedicated 3-layer pattern (`eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json`) following asset schema pattern. Separates document definitions from pipeline config. Set status to PARTIAL. |
-| 2.4 | 2026-06-22 | opencode | T1.34 complete: Created 3 doc schema files (`eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json`). Removed `document_metadata_def` and `project_metadata_def` from `eks_base_schema.json`. Updated `schema_loader.py` to load and validate doc schemas. Added 6 new tests verifying doc schema existence, definitions, validation, and pipeline base cleanup. All 73 tests pass. Phase 1 status COMPLETE. |
-| 2.5 | 2026-06-22 | opencode | **T1.35 COMPLETE**: Enhanced Document Schema v2 — Added 3 enums (7 doc type codes, 5 file type codes, 8 element type codes); created 3 registries (document_type, file_type, element_type) in `eks_doc_config.json`; refactored element_expectations keyed by doc type codes with backward-compatible `cover_type` field; added `_validate_doc_registries()` to schema_loader (ontology class, parser import, element type, expectation key validation); added 6 new tests; created DGN/DWG parser stubs; added DataSheet/OpsManual to ontology with document_type_mapping; 31/31 tests pass. Phase 1 COMPLETE. |
-| 3.0 | 2026-06-22 | opencode | Added T1.36–T1.40: Pipeline integration workflow — auto-DDL from schema, file scanner with type validation, parser router, pipeline orchestrator, manual review workflow. Added R54–R58 to scope. Status: PARTIAL. |
-| 3.1 | 2026-06-22 | opencode | T1.36 complete: `SchemaToDDL` auto-generates DDL from JSON schema; `registry.py` refactored with generated DDL, `sync_schema()`, schema-derived `COLUMN_ALLOWLIST`; 8 new tests; 39/39 pass. |
-| 3.2 | 2026-06-22 | opencode | T1.37–T1.40 complete: FileScanner (T1.37), ParserRouter (T1.38), PipelineOrchestrator (T1.39), ManualReviewManager (T1.40). Fixed DGN/DWG stubs. All R54–R58 PASS. 53/53 tests pass. Phase 1 COMPLETE. |
-| 3.3 | 2026-06-22 | opencode | Added §14: Phase 1 Pipeline Architecture (detailed Mermaid diagram) moved from master workplan §10.2. |
-| 3.4 | 2026-06-22 | opencode | T1.41 complete: Fixed error/message schemas to follow AGENTS.md §9 3-layer pattern. Created `eks_error_setup_schema.json` and `eks_message_setup_schema.json` (allOf + $ref to base). Cleaned config files (removed $schema/$id/title/description/version/type). Updated `eks_error_code_base.json` function_code enum (added X, G, E). Updated `schema_loader.py` with error/message validation methods. I014 resolved. 53/53 tests pass. |
-| 3.5 | 2026-06-23 | opencode | Added §12 success criteria: data challenges documented (I015–I021), DGN gap identified as risk. Added §13 deliverable: data challenge analysis. |
-| 3.6 | 2026-06-23 | opencode | Added T1.41–T1.47 to task list (§8): error/message schema fix, 4 fragment schemas (project, discipline, department, facility), base schema definitions, config/setup updates, validation tests. Updated §9 files table (+15 entries). Updated §12 success criteria (+13 items). Updated §13 deliverables (+6 items). Test count: 53 → 59. Schema count: 17 → 21. I005 resolved. |
-| 3.7 | 2026-06-23 | opencode | Added T1.48: Schema audit — duplicate defs, parser path mismatch, missing parsers, missing `$schema` in error/message configs. Logged I022–I027. |
-| 3.8 | 2026-06-23 | opencode | T1.48 complete: fixed duplicate defs, parser paths, missing parsers. Reverted metadata fields from config files (broke `additionalProperties: false` validation). Logged I028. All 114 tests pass. |
-| 3.9 | 2026-06-23 | opencode | Three optional fixes: (1) I027 — aligned error/message base schema URIs to filename-based pattern; (2) Consolidated `verbosity_level` enum into shared `eks_base_schema.json#/definitions/verbosity_level`; (3) Added shared `document_relationship_trigger_map` def — both asset and doc configs now `$ref` it. Added `base_schema` to all validation registries in `schema_loader.py` and tests. I027 resolved, I028 updated. Bumped 6 file versions. 114/114 tests pass. |
+| 1.8     | 2026-06-19 | opencode | Added T1.30 (error code taxonomy schema), T1.31 (pipeline message catalog schema), T1.32 (error/message manager modules) for R51 Pipeline Messages & Error Codes. Added Appendix D reference. |
+| 1.9     | 2026-06-19 | opencode | Updated T1.30–T1.32 for 6-dimension health scoring (added structural completeness), structure_detector.py module, document_elements table. Updated R51 description. |
+| 2.0     | 2026-06-22 | opencode | Implemented T1.30 (error code schema), T1.31 (message schema), T1.32 (error_manager, message_manager, health_scorer, structure_detector, document_elements). All 47 new tests + 20 existing tests passing. Phase 1 complete. |
+| 2.1     | 2026-06-22 | opencode | Added T1.33: Reorganize core, asset, and ontology schemas/configs under `eks/config/schemas/` to comply with DCC and AGENTS.md pattern. Set status to PARTIAL. |
+| 2.2     | 2026-06-22 | opencode | T1.33 complete: all 13 schema/config files confirmed in `eks/config/schemas/`; `test_phase1.py` updated to resolve `config_dir` to `eks/config/schemas/` (schemas/-first fallback chain); section 7b folder tree updated to reflect canonical layout; issue log (I010) and update log (U051) updated. Phase 1 status COMPLETE. |
+| 2.3     | 2026-06-22 | opencode | Added T1.34: Reorganize document schema into dedicated 3-layer pattern (`eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json`) following asset schema pattern. Separates document definitions from pipeline config. Set status to PARTIAL. |
+| 2.4     | 2026-06-22 | opencode | T1.34 complete: Created 3 doc schema files (`eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json`). Removed `document_metadata_def` and `project_metadata_def` from `eks_base_schema.json`. Updated `schema_loader.py` to load and validate doc schemas. Added 6 new tests verifying doc schema existence, definitions, validation, and pipeline base cleanup. All 73 tests pass. Phase 1 status COMPLETE. |
+| 2.5     | 2026-06-22 | opencode | **T1.35 COMPLETE**: Enhanced Document Schema v2 — Added 3 enums (7 doc type codes, 5 file type codes, 8 element type codes); created 3 registries (document_type, file_type, element_type) in `eks_doc_config.json`; refactored element_expectations keyed by doc type codes with backward-compatible `cover_type` field; added `_validate_doc_registries()` to schema_loader (ontology class, parser import, element type, expectation key validation); added 6 new tests; created DGN/DWG parser stubs; added DataSheet/OpsManual to ontology with document_type_mapping; 31/31 tests pass. Phase 1 COMPLETE. |
+| 3.0     | 2026-06-22 | opencode | Added T1.36–T1.40: Pipeline integration workflow — auto-DDL from schema, file scanner with type validation, parser router, pipeline orchestrator, manual review workflow. Added R54–R58 to scope. Status: PARTIAL. |
+| 3.1     | 2026-06-22 | opencode | T1.36 complete: `SchemaToDDL` auto-generates DDL from JSON schema; `registry.py` refactored with generated DDL, `sync_schema()`, schema-derived `COLUMN_ALLOWLIST`; 8 new tests; 39/39 pass. |
+| 3.2     | 2026-06-22 | opencode | T1.37–T1.40 complete: FileScanner (T1.37), ParserRouter (T1.38), PipelineOrchestrator (T1.39), ManualReviewManager (T1.40). Fixed DGN/DWG stubs. All R54–R58 PASS. 53/53 tests pass. Phase 1 COMPLETE. |
+| 3.3     | 2026-06-22 | opencode | Added §14: Phase 1 Pipeline Architecture (detailed Mermaid diagram) moved from master workplan §10.2. |
+| 3.4     | 2026-06-22 | opencode | T1.41 complete: Fixed error/message schemas to follow AGENTS.md §9 3-layer pattern. Created `eks_error_setup_schema.json` and `eks_message_setup_schema.json` (allOf + $ref to base). Cleaned config files (removed $schema/$id/title/description/version/type). Updated `eks_error_code_base.json` function_code enum (added X, G, E). Updated `schema_loader.py` with error/message validation methods. I014 resolved. 53/53 tests pass. |
+| 3.5     | 2026-06-23 | opencode | Added §12 success criteria: data challenges documented (I015–I021), DGN gap identified as risk. Added §13 deliverable: data challenge analysis. |
+| 3.6     | 2026-06-23 | opencode | Added T1.41–T1.47 to task list (§8): error/message schema fix, 4 fragment schemas (project, discipline, department, facility), base schema definitions, config/setup updates, validation tests. Updated §9 files table (+15 entries). Updated §12 success criteria (+13 items). Updated §13 deliverables (+6 items). Test count: 53 → 59. Schema count: 17 → 21. I005 resolved. |
+| 3.7     | 2026-06-23 | opencode | Added T1.48: Schema audit — duplicate defs, parser path mismatch, missing parsers, missing `$schema` in error/message configs. Logged I022–I027. |
+| 3.8     | 2026-06-23 | opencode | T1.48 complete: fixed duplicate defs, parser paths, missing parsers. Reverted metadata fields from config files (broke `additionalProperties: false` validation). Logged I028. All 114 tests pass. |
+| 3.9     | 2026-06-23 | opencode | Three optional fixes: (1) I027 — aligned error/message base schema URIs to filename-based pattern; (2) Consolidated `verbosity_level` enum into shared `eks_base_schema.json#/definitions/verbosity_level`; (3) Added shared `document_relationship_trigger_map` def — both asset and doc configs now `$ref` it. Added `base_schema` to all validation registries in `schema_loader.py` and tests. I027 resolved, I028 updated. Bumped 6 file versions. 114/114 tests pass. |
 | 3.10 | 2026-06-24 | opencode | Consolidated T1.30–T1.32 test report into `phase_1_foundation_report.md` (v1.4). Removed `phase_1_t130_t132_report.md`. Updated deliverable list to reflect consolidation. |
 | 3.11 | 2026-06-24 | opencode | T1.49: Cross-cutting workplan remediation — replaced `agent_rule.md` with `AGENTS.md` across 11 files; converted Linux absolute paths to relative; fixed stale statuses; reordered master sections; fixed Phase 2 dates; filled Phase 3 gaps; added reranker criteria and eval metrics to Phase 4; resolved frontend tech, auth note, expanded Mermaid for Phase 5. |
-| 3.12 | 2026-06-24 | opencode | T1.50: Base schema SSOT enforcement — stripped `document_relationship_trigger_map` to shape-only (U086); moved `revision_id` to doc schema set + added `revision_validation` 3-layer chain (U087); removed `revision_pattern` from project_rules. Updated `ConfigRegistry` to resolve `$ref` entries on-the-fly. I031–I032 resolved. 114/114 tests pass. |
+| 3.12 | 2026-06-24 | opencode | T1.50: Base schema SSOT enforcement — stripped `document_relationship_trigger_map` to shape-only (U086); moved `revision_id` to doc schema set + added `revision_validation` 3-layer chain (U087); removed `revision_pattern` from `project_rules`. Updated `ConfigRegistry` to resolve `$ref` entries on-the-fly. I031–I032 resolved. 114/114 tests pass. |
 | 3.13 | 2026-06-25 | opencode | T1.51 implemented: `asset_context` fragment added to all 3 asset schema files (base 1.3.0, setup 1.3.0, config 1.4.0) with extensible location_hierarchy (`additionalProperties: true`), extensible system_hierarchy (`additionalProperties: true`), project_context, asset_relationships, document_relationships, lifecycle_context. Location as link context (no keytag). Updated schema_inheritance_chain.md v1.11. Updated tests: 118/118 pass. Phase 1 marked COMPLETE. |
 | 3.14 | 2026-06-25 | opencode | Integrated full Schema Inheritance Chain from `schema_inheritance_chain.md` (v1.11) into `appendix_e_schema_design.md` (v0.6) as E11–E12. Updated E1 (23 files, asset_context), E2 Mermaid (14 fragments), E5.1/5.3 (14 fragments, 55 base defs). Archived `schema_inheritance_chain.md` → `archive/`. U089 logged. |
+| 3.15 | 2026-06-26 | Cascade | Added Section 16: Phase 1.2 Foundation Enhancement (Future Work) with 19 tasks for applying universal pipeline architecture patterns (PipelineContext, Dependency Injection, Phase-Based Orchestration, Telemetry Heartbeat, Standardized Engine I/O, UI Contracts, Project Setup Validation). Tasks derived from Appendix F. Updated Section 5 index to include new section. |
 
 ---
 
@@ -125,7 +126,8 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 - [12. Success Criteria](#12-success-criteria)
 - [13. Deliverables](#13-deliverables)
 - [14. Phase 1 Pipeline Architecture (Detailed)](#14-phase-1-pipeline-architecture-detailed)
-- [15. References](#15-references)
+- [16. Phase 1.2: Foundation Enhancement (Future Work)](#16-phase-12-foundation-enhancement-future-work)
+- [17. References](#17-references)
 
 ---
 
@@ -711,7 +713,95 @@ graph TB
 
 ---
 
-## 15. References
+## 16. Phase 1.2: Foundation Enhancement (Future Work)
+
+This section documents the planned enhancements to Phase 1 foundation to apply universal pipeline architecture patterns. These tasks are derived from [Appendix F: EKS Pipeline Architecture Design](appendix_f_pipeline_architecture_design.md) and will be implemented in a future phase to improve modularity, testability, and maintainability.
+
+### 16.1 Overview
+
+Phase 1 is currently COMPLETE (v3.14). The following enhancements will be implemented to apply universal pipeline architecture patterns:
+
+- **PipelineContext**: Centralized state management
+- **Dependency Injection**: Factory pattern for component creation
+- **Phase-Based Orchestration**: Clear phase checkpoints with telemetry
+- **Telemetry Heartbeat**: Progress and performance monitoring
+- **Standardized Engine I/O**: Independent engine execution with contracts
+- **UI Contracts**: Backend contracts for UI integration
+- **Project Setup Validation**: Automated project structure verification
+
+### 16.2 Task Breakdown
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.1 | Implement EKSPipelineContext | Create `eks/engine/core/context.py` with nested dataclasses for centralized state management | 🔷 PLANNED |
+| T1.2.2 | Implement BaseEngine abstract class | Create `eks/engine/core/base.py` with standard execution flow (validate → execute → validate) | 🔷 PLANNED |
+| T1.2.3 | Implement TelemetryHeartbeat | Create `eks/engine/core/telemetry.py` for document processing checkpoints | 🔷 PLANNED |
+| T1.2.4 | Implement Multi-Stage Validation | Create `eks/engine/core/validator.py` with setup, schema, data, parser validation stages | 🔷 PLANNED |
+| T1.2.5 | Define Standardized Engine I/O Contracts | Create `eks/engine/core/io_contracts.py` with EngineInput/EngineOutput base dataclasses | 🔷 PLANNED |
+| T1.2.6 | Implement Engine-Specific I/O Contracts | Create domain-specific contracts in `eks/engine/discovery/io_contracts.py`, `eks/engine/parsers/io_contracts.py`, `eks/engine/health/io_contracts.py` | 🔷 PLANNED |
+| T1.2.7 | Implement CLI Entry Points | Create `eks/engine/*/cli.py` for independent engine execution via command line | 🔷 PLANNED |
+| T1.2.8 | Implement HTTP API Endpoints | Create `eks/ui/backend/engine_endpoints.py` for independent engine execution via HTTP | 🔷 PLANNED |
+| T1.2.9 | Implement Checkpoint State Serialization | Add checkpoint state serialization/deserialization for resume capability | 🔷 PLANNED |
+| T1.2.10 | Implement ParserFactory | Create `eks/engine/core/factories.py` with file type routing | 🔷 PLANNED |
+| T1.2.11 | Implement HealthScorerFactory | Factory with config-driven dimensions | 🔷 PLANNED |
+| T1.2.12 | Implement StructureDetectorFactory | Factory for structure detector instantiation | 🔷 PLANNED |
+| T1.2.13 | Update Engines to Use Factories | Refactor existing engines to use factories instead of direct instantiation | 🔷 PLANNED |
+| T1.2.14 | Enhance PipelineOrchestrator with Checkpoints | Add 5 clear phases (A-E) with telemetry heartbeat integration | 🔷 PLANNED |
+| T1.2.15 | Implement Phase Rollback Capability | Add checkpoint restoration mechanism for failed phases | 🔷 PLANNED |
+| T1.2.16 | Implement UI Contracts | Create `eks/ui/backend/contracts.py` with DocumentSelectionContract and PipelineConfigContract | 🔷 PLANNED |
+| T1.2.17 | Implement UIContractManager | Create contract manager with validation and serialization methods | 🔷 PLANNED |
+| T1.2.18 | Implement Project Setup Validator | Create `eks/engine/core/setup_validator.py` with auto-creation of missing folders | 🔷 PLANNED |
+| T1.2.19 | Create Project Setup Schema | Create `eks/config/schemas/project_setup.json` for setup validation | 🔷 PLANNED |
+
+### 16.3 Deliverables
+
+- `eks/engine/core/context.py` — EKSPipelineContext implementation
+- `eks/engine/core/base.py` — BaseEngine, BaseProcessor abstract classes
+- `eks/engine/core/telemetry.py` — TelemetryHeartbeat implementation
+- `eks/engine/core/validator.py` — Multi-stage validation logic
+- `eks/engine/core/io_contracts.py` — Base I/O contracts and BaseEngine
+- `eks/engine/discovery/io_contracts.py` — Discovery-specific contracts
+- `eks/engine/parsers/io_contracts.py` — Parser-specific contracts
+- `eks/engine/health/io_contracts.py` — Health scoring-specific contracts
+- `eks/engine/core/factories.py` — Factory implementations
+- CLI entry points: `eks/engine/*/cli.py`
+- API endpoints: `eks/ui/backend/engine_endpoints.py`
+- `eks/ui/backend/contracts.py` — Contract definitions
+- `eks/ui/backend/contract_manager.py` — Contract manager
+- `eks/engine/core/setup_validator.py` — Setup validator
+- `eks/config/schemas/project_setup.json` — Setup schema
+
+### 16.4 Success Criteria
+
+- ✅ EKSPipelineContext implemented with all required fields
+- ✅ Base classes defined with clear interfaces
+- ✅ Telemetry heartbeat emits at document processing checkpoints
+- ✅ Multi-stage validation (setup, schema, data, parser) functional
+- ✅ Standardized EngineInput/EngineOutput contracts defined
+- ✅ Engine-specific I/O contracts for discovery, parser, health scorer
+- ✅ CLI entry points for independent engine execution
+- ✅ HTTP API endpoints for independent engine execution
+- ✅ Checkpoint state serialization/deserialization working
+- ✅ ParserFactory routes to correct parser based on file type
+- ✅ HealthScorerFactory loads dimensions from config registry
+- ✅ All existing engines use factories
+- ✅ Backward compatibility maintained (legacy mode works)
+- ✅ PipelineOrchestrator has 5 clear phases (A-E)
+- ✅ Telemetry heartbeat emits at each phase checkpoint
+- ✅ Progress reporting shows current phase and percent complete
+- ✅ Phase rollback restores state to previous checkpoint
+- ✅ DocumentSelectionContract validates data folder and file types
+- ✅ PipelineConfigContract validates debug mode, workers, thresholds
+- ✅ UIContractManager provides file browsing and validation
+- ✅ Contracts serialize to/from JSON
+- ✅ EKSProjectSetupValidator validates required folders and files
+- ✅ Missing folders auto-created with logging
+- ✅ Environment validation checks for eks.yml
+- ✅ Readiness status clearly reported (YES/NO with details)
+
+---
+
+## 17. References
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
 2. [AGENTS.md](../AGENTS.md) — Repository guidelines
