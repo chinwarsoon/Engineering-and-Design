@@ -133,6 +133,7 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | T4.22 | Implement OntologyResolver module | Create `ontology_resolver.py`: `resolve_class(user_label) → [AT_codes]` — queries Neo4j T-Box using dynamic Cypher: `MATCH (parent:OntologyClass {label: $label})<-[:SUBCLASS_OF*0..10]-(sub) RETURN collect(sub.name)`; maps returned class names to AT_ codes via `ontology_class_map`; returns list for metadata filter — zero hardcoded class lists in Python | 🔷 |
 | T4.23 | Extend graph expander with CONTROLS + FEEDS_FROM | Update `graph_expander.py` to traverse `CONTROLS` relationships (instrument→asset: "what controls this pump?") and `FEEDS_FROM` relationships; add to the candidate expansion set alongside existing CONNECTS_TO and REFERENCED_BY_DWG traversals | 🔷 |
 | T4.24 | Implement PhysicalObject lookup via INSTALLED_AT | Add query path in `graph_expander.py`: when query targets a tag node (FunctionalObject), traverse `INSTALLED_AT` in reverse to find linked PhysicalObject nodes; include manufacturer, serial_number, brand in LLM context assembly for physical equipment queries | 🔷 |
+| T4.25 | Integrate Appendix F architecture patterns | Apply universal pipeline architecture patterns per [Appendix F](appendix_f_pipeline_architecture_design.md): (1) Create RetrieverInput/RetrieverOutput, ScorerInput/ScorerOutput, and LLMInput/LLMOutput contracts in `eks/engine/retrieval/io_contracts.py` extending EngineInput/EngineOutput base; (2) Add telemetry heartbeat checkpoints for retrieval pipeline stages (filter, expand, search, score, rerank, assemble); (3) Implement LLMProviderFactory for Dependency Injection (OpenAI, Ollama); (4) Define UI contracts (QueryRequestContract, QueryResponseContract) for Phase 5 integration; (5) Ensure retrieval pipeline stages can be executed independently via CLI entry points; (6) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 |
 
 ---
 
@@ -141,6 +142,7 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | File/Folder                                       | Action | Purpose                                                      |
 | :------------------------------------------------ | :----- | :----------------------------------------------------------- |
 | `eks/engine/retrieval/__init__.py`                | Create | Retrieval pipeline package init                              |
+| `eks/engine/retrieval/io_contracts.py`            | Create | RetrieverInput/RetrieverOutput, ScorerInput/ScorerOutput, LLMInput/LLMOutput contracts per Appendix F |
 | `eks/engine/retrieval/metadata_filter.py`         | Create | Metadata-based candidate filtering + revision-aware filter   |
 | `eks/engine/retrieval/graph_expander.py`          | Create | Knowledge graph relationship expansion                       |
 | `eks/engine/retrieval/vector_search.py`           | Create | Qdrant vector similarity search                              |

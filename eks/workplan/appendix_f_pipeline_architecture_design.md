@@ -1,9 +1,9 @@
 # Appendix F: EKS Pipeline Architecture Design
 
 **Document ID**: WP-EKS-APPENDIX-F-001  
-**Current Version**: 1.1  
+**Current Version**: 1.6  
 **Status**: 📋 Proposed for Review  
-**Last Updated**: 2026-06-26  
+**Last Updated**: 2026-06-29  
 **Parent Workplan**: [Universal Pipeline Architecture Design](../../common/universal_pipeline_architecture_design.md)
 
 ---
@@ -12,6 +12,9 @@
 
 | Revision | Date | Author | Summary |
 | :--- | :--- | :--- | :--- |
+| 1.6 | 2026-06-29 | Cascade | Consolidated implementation-related sections (2, 4, 5, 8, 10) into new Section 6 (Implementation Evaluation) at end of document for evaluating current status. Renumbered remaining sections accordingly. Updated index of content. |
+| 1.5 | 2026-06-29 | Cascade | Added Index of Content section with links to all sections and subsections per AGENTS.md Section 14 (Documentation). |
+| 1.4 | 2026-06-29 | Cascade | Removed Section 3.3.6 (Implementation Tasks) to ensure Appendix F contains only high-level architecture design. Task-level details moved to phase_1_foundation_workplan.md Section 16. |
 | 1.3 | 2026-06-26 | Cascade | Restructured Appendix F to focus on high-level pipeline architecture design only. Removed detailed Phase 1.2.x implementation roadmap (moved to phase_1_foundation_workplan.md). Added Section 4: Implementation Guidance with cross-references to phase workplans. |
 | 1.2 | 2026-06-26 | Cascade | Added Section 3.4: Engine I/O Analysis with comprehensive tabulation of all 60 engines across all 5 phases, documenting input/output types, database operations, and file operations. |
 | 1.1 | 2026-06-26 | Cascade | Added Section 3.3: Standardized Engine I/O for Independent Execution. Updated Phase 1.2.1 tasks and deliverables to include I/O contracts, CLI entry points, and HTTP API endpoints. |
@@ -19,46 +22,59 @@
 
 ---
 
+## Index of Content
+
+- [Revision History](#revision-history)
+- [1. Executive Summary](#1-executive-summary)
+- [2. Proposed Architecture Enhancement](#2-proposed-architecture-enhancement)
+  - [2.1 Target Architecture](#21-target-architecture)
+  - [2.2 EKSPipelineContext Structure](#22-ekspipelinecontext-structure)
+  - [2.3 Standardized Engine I/O for Independent Execution](#23-standardized-engine-io-for-independent-execution)
+    - [2.3.1 Standard Input/Output Contract](#231-standard-inputoutput-contract)
+    - [2.3.2 Engine-Specific I/O Contracts](#232-engine-specific-io-contracts)
+    - [2.3.3 Independent Execution Modes](#233-independent-execution-modes)
+    - [2.3.4 Engine Chaining and Orchestration](#234-engine-chaining-and-orchestration)
+    - [2.3.5 Benefits of Standardized I/O](#235-benefits-of-standardized-io)
+  - [2.4 Engine I/O Analysis](#24-engine-io-analysis)
+    - [Phase 1 Engines (Foundation)](#phase-1-engines-foundation)
+    - [Phase 2 Engines (Chunking & Embedding)](#phase-2-engines-chunking--embedding)
+    - [Phase 3 Engines (Knowledge Graph)](#phase-3-engines-knowledge-graph)
+    - [Phase 4 Engines (Retrieval Pipeline)](#phase-4-engines-retrieval-pipeline)
+    - [Phase 5 Engines (UI Integration)](#phase-5-engines-ui-integration)
+    - [I/O Pattern Summary](#io-pattern-summary)
+- [3. Benefits](#3-benefits)
+  - [3.1 Maintainability](#31-maintainability)
+  - [3.2 Testability](#32-testability)
+  - [3.3 Observability](#33-observability)
+  - [3.4 Flexibility](#34-flexibility)
+  - [3.5 User Experience](#35-user-experience)
+- [4. Risks and Mitigation](#4-risks-and-mitigation)
+- [5. References](#5-references)
+  - [5.1 Universal Architecture](#51-universal-architecture)
+  - [5.2 EKS Documents](#52-eks-documents)
+  - [5.3 DCC Reference Implementations](#53-dcc-reference-implementations)
+- [6. Implementation Evaluation](#6-implementation-evaluation)
+  - [6.1 Current State Assessment (Phase 1)](#61-current-state-assessment-phase-1)
+    - [Completed Components](#completed-components)
+    - [Architecture Gaps](#architecture-gaps)
+  - [6.2 Implementation Guidance](#62-implementation-guidance)
+  - [6.3 Architecture Comparison](#63-architecture-comparison)
+  - [6.4 Success Criteria](#64-success-criteria)
+  - [6.5 Next Steps](#65-next-steps)
+
+---
+
 ## 1. Executive Summary
 
-This appendix defines the EKS-specific application of universal pipeline architecture patterns documented in the Universal Pipeline Architecture Design. It provides a detailed implementation roadmap for applying these patterns to the Engineering Knowledge System (EKS) pipeline, building on the completed Phase 1 foundation.
+This appendix defines the EKS-specific application of universal pipeline architecture patterns documented in the Universal Pipeline Architecture Design. It provides a high-level architecture design for applying these patterns to the Engineering Knowledge System (EKS) pipeline, building on the completed Phase 1 foundation.
 
 ---
 
-## 2. Current State Assessment (Phase 1)
-
-### 2.1 Completed Components
-
-- ✅ Schema Loader (`eks/engine/core/schema_loader.py`)
-- ✅ Config Registry (`eks/engine/core/config_registry.py`)
-- ✅ Document Registry (`eks/engine/core/registry.py`)
-- ✅ Revision Manager (`eks/engine/core/revision.py`)
-- ✅ File Scanner (`eks/engine/core/discovery.py`)
-- ✅ Parser Router (`eks/engine/core/router.py`)
-- ✅ Health Scorer (`eks/engine/core/health_scorer.py`)
-- ✅ Parsers (PDF, DOCX, XLSX, DGN, DWG)
-- ✅ Schema Files (eks/config/schemas/)
-
-### 2.2 Architecture Gaps
-
-| Pattern | Current State | Gap Description |
-| :--- | :--- | :--- |
-| PipelineContext | ❌ Not implemented | Loose variable passing between components |
-| Dependency Injection | ❌ Not implemented | Direct instantiation of parsers and scorers |
-| Phase-Based Orchestration | ⚠️ Partial | PipelineOrchestrator exists but lacks clear checkpoints |
-| Telemetry Heartbeat | ❌ Not implemented | No progress tracking or performance monitoring |
-| Schema-Driven Config | ✅ Implemented | JSON-based configuration exists |
-| Multi-Stage Validation | ⚠️ Partial | Schema validation only, no project setup validation |
-| Error Catalog | ✅ Implemented | Hierarchical error codes exist |
-| UI Contracts | ❌ Not implemented | No backend contracts for UI integration |
-| Project Setup Validation | ❌ Not implemented | No automated project structure verification |
-| Foundation/Utility Separation | ⚠️ Partial | engine/ exists but not separated into core/domain |
-
 ---
 
-## 3. Proposed Architecture Enhancement
+## 2. Proposed Architecture Enhancement
 
-### 3.1 Target Architecture
+### 2.1 Target Architecture
 
 ```
 eks/
@@ -88,7 +104,7 @@ eks/
         └── eks.js
 ```
 
-### 3.2 EKSPipelineContext Structure
+### 2.2 EKSPipelineContext Structure
 
 ```python
 @dataclass
@@ -104,11 +120,11 @@ class EKSPipelineContext:
 
 ---
 
-### 3.3 Standardized Engine I/O for Independent Execution
+### 2.3 Standardized Engine I/O for Independent Execution
 
 **Purpose**: Each engine can be run independently with standardized input/output contracts, enabling modular testing, debugging, and reusability.
 
-#### 3.3.1 Standard Input/Output Contract
+#### 2.3.1 Standard Input/Output Contract
 
 All engines must implement a standardized I/O contract:
 
@@ -180,7 +196,7 @@ class BaseEngine(ABC):
         return output
 ```
 
-#### 3.3.2 Engine-Specific I/O Contracts
+#### 2.3.2 Engine-Specific I/O Contracts
 
 Each engine extends the base contract with engine-specific fields:
 
@@ -224,7 +240,7 @@ class HealthScorerOutput(EngineOutput):
     score_distribution: Dict[str, int] # Score tier distribution
 ```
 
-#### 3.3.3 Independent Execution Modes
+#### 2.3.3 Independent Execution Modes
 
 Engines can be executed independently through multiple interfaces:
 
@@ -308,7 +324,7 @@ POST /api/v1/engines/discovery
 }
 ```
 
-#### 3.3.4 Engine Chaining and Orchestration
+#### 2.3.4 Engine Chaining and Orchestration
 
 The orchestrator chains engines by passing checkpoint state:
 
@@ -351,7 +367,7 @@ class PipelineOrchestrator:
         return final_output
 ```
 
-#### 3.3.5 Benefits of Standardized I/O
+#### 2.3.5 Benefits of Standardized I/O
 
 - **Independent Testing**: Each engine can be tested in isolation
 - **Modular Debugging**: Failed engines can be re-run without reprocessing entire pipeline
@@ -360,29 +376,11 @@ class PipelineOrchestrator:
 - **Clear Contracts**: Input/output validation ensures data quality between engines
 - **Resume Capability**: Checkpoint state enables resumption from any phase
 
-#### 3.3.6 Implementation Tasks
+### 2.4 Engine I/O Analysis
 
-Add to Phase 1.2.1 (Foundation Layer Enhancement):
+This section provides a high-level analysis of engine I/O patterns across all EKS phases, documenting the distribution of input/output types, database operations, and file operations. This analysis informs the standardized I/O contract design.
 
-**Tasks**:
-1. Define `EngineInput` and `EngineOutput` base dataclasses
-2. Implement `BaseEngine` abstract class with standard execution flow
-3. Create engine-specific input/output contracts for each domain engine
-4. Implement CLI entry points for each engine
-5. Add HTTP API endpoints for independent engine execution
-6. Implement checkpoint state serialization/deserialization
-
-**Deliverables**:
-- `eks/engine/core/io_contracts.py` — Base I/O contracts and BaseEngine
-- `eks/engine/discovery/io_contracts.py` — Discovery-specific contracts
-- `eks/engine/parsers/io_contracts.py` — Parser-specific contracts
-- `eks/engine/health/io_contracts.py` — Health scoring-specific contracts
-- CLI entry points: `eks/engine/*/cli.py`
-- API endpoints: `eks/ui/backend/engine_endpoints.py`
-
-### 3.4 Engine I/O Analysis
-
-This section provides a comprehensive tabulation of all engines across all EKS phases, documenting their input/output types, database operations, and file operations. This analysis informs the standardized I/O contract design.
+**Summary**: 60 engines across 5 phases, with 50% involving database operations (DuckDB, Neo4j, Qdrant, Redis), 25% involving file operations (mostly read-only), and 15% being pure in-memory transformations. Phase 3 has the most database operations (22 engines touching Neo4j).
 
 #### Phase 1 Engines (Foundation)
 
@@ -513,16 +511,49 @@ This section provides a comprehensive tabulation of all engines across all EKS p
 
 ---
 
-## 4. Implementation Guidance
+---
+
+## 6. Implementation Evaluation
+
+This section consolidates implementation-related information for evaluating current status and planning future work.
+
+### 6.1 Current State Assessment (Phase 1)
+
+#### Completed Components
+
+- ✅ Schema Loader (`eks/engine/core/schema_loader.py`)
+- ✅ Config Registry (`eks/engine/core/config_registry.py`)
+- ✅ Document Registry (`eks/engine/core/registry.py`)
+- ✅ Revision Manager (`eks/engine/core/revision.py`)
+- ✅ File Scanner (`eks/engine/core/discovery.py`)
+- ✅ Parser Router (`eks/engine/core/router.py`)
+- ✅ Health Scorer (`eks/engine/core/health_scorer.py`)
+- ✅ Parsers (PDF, DOCX, XLSX, DGN, DWG)
+- ✅ Schema Files (eks/config/schemas/)
+
+#### Architecture Gaps
+
+| Pattern | Current State | Gap Description |
+| :--- | :--- | :--- |
+| PipelineContext | ❌ Not implemented | Loose variable passing between components |
+| Dependency Injection | ❌ Not implemented | Direct instantiation of parsers and scorers |
+| Phase-Based Orchestration | ⚠️ Partial | PipelineOrchestrator exists but lacks clear checkpoints |
+| Telemetry Heartbeat | ❌ Not implemented | No progress tracking or performance monitoring |
+| Schema-Driven Config | ✅ Implemented | JSON-based configuration exists |
+| Multi-Stage Validation | ⚠️ Partial | Schema validation only, no project setup validation |
+| Error Catalog | ✅ Implemented | Hierarchical error codes exist |
+| UI Contracts | ❌ Not implemented | No backend contracts for UI integration |
+| Project Setup Validation | ❌ Not implemented | No automated project structure verification |
+| Foundation/Utility Separation | ⚠️ Partial | engine/ exists but not separated into core/domain |
+
+### 6.2 Implementation Guidance
 
 The detailed implementation tasks for applying universal pipeline architecture patterns to EKS are documented in the respective phase workplans:
 
 - **Phase 1 Foundation Enhancement**: See [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) for detailed tasks on PipelineContext, Dependency Injection, Phase-Based Orchestration, Telemetry Heartbeat, UI Contracts, Project Setup Validation, and Standardized Engine I/O.
 - **Phase 2–5**: Future phases will incorporate these patterns as they are implemented, following the architecture defined in this appendix.
 
----
-
-## 5. Architecture Comparison
+### 6.3 Architecture Comparison
 
 | Aspect | EKS (Current) | EKS (Proposed) | Universal Pattern |
 | :--- | :--- | :--- | :--- |
@@ -539,33 +570,33 @@ The detailed implementation tasks for applying universal pipeline architecture p
 
 ---
 
-## 6. Benefits
+## 3. Benefits
 
-### 6.1 Maintainability
+### 3.1 Maintainability
 
 - **Reduced Complexity**: Centralized context management reduces function signature complexity (5-7 parameters → 1-2)
 - **Clear Separation**: Foundation/utility separation makes code easier to navigate
 - **Consistent Patterns**: Uniform patterns across components reduce cognitive load
 
-### 6.2 Testability
+### 3.2 Testability
 
 - **Dependency Injection**: Easy mocking for unit tests
 - **Phase-Based Testing**: Each phase can be tested independently
 - **Contract Validation**: UI contracts enable automated API testing
 
-### 6.3 Observability
+### 3.3 Observability
 
 - **Telemetry**: Real-time progress tracking and performance monitoring
 - **Error Catalog**: Structured error tracking with resolution guidance
 - **Validation**: Multi-stage validation provides early error detection
 
-### 6.4 Flexibility
+### 3.4 Flexibility
 
 - **Swappable Components**: Factory pattern enables easy component replacement
 - **Schema-Driven**: Configuration changes without code modifications
 - **Platform Independence**: Cross-platform path handling
 
-### 6.5 User Experience
+### 3.5 User Experience
 
 - **Progress Visibility**: Heartbeat system provides real-time feedback
 - **Clear Errors**: Standardized error codes with resolution guidance
@@ -573,7 +604,7 @@ The detailed implementation tasks for applying universal pipeline architecture p
 
 ---
 
-## 7. Risks and Mitigation
+## 4. Risks and Mitigation
 
 | Risk | Likelihood | Impact | Mitigation |
 | :--- | :---: | :---: | :--- |
@@ -585,7 +616,7 @@ The detailed implementation tasks for applying universal pipeline architecture p
 
 ---
 
-## 8. Success Criteria
+### 6.4 Success Criteria
 
 - ✅ EKSPipelineContext implemented and integrated across all engines
 - ✅ Dependency injection factories for parsers and health scorer
@@ -598,34 +629,34 @@ The detailed implementation tasks for applying universal pipeline architecture p
 - ✅ Documentation updated with new patterns
 - ✅ knowledge.json updated with new architecture
 
----
-
-## 9. References
-
-### Universal Architecture
-
-- [Universal Pipeline Architecture Design](../../common/universal_pipeline_architecture_design.md) — Universal patterns and guidelines
-
-### EKS Documents
-
-- [Phase 1 Foundation Workplan](phase_1_foundation_workplan.md) — Foundation module specification
-- [Phase 1.2 Interactive UI Workplan](phase_1.2_interactive_ui_workplan.md) — UI and sub-pipeline workplan
-- [knowledge.json](../knowledge.json) — Project knowledge base
-
-### DCC Reference Implementations
-
-- [Pipeline Architecture Design Workplan](../../dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/pipeline_architecture_design_workplan.md)
-- [Lessons Learned and Best Practices](../../dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/lessons_learned_best_practices.md)
-
----
-
-## 10. Next Steps
+### 6.5 Next Steps
 
 1. **Review and Approval**: Stakeholder review of this appendix
 2. **Phase 1.2.1 Start**: Begin foundation layer enhancement
 3. **Weekly Check-ins**: Progress review at end of each phase
 4. **Integration Testing**: Validate new patterns with existing Phase 1 components
 5. **Documentation Update**: Update knowledge.json with new architecture
+
+---
+
+## 5. References
+
+### 5.1 Universal Architecture
+
+- [Universal Pipeline Architecture Design](../../common/universal_pipeline_architecture_design.md) — Universal patterns and guidelines
+
+### 5.2 EKS Documents
+
+- [Phase 1 Foundation Workplan](phase_1_foundation_workplan.md) — Foundation module specification
+- [Phase 1.2 Interactive UI Workplan](phase_1.2_interactive_ui_workplan.md) — UI and sub-pipeline workplan
+- [knowledge.json](../knowledge.json) — Project knowledge base
+
+### 5.3 DCC Reference Implementations
+
+- [Pipeline Architecture Design Workplan](../../dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/pipeline_architecture_design_workplan.md)
+- [Lessons Learned and Best Practices](../../dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/lessons_learned_best_practices.md)
+
+---
 
 ---
 

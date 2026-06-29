@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 3.15  
+**Current Version**: 3.16  
 **Status**: ✅ COMPLETE — T1.51 implemented with 14th asset_context fragment. 118/118 tests pass.  
-**Last Updated**: 2026-06-26  
+**Last Updated**: 2026-06-29  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
 
@@ -453,6 +453,21 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | T1.49 | Cross-cutting workplan remediation | Fix `agent_rule.md` references → `AGENTS.md`; convert Linux absolute paths to relative; update stale statuses (master DRAFT, T1.33, Appendix D); reorder §9/§11 in master; fix Phase 2 date ordering; fill Phase 3 placeholders (sections, tasks T3.1–T3.27); add reranker criteria and eval metrics to Phase 4; choose React for Phase 5 frontend, expand Mermaid diagram, add auth note. | ✅ Complete | 2026-06-24 |
 | T1.50 | Base schema SSOT enforcement | (1) Strip `document_relationship_trigger_map` to shape-only — remove `properties`/`required` with hardcoded enum values (I031); (2) Move `revision_id` from `eks_base_schema.json` to `eks_doc_base_schema.json`, add `revision_validation` 3-layer chain to doc set, remove `revision_pattern` from `project_rules_def` (I032); (3) Update `ConfigRegistry` to resolve `$ref` entries on-the-fly; (4) Update `schema_inheritance_chain.md` v1.6. 114/114 tests pass. | ✅ Complete | 2026-06-24 |
 | T1.51 | Asset Context Fragment — Extensible Location & System Hierarchy + Explicit Relationship Schema | Add `asset_context` fragment to `eks_asset_base_schema.json` with: (1) `project_context` — project_code, phase, client, contractor; (2) `location_hierarchy` — **extensible** nested hierarchy (site→area→unit→building→floor→room) with `additionalProperties: true` for future levels (zone, bay, skid, module) without schema migration; unit is primary anchor. **Location is a context to be linked (LOCATED_IN edges), no specific location keytag generated**; (3) `system_hierarchy` — **extensible** functional decomposition (system_code→subsystem_code) with `additionalProperties: true` for future subsystem levels; discipline + utility_category enums; (4) `asset_relationships` — explicit asset-to-asset links (connects_to, flows_from, flows_to, controlled_by, energized_by, has_actuator, instrumented_by, references_dwg, governed_by_spec, installed_at, set_point_in, redundant_to, spare_for); (5) `document_relationships` — asset↔document links (references_documents, supersedes, produced_by, approved_by, inspected_by); (6) `lifecycle_context` — commissioning_status, operational_status, criticality, safety_class (SIL), redundancy_group, maintenance_strategy, regulatory_tag. Update `eks_asset_setup_schema.json` fragment enum + `fragment_category_registry` (functional). Populate `asset_context` for all 14 AT_ types in `eks_asset_config.json` with column normalization mappings. Version bumps: base→1.3.0, setup→1.3.0, config→1.4.0 per AGENTS.md §13. | ✅ | 2026-06-25 |
+| T1.52 | Implement EKSPipelineContext | Create `eks/engine/core/context.py` with nested dataclasses for centralized state management (paths, data, parameters, state, telemetry, schema_registry) per Appendix F | 🔷 | — |
+| T1.53 | Implement BaseEngine abstract class | Create `eks/engine/core/base.py` with standard execution flow (validate → execute → validate) per Appendix F | 🔷 | — |
+| T1.54 | Implement TelemetryHeartbeat | Create `eks/engine/core/telemetry.py` for document processing checkpoints per Appendix F | 🔷 | — |
+| T1.55 | Implement Multi-Stage Validation | Create `eks/engine/core/validator.py` with setup, schema, data, parser validation stages per Appendix F | 🔷 | — |
+| T1.56 | Implement CLI Entry Points | Create `eks/engine/*/cli.py` for independent engine execution via command line per Appendix F | 🔷 | — |
+| T1.57 | Implement HTTP API Endpoints | Create `eks/ui/backend/engine_endpoints.py` for independent engine execution via HTTP per Appendix F | 🔷 | — |
+| T1.58 | Implement Checkpoint State Serialization | Add checkpoint state serialization/deserialization for resume capability per Appendix F | 🔷 | — |
+| T1.59 | Implement ParserFactory | Create `eks/engine/core/factories.py` with file type routing per Appendix F | 🔷 | — |
+| T1.60 | Implement HealthScorerFactory | Factory with config-driven dimensions per Appendix F | 🔷 | — |
+| T1.61 | Implement StructureDetectorFactory | Factory for structure detector instantiation per Appendix F | 🔷 | — |
+| T1.62 | Update Engines to Use Factories | Refactor existing engines to use factories instead of direct instantiation per Appendix F | 🔷 | — |
+| T1.63 | Enhance PipelineOrchestrator with Checkpoints | Add 5 clear phases (A-E) with telemetry heartbeat integration per Appendix F | 🔷 | — |
+| T1.64 | Implement Phase Rollback Capability | Add checkpoint restoration mechanism for failed phases per Appendix F | 🔷 | — |
+| T1.65 | Implement Project Setup Validator | Create `eks/engine/core/setup_validator.py` with auto-creation of missing folders per Appendix F | 🔷 | — |
+| T1.66 | Create Project Setup Schema | Create `eks/config/schemas/project_setup.json` for setup validation per Appendix F | 🔷 | — |
 
 ---
 
@@ -713,91 +728,47 @@ graph TB
 
 ---
 
-## 16. Phase 1.2: Foundation Enhancement (Future Work)
+## 16. Phase 1.2: I/O Check, Test & UI Design
 
-This section documents the planned enhancements to Phase 1 foundation to apply universal pipeline architecture patterns. These tasks are derived from [Appendix F: EKS Pipeline Architecture Design](appendix_f_pipeline_architecture_design.md) and will be implemented in a future phase to improve modularity, testability, and maintainability.
+This section documents the planned enhancements to Phase 1 foundation for I/O contract validation, testing, and UI design. These tasks are focused on ensuring proper I/O patterns and preparing for UI integration.
 
 ### 16.1 Overview
 
-Phase 1 is currently COMPLETE (v3.14). The following enhancements will be implemented to apply universal pipeline architecture patterns:
+Phase 1 is currently COMPLETE (v3.14). The following enhancements will be implemented to validate I/O patterns and prepare UI contracts:
 
-- **PipelineContext**: Centralized state management
-- **Dependency Injection**: Factory pattern for component creation
-- **Phase-Based Orchestration**: Clear phase checkpoints with telemetry
-- **Telemetry Heartbeat**: Progress and performance monitoring
-- **Standardized Engine I/O**: Independent engine execution with contracts
+- **Standardized Engine I/O**: Define and validate I/O contracts for independent engine execution
+- **I/O Testing**: Test I/O contracts across Phase 1 engines
 - **UI Contracts**: Backend contracts for UI integration
-- **Project Setup Validation**: Automated project structure verification
 
 ### 16.2 Task Breakdown
 
 | # | Task | Details | Status |
 | :- | :--- | :------ | :----: |
-| T1.2.1 | Implement EKSPipelineContext | Create `eks/engine/core/context.py` with nested dataclasses for centralized state management | 🔷 PLANNED |
-| T1.2.2 | Implement BaseEngine abstract class | Create `eks/engine/core/base.py` with standard execution flow (validate → execute → validate) | 🔷 PLANNED |
-| T1.2.3 | Implement TelemetryHeartbeat | Create `eks/engine/core/telemetry.py` for document processing checkpoints | 🔷 PLANNED |
-| T1.2.4 | Implement Multi-Stage Validation | Create `eks/engine/core/validator.py` with setup, schema, data, parser validation stages | 🔷 PLANNED |
-| T1.2.5 | Define Standardized Engine I/O Contracts | Create `eks/engine/core/io_contracts.py` with EngineInput/EngineOutput base dataclasses | 🔷 PLANNED |
-| T1.2.6 | Implement Engine-Specific I/O Contracts | Create domain-specific contracts in `eks/engine/discovery/io_contracts.py`, `eks/engine/parsers/io_contracts.py`, `eks/engine/health/io_contracts.py` | 🔷 PLANNED |
-| T1.2.7 | Implement CLI Entry Points | Create `eks/engine/*/cli.py` for independent engine execution via command line | 🔷 PLANNED |
-| T1.2.8 | Implement HTTP API Endpoints | Create `eks/ui/backend/engine_endpoints.py` for independent engine execution via HTTP | 🔷 PLANNED |
-| T1.2.9 | Implement Checkpoint State Serialization | Add checkpoint state serialization/deserialization for resume capability | 🔷 PLANNED |
-| T1.2.10 | Implement ParserFactory | Create `eks/engine/core/factories.py` with file type routing | 🔷 PLANNED |
-| T1.2.11 | Implement HealthScorerFactory | Factory with config-driven dimensions | 🔷 PLANNED |
-| T1.2.12 | Implement StructureDetectorFactory | Factory for structure detector instantiation | 🔷 PLANNED |
-| T1.2.13 | Update Engines to Use Factories | Refactor existing engines to use factories instead of direct instantiation | 🔷 PLANNED |
-| T1.2.14 | Enhance PipelineOrchestrator with Checkpoints | Add 5 clear phases (A-E) with telemetry heartbeat integration | 🔷 PLANNED |
-| T1.2.15 | Implement Phase Rollback Capability | Add checkpoint restoration mechanism for failed phases | 🔷 PLANNED |
-| T1.2.16 | Implement UI Contracts | Create `eks/ui/backend/contracts.py` with DocumentSelectionContract and PipelineConfigContract | 🔷 PLANNED |
-| T1.2.17 | Implement UIContractManager | Create contract manager with validation and serialization methods | 🔷 PLANNED |
-| T1.2.18 | Implement Project Setup Validator | Create `eks/engine/core/setup_validator.py` with auto-creation of missing folders | 🔷 PLANNED |
-| T1.2.19 | Create Project Setup Schema | Create `eks/config/schemas/project_setup.json` for setup validation | 🔷 PLANNED |
+| T1.2.1 | Define Standardized Engine I/O Contracts | Create `eks/engine/core/io_contracts.py` with EngineInput/EngineOutput base dataclasses | 🔷 PLANNED |
+| T1.2.2 | Implement Engine-Specific I/O Contracts | Create domain-specific contracts in `eks/engine/discovery/io_contracts.py`, `eks/engine/parsers/io_contracts.py`, `eks/engine/health/io_contracts.py` | 🔷 PLANNED |
+| T1.2.3 | Implement UI Contracts | Create `eks/ui/backend/contracts.py` with DocumentSelectionContract and PipelineConfigContract | 🔷 PLANNED |
+| T1.2.4 | Implement UIContractManager | Create contract manager with validation and serialization methods | 🔷 PLANNED |
+| T1.2.5 | Write I/O Contract Tests | Test I/O contracts for discovery, parser, and health scorer engines | 🔷 PLANNED |
 
 ### 16.3 Deliverables
 
-- `eks/engine/core/context.py` — EKSPipelineContext implementation
-- `eks/engine/core/base.py` — BaseEngine, BaseProcessor abstract classes
-- `eks/engine/core/telemetry.py` — TelemetryHeartbeat implementation
-- `eks/engine/core/validator.py` — Multi-stage validation logic
-- `eks/engine/core/io_contracts.py` — Base I/O contracts and BaseEngine
+- `eks/engine/core/io_contracts.py` — Base I/O contracts
 - `eks/engine/discovery/io_contracts.py` — Discovery-specific contracts
 - `eks/engine/parsers/io_contracts.py` — Parser-specific contracts
 - `eks/engine/health/io_contracts.py` — Health scoring-specific contracts
-- `eks/engine/core/factories.py` — Factory implementations
-- CLI entry points: `eks/engine/*/cli.py`
-- API endpoints: `eks/ui/backend/engine_endpoints.py`
 - `eks/ui/backend/contracts.py` — Contract definitions
 - `eks/ui/backend/contract_manager.py` — Contract manager
-- `eks/engine/core/setup_validator.py` — Setup validator
-- `eks/config/schemas/project_setup.json` — Setup schema
+- I/O contract test suite
 
 ### 16.4 Success Criteria
 
-- ✅ EKSPipelineContext implemented with all required fields
-- ✅ Base classes defined with clear interfaces
-- ✅ Telemetry heartbeat emits at document processing checkpoints
-- ✅ Multi-stage validation (setup, schema, data, parser) functional
 - ✅ Standardized EngineInput/EngineOutput contracts defined
 - ✅ Engine-specific I/O contracts for discovery, parser, health scorer
-- ✅ CLI entry points for independent engine execution
-- ✅ HTTP API endpoints for independent engine execution
-- ✅ Checkpoint state serialization/deserialization working
-- ✅ ParserFactory routes to correct parser based on file type
-- ✅ HealthScorerFactory loads dimensions from config registry
-- ✅ All existing engines use factories
-- ✅ Backward compatibility maintained (legacy mode works)
-- ✅ PipelineOrchestrator has 5 clear phases (A-E)
-- ✅ Telemetry heartbeat emits at each phase checkpoint
-- ✅ Progress reporting shows current phase and percent complete
-- ✅ Phase rollback restores state to previous checkpoint
 - ✅ DocumentSelectionContract validates data folder and file types
 - ✅ PipelineConfigContract validates debug mode, workers, thresholds
 - ✅ UIContractManager provides file browsing and validation
 - ✅ Contracts serialize to/from JSON
-- ✅ EKSProjectSetupValidator validates required folders and files
-- ✅ Missing folders auto-created with logging
-- ✅ Environment validation checks for eks.yml
-- ✅ Readiness status clearly reported (YES/NO with details)
+- ✅ All I/O contract tests passing
 
 ---
 

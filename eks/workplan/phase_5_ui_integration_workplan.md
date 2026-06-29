@@ -120,6 +120,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | T5.17 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 | — |
 | T5.18 | Manual Verification UI | Implement "Manual Verification Dashboard" to review auto-extracted metadata (Phase 3) and set `verified_by` status. | 🔷 | — |
 | T5.19 | Implement ontology navigator tree | Add a hierarchical tree explorer component in the sidebar of `index.html` to browse assets via ontology classes | 🔷 | — |
+| T5.20 | Integrate Appendix F architecture patterns | Apply universal pipeline architecture patterns per [Appendix F](appendix_f_pipeline_architecture_design.md): (1) Implement UI contracts (DocumentSelectionContract, PipelineConfigContract, QueryRequestContract, QueryResponseContract) in `eks/ui/backend/contracts.py` per Appendix F Section 3.1; (2) Create UIInput/UIOutput contracts in `eks/ui/backend/io_contracts.py` extending EngineInput/EngineOutput base; (3) Add telemetry heartbeat checkpoints for UI performance (response times, cache hit rates); (4) Implement CacheProviderFactory for Dependency Injection (Redis, in-memory); (5) Ensure UI backend endpoints can be executed independently via CLI entry points; (6) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 | — |
 
 ---
 
@@ -128,6 +129,8 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | File/Folder                                  | Action | Purpose                                                           |
 | :------------------------------------------- | :----- | :---------------------------------------------------------------- |
 | `eks/ui/app.py`                              | Create | FastAPI/Flask main application entry point                        |
+| `eks/ui/backend/contracts.py`               | Create | UI contracts (DocumentSelectionContract, PipelineConfigContract, QueryRequestContract, QueryResponseContract) per Appendix F |
+| `eks/ui/backend/io_contracts.py`            | Create | UIInput/UIOutput contracts per Appendix F |
 | `eks/ui/routes/query.py`                     | Create | `/query` endpoint — accepts user query, returns answer + citations + asset results |
 | `eks/ui/routes/ingest.py`                    | Create | `/ingest` endpoint — accepts document upload and triggers ingestion|
 | `eks/ui/routes/assets.py`                    | Create | `/assets` endpoint — asset search/filter by unit, service, tag_type, pipeline tag |

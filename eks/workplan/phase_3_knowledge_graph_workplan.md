@@ -159,6 +159,7 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | `eks/engine/graph/neo4j_store.py`                   | Create | Neo4j implementation of graph store interface              |
 | `eks/engine/graph/graph_schema.py`                  | Create | Node label and relationship type definitions               |
 | `eks/engine/graph/relationship_builders.py`         | Create | Doc-to-doc, doc-to-object relationship construction logic  |
+| `eks/engine/graph/io_contracts.py`                 | Create | AssetLoaderInput/AssetLoaderOutput and GraphStoreInput/GraphStoreOutput contracts per Appendix F |
 | `eks/engine/extractors/__init__.py`                 | Create | Structured asset loader package init                       |
 | `eks/engine/extractors/base_asset_loader.py`        | Create | Abstract asset loader interface — load sheet data by tag_type fragment rules |
 | `eks/engine/extractors/equipment_loader.py`         | Create | Equipment sheet loader (AT_EQUIP, AT_EQPMP, AT_EQTNK, AT_EQVES, AT_EQEXC) |

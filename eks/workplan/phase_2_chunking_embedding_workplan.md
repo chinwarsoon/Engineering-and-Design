@@ -128,6 +128,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | T2.19 | Write tests for R40/R41 additions | Asset text builder output, asset chunk registry CRUD, eks_assets collection upsert | 🔷 | — |
 | T2.20 | Enrich chunk contextual headers with ontology | Update `hybrid_strategy.py` to resolve the full ontology ancestry path for each asset from the Neo4j T-Box (e.g. PumpTag → TaggedRotating → TaggedEquipment → FunctionalObject) and prepend human-readable class labels as header: `"[{leaf_label} | {parent_label} | ... | Unit {unit} | Svc {service}]"`. Labels come from `eks_ontology_config.json` class definitions — never AT_ codes. Resolves subclass chain via C5.4 Cypher query at embedding time. | 🔷 | — |
 | T2.21 | Write ontology enrichment tests | Verify that taxonomy hierarchy is correctly prepended to headers before embedding | 🔷 | — |
+| T2.22 | Integrate Appendix F architecture patterns | Apply universal pipeline architecture patterns per [Appendix F](appendix_f_pipeline_architecture_design.md): (1) Create ChunkerInput/ChunkerOutput and EmbedderInput/EmbedderOutput contracts in `eks/engine/chunking/io_contracts.py` and `eks/engine/embedding/io_contracts.py` extending EngineInput/EngineOutput base; (2) Add telemetry heartbeat checkpoints for chunking progress (documents processed, chunks generated) and embedding progress (chunks embedded, vectors stored); (3) Consider factory pattern for EmbedderProvider selection (OpenAI, Ollama) via Dependency Injection; (4) Ensure chunkers and embedders can be executed independently via CLI entry points; (5) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 | — |
 
 ---
 
@@ -139,11 +140,13 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | `eks/engine/chunking/chunker.py`               | Create | Abstract chunker interface + size-based implementation|
 | `eks/engine/chunking/section_chunker.py`       | Create | Section-aware chunking strategy                       |
 | `eks/engine/chunking/chunk_registry.py`        | Create | Parent-child chunk management and metadata storage    |
+| `eks/engine/chunking/io_contracts.py`           | Create | ChunkerInput/ChunkerOutput contracts per Appendix F  |
 | `eks/engine/embedding/__init__.py`             | Create | Embedding package init                                |
 | `eks/engine/embedding/base_embedder.py`        | Create | Abstract embedding provider interface                 |
 | `eks/engine/embedding/openai_embedder.py`      | Create | OpenAI embedding provider                             |
 | `eks/engine/embedding/ollama_embedder.py`      | Create | Ollama embedding provider                             |
 | `eks/engine/embedding/hybrid_strategy.py`      | Create | Contextual header construction and embedding pipeline |
+| `eks/engine/embedding/io_contracts.py`          | Create | EmbedderInput/EmbedderOutput contracts per Appendix F |
 | `eks/engine/vector_store/__init__.py`          | Create | Vector store package init                             |
 | `eks/engine/vector_store/base_vector_store.py` | Create | Abstract vector store interface                       |
 | `eks/engine/vector_store/qdrant_store.py`      | Create | Qdrant vector store implementation                    |
