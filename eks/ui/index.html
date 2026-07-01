@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EKS — Document Dashboard</title>
+<link rel="stylesheet" href="eks.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div id="app-layout" class="layout-triple">
+
+  <!-- Title Bar -->
+  <div id="title-bar">
+    <span class="title">EKS</span>
+    <span class="subtitle">Engineering Knowledge System</span>
+    <input type="text" id="global-search" placeholder="Search documents..." />
+    <button class="title-bar-btn" id="btn-theme" title="Cycle theme (saved)">🎨 Theme</button>
+    <button class="title-bar-btn" id="btn-layout" title="Cycle layout">🔲 Layout</button>
+  </div>
+
+  <div id="main-area">
+
+    <!-- Left Icon Bar -->
+    <div id="icon-bar-left">
+      <button class="icon-btn" id="icon-load" title="Load files">📂</button>
+      <button class="icon-btn" id="icon-tree" title="Toggle tree">🌳</button>
+      <button class="icon-btn" id="icon-help" title="Help (F1)">❓</button>
+      <button class="icon-btn" id="icon-settings" title="Settings">⚙️</button>
+    </div>
+
+    <div id="content-area">
+
+      <!-- Left Sidebar (Tree / File Load) -->
+      <div id="left-sidebar" class="sidebar open">
+        <div class="sidebar-header">
+          <span>Explorer</span>
+          <button id="toggle-left" title="Collapse sidebar">✕</button>
+        </div>
+        <div class="sidebar-content" id="tree-content">
+          <div class="empty-state"><p>Loading documents...</p></div>
+        </div>
+      </div>
+      <div id="left-resize" class="sidebar-resize-right"></div>
+
+      <!-- Main Panel -->
+      <div id="main-panel">
+        <!-- Main Toolbar -->
+        <div class="main-toolbar">
+          <button id="btn-load-files">📂 Load Files</button>
+          <button id="btn-run-pipeline">▶ Run Pipeline</button>
+          <button id="btn-cancel-pipeline">⏹ Cancel</button>
+          <span class="spacer"></span>
+          <button id="btn-review">📋 Review</button>
+          <span class="spacer"></span>
+          <span id="pipeline-status" style="font-size:11px;color:var(--text-secondary);"></span>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+          <div class="tab active" data-tab="documents">📄 Documents</div>
+          <div class="tab" data-tab="pipeline">⚙️ Pipeline</div>
+          <div class="tab" data-tab="health">📊 Health</div>
+          <div class="tab" data-tab="review">🔍 Review</div>
+          <div class="tab" data-tab="settings">⚙️ Settings</div>
+        </div>
+
+        <!-- Main Content (tab panes) -->
+        <div id="main-content">
+
+          <!-- Documents Tab -->
+          <div id="tab-documents" class="tab-content" style="display:block;">
+            <div id="file-drop-area" class="file-load-area">
+              <div class="icon">📂</div>
+              <p>Drop files here or click <strong>Load Files</strong> above</p>
+              <p style="font-size:11px;">Supported: PDF, DGN, DWG, DOCX, XLSX</p>
+            </div>
+            <table class="doc-table">
+              <thead>
+                <tr>
+                  <th>Document Number</th>
+                  <th>Type</th>
+                  <th>Discipline</th>
+                  <th>Revision</th>
+                  <th>Health Score</th>
+                </tr>
+              </thead>
+              <tbody id="doc-table-body">
+                <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-secondary);">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pipeline Tab -->
+          <div id="tab-pipeline" class="tab-content" style="display:none;">
+            <h3 style="margin-bottom:8px;">Pipeline Execution</h3>
+            <div class="progress-container">
+              <div class="progress-track">
+                <div class="progress-fill" id="pipeline-progress" style="width:0%"></div>
+              </div>
+              <div class="progress-text" id="pipeline-status-text">Status: idle</div>
+            </div>
+            <h4 style="margin:12px 0 4px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">Logs</h4>
+            <div class="log-viewer" id="pipeline-logs"></div>
+            <h4 style="margin:12px 0 4px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">Summary</h4>
+            <pre id="pipeline-summary" style="font-size:11px;white-space:pre-wrap;background:var(--card-bg);padding:8px;border-radius:4px;margin-top:4px;"></pre>
+          </div>
+
+          <!-- Health Tab -->
+          <div id="tab-health" class="tab-content" style="display:none;">
+            <h3 style="margin-bottom:8px;">Health Score Overview</h3>
+            <div id="health-chart" style="max-width:400px;margin:0 auto;">
+              <div class="empty-state"><p>Load documents to view health chart</p></div>
+              <canvas id="health-chart-canvas"></canvas>
+            </div>
+            <div id="health-summary" style="margin-top:16px;font-size:12px;color:var(--text-secondary);text-align:center;"></div>
+          </div>
+
+          <!-- Review Tab -->
+          <div id="tab-review" class="tab-content" style="display:none;">
+            <h3 style="margin-bottom:8px;">Document Review</h3>
+            <div id="review-content">
+              <div class="empty-state"><p>Click <strong>Review</strong> in the toolbar to load flagged documents</p></div>
+            </div>
+          </div>
+
+          <!-- Settings Tab -->
+          <div id="tab-settings" class="tab-content" style="display:none;">
+            <h3 style="margin-bottom:8px;">Settings</h3>
+            <div id="settings-content"></div>
+          </div>
+
+        </div><!-- /main-content -->
+      </div><!-- /main-panel -->
+
+      <!-- Right Resize Handle -->
+      <div id="right-resize" class="sidebar-resize-left"></div>
+
+      <!-- Right Sidebar (Document Detail) -->
+      <div id="right-sidebar" class="sidebar">
+        <div class="sidebar-header">
+          <span>Document Detail</span>
+          <button id="toggle-right" title="Close panel">✕</button>
+        </div>
+        <div class="sidebar-content" id="detail-content">
+          <div class="empty-state"><p>Select a document to view details</p></div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+
+    <!-- Right Icon Bar -->
+    <div id="icon-bar-right">
+      <div class="top-icons">
+        <button class="icon-btn" title="Info">ℹ️</button>
+      </div>
+      <div class="bottom-icons">
+        <button class="icon-btn" id="toggle-right-icon" title="Toggle detail panel">📋</button>
+      </div>
+    </div>
+
+  </div><!-- /main-area -->
+
+  <!-- Status Bar -->
+  <div id="status-bar">
+    <div class="left">
+      <span id="status-text">Ready</span>
+    </div>
+    <div class="center">
+      <span id="doc-count"></span>
+    </div>
+    <div class="right">
+      <span id="connection-status">Connected</span>
+    </div>
+  </div>
+
+</div><!-- /app-layout -->
+
+<!-- Help Modal -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Help &amp; About</h3>
+      <button id="help-close">✕</button>
+    </div>
+    <div class="modal-body" id="help-body">
+      <p>Loading help content...</p>
+    </div>
+  </div>
+</div>
+
+<script src="eks.js"></script>
+</body>
+</html>

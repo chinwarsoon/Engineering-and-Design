@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 3.16  
-**Status**: 🔶 PARTIAL — T1.51 implemented with 14th asset_context fragment. T1.52–T1.66 pending. Test suite has 63 errors (error_config \$schema issue).  
-**Last Updated**: 2026-06-29  
+**Current Version**: 3.22  
+**Status**: ✅ COMPLETE — T1.52-T1.67 implemented with Appendix F architecture patterns (PipelineContext, BaseEngine, TelemetryHeartbeat, Multi-Stage Validation, CLI Entry Points, HTTP API Endpoints, Checkpoint State Serialization, Factories, PipelineOrchestrator enhancements, Project Setup Validator). T1.67 integrated `project_setup` into core 3-layer schemas, resolving I046. 118/118 tests pass. Updated §14 with function call annotations and §14.1 Function Table (11 module tables).  
+**Last Updated**: 2026-07-01  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
 
@@ -62,6 +62,12 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 | 3.14 | 2026-06-25 | opencode | Integrated full Schema Inheritance Chain from `schema_inheritance_chain.md` (v1.11) into `appendix_e_schema_design.md` (v0.6) as E11–E12. Updated E1 (23 files, asset_context), E2 Mermaid (14 fragments), E5.1/5.3 (14 fragments, 55 base defs). Archived `schema_inheritance_chain.md` → `archive/`. U089 logged. |
 | 3.15 | 2026-06-26 | Cascade | Added Section 16: Phase 1.2 Foundation Enhancement (Future Work) with 19 tasks for applying universal pipeline architecture patterns (PipelineContext, Dependency Injection, Phase-Based Orchestration, Telemetry Heartbeat, Standardized Engine I/O, UI Contracts, Project Setup Validation). Tasks derived from Appendix F. Updated Section 5 index to include new section. |
 | 3.16 | 2026-06-29 | System | Refactored Phase 1.2 scope: kept only I/O check, test, and UI design tasks (T1.2.1-T1.2.5). Moved unrelated Appendix F architecture tasks (PipelineContext, Dependency Injection, Telemetry, etc.) to Phase 1 main task breakdown as T1.52-T1.66. Updated Files and Modules section accordingly. |
+| 3.17 | 2026-06-30 | opencode | Fixed 3 issues: (1) Phase status changed from COMPLETE to PARTIAL reflecting T1.52-T1.66 pending; (2) T1.35.1-T1.35.5 sub-task statuses corrected to match actual implementation (3x ✅, 2x 🔶); (3) Removed `$schema` from `eks_error_config.json` and `eks_message_config.json` (violated `additionalProperties: false` in setup schemas, breaking all 63 phase 1 tests). System back to 118/118 tests pass. I045 resolved. |
+| 3.18 | 2026-06-30 | opencode | Migrated Section 16 (I/O Contract tasks) to phase_1.2_interactive_ui_workplan.md as Phase 1.2.0. Removed section from this workplan. Updated index and renumbered Section 17→16. |
+| 3.19 | 2026-06-30 | System | Completed Appendix F architecture integration tasks T1.52-T1.66: Implemented EKSPipelineContext, BaseEngine, TelemetryHeartbeat, Multi-Stage Validation, CLI Entry Points, HTTP API Endpoints, Checkpoint State Serialization, Factories (ParserFactory, HealthScorerFactory, StructureDetectorFactory), updated ParserRouter to use factories, enhanced PipelineOrchestrator with checkpoints and rollback, implemented Project Setup Validator and schema. Phase 1 status COMPLETE. |
+| 3.20 | 2026-06-30 | opencode | Added T1.67: Integrate `project_setup.json` into core eks_base/setup/config schemas per AGENTS.md §9 3-layer pattern. Logged I046. Phase 1 status set to PARTIAL pending review. |
+| 3.21 | 2026-06-30 | opencode | T1.67 complete: Added 4 defs to `eks_base_schema.json` v1.6.0; added `project_setup` property to `eks_setup_schema.json` v1.3.0; added values to `eks_config.json` v1.4.0; archived `project_setup.json`; refactored `setup_validator.py` to load from ConfigRegistry. I046 resolved. 118/118 tests pass. Phase 1 COMPLETE. |
+| 3.22 | 2026-07-01 | opencode | Enhanced §14 Mermaid diagram with explicit function call annotations per pipeline step. Added §14.1 Function Table (11 module tables) per AGENTS.md §17 — covers all pipeline-critical functions with description, parameters, return values, dependencies, error handling, and tracing. |
 
 ---
 
@@ -127,8 +133,7 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 - [12. Success Criteria](#12-success-criteria)
 - [13. Deliverables](#13-deliverables)
 - [14. Phase 1 Pipeline Architecture (Detailed)](#14-phase-1-pipeline-architecture-detailed)
-- [16. Phase 1.2: Foundation Enhancement (Future Work)](#16-phase-12-foundation-enhancement-future-work)
-- [17. References](#17-references)
+- [16. References](#16-references)
 
 ---
 
@@ -433,10 +438,10 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | T1.33 | Migrate EKS schemas to config/schemas/ | Move core/asset/ontology config & schema files to `eks/config/schemas/`; update SchemaLoader, ErrorManager, MessageManager, tests, and documentation | ✅ | 2026-06-22 |
 | T1.34 | Reorganize document schema (3-layer) | Create `eks_doc_base_schema.json` (document + element definitions), `eks_doc_setup_schema.json` (table declarations, extraction rules, health scoring schema), `eks_doc_config.json` (ontology triggers, health score tiers, element expectations). Move `document_metadata_def` and `project_metadata_def` from `eks_base_schema.json` to `eks_doc_base_schema.json`. Add `document_element_def` (7 columns) to doc base schema. Update `schema_loader.py` with doc schema loading and validation. Update `eks_base_schema.json` to remove doc defs. Add 6 new tests in `test_phase1.py`. Registry config stays in `eks_config.json` (pipeline-level setting). | ✅ | 2026-06-22 |
 | T1.35.1 | Enhance doc base schema — enums & missing fields | Add `doc_id_format`, `document_type_code` enum (7 codes), `file_type_code` enum (5), `element_type_code` enum (8); add `file_path`, `ingested_at`, `file_type` to `document_metadata_def`; type `document_element_def.element_type` with enum ref | ✅ | 2026-06-22 |
-| T1.35.2 | Enhance doc setup schema — registries | Add `document_type_registry`, `file_type_registry`, `element_type_registry` property declarations; update `element_expectations` key schema to use document type codes; add all three registries to `required` | 🔶 | 2026-06-22 |
+| T1.35.2 | Enhance doc setup schema — registries | Add `document_type_registry`, `file_type_registry`, `element_type_registry` property declarations; update `element_expectations` key schema to use document type codes; add all three registries to `required` | ✅ | 2026-06-22 |
 | T1.35.3 | Enhance doc config — registry values | Populate `document_type_registry` (7 entries with ontology class + expected file types), `file_type_registry` (5 entries with parser class + MIME), `element_type_registry` (8 entries with description + source + Phase 2/3 use); refactor `element_expectations` keys from A-E → DWG/PI-PID/SPC/RPT/MAN/DS/OM | ✅ | 2026-06-22 |
 | T1.35.4 | Update schema loader — validate new registries | Add `_validate_doc_registries()` for enum value checks, registry completeness, file type parser class references in `load_all()` | ✅ | 2026-06-22 |
-| T1.35.5 | Update tests — new validation tests | Add tests: `test_doc_type_enum`, `test_doc_type_registry`, `test_file_type_registry`, `test_element_type_registry`, `test_element_expectations_keys`, `test_doc_metadata_complete_fields` | 🔶 | 2026-06-22 |
+| T1.35.5 | Update tests — new validation tests | Add tests: `test_doc_type_enum`, `test_doc_type_registry`, `test_file_type_registry`, `test_element_type_registry`, `test_element_expectations_keys`, `test_doc_metadata_complete_fields` | ✅ | 2026-06-22 |
 | T1.35.6 | Update appendix B — document registry schema | Add B3.2 Document Type Registry, B3.3 File Type Registry, B3.4 Element Type Registry sections; update B3 schema table with `file_type` column; version bump to v0.9 | ✅ | 2026-06-22 |
 | T1.36 | Auto-DDL from schema | Create `eks/engine/core/schema_to_ddl.py`: read `document_metadata_def` + `project_metadata_def` + `document_element_def` from `eks_doc_base_schema.json` and generate `CREATE TABLE` / `ALTER TABLE` SQL. Refactor `registry.py` to use generated DDL instead of hard-coded DDL. Add `sync_schema()` method. | ✅ | 2026-06-22 |
 | T1.37 | File scanner | Create `eks/engine/core/file_scanner.py`: walk project directory; match files to `file_type_registry[].extension`; validate against `document_type_registry[].expected_file_types`; register placeholder rows in `documents` table with `extract_status = 'pending'`, `file_path`, `file_type`, filename-parsed metadata. | ✅ | 2026-06-22 |
@@ -454,21 +459,22 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 | T1.49 | Cross-cutting workplan remediation | Fix `agent_rule.md` references → `AGENTS.md`; convert Linux absolute paths to relative; update stale statuses (master DRAFT, T1.33, Appendix D); reorder §9/§11 in master; fix Phase 2 date ordering; fill Phase 3 placeholders (sections, tasks T3.1–T3.27); add reranker criteria and eval metrics to Phase 4; choose React for Phase 5 frontend, expand Mermaid diagram, add auth note. | ✅ Complete | 2026-06-24 |
 | T1.50 | Base schema SSOT enforcement | (1) Strip `document_relationship_trigger_map` to shape-only — remove `properties`/`required` with hardcoded enum values (I031); (2) Move `revision_id` from `eks_base_schema.json` to `eks_doc_base_schema.json`, add `revision_validation` 3-layer chain to doc set, remove `revision_pattern` from `project_rules_def` (I032); (3) Update `ConfigRegistry` to resolve `$ref` entries on-the-fly; (4) Update `schema_inheritance_chain.md` v1.6. 114/114 tests pass. | ✅ Complete | 2026-06-24 |
 | T1.51 | Asset Context Fragment — Extensible Location & System Hierarchy + Explicit Relationship Schema | Add `asset_context` fragment to `eks_asset_base_schema.json` with: (1) `project_context` — project_code, phase, client, contractor; (2) `location_hierarchy` — **extensible** nested hierarchy (site→area→unit→building→floor→room) with `additionalProperties: true` for future levels (zone, bay, skid, module) without schema migration; unit is primary anchor. **Location is a context to be linked (LOCATED_IN edges), no specific location keytag generated**; (3) `system_hierarchy` — **extensible** functional decomposition (system_code→subsystem_code) with `additionalProperties: true` for future subsystem levels; discipline + utility_category enums; (4) `asset_relationships` — explicit asset-to-asset links (connects_to, flows_from, flows_to, controlled_by, energized_by, has_actuator, instrumented_by, references_dwg, governed_by_spec, installed_at, set_point_in, redundant_to, spare_for); (5) `document_relationships` — asset↔document links (references_documents, supersedes, produced_by, approved_by, inspected_by); (6) `lifecycle_context` — commissioning_status, operational_status, criticality, safety_class (SIL), redundancy_group, maintenance_strategy, regulatory_tag. Update `eks_asset_setup_schema.json` fragment enum + `fragment_category_registry` (functional). Populate `asset_context` for all 14 AT_ types in `eks_asset_config.json` with column normalization mappings. Version bumps: base→1.3.0, setup→1.3.0, config→1.4.0 per AGENTS.md §13. | ✅ | 2026-06-25 |
-| T1.52 | Implement EKSPipelineContext | Create `eks/engine/core/context.py` with nested dataclasses for centralized state management (paths, data, parameters, state, telemetry, schema_registry) per Appendix F | 🔷 | — |
-| T1.53 | Implement BaseEngine abstract class | Create `eks/engine/core/base.py` with standard execution flow (validate → execute → validate) per Appendix F | 🔷 | — |
-| T1.54 | Implement TelemetryHeartbeat | Create `eks/engine/core/telemetry.py` for document processing checkpoints per Appendix F | 🔷 | — |
-| T1.55 | Implement Multi-Stage Validation | Create `eks/engine/core/validator.py` with setup, schema, data, parser validation stages per Appendix F | 🔷 | — |
-| T1.56 | Implement CLI Entry Points | Create `eks/engine/*/cli.py` for independent engine execution via command line per Appendix F | 🔷 | — |
-| T1.57 | Implement HTTP API Endpoints | Create `eks/ui/backend/engine_endpoints.py` for independent engine execution via HTTP per Appendix F | 🔷 | — |
-| T1.58 | Implement Checkpoint State Serialization | Add checkpoint state serialization/deserialization for resume capability per Appendix F | 🔷 | — |
-| T1.59 | Implement ParserFactory | Create `eks/engine/core/factories.py` with file type routing per Appendix F | 🔷 | — |
-| T1.60 | Implement HealthScorerFactory | Factory with config-driven dimensions per Appendix F | 🔷 | — |
-| T1.61 | Implement StructureDetectorFactory | Factory for structure detector instantiation per Appendix F | 🔷 | — |
-| T1.62 | Update Engines to Use Factories | Refactor existing engines to use factories instead of direct instantiation per Appendix F | 🔷 | — |
-| T1.63 | Enhance PipelineOrchestrator with Checkpoints | Add 5 clear phases (A-E) with telemetry heartbeat integration per Appendix F | 🔷 | — |
-| T1.64 | Implement Phase Rollback Capability | Add checkpoint restoration mechanism for failed phases per Appendix F | 🔷 | — |
-| T1.65 | Implement Project Setup Validator | Create `eks/engine/core/setup_validator.py` with auto-creation of missing folders per Appendix F | 🔷 | — |
-| T1.66 | Create Project Setup Schema | Create `eks/config/schemas/project_setup.json` for setup validation per Appendix F | 🔷 | — |
+| T1.52 | Implement EKSPipelineContext | Create `eks/engine/core/context.py` with nested dataclasses for centralized state management (paths, data, parameters, state, telemetry, schema_registry) per Appendix F | ✅ | 2026-06-30 |
+| T1.53 | Implement BaseEngine abstract class | Create `eks/engine/core/base.py` with standard execution flow (validate → execute → validate) per Appendix F | ✅ | 2026-06-30 |
+| T1.54 | Implement TelemetryHeartbeat | Create `eks/engine/core/telemetry.py` for document processing checkpoints per Appendix F | ✅ | 2026-06-30 |
+| T1.55 | Implement Multi-Stage Validation | Create `eks/engine/core/validator.py` with setup, schema, data, parser validation stages per Appendix F | ✅ | 2026-06-30 |
+| T1.56 | Implement CLI Entry Points | Create `eks/engine/*/cli.py` for independent engine execution via command line per Appendix F | ✅ | 2026-06-30 |
+| T1.57 | Implement HTTP API Endpoints | Create `eks/ui/backend/engine_endpoints.py` for independent engine execution via HTTP per Appendix F | ✅ | 2026-06-30 |
+| T1.58 | Implement Checkpoint State Serialization | Add checkpoint state serialization/deserialization for resume capability per Appendix F | ✅ | 2026-06-30 |
+| T1.59 | Implement ParserFactory | Create `eks/engine/core/factories.py` with file type routing per Appendix F | ✅ | 2026-06-30 |
+| T1.60 | Implement HealthScorerFactory | Factory with config-driven dimensions per Appendix F | ✅ | 2026-06-30 |
+| T1.61 | Implement StructureDetectorFactory | Factory for structure detector instantiation per Appendix F | ✅ | 2026-06-30 |
+| T1.62 | Update Engines to Use Factories | Refactor existing engines to use factories instead of direct instantiation per Appendix F | ✅ | 2026-06-30 |
+| T1.63 | Enhance PipelineOrchestrator with Checkpoints | Add 5 clear phases (A-E) with telemetry heartbeat integration per Appendix F | ✅ | 2026-06-30 |
+| T1.64 | Implement Phase Rollback Capability | Add checkpoint restoration mechanism for failed phases per Appendix F | ✅ | 2026-06-30 |
+| T1.65 | Implement Project Setup Validator | Create `eks/engine/core/setup_validator.py` with auto-creation of missing folders per Appendix F | ✅ | 2026-06-30 |
+| T1.66 | Create Project Setup Schema | Create `eks/config/schemas/project_setup.json` for setup validation per Appendix F | ✅ | 2026-06-30 |
+| T1.67 | Integrate project_setup into core 3-layer schemas (I046) | Refactor `project_setup.json` content into `eks_base_schema.json` (4 new defs: `required_folder_setup_def`, `required_file_setup_def`, `environment_setup_def`, `validation_options_def`), `eks_setup_schema.json` (new `project_setup` property with `$ref`), and `eks_config.json` (actual values). Delete orphan `project_setup.json`. Refactor `setup_validator.py` to load from `ConfigRegistry` chain instead of hardcoded lists. Resolves I046. | ✅ | 2026-06-30 |
 
 ---
 
@@ -707,87 +713,163 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 ```mermaid
 graph TB
     subgraph "Pre-Parse Bootstrap"
-        DDL["SchemaToDDL<br/><i>T1.36</i><br/>Read document_metadata_def<br/>project_metadata_def<br/>document_element_def<br/>from eks_doc_base_schema.json"]
-        SYNC["sync_schema()<br/><i>T1.36</i><br/>CREATE TABLE IF NOT EXISTS<br/>ALTER TABLE ADD COLUMN IF NOT EXISTS"]
+        DDL["SchemaToDDL<br/><i>T1.36</i><br/>load_doc_base_schema(config_dir)<br/>→ generate_documents_ddl()<br/>→ generate_document_elements_ddl()<br/>→ generate_indexes()<br/>Read document_metadata_def<br/>project_metadata_def<br/>document_element_def<br/>from eks_doc_base_schema.json"]
+        SYNC["DocumentRegistry._init_db()<br/><i>T1.36</i><br/>→ SchemaToDDL.generate_documents_ddl()<br/>→ SchemaToDDL.generate_document_elements_ddl()<br/>→ SchemaToDDL.generate_indexes()<br/><br/>_migrate_schema()<br/>→ SchemaToDDL.generate_migration_ddl()<br/>CREATE TABLE IF NOT EXISTS<br/>ALTER TABLE ADD COLUMN IF NOT EXISTS"]
         DDL --> SYNC
     end
 
     subgraph "File Discovery"
-        SCANNER["FileScanner<br/><i>T1.37</i><br/>Walk project directory<br/>Match file_type_registry<br/>Validate expected_file_types<br/>Register placeholder rows<br/>extract_status = 'pending'"]
+        SCANNER["PipelineOrchestrator.run_phase_a(root_dir)<br/><i>T1.37, T1.39</i><br/>→ FileScanner.scan(root_dir) — walk directory<br/>→ FileScanner.validate_file_types(discovered)<br/>  → (valid, unknown)<br/>→ FileScanner.register_placeholders(valid, registry)<br/>  → build_placeholder_metadata(file_info)<br/>  → _parse_filename(file_name)<br/>  → _infer_doc_type(file_type)<br/>→ DocumentRegistry.register_document(metadata)<br/>  → INSERT OR REPLACE INTO documents<br/>  → extract_status = 'pending'"]
         SYNC --> SCANNER
     end
 
     subgraph "Parse Pipeline"
-        ROUTER["ParserRouter<br/><i>T1.38</i><br/>file_type → parser_class<br/>from file_type_registry"]
-        PARSER["Plug-in Parser<br/>PDFParser · DOCXParser · XLSXParser<br/>DGNParserStub · DWGParserStub"]
-        DETECTOR["StructureDetector<br/>detect()<br/>cover_page · revision_table<br/>section · table · image<br/>link · legend · note"]
+        ROUTER["PipelineOrchestrator.run_phase_b(root_dir)<br/><i>T1.38, T1.39</i><br/>→ FileScanner.scan() + validate_file_types()<br/>→ Per file: _process_file(file_path, file_type)<br/>  → ParserRouter.route(file_path, file_type)<br/>    → get_parser_class(file_type)<br/>    → instantiate_parser(class_path, file_path)<br/>    → ParserFactory.create(file_type)"]
+        PARSER["Per file: parser.parse()<br/>PDFParser, DOCXParser, XLSXParser<br/>DGNParserStub, DWGParserStub<br/>→ returns content_blocks (List[Dict])<br/>→ extract_metadata()<br/>  → metadata dict"]
+        DETECTOR["Per file: _adapt_content_for_detector(blocks)<br/>→ StructureDetector.detect(file_path, pages)<br/>  → cover_page · revision_table<br/>  → section · table · image<br/>  → link · legend · note<br/>  → returns elements (List[Dict])"]
         ROUTER --> PARSER --> DETECTOR
         SCANNER --> ROUTER
     end
 
     subgraph "Scoring"
-        SCORER["HealthScorer.score()<br/>6 Dimensions:<br/>completeness · extraction_confidence<br/>structural_completeness · source_quality<br/>xref_quality · consistency"]
+        SCORER["Per file: HealthScorer.score(document, elements)<br/><i>T1.32</i><br/>6 Dimensions:<br/>— completeness (20%)<br/>— extraction_confidence (20%)<br/>— structural_completeness (20%)<br/>— source_quality (15%)<br/>— xref_quality (15%)<br/>— consistency (10%)<br/>→ returns score dict with overall + per-dimension"]
         DETECTOR --> SCORER
     end
 
     subgraph "Registry Update"
-        REGISTRY["Document Registry<br/>DuckDB<br/>documents table<br/>document_elements table"]
+        REGISTRY["Per file: _update_doc_status(file_path, status, confidence)<br/><i>pipeline_orchestrator.py</i><br/>→ DocumentRegistry.get_document(doc_number)<br/>→ DuckDB UPDATE documents SET<br/>  extract_status, extraction_confidence,<br/>  extraction_notes<br/><br/>DocumentRegistry.store_elements(doc_id, elements)<br/>→ INSERT INTO document_elements<br/>  (doc_id, element_type, element_id, ...)"]
         SCORER --> REGISTRY
     end
 
     subgraph "Manual Review"
-        REVIEW["Review Workflow<br/><i>T1.40</i><br/>Flag: extract_status ≠ 'success'<br/>Flag: extraction_confidence < 0.70<br/>→ Correct metadata<br/>→ Confirm elements<br/>→ Recalculate score<br/>→ Lock for Phase 2"]
+        REVIEW["PipelineOrchestrator.run_phase_c()<br/><i>T1.40</i><br/>→ DocumentRegistry.list_documents(latest_only=False)<br/>→ Flag: extract_status ≠ 'success'<br/>→ Flag: extraction_confidence < 0.70<br/><br/>ManualReviewManager.get_flagged_documents()<br/>ManualReviewManager.correct_metadata(doc_id, updates)<br/>ManualReviewManager.lock_document(doc_number, verified_by)<br/>→ Recalculate score → Lock for Phase 2"]
         REGISTRY --> REVIEW
     end
 ```
 
 ---
 
-## 16. Phase 1.2: I/O Check, Test & UI Design
+### 14.1 Phase 1 Function Table
 
-This section documents the planned enhancements to Phase 1 foundation for I/O contract validation, testing, and UI design. These tasks are focused on ensuring proper I/O patterns and preparing for UI integration.
+Table organized by module, listing all pipeline-critical public functions per AGENTS.md §17.
 
-### 16.1 Overview
+#### 14.1.1 Pipeline Orchestrator (`eks/engine/core/pipeline_orchestrator.py`)
 
-Phase 1 is currently COMPLETE (v3.14). The following enhancements will be implemented to validate I/O patterns and prepare UI contracts:
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `PipelineOrchestrator.__init__` | Initialize with config, registry, logger | `config: dict`, `doc_config: dict`, `registry`, `logger: EKSLogger`, `use_telemetry: bool` | `None` | ConfigRegistry, FileScanner, ParserRouter, HealthScorer, StructureDetector, TelemetryHeartbeat | N/A (constructor) | N/A |
+| `initialize_context` | Set pipeline paths and context | `data_dir: Path`, `schema_dir: Path`, `output_dir: Path`, `archive_dir: Path`, `config_dir: Path`, `log_dir: Path` | `None` | EKSPipelineContext, EKSPaths | N/A | Sets context attribute |
+| `run_phase_a` | Scan directory → register placeholder documents | `root_dir: Path`, `recursive: bool = True` | `dict` with keys: `discovered`, `valid`, `unknown`, `registered` | FileScanner.scan(), validate_file_types(), register_placeholders(), DocumentRegistry | try/except in scanner; caught + logged at orchestrator level | `@log_depth`, telemetry checkpoint per phase |
+| `run_phase_b` | Route → parse → detect → score → update for all files | `root_dir: Path`, `recursive: bool = True` | `dict` with keys: `total`, `success`, `partial`, `failed`, `results` | FileScanner, ParserRouter.route(), StructureDetector.detect(), HealthScorer.score(), Registry | `_process_file()` wraps each file in try/except; `failed` status on exception | `@log_depth`, telemetry checkpoint per file + per phase |
+| `run_phase_c` | Flag low-confidence / failed documents for review | (none) | `dict` with keys: `flagged`, `documents` | DocumentRegistry.list_documents() | Pass-through from registry | `@log_depth`, telemetry checkpoint |
+| `run_full_pipeline` | Execute A → B → C in sequence | `root_dir: Path`, `recursive: bool = True` | `dict` with keys: `phase_a`, `phase_b`, `phase_c` | run_phase_a(), run_phase_b(), run_phase_c(), TelemetryHeartbeat | Individual phase exceptions propagate up | `@log_depth`, telemetry start/stop |
+| `_process_file` | Process single file: route → detect → score → update | `file_path: str`, `file_type: str` | `dict` with keys: `file_path`, `file_type`, `parse_status`, `elements`, `score`, `status`, `error` | ParserRouter.route(), StructureDetector.detect(), HealthScorer.score(), _update_doc_status() | try/except — failure sets `status: "failed"` + error message; non-fatal detection failure yields partial result | Error logged via `EKSLogger.error()` |
+| `save_checkpoint` | Save pipeline state to file | `phase: str`, `checkpoint_path: Path` | `None` | EKSPipelineContext.save_checkpoint() | IOError caught and logged | Status message on success |
+| `rollback_to_checkpoint` | Restore pipeline from saved state | `phase: str`, `checkpoint_path: Path` | `bool` | EKSPipelineContext.load_checkpoint() | Returns `False` on failure; error logged | Status message on success |
 
-- **Standardized Engine I/O**: Define and validate I/O contracts for independent engine execution
-- **I/O Testing**: Test I/O contracts across Phase 1 engines
-- **UI Contracts**: Backend contracts for UI integration
+#### 14.1.2 File Scanner (`eks/engine/core/file_scanner.py`)
 
-### 16.2 Task Breakdown
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `FileScanner.__init__` | Load file + document type registries | `config: dict`, `doc_config: dict`, `logger: EKSLogger` | `None` | file_type_registry, document_type_registry | N/A | N/A |
+| `scan` | Walk directory, discover files with recognized extensions | `root_dir: Path`, `recursive: bool = True` | `List[Dict]` — each with `file_path`, `file_name`, `file_type`, `display_name`, `parser_class` | os.walk, Path.exists(), _build_extension_map() | Handles missing directory gracefully; logs warning | `@log_depth`, status message on start |
+| `validate_file_types` | Separate discovered files into valid/unknown by extension | `discovered: List[Dict]` | `Tuple[List[Dict], List[Dict]]` — (valid, unknown) | _ext_map | None; returns empty lists on edge cases | Info logged with counts |
+| `build_placeholder_metadata` | Construct placeholder metadata dict from file info + filename parsing | `file_info: Dict` | `Dict[str, Any]` with fields: doc_number, revision, project_title, etc. | _parse_filename(), _infer_doc_type() | Default values for unparseable filenames | None |
+| `register_placeholders` | Register placeholder rows in registry for valid files | `valid_files: List[Dict]`, `registry: DocumentRegistry` | `int` — count of successfully registered | build_placeholder_metadata(), DocumentRegistry.register_document() | Skips files that fail registration; logs each error | `@log_depth`, status with count |
 
-| # | Task | Details | Status |
-| :- | :--- | :------ | :----: |
-| T1.2.1 | Define Standardized Engine I/O Contracts | Create `eks/engine/core/io_contracts.py` with EngineInput/EngineOutput base dataclasses | 🔷 PLANNED |
-| T1.2.2 | Implement Engine-Specific I/O Contracts | Create domain-specific contracts in `eks/engine/discovery/io_contracts.py`, `eks/engine/parsers/io_contracts.py`, `eks/engine/health/io_contracts.py` | 🔷 PLANNED |
-| T1.2.3 | Implement UI Contracts | Create `eks/ui/backend/contracts.py` with DocumentSelectionContract and PipelineConfigContract | 🔷 PLANNED |
-| T1.2.4 | Implement UIContractManager | Create contract manager with validation and serialization methods | 🔷 PLANNED |
-| T1.2.5 | Write I/O Contract Tests | Test I/O contracts for discovery, parser, and health scorer engines | 🔷 PLANNED |
+#### 14.1.3 Parser Router (`eks/engine/parsers/parser_router.py`)
 
-### 16.3 Deliverables
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `ParserRouter.__init__` | Set up parser mapping from file_type_registry | `doc_config: dict`, `logger: EKSLogger`, `use_factory: bool` | `None` | ParserFactory (if use_factory=True), file_type_registry | N/A | N/A |
+| `get_parser_class` | Look up parser class path for file type | `file_type: str` | `Optional[str]` — class path or None | _ext_parser_map or ParserFactory | Returns None if not found; caller handles | None |
+| `instantiate_parser` | Create parser instance from class path | `parser_class_path: str`, `file_path: str` | `Any` — parser instance | importlib.import_module() | ImportError or AttributeError caught; logged | None |
+| `route` | Full parse flow for single file: look up → instantiate → parse → extract metadata | `file_path: str`, `file_type: str` | `Dict` with keys: `status`, `content_blocks`, `metadata`, `parser_class`, `error` | get_parser_class(), instantiate_parser(), parser.parse(), parser.extract_metadata() | try/except around each step; `status: "failed"` + error detail on failure | `@log_depth` |
+| `route_batch` | Batch route for multiple files | `files: List[Dict]` | `List[Dict]` — per-file route results | route() per file | Individual file failures isolated | None |
 
-- `eks/engine/core/io_contracts.py` — Base I/O contracts
-- `eks/engine/discovery/io_contracts.py` — Discovery-specific contracts
-- `eks/engine/parsers/io_contracts.py` — Parser-specific contracts
-- `eks/engine/health/io_contracts.py` — Health scoring-specific contracts
-- `eks/ui/backend/contracts.py` — Contract definitions
-- `eks/ui/backend/contract_manager.py` — Contract manager
-- I/O contract test suite
+#### 14.1.4 Plug-in Parsers (`eks/engine/parsers/`)
 
-### 16.4 Success Criteria
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `BaseParser.__init__` | Initialize with file path | `file_path: str | Path` | `None` | pathlib | N/A | N/A |
+| `BaseParser.parse` (abstract) | Parse file into structured content blocks | (none — uses `self.file_path`) | `List[Dict]` — each with `type`, `content`, `metadata` | Subclass implementation | Subclass must handle file I/O errors | None |
+| `BaseParser.extract_metadata` (abstract) | Extract file metadata | (none — uses `self.file_path`) | `Dict[str, Any]` — metadata fields | Subclass implementation | Subclass must handle | None |
+| `PDFParser.parse` | Extract text + tables from PDF | (none) | `List[Dict]` — content blocks with page numbers | pymupdf (fitz) | FileNotFoundError, RuntimeError caught; logged | None |
+| `DOCXParser.parse` | Extract text + tables from DOCX | (none) | `List[Dict]` — content blocks | python-docx | FileNotFoundError caught; logged | None |
+| `XLSXParser.parse` | Extract data from XLSX sheets | (none) | `List[Dict]` — content blocks | openpyxl | FileNotFoundError caught; logged | None |
+| `DGNParserStub.parse` | Stub — returns placeholder | (none) | `List[Dict]` — single block with "DGN parsing not implemented" | None | Returns content block with error status | None |
+| `DWGParserStub.parse` | Stub — returns placeholder | (none) | `List[Dict]` — single block with "DWG parsing not implemented" | None | Returns content block with error status | None |
 
-- ✅ Standardized EngineInput/EngineOutput contracts defined
-- ✅ Engine-specific I/O contracts for discovery, parser, health scorer
-- ✅ DocumentSelectionContract validates data folder and file types
-- ✅ PipelineConfigContract validates debug mode, workers, thresholds
-- ✅ UIContractManager provides file browsing and validation
-- ✅ Contracts serialize to/from JSON
-- ✅ All I/O contract tests passing
+#### 14.1.5 Structure Detector (`eks/engine/core/structure_detector.py`)
+
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `StructureDetector.__init__` | Initialize detector | `logger: EKSLogger` | `None` | EKSLogger | N/A | N/A |
+| `detect` | Analyze document pages for structural elements | `file_path: str`, `pages: List[Dict]` — each with `text`, `tables`, `images` | `List[Dict]` — elements with `element_type`, `element_id`, `title`, `content`, `confidence`, `source` | Element type heuristics (cover_page, revision_table, section, table, image, link, legend, note) | Logged warning on failure; returns empty list | `@log_depth` |
+
+#### 14.1.6 Health Scorer (`eks/engine/core/health_scorer.py`)
+
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `HealthScorer.__init__` | Initialize with 6-dimension weights | `logger: EKSLogger` | `None` | EKSLogger | N/A | N/A |
+| `score` | Compute 6-dimension composite health score | `document: Dict`, `elements: List[Dict]` | `Dict` with keys: `overall` (float 0.0–1.0), `completeness`, `extraction_confidence`, `structural_completeness`, `source_quality`, `xref_quality`, `consistency` | Element type analysis, metadata completeness check | Returns all dimensions as 0.0 on error; logged | `@log_depth` |
+
+#### 14.1.7 Document Registry (`eks/engine/core/registry.py`)
+
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `DocumentRegistry.__init__` | Connect to DuckDB, init schema | `logger: EKSLogger` | `None` | ConfigRegistry, DuckDB, SchemaToDDL, _init_db(), _migrate_schema() | DB connection failure logged | Status message |
+| `register_document` | Insert/update document row | `metadata: Dict` — with `document_number`, `revision`, etc. | `str` — doc_id (`{number}-{rev}`) | DuckDB, COLUMN_ALLOWLIST | Duplicate handled via INSERT OR REPLACE | Status message on success |
+| `get_document` | Retrieve document by number + optional revision | `doc_number: str`, `revision: str` | `Optional[Dict]` — row as dict, or None | DuckDB | Returns None on not found | Info logged |
+| `list_documents` | List with filters, sorting, latest-only | `filters: Dict`, `latest_only: bool`, `order_by: str` | `List[Dict]` — matching rows | DuckDB, COLUMN_ALLOWLIST validation | Untrusted filter/sort columns silently ignored with warning | Warning logged for rejected columns |
+| `store_elements` | Insert structural elements | `doc_id: str`, `elements: List[Dict]` | `int` — count inserted | DuckDB | Insert errors logged | Info with count |
+| `get_elements` | Retrieve elements for a document | `doc_id: str` | `List[Dict]` | DuckDB | Returns empty list on error | None |
+| `sync_schema` | Sync DB columns with JSON schema | (none) | `Dict` with `documents_added`, `document_elements_added`, `indexes_created` | SchemaToDDL, DuckDB, PRAGMA table_info | Logged per column | Status message with total changes |
+
+#### 14.1.8 Review Manager (`eks/engine/core/review_manager.py`)
+
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `ManualReviewManager.__init__` | Initialize with registry + optional config | `registry`, `doc_config: dict`, `logger: EKSLogger` | `None` | DocumentRegistry, HealthScorer, StructureDetector | N/A | N/A |
+| `get_flagged_documents` | Query documents needing manual review | `confidence_threshold: float = 0.70` | `List[Dict]` — flagged document metadata | DocumentRegistry.list_documents() | Pass-through from registry | `@log_depth`, info with count |
+| `correct_metadata` | Update specific document fields | `doc_id: str`, `updates: Dict` — allowed fields only | `bool` — True on success | DocumentRegistry, allowed_fields validation | Returns False on invalid field; logged | `@log_depth` |
+| `lock_document` | Lock document with reviewer attribution | `doc_number: str`, `verified_by: str`, `score_override: float` | `bool` — True on success | HealthScorer.score(), DocumentRegistry | Returns False on document not found; logged | `@log_depth` |
+
+#### 14.1.9 Schema Loader (`eks/engine/core/schema_loader.py`)
+
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `SchemaLoader.__init__` | Initialize with config directory | `config_dir: str | Path` | `None` | pathlib, json | N/A | N/A |
+| `load_all` | Load all 23 schema files across 6 schema sets + fragments | (none — uses `self.config_dir`) | `Dict` with: `base_schema`, `setup_schema`, `config`, `doc_base_schema`, `doc_setup_schema`, `doc_config`, `asset_base_schema`, `asset_setup_schema`, `asset_config`, `ontology_base_schema`, `ontology_setup_schema`, `ontology_config`, `error_code_base`, `error_setup_schema`, `error_config`, `message_base`, `message_setup_schema`, `message_config`, and fragment schemas, `project_rules_config` | json.load(), file discovery by pattern, $ref resolution | FileNotFoundError → graceful fallback with warning; validation errors collected without aborting | Status message per file loaded |
+
+#### 14.1.10 Config Registry (`eks/engine/core/config_registry.py`)
+
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `ConfigRegistry.__init__` | Singleton — load config via SchemaLoader | `config_dir: str | Path` | `ConfigRegistry` instance | SchemaLoader | SchemaLoader errors propagate | N/A |
+| `get` | Get config value by dot-separated key path | `key_path: str`, `default: Any` | `Any` — resolved value | SchemaLoader.load_all(), _load_ref() returns None on unresolved `$ref` | Returns default on missing key | None |
+| `data_dir` | Shorthand for `get("registry_settings.data_dir")` | (none) | `Path` | get() | Returns fallback path | None |
+| `output_dir` | Shorthand for `get("registry_settings.output_dir")` | (none) | `Path` | get() | Returns fallback path | None |
+
+#### 14.1.11 Infrastructure Functions
+
+| Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
+| :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
+| `EKSLogger.__init__` | Create tiered logger | `name: str`, `level: int`, `debug_file: Path` | `None` | psutil (system snapshot) | N/A | N/A |
+| `EKSLogger.save_debug_log` | Write debug object to JSON file | (none) | `None` | json.dump | IOError logged | Status message |
+| `ErrorManager.handle_system_error` | Look up + log system error | `code: str`, `detail: str` | `Dict` — error info with code, message, severity | error catalog, EKSLogger | Unknown code → fallback to generic error | Logged at error level |
+| `ErrorManager.handle_data_error` | Look up + log data error per doc | `code: str`, `doc_id: str`, `detail: str` | `Dict` — error info | error catalog, EKSLogger | Unknown code → fallback | Logged at error level |
+| `MessageManager.format` | Format pipeline message with params | `message_id: str`, `**kwargs` | `str` — formatted message | message catalog, string formatting | Unknown ID → returns ID as fallback | None |
+| `SchemaToDDL.generate_documents_ddl` | Generate CREATE TABLE for documents | (none) | `str` — SQL DDL | document_metadata_def, project_metadata_def | Missing definition → raises ValueError | None |
+| `SchemaToDDL.generate_document_elements_ddl` | Generate CREATE TABLE for elements | (none) | `str` — SQL DDL | document_element_def | Missing definition → raises ValueError | None |
+| `SchemaToDDL.generate_migration_ddl` | Generate ALTER TABLE for missing columns | `table_name: str`, `existing_cols: set` | `List[str]` — ALTER TABLE statements | Schema definitions | Empty list if no migration needed | None |
+| `TelemetryHeartbeat.add_checkpoint` | Record pipeline progress checkpoint | `phase: str`, `details: Dict`, `document_count: int` | `None` | Checkpoint dataclass | N/A | Verbose output if enabled |
+| `EKSPipelineContext.save_checkpoint` | Serialize context to JSON file | `checkpoint_path: Path` | `None` | json.dump, to_json() | IOError caught | Status message |
+| `EKSPipelineContext.update_phase` | Track current phase and status | `phase: str`, `status: str` | `None` | TelemetryHeartbeat.add_checkpoint() | N/A | Telemetry checkpoint |
 
 ---
 
-## 17. References
+## 16. References
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
 2. [AGENTS.md](../AGENTS.md) — Repository guidelines

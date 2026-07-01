@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EKS UI Help System",
+  "description": "Help text, about section, default paths, and definitions for the EKS UI",
+  "version": "1.0.0",
+  "about": "Engineering Knowledge System (EKS) — Document Processing Dashboard v0.1.0",
+  "help": {
+    "file_load": "Load documents from local disk or pipeline data folder. Supported formats: PDF, DGN, DWG, DOCX, XLSX.",
+    "tree_view": "Navigate document hierarchy by project, discipline, and type. Click any node to view its contents.",
+    "document_list": "Displays all discovered documents. Click a row to view details in the right panel. Use column headers to sort.",
+    "health_score": "6-dimension quality assessment: Completeness (20%), Confidence (15%), Consistency (15%), Timeliness (15%), Accessibility (15%), Structural Completeness (20%). Score range: 0.0–1.0.",
+    "pipeline": "Start the document processing pipeline: scans data folder, parses files, detects structure, scores health, and flags documents for review.",
+    "review": "Manually review flagged documents. Correct metadata, confirm structural elements, and lock documents when review is complete.",
+    "theme": "Toggle between 5 themes: Light, Dark, Sky, Ocean, and Presentation. Selection is saved in your browser.",
+    "layout": "Switch between single-column, two-column, and three-column layouts. Selection is saved in your browser.",
+    "search": "Filter documents by document number, type, or discipline. Press Enter to search."
+  },
+  "default_folders": {
+    "data": "eks/data/",
+    "output": "eks/output/",
+    "twrp": "eks/data/twrp/"
+  },
+  "definitions": {
+    "document": "Engineering document with metadata, revisions, and health score",
+    "health_score": "Quality score from 0.0 to 1.0 across 6 dimensions",
+    "extract_status": "pending | in_progress | completed | flagged | locked",
+    "document_number": "Unique identifier for an engineering document (e.g., DWG-001-A)",
+    "revision": "Document revision letter (A, B, C, etc.)",
+    "discipline": "Engineering discipline (Civil, Mechanical, Electrical, Piping, etc.)",
+    "project_code": "WSD11 project code (131101, 131242, 999999)",
+    "pipeline": "Automated workflow: scan → parse → score → review → register",
+    "manual_review": "Human review step for documents flagged by the pipeline"
+  }
+}

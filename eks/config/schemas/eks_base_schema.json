@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087.",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67).",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
@@ -125,6 +125,45 @@
                 "description": { "type": "string", "description": "Facility description" }
             },
             "required": ["prefix", "description"],
+            "additionalProperties": false
+        },
+        "required_folder_setup_def": {
+            "type": "array",
+            "description": "List of required top-level project folders",
+            "items": { "type": "string" }
+        },
+        "required_engine_subfolder_setup_def": {
+            "type": "array",
+            "description": "List of required engine subfolders",
+            "items": { "type": "string" }
+        },
+        "required_file_setup_def": {
+            "type": "array",
+            "description": "List of required files relative to project root",
+            "items": { "type": "string" }
+        },
+        "environment_setup_def": {
+            "type": "object",
+            "description": "Environment configuration for project setup validation",
+            "properties": {
+                "python_version": { "type": "string" },
+                "conda_env": { "type": "string" },
+                "dependencies": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                }
+            },
+            "required": ["python_version", "conda_env"],
+            "additionalProperties": false
+        },
+        "validation_options_def": {
+            "type": "object",
+            "description": "Options for project setup validation behavior",
+            "properties": {
+                "auto_create_folders": { "type": "boolean" },
+                "strict_file_validation": { "type": "boolean" },
+                "verbose": { "type": "boolean" }
+            },
             "additionalProperties": false
         }
     }

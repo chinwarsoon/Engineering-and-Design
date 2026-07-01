@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/config/schemas/project_setup.json",
+  "title": "EKS Project Setup Schema",
+  "description": "Schema for validating EKS project setup configuration including required folders, files, and environment settings",
+  "version": "0.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_root",
+    "required_folders",
+    "required_files",
+    "environment"
+  ],
+  "properties": {
+    "project_root": {
+      "type": "string",
+      "description": "Root directory of the EKS project"
+    },
+    "required_folders": {
+      "type": "array",
+      "description": "List of required top-level folders",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "archive",
+        "config",
+        "data",
+        "output",
+        "engine",
+        "log",
+        "docs",
+        "workplan",
+        "test",
+        "ui"
+      ]
+    },
+    "required_engine_subfolders": {
+      "type": "array",
+      "description": "List of required engine subfolders",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "core",
+        "parsers",
+        "chunking",
+        "embedding",
+        "vector_store",
+        "graph",
+        "extractors",
+        "retrieval",
+        "cache",
+        "logging"
+      ]
+    },
+    "required_files": {
+      "type": "array",
+      "description": "List of required files relative to project root",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "eks.yml",
+        "eks/config/eks_config.json",
+        "eks/config/schemas/eks_base_schema.json",
+        "eks/config/schemas/eks_setup_schema.json"
+      ]
+    },
+    "environment": {
+      "type": "object",
+      "description": "Environment configuration",
+      "additionalProperties": false,
+      "properties": {
+        "python_version": {
+          "type": "string",
+          "description": "Required Python version (e.g., '3.13')",
+          "default": "3.13"
+        },
+        "conda_env": {
+          "type": "string",
+          "description": "Conda environment name",
+          "default": "eks"
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Required Python packages",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "validation_options": {
+      "type": "object",
+      "description": "Options for validation behavior",
+      "additionalProperties": false,
+      "properties": {
+        "auto_create_folders": {
+          "type": "boolean",
+          "description": "Whether to auto-create missing folders",
+          "default": true
+        },
+        "strict_file_validation": {
+          "type": "boolean",
+          "description": "Whether to fail if any required file is missing",
+          "default": false
+        },
+        "verbose": {
+          "type": "boolean",
+          "description": "Whether to print verbose validation output",
+          "default": false
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_setup_schema.json",
-    "version": "1.2.2",
+    "version": "1.3.0",
     "title": "EKS Setup Schema - Declarations",
-    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. Includes project-specific validation rules and metadata support for the config instance.",
+    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). Includes project-specific validation rules and metadata support for the config instance.",
     "allOf": [
         { "$ref": "eks_base_schema.json" }
     ],
@@ -59,8 +59,21 @@
         "parsers": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/parsers_def" },
         "embedding": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/embedding_def" },
         "vector_store": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/vector_store_def" },
-        "logging": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/logging_def" }
+        "logging": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/logging_def" },
+        "project_setup": {
+            "type": "object",
+            "description": "Project setup validation rules for folders, files, environment, and validator behavior",
+            "properties": {
+                "required_folders": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/required_folder_setup_def" },
+                "required_engine_subfolders": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/required_engine_subfolder_setup_def" },
+                "required_files": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/required_file_setup_def" },
+                "environment": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/environment_setup_def" },
+                "validation_options": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/validation_options_def" }
+            },
+            "required": ["required_folders", "required_files", "environment"],
+            "additionalProperties": false
+        }
     },
-    "required": ["project_rules_registry", "discipline_registry", "project_registry", "department_registry", "facility_registry", "global_paths", "registry", "parsers", "embedding", "vector_store", "logging"],
+    "required": ["project_rules_registry", "discipline_registry", "project_registry", "department_registry", "facility_registry", "global_paths", "registry", "parsers", "embedding", "vector_store", "logging", "project_setup"],
     "additionalProperties": false
 }

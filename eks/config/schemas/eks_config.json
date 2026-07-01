@@ -1,8 +1,8 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.3.0",
-    "title": "EKS Default Project Configuration — v1.3.0",
+    "version": "1.4.0",
+    "title": "EKS Default Project Configuration — v1.4.0 (T1.67: project_setup added)",
     "project_rules_registry": {
         "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
     },
@@ -49,5 +49,36 @@
     "logging": {
         "default_level": 1,
         "debug_file_path": "output/debug_log.json"
+    },
+    "project_setup": {
+        "required_folders": [
+            "archive", "config", "data", "output", "engine",
+            "log", "docs", "workplan", "test", "ui"
+        ],
+        "required_engine_subfolders": [
+            "core", "parsers", "chunking", "embedding",
+            "vector_store", "graph", "extractors", "retrieval",
+            "cache", "logging"
+        ],
+        "required_files": [
+            "eks.yml",
+            "eks/config/schemas/eks_base_schema.json",
+            "eks/config/schemas/eks_setup_schema.json"
+        ],
+        "environment": {
+            "python_version": "3.13",
+            "conda_env": "eks",
+            "dependencies": [
+                "duckdb", "jsonschema", "pymupdf", "python-docx",
+                "openpyxl", "psutil", "rdflib", "fastapi", "uvicorn",
+                "qdrant-client", "neo4j", "openai", "tiktoken",
+                "pytest", "referencing"
+            ]
+        },
+        "validation_options": {
+            "auto_create_folders": true,
+            "strict_file_validation": false,
+            "verbose": false
+        }
     }
 }

@@ -773,6 +773,15 @@ class TestPhase1(unittest.TestCase):
             self.assertIn(expected_def, defs, f"Missing definition: {expected_def}")
         self.assertIn('discipline_entry_def', defs, "Missing discipline_entry_def")
 
+    def test_base_schema_has_project_setup_defs(self):
+        """T1.67: Verify eks_base_schema.json has project_setup definitions."""
+        import json
+        base = json.load(open(self.config_dir / 'eks_base_schema.json', encoding='utf-8'))
+        defs = base.get('definitions', {})
+        for expected_def in ['required_folder_setup_def', 'required_engine_subfolder_setup_def',
+                            'required_file_setup_def', 'environment_setup_def', 'validation_options_def']:
+            self.assertIn(expected_def, defs, f"Missing project_setup definition: {expected_def}")
+
     def test_fragment_schemas_have_required_fields(self):
         """T1.42-T1.45: Verify each fragment schema has $schema, $id, title, version, allOf."""
         import json
@@ -815,6 +824,15 @@ class TestPhase1(unittest.TestCase):
         required = setup.get('required', [])
         for prop in ['project_registry', 'department_registry', 'facility_registry']:
             self.assertIn(prop, required, f"setup_schema missing required: {prop}")
+
+    def test_setup_schema_has_project_setup(self):
+        """T1.67: Verify eks_setup_schema.json has project_setup property."""
+        import json
+        setup = json.load(open(self.config_dir / 'eks_setup_schema.json', encoding='utf-8'))
+        props = setup.get('properties', {})
+        self.assertIn('project_setup', props, "setup_schema missing project_setup property")
+        required = setup.get('required', [])
+        self.assertIn('project_setup', required, "setup_schema missing project_setup in required")
 
     def test_project_rules_has_fragment_required_fields(self):
         """T1.50: Verify project_rules_config has fragment_required_fields per project."""

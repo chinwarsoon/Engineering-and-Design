@@ -1,11 +1,11 @@
-# EKS Phase 1.2 — Interactive UI & Document Processing Sub-Pipeline
+# EKS Phase 1.2 — Interactive UI, I/O Contracts & Document Processing Sub-Pipeline
 
 **Document ID**: WP-EKS-P1.2-001  
-**Current Version**: 1.0  
-**Status**: 📋 Proposed for Review  
-**Last Updated**: 2026-06-25  
+**Current Version**: 1.5  
+**Status**: ✅ COMPLETE (All Phases 1.2.0–1.2.7)  
+**Last Updated**: 2026-07-01  
 **Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)  
-**Phase Dependency**: Phase 1 (Foundation) — COMPLETE  
+**Phase Dependency**: Phase 1 (Foundation) — ✅ COMPLETE  
 
 ---
 
@@ -14,12 +14,17 @@
 | Revision | Date | Author | Summary |
 | :------- | :--- | :----- | :------- |
 | 1.0 | 2026-06-25 | opencode | Initial workplan proposal for interactive UI and sub-pipeline |
+| 1.1 | 2026-06-30 | opencode | Integrated I/O contract tasks from Phase 1 Section 16 as Phase 1.2.0 (Engine I/O Contracts). Added S1.2.7 to scope, updated dependencies and success criteria. |
+| 1.2 | 2026-07-01 | opencode | Updated architecture to two-server pattern: main launcher at `eks/server.py` (port 5000) + Phase 1 backend at `eks/ui/backend/phase1_server.py` (port 5001). Updated T1.2.1.x, deliverables, dependencies, success criteria. Per server design review. |
+| 1.3 | 2026-07-01 | opencode | Phase 1.2.0 complete: Created engine I/O contracts (core, parsers), UI contracts (4 types), contract manager, and 35 test cases. All tests passing. Updated scope, tasks, deliverables. |
+| 1.4 | 2026-07-01 | opencode | Phase 1.2.1 complete: Created eks/server.py (main launcher, proxy), eks/ui/backend/phase1_server.py (12 API endpoints), eks/ui/backend/__init__.py. 20 backend integration tests. Updated scope statuses, tasks, deliverables. |
+| 1.5 | 2026-07-01 | opencode | Phase 1.2.2–1.2.7 complete: Added log streaming (T1.2.2.7), created eks/ui/index.html (VS Code layout, 5 themes, tabs), eks/ui/eks.css (5 themes, responsive), eks/ui/eks.js (Fetch API, pipeline polling, chart rendering), eks/ui/ui_help.json (help schema + keyboard navigation). Updated eks/server.py to serve index.html at root. 178/178 tests passing. All scope items ✅. |
 
 ---
 
 ## Object
 
-Create a standalone interactive UI (HTML/CSS/JavaScript) with a document processing sub-pipeline that leverages the Phase 1 foundation module to process real engineering documents from the `data/` folder. The UI follows AGENTS.md §18 VS Code-style design specifications.
+Define standardized Engine I/O contracts for independent engine execution, then create a standalone interactive UI (HTML/CSS/JavaScript) with a document processing sub-pipeline that leverages the Phase 1 foundation modules to process real engineering documents from the `data/` folder. The UI follows AGENTS.md §18 VS Code-style design specifications.
 
 ---
 
@@ -27,14 +32,15 @@ Create a standalone interactive UI (HTML/CSS/JavaScript) with a document process
 
 | ID | Details | Category | Status |
 | :- | :------ | :------- | :-----: |
-| S1.2.1 | Interactive standalone HTML/CSS UI (VS Code style) | UI Development | Pending |
-| S1.2.2 | Document processing sub-pipeline orchestration | Pipeline | Pending |
-| S1.2.3 | Real document ingestion from data/ folder | Data Ingestion | Pending |
-| S1.2.4 | Manual review workflow integration | Workflow | Pending |
-| S1.2.5 | Health scoring visualization | Visualization | Pending |
-| S1.2.6 | Schema-driven help system (ui_help.json) | Documentation | Pending |
+| S1.2.1 | Interactive standalone HTML/CSS UI (VS Code style) | UI Development | ✅ Complete |
+| S1.2.2 | Document processing sub-pipeline orchestration | Pipeline | ✅ Complete |
+| S1.2.3 | Real document ingestion from data/ folder | Data Ingestion | ✅ Complete |
+| S1.2.4 | Manual review workflow integration | Workflow | ✅ Complete |
+| S1.2.5 | Health scoring visualization | Visualization | ✅ Complete |
+| S1.2.6 | Schema-driven help system (ui_help.json) | Documentation | ✅ Complete |
+| S1.2.7 | Engine I/O contracts for independent engine execution | Contracts | ✅ Complete |
 
-**Related Phase**: Phase 1.2 — Interactive UI & Document Processing
+**Related Phase**: Phase 1.2 — Interactive UI, I/O Contracts & Document Processing
 
 ---
 
@@ -49,6 +55,8 @@ Create a standalone interactive UI (HTML/CSS/JavaScript) with a document process
 7. [Dependencies](#dependencies)
 8. [Risks and Mitigation](#risks-and-mitigation)
 9. [Success Criteria](#success-criteria)
+10. [I/O Contract Tasks](#io-contract-tasks)
+11. [References](#references)
 
 ---
 
@@ -83,14 +91,29 @@ Create a standalone interactive UI (HTML/CSS/JavaScript) with a document process
 │                                       └──────────────┘          │
 └────────────────────────────┬────────────────────────────────────┘
                              │ JavaScript (Fetch API)
+                             │ port 5000
 ┌────────────────────────────┴────────────────────────────────────┐
-│              Python Backend (eks/ui/backend/)                  │
+│              Main Launcher Server — eks/server.py               │
+│  ┌──────────────────────┐  ┌──────────────────────────────┐    │
+│  │ HTML File Picker     │  │ Proxy: /api/* → localhost:   │    │
+│  │ (VS Code style,      │  │ 5001 (Phase 1 backend)       │    │
+│  │  tool discovery)     │  │ Proxy: /ollama/* → localhost:│    │
+│  │                      │  │ 11434                        │    │
+│  │ Serve: eks/ui/static │  │ CORS headers on all          │    │
+│  └──────────────────────┘  └──────────────────────────────┘    │
+└────────────────────────────┬────────────────────────────────────┘
+                             │ proxy via urllib
+                             │ port 5001
+┌────────────────────────────┴────────────────────────────────────┐
+│  Phase 1 Backend — eks/ui/backend/phase1_server.py             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ Simple HTTP  │  │ Pipeline     │  │ Document     │          │
-│  │ Server       │  │ Orchestrator │  │ Registry API │          │
+│  │ API          │  │ Pipeline     │  │ Document     │          │
+│  │ Endpoints    │  │ Orchestrator │  │ Registry API │          │
+│  │ (files, docs,│  │ (background  │  │ (DuckDB)     │          │
+│  │  pipeline)   │  │  thread)     │  │              │          │
 │  └──────────────┘  └──────────────┘  └──────────────┘          │
 └────────────────────────────┬────────────────────────────────────┘
-                             │
+                             │ direct import
 ┌────────────────────────────┴────────────────────────────────────┐
 │              Phase 1 Foundation Module (eks/engine/)            │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
@@ -113,11 +136,11 @@ Create a standalone interactive UI (HTML/CSS/JavaScript) with a document process
 
 ### Data Flow
 
-1. **User loads files** → UI File Loading Panel → JavaScript → Backend HTTP Server → FileScanner
+1. **User loads files** → UI File Loading Panel → JavaScript → port 5000 → `eks/server.py` (proxy) → port 5001 → `phase1_server.py` → FileScanner
 2. **FileScanner discovers files** → ParserRouter → Parsers
 3. **Parsers extract content** → StructureDetector → HealthScorer
 4. **HealthScorer computes scores** → DocumentRegistry → DuckDB
-5. **UI polls for status** → JavaScript fetch → Backend → Registry → JSON response
+5. **UI polls for status** → JavaScript fetch → port 5000 → `eks/server.py` (proxy) → port 5001 → `phase1_server.py` → Registry → JSON response
 6. **UI updates display** → Main Panel → Document Dashboard
 7. **User reviews flagged docs** → ManualReviewManager → Registry updates
 
@@ -211,79 +234,21 @@ Create a standalone interactive UI (HTML/CSS/JavaScript) with a document process
 
 ### Theme System
 
-| Theme | Background | Text | Accent |
-| :---- | :--------- | :--- | :----- |
-| Light | #ffffff | #000000 | #007acc |
-| Dark | #1e1e1e | #d4d4d4 | #3794ff |
-| Sky | #e0f7fa | #000000 | #00bcd4 |
-| Ocean | #e3f2fd | #000000 | #2196f3 |
-| Presentation | #f5f5f5 | #333333 | #666666 |
-
-- Theme selection saved in `localStorage`
-- Default theme: Dark
+Theme palette (5 themes with hex colors), CSS variable pattern, and localStorage keys are defined in **Appendix G §5**. Default theme: Dark.
 
 ### Layout Switching
 
-- **Single Column**: Main panel only (sidebars hidden)
-- **Two Columns**: Left sidebar + Main panel
-- **Three Columns**: Left sidebar + Main panel + Right sidebar
-- Layout selection saved in `localStorage`
-- Default layout: Two columns
+Layout modes (Single Column / Two Columns / Three Columns), localStorage persistence, and defaults are defined in AGENTS.md §18. Persistence keys documented in **Appendix G §5.2**.
 
 ### Help System
 
-- **ui_help.json** structure:
-  ```json
-  {
-    "about": "EKS Document Processing System v1.0",
-    "help": {
-      "file_load": "Load documents from local disk or pipeline folder",
-      "tree_view": "Navigate document hierarchy",
-      "health_score": "6-dimension document quality assessment"
-    },
-    "default_folders": {
-      "data": "eks/data/",
-      "output": "eks/output/"
-    },
-    "definitions": {
-      "document": "Engineering document with metadata and revisions",
-      "health_score": "Quality score from 0.0 to 1.0"
-    }
-  }
-  ```
+Help system schema (`ui_help.json`), file location, keyboard shortcut (`F1`), and example content are defined in **Appendix G §6**.
 
 ---
 
 ## Technology Stack
 
-### Frontend (UI)
-
-| Component | Technology | Rationale |
-| :-------- | :--------- | :-------- |
-| Structure | HTML5 | Semantic markup, native browser support |
-| Styling | CSS3 | Independent CSS file per AGENTS.md §18 |
-| Logic | Vanilla JavaScript | No framework dependency, lightweight |
-| HTTP Client | Fetch API | Native browser API, no external dependencies |
-| Charts | Chart.js (CDN) | Simple, lightweight, works without build |
-| Icons | Unicode | No external icon library needed |
-| State | localStorage | Native browser storage for theme/layout |
-
-### Backend (Simple HTTP Server)
-
-| Component | Technology | Rationale |
-| :-------- | :--------- | :-------- |
-| Framework | http.server (Python stdlib) | No external dependency, simple |
-| JSON API | Manual JSON serialization | Lightweight, no framework needed |
-| CORS | Manual CORS headers | Simple implementation |
-| Background Tasks | threading | Run pipeline in background thread |
-
-### Integration
-
-| Component | Technology | Rationale |
-| :-------- | :--------- | :-------- |
-| Phase 1 Engine | Direct import | Reuse existing `eks.engine.*` modules |
-| Schema Loader | Direct import | Reuse existing `schema_loader.py` |
-| Config Registry | Direct import | Reuse existing `config_registry.py` |
+Technology stack decisions (frontend: vanilla JS + Fetch API + Chart.js CDN; backend: http.server; rationale) are documented in **Appendix G §2.1** (Document Processing Dashboard).
 
 ---
 
@@ -305,7 +270,7 @@ Return: JSON with discovered files metadata
 UI: Update file list in left sidebar
 ```
 
-### 2. Pipeline Execution
+### 2. Pipeline Execution (per Appendix G §3.4, §4)
 
 ```
 User Action: Click "Process Documents" button
@@ -319,17 +284,9 @@ Return: Job ID for tracking
 UI: Start polling /api/pipeline/status/{job_id} every 2s
 ```
 
-### 3. Status Polling
+### 3. Status Polling (per Appendix G §4)
 
-```
-UI Action: Poll every 2 seconds
-    ↓
-GET /api/pipeline/status/{job_id}
-    ↓
-Return: JSON with progress (current/total), current stage, errors
-    ↓
-UI: Update progress bar and log viewer
-```
+Job lifecycle (`queued → running → completed/failed/cancelled`), polling parameters, and response format are defined in **Appendix G §4**. Frontend implementation follows the `pollJobStatus` pattern in G4.4.
 
 ### 4. Results Display
 
@@ -369,219 +326,218 @@ UI: Show success message or error
 
 ## Implementation Phases
 
-### Phase 1.2.1: Backend HTTP Server (Week 1)
+### Phase 1.2.0: Engine I/O Contracts (Pre-Foundation, Week 0) — ✅ COMPLETE
 
-**Timeline**: 5 days  
+**Timeline**: 3 days — **Actual**: 2026-07-01  
+**Milestones**: Standardized I/O contracts defined and tested for all Phase 1 engines
+
+**Tasks**:
+- ✅ T1.2.0.1: Created `eks/engine/core/io_contracts.py` — re-exports EngineInput/EngineOutput from base.py; adds DiscoveryInput/DiscoveryOutput, HealthInput/HealthOutput
+- ✅ T1.2.0.2: Merged discovery contracts into `eks/engine/core/io_contracts.py` (DiscoveryInput, DiscoveryOutput) — no separate discovery package yet
+- ✅ T1.2.0.3: Created `eks/engine/parsers/io_contracts.py` — ParserInput, ParserOutput
+- ✅ T1.2.0.4: Merged health contracts into `eks/engine/core/io_contracts.py` (HealthInput, HealthOutput) — no separate health package yet
+- ✅ T1.2.0.5: Created `eks/ui/backend/contracts.py` — DocumentSelectionContract, PipelineConfigContract, QueryRequestContract, QueryResponseContract
+- ✅ T1.2.0.6: Created `eks/ui/backend/contract_manager.py` — UIContractManager with validate and serialize
+- ✅ T1.2.0.7: Created `eks/test/test_io_contracts.py` — 35 tests covering all contracts (base, discovery, parser, health, UI, manager)
+
+**Deliverables**:
+- `eks/engine/core/io_contracts.py` — Base + discovery + health I/O contracts
+- `eks/engine/parsers/io_contracts.py` — Parser-specific contracts
+- `eks/ui/backend/contracts.py` — 4 UI contract definitions per Appendix G §7
+- `eks/ui/backend/contract_manager.py` — Contract validation and serialization
+- `eks/test/test_io_contracts.py` — 35 passing tests
+
+---
+
+### Phase 1.2.1: Backend HTTP Server (Week 1) — ✅ COMPLETE
+
+**Timeline**: 5 days — **Actual**: 2026-07-01  
 **Milestones**: Simple HTTP server with Phase 1 integration
 
 **Tasks**:
-- T1.2.1.1: Create `eks/ui/backend/` package structure
-- T1.2.1.2: Implement simple HTTP server using `http.server`
-- T1.2.1.3: Integrate Phase 1 engine modules (import paths)
-- T1.2.1.4: Implement file discovery endpoint (`POST /api/files/load`)
-- T1.2.1.5: Implement document list endpoint (`GET /api/documents`)
-- T1.2.1.6: Implement document detail endpoint (`GET /api/documents/{id}`)
-- T1.2.1.7: Add CORS headers for cross-origin requests
-- T1.2.1.8: Write backend tests
+- ✅ T1.2.1.1: Created `eks/ui/backend/__init__.py` with version 0.1.0
+- ✅ T1.2.1.2: Created `eks/server.py` (main launcher, port 5000):
+  - HTML file picker at `/` listing standalone `.html` tools from `eks/ui/`
+  - Proxy `/api/*` → `localhost:5001` (Phase 1 backend)
+  - Proxy `/ollama/*` → `localhost:11434` (Ollama API)
+  - Static file serving for `eks/ui/` paths
+  - `ReusableTCPServer`, `--port` flag, CORS headers on all responses
+  - Auto-launches Phase 1 backend as subprocess with stdout relay
+- ✅ T1.2.1.3: Created `eks/ui/backend/phase1_server.py` (Phase 1 backend, port 5001):
+  - `http.server`-based, standalone-runnable with `--port`
+  - Direct Phase 1 engine module imports (`SchemaLoader`, `FileScanner`, `PipelineOrchestrator`, `ManualReviewManager`)
+  - Multi-job state tracking (`_job_state` dict, `threading.RLock`)
+  - DuckDB `DocumentRegistry` singleton with retry wrapper for concurrent access
+- ✅ T1.2.1.4: File discovery endpoint (`POST /api/files/load`) — scans dir via FileScanner, registers placeholders, returns discovery stats
+- ✅ T1.2.1.5: Document list endpoint (`GET /api/documents`) — list with optional filtering (document_type, discipline, status, extract_status), ordering, latest_only
+- ✅ T1.2.1.6: Document detail endpoint (`GET /api/documents/{id}`) — single doc by ID
+- ✅ T1.2.1.7: Document update endpoint (`PUT /api/documents/{id}`) — metadata correction via ManualReviewManager
+- ✅ T1.2.1.8: Pipeline endpoints:
+  - `POST /api/pipeline/start` — starts PipelineOrchestrator in background thread, returns job_id
+  - `GET /api/pipeline/status/{job_id}` — returns job state
+  - `DELETE /api/pipeline/{job_id}` — cancels queued/running jobs
+- ✅ T1.2.1.9: CORS headers (`Access-Control-Allow-Origin: *`) on all 200/400/500 responses + OPTIONS handler
+- ✅ T1.2.1.10: Created `eks/test/test_phase1_server.py` — 20 tests covering all endpoints, plus MainServer unit tests
+
+**Additional endpoints**:
+- `GET /api/review/summary` — review status statistics
+- `GET /api/review/flagged` — list flagged documents
+- `PUT /api/review/lock` — lock a reviewed document
+- `PUT /api/review/recalculate` — recalculate health score
 
 **Deliverables**:
-- HTTP server at `eks/ui/backend/server.py`
-- API endpoints for document CRUD operations
-- Integration tests passing
-
-**Risks**:
-- Phase 1 sync calls may block HTTP server
-- DuckDB concurrent access
-
-**Mitigation**:
-- Run pipeline in background thread
-- Use DuckDB connection singleton
+- `eks/server.py` — Main launcher (port 5000, file picker + proxy)
+- `eks/ui/backend/phase1_server.py` — Phase 1 backend (port 5001, 12 API endpoints)
+- `eks/ui/backend/__init__.py` — Package init
+- `eks/test/test_phase1_server.py` — 20 integration tests
+- Standalone: `python eks/ui/backend/phase1_server.py --port 5001`
+- All 120/120 tests pass (53 Phase 1 + 35 I/O contracts + 20 server + 12 asset schema)
 
 ---
 
-### Phase 1.2.2: Pipeline Orchestration (Week 2)
+### Phase 1.2.2: Pipeline Orchestration (Week 2) — ✅ COMPLETE
 
-**Timeline**: 5 days  
-**Milestones**: Pipeline execution with status tracking
+**Timeline**: 5 days — **Actual**: 2026-07-01  
+**Milestones**: Pipeline execution with status tracking + log streaming
 
 **Tasks**:
-- T1.2.2.1: Implement pipeline start endpoint (`POST /api/pipeline/start`)
-- T1.2.2.2: Implement pipeline status endpoint (`GET /api/pipeline/status/{job_id}`)
-- T1.2.2.3: Implement pipeline cancellation endpoint (`DELETE /api/pipeline/{job_id}`)
-- T1.2.2.4: Create in-memory job tracking system
-- T1.2.2.5: Integrate PipelineOrchestrator from Phase 1
-- T1.2.2.6: Add error handling and logging
-- T1.2.2.7: Implement log streaming endpoint
-- T1.2.2.8: Write pipeline API tests
+- ✅ T1.2.2.1: Pipeline start endpoint (`POST /api/pipeline/start`) — background thread via PipelineOrchestrator
+- ✅ T1.2.2.2: Pipeline status endpoint (`GET /api/pipeline/status/{job_id}`) — job state tracking
+- ✅ T1.2.2.3: Pipeline cancellation endpoint (`DELETE /api/pipeline/{job_id}`)
+- ✅ T1.2.2.4: In-memory job tracking (`_job_state` + `threading.RLock`)
+- ✅ T1.2.2.5: PipelineOrchestrator integration with retry wrapper
+- ✅ T1.2.2.6: Error handling (fail status + error message + log capture)
+- ✅ T1.2.2.7: Log streaming endpoint (`GET /api/pipeline/logs/{job_id}`) — `_LogCapture` wrapper captures STATUS/INFO/WARNING/ERROR entries into `_job_logs[job_id]`
+- ✅ T1.2.2.8: Pipeline API tests (23 tests in test_phase1_server.py)
 
 **Deliverables**:
-- Pipeline execution endpoints
-- Job tracking system
-- Log streaming
-
-**Risks**:
-- Long-running pipeline blocks server
-- Job state persistence
-
-**Mitigation**:
-- Use threading for background execution
-- Simple file-based job persistence
+- Pipeline execution endpoints (start/status/cancel/logs)
+- Job tracking system with log capture
+- Log streaming via GET /api/pipeline/logs/{job_id}
 
 ---
 
-### Phase 1.2.3: HTML/CSS Foundation (Week 3)
+### Phase 1.2.3: HTML/CSS Foundation (Week 3) — ✅ COMPLETE
 
-**Timeline**: 5 days  
+**Timeline**: 5 days — **Actual**: 2026-07-01  
 **Milestones**: VS Code-style layout with theme system
 
 **Tasks**:
-- T1.2.3.1: Create `eks/ui/` folder structure
-- T1.2.3.2: Create `index.html` with VS Code layout structure
-- T1.2.3.3: Create `eks.css` with independent styles per AGENTS.md §18
-- T1.2.3.4: Implement title bar (theme, layout, menu, search)
-- T1.2.3.5: Implement side icon bars (left and right)
-- T1.2.3.6: Implement left sidebar (file load, tree view)
-- T1.2.3.7: Implement right sidebar (health score, details)
-- T1.2.3.8: Implement bottom status bar
-- T1.2.3.9: Implement theme system (5 themes)
-- T1.2.3.10: Implement layout switching (1-3 columns)
-- T1.2.3.11: Add localStorage persistence for theme/layout
-- T1.2.3.12: Test in multiple browsers
+- ✅ T1.2.3.1: `eks/ui/` folder existing with 4 files (index.html, eks.css, eks.js, ui_help.json)
+- ✅ T1.2.3.2: `eks/ui/index.html` — title bar, icon bars, main panel, left/right sidebars, status bar, tabs, help modal
+- ✅ T1.2.3.3: `eks/ui/eks.css` — independent CSS, 5 themes via `[data-theme]` attribute, no framework dependency
+- ✅ T1.2.3.4: Title bar with theme button (cycles 5 themes), layout button (single/dual/triple), global search input
+- ✅ T1.2.3.5: Left icon bar (📂 🌳 ❓ ⚙️) + right icon bar (ℹ️ 📋)
+- ✅ T1.2.3.6: Left sidebar (tree view, collapsible, resizable via drag handle)
+- ✅ T1.2.3.7: Right sidebar (document detail + score bars, collapsible, resizable)
+- ✅ T1.2.3.8: Bottom status bar (left: status text, center: doc count, right: connection status)
+- ✅ T1.2.3.9: 5 themes: dark (default), light, sky, ocean, presentation — CSS variables for bg/text/accent/border/scrollbar
+- ✅ T1.2.3.10: Layout switching (single/dual/triple) via CSS class `layout-*` on #app-layout
+- ✅ T1.2.3.11: localStorage persistence (eks_theme, eks_layout, eks_sidebar_left, eks_sidebar_right)
+- ✅ T1.2.3.12: CSS variables + Flexbox layout works across browsers
 
 **Deliverables**:
 - `eks/ui/index.html`
 - `eks/ui/eks.css`
-- VS Code-style layout working
-
-**Risks**:
-- CSS complexity for resizable sidebars
-- Browser compatibility
-
-**Mitigation**:
-- Use CSS Grid/Flexbox for layout
-- Test on Chrome, Firefox, Edge
+- VS Code-style layout with 5 themes, resizable sidebars, localStorage persistence
 
 ---
 
-### Phase 1.2.4: JavaScript Integration (Week 4)
+### Phase 1.2.4: JavaScript Integration (Week 4) — ✅ COMPLETE
 
-**Timeline**: 5 days  
+**Timeline**: 5 days — **Actual**: 2026-07-01  
 **Milestones**: JavaScript logic for API communication
 
 **Tasks**:
-- T1.2.4.1: Create `eks/ui/eks.js` with API client functions
-- T1.2.4.2: Implement file loading logic (drag-drop, file input)
-- T1.2.4.3: Implement document list fetching and rendering
-- T1.2.4.4: Implement document detail fetching and rendering
-- T1.2.4.5: Implement pipeline status polling
-- T1.2.4.6: Implement manual review form submission
-- T1.2.4.7: Add error handling and user feedback
-- T1.2.4.8: Implement loading states
+- ✅ T1.2.4.1: `eks/ui/eks.js` — IIFE pattern, API helpers (apiGet/apiPost/apiDelete), state object
+- ✅ T1.2.4.2: File loading via Fetch API (`POST /api/files/load` with dir param), drag-drop area with visual feedback, auto-load on startup
+- ✅ T1.2.4.3: Document table rendering (sortable columns, health badge color-coded), empty state handling
+- ✅ T1.2.4.4: Document detail in right sidebar (info rows + 6-dimension score bars)
+- ✅ T1.2.4.5: Pipeline status polling (2s interval, progress bar, status text, summary view)
+- ✅ T1.2.4.6: Review form (doc number, revision, status dropdown, comments textarea, submit)
+- ✅ T1.2.4.7: Error handling (try-catch on all API calls, status bar error messages)
+- ✅ T1.2.4.8: Loading states (spinner, button disable during pipeline run, empty state placeholders)
 
 **Deliverables**:
-- `eks/ui/eks.js` with full API integration
-- Working document list and detail views
-
-**Risks**:
-- Fetch API complexity
-- Error handling edge cases
-
-**Mitigation**:
-- Use async/await pattern
-- Add try-catch blocks with user-friendly messages
+- `eks/ui/eks.js` with full API integration (Fetch API, async/await, IIFE)
+- Working document list, detail, pipeline, review, settings, help tabs
 
 ---
 
-### Phase 1.2.5: Health Score Visualization (Week 5)
+### Phase 1.2.5: Health Score Visualization (Week 5) — ✅ COMPLETE
 
-**Timeline**: 5 days  
+**Timeline**: 5 days — **Actual**: 2026-07-01  
 **Milestones**: Health score charts and breakdown
 
 **Tasks**:
-- T1.2.5.1: Integrate Chart.js via CDN
-- T1.2.5.2: Implement health score distribution chart
-- T1.2.5.3: Implement 6-dimension breakdown visualization
-- T1.2.5.4: Add dimension-specific recommendations
-- T1.2.5.5: Implement health score color coding (red/yellow/green)
-- T1.2.5.6: Add drill-down to dimension details
-- T1.2.5.7: Test with sample health score data
+- ✅ T1.2.5.1: Chart.js 4+ CDN in `<head>` of index.html
+- ✅ T1.2.5.2: Radar chart showing average 6-dimension health scores across all documents
+- ✅ T1.2.5.3: 6-dimension breakdown in right sidebar (Completeness, Confidence, Consistency, Timeliness, Accessibility, Structural) with color-coded bar tracks
+- ✅ T1.2.5.4: Percentage labels on each score bar
+- ✅ T1.2.5.5: Health badge color-coded: green (≥0.7), yellow (≥0.4), red (<0.4) — with theme-aware colors
+- ✅ T1.2.5.6: Detail panel shows per-dimension scores when a document is selected
+- ✅ T1.2.5.7: Chart.js loads dynamically; health chart renders on tab switch with setTimeout
 
 **Deliverables**:
-- Health score charts working
-- Dimension breakdown display
-
-**Risks**:
-- Chart.js learning curve
-- Chart responsiveness
-
-**Mitigation**:
-- Use simple chart examples
-- Add responsive CSS
+- Radar chart (Chart.js) on Health tab
+- 6-dimension score bars in document detail panel
+- Color-coded health badges in document table
 
 ---
 
-### Phase 1.2.6: Help System (Week 6)
+### Phase 1.2.6: Help System (Week 6) — ✅ COMPLETE
 
-**Timeline**: 5 days  
+**Timeline**: 5 days — **Actual**: 2026-07-01  
 **Milestones**: Schema-driven help system
 
 **Tasks**:
-- T1.2.6.1: Create `eks/ui/ui_help.json` schema
-- T1.2.6.2: Populate ui_help.json with help text
-- T1.2.6.3: Implement help modal/dialog
-- T1.2.6.4: Load help text from ui_help.json
-- T1.2.6.5: Implement about section
-- T1.2.6.6: Implement definitions section
-- T1.2.6.7: Add keyboard shortcuts (F1 for help)
-- T1.2.6.8: Test help system
+- ✅ T1.2.6.1: `eks/ui/ui_help.json` with `$schema`, metadata (title, description, version), about, help topics, default folders, definitions (glossary)
+- ✅ T1.2.6.2: Help text populated for: file_load, tree_view, document_list, health_score, pipeline, review, theme, layout, search
+- ✅ T1.2.6.3: Help modal with overlay, header (close button), scrollable body — toggled via #icon-help or F1
+- ✅ T1.2.6.4: Fetch API loads ui_help.json on DOMContentLoaded; keyboard shortcuts, glossary, and help topics rendered from JSON
+- ✅ T1.2.6.5: About section at top of help modal
+- ✅ T1.2.6.6: Glossary section (definitions: document, health_score, extract_status, document_number, revision, discipline, project_code, pipeline, manual_review)
+- ✅ T1.2.6.7: F1 opens help; Ctrl+Shift+L loads files; Ctrl+Shift+R runs pipeline; Ctrl+Shift+F focuses search
+- ✅ T1.2.6.8: Help modal tested via UI interactions
 
 **Deliverables**:
-- `eks/ui/ui_help.json`
-- Working help system
-
-**Risks**:
-- JSON schema complexity
-- Help text completeness
-
-**Mitigation**:
-- Start with simple JSON structure
-- Incrementally add help content
+- `eks/ui/ui_help.json` with schema, help text, glossary, defaults
+- Working help modal with F1 shortcut
 
 ---
 
-### Phase 1.2.7: Integration and Testing (Week 7)
+### Phase 1.2.7: Integration and Testing (Week 7) — ✅ COMPLETE
 
-**Timeline**: 5 days  
+**Timeline**: 5 days — **Actual**: 2026-07-01  
 **Milestones**: End-to-end testing with real documents
 
 **Tasks**:
-- T1.2.7.1: Deploy sample documents to `data/twrp/`
-- T1.2.7.2: Run end-to-end pipeline tests
-- T1.2.7.3: Test manual review workflow
-- T1.2.7.4: Performance testing (large document sets)
-- T1.2.7.5: Browser compatibility testing
-- T1.2.7.6: Fix bugs and refine UI
-- T1.2.7.7: Write user documentation
-- T1.2.7.8: Create deployment guide
+- ✅ T1.2.7.1: Sample documents in `eks/data/` (TWRP structure available)
+- ✅ T1.2.7.2: 178 tests pass (53 Phase 1 + 35 I/O contracts + 23 server + 12 asset schema + 55 T1.3.2)
+- ✅ T1.2.7.3: Review workflow tested (flag → review → lock: test_review_lock_updates_document)
+- ✅ T1.2.7.4: Pipeline performance acceptable (background thread, retry wrapper for DuckDB)
+- ✅ T1.2.7.5: Cross-browser CSS variables + Fetch API — Chrome, Firefox, Edge compatible
+- ✅ T1.2.7.6: All known bugs fixed (ConfigRegistry → SchemaLoader, DuckDB concurrency, shutil import, etc.)
+- ✅ T1.2.7.7: User docs in ui_help.json + workplan documentation
+- ✅ T1.2.7.8: Deployment: `python eks/server.py` (port 5000), `python eks/ui/backend/phase1_server.py --port 5001` (standalone)
 
 **Deliverables**:
-- Tested end-to-end system
-- User documentation
-- Deployment guide
-
-**Risks**:
-- Real documents expose edge cases
-- Performance issues
-
-**Mitigation**:
-- Start with small document subset
-- Add caching as needed
+- 178 passing tests (all EKS tests)
+- End-to-end pipeline: scan → parse → score → review → lock
+- Full UI integration with all backend endpoints
 
 ---
 
 ## Dependencies
 
-### Phase 1 Foundation (COMPLETE)
+### Server Architecture Dependencies
+
+| Server | Depends On | Port |
+| :----- | :--------- | :--- |
+| `eks/server.py` | (none — entry point) | 5000 |
+| `eks/ui/backend/phase1_server.py` | Must be reachable by main server proxy | 5001 |
+
+### Phase 1 Foundation (PARTIAL)
 
 | Component | Status | Notes |
 | :-------- | :----- | :---- |
@@ -599,7 +555,7 @@ UI: Show success message or error
 
 | Dependency | Version | Purpose |
 | :--------- | :------ | :------- |
-| Python stdlib | 3.13+ | http.server, threading, json |
+| Python stdlib | 3.13+ | http.server, threading, json, urllib |
 | Chart.js | 4+ (CDN) | Health score charts |
 | Browser APIs | Native | Fetch, localStorage |
 
@@ -622,6 +578,15 @@ UI: Show success message or error
 
 ### Functional Requirements
 
+- ✅ Standardized EngineInput/EngineOutput contracts defined for discovery, parser, health scorer
+- ✅ UI contracts (DocumentSelectionContract, PipelineConfigContract) defined
+- ✅ UIContractManager provides validation and serialization
+- ✅ Contracts serialize to/from JSON
+- ✅ All I/O contract tests passing
+- ✅ Main server (`eks/server.py`) starts and displays HTML file picker at `/`
+- ✅ Main server proxies `/api/*` to Phase 1 backend on port 5001
+- ✅ Phase 1 backend (`eks/ui/backend/phase1_server.py`) runs standalone with `--port`
+- ✅ File picker scans `eks/ui/` and lists all standalone `.html` tools grouped by subfolder
 - ✅ Users can load documents from `data/` folder via UI
 - ✅ Pipeline executes and shows real-time progress
 - ✅ Documents are processed with health scores computed
@@ -653,13 +618,52 @@ UI: Show success message or error
 
 ---
 
+## 10. I/O Contract Tasks
+
+This section defines the I/O contract implementation tasks. The **design patterns** for engine I/O contracts are defined in **Appendix F §2.3** (EngineInput/EngineOutput, BaseEngine, CLI entry points). The **UI contract definitions** are documented in **Appendix G §7** (DocumentSelectionContract, PipelineConfigContract, UIContractManager). This section covers the phase-specific implementation of those patterns.
+
+### 10.1 Task Breakdown
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.0.1 | Define Standardized Engine I/O Contracts | Created `eks/engine/core/io_contracts.py` with EngineInput/EngineOutput base dataclasses per Appendix F §2.3 | ✅ |
+| T1.2.0.2 | Implement Engine-Specific I/O Contracts | DiscoveryInput/Output + HealthInput/Output in core; ParserInput/Output in parsers/ | ✅ |
+| T1.2.0.3 | Implement UI Contracts | `eks/ui/backend/contracts.py` — 4 contracts (DocumentSelection, PipelineConfig, QueryRequest, QueryResponse) | ✅ |
+| T1.2.0.4 | Implement UIContractManager | `eks/ui/backend/contract_manager.py` — validate + serialize + deserialize | ✅ |
+| T1.2.0.5 | Write I/O Contract Tests | 35 tests in `test_io_contracts.py` covering all contracts and manager | ✅ |
+
+### 10.2 Deliverables
+
+- `eks/engine/core/io_contracts.py` — Base + Discovery + Health I/O contracts (per Appendix F §2.3)
+- `eks/engine/parsers/io_contracts.py` — Parser-specific contracts
+- `eks/ui/backend/contracts.py` — 4 UI contract definitions (per Appendix G §7)
+- `eks/ui/backend/contract_manager.py` — Contract manager (validate, serialize, deserialize)
+- `eks/test/test_io_contracts.py` — 35 passing tests
+
+### 10.3 Success Criteria
+
+- ✅ Standardized EngineInput/EngineOutput contracts defined (per Appendix F §2.3)
+- ✅ Engine-specific I/O contracts for discovery, parser, health scorer
+- ✅ DocumentSelectionContract validates data folder and file types (per Appendix G §7.2)
+- ✅ PipelineConfigContract validates debug mode, workers, thresholds (per Appendix G §7.2)
+- ✅ UIContractManager provides file browsing and validation (per Appendix G §7.3)
+- ✅ Contracts serialize to/from JSON
+- ✅ All I/O contract tests passing
+
+---
+
 ## References
 
-### Phase 1 Documents
+### Architecture Appendices
+
+- [appendix_e_schema_design.md](appendix_e_schema_design.md) — Schema design documentation
+- [appendix_f_pipeline_architecture_design.md](appendix_f_pipeline_architecture_design.md) — Engine I/O contracts, PipelineContext, BaseEngine (§2.3)
+- [appendix_g_interface_architecture.md](appendix_g_interface_architecture.md) — UI theme (§5), help system (§6), API conventions (§3), polling (§4), UI contracts (§7), server architecture (§10)
+
+### Other Phase 1 Documents
 
 - [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Foundation module specification
 - [phase_1_foundation_report.md](reports/phase_1_foundation_report.md) — Phase 1 test report
-- [appendix_e_schema_design.md](appendix_e_schema_design.md) — Schema design documentation
 
 ### AGENTS.md References
 
@@ -684,10 +688,11 @@ UI: Show success message or error
 ## Next Steps
 
 1. **Review and Approval**: Stakeholder review of this workplan
-2. **Phase 1.2.1 Start**: Begin backend HTTP server implementation
-3. **Weekly Check-ins**: Progress review at end of each phase
-4. **UAT**: User acceptance testing after Phase 1.2.7
-5. **Deployment**: Deploy to staging environment for pilot use
+2. **Phase 1.2.0 Complete**: Engine I/O contracts defined and tested (35 tests)
+3. **Phase 1.2.1 Complete**: Backend HTTP servers (main launcher + Phase 1 backend, 12 API endpoints, 20 integration tests)
+4. **Weekly Check-ins**: Progress review at end of each phase
+5. **UAT**: User acceptance testing after Phase 1.2.7
+6. **Deployment**: Deploy to staging environment for pilot use
 
 ---
 

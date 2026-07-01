@@ -9,6 +9,8 @@
 | `dcc/` | Document Control (legacy, data processing) | 3.13 (conda) |
 | `releases/` | Packaged zip releases | — |
 
+**Project naming convention:** Each project listed above must have a single canonical name and abbreviation declared in its `knowledge.json` under `project_metadata.name`. All code, documentation, READMEs, CLI help text, `pyproject.toml` `name` field, and UI elements must use this canonical name. A project-wide grep for alternative names is required before each phase completion.
+
 ## 2. Project Knowledge Base
 
 1. Project Knowledge Base will explain how a project is planned and implemented. It will be used by team for maintainance, troubleshooting, furture development with AI assistance. The main purpose is not for human consumption but for AI assistance and automation. It essentially serves as the machine-readable `software blueprint and project charter`.
@@ -91,7 +93,9 @@ conda activate eks
 7. **Revision control**: Every file carries revision metadata (number, date, author, summary).
 8. **Review related workplans** before starting any implementation.
 9. **Messaging and errors**: All modules, engines, functions must utilize messaging and error logging to report status, errors, warnings and issues for data quality and data integrity, and healthyness of coding execution.
-10. **Knowledge base required**: Every project must have a `knowledge.json` at root. Update it when architecture, schemas, or key workflows change.
+10. **Knowledge base required**: Every project must have a `knowledge.json` at root. This file must be created at project inception and updated as part of every phase completion (see §5.6). When a new project is scaffolded, the first task is creating `knowledge.json` populated with initial metadata, architecture overview, and known issues. A project missing `knowledge.json` is not in compliance and must have one created before further development.
+11. **Relocation validation**: When any file or package is relocated, perform a project-wide `grep` for all import paths that reference the old location. Update every match in the same edit cycle. Run the full test suite after the change. If the project has no tests that exercise the relocated code, add them before closing the migration task.
+12. **Fix breadth**: When fixing a pattern-based defect (not a single-instance bug), use `grep` to identify all occurrences of the broken pattern across the entire project before applying the fix. Update all matches in the same edit. Document the search pattern in the task description so the same fix can be re-applied if the pattern re-emerges.
 
 ## 6. Folder Convention (all projects)
 
@@ -104,6 +108,8 @@ knowledge.json          # Required at project root
 ```
 
 Do not add unexpected top-level directories.
+
+**Directory validation:** At project creation and at each phase completion, verify all required directories exist at the project root: `archive/`, `config/`, `data/`, `output/`, `test/`, `ui/`, `engine/`, `log/`, `docs/`, `workplan/`. Missing directories must be created (empty scaffolding) before the phase can be marked complete. Directory names are case-sensitive (lowercase) and must match exactly — `Log/` is not a substitute for `log/`.
 
 ## 7. Files and Context
 
@@ -156,12 +162,21 @@ Three parallel schema sets: **core** (eks_*), **asset** (eks_asset_*), **ontolog
 
 **Fragment pattern (asset):** Asset types compose schema fragments defined in `eks_asset_base_schema.json` (13 fragments: item_core, process_conditions, manufacturer, etc.). Conditional fragments bind to `device_type_code` values.
 
+**New schema set checklist:** When introducing a new schema set, verify all of:
+1. Base file exists (`*_base_schema.json`) with shared `definitions` and `$schema`/`$id`/`title`/`version`
+2. Setup file exists (`*_setup_schema.json`) with `allOf` → `$ref` to base, property declarations, and `additionalProperties: false` on important controls
+3. Config file exists (`*_config.json`) with actual values and no schema metadata fields (`$schema`, `$id`, `version`, `title`, `description` in data instances)
+4. Config validates against setup schema before first commit
+5. Schema loader discovers the new set and validates it at startup
+6. At least one test validates the new schema chain end-to-end
+
 ## 10. Module Design
 
 - Module design for all functions and classes.
 - `__init__.py` shall only contain import statements and version information.
 - SSOT (Single Source of Truth) for all global parameters, variables, keys, codes, values, names, paths, files that outlive a single function.
 - Schema-driven design for global parameters that outlive a single function.
+- **SSOT verification**: Before adding any named definition (type, constant, version string, identifier, key), search the entire project to confirm it does not already exist under a different name. If a semantic equivalent exists, use `$ref` or import instead of redefining. For version numbers, each project must declare a single `__version__` in its root `__init__.py`; all other components must import from there.
 
 ## 11. Function Coding
 
@@ -199,6 +214,7 @@ Apply revision control to every file created or modified:
 - **Log updates:** Update `update_log.md` in the project `log/` folder on every file revision.
 - **Archiving:** Preserve revision entries when archiving or renaming; archived files retain history.
 - **Numbering:** Use consistent semantics (e.g. `0.1`, `1.0`, `1.1`, `2.0`); increment for each substantive update.
+- **Cross-reference validation:** When any file's version or revision metadata changes, all files that reference or document that file must be updated in the same edit cycle. Use `grep` across the project to identify all reference sites before committing the change. If a referenced file has 3+ stale references, create an issue and defer the version bump until all references are corrected.
 
 ## 14. Documentation
 
@@ -247,6 +263,8 @@ Every task gets a workplan in `<project>/workplan/`:
 - Always generate a report per phase in `<project>/workplan/reports/`.
 - Always update logs in `<project>/log/`.
 - Timestamp all phases and steps.
+- **Feature completion definition**: A feature is only "complete" (✅) when its core business logic is implemented and tested. Structural scaffolding (stubs, placeholder returns, `# TODO` blocks, "foundation in place" with no runtime effect) must be marked as 🔶 PARTIAL or 🔷 PLANNED, never ✅. A feature that always returns a null/fixed value is not complete. A parser that returns "Implementation Pending" is not complete. Document which sub-capabilities are stubs in the task description and link to the deferred issue.
+- **Phase scope freeze**: Once a phase workplan is marked COMPLETE, no new tasks may be added to it. Newly discovered work must be captured in a follow-up phase workplan (e.g., Phase 1.2, Phase 1.3) or in the next major phase. The only exception is urgent bug fixes, which must be logged as issues and tracked separately from the phase task list. A phase should only be marked COMPLETE when its scope is fully delivered and no additional tasks are anticipated.
 
 ## 16. Test Reports
 
@@ -342,6 +360,13 @@ Refer to `dcc/workplan/ui_design/log_neurogram/`. Generate a neurogram network J
 - EKS tests expect config files at `eks/config/` (relative to repo root).
 - EKS tests create/clean `eks/test_output/` and `eks/output/eks_registry.db`.
 - code_tracer tests use `unittest.main()` and can be run directly or via pytest.
+
+**Minimum test coverage:**
+- Every engine module (files in `engine/core/`, `engine/parsers/`, etc.) must have at least one test file exercising its primary entry points.
+- Every public function should have at least one happy-path test.
+- Every HTTP/WebSocket endpoint must have at least one integration test.
+- A module with zero tests may not be marked as "complete" in any workplan.
+- Test coverage gaps (modules without tests) must be logged as issues and tracked in the next phase workplan.
 
 ## 22. Formatting
 

@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/issue_log.md`  
-**Last Updated**: 2026-06-25 (I033–I044 logged — Appendix E audit)  
+**Last Updated**: 2026-06-30 (I045 resolved, I046 resolved — T1.67 complete)  
 
 ---
 
@@ -55,6 +55,8 @@
 | I042 | 2026-06-25 | Docs | 🟢 Low | Appendix E E5.1: Error Setup property count inconsistent (shows 5, actual is 6) | E5.1 Error Setup Count column shows `5`, but the actual properties in `eks_error_setup_schema.json` are 6: `metadata`, `system_error_ranges`, `system_errors`, `data_error_ranges`, `data_logic_errors`, `migration_log`. | ✅ Resolved | Updated Error Setup count to `6` in E5.1 in Appendix E v0.8. |
 | I043 | 2026-06-25 | Docs | 🟢 Low | Appendix E E12 Aggregate Summary: Document required count wrong (shows 3 req, should be 4) | E12 Document row shows `7 defs → 7 props(3 req)`. Since `revision_validation` is in `eks_doc_setup_schema.json` required array (per I039), there are 4 required properties: `revision_validation`, `ontology_triggers`, `health_scoring`, `element_expectations`. | ✅ Resolved | Updated E12 Document row to `(4 req)` in Appendix E v0.9. |
 | I044 | 2026-06-25 | Docs | 🟢 Low | Appendix E: Internal inconsistency — E5.1 vs E11.1 setup schema version | E5.1 shows `eks_setup_schema.json` as `v1.2.0` while E11.1 column header correctly says `v1.2.2`. Both are in the same document. Resolved by fixing I034 (update E5.1 to v1.2.2). | ✅ Resolved | Resolved when I034 was fixed in Appendix E v0.8. |
+| I045 | 2026-06-30 | Phase 1 | 🟠 High | `$schema` field re-introduced in error/message config files, breaking all phase 1 tests | `eks_error_config.json` and `eks_message_config.json` contained `$schema` fields that violate `additionalProperties: false` in their setup schemas. This is a regression from I028 (resolved 2026-06-23 by removing metadata fields). All 63 phase 1 tests errored at setup. | ✅ Resolved | Removed `$schema` from both config files. All 118 tests pass. |
+| I046 | 2026-06-30 | Phase 1 | 🟡 Medium | `project_setup.json` violates AGENTS.md §9 3-layer pattern — should integrate into core eks_base/setup/config schemas | `project_setup.json` (created by T1.66) is a standalone schema with 7 compliance violations: (1) missing `project_base_schema.json` for shared definitions; (2) missing `project_config.json` for actual values; (3) no `allOf`/`$ref` to a base schema; (4) definitions embedded inline instead of via `$ref`; (5) default values (config data) stored in the setup layer; (6) schema is never read by `setup_validator.py` (hardcodes all values); (7) workplan claims compliance (R06) but files don't exist. Evaluation confirms the correct fix is to integrate project setup definitions into the core `eks_base_schema.json` (add 4 defs), add `project_setup` property to `eks_setup_schema.json`, populate values in `eks_config.json`, delete the orphan `project_setup.json`, and refactor `setup_validator.py` to load from the schema chain. | ✅ Resolved | T1.67: Added 4 defs to base v1.6.0, project_setup property to setup v1.3.0, values to config v1.4.0. Archived `project_setup.json`. Refactored `setup_validator.py` to load from ConfigRegistry. 118/118 tests pass. U093. |
 
 ---
 

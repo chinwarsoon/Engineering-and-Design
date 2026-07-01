@@ -1,6 +1,8 @@
 """
 Pipeline Orchestrator for EKS - Coordinates Phase A/B/C pipeline workflow.
 T1.39: Pre-parse → parse → score → review pipeline coordinator.
+T1.63: Enhanced with checkpoints and telemetry heartbeat integration per Appendix F.
+T1.64: Added phase rollback capability per Appendix F.
 """
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -9,31 +11,128 @@ from .file_scanner import FileScanner
 from .health_scorer import HealthScorer
 from .structure_detector import StructureDetector
 from ..parsers.parser_router import ParserRouter
+from .context import EKSPipelineContext, EKSPaths
+from .telemetry import TelemetryHeartbeat
 
 
 class PipelineOrchestrator:
     """
-    Coordinates the 3-phase EKS pipeline:
+    Coordinates the 3-phase EKS pipeline with checkpoints and telemetry:
     - Phase A: Scan directory → register placeholder documents
     - Phase B: Route → parse → detect structure → score → update metadata
     - Phase C: Flag documents for manual review
+    
+    Enhanced per Appendix F with:
+    - 5 clear phases (A-E) with telemetry heartbeat integration
+    - Checkpoint state serialization for resume capability
+    - Phase rollback mechanism for failed phases
     """
 
     def __init__(self, config: Dict[str, Any], doc_config: Dict[str, Any],
-                 registry: Any, logger: Optional[EKSLogger] = None):
+                 registry: Any, logger: Optional[EKSLogger] = None,
+                 use_telemetry: bool = True):
+        """
+        Initialize pipeline orchestrator.
+        
+        Args:
+            config: Pipeline configuration
+            doc_config: Document configuration
+            registry: Document registry instance
+            logger: Optional logger instance
+            use_telemetry: Whether to enable telemetry heartbeat (default True)
+        """
         self.config = config
         self.doc_config = doc_config
         self.registry = registry
         self.logger = logger or EKSLogger("PipelineOrchestrator", level=1)
+        self.use_telemetry = use_telemetry
+        
+        # Initialize components
         self.scanner = FileScanner(config, doc_config=doc_config, logger=self.logger)
-        self.router = ParserRouter(doc_config, logger=self.logger)
+        self.router = ParserRouter(doc_config, logger=self.logger, use_factory=True)
         self.scorer = HealthScorer(logger=self.logger)
         self.detector = StructureDetector(logger=self.logger)
+        
+        # Initialize telemetry heartbeat
+        self.telemetry = TelemetryHeartbeat(enabled=use_telemetry, verbose=False)
+        
+        # Initialize pipeline context
+        self.context: Optional[EKSPipelineContext] = None
+        self.checkpoint_states: Dict[str, Dict[str, Any]] = {}
+    
+    def initialize_context(self, data_dir: Path, schema_dir: Path, output_dir: Path,
+                          archive_dir: Path, config_dir: Path, log_dir: Path):
+        """
+        Initialize pipeline context with paths.
+        
+        Args:
+            data_dir: Data directory path
+            schema_dir: Schema directory path
+            output_dir: Output directory path
+            archive_dir: Archive directory path
+            config_dir: Config directory path
+            log_dir: Log directory path
+        """
+        paths = EKSPaths(
+            data_dir=data_dir,
+            schema_dir=schema_dir,
+            output_dir=output_dir,
+            archive_dir=archive_dir,
+            config_dir=config_dir,
+            log_dir=log_dir
+        )
+        self.context = EKSPipelineContext(paths=paths)
+    
+    def save_checkpoint(self, phase: str, checkpoint_path: Optional[Path] = None):
+        """
+        Save checkpoint state for a phase.
+        
+        Args:
+            phase: Phase name (A, B, C, D, E)
+            checkpoint_path: Optional path to save checkpoint file
+        """
+        if self.context:
+            state = self.context.to_dict()
+            self.checkpoint_states[phase] = state
+            
+            if checkpoint_path:
+                self.context.save_checkpoint(checkpoint_path)
+                self.logger.status(f"Checkpoint saved for phase {phase} to {checkpoint_path}")
+    
+    def rollback_to_checkpoint(self, phase: str, checkpoint_path: Optional[Path] = None) -> bool:
+        """
+        Rollback pipeline state to a previous checkpoint.
+        
+        Args:
+            phase: Phase name to rollback to
+            checkpoint_path: Optional path to load checkpoint from
+            
+        Returns:
+            True if rollback successful, False otherwise
+        """
+        try:
+            if checkpoint_path and self.context:
+                self.context = EKSPipelineContext.load_checkpoint(checkpoint_path)
+                self.logger.status(f"Rolled back to checkpoint: {checkpoint_path}")
+                return True
+            elif phase in self.checkpoint_states:
+                # Restore from in-memory checkpoint
+                state = self.checkpoint_states[phase]
+                self.context = EKSPipelineContext.from_dict(state)
+                self.logger.status(f"Rolled back to phase {phase} checkpoint")
+                return True
+            else:
+                self.logger.warning(f"No checkpoint found for phase {phase}")
+                return False
+        except Exception as e:
+            self.logger.error(f"Rollback failed for phase {phase}: {e}")
+            return False
 
     @log_depth
     def run_phase_a(self, root_dir: Path, recursive: bool = True) -> Dict[str, Any]:
         """
         Phase A: Scan project directory and register placeholder documents.
+        Enhanced with telemetry checkpoint per Appendix F.
 
         Returns summary dict with keys:
             - discovered: count of files discovered
@@ -41,7 +140,13 @@ class PipelineOrchestrator:
             - unknown: count of files with unrecognized extensions
             - registered: count of new placeholder documents registered
         """
+        if self.use_telemetry:
+            self.telemetry.start()
+        
         self.logger.status(f"Phase A: Scanning {root_dir}")
+        
+        if self.context:
+            self.context.update_phase("A", "IN_PROGRESS")
 
         discovered = self.scanner.scan(root_dir, recursive=recursive)
         valid, unknown = self.scanner.validate_file_types(discovered)
@@ -53,6 +158,19 @@ class PipelineOrchestrator:
             "unknown": len(unknown),
             "registered": registered,
         }
+        
+        if self.use_telemetry:
+            self.telemetry.add_checkpoint(
+                phase="A",
+                details=summary,
+                document_count=registered
+            )
+            self.save_checkpoint("A")
+        
+        if self.context:
+            self.context.state.documents_processed = registered
+            self.context.update_phase("A", "COMPLETE")
+        
         self.logger.status(f"Phase A complete: {summary}")
         return summary
 
@@ -60,6 +178,7 @@ class PipelineOrchestrator:
     def run_phase_b(self, root_dir: Path, recursive: bool = True) -> Dict[str, Any]:
         """
         Phase B: For each discovered file, route → parse → detect → score → update.
+        Enhanced with telemetry checkpoint per Appendix F.
 
         Returns summary dict with keys:
             - total: count of files processed
@@ -69,6 +188,9 @@ class PipelineOrchestrator:
             - results: list of per-file result dicts
         """
         self.logger.status(f"Phase B: Parsing files in {root_dir}")
+        
+        if self.context:
+            self.context.update_phase("B", "IN_PROGRESS")
 
         discovered = self.scanner.scan(root_dir, recursive=recursive)
         valid, _ = self.scanner.validate_file_types(discovered)
@@ -91,6 +213,14 @@ class PipelineOrchestrator:
                 partial += 1
             else:
                 failed += 1
+            
+            # Add telemetry checkpoint for each file processed
+            if self.use_telemetry:
+                self.telemetry.add_checkpoint(
+                    phase=f"B-{file_path}",
+                    details={"file": file_path, "status": status},
+                    document_count=success + partial + failed
+                )
 
         summary = {
             "total": len(valid),
@@ -99,6 +229,21 @@ class PipelineOrchestrator:
             "failed": failed,
             "results": results,
         }
+        
+        if self.use_telemetry:
+            self.telemetry.add_checkpoint(
+                phase="B",
+                details=summary,
+                document_count=success + partial
+            )
+            self.save_checkpoint("B")
+        
+        if self.context:
+            self.context.state.documents_processed = success + partial
+            self.context.state.documents_succeeded = success
+            self.context.state.documents_failed = failed
+            self.context.update_phase("B", "COMPLETE")
+        
         self.logger.status(f"Phase B complete: {success} success, {partial} partial, {failed} failed")
         return summary
 
@@ -106,6 +251,7 @@ class PipelineOrchestrator:
     def run_phase_c(self) -> Dict[str, Any]:
         """
         Phase C: Flag documents for manual review.
+        Enhanced with telemetry checkpoint per Appendix F.
         Queries documents where extract_status != 'success' or
         extraction_confidence < 0.70.
 
@@ -114,6 +260,9 @@ class PipelineOrchestrator:
             - documents: list of flagged document metadata dicts
         """
         self.logger.status("Phase C: Flagging documents for review")
+        
+        if self.context:
+            self.context.update_phase("C", "IN_PROGRESS")
 
         all_docs = self.registry.list_documents(latest_only=False)
         flagged = []
@@ -131,6 +280,18 @@ class PipelineOrchestrator:
             "flagged": len(flagged),
             "documents": flagged,
         }
+        
+        if self.use_telemetry:
+            self.telemetry.add_checkpoint(
+                phase="C",
+                details=summary,
+                document_count=len(flagged)
+            )
+            self.save_checkpoint("C")
+        
+        if self.context:
+            self.context.update_phase("C", "COMPLETE")
+        
         self.logger.status(f"Phase C complete: {len(flagged)} documents flagged for review")
         return summary
 
@@ -138,10 +299,17 @@ class PipelineOrchestrator:
     def run_full_pipeline(self, root_dir: Path, recursive: bool = True) -> Dict[str, Any]:
         """
         Run all three phases in sequence: A → B → C.
+        Enhanced with telemetry heartbeat integration per Appendix F.
 
         Returns combined summary dict.
         """
         self.logger.status(f"Starting full pipeline for {root_dir}")
+        
+        if self.use_telemetry:
+            self.telemetry.start()
+        
+        if self.context:
+            self.context.state.status = "IN_PROGRESS"
 
         phase_a = self.run_phase_a(root_dir, recursive=recursive)
         phase_b = self.run_phase_b(root_dir, recursive=recursive)
@@ -152,6 +320,13 @@ class PipelineOrchestrator:
             "phase_b": phase_b,
             "phase_c": phase_c,
         }
+        
+        if self.use_telemetry:
+            self.telemetry.stop()
+        
+        if self.context:
+            self.context.complete()
+        
         self.logger.status("Full pipeline complete")
         return summary
 

@@ -1,23 +1,27 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eks.engineering/knowledge.json",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "title": "EKS Project Knowledge Base",
   "description": "Engineering Knowledge System - machine-readable project blueprint and charter",
   "project_metadata": {
     "name": "Engineering Knowledge System (EKS)",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "description": "Schema-driven document registry and knowledge graph system for engineering asset management",
     "purpose": "Ingest, extract, and cross-reference engineering documents to build a searchable knowledge graph",
-    "status": "Phase 1 Complete",
-    "last_updated": "2026-06-25"
+    "status": "Phase 1 COMPLETE — all 67 tasks (T1.1–T1.67) + Phase 1.2 COMPLETE (T1.2.0–1.2.7) — 178/178 tests pass, 23 schema files, 4 UI files",
+    "last_updated": "2026-07-01"
   },
   "architecture_overview": {
     "key_modules": [
-      "engine/core/ - Foundation: registry, revision, config, schema_loader, pipeline orchestration",
-      "engine/parsers/ - Plug-in document parsers (PDF, DOCX, XLSX, DGN, DWG)",
+      "engine/core/ - Foundation: registry, revision, config, schema_loader, pipeline orchestration, context, base engine, telemetry, validator, factories, setup_validator",
+      "engine/parsers/ - Plug-in document parsers (PDF, DOCX, XLSX, DGN, DWG) with parser_router",
       "engine/logging/ - Tiered logging infrastructure (levels 0-3)",
-      "config/schemas/ - 3-layer schema pattern (base/setup/config) for all schema sets"
+      "engine/discovery/ - CLI entry points for scheduling engines",
+      "engine/health/ - CLI entry points for health scorer",
+      "ui/backend/ - HTTP API endpoints for independent engine execution (12 endpoints + log streaming)",
+      "ui/ - Interactive dashboard (index.html, eks.css, eks.js, ui_help.json)",
+      "config/schemas/ - 3-layer schema pattern (base/setup/config) for 6 schema sets + 4 fragments + project rules"
     ],
     "data_flows": [
       "File Scanner → Parser Router → Parser → Structure Detector → Health Scorer → Document Registry",
@@ -25,7 +29,8 @@
       "ConfigRegistry provides SSOT access to global parameters"
     ],
     "integration_points": [
-      "DuckDB for document metadata storage",
+      "Main server (port 5000) proxies /api/* to Phase 1 backend (port 5001), serves static UI from eks/ui/",
+    "DuckDB for document metadata storage",
       "Qdrant for vector embeddings (Phase 2)",
       "Neo4j for knowledge graph (Phase 3)",
       "OpenAI/Ollama for embeddings (Phase 2)"
@@ -63,14 +68,24 @@
       "Health scoring - 6-dimension document quality assessment"
     ]
   },
-  "key_schemas": [
-    "config/schemas/eks_base_schema.json - Core pipeline definitions (v1.5.0, 13 defs)",
-    "config/schemas/eks_asset_base_schema.json - Asset fragment definitions (v1.3.0, 14 fragments)",
-    "config/schemas/eks_doc_base_schema.json - Document metadata definitions (v1.2.0, 8 defs)",
-    "config/schemas/eks_ontology_base_schema.json - Ontology class/relationship definitions (v1.1.0, 2 defs)",
-    "config/schemas/eks_error_code_base.json - Error code taxonomy (v1.1.0, 13 defs)",
-    "config/schemas/eks_message_base.json - Pipeline message catalog (v1.1.0, 6 defs)"
-  ],
+    "key_schemas": [
+      "config/schemas/eks_base_schema.json - Core pipeline definitions (v1.6.0, 18 defs incl. project_setup)",
+      "config/schemas/eks_setup_schema.json - Core property declarations (v1.3.0, incl. project_setup)",
+      "config/schemas/eks_config.json - Core config values (v1.4.0, incl. project_setup)",
+      "config/schemas/eks_asset_base_schema.json - Asset fragment definitions (v1.3.0, 14 fragments)",
+      "config/schemas/eks_doc_base_schema.json - Document metadata definitions (v1.2.0, 8 defs)",
+      "config/schemas/eks_ontology_base_schema.json - Ontology class/relationship definitions (v1.1.0, 2 defs)",
+      "config/schemas/eks_error_code_base.json - Error code taxonomy (v1.1.0, 13 defs)",
+      "config/schemas/eks_message_base.json - Pipeline message catalog (v1.1.0, 6 defs)",
+      "config/schemas/eks_error_setup_schema.json - Error schema setup layer",
+      "config/schemas/eks_message_setup_schema.json - Message schema setup layer",
+      "config/schemas/eks_project_rules_config.json - Project rules SSOT",
+      "config/schemas/eks_project_code_schema.json - WSD11 project codes fragment",
+      "config/schemas/eks_discipline_schema.json - 21 discipline codes fragment",
+      "config/schemas/eks_department_schema.json - 11 department codes fragment",
+      "config/schemas/eks_facility_schema.json - 12 facility prefixes fragment"
+    ],
+    "total_schema_files": 23,
   "workflows": [
     {
       "name": "Document Ingestion Pipeline",
@@ -95,7 +110,24 @@
     "FileScanner - Directory walk, type validation, placeholder registration",
     "ParserRouter - File type to parser class mapping",
     "HealthScorer.score_document() - 6-dimension health scoring",
-    "StructureDetector - Cover page, sections, tables, images detection"
+    "StructureDetector - Cover page, sections, tables, images detection",
+    "SchemaToDDL - Auto-generate SQL DDL from JSON schema definitions",
+    "PipelineOrchestrator - 3-phase pipeline (scan→parse→review)",
+    "ManualReviewManager - Flagged doc review, correction, locking",
+    "Phase1Handler (phase1_server.py) - 12 API endpoints + log streaming, proxy server",
+    "eks/ui/index.html - VS Code-style dashboard (5 themes, layout switch, help modal)",
+    "eks/ui/eks.js - Fetch API client, doc table, tree, pipeline polling, Chart.js radar, review form",
+    "eks/ui/ui_help.json - Help schema with glossary and keyboard shortcuts",
+    "ErrorManager - System/data error handling with fail-fast",
+    "MessageManager - Catalog lookup with template hydration",
+    "SetupValidator - Project folder/file/env validation",
+    "EKSPipelineContext - Centralized state management",
+    "BaseEngine - Abstract engine with validate→execute→validate flow",
+    "TelemetryHeartbeat - Document processing checkpoints",
+    "MultiStageValidator - Setup/schema/data/parser validation",
+    "ParserFactory - Dynamic parser instantiation by file type",
+    "HealthScorerFactory - Config-driven scoring dimensions",
+    "StructureDetectorFactory - Detector instantiation"
   ],
   "data_flows": [
     {
@@ -120,13 +152,15 @@
       "destination": "Validated schema registry in memory"
     }
   ],
-  "data_quality_checks": [
-    "Schema validation against setup schemas",
-    "Ontology class map references valid classes",
-    "Parser classes are importable",
-    "Fragment names match base definitions",
-    "Required fields per project rules"
-  ],
+    "data_quality_checks": [
+      "Schema validation against setup schemas",
+      "Ontology class map references valid classes",
+      "Parser classes are importable",
+      "Fragment names match base definitions",
+      "Required fields per project rules",
+      "Project folder/file/env validation against schema-driven rules",
+      "Multi-stage validation (setup, schema, data, parser)"
+    ],
   "dependencies": {
     "external_services": [
       "DuckDB - document metadata storage",
@@ -148,19 +182,40 @@
       "PostgreSQL for production (optional)"
     ]
   },
-  "known_issues": [
-    "I015 - DGN parser stub (48 CAD files unparseable) - Phase 3",
-    "I016 - Revision folder hierarchy inconsistency - Phase 2",
-    "I019 - Two project codes (131101 vs 131242) - Phase 2",
-    "I020 - Datadrop column range (33-112) fragment coverage - Phase 3",
-    "I021 - 22-64% data incompleteness across datadrop sheets - Phase 3"
-  ],
-  "revision_history": [
-    {
-      "version": "1.0.0",
-      "date": "2026-06-25",
-      "author": "opencode",
-      "summary": "Initial knowledge.json created for Phase 1 completion"
-    }
-  ]
+    "known_issues": [
+      "I015 - DGN parser stub (48 CAD files unparseable) - Phase 3",
+      "I016 - Revision folder hierarchy inconsistency - Phase 2",
+      "I019 - Two project codes (131101 vs 131242) - Phase 2",
+      "I020 - Datadrop column range (33-112) fragment coverage - Phase 3",
+      "I021 - 22-64% data incompleteness across datadrop sheets - Phase 3"
+    ],
+    "total_issues_resolved": 34,
+    "total_issues_deferred": 5,
+    "revision_history": [
+      {
+        "version": "1.0.0",
+        "date": "2026-06-25",
+        "author": "opencode",
+        "summary": "Initial knowledge.json created for Phase 1 completion"
+      },
+      {
+        "version": "1.1.0",
+        "date": "2026-06-30",
+        "author": "opencode",
+        "summary": "Updated status to Phase 1 Partial; added I045 known issue; reflected phase status change"
+      },
+      {
+        "version": "2.0.0",
+        "date": "2026-06-30",
+        "author": "opencode",
+        "summary": "Phase 1 COMPLETE — 67 tasks, 120 tests, 23 schemas, I046 resolved. Updated key_modules, key_schemas, functions, data_quality_checks, known_issues, workflows."
+      },
+      {
+        "version": "2.1.0",
+        "date": "2026-07-01",
+        "author": "opencode",
+        "summary": "Phase 1.2 COMPLETE — T1.2.0–1.2.7, 178/178 tests, 4 UI files (index.html, eks.css, eks.js, ui_help.json), log streaming, server proxy. Updated functions, key_modules, data_flows."
+      }
+    ]
+  }
 }

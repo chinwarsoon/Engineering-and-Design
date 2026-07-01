@@ -77,7 +77,8 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 ## 6. Evaluation and Alignment with Existing Architecture
 
 - **All prior phases required**: UI wraps the Phase 4 retrieval pipeline (document + asset) as its backend
-- **UI design rules**: Refer to `dcc/workplan/ui_design/html_design_rule.md` per AGENTS.md Section 11
+- **UI design rules**: Refer to `dcc/workplan/ui_design/html_design_rule.md` per AGENTS.md Section 11; universal EKS interface conventions per **Appendix G** (theme §5, help system §6, API conventions §3, polling §4)
+- **UI contracts**: Defined in **Appendix G §7** (`eks/ui/backend/contracts.py` — SSOT); Phase 1.2 implements the base contracts, Phase 5 extends them
 - **Cache**: Retrieval cache sits between UI request and Phase 4 pipeline; keyed on query + filter hash (document + asset dimensions)
 - **Documentation**: Follows AGENTS.md Section 7 16-section documentation standard (same as DCC docs)
 - **Integration testing**: Validates the full ingest-to-answer chain across all 5 phases, including asset graph queries
@@ -120,7 +121,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | T5.17 | Update all logs | Final entries to `update_log.md` and `issue_log.md` | 🔷 | — |
 | T5.18 | Manual Verification UI | Implement "Manual Verification Dashboard" to review auto-extracted metadata (Phase 3) and set `verified_by` status. | 🔷 | — |
 | T5.19 | Implement ontology navigator tree | Add a hierarchical tree explorer component in the sidebar of `index.html` to browse assets via ontology classes | 🔷 | — |
-| T5.20 | Integrate Appendix F architecture patterns | Apply universal pipeline architecture patterns per [Appendix F](appendix_f_pipeline_architecture_design.md): (1) Implement UI contracts (DocumentSelectionContract, PipelineConfigContract, QueryRequestContract, QueryResponseContract) in `eks/ui/backend/contracts.py` per Appendix F Section 3.1; (2) Create UIInput/UIOutput contracts in `eks/ui/backend/io_contracts.py` extending EngineInput/EngineOutput base; (3) Add telemetry heartbeat checkpoints for UI performance (response times, cache hit rates); (4) Implement CacheProviderFactory for Dependency Injection (Redis, in-memory); (5) Ensure UI backend endpoints can be executed independently via CLI entry points; (6) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 | — |
+| T5.20 | Integrate Appendix F and Appendix G architecture patterns | Apply universal patterns per [Appendix F](appendix_f_pipeline_architecture_design.md) and [Appendix G](appendix_g_interface_architecture.md): (1) Implement UI contracts (DocumentSelectionContract, PipelineConfigContract, QueryRequestContract, QueryResponseContract) in `eks/ui/backend/contracts.py` per **Appendix G §7** (extends Phase 1.2 base contracts); (2) Create UIInput/UIOutput contracts in `eks/ui/backend/io_contracts.py` extending EngineInput/EngineOutput base per Appendix F §2.3; (3) Follow API endpoint conventions per **Appendix G §3** and status polling per **Appendix G §4**; (4) Use theme system per **Appendix G §5** (CSS variables, 5 themes, localStorage); (5) Implement help system per **Appendix G §6** (ui_help.json schema, F1 shortcut); (6) Follow status bar format per **Appendix G §8**; (7) Add telemetry heartbeat checkpoints for UI performance (response times, cache hit rates); (8) Implement CacheProviderFactory for Dependency Injection (Redis, in-memory); (9) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 | — |
 
 ---
 
@@ -129,7 +130,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | File/Folder                                  | Action | Purpose                                                           |
 | :------------------------------------------- | :----- | :---------------------------------------------------------------- |
 | `eks/ui/app.py`                              | Create | FastAPI/Flask main application entry point                        |
-| `eks/ui/backend/contracts.py`               | Create | UI contracts (DocumentSelectionContract, PipelineConfigContract, QueryRequestContract, QueryResponseContract) per Appendix F |
+| `eks/ui/backend/contracts.py`               | Create | UI contracts (DocumentSelectionContract, PipelineConfigContract, QueryRequestContract, QueryResponseContract) per Appendix G §7 (extends Phase 1.2 base contracts) |
 | `eks/ui/backend/io_contracts.py`            | Create | UIInput/UIOutput contracts per Appendix F |
 | `eks/ui/routes/query.py`                     | Create | `/query` endpoint — accepts user query, returns answer + citations + asset results |
 | `eks/ui/routes/ingest.py`                    | Create | `/ingest` endpoint — accepts document upload and triggers ingestion|
@@ -249,3 +250,5 @@ graph TB
 9. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) — Asset schema (R36) for filter dimensions
 10. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) — Asset graph for browsing
 11. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology
+12. [appendix_f_pipeline_architecture_design.md](appendix_f_pipeline_architecture_design.md) — Engine I/O contracts (§2.3)
+13. [appendix_g_interface_architecture.md](appendix_g_interface_architecture.md) — UI theme (§5), help system (§6), API conventions (§3), polling (§4), UI contracts (§7)
