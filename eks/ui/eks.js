@@ -2,7 +2,6 @@
 (function () {
   'use strict';
 
-  const API_BASE = '/api';
   const POLL_INTERVAL = 2000;
 
   /* ── State ── */
@@ -17,6 +16,7 @@
     theme: localStorage.getItem('eks_theme') || 'dark',
     sidebarLeft: localStorage.getItem('eks_sidebar_left') !== 'false',
     sidebarRight: localStorage.getItem('eks_sidebar_right') !== 'false',
+    paths: { data_dir: 'eks/data' },
   };
 
   /* ── Help Content ── */
@@ -33,6 +33,21 @@
 
   function getHelp(key) {
     return helpData && helpData.help ? (helpData.help[key] || 'No help available.') : 'Loading...';
+  }
+
+  /* ── Config Paths ── */
+  async function fetchPaths() {
+    try {
+      const data = await apiGet('/api/v1/config/paths');
+      state.paths = {
+        data_dir: data.data_dir || 'eks/data',
+        global_paths: data.global_paths || {},
+      };
+      var pathInput = document.getElementById('folder-path');
+      if (pathInput) pathInput.value = state.paths.data_dir;
+    } catch (e) {
+      state.paths = { data_dir: 'eks/data', global_paths: {} };
+    }
   }
 
   /* ── Theme ── */
@@ -53,46 +68,105 @@
 
   /* ── API helpers ── */
   async function apiGet(path) {
-    const r = await fetch(API_BASE + path);
-    if (!r.ok) throw new Error(await r.text());
+    const r = await fetch(path);
+    if (!r.ok) {
+      const body = await r.text();
+      if (r.status === 503) {
+        throw new Error('Phase 1 backend not running. Start it and refresh.\nCommand: python eks/ui/backend/phase1_server.py');
+      }
+      throw new Error(body);
+    }
     return r.json();
   }
 
   async function apiPost(path, body) {
-    const r = await fetch(API_BASE + path, {
+    const r = await fetch(path, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!r.ok) throw new Error(await r.text());
+    if (!r.ok) {
+      const bodyText = await r.text();
+      if (r.status === 503) {
+        throw new Error('Phase 1 backend not running. Start it and refresh.\nCommand: python eks/ui/backend/phase1_server.py');
+      }
+      throw new Error(bodyText);
+    }
+    return r.json();
+  }
+
+  async function apiPut(path, body) {
+    const r = await fetch(path, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const bodyText = await r.text();
+      if (r.status === 503) {
+        throw new Error('Phase 1 backend not running. Start it and refresh.\nCommand: python eks/ui/backend/phase1_server.py');
+      }
+      throw new Error(bodyText);
+    }
     return r.json();
   }
 
   async function apiDelete(path) {
-    const r = await fetch(API_BASE + path, { method: 'DELETE' });
-    if (!r.ok) throw new Error(await r.text());
+    const r = await fetch(path, { method: 'DELETE' });
+    if (!r.ok) {
+      const bodyText = await r.text();
+      if (r.status === 503) {
+        throw new Error('Phase 1 backend not running. Start it and refresh.\nCommand: python eks/ui/backend/phase1_server.py');
+      }
+      throw new Error(bodyText);
+    }
     return r.json();
   }
 
   /* ── File Load ── */
   async function loadFiles(dir) {
-    const data = await apiPost('/files/load', { dir: dir || 'eks/data' });
-    state.docs = data.documents || [];
+    const path = dir || getFolderPath();
+    var pathInput = document.getElementById('folder-path');
+    if (pathInput) pathInput.value = path;
+    const data = await apiPost('/api/v1/files/load', { data_dir: path });
+    // Backend returns {discovered, valid, unknown, registered, files} — fetch document list
+    const docData = await apiGet('/api/v1/documents');
+    state.docs = docData.documents || [];
     renderDocTable(state.docs);
     buildTree(state.docs);
     setStatus('Loaded ' + state.docs.length + ' documents');
+    updateStepProgress(2, [1]);
     hideAllTabs();
     showTab('documents');
   }
 
-  async function loadFilesFromPicker() {
-    const data = await apiGet('/files/load');
-    state.docs = data.documents || [];
-    renderDocTable(state.docs);
-    buildTree(state.docs);
-    setStatus('Loaded ' + state.docs.length + ' documents');
-    hideAllTabs();
-    showTab('documents');
+  /* ── Folder Browse ── */
+  async function browseDirs() {
+    var dropdown = document.getElementById('browse-dropdown');
+    if (!dropdown) return;
+    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    if (dropdown.style.display !== 'block') return;
+    dropdown.innerHTML = '<div class="browse-empty">Loading...</div>';
+    try {
+      var data = await apiGet('/api/v1/files/list-dirs?parent=' + encodeURIComponent(getFolderPath()));
+      if (!data.dirs || data.dirs.length === 0) {
+        dropdown.innerHTML = '<div class="browse-empty">No subdirectories found</div>';
+        return;
+      }
+      dropdown.innerHTML = data.dirs.map(function (d) {
+        return '<div class="browse-item" data-path="' + esc(d) + '"><span class="folder-icon">📁</span>' + esc(d) + '</div>';
+      }).join('');
+      dropdown.querySelectorAll('.browse-item').forEach(function (item) {
+        item.addEventListener('click', function () {
+          var path = item.getAttribute('data-path');
+          var input = document.getElementById('folder-path');
+          if (input) input.value = path;
+          dropdown.style.display = 'none';
+        });
+      });
+    } catch (e) {
+      dropdown.innerHTML = '<div class="browse-empty">Error: ' + esc(e.message) + '</div>';
+    }
   }
 
   /* ── Doc Table ── */
@@ -216,15 +290,21 @@
   }
 
   /* ── Pipeline ── */
+  function getFolderPath() {
+    var input = document.getElementById('folder-path');
+    return input && input.value ? input.value : state.paths.data_dir;
+  }
+
   async function startPipeline() {
     var btn = document.getElementById('btn-run-pipeline');
     btn.disabled = true;
     btn.textContent = 'Starting...';
     try {
-      var result = await apiPost('/pipeline/start', { data_dir: 'eks/data', recursive: true });
+      var result = await apiPost('/api/v1/pipeline/start', { data_dir: getFolderPath(), recursive: true });
       state.jobId = result.job_id;
       setStatus('Pipeline started: ' + state.jobId);
       btn.textContent = 'Running...';
+      updateStepProgress(2, [1]);
       showPipelineTab(state.jobId);
       startPolling(state.jobId);
       startLogPolling(state.jobId);
@@ -238,13 +318,16 @@
   function startPolling(jobId) {
     if (state.pollTimer) clearInterval(state.pollTimer);
     state.pollTimer = setInterval(function () {
-      apiGet('/pipeline/status/' + jobId).then(function (data) {
+      apiGet('/api/v1/pipeline/status/' + jobId).then(function (data) {
         updatePipelineStatus(data);
         if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
           clearInterval(state.pollTimer);
           state.pollTimer = null;
           document.getElementById('btn-run-pipeline').disabled = false;
           document.getElementById('btn-run-pipeline').textContent = 'Run Pipeline';
+          if (data.status === 'completed') {
+            updateStepProgress(3, [1, 2]);
+          }
         }
       }).catch(function () {});
     }, POLL_INTERVAL);
@@ -253,7 +336,7 @@
   function startLogPolling(jobId) {
     if (state.logTimer) clearInterval(state.logTimer);
     state.logTimer = setInterval(function () {
-      apiGet('/pipeline/logs/' + jobId).then(function (data) {
+      apiGet('/api/v1/pipeline/logs/' + jobId).then(function (data) {
         if (data.logs) renderLogs(data.logs);
       }).catch(function () {});
     }, POLL_INTERVAL);
@@ -280,7 +363,7 @@
   async function cancelPipeline() {
     if (!state.jobId) return;
     try {
-      await apiDelete('/pipeline/' + state.jobId);
+      await apiDelete('/api/v1/pipeline/' + state.jobId);
       setStatus('Pipeline cancelled');
     } catch (e) {
       setStatus('Cancel error: ' + e.message);
@@ -299,7 +382,8 @@
   /* ── Review ── */
   async function showReview() {
     try {
-      var data = await apiGet('/review/summary');
+      var data = await apiGet('/api/v1/review/summary');
+      updateStepProgress(3, [1, 2]);
       hideAllTabs();
       showTab('review');
       var el = document.getElementById('review-content');
@@ -335,11 +419,14 @@
 
   window.eksSubmitReview = async function () {
     var docNumber = document.getElementById('rev-doc-number').value;
-    var revision = document.getElementById('rev-revision').value;
-    var status = document.getElementById('rev-status').value;
     var comments = document.getElementById('rev-comments').value;
+    var status = document.getElementById('rev-status').value;
     try {
-      await apiPost('/review/submit', { document_number: docNumber, revision: revision, status: status, comments: comments });
+      await apiPut('/api/v1/review/lock', {
+        doc_id: docNumber,
+        verified_by: 'reviewer',
+        comments: comments,
+      });
       setStatus('Review submitted for ' + docNumber);
       showReview();
     } catch (e) {
@@ -352,10 +439,9 @@
     var canvas = document.getElementById('health-chart-canvas');
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
-    // Chart.js loaded from CDN
     if (typeof Chart === 'undefined') {
       var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+      s.src = '/ui/static/chart.min.js';
       s.onload = function () { renderChart(ctx); };
       document.head.appendChild(s);
     } else {
@@ -461,6 +547,19 @@
     if (modal) modal.classList.remove('open');
   }
 
+  /* ── Step progress ── */
+  function updateStepProgress(activeStep, completedSteps) {
+    document.querySelectorAll('.step').forEach(function (step) {
+      var num = parseInt(step.getAttribute('data-step'));
+      step.classList.remove('active', 'completed');
+      if (completedSteps && completedSteps.includes(num)) {
+        step.classList.add('completed');
+      } else if (num === activeStep) {
+        step.classList.add('active');
+      }
+    });
+  }
+
   /* ── Tab management ── */
   function hideAllTabs() {
     document.querySelectorAll('.tab-content').forEach(function (el) { el.style.display = 'none'; });
@@ -477,6 +576,16 @@
   function switchTab(name) {
     hideAllTabs();
     showTab(name);
+    // Sync step progress to match selected tab
+    var step = document.querySelector('.step[data-tab="' + name + '"]');
+    if (step) {
+      var num = parseInt(step.getAttribute('data-step'));
+      var completed = [];
+      document.querySelectorAll('.step.completed').forEach(function (s) {
+        completed.push(parseInt(s.getAttribute('data-step')));
+      });
+      updateStepProgress(num, completed);
+    }
   }
 
   /* ── Search ── */
@@ -531,6 +640,7 @@
     applyLayout(state.layout);
 
     await loadHelp();
+    await fetchPaths();
 
     // Sidebar toggles
     document.getElementById('toggle-left')?.addEventListener('click', function () {
@@ -556,13 +666,12 @@
       var layouts = ['triple', 'dual', 'single'];
       var idx = layouts.indexOf(state.layout);
       applyLayout(layouts[(idx + 1) % layouts.length]);
-      // Restore sidebar visibility
       document.getElementById('left-sidebar').classList.toggle('open', state.sidebarLeft && state.layout !== 'single');
       document.getElementById('right-sidebar').classList.toggle('right-open', state.sidebarRight && state.layout === 'triple');
     });
 
     // Side icon bar buttons
-    document.getElementById('icon-load')?.addEventListener('click', loadFilesFromPicker);
+    document.getElementById('icon-load')?.addEventListener('click', function () { loadFiles(); });
     document.getElementById('icon-tree')?.addEventListener('click', function () {
       state.sidebarLeft = !state.sidebarLeft;
       document.getElementById('left-sidebar').classList.toggle('open', state.sidebarLeft);
@@ -571,11 +680,27 @@
     document.getElementById('icon-help')?.addEventListener('click', showHelp);
     document.getElementById('icon-settings')?.addEventListener('click', showSettings);
 
-    // Toolbar buttons
-    document.getElementById('btn-load-files')?.addEventListener('click', loadFilesFromPicker);
+    // Tab action buttons (scoped per tab)
+    document.getElementById('btn-load-files')?.addEventListener('click', function () { loadFiles(); });
     document.getElementById('btn-run-pipeline')?.addEventListener('click', startPipeline);
     document.getElementById('btn-cancel-pipeline')?.addEventListener('click', cancelPipeline);
     document.getElementById('btn-review')?.addEventListener('click', showReview);
+    document.getElementById('btn-browse')?.addEventListener('click', browseDirs);
+    // Close browse dropdown on outside click
+    document.addEventListener('click', function (e) {
+      var dd = document.getElementById('browse-dropdown');
+      if (dd && !e.target.closest('#btn-browse') && !e.target.closest('#browse-dropdown')) {
+        dd.style.display = 'none';
+      }
+    });
+
+    // Step progress click — navigate to corresponding tab
+    document.querySelectorAll('.step').forEach(function (step) {
+      step.addEventListener('click', function () {
+        var tab = step.getAttribute('data-tab');
+        if (tab) switchTab(tab);
+      });
+    });
 
     // Tabs
     document.querySelectorAll('.tab[data-tab]').forEach(function (tab) {
@@ -599,7 +724,7 @@
     // Keyboard shortcuts
     document.addEventListener('keydown', function (e) {
       if (e.key === 'F1') { e.preventDefault(); showHelp(); }
-      if (e.ctrlKey && e.shiftKey && e.key === 'L') { e.preventDefault(); loadFilesFromPicker(); }
+      if (e.ctrlKey && e.shiftKey && e.key === 'L') { e.preventDefault(); loadFiles(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'R') { e.preventDefault(); startPipeline(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'F') { e.preventDefault(); document.getElementById('global-search')?.focus(); }
     });
@@ -612,6 +737,7 @@
     var chartTab = document.querySelector('.tab[data-tab="health"]');
     if (chartTab) {
       chartTab.addEventListener('click', function () {
+        updateStepProgress(4, [1, 2, 3]);
         setTimeout(renderHealthChart, 100);
       });
     }
@@ -624,13 +750,12 @@
       dropArea.addEventListener('drop', function (e) {
         e.preventDefault();
         dropArea.classList.remove('drag-over');
-        // File drop not fully supported via API, just trigger load
-        loadFilesFromPicker();
+        loadFiles();
       });
     }
 
     // Auto-load on startup
-    loadFilesFromPicker();
+    loadFiles();
   });
 
 })();

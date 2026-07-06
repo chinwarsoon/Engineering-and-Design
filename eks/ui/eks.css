@@ -102,7 +102,7 @@
 html, body {
   height: 100%;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   font-size: 13px;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -237,19 +237,58 @@ html, body {
   background: var(--bg-primary);
 }
 
-.main-toolbar {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 12px; border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary); flex-shrink: 0;
-}
-
-.main-toolbar button {
+/* Tab action buttons (scoped per tab, replacing old global toolbar) */
+.tab-action-btn {
   background: var(--accent); color: #fff; border: none;
-  padding: 4px 12px; border-radius: 3px; cursor: pointer; font-size: 12px;
+  padding: 6px 16px; border-radius: 3px; cursor: pointer; font-size: 12px;
+  margin-right: 6px;
 }
-.main-toolbar button:hover { background: var(--accent-hover); }
-.main-toolbar button:disabled { opacity: 0.5; cursor: default; }
-.main-toolbar .spacer { flex: 1; }
+.tab-action-btn:hover { background: var(--accent-hover); }
+.tab-action-btn:disabled { opacity: 0.5; cursor: default; }
+.tab-action-btn.secondary { background: var(--text-secondary); }
+.tab-action-btn.secondary:hover { background: var(--text-primary); }
+
+/* Step progress bar */
+.step-progress {
+  display: flex; align-items: center;
+  padding: 8px 24px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.step {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; user-select: none;
+  color: var(--text-secondary); font-size: 12px;
+}
+.step:hover { color: var(--text-primary); }
+.step.active { color: var(--accent); }
+.step.completed { color: var(--success); }
+.step .step-circle {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  border: 2px solid var(--text-secondary);
+  background: transparent; line-height: 1;
+}
+.step.active .step-circle {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.step.completed .step-circle {
+  border-color: var(--success);
+  background: var(--success);
+  color: #fff;
+}
+.step .step-label { font-size: 12px; white-space: nowrap; }
+.step-connector {
+  flex: 0 0 32px; height: 2px;
+  background: var(--border-color);
+  margin: 0 6px;
+}
+.step.completed + .step-connector { background: var(--success); }
+.step.active + .step-connector { background: var(--accent); }
 
 /* Tab bar */
 .tab-bar {
@@ -432,6 +471,59 @@ html, body {
 .layout-dual #right-sidebar { display: none; }
 .layout-triple #left-sidebar { display: flex; }
 .layout-triple #right-sidebar { display: flex; }
+
+/* Folder path input */
+.folder-path-input {
+  background: var(--input-bg, #3c3c3c);
+  color: var(--text-primary, #d4d4d4);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono, monospace);
+  width: 180px;
+  outline: none;
+}
+.folder-path-input:focus {
+  border-color: var(--accent, #3794ff);
+}
+
+/* Browse dropdown */
+.browse-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: var(--bg-secondary, #252526);
+  border: 1px solid var(--border-color, #3c3c3c);
+  border-radius: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.browse-dropdown .browse-item {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-primary, #d4d4d4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.browse-dropdown .browse-item:hover {
+  background: var(--accent, #3794ff);
+  color: #fff;
+}
+.browse-dropdown .browse-item .folder-icon {
+  flex-shrink: 0;
+}
+.browse-dropdown .browse-empty {
+  padding: 8px;
+  color: var(--text-secondary, #969696);
+  font-size: 11px;
+  text-align: center;
+}
 
 /* Responsive */
 @media (max-width: 800px) {

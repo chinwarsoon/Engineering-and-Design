@@ -10,7 +10,7 @@
     "description": "Schema-driven document registry and knowledge graph system for engineering asset management",
     "purpose": "Ingest, extract, and cross-reference engineering documents to build a searchable knowledge graph",
     "status": "Phase 1 COMPLETE — all 67 tasks (T1.1–T1.67) + Phase 1.2 COMPLETE (T1.2.0–1.2.7) — 178/178 tests pass, 23 schema files, 4 UI files",
-    "last_updated": "2026-07-01"
+    "last_updated": "2026-07-06"
   },
   "architecture_overview": {
     "key_modules": [
@@ -20,7 +20,7 @@
       "engine/discovery/ - CLI entry points for scheduling engines",
       "engine/health/ - CLI entry points for health scorer",
       "ui/backend/ - HTTP API endpoints for independent engine execution (12 endpoints + log streaming)",
-      "ui/ - Interactive dashboard (index.html, eks.css, eks.js, ui_help.json)",
+      "ui/ - Interactive dashboard (phase1_ingestion.html, eks.css, eks.js, ui_help.json)",
       "config/schemas/ - 3-layer schema pattern (base/setup/config) for 6 schema sets + 4 fragments + project rules"
     ],
     "data_flows": [
@@ -115,7 +115,7 @@
     "PipelineOrchestrator - 3-phase pipeline (scan→parse→review)",
     "ManualReviewManager - Flagged doc review, correction, locking",
     "Phase1Handler (phase1_server.py) - 12 API endpoints + log streaming, proxy server",
-    "eks/ui/index.html - VS Code-style dashboard (5 themes, layout switch, help modal)",
+    "eks/ui/phase1_ingestion.html - VS Code-style dashboard (5 themes, layout switch, help modal)",
     "eks/ui/eks.js - Fetch API client, doc table, tree, pipeline polling, Chart.js radar, review form",
     "eks/ui/ui_help.json - Help schema with glossary and keyboard shortcuts",
     "ErrorManager - System/data error handling with fail-fast",
@@ -205,7 +205,7 @@
         "summary": "Updated status to Phase 1 Partial; added I045 known issue; reflected phase status change"
       },
       {
-        "version": "2.0.0",
+    "version": "2.2.0",
         "date": "2026-06-30",
         "author": "opencode",
         "summary": "Phase 1 COMPLETE — 67 tasks, 120 tests, 23 schemas, I046 resolved. Updated key_modules, key_schemas, functions, data_quality_checks, known_issues, workflows."
@@ -215,6 +215,12 @@
         "date": "2026-07-01",
         "author": "opencode",
         "summary": "Phase 1.2 COMPLETE — T1.2.0–1.2.7, 178/178 tests, 4 UI files (index.html, eks.css, eks.js, ui_help.json), log streaming, server proxy. Updated functions, key_modules, data_flows."
+      },
+      {
+        "version": "2.2.0",
+        "date": "2026-07-06",
+        "author": "opencode",
+        "summary": "Renamed eks/ui/index.html to eks/ui/phase1_ingestion.html. Updated server.py _collect_html() (removed index stem special case). Updated knowledge.json references."
       }
     ]
   }

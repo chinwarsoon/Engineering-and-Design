@@ -304,47 +304,234 @@ When documenting modules, provide:
 
 All HTML files must follow these rules:
 
-**Dependencies:**
-- Interactive standalone webpage design.
-- Separate independent CSS file per project.
-- Schema-driven.
+### 18.1 Dependencies and Stack
 
-**Layout (VS Code style):**
-- Title/menu bar spanning full width (theme button, layout button, menu, global search).
-- Side icon bar panel (left) — icons only; left panel icons on top, right panel icons at bottom with divider.
-- Toggleable left sidebar — collapsible, resizable by dragging right edge, content toggleable.
-- Toggleable right sidebar — collapsible, resizable by dragging left edge, anchored to screen right.
-- Bottom status bar showing selected file.
+- Interactive standalone webpage — no build step, no bundler.
+- One shared CSS design-system file per project (e.g. `dcc-design-system.css`); individual pages add only page-specific overrides via an inline `<style>` block.
+- Schema-driven: all labels, help text, stage definitions, output file names, and default values are stored in `ui_help.json` and loaded at runtime via `fetch()`.
+- Zero npm runtime dependencies in the HTML layer. **No external CDN fonts** — use `font-family: system-ui, -apple-system, 'Segoe UI', sans-serif` as the primary font stack so pages render correctly on corporate networks that block `fonts.googleapis.com`. CDN fonts may be used only as an `@import` with a `font-display: swap` fallback that degrades gracefully when blocked.
+- Always set `Cache-Control: no-cache` meta tags so reloads always reflect the latest server output.
+- All asset paths (CSS, JS, JSON) must be root-relative (e.g. `/ui/eks.css`) or relative to the HTML file's own directory — never hardcoded absolute paths. This ensures files load correctly regardless of the working directory from which `serve.py` is started.
 
-**Theme:**
-- Toggle via button in top-right of title bar.
-- Options: light (bright bg), dark (dark bg), sky (sky blue), ocean (ocean blue), presentation (light grey).
-- Save theme selection in localStorage.
+### 18.2 Layout (VS Code shell model)
 
-**Layout switching:**
-- Layout button in title bar switches between single column, two columns, three columns, etc.
+The page body is divided into exactly four zones stacked as flexbox columns/rows:
 
-**File loading panel:**
-- Load files from local disk or specific pipeline files.
-- List all loaded files.
-- Drag-and-drop to load.
-- Collapsible via side icon bar.
+```
+┌──────────────────── title bar (full width, fixed height 36px) ────────────────────┐
+│ icon-bar (48px) │ left sidebar (260px, resizable) │ content area │ right sidebar  │
+└────────────────────────── status bar (full width, fixed height 22px) ─────────────┘
+```
 
-**Tree selection panel:**
-- Show hierarchical structure of loaded content.
-- Select any node to show content in main panel.
-- Expand all / collapse all.
+- **Title bar** — spans full width; contains logo (icon + name + accent word), breadcrumb, and right-aligned action buttons (layout toggle, theme picker).
+- **Icon bar** — leftmost strip, 48 px wide; emoji/Unicode icons only, no text labels. Top section holds primary panel icons; bottom section (separated by a 1 px divider) holds utility icons (settings, help). Active icon shows a 2 px left-edge accent bar.
+- **Left sidebar** — collapsible (width → 0 with CSS transition), resizable by dragging a 5 px right-edge handle. Contains accordion sections (`sb-section` / `sb-section-header` / `sb-section-body`). Toggle via icon bar button.
+- **Right sidebar** — collapsible, resizable by dragging a 5 px left-edge handle, anchored to the right edge. Serves dual purpose: default "Settings" view and context-sensitive "Help" / "Detail" view. Toggle via icon bar button.
+- **Content area** — flex: 1, owns a toolbar strip and a scrollable body. Toolbar holds page title, spacer, and action buttons.
+- **Status bar** — fixed 22 px strip at the bottom; left side shows current state / selected file; right side shows version string.
+- `html, body` must be `height: 100%; overflow: hidden` so the shell fills the viewport exactly without page scroll.
+- Custom scrollbar: 6 px width, transparent track, border-colored thumb.
 
-**Icons (Unicode):**
-- Info: ℹ️
-- File load: 📂
-- Help: ❓
-- Setting: ⚙️
-- Tree: 🌳
+### 18.3 CSS Design System
 
-**Help system:**
-- Store help text, about text, revision text, default file names/folders/definitions in `ui_help.json`.
-- HTML files load values from this JSON file.
+Define all design tokens as CSS custom properties on `:root` / `[data-theme="dark"]`. Required token groups:
+
+| Group | Variables |
+|---|---|
+| Surfaces | `--bg`, `--surface`, `--surface2`, `--surface3` |
+| Borders | `--border` |
+| Text | `--text`, `--text2`, `--text3` |
+| Accent | `--accent`, `--accent-alt` |
+| Semantic | `--success`, `--warning`, `--danger`, `--info` |
+| Tag | `--tag-bg`, `--tag-border` |
+| Table | `--row-stripe`, `--row-hover`, `--th-bg`, `--th-hover` |
+| Dimensions | `--icon-bar-w`, `--sidebar-w`, `--right-sidebar-w`, `--titlebar-h`, `--statusbar-h` |
+| Radii | `--radius`, `--radius-sm`, `--radius-lg` |
+| Fonts | `--font-ui` (Inter), `--font-mono` (JetBrains Mono) |
+
+All component colors must reference these tokens — never hardcoded hex in component rules.
+
+### 18.4 Theme System
+
+- Five themes: `dark` (default), `light`, `sky`, `ocean`, `presentation`.
+- Applied by setting `data-theme` attribute on `<html>` (or `<body>`).
+- Theme selection persisted to `localStorage` key `<project>-theme` and restored on load.
+- Theme picker: a button in the title bar opens a dropdown menu; each option shows a color dot + label. Active option is marked with `.active` class.
+- Theme transition: `transition: background 0.25s, color 0.25s` on `body` for smooth switching.
+
+### 18.5 Sidebar Accordion
+
+Left (and right) sidebar content is organized into collapsible accordion sections:
+
+- `.sb-section` — container with bottom border.
+- `.sb-section-header` — clickable row with icon, label, and a right-aligned chevron arrow (`▼`).
+- `.sb-section-body` — collapsible content; hidden by adding `.closed` to the parent `.sb-section` (chevron rotates −90°).
+- Toggle on click of any `.sb-section-header`.
+
+### 18.6 Drag-to-Resize Sidebars
+
+Both sidebars must support mouse drag resizing:
+
+- Left sidebar: 5 px handle at right edge (`.dcc-sidebar-resizer.left-resizer`, `right: -2px`).
+- Right sidebar: 5 px handle at left edge (`.dcc-sidebar-resizer.right-resizer`, `left: -2px`).
+- On hover and while dragging, handle background transitions to `--accent` color with a visible 2 px × 32 px center bar.
+- Minimum sidebar width: 120 px; maximum: 480 px (enforced in the `mousemove` handler).
+- Width persisted to `localStorage` per sidebar key.
+
+### 18.7 File Loading Panel
+
+Every tool that loads files must implement:
+
+- **Fetch pipeline file** button — loads a well-known default path (e.g. `../output/processed_*.csv`) via `fetch()`.
+- **Load local file** button — opens `<input type="file">` picker.
+- **Drag-and-drop** — accept `dragover` / `drop` events on the full page body to load files.
+- **Loaded files list** — displays all files loaded in the current session; highlights the active file.
+- Status bar always reflects the currently active file name.
+- Panel is collapsible via its icon bar button.
+
+### 18.8 Layout Switching
+
+- A 🔲 layout toggle button in the title bar cycles the content area through column layouts (1-col → 2-col → 3-col → back to 1-col).
+- Layout state persisted to `localStorage`.
+
+### 18.9 Help System
+
+- All help text, about text, revision info, stage definitions, output file names, option labels, and default paths are stored in `ui_help.json` at the `ui/` folder root.
+- Pages load `ui_help.json` on startup via `fetch('ui_help.json')` (or a relative path).
+- The right sidebar renders a **Help** view when the ❓ icon bar button is clicked; content is built from `ui_help.json` keys.
+- The right sidebar renders a **Detail** view (with a ← Back button) when a KPI card, stage card, or output file is clicked — content is generated from live data + config.
+- If `ui_help.json` fails to load, all panels must degrade gracefully (show "unavailable" message, never crash).
+
+### 18.10 KPI and Stage Cards
+
+Dashboards that display pipeline or data metrics must use card components:
+
+- **KPI cards** — grid of metric tiles (`display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))`). Each shows a large value, a label, a sub-label (delta or secondary metric), and optionally a health gauge bar.
+- **Stage cards** — one card per pipeline stage; each shows a numbered emoji icon, stage name, meta line (truncated with ellipsis), status text (PENDING / RUNNING / PASS / FAIL), and a 4 px progress bar.
+- Cards must be clickable (`cursor: pointer`): hover state adds `border-color: var(--accent)` + `box-shadow: 0 0 0 1px var(--accent)`.
+- Stage status colors: PASS → `--success`, FAIL → `--danger`, RUNNING → `--accent`, PENDING → `--text3`.
+- Health gauge bar uses a CSS gradient: `linear-gradient(90deg, var(--danger), var(--warning), var(--success))`.
+
+### 18.11 Data Table Viewer
+
+When displaying tabular JSON or CSV data:
+
+- Render as `<table>` with sortable column headers (click to toggle asc/desc, show `▲` / `▼` indicator).
+- Cap display to 50 rows by default; show row count footer.
+- For JSON files with multiple arrays: use a tab bar (`.dt-tab-bar` / `.dt-tab`) to switch between arrays plus a **Raw JSON** tab.
+- For text files: display first 10 KB inline in a monospace block.
+- CSV/Excel files: open in a new browser tab (no inline preview).
+
+### 18.12 Local HTTP Server (`serve.py`)
+
+Each project that has a UI must include a `serve.py` at the project root. Requirements:
+
+**Stack and dependencies:**
+- **Zero external dependencies** — use only Python stdlib (`http.server`, `socketserver`, `subprocess`, `threading`, `json`, `uuid`, `argparse`, `pathlib`).
+- Designed to run on restricted corporate computers: no conda environment, no pip install, no admin rights required for the launcher itself. Engine backends may require their own environments but the HTTP layer must be stdlib-only.
+
+**Server class:**
+- **`ReusableTCPServer`** — subclass `socketserver.TCPServer` with `allow_reuse_address = True` and `daemon_threads = True`. Prevents port-in-use errors on restart; ensures background threads do not block process exit.
+- Override `handle_error` to suppress `ConnectionResetError` silently (DEBUG log only, no traceback). Browsers frequently reset idle connections and this floods the console.
+- `if __name__ == "__main__"` guard around all startup code.
+
+**Port handling:**
+- Accept `--port` via `argparse`; default port 5000.
+- Before binding, probe the port with `socket.connect_ex(("127.0.0.1", port))`. If occupied, automatically try the next port up to 10 increments and print the resolved port clearly: `Serving on http://localhost:{port}`.
+- On `OSError: [Errno 10048]` (Windows) or `[Errno 98]` (Linux), print a human-readable message and suggest `--port <other>`.
+
+**Root index page — dynamic tool launcher:**
+- `GET /` returns a **dynamically generated** HTML page (`_build_index()`), not a static file. Regenerated on every request so new HTML files appear without restarting the server.
+- Scans configured `SCAN_DIRS` (e.g. `["ui"]`) recursively for `*.html`, skipping `EXCLUDE_DIRS` (`node_modules`, `archive`, `backup`, `__pycache__`, `static`, `templates`).
+- Groups files by folder with an icon and label per folder (`FOLDER_LABELS` dict).
+- Provides a live search input (client-side JS, no server round-trip).
+- Uses GitHub-dark inline styles — **no external CSS or font CDN dependency** — so the index renders on offline/restricted networks.
+- Status bar shows total tool count and server port.
+
+**Static file serving:**
+- All non-API, non-root `GET` requests fall through to `SimpleHTTPRequestHandler` initialised with `directory = ROOT` where `ROOT = Path(__file__).parent.resolve()` (resolved absolutely at import time, never at request time).
+- HTML files reference assets at root-relative paths (e.g. `/ui/eks.css`) — **never** at paths that assume a specific working directory.
+- Apply a `Path.is_relative_to(ROOT)` security check on every resolved file path before serving. Return 403 if the path escapes `ROOT`.
+
+**CORS:**
+- `do_OPTIONS` returns HTTP 204 with `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`, `Access-Control-Allow-Headers: Content-Type`.
+- All API JSON responses include `Access-Control-Allow-Origin: *`.
+
+**Cache busting:**
+- Override `end_headers()` to inject `Cache-Control: no-cache, no-store, must-revalidate` + `Pragma: no-cache` + `Expires: 0` on every response.
+
+**Request routing** (priority order, first match wins — use `urllib.parse.unquote(self.path).split("?")[0]` for all path matching):
+
+| Method | Path pattern | Handler |
+|---|---|---|
+| GET | `/` | `_build_index()` — dynamic tool-picker page |
+| GET/POST/PUT/DELETE | `/api/v{N}/*` | Proxy → phase backend on `localhost:500{N}` |
+| GET/POST | `/api/*` | 404 JSON — un-versioned, rejected |
+| GET/POST | `/ollama/*` | Proxy → `localhost:11434` (Ollama LLM) |
+| OPTIONS | `*` | CORS preflight |
+| GET | anything else | `SimpleHTTPRequestHandler` static file |
+
+**API proxy** (`_proxy`):
+- Strip versioned prefix and forward to the target backend port. Pass through request body, `Content-Type`, and response status code.
+- Catch `urllib.error.HTTPError` (forward status + body), `urllib.error.URLError` (502 + JSON), bare `Exception` (500 + JSON). Never propagate as unformatted traceback to the browser.
+- Timeout: 120s for long-running pipelines.
+- If the target backend is not reachable (connection refused), return `{"error": "Phase {N} backend not running on port 500{N}. Start it with: python eks/ui/backend/phase{N}_server.py"}` with HTTP 503 — not a generic 502.
+
+**Ollama proxy** (`_proxy_ollama`):
+- Strip `/ollama` prefix and forward to `localhost:11434`. Handles GET and POST. Timeout: 30s.
+- If Ollama is not running, return `{"error": "Ollama not running on port 11434"}` with HTTP 503.
+
+**Logging:**
+- Suppress 200 and 304 log lines. Only print non-success codes to keep the console clean during polling.
+
+### 18.13 Backend Phase Server Convention
+
+Each phase of a multi-phase pipeline system must have its own dedicated backend server for running and testing that phase independently. Requirements:
+
+**Design:**
+- One backend server per phase: `phase{N}_server.py` in `<project>/ui/backend/`.
+- Default port `BASE_PORT + N` where `BASE_PORT` is the launcher port (e.g. launcher on 5000 → phase servers on 5001, 5002, etc.).
+- Each server uses only stdlib `http.server` for phases that do not require async production serving. The final user-facing phase may use FastAPI + uvicorn.
+
+**Standalone operation (restricted computer requirement):**
+- Every phase server **must** run standalone with `python phase{N}_server.py --port 500{N}` — no launcher required. This is the primary development and testing mode.
+- The conda/virtual environment for that phase must be activated separately. The server should detect missing dependencies at startup and print a clear error: `Missing: duckdb. Run: pip install duckdb==1.5.1` rather than a bare `ModuleNotFoundError` traceback.
+- Accept `--port` via `argparse`. If the default port is occupied, apply the same auto-probe logic as the launcher.
+
+**Health endpoint:**
+- Implement `GET /api/v{N}/status` as the first handled route, returning `{"status": "healthy", "version": "...", "phase": N, "timestamp": "..."}`. This endpoint must succeed even if optional heavy dependencies (Neo4j, Qdrant) are unavailable — report their availability in the response body rather than failing.
+
+**Phase scope:**
+- Each server exposes endpoints for its own phase only. Cross-phase data access (e.g. Phase 2 reading Phase 1's DuckDB registry) is done via direct Python import — not via HTTP calls between phase servers.
+
+**Concurrency guard:**
+- Return HTTP 409 if a long-running job is already `running` when a new start request arrives.
+- Use `threading.RLock` for all shared state. One pipeline execution per phase server at a time.
+
+**DuckDB cross-process safety:**
+- Phases that open the shared DuckDB registry must use `_with_retry(fn, retries=3, delay=0.5)` on all read and write operations to handle lock contention when multiple phase servers run simultaneously.
+- Document clearly in each phase server which database operations are read-only vs read-write.
+
+**CORS:**
+- Every response includes `Access-Control-Allow-Origin: *`.
+
+### 18.14 Icons (Unicode)
+
+Standard icon assignments across all project UIs:
+
+| Purpose | Icon |
+|---|---|
+| File load / folder | 📂 |
+| Help | ❓ |
+| Settings / options | ⚙️ |
+| Tree / hierarchy | 🌳 |
+| Info | ℹ️ |
+| Pipeline / dashboard | 📊 |
+| Layout toggle | 🔲 |
+| Run / execute | ▶ |
+| Refresh | 🔄 |
+| Success / pass | ✓ |
+| Failure / error | ✗ |
 
 ## 19. Data Health, Score, and Errors
 

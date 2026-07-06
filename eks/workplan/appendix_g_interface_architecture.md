@@ -1,11 +1,11 @@
 # Appendix G — Interface Architecture
 
-**Version**: 0.1  
-**Last Updated**: 2026-06-30  
+**Version**: 0.3  
+**Last Updated**: 2026-07-02  
 **Phase**: 1.2 — Interactive UI, I/O Contracts & Document Processing  
 **Status**: 📋 Proposed  
 **Related Documents**:
-- [`AGENTS.md §18`](../../AGENTS.md) — UI Web Design (layout structure, theme toggle, layout switching)
+- [`AGENTS.md §18`](../../AGENTS.md) — UI Web Design (layout structure, theme toggle, layout switching, serve.py rules)
 - [`appendix_f_pipeline_architecture_design.md`](appendix_f_pipeline_architecture_design.md) — Engine I/O contracts (EngineInput/EngineOutput, BaseEngine)
 - [`phase_1.2_interactive_ui_workplan.md`](phase_1.2_interactive_ui_workplan.md) — Phase 1.2 workplan referencing this appendix
 - [`phase_5_ui_integration_workplan.md`](phase_5_ui_integration_workplan.md) — Phase 5 workplan referencing this appendix
@@ -16,6 +16,8 @@
 | :------- | :--- | :----- | :------ |
 | 0.1 | 2026-06-30 | opencode | Initial draft: G1–G8 covering UI architecture conventions, API patterns, theme system, help system, and cross-phase references |
 | 0.2 | 2026-07-01 | opencode | Added G10 Server Architecture (two-server pattern, port allocation, proxy routing). Updated G3.1 (proxy note), G3.4 (two-server flow), G9 (G10 reference). Per Phase 1.2 server design review. |
+| 0.3 | 2026-07-02 | opencode | Rewrote G10 to align with DCC serve.py design: dynamic `_build_index()` tool picker, all five phases get own backend server (ports 5001–5005), versioned `/api/v{N}/` prefix routing, full endpoint table for all phases, phase-by-phase build order table, G10.7 implementation rules, G10.8 checklist. Fixed G10.2 routing table (removed /static/*, added all 5 proxy rules). Updated G9 cross-phase reference. |
+| 0.4 | 2026-07-02 | opencode | Added G10.9 Restricted Corporate Computer constraints (network, port, env, DuckDB, self-hosting, known issues I047–I054). Updated G10.7 implementation rules (port probe, path security, backend-not-reachable 503, dependency check). Updated G10.3.3 (removed CDN font reference). References AGENTS.md §18.12–18.13. |
 
 ---
 
@@ -38,6 +40,8 @@ Scope of this appendix:
 - **G6** — Help system JSON schema (`ui_help.json`)
 - **G7** — UI contract ownership and schema
 - **G8** — Status bar format convention
+- **G9** — Cross-phase references
+- **G10** — Server architecture (tool launcher, proxy routing, port allocation, implementation rules)
 
 ---
 
@@ -397,14 +401,14 @@ Status bar must be a fixed `position: fixed; bottom: 0` element updated via Java
 
 | What to Reference | Where |
 | :---------------- | :---- |
-| Layout structure, theme toggle, layout switching | AGENTS.md §18 |
+| Layout structure, theme toggle, layout switching, serve.py rules | AGENTS.md §18 |
 | Engine I/O contracts (EngineInput/EngineOutput, BaseEngine, CLI) | Appendix F §2.3 |
 | Theme colors, CSS variable pattern, help schema | **Appendix G §5–§6** |
 | API endpoint conventions, polling pattern | **Appendix G §3–§4** |
 | UI contract ownership and validation | **Appendix G §7** |
 | Status bar format | **Appendix G §8** |
 | Phase-specific UI implementation | Phase workplan (1.2 or 5) |
-| Server architecture (port allocation, proxy routing) | **Appendix G §10** |
+| Server architecture (tool launcher, port allocation, proxy routing, implementation rules) | **Appendix G §10** |
 
 ---
 
@@ -412,56 +416,371 @@ Status bar must be a fixed `position: fixed; bottom: 0` element updated via Java
 
 ### G10.1 Overview
 
-EKS uses a two-server architecture: a main launcher server at the project root, and phase-specific backend servers in `eks/ui/backend/`.
+EKS uses a **two-tier server architecture**. The main launcher server (`eks/server.py`) is the single entry point for all browser access — it dynamically discovers every HTML tool under the `eks/` folder and presents a VS Code-styled tool-picker page, while proxying all API traffic to the appropriate phase backend. Each phase has its own dedicated backend server that exposes the API endpoints needed to run, test, and inspect the outputs of that phase in isolation.
 
-| Server | Location | Default Port | Responsibility |
-| :----- | :------- | :----------- | :------------- |
-| Main launcher | `eks/server.py` | 5000 | File picker, proxy routing, static files |
-| Phase 1 backend | `eks/ui/backend/phase1_server.py` | 5001 | Dashboard API, pipeline execution, document CRUD |
-| Phase 5 backend | `eks/ui/backend/phase5_server.py` | 5005 | (Future) End-user inquiry, FastAPI, query |
+| Server | Location | Default Port | Stack | Responsibility |
+| :----- | :------- | :----------- | :---- | :------------- |
+| Main launcher | `eks/server.py` | 5000 | `http.server` stdlib | Dynamic HTML tool-picker, proxy routing, static file serving, Ollama proxy |
+| Phase 1 backend | `eks/ui/backend/phase1_server.py` | 5001 | `http.server` stdlib | Document ingestion, parsing, health scoring, document registry CRUD, manual review |
+| Phase 2 backend | `eks/ui/backend/phase2_server.py` | 5002 | `http.server` stdlib | Chunking, embedding, Qdrant vector store — run and inspect chunk/vector results |
+| Phase 3 backend | `eks/ui/backend/phase3_server.py` | 5003 | `http.server` stdlib | Asset ingestion, Neo4j graph loading — run and inspect graph nodes and relationships |
+| Phase 4 backend | `eks/ui/backend/phase4_server.py` | 5004 | `http.server` stdlib | Retrieval pipeline — submit test queries, inspect stage outputs, evaluate results |
+| Phase 5 backend | `eks/ui/backend/phase5_server.py` | 5005 | FastAPI + uvicorn | End-user inquiry interface — production query API, asset browsing, retrieval cache |
 
-### G10.2 Request Flow
+**Design principle:** `eks/server.py` is modelled on `dcc/serve.py`. It uses only Python stdlib — zero external dependencies. Each phase backend is independently runnable for testing without the launcher. Adding a new phase UI requires only placing HTML files in `eks/ui/` — no changes to `server.py`.
+
+**Phase backend purpose:** Each phase backend exists to let developers run that phase's pipeline, inspect its outputs, and validate correctness before moving to the next phase. They are test and operation tools, not production services (except Phase 5).
+
+---
+
+### G10.2 Request Routing
+
+`eks/server.py` routes requests in this priority order (first match wins):
+
+| Method | Path Pattern | Action |
+| :----- | :----------- | :----- |
+| GET | `/` | Return dynamically generated tool-picker HTML page (`_build_index()`) |
+| GET/POST/PUT/DELETE | `/api/v1/*` | Proxy → `localhost:5001` (Phase 1 — document processing) |
+| GET/POST/PUT/DELETE | `/api/v2/*` | Proxy → `localhost:5002` (Phase 2 — chunking & embedding) |
+| GET/POST/PUT/DELETE | `/api/v3/*` | Proxy → `localhost:5003` (Phase 3 — knowledge graph) |
+| GET/POST/PUT/DELETE | `/api/v4/*` | Proxy → `localhost:5004` (Phase 4 — retrieval pipeline) |
+| GET/POST/PUT/DELETE | `/api/v5/*` | Proxy → `localhost:5005` (Phase 5 — end-user inquiry) |
+| GET/POST | `/api/*` | 404 JSON — un-versioned path, not silently forwarded |
+| GET/POST | `/ollama/*` | Proxy → `localhost:11434` (local Ollama LLM) |
+| OPTIONS | `*` | CORS preflight — return `Access-Control-Allow-Origin: *` |
+| GET | anything else | `SimpleHTTPRequestHandler` — serve static file relative to `eks/` root |
+
+**Static file serving:** The `SimpleHTTPRequestHandler` is initialised with `directory = ROOT` (the `eks/` project root). HTML tools, CSS, JS, and JSON files are all served at their natural paths relative to `eks/`:
+- `eks/ui/index.html` → `/ui/index.html`
+- `eks/ui/eks.css` → `/ui/eks.css`
+- `eks/ui/ui_help.json` → `/ui/ui_help.json`
+
+There is no `/static/` prefix. HTML files reference assets using relative paths (e.g. `<link href="eks.css">` from within `ui/`) or root-relative paths (e.g. `/ui/eks.css`).
+
+**Unknown API paths:** Any `/api/*` request that does not match a versioned prefix returns HTTP 404 with JSON `{"error": "Unknown API path: <path>"}`. This prevents silent proxy misrouting.
+
+---
+
+### G10.3 Tool Launcher Index Page (`_build_index()`)
+
+`GET /` returns a **dynamically generated** HTML page produced by `_build_index()`. This page is the entry point for all EKS tools. It is regenerated on every request — adding a new HTML file to any scan directory makes it appear in the launcher immediately, with no server restart.
+
+#### G10.3.1 Discovery
+
+```python
+ROOT     = Path(__file__).parent.resolve()   # eks/ directory
+SCAN_DIRS = ["ui"]                           # subdirectories to scan (relative to ROOT)
+EXCLUDE_DIRS = {"node_modules", "archive", "backup", "__pycache__", "static", "templates"}
+```
+
+- Recursively scans each directory in `SCAN_DIRS` for `*.html` files using `rglob("*.html")`
+- Skips any file whose relative path contains a component in `EXCLUDE_DIRS`
+- Groups discovered files by their immediate parent folder (first path component under `eks/`)
+- Returns relative paths from `eks/` root (e.g. `ui/index.html`, `ui/phase2_dashboard.html`)
+
+As new phase UIs are built, they are placed under `eks/ui/` and automatically appear in the launcher. Intended layout as all phases are built out:
 
 ```
-Browser ── GET / ───────────────────────→ eks/server.py (port 5000)
-  │                                          │
-  │  Receives HTML file picker               │
-  │  (VS Code style, lists tools in eks/ui/) │
-  │                                          │
-  ├─→ /api/files/load ──proxy──→ localhost:5001 ──→ phase1_server.py
-  ├─→ /api/documents/*   proxy──→ localhost:5001 ──→ phase1_server.py
-  ├─→ /api/pipeline/*    proxy──→ localhost:5001 ──→ phase1_server.py
-  ├─→ /ollama/*          proxy──→ localhost:11434
-  └─→ /static/*          serve──→ eks/ui/static/
+eks/ui/
+├── index.html                   # Phase 1.2 — Document Processing Dashboard  ← exists now
+├── phase2_embedding.html        # Phase 2   — Chunking & Embedding Monitor   ← future
+├── phase3_graph.html            # Phase 3   — Knowledge Graph Explorer       ← future
+├── phase4_retrieval.html        # Phase 4   — Retrieval Pipeline Tester      ← future
+├── phase5_inquiry.html          # Phase 5   — End-User Inquiry Interface     ← future
+├── eks.css                      # Shared design system CSS
+├── eks.js                       # Shared JavaScript utilities
+└── ui_help.json                 # Schema-driven help content
 ```
 
-### G10.3 Proxy Routing Convention
+All five phase dashboards appear in the same tool launcher card group. The launcher makes no assumptions about which phases are implemented — it lists whatever HTML files exist.
 
-The main server (`eks/server.py`) proxies `/api/*` to the Phase 1 backend by default. When additional phase servers are added, routing extends with a prefix convention:
+#### G10.3.2 Folder Labels
 
-| Path Prefix | Target | Phase |
-| :---------- | :----- | :---- |
-| `/api/v1/*` | `localhost:5001` | Phase 1 (current) |
-| `/api/v5/*` | `localhost:5005` | Phase 5 (future) |
-| `/api/*` | `localhost:5001` | Default fallback |
+Each scan directory is assigned a display icon and label for the card group header:
 
-### G10.4 Phase Server Convention
+| Folder | Icon | Label |
+| :----- | :--- | :---- |
+| `ui` | 🖥️ | EKS Tools |
 
-All phase servers follow these rules:
+Additional folder labels are added to the `FOLDER_LABELS` dict in `server.py` as new scan directories are introduced (e.g. a future `tools/` directory for utility pages).
+
+#### G10.3.3 Index Page Layout
+
+The generated page follows the AGENTS.md §18.12 design with inline styles (no external CSS dependency — the index must work even if `eks.css` is unavailable):
+
+- **Title bar**: "EKS Tool Launcher" logo, total tool count
+- **Search input**: live client-side filter — hides non-matching file links without a server round-trip
+- **Card grid**: `display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))`; one card per folder group
+- **Card header**: folder icon + label + file count badge
+- **File links**: each `*.html` file as a clickable link opening at its URL path (e.g. `/ui/index.html`)
+- **Status bar**: fixed bottom strip — left: tool count (updates as search filters); right: "EKS Local Server · port {PORT}"
+- **Styling**: GitHub-dark colour tokens inline (`#0d1117` bg, `#161b22` surface, `#2f81f7` accent). Font: `system-ui, -apple-system, 'Segoe UI', sans-serif` — **no CDN font dependency** (see G10.9.1 and AGENTS.md §18.1).
+
+#### G10.3.4 File URL Mapping
+
+| File on disk | URL served at |
+| :----------- | :------------ |
+| `eks/ui/index.html` | `http://localhost:5000/ui/index.html` |
+| `eks/ui/phase2_embedding.html` | `http://localhost:5000/ui/phase2_embedding.html` |
+| `eks/ui/phase3_graph.html` | `http://localhost:5000/ui/phase3_graph.html` |
+| `eks/ui/phase4_retrieval.html` | `http://localhost:5000/ui/phase4_retrieval.html` |
+| `eks/ui/phase5_inquiry.html` | `http://localhost:5000/ui/phase5_inquiry.html` |
+
+---
+
+### G10.4 API Proxy Versioning
+
+All EKS phase backend API endpoints use a versioned path prefix. The main server routes strictly by prefix to the correct backend.
+
+#### G10.4.1 Prefix Convention
+
+| Path Prefix | Target Backend | Port | Phase | Status |
+| :---------- | :------------- | :--- | :---- | :----- |
+| `/api/v1/*` | `phase1_server.py` | 5001 | Phase 1 — Document processing | ✅ Built |
+| `/api/v2/*` | `phase2_server.py` | 5002 | Phase 2 — Chunking & embedding | 🔷 Planned |
+| `/api/v3/*` | `phase3_server.py` | 5003 | Phase 3 — Knowledge graph | 🔷 Planned |
+| `/api/v4/*` | `phase4_server.py` | 5004 | Phase 4 — Retrieval pipeline | 🔷 Planned |
+| `/api/v5/*` | `phase5_server.py` | 5005 | Phase 5 — End-user inquiry | 🔷 Planned |
+| `/api/*` | **404** | — | Un-versioned — always rejected | — |
+
+**Rule:** Clients (HTML pages) must never call `/api/` without a version prefix. Each phase HTML dashboard uses only its own `/api/v{N}/` prefix.
+
+#### G10.4.2 Endpoint Table — All Phases
+
+| Method | Versioned Endpoint | Purpose | Phase |
+| :----- | :----------------- | :------ | :---- |
+| **Phase 1 — Document Processing** | | | |
+| `GET` | `/api/v1/status` | Phase 1 backend health check | 1 |
+| `POST` | `/api/v1/files/load` | Trigger file discovery scan | 1 |
+| `POST` | `/api/v1/pipeline/start` | Start document processing pipeline | 1 |
+| `GET` | `/api/v1/pipeline/status/{job_id}` | Poll pipeline progress | 1 |
+| `DELETE` | `/api/v1/pipeline/{job_id}` | Cancel running pipeline | 1 |
+| `GET` | `/api/v1/pipeline/logs/{job_id}` | Stream pipeline log entries | 1 |
+| `GET` | `/api/v1/documents` | List documents with filters | 1 |
+| `GET` | `/api/v1/documents/{id}` | Get document detail + health score | 1 |
+| `PUT` | `/api/v1/documents/{id}` | Update document metadata | 1 |
+| `GET` | `/api/v1/review/summary` | Review status summary | 1 |
+| `GET` | `/api/v1/review/flagged` | List flagged documents | 1 |
+| `PUT` | `/api/v1/review/lock` | Lock a reviewed document | 1 |
+| `PUT` | `/api/v1/review/recalculate` | Recalculate document health score | 1 |
+| **Phase 2 — Chunking & Embedding** | | | |
+| `GET` | `/api/v2/status` | Phase 2 backend health check | 2 |
+| `POST` | `/api/v2/chunking/run` | Run chunking pipeline on registered documents | 2 |
+| `GET` | `/api/v2/chunking/status/{job_id}` | Poll chunking job progress | 2 |
+| `GET` | `/api/v2/chunks` | List chunks with filters (doc_number, page, section) | 2 |
+| `GET` | `/api/v2/chunks/{chunk_id}` | Get chunk detail + parent/sibling info | 2 |
+| `POST` | `/api/v2/embedding/run` | Run embedding pipeline on chunks | 2 |
+| `GET` | `/api/v2/embedding/status/{job_id}` | Poll embedding job progress | 2 |
+| `GET` | `/api/v2/vectors/search` | Test vector similarity search (query text → top-k chunks) | 2 |
+| `GET` | `/api/v2/vectors/stats` | Qdrant collection stats (eks_chunks, eks_assets) | 2 |
+| **Phase 3 — Knowledge Graph** | | | |
+| `GET` | `/api/v3/status` | Phase 3 backend health check | 3 |
+| `POST` | `/api/v3/graph/load-assets` | Load datadrop Excel into Neo4j asset graph | 3 |
+| `GET` | `/api/v3/graph/status/{job_id}` | Poll asset loading job progress | 3 |
+| `GET` | `/api/v3/assets` | List assets with filters (tag_type, unit, service) | 3 |
+| `GET` | `/api/v3/assets/{keytag}` | Get asset node detail + all relationships | 3 |
+| `GET` | `/api/v3/graph/stats` | Neo4j node/edge counts by type | 3 |
+| `GET` | `/api/v3/graph/neighbours/{keytag}` | Get immediate graph neighbours of an asset node | 3 |
+| `POST` | `/api/v3/ontology/reload` | Reload T-Box ontology classes from config | 3 |
+| `GET` | `/api/v3/ontology/classes` | Get full ontology class hierarchy | 3 |
+| **Phase 4 — Retrieval Pipeline** | | | |
+| `GET` | `/api/v4/status` | Phase 4 backend health check | 4 |
+| `POST` | `/api/v4/query` | Submit a test query — returns full retrieval trace + LLM answer | 4 |
+| `GET` | `/api/v4/query/{query_id}/trace` | Get per-stage retrieval trace for a past query | 4 |
+| `GET` | `/api/v4/query/{query_id}/chunks` | Get the chunks assembled for a past query | 4 |
+| `GET` | `/api/v4/query/{query_id}/assets` | Get asset results for a past query | 4 |
+| `POST` | `/api/v4/query/batch` | Run a batch of test queries for evaluation | 4 |
+| `GET` | `/api/v4/eval/metrics` | Get precision@k, recall@k, MRR for batch results | 4 |
+| **Phase 5 — End-User Inquiry** | | | |
+| `GET` | `/api/v5/status` | Phase 5 backend health check | 5 |
+| `POST` | `/api/v5/query` | Submit natural language query — production endpoint | 5 |
+| `GET` | `/api/v5/assets` | List/filter assets for browsing | 5 |
+| `POST` | `/api/v5/ingest` | Upload document and trigger ingestion | 5 |
+| `GET` | `/api/v5/ontology/classes` | Get ontology class tree for UI facets | 5 |
+
+#### G10.4.3 404 Catch-All for Unknown API Paths
+
+Any `/api/*` path that does not match a registered `/api/v{N}/` prefix returns:
+
+```json
+HTTP 404
+{"error": "Unknown API path: /api/documents"}
+```
+
+This prevents un-versioned legacy paths from silently reaching the wrong backend.
+
+#### G10.4.4 Migration Note — Phase 1.2 Endpoint Prefixes
+
+The current `phase1_server.py` exposes endpoints without version prefixes (e.g. `/api/documents`, `/api/pipeline/start`). These must be migrated to `/api/v1/` before Phase 5 is built and before the 404 catch-all is enforced strictly. Until migration, `server.py` may carry a temporary alias forwarding `/api/pipeline/*` and `/api/documents/*` to port 5001, documented explicitly as a migration shim.
+
+---
+
+### G10.5 Phase Server Convention
+
+Every phase backend server (1 through 5) follows these rules:
 
 1. **Location**: `eks/ui/backend/phase{N}_server.py`
-2. **Port**: `5000 + N` (Phase 1 → 5001, Phase 5 → 5005)
-3. **Runnable standalone**: Each phase server accepts `--port` and can run independently for testing
-4. **No file picker**: Phase servers serve their own UI but do NOT generate the tool picker HTML (that is the main server's role)
-5. **Direct imports**: Phase servers import engine modules directly (no subprocess)
+2. **Port**: `5000 + N` — `phase1_server.py` → 5001, `phase2_server.py` → 5002, `phase3_server.py` → 5003, `phase4_server.py` → 5004, `phase5_server.py` → 5005
+3. **Standalone runnable**: Each server accepts `--port` and runs independently without the main launcher. This is the primary way to develop and test a phase — start only that phase's server, open its HTML dashboard, call its endpoints directly
+4. **Phase scope**: Each server exposes endpoints for its own phase only. Cross-phase data access (e.g. Phase 2 reads from Phase 1's DuckDB registry) is done via direct Python import, not via inter-server HTTP calls
+5. **No tool-picker responsibility**: Phase servers expose API only. The HTML tool-picker is exclusively the main server's role
+6. **Direct engine imports** (Phases 1–4): Phase servers import EKS engine modules directly (`from eks.engine.core import ...`). This differs from DCC, where the pipeline runs as a subprocess. EKS uses direct imports because:
+   - The engine is a Python package enabling structured exception handling
+   - `_LogCapture` intercepts `EKSLogger` calls at method level — richer than stdout parsing
+   - In-process `TelemetryHeartbeat` provides granular progress without stdout keyword matching
+   - DuckDB registry access is shared safely via `threading.RLock` within the same process
+7. **Phase 5 exception** (FastAPI): Phase 5 uses FastAPI + uvicorn, not `http.server`. Start via `uvicorn eks.ui.backend.phase5_server:app --port 5005`. The main server's urllib-based proxy works identically against a uvicorn server
+8. **CORS on all responses**: Every response must include `Access-Control-Allow-Origin: *`
+9. **Concurrent-run guard** (pipeline endpoints): Return HTTP 409 if a job is already `running`. One pipeline execution per phase server at a time
+10. **Health endpoint required**: Every phase server must implement `GET /api/v{N}/status` returning `{"status": "healthy", "version": "...", "phase": N, "timestamp": "..."}` as the first handled route
 
-### G10.5 Port Allocation
+---
 
-| Port | Server | Notes |
-| :--- | :----- | :---- |
-| 5000 | `eks/server.py` | Main launcher — always runs |
-| 5001 | `eks/ui/backend/phase1_server.py` | Phase 1.2 dashboard backend |
-| 5005 | `eks/ui/backend/phase5_server.py` | Phase 5 inquiry backend (future) |
+### G10.6 Port Allocation
+
+| Port | Server | Stack | Phase | Status | Purpose |
+| :--- | :----- | :---- | :---- | :----- | :------ |
+| 5000 | `eks/server.py` | `http.server` stdlib | All | ✅ Built | Main launcher — always running; browser entry point |
+| 5001 | `eks/ui/backend/phase1_server.py` | `http.server` stdlib | 1 | ✅ Built | Document ingestion, parsing, health scoring, registry CRUD, manual review |
+| 5002 | `eks/ui/backend/phase2_server.py` | `http.server` stdlib | 2 | 🔷 Planned | Chunking pipeline, embedding pipeline, vector store inspection |
+| 5003 | `eks/ui/backend/phase3_server.py` | `http.server` stdlib | 3 | 🔷 Planned | Asset graph loading, Neo4j node/relationship inspection, ontology management |
+| 5004 | `eks/ui/backend/phase4_server.py` | `http.server` stdlib | 4 | 🔷 Planned | Retrieval pipeline testing, query stage tracing, batch evaluation |
+| 5005 | `eks/ui/backend/phase5_server.py` | FastAPI + uvicorn | 5 | 🔷 Planned | Production end-user inquiry interface, retrieval cache |
+
+---
+
+### G10.7 Server Implementation Rules
+
+These rules apply to `eks/server.py` and all `http.server`-based phase backend servers. They implement the AGENTS.md §18.12–18.13 standard.
+
+| Rule | Requirement |
+| :--- | :---------- |
+| **TCP server class** | Subclass `socketserver.TCPServer` as `ReusableTCPServer` with `allow_reuse_address = True` and `daemon_threads = True` |
+| **Connection reset handling** | Override `handle_error` to suppress `ConnectionResetError` (DEBUG log only, no traceback) |
+| **Cache busting** | Override `end_headers()` to inject `Cache-Control: no-cache, no-store, must-revalidate` + `Pragma: no-cache` + `Expires: 0` on every response |
+| **Log filtering** | Override `log_message` to suppress 200 and 304. Only print non-success codes |
+| **CORS preflight** | `do_OPTIONS` returns HTTP 204 with `Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS`, `Access-Control-Allow-Headers: Content-Type` |
+| **CORS on API responses** | All JSON responses include `Access-Control-Allow-Origin: *` |
+| **Port argument** | `--port` via `argparse` with default. All startup code inside `if __name__ == "__main__"` |
+| **Port probe** | Before binding, check port availability with `socket.connect_ex`. If occupied, auto-increment up to 10 times and print the resolved port |
+| **URL decode** | All path matching uses `urllib.parse.unquote(self.path).split("?")[0]` |
+| **Static file root** | `ROOT = Path(__file__).parent.resolve()` resolved absolutely at import time |
+| **Path security** | Every static file path must pass `Path(resolved_path).is_relative_to(ROOT)` before serving. Return 403 if outside ROOT |
+| **Proxy error handling** | Catch `urllib.error.HTTPError`, `urllib.error.URLError` (503 + friendly message naming the backend), `Exception` (500 + JSON). Never raw traceback |
+| **Backend not reachable** | If proxy gets connection refused: return HTTP 503 `{"error": "Phase N backend not running on port 500N. Start: python eks/ui/backend/phaseN_server.py"}` |
+| **Ollama proxy** | `_proxy_ollama()` strips `/ollama`, forwards to `localhost:11434`. Timeout: 30s. If unreachable: 503 `{"error": "Ollama not running on port 11434"}` |
+| **Health endpoint** | Every phase server exposes `GET /api/v{N}/status` as its first handled route |
+| **Dependency check** | Phase servers catch `ImportError` / `ModuleNotFoundError` at startup and print actionable install instructions instead of a raw traceback |
+
+---
+
+### G10.8 Adding a New Phase UI — Checklist
+
+When a phase is ready for its UI (e.g. Phase 2 Embedding Monitor, Phase 3 Graph Explorer):
+
+1. **Create the HTML file** in `eks/ui/` (e.g. `eks/ui/phase2_embedding.html`). It is automatically discovered by `_build_index()` and appears in the tool launcher with no changes to `server.py`
+2. **Create the backend server** at `eks/ui/backend/phase{N}_server.py` following G10.5 and AGENTS.md §18.13. Start with `GET /api/v{N}/status` and add endpoints as phase engines are built
+3. **Add the proxy rule** in `server.py`: `GET/POST/PUT/DELETE /api/v{N}/*` → `localhost:500{N}`. This is the only change `server.py` requires
+4. **Update G10.4.1** prefix table — mark status ✅ Built
+5. **Update G10.6** port allocation table — mark status ✅ Built
+6. **Add endpoints** to the G10.4.2 endpoint table under the new phase section
+7. **Add integration tests** in `eks/test/test_phase{N}_server.py` covering all endpoints including the health check
+8. **Update `ui_help.json`** with help text for the new dashboard
+
+**No changes to `_build_index()` or `SCAN_DIRS`** are needed when adding HTML files to `eks/ui/`.
+
+**Phase-by-phase build order** — each phase backend is built and tested in sequence:
+
+| Build order | Phase | HTML dashboard | Backend server | API prefix | Builds on |
+| :---------- | :---- | :------------- | :------------- | :--------- | :-------- |
+| 1 | Phase 1.2 | `index.html` ✅ | `phase1_server.py` ✅ | `/api/v1/` | — |
+| 2 | Phase 2 | `phase2_embedding.html` 🔷 | `phase2_server.py` 🔷 | `/api/v2/` | Phase 1 registry + parsers |
+| 3 | Phase 3 | `phase3_graph.html` 🔷 | `phase3_server.py` 🔷 | `/api/v3/` | Phase 2 chunk registry + vectors |
+| 4 | Phase 4 | `phase4_retrieval.html` 🔷 | `phase4_server.py` 🔷 | `/api/v4/` | Phase 3 knowledge graph |
+| 5 | Phase 5 | `phase5_inquiry.html` 🔷 | `phase5_server.py` 🔷 | `/api/v5/` | Phase 4 retrieval pipeline |
+
+---
+
+### G10.9 Restricted Corporate Computer — Design Constraints
+
+EKS is designed to run on company computers that may have the following restrictions. All server and UI design decisions must account for these constraints.
+
+#### G10.9.1 Network Restrictions
+
+| Constraint | Impact | Mitigation |
+| :--------- | :----- | :--------- |
+| Corporate firewall may block ports 5000–5005 | Phase servers fail to bind or are unreachable from browser | Use port-probe auto-increment (G10.7); expose `--port` on every server; document alternative ports |
+| Corporate proxy intercepts all outbound HTTPS | Google Fonts CDN blocked or certificate error | **Never use CDN fonts** in `serve.py` index page or `eks.css`. Use `system-ui` font stack only (AGENTS.md §18.1) |
+| `fonts.googleapis.com` blocked | `@import` in CSS hangs the page for 20–30s | Remove all CDN `@import` from shared CSS. If Inter is desired, self-host the font files under `eks/ui/fonts/` |
+| Ollama not installed or port 11434 blocked | `/ollama/*` proxy returns 503 | Phase backends and HTML pages must handle 503 from the Ollama proxy gracefully — degrade to "AI features unavailable" rather than crashing |
+| Internet access blocked entirely | CDN Chart.js, CDN fonts fail | Self-host Chart.js under `eks/ui/static/chart.min.js`; reference via `/ui/static/chart.min.js` |
+
+#### G10.9.2 Environment and Installation Restrictions
+
+| Constraint | Impact | Mitigation |
+| :--------- | :----- | :--------- |
+| No admin rights — cannot install conda or pip globally | Phase backends that require `duckdb`, `pymupdf` etc. may not be installable | The HTTP launcher (`server.py`) uses stdlib only and runs without any install. Phase backends require the `eks` conda env; document this clearly and handle `ImportError` gracefully at startup |
+| `conda create` blocked — no access to conda channels | Full `eks.yml` environment cannot be built | Document a minimal pip-based fallback: `pip install duckdb pymupdf python-docx openpyxl jsonschema referencing` for Phase 1 only |
+| Python version restrictions (company standard may be 3.9 or 3.10) | EKS engine requires Python 3.11; f-string backslash syntax requires 3.12+ (code_tracer CT-16) | Pin Python to 3.11 minimum in `eks.yml`. Never use backslashes inside f-string expressions. Test on 3.10 for the HTTP layer only |
+| pip download blocked without corporate proxy config | `pip install` fails silently | Document proxy setup: `pip install --proxy http://proxy:port <pkg>` |
+
+#### G10.9.3 Port Availability
+
+Default port assignments assume all of 5000–5005 are available. If any port is blocked or occupied:
+
+1. The phase server's `--port` argument overrides the default
+2. `server.py` auto-probes ports (G10.7 port-probe rule) and displays the actual port used
+3. The tool launcher index page (`_build_index()`) shows the actual server port in the status bar
+4. If `phase{N}_server.py` starts on a non-default port, the corresponding `server.py` proxy rule must be updated manually or via `--phase{N}-port` argument
+
+Recommended `server.py` argparse additions for corporate environments:
+```python
+parser.add_argument("--phase1-port", type=int, default=5001)
+parser.add_argument("--phase2-port", type=int, default=5002)
+parser.add_argument("--phase3-port", type=int, default=5003)
+parser.add_argument("--phase4-port", type=int, default=5004)
+parser.add_argument("--phase5-port", type=int, default=5005)
+```
+
+#### G10.9.4 Static Asset Self-Hosting
+
+To ensure full offline/restricted-network operation, all external assets must be self-hosted under `eks/ui/static/`:
+
+| Asset | CDN URL (do not use) | Self-hosted path |
+| :---- | :------------------- | :--------------- |
+| Chart.js | `https://cdn.jsdelivr.net/npm/chart.js` | `eks/ui/static/chart.min.js` |
+| Inter font | `https://fonts.googleapis.com/css2?family=Inter` | Remove — use `system-ui` instead |
+| JetBrains Mono | `https://fonts.googleapis.com/css2?family=JetBrains+Mono` | `eks/ui/static/fonts/JetBrainsMono.woff2` (optional) |
+
+HTML files reference self-hosted assets using root-relative paths: `<script src="/ui/static/chart.min.js">`.
+
+#### G10.9.5 DuckDB Cross-Process Locking
+
+When multiple phase servers (1–5) run simultaneously and all open `output/eks_registry.db`:
+
+- **Phase 1** is the only write-heavy phase (registering, updating documents)
+- **Phases 2–4** are primarily read-only consumers of the registry
+- **Phase 5** may write query result caches
+
+Rules:
+1. All phases that open DuckDB must use `_with_retry(fn, retries=3, delay=0.5)` on every operation
+2. Phases 2–4 should open the registry in read-only mode where possible: `duckdb.connect(str(db_path), read_only=True)`
+3. If a phase server gets a DuckDB lock error after retries, return HTTP 503 `{"error": "Registry locked by another process. Retry in a few seconds."}` rather than crashing
+
+#### G10.9.6 Known Issues (from code_tracer and EKS logs)
+
+The following issues from code_tracer and EKS issue logs directly affect the EKS server and UI design. They are tracked here until resolved.
+
+| Issue ID | Source | Severity | Description | Resolution |
+| :------- | :----- | :------: | :---------- | :--------- |
+| I047 | EKS | 🟠 High | `eks/server.py` routes `GET /` to static `index.html` — `_build_index()` dynamic tool-picker not yet wired | Implement `_build_index()` in `server.py`; route `GET /` to it |
+| I048 | EKS | 🟠 High | Phase 1 endpoints lack `/api/v1/` prefix — 404 catch-all cannot be enforced without breaking Phase 1 UI | Migrate all Phase 1 endpoints to `/api/v1/`; update `eks.js` and `index.html` |
+| I049 | CT-14 | 🟠 High | No port availability check in any EKS server — `OSError: address already in use` on occupied ports | Add `find_free_port()` / port-probe logic to `server.py` and all phase servers |
+| I050 | CT-16 | 🟡 Medium | Google Fonts CDN `@import` in `eks.css` hangs render on blocked corporate networks | Replace with `system-ui` font stack; self-host Chart.js under `eks/ui/static/` |
+| I051 | CT-01/02 | 🟡 Medium | No backend readiness check — if conda env not activated, phase server crashes with raw `ModuleNotFoundError` | Wrap engine imports in `try/except ImportError`; print actionable install message |
+| I052 | CT-03/05 | 🟡 Medium | Windows path normalization untested — proxy URL construction and static file security check may fail on Windows `\` paths | Use `Path.as_posix()` for URL construction; `Path.is_relative_to()` for security check |
+| I053 | I006 | 🟡 Medium | No guidance on DuckDB cross-process locking when Phases 2–5 servers run alongside Phase 1 | Apply `_with_retry()`; document read-only mode for Phases 2–4 (see G10.9.5) |
+| I054 | CT R7 | 🟢 Low | No restricted-machine deployment guide or minimal install path equivalent to code_tracer `download_release.py` | Create deployment checklist; document minimal pip fallback for Phase 1 only |
 
 ---
 

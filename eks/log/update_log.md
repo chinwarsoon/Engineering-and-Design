@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/update_log.md`  
-**Last Updated**: 2026-07-01  
+**Last Updated**: 2026-07-06  
 
 ---
 
@@ -109,9 +109,14 @@
 | U098 | 2026-07-01 | Phase 1.2 | T1.2.0 | Phase 1.2.0 complete: Created eks/engine/core/io_contracts.py (re-exports base + DiscoveryInput/Output, HealthInput/Output), eks/engine/parsers/io_contracts.py (ParserInput/Output), eks/ui/backend/contracts.py (4 UI contracts per Appendix G §7), eks/ui/backend/contract_manager.py (UIContractManager with validation and serialization), eks/test/test_io_contracts.py (35 tests covering all contracts). All 35/35 tests pass. | opencode | ✅ Done |
 | U099 | 2026-07-01 | Phase 1.2 | T1.2.1 | Phase 1.2.1 complete: Created eks/server.py (main launcher, port 5000, file picker + proxy), eks/ui/backend/phase1_server.py (Phase 1 backend, port 5001, 12 API endpoints), eks/ui/backend/__init__.py. All endpoints: status, files/load, documents CRUD, pipeline start/status/cancel, review summary/flagged/lock. 20 backend integration tests all pass (total 120/120). | opencode | ✅ Done |
 | U100 | 2026-07-01 | Phase 1.2 | T1.2.2–1.2.7 | Phase 1.2.2–1.2.7 complete: T1.2.2.7 (log streaming — _job_logs + _LogCapture + GET /api/pipeline/logs/{job_id}); T1.2.3 (eks/ui/index.html — VS Code layout, 5 themes, tabs, sidebars, resize, help modal); T1.2.3 (eks/ui/eks.css — 5 themes, layout switching, responsive); T1.2.4 (eks/ui/eks.js — Fetch API, doc table, tree, pipeline polling, review form, Chart.js, keyboard shortcuts); T1.2.5 (Chart.js radar chart + color-coded health badges); T1.2.6 (eks/ui/ui_help.json — schema + glossary); T1.2.7 (3 new tests, 178 total). Root serves index.html. | opencode | ✅ Done |
----
+| U101 | 2026-07-06 | Phase 1.2 | - | Renamed eks/ui/index.html to eks/ui/phase1_ingestion.html to align with Phase 1 pipeline purpose. Updated server.py (removed index stem special case), knowledge.json (v2.2.0), HTML title. All 28 tests pass. | opencode | ✅ Done |
+| U102 | 2026-07-06 | Phase 1.2 | T1.2.11.1–8 | Phase 1.2.11 complete: Removed global toolbar, added step progress bar (4-step Load→Process→Review→Health), scoped action buttons to respective tabs, auto-advance step states. Updated phase1_ingestion.html, eks.css, eks.js. All 28 tests pass. | opencode | ✅ Done |
+| U103 | 2026-07-06 | Phase 1.2 | — | Consolidated all Phase 1.2 test suites into single `reports/phase_1.2_report.md` (63 tests: 35 io_contracts + 28 phase1_server). Archived `phase_1.2.11_report.md` → `eks/archive/`. Updated workplan v1.11. | opencode | ✅ Done |
+| U104 | 2026-07-06 | Phase 1.2 | — | Added Phase 1.2.12 (Folder Picker & SSOT Path Resolution) to workplan — config-driven data directory picker, Browse endpoint, all frontend paths read from schema instead of hardcoded. Workplan v1.12. | opencode | ✅ Done |
+| U105 | 2026-07-06 | Phase 1.2 | T1.2.12.1–8 | Phase 1.2.12 COMPLETE: added `GET /api/v1/config/paths` and `GET /api/v1/files/list-dirs` endpoints; `fetchPaths()` in eks.js replaces 7 hardcoded paths; folder path input + Browse button; traversal-guarded directory listing; pipeline uses user-selected path; 4 new tests, 66 total pass. Updated phase1_ingestion.html, eks.js, eks.css, phase1_server.py, test_phase1_server.py. Workplan v1.13. | opencode | ✅ Done |
 
 ## Notes
 - Each entry corresponds to a workplan task or phase milestone
 - Timestamp format: YYYY-MM-DD
 - Link phase reports here once generated: `eks/workplan/reports/`
+---

@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EKS — Document Dashboard</title>
-<link rel="stylesheet" href="eks.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta http-equiv="Cache-Control" content="no-cache">
+<title>EKS — Phase 1 Ingestion Pipeline</title>
+<link rel="stylesheet" href="/ui/eks.css">
 </head>
 <body>
 
@@ -46,15 +46,27 @@
 
       <!-- Main Panel -->
       <div id="main-panel">
-        <!-- Main Toolbar -->
-        <div class="main-toolbar">
-          <button id="btn-load-files">📂 Load Files</button>
-          <button id="btn-run-pipeline">▶ Run Pipeline</button>
-          <button id="btn-cancel-pipeline">⏹ Cancel</button>
-          <span class="spacer"></span>
-          <button id="btn-review">📋 Review</button>
-          <span class="spacer"></span>
-          <span id="pipeline-status" style="font-size:11px;color:var(--text-secondary);"></span>
+        <!-- Step Progress -->
+        <div class="step-progress">
+          <div class="step active" data-step="1" data-tab="documents">
+            <span class="step-circle">1</span>
+            <span class="step-label">📂 Load</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step" data-step="2" data-tab="pipeline">
+            <span class="step-circle">2</span>
+            <span class="step-label">⚙️ Process</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step" data-step="3" data-tab="review">
+            <span class="step-circle">3</span>
+            <span class="step-label">🔍 Review</span>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step" data-step="4" data-tab="health">
+            <span class="step-circle">4</span>
+            <span class="step-label">📊 Health</span>
+          </div>
         </div>
 
         <!-- Tab Bar -->
@@ -71,9 +83,15 @@
 
           <!-- Documents Tab -->
           <div id="tab-documents" class="tab-content" style="display:block;">
+            <div style="margin-bottom:8px;display:flex;align-items:center;gap:6px;position:relative;">
+              <button class="tab-action-btn" id="btn-load-files">📂 Load Files</button>
+              <input type="text" id="folder-path" class="folder-path-input" value="eks/data" readonly placeholder="Folder path..." />
+              <button class="tab-action-btn secondary" id="btn-browse" title="Browse folders">📁 Browse</button>
+              <div id="browse-dropdown" class="browse-dropdown" style="display:none;"></div>
+            </div>
             <div id="file-drop-area" class="file-load-area">
               <div class="icon">📂</div>
-              <p>Drop files here or click <strong>Load Files</strong> above</p>
+              <p>Drop files here or click <strong>Load Files</strong></p>
               <p style="font-size:11px;">Supported: PDF, DGN, DWG, DOCX, XLSX</p>
             </div>
             <table class="doc-table">
@@ -94,6 +112,11 @@
 
           <!-- Pipeline Tab -->
           <div id="tab-pipeline" class="tab-content" style="display:none;">
+            <div style="margin-bottom:8px;">
+              <button class="tab-action-btn" id="btn-run-pipeline">▶ Run Pipeline</button>
+              <button class="tab-action-btn secondary" id="btn-cancel-pipeline">⏹ Cancel</button>
+              <span id="pipeline-status" style="margin-left:8px;font-size:11px;color:var(--text-secondary);"></span>
+            </div>
             <h3 style="margin-bottom:8px;">Pipeline Execution</h3>
             <div class="progress-container">
               <div class="progress-track">
@@ -119,9 +142,12 @@
 
           <!-- Review Tab -->
           <div id="tab-review" class="tab-content" style="display:none;">
+            <div style="margin-bottom:8px;">
+              <button class="tab-action-btn" id="btn-review">📋 Review Flagged</button>
+            </div>
             <h3 style="margin-bottom:8px;">Document Review</h3>
             <div id="review-content">
-              <div class="empty-state"><p>Click <strong>Review</strong> in the toolbar to load flagged documents</p></div>
+              <div class="empty-state"><p>Click <strong>Review Flagged</strong> to load flagged documents</p></div>
             </div>
           </div>
 
@@ -190,6 +216,7 @@
   </div>
 </div>
 
-<script src="eks.js"></script>
+<script src="/ui/eks.js"></script>
+<script src="/ui/static/chart.min.js"></script>
 </body>
 </html>
