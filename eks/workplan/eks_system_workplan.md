@@ -1,9 +1,9 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 1.6  
+**Current Version**: 1.8  
 **Status**: ✅ COMPLETE — Phase 1 complete, Phases 2–5 planned  
-**Last Updated**: 2026-06-24  
+**Last Updated**: 2026-07-08  
 
 ---
 
@@ -19,6 +19,8 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 
 | Version | Date       | Author | Summary of Changes                                                              |
 | :------ | :--------- | :----- | :------------------------------------------------------------------------------ |
+| 1.8     | 2026-07-08 | System | Appended a new revision entry to the history and documented the shared common-library milestone under `common/library` as a reusable foundation for future EKS runtime integration. |
+| 1.7     | 2026-07-08 | System | Added note that the shared common-library package structure now exists under `common/library` for architecture-aligned logging, telemetry, pipeline, errors, messages, paths, validation, UI, and factory modules; captured as a reusable foundation for future EKS runtime integration. |
 | 0.1     | 2026-06-11 | System | Initial workplan draft — full scope from eks/readme.md                          |
 | 0.2     | 2026-06-11 | System | Restructured: master index only. Phase details moved to individual workplan files |
 | 0.3     | 2026-06-15 | System | Added project asset data requirements R36–R38: universal plant item schema, structured asset loader, asset-aware retrieval. Updated Phase 1–5 workplans accordingly |
@@ -34,8 +36,7 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | 1.3 | 2026-06-22 | opencode | Added §8.1: Phase 1 Summary — inputs, outputs, functionality, key modules, parsers, schemas, test coverage, requirements met, and downstream handoff to Phase 2. |
 | 1.4 | 2026-06-23 | opencode | Added §11: Known Data Challenges from twrp sample analysis (I015–I021). Added DGN parsing gap and data incompleteness as risks. |
 | 1.5 | 2026-06-23 | opencode | Updated §8.1 Phase 1 Summary: schema count 17 → 21 (added 4 fragment schemas), test count 53 → 59, I005 resolved, I014 resolved. |
-| 1.6 | 2026-06-24 | opencode | Remediation: replaced all `agent_rule.md` references with `AGENTS.md`; converted Linux absolute paths to relative; fixed §9/§11 section ordering; added §11 to index; updated status from DRAFT to COMPLETE. |
-
+| 1.6 | 2026-06-24 | opencode | Remediation: replaced all `agent_rule.md` references with `AGENTS.md`; converted Linux absolute paths to relative; fixed §9/§11 section ordering; added §11 to index; updated status from DRAFT to COMPLETE. || 1.7     | 2026-07-08 | System | Added note that the shared common-library package structure now exists under `common/library` for architecture-aligned logging, telemetry, pipeline, errors, messages, paths, validation, UI, and factory modules; captured as a reusable foundation for future EKS runtime integration. |
 ---
 
 ## 3. Objective

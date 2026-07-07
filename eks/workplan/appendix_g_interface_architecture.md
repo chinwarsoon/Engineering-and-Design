@@ -1,7 +1,7 @@
 # Appendix G — Interface Architecture
 
-**Version**: 0.3  
-**Last Updated**: 2026-07-02  
+**Version**: 0.5  
+**Last Updated**: 2026-07-07  
 **Phase**: 1.2 — Interactive UI, I/O Contracts & Document Processing  
 **Status**: 📋 Proposed  
 **Related Documents**:
@@ -18,6 +18,7 @@
 | 0.2 | 2026-07-01 | opencode | Added G10 Server Architecture (two-server pattern, port allocation, proxy routing). Updated G3.1 (proxy note), G3.4 (two-server flow), G9 (G10 reference). Per Phase 1.2 server design review. |
 | 0.3 | 2026-07-02 | opencode | Rewrote G10 to align with DCC serve.py design: dynamic `_build_index()` tool picker, all five phases get own backend server (ports 5001–5005), versioned `/api/v{N}/` prefix routing, full endpoint table for all phases, phase-by-phase build order table, G10.7 implementation rules, G10.8 checklist. Fixed G10.2 routing table (removed /static/*, added all 5 proxy rules). Updated G9 cross-phase reference. |
 | 0.4 | 2026-07-02 | opencode | Added G10.9 Restricted Corporate Computer constraints (network, port, env, DuckDB, self-hosting, known issues I047–I054). Updated G10.7 implementation rules (port probe, path security, backend-not-reachable 503, dependency check). Updated G10.3.3 (removed CDN font reference). References AGENTS.md §18.12–18.13. |
+| 0.5 | 2026-07-07 | opencode | Updated G2.1 (Chart.js self-hosted), G3.1 (versioned /api/v1/ paths), G5 (design tokens, theme dropdown, accordion sidebar, KPI cards, data table, polish items). Added G5.4–G5.9 UI component documentation. Updated localStorage key to `eks-theme`. Updated G5.3 CSS pattern to match universal_ui_design.css. |
 
 ---
 
@@ -55,7 +56,7 @@ EKS has two distinct UI use cases that justify different technology stacks:
 | :---- | :--------- | :-------- |
 | Backend | `http.server` (Python stdlib) | Zero dependencies, sufficient for back-office dashboard |
 | Frontend | Vanilla JavaScript + HTML5 + CSS3 | No build step, opens directly in browser |
-| Charts | Chart.js 4+ (CDN) | Lightweight, works without build |
+| Charts | Chart.js 4+ (self-hosted at `eks/ui/static/chart.min.js`) | Lightweight, works offline on restricted networks |
 | HTTP Client | Fetch API (native) | No external dependency |
 | State | localStorage | Theme, layout persistence |
 
@@ -88,19 +89,19 @@ All EKS UI backends follow these endpoint conventions:
 
 | Method | Endpoint Pattern | Purpose | Phases |
 | :----- | :--------------- | :------ | :----- |
-| `POST` | `/api/pipeline/start` | Start async pipeline execution | 1.2 |
-| `GET` | `/api/pipeline/status/{job_id}` | Poll pipeline progress | 1.2, 5 |
-| `DELETE` | `/api/pipeline/{job_id}` | Cancel running pipeline | 1.2, 5 |
-| `GET` | `/api/pipeline/logs/{job_id}` | Stream pipeline logs | 1.2, 5 |
-| `GET` | `/api/documents` | List documents with pagination/filters | 1.2, 5 |
-| `GET` | `/api/documents/{id}` | Get document detail | 1.2, 5 |
-| `PUT` | `/api/documents/{id}` | Update document metadata | 1.2, 5 |
-| `POST` | `/api/files/load` | Trigger file discovery scan | 1.2 |
-| `GET` | `/api/query` | Submit natural language query | 5 |
-| `GET` | `/api/assets` | List/filter assets | 5 |
-| `GET` | `/api/ontology/classes` | Get ontology class tree | 5 |
+| `POST` | `/api/v1/pipeline/start` | Start async pipeline execution | 1.2 |
+| `GET` | `/api/v1/pipeline/status/{job_id}` | Poll pipeline progress | 1.2, 5 |
+| `DELETE` | `/api/v1/pipeline/{job_id}` | Cancel running pipeline | 1.2, 5 |
+| `GET` | `/api/v1/pipeline/logs/{job_id}` | Stream pipeline logs | 1.2, 5 |
+| `GET` | `/api/v1/documents` | List documents with pagination/filters | 1.2, 5 |
+| `GET` | `/api/v1/documents/{id}` | Get document detail | 1.2, 5 |
+| `PUT` | `/api/v1/documents/{id}` | Update document metadata | 1.2, 5 |
+| `POST` | `/api/v1/files/load` | Trigger file discovery scan | 1.2 |
+| `GET` | `/api/v1/query` | Submit natural language query | 5 |
+| `GET` | `/api/v1/assets` | List/filter assets | 5 |
+| `GET` | `/api/v1/ontology/classes` | Get ontology class tree | 5 |
 
-All `/api/*` requests arrive at the main server (`eks/server.py`, port 5000) and are **proxied** to the appropriate phase backend server (port 5001 for Phase 1, port 5005 for Phase 5). See [G10](#g10-server-architecture).
+All `/api/v{N}/*` requests arrive at the main server (`eks/server.py`, port 5000) and are **proxied** to the appropriate phase backend server (port 5001 for Phase 1, port 5005 for Phase 5). Un-versioned `/api/*` paths return HTTP 404. See [G10](#g10-server-architecture).
 
 ### G3.2 Error Response Format
 
@@ -229,24 +230,104 @@ AGENTS.md §18 defines theme toggle and 5 theme options. The specific colors are
 
 | Setting | localStorage Key | Default |
 | :------ | :-------------- | :------ |
-| Theme | `eks_theme` | `"dark"` |
-| Layout | `eks_layout` | `"two-columns"` |
+| Theme | `eks-theme` | `"dark"` |
+| Layout | `eks_layout` | `"triple"` |
+| Left sidebar width | `eks-left-sidebar-w` | `"260px"` |
+| Right sidebar visibility | `eks_sidebar_right` | `"true"` |
 
-### G5.3 CSS Variables Pattern
+### G5.3 CSS Design Token System
 
-```css
-:root {
-  --bg-primary: #1e1e1e;
-  --text-primary: #d4d4d4;
-  --accent: #3794ff;
-  --sidebar-bg: #252526;
-  --status-bar-bg: #007acc;
-}
-[data-theme="light"] { ... }
-[data-theme="sky"] { ... }
+All projects share a common set of CSS custom properties defined in `common/universal_ui_design.css`. Project-specific overrides go in the project's CSS file (e.g. `eks/ui/eks.css`).
+
+**Required token groups** (AGENTS.md §18.3):
+
+| Group | Variables |
+| :---- | :-------- |
+| Surfaces | `--bg`, `--surface`, `--surface2`, `--surface3` |
+| Borders | `--border` |
+| Text | `--text`, `--text2`, `--text3` |
+| Accent | `--accent`, `--accent-alt` |
+| Semantic | `--success`, `--warning`, `--danger`, `--info` |
+| Tag | `--tag-bg`, `--tag-border` |
+| Table | `--row-stripe`, `--row-hover`, `--th-bg`, `--th-hover` |
+| Dimensions | `--icon-bar-w`, `--sidebar-w`, `--right-sidebar-w`, `--titlebar-h`, `--statusbar-h` |
+| Radii | `--radius`, `--radius-sm`, `--radius-lg` |
+| Fonts | `--font-ui`, `--font-mono` |
+
+All component colors must reference `var(--token)` — never hardcoded hex values. Applied via `:root` / `[data-theme="..."]` overrides in the universal CSS.
+
+### G5.4 Theme Dropdown Pattern
+
+Phase 1.2+ UIs use a dropdown menu (not a cycle button) in the title bar:
+
+```html
+<button class="com-theme-btn" id="themeBtn">🎨 <span class="com-theme-dot"></span> Theme</button>
+<div class="com-theme-menu">
+  <div class="com-theme-opt active" data-theme="dark"><span class="com-theme-dot" style="background:#1e1e1e"></span> Dark</div>
+  <div class="com-theme-opt" data-theme="light"><span class="com-theme-dot" style="background:#ffffff"></span> Light</div>
+  <div class="com-theme-opt" data-theme="sky"><span class="com-theme-dot" style="background:#e0f7fa"></span> Sky</div>
+  <div class="com-theme-opt" data-theme="ocean"><span class="com-theme-dot" style="background:#e3f2fd"></span> Ocean</div>
+  <div class="com-theme-opt" data-theme="presentation"><span class="com-theme-dot" style="background:#f5f5f5"></span> Presentation</div>
+</div>
 ```
 
-All theme applications must use CSS custom properties on `:root` with `[data-theme="..."]` overrides to enable seamless switching without reload.
+Initialize with `comUI.theme.initPicker('eks-theme')`. Active option is marked with `.active` class. Theme persisted to `localStorage` under the key `<project>-theme`.
+
+### G5.5 Right Sidebar Accordion
+
+The right sidebar supports three context-switchable views (Detail, Settings, Help) using `.sb-section` accordion elements per AGENTS.md §18.5:
+
+- `.sb-section` — container with bottom border
+- `.sb-section-header` — clickable row with icon, label, right-aligned chevron `▼`
+- `.sb-section-body` — collapsible content; hidden by `.closed` on the parent `.sb-section` (chevron rotates −90°)
+- Initialize accordion with `comUI.sidebar.accordion(element)`
+- A "← Back" button in the header reopens the Detail section when in Settings/Help mode
+
+### G5.6 KPI Card Grid
+
+Dashboards display metric tiles using a CSS grid:
+
+```css
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+```
+
+Each KPI card shows: large value, label, sub-label (delta or percentage), and a health gauge bar (`linear-gradient(90deg, var(--danger), var(--warning), var(--success))`). Cards are clickable — hover adds `border-color: var(--accent)` + `box-shadow: 0 0 0 1px var(--accent)`.
+
+### G5.7 Stage Cards
+
+Pipeline stages render as individual bordered rounded cards with:
+
+- Numbered emoji icon
+- Stage name + meta description (truncated with ellipsis)
+- Status text: PASS (`--success`), FAIL (`--danger`), RUNNING (`--accent`), PENDING (`--text3`)
+- 4px progress bar colored per status
+- Hover state: `border-color: var(--accent)` + `box-shadow: 0 0 0 1px var(--accent)`
+
+### G5.8 Data Table Component
+
+Tabular data renders as `<table>` with:
+
+- Sortable column headers — click toggles asc/desc, shows `▲` / `▼` indicator
+- 50-row cap by default with "Show all N" toggle link in footer
+- `.selected` class on active row with 3px left-border highlight using `--accent`
+- Row count displayed in footer
+
+### G5.9 UI Polish
+
+Additional UI requirements per AGENTS.md §18:
+
+| Item | Requirement | Implementation |
+| :--- | :---------- | :------------- |
+| Icon bar width | 48px | `--icon-bar-w: 48px` in universal CSS |
+| Drag-and-drop | On full page body, not a drop zone | `dragover`/`drop` listeners on `document` |
+| Sidebar width | Persisted to localStorage | `comUI.sidebar.resize()` with `storageKey` option |
+| Font stack | `system-ui` first | `--font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif` |
+| Cache meta | `<meta http-equiv="Cache-Control" content="no-cache">` in HTML `<head>` | Applied in `phase1_ingestion.html` |
+| Refresh icon | 🔄 in right icon bar | Triggers `GET /api/v1/documents` re-fetch |
+| Info icon | ℹ️ in right icon bar | Shows system version toast |
 
 ---
 

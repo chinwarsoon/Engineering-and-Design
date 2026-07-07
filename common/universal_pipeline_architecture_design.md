@@ -1,9 +1,9 @@
 # Universal Pipeline Architecture Design
 
 **Document ID**: WP-UNIVERSAL-PIPELINE-ARCH-001  
-**Current Version**: 1.1  
+**Current Version**: 1.2  
 **Status**: 📋 Proposed for Review  
-**Last Updated**: 2026-06-26  
+**Last Updated**: 2026-07-11  
 **Purpose**: Universal design patterns for pipeline architecture applicable across all projects  
 
 ---
@@ -12,8 +12,26 @@
 
 | Revision | Date | Author | Summary |
 | :--- | :--- | :--- | :--- |
+| 1.2 | 2026-07-11 | System | Added §3 Common Library Inventory — 14 universal modules/functions/engines identified across dcc/workflow and eks/engine with extraction priority ratings. Updated document index. Renumbered all subsequent sections. |
 | 1.1 | 2026-06-26 | Cascade | Added 4 new patterns: Idempotency & Checkpointing, Structured Logging & Correlation IDs, Security Baseline, Concurrency Model. Added standardized I/O pattern for independent engine execution. Added lessons learned from DCC logs and workplans. |
 | 1.0 | 2026-06-26 | Cascade | Initial version with 10 universal design patterns extracted from DCC pipeline architecture. |
+
+---
+
+## Document Index
+
+| § | Section | Description |
+| :--- | :--- | :--- |
+| 1 | [Executive Summary](#1-executive-summary) | Purpose and scope of this document |
+| 2 | [Common Library Inventory](#2-common-library-inventory) | 14 universal modules identified across dcc/workflow and eks/engine |
+| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 15 architecture patterns with structure, benefits, and reference implementations |
+| 4 | [Pattern Application Guidelines](#4-pattern-application-guidelines) | When to apply each pattern and recommended implementation order |
+| 5 | [Benefits Summary](#5-benefits-summary) | Maintainability, testability, observability, flexibility, UX, security |
+| 6 | [Risks and Mitigation](#6-risks-and-mitigation) | Known risks and mitigation strategies |
+| 7 | [Lessons Learned and Best Practices](#7-lessons-learned-and-best-practices) | Implementation lessons, technical best practices, anti-patterns |
+| 8 | [Reference Implementations](#8-reference-implementations) | DCC Pipeline (primary) and EKS Pipeline (secondary) |
+| 9 | [Appendix A: Pattern Checklist](#9-appendix-a-pattern-checklist) | Checklist for new pipeline design |
+| 10 | [Appendix B: Success Criteria](#10-appendix-b-success-criteria) | Compliance criteria for universal architecture |
 
 ---
 
@@ -23,9 +41,170 @@ This document defines universal design patterns for pipeline architecture that c
 
 ---
 
-## 2. Universal Design Patterns
+## 2. Common Library Inventory
 
-### 2.1 PipelineContext Pattern
+The following 14 modules, functions, and engines have been identified as duplicated or near-identical implementations across `dcc/workflow` and `eks/engine`. All are candidates for extraction into `common/` as shared libraries. Extraction eliminates maintenance drift, enforces a single contract, and makes both projects immediately benefit from any improvement.
+
+### 2.1 Extraction Priority Key
+
+| Symbol | Priority | Criteria |
+| :---: | :--- | :--- |
+| 🔴 | High | Fully duplicated logic, both projects use it today, divergence already occurring |
+| 🟠 | Medium | Substantially overlapping, one project has the more complete implementation |
+| 🟡 | Low | Minor overlap or one project has a gap — lower immediate value |
+
+---
+
+### 2.2 Inventory Table
+
+| # | Library | dcc/workflow | eks/engine | Priority |
+| :--- | :--- | :--- | :--- | :---: |
+| L01 | Tiered Logger + Debug Object | `core_engine/logging/log_handlers.py`, `log_state.py` | `engine/logging/logger.py` (`EKSLogger`) | 🔴 High |
+| L02 | `@log_depth` / Call-Depth | `core_engine/logging/log_formatters.py` (`log_context` ctx mgr) | `engine/logging/logger.py` (`log_depth` decorator) | 🔴 High |
+| L03 | Trace Parameter / Trace Step | `core_engine/logging/log_formatters.py` (`trace_parameter`, `track_global_param`) | `engine/logging/logger.py` (`EKSLogger.trace_step`) | 🟠 Medium |
+| L04 | System Snapshot | `core_engine/logging/log_state.py` (`_get_system_snapshot`) | `engine/logging/logger.py` (`EKSLogger._get_system_snapshot`) | 🟡 Low |
+| L05 | TelemetryHeartbeat | `core_engine/logging/log_telemetry.py` (`TelemetryHeartbeat`, `HeartbeatPayload`) | `engine/core/telemetry.py` (`TelemetryHeartbeat`, `DocumentProcessingHeartbeat`) | 🔴 High |
+| L06 | PipelineContext Base | `core_engine/context/context_pipeline.py` (`PipelineContext` + nested dataclasses) | `engine/core/context.py` (`EKSPipelineContext` + nested dataclasses) | 🔴 High |
+| L07 | BaseEngine / BaseProcessor | `core_engine/base/base_engine.py`, `base_processor.py` | `engine/core/base.py` (`BaseEngine`, `BaseProcessor`) | 🔴 High |
+| L08 | EngineInput / EngineOutput Contracts | Not yet extracted — defined inline | `engine/core/base.py` + `engine/core/io_contracts.py` (reference impl) | 🟠 Medium |
+| L09 | Factory / Dependency Injection | `processor_engine/core/proc_factories.py`, `core/registry.py` | `engine/core/factories.py` (`Factory`, `ParserFactory`, `EngineFactory`) | 🟠 Medium |
+| L10 | ErrorManager + Catalog Loader | `core_engine/errors/error_manager.py` (functional helpers) | `engine/core/error_manager.py` (`ErrorManager` class) | 🟠 Medium |
+| L11 | MessageManager / Catalog Loader | `utility_engine/console/console_output.py` (`_load_message_catalog`, `get_message`) | `engine/core/message_manager.py` (`MessageManager` class) | 🟠 Medium |
+| L12 | OS Detection + Path Normalization | `core_engine/paths/path_core.py` + `utility_engine/paths/path_core.py` (duplicated) | `engine/core/context.py` (gap — T1.74) | 🔴 High |
+| L13 | ValidationManager | `utility_engine/validation/validation_manager.py` (`ValidationManager` — mature) | `engine/core/setup_validator.py` + `engine/core/validator.py` (split) | 🟠 Medium |
+| L14 | UI Contract (Request / Response) | `core_engine/ui/ui_contract.py` (`UIRequest`, `UIResponse`, `UIContractManager`) | `ui/backend/phase1_server.py` (inline Flask handlers — no formal contracts) | 🟡 Low |
+
+---
+
+### 2.3 Proposed `common/` Package Structure
+
+All 14 libraries map to the following target layout under the existing `common/` folder:
+
+```
+common/
+├── logging/
+│   ├── __init__.py
+│   ├── logger.py            # L01 — UniversalLogger (merges EKSLogger + log_handlers)
+│   ├── depth.py             # L02 — log_depth decorator + log_context ctx manager
+│   ├── trace.py             # L03 — trace_parameter, trace_step, track_global_param
+│   └── snapshot.py          # L04 — get_system_snapshot()
+├── telemetry/
+│   ├── __init__.py
+│   └── heartbeat.py         # L05 — TelemetryHeartbeat, HeartbeatPayload, Checkpoint
+├── pipeline/
+│   ├── __init__.py
+│   ├── context.py           # L06 — BasePipelineContext, BasePaths, BaseState, BaseTelemetry
+│   ├── base_engine.py       # L07 — BaseEngine, BaseProcessor, ValidationResult, ErrorRecord
+│   └── io_contracts.py      # L08 — EngineInput, EngineOutput (reference from EKS)
+├── factories/
+│   ├── __init__.py
+│   └── base_factory.py      # L09 — Factory ABC, config-driven create() pattern
+├── errors/
+│   ├── __init__.py
+│   └── error_manager.py     # L10 — BaseErrorManager, catalog loader, severity logic
+├── messages/
+│   ├── __init__.py
+│   └── message_manager.py   # L11 — BaseMessageManager, catalog loader, template hydration
+├── paths/
+│   ├── __init__.py
+│   └── path_utils.py        # L12 — detect_os(), safe_posix(), resolve_anchored(), safe_cwd()
+├── validation/
+│   ├── __init__.py
+│   └── validation_manager.py # L13 — ValidationManager (from DCC reference impl)
+├── ui/
+│   ├── __init__.py
+│   └── contracts.py         # L14 — UIRequest, UIResponse, UIContractManager
+├── universal_pipeline_architecture_design.md
+├── universal_ui_design.css
+├── universal_ui_design.js
+└── universal_ui_design.md
+```
+
+### 2.4 Per-Library Detail
+
+#### L01 — Tiered Logger + Debug Object
+- **dcc**: Module-level functions `log_status/warning/error/trace()` + global `DEBUG_OBJECT` dict + `DEBUG_LEVEL` int
+- **eks**: `EKSLogger` class with `.status/.warning/.error/.trace()` methods + per-instance `debug_object` dict
+- **Divergence**: DCC uses a global singleton; EKS uses per-instance objects. Both support 4 levels (0–3), structured `logs/errors/trace_table` fields, and `save_debug_log()` to JSON.
+- **Extraction target**: `UniversalLogger` class with optional global singleton accessor. DCC migrates to class; EKS renames.
+
+#### L02 — `@log_depth` / Call-Depth
+- **dcc**: `log_context(module, context)` context manager increments/decrements `CALL_DEPTH` global
+- **eks**: `log_depth` decorator increments/decrements `_depth` global
+- **Divergence**: Form only (context manager vs decorator). Both manage the same integer counter for indented output.
+- **Extraction target**: Provide both forms from a single shared depth counter.
+
+#### L03 — Trace Parameter / Trace Step
+- **dcc**: `trace_parameter(name, value, source, status, duration_ms)` + `track_global_param(name, value, stage)` append to `DEBUG_OBJECT["trace_table"]`
+- **eks**: `EKSLogger.trace_step(step, parameter, value, source, status, duration)` appends to `debug_object["trace_table"]`
+- **Divergence**: Field naming only. Schema is identical: `timestamp`, `name/parameter`, `value`, `source`, `status`, `duration_ms`.
+- **Extraction target**: Single `trace_step()` function/method with unified field names.
+
+#### L04 — System Snapshot
+- **dcc**: Captures `platform`, `platform_release`, `python_version`, `processor`, `hostname`
+- **eks**: Captures `os`, `python_version`, `cpu_count`, `memory_total`, `cwd`
+- **Extraction target**: `get_system_snapshot()` returning the union of both field sets.
+
+#### L05 — TelemetryHeartbeat
+- **dcc**: Row-oriented `tick(current_row, current_phase, total_rows)` → `HeartbeatPayload`; uses `psutil` for memory
+- **eks**: Phase/document-oriented `add_checkpoint(phase, details, document_count)`; adds threading lock, CPU sampling, `DocumentProcessingHeartbeat` subclass
+- **Divergence**: Orientation (rows vs documents/phases) and thread-safety. Core contract — periodic metric capture + `to_dict()` — is identical.
+- **Extraction target**: `TelemetryHeartbeat` base class with `tick()` and `add_checkpoint()` both supported; `DocumentProcessingHeartbeat` subclass retained.
+
+#### L06 — PipelineContext Base
+- **dcc**: `PipelineContext(paths, parameters, blueprint, state, telemetry, data, load_state)` with `add_system_error()`, `add_data_error()`, `should_fail_fast()`, `get_error_summary()`
+- **eks**: `EKSPipelineContext(paths, data, parameters, state, telemetry, schema_registry, config_registry)` with `to_dict()`, `from_dict()`, `save_checkpoint()`, `load_checkpoint()`, `update_phase()`, `complete()`, `fail()`
+- **Divergence**: DCC has richer error API; EKS has richer serialization/checkpoint API. Both use nested `@dataclass` for sub-objects.
+- **Extraction target**: `BasePipelineContext` abstract base providing serialization, checkpoint, and phase lifecycle. Both projects extend with domain-specific fields.
+
+#### L07 — BaseEngine / BaseProcessor
+- **dcc**: `BaseEngine(context: PipelineContext)` with abstract `run() -> Dict`; `BaseProcessor(context, schema_data)` with `_resolve_schema_reference()`
+- **eks**: `BaseEngine(name)` with abstract `validate_input()`, `execute()`, `validate_output()` and concrete `run()` implementing validate→execute→validate flow
+- **Divergence**: DCC passes context at construction; EKS passes `EngineInput` at `run()`. EKS has the more complete contract (Pattern 2.15).
+- **Extraction target**: `BaseEngine[I, O]` generic ABC with EKS-style validate→execute→validate flow; DCC migrates to pass context via `EngineInput`.
+
+#### L08 — EngineInput / EngineOutput Contracts
+- **dcc**: Not yet extracted
+- **eks**: `EngineInput(run_id, data_dir, config_file, schema_dir, output_dir, parameters, checkpoint_state)` + `EngineOutput(run_id, status, output_files, metadata, errors, checkpoint_state, telemetry)` + domain extensions `DiscoveryInput/Output`, `HealthInput/Output`
+- **Extraction target**: Move base `EngineInput`/`EngineOutput`/`ValidationResult`/`ErrorRecord` to `common/pipeline/io_contracts.py`; domain extensions stay in each project.
+
+#### L09 — Factory / Dependency Injection
+- **dcc**: Direct-import factories in `proc_factories.py`; component registry in `core/registry.py`
+- **eks**: `Factory` ABC with `create(**kwargs)` + `_get_config(key)`; `ParserFactory`, `HealthScorerFactory`, `EngineFactory` using `importlib` for dynamic loading
+- **Extraction target**: `Factory` ABC and `importlib`-based dynamic loading pattern from EKS; DCC factories refactor to extend it.
+
+#### L10 — ErrorManager + Catalog Loader
+- **dcc**: Functional helpers `handle_system_error()`, `handle_data_error()`, `wrap_engine_execution()` wrapping `PipelineContext`
+- **eks**: `ErrorManager` class loading `eks_error_config.json`, `handle_system_error()`, `handle_data_error()`, `get_error_summary()`, `get_health_impact()`, fail-fast support
+- **Divergence**: DCC is stateless functions; EKS is a stateful class with catalog. EKS is the more complete reference.
+- **Extraction target**: `BaseErrorManager` with catalog JSON loading, severity lookup, fail-fast, and `get_error_summary()`.
+
+#### L11 — MessageManager / Catalog Loader
+- **dcc**: Module-level `_load_message_catalog()`, `get_message(msg_id, **ctx)`, `status_print()`, `milestone_print()` backed by `pipeline_message_config.json`
+- **eks**: `MessageManager` class loading `eks_message_config.json`, `get(msg_id, **kwargs)`, `show(msg_id)`, verbosity filtering
+- **Divergence**: DCC is module-level functions; EKS is a class. Template hydration via `str.format(**kwargs)` is identical in both.
+- **Extraction target**: `BaseMessageManager` class with catalog loading, template hydration, and verbosity filtering.
+
+#### L12 — OS Detection + Path Normalization
+- **dcc**: `detect_os()` duplicated verbatim in `core_engine/paths/path_core.py` AND `core_engine/system/system_environment.py`; `normalize_path_separators()` in `utility_engine/paths/path_core.py`; `safe_resolve()`, `safe_cwd()`, `get_homedir()` in `core_engine/paths/path_core.py`
+- **eks**: `EKSPaths.to_dict()` uses `str()` not `.as_posix()` — the T1.74 cross-platform gap
+- **Extraction target**: `common/paths/path_utils.py` with `detect_os()`, `safe_posix(path)`, `resolve_anchored(path, base)`, `safe_cwd()`, `get_homedir()`. Eliminates DCC duplication and fixes EKS T1.74 at source.
+
+#### L13 — ValidationManager
+- **dcc**: Mature `ValidationManager` with `validate_file_exists()`, `validate_directory_exists()`, `validate_parameter()`, `validate_paths_and_parameters()`, `validate_pipeline_prerequisites()`, folder-creation config support
+- **eks**: Concerns split across `engine/core/setup_validator.py` and `engine/core/validator.py`
+- **Extraction target**: DCC `ValidationManager` is the reference; EKS consolidates its validators to extend it.
+
+#### L14 — UI Contract (Request / Response)
+- **dcc**: `UIRequest`, `UIResponse` dataclasses with `from_json()`/`to_json()`; `UIContractManager` with `validate_selection()`, `run_pipeline()`, `run_from_ui_request()`
+- **eks**: Inline Flask route handlers in `phase1_server.py` — no formal contract dataclasses
+- **Extraction target**: `UIRequest`/`UIResponse`/`UIContractManager` from DCC as the base; EKS adopts for T1.72 (enforce I/O contracts).
+
+---
+
+## 3. Universal Design Patterns
+
+### 3.1 PipelineContext Pattern
 
 **Purpose**: Single source of truth for pipeline state and configuration, preventing "prop drilling"
 
@@ -54,7 +233,7 @@ class PipelineContext:
 
 ---
 
-### 2.2 Dependency Injection Pattern
+### 3.2 Dependency Injection Pattern
 
 **Purpose**: Swappable implementations, simplified testing, platform flexibility
 
@@ -82,7 +261,7 @@ class ComponentFactory:
 
 ---
 
-### 2.3 Phase-Based Orchestration Pattern
+### 3.3 Phase-Based Orchestration Pattern
 
 **Purpose**: Sequential processing phases with clear checkpoints
 
@@ -114,7 +293,7 @@ def apply_phased_processing(self, input_data) -> output_data:
 
 ---
 
-### 2.4 Telemetry Heartbeat Pattern
+### 3.4 Telemetry Heartbeat Pattern
 
 **Purpose**: Periodic progress reporting with system metrics
 
@@ -148,7 +327,7 @@ class TelemetryHeartbeat:
 
 ---
 
-### 2.5 Schema-Driven Configuration Pattern
+### 3.5 Schema-Driven Configuration Pattern
 
 **Purpose**: External configuration files drive processing logic
 
@@ -177,7 +356,7 @@ class TelemetryHeartbeat:
 
 ---
 
-### 2.6 Multi-Stage Validation Pattern
+### 3.6 Multi-Stage Validation Pattern
 
 **Purpose**: Validation at multiple processing stages
 
@@ -208,7 +387,7 @@ def validate_pipeline(self, context: PipelineContext) -> ValidationResult:
 
 ---
 
-### 2.7 Standardized Error Catalog Pattern
+### 3.7 Standardized Error Catalog Pattern
 
 **Purpose**: Structured error codes with severity levels
 
@@ -236,7 +415,7 @@ class ErrorCatalog:
 
 ---
 
-### 2.8 UI Contract Pattern
+### 3.8 UI Contract Pattern
 
 **Purpose**: Backend contracts before frontend implementation
 
@@ -267,7 +446,7 @@ class PathSelectionContract:
 
 ---
 
-### 2.9 Project Setup Validation Pattern
+### 3.9 Project Setup Validation Pattern
 
 **Purpose**: Project structure checker for workspace initialization
 
@@ -295,7 +474,7 @@ class ProjectSetupValidator:
 
 ---
 
-### 2.10 Foundation/Utility Separation Pattern
+### 3.10 Foundation/Utility Separation Pattern
 
 **Purpose**: Separate universal foundation logic from domain-specific processing
 
@@ -321,7 +500,7 @@ project/workflow/
 
 ---
 
-### 2.11 Idempotency & Checkpointing Pattern
+### 3.11 Idempotency & Checkpointing Pattern
 
 **Purpose**: Safe re-runs and resumability after partial failure
 
@@ -359,13 +538,13 @@ class CheckpointManager:
 - No wasted reprocessing on resume
 - Reduced blast radius of partial failures
 
-**Relationship to Existing Patterns**: Builds directly on PipelineContext (2.1) and Phase-Based Orchestration (2.3) — the context's state field is a natural place to persist checkpoint data.
+**Relationship to Existing Patterns**: Builds directly on PipelineContext (3.1) and Phase-Based Orchestration (3.3) — the context's state field is a natural place to persist checkpoint data.
 
 **Reference Implementation**: DCC Pipeline (partial — Phase-Based Orchestration exists, full checkpointing planned)
 
 ---
 
-### 2.12 Structured Logging & Correlation IDs Pattern
+### 3.12 Structured Logging & Correlation IDs Pattern
 
 **Purpose**: Machine-parseable, traceable logs across phases and components
 
@@ -413,13 +592,13 @@ class StructuredLogger:
 - Logs are queryable/filterable, not just human-readable
 - Easier correlation between telemetry (2.4), errors (2.7), and logs
 
-**Relationship to Existing Patterns**: Extends Telemetry Heartbeat (2.4) and Error Catalog (2.7) — both should emit the same run ID.
+**Relationship to Existing Patterns**: Extends Telemetry Heartbeat (3.4) and Error Catalog (3.7) — both should emit the same run ID.
 
 **Reference Implementation**: DCC Pipeline (partial — multi-level logging exists, structured JSON logging planned)
 
 ---
 
-### 2.13 Security Baseline Pattern
+### 3.13 Security Baseline Pattern
 
 **Purpose**: Minimum security hygiene for any pipeline, regardless of domain
 
@@ -461,13 +640,13 @@ class SecurityAuditor:
 - Reduces injection/path-traversal risk
 - Auditable trail for compliance-sensitive pipelines
 
-**Relationship to Existing Patterns**: Secrets and access config can live alongside Schema-Driven Config (2.5), but should be kept in a separate, access-restricted store rather than the same versioned config files as business rules.
+**Relationship to Existing Patterns**: Secrets and access config can live alongside Schema-Driven Config (3.5), but should be kept in a separate, access-restricted store rather than the same versioned config files as business rules.
 
 **Reference Implementation**: DCC Pipeline (partial — environment variable usage exists, full security baseline planned)
 
 ---
 
-### 2.14 Concurrency Model Pattern
+### 3.14 Concurrency Model Pattern
 
 **Purpose**: Explicit, documented choice of execution model
 
@@ -504,13 +683,13 @@ class ConcurrencyAwareContext:
 - Makes scaling decisions deliberate rather than accidental
 - Clarifies thread-safety requirements for context and telemetry
 
-**Relationship to Existing Patterns**: A prerequisite design decision for PipelineContext (2.1) and Telemetry Heartbeat (2.4) — should be settled before either is implemented.
+**Relationship to Existing Patterns**: A prerequisite design decision for PipelineContext (3.1) and Telemetry Heartbeat (3.4) — should be settled before either is implemented.
 
 **Reference Implementation**: DCC Pipeline (single-threaded model documented, multi-process planned)
 
 ---
 
-### 2.15 Standardized Engine I/O Pattern
+### 3.15 Standardized Engine I/O Pattern
 
 **Purpose**: Each engine can be run independently with standardized input/output contracts, enabling modular testing, debugging, and reusability.
 
@@ -593,15 +772,15 @@ class BaseEngine(ABC):
 - Clear Contracts: Input/output validation ensures data quality between engines
 - Resume Capability: Checkpoint state enables resumption from any phase
 
-**Relationship to Existing Patterns**: Builds on PipelineContext (2.1), Phase-Based Orchestration (2.3), and Idempotency & Checkpointing (2.11) — checkpoint state flows through standardized I/O.
+**Relationship to Existing Patterns**: Builds on PipelineContext (3.1), Phase-Based Orchestration (3.3), and Idempotency & Checkpointing (3.11) — checkpoint state flows through standardized I/O.
 
 **Reference Implementation**: EKS Pipeline (planned in Appendix F, Section 3.3)
 
 ---
 
-## 3. Pattern Application Guidelines
+## 4. Pattern Application Guidelines
 
-### 3.1 When to Apply Each Pattern
+### 4.1 When to Apply Each Pattern
 
 | Pattern | When to Apply | Priority |
 | :--- | :--- | :---: |
@@ -621,7 +800,7 @@ class BaseEngine(ABC):
 | Concurrency Model | Pipeline may scale beyond single-threaded execution | 🟠 High |
 | Standardized Engine I/O | Pipeline has multiple engines that need independent execution | 🟠 High |
 
-### 3.2 Implementation Order
+### 4.2 Implementation Order
 
 Recommended implementation order for new pipelines:
 
@@ -643,23 +822,23 @@ Recommended implementation order for new pipelines:
 
 ---
 
-## 4. Benefits Summary
+## 5. Benefits Summary
 
-### 4.1 Maintainability
+### 5.1 Maintainability
 
 - **Reduced Complexity**: Centralized context management reduces function signature complexity
 - **Clear Separation**: Foundation/utility separation makes code easier to navigate
 - **Consistent Patterns**: Uniform patterns across components reduce cognitive load
 - **Resumability**: Checkpointing enables recovery from partial failures without full re-runs
 
-### 4.2 Testability
+### 5.2 Testability
 
 - **Dependency Injection**: Easy mocking for unit tests
 - **Phase-Based Testing**: Each phase can be tested independently
 - **Contract Validation**: UI contracts enable automated API testing
 - **Idempotency**: Safe re-runs simplify test isolation and debugging
 
-### 4.3 Observability
+### 5.3 Observability
 
 - **Telemetry**: Real-time progress tracking and performance monitoring
 - **Error Catalog**: Structured error tracking with resolution guidance
@@ -667,21 +846,21 @@ Recommended implementation order for new pipelines:
 - **Structured Logging**: Machine-parseable logs enable queryable, traceable execution history
 - **Correlation IDs**: End-to-end traceability across all components and phases
 
-### 4.4 Flexibility
+### 5.4 Flexibility
 
 - **Swappable Components**: Factory pattern enables easy component replacement
 - **Schema-Driven**: Configuration changes without code modifications
 - **Platform Independence**: Cross-platform path handling
 - **Concurrency Model**: Explicit execution model enables deliberate scaling decisions
 
-### 4.5 User Experience
+### 5.5 User Experience
 
 - **Progress Visibility**: Heartbeat system provides real-time feedback
 - **Clear Errors**: Standardized error codes with resolution guidance
 - **Setup Validation**: Automated project setup verification
 - **Safe Retries**: Idempotency enables safe re-runs after transient failures
 
-### 4.6 Security
+### 5.6 Security
 
 - **Credential Protection**: Secrets never hardcoded or committed
 - **Input Validation**: Sanitization prevents injection and path traversal attacks
@@ -690,7 +869,7 @@ Recommended implementation order for new pipelines:
 
 ---
 
-## 5. Risks and Mitigation
+## 6. Risks and Mitigation
 
 | Risk | Likelihood | Impact | Mitigation |
 | :--- | :---: | :---: | :--- |
@@ -707,11 +886,11 @@ Recommended implementation order for new pipelines:
 
 ---
 
-## 6. Lessons Learned and Best Practices
+## 7. Lessons Learned and Best Practices
 
-### 6.1 Architecture Implementation Lessons
+### 7.1 Architecture Implementation Lessons
 
-#### 6.1.1 Phased Implementation Approach
+#### 7.1.1 Phased Implementation Approach
 
 **Lesson**: Incremental, phase-based implementation enables focused testing and early detection of architectural limitations.
 
@@ -729,7 +908,7 @@ When implementing complex architecture changes:
 4. Document limitations and decisions as they emerge
 ```
 
-#### 6.1.2 Backward Compatibility is Critical
+#### 7.1.2 Backward Compatibility is Critical
 
 **Lesson**: Maintaining backward compatibility during major architecture changes prevents disruption to existing workflows.
 
@@ -747,7 +926,7 @@ For major architecture changes:
 4. Document breaking changes clearly
 ```
 
-#### 6.1.3 Test-Driven Architecture Development
+#### 7.1.3 Test-Driven Architecture Development
 
 **Lesson**: Comprehensive testing at each phase ensures confidence in implementations and prevents regressions.
 
@@ -765,7 +944,7 @@ For architecture development:
 4. Maintain high test coverage (>90%)
 ```
 
-#### 6.1.4 Contract-Based UI Integration
+#### 7.1.4 Contract-Based UI Integration
 
 **Lesson**: Defining backend contracts before frontend implementation creates clean separation of concerns and type safety.
 
@@ -783,78 +962,78 @@ For UI integration:
 4. Document contracts comprehensively
 ```
 
-### 6.2 Technical Architecture Best Practices
+### 7.2 Technical Architecture Best Practices
 
-#### 6.2.1 Dependency Injection Best Practices
+#### 7.2.1 Dependency Injection Best Practices
 
 - Use factory classes for complex object creation
 - Inject dependencies through constructors
 - Keep factories stateless
 - Document dependency contracts
 
-#### 6.2.2 Centralized Context Best Practices
+#### 7.2.2 Centralized Context Best Practices
 
 - Use dataclasses for immutable state
 - Include validation in context creation
 - Provide clear access patterns
 - Document context fields thoroughly
 
-#### 6.2.3 Phase-Based Orchestration Best Practices
+#### 7.2.3 Phase-Based Orchestration Best Practices
 
 - Define clear phase boundaries
 - Include validation at each phase
 - Provide progress reporting
 - Make phases independently testable
 
-#### 6.2.4 Telemetry Heartbeat Best Practices
+#### 7.2.4 Telemetry Heartbeat Best Practices
 
 - Include relevant metrics (memory, time, progress)
 - Use appropriate logging levels
 - Consider performance impact
 - Provide configurable intervals
 
-### 6.3 Configuration and Validation Best Practices
+### 7.3 Configuration and Validation Best Practices
 
-#### 6.3.1 Schema-Driven Configuration Best Practices
+#### 7.3.1 Schema-Driven Configuration Best Practices
 
 - Use JSON/YAML for configuration
 - Include validation schemas
 - Provide default values
 - Document configuration options
 
-#### 6.3.2 Multi-Stage Validation Best Practices
+#### 7.3.2 Multi-Stage Validation Best Practices
 
 - Validate at logical boundaries
 - Use standardized error codes
 - Provide clear error messages
 - Aggregate validation results
 
-### 6.4 Error Handling and Observability Best Practices
+### 7.4 Error Handling and Observability Best Practices
 
-#### 6.4.1 Standardized Error Catalog Best Practices
+#### 7.4.1 Standardized Error Catalog Best Practices
 
 - Use hierarchical error codes
 - Include severity levels
 - Provide resolution guidance
 - Maintain error documentation
 
-#### 6.4.2 Multi-Level Logging Best Practices
+#### 7.4.2 Multi-Level Logging Best Practices
 
 - Use consistent log formats
 - Include timestamps
 - Provide log levels
 - Consider log rotation
 
-### 6.5 UI Integration Best Practices
+### 7.5 UI Integration Best Practices
 
-#### 6.5.1 Contract-First API Design Best Practices
+#### 7.5.1 Contract-First API Design Best Practices
 
 - Use dataclasses for contracts
 - Include validation methods
 - Provide serialization support
 - Document contracts thoroughly
 
-#### 6.5.2 Parameter Precedence Rules Best Practices
+#### 7.5.2 Parameter Precedence Rules Best Practices
 
 - Document precedence clearly
 - Apply precedence consistently
@@ -867,57 +1046,57 @@ For UI integration:
 3. Schema Configuration
 4. Hardcoded Defaults
 
-### 6.6 Performance and Scalability Best Practices
+### 7.6 Performance and Scalability Best Practices
 
-#### 6.6.1 Vectorized Operations Best Practices
+#### 7.6.1 Vectorized Operations Best Practices
 
 - Prefer vectorized operations
 - Avoid row-by-row processing
 - Use appropriate data types
 - Monitor memory usage
 
-#### 6.6.2 Memory Management Best Practices
+#### 7.6.2 Memory Management Best Practices
 
 - Monitor memory usage
 - Use appropriate data types
 - Clean up unused objects
 - Consider chunked processing for large datasets
 
-### 6.7 Testing Strategies Best Practices
+### 7.7 Testing Strategies Best Practices
 
-#### 6.7.1 Comprehensive Test Coverage Best Practices
+#### 7.7.1 Comprehensive Test Coverage Best Practices
 
 - Test at multiple levels (unit, integration, end-to-end)
 - Use realistic test data
 - Maintain high coverage (>90%)
 - Automate test execution
 
-#### 6.7.2 Production Validation Best Practices
+#### 7.7.2 Production Validation Best Practices
 
 - Test with production data
 - Validate performance metrics
 - Test in target environments
 - Monitor production runs
 
-### 6.8 Documentation Practices Best Practices
+### 7.8 Documentation Practices Best Practices
 
-#### 6.8.1 Comprehensive Documentation Best Practices
+#### 7.8.1 Comprehensive Documentation Best Practices
 
 - Document decisions and rationale
 - Keep documentation current
 - Use consistent formats
 - Include examples
 
-#### 6.8.2 Living Documentation Best Practices
+#### 7.8.2 Living Documentation Best Practices
 
 - Document code as you write
 - Use documentation generators
 - Include examples in docs
 - Review documentation regularly
 
-### 6.9 Common Pitfalls and Anti-Patterns
+### 7.9 Common Pitfalls and Anti-Patterns
 
-#### 6.9.1 Hardcoded Defaults in Code
+#### 7.9.1 Hardcoded Defaults in Code
 
 **Anti-Pattern**: Hardcoded default values in provider code that ignore schema-driven configuration.
 
@@ -925,7 +1104,7 @@ For UI integration:
 
 **Best Practice**: Never hardcode configuration values that should be schema-driven. Use schema as SSOT.
 
-#### 6.9.2 Stale Import Copies
+#### 7.9.2 Stale Import Copies
 
 **Anti-Pattern**: Using `from module import name` creates local copies that become stale when the source changes.
 
@@ -933,7 +1112,7 @@ For UI integration:
 
 **Best Practice**: Use getter functions for mutable global state, or import the module and access `module.variable`.
 
-#### 6.9.3 Missing Runtime Validation
+#### 7.9.3 Missing Runtime Validation
 
 **Anti-Pattern**: No runtime checks before resource-intensive operations.
 
@@ -943,9 +1122,9 @@ For UI integration:
 
 ---
 
-## 7. Reference Implementations
+## 8. Reference Implementations
 
-### 7.1 DCC Pipeline (Primary Reference)
+### 8.1 DCC Pipeline (Primary Reference)
 
 - **Location**: `dcc/workflow/`
 - **Status**: FULLY COMPLIANT (19 PASS / 2 PARTIAL / 0 FAIL)
@@ -955,7 +1134,7 @@ For UI integration:
   - [Core Utility Engine Workplan](dcc/workplan/pipeline_architecture/core_utility_engine_workplan/core_utility_engine_workplan.md)
   - [Project Setup Validation Guide](dcc/workplan/initiation_engine/project-setup-validation-guide.md)
 
-### 7.2 EKS Pipeline (Secondary Reference)
+### 8.2 EKS Pipeline (Secondary Reference)
 
 - **Location**: `eks/`
 - **Status**: Phase 1 COMPLETE, Phase 1.2 Proposed
@@ -966,7 +1145,7 @@ For UI integration:
 
 ---
 
-## 8. Appendix A: Pattern Checklist
+## 9. Appendix A: Pattern Checklist
 
 Use this checklist when designing a new pipeline:
 
@@ -988,7 +1167,7 @@ Use this checklist when designing a new pipeline:
 
 ---
 
-## 9. Appendix B: Success Criteria
+## 10. Appendix B: Success Criteria
 
 A pipeline is considered to follow universal architecture when:
 

@@ -5,129 +5,163 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache">
 <title>EKS — Phase 1 Ingestion Pipeline</title>
+<link rel="stylesheet" href="/common/universal_ui_design.css">
 <link rel="stylesheet" href="/ui/eks.css">
 </head>
 <body>
 
-<div id="app-layout" class="layout-triple">
+<div class="com-shell">
 
   <!-- Title Bar -->
-  <div id="title-bar">
-    <span class="title">EKS</span>
-    <span class="subtitle">Engineering Knowledge System</span>
+  <div class="com-titlebar">
+    <span class="com-titlebar-logo">EKS <span class="accent">▎</span></span>
+    <span style="font-size:11px;color:var(--text2);margin-left:2px;">Engineering Knowledge System</span>
     <input type="text" id="global-search" placeholder="Search documents..." />
-    <button class="title-bar-btn" id="btn-theme" title="Cycle theme (saved)">🎨 Theme</button>
-    <button class="title-bar-btn" id="btn-layout" title="Cycle layout">🔲 Layout</button>
+    <div class="com-titlebar-actions">
+      <button class="com-theme-btn" id="themeBtn">🎨 <span class="com-theme-dot"></span> Theme</button>
+      <div class="com-theme-menu">
+        <div class="com-theme-opt active" data-theme="dark"><span class="com-theme-dot" style="background:#1e1e1e"></span> Dark</div>
+        <div class="com-theme-opt" data-theme="light"><span class="com-theme-dot" style="background:#ffffff"></span> Light</div>
+        <div class="com-theme-opt" data-theme="sky"><span class="com-theme-dot" style="background:#e0f7fa"></span> Sky</div>
+        <div class="com-theme-opt" data-theme="ocean"><span class="com-theme-dot" style="background:#e3f2fd"></span> Ocean</div>
+        <div class="com-theme-opt" data-theme="presentation"><span class="com-theme-dot" style="background:#f5f5f5"></span> Presentation</div>
+      </div>
+      <button class="com-btn com-btn-ghost com-btn-sm" id="btn-layout" title="Cycle layout">🔲 Layout</button>
+    </div>
   </div>
 
-  <div id="main-area">
+  <div class="com-body">
 
     <!-- Left Icon Bar -->
-    <div id="icon-bar-left">
-      <button class="icon-btn" id="icon-load" title="Load files">📂</button>
-      <button class="icon-btn" id="icon-tree" title="Toggle tree">🌳</button>
-      <button class="icon-btn" id="icon-help" title="Help (F1)">❓</button>
-      <button class="icon-btn" id="icon-settings" title="Settings">⚙️</button>
+    <div class="com-iconbar">
+      <div class="com-iconbar-top">
+        <button class="com-iconbar-btn" id="icon-load" title="Load files">📂</button>
+        <button class="com-iconbar-btn" id="icon-tree" title="Toggle tree">🌳</button>
+        <button class="com-iconbar-btn" id="icon-help" title="Help (F1)">❓</button>
+        <button class="com-iconbar-btn" id="icon-settings" title="Settings">⚙️</button>
+      </div>
     </div>
 
-    <div id="content-area">
+    <!-- Content Area (sidebars + main) -->
+    <div style="display:flex;flex:1;min-width:0;overflow:hidden;">
 
       <!-- Left Sidebar (Tree / File Load) -->
-      <div id="left-sidebar" class="sidebar open">
-        <div class="sidebar-header">
+      <div id="left-sidebar" class="com-sidebar">
+        <div class="sb-header">
           <span>Explorer</span>
-          <button id="toggle-left" title="Collapse sidebar">✕</button>
+          <button class="com-btn com-btn-ghost com-btn-icon" id="toggle-left" title="Collapse sidebar" style="margin-left:auto;">✕</button>
         </div>
-        <div class="sidebar-content" id="tree-content">
+        <div class="sb-content" id="tree-content">
           <div class="empty-state"><p>Loading documents...</p></div>
         </div>
       </div>
       <div id="left-resize" class="sidebar-resize-right"></div>
 
       <!-- Main Panel -->
-      <div id="main-panel">
+      <div id="main-panel" class="com-content">
         <!-- Step Progress -->
         <div class="step-progress">
           <div class="step active" data-step="1" data-tab="documents">
             <span class="step-circle">1</span>
             <span class="step-label">📂 Load</span>
           </div>
-          <div class="step-connector"></div>
+          <span class="step-connector">→</span>
           <div class="step" data-step="2" data-tab="pipeline">
             <span class="step-circle">2</span>
             <span class="step-label">⚙️ Process</span>
           </div>
-          <div class="step-connector"></div>
+          <span class="step-connector">→</span>
           <div class="step" data-step="3" data-tab="review">
             <span class="step-circle">3</span>
             <span class="step-label">🔍 Review</span>
           </div>
-          <div class="step-connector"></div>
+          <span class="step-connector">→</span>
           <div class="step" data-step="4" data-tab="health">
             <span class="step-circle">4</span>
             <span class="step-label">📊 Health</span>
           </div>
         </div>
 
-        <!-- Tab Bar -->
-        <div class="tab-bar">
-          <div class="tab active" data-tab="documents">📄 Documents</div>
-          <div class="tab" data-tab="pipeline">⚙️ Pipeline</div>
-          <div class="tab" data-tab="health">📊 Health</div>
-          <div class="tab" data-tab="review">🔍 Review</div>
-          <div class="tab" data-tab="settings">⚙️ Settings</div>
-        </div>
-
         <!-- Main Content (tab panes) -->
-        <div id="main-content">
+        <div class="com-content-body" id="main-content">
 
           <!-- Documents Tab -->
           <div id="tab-documents" class="tab-content" style="display:block;">
-            <div style="margin-bottom:8px;display:flex;align-items:center;gap:6px;position:relative;">
-              <button class="tab-action-btn" id="btn-load-files">📂 Load Files</button>
-              <input type="text" id="folder-path" class="folder-path-input" value="eks/data" readonly placeholder="Folder path..." />
-              <button class="tab-action-btn secondary" id="btn-browse" title="Browse folders">📁 Browse</button>
-              <div id="browse-dropdown" class="browse-dropdown" style="display:none;"></div>
+            <div class="step-header">
+              <h2>Step 1: Load Documents</h2>
+              <p>Select a data folder. All supported files in the folder and its subfolders will be discovered, registered, and prepared for processing.</p>
             </div>
-            <div id="file-drop-area" class="file-load-area">
-              <div class="icon">📂</div>
-              <p>Drop files here or click <strong>Load Files</strong></p>
-              <p style="font-size:11px;">Supported: PDF, DGN, DWG, DOCX, XLSX</p>
+
+            <div class="step-section">
+              <div class="step-section-header">
+                <span class="step-section-num">1</span>
+                <span class="step-section-title">Choose Folder</span>
+              </div>
+              <div class="step-section-body">
+                <div class="folder-row">
+                  <input type="text" id="folder-path" class="folder-path-input" value="eks/data" readonly placeholder="Folder path..." />
+                  <div class="folder-actions">
+                    <button class="com-btn com-btn-secondary" id="btn-browse" title="Browse folders">📁 Browse</button>
+                    <button class="com-btn com-btn-primary" id="btn-load-files">📂 Load Files</button>
+                  </div>
+                </div>
+                <div id="dir-tree" class="dir-tree" style="display:none;"></div>
+              </div>
             </div>
-            <table class="doc-table">
-              <thead>
-                <tr>
-                  <th>Document Number</th>
-                  <th>Type</th>
-                  <th>Discipline</th>
-                  <th>Revision</th>
-                  <th>Health Score</th>
-                </tr>
-              </thead>
-              <tbody id="doc-table-body">
-                <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-secondary);">Loading...</td></tr>
-              </tbody>
-            </table>
+
+            <div class="step-section">
+              <div class="step-section-header">
+                <span class="step-section-num">2</span>
+                <span class="step-section-title">Results</span>
+              </div>
+              <div class="step-section-body">
+                <div id="load-summary" class="load-summary" style="display:none;">
+                  <span class="load-summary-icon">✅</span>
+                  <span id="load-summary-text">0 documents loaded</span>
+                </div>
+                <div id="kpi-grid" class="kpi-grid" style="display:none;margin-bottom:12px;"></div>
+                <table class="doc-table">
+                  <thead>
+                    <tr>
+                      <th data-col="document_number" data-label="Document Number">Document Number</th>
+                      <th data-col="type" data-label="Type">Type</th>
+                      <th data-col="discipline" data-label="Discipline">Discipline</th>
+                      <th data-col="revision" data-label="Revision">Revision</th>
+                      <th data-col="health_score" data-label="Health Score">Health Score</th>
+                    </tr>
+                  </thead>
+                  <tbody id="doc-table-body">
+                    <tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text2);">Load a folder to see documents</td></tr>
+                  </tbody>
+                </table>
+                <div id="doc-table-footer" class="doc-table-footer" style="display:none;"></div>
+                <div class="step-tip">💡 Select a row to view document details in the right panel.</div>
+              </div>
+            </div>
+
+            <div id="proceed-container" class="proceed-container" style="display:none;">
+              <button class="com-btn com-btn-primary proceed-btn" id="btn-proceed-process">▶ Proceed to Step 2: Process</button>
+            </div>
           </div>
 
           <!-- Pipeline Tab -->
           <div id="tab-pipeline" class="tab-content" style="display:none;">
             <div style="margin-bottom:8px;">
-              <button class="tab-action-btn" id="btn-run-pipeline">▶ Run Pipeline</button>
-              <button class="tab-action-btn secondary" id="btn-cancel-pipeline">⏹ Cancel</button>
-              <span id="pipeline-status" style="margin-left:8px;font-size:11px;color:var(--text-secondary);"></span>
+              <button class="com-btn com-btn-primary" id="btn-run-pipeline">▶ Run Pipeline</button>
+              <button class="com-btn com-btn-secondary" id="btn-cancel-pipeline">⏹ Cancel</button>
+              <span id="pipeline-status" style="margin-left:8px;font-size:11px;color:var(--text2);"></span>
             </div>
-            <h3 style="margin-bottom:8px;">Pipeline Execution</h3>
             <div class="progress-container">
               <div class="progress-track">
-                <div class="progress-fill" id="pipeline-progress" style="width:0%"></div>
+                <div id="pipeline-progress" class="progress-fill" style="width:0%"></div>
               </div>
-              <div class="progress-text" id="pipeline-status-text">Status: idle</div>
             </div>
-            <h4 style="margin:12px 0 4px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">Logs</h4>
+            <h3 style="margin-bottom:8px;">Pipeline Stages</h3>
+            <div id="stage-cards" class="stage-cards"></div>
+            <h4 style="margin:12px 0 4px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Logs</h4>
             <div class="log-viewer" id="pipeline-logs"></div>
-            <h4 style="margin:12px 0 4px;font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">Summary</h4>
-            <pre id="pipeline-summary" style="font-size:11px;white-space:pre-wrap;background:var(--card-bg);padding:8px;border-radius:4px;margin-top:4px;"></pre>
+            <h4 style="margin:12px 0 4px;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Summary</h4>
+            <pre id="pipeline-summary" style="font-size:11px;white-space:pre-wrap;background:var(--surface2);padding:8px;border-radius:4px;margin-top:4px;"></pre>
           </div>
 
           <!-- Health Tab -->
@@ -137,13 +171,13 @@
               <div class="empty-state"><p>Load documents to view health chart</p></div>
               <canvas id="health-chart-canvas"></canvas>
             </div>
-            <div id="health-summary" style="margin-top:16px;font-size:12px;color:var(--text-secondary);text-align:center;"></div>
+            <div id="health-summary" style="margin-top:16px;font-size:12px;color:var(--text2);text-align:center;"></div>
           </div>
 
           <!-- Review Tab -->
           <div id="tab-review" class="tab-content" style="display:none;">
             <div style="margin-bottom:8px;">
-              <button class="tab-action-btn" id="btn-review">📋 Review Flagged</button>
+              <button class="com-btn com-btn-primary" id="btn-review">📋 Review Flagged</button>
             </div>
             <h3 style="margin-bottom:8px;">Document Review</h3>
             <div id="review-content">
@@ -151,71 +185,91 @@
             </div>
           </div>
 
-          <!-- Settings Tab -->
-          <div id="tab-settings" class="tab-content" style="display:none;">
-            <h3 style="margin-bottom:8px;">Settings</h3>
-            <div id="settings-content"></div>
-          </div>
-
-        </div><!-- /main-content -->
+        </div><!-- /com-content-body -->
       </div><!-- /main-panel -->
 
       <!-- Right Resize Handle -->
       <div id="right-resize" class="sidebar-resize-left"></div>
 
-      <!-- Right Sidebar (Document Detail) -->
-      <div id="right-sidebar" class="sidebar">
-        <div class="sidebar-header">
-          <span>Document Detail</span>
-          <button id="toggle-right" title="Close panel">✕</button>
+      <!-- Right Sidebar (Detail / Settings / Help) -->
+      <div id="right-sidebar" class="com-right-sidebar collapsed">
+        <div class="sb-header">
+          <button id="sb-back" class="com-btn com-btn-ghost com-btn-sm" style="display:none;">← Back</button>
+          <span id="sb-title">Detail</span>
+          <button class="com-btn com-btn-ghost com-btn-icon" id="toggle-right" title="Close panel" style="margin-left:auto;">✕</button>
         </div>
-        <div class="sidebar-content" id="detail-content">
-          <div class="empty-state"><p>Select a document to view details</p></div>
+        <div id="sb-content" class="sb-content">
+          <!-- Detail View -->
+          <div id="sb-detail" class="sb-section">
+            <div class="sb-section-header">
+              <span>📄 Document Detail</span>
+              <span class="sb-chevron">▼</span>
+            </div>
+            <div class="sb-section-body" id="detail-content">
+              <div class="empty-state"><p>Select a document to view details</p></div>
+            </div>
+          </div>
+          <!-- Settings View -->
+          <div id="sb-settings" class="sb-section closed">
+            <div class="sb-section-header">
+              <span>⚙️ Settings</span>
+              <span class="sb-chevron">▼</span>
+            </div>
+            <div class="sb-section-body" id="sb-settings-content"></div>
+          </div>
+          <!-- Help View -->
+          <div id="sb-help" class="sb-section closed">
+            <div class="sb-section-header">
+              <span>❓ Help</span>
+              <span class="sb-chevron">▼</span>
+            </div>
+            <div class="sb-section-body" id="sb-help-content"></div>
+          </div>
         </div>
       </div>
 
-    </div><!-- /content-area -->
+    </div><!-- /flex content row -->
 
     <!-- Right Icon Bar -->
-    <div id="icon-bar-right">
-      <div class="top-icons">
-        <button class="icon-btn" title="Info">ℹ️</button>
+    <div class="com-iconbar" style="border-right:none;border-left:1px solid var(--border);">
+      <div class="com-iconbar-top">
+        <button class="com-iconbar-btn" id="icon-info" title="System Info">ℹ️</button>
+        <button class="com-iconbar-btn" id="icon-refresh" title="Refresh documents">🔄</button>
       </div>
-      <div class="bottom-icons">
-        <button class="icon-btn" id="toggle-right-icon" title="Toggle detail panel">📋</button>
+      <div class="com-iconbar-bot">
+        <button class="com-iconbar-btn" id="toggle-right-icon" title="Toggle detail panel">📋</button>
       </div>
     </div>
 
-  </div><!-- /main-area -->
+  </div><!-- /com-body -->
 
   <!-- Status Bar -->
-  <div id="status-bar">
-    <div class="left">
+  <div class="com-statusbar">
+    <div class="com-statusbar-left">
       <span id="status-text">Ready</span>
-    </div>
-    <div class="center">
       <span id="doc-count"></span>
     </div>
-    <div class="right">
+    <div class="com-statusbar-right">
       <span id="connection-status">Connected</span>
     </div>
   </div>
 
-</div><!-- /app-layout -->
+</div><!-- /com-shell -->
 
 <!-- Help Modal -->
-<div class="modal-overlay" id="help-modal">
-  <div class="modal">
-    <div class="modal-header">
+<div class="com-modal-overlay" id="help-modal">
+  <div class="com-modal">
+    <div class="com-modal-header">
       <h3>Help &amp; About</h3>
-      <button id="help-close">✕</button>
+      <button class="com-modal-close">✕</button>
     </div>
-    <div class="modal-body" id="help-body">
+    <div class="com-modal-body" id="help-body">
       <p>Loading help content...</p>
     </div>
   </div>
 </div>
 
+<script src="/common/universal_ui_design.js"></script>
 <script src="/ui/eks.js"></script>
 <script src="/ui/static/chart.min.js"></script>
 </body>

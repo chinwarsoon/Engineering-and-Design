@@ -45,6 +45,7 @@ class ReusableTCPServer(HTTPServer):
 
 
 ROOT = Path(__file__).parent.resolve()
+COMMON = ROOT.parent / "common"
 SCAN_DIRS = ["ui"]
 EXCLUDE_DIRS: set = {"node_modules", "archive", "backup", "__pycache__", "static", "templates"}
 FOLDER_LABELS: Dict[str, tuple] = {"ui": ("🖥️", "EKS Tools")}
@@ -133,6 +134,8 @@ class MainServerHandler(SimpleHTTPRequestHandler):
             self._route_api()
         elif path.startswith("/ollama/"):
             self._proxy_ollama()
+        elif path.startswith("/common/"):
+            self._serve_common(path[8:])
         elif path.startswith("/ui/"):
             self._serve_static("ui/" + path[4:])
         else:
@@ -294,11 +297,51 @@ function filterCards(q){{q=q.toLowerCase();document.querySelectorAll('.card').fo
             self.wfile.write(b"404 Not Found")
 
     # ------------------------------------------------------------------
+    # Static file serving — /common/ (shared design system)
+    # ------------------------------------------------------------------
+    def _serve_common(self, rel_path: str):
+        """Serve files from the project-wide common/ directory."""
+        safe = Path(rel_path).as_posix().lstrip("/")
+        resolved = (COMMON / safe).resolve()
+        if not resolved.is_relative_to(COMMON):
+            self.send_response(403)
+            self._set_cors()
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"error": "Access denied"}')
+            return
+        if resolved.exists() and resolved.is_file():
+            ext = resolved.suffix.lower()
+            content_type = {
+                ".html": "text/html",
+                ".css": "text/css",
+                ".js": "application/javascript",
+                ".json": "application/json",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".svg": "image/svg+xml",
+                ".ico": "image/x-icon",
+            }.get(ext, "application/octet-stream")
+            self.send_response(200)
+            self._set_cors()
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(resolved.stat().st_size))
+            self.end_headers()
+            with open(resolved, "rb") as f:
+                self.wfile.write(f.read())
+        else:
+            self.send_response(404)
+            self._set_cors()
+            self.end_headers()
+            self.wfile.write(b"404 Not Found")
+
+    # ------------------------------------------------------------------
     # Proxy — phase backends
     # ------------------------------------------------------------------
     def _proxy_to(self, target_base: str):
         """Proxy request to a phase backend. Timeout: 120s (E)."""
-        parsed = urlparse(unquote(self.path))
+        parsed = urlparse(self.path)
         target_url = target_base.rstrip("/") + parsed.path
         if parsed.query:
             target_url += "?" + parsed.query

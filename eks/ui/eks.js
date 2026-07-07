@@ -1,6 +1,10 @@
-/* EKS Dashboard JavaScript — AGENTS.md §18 + G7 UI Contracts */
+/* EKS Dashboard JavaScript — AGENTS.md §18 + G7 UI Contracts
+   Revision: 2.0 | Date: 2026-07-07 | Author: Dev
+   Summary: EKS business logic using comUI from common/universal_ui_design.js. */
 (function () {
   'use strict';
+
+  var PU = comUI.utils;
 
   const POLL_INTERVAL = 2000;
 
@@ -13,7 +17,6 @@
     logTimer: null,
     treeData: null,
     layout: localStorage.getItem('eks_layout') || 'triple',
-    theme: localStorage.getItem('eks_theme') || 'dark',
     sidebarLeft: localStorage.getItem('eks_sidebar_left') !== 'false',
     sidebarRight: localStorage.getItem('eks_sidebar_right') !== 'false',
     paths: { data_dir: 'eks/data' },
@@ -50,20 +53,25 @@
     }
   }
 
-  /* ── Theme ── */
-  function applyTheme(t) {
-    document.documentElement.setAttribute('data-theme', t);
-    localStorage.setItem('eks_theme', t);
-    state.theme = t;
-  }
-
   /* ── Layout ── */
   function applyLayout(l) {
-    document.getElementById('app-layout').className = 'layout-' + l;
+    var left = document.getElementById('left-sidebar');
+    var right = document.getElementById('right-sidebar');
+    left.classList.toggle('collapsed', l === 'single' || (l === 'dual' && !state.sidebarLeft));
+    if (l === 'single') {
+      left.classList.add('collapsed');
+      right.classList.add('collapsed');
+    } else if (l === 'dual') {
+      left.classList.remove('collapsed');
+      right.classList.add('collapsed');
+    } else {
+      left.classList.remove('collapsed');
+      right.classList.remove('collapsed');
+    }
     localStorage.setItem('eks_layout', l);
     state.layout = l;
-    document.getElementById('left-sidebar').classList.toggle('open', state.sidebarLeft && l !== 'single');
-    document.getElementById('right-sidebar').classList.toggle('right-open', state.sidebarRight && l === 'triple');
+    state.sidebarLeft = l !== 'single';
+    state.sidebarRight = l === 'triple';
   }
 
   /* ── API helpers ── */
@@ -128,69 +136,323 @@
     const path = dir || getFolderPath();
     var pathInput = document.getElementById('folder-path');
     if (pathInput) pathInput.value = path;
-    const data = await apiPost('/api/v1/files/load', { data_dir: path });
-    // Backend returns {discovered, valid, unknown, registered, files} — fetch document list
-    const docData = await apiGet('/api/v1/documents');
-    state.docs = docData.documents || [];
-    renderDocTable(state.docs);
-    buildTree(state.docs);
-    setStatus('Loaded ' + state.docs.length + ' documents');
-    updateStepProgress(2, [1]);
-    hideAllTabs();
-    showTab('documents');
-  }
-
-  /* ── Folder Browse ── */
-  async function browseDirs() {
-    var dropdown = document.getElementById('browse-dropdown');
-    if (!dropdown) return;
-    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-    if (dropdown.style.display !== 'block') return;
-    dropdown.innerHTML = '<div class="browse-empty">Loading...</div>';
+    var btn = document.getElementById('btn-load-files');
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading...'; }
+    PU.setStatus('status-text', 'Loading documents from ' + path + '...');
     try {
-      var data = await apiGet('/api/v1/files/list-dirs?parent=' + encodeURIComponent(getFolderPath()));
-      if (!data.dirs || data.dirs.length === 0) {
-        dropdown.innerHTML = '<div class="browse-empty">No subdirectories found</div>';
-        return;
-      }
-      dropdown.innerHTML = data.dirs.map(function (d) {
-        return '<div class="browse-item" data-path="' + esc(d) + '"><span class="folder-icon">📁</span>' + esc(d) + '</div>';
-      }).join('');
-      dropdown.querySelectorAll('.browse-item').forEach(function (item) {
-        item.addEventListener('click', function () {
-          var path = item.getAttribute('data-path');
-          var input = document.getElementById('folder-path');
-          if (input) input.value = path;
-          dropdown.style.display = 'none';
-        });
-      });
+      await apiPost('/api/v1/files/load', { data_dir: path });
+      const docData = await apiGet('/api/v1/documents');
+      state.docs = docData.documents || [];
+      renderDocTable(state.docs);
+      renderKPICards(state.docs);
+      buildTree(state.docs);
+      PU.setStatus('status-text', 'Loaded ' + state.docs.length + ' documents');
+      showLoadSummary(state.docs.length);
+      updateStepProgress(2, [1]);
+      hideAllTabs();
+      showTab('documents');
     } catch (e) {
-      dropdown.innerHTML = '<div class="browse-empty">Error: ' + esc(e.message) + '</div>';
+      PU.setStatus('status-text', 'Load error: ' + e.message);
+      comUI.toast.show('Load failed: ' + e.message, 'error', 6000);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '📂 Load Files'; }
     }
   }
 
-  /* ── Doc Table ── */
-  function renderDocTable(docs) {
-    const el = document.getElementById('doc-table-body');
-    if (!docs || docs.length === 0) {
-      el.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-secondary);padding:20px;">No documents found</td></tr>';
+  function showLoadSummary(count) {
+    var el = document.getElementById('load-summary');
+    var text = document.getElementById('load-summary-text');
+    var proceed = document.getElementById('proceed-container');
+    if (!el || !text) return;
+    if (count > 0) {
+      el.style.display = 'flex';
+      text.textContent = count + ' documents loaded from ' + getFolderPath();
+      if (proceed) proceed.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+      if (proceed) proceed.style.display = 'none';
+    }
+  }
+
+  /* ── KPI Cards ── */
+  function renderKPICards(docs) {
+    var grid = document.getElementById('kpi-grid');
+    if (!grid) return;
+    if (!docs || docs.length === 0) { grid.style.display = 'none'; return; }
+    var total = docs.length;
+    var processed = docs.filter(function (d) { return d.extract_status === 'completed' || d.health_score; }).length;
+    var flagged = docs.filter(function (d) { return d.flag_reason; }).length;
+    var locked = docs.filter(function (d) { return d.locked; }).length;
+    var avgScore = docs.reduce(function (s, d) { return s + (d.health_score || 0); }, 0) / total;
+    grid.style.display = 'grid';
+    grid.innerHTML = ''
+      + '<div class="kpi-card" onclick="switchTab(\'documents\')"><div class="kpi-value">' + total + '</div><div class="kpi-label">Total Documents</div><div class="kpi-sublabel">Loaded</div><div class="kpi-gauge"></div></div>'
+      + '<div class="kpi-card" onclick="switchTab(\'pipeline\')"><div class="kpi-value">' + processed + '</div><div class="kpi-label">Processed</div><div class="kpi-sublabel">' + Math.round(processed/total*100) + '% of total</div><div class="kpi-gauge"></div></div>'
+      + '<div class="kpi-card" onclick="switchTab(\'review\')"><div class="kpi-value">' + flagged + '</div><div class="kpi-label">Flagged</div><div class="kpi-sublabel">Needs review</div><div class="kpi-gauge"></div></div>'
+      + '<div class="kpi-card"><div class="kpi-value">' + locked + '</div><div class="kpi-label">Locked</div><div class="kpi-sublabel">Approved</div><div class="kpi-gauge"></div></div>'
+      + '<div class="kpi-card" onclick="switchTab(\'health\')"><div class="kpi-value">' + (avgScore*100).toFixed(0) + '%</div><div class="kpi-label">Avg Health</div><div class="kpi-sublabel">Overall score</div><div class="kpi-gauge"></div></div>';
+  }
+
+  /* ── Stage Cards ── */
+  var STAGES = [
+    { key: 'scan',     icon: '🔍', name: 'Scan',     desc: 'Discover files in data folder' },
+    { key: 'parse',    icon: '📄', name: 'Parse',    desc: 'Extract content from files' },
+    { key: 'score',    icon: '📊', name: 'Score',    desc: 'Compute health scores' },
+    { key: 'review',   icon: '📋', name: 'Review',   desc: 'Flag issues for review' },
+    { key: 'register', icon: '💾', name: 'Register', desc: 'Save to document registry' },
+  ];
+
+  // Maps orchestrator stage key → index in STAGES array
+  // Phase A=scan(0), Phase B=parse(1)+score(2), Phase C=review(3), done=register(4)
+  var STAGE_IDX = { scan: 0, parse: 1, score: 2, review: 3, register: 4 };
+
+  function renderStageCards(data) {
+    var container = document.getElementById('stage-cards');
+    if (!container) return;
+    var overallStatus = data.status || 'pending';
+    var activeIdx = STAGE_IDX[data.current_stage] ?? -1;
+    var html = '';
+    STAGES.forEach(function (s, i) {
+      var cardStatus;
+      if (overallStatus === 'completed') {
+        cardStatus = 'pass';
+      } else if (overallStatus === 'failed') {
+        cardStatus = i < activeIdx ? 'pass' : (i === activeIdx ? 'fail' : 'pending');
+      } else if (overallStatus === 'running') {
+        cardStatus = i < activeIdx ? 'pass' : (i === activeIdx ? 'running' : 'pending');
+      } else {
+        cardStatus = 'pending';
+      }
+      html += '<div class="stage-card">'
+        + '<span class="stage-icon">' + s.icon + '</span>'
+        + '<div class="stage-info"><div class="stage-name">' + s.name + '</div><div class="stage-meta">' + s.desc + '</div></div>'
+        + '<span class="stage-status ' + cardStatus + '">' + cardStatus.toUpperCase() + '</span>'
+        + '<div class="stage-bar"><div class="stage-bar-fill ' + cardStatus + '" style="width:' + (cardStatus === 'pass' ? 100 : cardStatus === 'running' ? 50 : 0) + '%"></div></div>'
+        + '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  /* ── Directory Tree Browse ── */
+  async function toggleDirTree() {
+    var tree = document.getElementById('dir-tree');
+    if (!tree) return;
+    var isOpen = tree.style.display === 'block';
+    tree.style.display = isOpen ? 'none' : 'block';
+    if (isOpen) return;
+    var root = 'eks/data';
+    var current = getFolderPath() || root;
+    tree.innerHTML = '<div class="dir-tree-loading">Loading...</div>';
+    try {
+      var data = await apiGet('/api/v1/files/list-dirs?parent=' + encodeURIComponent(root));
+      tree.innerHTML = buildDirTreeNodes(data.dirs, root);
+      bindDirTreeEvents(tree);
+      // Auto-expand the path from root to the currently selected folder
+      if (current !== root) {
+        autoExpandPath(tree, root, current);
+      }
+    } catch (e) {
+      tree.innerHTML = '<div class="dir-tree-empty">Error: ' + PU.escHtml(e.message) + '</div>';
+    }
+  }
+
+  async function autoExpandPath(tree, root, target) {
+    var parts = target.replace(root + '/', '').split('/');
+    var current = root;
+    var container = tree;
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      current = current + '/' + parts[i];
+      var node = container.querySelector('.dir-tree-node[data-path="' + PU.escHtml(current) + '"]');
+      if (node) {
+        var toggle = node.querySelector('.dir-tree-toggle');
+        if (toggle && !toggle.classList.contains('empty')) {
+          // Expand this node
+          await toggleDirTreeNode(node, current);
+          // After expanding, the children wrapper is the next sibling
+          container = node.nextElementSibling;
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
+  function buildDirTreeNodes(dirs, parent) {
+    if (!dirs || dirs.length === 0) {
+      return '<div class="dir-tree-empty">No subdirectories found</div>';
+    }
+    var html = '<div class="dir-tree-node selected" data-path="' + PU.escHtml(parent) + '">'
+      + '<span class="dir-tree-toggle empty">▶</span>'
+      + '<span class="dir-tree-icon">📁</span>'
+      + '<span class="dir-tree-label">' + PU.escHtml(parent) + '</span>'
+      + '</div>';
+    dirs.forEach(function (d) {
+      var label = d.split('/').pop();
+      html += '<div class="dir-tree-node" data-path="' + PU.escHtml(d) + '" data-expandable="true">'
+        + '<span class="dir-tree-toggle">▶</span>'
+        + '<span class="dir-tree-icon">📁</span>'
+        + '<span class="dir-tree-label">' + PU.escHtml(label) + '</span>'
+        + '</div>';
+    });
+    return html;
+  }
+
+  function bindDirTreeEvents(root) {
+    root.querySelectorAll('.dir-tree-node').forEach(function (node) {
+      node.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var path = node.dataset.path;
+        var toggle = node.querySelector('.dir-tree-toggle');
+        if (e.target === toggle || toggle && toggle.contains(e.target)) {
+          if (toggle.classList.contains('empty')) return;
+          toggleDirTreeNode(node, path);
+        } else {
+          selectDirTreeNode(node, path);
+          var tree = document.getElementById('dir-tree');
+          if (tree) tree.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  async function toggleDirTreeNode(node, path) {
+    var toggle = node.querySelector('.dir-tree-toggle');
+    var childrenContainer = node.nextElementSibling;
+    if (childrenContainer && childrenContainer.classList.contains('dir-tree-children')) {
+      childrenContainer.style.display = childrenContainer.style.display === 'none' ? 'block' : 'none';
+      toggle.textContent = childrenContainer.style.display === 'block' ? '▼' : '▶';
       return;
     }
-    el.innerHTML = docs.map(function (d) {
+    toggle.textContent = '⏳';
+    try {
+      var data = await apiGet('/api/v1/files/list-dirs?parent=' + encodeURIComponent(path));
+      var childHtml = '<div class="dir-tree-children">';
+      if (data.dirs && data.dirs.length > 0) {
+        data.dirs.forEach(function (d) {
+          var label = d.split('/').pop();
+          childHtml += '<div class="dir-tree-node" data-path="' + PU.escHtml(d) + '">'
+            + '<span class="dir-tree-toggle">▶</span>'
+            + '<span class="dir-tree-icon">📁</span>'
+            + '<span class="dir-tree-label">' + PU.escHtml(label) + '</span>'
+            + '</div>';
+        });
+      } else {
+        childHtml += '<div class="dir-tree-empty">Empty</div>';
+      }
+      childHtml += '</div>';
+      toggle.textContent = '▼';
+      node.parentNode.insertBefore(htmlToElement(childHtml), node.nextSibling);
+      bindDirTreeEvents(node.nextElementSibling);
+    } catch (e) {
+      toggle.textContent = '▶';
+    }
+  }
+
+  function selectDirTreeNode(node, path) {
+    var tree = document.getElementById('dir-tree');
+    if (tree) {
+      tree.querySelectorAll('.dir-tree-node.selected').forEach(function (n) {
+        n.classList.remove('selected');
+      });
+    }
+    node.classList.add('selected');
+    var input = document.getElementById('folder-path');
+    if (input) input.value = path;
+    if (tree) tree.style.display = 'none';
+  }
+
+  function htmlToElement(html) {
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    return div.firstElementChild;
+  }
+
+  /* ── Doc Table with Sort + 50-row cap + Active Highlight ── */
+  var _sortCol = null;
+  var _sortDir = 'asc';
+  var _showAll = false;
+
+  function renderDocTable(docs) {
+    var el = document.getElementById('doc-table-body');
+    if (!docs || docs.length === 0) {
+      el.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text2);padding:20px;">No documents found</td></tr>';
+      document.getElementById('doc-table-footer') && (document.getElementById('doc-table-footer').style.display = 'none');
+      return;
+    }
+    // Sort in-place
+    var sorted = [].concat(docs);
+    if (_sortCol) {
+      sorted.sort(function (a, b) {
+        var av = String(a[_sortCol] || '');
+        var bv = String(b[_sortCol] || '');
+        var cmp = av.localeCompare(bv, undefined, { numeric: true });
+        return _sortDir === 'asc' ? cmp : -cmp;
+      });
+    }
+    // Apply 50-row cap
+    var display = _showAll ? sorted : sorted.slice(0, 50);
+    var html = display.map(function (d) {
       var score = d.health_score || 0;
       var cls = score >= 0.7 ? 'health-high' : score >= 0.4 ? 'health-medium' : 'health-low';
-      return '<tr data-doc-id="' + esc(d.document_number || d.file_path || '') + '">'
-        + '<td>' + esc(d.document_number || '-') + '</td>'
-        + '<td>' + esc(d.type || '-') + '</td>'
-        + '<td>' + esc(d.discipline || '-') + '</td>'
-        + '<td>' + esc(d.revision || '-') + '</td>'
+      return '<tr data-doc-id="' + PU.escHtml(d.document_number || d.file_path || '') + '">'
+        + '<td>' + PU.escHtml(d.document_number || '-') + '</td>'
+        + '<td>' + PU.escHtml(d.type || '-') + '</td>'
+        + '<td>' + PU.escHtml(d.discipline || '-') + '</td>'
+        + '<td>' + PU.escHtml(d.revision || '-') + '</td>'
         + '<td><span class="health-badge ' + cls + '">' + score.toFixed(2) + '</span></td>'
         + '</tr>';
     }).join('');
+    el.innerHTML = html;
+    // Row click → select + highlight
     el.querySelectorAll('tr').forEach(function (tr) {
       tr.addEventListener('click', function () {
         var id = tr.getAttribute('data-doc-id');
+        // Remove active highlight from all rows
+        el.querySelectorAll('tr.selected').forEach(function (r) { r.classList.remove('selected'); });
+        tr.classList.add('selected');
         selectDocument(id);
+      });
+    });
+    // Update sort indicators in header
+    var ths = document.querySelectorAll('.doc-table th[data-col]');
+    ths.forEach(function (th) {
+      var col = th.getAttribute('data-col');
+      th.innerHTML = th.getAttribute('data-label') + (col === _sortCol ? (_sortDir === 'asc' ? ' ▲' : ' ▼') : '');
+    });
+    // Update footer
+    var footer = document.getElementById('doc-table-footer');
+    if (footer) {
+      if (docs.length > 50 && !_showAll) {
+        footer.style.display = 'block';
+        footer.innerHTML = 'Showing 50 of ' + docs.length + ' documents. <a href="#" onclick="return showAllDocs()" style="color:var(--accent);cursor:pointer;">Show all ' + docs.length + '</a>.';
+      } else if (docs.length > 50 && _showAll) {
+        footer.style.display = 'block';
+        footer.innerHTML = 'Showing all ' + docs.length + ' documents. <a href="#" onclick="return showLimitedDocs()" style="color:var(--accent);cursor:pointer;">Show first 50</a>.';
+      } else {
+        footer.style.display = 'block';
+        footer.innerHTML = docs.length + ' document(s)';
+      }
+    }
+  }
+
+  window.showAllDocs = function () { _showAll = true; renderDocTable(state.docs); return false; };
+  window.showLimitedDocs = function () { _showAll = false; renderDocTable(state.docs); return false; };
+
+  function initTableSort() {
+    var ths = document.querySelectorAll('.doc-table th[data-col]');
+    ths.forEach(function (th) {
+      th.addEventListener('click', function () {
+        var col = th.getAttribute('data-col');
+        if (_sortCol === col) {
+          _sortDir = _sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          _sortCol = col;
+          _sortDir = 'asc';
+        }
+        renderDocTable(state.docs);
       });
     });
   }
@@ -199,12 +461,16 @@
     var doc = state.docs.find(function (d) { return (d.document_number || d.file_path) === id; });
     if (!doc) return;
     state.selectedDoc = doc;
+    // Switch to detail accordion view
+    document.getElementById('sb-settings')?.classList.add('closed');
+    document.getElementById('sb-help')?.classList.add('closed');
+    document.getElementById('sb-detail')?.classList.remove('closed');
+    document.getElementById('sb-title').textContent = 'Detail';
+    document.getElementById('sb-back').style.display = 'none';
     showDetail(doc);
-    if (state.layout === 'triple' || state.layout === 'dual') {
-      document.getElementById('right-sidebar').classList.add('right-open');
-      state.sidebarRight = true;
-      localStorage.setItem('eks_sidebar_right', 'true');
-    }
+    document.getElementById('right-sidebar').classList.remove('collapsed');
+    state.sidebarRight = true;
+    localStorage.setItem('eks_sidebar_right', 'true');
   }
 
   function showDetail(doc) {
@@ -212,12 +478,12 @@
     var score = doc.health_score || 0;
     var s = '<div class="detail-section">'
       + '<h4>Document Info</h4>'
-      + '<div class="detail-row"><span class="detail-label">Number</span><span class="detail-value">' + esc(doc.document_number || '-') + '</span></div>'
-      + '<div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">' + esc(doc.type || '-') + '</span></div>'
-      + '<div class="detail-row"><span class="detail-label">Discipline</span><span class="detail-value">' + esc(doc.discipline || '-') + '</span></div>'
-      + '<div class="detail-row"><span class="detail-label">Revision</span><span class="detail-value">' + esc(doc.revision || '-') + '</span></div>'
-      + '<div class="detail-row"><span class="detail-label">File</span><span class="detail-value">' + esc(doc.file_path || '-') + '</span></div>'
-      + '<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">' + esc(doc.extract_status || 'pending') + '</span></div>'
+      + '<div class="detail-row"><span class="detail-label">Number</span><span class="detail-value">' + PU.escHtml(doc.document_number || '-') + '</span></div>'
+      + '<div class="detail-row"><span class="detail-label">Type</span><span class="detail-value">' + PU.escHtml(doc.type || '-') + '</span></div>'
+      + '<div class="detail-row"><span class="detail-label">Discipline</span><span class="detail-value">' + PU.escHtml(doc.discipline || '-') + '</span></div>'
+      + '<div class="detail-row"><span class="detail-label">Revision</span><span class="detail-value">' + PU.escHtml(doc.revision || '-') + '</span></div>'
+      + '<div class="detail-row"><span class="detail-label">File</span><span class="detail-value">' + PU.escHtml(doc.file_path || '-') + '</span></div>'
+      + '<div class="detail-row"><span class="detail-label">Status</span><span class="detail-value">' + PU.escHtml(doc.extract_status || 'pending') + '</span></div>'
       + '</div>'
       + '<div class="detail-section"><h4>Health Score</h4>'
       + '<div class="detail-row"><span class="detail-label">Overall</span><span class="detail-value"><span class="health-badge ' + (score>=0.7?'health-high':score>=0.4?'health-medium':'health-low') + '">' + score.toFixed(2) + '</span></span></div>'
@@ -233,7 +499,7 @@
 
   function renderScoreBar(label, value, color) {
     var pct = Math.round((value || 0) * 100);
-    return '<div class="score-bar"><span class="label">' + label + '</span><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div><span style="font-size:11px;color:var(--text-secondary);">' + pct + '%</span></div>';
+    return '<div class="score-bar"><span class="label">' + label + '</span><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div><span style="font-size:11px;color:var(--text2);">' + pct + '%</span></div>';
   }
 
   /* ── Tree ── */
@@ -258,12 +524,12 @@
     }
     var html = '';
     Object.keys(tree).sort().forEach(function (disc) {
-      html += '<div class="tree-node" data-expandable="true"><span class="toggle">▶</span>' + esc(disc) + '<div class="tree-node children" style="display:none">';
+      html += '<div class="tree-node" data-expandable="true"><span class="toggle">▶</span>' + PU.escHtml(disc) + '<div class="tree-node children" style="display:none">';
       Object.keys(tree[disc]).sort().forEach(function (type) {
-        html += '<div class="tree-node" data-expandable="true"><span class="toggle">▶</span>' + esc(type) + '<div class="tree-node children" style="display:none">';
+        html += '<div class="tree-node" data-expandable="true"><span class="toggle">▶</span>' + PU.escHtml(type) + '<div class="tree-node children" style="display:none">';
         tree[disc][type].forEach(function (d) {
           var id = d.document_number || d.file_path || '';
-          html += '<div class="tree-node" data-doc-id="' + esc(id) + '">' + esc(d.document_number || d.file_path) + '</div>';
+          html += '<div class="tree-node" data-doc-id="' + PU.escHtml(id) + '">' + PU.escHtml(d.document_number || d.file_path) + '</div>';
         });
         html += '</div></div>';
       });
@@ -302,14 +568,14 @@
     try {
       var result = await apiPost('/api/v1/pipeline/start', { data_dir: getFolderPath(), recursive: true });
       state.jobId = result.job_id;
-      setStatus('Pipeline started: ' + state.jobId);
+      PU.setStatus('status-text', 'Pipeline started: ' + state.jobId);
       btn.textContent = 'Running...';
       updateStepProgress(2, [1]);
       showPipelineTab(state.jobId);
       startPolling(state.jobId);
       startLogPolling(state.jobId);
     } catch (e) {
-      setStatus('Pipeline error: ' + e.message);
+      PU.setStatus('status-text', 'Pipeline error: ' + e.message);
       btn.disabled = false;
       btn.textContent = 'Run Pipeline';
     }
@@ -344,8 +610,11 @@
 
   function updatePipelineStatus(data) {
     var el = document.getElementById('pipeline-status');
-    el.textContent = 'Status: ' + data.status + ' (' + data.progress + '%)';
+    var label = data.status + ' (' + data.progress + '%)';
+    if (data.status === 'failed' && data.error) label += ' — ' + data.error;
+    el.textContent = 'Status: ' + label;
     document.getElementById('pipeline-progress').style.width = data.progress + '%';
+    renderStageCards(data);
     if (data.summary) {
       document.getElementById('pipeline-summary').textContent = JSON.stringify(data.summary, null, 2);
     }
@@ -355,7 +624,7 @@
     var el = document.getElementById('pipeline-logs');
     el.innerHTML = logs.map(function (e) {
       var cls = 'log-' + e.level.toLowerCase();
-      return '<div class="' + cls + '">[' + e.level + '] ' + esc(e.message) + '</div>';
+      return '<div class="' + cls + '">[' + e.level + '] ' + PU.escHtml(e.message) + '</div>';
     }).join('');
     el.scrollTop = el.scrollHeight;
   }
@@ -364,9 +633,9 @@
     if (!state.jobId) return;
     try {
       await apiDelete('/api/v1/pipeline/' + state.jobId);
-      setStatus('Pipeline cancelled');
+      PU.setStatus('status-text', 'Pipeline cancelled');
     } catch (e) {
-      setStatus('Cancel error: ' + e.message);
+      PU.setStatus('status-text', 'Cancel error: ' + e.message);
     }
   }
 
@@ -377,6 +646,7 @@
     document.getElementById('pipeline-progress').style.width = '0%';
     document.getElementById('pipeline-logs').innerHTML = '';
     document.getElementById('pipeline-summary').textContent = '';
+    renderStageCards({ status: 'queued', progress: 0 });
   }
 
   /* ── Review ── */
@@ -394,22 +664,22 @@
       }
       var html = '<h3 style="margin-bottom:8px;">Flagged Documents (' + flagged.length + ')</h3>';
       flagged.forEach(function (doc) {
-        html += '<div class="detail-section" style="border:1px solid var(--border-color);border-radius:4px;padding:8px;margin-bottom:8px;">'
-          + '<div class="detail-row"><span class="detail-label">Document</span><span class="detail-value">' + esc(doc.document_number || '-') + '</span></div>'
-          + '<div class="detail-row"><span class="detail-label">Reason</span><span class="detail-value">' + esc(doc.flag_reason || 'Unknown') + '</span></div>'
-          + '<div style="margin-top:8px;"><button class="title-bar-btn" onclick="eksReviewDoc(\'' + esc(doc.document_number || '') + '\')">Review</button></div>'
+        html += '<div class="detail-section" style="border:1px solid var(--border);border-radius:4px;padding:8px;margin-bottom:8px;">'
+          + '<div class="detail-row"><span class="detail-label">Document</span><span class="detail-value">' + PU.escHtml(doc.document_number || '-') + '</span></div>'
+          + '<div class="detail-row"><span class="detail-label">Reason</span><span class="detail-value">' + PU.escHtml(doc.flag_reason || 'Unknown') + '</span></div>'
+          + '<div style="margin-top:8px;"><button class="com-btn com-btn-primary com-btn-sm" onclick="eksReviewDoc(\'' + PU.escHtml(doc.document_number || '') + '\')">Review</button></div>'
           + '</div>';
       });
       el.innerHTML = html;
     } catch (e) {
-      setStatus('Review error: ' + e.message);
+      PU.setStatus('status-text', 'Review error: ' + e.message);
     }
   }
 
   window.eksReviewDoc = function (docId) {
     document.getElementById('review-content').innerHTML = '<div class="review-form">'
-      + '<h4>Review: ' + esc(docId) + '</h4>'
-      + '<label>Document Number</label><input id="rev-doc-number" value="' + esc(docId) + '" />'
+      + '<h4>Review: ' + PU.escHtml(docId) + '</h4>'
+      + '<label>Document Number</label><input id="rev-doc-number" value="' + PU.escHtml(docId) + '" />'
       + '<label>Revision</label><input id="rev-revision" placeholder="e.g., A, B, C" />'
       + '<label>Status</label><select id="rev-status"><option value="locked">Locked (Approved)</option><option value="flagged">Flagged (Needs Work)</option></select>'
       + '<label>Comments</label><textarea id="rev-comments" placeholder="Review comments..."></textarea>'
@@ -427,10 +697,10 @@
         verified_by: 'reviewer',
         comments: comments,
       });
-      setStatus('Review submitted for ' + docNumber);
+      PU.setStatus('status-text', 'Review submitted for ' + docNumber);
       showReview();
     } catch (e) {
-      setStatus('Submit error: ' + e.message);
+      PU.setStatus('status-text', 'Submit error: ' + e.message);
     }
   };
 
@@ -491,17 +761,26 @@
     return agg;
   }
 
-  /* ── Settings ── */
+  /* ── Settings (renders in right sidebar) ── */
   function showSettings() {
-    hideAllTabs();
-    showTab('settings');
-    document.getElementById('settings-content').innerHTML = ''
+    var sb = document.getElementById('right-sidebar');
+    if (sb) sb.classList.remove('collapsed');
+    state.sidebarRight = true;
+    localStorage.setItem('eks_sidebar_right', 'true');
+    document.getElementById('sb-back').style.display = '';
+    // Expand settings section, collapse others
+    document.getElementById('sb-detail')?.classList.add('closed');
+    document.getElementById('sb-help')?.classList.add('closed');
+    document.getElementById('sb-settings')?.classList.remove('closed');
+    document.getElementById('sb-title').textContent = 'Settings';
+    var theme = document.documentElement.getAttribute('data-theme') || 'dark';
+    document.getElementById('sb-settings-content').innerHTML = ''
       + '<div class="setting-row"><label>Theme</label><select id="setting-theme" onchange="eksSetTheme(this.value)">'
-      + '<option value="dark" ' + (state.theme === 'dark' ? 'selected' : '') + '>Dark</option>'
-      + '<option value="light" ' + (state.theme === 'light' ? 'selected' : '') + '>Light</option>'
-      + '<option value="sky" ' + (state.theme === 'sky' ? 'selected' : '') + '>Sky</option>'
-      + '<option value="ocean" ' + (state.theme === 'ocean' ? 'selected' : '') + '>Ocean</option>'
-      + '<option value="presentation" ' + (state.theme === 'presentation' ? 'selected' : '') + '>Presentation</option>'
+      + '<option value="dark" ' + (theme === 'dark' ? 'selected' : '') + '>Dark</option>'
+      + '<option value="light" ' + (theme === 'light' ? 'selected' : '') + '>Light</option>'
+      + '<option value="sky" ' + (theme === 'sky' ? 'selected' : '') + '>Sky</option>'
+      + '<option value="ocean" ' + (theme === 'ocean' ? 'selected' : '') + '>Ocean</option>'
+      + '<option value="presentation" ' + (theme === 'presentation' ? 'selected' : '') + '>Presentation</option>'
       + '</select></div>'
       + '<div class="setting-row"><label>Layout</label><select id="setting-layout" onchange="eksSetLayout(this.value)">'
       + '<option value="single" ' + (state.layout === 'single' ? 'selected' : '') + '>Single</option>'
@@ -511,40 +790,39 @@
       + '<div class="setting-row"><label>Poll Interval (ms)</label><input type="number" id="setting-poll" value="' + POLL_INTERVAL + '" min="500" step="500" /></div>';
   }
 
-  window.eksSetTheme = function (t) { applyTheme(t); };
+  window.eksSetTheme = function (t) { comUI.theme.apply(t, 'eks-theme'); };
   window.eksSetLayout = function (l) { applyLayout(l); };
 
-  /* ── Help Modal ── */
+  /* ── Help (renders in right sidebar instead of modal) ── */
   function showHelp() {
-    var modal = document.getElementById('help-modal');
-    if (!modal) return;
-    var body = document.getElementById('help-body');
-    var html = '<h4>About</h4><p>' + (helpData ? esc(helpData.about) : 'EKS Dashboard') + '</p>';
-    html += '<h4>Keyboard Shortcuts</h4>'
-      + '<ul><li><strong>F1</strong> — Toggle this help</li>'
+    var sb = document.getElementById('right-sidebar');
+    if (sb) sb.classList.remove('collapsed');
+    state.sidebarRight = true;
+    localStorage.setItem('eks_sidebar_right', 'true');
+    document.getElementById('sb-back').style.display = '';
+    document.getElementById('sb-detail')?.classList.add('closed');
+    document.getElementById('sb-settings')?.classList.add('closed');
+    document.getElementById('sb-help')?.classList.remove('closed');
+    document.getElementById('sb-title').textContent = 'Help';
+    var html = '<h4 style="font-size:12px;margin:0 0 4px;">About</h4><p style="font-size:11px;color:var(--text2);margin-bottom:8px;">' + (helpData ? PU.escHtml(helpData.about) : 'EKS Dashboard') + '</p>';
+    html += '<h4 style="font-size:12px;margin:8px 0 4px;">Keyboard Shortcuts</h4>'
+      + '<ul style="font-size:11px;padding-left:16px;margin:2px 0 8px;"><li><strong>F1</strong> — Toggle help</li>'
       + '<li><strong>Ctrl+Shift+L</strong> — Load files</li>'
       + '<li><strong>Ctrl+Shift+R</strong> — Run pipeline</li>'
       + '<li><strong>Ctrl+Shift+F</strong> — Focus search</li></ul>';
-    html += '<h4>Help Topics</h4>';
+    html += '<h4 style="font-size:12px;margin:8px 0 4px;">Help Topics</h4>';
     if (helpData && helpData.help) {
       Object.keys(helpData.help).forEach(function (k) {
-        html += '<p><strong>' + k.replace(/_/g, ' ') + ':</strong> ' + esc(helpData.help[k]) + '</p>';
+        html += '<p style="font-size:11px;margin:2px 0;"><strong>' + k.replace(/_/g, ' ') + ':</strong> ' + PU.escHtml(helpData.help[k]) + '</p>';
       });
     }
-    html += '<h4>Glossary</h4><dl class="glossary">';
+    html += '<h4 style="font-size:12px;margin:8px 0 4px;">Glossary</h4>';
     if (helpData && helpData.definitions) {
       Object.keys(helpData.definitions).forEach(function (k) {
-        html += '<dt>' + esc(k.replace(/_/g, ' ')) + '</dt><dd>' + esc(helpData.definitions[k]) + '</dd>';
+        html += '<p style="font-size:11px;margin:2px 0;"><strong>' + PU.escHtml(k.replace(/_/g, ' ')) + '</strong>: ' + PU.escHtml(helpData.definitions[k]) + '</p>';
       });
     }
-    html += '</dl>';
-    body.innerHTML = html;
-    modal.classList.add('open');
-  }
-
-  function hideHelp() {
-    var modal = document.getElementById('help-modal');
-    if (modal) modal.classList.remove('open');
+    document.getElementById('sb-help-content').innerHTML = html;
   }
 
   /* ── Step progress ── */
@@ -576,7 +854,6 @@
   function switchTab(name) {
     hideAllTabs();
     showTab(name);
-    // Sync step progress to match selected tab
     var step = document.querySelector('.step[data-tab="' + name + '"]');
     if (step) {
       var num = parseInt(step.getAttribute('data-step'));
@@ -600,30 +877,24 @@
     renderDocTable(filtered);
   }
 
-  /* ── Utils ── */
-  function esc(s) {
-    if (typeof s !== 'string') return String(s || '');
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  function setStatus(msg) {
-    var el = document.getElementById('status-text');
-    if (el) el.textContent = msg;
-  }
-
-  /* ── Resize ── */
-  function initResize(sidebarId, handleId, isRight) {
-    var sidebar = document.getElementById(sidebarId);
-    var handle = document.getElementById(handleId);
-    if (!sidebar || !handle) return;
+  /* ── Resize (delegates to comUI for left sidebar, custom for right) ── */
+  function initResize() {
+    comUI.sidebar.resize('left-sidebar', 'left-resize', {
+      storageKey: 'eks-left-sidebar-w', min: 200, max: 500,
+    });
+    // Right sidebar — reversed direction
+    var sb = document.getElementById('right-sidebar');
+    var handle = document.getElementById('right-resize');
+    if (!sb || !handle) return;
     var startX, startW;
     handle.addEventListener('mousedown', function (e) {
       startX = e.clientX;
-      startW = sidebar.offsetWidth;
+      startW = sb.offsetWidth;
       function onMove(ev) {
-        var dx = ev.clientX - startX;
-        var w = isRight ? startW - dx : startW + dx;
-        if (w >= 200 && w <= 500) sidebar.style.width = w + 'px';
+        var w = startW - (ev.clientX - startX);
+        if (w < 200) w = 200;
+        if (w > 500) w = 500;
+        sb.style.width = w + 'px';
       }
       function onUp() {
         document.removeEventListener('mousemove', onMove);
@@ -631,34 +902,49 @@
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
+      e.preventDefault();
     });
   }
 
   /* ── Init ── */
   document.addEventListener('DOMContentLoaded', async function () {
-    applyTheme(state.theme);
+    // Theme — picker and restore
+    comUI.theme.initPicker('eks-theme');
     applyLayout(state.layout);
 
     await loadHelp();
     await fetchPaths();
 
+    // Drag-and-drop on full page body (§18.7)
+    document.addEventListener('dragover', function (e) { e.preventDefault(); });
+    document.addEventListener('drop', function (e) {
+      e.preventDefault();
+      comUI.toast.show('Use the Browse &amp; Load Files button to select a server-side data folder.', 'info', 4000);
+    });
+
+    // Right sidebar accordion (§18.5)
+    comUI.sidebar.accordion(document.getElementById('sb-content'));
+
     // Sidebar toggles
     document.getElementById('toggle-left')?.addEventListener('click', function () {
       state.sidebarLeft = !state.sidebarLeft;
-      document.getElementById('left-sidebar').classList.toggle('open', state.sidebarLeft);
+      document.getElementById('left-sidebar').classList.toggle('collapsed', !state.sidebarLeft);
       localStorage.setItem('eks_sidebar_left', state.sidebarLeft);
     });
     document.getElementById('toggle-right')?.addEventListener('click', function () {
       state.sidebarRight = !state.sidebarRight;
-      document.getElementById('right-sidebar').classList.toggle('right-open', state.sidebarRight && state.layout === 'triple');
+      document.getElementById('right-sidebar').classList.toggle('collapsed', !state.sidebarRight);
       localStorage.setItem('eks_sidebar_right', state.sidebarRight);
     });
-
-    // Theme toggle
-    document.getElementById('btn-theme')?.addEventListener('click', function () {
-      var themes = ['dark', 'light', 'sky', 'ocean', 'presentation'];
-      var idx = themes.indexOf(state.theme);
-      applyTheme(themes[(idx + 1) % themes.length]);
+    // Back button — reopen detail view
+    document.getElementById('sb-back')?.addEventListener('click', function () {
+      document.getElementById('sb-settings')?.classList.add('closed');
+      document.getElementById('sb-help')?.classList.add('closed');
+      document.getElementById('sb-detail')?.classList.remove('closed');
+      document.getElementById('sb-title').textContent = 'Detail';
+      document.getElementById('sb-back').style.display = 'none';
+      // Re-show the currently selected document
+      if (state.selectedDoc) { showDetail(state.selectedDoc); }
     });
 
     // Layout toggle
@@ -666,15 +952,29 @@
       var layouts = ['triple', 'dual', 'single'];
       var idx = layouts.indexOf(state.layout);
       applyLayout(layouts[(idx + 1) % layouts.length]);
-      document.getElementById('left-sidebar').classList.toggle('open', state.sidebarLeft && state.layout !== 'single');
-      document.getElementById('right-sidebar').classList.toggle('right-open', state.sidebarRight && state.layout === 'triple');
     });
 
     // Side icon bar buttons
     document.getElementById('icon-load')?.addEventListener('click', function () { loadFiles(); });
+    document.getElementById('icon-refresh')?.addEventListener('click', function () {
+      comUI.toast.show('Refreshing document list...', 'info', 2000);
+      apiGet('/api/v1/documents').then(function (data) {
+        state.docs = data.documents || [];
+        renderDocTable(state.docs);
+        buildTree(state.docs);
+        PU.setStatus('status-text', 'Refreshed: ' + state.docs.length + ' documents');
+      }).catch(function () {
+        comUI.toast.show('Failed to refresh. Is the backend running?', 'warning', 3000);
+      });
+    });
+    document.getElementById('icon-info')?.addEventListener('click', function () {
+      var about = helpData ? helpData.about : 'EKS Engineering Knowledge System';
+      var version = 'Phase 1 Ingestion Pipeline — v2.0';
+      comUI.toast.show(about + ' — ' + version, 'info', 5000);
+    });
     document.getElementById('icon-tree')?.addEventListener('click', function () {
       state.sidebarLeft = !state.sidebarLeft;
-      document.getElementById('left-sidebar').classList.toggle('open', state.sidebarLeft);
+      document.getElementById('left-sidebar').classList.toggle('collapsed', !state.sidebarLeft);
       localStorage.setItem('eks_sidebar_left', state.sidebarLeft);
     });
     document.getElementById('icon-help')?.addEventListener('click', showHelp);
@@ -685,12 +985,16 @@
     document.getElementById('btn-run-pipeline')?.addEventListener('click', startPipeline);
     document.getElementById('btn-cancel-pipeline')?.addEventListener('click', cancelPipeline);
     document.getElementById('btn-review')?.addEventListener('click', showReview);
-    document.getElementById('btn-browse')?.addEventListener('click', browseDirs);
-    // Close browse dropdown on outside click
+    document.getElementById('btn-browse')?.addEventListener('click', toggleDirTree);
+    document.getElementById('btn-proceed-process')?.addEventListener('click', function () {
+      switchTab('pipeline');
+      updateStepProgress(2, [1]);
+    });
+    // Close directory tree on outside click
     document.addEventListener('click', function (e) {
-      var dd = document.getElementById('browse-dropdown');
-      if (dd && !e.target.closest('#btn-browse') && !e.target.closest('#browse-dropdown')) {
-        dd.style.display = 'none';
+      var tree = document.getElementById('dir-tree');
+      if (tree && !e.target.closest('#btn-browse') && !e.target.closest('#dir-tree')) {
+        tree.style.display = 'none';
       }
     });
 
@@ -702,11 +1006,6 @@
       });
     });
 
-    // Tabs
-    document.querySelectorAll('.tab[data-tab]').forEach(function (tab) {
-      tab.addEventListener('click', function () { switchTab(tab.getAttribute('data-tab')); });
-    });
-
     // Global search
     var searchInput = document.getElementById('global-search');
     if (searchInput) {
@@ -715,10 +1014,10 @@
       });
     }
 
-    // Help modal
-    document.getElementById('help-close')?.addEventListener('click', hideHelp);
+    // Help modal (using comUI.modal)
+    comUI.modal.init('help-modal');
     document.getElementById('help-modal')?.addEventListener('click', function (e) {
-      if (e.target === this) hideHelp();
+      if (e.target === this) comUI.modal.close('help-modal');
     });
 
     // Keyboard shortcuts
@@ -729,9 +1028,11 @@
       if (e.ctrlKey && e.shiftKey && e.key === 'F') { e.preventDefault(); document.getElementById('global-search')?.focus(); }
     });
 
+    // Table sort
+    initTableSort();
+
     // Resize handles
-    initResize('left-sidebar', 'left-resize', false);
-    initResize('right-sidebar', 'right-resize', true);
+    initResize();
 
     // Health chart tab visibility
     var chartTab = document.querySelector('.tab[data-tab="health"]');
@@ -739,18 +1040,6 @@
       chartTab.addEventListener('click', function () {
         updateStepProgress(4, [1, 2, 3]);
         setTimeout(renderHealthChart, 100);
-      });
-    }
-
-    // File drop area
-    var dropArea = document.getElementById('file-drop-area');
-    if (dropArea) {
-      dropArea.addEventListener('dragover', function (e) { e.preventDefault(); dropArea.classList.add('drag-over'); });
-      dropArea.addEventListener('dragleave', function () { dropArea.classList.remove('drag-over'); });
-      dropArea.addEventListener('drop', function (e) {
-        e.preventDefault();
-        dropArea.classList.remove('drag-over');
-        loadFiles();
       });
     }
 

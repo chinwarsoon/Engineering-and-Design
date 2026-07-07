@@ -49,11 +49,15 @@
 
 ## 3. Shared Configuration
 
-A shared `config/` folder exists at the repository root for cross-project schemas and configuration:
+A shared `config/` folder exists at the repository root for cross-project schemas and configuration. A shared `common/` folder exists for cross-project UI design system files:
 
 ```
 config/
   schemas/           # Shared schema definitions (e.g., knowledge_base_schema.json)
+common/
+  universal_ui_design.css  # Shared CSS design system (5 themes, shell layout, components)
+  universal_ui_design.js   # Shared JS library (theme/sidebar/layout/toast/modal/file/table/utils)
+  universal_ui_design.md   # Documentation covering both CSS and JS
 ```
 
 ## 4. Key Commands
@@ -307,11 +311,11 @@ All HTML files must follow these rules:
 ### 18.1 Dependencies and Stack
 
 - Interactive standalone webpage — no build step, no bundler.
-- One shared CSS design-system file per project (e.g. `dcc-design-system.css`); individual pages add only page-specific overrides via an inline `<style>` block.
+- All UIs must use the shared design system from `common/` as their primary CSS and JS dependency. Use `<link rel="stylesheet" href="/common/universal_ui_design.css">` and `<script src="/common/universal_ui_design.js">` as the base. Individual pages add only page-specific overrides via an inline `<style>` block. Project-specific CSS files (e.g. `eks.css`, `dcc-design-system.css`) must only contain overrides and extensions — they must never re-declare design tokens or duplicate shell layout classes already defined in the universal system.
 - Schema-driven: all labels, help text, stage definitions, output file names, and default values are stored in `ui_help.json` and loaded at runtime via `fetch()`.
 - Zero npm runtime dependencies in the HTML layer. **No external CDN fonts** — use `font-family: system-ui, -apple-system, 'Segoe UI', sans-serif` as the primary font stack so pages render correctly on corporate networks that block `fonts.googleapis.com`. CDN fonts may be used only as an `@import` with a `font-display: swap` fallback that degrades gracefully when blocked.
 - Always set `Cache-Control: no-cache` meta tags so reloads always reflect the latest server output.
-- All asset paths (CSS, JS, JSON) must be root-relative (e.g. `/ui/eks.css`) or relative to the HTML file's own directory — never hardcoded absolute paths. This ensures files load correctly regardless of the working directory from which `serve.py` is started.
+- All asset paths (CSS, JS, JSON) must be root-relative (e.g. `/common/universal_ui_design.css`, `/ui/eks.css`) or relative to the HTML file's own directory — never hardcoded absolute paths. This ensures files load correctly regardless of the working directory from which `serve.py` is started.
 
 ### 18.2 Layout (VS Code shell model)
 
@@ -334,7 +338,7 @@ The page body is divided into exactly four zones stacked as flexbox columns/rows
 
 ### 18.3 CSS Design System
 
-Define all design tokens as CSS custom properties on `:root` / `[data-theme="dark"]`. Required token groups:
+All design tokens are defined once in `common/universal_ui_design.css` under `:root` / `[data-theme="dark"]` (and all 5 theme variants). Required token groups:
 
 | Group | Variables |
 |---|---|
@@ -347,9 +351,9 @@ Define all design tokens as CSS custom properties on `:root` / `[data-theme="dar
 | Table | `--row-stripe`, `--row-hover`, `--th-bg`, `--th-hover` |
 | Dimensions | `--icon-bar-w`, `--sidebar-w`, `--right-sidebar-w`, `--titlebar-h`, `--statusbar-h` |
 | Radii | `--radius`, `--radius-sm`, `--radius-lg` |
-| Fonts | `--font-ui` (Inter), `--font-mono` (JetBrains Mono) |
+| Fonts | `--font-ui` (system-ui), `--font-mono` (JetBrains Mono) |
 
-All component colors must reference these tokens — never hardcoded hex in component rules.
+**SSOT rule**: `common/universal_ui_design.css` is the single source of truth for all design tokens and shell layout classes. Project-specific CSS files (e.g. `eks.css`, `dcc-design-system.css`) must never redefine these tokens — they import the universal file and only add project-specific overrides or additional component rules. All component colors must reference `var(--token)` — never hardcoded hex in component rules. A project-wide grep for hardcoded hex values used as colors (not neutral border grays) is required before each phase completion.
 
 ### 18.4 Theme System
 
@@ -370,13 +374,13 @@ Left (and right) sidebar content is organized into collapsible accordion section
 
 ### 18.6 Drag-to-Resize Sidebars
 
-Both sidebars must support mouse drag resizing:
+Both sidebars must support mouse drag resizing (`comUI.sidebar.resize()` from the universal JS library):
 
-- Left sidebar: 5 px handle at right edge (`.dcc-sidebar-resizer.left-resizer`, `right: -2px`).
-- Right sidebar: 5 px handle at left edge (`.dcc-sidebar-resizer.right-resizer`, `left: -2px`).
+- Left sidebar: 5 px handle at right edge (`.com-resizer.left-resizer`, `right: -2px`).
+- Right sidebar: 5 px handle at left edge (`.com-resizer.right-resizer`, `left: -2px`).
 - On hover and while dragging, handle background transitions to `--accent` color with a visible 2 px × 32 px center bar.
 - Minimum sidebar width: 120 px; maximum: 480 px (enforced in the `mousemove` handler).
-- Width persisted to `localStorage` per sidebar key.
+- Width persisted to `localStorage` per sidebar key via the `storageKey` option.
 
 ### 18.7 File Loading Panel
 
@@ -532,6 +536,44 @@ Standard icon assignments across all project UIs:
 | Refresh | 🔄 |
 | Success / pass | ✓ |
 | Failure / error | ✗ |
+
+### 18.15 Shared JS Library (`comUI`)
+
+All UIs must use `common/universal_ui_design.js` for reusable interactive logic. The library exposes a `window.comUI` namespace with these modules:
+
+| Module | Functions | Purpose |
+|--------|-----------|---------|
+| `comUI.theme` | `apply(name, storageKey)`, `initPicker(storageKey)` | Apply theme, toggle dropdown, persist to localStorage |
+| `comUI.sidebar` | `resize(sbId, handleId, opts)`, `accordion(scopeEl)` | Drag-to-resize sidebars, collapsible accordion sections |
+| `comUI.layout` | `toggle(btnId, opts)` | Cycle 1-col → 2-col → 3-col layout modes |
+| `comUI.toast` | `show(msg, type, duration)` | Fixed-position notification with auto-dismiss |
+| `comUI.modal` | `open(id)`, `close(id)`, `init(id)` | Overlay modal with background-click-to-close |
+| `comUI.file` | `setupDropZone(zoneId, onFile)`, `readFileAsText(file)`, `readFileAsJSON(file)`, `readFileAsDataURL(file)` | Drag-drop zone, FileReader promises |
+| `comUI.table` | `makeSortable(tableId)` | Column header click sort with ▲/▼ indicators |
+| `comUI.utils` | `escHtml(s)`, `formatNum(n)`, `formatBytes(b)`, `setStatus(el, msg)`, `setStatusBar(leftMsg, rightMsg)` | Formatting and status bar helpers |
+
+**Rules:**
+- Include `<script src="/common/universal_ui_design.js">` before any page-specific JS.
+- Use `comUI.*` functions instead of reimplementing theme toggle, sidebar resize, accordion, toast, modal, or layout switching in each page.
+- Storage keys should follow the `<project>-<feature>` convention (e.g. `eks-theme`, `dcc-layout`, `code-tracer-sidebar-w`).
+- The library has zero external dependencies — it is vanilla JS (ES5-compatible) with no npm imports.
+
+### 18.16 Icon Bar and File Loading (from universal JS)
+
+The `comUI.file.setupDropZone()` function implements the drag-and-drop requirements of §18.7. The `comUI.layout.toggle()` function implements the layout switching requirements of §18.8. Theme picker dropdown HTML structure must match:
+
+```html
+<button class="com-theme-btn" id="themeBtn">🎨 <span class="com-theme-dot"></span> Theme</button>
+<div class="com-theme-menu">
+  <div class="com-theme-opt active" data-theme="dark"><span class="com-theme-dot" style="background:#0d1117"></span> Dark</div>
+  <div class="com-theme-opt" data-theme="light"><span class="com-theme-dot" style="background:#ffffff"></span> Light</div>
+  <div class="com-theme-opt" data-theme="sky"><span class="com-theme-dot" style="background:#0b1a2e"></span> Sky</div>
+  <div class="com-theme-opt" data-theme="ocean"><span class="com-theme-dot" style="background:#0a1929"></span> Ocean</div>
+  <div class="com-theme-opt" data-theme="presentation"><span class="com-theme-dot" style="background:#000000"></span> Presentation</div>
+</div>
+```
+
+Initialize with: `comUI.theme.initPicker('myapp-theme')`.
 
 ## 19. Data Health, Score, and Errors
 

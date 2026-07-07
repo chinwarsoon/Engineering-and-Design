@@ -1,9 +1,9 @@
 # EKS Phase 1.2 — Interactive UI, I/O Contracts & Document Processing Sub-Pipeline
 
 **Document ID**: WP-EKS-P1.2-001  
-**Current Version**: 1.13  
-**Status**: 🔶 PARTIAL — Phases 1.2.0–1.2.7 complete; Phase 1.2.8 (Server Hardening, expanded) pending; Phase 1.2.9 (UI Design System) planned; Phase 1.2.10 (Appendix G Documentation) planned; Phase 1.2.11 (UI Workflow Redesign) ✅ COMPLETE; Phase 1.2.12 (Folder Picker & SSOT Path Resolution) ✅ COMPLETE  
-**Last Updated**: 2026-07-06  
+**Current Version**: 1.25  
+**Status**: 🔶 PARTIAL — Phases 1.2.0–1.2.7 complete; Phase 1.2.8 (Server Hardening, expanded) pending; Phase 1.2.9 (UI Design System) planned; Phase 1.2.10 (Appendix G Documentation) planned; Phase 1.2.11 (UI Workflow Redesign) ✅ COMPLETE; Phase 1.2.12 (Folder Picker & SSOT Path Resolution) ✅ COMPLETE; Phase 1.2.13 (Step Progress Bar Pipe-Node Style) ✅ COMPLETE; Phase 1.2.14 (UI Standardization — Common Design System) ✅ COMPLETE; Phase 1.2.15 (EKS UI Migration to Common Design System) ✅ COMPLETE; Phase 1.2.16 (Step 1 Load Tab Redesign) ✅ COMPLETE; Phase 1.2.17 (Directory Tree Browser Widget) ✅ COMPLETE; Phase 1.2.18 (Cross-Platform Path Compatibility) 🔷 Planned; Phase 1.2.19 (Workplan Hygiene) 🔷 Planned; Phase 1.2.20 (I076/I077 Tests) 🔷 Planned; Phase 1.2.21 (Revision Headers) 🔷 Planned. Shared common-library package structure under `common/library` is now available for future EKS engine/UI reuse, but runtime imports remain pending.  
+**Last Updated**: 2026-07-08  
 **Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)  
 **Phase Dependency**: Phase 1 (Foundation) — ✅ COMPLETE  
 
@@ -13,6 +13,11 @@
 
 | Revision | Date | Author | Summary |
 | :------- | :--- | :----- | :------- |
+| 1.25 | 2026-07-08 | System | Appended a new revision entry to the history and documented the shared common-library package structure as a future EKS engine/UI reuse milestone while keeping runtime integration pending. |
+| 1.24 | 2026-07-08 | System | Added note that the shared common-library package structure under `common/library` is now present and should be considered for future EKS engine/UI reuse; clarified that UI integration is complete while runtime imports remain pending. |
+| 1.23 | 2026-07-08 | System | Added Phase 1.2.19 (Workplan Hygiene — mark 1.2.8/1.2.9/1.2.10 status, add missing scope rows), Phase 1.2.20 (tests for I076/I077 fixes — current_stage field, progress per phase, error on failure), Phase 1.2.21 (revision headers in eks.js and phase1_server.py, update_log.md entries). |
+| 1.22 | 2026-07-08 | System | Added Phase 1.2.18 (Cross-Platform Path Compatibility) — T1.2.18.1 fix `autoExpandPath()` backslash split in `eks.js`, T1.2.18.2 fix `_handle_config_paths()` backslash return in `phase1_server.py`. Addresses Windows/Linux path separator gaps identified in cross-platform review. |
+| 1.21 | 2026-07-07 | opencode | Phase 1.2.17 COMPLETE — all 4 tasks implemented. Server: `list-dirs` returns POSIX paths via `.as_posix()`. HTML: replaced `#browse-dropdown` with `#dir-tree`. CSS: added `.dir-tree`, `.dir-tree-node`, `.dir-tree-toggle`, `.dir-tree-label`, `.dir-tree-selected`. JS: implemented `toggleDirTree()`, `toggleDirTreeNode()`, `selectDirTreeNode()`. All 186 tests pass. |
 | 1.0 | 2026-06-25 | opencode | Initial workplan proposal for interactive UI and sub-pipeline |
 | 1.1 | 2026-06-30 | opencode | Integrated I/O contract tasks from Phase 1 Section 16 as Phase 1.2.0 (Engine I/O Contracts). Added S1.2.7 to scope, updated dependencies and success criteria. |
 | 1.2 | 2026-07-01 | opencode | Updated architecture to two-server pattern: main launcher at `eks/server.py` (port 5000) + Phase 1 backend at `eks/ui/backend/phase1_server.py` (port 5001). Updated T1.2.1.x, deliverables, dependencies, success criteria. Per server design review. |
@@ -27,6 +32,17 @@
 | 1.11 | 2026-07-06 | opencode | Consolidated Phase 1.2 test suites into single `reports/phase_1.2_report.md` (63 tests: 35 io_contracts + 28 phase1_server). Archived `phase_1.2.11_report.md` → `archive/`. Updated references in §11. |
 | 1.12 | 2026-07-06 | opencode | Added Phase 1.2.12 (Folder Picker & SSOT Path Resolution) — config-driven data directory picker, Browse endpoint, all frontend paths read from schema instead of hardcoded. Updated scope, tasks, next steps. |
 | 1.13 | 2026-07-06 | opencode | Phase 1.2.12 COMPLETE — all 8 tasks implemented: `GET /api/v1/config/paths` and `GET /api/v1/files/list-dirs` endpoints; `fetchPaths()` in eks.js replaces all 7 hardcoded paths; folder path input + Browse button in HTML; traversal-guarded directory listing; pipeline start uses user-selected path; 4 new tests (66 total pass). Updated scope, next steps. |
+| 1.14 | 2026-07-07 | opencode | Phase 1.2.13 COMPLETE — upgraded step progress bar from circle+connector to pipe-node style (bordered rounded cards with `›` separators) matching `dcc/ui/excel_explorer_data_pro.html` pipeline bar pattern. Updated eks.css, phase1_ingestion.html. Added scope, tasks, next steps. |
+| 1.15 | 2026-07-07 | opencode | Phase 1.2.14 COMPLETE — created `common/universal_ui_design.css` (842 lines, 29 sections, 5 themes, `com-` prefix shared components) and `common/universal_ui_design.md` (full AGENTS.md §14 documentation). Universal design system provides single source of truth for DCC, EKS, and code_tracer UI tokens and components. Added scope, tasks, next steps. |
+| 1.16 | 2026-07-07 | opencode | Added Phase 1.2.15 (EKS UI Migration to Common Design System) — 7 tasks spanning server route, HTML imports, CSS token alignment, shell/component class migration, JS `comUI.*` replacement. Planned pending Phase 1.2.8 completion. |
+| 1.17 | 2026-07-07 | opencode | Phase 1.2.15 COMPLETE — all 7 tasks implemented. Added `/common/` route to server.py. Imported common CSS/JS in HTML. Rewrote eks.css with standard tokens. Migrated HTML shell to `com-*` classes. Refactored eks.js to use `comUI.*` calls. All 186 tests pass. |
+| 1.18 | 2026-07-07 | opencode | Added Phase 1.2.16 (Step 1 Load Tab Redesign) — redesigned tab-documents with numbered sections (1. Choose Folder, 2. Results), instruction header explaining recursive loading, "Proceed to Step 2" button, load summary line. 🔷 Planned. |
+| 1.19 | 2026-07-07 | opencode | Phase 1.2.16 COMPLETE — all 3 tasks implemented. Redesigned #tab-documents with step-header, numbered step-section cards, recursive-hint, load-summary, proceed-to-step-2 button. Wired JS for summary visibility and proceed navigation. All 186 tests pass. |
+| 1.20 | 2026-07-07 | opencode | Added Phase 1.2.17 (Directory Tree Browser Widget) — replaces browse dropdown with expandable directory tree; server fix for POSIX separators cross-platform. 🔷 Planned. |
+| 1.24 | 2026-07-08 | System | Added note that the shared common-library package structure under `common/library` is now present and should be considered for future EKS engine/UI reuse; clarified that UI integration is complete while runtime imports remain pending. |
+| 1.23 | 2026-07-08 | System | Added Phase 1.2.19 (Workplan Hygiene — mark 1.2.8/1.2.9/1.2.10 status, add missing scope rows), Phase 1.2.20 (tests for I076/I077 fixes — current_stage field, progress per phase, error on failure), Phase 1.2.21 (revision headers in eks.js and phase1_server.py, update_log.md entries). |
+| 1.22 | 2026-07-08 | System | Added Phase 1.2.18 (Cross-Platform Path Compatibility) — T1.2.18.1 fix `autoExpandPath()` backslash split in `eks.js`, T1.2.18.2 fix `_handle_config_paths()` backslash return in `phase1_server.py`. Addresses Windows/Linux path separator gaps identified in cross-platform review. |
+| 1.21 | 2026-07-07 | opencode | Phase 1.2.17 COMPLETE — all 4 tasks implemented. Server: `list-dirs` returns POSIX paths via `.as_posix()`. HTML: replaced `#browse-dropdown` with `#dir-tree`. CSS: added `.dir-tree`, `.dir-tree-node`, `.dir-tree-toggle`, `.dir-tree-label`, `.dir-tree-selected`. JS: implemented `toggleDirTree()`, `toggleDirTreeNode()`, `selectDirTreeNode()`. All 186 tests pass. |
 
 ---
 
@@ -50,6 +66,15 @@ Define standardized Engine I/O contracts for independent engine execution, then 
 | S1.2.8 | Server hardening — dynamic tool-picker, versioned API, port safety, offline assets | Server / Hardening | 🔷 Planned |
 | S1.2.11 | UI workflow redesign — step progress bar, scoped tab buttons, workflow guidance | UI Development | ✅ Complete |
 | S1.2.12 | Folder picker & SSOT path resolution — config-driven data directory display, Browse endpoint, no hardcoded paths | SSOT / UI | ✅ Complete |
+| S1.2.13 | Step progress bar pipe-node style — upgrade from circle+connector to bordered rounded cards with `›` arrow separators, matching DCC pipe-node pattern | UI Development | ✅ Complete |
+| S1.2.14 | UI standardization — create `common/universal_ui_design.css` (5-theme design tokens, `com-` shell layout, shared components) + `common/universal_ui_design.md` (full AGENTS.md §14 documentation) as single source of truth across DCC, EKS, and code_tracer | UI Development / Standards | ✅ Complete |
+| S1.2.15 | EKS UI migration to common design system — align `eks.css` tokens, replace shell/component classes with `com-` equivalents, replace duplicated JS with `comUI.*` calls, add `/common/` server route, import common CSS/JS | UI Development / Standards | ✅ Complete |
+| S1.2.16 | Step 1 Load tab redesign — instruction header explaining recursive folder scanning, numbered sections (1. Choose Folder, 2. Results), load summary line, "Proceed to Step 2" button after documents loaded | UI Development / UX | ✅ Complete |
+| S1.2.17 | Directory tree browser widget — replace flat browse dropdown with expandable directory tree for folder selection; server-side `list-dirs` returns POSIX paths for cross-platform consistency | UI Development / UX | ✅ Complete |
+| S1.2.18 | Cross-platform path compatibility — fix `autoExpandPath()` backslash split in `eks.js`; fix `_handle_config_paths()` to return `.as_posix()` strings on Windows | UI / Server | 🔷 Planned |
+| S1.2.19 | Workplan hygiene — mark phases 1.2.8/1.2.9/1.2.10 with correct status, add missing S1.2.9/S1.2.10 scope rows, flip success criteria from 🔷 to ✅ for completed items | Documentation | 🔷 Planned |
+| S1.2.20 | Tests for I076/I077 fixes — 6 new tests covering `current_stage` field in pipeline status, progress % per phase (A=20, B=75, C=90, done=100), error surfaced in status label on failure | Testing | 🔷 Planned |
+| S1.2.21 | Revision headers — update revision headers in `eks.js` and `phase1_server.py` per AGENTS.md §13; add entries to `update_log.md` for I076/I077 fixes | Documentation | 🔷 Planned |
 
 **Related Phase**: Phase 1.2 — Interactive UI, I/O Contracts & Document Processing
 
@@ -1101,7 +1126,290 @@ except ImportError as e:
 
 ---
 
-### Server Architecture Dependencies
+### Phase 1.2.13: Step Progress Bar Pipe-Node Style Upgrade
+
+**Timeline**: 1 day  
+**Milestones**: Step progress bar matches DCC pipe-node visual pattern (bordered rounded cards with `›` arrow separators)
+
+**Background**: The step progress bar used circle indicators with thin line connectors, which lacked visual weight and didn't match the pipeline node pattern used in other project UIs (`dcc/ui/excel_explorer_data_pro.html`). The pipe-node style provides more prominent, card-like step indicators with clear arrow separators.
+
+**Scope**:
+- Replace `.step-connector` from 2px line to `›` text character
+- Replace `.step` styling from inline text+circle to bordered rounded card with circle+label
+- Keep `.active`/`.completed`/`.step-circle` classes intact — JS logic unchanged
+- Match the visual language of DCC `.pipe-node` / `.p-arr` pattern
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.13.1 | Update step progress CSS to pipe-node style | Replace `.step-progress`, `.step`, `.step-connector`, `.step-circle` rules with bordered rounded card + `›` separator; maintain active/completed color states | ✅ |
+| T1.2.13.2 | Update step-connector HTML to show `›` | Change `.step-connector` from empty div to `span` containing `›` character; remove flex line styling | ✅ |
+| T1.2.13.3 | Verify JS compatibility | `updateStepProgress()` and `switchTab()` rely on `.active`/`.completed` class toggling — verify no JS changes needed | ✅ |
+
+**Files changed**: `eks/ui/eks.css`, `eks/ui/phase1_ingestion.html`  
+**Tests**: Existing step progress bar tests remain valid (class toggling unchanged). Visual verification.  
+**Status**: ✅ Complete
+
+---
+
+### Phase 1.2.14: UI Standardization — Common Design System
+
+**Timeline**: 2 days  
+**Milestones**: Universal `com-` design system created at `common/` root; single source of truth for UI tokens and components across DCC, EKS, and code_tracer projects
+
+**Background**: Each project maintained its own CSS design system with overlapping patterns but divergent token names. DCC used `dcc-design-system.css` with `dcc-` prefix; code_tracer used `code-tracer.css` with `dcc-` prefix; EKS used `eks.css` with non-standard token names (`--bg-primary`, `--border-color`, `--error`). This caused duplication, naming confusion, and prevented cross-project reuse. A universal design system was needed at the `common/` level with a shared `com-` prefix.
+
+**Scope**:
+- Create `common/universal_ui_design.css` — 29-section CSS file with 5 themes (dark, light, sky, ocean, presentation), VS Code shell layout (`com-` prefix), sidebar accordion (`sb-` prefix), buttons, badges, tables, tabs, forms, cards, KPI cards, stage cards, step progress, modal, toast, drop zone, welcome pane, toolbar, theme picker, resizer, tree explorer, schema map, and utility classes
+- Create `common/universal_ui_design.md` — full AGENTS.md §14 documentation with 16 sections: summary, content index, key features, documentation map, quick start + Mermaid, component group structure, component list, I/O table, global parameter trace matrix, detailed component descriptions, debugging guide, usage examples, best practices, pending issues, test results, dependencies, and engineering standards
+- Design tokens follow AGENTS.md §18.3 required groups (surfaces, borders, text, accent, semantic, tag, table, dimensions, radii, fonts)
+- All colors reference CSS custom properties — never hardcoded hex
+- `com-` prefix for all shared classes; `sb-` prefix for sidebar-specific sub-components
+- Token names match the DCC/code_tracer convention (`--bg`, `--surface`, `--border`, `--text`, `--accent`, etc.)
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.14.1 | Create `common/universal_ui_design.css` | 842 lines, 29 sections: 5 themes (`data-theme`), shell layout (`.com-shell`, `.com-titlebar`, `.com-iconbar`, `.com-sidebar`, `.com-content`, `.com-statusbar`), sidebar accordion (`.sb-section`), buttons (6 variants), badges (6 variants), tables (sortable), tabs (2 patterns), forms, cards/KPI cards (`.com-kpi-grid`), stage cards (`.com-stage-card`), step progress (`.com-step-progress`), modal, toast, drop zone, welcome pane, toolbar, theme picker, resizer, file panel, data table viewer, tree explorer, sidebar panels, content panels, editors, utilities, animations, health gauge, schema map. All `com-`/`sb-` prefixed; token-based colors only. | ✅ |
+| T1.2.14.2 | Create `common/universal_ui_design.js` | ~350 lines, 8 modules under `comUI` namespace: theme (apply, initPicker), sidebar (resize, accordion), layout (toggle), toast (show), modal (open, close, init), file (setupDropZone, readFileAsText/JSON/DataURL), table (makeSortable), utils (escHtml, formatNum, formatBytes, setStatus, setStatusBar). Zero external dependencies. | ✅ |
+| T1.2.14.3 | Create `common/universal_ui_design.md` | Full AGENTS.md §14 documentation updated to cover both CSS and JS: revision control table, 37-section content index (29 CSS + 8 JS), quick start with JS init examples, JS module structure, updated best practices (issue #4 resolved), JS dependencies table. | ✅ |
+| T1.2.14.4 | Remove old `common/ui/com-design-system.css` | Renamed to `common/universal_ui_design.css`; empty `common/ui/` directory removed | ✅ |
+| T1.2.14.5 | Add scope item S1.2.14, update workplan revision, log entry | This task — documented in phase_1.2_interactive_ui_workplan.md | ✅ |
+
+**Files created**: `common/universal_ui_design.css`, `common/universal_ui_design.js`, `common/universal_ui_design.md`  
+**Files removed**: `common/ui/com-design-system.css`, `common/ui/` (empty directory)  
+**Tests**: Visual verification of CSS structure and JS module correctness. No functional tests required — pure CSS/JS/documentation deliverable.  
+**Status**: ✅ Complete
+
+---
+
+### Phase 1.2.15: EKS UI Migration to Common Design System
+
+**Timeline**: 5 days  
+**Milestones**: EKS fully aligned with `common/universal_ui_design.*` — zero non-standard CSS tokens, shell layout uses `com-` classes, duplicated JS replaced with `comUI.*` calls, server serves `/common/` assets
+
+**Background**: A comprehensive audit of EKS UI files against the common design system identified 20+ gaps across 4 criteria:
+1. **Server**: `eks/server.py` ROOT is `eks/` with no route for repo-level `common/` — requests for `/common/universal_ui_design.css` return 404
+2. **HTML imports**: `phase1_ingestion.html` imports neither the universal CSS nor JS — only project-specific files
+3. **CSS tokens**: All 21 CSS custom properties use non-standard names (`--bg-primary`, `--border-color`, `--error`, etc.) instead of standard tokens (`--bg`, `--border`, `--danger`, etc.); 20+ required tokens missing. Hardcoded hex colors violate AGENTS.md §18.3 SSOT rule
+4. **Class names**: Zero `com-` prefixed classes in HTML or CSS — shell layout uses IDs (`#title-bar`, `#icon-bar-left`, `#status-bar`), components use custom classes (`.doc-table`, `.file-load-area`, `.icon-btn`)
+5. **JS duplication**: 7 functions have exact `comUI.*` equivalents (theme, resize, layout, esc, status, drag-drop, modal); theme uses cycle button instead of dropdown picker
+
+**Scope**:
+- Add `/common/` static file route to `server.py` so the universal CSS/JS can be served
+- Import `common/universal_ui_design.css` and `common/universal_ui_design.js` in `phase1_ingestion.html`
+- Align all CSS custom properties to standard names; remove non-standard token definitions; keep only override/extensions
+- Replace all shell layout IDs/classes with `com-` equivalents (`.com-shell`, `.com-titlebar`, `.com-iconbar`, `.com-sidebar`, `.com-content`, `.com-statusbar`)
+- Replace all component classes with `com-` equivalents (`.com-table`, `.com-btn`, `.com-tab-bar`, `.com-modal`, `.com-drop-zone`, `.com-badge`, `.com-step-progress`, `.com-resizer`, `.com-spinner`)
+- Replace 7 duplicated JS functions with `comUI.*` calls; add theme dropdown menu; add toast notifications
+- Remove all hardcoded hex colors from component rules; use `var(--token)` only
+
+**Dependencies**: Phase 1.2.14 complete ✅ (common design system exists); Phase 1.2.8 recommended but not required (server hardening overlaps with `/common/` route changes)
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.15.1 | Server: add `/common/` static route | Add `COMMON = ROOT.parent / "common"` and `_serve_common()` with traversal guard in `server.py`; route `path.startswith("/common/")` in `do_GET` | ✅ |
+| T1.2.15.2 | HTML: import common CSS and JS | Add `<link>` for universal CSS and `<script>` for universal JS in `<head>` | ✅ |
+| T1.2.15.3 | CSS: align tokens to standard names | Rewrote eks.css — removed 21 non-standard tokens, kept EKS theme overrides using standard `var(--token)` names, removed hardcoded hex values from component rules | ✅ |
+| T1.2.15.4 | CSS + HTML: migrate shell layout classes | Migrated to `.com-shell`, `.com-titlebar`, `.com-iconbar`, `.com-sidebar`, `.com-right-sidebar`, `.com-content`, `.com-content-body`, `.com-statusbar`; removed old ID-based layout CSS | ✅ |
+| T1.2.15.5 | CSS + HTML: migrate component classes | Buttons → `.com-btn`/`.com-iconbar-btn`; modal → `.com-modal-*`; removed obsolete CSS rules for replaced classes | ✅ |
+| T1.2.15.6 | JS: replace with `comUI.*` calls | Replaced `applyTheme`, `esc`, `setStatus`, drag-drop, modal, theme-cycle with `comUI.*` equivalents; added `comUI.theme.initPicker('eks-theme')` theme dropdown | ✅ |
+| T1.2.15.7 | HTML: cleanup + final verification | Removed old theme cycle button, dead layout classes, unused CSS rules; verified all 186 tests pass | ✅ |
+
+**Files changed**: `eks/ui/eks.css`, `eks/ui/eks.js`, `eks/ui/phase1_ingestion.html`, `eks/server.py`, `eks/test/test_phase1_server.py`
+
+**Estimated tests to add**: ~6 new test cases (2 server, 1 HTML import, 1 CSS token, 1 JS comUI call, 1 visual integration)
+
+**Estimated test count after Phase 1.2.15**: ~246 total
+
+**Deliverables**:
+- `eks/server.py` updated — `/common/` route with traversal guard
+- `eks/ui/phase1_ingestion.html` updated — imports common CSS/JS, uses `com-` classes throughout, has theme dropdown
+- `eks/ui/eks.css` reduced to overrides only — no non-standard tokens, no hardcoded hex colors
+- `eks/ui/eks.js` refactored — 7+ duplicated functions replaced with `comUI.*` calls
+- All shell layout zones use `.com-shell` / `.com-titlebar` / `.com-iconbar` / `.com-sidebar` / `.com-content` / `.com-statusbar`
+- All component classes use `com-` prefix (`.com-table`, `.com-btn`, `.com-tab`, `.com-modal`, `.com-drop-zone`, `.com-badge`, `.com-step-progress`, `.com-resizer`, `.com-spinner`)
+- Theme picker uses dropdown menu with `comUI.theme.initPicker('eks-theme')`
+
+**Status**: 🔷 Planned
+
+---
+
+### Phase 1.2.16: Step 1 Load Tab Redesign — Instruction & Sequence Guidance
+
+**Timeline**: 1 day  
+**Milestones**: Step 1 tab provides clear instruction text, numbered sequential sections, progress summary, and explicit "Proceed to Step 2" call-to-action
+
+**Background**: The current tab-documents has no instruction header, no sequencing, and no clear exit criterion — users land on a bare file input and table without context.
+
+**Scope**:
+- Add descriptive header explaining recursive folder scanning behavior
+- Restructure tab content into numbered steps: (1) Choose Folder, (2) Results
+- Add "Proceed to Step 2" button that appears only after documents are loaded
+- Add load summary line showing count of discovered documents
+
+**Dependencies**: Phase 1.2.12 (folder picker + SSOT path resolution) ✅; Phase 1.2.15 (common design system) ✅
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.16.1 | HTML: redesign #tab-documents | Add step-header with instruction text; wrap folder input + browse + load in "1. Choose Folder" section; wrap document table in "2. Results" section with load summary; add "Proceed to Step 2" button at bottom | ✅ |
+| T1.2.16.2 | CSS: add section card styles | Add `.step-header`, `.step-section`, `.step-section-header`, `.step-section-body`, `.load-summary`, `.proceed-container`, `.proceed-btn`, `.step-tip`, `.recursive-hint` styles | ✅ |
+| T1.2.16.3 | JS: wire proceed button + summary | After loadFiles(), show summary line + "Proceed to Step 2" if documents > 0; hide button on reload; wire proceed button to `switchTab('pipeline')` + advance step progress | ✅ |
+
+**Files changed**: `eks/ui/phase1_ingestion.html`, `eks/ui/eks.css`, `eks/ui/eks.js`
+
+**Estimated tests to add**: 0 (no new backend endpoints)
+
+**Estimated test count after Phase 1.2.16**: 186 total
+
+**Deliverables**:
+- `eks/ui/phase1_ingestion.html` updated — instruction header, numbered sections, proceed button
+- `eks/ui/eks.css` updated — section card and summary styles
+- `eks/ui/eks.js` updated — proceed button visibility and wiring
+
+**Status**: ✅ Complete
+
+---
+
+### Phase 1.2.17: Directory Tree Browser Widget
+
+**Timeline**: 1 day  
+**Milestones**: Browse button opens an expandable directory tree instead of a flat dropdown; POSIX paths in JSON for cross-platform reliability
+
+**Background**: The current browse dropdown lists only immediate subdirectories. Users navigating to nested folders must repeatedly click Browse → drill in. An expandable tree widget provides one-click visibility into the full directory structure.
+
+**Scope**:
+- Replace flat browse dropdown with expandable directory tree
+- Server: fix `_handle_list_dirs` to return POSIX separators (`.as_posix()`) for cross-platform JSON
+- JS: fetch children on toggle click; click folder name to set path input
+- CSS: tree node styles with indent, toggle icon, selected highlight
+
+**Dependencies**: Phase 1.2.12 (folder picker + list-dirs endpoint) ✅; Phase 1.2.15 (common design system) ✅
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.17.1 | Server: fix POSIX paths in list-dirs | Change `str(p.relative_to(PRJ_DIR))` to `p.relative_to(PRJ_DIR).as_posix()` so JSON always uses `/` separators cross-platform | ✅ |
+| T1.2.17.2 | HTML: add directory tree container | Replace `#browse-dropdown` with `#dir-tree` container inside the Choose Folder section, positioned below the folder row | ✅ |
+| T1.2.17.3 | CSS: style directory tree | Add `.dir-tree`, `.dir-tree-node`, `.dir-tree-toggle`, `.dir-tree-label`, `.dir-tree-selected` styles | ✅ |
+| T1.2.17.4 | JS: implement expandable tree widget | Replace `browseDirs()` with `toggleDirTree()` that fetches root dirs on open and children on toggle; click label sets input path; highlight selected | ✅ |
+
+**Files changed**: `eks/ui/backend/phase1_server.py`, `eks/ui/phase1_ingestion.html`, `eks/ui/eks.css`, `eks/ui/eks.js`
+
+**Estimated tests to add**: 0 (existing tests already cover list-dirs endpoint)
+
+**Estimated test count after Phase 1.2.17**: 186 total
+
+**Deliverables**:
+- `eks/ui/backend/phase1_server.py` — `list-dirs` returns POSIX paths
+- `eks/ui/phase1_ingestion.html` — directory tree container in Choose Folder section
+- `eks/ui/eks.css` — tree widget styles
+- `eks/ui/eks.js` — expandable tree widget logic
+
+**Status**: ✅ Complete
+
+---
+
+### Phase 1.2.18: Cross-Platform Path Compatibility
+
+**Timeline**: 1 day  
+**Milestones**: `eks.js` and `phase1_server.py` handle Windows backslash paths correctly; no path separator assumptions in frontend or backend
+
+**Background**: Cross-platform review identified two gaps not covered by T1.2.17.1 (which fixed `list-dirs` POSIX output). (1) `autoExpandPath()` in `eks.js` splits on `'/'` only — if any path string ever arrives with backslashes (e.g. from `_handle_config_paths()` which uses `str(Path(...))` on Windows), the split silently produces wrong segments. (2) `_handle_config_paths()` in `phase1_server.py` builds `result["data_dir"]` with `str(PRJ_DIR / "eks" / ...)` which on Windows produces backslash strings sent to the frontend.
+
+**Scope**:
+- Fix `autoExpandPath()` in `eks.js` to normalize backslashes before splitting: `path.replace(/\\/g, '/').split('/')`
+- Fix `_handle_config_paths()` in `phase1_server.py` to use `.as_posix()` for the `data_dir` value returned in JSON
+
+**Dependencies**: Phase 1.2.17 complete ✅
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.18.1 | Fix `autoExpandPath()` backslash split in `eks.js` | Replace `path.split('/')` with `path.replace(/\\\\/g, '/').split('/')` so Windows backslash paths expand correctly | 🔷 Planned |
+| T1.2.18.2 | Fix `_handle_config_paths()` to return POSIX paths | Change `str(PRJ_DIR / "eks" / gp.get("data_dir", "data"))` to `(PRJ_DIR / "eks" / gp.get("data_dir", "data")).as_posix()` | 🔷 Planned |
+
+**Files changed**: `eks/ui/eks.js`, `eks/ui/backend/phase1_server.py`  
+**Tests**: Add `test_config_paths_data_dir_uses_forward_slashes()` — verify `GET /api/v1/config/paths` returns `data_dir` with no backslashes on any OS. Add `test_auto_expand_path_handles_backslashes()` — unit test `autoExpandPath` with a Windows-style path string.  
+**Estimated tests to add**: 2  
+**Estimated test count after Phase 1.2.18**: 188 total  
+**Status**: 🔷 Planned
+
+---
+
+### Phase 1.2.19: Workplan Hygiene
+
+**Timeline**: 0.5 days  
+**Milestones**: Workplan statuses match code reality; no phantom 🔷 Planned entries for completed work
+
+**Background**: Phases 1.2.8, 1.2.9, and 1.2.10 still show 🔷 Planned in the scope table despite significant implementation. S1.2.9 and S1.2.10 scope rows are missing entirely.
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.19.1 | Update scope table statuses | Flip S1.2.8 → 🔶 PARTIAL (10 tasks defined, 0 implemented); add S1.2.9 (UI Design System, 🔷 Planned) and S1.2.10 (Appendix G Documentation, 🔷 Planned) rows | 🔷 Planned |
+| T1.2.19.2 | Flip completed success criteria | In §9 Success Criteria, change all 🔷 items that are actually implemented (phases 1.2.11–1.2.17) to ✅ | 🔷 Planned |
+
+**Files changed**: `eks/workplan/phase_1.2_interactive_ui_workplan.md`  
+**Tests**: None (documentation only)  
+**Status**: 🔷 Planned
+
+---
+
+### Phase 1.2.20: Tests for I076/I077 Fixes
+
+**Timeline**: 1 day  
+**Milestones**: 6 new tests covering the I076 (progress stuck at 0%) and I077 (stage cards wrong state) fixes; AGENTS.md §21 compliance restored
+
+**Background**: The I076/I077 fixes added `_PHASE_PROGRESS`, `_set_phase()`, and `current_stage` to `phase1_server.py` and updated `renderStageCards()` in `eks.js` with `STAGE_IDX` lookup — but zero tests were added, violating AGENTS.md §21.
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.20.1 | Test `current_stage` field in initial job state | `POST /api/v1/pipeline/start` → `GET /api/v1/pipeline/status/{job_id}` — verify response contains `current_stage: "scan"` | 🔷 Planned |
+| T1.2.20.2 | Test progress after phase A | Mock orchestrator to complete phase A; verify `progress == 20` and `current_stage == "scan"` | 🔷 Planned |
+| T1.2.20.3 | Test progress after phase B | Mock orchestrator to complete phase B; verify `progress == 75` and `current_stage == "parse"` | 🔷 Planned |
+| T1.2.20.4 | Test progress after phase C | Mock orchestrator to complete phase C; verify `progress == 90` and `current_stage == "review"` | 🔷 Planned |
+| T1.2.20.5 | Test progress at completion | Verify completed job has `progress == 100` and `current_stage == "register"` | 🔷 Planned |
+| T1.2.20.6 | Test error surfaced on failure | Mock orchestrator to raise exception; verify failed job state has non-null `error` field | 🔷 Planned |
+
+**Files changed**: `eks/test/test_phase1_server.py`  
+**Estimated tests to add**: 6  
+**Estimated test count after Phase 1.2.20**: 194 total  
+**Status**: 🔷 Planned
+
+---
+
+### Phase 1.2.21: Revision Headers and Update Log
+
+**Timeline**: 0.5 days  
+**Milestones**: All files modified by I076/I077 fixes have updated revision headers per AGENTS.md §13; `update_log.md` has entries for both fixes
+
+**Background**: AGENTS.md §13 requires revision headers updated on every file change. The I076/I077 fixes modified `phase1_server.py` and `eks.js` but neither file's revision header was bumped, and no `update_log.md` entries were added.
+
+**Tasks**:
+
+| # | Task | Details | Status |
+| :- | :--- | :------ | :----: |
+| T1.2.21.1 | Update revision header in `phase1_server.py` | Bump version, update date, add summary line for I076 fix (`_PHASE_PROGRESS`, `_set_phase()`, `current_stage` in job state) | 🔷 Planned |
+| T1.2.21.2 | Update revision header in `eks.js` | Bump version, update date, add summary line for I077 fix (`STAGE_IDX` map, `current_stage` lookup in `renderStageCards()`, `data.error` in status label) | 🔷 Planned |
+| T1.2.21.3 | Add entries to `update_log.md` | Add U-entries for I076 (backend progress fix) and I077 (frontend stage card fix) with file, change summary, and issue reference | 🔷 Planned |
+
+**Files changed**: `eks/ui/backend/phase1_server.py`, `eks/ui/eks.js`, `eks/log/update_log.md`  
+**Tests**: None (documentation/header only)  
+**Status**: 🔷 Planned
+
+---
 
 | Server | Depends On | Port |
 | :----- | :--------- | :--- |
@@ -1338,8 +1646,23 @@ This section defines the I/O contract implementation tasks. The **design pattern
     - Generate Phase 1.2.9 test report in `eks/workplan/reports/`
 18. **Phase 1.2.11 COMPLETE** — ✅ UI Workflow Redesign (8 tasks, 28 tests pass)
 19. **Phase 1.2.12 COMPLETE** — ✅ Folder Picker & SSOT Path Resolution (8 tasks, 66 tests pass)
-20. **Phase 1.2 marked COMPLETE** — all scope items S1.2.1–S1.2.12 delivered
-21. **Proceed to Phase 2** — chunking, embedding, and vector storage; create `phase2_embedding.html` and `phase2_server.py` following the G10.8 checklist
+20. **Phase 1.2.13 COMPLETE** — ✅ Step Progress Bar Pipe-Node Style Upgrade (3 tasks, visual verification)
+21. **Phase 1.2.14 COMPLETE** — ✅ UI Standardization — Common Design System (4 tasks, `common/universal_ui_design.css` + `common/universal_ui_design.js` + `common/universal_ui_design.md`)
+22. **Phase 1.2.15 COMPLETE** — ✅ EKS UI Migration to Common Design System (7 tasks, all ✅, 186 tests pass)
+23. **Phase 1.2.16 COMPLETE** — ✅ Step 1 Load Tab Redesign (3 tasks, all ✅, 186 tests pass)
+24. **Phase 1.2.17 COMPLETE** — ✅ Directory Tree Browser Widget (4 tasks, all ✅, 186 tests pass):
+    - **T1.2.17.1**: Server — fix `list-dirs` to return POSIX paths for cross-platform
+    - **T1.2.17.2**: HTML — directory tree container replacing browse dropdown
+    - **T1.2.17.3**: CSS — tree node styles
+    - **T1.2.17.4**: JS — expandable tree widget logic
+25. **Begin Phase 1.2.18** — Cross-Platform Path Compatibility (1 day, 2 tasks):
+    - **T1.2.18.1**: Fix `autoExpandPath()` backslash split in `eks.js`
+    - **T1.2.18.2**: Fix `_handle_config_paths()` to return `.as_posix()` strings
+26. **Begin Phase 1.2.19** — Workplan Hygiene (0.5 days, 2 tasks): update scope statuses, flip completed success criteria
+27. **Begin Phase 1.2.20** — Tests for I076/I077 (1 day, 6 tests): `current_stage` field, progress per phase, error on failure
+28. **Begin Phase 1.2.21** — Revision Headers (0.5 days, 3 tasks): bump headers in `phase1_server.py` and `eks.js`, add `update_log.md` entries
+29. **Phase 1.2 marked COMPLETE** — all scope items S1.2.1–S1.2.21 delivered
+30. **Proceed to Phase 2** — chunking, embedding, and vector storage; create `phase2_embedding.html` and `phase2_server.py` following the G10.8 checklist
 
 ---
 

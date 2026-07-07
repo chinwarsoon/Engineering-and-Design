@@ -321,12 +321,12 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             self._json_response(404, {"error": f"Directory not found: {parent}"})
             return
         dirs = sorted(
-            [str(p.relative_to(PRJ_DIR)) for p in target.iterdir() if p.is_dir()],
+            [p.relative_to(PRJ_DIR).as_posix() for p in target.iterdir() if p.is_dir()],
             key=lambda x: x.lower(),
         )
         self._json_response(200, {
             "dirs": dirs,
-            "parent": str(target.relative_to(PRJ_DIR)),
+            "parent": target.relative_to(PRJ_DIR).as_posix(),
         })
 
     def _handle_files_load(self, data: Dict[str, Any]):
@@ -435,6 +435,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                 "job_id": job_id,
                 "status": "queued",
                 "progress": 0,
+                "current_stage": "scan",
                 "data_dir": data_dir,
                 "created_at": datetime.utcnow().isoformat(),
                 "summary": None,
@@ -465,12 +466,29 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                 if _logger:
                     _logger.error(msg, context=context)
 
+        # Phase → (progress_after, current_stage) mapping
+        # UI stages: scan(0), parse(1), score(2), review(3), register(4)
+        _PHASE_PROGRESS = {
+            "A": (20, "scan"),
+            "B": (75, "parse"),
+            "C": (90, "review"),
+        }
+
+        def _set_phase(phase: str):
+            pct, stage = _PHASE_PROGRESS[phase]
+            with _job_lock:
+                if _job_state[job_id]["status"] == "cancelled":
+                    raise RuntimeError("Pipeline cancelled")
+                _job_state[job_id]["progress"] = pct
+                _job_state[job_id]["current_stage"] = stage
+
         def _run():
             try:
                 with _job_lock:
                     if _job_state[job_id]["status"] != "queued":
                         return  # was cancelled before we started
                     _job_state[job_id]["status"] = "running"
+                    _job_state[job_id]["current_stage"] = "scan"
                 loader = SchemaLoader("eks/config")
                 config = loader.load_all()
                 doc_config = loader.doc_config
@@ -487,10 +505,17 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     config_dir=Path("eks/config"),
                     log_dir=Path("eks/log"),
                 )
-                summary = orchestrator.run_full_pipeline(Path(data_dir), recursive=recursive)
+                phase_a = orchestrator.run_phase_a(Path(data_dir), recursive=recursive)
+                _set_phase("A")
+                phase_b = orchestrator.run_phase_b(Path(data_dir), recursive=recursive)
+                _set_phase("B")
+                phase_c = orchestrator.run_phase_c()
+                _set_phase("C")
+                summary = {"phase_a": phase_a, "phase_b": phase_b, "phase_c": phase_c}
                 with _job_lock:
                     _job_state[job_id]["status"] = "completed"
                     _job_state[job_id]["progress"] = 100
+                    _job_state[job_id]["current_stage"] = "register"
                     _job_state[job_id]["summary"] = summary
             except Exception as e:
                 _capture_log({"level": "ERROR", "message": f"Pipeline failed: {e}", "context": "_run_pipeline"})
