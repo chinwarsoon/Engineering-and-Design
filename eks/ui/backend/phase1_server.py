@@ -284,7 +284,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
 
     def _handle_config_paths(self):
         """Return global_paths from config (SSOT) plus effective defaults."""
-        default_data_dir = "eks/data"
+        default_data_dir = (PRJ_DIR / "eks" / "data").as_posix()
         result = {
             "data_dir": default_data_dir,
             "global_paths": {
@@ -296,7 +296,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         }
         if self._check_imports():
             try:
-                loader = SchemaLoader("eks/config")
+                loader = SchemaLoader(PRJ_DIR / "eks" / "config")
                 config = loader.load_all()
                 gp = config.get("global_paths", {})
                 result["global_paths"] = {
@@ -305,7 +305,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     "archive_dir": gp.get("archive_dir", "archive"),
                     "config_dir": gp.get("config_dir", "config"),
                 }
-                result["data_dir"] = str(PRJ_DIR / "eks" / gp.get("data_dir", "data"))
+                result["data_dir"] = (PRJ_DIR / "eks" / gp.get("data_dir", "data")).as_posix()
             except Exception:
                 pass
         self._json_response(200, result)
@@ -333,15 +333,16 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         if not self._check_imports():
             return
 
-        data_dir = data.get("data_dir", "eks/data")
+        raw_data_dir = data.get("data_dir", "eks/data")
+        data_dir = PRJ_DIR / raw_data_dir
         recursive = data.get("recursive", True)
 
-        loader = SchemaLoader("eks/config")
+        loader = SchemaLoader(PRJ_DIR / "eks" / "config")
         config = loader.load_all()
         doc_config = loader.doc_config
 
         scanner = FileScanner(config, doc_config=doc_config, logger=_logger)
-        discovered = scanner.scan(Path(data_dir), recursive=recursive)
+        discovered = scanner.scan(data_dir, recursive=recursive)
         valid, unknown = scanner.validate_file_types(discovered)
         registered = 0
         registry = get_registry()
@@ -489,7 +490,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                         return  # was cancelled before we started
                     _job_state[job_id]["status"] = "running"
                     _job_state[job_id]["current_stage"] = "scan"
-                loader = SchemaLoader("eks/config")
+                loader = SchemaLoader(PRJ_DIR / "eks" / "config")
                 config = loader.load_all()
                 doc_config = loader.doc_config
                 registry = get_registry()
@@ -498,16 +499,16 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     config, doc_config, registry, logger=job_logger, use_telemetry=False
                 )
                 orchestrator.initialize_context(
-                    data_dir=Path(data_dir),
-                    schema_dir=Path("eks/config/schemas"),
-                    output_dir=Path("eks/output"),
-                    archive_dir=Path("eks/archive"),
-                    config_dir=Path("eks/config"),
-                    log_dir=Path("eks/log"),
+                    data_dir=PRJ_DIR / data_dir,
+                    schema_dir=PRJ_DIR / "eks" / "config" / "schemas",
+                    output_dir=PRJ_DIR / "eks" / "output",
+                    archive_dir=PRJ_DIR / "eks" / "archive",
+                    config_dir=PRJ_DIR / "eks" / "config",
+                    log_dir=PRJ_DIR / "eks" / "log",
                 )
-                phase_a = orchestrator.run_phase_a(Path(data_dir), recursive=recursive)
+                phase_a = orchestrator.run_phase_a(PRJ_DIR / data_dir, recursive=recursive)
                 _set_phase("A")
-                phase_b = orchestrator.run_phase_b(Path(data_dir), recursive=recursive)
+                phase_b = orchestrator.run_phase_b(PRJ_DIR / data_dir, recursive=recursive)
                 _set_phase("B")
                 phase_c = orchestrator.run_phase_c()
                 _set_phase("C")

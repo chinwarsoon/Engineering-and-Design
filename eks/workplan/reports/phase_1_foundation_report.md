@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry — Test Report
 
 **Report ID**: RP-EKS-P1-001  
-**Current Version**: 2.0  
-**Status**: ✅ COMPLETE — Final Phase 1 closure  
-**Last Updated**: 2026-06-30  
+**Current Version**: 2.2  
+**Status**: 🔶 PARTIAL — Bootstrap items T1.68/T1.71/T1.74 implemented; closure tasks T1.69/T1.70/T1.72/T1.73/T1.75/T1.76 planned. 191/191 tests pass.  
+**Last Updated**: 2026-07-08  
 **Parent Workplan**: [phase_1_foundation_workplan.md](../phase_1_foundation_workplan.md)  
 **Parent Master**: [eks_system_workplan.md](../eks_system_workplan.md)
 
@@ -31,6 +31,8 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 | 1.4 | 2026-06-24 | opencode | Consolidated T1.30–T1.32 test report into this report. Merged success criteria, files, recommendations, lessons learned. |
 | 1.5 | 2026-06-24 | opencode | T1.50: Base schema SSOT enforcement — `document_relationship_trigger_map` stripped, `revision_id` moved, `ConfigRegistry` $ref resolution. 114/114 tests pass. |
 | 2.0 | 2026-06-30 | opencode | T1.67: `project_setup.json` integrated into core 3-layer schema; `setup_validator.py` refactored to load from ConfigRegistry. I046 resolved. 120/120 tests pass (2 new). Phase 1 FINAL COMPLETE. |
+| 2.1 | 2026-07-08 | opencode | Bootstrap update: T1.68 (ErrorManager/MessageManager in orchestrator), T1.71 (update_document_status in registry), T1.74 (cross-platform paths). Fixed get_document bug. 7 new tests, 191/191 pass. |
+| 2.2 | 2026-07-08 | opencode | Expanded Bootstrap closure plan: added T1.75 (activate ErrorManager/MessageManager in server — closes silent T1.68 gap) and T1.76 (persist debug/message/status JSON to eks/output per AGENTS.md §7/§19). Updated T1.69 (run_id) and T1.73 (checkpoint path). Aligned with workplan v3.29. |
 
 ---
 
@@ -87,9 +89,9 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 | :------- | :---- |
 | Category | Count |
 | :------- | :---- |
-| Test cases planned | 120 |
-| Test cases executed | 120 |
-| Test cases passed | 120 |
+| Test cases planned | 191 |
+| Test cases executed | 191 |
+| Test cases passed | 191 |
 | Test cases failed | 0 |
 | Issues found | 46 (I001–I046 tracked; I045, I046 resolved; I015–I021 open for Phases 2/3) |
 | Blockers | 0 |
@@ -562,11 +564,48 @@ The final Phase 1 task (T1.67) integrated the orphan `project_setup.json` schema
 | Issues deferred | 5 (I015 DGN gap, I016 folder hierarchy, I019 dual projects, I020 column coverage, I021 data incompleteness) |
 | Phases fed | Phase 2 (chunking/embedding), Phase 1.2 (UI/sub-pipeline) |
 
+## 15. Bootstrap Update (T1.68–T1.74)
+
+### 15.1 Scope
+
+Implement the 7 Bootstrap pending items (T1.68–T1.74) identified as critical gaps:
+
+- T1.68: Wire ErrorManager/MessageManager into PipelineOrchestrator
+- T1.71: Registry-level document status update with _with_retry
+- T1.74: Cross-platform path compatibility
+
+### 15.2 Files Modified
+
+| File | Changes |
+| :--- | :------ |
+| `eks/engine/core/pipeline_orchestrator.py` | Added ErrorManager/MessageManager params to `__init__`; wired error codes and status messages in all phases; replaced raw duckdb.connect with registry.update_document_status() |
+| `eks/engine/core/registry.py` | Added `update_document_status()` with `_with_retry()`; fixed `get_document()` bug (fetchone iter → single dict) |
+| `eks/engine/core/context.py` | `EKSPaths.to_dict()` uses `.as_posix()` |
+| `eks/ui/backend/phase1_server.py` | Anchored all relative paths to PRJ_DIR; `.as_posix()` in config paths |
+| `eks/test/test_phase1.py` | Added 5 new tests |
+
+### 15.3 Test Results
+
+```
+191 passed in 12.46s
+```
+
+### 15.4 Remaining Bootstrap Tasks (Closure Plan)
+
+| Task | Priority | Scope | Notes |
+| :--- | :------- | :---- | :---- |
+| T1.69 | High | `eks/engine/logging/logger.py`, `phase1_server.py` | Add `run_id` param to `EKSLogger`/`_LogCapture`; thread `job_id` as `run_id`; prepend to log lines (universal §3.12) |
+| T1.70 | Critical | `phase1_server.py` | Add `data_dir` traversal guard (`is_relative_to(PRJ_DIR)` → 403) in `_handle_files_load()` and `_handle_pipeline_start()` (Security Baseline §3.13) |
+| T1.72 | High | `pipeline_orchestrator.py`, `io_contracts.py` | Create `ParserInput/Output`; wrap `run_phase_a` in `DiscoveryInput/Output` and `_process_file` in `ParserInput/Output` |
+| T1.73 | Medium | `phase1_server.py` | Persist `orchestrator.save_checkpoint(phase, PRJ_DIR/"eks"/"output"/f"checkpoint_{job_id}.json")` after each phase |
+| T1.75 | Critical | `phase1_server.py` | **Closes silent T1.68 gap**: construct `ErrorManager`/`MessageManager` and pass to `PipelineOrchestrator` so error/message wiring is active in production |
+| T1.76 | High | `phase1_server.py`, `logger.py`, `message_manager.py`, `eks/output/` | Persist `debug_log.json`, `pipeline_status_{job_id}.json`, `pipeline_messages_{job_id}.json` to `eks/output/` per AGENTS.md §7/§19 (mirrors DCC `dcc/output/`) |
+
 ---
 
-## 14. References
+## 16. References
 
-1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.21
+1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.29
 2. [EKS Master Workplan](../eks_system_workplan.md) — WP-EKS-001 v1.5
 3. [AGENTS.md](../../AGENTS.md) — Repository guidelines
 4. [Issue Log](../../log/issue_log.md)

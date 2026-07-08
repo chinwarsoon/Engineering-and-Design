@@ -19,16 +19,17 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 
 | Version | Date       | Author | Summary of Changes                        |
 | :------ | :--------- | :----- | :---------------------------------------- |
-| 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
-| 0.2     | 2026-06-15 | System | Replaced NLP-based engineering object extractors with structured asset loaders reading Excel datadrop directly (R37). Added asset graph nodes, pipeline-to-component relationships, and P&ID-to-asset linking. Updated risks and success criteria |
-| 0.3     | 2026-06-16 | System | Fixed fragment count in Section 6: corrected "10 reusable fragments" to "11 reusable fragments" to align with Phase 1 v0.6 delivery. Added Timestamp column to task breakdown table per AGENTS.md Section 8.8. |
-| 0.4     | 2026-06-17 | System | Added R39 to scope. Updated T3.9 base asset loader to read conditional_fragments from config and evaluate when/in conditions at runtime — zero code changes needed to add new asset types. Schema loader confirmed no update needed (file-agnostic). |
-| 0.5     | 2026-06-18 | System | Added R40 (asset embedding trigger after Neo4j load) and R42 (asset vector upsert on datadrop reload) to scope and tasks. T3.15 sheet orchestrator updated to trigger Phase 2 asset text builder + Qdrant upsert after each node batch. |
-| 0.6     | 2026-06-16 | System | Added R43: Automated Document Metadata Extraction. Added T3.21 to task breakdown. |
-| 0.7     | 2026-06-16 | System | Added T3.22–T3.24 for dynamic ISO 15926-aligned ontology node & relationship loading in Neo4j. Linked Appendix C. |
-| 0.8     | 2026-06-16 | System | Ontology Option C gap closure: added T3.25 (PhysicalObject nodes + INSTALLED_AT edges from serial numbers); T3.26 (SHACL constraint validation post-load); T3.27 (T-Box reload strategy + version control). Updated T3.24 to include conditional PhysicalObject logic. Added success criteria for all three. |
-| 0.9     | 2026-06-18 | Gemini CLI | Added T3.28–T3.31: Specialized Relationship Ingestion (Flow, Power, Control, Governance, Set Points) per approved gap analysis. |
 | 1.0     | 2026-06-18 | Gemini CLI | Added T3.32–T3.34: Document Relationship Ingestion (Revision Chain, Cross-Doc, Asset Tag Linking) per Appendix B logic. Updated to v1.0. |
+| 0.10    | 2026-07-08 | opencode | Added T3.35 for CAD parser evaluation (I015); updated risk row; added success criterion for CAD parser coverage. |
+| 0.9     | 2026-06-18 | Gemini CLI | Added T3.28–T3.31: Specialized Relationship Ingestion (Flow, Power, Control, Governance, Set Points) per approved gap analysis. |
+| 0.8     | 2026-06-18 | System | Added R40 (asset embedding trigger after Neo4j load) and R42 (asset vector upsert on datadrop reload) to scope and tasks. T3.15 sheet orchestrator updated to trigger Phase 2 asset text builder + Qdrant upsert after each node batch. |
+| 0.7     | 2026-06-17 | System | Added R43: Automated Document Metadata Extraction. Added T3.21 to task breakdown. |
+| 0.6     | 2026-06-17 | System | Added R39 to scope. Updated T3.9 base asset loader to read conditional_fragments from config and evaluate when/in conditions at runtime — zero code changes needed to add new asset types. Schema loader confirmed no update needed (file-agnostic). |
+| 0.5     | 2026-06-16 | System | Ontology Option C gap closure: added T3.25 (PhysicalObject nodes + INSTALLED_AT edges from serial numbers); T3.26 (SHACL constraint validation post-load); T3.27 (T-Box reload strategy + version control). Updated T3.24 to include conditional PhysicalObject logic. Added success criteria for all three. |
+| 0.4     | 2026-06-16 | System | Added T3.22–T3.24 for dynamic ISO 15926-aligned ontology node & relationship loading in Neo4j. Linked Appendix C. |
+| 0.3     | 2026-06-16 | System | Fixed fragment count in Section 6: corrected "10 reusable fragments" to "11 reusable fragments" to align with Phase 1 v0.6 delivery. Added Timestamp column to task breakdown table per AGENTS.md Section 8.8. |
+| 0.2     | 2026-06-15 | System | Replaced NLP-based engineering object extractors with structured asset loaders reading Excel datadrop directly (R37). Added asset graph nodes, pipeline-to-component relationships, and P&ID-to-asset linking. Updated risks and success criteria |
+| 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
 
 ---
 
@@ -147,6 +148,7 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | T3.32 | Implement Document Revision Graph Builder | Create time-ordered SUPERSEDES chain in Neo4j from document_number and revision strings | 🔷 | — |
 | T3.33 | Implement Cross-Doc Reference Extractor | LLM/Regex during ingestion to find document numbers in text; create REFERENCES_DOC edges | 🔷 | — |
 | T3.34 | Implement Asset Tag Linker | Map asset_tags registry field (JSON array) to FunctionalObject nodes via REFERENCES_ASSET | 🔷 | — |
+| T3.35 | Evaluate and implement CAD parser for DGN/DWG files (I015) | Research CAD libraries (OpenDesign SDK, LibreCAD, or commercial); implement full DGN/DWG parser or confirm stub; update parser registry; test against 48 CAD files from twrp sample; if no viable library found, document as known permanent gap | 🔷 | — |
 
 ---
 
@@ -184,7 +186,7 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | Neo4j service unavailable in dev environment | Low | High | Document Docker Compose setup; use mock graph store for unit tests |
 | Datadrop column variability across projects | Medium | Medium | Schema fragment-based approach handles variability; unmapped columns silently dropped |
 | Large asset graph (7,681+ nodes) impacts query performance | Medium | Medium | Index key properties (keytag, tag_type, unit); batch inserts; profile Cypher queries |
-| DGN/DWG parser stubs remain unimplemented | High | Medium | Stubs register files as `failed`; manual review workflow compensates |
+| DGN/DWG parser stubs remain unimplemented — 48 unparseable CAD files (I015) | High | Medium | T3.35: evaluate CAD libraries; if none viable, document permanent gap; stubs register files as `failed`; manual review workflow compensates |
 | Ontology T-Box changes require graph rebuild | Low | High | Version-controlled config; cascading IS_A edge updates |
 
 ## 11. Potential Future Issues
@@ -215,6 +217,7 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 - [ ] Automated cross-doc referencing detected from content (T3.33)
 - [ ] Assets correctly linked to all referencing documents via REFERENCES_ASSET (T3.34)
 - [ ] All unit and integration tests passing for Phase 3 components
+- [ ] CAD parser evaluation completed (T3.35): DGN/DWG files either parseable or formally documented as permanent gap with manual review workflow
 
 ---
 

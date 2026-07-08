@@ -1,8 +1,8 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 1.8  
-**Status**: ✅ COMPLETE — Phase 1 complete, Phases 2–5 planned  
+**Current Version**: 1.9  
+**Status**: 🔶 PARTIAL — Phase 1 PARTIAL (T1.68–T1.74 pending), Phase 1.2 PARTIAL (server hardening + hygiene pending), Phases 2–5 planned. Cross-workplan alignment audit: fixed R54–R58 scope status, added R43, R40(retrieval), R99 scope rows; fixed §9/§10 ordering; added Phase 1.2, Appendix F/G; corrected emoji across all phase workplans.  
 **Last Updated**: 2026-07-08  
 
 ---
@@ -19,6 +19,7 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 
 | Version | Date       | Author | Summary of Changes                                                              |
 | :------ | :--------- | :----- | :------------------------------------------------------------------------------ |
+| 1.9     | 2026-07-08 | System | Cross-workplan alignment audit: fixed R54–R58 status (PLANNED→PASS), added R43, R40(retrieval), R99 scope rows; fixed §9/§10 section ordering; fixed gap assessment count (53→62); added Phase 1.2 to phase index; added Appendix F/G to references; fixed test count (120→118); aligned Phase 1 status with workplan (COMPLETE→PARTIAL). |
 | 1.8     | 2026-07-08 | System | Appended a new revision entry to the history and documented the shared common-library milestone under `common/library` as a reusable foundation for future EKS runtime integration. |
 | 1.7     | 2026-07-08 | System | Added note that the shared common-library package structure now exists under `common/library` for architecture-aligned logging, telemetry, pipeline, errors, messages, paths, validation, UI, and factory modules; captured as a reusable foundation for future EKS runtime integration. |
 | 0.1     | 2026-06-11 | System | Initial workplan draft — full scope from eks/readme.md                          |
@@ -36,7 +37,9 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | 1.3 | 2026-06-22 | opencode | Added §8.1: Phase 1 Summary — inputs, outputs, functionality, key modules, parsers, schemas, test coverage, requirements met, and downstream handoff to Phase 2. |
 | 1.4 | 2026-06-23 | opencode | Added §11: Known Data Challenges from twrp sample analysis (I015–I021). Added DGN parsing gap and data incompleteness as risks. |
 | 1.5 | 2026-06-23 | opencode | Updated §8.1 Phase 1 Summary: schema count 17 → 21 (added 4 fragment schemas), test count 53 → 59, I005 resolved, I014 resolved. |
-| 1.6 | 2026-06-24 | opencode | Remediation: replaced all `agent_rule.md` references with `AGENTS.md`; converted Linux absolute paths to relative; fixed §9/§11 section ordering; added §11 to index; updated status from DRAFT to COMPLETE. || 1.7     | 2026-07-08 | System | Added note that the shared common-library package structure now exists under `common/library` for architecture-aligned logging, telemetry, pipeline, errors, messages, paths, validation, UI, and factory modules; captured as a reusable foundation for future EKS runtime integration. |
+| 1.6 | 2026-06-24 | opencode | Remediation: replaced all `agent_rule.md` references with `AGENTS.md`; converted Linux absolute paths to relative; fixed §9/§11 section ordering; added §11 to index; updated status from DRAFT to COMPLETE. |
+| 1.7 | 2026-07-08 | System | Added note that the shared common-library package structure now exists under `common/library` for architecture-aligned logging, telemetry, pipeline, errors, messages, paths, validation, UI, and factory modules; captured as a reusable foundation for future EKS runtime integration. |
+| 1.8 | 2026-07-08 | opencode | Updated §11: corrected I021 phase assignment from T3.9 (Phase 3) to T1.35/T1.40 (Phase 1); updated I015 task reference to T3.35; updated I016→T2.23, I019→T2.24. Added data incompleteness risk note to Phase 4. |
 ---
 
 ## 3. Objective
@@ -113,11 +116,14 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 | R51 | Logging & Debug | Pipeline Messages & Error Codes | Schema-driven error catalog (system + data domains), pipeline message catalog, per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency), structural elements table (`document_elements`), pipeline health grades per AGENTS.md §19 | ✅ PASS | 1 |
 | R52 | Schema | Document Schema Extraction | Separate document definitions from pipeline config into dedicated 3-layer pattern (`eks_doc_base/setup/config`); align with asset schema pattern for SSOT compliance | ✅ PASS | 1 |
 | R53 | Schema | Enhanced Document Schema v2 | Document type codes (7), file type codes (5), element type codes (8) with enums; 3 registries (document_type, file_type, element_type); element expectations keyed by document type codes | ✅ PASS | 1 |
-| R54 | Infrastructure | Auto-DDL Generation | Auto-generate SQL DDL from JSON schema `definitions`; replaces hard-coded DDL in `registry.py` | 🔷 PLANNED | 1 |
-| R55 | Infrastructure | File Scanner | Walk project directory; validate extensions against `file_type_registry`; register placeholder rows with `extract_status = 'pending'` | 🔷 PLANNED | 1 |
-| R56 | Plug-in Architecture | Parser Router | Map `file_type` → parser class from `file_type_registry`; instantiate parser; call parse + extract_metadata + detect in sequence | 🔷 PLANNED | 1 |
-| R57 | Pipeline | Pipeline Orchestration | Coordinate scan → register → route → parse → detect → score → update; error handling, logging, rollback | 🔷 PLANNED | 1 |
-| R58 | Pipeline | Manual Review Workflow | Surface flagged docs; correct metadata; confirm elements; recalculate score; lock for Phase 2 | 🔷 PLANNED | 1 |
+| R54 | Infrastructure       | Auto-DDL Generation | Auto-generate SQL DDL from JSON schema `definitions`; replaces hard-coded DDL in `registry.py` | ✅ PASS | 1 |
+| R55 | Infrastructure       | File Scanner | Walk project directory; validate extensions against `file_type_registry`; register placeholder rows with `extract_status = 'pending'` | ✅ PASS | 1 |
+| R56 | Plug-in Architecture | Parser Router | Map `file_type` → parser class from `file_type_registry`; instantiate parser; call parse + extract_metadata + detect in sequence | ✅ PASS | 1 |
+| R57 | Pipeline | Pipeline Orchestration | Coordinate scan → register → route → parse → detect → score → update; error handling, logging, rollback | ✅ PASS | 1 |
+| R58 | Pipeline | Manual Review Workflow | Surface flagged docs; correct metadata; confirm elements; recalculate score; lock for Phase 2 | ✅ PASS | 1 |
+| R43 | Metadata | Engineering Object Metadata Extraction | Automated extraction of engineering object metadata (equipment, instruments, valves, pipelines) from parsed document content using plug-in extractors | 🔷 PLANNED | 3 |
+| R40 | Retrieval Pipeline | Asset-Aware Retrieval & Embedding (retrieval) | Use asset embeddings (`eks_assets` collection) during retrieval to filter and expand context by asset attributes and asset-to-document relationships | 🔷 PLANNED | 4 |
+| R99 | Foundation | Project Infrastructure & Compliance | Folder scaffolding, environment, tests, logs, schema migration, audit, cross-cutting remediation, architectural patterns (BaseEngine, Validator, CLI, HTTP, factories, setup validation) | ✅ PASS | 1 |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
 
@@ -133,7 +139,7 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 - [6. Evaluation and Alignment with Existing Architecture](#6-evaluation-and-alignment-with-existing-architecture)
 - [7. Dependencies with Other Tasks](#7-dependencies-with-other-tasks)
 - [8. Phase Workplan Index](#8-phase-workplan-index)
-  - [8.1 Phase 1 Summary — Foundation](#81-phase-1-summary--foundation-complete)
+  - [8.1 Phase 1 Summary — Foundation](#81-phase-1-summary--foundation-partial)
 - [9. References](#9-references)
 - [10. EKS Pipeline Architecture](#10-eks-pipeline-architecture)
   - [10.1 High-Level Pipeline Overview](#101-high-level-pipeline-overview)
@@ -163,7 +169,7 @@ The EKS project is a **clean-slate build** under `eks/`. The only existing artif
 - Structured asset ingestion (bypasses document chunking; loads directly into graph DB)
 
 **Gap Assessment:**
-- 53 requirements identified (35 original + 3 asset data + 1 schema extensibility + 3 asset embedding + 3 pipeline messages + 2 document schema + 5 pipeline workflow)
+- 62 requirements identified (35 original + 3 asset data + 1 schema extensibility + 3 asset embedding + 3 pipeline messages + 2 document schema + 5 pipeline workflow + 4 ontology phases + 4 known data challenges + 2 asset-aware retrieval + R99 foundation)
 - Full greenfield build — no prior EKS implementation exists
 
 ---
@@ -185,16 +191,17 @@ Each phase is an independent workplan file. Phase execution requires approval be
 
 | Phase | Title                                          | Doc ID        | Status     | Requirements        | Workplan File |
 | :---: | :--------------------------------------------- | :------------ | :--------: | :------------------ | :------------ |
-| 1     | Foundation — Project Structure, Schema & Registry | WP-EKS-P1-001 | ✅ COMPLETE | R01,R02,R06–R09,R21,R22,R26,R29,R33–R35,R36,R39(schema),R44,R51,R52,R53,R54–R58 | [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) |
+| 1     | Foundation — Project Structure, Schema & Registry | WP-EKS-P1-001 | 🔶 PARTIAL | R01,R02,R06–R09,R21,R22,R26,R29,R33–R36,R39(schema),R44,R51,R52,R53,R54–R58,R99 | [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) |
+| 1.2   | Interactive UI, I/O Contracts & Processing     | WP-EKS-P1.2-001 | 🔶 PARTIAL | S1.2.1–S1.2.21 (sub-phase scope) | [phase_1.2_interactive_ui_workplan.md](phase_1.2_interactive_ui_workplan.md) |
 | 2     | Chunking, Embedding & Vector Storage           | WP-EKS-P2-001 | 🔷 PLANNED | R03,R04,R10,R12–R15,R25,R28,R30,R40,R41,R50,R44(embedding) | [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md) |
-| 3     | Knowledge Graph & Structured Asset Ingestion   | WP-EKS-P3-001 | 🔷 PLANNED | R05,R11,R23,R27,R31,R37,R39(loader),R40(asset embed),R42,R45(trigger),R48,R49,R43,R44(loader) | [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) |
+| 3     | Knowledge Graph & Structured Asset Ingestion   | WP-EKS-P3-001 | 🔷 PLANNED | R05,R11,R23,R27,R31,R37,R39(loader),R40(asset embed),R42,R43,R45,R48,R49,R44(graph) | [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md) |
 | 4     | Retrieval & Scoring Pipeline                   | WP-EKS-P4-001 | 🔷 PLANNED | R16–R20,R24,R38,R40(retrieval),R46 | [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md) |
-| 5     | UI, Retrieval Cache & System Integration       | WP-EKS-P5-001 | 🔷 PLANNED | R32,R47 + cache,R44(UI) | [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md) |
+| 5     | UI, Retrieval Cache & System Integration       | WP-EKS-P5-001 | 🔷 PLANNED | R32,R47,cache,R44(UI) | [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md) |
 
 **Phase Dependency Chain:** Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5  
 Each phase must be approved and completed before the next phase begins.
 
-### 8.1 Phase 1 Summary — Foundation (✅ COMPLETE)
+### 8.1 Phase 1 Summary — Foundation (🔶 PARTIAL)
 
 | Aspect | Details |
 | :----- | :------ |
@@ -204,9 +211,31 @@ Each phase must be approved and completed before the next phase begins.
 | **Key Modules** | `schema_loader.py`, `registry.py`, `schema_to_ddl.py`, `file_scanner.py`, `parser_router.py`, `pipeline_orchestrator.py`, `review_manager.py`, `health_scorer.py`, `structure_detector.py`, `error_manager.py`, `message_manager.py`, `setup_validator.py`, `context.py`, `base.py`, `telemetry.py`, `validator.py`, `factories.py` |
 | **Parsers** | `pdf_parser.py`, `docx_parser.py`, `xlsx_parser.py`, `dgn_parser.py` (stub), `dwg_parser.py` (stub) |
 | **Schemas** | Core: `eks_base/setup/config.json` (incl. project_setup section); Asset: `eks_asset_base/setup/config.json` (13 fragments, 14 AT_ types); Document: `eks_doc_base/setup/config.json` (7 doc types, 5 file types, 8 element types); Ontology: `eks_ontology_base/setup/config.json`; Error: `eks_error_code_base.json`, `eks_error_setup_schema.json`, `eks_error_config.json` (65 codes); Message: `eks_message_base.json`, `eks_message_setup_schema.json`, `eks_message_config.json` (33 messages); Fragments: `eks_project_code_schema.json`, `eks_discipline_schema.json`, `eks_department_schema.json`, `eks_facility_schema.json`; Project Rules: `eks_project_rules_config.json` |
-| **Test Coverage** | 120/120 tests passing (`test_phase1.py` + `test_t132_modules.py` + `test_asset_schema.py` + `test_loader_full.py`) |
+| **Test Coverage** | 118/118 tests passing (`test_phase1.py` + `test_t132_modules.py` + `test_asset_schema.py` + `test_loader_full.py`) |
 | **Requirements Met** | R01, R02, R06–R09, R21, R22, R26, R29, R33–R36, R39, R44, R51–R58 (22 requirements) |
 | **Feeds Into** | Phase 2: Parsed documents + metadata → chunking; Document registry → chunk registry; Schema patterns → embedding config |
+
+---
+
+## 9. References
+
+1. [AGENTS.md](../AGENTS.md) — Repository guidelines
+2. [eks/readme.md](../readme.md) — EKS project overview
+3. [dcc/config/schemas](../../dcc/config/schemas) — Schema pattern reference
+4. [dcc pipeline architecture design workplan](../../dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/pipeline_architecture_design_workplan.md) — Workplan format reference
+5. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
+6. [phase_1.2_interactive_ui_workplan.md](phase_1.2_interactive_ui_workplan.md)
+7. [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md)
+8. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md)
+9. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
+10. [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md)
+11. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema
+12. [appendix_b_document_registry.md](appendix_b_document_registry.md) — Document Registry
+13. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology
+14. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)
+15. [appendix_e_schema_design.md](appendix_e_schema_design.md) — EKS Schema Design (v0.1)
+16. [appendix_f_pipeline_architecture_design.md](appendix_f_pipeline_architecture_design.md) — Pipeline Architecture & Engine I/O Contracts
+17. [appendix_g_interface_architecture.md](appendix_g_interface_architecture.md) — Universal Interface Architecture
 
 ---
 
@@ -299,24 +328,6 @@ graph LR
 - **Schema-driven**: All registries (document_type, file_type, element_type, asset_type) are config-driven — no code changes needed to add new types.
 - **Detailed Mermaid diagrams**: Each phase's detailed pipeline diagram is maintained in its respective phase workplan file (Phase 1–5).
 
-
-## 9. References
-
-1. [AGENTS.md](../AGENTS.md) — Repository guidelines
-2. [eks/readme.md](../readme.md) — EKS project overview
-3. [dcc/config/schemas](../../dcc/config/schemas) — Schema pattern reference
-4. [dcc pipeline architecture design workplan](../../dcc/workplan/pipeline_architecture/pipeline_architecture_workplan/pipeline_architecture_design_workplan.md) — Workplan format reference
-5. [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
-6. [phase_2_chunking_embedding_workplan.md](phase_2_chunking_embedding_workplan.md)
-7. [phase_3_knowledge_graph_workplan.md](phase_3_knowledge_graph_workplan.md)
-8. [phase_4_retrieval_pipeline_workplan.md](phase_4_retrieval_pipeline_workplan.md)
-9. [phase_5_ui_integration_workplan.md](phase_5_ui_integration_workplan.md)
-10. [appendix_a_asset_schema.md](appendix_a_asset_schema.md) — Universal Plant Item Schema
-11. [appendix_b_document_registry.md](appendix_b_document_registry.md) — Document Registry
-12. [appendix_c_ontology.md](appendix_c_ontology.md) — Dynamic ISO 15926-Aligned Ontology
-13. [appendix_d_pipeline_messages_errors.md](appendix_d_pipeline_messages_errors.md) — Pipeline Messages & Error Codes (v0.3)
-14. [appendix_e_schema_design.md](appendix_e_schema_design.md) — EKS Schema Design (v0.1)
-
 ---
 
 ## 11. Known Data Challenges (from twrp sample data)
@@ -325,15 +336,15 @@ Analysis of `eks/data/twrp/` sample data identified 7 challenges (I015–I021 in
 
 | Challenge | Issue | Category | Severity | Phase | Task |
 |-----------|-------|----------|----------|------|------|
-| DGN parser stub — 48 CAD files unparseable | I015 | Parser | 🟡 Medium | 3 | T3.x |
-| Revision folder hierarchy inconsistency | I016 | FileScanner | 🟢 Low | 2 | T2.x |
-| Two project codes (131101 vs 131242) | I019 | Schema | 🟡 Medium | 2 | T2.x |
+| DGN parser stub — 48 CAD files unparseable | I015 | Parser | 🟡 Medium | 3 | T3.35 |
+| Revision folder hierarchy inconsistency | I016 | FileScanner | 🟢 Low | 2 | T2.23 |
+| Two project codes (131101 vs 131242) | I019 | Schema | 🟡 Medium | 2 | T2.24 |
 | Datadrop column range (33–112) — fragment coverage | I020 | Schema | 🟡 Medium | 3 | T3.9 |
-| 22–64% data incompleteness across sheets | I021 | Data Quality | 🟠 High | 3 | T3.9 |
+| 22–64% data incompleteness across sheets | I021 | Data Quality | 🟠 High | 1 | T1.35, T1.40 |
 | Mixed file types per submittal | I017 | Pipeline | 🟢 Low | — | RESOLVED (T1.38) |
 | Temp file filtering | I018 | FileScanner | 🟢 Low | — | RESOLVED (T1.37) |
 
 **Notes:**
 - I017 and I018 are resolved in Phase 1 — FileScanner and ParserRouter handle these patterns
-- I015 (DGN gap) is the highest-impact open issue — 48 CAD files will require Phase 3 parser implementation
-- I021 (data incompleteness) is the highest-severity open issue — health scoring and manual review workflow are critical mitigation
+- I015 (DGN gap) is the highest-impact open issue — 48 CAD files will require Phase 3 CAD parser evaluation (T3.35)
+- I021 (data incompleteness) is the highest-severity open issue — health scoring (T1.35) and manual review workflow (T1.40) from Phase 1 are critical mitigation; retrieval health scores (Phase 4) filter low-confidence records

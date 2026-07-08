@@ -28,14 +28,14 @@ class EKSPaths:
     log_dir: Path
     
     def to_dict(self) -> Dict[str, str]:
-        """Convert to dictionary for serialization."""
+        """Convert to dictionary for serialization (uses as_posix() for cross-platform)."""
         return {
-            "data_dir": str(self.data_dir),
-            "schema_dir": str(self.schema_dir),
-            "output_dir": str(self.output_dir),
-            "archive_dir": str(self.archive_dir),
-            "config_dir": str(self.config_dir),
-            "log_dir": str(self.log_dir)
+            "data_dir": self.data_dir.as_posix(),
+            "schema_dir": self.schema_dir.as_posix(),
+            "output_dir": self.output_dir.as_posix(),
+            "archive_dir": self.archive_dir.as_posix(),
+            "config_dir": self.config_dir.as_posix(),
+            "log_dir": self.log_dir.as_posix()
         }
 
 

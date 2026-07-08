@@ -4,6 +4,7 @@ DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 """
 import duckdb
 import json
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
@@ -320,6 +321,62 @@ class DocumentRegistry:
             return dict(zip(cols, res))
         finally:
             conn.close()
+
+    @staticmethod
+    def _with_retry(fn, retries=3, delay=0.5):
+        """Execute *fn* with retries on IOError (DuckDB locking contention)."""
+        for attempt in range(retries):
+            try:
+                return fn()
+            except (IOError, OSError) as e:
+                if attempt < retries - 1:
+                    if hasattr(fn, '__self__') and hasattr(fn.__self__, 'logger'):
+                        fn.__self__.logger.warning(
+                            f"DB lock contention (attempt {attempt+1}/{retries}): {e}",
+                            context="DocumentRegistry._with_retry"
+                        )
+                    time.sleep(delay)
+                else:
+                    raise
+
+    @log_depth
+    def update_document_status(self, doc_id: str, status: str,
+                               confidence: Optional[float] = None,
+                               notes: Optional[str] = None) -> bool:
+        """
+        Update document extraction status using the registry singleton connection.
+        Uses _with_retry for safe concurrent access.
+        Returns True if exactly one row was updated.
+        """
+        def _action():
+            conn = duckdb.connect(str(self.db_path))
+            try:
+                result = conn.execute(
+                    "UPDATE documents SET extract_status = ?, extraction_confidence = ?, extraction_notes = ? WHERE id = ?",
+                    [status, confidence, notes, doc_id]
+                )
+                # Check affected rows via a SELECT COUNT after UPDATE
+                affected = conn.execute(
+                    "SELECT COUNT(*) FROM documents WHERE id = ? AND extract_status = ?",
+                    [doc_id, status]
+                ).fetchone()
+                count = affected[0] if affected else 0
+                if count > 0:
+                    self.logger.info(f"Updated status for {doc_id}: {status} (conf={confidence})",
+                                     context="DocumentRegistry.update_document_status")
+                    return True
+                self.logger.warning(f"Document not found for status update: {doc_id}",
+                                   context="DocumentRegistry.update_document_status")
+                return False
+            finally:
+                conn.close()
+
+        try:
+            return self._with_retry(_action)
+        except Exception as e:
+            self.logger.error(f"Failed to update document status for {doc_id}: {e}",
+                              context="DocumentRegistry.update_document_status")
+            return False
 
     @log_depth
     def list_documents(self, 

@@ -2,8 +2,8 @@
 
 **Document ID**: WP-EKS-P4-001  
 **Current Version**: 0.7  
-**Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-16  
+**Status**: 🔷 PLANNED  
+**Last Updated**: 2026-07-08  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: Phase 3 must be complete and approved  
 
@@ -19,13 +19,13 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 
 | Version | Date       | Author | Summary of Changes                        |
 | :------ | :--------- | :----- | :---------------------------------------- |
-| 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
-| 0.2     | 2026-06-15 | System | Added asset-aware metadata filtering (unit, service, tag_type) and asset relationship expansion (CONNECTS_TO pipeline-to-component, REFERENCED_BY_DWG P&ID links). Updated scope, tasks, success criteria for R38 |
-| 0.3     | 2026-06-16 | System | Added T4.18 asset query handler, reranker model guidance, Timestamp column in task table. |
-| 0.4     | 2026-06-18 | System | Added R40 to scope: dual-collection vector search (eks_chunks + eks_assets). Added T4.19 dual-collection merger. Updated success criteria. |
-| 0.5     | 2026-06-16 | System | Updated T4.1 to include new metadata dimensions: `originator_company` and `security_class`. |
-| 0.6     | 2026-06-16 | System | Added T4.20–T4.21 for dynamic ontology-aware query expansion and unlimited path depth connectivity tracing. Linked Appendix C. |
 | 0.7     | 2026-06-16 | System | Ontology Option C gap closure: added T4.22 (dedicated ontology_resolver.py module); T4.23 (CONTROLS + FEEDS_FROM traversal in graph expander); T4.24 (PhysicalObject lookup via INSTALLED_AT). Added success criteria for all three. Added ontology_resolver.py to files table. |
+| 0.6     | 2026-06-16 | System | Added T4.20–T4.21 for dynamic ontology-aware query expansion and unlimited path depth connectivity tracing. Linked Appendix C. |
+| 0.5     | 2026-06-16 | System | Updated T4.1 to include new metadata dimensions: `originator_company` and `security_class`. |
+| 0.4     | 2026-06-18 | System | Added R40 to scope: dual-collection vector search (eks_chunks + eks_assets). Added T4.19 dual-collection merger. Updated success criteria. |
+| 0.3     | 2026-06-16 | System | Added T4.18 asset query handler, reranker model guidance, Timestamp column in task table. |
+| 0.2     | 2026-06-15 | System | Added asset-aware metadata filtering (unit, service, tag_type) and asset relationship expansion (CONNECTS_TO pipeline-to-component, REFERENCED_BY_DWG P&ID links). Updated scope, tasks, success criteria for R38 |
+| 0.1     | 2026-06-11 | System | Initial phase workplan draft for approval |
 
 ---
 
@@ -55,7 +55,6 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | R24 | Revision Management| Revision-Aware Retrieval         | Retrieval pipeline respects document revision context                      | 🔷 PLANNED |
 | R38 | Retrieval Pipeline | Asset-Aware Retrieval            | Filter and expand context by asset attributes and asset-to-document graph relationships | 🔷 PLANNED |
 | R40 | Retrieval Pipeline | Asset Semantic Search            | Query `eks_assets` Qdrant collection for fuzzy/semantic asset property queries; merge with Neo4j structured results before scoring | 🔷 PLANNED |
-| R44 | Schema             | ISO 15926 Ontology Integration   | Separate FunctionalObject (Tag) and PhysicalObject (Equipment) properties in ontology schema; zero-code config-driven classes and relationships | 🔷 PLANNED |
 | R46 | Retrieval Pipeline | Ontology-Aware Retrieval         | Dynamic query expansion via T-Box subclass traversal; trace piping connections at unlimited depth | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
@@ -168,6 +167,7 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | LLM hallucination on out-of-context queries        | Medium     | High   | Strict context window; enforce source citations in response  |
 | Pipeline latency for complex multi-stage queries   | Medium     | Medium | Retrieval cache in Phase 5; async stage execution            |
 | Reranker model unavailable or slow                 | Medium     | Medium | Rule-based reranker as fallback; reranker is optional stage  |
+| Data incompleteness in source assets (I021) — 22–64% missing fields degrades retrieval quality | Medium | High | Health scores filter low-confidence records; manual review workflow compensates; graceful degradation for partial data |
 
 ---
 

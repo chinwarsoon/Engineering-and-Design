@@ -899,5 +899,60 @@ class TestPhase1(unittest.TestCase):
             "item_core must not have required at base level. Required constraints "
             "are defined per-project in eks_project_rules_config.json (fragment_required_fields).")
 
+    def test_registry_update_document_status(self):
+        """T1.71: DocumentRegistry.update_document_status updates extraction fields."""
+        self.registry.register_document({
+            "document_number": "STATUS-001", "revision": "A",
+            "document_type": "SPEC", "extract_status": "pending"
+        })
+        ok = self.registry.update_document_status("STATUS-001-A", "success", confidence=0.95, notes="Auto-parsed")
+        self.assertTrue(ok)
+        doc = self.registry.get_document("STATUS-001", revision="A")
+        self.assertEqual(doc["extract_status"], "success")
+        self.assertEqual(doc["extraction_confidence"], 0.95)
+        self.assertEqual(doc["extraction_notes"], "Auto-parsed")
+
+    def test_registry_update_document_status_nonexistent(self):
+        """T1.71: update_document_status returns False for missing doc_id."""
+        ok = self.registry.update_document_status("NONEXIST-001-A", "failed")
+        self.assertFalse(ok)
+
+    def test_pipeline_orchestrator_error_manager_wiring(self):
+        """T1.68: PipelineOrchestrator accepts optional error_manager/message_manager."""
+        from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
+        from eks.engine.logging.logger import EKSLogger
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        loader = EKSLogger  # just use logger api shape
+        orch = PipelineOrchestrator(
+            {}, {"file_type_registry": [], "health_scoring": {"dimensions": []}},
+            self.registry, use_telemetry=False
+        )
+        self.assertIsNone(orch.error_manager)
+        self.assertIsNone(orch.message_manager)
+
+    def test_context_paths_to_dict_uses_posix(self):
+        """T1.74: context.py EKSPaths.to_dict() uses .as_posix() for cross-platform."""
+        from eks.engine.core.context import EKSPaths
+        paths = EKSPaths(
+            data_dir=Path("c:\\data") if os.name == "nt" else Path("/data"),
+            schema_dir=Path("c:\\schemas") if os.name == "nt" else Path("/schemas"),
+            output_dir=Path("c:\\out") if os.name == "nt" else Path("/out"),
+            archive_dir=Path("c:\\arch") if os.name == "nt" else Path("/arch"),
+            config_dir=Path("c:\\cfg") if os.name == "nt" else Path("/cfg"),
+            log_dir=Path("c:\\log") if os.name == "nt" else Path("/log"),
+        )
+        d = paths.to_dict()
+        for key, val in d.items():
+            self.assertNotIn("\\", val, f"{key} contains backslash: {val}")
+            self.assertIn("/", val, f"{key} has no forward slash: {val}")
+
+    def test_phase1_server_paths_anchored_to_prj_dir(self):
+        """T1.74: phase1_server.py paths are anchored to PRJ_DIR."""
+        from eks.ui.backend.phase1_server import PRJ_DIR
+        self.assertTrue(PRJ_DIR.is_absolute(), "PRJ_DIR must be absolute")
+        # Verify referenced paths exist relative to PRJ_DIR
+        self.assertTrue((PRJ_DIR / "eks" / "config").is_dir(), "eks/config not found relative to PRJ_DIR")
+        self.assertTrue((PRJ_DIR / "eks" / "data").is_dir(), "eks/data not found relative to PRJ_DIR")
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,9 +1,9 @@
 # EKS Phase 2 — Chunking, Embedding & Vector Storage
 
 **Document ID**: WP-EKS-P2-001  
-**Current Version**: 0.5  
-**Status**: 🔵 DRAFT — PENDING APPROVAL  
-**Last Updated**: 2026-06-16  
+**Current Version**: 0.6  
+**Status**: 🔷 PLANNED  
+**Last Updated**: 2026-07-08  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: Phase 1 must be complete and approved  
 
@@ -55,7 +55,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | R30 | Infrastructure       | Vector DB                      | Qdrant for vector storage                                            | 🔷 PLANNED |
 | R40 | Embedding            | Asset Embedding Strategy       | Contextual header + key field summary per asset; store vectors in `eks_assets` Qdrant collection; prevent null/code pollution per R13 | 🔷 PLANNED |
 | R41 | Knowledge Base       | Asset Chunk Registry Extension | Extend DuckDB chunk registry to support asset records keyed on `keytag`; metadata: keytag, tag_type, tag_no, unit, service, p_and_id_file | 🔷 PLANNED |
-| R44 | Schema               | ISO 15926 Ontology Integration | Define dynamic, config-driven ontology schema (classes, properties, relationships) for EKS | 🔷 PLANNED |
+| R44 | Schema               | ISO 15926 Ontology Integration (embedding) | Apply ontology taxonomy paths to embedding headers and class-aware asset representation | 🔷 PLANNED |
 | R50 | Embedding | Ontology-Enriched Embedding Headers | Replace AT_ code in contextual embedding header with human-readable ontology taxonomy path resolved from T-Box (e.g. `[Pump \| Rotating Equipment \| Equipment \| Unit 003 \| Svc G2D]`); improves semantic similarity for class-based queries | 🔷 PLANNED |
 
 **Status Legend:** ✅ PASS | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED
@@ -129,6 +129,8 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | T2.20 | Enrich chunk contextual headers with ontology | Update `hybrid_strategy.py` to resolve the full ontology ancestry path for each asset from the Neo4j T-Box (e.g. PumpTag → TaggedRotating → TaggedEquipment → FunctionalObject) and prepend human-readable class labels as header: `"[{leaf_label} | {parent_label} | ... | Unit {unit} | Svc {service}]"`. Labels come from `eks_ontology_config.json` class definitions — never AT_ codes. Resolves subclass chain via C5.4 Cypher query at embedding time. | 🔷 | — |
 | T2.21 | Write ontology enrichment tests | Verify that taxonomy hierarchy is correctly prepended to headers before embedding | 🔷 | — |
 | T2.22 | Integrate Appendix F architecture patterns | Apply universal pipeline architecture patterns per [Appendix F](appendix_f_pipeline_architecture_design.md): (1) Create ChunkerInput/ChunkerOutput and EmbedderInput/EmbedderOutput contracts in `eks/engine/chunking/io_contracts.py` and `eks/engine/embedding/io_contracts.py` extending EngineInput/EngineOutput base; (2) Add telemetry heartbeat checkpoints for chunking progress (documents processed, chunks generated) and embedding progress (chunks embedded, vectors stored); (3) Consider factory pattern for EmbedderProvider selection (OpenAI, Ollama) via Dependency Injection; (4) Ensure chunkers and embedders can be executed independently via CLI entry points; (5) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 | — |
+| T2.23 | Handle revision folder hierarchy inconsistency (I016) | Verify FileScanner handles edge cases where R0 revisions use 3-subfolder structure vs R1+ revisions with flat files; ensure recursive walk works across all submittal structures. | 🔷 | — |
+| T2.24 | Handle dual project codes (I019) | Ensure FileScanner and chunk registry correctly handle both 131101 and 131242 project codes extracted dynamically from document number patterns. | 🔷 | — |
 
 ---
 
@@ -166,6 +168,8 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | Chunk boundary quality affects retrieval     | Medium     | High   | Section-aware chunking; evaluate chunk quality in tests |
 | Vector DB schema changes during development  | Low        | Medium | Abstract interface isolates DB-specific logic           |
 | Qdrant service unavailable in dev env        | Low        | High   | Document Docker Compose setup; use mock for unit tests  |
+| Revision folder structure inconsistency (I016) | Low        | Medium | T2.23: verify FileScanner edge cases for R0 vs R1+ folder patterns |
+| Dual project codes (131101 vs 131242) (I019)  | Low        | Medium | T2.24: ensure dynamic project code extraction from document number |
 
 ---
 

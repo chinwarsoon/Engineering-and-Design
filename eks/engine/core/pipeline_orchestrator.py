@@ -3,6 +3,8 @@ Pipeline Orchestrator for EKS - Coordinates Phase A/B/C pipeline workflow.
 T1.39: Pre-parse → parse → score → review pipeline coordinator.
 T1.63: Enhanced with checkpoints and telemetry heartbeat integration per Appendix F.
 T1.64: Added phase rollback capability per Appendix F.
+T1.68: Wired ErrorManager/MessageManager calls at phase boundaries and per-file failures.
+T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_document_status().
 """
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -13,6 +15,8 @@ from .structure_detector import StructureDetector
 from ..parsers.parser_router import ParserRouter
 from .context import EKSPipelineContext, EKSPaths
 from .telemetry import TelemetryHeartbeat
+from .error_manager import ErrorManager
+from .message_manager import MessageManager
 
 
 class PipelineOrchestrator:
@@ -30,7 +34,9 @@ class PipelineOrchestrator:
 
     def __init__(self, config: Dict[str, Any], doc_config: Dict[str, Any],
                  registry: Any, logger: Optional[EKSLogger] = None,
-                 use_telemetry: bool = True):
+                 use_telemetry: bool = True,
+                 error_manager: Optional[ErrorManager] = None,
+                 message_manager: Optional[MessageManager] = None):
         """
         Initialize pipeline orchestrator.
         
@@ -40,12 +46,16 @@ class PipelineOrchestrator:
             registry: Document registry instance
             logger: Optional logger instance
             use_telemetry: Whether to enable telemetry heartbeat (default True)
+            error_manager: Optional ErrorManager instance (T1.68)
+            message_manager: Optional MessageManager instance (T1.68)
         """
         self.config = config
         self.doc_config = doc_config
         self.registry = registry
         self.logger = logger or EKSLogger("PipelineOrchestrator", level=1)
         self.use_telemetry = use_telemetry
+        self.error_manager = error_manager
+        self.message_manager = message_manager
         
         # Initialize components
         self.scanner = FileScanner(config, doc_config=doc_config, logger=self.logger)
@@ -145,12 +155,20 @@ class PipelineOrchestrator:
         
         self.logger.status(f"Phase A: Scanning {root_dir}")
         
+        if self.message_manager:
+            self.message_manager.show("STATUS_PHASE_A_START", phase="A", root_dir=str(root_dir))
+        
         if self.context:
             self.context.update_phase("A", "IN_PROGRESS")
 
         discovered = self.scanner.scan(root_dir, recursive=recursive)
         valid, unknown = self.scanner.validate_file_types(discovered)
-        registered = self.scanner.register_placeholders(valid, self.registry)
+        try:
+            registered = self.scanner.register_placeholders(valid, self.registry)
+        except Exception as e:
+            if self.error_manager:
+                self.error_manager.handle_data_error("D5-REG-001", detail=f"Placeholder registration failed: {e}")
+            raise
 
         summary = {
             "discovered": len(discovered),
@@ -172,6 +190,10 @@ class PipelineOrchestrator:
             self.context.update_phase("A", "COMPLETE")
         
         self.logger.status(f"Phase A complete: {summary}")
+        
+        if self.message_manager:
+            self.message_manager.show("STATUS_PHASE_A_COMPLETE", registered=registered)
+        
         return summary
 
     @log_depth
@@ -189,6 +211,9 @@ class PipelineOrchestrator:
         """
         self.logger.status(f"Phase B: Parsing files in {root_dir}")
         
+        if self.message_manager:
+            self.message_manager.show("STATUS_PHASE_B_START", phase="B", root_dir=str(root_dir))
+        
         if self.context:
             self.context.update_phase("B", "IN_PROGRESS")
 
@@ -203,7 +228,15 @@ class PipelineOrchestrator:
         for file_info in valid:
             file_path = file_info["file_path"]
             file_type = file_info["file_type"]
-            result = self._process_file(file_path, file_type)
+            try:
+                result = self._process_file(file_path, file_type)
+            except Exception as e:
+                result = {"file_path": file_path, "file_type": file_type, "status": "failed", "error": str(e)}
+                if self.error_manager:
+                    self.error_manager.handle_system_error("S-PIP-001", detail=f"Unhandled error in _process_file for {file_path}: {e}")
+                    if self.message_manager:
+                        self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(e))
+
             results.append(result)
 
             status = result.get("status", "failed")
@@ -213,6 +246,9 @@ class PipelineOrchestrator:
                 partial += 1
             else:
                 failed += 1
+                if self.error_manager:
+                    self.error_manager.handle_data_error("D5-PARSE-001", doc_id=str(file_path),
+                                                          detail=f"File processing failed with status: {status}")
             
             # Add telemetry checkpoint for each file processed
             if self.use_telemetry:
@@ -245,6 +281,11 @@ class PipelineOrchestrator:
             self.context.update_phase("B", "COMPLETE")
         
         self.logger.status(f"Phase B complete: {success} success, {partial} partial, {failed} failed")
+        
+        if self.message_manager:
+            self.message_manager.show("STATUS_PHASE_B_COMPLETE",
+                                       success=success, partial=partial, failed=failed)
+        
         return summary
 
     @log_depth
@@ -260,6 +301,9 @@ class PipelineOrchestrator:
             - documents: list of flagged document metadata dicts
         """
         self.logger.status("Phase C: Flagging documents for review")
+        
+        if self.message_manager:
+            self.message_manager.show("STATUS_PHASE_C_START", phase="C")
         
         if self.context:
             self.context.update_phase("C", "IN_PROGRESS")
@@ -293,6 +337,10 @@ class PipelineOrchestrator:
             self.context.update_phase("C", "COMPLETE")
         
         self.logger.status(f"Phase C complete: {len(flagged)} documents flagged for review")
+        
+        if self.message_manager:
+            self.message_manager.show("STATUS_PHASE_C_COMPLETE", flagged=len(flagged))
+        
         return summary
 
     @log_depth
@@ -305,30 +353,42 @@ class PipelineOrchestrator:
         """
         self.logger.status(f"Starting full pipeline for {root_dir}")
         
+        if self.message_manager:
+            self.message_manager.show("STATUS_PIPELINE_START", root_dir=str(root_dir))
+        
         if self.use_telemetry:
             self.telemetry.start()
         
         if self.context:
             self.context.state.status = "IN_PROGRESS"
 
-        phase_a = self.run_phase_a(root_dir, recursive=recursive)
-        phase_b = self.run_phase_b(root_dir, recursive=recursive)
-        phase_c = self.run_phase_c()
+        try:
+            phase_a = self.run_phase_a(root_dir, recursive=recursive)
+            phase_b = self.run_phase_b(root_dir, recursive=recursive)
+            phase_c = self.run_phase_c()
 
-        summary = {
-            "phase_a": phase_a,
-            "phase_b": phase_b,
-            "phase_c": phase_c,
-        }
-        
-        if self.use_telemetry:
-            self.telemetry.stop()
-        
-        if self.context:
-            self.context.complete()
-        
-        self.logger.status("Full pipeline complete")
-        return summary
+            summary = {
+                "phase_a": phase_a,
+                "phase_b": phase_b,
+                "phase_c": phase_c,
+            }
+            
+            if self.use_telemetry:
+                self.telemetry.stop()
+            
+            if self.context:
+                self.context.complete()
+            
+            self.logger.status("Full pipeline complete")
+            
+            if self.message_manager:
+                self.message_manager.show("STATUS_PIPELINE_COMPLETE")
+            
+            return summary
+        except Exception as e:
+            if self.error_manager:
+                self.error_manager.handle_system_error("S-PIP-002", detail=f"Pipeline failed: {e}")
+            raise
 
     def _process_file(self, file_path: str, file_type: str) -> Dict[str, Any]:
         """
@@ -351,7 +411,10 @@ class PipelineOrchestrator:
 
             if parse_result["status"] == "failed":
                 result["status"] = "failed"
-                self._update_doc_status(file_path, "failed", error=result["error"])
+                if self.error_manager:
+                    self.error_manager.handle_data_error("D5-PARSE-002", doc_id=str(file_path),
+                                                          detail=parse_result.get("error", "Parse failed"))
+                self._update_doc_status(file_path, "failed", notes=result["error"])
                 return result
 
             content_blocks = parse_result.get("content_blocks", [])
@@ -366,21 +429,34 @@ class PipelineOrchestrator:
                     f"Structure detection failed for {file_path}: {e}",
                     context="PipelineOrchestrator._process_file"
                 )
+                if self.error_manager:
+                    self.error_manager.handle_data_error("D5-DETECT-001", doc_id=str(file_path),
+                                                          detail=f"Structure detection failed: {e}")
 
             doc_number = Path(file_path).stem.split("_rev")[0].rsplit("-", 1)[0]
             doc = self.registry.get_document(doc_number)
             if doc:
-                score = self.scorer.score(doc, elements)
-                result["score"] = score
-                self._update_doc_status(
-                    file_path, "success",
-                    confidence=score.get("overall"),
-                    notes=f"Auto-parsed via pipeline"
-                )
-                result["status"] = "success"
+                try:
+                    score = self.scorer.score(doc, elements)
+                    result["score"] = score
+                    self._update_doc_status(
+                        file_path, "success",
+                        confidence=score.get("overall"),
+                        notes=f"Auto-parsed via pipeline"
+                    )
+                    result["status"] = "success"
+                except Exception as e:
+                    if self.error_manager:
+                        self.error_manager.handle_data_error("D5-SCORE-001", doc_id=str(file_path),
+                                                              detail=f"Health scoring failed: {e}")
+                    result["status"] = "partial"
+                    result["error"] = str(e)
             else:
                 result["status"] = "partial"
                 result["error"] = f"Document not registered: {doc_number}"
+                if self.error_manager:
+                    self.error_manager.handle_data_error("D5-PARSE-003", doc_id=str(file_path),
+                                                          detail=f"Document not registered: {doc_number}")
 
         except Exception as e:
             result["status"] = "failed"
@@ -389,6 +465,8 @@ class PipelineOrchestrator:
                 f"Pipeline processing failed for {file_path}: {e}",
                 context="PipelineOrchestrator._process_file"
             )
+            if self.error_manager:
+                self.error_manager.handle_system_error("S-PIP-003", detail=f"Pipeline processing failed for {file_path}: {e}")
 
         return result
 
@@ -417,16 +495,9 @@ class PipelineOrchestrator:
 
     def _update_doc_status(self, file_path: str, status: str,
                            confidence: Optional[float] = None,
-                           error: Optional[str] = None) -> None:
-        """Update document extraction status in registry."""
+                           notes: Optional[str] = None) -> None:
+        """Update document extraction status in registry using registry.update_document_status()."""
         doc_number = Path(file_path).stem.split("_rev")[0].rsplit("-", 1)[0]
         doc = self.registry.get_document(doc_number)
         if doc:
-            conn = __import__('duckdb').connect(str(self.registry.db_path))
-            try:
-                conn.execute(
-                    "UPDATE documents SET extract_status = ?, extraction_confidence = ?, extraction_notes = ? WHERE id = ?",
-                    [status, confidence, error, doc["id"]]
-                )
-            finally:
-                conn.close()
+            self.registry.update_document_status(doc["id"], status, confidence=confidence, notes=notes)
