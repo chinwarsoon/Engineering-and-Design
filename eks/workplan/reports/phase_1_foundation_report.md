@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry — Test Report
 
 **Report ID**: RP-EKS-P1-001  
-**Current Version**: 2.2  
-**Status**: 🔶 PARTIAL — Bootstrap items T1.68/T1.71/T1.74 implemented; closure tasks T1.69/T1.70/T1.72/T1.73/T1.75/T1.76 planned. 191/191 tests pass.  
-**Last Updated**: 2026-07-08  
+**Current Version**: 2.7  
+**Status**: ✅ COMPLETE — All Phase 1 tasks complete including T1.77–T1.89 (initiation integrity + schema-driven hardening + initiation harmonization). 235/235 tests pass. Phase 1.3 (T1.84–T1.89) integrated. Phase 1.3 stand-alone workplan retained as archived reference.  
+**Last Updated**: 2026-07-09  
 **Parent Workplan**: [phase_1_foundation_workplan.md](../phase_1_foundation_workplan.md)  
 **Parent Master**: [eks_system_workplan.md](../eks_system_workplan.md)
 
@@ -19,6 +19,13 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 
 | Version | Date | Author | Summary of Changes |
 | :------ | :--- | :----- | :----------------- |
+| 2.7 | 2026-07-09 | opencode | **Phase 1.3 integrated**: Added §16 (Phase 1.3 Initiation Harmonization test results — T1.84–T1.89). Updated scope summary, success criteria, files, recommendations, and references. Test count updated to 235/235. I085 resolved. Phase 1.3 stand-alone workplan retained as archived reference. |
+| 2.6 | 2026-07-09 | opencode | **T1.79–T1.83 COMPLETE**: Initiation schema-driven hardening — error codes/ErrorManager wiring, config-driven paths, SSOT fallback removal, validation_options honored, eks_root schema-driven. 7 P1-SETUP-* error codes, 19 validator tests, 36 server tests. 215/215 tests pass. I079–I084 closed. Report created at `phase_1_t179_t183_report.md` (now integrated here). |
+| 2.5 | 2026-07-09 | opencode | **T1.77 COMPLETE**: Initiation integrity checks — ProjectSetupValidator readiness gate, debug levels, arg validation. 202/202 tests pass. |
+| 2.4 | 2026-07-09 | opencode | Reconciled T1.73 checkpoint files to `checkpoint_{job_id}_{A,B,C}.json`. |
+| 2.3 | 2026-07-09 | opencode | Bootstrap closure complete: T1.72 enforced DiscoveryInput/Output and ParserInput/Output contracts. 191/191 tests pass. |
+| 2.2 | 2026-07-08 | opencode | Expanded Bootstrap closure plan: added T1.75 (ErrorManager/MessageManager activation in server) and T1.76 (persist JSON outputs). |
+| 2.1 | 2026-07-08 | opencode | Bootstrap update: T1.68 (ErrorManager/MessageManager in orchestrator), T1.71 (update_document_status in registry), T1.74 (cross-platform paths). 191/191 pass. |
 | 0.1 | 2026-06-15 | System | Initial test report — Phase 1 foundation verified |
 | 0.2 | 2026-06-18 | System | Updated for T1.17–T1.20 and R39: added test results for asset schema files (13 fragments), conditional_fragments structure, all 14 AT_ type registrations. 7 new test cases in `test_asset_schema.py` — all pass. I004 resolved; I005 raised for placeholder project data. |
 | 0.3 | 2026-06-16 | System | Updated for T1.21: Document Registry remediation (G1-G3). Added 3 test cases for source_type, column allowlist, and SQL sorting. I006 resolved. |
@@ -50,7 +57,9 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 - [10. Recommendations for Future Actions](#10-recommendations-for-future-actions)
 - [11. Lessons Learned](#11-lessons-learned)
 - [13. Phase 1 Final Closure (T1.67)](#13-phase-1-final-closure-t167)
-- [14. References](#14-references)
+- [15. Bootstrap Updates & Initiation Hardening (T1.68–T1.83)](#15-bootstrap-updates--initiation-hardening-t168t183)
+- [16. Phase 1.3 Initiation Harmonization (T1.84–T1.89)](#16-phase-13-initiation-harmonization-t184t189)
+- [17. References](#17-references)
 
 ---
 
@@ -89,15 +98,15 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 | :------- | :---- |
 | Category | Count |
 | :------- | :---- |
-| Test cases planned | 191 |
-| Test cases executed | 191 |
-| Test cases passed | 191 |
+| Test cases planned | 235 |
+| Test cases executed | 235 |
+| Test cases passed | 235 |
 | Test cases failed | 0 |
-| Issues found | 46 (I001–I046 tracked; I045, I046 resolved; I015–I021 open for Phases 2/3) |
+| Issues found | 53 (I001–I085 tracked; I001–I046, I079–I085 resolved; I015–I021 open for Phases 2/3; I064/I065/I067–I071 open for Phase 1.2.8–1.2.9) |
 | Blockers | 0 |
 
-**Execution Date**: 2026-06-30 (T1.67 final validation)  
-**Execution Duration**: ~5 seconds  
+**Execution Date**: 2026-07-09 (T1.84–T1.89 final validation)  
+**Execution Duration**: ~19.0 seconds  
 **Executor**: opencode (automated test suite)
 
 ### Test Distribution (T1.30–T1.32)
@@ -420,65 +429,53 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 | Shared `verbosity_level` — consolidated into `eks_base_schema.json` SSOT | ✅ | Message + logging both `$ref` shared def |
 | Shared `document_relationship_trigger_map` — consolidated into `eks_base_schema.json` SSOT | ✅ | Asset + doc configs both `$ref` shared def |
 | `base_schema` added to all validation registries for cross-schema `$ref` | ✅ | `schema_loader.py`, `test_asset_schema.py`, `test_phase1.py` updated |
-| All unit tests passing | ✅ | 120/120 passed |
-| `phase_1_foundation_workplan.md` current (v3.21 COMPLETE) | ✅ | All T1.x tasks marked complete |
-| `update_log.md` and `issue_log.md` current | ✅ | U001–U093, I001–I046 logged; I045, I046 resolved |
-| Phase 1 report generated/updated | ✅ | This document (v2.0) |
+| All unit tests passing | ✅ | 235/235 passed |
+| `phase_1_foundation_workplan.md` current (v3.40 COMPLETE) | ✅ | All T1.x tasks marked complete |
+| `update_log.md` and `issue_log.md` current | ✅ | U001–U130, I001–I085 logged; all resolved except Phase 2/3 deferred items |
+| Phase 1 report generated/updated | ✅ | This document (v2.7) |
 | `project_setup.json` integrated into core 3-layer schema (T1.67) | ✅ | 5 defs in base, project_setup property in setup, values in config |
 | `setup_validator.py` refactored to load from ConfigRegistry (T1.67) | ✅ | No more hardcoded folder/file/env lists |
 | I046 resolved: project_setup 7 violations fixed | ✅ | Archived, SSOT chain complete |
-| Phase 1 FINAL COMPLETE | ✅ | All 67 tasks delivered, 23 schemas, 120 tests, all issues resolved or deferred |
+| T1.68–T1.76 (Bootstrap completion) | ✅ | ErrorManager/MessageManager wired, run_id logger, traversal guard, update_doc_status with retry, Discovery/Parser I/O contracts, checkpoints saved, debug/status/message JSON outputs |
+| T1.77 (Initiation integrity checks) | ✅ | ProjectSetupValidator gate in phase1_server, CLI --debug/--level flags, pipeline args validation |
+| T1.78–T1.83 (Initiation hardening) | ✅ | DCC gaps closed (readability, env probe, output-path checks, --skip-readiness, error codes), config-driven paths, fallback removal (SSOT), eks_root schema-driven |
+| T1.84–T1.89 (Initiation harmonization) | ✅ | Universal ValidationManager created, EKS setup schema reshaped to DCC object model, project_setup config extracted, validator refactored as thin adapter, unit tests migrated/added |
+| Phase 1 FINAL COMPLETE | ✅ | All 89 tasks delivered, 24 schemas, 235 tests, all issues resolved or deferred |
 
 ---
 
 ## 9. Files Archived, Modified, and Version Controlled
 
-### Files Created (Post-v0.4)
-- `eks/config/schemas/eks_ontology_base_schema.json` — Ontology base definitions
-- `eks/config/schemas/eks_ontology_setup_schema.json` — Ontology schema declarations
-- `eks/config/schemas/eks_ontology_config.json` — ISO 15926-aligned ontology config (v1.6.0)
-- `eks/config/schemas/eks_doc_base_schema.json` — Document base schema (v1.1.0)
-- `eks/config/schemas/eks_doc_setup_schema.json` — Document setup schema (v1.1.0)
-- `eks/config/schemas/eks_doc_config.json` — Document config (v1.1.0)
-- `eks/workplan/appendix_c_ontology.md` — Ontology appendix
-- `eks/workplan/appendix_d_pipeline_messages_errors.md` — Pipeline messages & errors appendix
-- `eks/config/schemas/eks_error_code_base.json` — Error code base definitions: format `P{phase}-{module}-{function}-{id}`, severity levels, phase/module/function code enums (T1.30)
-- `eks/config/schemas/eks_error_config.json` — Full error code catalog: 30 system codes + 35 data codes (T1.30)
-- `eks/config/schemas/eks_message_base.json` — Message base definitions: ID format, verbosity levels (0–2), categories (T1.31)
-- `eks/config/schemas/eks_message_config.json` — Full message catalog: 33 messages across 5 categories (T1.31)
-- `eks/engine/core/error_manager.py` — System + data error handling, fail-fast, error summaries, health impact (T1.32)
-- `eks/engine/core/message_manager.py` — Message catalog lookup, template hydration, verbosity control (T1.32)
-- `eks/engine/core/health_scorer.py` — 6-dimension per-document health scoring, batch scoring, notes formatting (T1.32)
-- `eks/engine/core/structure_detector.py` — Structural element detection (cover/sections/tables/images) + cover type A–E classification (T1.32)
-- `eks/test/test_t132_modules.py` — 47 unit tests covering all T1.32 modules
-- `eks/engine/parsers/dgn_parser.py` — DGN parser stub
-- `eks/engine/parsers/dwg_parser.py` — DWG parser stub
-- `eks/engine/core/schema_to_ddl.py` — Auto-DDL generation from JSON schema (T1.36)
-- `eks/engine/core/file_scanner.py` — File discovery and type validation (T1.37)
-- `eks/engine/parsers/parser_router.py` — Parser routing and orchestration (T1.38)
-- `eks/engine/core/pipeline_orchestrator.py` — 3-phase pipeline coordinator (T1.39)
-- `eks/engine/core/review_manager.py` — Manual review workflow (T1.40)
+### Files Created (Phase 1.3 Initiation Harmonization & Hardening)
+- `common/library/utility/validation/manager.py` — Universal ValidationManager (T1.84)
+- `common/library/utility/validation/models.py` — Validation dataclasses (T1.84)
+- `common/library/utility/validation/__init__.py` — Exports (T1.84)
+- `eks/config/schemas/eks_project_setup_config.json` — Extracted project setup config (T1.86)
+- `eks/test/test_setup_validator.py` — Unit tests for validator adapter (T1.88)
+- `eks/test/test_validation_manager.py` — Unit tests for universal ValidationManager (T1.88)
+- `eks/workplan/phase_1.3_initiation_harmonization_workplan.md` — Harmonization workplan (T1.89)
+- `eks/workplan/reports/phase_1_t179_t183_report.md` — Hardening test report (T1.89)
+- `eks/engine/core/io_contracts.py` — central input/output contracts (T1.72)
 
-### Files Modified (Post-v0.4)
-- `eks/log/update_log.md` — Added U029–U063
-- `eks/log/issue_log.md` — Added I006–I013; resolved I010–I013
-- `eks/engine/core/schema_loader.py` — Added ontology validation, doc schema loading, doc registry validation
-- `eks/engine/core/config_registry.py` — Schema directory path resolution
-- `eks/engine/core/registry.py` — Added `document_elements` table CRUD (T1.32); replaced hard-coded DDL with SchemaToDDL; added sync_schema(); COLUMN_ALLOWLIST derived from schema (T1.36)
-- `eks/config/schemas/eks_base_schema.json` — Removed document_metadata_def, project_metadata_def
-- `eks/config/schemas/eks_ontology_config.json` — v1.6.0: added DataSheet, OpsManual
-- `eks/config/schemas/eks_doc_base_schema.json` — v1.1.0: enums, id field, missing metadata fields
-- `eks/config/schemas/eks_doc_setup_schema.json` — v1.1.0: 3 registry declarations
-- `eks/config/schemas/eks_doc_config.json` — v1.1.0: registry values, refactored expectations
-- `eks/workplan/appendix_b_document_registry.md` — v0.9: added B3.2/B3.3/B3.4 registries + file_type column
-- `eks/workplan/phase_1_foundation_workplan.md` — v3.2 COMPLETE: T1.36–T1.40, R54–R58
-- `eks/test/test_phase1.py` — Added 22 tests (T1.36: 8, T1.37: 4, T1.38: 4, T1.39: 2, T1.40: 4)
-- `eks/engine/parsers/dgn_parser.py` — Fixed to implement BaseParser interface (extract_metadata)
-- `eks/engine/parsers/dwg_parser.py` — Fixed to implement BaseParser interface (extract_metadata)
-- `eks/engine/core/__init__.py` — Added SchemaToDDL, FileScanner, PipelineOrchestrator, ManualReviewManager
+### Files Modified (Initiation Harmonization & Hardening)
+- `eks/config/schemas/eks_base_schema.json` — Replaced flat-array defs with 8 object defs (v1.7.0, T1.85)
+- `eks/config/schemas/eks_setup_schema.json` — Reshaped project_setup structure (v1.4.0, T1.85)
+- `eks/config/schemas/eks_config.json` — References extracted config file (v1.5.0, T1.86)
+- `eks/engine/core/setup_validator.py` — Adapter delegating to ValidationManager (v0.7, T1.87)
+- `eks/ui/backend/phase1_server.py` — readiness gate, args, log persistence (T1.75-T1.83)
+- `eks/engine/core/pipeline_orchestrator.py` — Error/message manager, contracts, checkpoints (T1.68-T1.72)
+- `eks/engine/core/registry.py` — status update with retry, sync DDL (T1.71)
+- `eks/engine/core/context.py` — EKSPaths posix conversion (T1.74)
+- `eks/engine/logging/logger.py` — run_id logging (T1.69)
+- `eks/knowledge.json` — records Phase 1.3 complete (v2.3.0, T1.89)
+- `eks/log/update_log.md` — logged updates U094–U130 (T1.89)
+- `eks/log/issue_log.md` — logged/resolved I047–I085 (T1.89)
+- `common/universal_pipeline_architecture_design.md` — records universal ValidationManager (T1.89)
+- `eks/workplan/phase_1_foundation_workplan.md` — version 3.40 consolidated workplan (T1.89)
 
 ### Files Archived
-- `eks/config/schemas/project_setup.json` → `eks/archive/project_setup.json` (content integrated into core 3-layer chain)
+- `eks/config/schemas/project_setup.json` → `eks/archive/project_setup.json` (integrated to core schema, T1.67)
+- `eks/workplan/phase_1.3_initiation_harmonization_workplan.md` — stand-alone workplan archived (retained as reference)
 
 ### Files Verified (no changes needed)
 - All previous Phase 1 implementation files in `engine/core/`, `engine/parsers/`, `engine/logging/`
@@ -564,57 +561,117 @@ The final Phase 1 task (T1.67) integrated the orphan `project_setup.json` schema
 | Issues deferred | 5 (I015 DGN gap, I016 folder hierarchy, I019 dual projects, I020 column coverage, I021 data incompleteness) |
 | Phases fed | Phase 2 (chunking/embedding), Phase 1.2 (UI/sub-pipeline) |
 
-## 15. Bootstrap Update (T1.68–T1.74)
+## 15. Bootstrap Updates & Initiation Hardening (T1.68–T1.83)
 
-### 15.1 Scope
+All 16 Bootstrap and Initiation Integrity/Hardening tasks (T1.68–T1.83) are complete:
 
-Implement the 7 Bootstrap pending items (T1.68–T1.74) identified as critical gaps:
+### 15.1 Bootstrap Completion (T1.68–T1.76)
+- **T1.68 & T1.75**: ErrorManager and MessageManager wired into PipelineOrchestrator and constructed in server thread, activating error/message template catalog lookup and hydration in production.
+- **T1.69**: Structured logging and correlation IDs implemented. `run_id` field in logger, threaded as `job_id` in server, prepended to all logs.
+- **T1.70**: Security traversal guard added to file loading and pipeline start endpoints (403 on paths outside project root).
+- **T1.71**: Registry updates use singleton DB connection and retry wrapper.
+- **T1.72**: Contract enforcement implemented. Wraps orchestrator phases with ParserInput/Output and DiscoveryInput/Output contracts.
+- **T1.73**: Checkpoints persisted as JSON per phase (`checkpoint_{job_id}_{A,B,C}.json`) in output directory to enable resume-from-failure.
+- **T1.74**: Cross-platform gaps closed. Relative paths anchored, `Path.as_posix()` used.
+- **T1.76**: Final status, messages catalog, and debug run artifacts persisted to JSON in output directory.
 
-- T1.68: Wire ErrorManager/MessageManager into PipelineOrchestrator
-- T1.71: Registry-level document status update with _with_retry
-- T1.74: Cross-platform path compatibility
-
-### 15.2 Files Modified
-
-| File | Changes |
-| :--- | :------ |
-| `eks/engine/core/pipeline_orchestrator.py` | Added ErrorManager/MessageManager params to `__init__`; wired error codes and status messages in all phases; replaced raw duckdb.connect with registry.update_document_status() |
-| `eks/engine/core/registry.py` | Added `update_document_status()` with `_with_retry()`; fixed `get_document()` bug (fetchone iter → single dict) |
-| `eks/engine/core/context.py` | `EKSPaths.to_dict()` uses `.as_posix()` |
-| `eks/ui/backend/phase1_server.py` | Anchored all relative paths to PRJ_DIR; `.as_posix()` in config paths |
-| `eks/test/test_phase1.py` | Added 5 new tests |
-
-### 15.3 Test Results
-
-```
-191 passed in 12.46s
-```
-
-### 15.4 Remaining Bootstrap Tasks (Closure Plan)
-
-| Task | Priority | Scope | Notes |
-| :--- | :------- | :---- | :---- |
-| T1.69 | High | `eks/engine/logging/logger.py`, `phase1_server.py` | Add `run_id` param to `EKSLogger`/`_LogCapture`; thread `job_id` as `run_id`; prepend to log lines (universal §3.12) |
-| T1.70 | Critical | `phase1_server.py` | Add `data_dir` traversal guard (`is_relative_to(PRJ_DIR)` → 403) in `_handle_files_load()` and `_handle_pipeline_start()` (Security Baseline §3.13) |
-| T1.72 | High | `pipeline_orchestrator.py`, `io_contracts.py` | Create `ParserInput/Output`; wrap `run_phase_a` in `DiscoveryInput/Output` and `_process_file` in `ParserInput/Output` |
-| T1.73 | Medium | `phase1_server.py` | Persist `orchestrator.save_checkpoint(phase, PRJ_DIR/"eks"/"output"/f"checkpoint_{job_id}.json")` after each phase |
-| T1.75 | Critical | `phase1_server.py` | **Closes silent T1.68 gap**: construct `ErrorManager`/`MessageManager` and pass to `PipelineOrchestrator` so error/message wiring is active in production |
-| T1.76 | High | `phase1_server.py`, `logger.py`, `message_manager.py`, `eks/output/` | Persist `debug_log.json`, `pipeline_status_{job_id}.json`, `pipeline_messages_{job_id}.json` to `eks/output/` per AGENTS.md §7/§19 (mirrors DCC `dcc/output/`) |
+### 15.2 Initiation Integrity & Hardening (T1.77–T1.83)
+- **T1.77**: ProjectSetupValidator gate wired into server thread start (fails fast if readiness != YES). Arguments (`data_dir` exists, `recursive` bool) validated before concurrency locks.
+- **T1.78**: Closed 6 DCC initiation gaps: `eks.yml` path fix, readability check, dependency probe, output-path validation, `--skip-readiness` override, error code constants.
+- **T1.79**: `P1-SETUP-*` error codes attached to validator results. Gate failures raised via ErrorManager.
+- **T1.80**: Paths derived from `config.global_paths` and `registry` config (no hardcoding).
+- **T1.81**: Fallback lists removed from `setup_validator.py` to enforce SSOT config.
+- **T1.82**: Honored `validation_options` and defaults from config.
+- **T1.83**: Package root `eks_root` schema-driven (enables package relocation).
 
 ---
 
-## 16. References
+## 16. Phase 1.3 Initiation Harmonization (T1.84–T1.89)
 
-1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.29
-2. [EKS Master Workplan](../eks_system_workplan.md) — WP-EKS-001 v1.5
-3. [AGENTS.md](../../AGENTS.md) — Repository guidelines
-4. [Issue Log](../../log/issue_log.md)
-5. [Update Log](../../log/update_log.md)
-6. [Test File — Phase 1](../../test/test_phase1.py)
-7. [Test File — T1.32 Modules](../../test/test_t132_modules.py)
-8. [Appendix A — Asset Schema](../appendix_a_asset_schema.md)
-9. [Appendix B — Document Registry](../appendix_b_document_registry.md)
-10. [Appendix C — Ontology](../appendix_c_ontology.md)
-11. [Appendix D — Pipeline Messages & Errors](../appendix_d_pipeline_messages_errors.md)
-12. [Appendix E — Schema Design](../appendix_e_schema_design.md)
-13. [Appendix F — Pipeline Architecture Design](../appendix_f_pipeline_architecture_design.md)
+**Source workplan**: [phase_1.3_initiation_harmonization_workplan.md](../phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001  
+**Status**: ✅ COMPLETE — T1.84–T1.89 implemented. 235/235 tests pass (19 validator tests + 20 universal-module tests added).
+
+### 16.1 Scope
+Harmonize EKS's `project_setup` schema and validation code with DCC's universal initiation pattern to achieve schema-design consistency and code-module universality.
+
+| Task | Description | Status |
+| :--- | :---------- | :----: |
+| T1.84 | Create universal `ValidationManager` in `common/library/utility/validation/manager.py` — 6 DCC-aligned methods | ✅ |
+| T1.85 | Reshape EKS `project_setup` schema: replace flat-array defs with 8 DCC-aligned object defs in `eks_base_schema.json` v1.7.0; reshape `project_setup` property in `eks_setup_schema.json` v1.4.0 | ✅ |
+| T1.86 | Extract `project_setup` instance data to `eks_project_setup_config.json` v1.0.0 (20 folders, root files, schema files, environment, dependencies, project metadata) | ✅ |
+| T1.87 | Refactor `setup_validator.py` v0.7 as thin adapter delegating to universal `ValidationManager`; preserves `P1-SETUP-*` codes and ErrorManager wiring | ✅ |
+| T1.88 | Migrate `test_setup_validator.py` (19 tests); create `test_validation_manager.py` (20 tests). Full suite 235/235 green | ✅ |
+| T1.89 | Update workplan, `knowledge.json` v2.3.0, `update_log` (U130), `issue_log` (I085 resolved), universal architecture doc | ✅ |
+
+### 16.2 Test Results
+- `test_validation_manager.py` — universal ValidationManager: 20 passed.
+- `test_setup_validator.py` — ProjectSetupValidator adapter: 19 passed.
+- All other EKS tests: 196 passed.
+- **Total**: 235/235 passed.
+
+### 16.3 Test Case Details
+
+#### T1.84 — Universal ValidationManager (20 tests)
+- `test_validate_folders_all_exist` — existing folder passes
+- `test_validate_folders_missing_required` — missing required folder returns MISSING_FOLDER
+- `test_validate_folders_auto_create` — folder created when `auto_created=True`
+- `test_validate_folders_empty` — empty list returns all_exist=True
+- `test_validate_named_files_found` — found file passes
+- `test_validate_named_files_missing_required` — missing required file returns MISSING_FILE
+- `test_validate_named_files_custom_name_key` — `filename` key for schema_files
+- `test_validate_named_files_empty` — empty list returns all_exist=True
+- `test_validate_environment_no_env_entries` — empty env valid
+- `test_validate_environment_python_match` — current Python version matches
+- `test_validate_environment_python_mismatch` — PYTHON_MISMATCH code for mismatched version
+- `test_validate_dependencies_empty` — empty list passes
+- `test_validate_dependencies_available` — stdlib modules `os`/`json` found
+- `test_validate_dependencies_missing` — missing package returns MISSING_DEPENDENCY
+- `test_validate_discovery_rules_empty` — empty rules valid
+- `test_validate_discovery_rules_dir_exists` — existing dir passes
+- `test_validate_discovery_rules_dir_missing` — missing dir returns DISCOVERY_DIR_MISSING
+- `test_validate_project_setup_full_pass` — full config passes, readiness=YES
+- `test_validate_project_setup_fail` — missing folder, readiness=NO, error_codes populated
+- `test_validate_project_setup_empty` — empty config, readiness=YES
+
+#### T1.87/T1.88 — ProjectSetupValidator Adapter (19 tests)
+- `test_validate_all_returns_expected_structure` — result has folders/files/environment/readiness
+- `test_validate_all_creates_missing_folders` — auto-create via adapter
+- `test_readiness_no_when_missing_files` — missing required files → readiness=NO
+- `test_readiness_yes_when_all_exist` — all present → readiness=YES
+- `test_get_readiness_status_validates_on_demand` — lazy validate_all call
+- `test_get_missing_items_returns_paths` — folders/files as string lists
+- `test_config_registry_overrides_defaults` — config-driven validation
+- `test_verbose_print_does_not_crash` — verbose=True safe
+- `test_dependency_probe_returns_available` — deps result structure
+- `test_output_paths_validated` — output_paths result structure
+- `test_validate_all_includes_dependencies_and_output_paths` — full result
+- `test_folder_missing_entries_carry_error_code` — P1-SETUP-F001 preserved
+- `test_file_missing_entries_carry_error_code` — P1-SETUP codes on files
+- `test_environment_has_error_code_when_missing` — P1-SETUP-F003 for missing eks.yml
+- `test_dependency_missing_entries_carry_error_code` — P1-SETUP-D001
+- `test_output_path_unwritable_entries_carry_error_code` — P1-SETUP-O001
+- `test_error_codes_summary_at_top_level` — error_codes array in result
+- `test_get_missing_items_backward_compat` — plain string paths
+- `test_raises_value_error_without_config` — SSOT enforcement, raises ValueError
+
+---
+
+## 17. References
+
+1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.40
+2. [Phase 1.3 Initiation Harmonization Workplan](../phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001 (retained as reference)
+3. [Phase 1 T1.79–T1.83 Report](phase_1_t179_t183_report.md) — RP-EKS-P1-T179-001 (T1.79–T1.83 predecessor)
+4. [EKS Master Workplan](../eks_system_workplan.md) — WP-EKS-001 v1.5
+5. [AGENTS.md](../../AGENTS.md) — Repository guidelines
+6. [Issue Log](../../log/issue_log.md)
+7. [Update Log](../../log/update_log.md)
+8. [Test File — Phase 1](../../test/test_phase1.py)
+9. [Test File — T1.32 Modules](../../test/test_t132_modules.py)
+10. [Test File — Setup Validator](../../test/test_setup_validator.py)
+11. [Test File — Validation Manager](../../test/test_validation_manager.py)
+12. [Appendix A — Asset Schema](../appendix_a_asset_schema.md)
+13. [Appendix B — Document Registry](../appendix_b_document_registry.md)
+14. [Appendix C — Ontology](../appendix_c_ontology.md)
+15. [Appendix D — Pipeline Messages & Errors](../appendix_d_pipeline_messages_errors.md)
+16. [Appendix E — Schema Design](../appendix_e_schema_design.md)
+17. [Appendix F — Pipeline Architecture Design](../appendix_f_pipeline_architecture_design.md)

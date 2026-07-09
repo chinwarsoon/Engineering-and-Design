@@ -5,6 +5,7 @@ Tests cover:
 - Phase 1 backend (eks/ui/backend/phase1_server.py): all API endpoints
 - CORS headers
 - Pipeline job lifecycle
+- T1.77: status endpoint debug/level fields, data_dir existence validation, recursive bool validation
 """
 
 import json
@@ -161,6 +162,14 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         self.assertEqual(result["phase"], 1)
         self.assertIn("imports_ok", result)
 
+    def test_status_endpoint_debug_level(self):
+        """Status endpoint reports debug_mode and log_level (T1.77)."""
+        result = self._request("GET", "/api/v1/status")
+        self.assertIn("debug_mode", result)
+        self.assertIn("log_level", result)
+        self.assertIsInstance(result["debug_mode"], bool)
+        self.assertIsInstance(result["log_level"], int)
+
     def test_cors_headers(self):
         from urllib.request import Request, urlopen
         req = Request(f"{self.base_url}/api/v1/status", method="OPTIONS")
@@ -245,12 +254,14 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         import uuid
         from urllib.error import HTTPError
         tag = uuid.uuid4().hex[:8]
+        pdir = Path(f"test_output/pipeline_sas_{tag}")
+        pdir.mkdir(parents=True, exist_ok=True)
         # Retry in case a background job from a previous test is still running
         max_retries = 5
         for attempt in range(max_retries):
             try:
                 result = self._request("POST", "/api/v1/pipeline/start", {
-                    "data_dir": f"test_output/pipeline_sas_{tag}",
+                    "data_dir": str(pdir),
                     "recursive": False,
                 }, expect=202)
                 break
@@ -273,8 +284,10 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         """GET /api/v1/pipeline/logs/{job_id} returns log entries."""
         import uuid
         tag = uuid.uuid4().hex[:8]
+        pdir = Path(f"test_output/pipeline_logs_{tag}")
+        pdir.mkdir(parents=True, exist_ok=True)
         result = self._request("POST", "/api/v1/pipeline/start", {
-            "data_dir": f"test_output/pipeline_logs_{tag}",
+            "data_dir": str(pdir),
             "recursive": False,
         }, expect=202)
         job_id = result["job_id"]
@@ -293,8 +306,10 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         """DELETE /api/v1/pipeline/{job_id} cancels a job."""
         import uuid
         tag = uuid.uuid4().hex[:8]
+        pdir = Path(f"test_output/pipeline_cancel_{tag}")
+        pdir.mkdir(parents=True, exist_ok=True)
         start = self._request("POST", "/api/v1/pipeline/start", {
-            "data_dir": f"test_output/pipeline_cancel_{tag}",
+            "data_dir": str(pdir),
         }, expect=202)
         job_id = start["job_id"]
 
@@ -316,8 +331,10 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         """Second pipeline start while one is running returns 409."""
         import uuid
         tag = uuid.uuid4().hex[:8]
+        pdir = Path(f"test_output/concurrent_{tag}")
+        pdir.mkdir(parents=True, exist_ok=True)
         first = self._request("POST", "/api/v1/pipeline/start", {
-            "data_dir": f"test_output/concurrent_{tag}",
+            "data_dir": str(pdir),
             "recursive": False,
         }, expect=202)
         self.assertEqual(first["status"], "queued")
@@ -330,7 +347,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
                 _job_state[first_job_id]["status"] = "running"
 
         attempt = self._request("POST", "/api/v1/pipeline/start", {
-            "data_dir": f"test_output/concurrent_{tag}",
+            "data_dir": str(pdir),
             "recursive": False,
         }, expect=409)
         self.assertIn("error", attempt)
@@ -340,6 +357,28 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         with _job_lock:
             if first_job_id in _job_state:
                 _job_state[first_job_id]["status"] = "cancelled"
+
+    def test_pipeline_start_nonexistent_data_dir(self):
+        """Pipeline start with non-existent data_dir returns 400 (T1.77)."""
+        result = self._request("POST", "/api/v1/pipeline/start", {
+            "data_dir": "test_output/nonexistent_dir_xyz",
+            "recursive": False,
+        }, expect=400)
+        self.assertIn("error", result)
+        self.assertIn("does not exist", result["error"].lower())
+
+    def test_pipeline_start_recursive_not_bool(self):
+        """Pipeline start with non-boolean recursive returns 400 (T1.77)."""
+        import uuid
+        tag = uuid.uuid4().hex[:8]
+        pdir = Path(f"test_output/pipeline_bool_{tag}")
+        pdir.mkdir(parents=True, exist_ok=True)
+        result = self._request("POST", "/api/v1/pipeline/start", {
+            "data_dir": str(pdir),
+            "recursive": "yes",
+        }, expect=400)
+        self.assertIn("error", result)
+        self.assertIn("recursive", result["error"].lower())
 
     def test_review_summary(self):
         """GET /api/v1/review/summary returns review statistics."""
@@ -352,6 +391,44 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         result = self._request("GET", "/api/v1/review/flagged")
         self.assertIn("documents", result)
         self.assertIsInstance(result["documents"], list)
+
+    def test_pipeline_runs_to_completion(self):
+        """Pipeline should reach 'completed' status when started with valid data (G1/T1.78.5)."""
+        from urllib.error import HTTPError
+        import uuid
+        tag = uuid.uuid4().hex[:8]
+        pdir = Path(f"test_output/pipeline_complete_{tag}")
+        pdir.mkdir(parents=True, exist_ok=True)
+        (pdir / "DOC-001-A.pdf").touch()
+        (pdir / "DOC-002-B.dgn").touch()
+        # Retry with 409 guard in case a prior test left a running job
+        for attempt in range(5):
+            try:
+                result = self._request("POST", "/api/v1/pipeline/start", {
+                    "data_dir": str(pdir),
+                    "recursive": False,
+                }, expect=202)
+                break
+            except HTTPError as e:
+                if e.code == 409 and attempt < 4:
+                    # Cancel any stuck job and retry
+                    from eks.ui.backend.phase1_server import _job_state, _job_lock
+                    with _job_lock:
+                        for jid in list(_job_state.keys()):
+                            _job_state[jid]["status"] = "cancelled"
+                    time.sleep(1)
+                    continue
+                raise
+        else:
+            self.fail("Could not start completion pipeline after 5 retries")
+        job_id = result["job_id"]
+        for _ in range(30):
+            status = self._request("GET", f"/api/v1/pipeline/status/{job_id}")
+            if status["status"] in ("completed", "failed"):
+                break
+            time.sleep(1)
+        self.assertEqual(status["status"], "completed",
+                         f"Pipeline {job_id} ended as '{status['status']}': {status.get('error', '')}")
 
     def test_review_lock_updates_document(self):
         """PUT /api/v1/review/lock attempts to lock a document."""
@@ -381,6 +458,20 @@ class TestPhase1ServerIntegration(unittest.TestCase):
     def test_404_unknown_endpoint(self):
         """GET unknown endpoint returns 404."""
         self._request("GET", "/api/v1/nonexistent", expect=404)
+
+    def test_pipeline_start_readable_data_dir(self):
+        """Pipeline start with non-readable data_dir returns 400 (G2)."""
+        import uuid
+        tag = uuid.uuid4().hex[:8]
+        # Use a file path (not directory) — exists but is_dir fails first, then readability
+        pfile = Path(f"test_output/pipeline_readable_{tag}.txt")
+        pfile.parent.mkdir(parents=True, exist_ok=True)
+        pfile.touch()
+        result = self._request("POST", "/api/v1/pipeline/start", {
+            "data_dir": str(pfile),
+            "recursive": False,
+        }, expect=400)
+        self.assertIn("error", result)
 
     def test_bad_json_body(self):
         """POST with bad JSON returns 400."""

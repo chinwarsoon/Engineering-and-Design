@@ -1,11 +1,11 @@
 {
   "metadata": {
     "version": "1.0.0",
-    "last_updated": "2026-06-19",
-    "total_codes": 65,
-    "system_codes": 30,
+    "last_updated": "2026-07-09",
+    "total_codes": 72,
+    "system_codes": 37,
     "data_logic_codes": 35,
-    "system_format": "S-{category}-S-{id}",
+    "system_format": "P1-SETUP-{type}{id}",
     "data_logic_format": "P{phase}-{module}-{function}-{id}"
   },
   "system_error_ranges": {
@@ -50,6 +50,13 @@
       "count": 2,
       "start_id": "S-B-S-0601",
       "end_id": "S-B-S-0602"
+    },
+    "setup_validation": {
+      "prefix": "P1-SETUP-xxxx",
+      "description": "Project setup validation errors (T1.79)",
+      "count": 7,
+      "start_id": "P1-SETUP-F001",
+      "end_id": "P1-SETUP-READINESS"
     }
   },
   "system_errors": {
@@ -142,6 +149,27 @@
     },
     "S-B-S-0602": {
       "code": "S-B-S-0602", "name": "PHASE_DEPENDENCY_FAILED", "message": "Required prior phase has not completed successfully", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-SETUP-F001": {
+      "code": "P1-SETUP-F001", "name": "MISSING_REQUIRED_FOLDER", "message": "Required project folder does not exist", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-SETUP-F002": {
+      "code": "P1-SETUP-F002", "name": "MISSING_REQUIRED_FILE", "message": "Required project file does not exist", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-SETUP-F003": {
+      "code": "P1-SETUP-F003", "name": "MISSING_EKS_YML", "message": "eks/eks.yml environment file not found", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-SETUP-D001": {
+      "code": "P1-SETUP-D001", "name": "MISSING_DEPENDENCY", "message": "Required Python dependency not installed", "severity": "WARNING", "category": "Setup", "stops_pipeline": false, "promote_detail": true
+    },
+    "P1-SETUP-O001": {
+      "code": "P1-SETUP-O001", "name": "OUTPUT_PATH_NOT_WRITABLE", "message": "Output directory is not writable", "severity": "WARNING", "category": "Setup", "stops_pipeline": false, "promote_detail": true
+    },
+    "P1-SETUP-E001": {
+      "code": "P1-SETUP-E001", "name": "PYTHON_VERSION_MISMATCH", "message": "Python version does not match expected version", "severity": "WARNING", "category": "Setup", "stops_pipeline": false, "promote_detail": true
+    },
+    "P1-SETUP-READINESS": {
+      "code": "P1-SETUP-READINESS", "name": "SETUP_NOT_READY", "message": "Project setup validation failed — readiness check not passed", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
     }
   },
   "data_error_ranges": {
@@ -295,7 +323,9 @@
       "Created system error catalog (30 codes): 6 categories (Environment, File, Config, Runtime, AI, Bootstrap)",
       "Created data error catalog (35 codes): 5 phases (P1 Discovery, P2 Parsing, P3 Extract, P3 XRef, P3 Graph)",
       "Includes 8 structural detection error codes (P3-E-E-0010 to P3-E-E-0017)",
-      "Follows DCC pattern from dcc/config/schemas/error_code_base.json"
+      "Follows DCC pattern from dcc/config/schemas/error_code_base.json",
+      "Added 7 P1-SETUP-* setup validation error codes (T1.79): MINSSING_REQUIRED_FOLDER (F001), MISSING_REQUIRED_FILE (F002), MISSING_EKS_YML (F003), MISSING_DEPENDENCY (D001), OUTPUT_PATH_NOT_WRITABLE (O001), PYTHON_VERSION_MISMATCH (E001), SETUP_NOT_READY (READINESS)",
+      "Updated total_codes: 65→72, system_codes: 30→37"
     ]
   }
 }

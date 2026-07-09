@@ -6,6 +6,7 @@ T1.64: Added phase rollback capability per Appendix F.
 T1.68: Wired ErrorManager/MessageManager calls at phase boundaries and per-file failures.
 T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_document_status().
 """
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from ..logging.logger import EKSLogger, log_depth
@@ -17,6 +18,9 @@ from .context import EKSPipelineContext, EKSPaths
 from .telemetry import TelemetryHeartbeat
 from .error_manager import ErrorManager
 from .message_manager import MessageManager
+from .io_contracts import DiscoveryInput, DiscoveryOutput, HealthInput, HealthOutput
+from ..parsers.io_contracts import ParserInput, ParserOutput
+from .base import ErrorRecord, ValidationResult
 
 
 class PipelineOrchestrator:
@@ -142,7 +146,7 @@ class PipelineOrchestrator:
     def run_phase_a(self, root_dir: Path, recursive: bool = True) -> Dict[str, Any]:
         """
         Phase A: Scan project directory and register placeholder documents.
-        Enhanced with telemetry checkpoint per Appendix F.
+        Enhanced with DiscoveryInput/Output contract per T1.72.
 
         Returns summary dict with keys:
             - discovered: count of files discovered
@@ -150,6 +154,20 @@ class PipelineOrchestrator:
             - unknown: count of files with unrecognized extensions
             - registered: count of new placeholder documents registered
         """
+        # T1.72: Construct DiscoveryInput contract
+        inp = DiscoveryInput(
+            run_id=str(getattr(self.logger, 'run_id', '')),
+            data_dir=root_dir,
+            config_file=Path(""),
+            schema_dir=Path(""),
+            output_dir=Path(""),
+            parameters={"recursive": recursive},
+        )
+        inv = self._validate_discovery_input(inp)
+        if not inv.is_valid:
+            self.logger.error(f"DiscoveryInput validation failed: {inv.errors}", context="run_phase_a")
+            return {"discovered": 0, "valid": 0, "unknown": 0, "registered": 0, "error": inv.errors}
+
         if self.use_telemetry:
             self.telemetry.start()
         
@@ -194,7 +212,27 @@ class PipelineOrchestrator:
         if self.message_manager:
             self.message_manager.show("STATUS_PHASE_A_COMPLETE", registered=registered)
         
-        return summary
+        # T1.72: Wrap return in DiscoveryOutput contract
+        dout = DiscoveryOutput(
+            run_id=inp.run_id,
+            status="SUCCESS",
+            discovered=summary["discovered"],
+            valid=summary["valid"],
+            unknown=summary["unknown"],
+            registered=summary["registered"],
+            files=summary.get("files", []),
+            metadata={"phase": "A", "completed_at": str(datetime.now())},
+        )
+        if self.logger.level >= 2:
+            self.logger.debug(f"DiscoveryOutput: {dout.to_dict()}", context="run_phase_a")
+        return dout.to_dict()
+
+    def _validate_discovery_input(self, inp: DiscoveryInput) -> ValidationResult:
+        """Validate DiscoveryInput before processing."""
+        errors = []
+        if not inp.data_dir or not inp.data_dir.exists():
+            errors.append(f"data_dir does not exist: {inp.data_dir}")
+        return ValidationResult(is_valid=len(errors) == 0, errors=errors)
 
     @log_depth
     def run_phase_b(self, root_dir: Path, recursive: bool = True) -> Dict[str, Any]:
@@ -393,7 +431,28 @@ class PipelineOrchestrator:
     def _process_file(self, file_path: str, file_type: str) -> Dict[str, Any]:
         """
         Process a single file through the parse → detect → score pipeline.
+        Wraps with ParserInput/ParserOutput contracts per T1.72.
         """
+        # T1.72: Construct ParserInput contract
+        pinp = ParserInput(
+            run_id=str(getattr(self.logger, 'run_id', '')),
+            data_dir=Path(file_path).parent,
+            config_file=Path(""),
+            schema_dir=Path(""),
+            output_dir=Path(""),
+            parameters={},
+            file_path=str(file_path),
+            file_type=file_type,
+        )
+        pout = ParserOutput(
+            run_id=pinp.run_id,
+            status="FAILED",
+            content_blocks=[],
+            metadata={},
+            elements=[],
+            confidence=0.0,
+        )
+
         result = {
             "file_path": file_path,
             "file_type": file_type,
@@ -411,6 +470,7 @@ class PipelineOrchestrator:
 
             if parse_result["status"] == "failed":
                 result["status"] = "failed"
+                pout.status = "FAILED"
                 if self.error_manager:
                     self.error_manager.handle_data_error("D5-PARSE-002", doc_id=str(file_path),
                                                           detail=parse_result.get("error", "Parse failed"))
@@ -439,12 +499,17 @@ class PipelineOrchestrator:
                 try:
                     score = self.scorer.score(doc, elements)
                     result["score"] = score
+                    pout.confidence = score.get("overall", 0.0)
+                    pout.content_blocks = content_blocks
+                    pout.metadata = metadata
+                    pout.elements = elements
                     self._update_doc_status(
                         file_path, "success",
                         confidence=score.get("overall"),
                         notes=f"Auto-parsed via pipeline"
                     )
                     result["status"] = "success"
+                    pout.status = "SUCCESS"
                 except Exception as e:
                     if self.error_manager:
                         self.error_manager.handle_data_error("D5-SCORE-001", doc_id=str(file_path),
@@ -461,6 +526,8 @@ class PipelineOrchestrator:
         except Exception as e:
             result["status"] = "failed"
             result["error"] = str(e)
+            pout.status = "FAILED"
+            pout.errors.append(ErrorRecord("PipelineError", str(e), context={"file_path": file_path}))
             self.logger.error(
                 f"Pipeline processing failed for {file_path}: {e}",
                 context="PipelineOrchestrator._process_file"
@@ -468,6 +535,13 @@ class PipelineOrchestrator:
             if self.error_manager:
                 self.error_manager.handle_system_error("S-PIP-003", detail=f"Pipeline processing failed for {file_path}: {e}")
 
+        # T1.72: Attach pout state to result for traceability
+        result["_parser_output_status"] = pout.status
+        result["_parser_output_confidence"] = pout.confidence
+        result["_parser_output_errors"] = [e.to_dict() for e in pout.errors]
+        if self.logger.level >= 2:
+            self.logger.debug(f"ParserOutput for {file_path}: status={pout.status}, errors={len(pout.errors)}",
+                              context="PipelineOrchestrator._process_file")
         return result
 
     def _adapt_content_for_detector(self, content_blocks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

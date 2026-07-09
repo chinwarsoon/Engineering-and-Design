@@ -3,10 +3,22 @@
 Per Appendix G §10, this server provides all Phase 1 API endpoints:
 file discovery, document CRUD, pipeline execution, and health scoring.
 
+Revision: 0.8 (T1.83)
+- 0.1: Initial server with all Phase 1 API endpoints
+- 0.2: T1.69–T1.76: run_id, traversal guard, checkpoint persist, ErrorManager/MessageManager activation, artifact dump
+- 0.3: T1.77: ProjectSetupValidator readiness gate, --debug/--level CLI, data_dir/recursive validation
+- 0.4: T1.78: data_dir readability check (G2), output-path validation (G4), --skip-readiness flag (G5), _LogCapture.level fix
+- 0.5: T1.79: Move ErrorManager construction before readiness gate; replace generic RuntimeError with em.handle_system_error("P1-SETUP-READINESS")
+- 0.6: T1.80: Derive output path from config.global_paths.output_dir in _handle_pipeline_start + _run closure; replace hardcoded PRJ_DIR/"eks"/"output"
+- 0.7: T1.82: Derive data_dir default from config.global_paths.data_dir instead of hardcoded "eks/data"; honor validation_options.auto_create_folders in readiness gate; remove hardcoded fallback dict in _handle_config_paths
+- 0.8: T1.83: Replace 10× PRJ_DIR/"eks" literals with _EKS_ROOT_DEFAULT / config.global_paths.eks_root (schema-driven package root); added eks_root to global_paths_def schema
+
 All endpoints are versioned under /api/v1/.
 
 Standalone usage:
     python eks/ui/backend/phase1_server.py --port 5001
+    python eks/ui/backend/phase1_server.py --port 5001 --debug
+    python eks/ui/backend/phase1_server.py --port 5001 --level 3
 
 Read-only endpoints on the DuckDB registry:
   - GET  /api/v1/config/paths
@@ -60,6 +72,9 @@ try:
     from eks.engine.core.file_scanner import FileScanner
     from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
     from eks.engine.core.review_manager import ManualReviewManager
+    from eks.engine.core.error_manager import ErrorManager
+    from eks.engine.core.message_manager import MessageManager
+    from eks.engine.core.setup_validator import ProjectSetupValidator
     from eks.engine.logging.logger import EKSLogger
 except ImportError as e:
     _IMPORTS_OK = False
@@ -85,6 +100,12 @@ _job_logs: Dict[str, List[Dict[str, Any]]] = {}
 _job_lock = threading.RLock()
 
 _logger = EKSLogger("Phase1Server", level=1) if _IMPORTS_OK else None
+_debug_mode = False
+_log_level = 1
+_skip_readiness = False
+
+# T1.83: EKS package root — schema-driven via global_paths.eks_root
+_EKS_ROOT_DEFAULT = "eks"
 
 
 def _with_retry(fn, retries=3, delay=0.5):
@@ -180,6 +201,13 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                 "detail": _IMPORT_ERROR,
                 "install": "conda activate eks",
             })
+            return False
+        return True
+
+    def _check_traversal(self, resolved_path: Path) -> bool:
+        """Return True if path is inside PRJ_DIR. Sends 403 if not."""
+        if not resolved_path.is_relative_to(PRJ_DIR.resolve()):
+            self._json_response(403, {"error": "Path traversal not allowed"})
             return False
         return True
 
@@ -280,23 +308,16 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             "phase": 1,
             "timestamp": datetime.utcnow().isoformat(),
             "imports_ok": _IMPORTS_OK,
+            "debug_mode": _debug_mode,
+            "log_level": _log_level,
         })
 
     def _handle_config_paths(self):
-        """Return global_paths from config (SSOT) plus effective defaults."""
-        default_data_dir = (PRJ_DIR / "eks" / "data").as_posix()
-        result = {
-            "data_dir": default_data_dir,
-            "global_paths": {
-                "data_dir": "data",
-                "output_dir": "output",
-                "archive_dir": "archive",
-                "config_dir": "config",
-            }
-        }
+        """Return global_paths from config (SSOT) — no hardcoded fallbacks (T1.82)."""
+        result = {"data_dir": None, "global_paths": None}
         if self._check_imports():
             try:
-                loader = SchemaLoader(PRJ_DIR / "eks" / "config")
+                loader = SchemaLoader(PRJ_DIR / _EKS_ROOT_DEFAULT / "config")
                 config = loader.load_all()
                 gp = config.get("global_paths", {})
                 result["global_paths"] = {
@@ -305,7 +326,8 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     "archive_dir": gp.get("archive_dir", "archive"),
                     "config_dir": gp.get("config_dir", "config"),
                 }
-                result["data_dir"] = (PRJ_DIR / "eks" / gp.get("data_dir", "data")).as_posix()
+                _cfg_eks_root = gp.get("eks_root", _EKS_ROOT_DEFAULT)
+                result["data_dir"] = (PRJ_DIR / _cfg_eks_root / gp.get("data_dir", "data")).as_posix()
             except Exception:
                 pass
         self._json_response(200, result)
@@ -333,11 +355,21 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         if not self._check_imports():
             return
 
-        raw_data_dir = data.get("data_dir", "eks/data")
-        data_dir = PRJ_DIR / raw_data_dir
+        # T1.82/T1.83: Derive data_dir default from config
+        _fl_loader = SchemaLoader(PRJ_DIR / _EKS_ROOT_DEFAULT / "config")
+        _fl_cfg = _fl_loader.load_all()
+        _fl_gp = _fl_cfg.get("global_paths", {})
+        _fl_eks_root = _fl_gp.get("eks_root", _EKS_ROOT_DEFAULT)
+        _fl_data_rel = _fl_gp.get("data_dir", "data")
+        _fl_default_data = f"{_fl_eks_root}/{_fl_data_rel}"
+
+        raw_data_dir = data.get("data_dir", _fl_default_data)
+        data_dir = (PRJ_DIR / raw_data_dir).resolve()
+        if not self._check_traversal(data_dir):
+            return
         recursive = data.get("recursive", True)
 
-        loader = SchemaLoader(PRJ_DIR / "eks" / "config")
+        loader = SchemaLoader(PRJ_DIR / _fl_eks_root / "config")
         config = loader.load_all()
         doc_config = loader.doc_config
 
@@ -418,6 +450,66 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         if not self._check_imports():
             return
 
+        # T1.82: Load config early for schema-driven defaults
+        _cfg_loader = SchemaLoader(PRJ_DIR / _EKS_ROOT_DEFAULT / "config")
+        _cfg = _cfg_loader.load_all()
+        _gp = _cfg.get("global_paths", {})
+        _ps = _cfg.get("project_setup", {})
+        _eks_root = _gp.get("eks_root", _EKS_ROOT_DEFAULT)
+        _data_rel = _gp.get("data_dir", "data")
+        _default_data_dir = f"{_eks_root}/{_data_rel}"
+
+        # T1.77: Validate input parameters before any state mutation or concurrency check
+        raw_data_dir = data.get("data_dir", _default_data_dir)
+        resolved_data_dir = (PRJ_DIR / raw_data_dir).resolve()
+        if not self._check_traversal(resolved_data_dir):
+            return
+        if not resolved_data_dir.exists():
+            self._json_response(400, {
+                "error": f"data_dir does not exist: {raw_data_dir}",
+                "resolved": str(resolved_data_dir),
+            })
+            return
+        if not resolved_data_dir.is_dir():
+            self._json_response(400, {
+                "error": f"data_dir is not a directory: {raw_data_dir}",
+                "resolved": str(resolved_data_dir),
+            })
+            return
+        # G2: Validate data_dir readability
+        if not os.access(str(resolved_data_dir), os.R_OK):
+            self._json_response(400, {
+                "error": f"data_dir is not readable: {raw_data_dir}",
+                "resolved": str(resolved_data_dir),
+            })
+            return
+        recursive = data.get("recursive", True)
+        if not isinstance(recursive, bool):
+            self._json_response(400, {
+                "error": f"recursive must be a boolean, got {type(recursive).__name__}",
+            })
+            return
+
+        # T1.80/T1.82/T1.83: Derive output path from already-loaded config
+        _output_rel = _gp.get("output_dir", "output")
+        _eks_output_dir = PRJ_DIR / _eks_root / _output_rel
+
+        # G4: Validate output directory is writable before starting pipeline
+        output_dir = _eks_output_dir
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            if not os.access(str(output_dir), os.W_OK):
+                self._json_response(400, {
+                    "error": f"Output directory is not writable: {output_dir}",
+                })
+                return
+        except (OSError, PermissionError) as e:
+            self._json_response(400, {
+                "error": f"Cannot create or write to output directory: {output_dir}",
+                "detail": str(e),
+            })
+            return
+
         # Concurrency guard — reject if a pipeline is already running (G10.5 #9)
         with _job_lock:
             for existing_job in _job_state.values():
@@ -428,8 +520,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     return
 
         job_id = str(uuid.uuid4())
-        data_dir = data.get("data_dir", "eks/data")
-        recursive = data.get("recursive", True)
+        data_dir = raw_data_dir
 
         with _job_lock:
             _job_state[job_id] = {
@@ -450,6 +541,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     _job_logs[job_id].append(entry)
 
         class _LogCapture:
+            level = _log_level
             def status(self, msg, context=""):
                 _capture_log({"level": "STATUS", "message": msg, "context": context})
                 if _logger:
@@ -483,41 +575,119 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                 _job_state[job_id]["progress"] = pct
                 _job_state[job_id]["current_stage"] = stage
 
+        # T1.80: Derive OUTPUT_DIR from schema config (resolved above as _eks_output_dir)
+        OUTPUT_DIR = _eks_output_dir
+
         def _run():
             try:
                 with _job_lock:
                     if _job_state[job_id]["status"] != "queued":
-                        return  # was cancelled before we started
+                        return
                     _job_state[job_id]["status"] = "running"
                     _job_state[job_id]["current_stage"] = "scan"
-                loader = SchemaLoader(PRJ_DIR / "eks" / "config")
+                # T1.83: Use _eks_root from closure (schema-driven from config)
+                loader = SchemaLoader(PRJ_DIR / _eks_root / "config")
                 config = loader.load_all()
                 doc_config = loader.doc_config
                 registry = get_registry()
+
+                # T1.75: Construct ErrorManager/MessageManager before readiness gate (T1.79)
+                em = ErrorManager(config_dir=PRJ_DIR / _eks_root / "config", logger=_logger)
+                mm = MessageManager(config_dir=PRJ_DIR / _eks_root / "config", logger=_logger)
+
+                # T1.77: Readiness gate — validate project setup before pipeline execution
+                if not _skip_readiness:
+                    validator = ProjectSetupValidator(
+                        project_root=PRJ_DIR,
+                        config_registry=config,
+                        verbose=_debug_mode,
+                    )
+                    # T1.86: validation_options removed — default auto_create=True
+                    _auto_create = True
+                    setup_results = validator.validate_all(auto_create=_auto_create)
+                    if setup_results["readiness"] != "YES":
+                        missing = validator.get_missing_items()
+                        error_codes = setup_results.get("error_codes", [])
+                        error_msg = (
+                            f"Project setup not ready (readiness={setup_results['readiness']}). "
+                            f"Missing folders: {len(missing['folders'])}, "
+                            f"Missing files: {len(missing['files'])}. "
+                            f"Error codes: {[ec['code'] for ec in error_codes]}"
+                        )
+                        # T1.79: Raise through ErrorManager with structured code
+                        em.handle_system_error("P1-SETUP-READINESS", detail=error_msg)
+
                 job_logger = _LogCapture()
                 orchestrator = PipelineOrchestrator(
-                    config, doc_config, registry, logger=job_logger, use_telemetry=False
+                    config, doc_config, registry, logger=job_logger,
+                    use_telemetry=False,
+                    error_manager=em,
+                    message_manager=mm,
                 )
                 orchestrator.initialize_context(
                     data_dir=PRJ_DIR / data_dir,
-                    schema_dir=PRJ_DIR / "eks" / "config" / "schemas",
-                    output_dir=PRJ_DIR / "eks" / "output",
-                    archive_dir=PRJ_DIR / "eks" / "archive",
-                    config_dir=PRJ_DIR / "eks" / "config",
-                    log_dir=PRJ_DIR / "eks" / "log",
+                    schema_dir=PRJ_DIR / _eks_root / _gp.get("config_dir", "config") / "schemas",
+                    output_dir=OUTPUT_DIR,
+                    archive_dir=PRJ_DIR / _eks_root / _gp.get("archive_dir", "archive"),
+                    config_dir=PRJ_DIR / _eks_root / _gp.get("config_dir", "config"),
+                    log_dir=PRJ_DIR / _eks_root / _gp.get("log_dir", "log"),
                 )
+
+                # T1.69: Pass job_id as run_id to logger
+                if _logger:
+                    _logger.run_id = job_id
+                _capture_log({"level": "STATUS", "message": f"Pipeline {job_id} started", "context": "_run"})
+
                 phase_a = orchestrator.run_phase_a(PRJ_DIR / data_dir, recursive=recursive)
                 _set_phase("A")
+                # T1.73: Persist checkpoint after Phase A
+                orchestrator.save_checkpoint("A", checkpoint_path=OUTPUT_DIR / f"checkpoint_{job_id}_A.json")
+
                 phase_b = orchestrator.run_phase_b(PRJ_DIR / data_dir, recursive=recursive)
                 _set_phase("B")
+                orchestrator.save_checkpoint("B", checkpoint_path=OUTPUT_DIR / f"checkpoint_{job_id}_B.json")
+
                 phase_c = orchestrator.run_phase_c()
                 _set_phase("C")
+                orchestrator.save_checkpoint("C", checkpoint_path=OUTPUT_DIR / f"checkpoint_{job_id}_C.json")
+
                 summary = {"phase_a": phase_a, "phase_b": phase_b, "phase_c": phase_c}
                 with _job_lock:
                     _job_state[job_id]["status"] = "completed"
                     _job_state[job_id]["progress"] = 100
                     _job_state[job_id]["current_stage"] = "register"
                     _job_state[job_id]["summary"] = summary
+
+                # T1.76: Persist pipeline_status_{job_id}.json
+                status_path = OUTPUT_DIR / f"pipeline_status_{job_id}.json"
+                try:
+                    status_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(status_path, "w", encoding="utf-8") as f:
+                        with _job_lock:
+                            json.dump(_job_state.get(job_id, {}), f, indent=2, default=str)
+                except Exception:
+                    pass
+
+                # T1.76: Persist pipeline_messages_{job_id}.json from ErrorManager/MessageManager
+                msg_path = OUTPUT_DIR / f"pipeline_messages_{job_id}.json"
+                try:
+                    output_data = {
+                        "errors": em.get_error_summary(),
+                        "messages": mm.get_all_messages(),
+                    }
+                    msg_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(msg_path, "w", encoding="utf-8") as f:
+                        json.dump(output_data, f, indent=2, default=str)
+                except Exception:
+                    pass
+
+                # T1.76: Persist debug_log.json via logger (filename from config.logging.debug_file_path)
+                if _logger:
+                    _debug_rel = _cfg.get("logging", {}).get("debug_file_path", "output/debug_log.json")
+                    _debug_name = Path(_debug_rel).name
+                    _logger.debug_file = OUTPUT_DIR / _debug_name
+                    _logger.save_debug_log()
+
             except Exception as e:
                 _capture_log({"level": "ERROR", "message": f"Pipeline failed: {e}", "context": "_run_pipeline"})
                 if _logger:
@@ -592,12 +762,24 @@ class Phase1Handler(SimpleHTTPRequestHandler):
 def main():
     parser = ArgumentParser(description="EKS Phase 1 Backend Server")
     parser.add_argument("--port", type=int, default=None, help="Port (default: auto)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug/trace logging (level 3)")
+    parser.add_argument("--level", type=int, default=None, choices=[0, 1, 2, 3],
+                        help="Logging level (0=error, 1=info, 2=debug, 3=trace)")
+    parser.add_argument("--skip-readiness", action="store_true",
+                        help="Bypass project readiness gate (G5 override)")
     args = parser.parse_args()
+    
+    global _debug_mode, _log_level, _skip_readiness
+    _debug_mode = args.debug
+    _log_level = args.level if args.level is not None else (3 if args.debug else 1)
+    _skip_readiness = args.skip_readiness
 
     port = args.port or find_free_port(5001)
 
     if _IMPORTS_OK:
-        print(f"[Phase1Server] Engine imports OK")
+        global _logger
+        _logger = EKSLogger("Phase1Server", level=_log_level)
+        print(f"[Phase1Server] Engine imports OK (level={_log_level}, debug={_debug_mode})")
     else:
         print(f"[Phase1Server] ⚠ Engine imports failed: {_IMPORT_ERROR}. Run: conda activate eks")
 

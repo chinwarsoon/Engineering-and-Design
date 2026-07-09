@@ -1,7 +1,7 @@
 # Universal Pipeline Architecture Design
 
 **Document ID**: WP-UNIVERSAL-PIPELINE-ARCH-001  
-**Current Version**: 1.2  
+**Current Version**: 1.4  
 **Status**: 📋 Proposed for Review  
 **Last Updated**: 2026-07-11  
 **Purpose**: Universal design patterns for pipeline architecture applicable across all projects  
@@ -13,6 +13,8 @@
 | Revision | Date | Author | Summary |
 | :--- | :--- | :--- | :--- |
 | 1.2 | 2026-07-11 | System | Added §3 Common Library Inventory — 14 universal modules/functions/engines identified across dcc/workflow and eks/engine with extraction priority ratings. Updated document index. Renumbered all subsequent sections. |
+| 1.4 | 2026-07-11 | opencode | Review of EKS T1.77 vs DCC `initiation_engine` revealed gaps and one readiness-gate regression (`eks.yml` path). Marked T1.77 ✅ DONE in all pattern references; added T1.78 (Initiation Integrity Remediation) PLANNED to close gaps: input-file readability, env/dependency probe, readiness summary, ErrorManager wiring, output-path validation, schema-driven debug default, 6-category validator. Added §3.9.1 Initiation Integrity Layers. Updated §8.2, §2.2 L13, §7.5.2, §9, §10. |
+| 1.3 | 2026-07-11 | opencode | Recorded EKS initiation integrity checks (T1.77, mirrors DCC `initiation_engine`) across patterns: §2.2 L13 (ValidationManager), §3.6 Multi-Stage Validation, §3.9 Project Setup Validation (EKS `ProjectSetupValidator` + T1.77 readiness gate; corrected DCC path), §7.5.2 Parameter Precedence (EKS `--debug`/`--level` + schema-default gap), §3.13 Security Baseline (EKS T1.70 traversal guard). Updated §8.2 EKS status to reflect T1.77 PLANNED. |
 | 1.1 | 2026-06-26 | Cascade | Added 4 new patterns: Idempotency & Checkpointing, Structured Logging & Correlation IDs, Security Baseline, Concurrency Model. Added standardized I/O pattern for independent engine execution. Added lessons learned from DCC logs and workplans. |
 | 1.0 | 2026-06-26 | Cascade | Initial version with 10 universal design patterns extracted from DCC pipeline architecture. |
 
@@ -192,7 +194,7 @@ common/
 
 #### L13 — ValidationManager
 - **dcc**: Mature `ValidationManager` with `validate_file_exists()`, `validate_directory_exists()`, `validate_parameter()`, `validate_paths_and_parameters()`, `validate_pipeline_prerequisites()`, folder-creation config support
-- **eks**: Concerns split across `engine/core/setup_validator.py` and `engine/core/validator.py`
+- **eks**: Concerns split across `engine/core/setup_validator.py` (`ProjectSetupValidator` — folders/files/env) and `engine/core/validator.py` (schema validation). **T1.77 (✅ DONE)** invokes `ProjectSetupValidator.validate_all()` as a fail-fast readiness gate at pipeline-thread start (mirrors DCC `validate_pipeline_prerequisites()`). A review found a readiness-gate regression (`eks.yml` path) and missing DCC layers (input readability, env probe, readiness summary, ErrorManager wiring, output-path validation) — **T1.78 (🔷 PLANNED)** remediates these.
 - **Extraction target**: DCC `ValidationManager` is the reference; EKS consolidates its validators to extend it.
 
 #### L14 — UI Contract (Request / Response)
@@ -383,7 +385,7 @@ def validate_pipeline(self, context: PipelineContext) -> ValidationResult:
 - Progressive validation
 - Better user feedback
 
-**Reference Implementation**: DCC Pipeline (dcc/workflow/schema_engine/)
+**Reference Implementation**: DCC Pipeline (dcc/workflow/schema_engine/); EKS Pipeline applies this at phase boundaries via `DiscoveryInput`/`ParserInput` contracts (T1.72) and will add file-path + schema validation at initiation via T1.77.
 
 ---
 
@@ -470,7 +472,22 @@ class ProjectSetupValidator:
 - Clear readiness status
 - Pre-pipeline validation gate
 
-**Reference Implementation**: DCC Pipeline (dcc/workflow/project_setup_validation.py)
+**EKS Status**: EKS implements `ProjectSetupValidator` (`eks/engine/core/setup_validator.py`) checking required folders, schema files, and environment, and **T1.77 (✅ DONE)** wires `validate_all()` as a fail-fast readiness gate at the start of the pipeline thread in `phase1_server._run()`, mirroring DCC. A review against DCC found (a) a **readiness-gate regression**: `project_setup.required_files` lists `eks.yml` (repo root) while the file is at `eks/eks.yml`, so the gate returns `readiness=NO` and blocks every run — tracked for fix in **T1.78 (🔷 PLANNED)**; and (b) several DCC initiation layers EKS has not yet implemented (input-file readability, env/dependency probe, readiness summary, ErrorManager wiring, output-path validation, schema-driven debug default, 6-category validator structure) — also covered by T1.78. See [EKS Phase 1 Workplan](eks/workplan/phase_1_foundation_workplan.md) T1.77 / T1.78.
+
+#### 3.9.1 Initiation Integrity Layers (DCC reference)
+
+DCC applies initiation integrity as **distinct layers**; the universal pattern should capture all of them, not only project-structure validation:
+
+1. **Project Structure Validation** (§3.9) — required/optional folders + files + environment; auto-create; `readiness = YES/NO`.
+2. **User-Input Contract Validation** — confirm the user-selected input exists **and is readable** (e.g. `PathSelectionContract` 1-byte read test) before processing.
+3. **Environment / Dependency Probe** — `test_environment()` checks required (block) vs optional (warn) modules from `project_setup.dependencies`.
+4. **Output / Export-Path Validation** — `validate_export_paths()` creates output dir and fails fast if outputs exist with overwrite disabled.
+5. **Parameter Precedence** — CLI > UI > Schema > Native (§7.5.2).
+6. **Fail-Fast Gating** — abort the pipeline *before any data is read* if integrity is not satisfied, with a structured error code (DCC: `S-C-S-0305`).
+
+EKS currently implements layers 1 (partially) and 5 (partially); layers 2–4 and the structured-error part of 6 are the T1.78 scope.
+
+**Reference Implementation**: DCC Pipeline (`dcc/workflow/initiation_engine/core/validator.py` — `ProjectSetupValidator`); EKS Pipeline (`eks/engine/core/setup_validator.py`, T1.77 pending wiring)
 
 ---
 
@@ -642,7 +659,7 @@ class SecurityAuditor:
 
 **Relationship to Existing Patterns**: Secrets and access config can live alongside Schema-Driven Config (3.5), but should be kept in a separate, access-restricted store rather than the same versioned config files as business rules.
 
-**Reference Implementation**: DCC Pipeline (partial — environment variable usage exists, full security baseline planned)
+**Reference Implementation**: DCC Pipeline (partial — environment variable usage exists, full security baseline planned); EKS Pipeline applies the path-traversal portion via `phase1_server._check_traversal()` (`is_relative_to(PRJ_DIR)` → HTTP 403) in T1.70, guarding `data_dir` on pipeline start and file-load.
 
 ---
 
@@ -1046,6 +1063,8 @@ For UI integration:
 3. Schema Configuration
 4. Hardcoded Defaults
 
+**EKS Status**: **T1.77 (✅ DONE)** added a `--debug`/`--level` CLI flag to `phase1_server.py` and validates `data_dir` exists + `recursive` is bool before spawning the run thread — aligning with this precedence rule and the §3.9 readiness gate. The **schema-driven default debug level** (resolving `level` from `eks_config.json` rather than the current hardcoded `1`) is **deferred to T1.78 (🔷 PLANNED)**; DCC's full CLI > Schema > Native resolution chain is the reference. See [EKS Phase 1 Workplan](eks/workplan/phase_1_foundation_workplan.md) T1.77 / T1.78.
+
 ### 7.6 Performance and Scalability Best Practices
 
 #### 7.6.1 Vectorized Operations Best Practices
@@ -1137,7 +1156,12 @@ For UI integration:
 ### 8.2 EKS Pipeline (Secondary Reference)
 
 - **Location**: `eks/`
-- **Status**: Phase 1 COMPLETE, Phase 1.2 Proposed
+- **Status**: Phase 1 Bootstrap COMPLETE (T1.1–T1.77 ✅); **T1.77 (Initiation Integrity Checks, mirrors DCC `initiation_engine`) ✅ DONE**. T1.78 (Initiation Integrity Remediation) 🔷 PLANNED — see [Phase 1 Foundation Workplan](eks/workplan/phase_1_foundation_workplan.md) T1.77 / T1.78. Phase 1.2 Proposed.
+- **Pattern Coverage**:
+  - ✅ Schema-Driven Config (§3.5), Standardized Engine I/O + I/O contracts (§3.15, T1.72), Structured Logging & Correlation IDs (§3.12, T1.69), Idempotency & Checkpointing (§3.11, T1.73)
+  - ✅ Project Setup Validation (§3.9, L13) — `ProjectSetupValidator` wired as fail-fast readiness gate (T1.77); **regression + DCC-layer gaps tracked in T1.78** (§3.9.1)
+  - ✅ Multi-Stage / Parameter Precedence (§3.6, §7.5.2) — `data_dir`/`recursive` validation + `--debug`/`--level` flag (T1.77); schema-driven debug default deferred to T1.78
+  - ✅ Security Baseline path-traversal portion (§3.13, T1.70)
 - **Key Documents**:
   - [Phase 1 Foundation Workplan](eks/workplan/phase_1_foundation_workplan.md)
   - [Phase 1.2 Interactive UI Workplan](eks/workplan/phase_1.2_interactive_ui_workplan.md)
@@ -1158,6 +1182,7 @@ Use this checklist when designing a new pipeline:
 - [ ] **Error Catalog**: Standardized error codes
 - [ ] **UI Contracts**: Backend contracts defined (if applicable)
 - [ ] **Project Setup Validation**: Setup verification implemented
+- [ ] **Initiation Integrity Layers (§3.9.1)**: User-input contract (file readable), environment/dependency probe, output-path validation, structured fail-fast error code
 - [ ] **Foundation/Utility Separation**: Clear separation of concerns
 - [ ] **Idempotency & Checkpointing**: Safe re-runs and resumability
 - [ ] **Structured Logging & Correlation IDs**: Machine-parseable, traceable logs
@@ -1180,6 +1205,7 @@ A pipeline is considered to follow universal architecture when:
 - ✅ Standardized error catalog with resolution guidance
 - ✅ UI contracts defined (if applicable)
 - ✅ Project setup validator implemented
+- ✅ Initiation integrity layers present (user-input readability, env probe, output-path validation, structured fail-fast code) — see §3.9.1
 - ✅ Foundation/utility separation established
 - ✅ Idempotency & checkpointing for safe re-runs
 - ✅ Structured logging with correlation IDs

@@ -16,16 +16,19 @@ _depth = 0
 class EKSLogger:
     """
     Tiered logging strategy for EKS.
-    Supports levels 0-3, debug object collection, and structured trace table.
+    Supports levels 0-3, debug object collection, structured trace table, and run_id correlation.
     """
-    def __init__(self, name: str, level: int = 1, debug_file: Optional[str | Path] = None):
+    def __init__(self, name: str, level: int = 1, debug_file: Optional[str | Path] = None,
+                 run_id: Optional[str] = None):
         self.name = name
         self.level = level
+        self.run_id = run_id
         self.debug_file = Path(debug_file) if debug_file else None
         self.debug_object: Dict[str, Any] = {
             "project": "EKS",
             "start_time": datetime.now().isoformat(),
             "system_snapshot": self._get_system_snapshot(),
+            "run_id": run_id,
             "trace_table": [],
             "logs": [],
             "errors": []
@@ -59,8 +62,11 @@ class EKSLogger:
                 "category": category,
                 "context": context,
                 "module": self.name,
+                "run_id": self.run_id,
                 "message": msg
             }
+            if self.run_id:
+                print_msg = f"[{self.run_id}] {print_msg}"
             self.debug_object["logs"].append(log_entry)
 
     def status(self, msg: str, context: Optional[str] = None):

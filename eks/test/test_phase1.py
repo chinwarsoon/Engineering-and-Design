@@ -366,7 +366,6 @@ class TestPhase1(unittest.TestCase):
         base = json.load(open(self.config_dir / 'eks_base_schema.json', encoding='utf-8'))
         defs = base.get('definitions', {})
         self.assertNotIn('document_metadata_def', defs, "document_metadata_def should not be in pipeline base schema")
-        self.assertNotIn('project_metadata_def', defs, "project_metadata_def should not be in pipeline base schema")
 
     def test_doc_element_def_has_required_fields(self):
         """T1.34: Verify document_element_def has all 7 columns from registry.py."""
@@ -774,12 +773,13 @@ class TestPhase1(unittest.TestCase):
         self.assertIn('discipline_entry_def', defs, "Missing discipline_entry_def")
 
     def test_base_schema_has_project_setup_defs(self):
-        """T1.67: Verify eks_base_schema.json has project_setup definitions."""
+        """T1.85: Verify eks_base_schema.json has DCC-aligned project_setup definitions."""
         import json
         base = json.load(open(self.config_dir / 'eks_base_schema.json', encoding='utf-8'))
         defs = base.get('definitions', {})
-        for expected_def in ['required_folder_setup_def', 'required_engine_subfolder_setup_def',
-                            'required_file_setup_def', 'environment_setup_def', 'validation_options_def']:
+        for expected_def in ['folder_entry_def', 'root_file_entry_def', 'schema_file_entry_def',
+                            'discovery_rule_def', 'environment_entry_def', 'dependency_config_def',
+                            'validation_rule_entry_def', 'project_metadata_def']:
             self.assertIn(expected_def, defs, f"Missing project_setup definition: {expected_def}")
 
     def test_fragment_schemas_have_required_fields(self):

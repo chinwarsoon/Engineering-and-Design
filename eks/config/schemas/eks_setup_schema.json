@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_setup_schema.json",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "title": "EKS Setup Schema - Declarations",
-    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). Includes project-specific validation rules and metadata support for the config instance.",
+    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). v1.4.0: reshaped project_setup to DCC-aligned object model (folders/root_files/schema_files/environment/dependencies/discovery_rules/validation_rules/project_metadata) per T1.85.",
     "allOf": [
         { "$ref": "eks_base_schema.json" }
     ],
@@ -62,15 +62,46 @@
         "logging": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/logging_def" },
         "project_setup": {
             "type": "object",
-            "description": "Project setup validation rules for folders, files, environment, and validator behavior",
+            "description": "Project setup validation rules — DCC-aligned object model (T1.85)",
             "properties": {
-                "required_folders": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/required_folder_setup_def" },
-                "required_engine_subfolders": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/required_engine_subfolder_setup_def" },
-                "required_files": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/required_file_setup_def" },
-                "environment": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/environment_setup_def" },
-                "validation_options": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/validation_options_def" }
+                "folders": {
+                    "type": "array",
+                    "description": "Required and optional project folders",
+                    "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/folder_entry_def" }
+                },
+                "root_files": {
+                    "type": "array",
+                    "description": "Files required at project root level",
+                    "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/root_file_entry_def" }
+                },
+                "schema_files": {
+                    "type": "array",
+                    "description": "Required JSON schema definition files",
+                    "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/schema_file_entry_def" }
+                },
+                "discovery_rules": {
+                    "type": "array",
+                    "description": "Pattern-based rules for auto-discovering files",
+                    "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discovery_rule_def" }
+                },
+                "environment": {
+                    "type": "array",
+                    "description": "Environment specifications for the project",
+                    "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/environment_entry_def" }
+                },
+                "dependencies": {
+                    "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/dependency_config_def"
+                },
+                "validation_rules": {
+                    "type": "array",
+                    "description": "Validation rules for project setup",
+                    "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/validation_rule_entry_def" }
+                },
+                "project_metadata": {
+                    "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/project_metadata_def"
+                }
             },
-            "required": ["required_folders", "required_files", "environment"],
+            "required": ["folders", "root_files", "schema_files", "dependencies", "project_metadata"],
             "additionalProperties": false
         }
     },

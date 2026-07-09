@@ -1,262 +1,342 @@
 """
 Project Setup Validator - Validates project setup and auto-creates missing folders.
 
-This module implements the Project Setup Validator pattern per Appendix F,
-providing validation of required folders, files, and environment configuration.
-Loads validation rules from the ConfigRegistry schema chain (T1.67),
-falling back to hardcoded defaults if no config is provided.
+Thin adapter that delegates to the universal common.library.validation.ValidationManager
+while preserving the EKS-specific public API and P1-SETUP-* error code wiring.
 
-Revision: 0.2
-Date: 2026-06-30
-Author: System
+Revision: 0.7
+Date: 2026-07-09
+Author: opencode
 """
 
-from pathlib import Path
-from typing import Dict, Any, List, Optional
 import json
+import os
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from common.library.utility.validation.manager import ValidationManager
+
+
+def _load_setup_error_codes() -> Dict[str, str]:
+    """Load P1-SETUP-* error codes from the error catalog (SSOT)."""
+    codes = {
+        "ERR_MISSING_FOLDER": "P1-SETUP-F001",
+        "ERR_MISSING_FILE": "P1-SETUP-F002",
+        "ERR_MISSING_EKS_YML": "P1-SETUP-F003",
+        "ERR_MISSING_DEP": "P1-SETUP-D001",
+        "ERR_OUTPUT_PATH": "P1-SETUP-O001",
+        "ERR_PYTHON_MISMATCH": "P1-SETUP-E001",
+    }
+    try:
+        base = Path(__file__).parent.parent.parent / "config"
+        err_path = None
+        for cand in (base / "schemas" / "eks_error_config.json", base / "eks_error_config.json"):
+            if cand.exists():
+                err_path = cand
+                break
+        if err_path:
+            with open(err_path, "r", encoding="utf-8") as f:
+                cat = json.load(f)
+            sys_err = cat.get("system_errors", {})
+            code_to_const = {
+                "P1-SETUP-F001": "ERR_MISSING_FOLDER",
+                "P1-SETUP-F002": "ERR_MISSING_FILE",
+                "P1-SETUP-F003": "ERR_MISSING_EKS_YML",
+                "P1-SETUP-D001": "ERR_MISSING_DEP",
+                "P1-SETUP-O001": "ERR_OUTPUT_PATH",
+                "P1-SETUP-E001": "ERR_PYTHON_MISMATCH",
+            }
+            for code, const in code_to_const.items():
+                if code in sys_err:
+                    codes[const] = code
+    except Exception:
+        pass
+    return codes
+
+
+_SETUP_ERR = _load_setup_error_codes()
+ERR_PREFIX = "P1-SETUP"
+ERR_MISSING_FOLDER = _SETUP_ERR["ERR_MISSING_FOLDER"]
+ERR_MISSING_FILE = _SETUP_ERR["ERR_MISSING_FILE"]
+ERR_MISSING_EKS_YML = _SETUP_ERR["ERR_MISSING_EKS_YML"]
+ERR_MISSING_DEP = _SETUP_ERR["ERR_MISSING_DEP"]
+ERR_OUTPUT_PATH = _SETUP_ERR["ERR_OUTPUT_PATH"]
+ERR_PYTHON_MISMATCH = _SETUP_ERR["ERR_PYTHON_MISMATCH"]
+
+_GENERIC_TO_EKS = {
+    "MISSING_FOLDER": ERR_MISSING_FOLDER,
+    "MISSING_FILE": ERR_MISSING_FILE,
+    "MISSING_ENV_FILE": ERR_MISSING_EKS_YML,
+    "MISSING_DEPENDENCY": ERR_MISSING_DEP,
+    "FOLDER_CREATE_FAILED": ERR_MISSING_FOLDER,
+    "MISSING_OPTIONAL_FOLDER": ERR_MISSING_FOLDER,
+    "MISSING_OPTIONAL_FILE": ERR_MISSING_FILE,
+    "PYTHON_MISMATCH": ERR_PYTHON_MISMATCH,
+}
+
+
+def _eks_code(generic_code: str) -> str:
+    """Map generic error code to EKS P1-SETUP-* code."""
+    return _GENERIC_TO_EKS.get(generic_code, generic_code)
+
+
+def _convert_flat_to_object(flat_config: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Convert old flat-array project_setup format to DCC-aligned object model.
+
+    Handles backward compatibility for tests and legacy callers.
+    """
+    obj = {}
+
+    # Folders: convert required_folders + required_engine_subfolders
+    required_folders = flat_config.get("required_folders", [])
+    obj["folders"] = [
+        {"name": f, "required": True, "purpose": f"Required folder: {f}", "auto_created": True}
+        for f in required_folders
+    ]
+    engine_subfolders = flat_config.get("required_engine_subfolders", [])
+    for sf in engine_subfolders:
+        obj["folders"].append({
+            "name": f"engine/{sf}", "required": True,
+            "purpose": f"Engine subfolder: {sf}", "auto_created": True,
+        })
+
+    # Root files
+    required_files = flat_config.get("required_files", [])
+    obj["root_files"] = [
+        {"name": f, "required": True, "purpose": f"Required file: {f}"}
+        for f in required_files if "config/schemas" not in f
+    ]
+    obj["schema_files"] = [
+        {"filename": f, "required": True, "description": f"Schema file: {f}"}
+        for f in required_files if "config/schemas" in f
+    ]
+
+    # Environment
+    env = flat_config.get("environment", {})
+    if isinstance(env, dict) and "python_version" in env:
+        obj["environment"] = [{
+            "name": "conda",
+            "required": True,
+            "file": "eks/eks.yml",
+            "location": "root",
+            "python_version": env.get("python_version", ""),
+            "conda_env": env.get("conda_env", ""),
+            "key_dependencies": env.get("dependencies", []),
+        }]
+        obj["dependencies"] = {
+            "required": env.get("dependencies", []),
+            "optional": [],
+            "engines": [],
+        }
+    elif isinstance(env, list):
+        obj["environment"] = env
+        obj["dependencies"] = {"required": [], "optional": [], "engines": []}
+
+    # Project metadata (minimal)
+    obj["project_metadata"] = {
+        "project_id": "EKS-001",
+        "project_name": "Engineering Knowledge System",
+        "version": "1.0.0",
+    }
+
+    return obj
 
 
 class ProjectSetupValidator:
     """
-    Validates project setup and auto-creates missing folders.
-    
-    This class implements the Project Setup Validator pattern per Appendix F,
-    providing validation of required folders, files, and environment configuration.
-    Loads validation rules from ConfigRegistry (project_setup section) with
-    hardcoded fallback for backward compatibility.
+    Validates project setup — thin adapter delegating to universal ValidationManager.
+
+    Preserves validate_all() and get_missing_items() public API (used by phase1_server.py)
+    and the P1-SETUP-* error code + ErrorManager wiring (T1.79).
     """
-    
+
     def __init__(self, project_root: Path, config_registry: Optional[Dict[str, Any]] = None, verbose: bool = False):
-        """
-        Initialize project setup validator.
-        
-        Args:
-            project_root: Root directory of the EKS project
-            config_registry: ConfigRegistry or dict with project_setup section (T1.67)
-            verbose: Whether to print verbose output
-        """
         self.project_root = Path(project_root) if isinstance(project_root, str) else project_root
         self.verbose = verbose
         self.validation_results: Dict[str, Any] = {}
-        
-        # Load from config registry if provided (T1.67 schema-driven)
+        self._vm = ValidationManager()
+
+        # Load project_setup config
         config = {}
         if config_registry:
             if hasattr(config_registry, 'get'):
                 config = config_registry.get("project_setup", {})
             elif isinstance(config_registry, dict):
                 config = config_registry.get("project_setup", {})
-        
-        self.required_folders = config.get("required_folders", [
-            "archive", "config", "data", "output", "engine",
-            "log", "docs", "workplan", "test", "ui"
-        ])
-        self.required_engine_subfolders = config.get("required_engine_subfolders", [
-            "core", "parsers", "chunking", "embedding",
-            "vector_store", "graph", "extractors", "retrieval",
-            "cache", "logging"
-        ])
-        self.required_files = config.get("required_files", [
-            "eks.yml",
-            "eks/config/schemas/eks_base_schema.json",
-            "eks/config/schemas/eks_setup_schema.json"
-        ])
-        self.environment_config = config.get("environment", {})
-        self.validation_options = config.get("validation_options", {})
-    
+
+        if not config:
+            raise ValueError(
+                "ProjectSetupValidator requires 'project_setup' config section (SSOT). "
+                "Provide config_registry with a 'project_setup' key."
+            )
+
+        # Detect format: old flat-array or new DCC-aligned object model
+        if "required_folders" in config:
+            self._setup_config = _convert_flat_to_object(config)
+        else:
+            self._setup_config = config
+
+        self._folders = self._setup_config.get("folders", [])
+        self._root_files = self._setup_config.get("root_files", [])
+        self._schema_files = self._setup_config.get("schema_files", [])
+        self._env = self._setup_config.get("environment", [])
+        self._deps = self._setup_config.get("dependencies", {})
+
+        # Store global_paths from full config registry
+        self.global_paths = {}
+        if config_registry:
+            full = config_registry.get("global_paths", {}) if hasattr(config_registry, 'get') else \
+                   config_registry.get("global_paths", {}) if isinstance(config_registry, dict) else {}
+            if isinstance(full, dict):
+                self.global_paths = full
+
     def validate_all(self, auto_create: bool = True) -> Dict[str, Any]:
         """
-        Run all validation checks.
-        
+        Run all validation checks — delegates to universal ValidationManager.
+
         Args:
             auto_create: Whether to auto-create missing folders
-            
+
         Returns:
             Validation results with readiness status
         """
-        self.validation_results = {
-            "project_root": str(self.project_root),
-            "folders": self._validate_folders(auto_create),
-            "files": self._validate_files(),
-            "environment": self._validate_environment(),
-            "readiness": "UNKNOWN"
-        }
-        
-        # Determine overall readiness
-        all_valid = (
-            self.validation_results["folders"]["all_exist"] and
-            self.validation_results["files"]["all_exist"] and
-            self.validation_results["environment"]["eks_yml_exists"]
+        result = self._vm.validate_project_setup(
+            base_path=self.project_root,
+            config=self._setup_config,
+            auto_create_override=auto_create,
         )
-        
-        self.validation_results["readiness"] = "YES" if all_valid else "NO"
-        
+
+        # Map generic error codes to P1-SETUP-* codes
+        for ec in result.get("error_codes", []):
+            ec["code"] = _eks_code(ec["code"])
+
+        # Map error codes in sub-results
+        for entry in result.get("folders", {}).get("missing", []):
+            entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_FOLDER"))
+        for entry in result.get("root_files", {}).get("missing", []):
+            entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_FILE"))
+        for entry in result.get("schema_files", {}).get("missing", []):
+            entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_FILE"))
+        for entry in result.get("environment", {}).get("missing_files", []):
+            entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_ENV_FILE"))
+        for entry in result.get("dependencies", {}).get("missing", []):
+            entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_DEPENDENCY"))
+
+        # Rebuild the legacy-style validation_results for backward compat
+        self.validation_results = self._build_legacy_result(result)
+
         if self.verbose:
             self._print_results()
-        
+
         return self.validation_results
-    
-    def _validate_folders(self, auto_create: bool) -> Dict[str, Any]:
-        """
-        Validate required folders.
-        
-        Args:
-            auto_create: Whether to auto-create missing folders
-            
-        Returns:
-            Folder validation results
-        """
-        results = {
-            "missing": [],
-            "created": [],
-            "all_exist": True
+
+    def _build_legacy_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Build backward-compatible validation_results dict from universal result."""
+        folders = result.get("folders", {})
+        root_files = result.get("root_files", {})
+        schema_files = result.get("schema_files", {})
+        env = result.get("environment", {})
+        deps = result.get("dependencies", {})
+        combined_files = {
+            "missing": root_files.get("missing", []) + schema_files.get("missing", []),
+            "all_exist": root_files.get("all_exist", True) and schema_files.get("all_exist", True),
         }
-        
-        # Validate top-level folders
-        for folder in self.required_folders:
-            folder_path = self.project_root / folder
-            if not folder_path.exists():
-                results["missing"].append(str(folder_path))
-                results["all_exist"] = False
-                
-                if auto_create:
-                    folder_path.mkdir(parents=True, exist_ok=True)
-                    results["created"].append(str(folder_path))
-                    if self.verbose:
-                        print(f"[SETUP] Created missing folder: {folder_path}")
-        
-        # Validate engine subfolders
-        engine_path = self.project_root / "engine"
-        if engine_path.exists():
-            for subfolder in self.required_engine_subfolders:
-                subfolder_path = engine_path / subfolder
-                if not subfolder_path.exists():
-                    results["missing"].append(str(subfolder_path))
-                    results["all_exist"] = False
-                    
-                    if auto_create:
-                        subfolder_path.mkdir(parents=True, exist_ok=True)
-                        results["created"].append(str(subfolder_path))
-                        if self.verbose:
-                            print(f"[SETUP] Created missing engine subfolder: {subfolder_path}")
-        
-        return results
-    
-    def _validate_files(self) -> Dict[str, Any]:
-        """
-        Validate required files.
-        
-        Returns:
-            File validation results
-        """
-        results = {
-            "missing": [],
-            "all_exist": True
+        has_env_file = all(e.get("file_exists", False) if e.get("file") else True for e in env.get("entries", []))
+        eks_yml_candidates = [f for f in root_files.get("found", []) + root_files.get("missing", []) if "eks.yml" in f.get("name", "")]
+        eks_yml_path = self.project_root
+        eks_fn = ""
+        for f in root_files.get("found", []):
+            if "eks.yml" in f.get("name", ""):
+                eks_fn = f.get("name", "")
+                eks_yml_path = eks_yml_path / eks_fn
+        if not eks_fn:
+            for f in root_files.get("missing", []):
+                if "eks.yml" in f.get("name", ""):
+                    eks_fn = f.get("name", "")
+                    eks_yml_path = eks_yml_path / eks_fn
+
+        # Output paths (legacy check from global_paths)
+        output_rel = self.global_paths.get("output_dir", "output")
+        eks_root_val = self.global_paths.get("eks_root", "eks")
+        output_path = self.project_root / eks_root_val / output_rel
+        out_writable = False
+        if output_path.exists():
+            out_writable = os.access(str(output_path), os.W_OK)
+        else:
+            try:
+                output_path.mkdir(parents=True, exist_ok=True)
+                out_writable = True
+            except (OSError, PermissionError):
+                out_writable = False
+
+        output_paths = {
+            "paths": [{"path": str(output_path), "exists": output_path.exists(), "writable": out_writable}],
+            "unwritable": [] if out_writable else [{"path": str(output_path), "error_code": ERR_OUTPUT_PATH}],
+            "all_writable": out_writable,
         }
-        
-        for file_path in self.required_files:
-            full_path = self.project_root / file_path
-            if not full_path.exists():
-                results["missing"].append(str(full_path))
-                results["all_exist"] = False
-        
-        return results
-    
-    def _validate_environment(self) -> Dict[str, Any]:
-        """
-        Validate environment configuration.
-        
-        Returns:
-            Environment validation results
-        """
-        results = {
-            "eks_yml_exists": False,
-            "eks_yml_path": str(self.project_root / "eks.yml"),
-            "python_version": None,
-            "expected_python": self.environment_config.get("python_version"),
-            "expected_conda_env": self.environment_config.get("conda_env"),
-            "dependencies": []
+
+        all_valid = (
+            folders.get("all_exist", True)
+            and combined_files["all_exist"]
+            and has_env_file
+        )
+
+        return {
+            "project_root": str(self.project_root),
+            "folders": folders,
+            "files": combined_files,
+            "environment": {
+                "eks_yml_exists": has_env_file,
+                "eks_yml_path": str(eks_yml_path),
+                "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+                "error_code": None if has_env_file else ERR_MISSING_EKS_YML,
+            },
+            "dependencies": deps,
+            "output_paths": output_paths,
+            "readiness": "YES" if all_valid else "NO",
+            "error_codes": result.get("error_codes", []),
         }
-        
-        # Check for eks.yml
-        eks_yml_path = self.project_root / "eks.yml"
-        if eks_yml_path.exists():
-            results["eks_yml_exists"] = True
-        
-        # Get Python version
-        import sys
-        results["python_version"] = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        
-        # Check Python version match
-        if results["expected_python"]:
-            actual = f"{sys.version_info.major}.{sys.version_info.minor}"
-            results["python_match"] = actual.startswith(results["expected_python"])
-        
-        return results
-    
+
+    def get_readiness_status(self) -> str:
+        if not self.validation_results:
+            self.validate_all()
+        return self.validation_results["readiness"]
+
+    def get_missing_items(self) -> Dict[str, List[str]]:
+        if not self.validation_results:
+            self.validate_all(auto_create=False)
+
+        def _extract_paths(entries):
+            return [e["path"] if isinstance(e, dict) else e for e in entries]
+
+        return {
+            "folders": _extract_paths(self.validation_results.get("folders", {}).get("missing", [])),
+            "files": _extract_paths(self.validation_results.get("files", {}).get("missing", [])),
+        }
+
     def _print_results(self):
-        """Print validation results."""
-        print("\n" + "="*60)
+        """Print validation results (compat method — delegates to VM details)."""
+        print("\n" + "=" * 60)
         print("PROJECT SETUP VALIDATION RESULTS")
-        print("="*60)
+        print("=" * 60)
         print(f"Project Root: {self.validation_results['project_root']}")
         print(f"Readiness: {self.validation_results['readiness']}")
         print()
-        
-        # Folder results
-        folder_results = self.validation_results["folders"]
-        print(f"Folders: {'✓ All exist' if folder_results['all_exist'] else '✗ Missing folders'}")
-        if folder_results["missing"]:
-            print(f"  Missing: {len(folder_results['missing'])}")
-            for folder in folder_results["missing"]:
-                print(f"    - {folder}")
-        if folder_results["created"]:
-            print(f"  Created: {len(folder_results['created'])}")
-            for folder in folder_results["created"]:
-                print(f"    - {folder}")
-        print()
-        
-        # File results
-        file_results = self.validation_results["files"]
-        print(f"Files: {'✓ All exist' if file_results['all_exist'] else '✗ Missing files'}")
-        if file_results["missing"]:
-            print(f"  Missing: {len(file_results['missing'])}")
-            for file in file_results["missing"]:
-                print(f"    - {file}")
-        print()
-        
-        # Environment results
-        env_results = self.validation_results["environment"]
-        print(f"Environment:")
-        print(f"  eks.yml: {'✓' if env_results['eks_yml_exists'] else '✗'}")
-        print(f"  Python: {env_results['python_version']}")
-        print()
-        
-        print("="*60 + "\n")
-    
-    def get_readiness_status(self) -> str:
-        """
-        Get project readiness status.
-        
-        Returns:
-            "YES" if project is ready, "NO" otherwise
-        """
-        if not self.validation_results:
-            self.validate_all()
-        
-        return self.validation_results["readiness"]
-    
-    def get_missing_items(self) -> Dict[str, List[str]]:
-        """
-        Get list of missing folders and files.
-        
-        Returns:
-            Dictionary with "folders" and "files" keys containing missing items
-        """
-        if not self.validation_results:
-            self.validate_all(auto_create=False)
-        
-        return {
-            "folders": self.validation_results["folders"]["missing"],
-            "files": self.validation_results["files"]["missing"]
-        }
+        r = self.validation_results
+        f_r = r.get("folders", {})
+        print(f"Folders: {'✓ All exist' if f_r.get('all_exist') else '✗ Missing folders'}")
+        for m in f_r.get("missing", []):
+            print(f"    - [{m.get('error_code','')}] {m.get('path','')}")
+        fi_r = r.get("files", {})
+        print(f"Files: {'✓ All exist' if fi_r.get('all_exist') else '✗ Missing files'}")
+        for m in fi_r.get("missing", []):
+            print(f"    - [{m.get('error_code','')}] {m.get('path','')}")
+        e_r = r.get("environment", {})
+        print(f"Environment:\n  eks.yml: {'✓' if e_r.get('eks_yml_exists') else '✗'}")
+        d_r = r.get("dependencies", {})
+        print(f"Dependencies: {'✓ All available' if d_r.get('all_available') else '✗ Missing'}")
+        for m in d_r.get("missing", []):
+            print(f"    - [{m.get('error_code','')}] {m.get('package','')}")
+        print("=" * 60 + "\n")

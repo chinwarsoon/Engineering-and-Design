@@ -9,6 +9,8 @@ Source: dcc/workflow/utility_engine/validation/validation_manager.py
         dcc/workflow/utility_engine/validation/validation_functions.py
 """
 
+import importlib
+import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -25,11 +27,17 @@ class ValidationManager:
 
     Provides
     --------
-    validate_file_exists()          — single file
-    validate_directory_exists()     — single directory (with optional auto-create)
-    validate_parameter()            — single parameter with optional custom validator
-    validate_paths_and_parameters() — batch: files + dirs + params in one call
-    validate_pipeline_prerequisites() — full pipeline pre-flight check
+    validate_file_exists()             — single file
+    validate_directory_exists()        — single directory (with optional auto-create)
+    validate_parameter()               — single parameter with optional custom validator
+    validate_paths_and_parameters()    — batch: files + dirs + params in one call
+    validate_pipeline_prerequisites()  — full pipeline pre-flight check
+    validate_folders()                 — DCC-aligned folder-entry validation
+    validate_named_files()             — DCC-aligned file-entry validation
+    validate_environment()             — environment-entry validation
+    validate_dependencies()            — dependency probe (required/optional/engines)
+    validate_discovery_rules()         — discovery-rule validation (optional)
+    validate_project_setup()           — full project-setup readiness check
     """
 
     def __init__(self, folder_creation_config: Optional[Dict[str, Any]] = None):
@@ -187,6 +195,363 @@ class ValidationManager:
     # ------------------------------------------------------------------
     # Pipeline pre-flight
     # ------------------------------------------------------------------
+
+    # ------------------------------------------------------------------
+    # DCC-aligned project-setup validators (T1.84)
+    # ------------------------------------------------------------------
+
+    def validate_folders(
+        self,
+        base_path: Path,
+        folders: List[Dict[str, Any]],
+        auto_create_override: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """
+        Validate DCC-aligned folder entries.
+
+        Each folder entry: ``{name, required, purpose, auto_created}``
+
+        Returns
+        -------
+        dict with ``missing``, ``created``, ``all_exist``, ``entries``.
+        """
+        missing = []
+        created = []
+        all_exist = True
+        entries = []
+
+        for entry in folders:
+            folder_name = entry.get("name", "")
+            is_required = entry.get("required", True)
+            auto_created = entry.get("auto_created", False)
+            folder_path = base_path / folder_name
+
+            item = {
+                "name": folder_name,
+                "path": str(folder_path),
+                "required": is_required,
+                "auto_created": auto_created,
+                "purpose": entry.get("purpose", ""),
+            }
+
+            if folder_path.exists():
+                item["exists"] = True
+                item["error_code"] = None
+            elif is_required or auto_created:
+                should_create = (
+                    auto_created if auto_create_override is None
+                    else auto_create_override
+                )
+                if should_create:
+                    try:
+                        folder_path.mkdir(parents=True, exist_ok=True)
+                        item["exists"] = True
+                        item["error_code"] = None
+                        created.append(str(folder_path))
+                    except (OSError, PermissionError) as exc:
+                        item["exists"] = False
+                        item["error_code"] = "FOLDER_CREATE_FAILED"
+                        item["error_detail"] = str(exc)
+                        all_exist = False
+                        missing.append(item)
+                else:
+                    item["exists"] = False
+                    item["error_code"] = "MISSING_FOLDER"
+                    all_exist = False
+                    missing.append(item)
+            else:
+                item["exists"] = False
+                item["error_code"] = "MISSING_OPTIONAL_FOLDER"
+                missing.append(item)
+
+            entries.append(item)
+
+        return {
+            "entries": entries,
+            "missing": missing,
+            "created": created,
+            "all_exist": all_exist,
+        }
+
+    def validate_named_files(
+        self,
+        base_path: Path,
+        entries: List[Dict[str, Any]],
+        name_key: str = "name",
+    ) -> Dict[str, Any]:
+        """
+        Validate DCC-aligned file entries (root_files, schema_files, etc.).
+
+        Each entry must have a field identified by ``name_key`` (default ``name``)
+        containing the filename relative to ``base_path``.
+
+        Returns
+        -------
+        dict with ``missing``, ``found``, ``all_exist``.
+        """
+        missing = []
+        found = []
+        all_exist = True
+
+        for entry in entries:
+            filename = entry.get(name_key, "")
+            is_required = entry.get("required", True)
+            file_path = base_path / filename
+
+            item = {
+                "name": filename,
+                "path": str(file_path),
+                "required": is_required,
+                "purpose": entry.get("purpose", "") or entry.get("description", ""),
+            }
+
+            if file_path.exists():
+                item["exists"] = True
+                item["error_code"] = None
+                found.append(item)
+            elif is_required:
+                item["exists"] = False
+                item["error_code"] = "MISSING_FILE"
+                all_exist = False
+                missing.append(item)
+            else:
+                item["exists"] = False
+                item["error_code"] = "MISSING_OPTIONAL_FILE"
+
+            found.append(item)
+
+        return {
+            "missing": missing,
+            "found": found,
+            "all_exist": all_exist,
+        }
+
+    def validate_environment(
+        self,
+        env_entries: List[Dict[str, Any]],
+        base_path: Optional[Path] = None,
+    ) -> Dict[str, Any]:
+        """
+        Validate environment entries.
+
+        Each entry: ``{name, required, file, location, setup_commands, key_dependencies}``
+
+        Returns
+        -------
+        dict with ``entries``, ``missing_files``, ``all_valid``.
+        """
+        results = []
+        missing_files = []
+        all_valid = True
+
+        for entry in env_entries:
+            env_name = entry.get("name", "")
+            is_required = entry.get("required", True)
+            env_file = entry.get("file")
+            raw_python = entry.get("python_version")
+            key_deps = entry.get("key_dependencies", [])
+
+            item = {
+                "name": env_name,
+                "required": is_required,
+                "file": env_file,
+                "file_exists": None,
+                "python_version": None,
+                "python_match": None,
+                "key_dependencies": key_deps,
+                "error_code": None,
+            }
+
+            # Check env file existence
+            if env_file and base_path:
+                env_path = base_path / env_file
+                item["file_exists"] = env_path.exists()
+                if not item["file_exists"] and is_required:
+                    item["error_code"] = "MISSING_ENV_FILE"
+                    missing_files.append(item)
+                    all_valid = False
+            elif env_file and not base_path:
+                item["file_exists"] = None
+
+            # Check python version
+            if raw_python:
+                actual = f"{sys.version_info.major}.{sys.version_info.minor}"
+                item["python_version"] = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+                item["python_match"] = actual.startswith(raw_python)
+                if not item["python_match"]:
+                    item["error_code"] = "PYTHON_MISMATCH"
+                    all_valid = False
+
+            results.append(item)
+
+        return {
+            "entries": results,
+            "missing_files": missing_files,
+            "all_valid": all_valid,
+        }
+
+    def validate_dependencies(
+        self,
+        deps: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Validate dependencies config.
+
+        Config: ``{required[], optional[], engines[{module, members[], optional}]}``
+
+        Returns
+        -------
+        dict with ``available``, ``missing``, ``all_available``.
+        """
+        available = []
+        missing = []
+        all_available = True
+
+        required_pkgs = deps.get("required", []) if isinstance(deps, dict) else deps if isinstance(deps, list) else []
+
+        for pkg in required_pkgs:
+            try:
+                importlib.import_module(pkg.replace("-", "_"))
+                available.append(pkg)
+            except ImportError:
+                missing.append({"package": pkg, "error_code": "MISSING_DEPENDENCY"})
+                all_available = False
+
+        optional_pkgs = deps.get("optional", []) if isinstance(deps, dict) else []
+        for pkg in optional_pkgs:
+            try:
+                importlib.import_module(pkg.replace("-", "_"))
+                available.append(pkg)
+            except ImportError:
+                pass
+
+        engine_modules = deps.get("engines", []) if isinstance(deps, dict) else []
+        for eng in engine_modules:
+            mod_name = eng.get("module", "")
+            is_optional = eng.get("optional", False)
+            try:
+                mod = importlib.import_module(mod_name)
+                for member in eng.get("members", []):
+                    if not hasattr(mod, member):
+                        raise ImportError(f"Module {mod_name} has no member {member}")
+                available.append(mod_name)
+            except ImportError:
+                if not is_optional:
+                    missing.append({"package": mod_name, "error_code": "MISSING_ENGINE"})
+                    all_available = False
+
+        return {
+            "available": available,
+            "missing": missing,
+            "all_available": all_available,
+        }
+
+    def validate_discovery_rules(
+        self,
+        rules: List[Dict[str, Any]],
+        base_path: Optional[Path] = None,
+    ) -> Dict[str, Any]:
+        """
+        Validate discovery rules (optional).
+
+        Each rule: ``{pattern, directory, recursive, auto_register, category, exclude_patterns[]}``
+
+        Returns
+        -------
+        dict with ``rules``, ``all_valid``.
+        """
+        results = []
+        all_valid = True
+
+        for rule in rules:
+            pattern = rule.get("pattern", "")
+            directory = rule.get("directory", "")
+            rule_path = base_path / directory if base_path and directory else None
+
+            item = {
+                "pattern": pattern,
+                "directory": directory,
+                "recursive": rule.get("recursive", False),
+                "auto_register": rule.get("auto_register", False),
+                "category": rule.get("category", ""),
+                "directory_exists": rule_path.exists() if rule_path else None,
+                "error_code": None,
+            }
+
+            if rule_path and not rule_path.exists():
+                item["error_code"] = "DISCOVERY_DIR_MISSING"
+
+            results.append(item)
+
+        return {
+            "rules": results,
+            "all_valid": all_valid,
+        }
+
+    def validate_project_setup(
+        self,
+        base_path: Path,
+        config: Dict[str, Any],
+        auto_create_override: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """
+        Full project-setup readiness check combining all DCC-aligned validators.
+
+        ``config`` should contain::
+
+            {
+                "folders": [...],
+                "root_files": [...],
+                "schema_files": [...],
+                "environment": [...],
+                "dependencies": {...} | [...],
+                "discovery_rules": [...],
+                "validation_rules": [...]
+            }
+
+        Returns
+        -------
+        dict with ``readiness``, ``folders``, ``files``, ``environment``,
+        ``dependencies``, ``discovery_rules``, ``error_codes``.
+        """
+        folders_result = self.validate_folders(base_path, config.get("folders", []), auto_create_override)
+        root_files_result = self.validate_named_files(base_path, config.get("root_files", []))
+        schema_files_result = self.validate_named_files(base_path, config.get("schema_files", []))
+        env_result = self.validate_environment(config.get("environment", []), base_path)
+        deps_result = self.validate_dependencies(config.get("dependencies", {}))
+        disc_result = self.validate_discovery_rules(config.get("discovery_rules", []), base_path)
+
+        all_exist = (
+            folders_result.get("all_exist", True)
+            and root_files_result.get("all_exist", True)
+            and schema_files_result.get("all_exist", True)
+            and env_result.get("all_valid", True)
+        )
+
+        error_codes = []
+        for entry in folders_result.get("missing", []):
+            error_codes.append({"code": entry.get("error_code", "MISSING_FOLDER"), "path": entry["path"]})
+        for entry in root_files_result.get("missing", []):
+            error_codes.append({"code": entry.get("error_code", "MISSING_FILE"), "path": entry["path"]})
+        for entry in schema_files_result.get("missing", []):
+            error_codes.append({"code": entry.get("error_code", "MISSING_FILE"), "path": entry["path"]})
+        for entry in env_result.get("missing_files", []):
+            ec = entry.get("error_code", "MISSING_ENV_FILE")
+            fp = entry.get("file", "")
+            error_codes.append({"code": ec, "path": fp})
+        for entry in deps_result.get("missing", []):
+            error_codes.append({"code": entry.get("error_code", "MISSING_DEPENDENCY"), "package": entry.get("package", "")})
+
+        return {
+            "readiness": "YES" if all_exist else "NO",
+            "folders": folders_result,
+            "root_files": root_files_result,
+            "schema_files": schema_files_result,
+            "environment": env_result,
+            "dependencies": deps_result,
+            "discovery_rules": disc_result,
+            "error_codes": error_codes,
+        }
 
     def validate_pipeline_prerequisites(
         self,
