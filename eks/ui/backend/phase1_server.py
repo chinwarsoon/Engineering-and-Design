@@ -454,7 +454,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         _cfg_loader = SchemaLoader(PRJ_DIR / _EKS_ROOT_DEFAULT / "config")
         _cfg = _cfg_loader.load_all()
         _gp = _cfg.get("global_paths", {})
-        _ps = _cfg.get("project_setup", {})
+        _ps = _cfg.get("project_setup", _cfg)
         _eks_root = _gp.get("eks_root", _EKS_ROOT_DEFAULT)
         _data_rel = _gp.get("data_dir", "data")
         _default_data_dir = f"{_eks_root}/{_data_rel}"

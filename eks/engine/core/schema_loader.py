@@ -1,20 +1,52 @@
 """
 Schema Loader for EKS - Handles loading and validation of base, setup, and config schemas.
+
+Uses config-driven discovery (T1.96): reads schema_files + discovery_rules from
+eks_config.json instead of hardcoding 22 filenames.
 """
 import importlib
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from jsonschema import validate
 from referencing import Registry
 from referencing.jsonschema import DRAFT7
 
+from common.library.loader import discover_schema_files, find_schema_file
+
+
+_STEM_TO_ATTR = {
+    "eks_base_schema": "base_schema",
+    "eks_setup_schema": "setup_schema",
+    "eks_config": "config",
+    "eks_asset_base_schema": "asset_base_schema",
+    "eks_asset_setup_schema": "asset_setup_schema",
+    "eks_asset_config": "asset_config",
+    "eks_ontology_base_schema": "ontology_base_schema",
+    "eks_ontology_setup_schema": "ontology_setup_schema",
+    "eks_ontology_config": "ontology",
+    "eks_doc_base_schema": "doc_base_schema",
+    "eks_doc_setup_schema": "doc_setup_schema",
+    "eks_doc_config": "doc_config",
+    "eks_error_code_base": "error_base_schema",
+    "eks_error_setup_schema": "error_setup_schema",
+    "eks_error_config": "error_config",
+    "eks_message_base": "message_base_schema",
+    "eks_message_setup_schema": "message_setup_schema",
+    "eks_message_config": "message_config",
+    "eks_project_rules_config": "project_rules_config",
+}
+
+_BOOTSTRAP_STEMS = {"eks_base_schema", "eks_setup_schema", "eks_config"}
+
+
 class SchemaLoader:
     """
-    Orchestrates the loading and validation of EKS canonical schemas:
-    1. eks_base_schema.json (Definitions)
-    2. eks_setup_schema.json (Declarations)
-    3. eks_config.json (Actual Values)
+    Orchestrates the loading and validation of EKS canonical schemas.
+
+    Schemas are loaded from two sources in order:
+      1. ``schema_files`` in eks_config.json (explicit, required)
+      2. ``discovery_rules`` glob patterns (auto-discovered, optional)
     """
 
     def __init__(self, config_dir: str | Path = "config"):
@@ -42,40 +74,76 @@ class SchemaLoader:
         self.message_setup_schema: Dict[str, Any] = {}
         self.message_config: Dict[str, Any] = {}
         self.project_rules_config: Dict[str, Any] = {}
+        self._extra_schemas: Dict[str, Dict[str, Any]] = {}
+
+        self._search_dirs = [self.config_dir / "schemas", self.config_dir]
+
+    def _project_root(self) -> Path:
+        """Compute project root from config_dir."""
+        root = self.config_dir.parent.parent  # config/ -> eks/ -> project_root
+        if not root.exists():
+            root = self.config_dir
+        return root
+
+    def _load_json(self, filename: str) -> Dict[str, Any]:
+        """Load a JSON file, searching registered directories.
+
+        If filename is a path relative to project root (e.g.
+        ``eks/config/schemas/eks_base_schema.json``), resolve from
+        project root first.  Otherwise search _search_dirs in order.
+        """
+        path = Path(filename)
+        if not path.is_absolute() and len(path.parts) > 2:
+            root_candidate = self._project_root() / filename
+            if root_candidate.exists():
+                with open(root_candidate, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        for d in self._search_dirs:
+            candidate = d / filename
+            if candidate.exists():
+                with open(candidate, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        raise FileNotFoundError(
+            f"Schema file not found: {filename}. "
+            f"Searched: {self._project_root()}, {self._search_dirs}"
+        )
 
     def load_all(self) -> Dict[str, Any]:
+        """Loads all schema files, ontology config, and validates them.
+
+        Bootstrap order: base → setup → config (needed for validation +
+        discovery rules).  Remaining schemas are loaded from the
+        config-driven registry (schema_files + discovery_rules).
         """
-        Loads all schema files, ontology config, and validates them.
-        Returns the validated project config dictionary.
-        """
+        # ---------- Bootstrap ----------
         self.base_schema = self._load_json("eks_base_schema.json")
         self.setup_schema = self._load_json("eks_setup_schema.json")
         self.config = self._load_json("eks_config.json")
-        self.asset_base_schema = self._load_json("eks_asset_base_schema.json")
-        self.asset_setup_schema = self._load_json("eks_asset_setup_schema.json")
-        self.asset_config = self._load_json("eks_asset_config.json")
-        self.ontology_base_schema = self._load_json("eks_ontology_base_schema.json")
-        self.ontology_setup_schema = self._load_json("eks_ontology_setup_schema.json")
-        self.ontology = self._load_json("eks_ontology_config.json")
-        self.doc_base_schema = self._load_json("eks_doc_base_schema.json")
-        self.doc_setup_schema = self._load_json("eks_doc_setup_schema.json")
-        self.doc_config = self._load_json("eks_doc_config.json")
-        self.error_base_schema = self._load_json("eks_error_code_base.json")
-        self.error_setup_schema = self._load_json("eks_error_setup_schema.json")
-        self.error_config = self._load_json("eks_error_config.json")
-        self.message_base_schema = self._load_json("eks_message_base.json")
-        self.message_setup_schema = self._load_json("eks_message_setup_schema.json")
-        self.message_config = self._load_json("eks_message_config.json")
+        self._validate_config()
 
-        self.project_rules_config = self._load_json("eks_project_rules_config.json")
+        # ---------- Config-driven discovery ----------
+        project_root = self._project_root()
+        registry = discover_schema_files(self.config, project_root)
 
+        # ---------- Load remaining discovered schemas ----------
+        for stem, meta in registry.items():
+            if stem in _BOOTSTRAP_STEMS:
+                continue
+            if stem not in _STEM_TO_ATTR:
+                self._extra_schemas[stem] = meta
+                continue
+            attr_name = _STEM_TO_ATTR[stem]
+            if getattr(self, attr_name):
+                continue  # already populated
+            setattr(self, attr_name, self._load_json(meta["filename"]))
+
+        # ---------- Post-load setup ----------
         self.asset_ontology_class_map = {
             self._normalize_tag_type(k): v
             for k, v in self.asset_config.get("ontology_class_map", {}).items()
             if isinstance(k, str) and isinstance(v, str)
         }
 
-        self._validate_config()
         self._validate_asset_config()
         self._validate_ontology()
         self._build_ontology_index()
@@ -87,15 +155,6 @@ class SchemaLoader:
         self._validate_message_config()
         self._validate_project_rules()
         return self.config
-
-    def _load_json(self, filename: str) -> Dict[str, Any]:
-        path = self.config_dir / "schemas" / filename
-        if not path.exists():
-            path = self.config_dir / filename
-        if not path.exists():
-            raise FileNotFoundError(f"Schema file not found in {self.config_dir} or its schemas/ subdirectory: {filename}")
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
 
     def _validate_config(self) -> None:
         """

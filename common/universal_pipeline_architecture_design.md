@@ -14,6 +14,7 @@
 | :--- | :--- | :--- | :--- |
 | 1.2 | 2026-07-11 | System | Added §3 Common Library Inventory — 14 universal modules/functions/engines identified across dcc/workflow and eks/engine with extraction priority ratings. Updated document index. Renumbered all subsequent sections. |
 | 1.4 | 2026-07-11 | opencode | Review of EKS T1.77 vs DCC `initiation_engine` revealed gaps and one readiness-gate regression (`eks.yml` path). Marked T1.77 ✅ DONE in all pattern references; added T1.78 (Initiation Integrity Remediation) PLANNED to close gaps: input-file readability, env/dependency probe, readiness summary, ErrorManager wiring, output-path validation, schema-driven debug default, 6-category validator. Added §3.9.1 Initiation Integrity Layers. Updated §8.2, §2.2 L13, §7.5.2, §9, §10. |
+| 1.5 | 2026-07-10 | opencode | Added §3.16 Schema Discovery and Registration Pattern — automatic schema file discovery using configurable `discovery_rules` (patterns, recursion, exclusion) extracted from DCC `ref_resolver.py:164-230`. Updated §4.1, §9, §10. |
 | 1.3 | 2026-07-11 | opencode | Recorded EKS initiation integrity checks (T1.77, mirrors DCC `initiation_engine`) across patterns: §2.2 L13 (ValidationManager), §3.6 Multi-Stage Validation, §3.9 Project Setup Validation (EKS `ProjectSetupValidator` + T1.77 readiness gate; corrected DCC path), §7.5.2 Parameter Precedence (EKS `--debug`/`--level` + schema-default gap), §3.13 Security Baseline (EKS T1.70 traversal guard). Updated §8.2 EKS status to reflect T1.77 PLANNED. |
 | 1.1 | 2026-06-26 | Cascade | Added 4 new patterns: Idempotency & Checkpointing, Structured Logging & Correlation IDs, Security Baseline, Concurrency Model. Added standardized I/O pattern for independent engine execution. Added lessons learned from DCC logs and workplans. |
 | 1.0 | 2026-06-26 | Cascade | Initial version with 10 universal design patterns extracted from DCC pipeline architecture. |
@@ -26,7 +27,7 @@
 | :--- | :--- | :--- |
 | 1 | [Executive Summary](#1-executive-summary) | Purpose and scope of this document |
 | 2 | [Common Library Inventory](#2-common-library-inventory) | 14 universal modules identified across dcc/workflow and eks/engine |
-| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 15 architecture patterns with structure, benefits, and reference implementations |
+| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 16 architecture patterns with structure, benefits, and reference implementations |
 | 4 | [Pattern Application Guidelines](#4-pattern-application-guidelines) | When to apply each pattern and recommended implementation order |
 | 5 | [Benefits Summary](#5-benefits-summary) | Maintainability, testability, observability, flexibility, UX, security |
 | 6 | [Risks and Mitigation](#6-risks-and-mitigation) | Known risks and mitigation strategies |
@@ -795,6 +796,37 @@ class BaseEngine(ABC):
 
 ---
 
+### 3.16 Schema Discovery and Registration Pattern
+
+**Purpose**: Automatic discovery of schema files from the filesystem using configurable rules, eliminating the need to maintain an explicit schema file list.
+
+**Description**: Rather than hardcoding a static list of schema files in configuration, the system defines discovery rules (file patterns, recursion flags, exclusion filters) that instruct a schema loader to walk directories and automatically register matching files by `$id`. This reduces maintenance when new schemas are added, ensures consistent registration across projects, and supports both explicit-listing and discovery-driven approaches through a unified registry. An implementation may combine both: `schema_files` for explicit registration and `discovery_rules` for automatic discovery.
+
+**Structure**:
+```json
+{
+  "discovery_rules": {
+    "patterns": ["*_schema.json", "*_config.json"],
+    "recursive": true,
+    "exclude_dirs": ["node_modules", "archive", "backup", "__pycache__"]
+  }
+}
+```
+
+The loader iterates discovered files, validates each against its `$schema` reference, and registers them by their `$id` URI for cross-referencing via `$ref`.
+
+**Benefits**:
+- No manual schema file list maintenance — new schemas are picked up automatically
+- Consistent registration process across all projects
+- Single discovery configuration drives both explicit-listing and discovery-driven projects
+- Reduces risk of stale or missing entries in hand-maintained schema lists
+
+**Reference Implementation**: DCC Pipeline (`dcc/workflow/schema_engine/loader/ref_resolver.py:164-230` — `_extract_registered_schemas()` consuming `schema_files` + `discovery_rules` from `project_config.json`)
+
+**EKS Status**: EKS currently uses explicit `schema_files` listing only. Adding `discovery_rules` to `eks_config.json` would enable the universal loader to support both config shapes. Tracked in EKS issue I087.
+
+---
+
 ## 4. Pattern Application Guidelines
 
 ### 4.1 When to Apply Each Pattern
@@ -816,6 +848,7 @@ class BaseEngine(ABC):
 | Security Baseline | Pipeline handles sensitive data or credentials | 🟠 High |
 | Concurrency Model | Pipeline may scale beyond single-threaded execution | 🟠 High |
 | Standardized Engine I/O | Pipeline has multiple engines that need independent execution | 🟠 High |
+| Schema Discovery & Registration | Pipeline manages multiple schema files or supports cross-project schema loading | 🟡 Medium |
 
 ### 4.2 Implementation Order
 
@@ -1189,6 +1222,7 @@ Use this checklist when designing a new pipeline:
 - [ ] **Security Baseline**: Secrets management and input validation
 - [ ] **Concurrency Model**: Explicit execution model documented
 - [ ] **Standardized Engine I/O**: Independent engine execution with contracts
+- [ ] **Schema Discovery & Registration (§3.16)**: Configurable discovery rules for automatic schema file registration
 
 ---
 
@@ -1212,6 +1246,7 @@ A pipeline is considered to follow universal architecture when:
 - ✅ Security baseline (secrets management, input validation)
 - ✅ Concurrency model documented and implemented
 - ✅ Standardized engine I/O for independent execution
+- ✅ Schema discovery and registration with configurable discovery rules (see §3.16)
 - ✅ Test coverage >90% for new components
 - ✅ Performance impact <5% overhead
 - ✅ Documentation updated with patterns

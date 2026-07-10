@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/update_log.md`  
-**Last Updated**: 2026-07-09  
+**Last Updated**: 2026-07-10  
 
 ---
 
@@ -140,6 +140,8 @@
 | U128 | 2026-07-09 | Phase 1.3 | Planning | Created follow-up Phase 1.3 workplan (`phase_1.3_initiation_harmonization_workplan.md`, WP-EKS-P1.3-001) for initiation schema/code harmonization with DCC's universal pattern. Decisions: (a) shared `ValidationManager` in `common/library/validation/`; (b) per-project schemas shape-aligned to DCC (no repo-root shared schema); (c) DCC deferred. Tasks T1.84–T1.89. Logged I085 (EKS vs DCC `project_setup` schema divergence). Parent Phase 1 workplan v3.38 cross-references Phase 1.3; Phase 1 remains ✅ COMPLETE. | opencode | ✅ Done |
 | U129 | 2026-07-09 | Phase 1.3 | T1.84–T1.89 | **Phase 1.3 COMPLETE**: Initiation schema/code harmonization. Added universal `ValidationManager` in `common/library/utility/validation/manager.py` (validate_folders, validate_named_files, validate_environment, validate_dependencies, validate_discovery_rules, validate_project_setup). Reshaped EKS `project_setup` schema (8 new defs in `eks_base_schema.json` v1.7.0, `project_setup` in `eks_setup_schema.json` v1.4.0). Extracted setup instance data to `eks_project_setup_config.json` v1.0.0. Refactored `setup_validator.py` v0.7 as thin adapter. Migrated/added unit tests (235/235 pass). I085 resolved. | opencode | ✅ Done |
 | U130 | 2026-07-09 | Phase 1 | Docs | Consolidated Phase 1.3 workplan and initiation hardening/harmonization test reports into the main Phase 1 foundation workplan (v3.40) and test report (v2.7). Retained the stand-alone Phase 1.3 workplan as an archived reference document. | opencode | ✅ Done |
+| U131 | 2026-07-09 | Phase 1 | T1.90-T1.95 | **Initiation Config Flattening**: Flattened `project_setup` from `eks_config.json` to top-level keys (folders/root_files/schema_files/environment/dependencies/project_metadata) to match DCC `project_config.json` (T1.90). Updated `eks_setup_schema.json` v1.5.0 to drop the `project_setup` wrapper (T1.91). Made `setup_validator.py` + `phase1_server.py` flatten-aware with `project_setup` backward-compat fallback (T1.92/T1.93). Archived + deleted orphan `eks_project_setup_config.json` (T1.94). Updated tests; full EKS suite 236/236 pass (T1.95). | opencode | ✅ Done |
+| U132 | 2026-07-10 | Phase 1 | T1.96 | **Schema Discovery & Registration COMPLETE**: Extracted `discover_schema_files()` from DCC `ref_resolver.py` into `common/library/loader/schema_discovery.py` (T1.96a). Added 5 discovery rules to `eks_config.json` (T1.96b). Refactored `schema_loader.py` to replace 22 hardcoded filenames with config-driven loading (T1.96c). Wired `validate_discovery_rules()` in `setup_validator.py` (T1.96d). Updated `common/universal_pipeline_architecture_design.md` §3.16 (T1.96e). Fixed `*_base.json` pattern gap for outlier files — full EKS suite 236/236 green (T1.96f). Phase 1 foundation marked ✅ COMPLETE. Workplan v3.43. | opencode | ✅ Done |
 
 ## Notes
 - Each entry corresponds to a workplan task or phase milestone

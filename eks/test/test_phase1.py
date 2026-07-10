@@ -814,6 +814,14 @@ class TestPhase1(unittest.TestCase):
         self.assertIn('facility_registry', config, "Missing facility_registry")
         self.assertIn('$ref', config['facility_registry'], "facility_registry missing $ref")
 
+    def test_config_setup_values_top_level(self):
+        """T1.90: Verify eks_config.json stores setup values top-level (DCC project_config pattern, no project_setup wrapper)."""
+        import json
+        config = json.load(open(self.config_dir / 'eks_config.json', encoding='utf-8'))
+        for key in ['folders', 'root_files', 'schema_files', 'environment', 'dependencies', 'project_metadata']:
+            self.assertIn(key, config, f"eks_config.json missing top-level setup key: {key}")
+        self.assertNotIn('project_setup', config, "eks_config.json should not wrap setup under project_setup (T1.90)")
+
     def test_setup_schema_has_new_properties(self):
         """T1.46: Verify eks_setup_schema.json has project_registry, department_registry, facility_registry."""
         import json
@@ -826,13 +834,16 @@ class TestPhase1(unittest.TestCase):
             self.assertIn(prop, required, f"setup_schema missing required: {prop}")
 
     def test_setup_schema_has_project_setup(self):
-        """T1.67: Verify eks_setup_schema.json has project_setup property."""
+        """T1.90: Verify eks_setup_schema.json declares setup values top-level (DCC project_config pattern)."""
         import json
         setup = json.load(open(self.config_dir / 'eks_setup_schema.json', encoding='utf-8'))
         props = setup.get('properties', {})
-        self.assertIn('project_setup', props, "setup_schema missing project_setup property")
+        for key in ['folders', 'root_files', 'schema_files', 'environment', 'dependencies', 'project_metadata']:
+            self.assertIn(key, props, f"setup_schema missing top-level setup property: {key}")
+        self.assertNotIn('project_setup', props, "setup_schema should not wrap setup under project_setup (T1.90)")
         required = setup.get('required', [])
-        self.assertIn('project_setup', required, "setup_schema missing project_setup in required")
+        for key in ['folders', 'root_files', 'schema_files', 'environment', 'dependencies', 'project_metadata']:
+            self.assertIn(key, required, f"setup_schema missing top-level setup key in required: {key}")
 
     def test_project_rules_has_fragment_required_fields(self):
         """T1.50: Verify project_rules_config has fragment_required_fields per project."""

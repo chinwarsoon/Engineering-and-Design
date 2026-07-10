@@ -2,7 +2,7 @@
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
     "version": "1.5.0",
-    "title": "EKS Default Project Configuration — v1.5.0 (T1.86: project_setup extracted to eks_project_setup_config.json)",
+    "title": "EKS Default Project Configuration — v1.5.0 (setup values at top level — DCC project_config pattern)",
     "project_rules_registry": {
         "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
     },
@@ -52,68 +52,73 @@
         "default_level": 1,
         "debug_file_path": "output/debug_log.json"
     },
-    "project_setup": {
-        "folders": [
-            { "name": "archive", "required": true, "purpose": "Archived/superseded files", "auto_created": true },
-            { "name": "config", "required": true, "purpose": "Schema and configuration files", "auto_created": true },
-            { "name": "data", "required": true, "purpose": "Input documents for ingestion", "auto_created": false },
-            { "name": "output", "required": true, "purpose": "Pipeline outputs (debug logs, reports, graphs)", "auto_created": true },
-            { "name": "engine", "required": true, "purpose": "Core processing modules", "auto_created": true },
-            { "name": "log", "required": true, "purpose": "Issue, update, and test logs", "auto_created": true },
-            { "name": "docs", "required": true, "purpose": "Documentation", "auto_created": false },
-            { "name": "workplan", "required": true, "purpose": "Workplans and reports", "auto_created": true },
-            { "name": "test", "required": true, "purpose": "Unit and integration tests", "auto_created": true },
-            { "name": "ui", "required": true, "purpose": "User interface (Phase 5)", "auto_created": false },
-            { "name": "engine/core", "required": true, "purpose": "Foundation: registry, revision, config", "auto_created": true },
-            { "name": "engine/parsers", "required": true, "purpose": "Plug-in document parsers", "auto_created": true },
-            { "name": "engine/chunking", "required": true, "purpose": "Chunking strategies and registry (Phase 2)", "auto_created": false },
-            { "name": "engine/embedding", "required": true, "purpose": "Embedding providers (Phase 2)", "auto_created": false },
-            { "name": "engine/vector_store", "required": true, "purpose": "Vector DB interface (Phase 2)", "auto_created": false },
-            { "name": "engine/graph", "required": true, "purpose": "Knowledge graph (Phase 3)", "auto_created": false },
-            { "name": "engine/extractors", "required": true, "purpose": "Engineering object metadata extractors (Phase 3)", "auto_created": false },
-            { "name": "engine/retrieval", "required": true, "purpose": "Retrieval and scoring pipeline (Phase 4)", "auto_created": false },
-            { "name": "engine/cache", "required": true, "purpose": "Retrieval cache (Phase 5)", "auto_created": false },
-            { "name": "engine/logging", "required": true, "purpose": "Tiered logging infrastructure", "auto_created": true }
-        ],
-        "root_files": [
-            { "name": "eks/eks.yml", "required": true, "purpose": "Conda environment specification" }
-        ],
-        "schema_files": [
-            { "filename": "eks/config/schemas/eks_base_schema.json", "required": true, "description": "Core base schema — definitions" },
-            { "filename": "eks/config/schemas/eks_setup_schema.json", "required": true, "description": "Core setup schema — declarations" }
-        ],
-        "environment": [
-            {
-                "name": "conda",
-                "required": true,
-                "file": "eks/eks.yml",
-                "location": "root",
-                "python_version": "3.13",
-                "conda_env": "eks",
-                "key_dependencies": [
-                    "duckdb", "jsonschema", "pymupdf", "python-docx",
-                    "openpyxl", "psutil", "rdflib", "fastapi", "uvicorn",
-                    "qdrant-client", "neo4j", "openai", "tiktoken",
-                    "pytest", "referencing"
-                ]
-            }
-        ],
-        "dependencies": {
-            "required": [
+    "folders": [
+        { "name": "archive", "required": true, "purpose": "Archived/superseded files", "auto_created": true },
+        { "name": "config", "required": true, "purpose": "Schema and configuration files", "auto_created": true },
+        { "name": "data", "required": true, "purpose": "Input documents for ingestion", "auto_created": false },
+        { "name": "output", "required": true, "purpose": "Pipeline outputs (debug logs, reports, graphs)", "auto_created": true },
+        { "name": "engine", "required": true, "purpose": "Core processing modules", "auto_created": true },
+        { "name": "log", "required": true, "purpose": "Issue, update, and test logs", "auto_created": true },
+        { "name": "docs", "required": true, "purpose": "Documentation", "auto_created": false },
+        { "name": "workplan", "required": true, "purpose": "Workplans and reports", "auto_created": true },
+        { "name": "test", "required": true, "purpose": "Unit and integration tests", "auto_created": true },
+        { "name": "ui", "required": true, "purpose": "User interface (Phase 5)", "auto_created": false },
+        { "name": "engine/core", "required": true, "purpose": "Foundation: registry, revision, config", "auto_created": true },
+        { "name": "engine/parsers", "required": true, "purpose": "Plug-in document parsers", "auto_created": true },
+        { "name": "engine/chunking", "required": true, "purpose": "Chunking strategies and registry (Phase 2)", "auto_created": false },
+        { "name": "engine/embedding", "required": true, "purpose": "Embedding providers (Phase 2)", "auto_created": false },
+        { "name": "engine/vector_store", "required": true, "purpose": "Vector DB interface (Phase 2)", "auto_created": false },
+        { "name": "engine/graph", "required": true, "purpose": "Knowledge graph (Phase 3)", "auto_created": false },
+        { "name": "engine/extractors", "required": true, "purpose": "Engineering object metadata extractors (Phase 3)", "auto_created": false },
+        { "name": "engine/retrieval", "required": true, "purpose": "Retrieval and scoring pipeline (Phase 4)", "auto_created": false },
+        { "name": "engine/cache", "required": true, "purpose": "Retrieval cache (Phase 5)", "auto_created": false },
+        { "name": "engine/logging", "required": true, "purpose": "Tiered logging infrastructure", "auto_created": true }
+    ],
+    "root_files": [
+        { "name": "eks/eks.yml", "required": true, "purpose": "Conda environment specification", "extension": "yml" }
+    ],
+    "schema_files": [
+        { "filename": "eks/config/schemas/eks_base_schema.json", "required": true, "description": "Core base schema — definitions" },
+        { "filename": "eks/config/schemas/eks_setup_schema.json", "required": true, "description": "Core setup schema — declarations" }
+    ],
+    "discovery_rules": [
+        { "pattern": "*_base_schema.json", "directory": "eks/config/schemas", "recursive": false, "auto_register": true, "category": "base_schema" },
+        { "pattern": "*_base.json", "directory": "eks/config/schemas", "recursive": false, "auto_register": true, "category": "base_schema" },
+        { "pattern": "*_setup_schema.json", "directory": "eks/config/schemas", "recursive": false, "auto_register": true, "category": "setup_schema" },
+        { "pattern": "*_config.json", "directory": "eks/config/schemas", "recursive": false, "auto_register": true, "category": "config_data" },
+        { "pattern": "*.json", "directory": "eks/engine/parsers", "recursive": false, "auto_register": true, "category": "parser_config", "exclude_patterns": ["__*"] }
+    ],
+    "environment": [
+        {
+            "name": "conda",
+            "required": true,
+            "file": "eks/eks.yml",
+            "location": "root",
+            "python_version": "3.13",
+            "conda_env": "eks",
+            "key_dependencies": [
                 "duckdb", "jsonschema", "pymupdf", "python-docx",
                 "openpyxl", "psutil", "rdflib", "fastapi", "uvicorn",
                 "qdrant-client", "neo4j", "openai", "tiktoken",
                 "pytest", "referencing"
-            ],
-            "optional": [],
-            "engines": []
-        },
-        "project_metadata": {
-            "project_id": "EKS-001",
-            "project_name": "Engineering Knowledge System",
-            "version": "1.0.0",
-            "created_date": "2026-06-11",
-            "last_modified": "2026-07-09"
+            ]
         }
+    ],
+    "dependencies": {
+        "required": [
+            "duckdb", "jsonschema", "pymupdf", "python-docx",
+            "openpyxl", "psutil", "rdflib", "fastapi", "uvicorn",
+            "qdrant-client", "neo4j", "openai", "tiktoken",
+            "pytest", "referencing"
+        ],
+        "optional": [],
+        "engines": []
+    },
+    "project_metadata": {
+        "project_id": "EKS-001",
+        "project_name": "Engineering Knowledge System",
+        "version": "1.0.0",
+        "created_date": "2026-06-11",
+        "last_modified": "2026-07-09"
     }
 }

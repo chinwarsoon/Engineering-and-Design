@@ -2,7 +2,7 @@
 
 **Report ID**: RP-EKS-P1-001  
 **Current Version**: 2.7  
-**Status**: ✅ COMPLETE — All Phase 1 tasks complete including T1.77–T1.89 (initiation integrity + schema-driven hardening + initiation harmonization). 235/235 tests pass. Phase 1.3 (T1.84–T1.89) integrated. Phase 1.3 stand-alone workplan retained as archived reference.  
+**Status**: ✅ COMPLETE — All Phase 1 tasks complete including T1.77–T1.95 (initiation integrity + schema-driven hardening + initiation harmonization + initiation config flattening). 236/236 tests pass. Phase 1.3 (T1.84–T1.89) integrated; T1.79–T1.83 detailed test-case tables integrated into §15.3; T1.90–T1.95 flattening integrated into §15.4. Stand-alone `phase_1.3_initiation_harmonization_workplan.md` archived in `eks/archive/`; `phase_1_t179_t183_report.md` fully merged and archived in `eks/archive/`.  
 **Last Updated**: 2026-07-09  
 **Parent Workplan**: [phase_1_foundation_workplan.md](../phase_1_foundation_workplan.md)  
 **Parent Master**: [eks_system_workplan.md](../eks_system_workplan.md)
@@ -40,6 +40,8 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 | 2.0 | 2026-06-30 | opencode | T1.67: `project_setup.json` integrated into core 3-layer schema; `setup_validator.py` refactored to load from ConfigRegistry. I046 resolved. 120/120 tests pass (2 new). Phase 1 FINAL COMPLETE. |
 | 2.1 | 2026-07-08 | opencode | Bootstrap update: T1.68 (ErrorManager/MessageManager in orchestrator), T1.71 (update_document_status in registry), T1.74 (cross-platform paths). Fixed get_document bug. 7 new tests, 191/191 pass. |
 | 2.2 | 2026-07-08 | opencode | Expanded Bootstrap closure plan: added T1.75 (activate ErrorManager/MessageManager in server — closes silent T1.68 gap) and T1.76 (persist debug/message/status JSON to eks/output per AGENTS.md §7/§19). Updated T1.69 (run_id) and T1.73 (checkpoint path). Aligned with workplan v3.29. |
+| 2.8 | 2026-07-09 | opencode | **T1.79–T1.83 detailed test cases integrated**: Added §15.3 with full test-case tables (T1.79-a…T1.83-c, REG-1) folded from `phase_1_t179_t183_report.md`. Stand-alone T1.79–T1.83 report now fully integrated. Report status notes Phase 1.3 + T1.79–T1.83 fully merged. |
+| 2.9 | 2026-07-09 | opencode | **T1.90–T1.95 Initiation Config Flattening**: Flattened `project_setup` from `eks_config.json` to top-level (DCC `project_config` pattern); `eks_setup_schema.json` v1.5.0 drops the wrapper; `setup_validator.py` + `phase1_server.py` flatten-aware with `project_setup` backward-compat; orphan `eks_project_setup_config.json` deleted (archived). Full suite 236/236 pass. Resolves I086. |
 
 ---
 
@@ -58,6 +60,8 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 - [11. Lessons Learned](#11-lessons-learned)
 - [13. Phase 1 Final Closure (T1.67)](#13-phase-1-final-closure-t167)
 - [15. Bootstrap Updates & Initiation Hardening (T1.68–T1.83)](#15-bootstrap-updates--initiation-hardening-t168t183)
+- [15.3 T1.79–T1.83 Detailed Test Cases](#153-t179t183-detailed-test-cases)
+- [15.4 Initiation Config Flattening — DCC project_config Pattern (T1.90–T1.95)](#154-initiation-config-flattening--dcc-project_config-pattern-t190t195)
 - [16. Phase 1.3 Initiation Harmonization (T1.84–T1.89)](#16-phase-13-initiation-harmonization-t184t189)
 - [17. References](#17-references)
 
@@ -96,17 +100,15 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 
 | Category | Count |
 | :------- | :---- |
-| Category | Count |
-| :------- | :---- |
-| Test cases planned | 235 |
-| Test cases executed | 235 |
-| Test cases passed | 235 |
+| Test cases planned | 236 |
+| Test cases executed | 236 |
+| Test cases passed | 236 |
 | Test cases failed | 0 |
-| Issues found | 53 (I001–I085 tracked; I001–I046, I079–I085 resolved; I015–I021 open for Phases 2/3; I064/I065/I067–I071 open for Phase 1.2.8–1.2.9) |
+| Issues found | 57 (I001–I090 tracked; I001–I046, I079–I085, I087–I090 resolved; I015–I021 open for Phases 2/3; I064/I065/I067–I071 open for Phase 1.2.8–1.2.9; I086 open) |
 | Blockers | 0 |
 
-**Execution Date**: 2026-07-09 (T1.84–T1.89 final validation)  
-**Execution Duration**: ~19.0 seconds  
+**Execution Date**: 2026-07-10 (T1.96 final validation)  
+**Execution Duration**: ~16.8 seconds  
 **Executor**: opencode (automated test suite)
 
 ### Test Distribution (T1.30–T1.32)
@@ -453,8 +455,8 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 - `eks/config/schemas/eks_project_setup_config.json` — Extracted project setup config (T1.86)
 - `eks/test/test_setup_validator.py` — Unit tests for validator adapter (T1.88)
 - `eks/test/test_validation_manager.py` — Unit tests for universal ValidationManager (T1.88)
-- `eks/workplan/phase_1.3_initiation_harmonization_workplan.md` — Harmonization workplan (T1.89)
-- `eks/workplan/reports/phase_1_t179_t183_report.md` — Hardening test report (T1.89)
+- `eks/archive/phase_1.3_initiation_harmonization_workplan.md` — Harmonization workplan (T1.89, archived)
+- `eks/archive/phase_1_t179_t183_report.md` — Hardening test report (T1.89, archived)
 - `eks/engine/core/io_contracts.py` — central input/output contracts (T1.72)
 
 ### Files Modified (Initiation Harmonization & Hardening)
@@ -475,7 +477,7 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 
 ### Files Archived
 - `eks/config/schemas/project_setup.json` → `eks/archive/project_setup.json` (integrated to core schema, T1.67)
-- `eks/workplan/phase_1.3_initiation_harmonization_workplan.md` — stand-alone workplan archived (retained as reference)
+- `eks/archive/phase_1.3_initiation_harmonization_workplan.md` — stand-alone workplan archived
 
 ### Files Verified (no changes needed)
 - All previous Phase 1 implementation files in `engine/core/`, `engine/parsers/`, `engine/logging/`
@@ -584,11 +586,80 @@ All 16 Bootstrap and Initiation Integrity/Hardening tasks (T1.68–T1.83) are co
 - **T1.82**: Honored `validation_options` and defaults from config.
 - **T1.83**: Package root `eks_root` schema-driven (enables package relocation).
 
+### 15.3 T1.79–T1.83 Detailed Test Cases
+
+The following detailed test-case tables are integrated from the archived `phase_1_t179_t183_report.md` (RP-EKS-P1-T179-001). All cases passed; full suite 215/215.
+
+#### 15.3.1 T1.79 — Error Codes + ErrorManager into Readiness Gate
+
+| ID | Test | Status | Notes |
+| :- | :--- | :----: | :---- |
+| T1.79-a | `test_error_codes_summary_at_top_level` — `validate_all()` returns `error_codes` at root level | ✅ | New test |
+| T1.79-b | `test_folder_missing_entries_carry_error_code` — each missing folder entry has `error_code` | ✅ | New test |
+| T1.79-c | `test_file_missing_entries_carry_error_code` — each missing file entry has `error_code` | ✅ | New test |
+| T1.79-d | `test_dependency_missing_entries_carry_error_code` — dependency entries carry `error_code` | ✅ | New test |
+| T1.79-e | `test_environment_has_error_code_when_missing` — env entry has `error_code` | ✅ | New test |
+| T1.79-f | `test_output_path_unwritable_entries_carry_error_code` — output entries carry `error_code` | ✅ | New test |
+| T1.79-g | `test_pipeline_start_readable_data_dir` — server returns readable status (no blocked gate) | ✅ | Existing (T1.78) |
+| T1.79-h | `test_pipeline_runs_to_completion` — full pipeline completes via `ErrorManager` (no RuntimeError) | ✅ | Existing |
+
+#### 15.3.2 T1.80 — Paths from Schema Config
+
+| ID | Test | Status | Notes |
+| :- | :--- | :----: | :---- |
+| T1.80-a | `test_config_paths_endpoint` — returns `data_dir`, `output_dir` from config | ✅ | Existing |
+| T1.80-b | `test_output_paths_validated` — output_dir derived from config, not hardcoded | ✅ | Validated via grep |
+| T1.80-c | Pipeline runs produce checkpoint files in config-driven `output/` dir | ✅ | Integration test |
+
+#### 15.3.3 T1.81 — Remove Hardcoded Fallback Lists (SSOT)
+
+| ID | Test | Status | Notes |
+| :- | :--- | :----: | :---- |
+| T1.81-a | `test_raises_value_error_without_config` — `setup_validator` raises when no config provided | ✅ | New test |
+| T1.81-b | `test_config_registry_overrides_defaults` — config values used instead of hardcoded defaults | ✅ | Existing |
+
+#### 15.3.4 T1.82 — Schema-Driven Input Defaults
+
+| ID | Test | Status | Notes |
+| :- | :--- | :----: | :---- |
+| T1.82-a | `test_validate_all_creates_missing_folders` — folder creation respects `auto_create` param | ✅ | Existing |
+| T1.82-b | `test_data_dir_derived_from_config` — `data_dir` default from `global_paths.data_dir` | ✅ | Validated via grep |
+| T1.82-c | `test_config_paths_endpoint` returns all keys from `global_paths` without hardcoded fallback | ✅ | Existing |
+
+#### 15.3.5 T1.83 — `eks` Package Root Schema-Driven
+
+| ID | Test | Status | Notes |
+| :- | :--- | :----: | :---- |
+| T1.83-a | `eks_root` exists in `eks_base_schema.json` `global_paths_def` | ✅ | Schema grep |
+| T1.83-b | `eks_root: "eks"` in `eks_config.json` | ✅ | Config grep |
+| T1.83-c | Zero `PRJ_DIR / "eks"` code-level literals in `phase1_server.py` | ✅ | Project-wide grep confirms 0 |
+
+#### 15.3.6 Regression
+
+| ID | Test | Status | Notes |
+| :- | :--- | :----: | :---- |
+| REG-1 | Full 215-test suite | ✅ | 215/215 pass, 0 failures, 17.6s |
+
+### 15.4 Initiation Config Flattening — DCC project_config Pattern (T1.90–T1.95)
+
+Flattened the `project_setup` wrapper in `eks_config.json` so EKS setup values (`folders` / `root_files` / `schema_files` / `environment` / `dependencies` / `project_metadata`) live **top-level**, matching DCC `project_config.json`. This lets the universal `ValidationManager` (and a future universal schema loader) serve both projects with **zero per-project branching**.
+
+| Task | Description | Status |
+| :--- | :---------- | :----: |
+| T1.90 | Flatten `project_setup` in `eks_config.json` — 7 setup keys top-level; removed wrapper; fixed title note | ✅ |
+| T1.91 | `eks_setup_schema.json` v1.5.0 — dropped `project_setup` wrapper; 7 setup keys declared top-level (reuse `eks_base_schema.json` defs); `additionalProperties:false` kept | ✅ |
+| T1.92 | `setup_validator.py` — reads setup from top-level config (DCC pattern) with `project_setup` backward-compat fallback; API + P1-SETUP-* + ErrorManager unchanged | ✅ |
+| T1.93 | `phase1_server.py` — `_cfg.get("project_setup", _cfg)` flatten-aware | ✅ |
+| T1.94 | Deleted orphan `eks_project_setup_config.json` (archived per AGENTS.md §5.3); no dangling refs | ✅ |
+| T1.95 | Tests updated (`test_setup_schema_has_project_setup`, new `test_config_setup_values_top_level`); full EKS suite **236/236 pass** | ✅ |
+
+Resolves residual I086 (wrapper redundancy vs DCC). Logged U131.
+
 ---
 
 ## 16. Phase 1.3 Initiation Harmonization (T1.84–T1.89)
 
-**Source workplan**: [phase_1.3_initiation_harmonization_workplan.md](../phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001  
+**Source workplan (archived)**: [phase_1.3_initiation_harmonization_workplan.md](../../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001
 **Status**: ✅ COMPLETE — T1.84–T1.89 implemented. 235/235 tests pass (19 validator tests + 20 universal-module tests added).
 
 ### 16.1 Scope
@@ -656,11 +727,47 @@ Harmonize EKS's `project_setup` schema and validation code with DCC's universal 
 
 ---
 
-## 17. References
+## 17. Schema Discovery & Registration — Discovery-Driven Loading (T1.96)
 
-1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.40
-2. [Phase 1.3 Initiation Harmonization Workplan](../phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001 (retained as reference)
-3. [Phase 1 T1.79–T1.83 Report](phase_1_t179_t183_report.md) — RP-EKS-P1-T179-001 (T1.79–T1.83 predecessor)
+**Objective**: Replace 22 hardcoded filenames in `schema_loader.py` with config-driven loading using explicit `schema_files` + glob-based `discovery_rules`. Extract shared `discover_schema_files()` from DCC into `common/`.
+
+### 17.1 Sub-task Results
+
+| Sub-Task | Result | Details |
+| :------- | :----- | :------ |
+| T1.96a | ✅ PASS | `discover_schema_files()`, `safe_resolve()`, `find_schema_file()` extracted to `common/library/loader/schema_discovery.py`. Core glob-walk, exclude-filter, merge-with-explicit loop ported from DCC `ref_resolver.py:164-256`. |
+| T1.96b | ✅ PASS | 5 discovery rules added to `eks_config.json`: `*_base_schema.json`, `*_base.json`, `*_setup_schema.json`, `*_config.json`, `*.json` (parsers). Directory paths use `eks/config/schemas/` prefix. |
+| T1.96c | ✅ PASS | `schema_loader.py` refactored: bootstrap loads 3 files (base/setup/config), then reads `schema_files` + `discovery_rules` from config. Config-driven loop replaces 22 formerly hardcoded `_load_json()` calls. |
+| T1.96d | ✅ PASS | `ValidationManager.validate_discovery_rules()` wired into `setup_validator.py` `validate_all()`. Four config-driven tests added to `test_validation_manager.py`. |
+| T1.96e | ✅ PASS | `common/universal_pipeline_architecture_design.md` §3.16 already documented the pattern. Verified alignment with extracted `discover_schema_files()`. |
+| T1.96f | ✅ PASS | **236/236 tests pass**. Root cause fix: `*_base.json` rule added to catch `eks_error_code_base.json` and `eks_message_base.json` (outlier filenames ending in `_base.json` not `_base_schema.json`). |
+
+### 17.2 Files Modified
+
+| File | Change |
+| :--- | :----- |
+| `common/library/loader/__init__.py` | New — exports `discover_schema_files`, `find_schema_file`, `safe_resolve` |
+| `common/library/loader/schema_discovery.py` | New — extracted from DCC `ref_resolver.py:164-256` |
+| `eks/config/schemas/eks_config.json` | Added 5 `discovery_rules` entries |
+| `eks/engine/core/schema_loader.py` | Refactored `load_all()` for config-driven discovery; added `_project_root()` |
+| `eks/engine/core/setup_validator.py` | Wired `validate_discovery_rules()` in `validate_all()` |
+| `common/universal_pipeline_architecture_design.md` | §3.16 pattern alignment verified |
+
+### 17.3 Test Summary
+
+```
+236 passed in 16.84s
+```
+
+All 71 Phase 1 tests, all 24 schema tests, all 20 validation manager tests, all 19 setup validator tests, and all integration server tests pass.
+
+---
+
+## 18. References
+
+1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.43
+2. [Phase 1.3 Initiation Harmonization Workplan (archived)](../../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001
+3. [Phase 1 T1.79–T1.83 Report (archived)](../../archive/phase_1_t179_t183_report.md) — RP-EKS-P1-T179-001 (detailed test cases integrated into §15.3)
 4. [EKS Master Workplan](../eks_system_workplan.md) — WP-EKS-001 v1.5
 5. [AGENTS.md](../../AGENTS.md) — Repository guidelines
 6. [Issue Log](../../log/issue_log.md)

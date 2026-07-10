@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from common.library.utility.validation.manager import ValidationManager
+from common.library.loader import discover_schema_files
 
 
 def _load_setup_error_codes() -> Dict[str, str]:
@@ -158,39 +159,41 @@ class ProjectSetupValidator:
         self.validation_results: Dict[str, Any] = {}
         self._vm = ValidationManager()
 
-        # Load project_setup config
-        config = {}
-        if config_registry:
-            if hasattr(config_registry, 'get'):
-                config = config_registry.get("project_setup", {})
+        # Load setup config (T1.90): setup values are top-level in the config
+        # (DCC project_config pattern). For backward compatibility, a legacy
+        # `project_setup` wrapper is still accepted and preferred if present.
+        full = {}
+        if config_registry is not None:
+            if hasattr(config_registry, "config") and isinstance(getattr(config_registry, "config"), dict):
+                full = config_registry.config
             elif isinstance(config_registry, dict):
-                config = config_registry.get("project_setup", {})
+                full = config_registry
+            elif hasattr(config_registry, "_config") and isinstance(config_registry._config, dict):
+                full = config_registry._config
 
-        if not config:
+        setup = full.get("project_setup", full) if isinstance(full, dict) else {}
+
+        if not setup:
             raise ValueError(
-                "ProjectSetupValidator requires 'project_setup' config section (SSOT). "
-                "Provide config_registry with a 'project_setup' key."
+                "ProjectSetupValidator requires a 'project_setup' config section (SSOT). "
+                "Provide config_registry with setup values (top-level or under 'project_setup')."
             )
 
         # Detect format: old flat-array or new DCC-aligned object model
-        if "required_folders" in config:
-            self._setup_config = _convert_flat_to_object(config)
+        if "required_folders" in setup:
+            self._setup_config = _convert_flat_to_object(setup)
         else:
-            self._setup_config = config
+            self._setup_config = setup
 
         self._folders = self._setup_config.get("folders", [])
         self._root_files = self._setup_config.get("root_files", [])
         self._schema_files = self._setup_config.get("schema_files", [])
         self._env = self._setup_config.get("environment", [])
         self._deps = self._setup_config.get("dependencies", {})
+        self._discovery_rules = self._setup_config.get("discovery_rules", [])
 
         # Store global_paths from full config registry
-        self.global_paths = {}
-        if config_registry:
-            full = config_registry.get("global_paths", {}) if hasattr(config_registry, 'get') else \
-                   config_registry.get("global_paths", {}) if isinstance(config_registry, dict) else {}
-            if isinstance(full, dict):
-                self.global_paths = full
+        self.global_paths = full.get("global_paths", {}) if isinstance(full, dict) else {}
 
     def validate_all(self, auto_create: bool = True) -> Dict[str, Any]:
         """
@@ -207,6 +210,22 @@ class ProjectSetupValidator:
             config=self._setup_config,
             auto_create_override=auto_create,
         )
+
+        # Validate discovery_rules if present (T1.96d)
+        if self._discovery_rules:
+            disc_result = self._vm.validate_discovery_rules(
+                self._discovery_rules,
+                base_path=self.project_root,
+            )
+            result["discovery_rules"] = disc_result
+            if not disc_result.get("all_valid", True):
+                for rule in disc_result.get("rules", []):
+                    if rule.get("error_code"):
+                        result.setdefault("error_codes", []).append({
+                            "code": _eks_code(rule["error_code"]),
+                            "message": f"Discovery rule directory missing: {rule.get('directory', '')}/{rule.get('pattern', '')}",
+                        })
+                result["readiness"] = "NO"
 
         # Map generic error codes to P1-SETUP-* codes
         for ec in result.get("error_codes", []):

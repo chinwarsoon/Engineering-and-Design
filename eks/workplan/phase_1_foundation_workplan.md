@@ -1,11 +1,12 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 3.29  
-**Status**: 🔶 PARTIAL — Bootstrap closure pending: T1.69 (run_id), T1.70 (traversal guard), T1.72 (I/O contracts), T1.73 (checkpoint to disk), T1.75 (activate ErrorManager/MessageManager in server), T1.76 (persist debug/message/status JSON to eks/output). T1.68/T1.71/T1.74 implemented; 191/191 tests pass.  
-**Last Updated**: 2026-07-08  
+**Current Version**: 3.44  
+**Status**: 🔶 PARTIAL — Phase 1 foundation, bootstrap closure, initiation integrity, config flattening, and schema discovery & registration (T1.96) ✅ COMPLETE. **T1.97 (System Parameters — SSOT Centralization) 🔷 PLANNED** — schema-defined system_parameters block with universal `get_system_param()` in `common/library/`. 236/236 tests pass.  
+**Last Updated**: 2026-07-10  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
+**Sub-Phase Workplans**: [phase_1.2_interactive_ui_workplan.md](phase_1.2_interactive_ui_workplan.md) — WP-EKS-P1.2-001; [phase_1.3_initiation_harmonization_workplan.md](../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001 (archived; content integrated into §16)
 
 ---
 
@@ -20,6 +21,11 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 
 | Version | Date       | Author | Summary of Changes                            |
 | :------ | :--------- | :----- | :-------------------------------------------- |
+| 3.40    | 2026-07-09 | opencode | **Consolidated + COMPLETE**: Restored pre-truncation workplan body (v3.29) and integrated Phase 1.3 (T1.84–T1.89) Initiation Schema & Validation Harmonization into §16. Added §15 Initiation Integrity & Hardening (T1.77–T1.83) summary referencing `phase_1_t179_t183_report.md`. Phase status set to ✅ COMPLETE through T1.89 (235/235 tests pass). Phase 1.3 stand-alone workplan archived in `eks/archive/`. |
+| 3.41    | 2026-07-09 | opencode | **Initiation Config Flattening (T1.90–T1.95)**: Added §17. Flatten `project_setup` from `eks_config.json` to top-level (DCC `project_config` pattern); update `eks_setup_schema.json` (drop wrapper, v1.5.0); make `setup_validator.py` + `phase1_server.py` flatten-aware with `project_setup` backward-compat fallback; delete orphan `eks_project_setup_config.json` (archived); update tests; full suite green. |
+| 3.42    | 2026-07-10 | opencode | **Schema Discovery & Registration (T1.96)**: Added §18. Extract `discover_schema_files()` from DCC `ref_resolver.py` into `common/` as shared function; add `discovery_rules` data to `eks_config.json`; refactor `schema_loader.py` to use config-driven loading (explicit + discovery); wire `ValidationManager.validate_discovery_rules()` in `setup_validator.py`. Updated §5 index, §18, §19. Logged I087–I090. |
+| 3.43    | 2026-07-10 | opencode | **T1.96f COMPLETE**: Fixed discovery-driven schema loading — added `*_base.json` discovery rule to catch `eks_error_code_base.json` and `eks_message_base.json` (missed by `*_base_schema.json` pattern). All 236/236 tests green. Updated §18 statuses. Phase 1 foundation marked ✅ COMPLETE. |
+| 3.44    | 2026-07-10 | opencode | **T1.97 (PLANNED)**: Added §19 System Parameters — SSOT Centralization. Universal `get_system_param()` in `common/library/config/`; `system_parameters_def` in `eks_base_schema.json`; `system_parameters` block in `eks_config.json`; replace hardcoded values in `phase1_server.py`, `error_manager.py`, `registry.py`, `server.py`. Phase status set to 🔶 PARTIAL. Updated index, revision table, §5. |
 | 3.29    | 2026-07-08 | opencode | Expanded Bootstrap closure scope: added T1.75 (activate ErrorManager/MessageManager in phase1_server — closes silent T1.68 gap where managers were never passed to the running server) and T1.76 (persist debug_log.json + message/status JSON to `eks/output/` per AGENTS.md §7/§19). Updated T1.69 (run_id correlation) and T1.73 (checkpoint to `eks/output/checkpoints/{job_id}.json`). Updated §4 scope, §8 task table, §9 files table, §14 Mermaid, and test report. |
 | 3.26    | 2026-07-08 | System | Appended a new revision entry to the history and documented the shared common-library architecture milestone under `common/library` as a follow-on foundation item for future EKS integration work. |
 | 3.28    | 2026-07-08 | opencode | Implemented T1.68 (wired ErrorManager/MessageManager into PipelineOrchestrator), T1.71 (added update_document_status + _with_retry to registry), T1.74 (anchored phase1_server paths to PRJ_DIR, EKSPaths.to_dict uses .as_posix()). Fixed pre-existing get_document() bug. Added 7 new tests. 191/191 tests pass. |
@@ -141,7 +147,12 @@ Establish the EKS project foundation: folder structure, canonical schema design 
 - [12. Success Criteria](#12-success-criteria)
 - [13. Deliverables](#13-deliverables)
 - [14. Phase 1 Pipeline Architecture (Detailed)](#14-phase-1-pipeline-architecture-detailed)
-- [16. References](#16-references)
+- [15. Initiation Integrity, Hardening & Harmonization (T1.77–T1.89)](#15-initiation-integrity-hardening--harmonization-t177t189)
+- [16. Phase 1.3 — Initiation Schema & Validation Harmonization (T1.84–T1.89)](#16-phase-13--initiation-schema--validation-harmonization-t184t189)
+- [17. Initiation Config Flattening — DCC project_config Pattern (T1.90–T1.95)](#17-initiation-config-flattening--dcc-project_config-pattern-t190t195)
+- [18. Schema Discovery & Registration — Discovery-Driven Loading (T1.96)](#18-schema-discovery--registration--discovery-driven-loading-t196)
+- [19. System Parameters — SSOT Centralization (T1.97)](#19-system-parameters--ssot-centralization-t197)
+- [20. References](#20-references)
 
 ---
 
@@ -685,6 +696,21 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - [x] `revision_pattern` removed from project_rules_def; `revision_validation` added to doc setup+config
 - [x] `ConfigRegistry` resolves `$ref` entries on-the-fly for project-scoped data access
 - [x] `schema_inheritance_chain.md` v1.6 updated: document_relationship_trigger_map + revision_id changes
+- [x] Initiation integrity gate wired (T1.77): `validate_all()` + `get_readiness_status()` fail-fast in `phase1_server._run()`; `--debug`/`--level` CLI flags; `data_dir`/`recursive` validated pre-lock
+- [x] DCC initiation gaps closed (T1.78): `eks/eks.yml` path fix, input readability, dependency probe, output-path validation, `--skip-readiness`, error code constants
+- [x] `P1-SETUP-*` error codes attached to every `validate_all()` result entry (T1.79)
+- [x] Readiness gate raises via `ErrorManager.handle_system_error("P1-SETUP-READINESS")` (T1.79)
+- [x] Output/eks.yml paths derived from `global_paths` schema config (T1.80)
+- [x] Hardcoded fallback lists removed from `setup_validator.py` — raises `ValueError` if config absent (T1.81)
+- [x] `validation_options.auto_create_folders` passed from config to `validate_all()` (T1.82)
+- [x] `data_dir` default derived from `config.global_paths.data_dir` (T1.82)
+- [x] `eks_root` added to schema; all `PRJ_DIR/"eks"` literals replaced (T1.83)
+- [x] Universal `ValidationManager` created in `common/library/utility/validation/` (T1.84)
+- [x] EKS `project_setup` schema reshaped to DCC object model — 8 new object defs (T1.85)
+- [x] `project_setup` instance data extracted to `eks_project_setup_config.json` (T1.86)
+- [x] `setup_validator.py` refactored as thin adapter to universal `ValidationManager` (T1.87)
+- [x] Validator tests migrated + universal-module tests added; full suite 235/235 green (T1.88)
+- [x] Phase 1.3 docs/logs/knowledge updated; I085 resolved (T1.89)
 
 ---
 
@@ -733,6 +759,8 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 - `eks_project_rules_config.json` v1.1.0: removed `revision_pattern` (now SSOT in doc config)
 - `config_registry.py`: `_load_ref()` + `get()` + helper methods resolve `$ref` on-the-fly
 - `schema_inheritance_chain.md` v1.6: report updated with SSOT changes
+- **Initiation Integrity & Hardening (T1.77–T1.83)**: `setup_validator.py` v0.6 (P1-SETUP-* codes + ErrorManager gate), `phase1_server.py` v0.8 (config-driven paths, `eks_root`, `--skip-readiness`), `eks_error_code_base.json`/`eks_error_setup_schema.json`/`eks_error_config.json` (7 P1-SETUP-* codes, "Setup" category), `test_setup_validator.py` (+7 T1.79 tests + 1 SSOT test), `test_phase1_server.py` (+36 tests); 215/215 pass
+- **Phase 1.3 Initiation Harmonization (T1.84–T1.89)**: `common/library/utility/validation/manager.py` + `__init__.py` (universal `ValidationManager`), `eks_project_setup_config.json` v1.0.0 (extracted `project_setup`), `eks_base_schema.json` v1.7.0 (8 object defs), `eks_setup_schema.json` v1.4.0, `eks_config.json` v1.5.0, `setup_validator.py` v0.7 (thin adapter), `test_validation_manager.py` (20), `test_setup_validator.py` (19); 235/235 pass
 
 
 ---
@@ -931,7 +959,196 @@ Table organized by module, listing all pipeline-critical public functions per AG
 
 ---
 
-## 16. References
+## 15. Initiation Integrity, Hardening & Harmonization (T1.77–T1.89)
+
+Phase 1 foundation is extended by two follow-on initiation work batches that close DCC-alignment gaps and universalize project-setup validation. Detailed test evidence lives in the consolidated foundation report (§15/§16) and in `../archive/phase_1_t179_t183_report.md` (RP-EKS-P1-T179-001, archived) for T1.79–T1.83.
+
+### 15.1 Initiation Integrity (T1.77–T1.78)
+- **T1.77**: `ProjectSetupValidator.validate_all()` + `get_readiness_status()` wired into `phase1_server._run()` fail-fast gate; `--debug`/`--level` CLI flags with effective-level logic; `data_dir` existence + `recursive` bool validated before concurrency guard. 8 validator unit tests + 3 server integration tests. 202/202 pass.
+- **T1.78**: Remediation of DCC gaps — `eks.yml`→`eks/eks.yml` path fix, input-file readability (G2), dependency probe + output-path validation (G3/G4), `--skip-readiness` override (G5), error code constants (G7); fixed pre-existing `_LogCapture.level` bug. 207/207 pass.
+
+### 15.2 Initiation Schema-Driven Hardening (T1.79–T1.83)
+| Task | I-Ref | Description | Status |
+| :--- | :---- | :---------- | :----: |
+| T1.79 | I079 | Wire `P1-SETUP-*` error codes into `validate_all()` results; raise readiness failure via `ErrorManager.handle_system_error("P1-SETUP-READINESS")` | ✅ |
+| T1.80 | I080 | Derive output/eks.yml paths from `global_paths` + schema config | ✅ |
+| T1.81 | I081 | Remove hardcoded fallback lists duplicating `eks_config.json` (SSOT) | ✅ |
+| T1.82 | I082/I083 | Honor `validation_options.auto_create_folders` + schema-driven input defaults | ✅ |
+| T1.83 | I084 | Make `eks` package root schema-driven via `global_paths.eks_root` (10× `PRJ_DIR/"eks"` literals replaced) | ✅ |
+
+Full test-case detail (T1.79-a … T1.83-c) is integrated into the foundation report §15.3 and the archived `../archive/phase_1_t179_t183_report.md`.
+
+### 15.3 Initiation Harmonization (T1.84–T1.89) — see §16
+Universal `ValidationManager` + EKS `project_setup` reshape to the DCC object model. Full scope, task breakdown, files, and success criteria are consolidated in §16 below (sourced from WP-EKS-P1.3-001).
+
+---
+
+## 16. Phase 1.3 — Initiation Schema & Validation Harmonization (T1.84–T1.89)
+
+**Source workplan (archived)**: [phase_1.3_initiation_harmonization_workplan.md](../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001
+**Status**: ✅ COMPLETE — T1.84–T1.89 all implemented. Universal `ValidationManager` in `common/library/utility/validation/`. EKS `project_setup` schema reshaped to DCC-aligned object model. DCC itself NOT modified (deferred follow-up).
+
+### 16.1 Objective
+Achieve **schema-design consistency** and **code-module universality** for project-setup validation, so that EKS and (later) DCC validate project structure through one shared, well-tested module and through schemas that follow the same shape. EKS's AGENTS.md §6-mandated folder names are preserved — only the *schema shape* (not the folder names) aligns with DCC.
+
+### 16.2 Scope Summary
+| ID | Category | Title | Details | Status | Related |
+| :-- | :------- | :---- | :------ | :----: | :------ |
+| R99 | Foundation & Compliance | Initiation Harmonization | Universal `ValidationManager` + EKS `project_setup` reshape to DCC object model | T1.84–T1.89 | T1.67, T1.77, T1.78, T1.79–T1.83 |
+| T1.84 | Foundation | Universal ValidationManager | Create `common/library/utility/validation/manager.py` (path-agnostic) — `validate_folders`, `validate_named_files`, `validate_environment`, `validate_dependencies`, `validate_discovery_rules`, `validate_project_setup` | ✅ DONE | R99 |
+| T1.85 | Schema | EKS schema reshape | Replace flat-array defs with DCC-aligned object defs (8 new defs) in `eks_base_schema.json` v1.7.0 + `eks_setup_schema.json` v1.4.0 | ✅ DONE | T1.84, T1.67 |
+| T1.86 | Schema | Extract project_setup config | Create `eks_project_setup_config.json` v1.0.0; `eks_config.json` v1.5.0 references it | ✅ DONE | T1.85, T1.67 |
+| T1.87 | Code | EKS validator adapter | `setup_validator.py` v0.7 thin adapter delegating to universal module; preserves `P1-SETUP-*` + ErrorManager wiring | ✅ DONE | T1.84, T1.86 |
+| T1.88 | Testing | Test migration + coverage | `test_setup_validator.py` (19 tests) migrated; `test_validation_manager.py` (20 tests) created; full suite 235/235 green | ✅ DONE | T1.87 |
+| T1.89 | Docs | Workplan/log/knowledge update | Workplan, `knowledge.json` v2.3.0, `update_log` (U130), `issue_log` (I085 resolved), universal architecture doc, foundation report | ✅ DONE | T1.84–T1.88 |
+
+### 16.3 Task Breakdown
+- **T1.84** — Create universal `ValidationManager` in `common/library/utility/validation/manager.py` (path-agnostic, takes `base_path`), modeled on DCC's mature `validation_manager.py` + `initiation_engine/validators/items.py`. Methods: `validate_folders` (with `auto_created`), `validate_named_files` (generic for `root_files`/`schema_files`), `validate_environment` (location-aware), `validate_dependencies` (required/optional/engines probe), `validate_discovery_rules`, `validate_project_setup`. Structured result `{readiness, folders, files, environment, dependencies, error_codes[]}`; emits codes via `common/library/core/errors/error_manager.py`. Exported from `__init__.py`.
+- **T1.85** — Reshape EKS base/setup schema defs to DCC-aligned object model. In `eks_base_schema.json`, replace flat-array defs (`required_folder_setup_def`, `required_engine_subfolder_setup_def`, `required_file_setup_def`, `environment_setup_def`, `validation_options_def`) with 8 object defs: `folder_entry_def`, `root_file_entry_def`, `schema_file_entry_def`, `discovery_rule_def`, `environment_entry_def`, `dependency_config_def`, `validation_rule_def`, `project_metadata_def`. In `eks_setup_schema.json`, reshape `project_setup` to `folders` / `root_files` / `schema_files` / `discovery_rules` / `environment` / `dependencies` / `validation_rules` / `project_metadata`; keep `additionalProperties: false`. `global_paths_def` untouched.
+- **T1.86** — Extract `project_setup` instance data to `eks_project_setup_config.json` v1.0.0 (20 folders, root files, schema files, environment, dependencies, project metadata); remove inline `project_setup` from `eks_config.json` v1.5.0, wire via the `$ref`/`ConfigRegistry` mechanism used by `eks_project_rules_config.json` (T1.67). `global_paths` stays in `eks_config.json`.
+- **T1.87** — Refactor `setup_validator.py` v0.7 to a thin adapter delegating to `common.library.validation.ValidationManager`. Preserve public `validate_all()` / `get_missing_items()` signatures, `P1-SETUP-*` error codes (universal generic codes mapped to `P1-SETUP-*`), and `ErrorManager.handle_system_error("P1-SETUP-READINESS")` readiness gate. Add `_convert_flat_to_object()` for backward compat.
+- **T1.88** — Migrate `test_setup_validator.py` (19 tests) to object-array config; create `test_validation_manager.py` (20 tests) for the universal module. Full EKS suite 235/235 green.
+- **T1.89** — Update workplan, `knowledge.json` v2.3.0, `update_log` (U130), `issue_log` (I085 resolved), `common/universal_pipeline_architecture_design.md`, and the foundation report. Generate `phase_1_t179_t183_report.md` (now archived in `eks/archive/`) and this §16 integration.
+
+### 16.4 Files and Modules (T1.84–T1.89)
+| File/Folder | Action | Purpose |
+| :---------- | :----- | :------ |
+| `common/library/utility/validation/manager.py` | Create | Universal, path-agnostic `ValidationManager` |
+| `common/library/utility/validation/__init__.py` | Update | Export `ValidationManager` |
+| `eks/config/schemas/eks_project_setup_config.json` | Create | Instance data for `project_setup` (object model) |
+| `eks/config/schemas/eks_base_schema.json` | Update | Replace flat-array defs with 8 DCC-aligned object defs (v1.7.0) |
+| `eks/config/schemas/eks_setup_schema.json` | Update | Reshape `project_setup` property (v1.4.0) |
+| `eks/config/schemas/eks_config.json` | Update | Remove inline `project_setup`; keep `global_paths` + `$ref` (v1.5.0) |
+| `eks/engine/core/setup_validator.py` | Update | Thin adapter delegating to universal `ValidationManager` (v0.7) |
+| `eks/test/test_setup_validator.py` | Update | Migrate to object-array config; keep `P1-SETUP-*` + SSOT tests |
+| `eks/test/test_validation_manager.py` | Create | Unit tests for universal module (20) |
+
+### 16.5 Success Criteria
+- [x] EKS `project_setup` schema shape matches DCC's (object arrays with metadata; per-folder `auto_created`).
+- [x] Reusable `ValidationManager` exists in `common/library/utility/validation/` and is path-agnostic (usable by EKS and later DCC).
+- [x] EKS validation runs through the universal module; `phase1_server.py` readiness gate, `P1-SETUP-*` codes, and `ErrorManager` wiring behaviorally unchanged.
+- [x] Full EKS test suite green (235/235); universal module has its own tests (20).
+- [x] DCC left untouched (deferred follow-up).
+- [x] Workplan, `knowledge.json`, `update_log`, `issue_log`, and universal architecture doc updated.
+
+### 16.6 References
+- [Phase 1.3 Initiation Harmonization Workplan (archived)](../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001
+- [Phase 1 T1.79–T1.83 Report (archived)](../archive/phase_1_t179_t183_report.md) — RP-EKS-P1-T179-001
+- [Universal Pipeline Architecture Design](../../common/universal_pipeline_architecture_design.md) — §3.9 Project Setup Validation, §3.9.1 Initiation Integrity Layers
+- DCC reference (not modified): `dcc/config/schemas/project_setup_base.json`, `project_setup.json`, `project_config.json`; `dcc/workflow/initiation_engine/core/validator.py`; `dcc/utility_engine/validation/validation_manager.py`
+- EKS issue: I085 (schema-design divergence between EKS and DCC `project_setup`)
+
+---
+
+## 17. Initiation Config Flattening — DCC project_config Pattern (T1.90–T1.95)
+
+**Objective**: Align EKS `eks_config.json` with DCC `project_config.json` — store the actual setup values (`folders` / `root_files` / `schema_files` / `environment` / `dependencies` / `project_metadata` / `discovery_rules`) at the **top level** instead of nested under a `project_setup` wrapper. This makes the universal `ValidationManager` (and a future universal schema loader) work for both projects with **zero per-project branching**, completing the Phase 1.3 universality goal, and removes the orphaned `eks_project_setup_config.json` (T1.86 artifact).
+
+### 17.1 Scope Summary
+| ID | Category | Title | Details | Status | Related |
+| :-- | :------- | :---- | :------ | :----: | :------ |
+| T1.90 | Schema/Config | Flatten `project_setup` in `eks_config.json` | Move 7 setup keys to top level; remove `project_setup` wrapper; fix title note (drop "T1.86 extracted") | ✅ DONE | T1.67, T1.85, T1.86 |
+| T1.91 | Schema | Update `eks_setup_schema.json` | Remove `project_setup` wrapper property; declare the 7 setup keys top-level (reuse `eks_base_schema.json` defs); bump v1.5.0 | ✅ DONE | T1.90 |
+| T1.92 | Code | Update `setup_validator.py` adapter | Read setup from top-level config (DCC pattern) with `project_setup` fallback; keep public API, P1-SETUP-* codes, ErrorManager wiring | ✅ DONE | T1.91 |
+| T1.93 | Code | Update `phase1_server.py` call site | `_cfg.get("project_setup", _cfg)` — flatten-aware | ✅ DONE | T1.92 |
+| T1.94 | Cleanup | Delete orphan `eks_project_setup_config.json` | Archive first per AGENTS.md §5.3 | ✅ DONE | T1.86 |
+| T1.95 | Testing | Tests + suite green | Update `test_setup_schema_has_project_setup`; run full EKS suite (236 pass) | ✅ DONE | T1.92–T1.94 |
+
+### 17.2 Success Criteria
+- [x] `eks_config.json` has setup values top-level (no `project_setup` wrapper), matching DCC `project_config.json`.
+- [x] `eks_setup_schema.json` declares the 7 setup keys top-level (no `project_setup` property); `additionalProperties: false` preserved.
+- [x] `setup_validator.py` reads setup from top-level config with backward-compat `project_setup` fallback; public API + P1-SETUP-* codes + ErrorManager wiring unchanged.
+- [x] `phase1_server.py` is flatten-aware.
+- [x] `eks_project_setup_config.json` removed (archived); no dangling references.
+- [x] Full EKS suite green (236/236).
+
+---
+
+## 18. Schema Discovery & Registration — Discovery-Driven Loading (T1.96)
+
+**Objective**: Add discovery-driven schema registration to EKS by (a) extracting the shared `discover_schema_files()` function from DCC `ref_resolver.py:164-230` into the `common/` library, (b) adding `discovery_rules` data to `eks_config.json`, (c) refactoring `schema_loader.py` to use config-driven loading (explicit `schema_files` + `discovery_rules` glob), and (d) wiring `ValidationManager.validate_discovery_rules()` into `setup_validator.py`. Closes I087.
+
+**Rationale**: Currently `schema_loader.py` hardcodes 22 filenames — adding a new schema set requires source code changes. DCC's `_extract_registered_schemas()` implements a reusable pattern: explicit `schema_files` merge with glob-based `discovery_rules`. Extracting this to `common/` makes it available to both projects and future phases.
+
+### 18.1 Scope Summary
+
+| ID | Category | Title | Details | Status | Related |
+| :-- | :------- | :---- | :------ | :----: | :------ |
+| T1.96a | Common | Extract `discover_schema_files()` to `common/` | Extract the core discovery loop (glob walk + merge with explicit `schema_files`) from DCC `ref_resolver.py` into a standalone function in `common/library/loader/`. Function signature: `discover_schema_files(project_setup: dict, project_root: Path) -> dict`. Also extracted `safe_resolve()` and `find_schema_file()`. | ✅ COMPLETE | DCC `ref_resolver.py:164-230`, I087 |
+| T1.96b | Schema/Config | Add `discovery_rules` to `eks_config.json` | Add 5 discovery rules matching existing schema file conventions (`*_base_schema.json`, `*_base.json`, `*_setup_schema.json`, `*_config.json` in `eks/config/schemas/`; `*.json` in `eks/engine/parsers/`). Update `eks_setup_schema.json` if needed. | ✅ COMPLETE | T1.96a, I087 |
+| T1.96c | Code | Refactor `schema_loader.py` for config-driven loading | Replace hardcoded 22-filename list: read `schema_files` from config (explicit registration), execute `discovery_rules`, merge results (explicit wins). Keep backward compat. | ✅ COMPLETE | T1.96a, T1.96b, I087 |
+| T1.96d | Code | Wire `validate_discovery_rules()` in `setup_validator.py` | Call `ValidationManager.validate_discovery_rules()` when `discovery_rules` present in config — runs as pre-validation gate before schema loading. | ✅ COMPLETE | T1.96b, I087 |
+| T1.96e | Docs | Update `common/universal_pipeline_architecture_design.md` | §3.16 Schema Discovery and Registration Pattern already added. Verify alignment with extracted function. | ✅ COMPLETE | T1.96a |
+| T1.96f | Testing | Tests + suite green | Fixed `*_base.json` pattern gap (missing `eks_error_code_base.json` and `eks_message_base.json`). Full EKS suite 236/236 green. | ✅ COMPLETE | T1.96a–T1.96e |
+
+### 18.2 DCC Function Reuse Mapping
+
+Each sub-task reuses specific DCC functions (priority: P0 = must extract, P1 = valuable, P2 = nice-to-have):
+
+| Sub-Task | Priority | DCC Function | DCC Location | Lines | Role |
+| :------- | :------: | :----------- | :----------- | :---: | :--- |
+| T1.96a | **P0** | `RefResolver._extract_registered_schemas()` | `dcc/workflow/schema_engine/loader/ref_resolver.py` | 164–256 | Extract → `discover_schema_files()`. Core glob-walk, exclude-filter, merge-with-explicit loop. |
+| T1.96a | **P0** | `safe_resolve()` | `dcc/workflow/schema_engine/utils/paths.py` | 10–12 | Resolve `project_root / directory_rel` to absolute path. Used at line 221 of `_extract_registered_schemas`. Also present in `dcc/workflow/core_engine/paths/path_core.py:29` and `dcc/workflow/utility_engine/paths/path_resolvers.py:71`. |
+| T1.96a | P1 | `SchemaCache` (class) | `dcc/workflow/schema_engine/loader/schema_cache.py` | 41–250 | Multi-level cache (L1 mem, L2 disk, L3 session) with TTL + mtime validation. Load-after-discovery caching pattern. |
+| T1.96a | P1 | `SchemaDependencyGraph.build_graph()` | `dcc/workflow/schema_engine/loader/dependency_graph.py` | 83–102 | Build adjacency list from `$ref` links in registered schemas — load ordering post-discovery. |
+| T1.96a | P2 | `SchemaPaths.list_available_schemas()` | `dcc/workflow/core_engine/paths/path_schema.py` | 99–111 | Simple `glob("*.json")` — fallback if full discovery not needed. |
+| T1.96c | **P0** | `RefResolver._build_uri_registry()` | `dcc/workflow/schema_engine/loader/ref_resolver.py` | 258–298 | Scan directories for JSON files, extract `$id`, build URI→Path map. Essential for `$ref` resolution post-discovery. |
+| T1.96c | **P0** | `RefResolver._find_schema_file()` | `dcc/workflow/schema_engine/loader/ref_resolver.py` | 679–705 | Search multiple directories for schema file by name. Replaces EKS `schema_loader.py` two-location hardcoded search. |
+| T1.96c | P1 | `SchemaLoader.load_schema()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 309–353 | Load by stem name from registered directories with caching — pattern for consuming discovery output. |
+| T1.96c | P1 | `SchemaLoader._resolve_reference_path()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 282–307 | Multi-fallback path resolution (base → main → CWD). |
+| T1.96c | P1 | `SchemaLoader.load_json_file()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 276–280 | Generic JSON file loader. |
+| T1.96c | P1 | `SchemaLoader.set_main_schema_path()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 124–129 | Anchor base_path to schema's parent directory. |
+| T1.96c | P1 | `SchemaDependencyGraph._extract_dependencies()` | `dcc/workflow/schema_engine/loader/dependency_graph.py` | 140–184 | Recursive JSON walker extracting all `$ref` targets. |
+| T1.96c | P1 | `SchemaDependencyGraph.detect_cycles()` | `dcc/workflow/schema_engine/loader/dependency_graph.py` | 186–226 | DFS cycle detection for dependency graph. |
+| T1.96c | P1 | `SchemaDependencyGraph.get_resolution_order()` | `dcc/workflow/schema_engine/loader/dependency_graph.py` | 228–262 | Topological sort for load ordering. |
+| T1.96c | P2 | `SchemaLoader.load_recursive()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 172–228 | Full recursive load with dependency resolution. |
+| T1.96d | already in `common/` | `ValidationManager.validate_discovery_rules()` | `common/library/utility/validation/manager.py` | 449–489 | Validates rule payload + directory existence. **Does NOT execute discovery** — validation gate only. |
+| T1.96b | config only | `project_config.json` data pattern | `dcc/config/schemas/project_config.json` | 41–46 | 4 discovery rules as live example. Schema def already in `eks_base_schema.json:167`. |
+
+### 18.3 Success Criteria
+- [x] `discover_schema_files()` exists in `common/library/loader/schema_discovery.py` and returns unified registry dict.
+- [x] `eks_config.json` has `discovery_rules` array with 5 rules matching existing schema conventions (incl. `*_base.json` for outlier files).
+- [x] `schema_loader.py` reads `schema_files` + `discovery_rules` from config; 22 hardcoded filenames replaced with config-driven loop.
+- [x] Path root inconsistency fixed: discovery rules use `eks/config/schemas/...` paths to match actual file locations.
+- [x] `setup_validator.py` calls `validate_discovery_rules()` when rules present.
+- [x] Full EKS suite 236/236 green.
+- [x] `common/universal_pipeline_architecture_design.md` §3.16 references align with implementation.
+
+---
+
+## 19. System Parameters — SSOT Centralization (T1.97)
+
+**Objective**: Centralize all runtime behavior knobs (`fail_fast`, `log_level`, `debug_mode`, `skip_readiness`, `retry_count`, `retry_delay`, `api_timeout`, `ollama_timeout`, `db_timeout`) into a schema-defined `system_parameters` block in `eks_config.json`. Create a universal `get_system_param()` function in `common/library/config/` that handles both EKS flat-object and DCC array-of-entries shapes. Remove hardcoded equivalents from `phase1_server.py`, `error_manager.py`, `registry.py`, `server.py`. Closes I088.
+
+**Rationale**: Currently these values are scattered across global variables (`phase1_server.py:103-105`), constructor defaults (`error_manager.py:21`), function defaults (`registry.py:326`), and literal constants (`server.py:359,429`). I088 documents this as a SSOT violation versus DCC's `project_config.json → system_parameters` pattern. A universal `get_system_param()` in `common/` makes the fix reusable for DCC and future phases.
+
+### 19.1 Scope Summary
+
+| ID | Category | Title | Details | Status | Related |
+| :-- | :------- | :---- | :------ | :----: | :------ |
+| T1.97a | Common | Create `common/library/config/__init__.py` | Implement `normalize_system_parameters(config)` (handles flat-object and array-of-entries shapes) and `get_system_param(config, key, default)`. Export from `common/library/config/`. | 🔷 PLANNED | I088 |
+| T1.97b | Schema | Add `system_parameters_def` to `eks_base_schema.json` | Flat-object definition with typed properties: `fail_fast` (bool, default true), `log_level` (int, 1), `debug_mode` (bool, false), `skip_readiness` (bool, false), `retry_count` (int, 3), `retry_delay` (number, 0.5), `api_timeout` (int, 120), `ollama_timeout` (int, 30), `db_timeout` (int, 30). | 🔷 PLANNED | T1.97a, I088 |
+| T1.97c | Schema | Add `system_parameters` property to `eks_setup_schema.json` | Optional `$ref` to base def, `additionalProperties: false`. | 🔷 PLANNED | T1.97b, I088 |
+| T1.97d | Config | Add `system_parameters` block to `eks_config.json` | Instance data matching `system_parameters_def`. Consolidates the standalone `registry.timeout` into the block. | 🔷 PLANNED | T1.97b, T1.97c, I088 |
+| T1.97e | Code | Replace hardcoded values in `phase1_server.py` | Replace `_debug_mode`, `_log_level`, `_skip_readiness` globals and `_with_retry` defaults with `get_system_param(config, ...)`. | 🔷 PLANNED | T1.97a, T1.97d, I088 |
+| T1.97f | Code | Replace hardcoded values in `error_manager.py` | Accept `fail_fast` from config instead of hardcoded `True`. | 🔷 PLANNED | T1.97a, T1.97d, I088 |
+| T1.97g | Code | Replace hardcoded values in `registry.py` | `_with_retry` reads `retry_count` / `retry_delay` from config via `get_system_param()`. | 🔷 PLANNED | T1.97a, T1.97d, I088 |
+| T1.97h | Code | Replace hardcoded timeouts in `server.py` | `api_timeout` / `ollama_timeout` from config via `get_system_param()`. | 🔷 PLANNED | T1.97a, T1.97d, I088 |
+| T1.97i | Testing | Tests + suite green | Unit test for `normalize_system_parameters()` (flat object, array, empty, malformed). Integration: config validates against updated setup schema. Full EKS suite green. | 🔷 PLANNED | T1.97a–T1.97h |
+
+### 19.2 Success Criteria
+- [ ] `common/library/config/__init__.py` exports `get_system_param()` and `normalize_system_parameters()`.
+- [ ] `normalize_system_parameters()` handles EKS flat-object, DCC flat-object, and DCC array-of-entries shapes.
+- [ ] `eks_base_schema.json` has `system_parameters_def` with all 9 typed properties and defaults.
+- [ ] `eks_setup_schema.json` has `system_parameters` property with `additionalProperties: false`.
+- [ ] `eks_config.json` has `system_parameters` block; `registry.timeout` consolidated into block.
+- [ ] `phase1_server.py`, `error_manager.py`, `registry.py`, `server.py` read from config via `get_system_param()`, no hardcoded defaults remain for these 9 parameters.
+- [ ] Full EKS suite green; unit tests for normalize + get cover all 3 source shapes.
+- [ ] I088 closed.
+
+---
+
+## 20. References
 
 1. [eks_system_workplan.md](eks_system_workplan.md) — Master workplan
 2. [AGENTS.md](../AGENTS.md) — Repository guidelines
