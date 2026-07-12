@@ -1,16 +1,16 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eks.engineering/knowledge.json",
-  "version": "2.3.0",
+  "version": "2.5.0",
   "title": "EKS Project Knowledge Base",
   "description": "Engineering Knowledge System - machine-readable project blueprint and charter",
   "project_metadata": {
     "name": "Engineering Knowledge System (EKS)",
-    "version": "2.3.0",
+    "version": "2.6.0",
     "description": "Schema-driven document registry and knowledge graph system for engineering asset management",
     "purpose": "Ingest, extract, and cross-reference engineering documents to build a searchable knowledge graph",
-    "status": "Phase 1 COMPLETE (T1.1–T1.89) — 235/235 tests passing. T1.79–T1.83: initiation schema-driven hardening. T1.84–T1.89: universal ValidationManager in common/library/utility/validation/, DCC-aligned project_setup schema (object model), extracted eks_project_setup_config.json, setup_validator.py delegates to universal module. I085 resolved. 8 new DCC-aligned defs in eks_base_schema v1.7.0. eks_setup_schema v1.4.0. eks_config v1.5.0.",
-    "last_updated": "2026-07-09"
+    "status": "Phase 1 COMPLETE through T1.98/I089/I090 — 243/243 tests passing. T1.96: discovery-driven schema loading via common/library/loader/schema_discovery.py. T1.97: schema-defined system_parameters in eks_config.json and universal get_system_param()/normalize_system_parameters() in common/library/config (L15). T1.98: EKS global_paths adopted as universal canonical path pattern (L16); common/library/paths/resolver.py provides resolve_paths() normalizing EKS and DCC path shapes; workflow_files/tool_files added to EKS schema+config for DCC parity. I087, I088, I089, I090, I091 resolved. config/ and paths/ registered as architecture-aligned sub-packages. §3.17 System Parameters Pattern and §3.18 Path Resolution Pattern added to universal pipeline architecture. eks_base_schema v1.9.0, eks_setup_schema v1.7.0, eks_config v1.7.0.",
+    "last_updated": "2026-07-11"
   },
   "architecture_overview": {
     "key_modules": [
@@ -26,7 +26,8 @@
     "data_flows": [
       "File Scanner → Parser Router → Parser → Structure Detector → Health Scorer → Document Registry",
       "Schema Loader validates base/setup/config chain with $ref resolution",
-      "ConfigRegistry provides SSOT access to global parameters"
+      "ConfigRegistry provides SSOT access to global parameters",
+      "common.library.config normalizes system_parameters across EKS flat-object and DCC array-entry config shapes"
     ],
     "integration_points": [
       "Main server (port 5000) proxies /api/* to Phase 1 backend (port 5001), serves static UI from eks/ui/",
@@ -69,9 +70,9 @@
     ]
   },
     "key_schemas": [
-      "config/schemas/eks_base_schema.json - Core pipeline definitions (v1.6.0, 18 defs incl. project_setup)",
-      "config/schemas/eks_setup_schema.json - Core property declarations (v1.3.0, incl. project_setup)",
-      "config/schemas/eks_config.json - Core config values (v1.4.0, incl. project_setup)",
+      "config/schemas/eks_base_schema.json - Core pipeline definitions (v1.9.0, incl. DCC-aligned setup defs, system_parameters_def, workflow_file_entry_def, tool_file_entry_def)",
+      "config/schemas/eks_setup_schema.json - Core property declarations (v1.7.0, incl. top-level setup values, system_parameters, workflow_files, tool_files)",
+      "config/schemas/eks_config.json - Core config values (v1.7.0, incl. discovery_rules, system_parameters, workflow_files, tool_files)",
       "config/schemas/eks_asset_base_schema.json - Asset fragment definitions (v1.3.0, 14 fragments)",
       "config/schemas/eks_doc_base_schema.json - Document metadata definitions (v1.2.0, 8 defs)",
       "config/schemas/eks_ontology_base_schema.json - Ontology class/relationship definitions (v1.1.0, 2 defs)",
@@ -105,6 +106,10 @@
   "functions": [
     "SchemaLoader.load_all() - Load all schema files with cross-validation",
     "ConfigRegistry.get() - SSOT access to global parameters",
+    "ConfigRegistry.get_system_param() - Runtime system parameter lookup from schema-driven config",
+    "common.library.config.get_system_param() - Universal system parameter lookup for EKS/DCC config shapes",
+    "common.library.paths.resolve_paths() - Universal path resolver normalizing EKS global_paths and DCC folder_creation/discovery_rules into canonical ResolvedPaths (L16)",
+    "ConfigRegistry.data_dir/output_dir/archive_dir/config_dir/log_dir/schema_dir/eks_root - Schema-driven path accessors via universal resolver (T1.98c/I089)",
     "DocumentRegistry CRUD - Document metadata operations with revision tracking",
     "RevisionManager - Revision history and latest-revision filtering",
     "FileScanner - Directory walk, type validation, placeholder registration",
@@ -203,8 +208,8 @@
       "I020 - Datadrop column range (33-112) fragment coverage - Phase 3",
       "I021 - 22-64% data incompleteness across datadrop sheets - Phase 3"
     ],
-    "total_issues_resolved": 34,
-    "total_issues_deferred": 5,
+    "total_issues_resolved": 37,
+    "total_issues_deferred": 3,
     "revision_history": [
       {
         "version": "1.0.0",
@@ -265,7 +270,18 @@
         "date": "2026-07-09",
         "author": "opencode",
         "summary": "Phase 1.3 PLANNED: created phase_1.3_initiation_harmonization_workplan.md (WP-EKS-P1.3-001). Harmonize EKS project_setup schema + validation code with DCC universal pattern — shared ValidationManager in common/library/validation/, reshape EKS schema to DCC object model, extract eks_project_setup_config.json. DCC deferred. Logged I085. Update U128."
+      },
+      {
+        "version": "2.5.0",
+        "date": "2026-07-11",
+        "author": "opencode",
+        "summary": "I091 resolved — system_parameters elevated to L15 universal feature. config/ registered as architecture-aligned sub-package in common/library/__init__.py. §3.17 System Parameters Pattern added to universal pipeline architecture. Updated §4.1/§9/§10 in universal architecture doc. 243/243 tests pass."
+      },
+      {
+        "version": "2.6.0",
+        "date": "2026-07-11",
+        "author": "opencode",
+        "summary": "I089 + I090 resolved — global_paths adopted as universal canonical path pattern (L16). Added common/library/paths/resolver.py (resolve_paths, ResolvedPaths) normalizing EKS and DCC path shapes. Wired ConfigRegistry + phase1_server.py to the resolver. Added workflow_files/tool_files to EKS schema + config for DCC parity; setup_validator validates them. Universal architecture doc: L16 + §3.18 + §2.2/§2.3/§2.4/§4.1/§4.2/§9/§10. eks_base_schema v1.9.0, eks_setup_schema v1.7.0, eks_config v1.7.0. 243/243 tests pass."
       }
     ]
   }
-

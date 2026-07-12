@@ -1,8 +1,8 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.5.0",
-    "title": "EKS Default Project Configuration — v1.5.0 (setup values at top level — DCC project_config pattern)",
+    "version": "1.7.0",
+    "title": "EKS Default Project Configuration — v1.7.0 (system parameters centralized — T1.97/I088; workflow/tool files parity — T1.98f/I090)",
     "project_rules_registry": {
         "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
     },
@@ -28,8 +28,7 @@
     },
     "registry": {
         "type": "duckdb",
-        "connection_string": "output/eks_registry.db",
-        "timeout": 30
+        "connection_string": "output/eks_registry.db"
     },
     "parsers": {
         ".pdf": "eks.engine.parsers.pdf_parser.PDFParser",
@@ -51,6 +50,17 @@
     "logging": {
         "default_level": 1,
         "debug_file_path": "output/debug_log.json"
+    },
+    "system_parameters": {
+        "fail_fast": true,
+        "log_level": 1,
+        "debug_mode": false,
+        "skip_readiness": false,
+        "retry_count": 3,
+        "retry_delay": 0.5,
+        "api_timeout": 120,
+        "ollama_timeout": 30,
+        "db_timeout": 30
     },
     "folders": [
         { "name": "archive", "required": true, "purpose": "Archived/superseded files", "auto_created": true },
@@ -76,6 +86,12 @@
     ],
     "root_files": [
         { "name": "eks/eks.yml", "required": true, "purpose": "Conda environment specification", "extension": "yml" }
+    ],
+    "workflow_files": [
+        { "filename": "eks/ui/backend/phase1_server.py", "required": true, "description": "Phase 1 backend server (dashboard API)", "type": "python_module" }
+    ],
+    "tool_files": [
+        { "filename": "eks/engine/core/setup_validator.py", "required": true, "description": "Project setup validation utilities", "type": "python_script" }
     ],
     "schema_files": [
         { "filename": "eks/config/schemas/eks_base_schema.json", "required": true, "description": "Core base schema — definitions" },
@@ -119,6 +135,6 @@
         "project_name": "Engineering Knowledge System",
         "version": "1.0.0",
         "created_date": "2026-06-11",
-        "last_modified": "2026-07-09"
+        "last_modified": "2026-07-11"
     }
 }

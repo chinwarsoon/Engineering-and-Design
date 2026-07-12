@@ -1,10 +1,17 @@
 """
 SSOT Config Registry for EKS - Centralized access to global parameters.
+
+Revision: 0.2
+Date: 2026-07-11
+Author: Codex
+Summary: Add schema-driven system parameter accessor for T1.97/I088.
 """
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import json
 from .schema_loader import SchemaLoader, load_eks_config
+from common.library.config import get_system_param
+from common.library.paths import resolve_paths, ResolvedPaths
 
 class ConfigRegistry:
     """
@@ -114,12 +121,37 @@ class ConfigRegistry:
 
     # Common accessors for frequently used paths/settings
     @property
+    def _resolved_paths(self) -> ResolvedPaths:
+        """Canonical, schema-driven paths resolved via the universal PathResolver (T1.98a/I089)."""
+        return resolve_paths(None, self._config)
+
+    @property
     def data_dir(self) -> Path:
-        return Path(self.get("global_paths.data_dir", "data"))
+        return Path(self._resolved_paths.data_dir)
 
     @property
     def output_dir(self) -> Path:
-        return Path(self.get("global_paths.output_dir", "output"))
+        return Path(self._resolved_paths.output_dir)
+
+    @property
+    def archive_dir(self) -> Path:
+        return Path(self._resolved_paths.archive_dir)
+
+    @property
+    def config_dir(self) -> Path:
+        return Path(self._resolved_paths.config_dir)
+
+    @property
+    def log_dir(self) -> Path:
+        return Path(self._resolved_paths.log_dir)
+
+    @property
+    def schema_dir(self) -> Path:
+        return Path(self._resolved_paths.schema_dir)
+
+    @property
+    def eks_root(self) -> Path:
+        return Path(self._resolved_paths.eks_root) if self._resolved_paths.eks_root else Path("")
 
     @property
     def registry_settings(self) -> Dict[str, Any]:
@@ -128,3 +160,16 @@ class ConfigRegistry:
     @property
     def logging_settings(self) -> Dict[str, Any]:
         return self.get("logging", {})
+
+    def get_system_param(self, key: str, default: Any = None) -> Any:
+        """
+        Return a runtime behavior parameter from ``system_parameters``.
+
+        Parameters:
+            key: Canonical system parameter name.
+            default: Value returned when the parameter is not configured.
+
+        Returns:
+            Configured system parameter value or ``default``.
+        """
+        return get_system_param(self._config, key, default)

@@ -1,7 +1,7 @@
 # Universal Pipeline Architecture Design
 
 **Document ID**: WP-UNIVERSAL-PIPELINE-ARCH-001  
-**Current Version**: 1.4  
+**Current Version**: 1.6  
 **Status**: 📋 Proposed for Review  
 **Last Updated**: 2026-07-11  
 **Purpose**: Universal design patterns for pipeline architecture applicable across all projects  
@@ -15,6 +15,8 @@
 | 1.2 | 2026-07-11 | System | Added §3 Common Library Inventory — 14 universal modules/functions/engines identified across dcc/workflow and eks/engine with extraction priority ratings. Updated document index. Renumbered all subsequent sections. |
 | 1.4 | 2026-07-11 | opencode | Review of EKS T1.77 vs DCC `initiation_engine` revealed gaps and one readiness-gate regression (`eks.yml` path). Marked T1.77 ✅ DONE in all pattern references; added T1.78 (Initiation Integrity Remediation) PLANNED to close gaps: input-file readability, env/dependency probe, readiness summary, ErrorManager wiring, output-path validation, schema-driven debug default, 6-category validator. Added §3.9.1 Initiation Integrity Layers. Updated §8.2, §2.2 L13, §7.5.2, §9, §10. |
 | 1.5 | 2026-07-10 | opencode | Added §3.16 Schema Discovery and Registration Pattern — automatic schema file discovery using configurable `discovery_rules` (patterns, recursion, exclusion) extracted from DCC `ref_resolver.py:164-230`. Updated §4.1, §9, §10. |
+| 1.6 | 2026-07-11 | opencode | Added L15 — System Parameters / Runtime Behavior Config as universal feature. Added `config/` to proposed `common/` package structure. Added §3.17 System Parameters Pattern. Updated §4.1, §9, §10. |
+| 1.7 | 2026-07-11 | opencode | Added L16 — Path Resolution / Schema-Driven Paths as universal feature. Adopted EKS `global_paths` as the canonical path pattern. Added `resolver.py` to proposed `common/paths/` package structure. Added §3.18 Path Resolution Pattern. Updated §2.2, §2.3, §2.4, §4.1, §4.2, §9, §10. |
 | 1.3 | 2026-07-11 | opencode | Recorded EKS initiation integrity checks (T1.77, mirrors DCC `initiation_engine`) across patterns: §2.2 L13 (ValidationManager), §3.6 Multi-Stage Validation, §3.9 Project Setup Validation (EKS `ProjectSetupValidator` + T1.77 readiness gate; corrected DCC path), §7.5.2 Parameter Precedence (EKS `--debug`/`--level` + schema-default gap), §3.13 Security Baseline (EKS T1.70 traversal guard). Updated §8.2 EKS status to reflect T1.77 PLANNED. |
 | 1.1 | 2026-06-26 | Cascade | Added 4 new patterns: Idempotency & Checkpointing, Structured Logging & Correlation IDs, Security Baseline, Concurrency Model. Added standardized I/O pattern for independent engine execution. Added lessons learned from DCC logs and workplans. |
 | 1.0 | 2026-06-26 | Cascade | Initial version with 10 universal design patterns extracted from DCC pipeline architecture. |
@@ -26,8 +28,9 @@
 | § | Section | Description |
 | :--- | :--- | :--- |
 | 1 | [Executive Summary](#1-executive-summary) | Purpose and scope of this document |
-| 2 | [Common Library Inventory](#2-common-library-inventory) | 14 universal modules identified across dcc/workflow and eks/engine |
-| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 16 architecture patterns with structure, benefits, and reference implementations |
+| 2 | [Common Library Inventory](#2-common-library-inventory) | 15 universal modules identified across dcc/workflow and eks/engine |
+| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 17 architecture patterns with structure, benefits, and reference implementations |
+| 17 | [System Parameters Pattern](#317-system-parameters-pattern) | Schema-defined runtime behavior knobs with universal normalization |
 | 4 | [Pattern Application Guidelines](#4-pattern-application-guidelines) | When to apply each pattern and recommended implementation order |
 | 5 | [Benefits Summary](#5-benefits-summary) | Maintainability, testability, observability, flexibility, UX, security |
 | 6 | [Risks and Mitigation](#6-risks-and-mitigation) | Known risks and mitigation strategies |
@@ -76,15 +79,19 @@ The following 14 modules, functions, and engines have been identified as duplica
 | L12 | OS Detection + Path Normalization | `core_engine/paths/path_core.py` + `utility_engine/paths/path_core.py` (duplicated) | `engine/core/context.py` (gap — T1.74) | 🔴 High |
 | L13 | ValidationManager | `utility_engine/validation/validation_manager.py` (`ValidationManager` — mature) | `engine/core/setup_validator.py` + `engine/core/validator.py` (split) | 🟠 Medium |
 | L14 | UI Contract (Request / Response) | `core_engine/ui/ui_contract.py` (`UIRequest`, `UIResponse`, `UIContractManager`) | `ui/backend/phase1_server.py` (inline Flask handlers — no formal contracts) | 🟡 Low |
+| L15 | System Parameters / Runtime Behavior Config | `project_config.json#/system_parameters` (flat-object values) + `project_setup.json#/system_parameters` (array-of-entries schema) | `eks_config.json#/system_parameters` (flat-object values) | 🟠 Medium |
+| L16 | Path Resolution / Schema-Driven Paths | `project_config.json` (`folder_creation` + `discovery_rules`, normalized) | `eks_config.json#/global_paths` (canonical path SSOT) + `common/library/paths/resolver.py` | 🟠 Medium |
 
 ---
 
 ### 2.3 Proposed `common/` Package Structure
 
-All 14 libraries map to the following target layout under the existing `common/` folder:
+All 15 libraries map to the following target layout under the existing `common/` folder:
 
 ```
 common/
+├── config/
+│   └── __init__.py          # L15 — normalize_system_parameters(), get_system_param()
 ├── logging/
 │   ├── __init__.py
 │   ├── logger.py            # L01 — UniversalLogger (merges EKSLogger + log_handlers)
@@ -110,7 +117,8 @@ common/
 │   └── message_manager.py   # L11 — BaseMessageManager, catalog loader, template hydration
 ├── paths/
 │   ├── __init__.py
-│   └── path_utils.py        # L12 — detect_os(), safe_posix(), resolve_anchored(), safe_cwd()
+│   ├── path_utils.py        # L12 — detect_os(), safe_posix(), resolve_anchored(), safe_cwd()
+│   └── resolver.py          # L16 — resolve_paths(), ResolvedPaths (universal PathResolver)
 ├── validation/
 │   ├── __init__.py
 │   └── validation_manager.py # L13 — ValidationManager (from DCC reference impl)
@@ -202,6 +210,18 @@ common/
 - **dcc**: `UIRequest`, `UIResponse` dataclasses with `from_json()`/`to_json()`; `UIContractManager` with `validate_selection()`, `run_pipeline()`, `run_from_ui_request()`
 - **eks**: Inline Flask route handlers in `phase1_server.py` — no formal contract dataclasses
 - **Extraction target**: `UIRequest`/`UIResponse`/`UIContractManager` from DCC as the base; EKS adopts for T1.72 (enforce I/O contracts).
+
+#### L15 — System Parameters / Runtime Behavior Config
+- **dcc**: `project_config.json#/system_parameters` (flat-object values) + `project_setup.json#/system_parameters` (array-of-entries schema definition). 9 params: `fail_fast`, `severity_threshold`, `default_system_error_severity`, `default_data_error_severity`, `debug_dev_mode`, `is_colab`, `overwrite_existing_downloads`, `pc_name`, `progress_stage`. Accessed via `load_schema_parameters(key="system_parameters")`.
+- **eks**: `eks_config.json#/system_parameters` (flat-object values). 9 params: `fail_fast`, `log_level`, `debug_mode`, `skip_readiness`, `retry_count`, `retry_delay`, `api_timeout`, `ollama_timeout`, `db_timeout`. Accessed via `ConfigRegistry.get_system_param()`.
+- **Divergence**: DCC uses array-of-entries in `project_setup.json` (schema layer) + flat-object in `project_config.json` (values). EKS uses flat-object in both schema and config layers. Both share `fail_fast`. DCC has error-severity and environment flags; EKS has timeout and retry knobs. The shapes differ but the concept is identical: a schema-defined block of runtime behavior flags.
+- **Extraction target**: `common/library/config/__init__.py` with `normalize_system_parameters()` (handles both flat-object and array-of-entries shapes) and `get_system_param()` for single-key lookup. Each project defines its own parameter set in its config; the common helper normalizes access. EKS implementation complete (T1.97); DCC migration pending.
+
+#### L16 — Path Resolution / Schema-Driven Paths
+
+- **dcc**: Paths derived from a script-location `default_base_path()` plus hardcoded `base_path / "data"` and `base_path / "output"` literals; `discovery_rules[].directory` used only for schema discovery; `folder_creation.required_directories[].name` used only for auto-create checks. Not a genuine schema-driven SSOT.
+- **eks**: `eks_config.json#/global_paths` defines `data_dir`, `output_dir`, `archive_dir`, `config_dir`, `log_dir`, `eks_root` as a single schema-driven SSOT (hardened by T1.80/T1.82/T1.83 — no hardcoded fallbacks). `common/library/paths/resolver.py` provides `resolve_paths()` which normalizes **both** config shapes into the EKS `global_paths` canonical model.
+- **Extraction target**: `common/library/paths/resolver.py` with `resolve_paths(project_root, config) -> ResolvedPaths` and a `ResolvedPaths` dataclass (data_dir, output_dir, archive_dir, config_dir, log_dir, schema_dir, eks_root). EKS `global_paths` is the **universal canonical path pattern**; DCC's `folder_creation`/`discovery_rules` shape is normalized into it by the resolver. EKS implementation complete (T1.98a); DCC migration pending.
 
 ---
 
@@ -827,6 +847,108 @@ The loader iterates discovered files, validates each against its `$schema` refer
 
 ---
 
+### 3.17 System Parameters Pattern
+
+**Purpose**: Schema-defined runtime behavior flags (timeouts, retry settings, debug mode, log level, fail-fast) that control pipeline execution without hardcoded values.
+
+**Description**: Runtime behavior knobs are defined in a schema-driven `system_parameters` block within each project's config file. A universal normalization helper (`normalize_system_parameters()`) handles differences in shape (flat-object vs array-of-entries) so consumers can use a single `get_system_param()` call regardless of project. This eliminates hardcoded timeouts, retry counts, and debug defaults scattered across code.
+
+**Structure** (flat-object shape — EKS pattern):
+```json
+{
+  "system_parameters": {
+    "fail_fast": true,
+    "log_level": 1,
+    "debug_mode": false,
+    "skip_readiness": false,
+    "retry_count": 3,
+    "retry_delay": 0.5,
+    "api_timeout": 120,
+    "ollama_timeout": 30,
+    "db_timeout": 30
+  }
+}
+```
+
+**Structure** (array-of-entries shape — DCC schema layer):
+```json
+{
+  "system_parameters": [
+    {"key": "fail_fast", "type": "boolean", "value": false},
+    {"key": "severity_threshold", "type": "string", "default_value": "critical"}
+  ]
+}
+```
+
+**Normalized access**:
+```python
+from common.library.config import get_system_param
+
+# Works with both flat-object and array-of-entries shapes
+timeout = get_system_param(config, "api_timeout", 120)
+fail_fast = get_system_param(config, "fail_fast", True)
+```
+
+**Benefits**:
+- Single source of truth for all runtime behavior knobs
+- Eliminates hardcoded defaults scattered across engine code
+- Universal accessor handles both config shapes transparently
+- Schema validation ensures type correctness at startup
+- CLI flags can override schema defaults via explicit precedence
+
+**Reference Implementation**: EKS Pipeline (`eks/config/schemas/eks_config.json#/system_parameters`, `common/library/config/__init__.py`); DCC Pipeline (`dcc/config/schemas/project_config.json#/system_parameters`, `dcc/config/schemas/project_setup.json#/system_parameters`)
+
+**EKS Status**: ✅ Complete. `system_parameters_def` in `eks_base_schema.json` v1.8.0, values in `eks_config.json` v1.6.0, runtime consumers in `phase1_server.py`, `error_manager.py`, `registry.py`, `server.py`. Universal helpers in `common/library/config/__init__.py`. All 243 tests pass.
+
+**DCC Status**: Existing `project_config.json#/system_parameters` (flat-object values) + `project_setup.json#/system_parameters` (array-of-entries schema). Migration to use `common/library/config/` helpers pending.
+
+---
+
+### 3.18 Path Resolution Pattern
+
+**Purpose**: Schema-defined project paths (data, output, archive, config, log, schema, package root) resolved through a single universal resolver so consumers never hardcode directory layout.
+
+**Description**: Project directory layout is declared in a schema-driven config block. EKS uses a top-level `global_paths` object as the canonical path SSOT. DCC scatters path hints across `folder_creation.required_directories`, hardcoded `base_path / "data"` literals, and `default_base_path()` script traversal. A universal `resolve_paths()` normalizes both shapes into one `ResolvedPaths` model so every project (and the common library) reads paths identically.
+
+**Canonical structure** (EKS `global_paths` — adopted as the universal pattern):
+```json
+{
+  "global_paths": {
+    "data_dir": "data",
+    "output_dir": "output",
+    "archive_dir": "archive",
+    "config_dir": "config",
+    "log_dir": "log",
+    "eks_root": "eks"
+  }
+}
+```
+
+**Normalized access** (both shapes):
+```python
+from common.library.paths import resolve_paths
+
+# EKS config (global_paths block) or DCC config (folder_creation + discovery_rules)
+paths = resolve_paths(project_root, config).resolve(project_root)
+data_dir = paths["data_dir"]      # absolute Path
+schema_dir = paths["schema_dir"]  # absolute Path
+```
+
+**Benefits**:
+- Single source of truth for all project directory layout
+- Eliminates hardcoded `base_path / "data"` literals and script-location traversal
+- Universal resolver transparently handles EKS and DCC config shapes
+- Schema validation ensures path keys/types are correct at startup
+- `folder_creation` auto-create behavior is driven by the canonical path set
+
+**Reference Implementation**: EKS Pipeline (`eks/config/schemas/eks_config.json#/global_paths`, `common/library/paths/resolver.py`); DCC Pipeline (`dcc/config/schemas/project_config.json#/folder_creation`, `dcc/config/schemas/project_config.json#/discovery_rules`).
+
+**EKS Status**: ✅ Complete. `global_paths_def` in `eks_base_schema.json`; values in `eks_config.json`; runtime consumers in `config_registry.py` (path properties) and `phase1_server.py` (via `resolve_paths`). Universal `resolve_paths()` in `common/library/paths/resolver.py`. All 243 tests pass.
+
+**DCC Status**: Existing `folder_creation` + `discovery_rules` + script-traversal `base_path`. Normalization via `resolve_paths()` available; migration to a `global_paths`-equivalent block pending.
+
+---
+
 ## 4. Pattern Application Guidelines
 
 ### 4.1 When to Apply Each Pattern
@@ -849,6 +971,8 @@ The loader iterates discovered files, validates each against its `$schema` refer
 | Concurrency Model | Pipeline may scale beyond single-threaded execution | 🟠 High |
 | Standardized Engine I/O | Pipeline has multiple engines that need independent execution | 🟠 High |
 | Schema Discovery & Registration | Pipeline manages multiple schema files or supports cross-project schema loading | 🟡 Medium |
+| System Parameters (§3.17) | Pipeline needs centralized runtime behavior flags (timeouts, retry, log level, fail-fast) | 🟠 High |
+| Path Resolution (§3.18) | Pipeline needs schema-driven, non-hardcoded directory layout | 🟠 High |
 
 ### 4.2 Implementation Order
 
@@ -869,6 +993,8 @@ Recommended implementation order for new pipelines:
 13. **Telemetry Heartbeat** — Add observability (include correlation IDs)
 14. **Project Setup Validation** — Add setup verification
 15. **UI Contracts** — Define API contracts (if applicable)
+16. **System Parameters** — Centralize runtime behavior flags into schema-defined block with universal normalization
+17. **Path Resolution** — Resolve project directory layout via universal `resolve_paths()` (schema-driven `global_paths`, no hardcoded paths)
 
 ---
 
@@ -1223,6 +1349,8 @@ Use this checklist when designing a new pipeline:
 - [ ] **Concurrency Model**: Explicit execution model documented
 - [ ] **Standardized Engine I/O**: Independent engine execution with contracts
 - [ ] **Schema Discovery & Registration (§3.16)**: Configurable discovery rules for automatic schema file registration
+- [ ] **System Parameters (§3.17)**: Schema-defined runtime behavior block with universal normalization
+- [ ] **Path Resolution (§3.18)**: Schema-defined directory layout resolved via universal `resolve_paths()` (no hardcoded paths)
 
 ---
 
@@ -1247,6 +1375,8 @@ A pipeline is considered to follow universal architecture when:
 - ✅ Concurrency model documented and implemented
 - ✅ Standardized engine I/O for independent execution
 - ✅ Schema discovery and registration with configurable discovery rules (see §3.16)
+- ✅ System parameters defined in schema-driven block with universal normalization (see §3.17)
+- ✅ Path resolution via universal `resolve_paths()` with schema-driven `global_paths` (see §3.18)
 - ✅ Test coverage >90% for new components
 - ✅ Performance impact <5% overhead
 - ✅ Documentation updated with patterns

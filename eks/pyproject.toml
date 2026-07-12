@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eks"
+version = "2.6.0"
+description = "Engineering Knowledge System (EKS) — schema-driven document ingestion and retrieval pipeline."
+readme = "knowledge.json"
+requires-python = ">=3.13"
+dependencies = [
+    "jsonschema",
+    "referencing",
+    "duckdb",
+    "pymupdf",
+    "python-docx",
+    "openpyxl",
+]
+
+[project.scripts]
+eks-pipeline = "eks.engine.parsers.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["eks*", "common*"]

@@ -1,9 +1,9 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 1.9  
+**Current Version**: 1.10  
 **Status**: 🔶 PARTIAL — Phase 1 PARTIAL (T1.68–T1.74 pending), Phase 1.2 PARTIAL (server hardening + hygiene pending), Phases 2–5 planned. Cross-workplan alignment audit: fixed R54–R58 scope status, added R43, R40(retrieval), R99 scope rows; fixed §9/§10 ordering; added Phase 1.2, Appendix F/G; corrected emoji across all phase workplans.  
-**Last Updated**: 2026-07-08  
+**Last Updated**: 2026-07-11  
 
 ---
 
@@ -20,6 +20,7 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | Version | Date       | Author | Summary of Changes                                                              |
 | :------ | :--------- | :----- | :------------------------------------------------------------------------------ |
 | 1.9     | 2026-07-08 | System | Cross-workplan alignment audit: fixed R54–R58 status (PLANNED→PASS), added R43, R40(retrieval), R99 scope rows; fixed §9/§10 section ordering; fixed gap assessment count (53→62); added Phase 1.2 to phase index; added Appendix F/G to references; fixed test count (120→118); aligned Phase 1 status with workplan (COMPLETE→PARTIAL). |
+| 1.10    | 2026-07-11 | opencode | Added R60 (Independent Phase Sub-Pipelines) to scope table per AGENTS.md 18.13 — each phase (1–5) must run as an independent sub-pipeline with its own `phase{N}_server.py` backend + `run_pipeline(context)`; Phase 1 satisfied (phase1_server.py), Phases 2–5 pending. Widened I092 to cover the per-phase convergence pattern (entry-point funnel + per-phase backend servers). |
 | 1.8     | 2026-07-08 | System | Appended a new revision entry to the history and documented the shared common-library milestone under `common/library` as a reusable foundation for future EKS runtime integration. |
 | 1.7     | 2026-07-08 | System | Added note that the shared common-library package structure now exists under `common/library` for architecture-aligned logging, telemetry, pipeline, errors, messages, paths, validation, UI, and factory modules; captured as a reusable foundation for future EKS runtime integration. |
 | 0.1     | 2026-06-11 | System | Initial workplan draft — full scope from eks/readme.md                          |
@@ -121,6 +122,7 @@ Design and implement a production-ready Engineering Knowledge System (EKS) that:
 | R56 | Plug-in Architecture | Parser Router | Map `file_type` → parser class from `file_type_registry`; instantiate parser; call parse + extract_metadata + detect in sequence | ✅ PASS | 1 |
 | R57 | Pipeline | Pipeline Orchestration | Coordinate scan → register → route → parse → detect → score → update; error handling, logging, rollback | ✅ PASS | 1 |
 | R58 | Pipeline | Manual Review Workflow | Surface flagged docs; correct metadata; confirm elements; recalculate score; lock for Phase 2 | ✅ PASS | 1 |
+| R60 | Pipeline | Independent Phase Sub-Pipelines | Each phase (1–5) runs as an independent sub-pipeline with its own dedicated backend server `phase{N}_server.py` (AGENTS.md 18.13), exposing its own `run_pipeline(context)` and runnable standalone for dev/testing; master `serve.py` proxies `/api/v1/*` to per-phase backends | 🔶 PARTIAL | 1 (P2–P5 pending) |
 | R43 | Metadata | Engineering Object Metadata Extraction | Automated extraction of engineering object metadata (equipment, instruments, valves, pipelines) from parsed document content using plug-in extractors | 🔷 PLANNED | 3 |
 | R40 | Retrieval Pipeline | Asset-Aware Retrieval & Embedding (retrieval) | Use asset embeddings (`eks_assets` collection) during retrieval to filter and expand context by asset attributes and asset-to-document relationships | 🔷 PLANNED | 4 |
 | R99 | Foundation | Project Infrastructure & Compliance | Folder scaffolding, environment, tests, logs, schema migration, audit, cross-cutting remediation, architectural patterns (BaseEngine, Validator, CLI, HTTP, factories, setup validation) | ✅ PASS | 1 |

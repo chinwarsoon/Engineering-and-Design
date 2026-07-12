@@ -188,6 +188,8 @@ class ProjectSetupValidator:
         self._folders = self._setup_config.get("folders", [])
         self._root_files = self._setup_config.get("root_files", [])
         self._schema_files = self._setup_config.get("schema_files", [])
+        self._workflow_files = self._setup_config.get("workflow_files", [])
+        self._tool_files = self._setup_config.get("tool_files", [])
         self._env = self._setup_config.get("environment", [])
         self._deps = self._setup_config.get("dependencies", {})
         self._discovery_rules = self._setup_config.get("discovery_rules", [])
@@ -227,6 +229,10 @@ class ProjectSetupValidator:
                         })
                 result["readiness"] = "NO"
 
+        # T1.98g: validate workflow_files / tool_files (DCC project_config parity)
+        result["workflow_files"] = self._validate_named_files(self._workflow_files)
+        result["tool_files"] = self._validate_named_files(self._tool_files)
+
         # Map generic error codes to P1-SETUP-* codes
         for ec in result.get("error_codes", []):
             ec["code"] = _eks_code(ec["code"])
@@ -237,6 +243,10 @@ class ProjectSetupValidator:
         for entry in result.get("root_files", {}).get("missing", []):
             entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_FILE"))
         for entry in result.get("schema_files", {}).get("missing", []):
+            entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_FILE"))
+        for entry in result.get("workflow_files", {}).get("missing", []):
+            entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_FILE"))
+        for entry in result.get("tool_files", {}).get("missing", []):
             entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_FILE"))
         for entry in result.get("environment", {}).get("missing_files", []):
             entry["error_code"] = _eks_code(entry.get("error_code", "MISSING_ENV_FILE"))
@@ -251,16 +261,50 @@ class ProjectSetupValidator:
 
         return self.validation_results
 
+    def _validate_named_files(self, files: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Check existence of named pipeline files (workflow_files / tool_files)."""
+        found: List[Dict[str, Any]] = []
+        missing: List[Dict[str, Any]] = []
+        for f in files or []:
+            if not isinstance(f, dict):
+                continue
+            name = f.get("filename") or f.get("name")
+            if not name:
+                continue
+            path = self.project_root / name
+            if path.exists():
+                found.append({"name": name, "path": str(path), "exists": True})
+            else:
+                missing.append({
+                    "name": name,
+                    "path": str(path),
+                    "exists": False,
+                    "error_code": "MISSING_FILE",
+                })
+        return {"found": found, "missing": missing, "all_exist": not missing}
+
     def _build_legacy_result(self, result: Dict[str, Any]) -> Dict[str, Any]:
         """Build backward-compatible validation_results dict from universal result."""
         folders = result.get("folders", {})
         root_files = result.get("root_files", {})
         schema_files = result.get("schema_files", {})
+        workflow_files = result.get("workflow_files", {})
+        tool_files = result.get("tool_files", {})
         env = result.get("environment", {})
         deps = result.get("dependencies", {})
         combined_files = {
-            "missing": root_files.get("missing", []) + schema_files.get("missing", []),
-            "all_exist": root_files.get("all_exist", True) and schema_files.get("all_exist", True),
+            "missing": (
+                root_files.get("missing", [])
+                + schema_files.get("missing", [])
+                + workflow_files.get("missing", [])
+                + tool_files.get("missing", [])
+            ),
+            "all_exist": (
+                root_files.get("all_exist", True)
+                and schema_files.get("all_exist", True)
+                and workflow_files.get("all_exist", True)
+                and tool_files.get("all_exist", True)
+            ),
         }
         has_env_file = all(e.get("file_exists", False) if e.get("file") else True for e in env.get("entries", []))
         eks_yml_candidates = [f for f in root_files.get("found", []) + root_files.get("missing", []) if "eks.yml" in f.get("name", "")]
@@ -314,6 +358,8 @@ class ProjectSetupValidator:
             },
             "dependencies": deps,
             "output_paths": output_paths,
+            "workflow_files": workflow_files,
+            "tool_files": tool_files,
             "readiness": "YES" if all_valid else "NO",
             "error_codes": result.get("error_codes", []),
         }

@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85).",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98f/I090 (DCC project_config parity).",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
@@ -53,10 +53,26 @@
             "type": "object",
             "properties": {
                 "type": { "type": "string", "enum": ["duckdb", "postgresql"] },
-                "connection_string": { "type": "string" },
-                "timeout": { "type": "integer", "default": 30 }
+                "connection_string": { "type": "string" }
             },
             "required": ["type", "connection_string"],
+            "additionalProperties": false
+        },
+        "system_parameters_def": {
+            "type": "object",
+            "description": "Runtime behavior settings for loaders, validators, servers, and registry retry behavior (T1.97/I088).",
+            "properties": {
+                "fail_fast": { "type": "boolean", "default": true },
+                "log_level": { "$ref": "#/definitions/verbosity_level", "default": 1 },
+                "debug_mode": { "type": "boolean", "default": false },
+                "skip_readiness": { "type": "boolean", "default": false },
+                "retry_count": { "type": "integer", "minimum": 0, "default": 3 },
+                "retry_delay": { "type": "number", "minimum": 0, "default": 0.5 },
+                "api_timeout": { "type": "integer", "minimum": 1, "default": 120 },
+                "ollama_timeout": { "type": "integer", "minimum": 1, "default": 30 },
+                "db_timeout": { "type": "integer", "minimum": 1, "default": 30 }
+            },
+            "required": ["fail_fast", "log_level", "debug_mode", "skip_readiness", "retry_count", "retry_delay", "api_timeout", "ollama_timeout", "db_timeout"],
             "additionalProperties": false
         },
         "parsers_def": {
@@ -160,6 +176,30 @@
                 "filename": { "type": "string", "description": "Schema filename relative to config/schemas" },
                 "required": { "type": "boolean", "description": "Whether this schema file is mandatory" },
                 "description": { "type": "string", "description": "Purpose of this schema file" }
+            },
+            "required": ["filename", "required", "description"],
+            "additionalProperties": false
+        },
+        "workflow_file_entry_def": {
+            "type": "object",
+            "description": "Workflow/pipeline file entry with metadata (DCC-aligned — project_config.json#/workflow_files, T1.98f/I090)",
+            "properties": {
+                "filename": { "type": "string", "description": "Workflow filename relative to project root" },
+                "required": { "type": "boolean", "description": "Whether this workflow file is mandatory" },
+                "description": { "type": "string", "description": "Purpose of this workflow file" },
+                "type": { "type": "string", "description": "File classification (e.g. python_module, python_script)", "default": "python_module" }
+            },
+            "required": ["filename", "required", "description"],
+            "additionalProperties": false
+        },
+        "tool_file_entry_def": {
+            "type": "object",
+            "description": "Tool/utility file entry with metadata (DCC-aligned — project_config.json#/tool_files, T1.98f/I090)",
+            "properties": {
+                "filename": { "type": "string", "description": "Tool filename relative to project root" },
+                "required": { "type": "boolean", "description": "Whether this tool file is mandatory" },
+                "description": { "type": "string", "description": "Purpose of this tool file" },
+                "type": { "type": "string", "description": "File classification (e.g. python_module, python_script)", "default": "python_script" }
             },
             "required": ["filename", "required", "description"],
             "additionalProperties": false

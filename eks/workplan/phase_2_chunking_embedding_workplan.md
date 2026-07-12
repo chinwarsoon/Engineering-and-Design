@@ -1,7 +1,7 @@
 # EKS Phase 2 — Chunking, Embedding & Vector Storage
 
 **Document ID**: WP-EKS-P2-001  
-**Current Version**: 0.6  
+**Current Version**: 0.7  
 **Status**: 🔷 PLANNED  
 **Last Updated**: 2026-07-08  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -24,6 +24,7 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | 0.3     | 2026-06-16 | System | Added T2.20–T2.21 for enriching chunk contextual headers with ontology taxonomy paths. Linked Appendix C. |
 | 0.4     | 2026-06-16 | System | Ontology Option C gap closure: added R50 (Ontology-Enriched Embedding Headers) to scope table; updated T2.20 with exact taxonomy-path header format spec per Appendix C. |
 | 0.5     | 2026-06-18 | System | Added R40 (Asset Embedding Strategy) and R41 (Asset Chunk Registry Extension) to scope and task breakdown. Asset text builder and dedicated Qdrant eks_assets collection added. Updated success criteria and deliverables. |
+| 0.7     | 2026-07-11 | opencode | **I092 / R60 pipeline entry-point convergence**: Added T2.25 (Phase 2 standalone backend `phase2_server.py` + `run_phase2_pipeline(context)` reusing Phase 1 shared `run_pipeline()`, AGENTS.md §18.13) and T2.26 (serve.py `/api/v2/*` proxy wiring). Both 🔷 PLANNED for review. |
 | 0.6     | 2026-06-22 | opencode | Added §14: Phase 2 Pipeline Architecture (detailed Mermaid diagram) moved from master workplan §10.3. |
 
 ---
@@ -131,6 +132,8 @@ Implement the chunking, embedding, and vector storage layer. This phase takes pa
 | T2.22 | Integrate Appendix F architecture patterns | Apply universal pipeline architecture patterns per [Appendix F](appendix_f_pipeline_architecture_design.md): (1) Create ChunkerInput/ChunkerOutput and EmbedderInput/EmbedderOutput contracts in `eks/engine/chunking/io_contracts.py` and `eks/engine/embedding/io_contracts.py` extending EngineInput/EngineOutput base; (2) Add telemetry heartbeat checkpoints for chunking progress (documents processed, chunks generated) and embedding progress (chunks embedded, vectors stored); (3) Consider factory pattern for EmbedderProvider selection (OpenAI, Ollama) via Dependency Injection; (4) Ensure chunkers and embedders can be executed independently via CLI entry points; (5) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 | — |
 | T2.23 | Handle revision folder hierarchy inconsistency (I016) | Verify FileScanner handles edge cases where R0 revisions use 3-subfolder structure vs R1+ revisions with flat files; ensure recursive walk works across all submittal structures. | 🔷 | — |
 | T2.24 | Handle dual project codes (I019) | Ensure FileScanner and chunk registry correctly handle both 131101 and 131242 project codes extracted dynamically from document number patterns. | 🔷 | — |
+| T2.25 | Phase 2 standalone backend + runner (I092 / R60) | Create `eks/ui/backend/phase2_server.py` standalone backend (AGENTS.md §18.13): health endpoint, 409 concurrency guard, DuckDB cross-process retry; implement `run_phase2_pipeline(context)` reusing shared `bootstrap_pipeline()`/`run_pipeline()` from Phase 1 (T1.99a); chunk → embed → Qdrant `eks_chunks`/`eks_assets` upsert. | 🔷 | I092, R60, T1.99a |
+| T2.26 | Phase 2 proxy wiring (I092) | `serve.py` proxies `/api/v2/*` → phase2 backend on port 5002; document run command. | 🔷 | I092, T2.25 |
 
 ---
 

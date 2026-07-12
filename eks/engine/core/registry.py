@@ -1,6 +1,11 @@
 """
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
 DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
+
+Revision: 0.2
+Date: 2026-07-11
+Author: Codex
+Summary: Read retry and DB timeout knobs from system_parameters for T1.97/I088.
 """
 import duckdb
 import json
@@ -58,6 +63,9 @@ class DocumentRegistry:
         self.config = ConfigRegistry()
         settings = self.config.registry_settings
         conn_str = settings.get("connection_string", "output/eks_registry.db")
+        self.retry_count = max(1, int(self.config.get_system_param("retry_count", 3)))
+        self.retry_delay = float(self.config.get_system_param("retry_delay", 0.5))
+        self.db_timeout = int(self.config.get_system_param("db_timeout", 30))
         # Resolve relative paths relative to config directory
         loader = getattr(self.config, '_loader', None)
         if loader and hasattr(loader, 'config_dir'):
@@ -322,9 +330,10 @@ class DocumentRegistry:
         finally:
             conn.close()
 
-    @staticmethod
-    def _with_retry(fn, retries=3, delay=0.5):
+    def _with_retry(self, fn, retries: Optional[int] = None, delay: Optional[float] = None):
         """Execute *fn* with retries on IOError (DuckDB locking contention)."""
+        retries = self.retry_count if retries is None else retries
+        delay = self.retry_delay if delay is None else delay
         for attempt in range(retries):
             try:
                 return fn()

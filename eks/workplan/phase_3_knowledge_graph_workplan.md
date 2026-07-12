@@ -1,7 +1,7 @@
 # EKS Phase 3 — Knowledge Graph & Engineering Object Metadata
 
 **Document ID**: WP-EKS-P3-001  
-**Current Version**: 1.0  
+**Current Version**: 1.1  
 **Status**: 🔵 DRAFT — PENDING APPROVAL  
 **Last Updated**: 2026-06-18  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -19,6 +19,7 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 
 | Version | Date       | Author | Summary of Changes                        |
 | :------ | :--------- | :----- | :---------------------------------------- |
+| 1.1     | 2026-07-11 | opencode | **I092 / R60 pipeline entry-point convergence**: Added T3.36 (Phase 3 standalone backend `phase3_server.py` + `run_phase3_pipeline(context)` reusing Phase 1 shared `run_pipeline()`, AGENTS.md §18.13) and T3.37 (serve.py `/api/v3/*` proxy wiring). Both 🔷 PLANNED for review. |
 | 1.0     | 2026-06-18 | Gemini CLI | Added T3.32–T3.34: Document Relationship Ingestion (Revision Chain, Cross-Doc, Asset Tag Linking) per Appendix B logic. Updated to v1.0. |
 | 0.10    | 2026-07-08 | opencode | Added T3.35 for CAD parser evaluation (I015); updated risk row; added success criterion for CAD parser coverage. |
 | 0.9     | 2026-06-18 | Gemini CLI | Added T3.28–T3.31: Specialized Relationship Ingestion (Flow, Power, Control, Governance, Set Points) per approved gap analysis. |
@@ -149,6 +150,8 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | T3.33 | Implement Cross-Doc Reference Extractor | LLM/Regex during ingestion to find document numbers in text; create REFERENCES_DOC edges | 🔷 | — |
 | T3.34 | Implement Asset Tag Linker | Map asset_tags registry field (JSON array) to FunctionalObject nodes via REFERENCES_ASSET | 🔷 | — |
 | T3.35 | Evaluate and implement CAD parser for DGN/DWG files (I015) | Research CAD libraries (OpenDesign SDK, LibreCAD, or commercial); implement full DGN/DWG parser or confirm stub; update parser registry; test against 48 CAD files from twrp sample; if no viable library found, document as known permanent gap | 🔷 | — |
+| T3.36 | Phase 3 standalone backend + runner (I092 / R60) | Create `eks/ui/backend/phase3_server.py` standalone backend (AGENTS.md §18.13): health endpoint, 409 concurrency guard, DuckDB cross-process retry; implement `run_phase3_pipeline(context)` reusing shared `bootstrap_pipeline()`/`run_pipeline()` from Phase 1 (T1.99a); ontology + Neo4j + asset ingestion. | 🔷 | I092, R60, T1.99a |
+| T3.37 | Phase 3 proxy wiring (I092) | `serve.py` proxies `/api/v3/*` → phase3 backend on port 5003; document run command. | 🔷 | I092, T3.36 |
 
 ---
 

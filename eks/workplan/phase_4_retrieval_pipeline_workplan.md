@@ -1,7 +1,7 @@
 # EKS Phase 4 — Retrieval & Scoring Pipeline
 
 **Document ID**: WP-EKS-P4-001  
-**Current Version**: 0.7  
+**Current Version**: 0.8  
 **Status**: 🔷 PLANNED  
 **Last Updated**: 2026-07-08  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -19,6 +19,7 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 
 | Version | Date       | Author | Summary of Changes                        |
 | :------ | :--------- | :----- | :---------------------------------------- |
+| 0.8     | 2026-07-11 | opencode | **I092 / R60 pipeline entry-point convergence**: Added T4.26 (Phase 4 standalone backend `phase4_server.py` + `run_phase4_pipeline(context)` reusing Phase 1 shared `run_pipeline()`, AGENTS.md §18.13) and T4.27 (serve.py `/api/v4/*` proxy wiring). Both 🔷 PLANNED for review. |
 | 0.7     | 2026-06-16 | System | Ontology Option C gap closure: added T4.22 (dedicated ontology_resolver.py module); T4.23 (CONTROLS + FEEDS_FROM traversal in graph expander); T4.24 (PhysicalObject lookup via INSTALLED_AT). Added success criteria for all three. Added ontology_resolver.py to files table. |
 | 0.6     | 2026-06-16 | System | Added T4.20–T4.21 for dynamic ontology-aware query expansion and unlimited path depth connectivity tracing. Linked Appendix C. |
 | 0.5     | 2026-06-16 | System | Updated T4.1 to include new metadata dimensions: `originator_company` and `security_class`. |
@@ -133,6 +134,8 @@ Build the full hybrid retrieval and scoring pipeline that transforms a natural l
 | T4.23 | Extend graph expander with CONTROLS + FEEDS_FROM | Update `graph_expander.py` to traverse `CONTROLS` relationships (instrument→asset: "what controls this pump?") and `FEEDS_FROM` relationships; add to the candidate expansion set alongside existing CONNECTS_TO and REFERENCED_BY_DWG traversals | 🔷 |
 | T4.24 | Implement PhysicalObject lookup via INSTALLED_AT | Add query path in `graph_expander.py`: when query targets a tag node (FunctionalObject), traverse `INSTALLED_AT` in reverse to find linked PhysicalObject nodes; include manufacturer, serial_number, brand in LLM context assembly for physical equipment queries | 🔷 |
 | T4.25 | Integrate Appendix F architecture patterns | Apply universal pipeline architecture patterns per [Appendix F](appendix_f_pipeline_architecture_design.md): (1) Create RetrieverInput/RetrieverOutput, ScorerInput/ScorerOutput, and LLMInput/LLMOutput contracts in `eks/engine/retrieval/io_contracts.py` extending EngineInput/EngineOutput base; (2) Add telemetry heartbeat checkpoints for retrieval pipeline stages (filter, expand, search, score, rerank, assemble); (3) Implement LLMProviderFactory for Dependency Injection (OpenAI, Ollama); (4) Define UI contracts (QueryRequestContract, QueryResponseContract) for Phase 5 integration; (5) Ensure retrieval pipeline stages can be executed independently via CLI entry points; (6) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 |
+| T4.26 | Phase 4 standalone backend + runner (I092 / R60) | Create `eks/ui/backend/phase4_server.py` standalone backend (AGENTS.md §18.13): health endpoint, 409 concurrency guard, cross-process retry; implement `run_phase4_pipeline(context)` reusing shared `bootstrap_pipeline()`/`run_pipeline()` from Phase 1 (T1.99a); filter → expand → search → score → rerank → assemble. | 🔷 | I092, R60, T1.99a |
+| T4.27 | Phase 4 proxy wiring (I092) | `serve.py` proxies `/api/v4/*` → phase4 backend on port 5004; document run command. | 🔷 | I092, T4.26 |
 
 ---
 

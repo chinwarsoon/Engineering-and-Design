@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry — Test Report
 
 **Report ID**: RP-EKS-P1-001  
-**Current Version**: 2.7  
-**Status**: ✅ COMPLETE — All Phase 1 tasks complete including T1.77–T1.95 (initiation integrity + schema-driven hardening + initiation harmonization + initiation config flattening). 236/236 tests pass. Phase 1.3 (T1.84–T1.89) integrated; T1.79–T1.83 detailed test-case tables integrated into §15.3; T1.90–T1.95 flattening integrated into §15.4. Stand-alone `phase_1.3_initiation_harmonization_workplan.md` archived in `eks/archive/`; `phase_1_t179_t183_report.md` fully merged and archived in `eks/archive/`.  
-**Last Updated**: 2026-07-09  
+**Current Version**: 2.11  
+**Status**: ✅ COMPLETE — All Phase 1 tasks complete through T1.99a–g/I092 (Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence). 257/257 tests pass. T1.98/I089/I090 (Universal Path Resolution & Schema-Driven Initialization) integrated into §20; T1.99a–g/I092 convergence integrated into §21. Phases 2–5 of I092/R60 remain 🔷 PLANNED.  
+**Last Updated**: 2026-07-11  
 **Parent Workplan**: [phase_1_foundation_workplan.md](../phase_1_foundation_workplan.md)  
 **Parent Master**: [eks_system_workplan.md](../eks_system_workplan.md)
 
@@ -19,6 +19,8 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 
 | Version | Date | Author | Summary of Changes |
 | :------ | :--- | :----- | :----------------- |
+| 2.10 | 2026-07-11 | opencode | **I089 + I090 resolved — Universal Path Resolution & Schema-Driven Initialization (T1.98)**: Added §20. Adopted EKS `global_paths` as the universal canonical path pattern (L16 in `common/universal_pipeline_architecture_design.md`). Added `common/library/paths/resolver.py` (`resolve_paths`, `ResolvedPaths`) normalizing EKS `global_paths` + DCC `folder_creation`/`discovery_rules` shapes; exported from `common/library/paths/__init__.py`. Wired `ConfigRegistry` (6 path properties) + `phase1_server.py` to the resolver. Added `workflow_file_entry_def`/`tool_file_entry_def` to `eks_base_schema.json` v1.9.0; `workflow_files`/`tool_files` to `eks_setup_schema.json` v1.7.0 + `eks_config.json` v1.7.0 (DCC parity); `setup_validator.py` validates them. `eks/knowledge.json` → v2.6.0. Added `eks/test/test_path_resolver.py` (9 tests). Full EKS suite 252/252 pass (243 + 9 new). |
+| 2.11 | 2026-07-11 | opencode | **I092/R60 — Phase 1 Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence (T1.99a–g) COMPLETE**: New `eks/engine/core/pipeline_runner.py` shared `bootstrap_pipeline()`/`run_pipeline(context)` funnel (ConfigRegistry → SchemaLoader.load_all → DocumentRegistry → ErrorManager/MessageManager → ProjectSetupValidator readiness gate → PipelineOrchestrator.run_full_pipeline → checkpoint + on_phase callback). Rewrote `eks/engine/parsers/cli.py` as real end-to-end CLI + `eks/pyproject.toml` `eks-pipeline` console_scripts. Wired `phase1_server._run` to `run_pipeline()` (409 guard + resolve_paths preserved). Archived orphan `ui/backend/engine_endpoints.py` → `archive/ui/backend/`. Added canonical `eks/serve.py` (§18.12); `server.py` is a thin re-export shim. `bootstrap_pipeline()` uses `ConfigRegistry` singleton SSOT (resets singleton on differing config_dir; soft readiness gate logs + continues despite `fail_fast:true`). New `eks/test/test_pipeline_runner.py`. Fixed `project_root` depth bug (`parent×4`) in cli.py + pipeline_runner.py; fixed `phase1_server._run` cancellation bug (cancelled job status no longer overwritten with `failed`). Full EKS suite 257/257 green (stable across repeated runs). `phase_1_foundation_workplan.md` → v3.51. U139. I092 narrowed to Phases 2–5. |
 | 2.7 | 2026-07-09 | opencode | **Phase 1.3 integrated**: Added §16 (Phase 1.3 Initiation Harmonization test results — T1.84–T1.89). Updated scope summary, success criteria, files, recommendations, and references. Test count updated to 235/235. I085 resolved. Phase 1.3 stand-alone workplan retained as archived reference. |
 | 2.6 | 2026-07-09 | opencode | **T1.79–T1.83 COMPLETE**: Initiation schema-driven hardening — error codes/ErrorManager wiring, config-driven paths, SSOT fallback removal, validation_options honored, eks_root schema-driven. 7 P1-SETUP-* error codes, 19 validator tests, 36 server tests. 215/215 tests pass. I079–I084 closed. Report created at `phase_1_t179_t183_report.md` (now integrated here). |
 | 2.5 | 2026-07-09 | opencode | **T1.77 COMPLETE**: Initiation integrity checks — ProjectSetupValidator readiness gate, debug levels, arg validation. 202/202 tests pass. |
@@ -63,7 +65,12 @@ Test report for EKS Phase 1 foundation components: schema loading, config regist
 - [15.3 T1.79–T1.83 Detailed Test Cases](#153-t179t183-detailed-test-cases)
 - [15.4 Initiation Config Flattening — DCC project_config Pattern (T1.90–T1.95)](#154-initiation-config-flattening--dcc-project_config-pattern-t190t195)
 - [16. Phase 1.3 Initiation Harmonization (T1.84–T1.89)](#16-phase-13-initiation-harmonization-t184t189)
-- [17. References](#17-references)
+- [17. Schema Discovery & Registration — Discovery-Driven Loading (T1.96)](#17-schema-discovery--registration--discovery-driven-loading-t196)
+- [18. System Parameters — SSOT Centralization (T1.97/I088)](#18-system-parameters--ssot-centralization-t197i088)
+- [19. Universal Architecture Elevation (T1.97j–n / I091)](#19-universal-architecture-elevation-t197j-n--i091)
+- [20. Universal Path Resolution & Schema-Driven Initialization (T1.98 / I089 / I090)](#20-universal-path-resolution--schema-driven-initialization-t198--i089--i090)
+- [21. Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence (T1.99a–g / I092 / R60)](#21-pipeline-entry-point--per-phase-sub-pipeline-convergence-t199ag--i092--r60)
+- [22. References](#22-references)
 
 ---
 
@@ -443,6 +450,14 @@ Verify that all Phase 1 foundation components are implemented correctly and meet
 | T1.78–T1.83 (Initiation hardening) | ✅ | DCC gaps closed (readability, env probe, output-path checks, --skip-readiness, error codes), config-driven paths, fallback removal (SSOT), eks_root schema-driven |
 | T1.84–T1.89 (Initiation harmonization) | ✅ | Universal ValidationManager created, EKS setup schema reshaped to DCC object model, project_setup config extracted, validator refactored as thin adapter, unit tests migrated/added |
 | Phase 1 FINAL COMPLETE | ✅ | All 89 tasks delivered, 24 schemas, 235 tests, all issues resolved or deferred |
+| T1.99a Shared `run_pipeline(context)`/`bootstrap_pipeline()` helper | ✅ | `eks/engine/core/pipeline_runner.py`; ConfigRegistry → SchemaLoader.load_all → DocumentRegistry → Error/MessageManager → ProjectSetupValidator readiness gate → PipelineOrchestrator.run_full_pipeline → checkpoint + on_phase |
+| T1.99b Unified end-to-end CLI + `eks-pipeline` console_scripts | ✅ | `eks/engine/parsers/cli.py` real CLI; `eks/pyproject.toml` `[project.scripts] eks-pipeline` |
+| T1.99c `phase1_server._run` wired to `run_pipeline()` | ✅ | Inline A→C replaced; 409 guard + resolve_paths preserved |
+| T1.99d Orphan `engine_endpoints.py` removed | ✅ | Archived to `archive/ui/backend/engine_endpoints.py` (no references remained) |
+| T1.99e Canonical `eks/serve.py` added (§18.12) | ✅ | `server.py` retained as thin re-export shim |
+| T1.99f `ConfigRegistry` SSOT at entry | ✅ | Singleton passed (not raw dict) to ProjectSetupValidator; resets on differing config_dir |
+| T1.99g Tests + full suite green | ✅ | New `eks/test/test_pipeline_runner.py`; full suite 257/257 pass (stable) |
+| `phase1_server._run` cancellation preserves `cancelled` status | ✅ | Bug fixed: cancelled job no longer overwritten with `failed` |
 
 ---
 
@@ -763,9 +778,202 @@ All 71 Phase 1 tests, all 24 schema tests, all 20 validation manager tests, all 
 
 ---
 
-## 18. References
+## 18. System Parameters — SSOT Centralization (T1.97/I088)
 
-1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.43
+**Objective**: Resolve I088 by centralizing runtime behavior flags/timeouts/retry values in `eks_config.json -> system_parameters` and a reusable common helper.
+
+### 18.1 Results
+
+| Sub-Task | Result | Details |
+| :------- | :----- | :------ |
+| T1.97a | ✅ PASS | Added `common/library/config/__init__.py` with `normalize_system_parameters()` and `get_system_param()`. Supports EKS flat object, direct flat object, and DCC-style array entries with `value`, `default_value`, or `default`. |
+| T1.97b | ✅ PASS | Added `system_parameters_def` to `eks_base_schema.json` v1.8.0 with 9 typed runtime settings. |
+| T1.97c | ✅ PASS | Added optional `system_parameters` property to `eks_setup_schema.json` v1.6.0. |
+| T1.97d | ✅ PASS | Added `system_parameters` block to `eks_config.json` v1.6.0 and removed standalone `registry.timeout`. |
+| T1.97e-h | ✅ PASS | Wired `phase1_server.py`, `error_manager.py`, `registry.py`, and `eks/server.py` to read T1.97 runtime knobs from config. |
+| T1.97i | ✅ PASS | Added `test_system_parameters.py`; full EKS suite passed. |
+
+### 18.2 Test Summary
+
+```
+conda run -n eks python -m pytest eks/test/test_system_parameters.py
+7 passed in 1.67s
+
+conda run -n eks python -m pytest eks/test/
+243 passed, 8 warnings in 13.58s
+```
+
+The full suite required unsandboxed execution because Phase 1 server tests bind local sockets; the sandbox blocked socket creation with `PermissionError`.
+
+### 18.3 Files Modified
+
+| File | Change |
+| :--- | :----- |
+| `common/library/config/__init__.py` | New shared config helper module |
+| `eks/config/schemas/eks_base_schema.json` | v1.8.0, added `system_parameters_def`, removed `registry.timeout` |
+| `eks/config/schemas/eks_setup_schema.json` | v1.6.0, added `system_parameters` property |
+| `eks/config/schemas/eks_config.json` | v1.6.0, added `system_parameters` values |
+| `eks/engine/core/config_registry.py` | Added `get_system_param()` method |
+| `eks/engine/core/error_manager.py` | Reads `fail_fast` from config |
+| `eks/engine/core/registry.py` | Reads retry/db timeout parameters from config |
+| `eks/ui/backend/phase1_server.py` | Reads debug/log/readiness/retry parameters from config |
+| `eks/server.py` | Reads API/Ollama proxy timeouts from config |
+| `eks/test/test_system_parameters.py` | New focused tests |
+
+---
+
+## 19. Universal Architecture Elevation (T1.97j–n / I091)
+
+**Objective**: Resolve I091 by elevating `system_parameters` from a project-specific implementation to a formally defined universal pipeline feature (L15) in `common/universal_pipeline_architecture_design.md`, and register `config/` as an architecture-aligned sub-package in `common/library/__init__.py`.
+
+### 19.1 Results
+
+| Sub-Task | Result | Details |
+| :------- | :----- | :------ |
+| T1.97j | ✅ PASS | Registered `config/` as architecture-aligned sub-package in `common/library/__init__.py` (docstring, `from . import config`, `__all__`). |
+| T1.97k | ✅ PASS | Added L15 — System Parameters / Runtime Behavior Config to `common/universal_pipeline_architecture_design.md` §2.2 inventory, §2.3 package structure, §2.4 per-library detail. |
+| T1.97l | ✅ PASS | Added §3.17 System Parameters Pattern (schema-defined runtime behavior knobs, universal normalization, both flat-object and array-of-entries shapes). |
+| T1.97m | ✅ PASS | Updated §4.1 When to Apply, §4.2 Implementation Order, §9 Appendix A checklist, §10 Appendix B success criteria; doc version → 1.6. |
+| T1.97n | ✅ PASS | Updated `eks/knowledge.json` → v2.5.0 with L15 elevation status and revision entry. |
+
+### 19.2 Test Summary
+
+```
+conda run -n eks python -m pytest eks/test/
+243 passed, 8 warnings in 36.48s
+```
+
+`common.library.config` imports cleanly as a registered sub-package; `eks/knowledge.json` is valid JSON.
+
+### 19.3 Files Modified
+
+| File | Change |
+| :--- | :----- |
+| `common/library/__init__.py` | Registered `config` sub-package (docstring, import, `__all__`) |
+| `common/universal_pipeline_architecture_design.md` | v1.6: L15 inventory/structure/detail, §3.17 pattern, §4.1/§4.2/§9/§10 updates |
+| `eks/knowledge.json` | v2.5.0: L15 elevation status, revision entry |
+| `eks/log/issue_log.md` | I091 marked ✅ Resolved |
+| `eks/log/update_log.md` | U134 added |
+| `eks/workplan/phase_1_foundation_workplan.md` | §19.3 tasks → ✅, §19.4 success criteria, version → 3.46 |
+
+---
+
+## 20. Universal Path Resolution & Schema-Driven Initialization (T1.98 / I089 / I090)
+
+**Objective**: Resolve I089 by adopting EKS's `global_paths` as the universal canonical schema-driven path pattern and providing a shared `PathResolver` in `common/library/paths/` that normalizes both EKS and DCC path shapes. Resolve I090 by bringing EKS to DCC parity for `workflow_files`/`tool_files` (schema-driven initialization). `folder_creation` is satisfied by the resolver deriving the create-list from the canonical `global_paths` — EKS deliberately does **not** add a separate DCC-style `folder_creation` block.
+
+### 20.1 Design Decision (I089 re-evaluation)
+
+A re-audit of DCC's actual path code found its model weaker than EKS's:
+- DCC `ProjectSetupValidator.validate_named_files()` and `validate_folders()` use hardcoded `project_root / base_path / "data"` literals and a `default_base_path()` that traverses `os.path.dirname(__file__)` to locate the repo root — both are anti-patterns.
+- DCC `discovery_rules` are used only for **schema discovery**, not for general path resolution; `required_directories` live under `folder_creation`.
+
+By contrast, EKS's `global_paths` (hardened by T1.80/T1.82/T1.83 — no hardcoded fallbacks) is genuinely schema-driven SSOT. Therefore the universal pattern adopts EKS `global_paths` as canonical, with a bidirectional `PathResolver` normalizing the DCC shape into it.
+
+### 20.2 Results
+
+| Sub-Task | Result | Details |
+| :------- | :----- | :------ |
+| T1.98a | ✅ PASS | Created `common/library/paths/resolver.py` with `resolve_paths(project_root, config) -> ResolvedPaths` and `ResolvedPaths` dataclass (data_dir, output_dir, archive_dir, config_dir, log_dir, schema_dir, eks_root, source). Handles EKS `global_paths` directly; normalizes DCC `folder_creation.required_directories` + `discovery_rules.directory` + native `base_path/"data"` default. |
+| T1.98b | ✅ PASS | `common/library/paths/__init__.py` exports `resolve_paths`, `ResolvedPaths`. |
+| T1.98c | ✅ PASS | `ConfigRegistry` routes all 6 path properties through `resolve_paths()`; `phase1_server.py` updated at 3 sites (`_handle_config_paths`, `_handle_pipeline_start`, `_run` closure) to use `resolve_paths()` instead of inline `PRJ_DIR / _eks_root / gp.get(...)`. |
+| T1.98d | ✅ PASS | `common/universal_pipeline_architecture_design.md` v1.7: L16 — Path Resolution / Schema-Driven Paths (§2.2 inventory, §2.3 package structure, §2.4 detail); §3.18 Path Resolution Pattern (canonical = EKS `global_paths`); §4.1/§4.2 application guidelines, §9 checklist, §10 success criteria. |
+| T1.98e | ✅ PASS | `eks/knowledge.json` → v2.6.0 with L16 elevation status and I089/I090 resolution entries. |
+| T1.98f | ✅ PASS | `eks_base_schema.json` v1.9.0: added `workflow_file_entry_def`, `tool_file_entry_def`. `eks_setup_schema.json` v1.7.0: added `workflow_files`, `tool_files` properties. `eks_config.json` v1.7.0: added instance blocks (DCC parity). |
+| T1.98g | ✅ PASS | `setup_validator.py` validates `workflow_files`/`tool_files` via `_validate_named_files()`; `ConfigRegistry` exposes them. Folder creation driven by canonical `global_paths`. |
+| T1.98h | ✅ PASS | Added `eks/test/test_path_resolver.py` (9 tests); full EKS suite 252/252 pass. I089 + I090 closed. |
+
+### 20.3 Test Summary
+
+```
+conda run -n eks python -m pytest eks/test/test_path_resolver.py -v
+eks/test/test_path_resolver.py::TestPathResolver::test_resolve_dcc_shape PASSED
+eks/test/test_path_resolver.py::TestPathResolver::test_resolve_eks_shape PASSED
+eks/test/test_path_resolver.py::TestPathResolver::test_resolved_paths_absolute PASSED
+eks/test/test_path_resolver.py::TestPathResolver::test_resolved_paths_dcc_absolute PASSED
+eks/test/test_path_resolver.py::TestConfigRegistryPaths::test_eks_config_has_workflow_and_tool_files PASSED
+eks/test/test_path_resolver.py::TestConfigRegistryPaths::test_path_properties_routed_through_resolver PASSED
+eks/test/test_path_resolver.py::TestSetupValidatorPipelineFiles::test_workflow_and_tool_files_validated PASSED
+eks/test/test_path_resolver.py::TestSchemaDeclaresPipelineFiles::test_base_schema_has_pipeline_file_defs PASSED
+eks/test/test_path_resolver.py::TestSchemaDeclaresPipelineFiles::test_setup_schema_has_pipeline_file_properties PASSED
+9 passed in 3.39s
+```
+
+```
+conda run -n eks python -m pytest eks/test/
+252 passed, 8 warnings in 15.64s
+```
+
+### 20.4 Files Modified
+
+| File | Change |
+| :--- | :----- |
+| `common/library/paths/resolver.py` | NEW: `resolve_paths()`, `ResolvedPaths` normalizing EKS + DCC path shapes |
+| `common/library/paths/__init__.py` | Exports `resolve_paths`, `ResolvedPaths` |
+| `eks/engine/core/config_registry.py` | 6 path properties routed through `resolve_paths()`; `workflow_files`/`tool_files` exposed |
+| `eks/ui/backend/phase1_server.py` | 3 sites use `resolve_paths()` instead of inline path construction |
+| `eks/engine/core/setup_validator.py` | `_validate_named_files()` validates `workflow_files`/`tool_files`; legacy result includes them |
+| `eks/config/schemas/eks_base_schema.json` | v1.9.0: `workflow_file_entry_def`, `tool_file_entry_def` |
+| `eks/config/schemas/eks_setup_schema.json` | v1.7.0: `workflow_files`, `tool_files` properties |
+| `eks/config/schemas/eks_config.json` | v1.7.0: `workflow_files`, `tool_files` instance blocks |
+| `common/universal_pipeline_architecture_design.md` | v1.7: L16 inventory/structure/detail, §3.18 pattern, §4.1/§4.2/§9/§10 |
+| `eks/knowledge.json` | v2.6.0: L16 elevation, I089/I090 resolution |
+| `eks/test/test_path_resolver.py` | NEW: 9 tests (EKS + DCC shape normalization, schema wiring, validator) |
+| `eks/log/issue_log.md` | I089, I090 marked ✅ Resolved |
+| `eks/log/update_log.md` | U135 added |
+| `eks/workplan/phase_1_foundation_workplan.md` | §20 T1.98a–h → ✅, §20.3 success criteria, version → 3.47 |
+
+---
+
+## 21. Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence (T1.99a–g / I092 / R60)
+
+### 21.1 Objective
+
+Resolve I092 by converging EKS Phase 1 pipeline entry points (CLI, web, HTTP backend) on a single shared `run_pipeline(context)` funnel — mirroring DCC's CLI + UI + web → one `run_engine_pipeline(context)` — and satisfy R60 / AGENTS.md §18.13 (each phase runs as an independent sub-pipeline with its own `phase{N}_server.py`). Phase 1 already had `phase1_server.py`; it needed the convergence cleanup. Phases 2–5 need the full backend + runner (logged as T2.25–T2.26, T3.36–T3.37, T4.26–T4.27, T5.21–T5.22 — 🔷 PLANNED).
+
+### 21.2 Implementation Summary
+
+| ID | Deliverable | Evidence |
+| :-- | :---------- | :------- |
+| T1.99a | Shared `bootstrap_pipeline()` / `run_pipeline(context)` helper | `eks/engine/core/pipeline_runner.py`: ConfigRegistry → SchemaLoader.load_all → DocumentRegistry → ErrorManager/MessageManager → ProjectSetupValidator readiness gate → PipelineOrchestrator.run_full_pipeline → checkpoint (`output/checkpoints/{job_id}.json`) + `on_phase` callback |
+| T1.99b | Unified end-to-end CLI + `console_scripts` | `eks/engine/parsers/cli.py` rewritten; `eks/pyproject.toml` `[project.scripts] eks-pipeline = "eks.engine.parsers.cli:main"` |
+| T1.99c | Wire `phase1_server._run` to `run_pipeline()` | `eks/ui/backend/phase1_server.py` `_run` calls `run_pipeline(...)`; 409 concurrency guard + `resolve_paths()` preserved |
+| T1.99d | Remove orphan `engine_endpoints.py` | Archived to `archive/ui/backend/engine_endpoints.py` (no references remained) |
+| T1.99e | Add `eks/serve.py` (§18.12) | `eks/serve.py` canonical launcher; `server.py` retained as thin re-export shim (`from eks.serve import *`) |
+| T1.99f | `ConfigRegistry` SSOT at entry | `bootstrap_pipeline()` loads `ConfigRegistry` singleton and passes it (not a raw dict) to `ProjectSetupValidator`; singleton reset when a different `config_dir` is requested |
+| T1.99g | Tests | New `eks/test/test_pipeline_runner.py` (CLI smoke + `run_pipeline` exercised); full suite 257/257 green |
+
+### 21.3 Test Phases, Steps & Results
+
+| Step | Test | Result |
+| :--- | :--- | :----- |
+| 1 | `TestRunPipeline.test_run_pipeline_calls_orchestrator` — `run_pipeline` invokes `PipelineOrchestrator.run_full_pipeline` and returns `summary`/`em`/`mm` | ✅ PASS |
+| 2 | `TestRunPipeline.test_bootstrap_pipeline_builds_context` — `bootstrap_pipeline` builds ConfigRegistry → SchemaLoader → DocumentRegistry and returns a context dict | ✅ PASS |
+| 3 | `TestCli.test_cli_runs_end_to_end` — `eks-pipeline --data-dir <dir>` runs the full pipeline, prints summary, exits 0 | ✅ PASS (after `project_root` depth fix) |
+| 4 | `TestCli.test_cli_debug_and_level_flags` — `--debug`/`--level` parsed | ✅ PASS |
+| 5 | `test_phase1_server.py::test_pipeline_cancel` — DELETE cancels a running job; status stays `cancelled` | ✅ PASS (after cancellation bug fix) |
+| 6 | Full EKS suite (`pytest eks/test/`) | ✅ 257 passed, stable across repeated runs |
+
+### 21.4 Bugs Found & Fixed
+
+1. **`project_root` depth bug (T1.99b/f)**: `cli.py` and `pipeline_runner.py` computed `project_root` as `parent × 3`, but both files live three directories deep under `eks/` (`eks/engine/parsers/`, `eks/engine/core/`), so `parent × 3` resolved to `eks/`, not the repo root. Default config dir was therefore wrong and the CLI could not load schemas. Fixed to `parent × 4`.
+2. **Cancellation status bug (T1.99c)**: when a pipeline was cancelled mid-run, `run_pipeline` raised `RuntimeError("Pipeline cancelled")` which `_run` caught and used to overwrite the `"cancelled"` status with `"failed"` (race vs the DELETE handler). `phase1_server._run` now detects the `cancelled` status and preserves `"cancelled"`, logging as STATUS rather than ERROR.
+
+### 21.5 Files Created / Modified / Archived
+
+- **Created**: `eks/engine/core/pipeline_runner.py`, `eks/pyproject.toml`, `eks/serve.py`, `eks/test/test_pipeline_runner.py`
+- **Modified**: `eks/engine/parsers/cli.py`, `eks/ui/backend/phase1_server.py`, `eks/server.py` (shim)
+- **Archived**: `ui/backend/engine_endpoints.py` → `archive/ui/backend/engine_endpoints.py`
+
+### 21.6 Recommendations
+
+- Implement Phases 2–5 standalone backends + runners (T2.25–T2.26, T3.36–T3.37, T4.26–T4.27, T5.21–T5.22) reusing `eks/engine/core/pipeline_runner.py` so each phase ships a `phase{N}_server.py` + `run_phase{N}_pipeline(context)` and `serve.py` proxies `/api/v{N}/*` (I092/R60 remaining work).
+
+---
+
+## 22. References
+
+1. [Phase 1 Foundation Workplan](../phase_1_foundation_workplan.md) — WP-EKS-P1-001 v3.47
 2. [Phase 1.3 Initiation Harmonization Workplan (archived)](../../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001
 3. [Phase 1 T1.79–T1.83 Report (archived)](../../archive/phase_1_t179_t183_report.md) — RP-EKS-P1-T179-001 (detailed test cases integrated into §15.3)
 4. [EKS Master Workplan](../eks_system_workplan.md) — WP-EKS-001 v1.5

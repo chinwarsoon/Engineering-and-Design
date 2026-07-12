@@ -1,211 +1,120 @@
 """
-CLI Entry Point for Parser Engine.
+Unified CLI entry point for the EKS pipeline (I092 / T1.99b).
 
-This module provides a command-line interface for running the parser engine
-independently, implementing the CLI Entry Point pattern per Appendix F.
+Converges on the shared ``run_pipeline()`` funnel so the CLI, the HTTP
+backend server, and (future) UI entry all call one implementation —
+mirroring DCC's single ``run_engine_pipeline(context)`` funnel.
 
-Revision: 0.1
-Date: 2026-06-30
-Author: System
+Revision: 0.2
+Date: 2026-07-11
+Author: opencode
+Summary: T1.99b — replace the stub that returned a fake SUCCESS with a real
+end-to-end run via ``eks.engine.core.pipeline_runner.run_pipeline()`` and add
+the ``eks-pipeline`` console_scripts entry point (eks/pyproject.toml).
 """
-
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Optional
-import json
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# Ensure repo root is importable when run as a script
+_THIS = Path(__file__).resolve()
+_PRJ_DIR = _THIS.parent.parent.parent.parent
+if str(_PRJ_DIR) not in sys.path:
+    sys.path.insert(0, str(_PRJ_DIR))
 
-from engine.core.base import EngineInput, EngineOutput
-from engine.core.context import EKSPipelineContext, EKSPaths
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser for the unified EKS pipeline CLI."""
+    parser = argparse.ArgumentParser(
+        prog="eks-pipeline",
+        description="EKS — run the Phase 1 ingestion pipeline (discovery → parse → score → review).",
+    )
+    parser.add_argument(
+        "--data-dir", required=True, type=str,
+        help="Data directory containing documents to process (relative to repo root or absolute).",
+    )
+    parser.add_argument(
+        "--config-dir", type=str, default=None,
+        help="EKS config directory (default <repo>/eks/config).",
+    )
+    parser.add_argument(
+        "--recursive", action="store_true", default=True,
+        help="Recurse into subdirectories (default: on).",
+    )
+    parser.add_argument(
+        "--no-recursive", dest="recursive", action="store_false",
+        help="Do not recurse into subdirectories.",
+    )
+    parser.add_argument(
+        "--skip-readiness", action="store_true",
+        help="Bypass the project-setup readiness gate (G5 override).",
+    )
+    parser.add_argument(
+        "--debug", action="store_true", help="Verbose logging (level 3).",
+    )
+    parser.add_argument(
+        "--level", type=int, default=1, choices=[0, 1, 2, 3],
+        help="Logging level (0=error, 1=info, 2=debug, 3=trace).",
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Emit the run summary as JSON to stdout.",
+    )
+    return parser
 
 
-class ParserEngineCLI:
-    """CLI interface for parser engine."""
-    
-    def __init__(self):
-        """Initialize CLI parser."""
-        self.parser = argparse.ArgumentParser(
-            description="EKS Parser Engine - Independent execution via CLI",
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            epilog="""
-Examples:
-  # Parse a single file
-  python cli.py --data-dir ./data --file document.pdf
-  
-  # Parse all files in directory
-  python cli.py --data-dir ./data --batch
-  
-  # Resume from checkpoint
-  python cli.py --data-dir ./data --checkpoint checkpoint.json
-            """
+def run(args: Optional[list] = None) -> int:
+    """Run the pipeline end-to-end via the shared funnel. Returns process exit code.
+
+    Args:
+        args: Optional argument list (None -> sys.argv).
+
+    Returns:
+        0 on success, 1 on failure.
+    """
+    parsed = build_parser().parse_args(args)
+    from eks.engine.logging.logger import EKSLogger
+    logger = EKSLogger("eks-pipeline", level=3 if parsed.debug else parsed.level)
+    try:
+        from eks.engine.core.pipeline_runner import run_pipeline
+
+        data_dir = Path(parsed.data_dir)
+        if not data_dir.is_absolute():
+            data_dir = _PRJ_DIR / data_dir
+        config_dir = Path(parsed.config_dir) if parsed.config_dir else None
+
+        result = run_pipeline(
+            project_root=_PRJ_DIR,
+            data_dir=data_dir,
+            recursive=parsed.recursive,
+            config_dir=config_dir,
+            logger=logger,
+            skip_readiness=parsed.skip_readiness,
+            debug=parsed.debug,
         )
-        self._setup_arguments()
-    
-    def _setup_arguments(self):
-        """Setup CLI arguments."""
-        self.parser.add_argument(
-            "--data-dir",
-            type=Path,
-            required=True,
-            help="Input data directory containing documents to parse"
-        )
-        self.parser.add_argument(
-            "--config-file",
-            type=Path,
-            default=Path("eks/config/eks_config.json"),
-            help="Configuration file path (default: eks/config/eks_config.json)"
-        )
-        self.parser.add_argument(
-            "--schema-dir",
-            type=Path,
-            default=Path("eks/config/schemas"),
-            help="Schema directory (default: eks/config/schemas)"
-        )
-        self.parser.add_argument(
-            "--output-dir",
-            type=Path,
-            default=Path("output"),
-            help="Output directory (default: output)"
-        )
-        self.parser.add_argument(
-            "--file",
-            type=str,
-            help="Single file to parse (relative to data-dir)"
-        )
-        self.parser.add_argument(
-            "--batch",
-            action="store_true",
-            help="Parse all files in data directory"
-        )
-        self.parser.add_argument(
-            "--file-type",
-            type=str,
-            help="Filter by file type (e.g., pdf, docx, xlsx)"
-        )
-        self.parser.add_argument(
-            "--checkpoint",
-            type=Path,
-            help="Resume from checkpoint file"
-        )
-        self.parser.add_argument(
-            "--save-checkpoint",
-            type=Path,
-            help="Save checkpoint to file for resume capability"
-        )
-        self.parser.add_argument(
-            "--verbose",
-            action="store_true",
-            help="Enable verbose output"
-        )
-        self.parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="Validate input without executing"
-        )
-    
-    def run(self, args: Optional[list] = None) -> EngineOutput:
-        """
-        Run the CLI.
-        
-        Args:
-            args: Command-line arguments (None for sys.argv)
-            
-        Returns:
-            EngineOutput with execution results
-        """
-        parsed_args = self.parser.parse_args(args)
-        
-        # Create engine input
-        input_data = self._create_engine_input(parsed_args)
-        
-        # Load checkpoint if provided
-        if parsed_args.checkpoint:
-            checkpoint_state = self._load_checkpoint(parsed_args.checkpoint)
-            input_data.checkpoint_state = checkpoint_state
-        
-        # TODO: Implement actual parser engine execution
-        # For now, return a placeholder output
-        output = EngineOutput(
-            run_id=input_data.run_id,
-            status="SUCCESS",
-            output_files=[],
-            metadata={
-                "engine": "ParserEngine",
-                "data_dir": str(parsed_args.data_dir),
-                "batch": parsed_args.batch,
-                "file": parsed_args.file,
-                "file_type": parsed_args.file_type
-            },
-            errors=[],
-            checkpoint_state={},
-            telemetry={}
-        )
-        
-        # Save checkpoint if requested
-        if parsed_args.save_checkpoint:
-            self._save_checkpoint(parsed_args.save_checkpoint, output.checkpoint_state)
-        
-        # Print output
-        if parsed_args.verbose:
-            print(json.dumps(output.to_dict(), indent=2))
-        
-        return output
-    
-    def _create_engine_input(self, args) -> EngineInput:
-        """Create EngineInput from CLI arguments."""
-        import uuid
-        from datetime import datetime
-        
-        return EngineInput(
-            run_id=str(uuid.uuid4()),
-            data_dir=args.data_dir,
-            config_file=args.config_file,
-            schema_dir=args.schema_dir,
-            output_dir=args.output_dir,
-            parameters={
-                "file": args.file,
-                "batch": args.batch,
-                "file_type": args.file_type,
-                "verbose": args.verbose,
-                "dry_run": args.dry_run
-            }
-        )
-    
-    def _load_checkpoint(self, checkpoint_path: Path) -> dict:
-        """Load checkpoint state from file."""
-        try:
-            with open(checkpoint_path, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Warning: Failed to load checkpoint: {e}")
-            return {}
-    
-    def _save_checkpoint(self, checkpoint_path: Path, state: dict):
-        """Save checkpoint state to file."""
-        try:
-            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(checkpoint_path, 'w') as f:
-                json.dump(state, f, indent=2)
-            print(f"Checkpoint saved to {checkpoint_path}")
-        except Exception as e:
-            print(f"Warning: Failed to save checkpoint: {e}")
+        summary = result["summary"]
+        if parsed.json:
+            print(json.dumps(summary, indent=2, default=str))
+        else:
+            pa = summary.get("phase_a", {})
+            pb = summary.get("phase_b", {})
+            pc = summary.get("phase_c", {})
+            print(f"Phase A: discovered={pa.get('discovered')} valid={pa.get('valid')} "
+                  f"registered={pa.get('registered')}")
+            print(f"Phase B: success={pb.get('success')} partial={pb.get('partial')} "
+                  f"failed={pb.get('failed')}")
+            print(f"Phase C: flagged={pc.get('flagged')}")
+        return 0
+    except Exception as e:  # surfaced for the operator
+        logger.error(f"Pipeline failed: {e}", context="eks-pipeline")
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
 
 
 def main():
-    """Main entry point for CLI."""
-    cli = ParserEngineCLI()
-    output = cli.run()
-    
-    # Exit with appropriate code
-    if output.status == "SUCCESS":
-        sys.exit(0)
-    elif output.status == "PARTIAL":
-        sys.exit(1)
-    else:
-        sys.exit(2)
+    """console_scripts entry point."""
+    sys.exit(run())
 
 
 if __name__ == "__main__":

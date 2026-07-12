@@ -1,10 +1,16 @@
 """
 EKS Error Manager - error code catalog, system/data error handling, fail-fast checks.
+
+Revision: 0.2
+Date: 2026-07-11
+Author: Codex
+Summary: Read fail_fast from schema-driven system_parameters for T1.97/I088.
 """
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from ..logging.logger import EKSLogger, log_depth
+from common.library.config import get_system_param
 
 
 class ErrorManager:
@@ -14,11 +20,11 @@ class ErrorManager:
     system/data error handling, fail-fast checks, and error summaries.
     """
 
-    def __init__(self, config_dir: Optional[str | Path] = None, logger: Optional[EKSLogger] = None):
+    def __init__(self, config_dir: Optional[str | Path] = None, logger: Optional[EKSLogger] = None, config: Optional[Dict[str, Any]] = None):
         self.logger = logger or EKSLogger("ErrorManager", level=1)
         self.config_dir = Path(config_dir) if config_dir else Path(__file__).parent.parent.parent / "config"
         self._catalog: Dict[str, Any] = {}
-        self._fail_fast_enabled = True
+        self._fail_fast_enabled = bool(get_system_param(config or {}, "fail_fast", True))
         self._errors: List[Dict[str, Any]] = []
         self.load_catalog()
 

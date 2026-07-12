@@ -1,17 +1,17 @@
 {
     "project": "EKS",
-    "start_time": "2026-07-10T13:06:32.464738",
+    "start_time": "2026-07-11T19:53:20.996559",
     "system_snapshot": {
-        "os": "win32",
-        "python_version": "3.11.15 | packaged by Anaconda, Inc. | (main, Jun 11 2026, 15:12:53) [MSC v.1942 64 bit (AMD64)]",
-        "cpu_count": 16,
-        "memory_total": 68408107008,
-        "cwd": "C:\\Users\\franklin.song\\Desktop\\DSAI\\Engineering-and-Design"
+        "os": "linux",
+        "python_version": "3.13.13 | packaged by Anaconda, Inc. | (main, Apr 14 2026, 06:19:41) [GCC 14.3.0]",
+        "cpu_count": 4,
+        "memory_total": 12544360448,
+        "cwd": "/home/franklin/dsai/Engineering-and-Design"
     },
     "run_id": null,
     "trace_table": [
         {
-            "timestamp": "2026-07-10T13:06:32.464738",
+            "timestamp": "2026-07-11T19:53:20.996860",
             "step": "Step 1",
             "parameter": "Param X",
             "value": "100",
@@ -22,7 +22,7 @@
     ],
     "logs": [
         {
-            "timestamp": "2026-07-10 13:06:32.464",
+            "timestamp": "2026-07-11 19:53:20.996",
             "level": 1,
             "category": "STATUS",
             "context": null,
@@ -31,7 +31,7 @@
             "message": "Testing status"
         },
         {
-            "timestamp": "2026-07-10 13:06:32.464",
+            "timestamp": "2026-07-11 19:53:20.996",
             "level": 2,
             "category": "WARNING",
             "context": null,
@@ -40,7 +40,7 @@
             "message": "Testing warning"
         },
         {
-            "timestamp": "2026-07-10 13:06:32.464",
+            "timestamp": "2026-07-11 19:53:20.996",
             "level": 0,
             "category": "ERROR",
             "context": null,
@@ -49,7 +49,7 @@
             "message": "Testing error"
         },
         {
-            "timestamp": "2026-07-10 13:06:32.464",
+            "timestamp": "2026-07-11 19:53:20.996",
             "level": 2,
             "category": "DEBUG",
             "context": "TestModule",
@@ -60,10 +60,10 @@
     ],
     "errors": [
         {
-            "timestamp": "2026-07-10T13:06:32.464738",
+            "timestamp": "2026-07-11T19:53:20.996853",
             "context": null,
             "message": "Testing error"
         }
     ],
-    "end_time": "2026-07-10T13:06:32.464738"
+    "end_time": "2026-07-11T19:53:20.996884"
 }

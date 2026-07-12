@@ -1,7 +1,7 @@
 # EKS Phase 5 — UI, Retrieval Cache & System Integration
 
 **Document ID**: WP-EKS-P5-001  
-**Current Version**: 0.6  
+**Current Version**: 0.7  
 **Status**: 🔷 PLANNED  
 **Last Updated**: 2026-07-08  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
@@ -24,6 +24,7 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | 0.3     | 2026-06-16 | System | Added Timestamp column to task breakdown table per AGENTS.md Section 8.8. Updated dependency note: Phase 5 /assets endpoint depends on T4.18 query_assets handler from Phase 4. |
 | 0.4     | 2026-06-16 | System | Added T5.18: Manual Metadata Verification UI workflow. |
 | 0.5     | 2026-06-16 | System | Added T5.19 for adding an ontology navigator tree view in the EKS UI. Linked Appendix C. |
+| 0.7     | 2026-07-11 | opencode | **I092 / R60 pipeline entry-point convergence**: Added T5.21 (Phase 5 standalone backend `phase5_server.py` [FastAPI permitted] + `run_phase5_pipeline(context)` reusing Phase 1 shared `run_pipeline()`, AGENTS.md §18.13) and T5.22 (serve.py `/api/v5/*` proxy wiring). Both 🔷 PLANNED for review. |
 | 0.6     | 2026-06-16 | System | Ontology Option C gap closure: added R47 (Ontology-Driven UI Facets) to scope table; added T5.20 (/api/ontology/classes endpoint + routes/ontology.py); T5.21 (SHACL violation badges on asset cards). Added routes/ontology.py to files table. |
 
 ---
@@ -123,6 +124,8 @@ Build the standalone interactive user inquiry interface, implement the retrieval
 | T5.18 | Manual Verification UI | Implement "Manual Verification Dashboard" to review auto-extracted metadata (Phase 3) and set `verified_by` status (R58). | 🔷 | — |
 | T5.19 | Implement ontology navigator tree | Add a hierarchical tree explorer component in the sidebar of `index.html` to browse assets via ontology classes | 🔷 | — |
 | T5.20 | Integrate Appendix F and Appendix G architecture patterns | Apply universal patterns per [Appendix F](appendix_f_pipeline_architecture_design.md) and [Appendix G](appendix_g_interface_architecture.md): (1) Implement UI contracts (DocumentSelectionContract, PipelineConfigContract, QueryRequestContract, QueryResponseContract) in `eks/ui/backend/contracts.py` per **Appendix G §7** (extends Phase 1.2 base contracts); (2) Create UIInput/UIOutput contracts in `eks/ui/backend/io_contracts.py` extending EngineInput/EngineOutput base per Appendix F §2.3; (3) Follow API endpoint conventions per **Appendix G §3** and status polling per **Appendix G §4**; (4) Use theme system per **Appendix G §5** (CSS variables, 5 themes, localStorage); (5) Implement help system per **Appendix G §6** (ui_help.json schema, F1 shortcut); (6) Follow status bar format per **Appendix G §8**; (7) Add telemetry heartbeat checkpoints for UI performance (response times, cache hit rates); (8) Implement CacheProviderFactory for Dependency Injection (Redis, in-memory); (9) Update task breakdown to reference Phase 1.2 completion for base patterns (PipelineContext, Dependency Injection, Telemetry Heartbeat). | 🔷 | — |
+| T5.21 | Phase 5 standalone backend + runner (I092 / R60) | Create `eks/ui/backend/phase5_server.py` backend (FastAPI permitted per AGENTS.md §18.13): health endpoint, 409 concurrency guard; implement `run_phase5_pipeline(context)` reusing shared `bootstrap_pipeline()`/`run_pipeline()` from Phase 1 (T1.99a); retrieval cache + UI assembly. | 🔷 | I092, R60, T1.99a |
+| T5.22 | Phase 5 proxy wiring (I092) | `serve.py` proxies `/api/v5/*` → phase5 backend on port 5005; document run command. | 🔷 | I092, T5.21 |
 
 ---
 
