@@ -18,7 +18,8 @@ import json
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from engine.core.base import EngineInput, EngineOutput
+from eks.engine.core.base import EngineInput, EngineOutput, ErrorRecord
+from eks.engine.logging.logger import EKSLogger
 
 
 class HealthScorerEngineCLI:
@@ -121,22 +122,76 @@ Examples:
             checkpoint_state = self._load_checkpoint(parsed_args.checkpoint)
             input_data.checkpoint_state = checkpoint_state
         
-        # TODO: Implement actual health scorer engine execution
-        # For now, return a placeholder output
+        # T1.56.2 (I093): wire to the real health scorer instead of a placeholder.
+        # Scores documents already registered in the DuckDB document registry
+        # (populated by discovery / the pipeline) using HealthScorer.
+        logger = EKSLogger("HealthScorerEngineCLI", level=3 if parsed_args.verbose else 1)
+        errors: list = []
+        result: dict = {}
+        try:
+            from eks.engine.core.pipeline_runner import bootstrap_pipeline
+            from eks.engine.core.registry import DocumentRegistry
+            from eks.engine.core.health_scorer import HealthScorer
+
+            project_root = Path(__file__).resolve().parent.parent.parent.parent
+            config_dir = parsed_args.config_file.parent if parsed_args.config_file else None
+            boot = bootstrap_pipeline(
+                project_root,
+                config_dir=config_dir,
+                logger=logger,
+                skip_readiness=True,
+                debug=parsed_args.verbose,
+            )
+            registry = DocumentRegistry(logger=logger)
+            scorer = HealthScorer(logger=logger)
+
+            if parsed_args.document_id:
+                doc = registry.get_document(parsed_args.document_id)
+                if doc is None:
+                    errors.append(ErrorRecord(
+                        "HealthScorerError",
+                        f"Document not found in registry: {parsed_args.document_id}",
+                    ))
+                else:
+                    result = {
+                        "mode": "single",
+                        "document_id": parsed_args.document_id,
+                        "score": scorer.score(doc),
+                    }
+            else:
+                docs = registry.list_documents(latest_only=False)
+                if not docs:
+                    errors.append(ErrorRecord(
+                        "HealthScorerError",
+                        "No documents found in registry to score (run discovery first).",
+                    ))
+                else:
+                    batch = scorer.score_batch(docs)
+                    batch["mode"] = "batch"
+                    batch["threshold"] = parsed_args.threshold
+                    result = batch
+        except Exception as e:
+            errors.append(ErrorRecord(
+                "HealthScorerEngineError", str(e),
+                context={"document_id": parsed_args.document_id},
+            ))
+
+        status = "FAILED" if errors else "SUCCESS"
         output = EngineOutput(
             run_id=input_data.run_id,
-            status="SUCCESS",
+            status=status,
             output_files=[],
             metadata={
                 "engine": "HealthScorerEngine",
                 "data_dir": str(parsed_args.data_dir),
                 "document_id": parsed_args.document_id,
                 "batch": parsed_args.batch,
-                "threshold": parsed_args.threshold
+                "threshold": parsed_args.threshold,
+                "result": result,
             },
-            errors=[],
+            errors=errors,
             checkpoint_state={},
-            telemetry={}
+            telemetry={},
         )
         
         # Save checkpoint if requested

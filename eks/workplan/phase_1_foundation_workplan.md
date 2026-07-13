@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 3.55
-**Status**: ✅ COMPLETE — Phase 1 foundation, bootstrap closure, initiation integrity, config flattening, schema discovery & registration (T1.96), System Parameters SSOT Centralization (T1.97/I088), Universal Architecture Elevation (T1.97j–n/I091), Universal Path Resolution & Schema-Driven Initialization (T1.98/I089/I090), and Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence Phase 1 (T1.99a–g/I092) complete. 257/257 tests pass. 🔶 T1.56 (CLI Entry Points) is PARTIAL — `discovery_cli.py` / `health_cli.py` are stubs returning placeholder SUCCESS (I093). 🔷 Phases 2–5 of I092/R60 (T2.25–T2.26, T3.36–T3.37, T4.26–T4.27, T5.21–T5.22) remain PLANNED (see §30). 
-**Last Updated**: 2026-07-11  
+**Current Version**: 3.59
+**Status**: ✅ COMPLETE — Phase 1 foundation, bootstrap closure, initiation integrity, config flattening, schema discovery & registration (T1.96), System Parameters SSOT Centralization (T1.97/I088), Universal Architecture Elevation (T1.97j–n/I091), Universal Path Resolution & Schema-Driven Initialization (T1.98/I089/I090), and Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence Phase 1 (T1.99a–g/I092) complete. 264/264 tests pass. ✅ T1.56 (CLI Entry Points) COMPLETE — `discovery_cli.py` / `health_cli.py` now call the real `PipelineOrchestrator.run_phase_a()` / `HealthScorer` engines (I093 resolved). 🔷 Phases 2–5 of I092/R60 (T2.25–T2.26, T3.36–T3.37, T4.26–T4.27, T5.21–T5.22) remain PLANNED (see §30). 
+**Last Updated**: 2026-07-13  
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
 **Sub-Phase Workplans**: [phase_1.2_interactive_ui_workplan.md](phase_1.2_interactive_ui_workplan.md) — WP-EKS-P1.2-001; [phase_1.3_initiation_harmonization_workplan.md](../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001 (archived; content integrated into §25)
@@ -70,12 +70,16 @@ Deliverables:
 
 | Version | Date       | Author | Summary of Changes                            |
 | :------ | :--------- | :----- | :-------------------------------------------- |
+| 3.59    | 2026-07-13 | opencode | **Doc correction (path accuracy)**: Fixed incorrect CLI path `eks/engine/cli.py` → `eks/engine/parsers/cli.py` in §9 Mermaid entry-point node (ECLI), the T1.99b task row (§30), and the v3.50 revision note. Matches the actual file and `pyproject.toml` console_scripts target `eks.engine.parsers.cli:main`. No code/behavior change. |
+| 3.58    | 2026-07-13 | opencode | **I093 implemented (T1.56.1–T1.56.5)**: Wired `eks/engine/core/discovery_cli.py` `run()` to `PipelineOrchestrator.run_phase_a()` via the shared `bootstrap_pipeline()` funnel (T1.56.1); wired `eks/engine/core/health_cli.py` `run()` to `HealthScorer.score()` / `score_batch()` over the DuckDB `DocumentRegistry` (T1.56.2); added `eks/test/test_discovery_cli.py` + `eks/test/test_health_cli.py` (7 tests) closing the AGENTS.md §21 coverage gap (T1.56.3–T1.56.4); flipped `T1.56` PARTIAL → ✅ in §8/§9/§14 (T1.56.5); I093 → Resolved in `issue_log.md`, U146 in `update_log.md`. Full EKS suite 264/264 green. Aligns with I092/R60 per-phase entry-point convergence. |
+| 3.57    | 2026-07-13 | opencode | **I093 remediation tasks added (for review)**: Added T1.56.1–T1.56.5 to §8 Master Task Index and §14 task-definition table to close I093 (wire `discovery_cli.py`/`health_cli.py` stubs to real `PipelineOrchestrator.run_phase_a()` / `HealthScorer.score[_batch]()` + add pytest coverage + close records). All 🔷 PLANNED; T1.56 remains 🔶 PARTIAL until implemented. No code changes — workplan entry only, pending review/approval. |
+| 3.56    | 2026-07-13 | opencode | **I094 fix**: Moved `initialize_context()` step 9 out of Phase A subgraph into an independent "Phase 1 Context Setup" subgraph between Bootstrap and Phase A, reflecting actual call order in `pipeline_runner.py:180`. |
 | 3.55    | 2026-07-11 | opencode | **Canonical workplan promotion**: Retired pre-restructure body (v3.52) to `eks/archive/phase_1_foundation_workplan_v3.52.md` per AGENTS.md archive-before-delete. Promoted restructured workplan as canonical `phase_1_foundation_workplan.md`; removed interim draft filename. |
 | 3.54    | 2026-07-11 | opencode | **Section resequence**: Index retained at §1; Revision History moved to §3. Renumbered design/feature block §7b–§7n → §11–§23. Shifted late-phase work §10–§16 → §24–§30; closing sections §17–§20 → §31–§34; References §22 → §35. Updated Master Task Index Owner Section column, Index anchors, and active § cross-references. |
 | 3.53    | 2026-07-11 | opencode | **Workplan restructure — tasks relocated to topical sections**: The canonical §8 Task Breakdown is now a **Master Task Index** (ID \| Task \| Owner Section \| Status, 143 rows) — task *definitions* are no longer duplicated there. All 81 early Phase 1 tasks (T1.1–T1.76) moved into 10 topical sections with their own Task Breakdown tables (later renumbered §11–§23 in v3.54). Late tasks (T1.77–T1.99 + Phase 2–5 convergence T2.25–T5.22) remain defined in initiation/convergence sections (later §24–§30). No task is defined in two places. |
 | 3.52    | 2026-07-11 | opencode | **Workplan audit & gap remediation (G1–G4 + color key)**: Re-audited all Phase 1 tasks against code. G3 — corrected §8 status column for T1.69/T1.70/T1.72/T1.73/T1.75/T1.76 (severity emojis 🟠/🔴/🟡 → ✅; all six verified implemented). G1 — reclassified T1.56 (CLI Entry Points) to 🔶 PARTIAL: only `eks/engine/parsers/cli.py` is real (T1.99b); `eks/engine/core/discovery_cli.py` + `health_cli.py` are stubs returning placeholder SUCCESS (no standalone discovery/health engines built) — tracked as I093. G2 — T1.57 detail corrected: HTTP API is `eks/ui/backend/phase1_server.py`; `engine_endpoints.py` archived in T1.99d. G4 — §9 files table corrected: `project_setup.json` Create→Deleted (T1.67); `engine_endpoints.py`→`phase1_server.py` (archived); discovery/health CLI paths fixed to `engine/core/`. Color key — §14 Mermaid: ENTRY nodes ECLI/EWEB/ERUN were styled amber while labeled ✅ COMPLETE; recoloured to green; legend text tidied to "🔶 Partial / Planned"; §4 Status Legend aligned to "✅ PASS / COMPLETE | 🔶 PARTIAL | ❌ FAIL | 🔷 PLANNED" and notes severity emojis are not status values. Top status notes T1.56 partial. |
 | 3.51    | 2026-07-11 | opencode | **T1.99a–g COMPLETE (I092 / R60)**: Implemented Phase 1 entry-point convergence. T1.99a — new `eks/engine/core/pipeline_runner.py` with `bootstrap_pipeline()` + `run_pipeline(context)` (ConfigRegistry → SchemaLoader.load_all → DocumentRegistry → ErrorManager/MessageManager → ProjectSetupValidator readiness gate → PipelineOrchestrator.run_full_pipeline → checkpoint + on_phase callback). T1.99b — `eks/engine/parsers/cli.py` rewritten as real end-to-end CLI + `eks/pyproject.toml` `eks-pipeline` console_scripts. T1.99c — `phase1_server._run` wired to `run_pipeline()` (409 guard + resolve_paths preserved). T1.99d — orphan `ui/backend/engine_endpoints.py` archived to `archive/ui/backend/` (no references). T1.99e — canonical `eks/serve.py` added (§18.12); `server.py` becomes thin re-export shim. T1.99f — `bootstrap_pipeline()` uses `ConfigRegistry` singleton SSOT (resets singleton when a different config_dir is requested to avoid test pollution; soft readiness gate logs + continues even when `fail_fast:true`). T1.99g — new `eks/test/test_pipeline_runner.py` (CLI smoke + run_pipeline exercised); fixed `project_root` depth bug (`parent×4`) in cli.py + pipeline_runner.py; fixed `phase1_server._run` cancellation bug — a cancelled job previously had its `"cancelled"` status overwritten with `"failed"` when the running thread caught the `Pipeline cancelled` RuntimeError, making `test_pipeline_cancel` flaky; cancellation now preserves `"cancelled"` status and logs as STATUS not ERROR. Full EKS suite 257/257 green (stable across repeated runs). I092 narrowed to remaining Phases 2–5. U139. |
-| 3.50    | 2026-07-11 | opencode | **§14 architecture diagram — three entry points (I092 / R60)**: Added `ENTRY` subgraph to the §14 Mermaid diagram showing three pipeline entry points — ① CLI (`eks/engine/cli.py`, T1.99b 🔷 PLANNED), ② Web (`eks/serve.py`, T1.99e 🔷 PLANNED), ③ HTTP Backend (`phase1_server.py`, ✅ exists, T1.99c) — all converging on a shared `run_pipeline(context)`/`bootstrap_pipeline()` helper (T1.99a 🔷 PLANNED) which feeds into the Bootstrap subgraph. Planned nodes colour-coded amber. Doc-only change. |
+| 3.50    | 2026-07-11 | opencode | **§14 architecture diagram — three entry points (I092 / R60)**: Added `ENTRY` subgraph to the §14 Mermaid diagram showing three pipeline entry points — ① CLI (`eks/engine/parsers/cli.py`, T1.99b 🔷 PLANNED), ② Web (`eks/serve.py`, T1.99e 🔷 PLANNED), ③ HTTP Backend (`phase1_server.py`, ✅ exists, T1.99c) — all converging on a shared `run_pipeline(context)`/`bootstrap_pipeline()` helper (T1.99a 🔷 PLANNED) which feeds into the Bootstrap subgraph. Planned nodes colour-coded amber. Doc-only change. |
 | 3.49    | 2026-07-11 | opencode | **T1.99a–g PLANNED (I092 / R60)**: Added §21 Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence. Proposed extracting shared `run_pipeline(context)`/`bootstrap_pipeline()` helper (T1.99a), unified CLI + `console_scripts` (T1.99b), wiring `phase1_server._run` to `run_full_pipeline` (T1.99c), deleting orphan `engine_endpoints.py` (T1.99d), adding `eks/serve.py` (T1.99e), `ConfigRegistry` SSOT at entry (T1.99f), tests (T1.99g). Per-phase backend tasks added to Phases 2–5 (T2.25–T2.26, T3.36–T3.37, T4.26–T4.27, T5.21–T5.22). All 🔷 PLANNED for review. No implementation. |
 | 3.48    | 2026-07-11 | opencode | **Workplan diagram consistency fix**: Corrected §14 Bootstrap Mermaid subgraph stale markers — nodes I72A/I72B (T1.72), CKPT (T1.73), M75 (T1.75), M76 (T1.76) were labelled 🔷/🔶 "pending"/amber although completed in v3.29; recoloured to ✅ green and updated legend node L2 to a generic amber color key. No task status changed — all Phase 1 tasks remain ✅. |
 | 3.47    | 2026-07-11 | opencode | **T1.98 COMPLETE**: §20 Universal Path Resolution & Schema-Driven Initialization (I089 + I090). Adopted EKS `global_paths` as universal canonical path pattern (L16) via new `common/library/paths/resolver.py` (`resolve_paths`, `ResolvedPaths`) normalizing EKS + DCC shapes; wired `ConfigRegistry` + `phase1_server.py`; added `workflow_files`/`tool_files` to EKS schema + config (`workflow_file_entry_def`/`tool_file_entry_def`) for DCC parity; `setup_validator.py` validates them; `folder_creation` satisfied by canonical `global_paths`. Universal architecture doc L16 + §3.18 + §2.2/§2.3/§2.4/§4.1/§4.2/§9/§10. `eks/knowledge.json` v2.6.0. 252/252 tests pass. I089 + I090 closed. |
@@ -281,7 +285,12 @@ Canonical **Master Task Index** for all Phase 1 tasks (T1.1–T1.99) plus the Ph
 | T1.53 | Implement BaseEngine abstract class | §14 | ✅ |
 | T1.54 | Implement TelemetryHeartbeat | §15 | ✅ |
 | T1.55 | Implement Multi-Stage Validation | §14 | ✅ |
-| T1.56 | Implement CLI Entry Points | §14 | 🔶 PARTIAL |
+| T1.56 | Implement CLI Entry Points | §14 | ✅ |
+| T1.56.1 | Wire Discovery CLI to real engine (I093) | §14 | ✅ |
+| T1.56.2 | Wire Health Scorer CLI to real engine (I093) | §14 | ✅ |
+| T1.56.3 | Add pytest for discovery_cli (I093) | §14 | ✅ |
+| T1.56.4 | Add pytest for health_cli (I093) | §14 | ✅ |
+| T1.56.5 | Close I093 records & reclassify T1.56 | §14 | ✅ |
 | T1.57 | Implement HTTP API Endpoints | §14 | ✅ |
 | T1.58 | Implement Checkpoint State Serialization | §15 | ✅ |
 | T1.59 | Implement ParserFactory | §15 | ✅ |
@@ -373,7 +382,7 @@ Canonical **Master Task Index** for all Phase 1 tasks (T1.1–T1.99) plus the Ph
 graph TB
     subgraph ENTRY["Pipeline Entry Points (I092 / R60) — all converge on shared run_pipeline(context)"]
         direction TB
-        ECLI["① CLI — eks/engine/cli.py<br/><i>eks-pipeline</i> console_scripts (T1.99b — ✅ COMPLETE)<br/>→ run_pipeline(context)"]
+        ECLI["① CLI — eks/engine/parsers/cli.py<br/><i>eks-pipeline</i> console_scripts (T1.99b — ✅ COMPLETE)<br/>→ run_pipeline(context)"]
         EWEB["② Web — eks/serve.py<br/>proxies /api/v1/* → phase1_server (T1.99e — ✅ COMPLETE)<br/>→ run_pipeline(context)"]
         EHTTP["③ HTTP Backend — eks/ui/backend/phase1_server.py<br/>standalone --port 5001 (✅ exists; T1.99c wires to run_full_pipeline)"]
         ERUN["Shared run_pipeline(context) / bootstrap_pipeline()<br/><i>eks/engine/core/pipeline_runner.py</i> (T1.99a — ✅ COMPLETE)<br/>→ ConfigRegistry → SchemaLoader.load_all() → DocumentRegistry → ProjectSetupValidator (readiness gate) → PipelineOrchestrator.run_full_pipeline()"]
@@ -397,14 +406,18 @@ graph TB
         SL --> EM
     end
 
-    subgraph PHA["Phase A — File Discovery (PipelineOrchestrator.run_phase_a)"]
+    subgraph CTX["Phase 1 Context Setup (orchestrator-owned)"]
         direction TB
         PCTX["9. PipelineOrchestrator.initialize_context()<br/><i>eks/engine/core/pipeline_orchestrator.py</i><br/>Purpose: Set EKSPipelineContext paths<br/>Input: data_dir, schema_dir, output_dir, archive_dir, config_dir, log_dir<br/>Output: ctx: EKSPipelineContext<br/>Dep: EKSPipelineContext, TelemetryHeartbeat<br/><br/>✅ T1.74: Cross-platform path — EKSPaths.to_dict() uses .as_posix()"]
+    end
+
+    subgraph PHA["Phase A — File Discovery (PipelineOrchestrator.run_phase_a)"]
+        direction TB
         I72A["✅ T1.72: Wrap run_phase_a() with DiscoveryInput/Output contracts<br/>Construct DiscoveryInput → validate → pass to phase logic<br/>→ Validate DiscoveryOutput before return"]
         FS["10. FileScanner.scan(root_dir)<br/><i>eks/engine/core/file_scanner.py</i><br/>Purpose: Walk directory, discover recognized files<br/>Input: Filesystem directory tree<br/>Output: List[Dict] {file_path, file_name, file_type, display_name, parser_class}<br/>Dep: os.walk, _build_extension_map(), EKSLogger"]
         FV["11. FileScanner.validate_file_types(discovered)<br/>Purpose: Split by recognized extensions<br/>Input: List[Dict] discovered files<br/>Output: Tuple(valid: List[Dict], unknown: List[Dict])<br/>Dep: document_type_registry from doc_config"]
         FM["12. FileScanner.register_placeholders(valid, registry)<br/>Purpose: Insert placeholder rows in DuckDB<br/>Method: build_placeholder_metadata() per file<br/> → _parse_filename(), _infer_doc_type()<br/> → DocumentRegistry.register_document(metadata)<br/>Output: DuckDB documents rows with extract_status='pending'"]
-        PCTX --> I72A --> FS --> FV --> FM
+        I72A --> FS --> FV --> FM
     end
 
     subgraph PHB["Phase B — Parse → Detect → Score (PipelineOrchestrator.run_phase_b)"]
@@ -434,7 +447,7 @@ graph TB
         DONE --> CKPT
     end
 
-    BOOT --> PHA --> PHB --> PHC
+    BOOT --> CTX --> PHA --> PHB --> PHC
 
     subgraph LEGEND["Legend"]
         L1["✅ Complete"]:::green
@@ -449,6 +462,7 @@ graph TB
     class I72A,I72B,UP,ERR,CKPT,M75,M76,ECLI,EWEB,ERUN green
     class EHTTP green
     style BOOT fill:#1a2a4a,stroke:#4a9eff
+    style CTX fill:#1a3a3a,stroke:#26c6da
     style PHA fill:#1a3a2a,stroke:#4caf50
     style PHB fill:#2a1a3a,stroke:#9c27b0
     style PHC fill:#3a1a1a,stroke:#f44336
@@ -458,7 +472,7 @@ graph TB
 
 Table organized by module, listing all pipeline-critical public functions per AGENTS.md §17.
 
-#### 9. Pipeline Orchestrator (`eks/engine/core/pipeline_orchestrator.py`)1.1
+#### 9.1.1 Pipeline Orchestrator (`eks/engine/core/pipeline_orchestrator.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -472,7 +486,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `save_checkpoint` | Save pipeline state to file | `phase: str`, `checkpoint_path: Path` | `None` | EKSPipelineContext.save_checkpoint() | IOError caught and logged | Status message on success |
 | `rollback_to_checkpoint` | Restore pipeline from saved state | `phase: str`, `checkpoint_path: Path` | `bool` | EKSPipelineContext.load_checkpoint() | Returns `False` on failure; error logged | Status message on success |
 
-#### 9. File Scanner (`eks/engine/core/file_scanner.py`)1.2
+#### 9.1.2 File Scanner (`eks/engine/core/file_scanner.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -482,7 +496,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `build_placeholder_metadata` | Construct placeholder metadata dict from file info + filename parsing | `file_info: Dict` | `Dict[str, Any]` with fields: doc_number, revision, project_title, etc. | _parse_filename(), _infer_doc_type() | Default values for unparseable filenames | None |
 | `register_placeholders` | Register placeholder rows in registry for valid files | `valid_files: List[Dict]`, `registry: DocumentRegistry` | `int` — count of successfully registered | build_placeholder_metadata(), DocumentRegistry.register_document() | Skips files that fail registration; logs each error | `@log_depth`, status with count |
 
-#### 9. Parser Router (`eks/engine/parsers/parser_router.py`)1.3
+#### 9.1.3 Parser Router (`eks/engine/parsers/parser_router.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -492,7 +506,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `route` | Full parse flow for single file: look up → instantiate → parse → extract metadata | `file_path: str`, `file_type: str` | `Dict` with keys: `status`, `content_blocks`, `metadata`, `parser_class`, `error` | get_parser_class(), instantiate_parser(), parser.parse(), parser.extract_metadata() | try/except around each step; `status: "failed"` + error detail on failure | `@log_depth` |
 | `route_batch` | Batch route for multiple files | `files: List[Dict]` | `List[Dict]` — per-file route results | route() per file | Individual file failures isolated | None |
 
-#### 9. Plug-in Parsers (`eks/engine/parsers/`)1.4
+#### 9.1.4 Plug-in Parsers (`eks/engine/parsers/`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -505,21 +519,21 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `DGNParserStub.parse` | Stub — returns placeholder | (none) | `List[Dict]` — single block with "DGN parsing not implemented" | None | Returns content block with error status | None |
 | `DWGParserStub.parse` | Stub — returns placeholder | (none) | `List[Dict]` — single block with "DWG parsing not implemented" | None | Returns content block with error status | None |
 
-#### 9. Structure Detector (`eks/engine/core/structure_detector.py`)1.5
+#### 9.1.5 Structure Detector (`eks/engine/core/structure_detector.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
 | `StructureDetector.__init__` | Initialize detector | `logger: EKSLogger` | `None` | EKSLogger | N/A | N/A |
 | `detect` | Analyze document pages for structural elements | `file_path: str`, `pages: List[Dict]` — each with `text`, `tables`, `images` | `List[Dict]` — elements with `element_type`, `element_id`, `title`, `content`, `confidence`, `source` | Element type heuristics (cover_page, revision_table, section, table, image, link, legend, note) | Logged warning on failure; returns empty list | `@log_depth` |
 
-#### 9. Health Scorer (`eks/engine/core/health_scorer.py`)1.6
+#### 9.1.6 Health Scorer (`eks/engine/core/health_scorer.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
 | `HealthScorer.__init__` | Initialize with 6-dimension weights | `logger: EKSLogger` | `None` | EKSLogger | N/A | N/A |
 | `score` | Compute 6-dimension composite health score | `document: Dict`, `elements: List[Dict]` | `Dict` with keys: `overall` (float 0.0–1.0), `completeness`, `extraction_confidence`, `structural_completeness`, `source_quality`, `xref_quality`, `consistency` | Element type analysis, metadata completeness check | Returns all dimensions as 0.0 on error; logged | `@log_depth` |
 
-#### 9. Document Registry (`eks/engine/core/registry.py`)1.7
+#### 9.1.7 Document Registry (`eks/engine/core/registry.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -531,7 +545,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `get_elements` | Retrieve elements for a document | `doc_id: str` | `List[Dict]` | DuckDB | Returns empty list on error | None |
 | `sync_schema` | Sync DB columns with JSON schema | (none) | `Dict` with `documents_added`, `document_elements_added`, `indexes_created` | SchemaToDDL, DuckDB, PRAGMA table_info | Logged per column | Status message with total changes |
 
-#### 9. Review Manager (`eks/engine/core/review_manager.py`)1.8
+#### 9.1.8 Review Manager (`eks/engine/core/review_manager.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -540,14 +554,14 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `correct_metadata` | Update specific document fields | `doc_id: str`, `updates: Dict` — allowed fields only | `bool` — True on success | DocumentRegistry, allowed_fields validation | Returns False on invalid field; logged | `@log_depth` |
 | `lock_document` | Lock document with reviewer attribution | `doc_number: str`, `verified_by: str`, `score_override: float` | `bool` — True on success | HealthScorer.score(), DocumentRegistry | Returns False on document not found; logged | `@log_depth` |
 
-#### 9. Schema Loader (`eks/engine/core/schema_loader.py`)1.9
+#### 9.1.9 Schema Loader (`eks/engine/core/schema_loader.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
 | `SchemaLoader.__init__` | Initialize with config directory | `config_dir: str | Path` | `None` | pathlib, json | N/A | N/A |
 | `load_all` | Load all 23 schema files across 6 schema sets + fragments | (none — uses `self.config_dir`) | `Dict` with: `base_schema`, `setup_schema`, `config`, `doc_base_schema`, `doc_setup_schema`, `doc_config`, `asset_base_schema`, `asset_setup_schema`, `asset_config`, `ontology_base_schema`, `ontology_setup_schema`, `ontology_config`, `error_code_base`, `error_setup_schema`, `error_config`, `message_base`, `message_setup_schema`, `message_config`, and fragment schemas, `project_rules_config` | json.load(), file discovery by pattern, $ref resolution | FileNotFoundError → graceful fallback with warning; validation errors collected without aborting | Status message per file loaded |
 
-#### 9. Config Registry (`eks/engine/core/config_registry.py`)1.10
+#### 9.1.10 Config Registry (`eks/engine/core/config_registry.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -556,7 +570,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `data_dir` | Shorthand for `get("registry_settings.data_dir")` | (none) | `Path` | get() | Returns fallback path | None |
 | `output_dir` | Shorthand for `get("registry_settings.output_dir")` | (none) | `Path` | get() | Returns fallback path | None |
 
-#### 9. Infrastructure Functions1.11
+#### 9.1.11 Infrastructure Functions
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -645,9 +659,9 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `eks/engine/core/base.py`                            | Create | BaseEngine abstract class (T1.53) |
 | `eks/engine/core/telemetry.py`                       | Create | TelemetryHeartbeat implementation (T1.54) |
 | `eks/engine/core/validator.py`                       | Create | Multi-stage validation logic (T1.55) |
-| `eks/engine/core/discovery_cli.py`                   | Create (STUB) | CLI entry point for discovery engine (T1.56) — `run()` returns placeholder SUCCESS; not wired to a real engine |
+| `eks/engine/core/discovery_cli.py`                   | Update | CLI entry point for discovery engine (T1.56) — `run()` now calls `PipelineOrchestrator.run_phase_a()` via `bootstrap_pipeline()` (T1.56.1) |
 | `eks/engine/parsers/cli.py`                          | Create | CLI entry point for parser engine (T1.56) — real end-to-end CLI via T1.99b (`eks-pipeline`) |
-| `eks/engine/core/health_cli.py`                      | Create (STUB) | CLI entry point for health scorer engine (T1.56) — `run()` returns placeholder SUCCESS; not wired to a real engine |
+| `eks/engine/core/health_cli.py`                      | Update | CLI entry point for health scorer engine (T1.56) — `run()` now calls `HealthScorer.score()` / `score_batch()` over DuckDB registry (T1.56.2) |
 | `eks/ui/backend/phase1_server.py`                   | Create | HTTP API endpoints for independent engine execution (T1.57, §18.13); `engine_endpoints.py` archived in T1.99d |
 | `eks/engine/core/factories.py`                       | Create | Factory implementations (T1.59, T1.60, T1.61) |
 | `eks/engine/core/setup_validator.py`                 | Create | Setup validator (T1.65) |
@@ -927,7 +941,12 @@ Project scaffolding, conda environment, SSOT config registry, tests/logs, cross-
 | T1.52 | Implement EKSPipelineContext | Create `eks/engine/core/context.py` with nested dataclasses for centralized state management (paths, data, parameters, state, telemetry, schema_registry) per Appendix F | R57 | ✅ | 2026-06-30 |
 | T1.53 | Implement BaseEngine abstract class | Create `eks/engine/core/base.py` with standard execution flow (validate → execute → validate) per Appendix F | R99 | ✅ | 2026-06-30 |
 | T1.55 | Implement Multi-Stage Validation | Create `eks/engine/core/validator.py` with setup, schema, data, parser validation stages per Appendix F | R99 | ✅ | 2026-06-30 |
-| T1.56 | Implement CLI Entry Points | Independent engine execution via command line per Appendix F. **Only `eks/engine/parsers/cli.py` is functional** (real end-to-end CLI + `eks-pipeline` console_scripts, delivered in T1.99b). `eks/engine/core/discovery_cli.py` and `eks/engine/core/health_cli.py` exist but are **stubs** — `run()` returns a placeholder `EngineOutput(status="SUCCESS")` with `TODO: Implement actual … execution`; no standalone discovery/health-scorer engines were ever built (discovery is part of the phase-1 orchestrator, health scoring runs inside it). No tests cover the two stub CLIs. | R99 | 🔶 PARTIAL | 2026-06-30 / 2026-07-11 |
+| T1.56 | Implement CLI Entry Points | Independent engine execution via command line per Appendix F. `eks/engine/parsers/cli.py` is the real end-to-end CLI + `eks-pipeline` console_scripts (T1.99b). `eks/engine/core/discovery_cli.py` `run()` now calls `PipelineOrchestrator.run_phase_a()` via the shared `bootstrap_pipeline()` funnel (T1.56.1); `eks/engine/core/health_cli.py` `run()` now calls `HealthScorer.score()` / `score_batch()` over the DuckDB registry (T1.56.2). Both have pytest coverage (T1.56.3–T1.56.4). I093 resolved. | R99 | ✅ | 2026-06-30 / 2026-07-13 |
+| T1.56.1 | Wire Discovery CLI to real engine (I093) | `eks/engine/core/discovery_cli.py` `run()` → call `PipelineOrchestrator.run_phase_a()` for schema discovery/registration; map `--data-dir`→`root_dir`, `--scan`/`--validate`→discovery actions; return real `EngineOutput` (status/errors/output_files). Closes I093 discovery stub. | R99 | ✅ | 2026-07-13 |
+| T1.56.2 | Wire Health Scorer CLI to real engine (I093) | `eks/engine/core/health_cli.py` `run()` → call `HealthScorer.score()` (`--document-id`) / `score_batch()` (`--batch`), honoring `--threshold`; return real scores/status. Closes I093 health stub. | R99 | ✅ | 2026-07-13 |
+| T1.56.3 | Add pytest for discovery_cli (I093) | Happy path invoking orchestrator (mocked engine) + failure/edge case; assert real `EngineOutput`. Closes §21 coverage gap. | R99 | ✅ | 2026-07-13 |
+| T1.56.4 | Add pytest for health_cli (I093) | Single + batch scoring + threshold boundary; assert status reflects results. Closes §21 coverage gap. | R99 | ✅ | 2026-07-13 |
+| T1.56.5 | Close I093 records & reclassify T1.56 | Mark I093 resolved + U-entry in `update_log.md`; flip `T1.56` 🔶 PARTIAL → ✅ in §8/§9. | R99 | ✅ | 2026-07-13 |
 | T1.57 | Implement HTTP API Endpoints | Independent engine execution via HTTP per Appendix F. **Delivered as `eks/ui/backend/phase1_server.py`** (standalone `--port 5001`, §18.13). The originally-cited `eks/ui/backend/engine_endpoints.py` was an orphaned stub and was **archived** to `archive/ui/backend/engine_endpoints.py` in T1.99d — it is no longer the HTTP entry point. | R99 | ✅ | 2026-06-30 / 2026-07-11 |
 | T1.65 | Implement Project Setup Validator | Create `eks/engine/core/setup_validator.py` with auto-creation of missing folders per Appendix F | R99 | ✅ | 2026-06-30 |
 | T1.66 | Create Project Setup Schema | Create `eks/config/schemas/project_setup.json` for setup validation per Appendix F | R99 | ✅ | 2026-06-30 |
@@ -1370,7 +1389,7 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | ID | Phase | Task | Detail | Status | Refs |
 | :-- | :---: | :---- | :----- | :----: | :--- |
 | T1.99a | 1 | Extract shared `bootstrap_pipeline()` / `run_pipeline(context)` helper | New `eks/engine/core/pipeline_runner.py`: builds `ConfigRegistry` → `SchemaLoader.load_all()` → `DocumentRegistry` → `ErrorManager`/`MessageManager` → `ProjectSetupValidator` readiness gate → `PipelineOrchestrator.run_full_pipeline()`. Universal funnel reused by CLI and every phase server. | ✅ COMPLETE | I092, R60 |
-| T1.99b | 1 | Unified end-to-end CLI | `eks/engine/cli.py` `main()` using the helper; register `pyproject` `console_scripts` (`eks-pipeline`). | ✅ COMPLETE | I092 |
+| T1.99b | 1 | Unified end-to-end CLI | `eks/engine/parsers/cli.py` `main()` using the helper; register `pyproject` `console_scripts` (`eks-pipeline`). | ✅ COMPLETE | I092 |
 | T1.99c | 1 | Wire `phase1_server._run` to `run_pipeline()` | Replace inline A→C with shared `run_pipeline()`; keep 409 guard + `resolve_paths()` (T1.98). | ✅ COMPLETE | I092, T1.98 |
 | T1.99d | 1 | Delete orphan `engine_endpoints.py` | Dead stubbed FastAPI app (returns fake SUCCESS, unwired) archived to `archive/ui/backend/engine_endpoints.py` (AGENTS.md §4 archive-before-delete; no references remained). | ✅ COMPLETE | I092 |
 | T1.99e | 1 | Add `eks/serve.py` | Per AGENTS.md §18.12 (canonical launcher created; `server.py` retained as thin re-export shim). | ✅ COMPLETE | I092 |

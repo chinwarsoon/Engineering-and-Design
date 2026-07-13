@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/update_log.md`  
-**Last Updated**: 2026-07-11  
+**Last Updated**: 2026-07-13  
 
 ---
 
@@ -10,6 +10,9 @@
 
 | # | Date | Phase | Task | Description | Author | Status |
 | :- | :--- | :---- | :--- | :---------- | :----- | :----: |
+| U146 | 2026-07-13 | Phase 1 | I093 | **I093 closure (T1.56.1–T1.56.5)**: Wired `eks/engine/core/discovery_cli.py` `run()` to `PipelineOrchestrator.run_phase_a()` via the shared `bootstrap_pipeline()` funnel (T1.56.1); wired `eks/engine/core/health_cli.py` `run()` to `HealthScorer.score()`/`score_batch()` over the DuckDB `DocumentRegistry` (T1.56.2); added `eks/test/test_discovery_cli.py` + `eks/test/test_health_cli.py` (7 tests) closing the AGENTS.md §21 coverage gap (T1.56.3–T1.56.4); flipped `T1.56` 🔶 PARTIAL → ✅ in workplan §8/§9/§14 (T1.56.5). Full EKS suite 264/264 green. Issue I093 → Resolved. | opencode | ✅ Done |
+| U145 | 2026-07-13 | Master | I095 | **I095 fix**: Added ENTRY (CLI/Web/HTTP) and BOOT (ConfigRegistry/SchemaLoader/DocumentRegistry/ErrorManager) subgraphs to `eks_system_workplan.md` §10.1 high-level pipeline diagram. Expanded PH3 from "Neo4j + Ontology" to ontology → asset ingestion → relationship builders → Neo4j. Added bootstrap/entry-point note to §10.3. Bumped to v1.11. | opencode | ✅ Done |
+| U144 | 2026-07-13 | Phase 1 | I094 | **I094 fix**: Updated `phase_1_foundation_workplan.md` §9 Mermaid diagram — moved `initialize_context()` out of Phase A subgraph into an independent "Phase 1 Context Setup" subgraph between Bootstrap and Phase A, matching actual call order in `pipeline_runner.py:180`. Bumped to v3.56. | opencode | ✅ Done |
 | U143 | 2026-07-11 | Phase 1 | Docs | **Canonical workplan promotion (v3.55)**: Archived pre-restructure `phase_1_foundation_workplan.md` v3.52 → `eks/archive/phase_1_foundation_workplan_v3.52.md`. Promoted restructured workplan (master-index layout + §11–§35 topical sections) as canonical `eks/workplan/phase_1_foundation_workplan.md` v3.55; removed interim `phase_1_foundation_workplan_b2.md` draft filename. | opencode | ✅ Done |
 | U130 | 2026-07-09 | Phase 1.3 | T1.84–T1.89 | Initiation harmonization complete: (T1.84) Added validate_folders/validate_named_files/validate_environment/validate_dependencies/validate_discovery_rules/validate_project_setup to universal ValidationManager in common/library/utility/validation/manager.py; (T1.85) Replaced flat-array project_setup defs in eks_base_schema.json v1.7.0 with DCC-aligned object definitions (folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def); (T1.86) Created eks_project_setup_config.json v1.0.0 — instance data in DCC object model; (T1.87) Refactored setup_validator.py v0.7 as thin adapter delegating to universal ValidationManager, preserves P1-SETUP-* codes + ErrorManager wiring; (T1.88) Updated test_setup_validator.py (19 tests), created test_validation_manager.py (20 tests); (T1.89) Updated knowledge.json v2.3.0, update_log, issue_log, workplans. 235/235 tests pass. I085 resolved. | opencode | ✅ Done |
 | U001 | 2026-06-11 | Pre-Phase 1 | — | Created EKS master workplan (WP-EKS-001 v0.1) | System | ✅ Done |

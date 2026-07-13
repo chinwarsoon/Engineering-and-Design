@@ -18,7 +18,8 @@ import json
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from engine.core.base import EngineInput, EngineOutput
+from eks.engine.core.base import EngineInput, EngineOutput, ErrorRecord
+from eks.engine.logging.logger import EKSLogger
 
 
 class DiscoveryEngineCLI:
@@ -115,21 +116,67 @@ Examples:
             checkpoint_state = self._load_checkpoint(parsed_args.checkpoint)
             input_data.checkpoint_state = checkpoint_state
         
-        # TODO: Implement actual discovery engine execution
-        # For now, return a placeholder output
+        # T1.56.1 (I093): wire to the real discovery engine instead of a
+        # placeholder. Discovery == Phase A of the PipelineOrchestrator
+        # (scan directory -> register placeholder documents), reusing the
+        # shared bootstrap funnel (I092 / T1.99a).
+        logger = EKSLogger("DiscoveryEngineCLI", level=3 if parsed_args.verbose else 1)
+        errors: list = []
+        summary: dict = {}
+        try:
+            from eks.engine.core.pipeline_runner import bootstrap_pipeline
+            from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
+            from eks.engine.core.registry import DocumentRegistry
+
+            project_root = Path(__file__).resolve().parent.parent.parent.parent
+            data_dir = parsed_args.data_dir
+            if not data_dir.is_absolute():
+                data_dir = project_root / data_dir
+
+            config_dir = parsed_args.config_file.parent if parsed_args.config_file else None
+            boot = bootstrap_pipeline(
+                project_root,
+                config_dir=config_dir,
+                logger=logger,
+                skip_readiness=not parsed_args.validate,
+                debug=parsed_args.verbose,
+            )
+            registry = DocumentRegistry(logger=logger)
+            orchestrator = PipelineOrchestrator(
+                boot["config"], boot["doc_config"], registry, logger=logger,
+                use_telemetry=False, error_manager=boot["em"], message_manager=boot["mm"],
+            )
+
+            # Phase A performs the actual discovery (scan + register).
+            # --scan and --validate both trigger a discovery pass; --validate
+            # additionally enforces the project-setup readiness gate.
+            summary = orchestrator.run_phase_a(data_dir, recursive=True)
+            if summary.get("error"):
+                errors.append(ErrorRecord(
+                    "DiscoveryValidation", str(summary["error"]),
+                    context={"data_dir": str(data_dir)},
+                ))
+        except Exception as e:  # surfaced but non-fatal to the EngineOutput contract
+            errors.append(ErrorRecord(
+                "DiscoveryEngineError", str(e),
+                context={"data_dir": str(parsed_args.data_dir)},
+            ))
+
+        status = "FAILED" if errors else "SUCCESS"
         output = EngineOutput(
             run_id=input_data.run_id,
-            status="SUCCESS",
+            status=status,
             output_files=[],
             metadata={
                 "engine": "DiscoveryEngine",
                 "data_dir": str(parsed_args.data_dir),
                 "scan": parsed_args.scan,
-                "validate": parsed_args.validate
+                "validate": parsed_args.validate,
+                "summary": summary,
             },
-            errors=[],
-            checkpoint_state={},
-            telemetry={}
+            errors=errors,
+            checkpoint_state=summary if parsed_args.save_checkpoint else {},
+            telemetry={},
         )
         
         # Save checkpoint if requested

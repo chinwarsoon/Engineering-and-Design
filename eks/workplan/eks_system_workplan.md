@@ -1,9 +1,9 @@
 # Engineering Knowledge System (EKS) — Master Workplan
 
 **Document ID**: WP-EKS-001  
-**Current Version**: 1.10  
+**Current Version**: 1.13  
 **Status**: 🔶 PARTIAL — Phase 1 PARTIAL (T1.68–T1.74 pending), Phase 1.2 PARTIAL (server hardening + hygiene pending), Phases 2–5 planned. Cross-workplan alignment audit: fixed R54–R58 scope status, added R43, R40(retrieval), R99 scope rows; fixed §9/§10 ordering; added Phase 1.2, Appendix F/G; corrected emoji across all phase workplans.  
-**Last Updated**: 2026-07-11  
+**Last Updated**: 2026-07-13  
 
 ---
 
@@ -20,6 +20,8 @@ Each implementation phase is managed as an **independent workplan file** (see Se
 | Version | Date       | Author | Summary of Changes                                                              |
 | :------ | :--------- | :----- | :------------------------------------------------------------------------------ |
 | 1.9     | 2026-07-08 | System | Cross-workplan alignment audit: fixed R54–R58 status (PLANNED→PASS), added R43, R40(retrieval), R99 scope rows; fixed §9/§10 section ordering; fixed gap assessment count (53→62); added Phase 1.2 to phase index; added Appendix F/G to references; fixed test count (120→118); aligned Phase 1 status with workplan (COMPLETE→PARTIAL). |
+| 1.13    | 2026-07-13 | opencode | **I095 fix (cont. 2)**: Converted §10.1 diagram from `flowchart LR` to `flowchart TD` (vertical top-down) for readability; removed redundant `direction TB` lines and added `Input Sources` label to the INPUT subgraph. Re-validated via mermaid-cli (SVG generated). |
+| 1.12    | 2026-07-13 | opencode | **I095 fix (cont.)**: Fixed §10.1 Mermaid parse failure. Root cause: `phase{N}_server` node label contained `{}` which Mermaid parses as a decision-node token, aborting the whole diagram. Replaced with `phase-N server`. Validated by generating SVG via mermaid-cli. |
 | 1.10    | 2026-07-11 | opencode | Added R60 (Independent Phase Sub-Pipelines) to scope table per AGENTS.md 18.13 — each phase (1–5) must run as an independent sub-pipeline with its own `phase{N}_server.py` backend + `run_pipeline(context)`; Phase 1 satisfied (phase1_server.py), Phases 2–5 pending. Widened I092 to cover the per-phase convergence pattern (entry-point funnel + per-phase backend servers). |
 | 1.8     | 2026-07-08 | System | Appended a new revision entry to the history and documented the shared common-library milestone under `common/library` as a reusable foundation for future EKS runtime integration. |
 | 1.7     | 2026-07-08 | System | Added note that the shared common-library package structure now exists under `common/library` for architecture-aligned logging, telemetry, pipeline, errors, messages, paths, validation, UI, and factory modules; captured as a reusable foundation for future EKS runtime integration. |
@@ -243,13 +245,24 @@ Each phase must be approved and completed before the next phase begins.
 
 ## 10. EKS Pipeline Architecture
 
-Full end-to-end workflow across all 5 phases. Two parallel ingestion paths (documents and assets) converge at the retrieval stage.
+Full end-to-end workflow across all 5 phases. Two parallel ingestion paths (documents and assets) converge at the retrieval stage. Three entry-point types funnel through a shared `bootstrap_pipeline()` — see Phase 1 detailed diagram for bootstrap internals (§9 of phase workplan).
 
 ### 10.1 High-Level Pipeline Overview
 
 ```mermaid
-graph LR
-    subgraph INPUT
+flowchart TD
+
+    subgraph ENTRY["Pipeline Entry Points (CLI / Web / HTTP)"]
+        EC[CLI: eks-pipeline] --> EF[Shared run_pipeline]
+        EW[Web: serve.py] --> EF
+        EH[HTTP: phase-N server] --> EF
+    end
+
+    subgraph BOOT["Bootstrap — Schema & Registry Init"]
+        BOOT1[ConfigRegistry / SchemaLoader / DocumentRegistry / ErrorManager]
+    end
+
+    subgraph INPUT["Input Sources"]
         PDF[PDF Files]
         DOCX[DOCX Files]
         XLSX[XLSX Files]
@@ -257,7 +270,6 @@ graph LR
     end
 
     subgraph PH1["Phase 1 — Parse, Score & Review"]
-        direction TB
         A1[SchemaToDDL] --> A2[sync_schema]
         A2 --> A3[FileScanner]
         A3 --> A4[ParserRouter]
@@ -269,7 +281,6 @@ graph LR
     end
 
     subgraph PH2["Phase 2 — Chunk, Embed & Vector"]
-        direction TB
         B1[Chunker] --> B2[Chunk Registry]
         B2 --> B3[Hybrid Embedding]
         B3 --> B4[Qdrant eks_chunks]
@@ -277,15 +288,13 @@ graph LR
         B3 --> B6[Qdrant eks_assets]
     end
 
-    subgraph PH3["Phase 3 — Knowledge Graph"]
-        direction TB
-        C1[Neo4j Graph DB]
-        C2[Dynamic Ontology]
-        C1 --> C2
+    subgraph PH3["Phase 3 — Knowledge Graph & Asset Ingestion"]
+        C1[Ontology Loading] --> C2[Asset Datadrop Ingestion]
+        C2 --> C3[PhysicalObject + Relationship Builders]
+        C3 --> C4[Neo4j Graph DB]
     end
 
     subgraph PH4["Phase 4 — Retrieval Pipeline"]
-        direction TB
         D1[Metadata Filter] --> D2[Graph Expansion]
         D2 --> D3[Hybrid Search]
         D3 --> D4[Scorer]
@@ -295,18 +304,18 @@ graph LR
     end
 
     subgraph PH5["Phase 5 — UI & Integration"]
-        direction TB
         E1[Retrieval Cache] --> E2[FastAPI Backend]
         E2 --> E3[Web UI]
     end
 
-    PDF & DOCX & XLSX --> PH1
-    DATA --> PH1
-    PH1 --> PH2
-    PH1 --> PH3
-    PH2 --> PH4
-    PH3 --> PH4
-    PH4 --> PH5
+    EF --> BOOT1
+    BOOT1 --> A1
+    PDF & DOCX & XLSX --> A3
+    DATA --> A3
+    A9 --> B1 & C1
+    B4 & B6 --> D3
+    C4 --> D2
+    D7 --> E1
 ```
 
 ### 10.2 Data Store Summary
@@ -329,6 +338,7 @@ graph LR
 - **Two ingestion paths**: Documents (PDF/DOCX/XLSX) and Assets (Datadrop Excel) run in parallel through Phase 1–3, converge at Phase 4 retrieval.
 - **Schema-driven**: All registries (document_type, file_type, element_type, asset_type) are config-driven — no code changes needed to add new types.
 - **Detailed Mermaid diagrams**: Each phase's detailed pipeline diagram is maintained in its respective phase workplan file (Phase 1–5).
+- **Bootstrap & entry points**: Three entry types (CLI, Web serve.py, per-phase HTTP backend) converge on shared `bootstrap_pipeline()`/`run_pipeline(context)` — detailed in Phase 1 foundation workplan §9 (T1.99a–g, I092/R60). Bootstrap runs once per invocation; pipeline execution phases are per-run.
 
 ---
 
