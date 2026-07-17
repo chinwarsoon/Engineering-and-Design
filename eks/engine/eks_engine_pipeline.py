@@ -577,6 +577,9 @@ def _preload_infrastructure(
     _UniversalLogger = None
     _TelemetryHeartbeat = None
 
+    # print message the preload will start
+    print("Preload Reference Labraries now:")
+
     # Step 0: early verbosity (stdlib-only argparse, always safe)
     try:
         early_verbosity = _parse_early_verbosity(args)
