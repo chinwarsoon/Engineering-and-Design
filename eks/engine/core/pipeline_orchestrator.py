@@ -8,7 +8,7 @@ T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_do
 """
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from ..logging.logger import EKSLogger, log_depth
 from .file_scanner import FileScanner
 from .health_scorer import HealthScorer
@@ -75,9 +75,13 @@ class PipelineOrchestrator:
         self.checkpoint_states: Dict[str, Dict[str, Any]] = {}
     
     def initialize_context(self, data_dir: Path, schema_dir: Path, output_dir: Path,
-                          archive_dir: Path, config_dir: Path, log_dir: Path):
+                          archive_dir: Path, config_dir: Path, log_dir: Path,
+                          parameters: Optional[Dict[str, Any]] = None,
+                          config_registry: Optional[Any] = None,
+                          schema_registry: Optional[Any] = None,
+                          checkpoint_state: Optional[Dict[str, Any]] = None):
         """
-        Initialize pipeline context with paths.
+        Initialize pipeline context with paths, parameters, and registries (T1.99.41).
         
         Args:
             data_dir: Data directory path
@@ -86,6 +90,10 @@ class PipelineOrchestrator:
             archive_dir: Archive directory path
             config_dir: Config directory path
             log_dir: Log directory path
+            parameters: Pipeline parameters from EngineInput
+            config_registry: ConfigRegistry instance (SSOT)
+            schema_registry: Schema loader instance
+            checkpoint_state: Optional checkpoint state for resume
         """
         paths = EKSPaths(
             data_dir=data_dir,
@@ -95,7 +103,26 @@ class PipelineOrchestrator:
             config_dir=config_dir,
             log_dir=log_dir
         )
-        self.context = EKSPipelineContext(paths=paths)
+        
+        # Populate context with bootstrap data (T1.99.41)
+        from .context import EKSData
+        data = EKSData()
+        if checkpoint_state:
+            # Restore data from checkpoint if resuming
+            if "documents" in checkpoint_state:
+                data.documents = checkpoint_state["documents"]
+            if "extracted_content" in checkpoint_state:
+                data.extracted_content = checkpoint_state["extracted_content"]
+            if "metadata" in checkpoint_state:
+                data.metadata = checkpoint_state["metadata"]
+        
+        self.context = EKSPipelineContext(
+            paths=paths,
+            data=data,
+            parameters=parameters or {},
+            config_registry=config_registry,
+            schema_registry=schema_registry
+        )
     
     def save_checkpoint(self, phase: str, checkpoint_path: Optional[Path] = None):
         """
@@ -269,11 +296,11 @@ class PipelineOrchestrator:
             try:
                 result = self._process_file(file_path, file_type)
             except Exception as e:
-                result = {"file_path": file_path, "file_type": file_type, "status": "failed", "error": str(e)}
+                result = {"file_path": file_path, "file_type": file_type, "status": "failed", "error": str(5)}
                 if self.error_manager:
                     self.error_manager.handle_system_error("S-PIP-001", detail=f"Unhandled error in _process_file for {file_path}: {e}")
                     if self.message_manager:
-                        self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(e))
+                        self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(5))
 
             results.append(result)
 
@@ -382,46 +409,80 @@ class PipelineOrchestrator:
         return summary
 
     @log_depth
-    def run_full_pipeline(self, root_dir: Path, recursive: bool = True) -> Dict[str, Any]:
+    def run_full_pipeline(
+        self,
+        root_dir: Path,
+        recursive: bool = True,
+        on_phase: Optional[Callable[[str], None]] = None,
+        checkpoint_dir: Optional[Path] = None,
+        job_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Run all three phases in sequence: A → B → C.
         Enhanced with telemetry heartbeat integration per Appendix F.
 
-        Returns combined summary dict.
+        Single coordination loop for the whole pipeline. Progress and checkpoint
+        callbacks (``on_phase`` / ``checkpoint_dir`` + ``job_id``) are forwarded by
+        the shared ``run_pipeline`` funnel so servers keep their progress/checkpoint
+        behavior (T1.99.10). Per-phase separability (R60 / Appendix F §2.3.3) is also
+        available via the public ``run_phase_a/b/c`` methods.
+
+        Args:
+            root_dir: Root directory containing documents to process.
+            recursive: Recurse into subdirectories.
+            on_phase: Optional callback invoked with the phase letter ("A"/"B"/"C")
+                after each phase completes.
+            checkpoint_dir: Directory for per-phase checkpoint JSON artifacts.
+            job_id: Job id used to name checkpoint files.
+
+        Returns:
+            Combined summary dict with keys phase_a / phase_b / phase_c.
         """
         self.logger.status(f"Starting full pipeline for {root_dir}")
-        
+
         if self.message_manager:
             self.message_manager.show("STATUS_PIPELINE_START", root_dir=str(root_dir))
-        
+
         if self.use_telemetry:
             self.telemetry.start()
-        
+
         if self.context:
             self.context.state.status = "IN_PROGRESS"
 
+        def _after(phase: str) -> None:
+            if on_phase:
+                on_phase(phase)
+            if checkpoint_dir is not None and job_id is not None:
+                self.save_checkpoint(
+                    phase,
+                    checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{phase}.json",
+                )
+
         try:
             phase_a = self.run_phase_a(root_dir, recursive=recursive)
+            _after("A")
             phase_b = self.run_phase_b(root_dir, recursive=recursive)
+            _after("B")
             phase_c = self.run_phase_c()
+            _after("C")
 
             summary = {
                 "phase_a": phase_a,
                 "phase_b": phase_b,
                 "phase_c": phase_c,
             }
-            
+
             if self.use_telemetry:
                 self.telemetry.stop()
-            
+
             if self.context:
                 self.context.complete()
-            
+
             self.logger.status("Full pipeline complete")
-            
+
             if self.message_manager:
                 self.message_manager.show("STATUS_PIPELINE_COMPLETE")
-            
+
             return summary
         except Exception as e:
             if self.error_manager:
@@ -515,7 +576,7 @@ class PipelineOrchestrator:
                         self.error_manager.handle_data_error("D5-SCORE-001", doc_id=str(file_path),
                                                               detail=f"Health scoring failed: {e}")
                     result["status"] = "partial"
-                    result["error"] = str(e)
+                    result["error"] = str(5)
             else:
                 result["status"] = "partial"
                 result["error"] = f"Document not registered: {doc_number}"
@@ -525,9 +586,9 @@ class PipelineOrchestrator:
 
         except Exception as e:
             result["status"] = "failed"
-            result["error"] = str(e)
+            result["error"] = str(5)
             pout.status = "FAILED"
-            pout.errors.append(ErrorRecord("PipelineError", str(e), context={"file_path": file_path}))
+            pout.errors.append(ErrorRecord("PipelineError", str(5), context={"file_path": file_path}))
             self.logger.error(
                 f"Pipeline processing failed for {file_path}: {e}",
                 context="PipelineOrchestrator._process_file"

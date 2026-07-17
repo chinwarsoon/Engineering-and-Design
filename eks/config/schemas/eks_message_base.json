@@ -40,7 +40,11 @@
       "properties": {
         "template": { "$ref": "#/definitions/template" },
         "level": { "$ref": "#/definitions/verbosity_level" },
-        "category": { "$ref": "#/definitions/message_category" }
+        "category": { "$ref": "#/definitions/message_category" },
+        "icon": {
+          "type": "string",
+          "description": "Optional emoji or text icon prepended to the rendered message"
+        }
       }
     }
   }

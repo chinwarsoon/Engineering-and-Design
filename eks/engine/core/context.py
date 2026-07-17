@@ -5,16 +5,21 @@ This module implements the PipelineContext pattern per Appendix F Section 2.2,
 providing a single source of truth for pipeline state, paths, data, parameters,
 telemetry, and schema/config registries.
 
-Revision: 0.1
-Date: 2026-06-30
-Author: System
+Extends common.library.core.pipeline.BasePipelineContext (L06) for universal
+pipeline context contract compliance (I106 / T1.99.40).
+
+Revision: 0.2
+Date: 2026-07-16
+Author: opencode
+Summary: T1.99.40 — Extend BasePipelineContext (L06) for universal contract compliance.
 """
 
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
-import json
+
+from common.library.core.pipeline import BasePipelineContext
 
 
 @dataclass
@@ -115,13 +120,15 @@ class EKSTelemetry:
 
 
 @dataclass
-class EKSPipelineContext:
+class EKSPipelineContext(BasePipelineContext):
     """
     Centralized state management for EKS pipeline.
     
     This class implements the PipelineContext pattern per Appendix F Section 2.2,
     providing a single source of truth for pipeline state, paths, data, parameters,
     telemetry, and schema/config registries.
+    
+    Extends BasePipelineContext (L06) for universal contract compliance.
     
     Attributes:
         paths: Document paths, schema paths, output paths
@@ -157,13 +164,9 @@ class EKSPipelineContext:
             "config_registry": str(self.config_registry) if self.config_registry else None
         }
     
-    def to_json(self) -> str:
-        """Serialize context to JSON string."""
-        return json.dumps(self.to_dict(), indent=2)
-    
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'EKSPipelineContext':
-        """Reconstruct context from dictionary."""
+    def _from_dict(cls, data: Dict[str, Any]) -> 'EKSPipelineContext':
+        """Reconstruct context from dictionary (BasePipelineContext contract)."""
         paths = EKSPaths(
             data_dir=Path(data["paths"]["data_dir"]),
             schema_dir=Path(data["paths"]["schema_dir"]),
@@ -195,12 +198,6 @@ class EKSPipelineContext:
         
         return context
     
-    @classmethod
-    def from_json(cls, json_str: str) -> 'EKSPipelineContext':
-        """Reconstruct context from JSON string."""
-        data = json.loads(json_str)
-        return cls.from_dict(data)
-    
     def update_phase(self, phase: str, status: str = "IN_PROGRESS"):
         """Update current phase and status."""
         self.state.current_phase = phase
@@ -230,28 +227,3 @@ class EKSPipelineContext:
             timestamp=datetime.now(),
             details={"error": error_message}
         )
-    
-    def save_checkpoint(self, checkpoint_path: Path):
-        """
-        Save checkpoint state to file.
-        
-        Args:
-            checkpoint_path: Path to save checkpoint file
-        """
-        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(checkpoint_path, 'w') as f:
-            f.write(self.to_json())
-    
-    @classmethod
-    def load_checkpoint(cls, checkpoint_path: Path) -> 'EKSPipelineContext':
-        """
-        Load checkpoint state from file.
-        
-        Args:
-            checkpoint_path: Path to checkpoint file
-            
-        Returns:
-            EKSPipelineContext loaded from checkpoint
-        """
-        with open(checkpoint_path, 'r') as f:
-            return cls.from_json(f.read())

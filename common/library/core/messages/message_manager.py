@@ -42,10 +42,19 @@ class BaseMessageManager(ABC):
         verbosity: int = 1,
     ):
         self._config_dir = Path(config_dir) if config_dir else Path(__file__).parents[5] / "config"
-        self._logger = logger
+        self._logger = logger or self._make_default_logger()
         self.verbosity = verbosity
         self._catalog: Dict[str, Any] = {}
         self._load_catalog()
+
+    # ------------------------------------------------------------------
+    # Subclass hooks
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _make_default_logger():
+        """Hook for subclasses to provide a default logger. Returns None by default."""
+        return None
 
     # ------------------------------------------------------------------
     # Catalog loading
@@ -58,8 +67,7 @@ class BaseMessageManager(ABC):
             return
         try:
             with open(catalog_path, encoding="utf-8") as f:
-                data = json.load(f)
-                self._catalog = data.get("messages", data)
+                self._catalog = json.load(f)
         except Exception:
             self._catalog = {}
 
@@ -69,12 +77,22 @@ class BaseMessageManager(ABC):
         self._load_catalog()
 
     # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _messages_dict(self) -> Dict[str, Any]:
+        """Return the inner dict of message definitions, supporting flat and structured formats."""
+        if not isinstance(self._catalog, dict):
+            return {}
+        return self._catalog.get("messages", self._catalog)
+
+    # ------------------------------------------------------------------
     # Lookup and hydration
     # ------------------------------------------------------------------
 
     def get_message(self, msg_id: str) -> Optional[Dict[str, Any]]:
         """Return the raw message definition dict for msg_id, or None."""
-        return self._catalog.get(msg_id)
+        return self._messages_dict().get(msg_id)
 
     def get(self, msg_id: str, **kwargs: Any) -> Optional[str]:
         """
@@ -114,6 +132,10 @@ class BaseMessageManager(ABC):
         except KeyError:
             text = msg_def.get("template", "")
 
+        icon = msg_def.get("icon", "")
+        if icon:
+            text = f"{icon} {text}"
+
         if not self._logger:
             print(text)
             return
@@ -134,6 +156,7 @@ class BaseMessageManager(ABC):
 
     def get_all_messages(self, category: Optional[str] = None) -> Dict[str, Any]:
         """Return all messages, optionally filtered by category."""
+        msgs = self._messages_dict()
         if category:
-            return {k: v for k, v in self._catalog.items() if v.get("category") == category}
-        return dict(self._catalog)
+            return {k: v for k, v in msgs.items() if v.get("category") == category}
+        return dict(msgs)

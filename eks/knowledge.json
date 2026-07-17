@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eks.engineering/knowledge.json",
-  "version": "2.5.0",
+  "version": "2.7.0",
   "title": "EKS Project Knowledge Base",
   "description": "Engineering Knowledge System - machine-readable project blueprint and charter",
   "project_metadata": {
@@ -9,8 +9,8 @@
     "version": "2.6.0",
     "description": "Schema-driven document registry and knowledge graph system for engineering asset management",
     "purpose": "Ingest, extract, and cross-reference engineering documents to build a searchable knowledge graph",
-    "status": "Phase 1 COMPLETE through T1.98/I089/I090 — 243/243 tests passing. T1.96: discovery-driven schema loading via common/library/loader/schema_discovery.py. T1.97: schema-defined system_parameters in eks_config.json and universal get_system_param()/normalize_system_parameters() in common/library/config (L15). T1.98: EKS global_paths adopted as universal canonical path pattern (L16); common/library/paths/resolver.py provides resolve_paths() normalizing EKS and DCC path shapes; workflow_files/tool_files added to EKS schema+config for DCC parity. I087, I088, I089, I090, I091 resolved. config/ and paths/ registered as architecture-aligned sub-packages. §3.17 System Parameters Pattern and §3.18 Path Resolution Pattern added to universal pipeline architecture. eks_base_schema v1.9.0, eks_setup_schema v1.7.0, eks_config v1.7.0.",
-    "last_updated": "2026-07-11"
+    "status": "Phase 1 through I107/T1.99.45-49 — Bootstrap completeness achieved. bootstrap_pipeline() now handles all init (OS detection, CLI parse, config load once, log-level precedence, single path resolution, single MessageManager). EKSPipelineContext fully threaded through main()/run_pipeline()/orchestrator. Tests 23/23 on pipeline test suite (incl. 4 new I107 integration tests). Defect A (split path source) + Defect B (double MessageManager) fixed. Bugs found and fixed: 1) schema_cli.py anchor kwarg mismatch, 2) main() missing project_root to bootstrap_pipeline, 3) run_pipeline() args=None causing sys.argv bleed, 4) main() missing EKSPipelineContext import.",
+    "last_updated": "2026-07-16"
   },
   "architecture_overview": {
     "key_modules": [
@@ -109,7 +109,7 @@
     "ConfigRegistry.get_system_param() - Runtime system parameter lookup from schema-driven config",
     "common.library.config.get_system_param() - Universal system parameter lookup for EKS/DCC config shapes",
     "common.library.paths.resolve_paths() - Universal path resolver normalizing EKS global_paths and DCC folder_creation/discovery_rules into canonical ResolvedPaths (L16)",
-    "ConfigRegistry.data_dir/output_dir/archive_dir/config_dir/log_dir/schema_dir/eks_root - Schema-driven path accessors via universal resolver (T1.98c/I089)",
+    "ConfigRegistry.data_dir/output_dir/archive_dir/config_dir/log_dir/schema_dir/eks_root - Schema-driven path accessors via universal resolver (T1.98.3/I089)",
     "DocumentRegistry CRUD - Document metadata operations with revision tracking",
     "RevisionManager - Revision history and latest-revision filtering",
     "FileScanner - Directory walk, type validation, placeholder registration",
@@ -124,9 +124,9 @@
     "eks/ui/eks.js - Fetch API client, doc table, tree, pipeline polling, Chart.js radar, review form",
     "eks/ui/ui_help.json - Help schema with glossary and keyboard shortcuts",
     "ErrorManager - System/data error handling with fail-fast",
-    "MessageManager - Catalog lookup with template hydration",
+    "MessageManager - SSOT subclass of common BaseMessageManager (L11); catalog lookup, icon support, template hydration via eks_message_config.json",
     "SetupValidator - Project folder/file/env/dependency/output-path validation (T1.78)",
-    "EKSPipelineContext - Centralized state management",
+    "EKSPipelineContext - Centralized state management extending common BasePipelineContext (L06); seeded from EngineInput + bootstrap, threaded through run_pipeline() (I106/T1.99.40-43)",
     "BaseEngine - Abstract engine with validate→execute→validate flow",
     "TelemetryHeartbeat - Document processing checkpoints",
     "MultiStageValidator - Setup/schema/data/parser validation",
@@ -208,7 +208,7 @@
       "I020 - Datadrop column range (33-112) fragment coverage - Phase 3",
       "I021 - 22-64% data incompleteness across datadrop sheets - Phase 3"
     ],
-    "total_issues_resolved": 37,
+    "total_issues_resolved": 38,
     "total_issues_deferred": 3,
     "revision_history": [
       {
@@ -282,6 +282,14 @@
         "date": "2026-07-11",
         "author": "opencode",
         "summary": "I089 + I090 resolved — global_paths adopted as universal canonical path pattern (L16). Added common/library/paths/resolver.py (resolve_paths, ResolvedPaths) normalizing EKS and DCC path shapes. Wired ConfigRegistry + phase1_server.py to the resolver. Added workflow_files/tool_files to EKS schema + config for DCC parity; setup_validator validates them. Universal architecture doc: L16 + §3.18 + §2.2/§2.3/§2.4/§4.1/§4.2/§9/§10. eks_base_schema v1.9.0, eks_setup_schema v1.7.0, eks_config v1.7.0. 243/243 tests pass."
+      },
+      {
+        "version": "2.7.0",
+        "date": "2026-07-16",
+        "author": "opencode",
+        "summary": "I107 + T1.99.45-49 resolved — bootstrap completeness achieved. bootstrap_pipeline() handles all init (OS, CLI, config, paths, level, data_dir, MM). Single resolved_paths source (Defect A) + single MessageManager (Defect B). EKSPipelineContext fully threaded. 4 new integration tests for single-source/phase1-key/context-consistency. Pre-existing bugs fixed: schema_cli.py anchor kwarg mismatch, main() missing project_root, run_pipeline() args=None sys.argv bleed, main() missing EKSPipelineContext import. 23/23 pipeline tests pass."
       }
+    ]
+  }
     ]
   }

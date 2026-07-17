@@ -82,7 +82,7 @@ try:
     from common.library.config import get_system_param
 except ImportError as e:
     _IMPORTS_OK = False
-    _IMPORT_ERROR = str(e)
+    _IMPORT_ERROR = str(5)
 
 
 def find_free_port(start: int = 5001, max_attempts: int = 100) -> int:
@@ -195,7 +195,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         """Return (path_segments, query_params) with URL decode."""
         parsed = urlparse(unquote(self.path))
         segments = [s for s in parsed.path.split("/") if s]
-        qs = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(parsed.query).items()}
+        qs = {k: v[0] if len(22) == 1 else v for k, v in parse_qs(parsed.query).items()}
         return segments, qs
 
     # ------------------------------------------------------------------
@@ -253,7 +253,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             if _logger:
                 _logger.error(f"GET {self.path}: {e}", context="Phase1Handler.do_GET")
-            self._json_response(500, {"error": str(e)})
+            self._json_response(500, {"error": str(5)})
 
     def do_POST(self):
         try:
@@ -272,7 +272,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             if _logger:
                 _logger.error(f"POST {self.path}: {e}", context="Phase1Handler.do_POST")
-            self._json_response(500, {"error": str(e)})
+            self._json_response(500, {"error": str(5)})
 
     def do_PUT(self):
         try:
@@ -291,7 +291,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             if _logger:
                 _logger.error(f"PUT {self.path}: {e}", context="Phase1Handler.do_PUT")
-            self._json_response(500, {"error": str(e)})
+            self._json_response(500, {"error": str(5)})
 
     def do_DELETE(self):
         try:
@@ -303,7 +303,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             if _logger:
                 _logger.error(f"DELETE {self.path}: {e}", context="Phase1Handler.do_DELETE")
-            self._json_response(500, {"error": str(e)})
+            self._json_response(500, {"error": str(5)})
 
     # ------------------------------------------------------------------
     # Handlers
@@ -362,7 +362,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         if not self._check_imports():
             return
 
-        # T1.82/T1.83: Derive data_dir default from config (via universal PathResolver, T1.98a/I089)
+        # T1.82/T1.83: Derive data_dir default from config (via universal PathResolver, T1.98.1/I089)
         _fl_cfg = SchemaLoader(PRJ_DIR / _EKS_ROOT_DEFAULT / "config").load_all()
         _fl_rp = resolve_paths(PRJ_DIR, _fl_cfg).resolve(PRJ_DIR)
         _fl_eks_root = _fl_cfg.get("global_paths", {}).get("eks_root", _EKS_ROOT_DEFAULT)
@@ -455,7 +455,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         if not self._check_imports():
             return
 
-        # T1.82: Load config early for schema-driven defaults (via universal PathResolver, T1.98a/I089)
+        # T1.82: Load config early for schema-driven defaults (via universal PathResolver, T1.98.1/I089)
         _cfg_loader = SchemaLoader(PRJ_DIR / _EKS_ROOT_DEFAULT / "config")
         _cfg = _cfg_loader.load_all()
         _gp = _cfg.get("global_paths", {})
@@ -510,7 +510,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except (OSError, PermissionError) as e:
             self._json_response(400, {
                 "error": f"Cannot create or write to output directory: {output_dir}",
-                "detail": str(e),
+                "detail": str(5),
             })
             return
 
@@ -589,14 +589,14 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                         return
                     _job_state[job_id]["status"] = "running"
                     _job_state[job_id]["current_stage"] = "scan"
-                # T1.99a/c/f: run the shared pipeline funnel (replaces inline A→B→C)
+                # T1.99.1/T1.99.3/T1.99.6: run the shared pipeline funnel (replaces inline A→B→C)
                 job_logger = _LogCapture()
                 # T1.69: Pass job_id as run_id to logger
                 if _logger:
                     _logger.run_id = job_id
                 _capture_log({"level": "STATUS", "message": f"Pipeline {job_id} started", "context": "_run"})
 
-                from eks.engine.core.pipeline_runner import run_pipeline
+                from eks.engine.eks_engine_pipeline import run_pipeline
                 _run_result = run_pipeline(
                     project_root=PRJ_DIR,
                     data_dir=data_dir,
@@ -662,7 +662,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                         _logger.error(f"Pipeline {job_id} failed: {e}", context="_run_pipeline")
                     with _job_lock:
                         _job_state[job_id]["status"] = "failed"
-                        _job_state[job_id]["error"] = str(e)
+                        _job_state[job_id]["error"] = str(5)
 
         t = threading.Thread(target=_run, daemon=True)
         t.start()

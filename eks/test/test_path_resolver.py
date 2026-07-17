@@ -97,7 +97,7 @@ class TestConfigRegistryPaths(unittest.TestCase):
         self.assertEqual(self.config_reg.eks_root, Path("eks"))
 
     def test_eks_config_has_workflow_and_tool_files(self):
-        """T1.98f — config declares workflow_files and tool_files blocks."""
+        """T1.98.6 — config declares workflow_files and tool_files blocks."""
         wf = self.config_reg.get("workflow_files", [])
         tf = self.config_reg.get("tool_files", [])
         self.assertIsInstance(wf, list)
@@ -108,7 +108,7 @@ class TestConfigRegistryPaths(unittest.TestCase):
 
 class TestSetupValidatorPipelineFiles(unittest.TestCase):
     def test_workflow_and_tool_files_validated(self):
-        """T1.98g — setup validator includes workflow_files/tool_files in result."""
+        """T1.98.7 — setup validator includes workflow_files/tool_files in result."""
         reg = ConfigRegistry(REPO_ROOT / "eks" / "config")
         validator = ProjectSetupValidator(project_root=REPO_ROOT, config_registry=reg)
         result = validator.validate_all(auto_create=True)
@@ -120,14 +120,14 @@ class TestSetupValidatorPipelineFiles(unittest.TestCase):
 
 class TestSchemaDeclaresPipelineFiles(unittest.TestCase):
     def test_setup_schema_has_pipeline_file_properties(self):
-        """T1.98f — eks_setup_schema declares workflow_files and tool_files."""
+        """T1.98.6 — eks_setup_schema declares workflow_files and tool_files."""
         setup = json.load(open(CONFIG_DIR / "eks_setup_schema.json", encoding="utf-8"))
         props = setup.get("properties", {})
         self.assertIn("workflow_files", props)
         self.assertIn("tool_files", props)
 
     def test_base_schema_has_pipeline_file_defs(self):
-        """T1.98f — eks_base_schema defines workflow_file_entry_def and tool_file_entry_def."""
+        """T1.98.6 — eks_base_schema defines workflow_file_entry_def and tool_file_entry_def."""
         base = json.load(open(CONFIG_DIR / "eks_base_schema.json", encoding="utf-8"))
         defs = base.get("definitions", {})
         self.assertIn("workflow_file_entry_def", defs)

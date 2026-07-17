@@ -7,7 +7,7 @@ The canonical AGENTS.md §18.12 launcher implementation lives in
 Revision: 0.3
 Date: 2026-07-11
 Author: opencode
-Summary: T1.99e — add eks/serve.py per AGENTS.md §18.12; keep server.py as a
+Summary: T1.99.5 — add eks/serve.py per AGENTS.md §18.12; keep server.py as a
 thin launcher/proxy shim.
 """
 import sys

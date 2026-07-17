@@ -23,15 +23,19 @@ class ConfigRegistry:
 
     def __new__(cls, config_dir: str | Path = "eks/config"):
         if cls._instance is None:
-            cls._instance = super(ConfigRegistry, cls).__new__(cls)
             # Try eks/config if config doesn't exist (handle root execution)
             if not Path(config_dir).exists() and Path("config").exists():
                  config_dir = "config"
             elif not Path(config_dir).exists():
                  # Last ditch effort for common dev layouts
-                 pass 
+                 pass
             loader = SchemaLoader(config_dir)
-            cls._instance._config = loader.load_all()
+            # Only promote to the singleton AFTER a successful load. Assigning
+            # _instance before load_all() would leave a poisoned (empty) singleton
+            # on failure, which later correct calls would then reuse (I100).
+            config = loader.load_all()
+            cls._instance = super(ConfigRegistry, cls).__new__(cls)
+            cls._instance._config = config
             cls._instance._loader = loader
         return cls._instance
 
@@ -43,7 +47,7 @@ class ConfigRegistry:
             path = d / filename
             if path.exists():
                 with open(str(path), "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    return json.load(6)
         return ref_obj
 
     @property
@@ -122,7 +126,7 @@ class ConfigRegistry:
     # Common accessors for frequently used paths/settings
     @property
     def _resolved_paths(self) -> ResolvedPaths:
-        """Canonical, schema-driven paths resolved via the universal PathResolver (T1.98a/I089)."""
+        """Canonical, schema-driven paths resolved via the universal PathResolver (T1.98.1/I089)."""
         return resolve_paths(None, self._config)
 
     @property

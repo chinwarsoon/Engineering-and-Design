@@ -1,6 +1,6 @@
 {
     "project": "EKS",
-    "start_time": "2026-07-13T16:07:57.424250",
+    "start_time": "2026-07-17T08:37:47.879875",
     "system_snapshot": {
         "os": "win32",
         "python_version": "3.11.15 | packaged by Anaconda, Inc. | (main, Jun 11 2026, 15:12:53) [MSC v.1942 64 bit (AMD64)]",
@@ -11,7 +11,7 @@
     "run_id": null,
     "trace_table": [
         {
-            "timestamp": "2026-07-13T16:07:57.425388",
+            "timestamp": "2026-07-17T08:37:47.879875",
             "step": "Step 1",
             "parameter": "Param X",
             "value": "100",
@@ -22,7 +22,7 @@
     ],
     "logs": [
         {
-            "timestamp": "2026-07-13 16:07:57.425",
+            "timestamp": "2026-07-17 08:37:47.879",
             "level": 1,
             "category": "STATUS",
             "context": null,
@@ -31,7 +31,7 @@
             "message": "Testing status"
         },
         {
-            "timestamp": "2026-07-13 16:07:57.425",
+            "timestamp": "2026-07-17 08:37:47.879",
             "level": 2,
             "category": "WARNING",
             "context": null,
@@ -40,7 +40,7 @@
             "message": "Testing warning"
         },
         {
-            "timestamp": "2026-07-13 16:07:57.425",
+            "timestamp": "2026-07-17 08:37:47.879",
             "level": 0,
             "category": "ERROR",
             "context": null,
@@ -49,7 +49,7 @@
             "message": "Testing error"
         },
         {
-            "timestamp": "2026-07-13 16:07:57.425",
+            "timestamp": "2026-07-17 08:37:47.879",
             "level": 2,
             "category": "DEBUG",
             "context": "TestModule",
@@ -60,10 +60,10 @@
     ],
     "errors": [
         {
-            "timestamp": "2026-07-13T16:07:57.425388",
+            "timestamp": "2026-07-17T08:37:47.879875",
             "context": null,
             "message": "Testing error"
         }
     ],
-    "end_time": "2026-07-13T16:07:57.425388"
+    "end_time": "2026-07-17T08:37:47.879875"
 }

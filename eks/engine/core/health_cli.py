@@ -129,7 +129,7 @@ Examples:
         errors: list = []
         result: dict = {}
         try:
-            from eks.engine.core.pipeline_runner import bootstrap_pipeline
+            from eks.engine.eks_engine_pipeline import bootstrap_pipeline
             from eks.engine.core.registry import DocumentRegistry
             from eks.engine.core.health_scorer import HealthScorer
 

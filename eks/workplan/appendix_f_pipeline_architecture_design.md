@@ -255,12 +255,12 @@ python -m eks.engine.discovery.cli \
     --file-types pdf,docx \
     --include-subfolders
 
-# Run parser engine independently
-python -m eks.engine.parsers.cli \
+# Run the full Phase 1 pipeline (or a single phase via --phase)
+python -m eks.engine.eks_engine_pipeline \
     --run-id parser-001 \
-    --input-file ./output/discovery/discovered_files.json \
+    --data-dir ./data/twrp \
     --config-file ./config/schemas/eks_config.json \
-    --output-dir ./output/parsed
+    --phase full
 ```
 
 **2. Python API**:

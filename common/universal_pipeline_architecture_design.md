@@ -1,9 +1,9 @@
 # Universal Pipeline Architecture Design
 
 **Document ID**: WP-UNIVERSAL-PIPELINE-ARCH-001  
-**Current Version**: 1.6  
+**Current Version**: 1.8  
 **Status**: 📋 Proposed for Review  
-**Last Updated**: 2026-07-11  
+**Last Updated**: 2026-07-15  
 **Purpose**: Universal design patterns for pipeline architecture applicable across all projects  
 
 ---
@@ -12,12 +12,13 @@
 
 | Revision | Date | Author | Summary |
 | :--- | :--- | :--- | :--- |
-| 1.2 | 2026-07-11 | System | Added §3 Common Library Inventory — 14 universal modules/functions/engines identified across dcc/workflow and eks/engine with extraction priority ratings. Updated document index. Renumbered all subsequent sections. |
-| 1.4 | 2026-07-11 | opencode | Review of EKS T1.77 vs DCC `initiation_engine` revealed gaps and one readiness-gate regression (`eks.yml` path). Marked T1.77 ✅ DONE in all pattern references; added T1.78 (Initiation Integrity Remediation) PLANNED to close gaps: input-file readability, env/dependency probe, readiness summary, ErrorManager wiring, output-path validation, schema-driven debug default, 6-category validator. Added §3.9.1 Initiation Integrity Layers. Updated §8.2, §2.2 L13, §7.5.2, §9, §10. |
-| 1.5 | 2026-07-10 | opencode | Added §3.16 Schema Discovery and Registration Pattern — automatic schema file discovery using configurable `discovery_rules` (patterns, recursion, exclusion) extracted from DCC `ref_resolver.py:164-230`. Updated §4.1, §9, §10. |
-| 1.6 | 2026-07-11 | opencode | Added L15 — System Parameters / Runtime Behavior Config as universal feature. Added `config/` to proposed `common/` package structure. Added §3.17 System Parameters Pattern. Updated §4.1, §9, §10. |
+| 1.8 | 2026-07-15 | opencode | Added L17 — Pipeline Entry-Point & Cross-Platform Discovery as universal feature. Mandates ordered entry sequence: detect_os() [L12] -> pipeline_dir constant -> resolve_pipeline_base_path() [cwd/--base-path] -> ==pipeline_dir strip -> project_root -> resolve_paths() [L16] -> OS-gated auto-create -> safe_posix()/platform overrides. Added `root_discovery.py` to proposed `common/paths/` package structure, new §3.19, pattern-table L17 row, index + §4.1/§4.2 entries. Reconciled §3.18 wording (__file__ walk = fallback, not primary). Tracks EKS issue I098. |
 | 1.7 | 2026-07-11 | opencode | Added L16 — Path Resolution / Schema-Driven Paths as universal feature. Adopted EKS `global_paths` as the canonical path pattern. Added `resolver.py` to proposed `common/paths/` package structure. Added §3.18 Path Resolution Pattern. Updated §2.2, §2.3, §2.4, §4.1, §4.2, §9, §10. |
+| 1.6 | 2026-07-11 | opencode | Added L15 — System Parameters / Runtime Behavior Config as universal feature. Added `config/` to proposed `common/` package structure. Added §3.17 System Parameters Pattern. Updated §4.1, §9, §10. |
+| 1.5 | 2026-07-10 | opencode | Added §3.16 Schema Discovery and Registration Pattern — automatic schema file discovery using configurable `discovery_rules` (patterns, recursion, exclusion) extracted from DCC `ref_resolver.py:164-230`. Updated §4.1, §9, §10. |
+| 1.4 | 2026-07-11 | opencode | Review of EKS T1.77 vs DCC `initiation_engine` revealed gaps and one readiness-gate regression (`eks.yml` path). Marked T1.77 ✅ DONE in all pattern references; added T1.78 (Initiation Integrity Remediation) PLANNED to close gaps: input-file readability, env/dependency probe, readiness summary, ErrorManager wiring, output-path validation, schema-driven debug default, 6-category validator. Added §3.9.1 Initiation Integrity Layers. Updated §8.2, §2.2 L13, §7.5.2, §9, §10. |
 | 1.3 | 2026-07-11 | opencode | Recorded EKS initiation integrity checks (T1.77, mirrors DCC `initiation_engine`) across patterns: §2.2 L13 (ValidationManager), §3.6 Multi-Stage Validation, §3.9 Project Setup Validation (EKS `ProjectSetupValidator` + T1.77 readiness gate; corrected DCC path), §7.5.2 Parameter Precedence (EKS `--debug`/`--level` + schema-default gap), §3.13 Security Baseline (EKS T1.70 traversal guard). Updated §8.2 EKS status to reflect T1.77 PLANNED. |
+| 1.2 | 2026-07-11 | System | Added §3 Common Library Inventory — 14 universal modules/functions/engines identified across dcc/workflow and eks/engine with extraction priority ratings. Updated document index. Renumbered all subsequent sections. |
 | 1.1 | 2026-06-26 | Cascade | Added 4 new patterns: Idempotency & Checkpointing, Structured Logging & Correlation IDs, Security Baseline, Concurrency Model. Added standardized I/O pattern for independent engine execution. Added lessons learned from DCC logs and workplans. |
 | 1.0 | 2026-06-26 | Cascade | Initial version with 10 universal design patterns extracted from DCC pipeline architecture. |
 
@@ -29,8 +30,9 @@
 | :--- | :--- | :--- |
 | 1 | [Executive Summary](#1-executive-summary) | Purpose and scope of this document |
 | 2 | [Common Library Inventory](#2-common-library-inventory) | 15 universal modules identified across dcc/workflow and eks/engine |
-| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 17 architecture patterns with structure, benefits, and reference implementations |
+| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 18 architecture patterns with structure, benefits, and reference implementations |
 | 17 | [System Parameters Pattern](#317-system-parameters-pattern) | Schema-defined runtime behavior knobs with universal normalization |
+| 18 | [Pipeline Entry-Point & Cross-Platform Discovery Pattern](#319-pipeline-entry-point--cross-platform-discovery-pattern) | Entry-point root discovery + OS detection for Windows/Linux |
 | 4 | [Pattern Application Guidelines](#4-pattern-application-guidelines) | When to apply each pattern and recommended implementation order |
 | 5 | [Benefits Summary](#5-benefits-summary) | Maintainability, testability, observability, flexibility, UX, security |
 | 6 | [Risks and Mitigation](#6-risks-and-mitigation) | Known risks and mitigation strategies |
@@ -81,6 +83,7 @@ The following 14 modules, functions, and engines have been identified as duplica
 | L14 | UI Contract (Request / Response) | `core_engine/ui/ui_contract.py` (`UIRequest`, `UIResponse`, `UIContractManager`) | `ui/backend/phase1_server.py` (inline Flask handlers — no formal contracts) | 🟡 Low |
 | L15 | System Parameters / Runtime Behavior Config | `project_config.json#/system_parameters` (flat-object values) + `project_setup.json#/system_parameters` (array-of-entries schema) | `eks_config.json#/system_parameters` (flat-object values) | 🟠 Medium |
 | L16 | Path Resolution / Schema-Driven Paths | `project_config.json` (`folder_creation` + `discovery_rules`, normalized) | `eks_config.json#/global_paths` (canonical path SSOT) + `common/library/paths/resolver.py` | 🟠 Medium |
+| L17 | Pipeline Entry-Point / Cross-Platform Discovery | `dcc_engine_pipeline.py` (`pipeline_dir`, `pipeline_start`, `resolve_pipeline_base_path()`) + `path_core.py` (`detect_os`, `should_auto_create_folders`) | Proposed `common/library/paths/root_discovery.py` (consumes L12 `detect_os`) layered on `resolve_paths()` (L16) | 🟠 Medium |
 
 ---
 
@@ -119,6 +122,7 @@ common/
 │   ├── __init__.py
 │   ├── path_utils.py        # L12 — detect_os(), safe_posix(), resolve_anchored(), safe_cwd()
 │   └── resolver.py          # L16 — resolve_paths(), ResolvedPaths (universal PathResolver)
+│   └── root_discovery.py    # L17 — pipeline_dir, resolve_pipeline_base_path(), discover_project_root(), default_base_path() (entry-point discovery; consumes L12)
 ├── validation/
 │   ├── __init__.py
 │   └── validation_manager.py # L13 — ValidationManager (from DCC reference impl)
@@ -221,7 +225,7 @@ common/
 
 - **dcc**: Paths derived from a script-location `default_base_path()` plus hardcoded `base_path / "data"` and `base_path / "output"` literals; `discovery_rules[].directory` used only for schema discovery; `folder_creation.required_directories[].name` used only for auto-create checks. Not a genuine schema-driven SSOT.
 - **eks**: `eks_config.json#/global_paths` defines `data_dir`, `output_dir`, `archive_dir`, `config_dir`, `log_dir`, `eks_root` as a single schema-driven SSOT (hardened by T1.80/T1.82/T1.83 — no hardcoded fallbacks). `common/library/paths/resolver.py` provides `resolve_paths()` which normalizes **both** config shapes into the EKS `global_paths` canonical model.
-- **Extraction target**: `common/library/paths/resolver.py` with `resolve_paths(project_root, config) -> ResolvedPaths` and a `ResolvedPaths` dataclass (data_dir, output_dir, archive_dir, config_dir, log_dir, schema_dir, eks_root). EKS `global_paths` is the **universal canonical path pattern**; DCC's `folder_creation`/`discovery_rules` shape is normalized into it by the resolver. EKS implementation complete (T1.98a); DCC migration pending.
+- **Extraction target**: `common/library/paths/resolver.py` with `resolve_paths(project_root, config) -> ResolvedPaths` and a `ResolvedPaths` dataclass (data_dir, output_dir, archive_dir, config_dir, log_dir, schema_dir, eks_root). EKS `global_paths` is the **universal canonical path pattern**; DCC's `folder_creation`/`discovery_rules` shape is normalized into it by the resolver. EKS implementation complete (T1.98.1); DCC migration pending.
 
 ---
 
@@ -493,7 +497,7 @@ class ProjectSetupValidator:
 - Clear readiness status
 - Pre-pipeline validation gate
 
-**EKS Status**: EKS implements `ProjectSetupValidator` (`eks/engine/core/setup_validator.py`) checking required folders, schema files, and environment, and **T1.77 (✅ DONE)** wires `validate_all()` as a fail-fast readiness gate at the start of the pipeline thread in `phase1_server._run()`, mirroring DCC. A review against DCC found (a) a **readiness-gate regression**: `project_setup.required_files` lists `eks.yml` (repo root) while the file is at `eks/eks.yml`, so the gate returns `readiness=NO` and blocks every run — tracked for fix in **T1.78 (🔷 PLANNED)**; and (b) several DCC initiation layers EKS has not yet implemented (input-file readability, env/dependency probe, readiness summary, ErrorManager wiring, output-path validation, schema-driven debug default, 6-category validator structure) — also covered by T1.78. See [EKS Phase 1 Workplan](eks/workplan/phase_1_foundation_workplan.md) T1.77 / T1.78.
+**EKS Status**: EKS implements `ProjectSetupValidator` (`eks/engine/core/setup_validator.py`) checking required folders, schema files, and environment, and **T1.77 (✅ DONE)** wires `validate_all()` as a fail-fast readiness gate at the start of the pipeline thread in `phase1_server._run()`, mirroring DCC. A review against DCC found (1) a **readiness-gate regression**: `project_setup.required_files` lists `eks.yml` (repo root) while the file is at `eks/eks.yml`, so the gate returns `readiness=NO` and blocks every run — tracked for fix in **T1.78 (🔷 PLANNED)**; and (2) several DCC initiation layers EKS has not yet implemented (input-file readability, env/dependency probe, readiness summary, ErrorManager wiring, output-path validation, schema-driven debug default, 6-category validator structure) — also covered by T1.78. See [EKS Phase 1 Workplan](eks/workplan/phase_1_foundation_workplan.md) T1.77 / T1.78.
 
 #### 3.9.1 Initiation Integrity Layers (DCC reference)
 
@@ -936,7 +940,7 @@ schema_dir = paths["schema_dir"]  # absolute Path
 
 **Benefits**:
 - Single source of truth for all project directory layout
-- Eliminates hardcoded `base_path / "data"` literals and script-location traversal
+   - Eliminates hardcoded `base_path / "data"` literals and makes `__file__` script-traversal a fallback (see L17), not the primary path
 - Universal resolver transparently handles EKS and DCC config shapes
 - Schema validation ensures path keys/types are correct at startup
 - `folder_creation` auto-create behavior is driven by the canonical path set
@@ -945,7 +949,69 @@ schema_dir = paths["schema_dir"]  # absolute Path
 
 **EKS Status**: ✅ Complete. `global_paths_def` in `eks_base_schema.json`; values in `eks_config.json`; runtime consumers in `config_registry.py` (path properties) and `phase1_server.py` (via `resolve_paths`). Universal `resolve_paths()` in `common/library/paths/resolver.py`. All 243 tests pass.
 
-**DCC Status**: Existing `folder_creation` + `discovery_rules` + script-traversal `base_path`. Normalization via `resolve_paths()` available; migration to a `global_paths`-equivalent block pending.
+**DCC Status**: Existing `folder_creation` + `discovery_rules` + script-traversal `base_path`. Normalization via `resolve_paths()` available; migration to a `global_paths`-equivalent block pending. NOTE: `__file__` script-traversal is demoted to a last-resort fallback by L17 (cwd/`--base-path` is primary).
+
+---
+
+## 3.19 Pipeline Entry-Point & Cross-Platform Discovery Pattern
+
+**Purpose**: Deterministic discovery of `project_root` and OS-aware initialization at pipeline entry, so the pipeline runs identically on Windows and Linux and never depends on fragile `__file__`-depth assumptions.
+
+**Description**: Before any path/layout resolution (L16) or schema loading, the entry point must resolve *where the pipeline is running from* (`pipeline_start`) and *what the project root is* (`project_root`), and detect the OS (`detect_os()`). DCC implements this as four explicit steps in `dcc_engine_pipeline.py:460-505`; EKS currently bakes the root at import via a hardcoded `__file__` walk (I098) and does **not** call `detect_os()` at entry.
+
+**Required ordered sequence (universal contract)**:
+1. `os_info = detect_os()` — from common L12 (single source; eliminates DCC's 3x duplication in `path_core.py`, `system_environment.py`, `initiation_engine/system/os_detect.py`).
+2. `pipeline_dir = "<anchor>"` — named anchor constant (DCC: `"workflow"`; EKS target: `"eks"`).
+3. `pipeline_start = resolve_pipeline_base_path()` — explicit `--base-path` CLI arg (expanduser + resolve) else `Path.cwd()` (DCC `path_resolvers.py:9-45`).
+4. Normalize: `if pipeline_start.name == pipeline_dir: pipeline_start = pipeline_start.parent` (strip the anchor folder; DCC `dcc_engine_pipeline.py:483-484`).
+5. `project_root = pipeline_start` — precedence **CLI `--base-path` > cwd > `__file__`-walk fallback** (`default_base_path(pipeline_dir)` raises `FileNotFoundError` if anchor missing — DCC `path_core.py:78-93`).
+6. `paths = resolve_paths(project_root, config).resolve(project_root)` — L16 layout resolution (schema-driven `global_paths`/`folder_creation`).
+7. OS-gated auto-create: `if should_auto_create_folders(os_info): create required dirs` (DCC `initiation_engine/validators/items.py:107,121`); EKS gates via `validation_options.auto_create_folders` but currently skips the OS check.
+8. Serialize with `safe_posix()` (L12) for any path written to JSON/HTTP; apply optional `win_/linux_` input-path overrides via `resolve_platform_paths()` (DCC `path_resolvers.py:67-110`).
+
+**Canonical helper** (proposed `common/library/paths/root_discovery.py`, consuming L12):
+```python
+from common.library.core.paths.path_utils import detect_os, safe_cwd
+
+def resolve_pipeline_base_path(cli_base_path=None) -> Path:
+    # explicit --base-path (expanduser + resolve) else Path.cwd()
+    ...
+
+def discover_project_root(pipeline_dir: str, cli_base_path=None) -> Path:
+    start = resolve_pipeline_base_path(cli_base_path)
+    if start.name == pipeline_dir:
+        start = start.parent
+    return start
+
+def default_base_path(pipeline_dir: str) -> Path:
+    # __file__ walk; raises FileNotFoundError if anchor missing (last-resort fallback)
+    ...
+```
+
+**Seven entry-point concerns covered (DCC reference vs EKS gap)**:
+
+| # | Concern | DCC (reference) | EKS (current gap) |
+| :--- | :--- | :--- | :--- |
+| 1 | `pipeline_dir` | explicit constant `dcc_engine_pipeline.py:475` | hardcoded `"engine"` inside walk fn (no named constant) |
+| 2 | `pipeline_start` | `resolve_pipeline_base_path()` = cwd/`--base-path`; `==pipeline_dir` strip `:478,483-484` | `_PRJ_DIR` from `__file__` walk at import; no cwd resolver; no strip |
+| 3 | `cli_arg` | `--base-path` default = `pipeline_start`; CLI>schema>native precedence | no `--base-path`; root positional only |
+| 4 | schema default | `build_native_defaults`+`resolve_effective_parameters`; `default_schema_path` | `global_paths` SSOT (L16) but `run()` drops `eks_root` -> wrong `data_dir` (I098) |
+| 5 | `project_root` | `args.base_path` after normalize; CLI>cwd>`__file__` fallback | file-walk only; hardcoded `parent.parent.parent`; no override |
+| 6 | folder & file discovery | `folder_creation.required_directories` + `discovery_rules` glob; OS-gated auto-create | `ProjectSetupValidator` + `discovery_rules` (T1.96); auto-create not OS-gated |
+| 7 | OS detection | `detect_os()` (3x dup) -> `should_auto_create_folders` + `resolve_platform_paths` (win/linux overrides) | **no `detect_os` at entry**; relies on `Path` join + local `.as_posix()` (T1.74) |
+
+**Benefits**:
+- Deterministic `project_root` regardless of launch folder or frozen/installed deployment
+- Single `detect_os()` source (L12) — removes DCC duplication; makes Windows/Linux behavior explicit
+- No hardcoded `__file__` depth; anchor is a named constant
+- Schema-driven layout via L16 (fixes EKS `data_dir`/`eks_root` drop)
+- OS-gated folder creation + platform input-path overrides
+
+**Reference Implementation**: DCC Pipeline (`dcc_engine_pipeline.py` `main()`, `core_engine/paths/path_resolvers.py`, `core_engine/paths/path_core.py`, `initiation_engine/validators/items.py`). Proposed common helper `common/library/paths/root_discovery.py`.
+
+**EKS Status**: 🔶 PLANNED — tracked by issue `I098` (root via file-walk + missing `detect_os` + `data_dir` drops `eks_root`). Target: adopt `discover_project_root("eks", cli_base_path)` + `detect_os()` + `resolve_paths()` (L16). Advances `I078` (common-library not yet wired into EKS runtime).
+
+**DCC Status**: ✅ Existing (`pipeline_dir`/`pipeline_start`/`resolve_pipeline_base_path()` + `detect_os()`), but `detect_os()` is duplicated across 3 modules — migration to common L12 pending.
 
 ---
 
@@ -973,6 +1039,49 @@ schema_dir = paths["schema_dir"]  # absolute Path
 | Schema Discovery & Registration | Pipeline manages multiple schema files or supports cross-project schema loading | 🟡 Medium |
 | System Parameters (§3.17) | Pipeline needs centralized runtime behavior flags (timeouts, retry, log level, fail-fast) | 🟠 High |
 | Path Resolution (§3.18) | Pipeline needs schema-driven, non-hardcoded directory layout | 🟠 High |
+| Pipeline Entry-Point & Cross-Platform Discovery (§3.19) | Pipeline must discover project root and run on Windows/Linux | 🟠 High |
+| Universal Schema-Driven CLI Parser (§3.20) | Pipeline needs a shared, schema-driven CLI parser returning structured values with CLI>Schema>Native precedence | 🟠 High |
+
+### 3.20 Universal Schema-Driven CLI Parser Pattern (L18)
+
+**Problem**: Each pipeline re-implements its CLI argument parser (EKS `build_parser()` hardcoded;
+DCC `create_parser`/`create_parser_from_registry`). Neither is shared, and EKS's is not
+schema-driven; precedence (CLI > Schema > Native) is applied ad-hoc, and no pipeline receives a
+single structured parse result (EKS `run()` returns only an `int`). Violates SSOT (AGENTS.md §10).
+
+**Solution**: `common/library/cli/schema_cli.py` provides a single, project-agnostic parser with
+four guarantees:
+
+1. **Schema-driven args** — `build_parser_from_schema(root, schema_config, *, core_arg_specs)`
+   generates `--<param>` arguments from the schema's `system_parameters` (EKS) / `parameters`
+   (DCC), plus a fixed universal core (`--base-path`, `--config_dir`, `--json`), plus
+   project-specific `core_arg_specs`. Reuses L15 `get_system_param` / L16 `resolve_paths`.
+2. **Root-folder schema retrieval** — `parse_cli_args()` runs the L17 entry sequence
+   (`detect_os` -> `resolve_pipeline_base_path` -> `==pipeline_dir` strip -> `discover_project_root`)
+   to locate the project root, then loads the schema from `<root>/<config_dir>` so parser defaults
+   reflect the real configuration.
+3. **Precedence (CLI > Schema > Native)** — explicit CLI values are detected by scanning the raw
+   argv (faithful to DCC `parse_cli_args`'s `cli_overrides_provided`); returned as an explicit-only
+   `overrides` dict with an `overrides_provided` flag.
+4. **Return values for the pipeline** — parsing returns a `CliResult` dataclass
+   (`namespace`, `overrides`, `overrides_provided`, `pipeline_input` with resolved paths + merged
+   schema parameters, `project_root`, `config_dir`, `resolved_paths`) consumed directly by the
+   pipeline funnel.
+
+**Usage**:
+```python
+from common.library.cli import build_parser_from_schema, parse_cli_args
+
+def parse_eks_cli(args=None):
+    return parse_cli_args(args, anchor="eks", pipeline_dir="engine",
+                          reference=__file__, core_arg_specs=EKS_CORE_ARG_SPECS)
+```
+
+**EKS Status**: ✅ Adopted (T1.99.27–29, I099) — `eks/engine/eks_engine_pipeline.py` `run()` consumes
+`parse_eks_cli()`; `build_parser()` retained for backward compatibility.
+**DCC Status**: 🔷 PLANNED — rewire `dcc_engine_pipeline.py` / `cli_parser.py` to `parse_cli_args`
+(passing DCC `core_arg_specs` + registry `parameters`); removes `create_parser` /
+`create_parser_from_registry` duplication (full I099 closure).
 
 ### 4.2 Implementation Order
 
@@ -995,6 +1104,7 @@ Recommended implementation order for new pipelines:
 15. **UI Contracts** — Define API contracts (if applicable)
 16. **System Parameters** — Centralize runtime behavior flags into schema-defined block with universal normalization
 17. **Path Resolution** — Resolve project directory layout via universal `resolve_paths()` (schema-driven `global_paths`, no hardcoded paths)
+18. **Pipeline Entry-Point Discovery (L17)** — Resolve project root (cwd/`--base-path`) and call `detect_os()` before any path operation; this precedes Path Resolution (§3.18).
 
 ---
 
@@ -1321,6 +1431,7 @@ For UI integration:
   - ✅ Project Setup Validation (§3.9, L13) — `ProjectSetupValidator` wired as fail-fast readiness gate (T1.77); **regression + DCC-layer gaps tracked in T1.78** (§3.9.1)
   - ✅ Multi-Stage / Parameter Precedence (§3.6, §7.5.2) — `data_dir`/`recursive` validation + `--debug`/`--level` flag (T1.77); schema-driven debug default deferred to T1.78
   - ✅ Security Baseline path-traversal portion (§3.13, T1.70)
+  - ✅ Unified Main Pipeline Entry (DCC-faithful) — `eks/engine/eks_engine_pipeline.py` reuses `common.library` building blocks (`BaseEngine`/`BasePipelineContext`/`EngineInput`/`EngineOutput`/`TelemetryHeartbeat`, `get_system_param`, `resolve_paths`, `BaseMessageManager`, `UniversalLogger`, `ValidationManager`); advances I078 (T1.99.8–12 / I096)
 - **Key Documents**:
   - [Phase 1 Foundation Workplan](eks/workplan/phase_1_foundation_workplan.md)
   - [Phase 1.2 Interactive UI Workplan](eks/workplan/phase_1.2_interactive_ui_workplan.md)

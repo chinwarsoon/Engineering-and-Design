@@ -64,7 +64,7 @@ class _FakeScorer:
 class TestHealthCli(TestCase):
     def _run(self, argv, registry_cls=_FakeRegistry):
         from eks.engine.core.health_cli import HealthScorerEngineCLI
-        with patch("eks.engine.core.pipeline_runner.bootstrap_pipeline", _fake_bootstrap), \
+        with patch("eks.engine.eks_engine_pipeline.bootstrap_pipeline", _fake_bootstrap), \
              patch("eks.engine.core.registry.DocumentRegistry", registry_cls), \
              patch("eks.engine.core.health_scorer.HealthScorer", _FakeScorer):
             return HealthScorerEngineCLI().run(argv)

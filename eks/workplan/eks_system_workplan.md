@@ -338,7 +338,7 @@ flowchart TD
 - **Two ingestion paths**: Documents (PDF/DOCX/XLSX) and Assets (Datadrop Excel) run in parallel through Phase 1–3, converge at Phase 4 retrieval.
 - **Schema-driven**: All registries (document_type, file_type, element_type, asset_type) are config-driven — no code changes needed to add new types.
 - **Detailed Mermaid diagrams**: Each phase's detailed pipeline diagram is maintained in its respective phase workplan file (Phase 1–5).
-- **Bootstrap & entry points**: Three entry types (CLI, Web serve.py, per-phase HTTP backend) converge on shared `bootstrap_pipeline()`/`run_pipeline(context)` — detailed in Phase 1 foundation workplan §9 (T1.99a–g, I092/R60). Bootstrap runs once per invocation; pipeline execution phases are per-run.
+- **Bootstrap & entry points**: Three entry types (CLI, Web serve.py, per-phase HTTP backend) converge on shared `bootstrap_pipeline()`/`run_pipeline(context)` — detailed in Phase 1 foundation workplan §9 (T1.99.1–7, I092/R60). Bootstrap runs once per invocation; pipeline execution phases are per-run.
 
 ---
 

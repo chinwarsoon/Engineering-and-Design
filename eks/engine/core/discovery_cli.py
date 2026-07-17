@@ -119,12 +119,12 @@ Examples:
         # T1.56.1 (I093): wire to the real discovery engine instead of a
         # placeholder. Discovery == Phase A of the PipelineOrchestrator
         # (scan directory -> register placeholder documents), reusing the
-        # shared bootstrap funnel (I092 / T1.99a).
+        # shared bootstrap funnel (I092 / T1.99.1).
         logger = EKSLogger("DiscoveryEngineCLI", level=3 if parsed_args.verbose else 1)
         errors: list = []
         summary: dict = {}
         try:
-            from eks.engine.core.pipeline_runner import bootstrap_pipeline
+            from eks.engine.eks_engine_pipeline import bootstrap_pipeline
             from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
             from eks.engine.core.registry import DocumentRegistry
 
@@ -133,10 +133,9 @@ Examples:
             if not data_dir.is_absolute():
                 data_dir = project_root / data_dir
 
-            config_dir = parsed_args.config_file.parent if parsed_args.config_file else None
+            # T1.99.45-48: bootstrap_pipeline now handles all init (OS, CLI, config, paths, level, data_dir, mm)
             boot = bootstrap_pipeline(
-                project_root,
-                config_dir=config_dir,
+                args=None,
                 logger=logger,
                 skip_readiness=not parsed_args.validate,
                 debug=parsed_args.verbose,
@@ -158,7 +157,7 @@ Examples:
                 ))
         except Exception as e:  # surfaced but non-fatal to the EngineOutput contract
             errors.append(ErrorRecord(
-                "DiscoveryEngineError", str(e),
+                "DiscoveryEngineError", str(5),
                 context={"data_dir": str(parsed_args.data_dir)},
             ))
 
@@ -210,7 +209,7 @@ Examples:
         """Load checkpoint state from file."""
         try:
             with open(checkpoint_path, 'r') as f:
-                return json.load(f)
+                return json.load(6)
         except Exception as e:
             print(f"Warning: Failed to load checkpoint: {e}")
             return {}

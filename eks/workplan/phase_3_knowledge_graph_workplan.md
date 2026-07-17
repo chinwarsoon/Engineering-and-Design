@@ -150,7 +150,7 @@ Build the Neo4j knowledge relationship graph capturing all engineering knowledge
 | T3.33 | Implement Cross-Doc Reference Extractor | LLM/Regex during ingestion to find document numbers in text; create REFERENCES_DOC edges | 🔷 | — |
 | T3.34 | Implement Asset Tag Linker | Map asset_tags registry field (JSON array) to FunctionalObject nodes via REFERENCES_ASSET | 🔷 | — |
 | T3.35 | Evaluate and implement CAD parser for DGN/DWG files (I015) | Research CAD libraries (OpenDesign SDK, LibreCAD, or commercial); implement full DGN/DWG parser or confirm stub; update parser registry; test against 48 CAD files from twrp sample; if no viable library found, document as known permanent gap | 🔷 | — |
-| T3.36 | Phase 3 standalone backend + runner (I092 / R60) | Create `eks/ui/backend/phase3_server.py` standalone backend (AGENTS.md §18.13): health endpoint, 409 concurrency guard, DuckDB cross-process retry; implement `run_phase3_pipeline(context)` reusing shared `bootstrap_pipeline()`/`run_pipeline()` from Phase 1 (T1.99a); ontology + Neo4j + asset ingestion. | 🔷 | I092, R60, T1.99a |
+| T3.36 | Phase 3 standalone backend + runner (I092 / R60) | Create `eks/ui/backend/phase3_server.py` standalone backend (AGENTS.md §18.13): health endpoint, 409 concurrency guard, DuckDB cross-process retry; implement `run_phase3_pipeline(context)` reusing shared `bootstrap_pipeline()`/`run_pipeline()` from Phase 1 (T1.99.1); ontology + Neo4j + asset ingestion. | 🔷 | I092, R60, T1.99.1 |
 | T3.37 | Phase 3 proxy wiring (I092) | `serve.py` proxies `/api/v3/*` → phase3 backend on port 5003; document run command. | 🔷 | I092, T3.36 |
 
 ---

@@ -8,11 +8,23 @@ Eliminates the verbatim duplication of detect_os() across:
 Also provides safe_posix() which fixes the EKS T1.74 gap where
 EKSPaths.to_dict() used str(Path) producing backslashes on Windows.
 
+Added should_auto_create_folders() to remove the verbatim duplication of
+that gate across DCC (path_core.py / system_environment.py) and to satisfy
+L17 step 7 (OS-gated folder auto-create).
+
+Revision: 1.1
+Date: 2026-07-15
+Author: opencode
+Summary: T1.99.22/T1.99.25 (I098/L17) — added should_auto_create_folders(); de-duplicates
+DCC's triple detect_os() and gates folder auto-create by OS (L17 step 7).
+
 Sources
 -------
-dcc: core_engine/paths/path_core.py        (detect_os, safe_resolve, safe_cwd, get_homedir)
+dcc: core_engine/paths/path_core.py        (detect_os, safe_resolve, safe_cwd, get_homedir,
+                                            should_auto_create_folders)
      utility_engine/paths/path_core.py     (get_system_context, normalize_path_separators,
                                             resolve_relative_to_base)
+     core_engine/system/system_environment.py (detect_os, should_auto_create_folders)
 eks: engine/core/context.py                (EKSPaths.to_dict — T1.74 gap)
 """
 
@@ -129,3 +141,22 @@ def get_homedir() -> Path:
                 home_str = ""
 
     return Path(home_str) if home_str else Path.home()
+
+
+def should_auto_create_folders(os_info: Dict[str, str]) -> bool:
+    """
+    Check if folders should be auto-created on the detected OS (L17 step 7).
+
+    De-duplicates DCC's verbatim ``should_auto_create_folders``
+    (dcc/workflow/core_engine/paths/path_core.py:24 and
+    dcc/workflow/core_engine/system/system_environment.py:30).
+
+    Parameters
+    ----------
+    os_info : dict — output of :func:`detect_os` (keys ``system`` / ``normalized``)
+
+    Returns
+    -------
+    True when auto-create is safe (windows / linux / macos), else False.
+    """
+    return os_info.get("normalized") in {"windows", "linux", "macos"}

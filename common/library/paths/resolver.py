@@ -4,7 +4,7 @@ Schema-driven path resolution — universal PathResolver.
 Revision: 1.0
 Date: 2026-07-11
 Author: opencode
-Summary: T1.98a — adopt EKS global_paths as the universal canonical path pattern (I089).
+Summary: T1.98.1 — adopt EKS global_paths as the universal canonical path pattern (I089).
 Normalizes both EKS (global_paths) and DCC (folder_creation + discovery_rules) config
 shapes into a single canonical ResolvedPaths model.
 """

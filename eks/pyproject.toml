@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
-eks-pipeline = "eks.engine.parsers.cli:main"
+eks-pipeline = "eks.engine.eks_engine_pipeline:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

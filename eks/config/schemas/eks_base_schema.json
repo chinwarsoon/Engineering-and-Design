@@ -3,7 +3,7 @@
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
     "version": "1.8.0",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98f/I090 (DCC project_config parity).",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity).",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
@@ -182,7 +182,7 @@
         },
         "workflow_file_entry_def": {
             "type": "object",
-            "description": "Workflow/pipeline file entry with metadata (DCC-aligned — project_config.json#/workflow_files, T1.98f/I090)",
+            "description": "Workflow/pipeline file entry with metadata (DCC-aligned — project_config.json#/workflow_files, T1.98.6/I090)",
             "properties": {
                 "filename": { "type": "string", "description": "Workflow filename relative to project root" },
                 "required": { "type": "boolean", "description": "Whether this workflow file is mandatory" },
@@ -194,7 +194,7 @@
         },
         "tool_file_entry_def": {
             "type": "object",
-            "description": "Tool/utility file entry with metadata (DCC-aligned — project_config.json#/tool_files, T1.98f/I090)",
+            "description": "Tool/utility file entry with metadata (DCC-aligned — project_config.json#/tool_files, T1.98.6/I090)",
             "properties": {
                 "filename": { "type": "string", "description": "Tool filename relative to project root" },
                 "required": { "type": "boolean", "description": "Whether this tool file is mandatory" },

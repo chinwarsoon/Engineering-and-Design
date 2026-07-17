@@ -43,7 +43,7 @@ class _FakeOrchestratorBoom:
 class TestDiscoveryCli(TestCase):
     def _run(self, argv, orchestrator_cls=_FakeOrchestrator):
         from eks.engine.core.discovery_cli import DiscoveryEngineCLI
-        with patch("eks.engine.core.pipeline_runner.bootstrap_pipeline", _fake_bootstrap), \
+        with patch("eks.engine.eks_engine_pipeline.bootstrap_pipeline", _fake_bootstrap), \
              patch("eks.engine.core.pipeline_orchestrator.PipelineOrchestrator", orchestrator_cls), \
              patch("eks.engine.core.registry.DocumentRegistry"):
             return DiscoveryEngineCLI().run(argv)

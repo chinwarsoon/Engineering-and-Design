@@ -3,7 +3,7 @@
     "$id": "https://eks.engineering/schemas/eks_setup_schema.json",
     "version": "1.6.0",
     "title": "EKS Setup Schema - Declarations",
-    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). v1.4.0: reshaped project_setup to DCC-aligned object model (folders/root_files/schema_files/environment/dependencies/discovery_rules/validation_rules/project_metadata) per T1.85. v1.5.0: flattened project_setup — setup values (folders/root_files/schema_files/environment/dependencies/project_metadata) are now TOP-LEVEL properties (no project_setup wrapper), aligning EKS eks_config.json with DCC project_config.json (T1.90). v1.6.0: added system_parameters property for T1.97/I088. v1.7.0: added workflow_files and tool_files top-level properties for T1.98f/I090 (DCC project_config parity).",
+    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). v1.4.0: reshaped project_setup to DCC-aligned object model (folders/root_files/schema_files/environment/dependencies/discovery_rules/validation_rules/project_metadata) per T1.85. v1.5.0: flattened project_setup — setup values (folders/root_files/schema_files/environment/dependencies/project_metadata) are now TOP-LEVEL properties (no project_setup wrapper), aligning EKS eks_config.json with DCC project_config.json (T1.90). v1.6.0: added system_parameters property for T1.97/I088. v1.7.0: added workflow_files and tool_files top-level properties for T1.98.6/I090 (DCC project_config parity).",
     "allOf": [
         { "$ref": "eks_base_schema.json" }
     ],
@@ -78,12 +78,12 @@
         },
         "workflow_files": {
             "type": "array",
-            "description": "Pipeline/workflow files required by the project (top-level, DCC project_config pattern, T1.98f/I090)",
+            "description": "Pipeline/workflow files required by the project (top-level, DCC project_config pattern, T1.98.6/I090)",
             "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/workflow_file_entry_def" }
         },
         "tool_files": {
             "type": "array",
-            "description": "Tool/utility files required by the project (top-level, DCC project_config pattern, T1.98f/I090)",
+            "description": "Tool/utility files required by the project (top-level, DCC project_config pattern, T1.98.6/I090)",
             "items": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/tool_file_entry_def" }
         },
         "discovery_rules": {

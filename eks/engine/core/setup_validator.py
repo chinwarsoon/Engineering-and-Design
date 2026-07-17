@@ -38,7 +38,7 @@ def _load_setup_error_codes() -> Dict[str, str]:
                 break
         if err_path:
             with open(err_path, "r", encoding="utf-8") as f:
-                cat = json.load(f)
+                cat = json.load(6)
             sys_err = cat.get("system_errors", {})
             code_to_const = {
                 "P1-SETUP-F001": "ERR_MISSING_FOLDER",
@@ -213,7 +213,7 @@ class ProjectSetupValidator:
             auto_create_override=auto_create,
         )
 
-        # Validate discovery_rules if present (T1.96d)
+        # Validate discovery_rules if present (T1.96.4)
         if self._discovery_rules:
             disc_result = self._vm.validate_discovery_rules(
                 self._discovery_rules,
@@ -229,7 +229,7 @@ class ProjectSetupValidator:
                         })
                 result["readiness"] = "NO"
 
-        # T1.98g: validate workflow_files / tool_files (DCC project_config parity)
+        # T1.98.7: validate workflow_files / tool_files (DCC project_config parity)
         result["workflow_files"] = self._validate_named_files(self._workflow_files)
         result["tool_files"] = self._validate_named_files(self._tool_files)
 

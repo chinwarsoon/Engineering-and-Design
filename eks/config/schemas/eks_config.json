@@ -2,7 +2,7 @@
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
     "version": "1.7.0",
-    "title": "EKS Default Project Configuration — v1.7.0 (system parameters centralized — T1.97/I088; workflow/tool files parity — T1.98f/I090)",
+    "title": "EKS Default Project Configuration — v1.7.0 (system parameters centralized — T1.97/I088; workflow/tool files parity — T1.98.6/I090)",
     "project_rules_registry": {
         "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
     },
