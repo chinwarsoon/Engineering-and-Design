@@ -1,9 +1,9 @@
 # Universal Pipeline Architecture Design
 
 **Document ID**: WP-UNIVERSAL-PIPELINE-ARCH-001  
-**Current Version**: 1.8  
+**Current Version**: 1.9  
 **Status**: 📋 Proposed for Review  
-**Last Updated**: 2026-07-15  
+**Last Updated**: 2026-07-17  
 **Purpose**: Universal design patterns for pipeline architecture applicable across all projects  
 
 ---
@@ -12,6 +12,7 @@
 
 | Revision | Date | Author | Summary |
 | :--- | :--- | :--- | :--- |
+| 1.9 | 2026-07-17 | opencode | Gap-closure audit against current `common/library/` implementation: (1) Added L18 (CLI Parser), L19 (BootstrapManager), L20 (test_environment), L21 (Schema Loader/Discovery) to §2.2 inventory table; (2) Updated §2.3 proposed layout to reflect actual two-layer façade architecture (top-level re-export packages → `core/` foundation + `utility/` interface inner layers) with new `cli/`, `bootstrap/`, `core/system/`, `loader/` entries; (3) Added §3.21 BootstrapManager Pattern and §3.22 Environment/Dependency Probe Pattern (L20); (4) Updated all counts (14→21, 15→21) in §2, §2.3, §3, §4.1, §4.2, §9, §10; (5) Updated §8.2 EKS status for T1.99.80 v2 lazy-import + L20 `test_environment()` integration; (6) Documented `io_contracts.py` merge into `base_engine.py` and `validation/` split into `manager.py`+`models.py`; (7) Added §2.5 Façade Architecture Note explaining `core/`/`utility/` inner-layer design. |
 | 1.8 | 2026-07-15 | opencode | Added L17 — Pipeline Entry-Point & Cross-Platform Discovery as universal feature. Mandates ordered entry sequence: detect_os() [L12] -> pipeline_dir constant -> resolve_pipeline_base_path() [cwd/--base-path] -> ==pipeline_dir strip -> project_root -> resolve_paths() [L16] -> OS-gated auto-create -> safe_posix()/platform overrides. Added `root_discovery.py` to proposed `common/paths/` package structure, new §3.19, pattern-table L17 row, index + §4.1/§4.2 entries. Reconciled §3.18 wording (__file__ walk = fallback, not primary). Tracks EKS issue I098. |
 | 1.7 | 2026-07-11 | opencode | Added L16 — Path Resolution / Schema-Driven Paths as universal feature. Adopted EKS `global_paths` as the canonical path pattern. Added `resolver.py` to proposed `common/paths/` package structure. Added §3.18 Path Resolution Pattern. Updated §2.2, §2.3, §2.4, §4.1, §4.2, §9, §10. |
 | 1.6 | 2026-07-11 | opencode | Added L15 — System Parameters / Runtime Behavior Config as universal feature. Added `config/` to proposed `common/` package structure. Added §3.17 System Parameters Pattern. Updated §4.1, §9, §10. |
@@ -29,10 +30,30 @@
 | § | Section | Description |
 | :--- | :--- | :--- |
 | 1 | [Executive Summary](#1-executive-summary) | Purpose and scope of this document |
-| 2 | [Common Library Inventory](#2-common-library-inventory) | 15 universal modules identified across dcc/workflow and eks/engine |
-| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 18 architecture patterns with structure, benefits, and reference implementations |
-| 17 | [System Parameters Pattern](#317-system-parameters-pattern) | Schema-defined runtime behavior knobs with universal normalization |
-| 18 | [Pipeline Entry-Point & Cross-Platform Discovery Pattern](#319-pipeline-entry-point--cross-platform-discovery-pattern) | Entry-point root discovery + OS detection for Windows/Linux |
+| 2 | [Common Library Inventory](#2-common-library-inventory) | 21 universal modules identified across dcc/workflow and eks/engine |
+| 3 | [Universal Design Patterns](#3-universal-design-patterns) | 22 architecture patterns with structure, benefits, and reference implementations |
+| 3.1 | [PipelineContext Pattern](#31-pipelinecontext-pattern) | Centralized `PipelineContext` dataclass |
+| 3.2 | [Dependency Injection Pattern](#32-dependency-injection-pattern) | Runtime component resolution |
+| 3.3 | [Phase-Based Orchestration Pattern](#33-phase-based-orchestration-pattern) | Abstract base classes with lifecycle hooks |
+| 3.4 | [Telemetry Heartbeat Pattern](#34-telemetry-heartbeat-pattern) | Runtime instrumentation |
+| 3.5 | [Schema-Driven Configuration Pattern](#35-schema-driven-configuration-pattern) | Schema-driven config loading |
+| 3.6 | [Multi-Stage Validation Pattern](#36-multi-stage-validation-pattern) | Progressive validation pipeline |
+| 3.7 | [Standardized Error Catalog Pattern](#37-standardized-error-catalog-pattern) | Schema-driven error lookup |
+| 3.8 | [UI Contract Pattern](#38-ui-contract-pattern) | Standardised request/response boundaries |
+| 3.9 | [Project Setup Validation Pattern](#39-project-setup-validation-pattern) | Readiness-gate pre-flight checks |
+| 3.10 | [Foundation/Utility Separation Pattern](#310-foundationutility-separation-pattern) | Core vs interface layer separation |
+| 3.11 | [Idempotency & Checkpointing Pattern](#311-idempotency--checkpointing-pattern) | Safe re-execution and resume |
+| 3.12 | [Structured Logging & Correlation IDs Pattern](#312-structured-logging--correlation-ids-pattern) | Tiered logging with tracing |
+| 3.13 | [Security Baseline Pattern](#313-security-baseline-pattern) | Traversal guards and safe path resolution |
+| 3.14 | [Concurrency Model Pattern](#314-concurrency-model-pattern) | Thread/process safety patterns |
+| 3.15 | [Standardized Engine I/O Pattern](#315-standardized-engine-io-pattern) | Typed `EngineInput`/`EngineOutput` |
+| 3.16 | [Schema Discovery and Registration Pattern](#316-schema-discovery-and-registration-pattern) | Automatic schema file discovery |
+| 3.17 | [System Parameters Pattern](#317-system-parameters-pattern) | Schema-defined runtime behavior knobs with universal normalization |
+| 3.18 | [Path Resolution Pattern](#318-path-resolution-pattern) | Schema-driven directory layout via universal `resolve_paths()` |
+| 3.19 | [Pipeline Entry-Point & Cross-Platform Discovery Pattern](#319-pipeline-entry-point--cross-platform-discovery-pattern) | Entry-point root discovery + OS detection for Windows/Linux |
+| 3.20 | [Universal Schema-Driven CLI Parser Pattern (L18)](#320-universal-schema-driven-cli-parser-pattern-l18) | Universal CLI parser with CLI>Schema>Native precedence |
+| 3.21 | [BootstrapManager Pattern (L19)](#321-bootstrapmanager-pattern-l19) | Universal phase-tracked bootstrap orchestrator |
+| 3.22 | [Environment/Dependency Probe Pattern (L20)](#322-environmentdependency-probe-pattern-l20) | Stdlib-only dependency checker (L20 `test_environment`) |
 | 4 | [Pattern Application Guidelines](#4-pattern-application-guidelines) | When to apply each pattern and recommended implementation order |
 | 5 | [Benefits Summary](#5-benefits-summary) | Maintainability, testability, observability, flexibility, UX, security |
 | 6 | [Risks and Mitigation](#6-risks-and-mitigation) | Known risks and mitigation strategies |
@@ -51,7 +72,7 @@ This document defines universal design patterns for pipeline architecture that c
 
 ## 2. Common Library Inventory
 
-The following 14 modules, functions, and engines have been identified as duplicated or near-identical implementations across `dcc/workflow` and `eks/engine`. All are candidates for extraction into `common/` as shared libraries. Extraction eliminates maintenance drift, enforces a single contract, and makes both projects immediately benefit from any improvement.
+The following 21 modules, functions, and engines have been identified as duplicated or near-identical implementations across `dcc/workflow` and `eks/engine`. All are candidates for extraction into `common/` as shared libraries. Extraction eliminates maintenance drift, enforces a single contract, and makes both projects immediately benefit from any improvement.
 
 ### 2.1 Extraction Priority Key
 
@@ -83,57 +104,80 @@ The following 14 modules, functions, and engines have been identified as duplica
 | L14 | UI Contract (Request / Response) | `core_engine/ui/ui_contract.py` (`UIRequest`, `UIResponse`, `UIContractManager`) | `ui/backend/phase1_server.py` (inline Flask handlers — no formal contracts) | 🟡 Low |
 | L15 | System Parameters / Runtime Behavior Config | `project_config.json#/system_parameters` (flat-object values) + `project_setup.json#/system_parameters` (array-of-entries schema) | `eks_config.json#/system_parameters` (flat-object values) | 🟠 Medium |
 | L16 | Path Resolution / Schema-Driven Paths | `project_config.json` (`folder_creation` + `discovery_rules`, normalized) | `eks_config.json#/global_paths` (canonical path SSOT) + `common/library/paths/resolver.py` | 🟠 Medium |
-| L17 | Pipeline Entry-Point / Cross-Platform Discovery | `dcc_engine_pipeline.py` (`pipeline_dir`, `pipeline_start`, `resolve_pipeline_base_path()`) + `path_core.py` (`detect_os`, `should_auto_create_folders`) | Proposed `common/library/paths/root_discovery.py` (consumes L12 `detect_os`) layered on `resolve_paths()` (L16) | 🟠 Medium |
+| L17 | Pipeline Entry-Point / Cross-Platform Discovery | `dcc_engine_pipeline.py` (`pipeline_dir`, `pipeline_start`, `resolve_pipeline_base_path()`) + `path_core.py` (`detect_os`, `should_auto_create_folders`) | `common/library/paths/root_discovery.py` (consumes L12 `detect_os`) layered on `resolve_paths()` (L16) | 🟠 Medium |
+| L18 | Universal Schema-Driven CLI Parser | `dcc_engine_pipeline.py` (`create_parser`/`create_parser_from_registry`) | `common/library/cli/schema_cli.py` (`build_parser_from_schema`, `parse_cli_args`, `CliResult`) | 🟠 Medium |
+| L19 | Universal Bootstrap Manager | `dcc/workflow/initiation_engine/core/bootstrap.py` (~1223 lines, 8 phases) | `common/library/bootstrap/manager.py` (`BootstrapManager`, `BootstrapError`, `BootstrapPhaseRegistry`) | 🟠 Medium |
+| L20 | Environment / Dependency Probe | `dcc/workflow/core_engine/system/system_environment.py` (`test_environment`) | `common/library/core/system/tester.py` (`test_environment` — stdlib-only) | 🟠 Medium |
+| L21 | Schema Loader / File Discovery | `dcc/workflow/schema_engine/loader/ref_resolver.py` (`_extract_registered_schemas`) | `common/library/loader/schema_discovery.py` (`discover_schema_files`, `find_schema_file`, `safe_resolve`) | 🟡 Low |
 
 ---
 
-### 2.3 Proposed `common/` Package Structure
+### 2.3 `common/library/` Package Structure (Actual Implementation)
 
-All 15 libraries map to the following target layout under the existing `common/` folder:
+All 21 libraries are implemented under `common/library/` using a **two-layer façade architecture** (see §2.5). Top-level packages serve as public API re-export modules; actual implementations live in `core/` (foundation) or `utility/` (interface) inner layers.
 
 ```
-common/
+common/library/
+├── __init__.py               # Re-exports all sub-packages
+│
 ├── config/
-│   └── __init__.py          # L15 — normalize_system_parameters(), get_system_param()
+│   └── __init__.py           # L15 — normalize_system_parameters(), get_system_param()
+├── cli/
+│   ├── __init__.py
+│   └── schema_cli.py         # L18 — build_parser_from_schema(), parse_cli_args(), CliResult
+├── bootstrap/
+│   ├── __init__.py
+│   ├── manager.py            # L19 — BootstrapManager (stateful, phase-tracked)
+│   ├── errors.py             # L19 — BootstrapError (wired to L10 BaseErrorManager)
+│   └── phases.py             # L19 — BootstrapPhaseRegistry, BootstrapPhaseStatus
+├── loader/
+│   ├── __init__.py
+│   └── schema_discovery.py   # L21 — discover_schema_files(), find_schema_file(), safe_resolve()
+│
 ├── logging/
-│   ├── __init__.py
-│   ├── logger.py            # L01 — UniversalLogger (merges EKSLogger + log_handlers)
-│   ├── depth.py             # L02 — log_depth decorator + log_context ctx manager
-│   ├── trace.py             # L03 — trace_parameter, trace_step, track_global_param
-│   └── snapshot.py          # L04 — get_system_snapshot()
+│   └── __init__.py           # Façade → core/logging/ (L01–L04)
 ├── telemetry/
-│   ├── __init__.py
-│   └── heartbeat.py         # L05 — TelemetryHeartbeat, HeartbeatPayload, Checkpoint
+│   └── __init__.py           # Façade → core/pipeline/heartbeat.py (L05)
 ├── pipeline/
-│   ├── __init__.py
-│   ├── context.py           # L06 — BasePipelineContext, BasePaths, BaseState, BaseTelemetry
-│   ├── base_engine.py       # L07 — BaseEngine, BaseProcessor, ValidationResult, ErrorRecord
-│   └── io_contracts.py      # L08 — EngineInput, EngineOutput (reference from EKS)
+│   └── __init__.py           # Façade → core/pipeline/ (L06–L08)
 ├── factories/
-│   ├── __init__.py
-│   └── base_factory.py      # L09 — Factory ABC, config-driven create() pattern
+│   └── __init__.py           # Façade → utility/factories/ (L09)
 ├── errors/
-│   ├── __init__.py
-│   └── error_manager.py     # L10 — BaseErrorManager, catalog loader, severity logic
+│   └── __init__.py           # Façade → core/errors/ (L10)
 ├── messages/
-│   ├── __init__.py
-│   └── message_manager.py   # L11 — BaseMessageManager, catalog loader, template hydration
+│   └── __init__.py           # Façade → core/messages/ (L11)
 ├── paths/
-│   ├── __init__.py
-│   ├── path_utils.py        # L12 — detect_os(), safe_posix(), resolve_anchored(), safe_cwd()
-│   └── resolver.py          # L16 — resolve_paths(), ResolvedPaths (universal PathResolver)
-│   └── root_discovery.py    # L17 — pipeline_dir, resolve_pipeline_base_path(), discover_project_root(), default_base_path() (entry-point discovery; consumes L12)
+│   ├── __init__.py           # Façade → core/paths/path_utils.py (L12) + local (L16–L17)
+│   ├── resolver.py           # L16 — resolve_paths(), ResolvedPaths (universal PathResolver)
+│   └── root_discovery.py     # L17 — discover_project_root(), resolve_pipeline_base_path()
 ├── validation/
-│   ├── __init__.py
-│   └── validation_manager.py # L13 — ValidationManager (from DCC reference impl)
+│   └── __init__.py           # Façade → utility/validation/ (L13)
 ├── ui/
+│   └── __init__.py           # Façade → utility/ui/ (L14)
+│
+├── core/                     # Foundation inner layer (implementations)
 │   ├── __init__.py
-│   └── contracts.py         # L14 — UIRequest, UIResponse, UIContractManager
+│   ├── logging/              # L01–L04: logger.py, depth.py, trace.py, snapshot.py
+│   ├── pipeline/             # L05–L08: heartbeat.py, context.py, base_engine.py
+│   │                         #   (EngineInput/EngineOutput merged into base_engine.py)
+│   ├── paths/                # L12: path_utils.py (detect_os, safe_posix, etc.)
+│   ├── errors/               # L10: error_manager.py
+│   ├── messages/             # L11: message_manager.py
+│   └── system/               # L20: tester.py (test_environment — stdlib-only)
+│
+├── utility/                  # Interface inner layer (implementations)
+│   ├── __init__.py
+│   ├── factories/            # L09: base_factory.py
+│   ├── validation/           # L13: manager.py + models.py
+│   └── ui/                   # L14: contracts.py
+│
 ├── universal_pipeline_architecture_design.md
 ├── universal_ui_design.css
 ├── universal_ui_design.js
 └── universal_ui_design.md
 ```
+
+> **Note on deviations from the original flat proposal:** `io_contracts.py` (L08) is merged into `core/pipeline/base_engine.py` rather than being a separate file. `validation/` splits into `manager.py` + `models.py` under `utility/validation/`. `paths/path_utils.py` (L12) lives under `core/paths/` — the top-level `paths/__init__.py` re-exports from there. See §2.5 for the rationale behind the two-layer façade design.
 
 ### 2.4 Per-Library Detail
 
@@ -226,6 +270,42 @@ common/
 - **dcc**: Paths derived from a script-location `default_base_path()` plus hardcoded `base_path / "data"` and `base_path / "output"` literals; `discovery_rules[].directory` used only for schema discovery; `folder_creation.required_directories[].name` used only for auto-create checks. Not a genuine schema-driven SSOT.
 - **eks**: `eks_config.json#/global_paths` defines `data_dir`, `output_dir`, `archive_dir`, `config_dir`, `log_dir`, `eks_root` as a single schema-driven SSOT (hardened by T1.80/T1.82/T1.83 — no hardcoded fallbacks). `common/library/paths/resolver.py` provides `resolve_paths()` which normalizes **both** config shapes into the EKS `global_paths` canonical model.
 - **Extraction target**: `common/library/paths/resolver.py` with `resolve_paths(project_root, config) -> ResolvedPaths` and a `ResolvedPaths` dataclass (data_dir, output_dir, archive_dir, config_dir, log_dir, schema_dir, eks_root). EKS `global_paths` is the **universal canonical path pattern**; DCC's `folder_creation`/`discovery_rules` shape is normalized into it by the resolver. EKS implementation complete (T1.98.1); DCC migration pending.
+
+#### L17 — Pipeline Entry-Point / Cross-Platform Discovery
+- Covered in §3.19; see that section for full details.
+
+#### L18 — Universal Schema-Driven CLI Parser
+- Covered in §3.20; see that section for full details.
+
+#### L19 — Universal Bootstrap Manager
+- Covered in §3.21; see that section for full details.
+
+#### L20 — Environment / Dependency Probe
+- Covered in §3.22; see that section for full details.
+
+#### L21 — Schema Loader / File Discovery
+- **dcc**: `_extract_registered_schemas()` in `ref_resolver.py` (combined with `discovery_rules`)
+- **eks**: Schema loading via `SchemaRegistry` + `ConfigRegistry`
+- **Extraction target**: `common/library/loader/schema_discovery.py` with `discover_schema_files()`, `find_schema_file()`, `safe_resolve()`. Provides filesystem-level schema file discovery primitives used by both DCC's `ref_resolver` and EKS's registry layer. Complements §3.16 (Schema Discovery and Registration Pattern).
+
+---
+
+### 2.5 Façade Architecture Note
+
+The `common/library/` implementation uses a **two-layer façade architecture**:
+
+- **Top-level packages** (`logging/`, `pipeline/`, `telemetry/`, `errors/`, `messages/`, `paths/`, `validation/`, `ui/`, `factories/`): Public API re-export modules (`__init__.py` only) that import from the inner layer. Consumers always import from the top level (e.g., `from common.library.logging import UniversalLogger`).
+- **Inner layer** (`core/` and `utility/`): Actual implementation files:
+  - `core/` — **Foundation modules**: logging (L01–L04), pipeline context/engine/heartbeat (L05–L08), paths (L12), errors (L10), messages (L11), system (L20)
+  - `utility/` — **Interface modules**: validation (L13), factories (L09), UI contracts (L14)
+
+This design mirrors the Foundation/Utility Separation pattern (§3.10) at the library level and provides:
+- Clean public API surface with a single import path
+- Internal reorganization without breaking consumers
+- Legacy compatibility (`core/` and `utility/` paths remain importable)
+- Clear separation between foundation logic and interface utilities
+
+Three packages are **flat** (no inner-layer delegation): `config/` (L15), `cli/` (L18), `bootstrap/` (L19), `loader/` (L21), and `paths/` (L16–L17 resolver + root_discovery — though `paths/` also façades L12 from `core/paths/`).
 
 ---
 
@@ -1041,6 +1121,8 @@ def default_base_path(pipeline_dir: str) -> Path:
 | Path Resolution (§3.18) | Pipeline needs schema-driven, non-hardcoded directory layout | 🟠 High |
 | Pipeline Entry-Point & Cross-Platform Discovery (§3.19) | Pipeline must discover project root and run on Windows/Linux | 🟠 High |
 | Universal Schema-Driven CLI Parser (§3.20) | Pipeline needs a shared, schema-driven CLI parser returning structured values with CLI>Schema>Native precedence | 🟠 High |
+| BootstrapManager (§3.21) | Pipeline needs standardized, phase-tracked bootstrap with error catalog wiring | 🟠 High |
+| Environment/Dependency Probe (§3.22) | Pipeline must validate dependencies before any heavy imports | 🟠 High |
 
 ### 3.20 Universal Schema-Driven CLI Parser Pattern (L18)
 
@@ -1083,6 +1165,113 @@ def parse_eks_cli(args=None):
 (passing DCC `core_arg_specs` + registry `parameters`); removes `create_parser` /
 `create_parser_from_registry` duplication (full I099 closure).
 
+---
+
+### 3.21 BootstrapManager Pattern (L19)
+
+**Purpose**: Project-agnostic, stateful bootstrap orchestrator that eliminates duplicated bootstrap logic across projects.
+
+**Description**: DCC's mature `BootstrapManager` (~1223 lines, 8 phases) has been extracted into `common/library/bootstrap/` as a universal, configurable orchestrator. Projects declare their bootstrap phases and hook implementations; the shared manager tracks phase state, collects traces, and wires into L10 `BaseErrorManager` for structured error reporting. This replaces per-project bootstrap scripts with a single SSOT.
+
+**Structure**:
+```python
+from common.library.bootstrap import BootstrapManager, BootstrapPhaseRegistry, BootstrapPhaseStatus
+
+# Projects define hook implementations
+hooks = {
+    "validate_structure": my_project_validator,
+    "load_config":       my_config_loader,
+    "env_tester":        test_environment,  # L20 — stdlib-only dependency probe
+    ...
+}
+
+# BootstrapManager runs the phase pipeline
+manager = BootstrapManager(hooks=hooks, phase_registry=my_phases)
+result = manager.run()
+# → {ready: bool, phase_results: [...], errors: [...], traces: [...]}
+```
+
+**Key components**:
+| Component | File | Purpose |
+| :--- | :--- | :--- |
+| `BootstrapManager` | `manager.py` | Stateful orchestrator with phase tracking, traces, and dual-mode (CLI/API) |
+| `BootstrapError` | `errors.py` | Exception class wired to L10 `BaseErrorManager` |
+| `BootstrapPhaseRegistry` | `phases.py` | Configurable phase ordering and dependency resolution |
+| `BootstrapPhaseStatus` | `phases.py` | Enum: `PENDING`, `RUNNING`, `COMPLETED`, `FAILED`, `SKIPPED` |
+
+**Phases** (configurable; DCC reference set):
+1. P1 — Project Structure Validation (§3.9)
+2. P2 — Environment/Dependency Probe (§3.22, L20 `test_environment`)
+3. P3 — Schema Discovery & Registration (§3.16, L21)
+4. P4 — Config Loading (L15 system parameters + L16 path resolution)
+5. P5 — Logging Initialization (L01–L04)
+6. P6 — Engine/Processor Registration (L07–L09)
+7. P7 — Readiness Gate (fail-fast before any data processing)
+8. P8 — Pipeline Handoff (return ready context to caller)
+
+**Benefits**:
+- Single SSOT for bootstrap logic — no per-project duplication
+- Phase tracking with structured traces for debugging
+- Dual-mode: CLI (verbose output) and API (silent, structured return)
+- Wired into L10 error catalog for consistent error reporting
+- Configurable phase set — projects override or extend the default 8-phase pipeline
+- Hook-based: each phase delegates to project-specific implementations via dependency injection
+
+**Reference Implementation**: DCC Pipeline (`dcc/workflow/initiation_engine/core/bootstrap.py`); extracted to `common/library/bootstrap/`.
+
+**EKS Status**: ✅ Adopted (T1.99.50–54) — `eks/engine/core/bootstrap.py` delegates to `common.library.bootstrap.BootstrapManager`. See [Appendix H: Bootstrap Module Design](eks/workplan/appendix_h_bootstrap_module_design.md).
+
+**DCC Status**: 🔷 PLANNED — migrate to `common.library.bootstrap.BootstrapManager` from local implementation.
+
+---
+
+### 3.22 Environment/Dependency Probe Pattern (L20)
+
+**Purpose**: Universal, stdlib-only dependency checker that runs **before any heavy project imports** — the first `common.library` call path in every pipeline.
+
+**Description**: `test_environment()` accepts a `dependencies` dict (`required`/`optional`/`engines`) and tests each module via `importlib.import_module()` — one at a time, logging failures without aborting the loop. Returns a structured `{ready, errors, warnings, ...}` dict. Because it uses **only stdlib** (`importlib`, `platform`, `sys`, `pathlib`), it can execute before any project package is imported, making it the ideal first call in any pipeline's `main()` or bootstrap sequence.
+
+**Structure**:
+```python
+from common.library.core.system import test_environment
+
+deps = {
+    "required": ["pandas", "jsonschema", "requests"],
+    "optional": ["psutil", "ollama"],
+    "engines":   ["dcc.workflow.core_engine"],
+}
+
+result = test_environment(dependencies=deps)
+# → {
+#     "ready": True/False,
+#     "errors": ["ModuleNotFoundError: pandas"],
+#     "warnings": ["Optional module 'psutil' not found"],
+#     "platform": "Windows-10-...",
+#     "python_version": "3.13.0",
+#     "checked": {"required": {...}, "optional": {...}, "engines": {...}},
+# }
+```
+
+**Design principles**:
+- **Stdlib-only**: No external dependencies — can report ALL missing packages before any `ModuleNotFoundError` would crash the pipeline
+- **Non-aborting loop**: Tests all modules; collects failures rather than failing on the first missing dependency
+- **Three-tier classification**: `required` (block — missing = not ready), `optional` (warn), `engines` (project-specific engine packages)
+- **First call path**: By design, `test_environment()` should be the very first `common.library` call in every pipeline entry point (T1.99.80 v2 ensures module-level imports are stdlib-only so this is always possible)
+
+**Benefits**:
+- Catches missing dependencies before any `ModuleNotFoundError` crash
+- Stdlib-only design means it can never itself be the source of an import error
+- Structured result enables programmatic readiness decisions (fail-fast gating)
+- Platform info included in result for cross-platform debugging
+
+**Reference Implementation**: DCC Pipeline (`dcc/workflow/core_engine/system/system_environment.py`); extracted to `common/library/core/system/tester.py`.
+
+**EKS Status**: ✅ Adopted (T1.99.75, T1.99.80 v2) — `test_environment()` is the first `common.library` call in `eks_engine_pipeline.py` `main()`. Module-level imports are stdlib-only so L20 always runs first. See [Appendix H](eks/workplan/appendix_h_bootstrap_module_design.md) §H.12 for the lazy-import design.
+
+**DCC Status**: 🔷 PLANNED — migrate to `common.library.core.system.test_environment` from local `system_environment.py`.
+
+---
+
 ### 4.2 Implementation Order
 
 Recommended implementation order for new pipelines:
@@ -1105,6 +1294,9 @@ Recommended implementation order for new pipelines:
 16. **System Parameters** — Centralize runtime behavior flags into schema-defined block with universal normalization
 17. **Path Resolution** — Resolve project directory layout via universal `resolve_paths()` (schema-driven `global_paths`, no hardcoded paths)
 18. **Pipeline Entry-Point Discovery (L17)** — Resolve project root (cwd/`--base-path`) and call `detect_os()` before any path operation; this precedes Path Resolution (§3.18).
+19. **Environment/Dependency Probe (L20)** — Run `test_environment()` as the **first `common.library` call** in `main()`, before any heavy imports. Stdlib-only design ensures all missing deps are reported.
+20. **Schema-Driven CLI Parser (L18)** — Adopt universal `parse_cli_args()` returning structured `CliResult` with CLI>Schema>Native precedence.
+21. **BootstrapManager (L19)** — Delegate bootstrap orchestration to shared `BootstrapManager` with project-specific hooks.
 
 ---
 
@@ -1425,17 +1617,22 @@ For UI integration:
 ### 8.2 EKS Pipeline (Secondary Reference)
 
 - **Location**: `eks/`
-- **Status**: Phase 1 Bootstrap COMPLETE (T1.1–T1.77 ✅); **T1.77 (Initiation Integrity Checks, mirrors DCC `initiation_engine`) ✅ DONE**. T1.78 (Initiation Integrity Remediation) 🔷 PLANNED — see [Phase 1 Foundation Workplan](eks/workplan/phase_1_foundation_workplan.md) T1.77 / T1.78. Phase 1.2 Proposed.
+- **Status**: Phase 1 Bootstrap COMPLETE (T1.1–T1.99.80 ✅); **T1.77 (Initiation Integrity Checks, mirrors DCC `initiation_engine`) ✅ DONE**. T1.78 (Initiation Integrity Remediation) 🔷 PLANNED — see [Phase 1 Foundation Workplan](eks/workplan/phase_1_foundation_workplan.md) T1.77 / T1.78. Phase 1.2 Proposed.
 - **Pattern Coverage**:
   - ✅ Schema-Driven Config (§3.5), Standardized Engine I/O + I/O contracts (§3.15, T1.72), Structured Logging & Correlation IDs (§3.12, T1.69), Idempotency & Checkpointing (§3.11, T1.73)
   - ✅ Project Setup Validation (§3.9, L13) — `ProjectSetupValidator` wired as fail-fast readiness gate (T1.77); **regression + DCC-layer gaps tracked in T1.78** (§3.9.1)
   - ✅ Multi-Stage / Parameter Precedence (§3.6, §7.5.2) — `data_dir`/`recursive` validation + `--debug`/`--level` flag (T1.77); schema-driven debug default deferred to T1.78
   - ✅ Security Baseline path-traversal portion (§3.13, T1.70)
   - ✅ Unified Main Pipeline Entry (DCC-faithful) — `eks/engine/eks_engine_pipeline.py` reuses `common.library` building blocks (`BaseEngine`/`BasePipelineContext`/`EngineInput`/`EngineOutput`/`TelemetryHeartbeat`, `get_system_param`, `resolve_paths`, `BaseMessageManager`, `UniversalLogger`, `ValidationManager`); advances I078 (T1.99.8–12 / I096)
+  - ✅ Lazy-Import Architecture (T1.99.80 v2) — ALL `common.library` imports deferred to `main()` body; module level is **stdlib-only** (no `common.library` imports at module scope). L20 `test_environment()` is the **first `common.library` call path**, ensuring all missing dependencies are reported before any `ModuleNotFoundError`.
+  - ✅ BootstrapManager (§3.21, L19) — `eks/engine/core/bootstrap.py` delegates to `common.library.bootstrap.BootstrapManager` (T1.99.50–54)
+  - ✅ Environment/Dependency Probe (§3.22, L20) — `test_environment()` integrated as P2 in bootstrap phase pipeline (T1.99.75)
+  - ✅ Schema-Driven CLI Parser (§3.20, L18) — `eks_engine_pipeline.py` consumes `parse_eks_cli()` → `parse_cli_args()` (T1.99.27–29)
 - **Key Documents**:
   - [Phase 1 Foundation Workplan](eks/workplan/phase_1_foundation_workplan.md)
   - [Phase 1.2 Interactive UI Workplan](eks/workplan/phase_1.2_interactive_ui_workplan.md)
   - [Appendix F: EKS Pipeline Architecture Design](eks/workplan/appendix_f_pipeline_architecture_design.md) — See Appendix F for EKS-specific application
+  - [Appendix H: Bootstrap Module Design](eks/workplan/appendix_h_bootstrap_module_design.md)
 
 ---
 
@@ -1462,6 +1659,10 @@ Use this checklist when designing a new pipeline:
 - [ ] **Schema Discovery & Registration (§3.16)**: Configurable discovery rules for automatic schema file registration
 - [ ] **System Parameters (§3.17)**: Schema-defined runtime behavior block with universal normalization
 - [ ] **Path Resolution (§3.18)**: Schema-defined directory layout resolved via universal `resolve_paths()` (no hardcoded paths)
+- [ ] **Pipeline Entry-Point & Cross-Platform Discovery (§3.19)**: Deterministic project root discovery with OS detection
+- [ ] **Schema-Driven CLI Parser (§3.20, L18)**: Universal `parse_cli_args()` with CLI>Schema>Native precedence
+- [ ] **BootstrapManager (§3.21, L19)**: Phase-tracked bootstrap orchestrator with structured error wiring
+- [ ] **Environment/Dependency Probe (§3.22, L20)**: Stdlib-only `test_environment()` as first `common.library` call
 
 ---
 
@@ -1488,6 +1689,10 @@ A pipeline is considered to follow universal architecture when:
 - ✅ Schema discovery and registration with configurable discovery rules (see §3.16)
 - ✅ System parameters defined in schema-driven block with universal normalization (see §3.17)
 - ✅ Path resolution via universal `resolve_paths()` with schema-driven `global_paths` (see §3.18)
+- ✅ Pipeline entry-point discovery with OS detection and cwd/`--base-path` precedence (see §3.19)
+- ✅ Schema-driven CLI parser with structured `CliResult` and CLI>Schema>Native precedence (see §3.20, L18)
+- ✅ BootstrapManager orchestrating phase-tracked bootstrap with error catalog wiring (see §3.21, L19)
+- ✅ Stdlib-only `test_environment()` as first `common.library` call path (see §3.22, L20)
 - ✅ Test coverage >90% for new components
 - ✅ Performance impact <5% overhead
 - ✅ Documentation updated with patterns

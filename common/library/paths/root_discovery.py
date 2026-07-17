@@ -53,7 +53,7 @@ from common.library.core.paths.path_utils import detect_os
 
 
 def default_base_path(
-    pipeline_root_dir: str = "engine",
+    pipeline_root_dir: str,
     reference: Optional[Path] = None,
 ) -> Path:
     """Walk *reference* parents for *anchor*; return the parent of *anchor*.
@@ -85,7 +85,6 @@ def default_base_path(
 
 
 def resolve_pipeline_base_path(
-    pipeline_root_dir: str = "engine",
     pipeline_dir: Optional[str] = None,
     base_path: Optional[str] = None,
 ) -> Path:
@@ -102,8 +101,6 @@ def resolve_pipeline_base_path(
     :func:`default_base_path` / :func:`discover_project_root` (T1.99.23).
 
     Args:
-        pipeline_root_dir: Project anchor folder name (used for the verification step in
-            :func:`discover_project_root`; ignored here for the cwd path).
         pipeline_dir: Module folder used for the ``== pipeline_dir`` strip.
         base_path: Explicit ``--base-path`` override (operator-chosen).
 
@@ -120,7 +117,7 @@ def resolve_pipeline_base_path(
 
 
 def discover_project_root(
-    pipeline_root_dir: str = "engine",
+    pipeline_root_dir: str,
     pipeline_dir: Optional[str] = None,
     base_path: Optional[str] = None,
     reference: Optional[Path] = None,
@@ -147,7 +144,7 @@ def discover_project_root(
         Verified project root (Path).
     """
     detect_os()  # step 1 — L12: know the platform before any path work
-    start = resolve_pipeline_base_path(pipeline_root_dir, pipeline_dir, base_path)  # steps 3-4
+    start = resolve_pipeline_base_path(pipeline_dir, base_path)  # steps 3-4
     if (start / pipeline_root_dir).is_dir():
         return start
     # Anchor not under the operator-chosen start -> last-resort walk (raises

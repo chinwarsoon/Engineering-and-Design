@@ -37,6 +37,9 @@
         },
         "setup_validation": {
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
+        },
+        "bootstrap_p1": {
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         }
       }
     },

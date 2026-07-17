@@ -28,12 +28,29 @@ resolver -> ``==pipeline_dir`` strip -> anchor-verified project root
 ``global_paths.data_dir`` nested under ``eks_root`` (precedence CLI > Schema > Native).
 Folder auto-create is gated by ``should_auto_create_folders(os_info)`` (I098).
 
-Revision: 0.3
-Date: 2026-07-15
+Lazy-import design (I114 / T1.99.80): ALL common.library imports are deferred to
+inside functions so that ``test_environment()`` (stdlib-only, L20) runs first in
+bootstrap and reports ALL missing dependencies with friendly guidance — no bare
+``ModuleNotFoundError`` reaches the user. The only module-level common.library
+import is a guarded try/except for early project-root discovery.
+
+Preload infrastructure design (I117 / I118): ``_preload_infrastructure()`` is a
+module-level **pure-stdlib** function that individually try/except-guards every
+``common.library`` import. It returns imported **classes** (not instantiated
+objects) so the function itself never depends on ``common.library`` at runtime.
+``main()`` instantiates ``UniversalLogger`` + ``TelemetryHeartbeat`` after the
+preload gate passes. All 6 failure points immediately print to stderr with
+``FATAL:`` prefix — no error is ever silently collected.
+
+Revision: 0.7
+Date: 2026-07-17
 Author: opencode
-Summary: T1.99.17–23 — L17 entry-point discovery via common.library.paths.root_discovery;
-detect_os at entry, --base-path CLI, eks_root-aware resolve_paths, OS-gated auto-create,
-anchor-missing raises (no silent cwd fallback). Closes I098 sub-issues.
+Summary: T1.99.84 (I118) — ``_preload_infrastructure()`` v2: true pure-stdlib.
+(a) All 6 failure points print to stderr immediately (no silent errors).
+(b) All variables pre-bound with safe defaults — no NameError possible.
+(c) logger/heartbeat instantiation moved from preload to main() — preload
+returns imported classes (_UniversalLogger, _TelemetryHeartbeat), not objects.
+(d) Removed logger_name parameter (now hardcoded in main()).
 """
 from __future__ import annotations
 
@@ -44,28 +61,12 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
-from eks.engine.core.schema_loader import SchemaLoader
-from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
-from eks.engine.core.error_manager import ErrorManager
-from eks.engine.core.message_manager import MessageManager
-from eks.engine.core.setup_validator import ProjectSetupValidator
-from eks.engine.core.registry import DocumentRegistry
-from common.library.paths import resolve_paths
-from common.library.config import get_system_param
-from common.library.core.pipeline import EngineInput, EngineOutput, TelemetryHeartbeat
-from common.library.logging import UniversalLogger
-from common.library.core.paths.path_utils import (
-    detect_os,
-    safe_posix,
-    should_auto_create_folders,
-)
-from common.library.paths.root_discovery import discover_project_root
-from common.library.cli import build_parser_from_schema, parse_cli_args
-
-try:
-    from .core.config_registry import ConfigRegistry
-except Exception:  # pragma: no cover - ConfigRegistry is part of core
-    ConfigRegistry = None
+# ---------------------------------------------------------------------------
+# Module-level imports — stdlib ONLY.
+# ALL common.library imports are deferred to inside functions so that
+# test_environment() (L20) can run first and report ALL missing deps before
+# any ModuleNotFoundError occurs (I114 / T1.99.80).
+# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # L17 — Pipeline Entry-Point & Cross-Platform Discovery (I098 / T1.99.17–23)
@@ -83,12 +84,21 @@ except Exception:  # pragma: no cover - ConfigRegistry is part of core
 # default (I102). The import-time discovery below also uses the literals inline.
 
 
-# Ensure repo root is importable when run as a script (import-time discovery).
-_PRJ_DIR = discover_project_root(
-    pipeline_root_dir="eks", pipeline_dir="engine", reference=Path(__file__)
-)
-if str(_PRJ_DIR) not in sys.path:
-    sys.path.insert(0, str(_PRJ_DIR))
+# T1.99.80 (I114): Deferred import-time discovery.
+# discover_project_root() is a lightweight common.library import (stdlib-only),
+# but to keep ALL common.library imports deferred, we use a try/except with
+# a deferred import. If discovery fails at import time, main() will resolve
+# via discover_project_root() inside the function body.
+_PRJ_DIR = Path.cwd()  # safe default; main() will re-resolve
+try:
+    from common.library.paths.root_discovery import discover_project_root as _dr
+    _PRJ_DIR = _dr(
+        pipeline_root_dir="eks", pipeline_dir="engine", reference=Path(__file__)
+    )
+    if str(_PRJ_DIR) not in sys.path:
+        sys.path.insert(0, str(_PRJ_DIR))
+except Exception:
+    pass  # _PRJ_DIR stays at Path.cwd(); main() handles real discovery
 
 # Strip the script's own directory from sys.path so that eks/engine/logging/
 # cannot shadow stdlib `logging` when openpyxl/PIL etc. do "import logging"
@@ -107,11 +117,14 @@ def bootstrap_pipeline(
     debug: bool = False,
     use_config_registry: bool = True,
     auto_create: bool = True,
+    pipeline_root_dir: str = "eks",
+    pipeline_dir: str = "engine",
 ) -> Dict[str, Any]:
     """Build config + managers and run the project-setup readiness gate.
 
-    T1.99.45-46: I107 bootstrap completeness - now handles OS detection, CLI parsing,
-    log-level precedence, and data-dir resolution internally (DCC-faithful).
+    T1.99.58: I109 — thin wrapper that delegates to the universal
+    ``EKSBootstrapManager`` (L19). Returns a backward-compatible dict
+    so existing callers (``phase1_server.py``, tests) work unchanged.
 
     Args:
         project_root: Repository root (used to resolve schema-driven paths).
@@ -120,100 +133,46 @@ def bootstrap_pipeline(
         skip_readiness: Bypass the project-setup readiness gate (G5 override).
         debug: Enable verbose validator output.
         use_config_registry: Load config via the ``ConfigRegistry`` SSOT (T1.99.6).
+        auto_create: Auto-create missing folders.
+        pipeline_root_dir: Anchor directory name for project-root discovery
+            (default ``"eks"``; I104 — DCC-faithful, caller owns the literal).
+        pipeline_dir: Pipeline sub-directory name within pipeline_root_dir
+            (default ``"engine"``; I104 — DCC-faithful, caller owns the literal).
 
     Returns:
         dict with keys: config, doc_config, config_registry, em, mm, resolved_paths,
         os_info, level, data_dir, project_root, config_dir, parsed (namespace)
     """
+    from .core.bootstrap import EKSBootstrapManager
+
     project_root = Path(project_root)
-    pipeline_root_dir = "eks"
-    pipeline_dir = "engine"
 
-    # T1.99.45: OS detection (DCC P6 env)
-    os_info = detect_os()
+    mgr = EKSBootstrapManager(
+        project_root=project_root,
+        pipeline_root_dir=pipeline_root_dir,
+        pipeline_dir=pipeline_dir,
+        skip_readiness=skip_readiness,
+        debug=debug,
+        auto_create=auto_create,
+        use_config_registry=use_config_registry,
+        logger=logger,
+    )
+    mgr.bootstrap_all(args)
 
-    # T1.99.46: CLI parse (DCC P1) - L17 discovery + L18 schema-driven parse
-    cli = parse_eks_cli(args, pipeline_root_dir=pipeline_root_dir, pipeline_dir=pipeline_dir)
-    parsed = cli.namespace
-    project_root = cli.project_root
-    config_dir = cli.config_dir
-
-    # T1.99.6: config loaded through the ConfigRegistry SSOT singleton
-    config_registry = None
-    if use_config_registry and ConfigRegistry is not None:
-        _existing = ConfigRegistry._instance
-        if _existing is not None:
-            _existing_dir = getattr(getattr(_existing, "_loader", None), "config_dir", None)
-            if _existing_dir is not None and Path(str(_existing_dir)).resolve() != Path(str(config_dir)).resolve():
-                ConfigRegistry._instance = None
-        config_registry = ConfigRegistry(str(config_dir))
-        config = config_registry.config
-    else:
-        config = SchemaLoader(config_dir).load_all()
-
-    loader = SchemaLoader(config_dir)
-    doc_config = loader.doc_config
-
-    # T1.99.45: CLI > Schema > Native precedence for log_level (DCC P8 params)
-    # Use config from ConfigRegistry (already loaded above) - no 2nd load needed
-    gp = config.get("global_paths", {}) if isinstance(config, dict) else {}
-    eks_root = gp.get("eks_root", "eks")
-    level = parsed.level if parsed.level is not None else int(gp.get("log_level", 1))
-    if parsed.debug:
-        level = 3
-
-    # T1.99.46: L16 schema-driven canonical paths (single source, Defect A fix)
-    resolved = resolve_paths(project_root, config).resolve(project_root)
-
-    # T1.99.46: --data-dir precedence: CLI > Schema (resolve_paths) > Native; anchored under eks_root
-    data_dir = resolved["data_dir"]
-    if parsed.data_dir:
-        cli_path = Path(parsed.data_dir)
-        if cli_path.is_absolute():
-            data_dir = cli_path
-        else:
-            data_dir = project_root / eks_root / parsed.data_dir
-
-    em = ErrorManager(config_dir=config_dir, logger=logger, config=config)
-    mm = MessageManager(config_dir=config_dir, logger=logger)
-
+    # Run EKS-specific readiness gate if not skipped
     if not skip_readiness:
-        # T1.99.6: pass the ConfigRegistry singleton (not the raw config dict)
-        validator = ProjectSetupValidator(
-            project_root=project_root,
-            config_registry=config_registry if config_registry is not None else config,
-            verbose=debug,
-        )
-        setup_results = validator.validate_all(auto_create=auto_create)
-        if setup_results["readiness"] != "YES":
-            missing = validator.get_missing_items()
-            error_codes = setup_results.get("error_codes", [])
-            error_msg = (
-                f"Project setup not ready (readiness={setup_results['readiness']}). "
-                f"Missing folders: {len(missing['folders'])}, "
-                f"Missing files: {len(missing['files'])}. "
-                f"Error codes: {[ec['code'] for ec in error_codes]}"
+        ready = mgr._run_readiness_gate()
+        if not ready:
+            # T1.99.63: use structured BootstrapError (I111)
+            # P1-BOOT-READINESS is registered in eks_error_config.json (T1.99.62)
+            from common.library.bootstrap import BootstrapError
+            raise BootstrapError(
+                "P1-BOOT-READINESS",
+                "Bootstrap readiness gate failed — project setup not ready",
+                "readiness",
             )
-            try:
-                em.handle_system_error("P1-SETUP-READINESS", detail=error_msg)
-            except RuntimeError:
-                if logger:
-                    logger.warning(error_msg, context="bootstrap_pipeline.readiness")
 
-    return {
-        "config": config,
-        "doc_config": doc_config,
-        "config_registry": config_registry,
-        "em": em,
-        "mm": mm,
-        "resolved_paths": resolved,
-        "os_info": os_info,
-        "level": level,
-        "data_dir": data_dir,
-        "project_root": project_root,
-        "config_dir": config_dir,
-        "parsed": parsed,
-    }
+    return mgr.to_dict()
 
 
 def run_pipeline(
@@ -260,6 +219,10 @@ def run_pipeline(
         dict with keys: summary (depends on phase), em, mm, config_registry,
         resolved_paths, context (EKSPipelineContext instance)
     """
+    # T1.99.80 (I114): Deferred heavy imports
+    from .core.pipeline_orchestrator import PipelineOrchestrator
+    from .core.registry import DocumentRegistry
+
     # T1.99.42: if context is provided, skip bootstrap and use it directly
     if context is not None:
         em = context.parameters.get("em")
@@ -362,8 +325,10 @@ def run_pipeline(
 def _read_system_params(config_dir: Path) -> Dict[str, Any]:
     """Load config to resolve schema-driven system-parameter defaults (L15)."""
     try:
+        from .core.config_registry import ConfigRegistry
         if ConfigRegistry is not None:
             return ConfigRegistry(str(config_dir)).config
+        from .core.schema_loader import SchemaLoader
         return SchemaLoader(config_dir).load_all()
     except Exception:
         return {}
@@ -490,10 +455,11 @@ def build_schema_driven_parser(
     clarity, I104 / T1.99.34) so callers (e.g. ``main()``) own their folder
     literals.
     """
+    from common.library.cli import build_parser_from_schema
     root = Path(root) if root is not None else _PRJ_DIR
     return build_parser_from_schema(
         root, schema_config,
-        pipeline_root_dir=pipeline_root_dir, pipeline_dir=pipeline_dir,
+        pipeline_dir=pipeline_dir,
         core_arg_specs=_EKS_CORE_ARG_SPECS,
     )
 
@@ -510,6 +476,7 @@ def parse_eks_cli(
     ``anchor`` / ``pipeline_dir`` default to the EKS literals but accept
     explicit values (I104 / T1.99.34) so the caller owns its folder literals.
     """
+    from common.library.cli import parse_cli_args
     return parse_cli_args(
         args,
         pipeline_root_dir=pipeline_root_dir, pipeline_dir=pipeline_dir,
@@ -518,18 +485,205 @@ def parse_eks_cli(
     )
 
 
+def _parse_early_verbosity(
+    args: Optional[list] = None,
+) -> Dict[str, Any]:
+    """T1.99.70 (I113): Lightweight early parse for --level / --debug only.
+
+    Parses only the verbosity-relevant flags from raw ``sys.argv`` (or
+    ``args``) **before** bootstrap, so ``UniversalLogger`` and
+    ``TelemetryHeartbeat`` can be created pre-bootstrap. This mirrors DCC's
+    ``parse_cli_args()`` → ``set_debug_level()`` before
+    ``BootstrapManager.bootstrap_all()``.
+
+    No schema/config dependency — pure argparse with the same dest/type/choices
+    as ``_EKS_CORE_ARG_SPECS`` entries for ``--level`` and ``--debug``.
+
+    Args:
+        args: Optional argument list (None → sys.argv[1:]).
+
+    Returns:
+        dict with keys ``level`` (int, default 1) and ``debug`` (bool).
+    """
+    import argparse as _argparse
+
+    _parser = _argparse.ArgumentParser(add_help=False)
+    _parser.add_argument(
+        "--level", dest="level", type=int, default=None,
+        choices=[0, 1, 2, 3],
+    )
+    _parser.add_argument(
+        "--debug", dest="debug", action="store_true", default=False,
+    )
+    _parsed, _ = _parser.parse_known_args(args)
+    return {
+        "level": _parsed.level,
+        "debug": _parsed.debug,
+    }
+
+
+def _preload_infrastructure(
+    args: Optional[list] = None,
+    pipeline_root_dir: str = "eks",
+    pipeline_dir: str = "engine",
+) -> Dict[str, Any]:
+    """T1.99.81 (I117): Pre-bootstrap infrastructure loader — pure-stdlib guard.
+
+    Imports and discovers project-root BEFORE ``BootstrapManager``,
+    collecting ALL errors into a single result dict so the caller can
+    report them at once. No bare ``ImportError`` or ``ModuleNotFoundError``
+    reaches the user — every ``common.library`` import is individually
+    try/except-guarded.
+
+    This function MUST remain at module level (not inside ``common.library``)
+    because it protects the import of ``common.library`` itself — putting
+    it inside the package would create a circular dependency (the guard
+    cannot live in the package it guards).
+
+    Design principle (I117 / universal pipeline §3.23 preload pattern):
+    Every pipeline entry-point should have a stdlib-only preload function
+    that gates all ``common.library`` imports. This is NOT a library function
+    — it is a **pattern** that each project replicates with its own
+    ``pipeline_root_dir`` / ``pipeline_dir`` literals.
+
+    Args:
+        args: Optional CLI argument list (None → sys.argv[1:]).
+        pipeline_root_dir: Anchor directory name for project-root discovery
+            (e.g. ``"eks"`` for EKS, ``"dcc"`` for DCC).
+        pipeline_dir: Pipeline sub-directory name within pipeline_root_dir
+            (e.g. ``"engine"`` for EKS, ``"workflow"`` for DCC).
+
+    Returns:
+        dict with keys:
+        - ``ready`` (bool): True if all infrastructure loaded successfully.
+        - ``errors`` (List[str]): Collected error messages (empty if ready).
+        - ``project_root`` (Path | None): Discovered project root.
+        - ``early_level`` (int): Resolved verbosity level (0–3).
+        - ``debug_mode`` (bool): Whether --debug flag was set.
+        - ``safe_posix`` (Callable | None): Path serialization helper.
+        - ``should_auto_create_folders`` (Callable | None): OS-gated folder creation guard.
+        - ``_UniversalLogger`` (type | None): Imported class (not instantiated).
+        - ``_TelemetryHeartbeat`` (type | None): Imported class (not instantiated).
+    """
+    errors: list = []
+
+    # All fallback defaults — every variable is pre-bound so a failure in any
+    # step never causes a NameError in a later step.
+    early_level = 1
+    debug_mode = False
+    _safe_posix = None
+    _should_auto_create = None
+    _discover_root = None
+    _UniversalLogger = None
+    _TelemetryHeartbeat = None
+
+    # Step 0: early verbosity (stdlib-only argparse, always safe)
+    try:
+        early_verbosity = _parse_early_verbosity(args)
+        early_level = 3 if early_verbosity["debug"] else (early_verbosity["level"] or 1)
+        debug_mode = early_verbosity.get("debug", False)
+    except Exception as e:
+        msg = f"Verbosity parse failed: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    # Step 1: common.library imports — each individually guarded.
+    # These are all wrapped in try/except so failure in one does not affect
+    # the others.  The pre-bound defaults (None) above guarantee that even
+    # if *every* import fails the function still returns a valid dict.
+    try:
+        from common.library.core.paths.path_utils import safe_posix as _sp, should_auto_create_folders as _sac
+        _safe_posix, _should_auto_create = _sp, _sac
+    except ImportError as e:
+        msg = f"common.library.paths not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    try:
+        from common.library.paths.root_discovery import discover_project_root as _dr
+        _discover_root = _dr
+    except ImportError as e:
+        msg = f"common.library.paths.root_discovery not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    try:
+        from common.library.logging import UniversalLogger as _UL
+        _UniversalLogger = _UL
+    except ImportError as e:
+        msg = f"common.library.logging not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    try:
+        from common.library.core.pipeline import TelemetryHeartbeat as _TH
+        _TelemetryHeartbeat = _TH
+    except ImportError as e:
+        msg = f"common.library.core.pipeline not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    if errors:
+        print(f"FATAL: Preload infrastructure failed with {len(errors)} error(s)", file=sys.stderr)
+        return {
+            "ready": False, "errors": errors,
+            "project_root": None, "early_level": early_level,
+            "debug_mode": debug_mode,
+            "safe_posix": None, "should_auto_create_folders": None,
+            "_UniversalLogger": None, "_TelemetryHeartbeat": None,
+        }
+
+    # Step 2: discover project root (stdlib-only — Path + the already-imported
+    # _discover_root callable)
+    try:
+        prj = _discover_root(
+            pipeline_root_dir=pipeline_root_dir,
+            pipeline_dir=pipeline_dir,
+            reference=Path(__file__),
+        )
+    except Exception as e:
+        msg = f"Project root discovery failed: {e}"
+        print(f"FATAL: {msg}", file=sys.stderr)
+        return {
+            "ready": False, "errors": [msg],
+            "project_root": None, "early_level": early_level,
+            "debug_mode": debug_mode,
+            "safe_posix": _safe_posix, "should_auto_create_folders": _should_auto_create,
+            "_UniversalLogger": _UniversalLogger, "_TelemetryHeartbeat": _TelemetryHeartbeat,
+        }
+
+    return {
+        "ready": True, "errors": [],
+        "project_root": prj, "early_level": early_level,
+        "debug_mode": debug_mode,
+        "safe_posix": _safe_posix, "should_auto_create_folders": _should_auto_create,
+        "_UniversalLogger": _UniversalLogger, "_TelemetryHeartbeat": _TelemetryHeartbeat,
+    }
+
+
 def main(args: Optional[list] = None) -> int:
     """console_scripts entry point — full pipeline orchestration (DCC-faithful).
 
-    T1.99.45-48: I107 bootstrap completeness - main() now delegates all init logic
-    to bootstrap_pipeline() (OS detection, CLI parse, config load, path resolution,
-    log-level/data-dir precedence, MessageManager). Single source of truth for all
-    bootstrap data (Defect A + B fixed).
+    Orchestration chain (T1.99.59–61, I113 pre-bootstrap logger, I117 preload guard):
+      0. ``_preload_infrastructure(args)`` — pure-stdlib guard that loads
+         logger, heartbeat, and project-root discovery BEFORE bootstrap.
+         ALL ``common.library`` imports are individually try/except-guarded;
+         errors collected and reported at once (I117 / T1.99.81).
+      1. ``EKSBootstrapManager(logger=logger, ...).bootstrap_all(args)`` —
+         universal L19 bootstrap (readiness gate, config, paths, OS detection,
+         CLI parse, context assembly).
+      2. ``mgr.to_pipeline_context()`` — collapses ~30 lines of manual assembly.
+      3. ``EngineInput`` derived from context, ``run_pipeline(context=ctx)`` invoked.
+      4. ``EngineOutput`` contract wraps the result for structured output (json/human).
 
-    Mirrors DCC's ``dcc/workflow/dcc_engine_pipeline.py::main()``: every pipeline
-    step lives in ``main()`` (no separate ``run()``). The shared ``run_pipeline()``
-    funnel is the analogue of DCC's ``run_engine_pipeline(context)`` and stays a
-    separate callable because ``phase1_server.py`` and the tests reuse it.
+    Error handling (T1.99.62–63, I117):
+      - Preload failures (I117): collected in ``infra["errors"]``, printed to
+        stderr with ``FATAL:`` prefix, exit code 1 — no bare ImportError.
+      - Bootstrap failures raise ``BootstrapError`` with ``P1-BOOT-*`` codes
+        (READINESS, CONFIG, PATHS, OS, CTX), all registered in the EKS error
+        catalog under the ``bootstrap_p1`` range.
+      - Top-level ``except Exception`` catches pipeline failures, logs via
+        ``UniversalLogger``, prints to stderr, and returns exit code 1.
 
     Args:
         args: Optional argument list (None -> sys.argv).
@@ -542,126 +696,122 @@ def main(args: Optional[list] = None) -> int:
     pipeline_root_dir = "eks"      # pipeline root directory
     pipeline_dir = "engine"        # main EKS pipeline entry folder
 
-    # T1.99.45-48: bootstrap_pipeline now handles all init (OS, CLI, config, paths, level, data_dir, mm)
-    # Discover project root locally (DCC-faithful: main() resolves base_path, passes to bootstrap)
-    prj = discover_project_root(
+    # T1.99.81 (I117): Preload all infrastructure in one guarded call.
+    # All common.library imports are individually try/except-guarded inside
+    # _preload_infrastructure(); errors collected and reported at once.
+    infra = _preload_infrastructure(
+        args=args,
         pipeline_root_dir=pipeline_root_dir,
         pipeline_dir=pipeline_dir,
-        reference=Path(__file__),
     )
-    boot = bootstrap_pipeline(
-        project_root=prj,
-        args=args,
-        skip_readiness=False,
-        debug=False,
-        auto_create=True,
-    )
+    if not infra["ready"]:
+        for err in infra["errors"]:
+            print(f"FATAL: {err}", file=sys.stderr)
+        return 1
 
-    # Extract bootstrap results (single source of truth, Defect A fixed)
-    config = boot["config"]
-    config_registry = boot["config_registry"]
-    resolved = boot["resolved_paths"]
-    os_info = boot["os_info"]
-    level = boot["level"]
-    data_dir = boot["data_dir"]
-    project_root = boot["project_root"]
-    config_dir = boot["config_dir"]
-    parsed = boot["parsed"]
-    mm = boot["mm"]  # T1.99.48: single MessageManager from bootstrap (Defect B fixed)
+    # Extract preloaded infrastructure — imports succeeded, now instantiate.
+    prj = infra["project_root"]
+    early_level = infra["early_level"]
+    debug_mode = infra["debug_mode"]
+    safe_posix = infra["safe_posix"]
+    should_auto_create_folders = infra["should_auto_create_folders"]
+    _UniversalLogger = infra["_UniversalLogger"]
+    _TelemetryHeartbeat = infra["_TelemetryHeartbeat"]
 
-    # Derive output paths from single resolved dict (Defect A fixed)
-    output_dir = resolved["output_dir"]
-    schema_dir = resolved["schema_dir"]
-    config_file = config_dir / "eks_config.json"
-
-    # L01 — tiered entry logger; L11 — entry milestone printing
-    logger = UniversalLogger("eks-pipeline", level=level)
-    # T1.99.48: reuse bootstrap's mm (no duplicate instantiation)
-    mm.show("STATUS_PIPELINE_START", root_dir=safe_posix(data_dir))
-
-    # L05 — entry-level telemetry heartbeat (gated by verbosity)
-    hb = TelemetryHeartbeat(enabled=level >= 2)
+    # T1.99.71 (I113): create logger + heartbeat (warm before bootstrap).
+    # These are instantiated here in main() — NOT inside _preload_infrastructure()
+    # which is pure-stdlib and must never depend on common.library.
+    logger = _UniversalLogger("eks-pipeline", level=early_level)
+    hb = _TelemetryHeartbeat(enabled=early_level >= 2)
     hb.start()
 
+    # T1.99.59 + T1.99.71 (I113): use EKSBootstrapManager chain with pre-created
+    # logger — mirrors DCC exactly (logger warm before bootstrap_all).
+    from .core.bootstrap import EKSBootstrapManager
+    mgr = EKSBootstrapManager(
+        project_root=prj,
+        pipeline_root_dir=pipeline_root_dir,
+        pipeline_dir=pipeline_dir,
+        skip_readiness=False,
+        debug=debug_mode,
+        auto_create=True,
+        logger=logger,
+    )
+    mgr.bootstrap_all(args)
+
+    # Extract bootstrap results from the manager
+    parsed = mgr.parsed
+    os_info = mgr.os_info
+    level = mgr.effective_parameters.get("level", early_level)
+    data_dir = mgr.effective_parameters.get("data_dir", mgr.resolved_paths.get("data_dir", prj / "data"))
+    project_root = mgr.project_root
+    config_dir = mgr.config_dir
+    resolved = mgr.resolved_paths
+    mm = mgr.message_manager
+
+    # L11 — entry milestone printing (logger already created pre-bootstrap)
+    if mm is not None:
+        mm.show("STATUS_PIPELINE_START", root_dir=safe_posix(data_dir))
+
+    # Reconcile heartbeat level if bootstrap resolved a different level
+    if level != early_level:
+        hb = TelemetryHeartbeat(enabled=level >= 2)
+        hb.start()
+
     try:
-        # L08 — model the run via the common EngineInput contract
+        # T1.99.80 (I114): Deferred heavy imports — only after bootstrap
+        # (which includes test_environment()) has succeeded.
+        from common.library.core.pipeline import EngineInput, EngineOutput
+
+        # T1.99.60–61: collapse manual context assembly — use to_pipeline_context()
+        ctx = mgr.to_pipeline_context()
+
+        # T1.99.61: derive EngineInput from context
         engine_in = EngineInput(
             run_id=str(uuid.uuid4()),
-            data_dir=Path(data_dir),
-            config_file=Path(config_file),
-            schema_dir=Path(schema_dir),
-            output_dir=Path(output_dir),
-            parameters={"phase": parsed.phase, "recursive": parsed.recursive},
+            data_dir=ctx.paths.data_dir,
+            config_file=ctx.paths.config_dir / "eks_config.json",
+            schema_dir=ctx.paths.schema_dir,
+            output_dir=ctx.paths.output_dir,
+            parameters={
+                "phase": parsed.phase if parsed else "full",
+                "recursive": parsed.recursive if parsed else True,
+            },
         )
-        
-        # T1.99.43: build EKSPipelineContext seeded with EngineInput + bootstrap
-        from .core.context import EKSPaths, EKSData, EKSState, EKSTelemetry, EKSPipelineContext
-        from datetime import datetime
-        
-        ctx_paths = EKSPaths(
-            data_dir=Path(data_dir),
-            schema_dir=Path(schema_dir),
-            output_dir=Path(output_dir),
-            archive_dir=resolved["archive_dir"],
-            config_dir=Path(config_dir),
-            log_dir=resolved["log_dir"],
-        )
-        
-        ctx_data = EKSData()
-        ctx_state = EKSState(status="INITIALIZED", start_time=datetime.now())
-        ctx_telemetry = EKSTelemetry()
-        
-        # Seed context with EngineInput parameters and bootstrap data
-        ctx_params = {
-            "config": config,
-            "doc_config": boot["doc_config"],
-            "em": boot["em"],
-            "mm": boot["mm"],
-            **engine_in.parameters,
-        }
-        
-        ctx = EKSPipelineContext(
-            paths=ctx_paths,
-            data=ctx_data,
-            parameters=ctx_params,
-            state=ctx_state,
-            telemetry=ctx_telemetry,
-            config_registry=config_registry,
-            schema_registry=config_registry,
-        )
-        
-        # T1.99.43: pass seeded context to run_pipeline (skips bootstrap)
+
+        # T1.99.59: pass context to run_pipeline (skips bootstrap, DCC pattern)
         result = run_pipeline(
             project_root=project_root,
             data_dir=data_dir,
-            recursive=parsed.recursive,
+            recursive=parsed.recursive if parsed else True,
             config_dir=config_dir,
             logger=logger,
             skip_readiness=True,  # already done in bootstrap above
-            debug=parsed.debug,
-            phase=parsed.phase,
+            debug=parsed.debug if parsed else False,
+            phase=parsed.phase if parsed else "full",
             auto_create=should_auto_create_folders(os_info),
-            context=ctx,  # T1.99.43: pass seeded context
+            context=ctx,
         )
         summary = result["summary"]
-        returned_ctx = result.get("context")  # T1.99.43: extract returned context
+        returned_ctx = result.get("context")
 
-        hb.add_checkpoint("RUN", details={"phase": parsed.phase, "phases": list(summary.keys())})
+        hb.add_checkpoint("RUN", details={
+            "phase": parsed.phase if parsed else "full",
+            "phases": list(summary.keys()),
+        })
         hb.stop()
 
         # L08 — wrap the run in the common EngineOutput contract for structured output
-        # T1.99.43: extract EngineOutput from returned context
         engine_out = EngineOutput(
             run_id=engine_in.run_id,
             status="SUCCESS" if returned_ctx and returned_ctx.state.status == "COMPLETE" else "FAILED",
             output_files=[],
-            metadata={"phase": parsed.phase, "summary": summary},
+            metadata={"phase": parsed.phase if parsed else "full", "summary": summary},
             errors=[],
-            checkpoint_state={"last_completed_phase": _last_phase(parsed.phase)},
-            # L17 — safe_posix() so emitted paths are cross-platform (T1.99.22)
+            checkpoint_state={"last_completed_phase": _last_phase(parsed.phase if parsed else "full")},
             telemetry={k: safe_posix(v) for k, v in result.get("resolved_paths", {}).items()},
         )
-        if parsed.json:
+        if parsed and parsed.json:
             print(json.dumps(engine_out.to_dict(), indent=2, default=str))
         else:
             _print_human_summary(summary)

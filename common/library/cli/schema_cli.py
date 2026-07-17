@@ -162,7 +162,6 @@ def build_parser_from_schema(
     schema_config: Optional[Dict[str, Any]] = None,
     *,
     pipeline_dir: Optional[str] = None,
-    pipeline_root_dir: str = "engine",
     core_arg_specs: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> argparse.ArgumentParser:
     """Build an ``ArgumentParser`` from the pipeline root's schema (principles 1 & 2).
@@ -172,7 +171,6 @@ def build_parser_from_schema(
         schema_config: Optional pre-loaded config dict; when ``None`` it is loaded
             from ``<root>/<config_dir>``.
         pipeline_dir: Module folder used for the ``== pipeline_dir`` strip (L17). Required — the shared library has no project-specific default (I102).
-        pipeline_root_dir: Project anchor folder name (EKS ``"eks"``, DCC ``"workflow"``).
         core_arg_specs: Project-specific argument specs (each a dict with ``opts``
             plus ``add_argument`` kwargs).
 
@@ -250,7 +248,7 @@ def _detect_overrides(
 def parse_cli_args(
     args: Optional[Sequence[str]] = None,
     *,
-    pipeline_root_dir: str = "engine",
+    pipeline_root_dir: str,
     pipeline_dir: Optional[str] = None,
     reference: Optional[Path] = None,
     schema_config: Optional[Dict[str, Any]] = None,
@@ -292,7 +290,7 @@ def parse_cli_args(
     # Principle 2 — load schema from the resolved root.
     config = _load_schema_config(root, Path(config_dir_arg) if config_dir_arg else None, schema_config)
     parser = build_parser_from_schema(
-        root, config, pipeline_dir=pipeline_dir, pipeline_root_dir=pipeline_root_dir,
+        root, config, pipeline_dir=pipeline_dir,
         core_arg_specs=core_arg_specs,
     )
     namespace = parser.parse_args(raw)  # strict (catches typos, like EKS)

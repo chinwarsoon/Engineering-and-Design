@@ -43,8 +43,8 @@
     },
     "system_error_code_format": {
       "type": "string",
-      "pattern": "^(S-[A-Z]-S-[0-9]{4}|P1-SETUP-[A-Z0-9]+)$",
-      "description": "System error code: S-{Category}-S-{ID} or P1-SETUP-{type}{id} format (P1-SETUP added T1.79)"
+      "pattern": "^(S-[A-Z]-S-[0-9]{4}|P1-SETUP-[A-Z0-9]+|P1-BOOT-[A-Z0-9]+)$",
+      "description": "System error code: S-{Category}-S-{ID}, P1-SETUP-{type}{id}, or P1-BOOT-{type} format (P1-BOOT added T1.99.62)"
     },
     "data_error_entry": {
       "type": "object",

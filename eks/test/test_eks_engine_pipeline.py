@@ -9,10 +9,10 @@ Also covers I107 bootstrap completeness integration tests (T1.99.49):
 single source of resolved_paths, phase1_server.py result keys preserved,
 context paths consistent with bootstrap resolved paths.
 
-Revision: 0.5
-Date: 2026-07-16
+Revision: 0.7
+Date: 2026-07-17
 Author: opencode
-Summary: T1.99.49 — I107 bootstrap completeness integration tests added.
+Summary: T1.99.83 (I117) — Fixed `discover_project_root` import path: moved from `eks_engine_pipeline` to `common.library.paths.root_discovery` (after lazy-import refactor removed the module-level re-export). Also moved `resolve_pipeline_base_path`/`default_base_path` to root_discovery import group.
 """
 import sys
 import uuid
@@ -26,14 +26,16 @@ if str(_ROOT) not in sys.path:
 from eks.engine.eks_engine_pipeline import (
     bootstrap_pipeline,
     run_pipeline,
-    discover_project_root,
     build_parser,
     build_schema_driven_parser,
     parse_eks_cli,
 )
-from common.library.paths import (
+from common.library.paths.root_discovery import (
+    discover_project_root,
     resolve_pipeline_base_path,
     default_base_path,
+)
+from common.library.paths import (
     should_auto_create_folders,
     detect_os,
 )
@@ -124,16 +126,17 @@ class TestEntryPointDiscovery(TestCase):
         self.assertFalse(should_auto_create_folders({"normalized": "freebsd"}))
 
     def test_detect_os_called_in_main(self):
-        """main() invokes detect_os() and resolves an eks_root-aware data_dir."""
+        """main() invokes detect_os() via bootstrap and resolves an eks_root-aware data_dir."""
         from eks.engine.eks_engine_pipeline import main
         import os
         pdir = _make_data("discovery")
         prev = os.getcwd()
         os.chdir(str(_ROOT))
         try:
-            with mock.patch("eks.engine.eks_engine_pipeline.detect_os") as d:
+            # detect_os is now called inside EKSBootstrapManager._bootstrap_env() via os_detector hook
+            with mock.patch("eks.engine.core.bootstrap.detect_os") as d:
                 d.return_value = {"system": "Windows", "normalized": "windows"}
-            rc = main(["--data-dir", str(pdir), "--json"])
+                rc = main(["--data-dir", str(pdir), "--json"])
         finally:
             os.chdir(prev)
         self.assertEqual(rc, 0)
@@ -279,6 +282,78 @@ class TestI107BootstrapCompleteness(TestCase):
         for key in ("data_dir", "output_dir", "archive_dir", "config_dir", "log_dir", "schema_dir"):
             self.assertIn(key, rp)
             self.assertIsInstance(rp[key], Path)
+
+    # ------------------------------------------------------------------
+    # T1.99.63 — I111: structured BootstrapError tests
+    # ------------------------------------------------------------------
+
+    def test_bootstrap_readiness_failure_raises_bootstrap_error(self):
+        """bootstrap_pipeline raises BootstrapError when readiness gate fails (I111)."""
+        from common.library.bootstrap import BootstrapError
+        # Mock the readiness gate to return False (not ready)
+        with mock.patch(
+            "eks.engine.core.bootstrap.EKSBootstrapManager._run_readiness_gate",
+            return_value=False,
+        ):
+            with self.assertRaises(BootstrapError) as ctx:
+                bootstrap_pipeline(_ROOT, args=[], logger=_SilentLogger())
+            self.assertEqual(ctx.exception.code, "P1-BOOT-READINESS")
+            self.assertEqual(ctx.exception.phase, "readiness")
+            self.assertIn("readiness gate failed", str(ctx.exception))
+
+    def test_bootstrap_error_has_code_and_phase(self):
+        """BootstrapError carries code, message, and phase attributes (I111)."""
+        from common.library.bootstrap import BootstrapError
+        err = BootstrapError("P1-BOOT-READINESS", "Test message", "readiness")
+        self.assertEqual(err.code, "P1-BOOT-READINESS")
+        self.assertEqual(err.message, "Test message")
+        self.assertEqual(err.phase, "readiness")
+        self.assertIn("P1-BOOT-READINESS", str(err))
+        self.assertIn("Test message", str(err))
+
+    def test_bootstrap_error_to_system_error(self):
+        """BootstrapError.to_system_error() returns (code, message) tuple (I111)."""
+        from common.library.bootstrap import BootstrapError
+        err = BootstrapError("P1-BOOT-OS", "OS detection failed", "env")
+        code, msg = err.to_system_error()
+        self.assertEqual(code, "P1-BOOT-OS")
+        self.assertEqual(msg, "OS detection failed")
+
+    def test_bootstrap_error_to_dict(self):
+        """BootstrapError.to_dict() returns serializable dict (I111)."""
+        from common.library.bootstrap import BootstrapError
+        err = BootstrapError("P1-BOOT-CONFIG", "Config load failed", "registry")
+        d = err.to_dict()
+        self.assertEqual(d["code"], "P1-BOOT-CONFIG")
+        self.assertEqual(d["message"], "Config load failed")
+        self.assertEqual(d["phase"], "registry")
+
+    def test_bootstrap_error_from_system_error(self):
+        """BootstrapError.from_system_error() reconstructs from (code, message) pair (I111)."""
+        from common.library.bootstrap import BootstrapError
+        err = BootstrapError.from_system_error("P1-BOOT-PATHS", "Path validation failed", "paths")
+        self.assertEqual(err.code, "P1-BOOT-PATHS")
+        self.assertEqual(err.message, "Path validation failed")
+        self.assertEqual(err.phase, "paths")
+
+    def test_bootstrap_error_registered_in_catalog(self):
+        """All P1-BOOT-* codes are registered in eks_error_config.json (T1.99.62)."""
+        from eks.engine.core.error_manager import ErrorManager
+        config_dir = _ROOT / "eks" / "config"
+        em = ErrorManager(config_dir=config_dir)
+        for code in (
+            "P1-BOOT-READINESS",
+            "P1-BOOT-CONFIG",
+            "P1-BOOT-PATHS",
+            "P1-BOOT-OS",
+            "P1-BOOT-CTX",
+        ):
+            entry = em.get_system_error(code)
+            self.assertIsNotNone(entry, f"{code} not found in error catalog")
+            self.assertEqual(entry["code"], code)
+            self.assertEqual(entry["category"], "Bootstrap")
+            self.assertEqual(entry["severity"], "FATAL")
+            self.assertTrue(entry.get("stops_pipeline"), f"{code} should stop pipeline")
 
     def test_main_context_consistent_paths(self):
         """main() builds context with all paths from the single bootstrap resolved_paths."""

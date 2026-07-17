@@ -2,8 +2,8 @@
   "metadata": {
     "version": "1.0.0",
     "last_updated": "2026-07-09",
-    "total_codes": 72,
-    "system_codes": 37,
+    "total_codes": 78,
+    "system_codes": 43,
     "data_logic_codes": 35,
     "system_format": "P1-SETUP-{type}{id}",
     "data_logic_format": "P{phase}-{module}-{function}-{id}"
@@ -57,6 +57,13 @@
       "count": 7,
       "start_id": "P1-SETUP-F001",
       "end_id": "P1-SETUP-READINESS"
+    },
+    "bootstrap_p1": {
+      "prefix": "P1-BOOT-xxxx",
+      "description": "EKS Phase 1 bootstrap errors (I111 / L19)",
+      "count": 6,
+      "start_id": "P1-BOOT-READINESS",
+      "end_id": "P1-BOOT-ENV"
     }
   },
   "system_errors": {
@@ -170,6 +177,24 @@
     },
     "P1-SETUP-READINESS": {
       "code": "P1-SETUP-READINESS", "name": "SETUP_NOT_READY", "message": "Project setup validation failed — readiness check not passed", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-BOOT-READINESS": {
+      "code": "P1-BOOT-READINESS", "name": "BOOT_READINESS_FAILED", "message": "Bootstrap readiness gate failed — project setup not ready", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-BOOT-CONFIG": {
+      "code": "P1-BOOT-CONFIG", "name": "BOOT_CONFIG_FAILED", "message": "Bootstrap config loading failed — unable to load project configuration", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-BOOT-PATHS": {
+      "code": "P1-BOOT-PATHS", "name": "BOOT_PATHS_FAILED", "message": "Bootstrap path resolution failed — invalid or missing project paths", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-BOOT-OS": {
+      "code": "P1-BOOT-OS", "name": "BOOT_OS_DETECTION_FAILED", "message": "Bootstrap OS detection failed — unable to determine operating system", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-BOOT-CTX": {
+      "code": "P1-BOOT-CTX", "name": "BOOT_CONTEXT_FAILED", "message": "Bootstrap context creation failed — must bootstrap before creating PipelineContext", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "P1-BOOT-ENV": {
+      "code": "P1-BOOT-ENV", "name": "BOOT_ENVIRONMENT_FAILED", "message": "Bootstrap environment check failed — required dependencies missing. Run: conda activate eks", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     }
   },
   "data_error_ranges": {
@@ -325,7 +350,10 @@
       "Includes 8 structural detection error codes (P3-E-E-0010 to P3-E-E-0017)",
       "Follows DCC pattern from dcc/config/schemas/error_code_base.json",
       "Added 7 P1-SETUP-* setup validation error codes (T1.79): MINSSING_REQUIRED_FOLDER (F001), MISSING_REQUIRED_FILE (F002), MISSING_EKS_YML (F003), MISSING_DEPENDENCY (D001), OUTPUT_PATH_NOT_WRITABLE (O001), PYTHON_VERSION_MISMATCH (E001), SETUP_NOT_READY (READINESS)",
-      "Updated total_codes: 65→72, system_codes: 30→37"
+      "Updated total_codes: 65→72, system_codes: 30→37",
+      "Added 5 P1-BOOT-* bootstrap error codes (T1.99.62 / I111): BOOT_READINESS_FAILED, BOOT_CONFIG_FAILED, BOOT_PATHS_FAILED, BOOT_OS_DETECTION_FAILED, BOOT_CONTEXT_FAILED; added bootstrap_p1 range in system_error_ranges",
+      "Added P1-BOOT-ENV bootstrap error code (T1.99.78 / I114): BOOT_ENVIRONMENT_FAILED — required dependencies missing; updated bootstrap_p1 count 5→6",
+      "Updated total_codes: 77→78, system_codes: 42→43"
     ]
   }
 }
