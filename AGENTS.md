@@ -72,7 +72,7 @@ python code_tracer/engine/launch.py /path/to/project
 TARGET_DIR=/path/to/project docker compose -f code_tracer/engine/docker-compose.yml up
 
 # code_tracer — tests (unittest)
-python -m pytest code_tracer/engine/tests/
+python -m pytest code_tracer/test/
 
 # code_tracer — frontend
 cd code_tracer/engine/frontend && npm start
@@ -100,6 +100,10 @@ conda activate eks
 10. **Knowledge base required**: Every project must have a `knowledge.json` at root. This file must be created at project inception and updated as part of every phase completion (see §5.6). When a new project is scaffolded, the first task is creating `knowledge.json` populated with initial metadata, architecture overview, and known issues. A project missing `knowledge.json` is not in compliance and must have one created before further development.
 11. **Relocation validation**: When any file or package is relocated, perform a project-wide `grep` for all import paths that reference the old location. Update every match in the same edit cycle. Run the full test suite after the change. If the project has no tests that exercise the relocated code, add them before closing the migration task.
 12. **Fix breadth**: When fixing a pattern-based defect (not a single-instance bug), use `grep` to identify all occurrences of the broken pattern across the entire project before applying the fix. Update all matches in the same edit. Document the search pattern in the task description so the same fix can be re-applied if the pattern re-emerges.
+13. **Cross-source alignment audit**: When a concept spans 3+ independent sources (schemas, config files, library code, project code, design docs, error/message catalogs), run a cross-reference audit across all sources before marking the feature complete. Every source must agree on: format names, code patterns, field names/types, registered IDs, and version numbers. A mismatch in any one source is a blocking defect.
+14. **Pre-bootstrap safety**: Pipeline entry points must guard all non-stdlib imports individually inside a pure-stdlib `_preload_infrastructure()` function that runs before any bootstrap phase. Every import must be individually `try/except ImportError`-guarded with errors printed to `stderr` immediately at the failure point. Pre-bootstrap logger, telemetry/heartbeat, and project-root discovery must also run before bootstrap phases begin. If `common.library` is not importable, the entry point must exit with a human-readable message — never a bare `ModuleNotFoundError` traceback.
+15. **Path resolution SSOT**: All directory and file paths must be resolved through the schema-driven `global_paths` definitions with precedence: CLI argument > Schema default > code-native fallback. Never use hardcoded path literals (e.g., `parent.parent.parent`, `"data"`, `"output"`). Use anchor-folder-based discovery (`default_base_path(anchor)`) to find the project root, then derive all sub-paths from `global_paths` schema values. Every path must flow through `resolve_paths()` so a single schema change updates all consumers.
+16. **Hardcoded fallback removal**: Never maintain hardcoded fallback lists (required folders, required files, dependency lists, default paths) that duplicate values already defined in schema/config files. If config is absent, raise a descriptive error — never silently fall back to a second source of truth. Hardcoded duplicates diverge over time and violate SSOT.
 
 ## 6. Folder Convention (all projects)
 
@@ -114,6 +118,16 @@ knowledge.json          # Required at project root
 Do not add unexpected top-level directories.
 
 **Directory validation:** At project creation and at each phase completion, verify all required directories exist at the project root: `archive/`, `config/`, `data/`, `output/`, `test/`, `ui/`, `engine/`, `log/`, `docs/`, `workplan/`. Missing directories must be created (empty scaffolding) before the phase can be marked complete. Directory names are case-sensitive (lowercase) and must match exactly — `Log/` is not a substitute for `log/`.
+
+### 6.1 Test Folder — Single Source of Truth
+
+**`<project>/test/` is the one and only location for all test functions** belonging to that project. This rule applies regardless of project structure:
+
+- Every test file (`test_*.py`) must reside in `<project>/test/` — no exceptions.
+- Test files found in `engine/`, `workflow/`, `tools/`, sub-module `tests/` directories, or any location other than `<project>/test/` violate this convention.
+- Embedded test directories (e.g., `<project>/workflow/*/test/`, `<project>/engine/*/tests/`) must be migrated to `<project>/test/`. During migration, create a subfolder within `<project>/test/` (e.g., `test/processor_engine/`) to preserve logical grouping while obeying the single-root rule.
+- Test runtime artifacts (generated files, output directories, temp databases) must be placed in `<project>/test_output/` or use `tempfile.TemporaryDirectory` for automatic cleanup. They must never leak to the repository root.
+- At each phase completion, verify zero test files exist outside `<project>/test/`.
 
 ## 7. Files and Context
 
@@ -577,7 +591,39 @@ Initialize with: `comUI.theme.initPicker('myapp-theme')`.
 
 ## 19. Data Health, Score, and Errors
 
-Each business logic must have an independent error code defined to trace related errors.
+### 19.1 Error Code Lifecycle
+
+Every error code must complete a full lifecycle across 5+ sources:
+
+1. **Define** — error code constant declared in the code module that raises it.
+2. **Register** — code added to `<project>/config/schemas/<project>_error_config.json` with `id`, `category`, `message_template`, `severity`, and `resolution` fields.
+3. **Validate** — code pattern must match the regex in `<project>_error_config_base.json`. Unknown pattern formats cause silent lookup failures in `ErrorManager`.
+4. **Document** — code format and ranges must appear in the project's pipeline message/error design document (e.g., Appendix D).
+5. **Resolve** — all code consumers (ErrorManager, BootstrapManager, pipeline orchestrator, test suite) must be able to resolve the code at runtime.
+
+**Error code format conventions:**
+- `S-{cat}-S-{id}` — system/infrastructure errors (e.g., `S-B-S-0601`)
+- `P{phase}-{module}-{id}` — data pipeline errors (e.g., `P1-SETUP-FOLDERS`)
+- `P1-BOOT-{reason}` — bootstrap/setup hybrid errors (e.g., `P1-BOOT-READINESS`)
+- `B-{module}-{id}` — universal bootstrap errors (e.g., `B-CLI-001`, `B-{phase_id}-ERR`)
+
+**Cross-source validation checklist:** When adding or changing any error code, verify:
+- [ ] Code exists in `error_config.json` (registered with all metadata fields)
+- [ ] Pattern matches regex in `error_code_base.json`
+- [ ] Code format documented in design doc (Appendix D or equivalent)
+- [ ] All 5 sources agree on the same `id`, `category`, and `severity`
+- [ ] Test exercises the error path and verifies the resolved code
+
+### 19.2 Message Catalog Management
+
+- Every status, milestone, warning, and info message must be registered in `<project>_message_config.json` with a unique `id`.
+- The message manager must use the correct project-specific catalog file (e.g., `eks_message_config.json`, not the generic `message_config.json`).
+- Message catalog and error catalog must be kept in sync: every bootstrap phase, every pipeline phase, and every major operation must have corresponding entries in both catalogs.
+- When a message ID is added to the catalog, the corresponding message-format definition must be added to the message base schema.
+
+### 19.3 Independent Error Codes
+
+Each business logic unit (function, phase, module) must have at least one independent error code defined to trace related errors. No two distinct error conditions may share the same error code. Error codes must be granular enough that a log entry uniquely identifies the failure point without additional context.
 
 ## 20. Neurogram, Compact Workplans, Records, and Logs for Knowledge of Each Project Folder
 
@@ -586,8 +632,11 @@ Refer to `dcc/workplan/ui_design/log_neurogram/`. Generate a neurogram network J
 ## 21. Testing Notes
 
 - `code_tracer` tests use `unittest`; `eks` tests use `pytest`.
+- EKS tests must run from the repository root: `python -m pytest eks/test/`.
 - EKS tests expect config files at `eks/config/` (relative to repo root).
-- EKS tests create/clean `eks/test_output/` and `eks/output/eks_registry.db`.
+- Test runtime artifacts go to `<project>/test_output/` (per §6.1). EKS tests create `eks/test_output/` for generated files and `eks/output/eks_registry.db` for the registry database.
+- Test output directories (`test_output/`) must be added to `.gitignore` at both repository root and per-project levels.
+- Test files that use relative paths (e.g., `Path("test_output/...")`) must scope those paths within the project directory (e.g., `Path("eks/test_output/...")`). Bare `Path("test_output/...")` resolves to the CWD (repo root) and violates §6.1.
 - code_tracer tests use `unittest.main()` and can be run directly or via pytest.
 
 **Minimum test coverage:**
@@ -600,3 +649,78 @@ Refer to `dcc/workplan/ui_design/log_neurogram/`. Generate a neurogram network J
 ## 22. Formatting
 
 - Prettier config at root: `printWidth: 100`, `singleQuote: true`, `endOfLine: "lf"`.
+
+## 23. Bootstrap and Pre-Bootstrap Safety
+
+### 23.1 Universal BootstrapManager Pattern
+
+Every pipeline project must use a universal `BootstrapManager` (from `common/library/bootstrap/`) as the single entry point for initialization. The manager runs 8 standardized phases:
+
+| Phase | Name | Purpose |
+|-------|------|---------|
+| P1 | CLI Parse | Parse command-line arguments for verbosity, paths, and overrides |
+| P2 | Paths | Resolve project root, config dir, data dir, output dir via `resolve_paths()` |
+| P3 | Config Registry | Load `ConfigRegistry` from schema/config files |
+| P4 | Defaults | Apply schema-driven defaults for unset parameters |
+| P5 | Schema Registry | Load and validate all schema files |
+| P6 | Environment | OS detection + `test_environment()` dependency verification |
+| P7 | Readiness Gate | Run `ValidationManager` (folder/file existence, required dependencies) |
+| P8 | Parameters | Finalize system parameters (log level, retry, timeout, cache TTL) |
+
+A project-specific subclass (e.g., `EKSBootstrapManager`) injects project-specific hooks: `ConfigRegistry` adapter, validation manager, CLI parser, path resolver, and ErrorManager/MessageManager factories.
+
+### 23.2 Pre-Bootstrap Infrastructure (`_preload_infrastructure()`)
+
+Before any bootstrap phase runs, the pipeline entry point must execute a **pure-stdlib** preload function that guards all `common.library` imports:
+
+- Every non-stdlib import must be individually `try/except ImportError`-guarded.
+- Every failure must immediately `print(msg, file=sys.stderr)` — errors are never silently collected.
+- All variables must be pre-bound to safe defaults (`None`) before any step runs — a failure in step N must never cause `NameError` in step N+1.
+- The preload function returns imported **classes** (not instantiated objects) — logger and heartbeat are instantiated in `main()` after the preload gate passes.
+- Repository root must be injected into `sys.path` via a pure-stdlib walk (find ancestor containing both `<project>/` and `common/` anchors) before any import is attempted.
+
+### 23.3 Environment/Dependency Check
+
+- Bootstrap Phase 6 must run `test_environment()` from `common/library/core/system/tester.py` to verify all required/optional dependencies.
+- `test_environment()` must maintain a `_PIP_TO_IMPORT` mapping for pip-name-to-import-name mismatches: `python-docx` → `docx`, `qdrant-client` → `qdrant_client`, `pymupdf` → `fitz`, `scikit-learn` → `sklearn`, etc.
+- All dependencies listed in `eks.yml` (conda environment) must also be listed in the config `dependencies.required` or `dependencies.optional` section — the two sources must stay in sync.
+- If `test_environment()` returns `ready=False`, bootstrap must raise a structured `BootstrapError` with the missing dependency names and installation instructions (e.g., "Run: conda activate eks && pip install <package>").
+
+### 23.4 Ghost/Stale Directory Prevention
+
+- Empty legacy directories (e.g., `eks/eks/`) can cause `discover_project_root()` to return the wrong project root, silently doubling path prefixes.
+- Before path resolution, scan for and archive/delete any stale subdirectories that match the project anchor name.
+- `discover_project_root()` must fall through to `default_base_path(anchor)` when an anchor directory exists but is empty or contains only irrelevant files.
+
+## 24. Cross-Source Alignment Audit
+
+When a concept (error code format, message ID, field name, configuration value, version number) spans 5+ independent sources, a formal cross-reference audit must be performed before the feature can be marked complete:
+
+**Typical multi-source concepts and their sources:**
+1. **Error codes**: `error_code_base.json` (pattern), `error_config.json` (registration), `error_setup_schema.json` (properties), design doc (Appendix D), library code (BootstrapError), project code (raise site)
+2. **Message IDs**: `message_base.json` (format), `message_config.json` (registration), `message_setup_schema.json` (properties), design doc (Appendix D), message manager code
+3. **Global paths**: `base_schema.json` (definitions), `config.json` (values), path resolver code, pipeline entry point, bootstrap manager, server code
+4. **System parameters**: `base_schema.json` (definitions), `config.json` (values), `system_parameters` helper, pipeline entry point, each consumer module
+
+**Audit procedure:**
+1. List all sources where the concept appears.
+2. For each source, verify: format names match, regex patterns accept all registered values, field names and types are consistent, and version numbers are aligned.
+3. Run `grep` for the concept's identifiers across the entire project and `common/library/` — ensure no stale references to old names/formats exist.
+4. Any mismatch in any source is a blocking defect — the feature is not complete until all 5+ sources agree.
+
+## 25. File Output Lifecycle Management
+
+### 25.1 Write-Only vs Read-Back Files
+
+- **Read-back files** (registry databases, checkpoint state used by resume logic) must be persisted with unique names per job/run and have a documented retention policy.
+- **Write-only files** (pipeline status JSON, debug logs, progress snapshots that are only served via in-memory API) must use a **single overwrite file** (e.g., `pipeline_output.json`) — never accumulate per-job copies.
+- Before implementing any file output, document whether the file is ever read back by any code path. If the answer is "no", use the single-overwrite pattern.
+
+### 25.2 Output Directory Hygiene
+
+- `output/` directories accumulate files over repeated pipeline runs. Per-job JSON files grow unbounded (N runs × M JSON files). Implement one of:
+  - Single overwrite file (preferred for write-only data)
+  - Capped retention (keep last K files, delete oldest)
+  - Explicit cleanup phase in the pipeline lifecycle
+- At each phase completion, check `output/` for accumulated stale files and clean them up.
+- Checkpoint files that are never used by resume/restart logic are dead code and should be removed — not just commented out.

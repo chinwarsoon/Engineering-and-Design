@@ -64,6 +64,7 @@ class SchemaToDDL:
 
         always_nullable = {"project_title", "project_number", "area", "discipline", "department"}
 
+        # T1.99.150 (I186): id is a UUID (stored as VARCHAR in DuckDB, system-generated)
         columns = ["id VARCHAR PRIMARY KEY"]
         for col_name, col_schema in all_props.items():
             effective_required = required_fields - always_nullable
@@ -103,8 +104,11 @@ class SchemaToDDL:
 
     @log_depth
     def generate_indexes(self) -> List[str]:
-        """Generate index creation statements for document_elements."""
+        """Generate index creation statements for documents and document_elements."""
+        # T1.99.150 (I186): Composite index on business key for fast lookup
+        # since id is now UUID and (document_number, revision) is no longer unique.
         return [
+            "CREATE INDEX IF NOT EXISTS idx_doc_business_key ON documents(document_number, revision)",
             "CREATE INDEX IF NOT EXISTS idx_elements_doc_id ON document_elements(doc_id)",
             "CREATE INDEX IF NOT EXISTS idx_elements_type ON document_elements(element_type)",
         ]
@@ -176,9 +180,8 @@ class SchemaToDDL:
                 else:
                     parts.append(f"DEFAULT '{default}'")
 
-        if col_name not in required_fields:
-            parts.append("NULL")
-        else:
+        # DuckDB: columns are NULL by default — only emit NOT NULL constraints
+        if col_name in required_fields:
             parts.append("NOT NULL")
 
         return " ".join(parts)

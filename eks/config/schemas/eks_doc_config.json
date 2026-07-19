@@ -1,9 +1,9 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_doc_config_default.json",
-    "version": "1.2.0",
+    "version": "1.5.0",
     "title": "EKS Document Configuration",
-    "description": "Document schema config v1.2.0: added revision_validation (moved from project_rules_config).",
+    "description": "Document schema config v1.5.0: added DOCX embedded_revision_number mapping (T1.99.144) + references_documents ontology trigger (T1.99.145). v1.4.0: populated file_property_patterns with OS config + 5 file-type mappings (pdf/docx/xlsx/dgn/dwg) per Appendix J (T1.99.130). v1.3.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.112).",
     "revision_validation": {
         "131101": { "pattern": "^[A-Z0-9]{1,2}$" },
         "131242": { "pattern": "^[0-9]{3}$" }
@@ -13,7 +13,8 @@
         "document_number": "SUPERSEDES",
         "asset_tags": "REFERENCES_ASSET",
         "originator_company": "PRODUCED_BY",
-        "file_type": "HAS_FORMAT"
+        "file_type": "HAS_FORMAT",
+        "references_documents": "REFERENCES_DOC"
     },
     "health_scoring": {
         "dimensions": [
@@ -38,6 +39,7 @@
         }
     },
     "document_type_registry": [
+        { "code": "CAD",    "label": "AutoCAD Drawing",        "ontology_class": "Drawing",       "description": "AutoCAD DWG native drawing file",    "expected_file_types": ["dwg"] },
         { "code": "DWG",    "label": "Engineering Drawing",    "ontology_class": "Drawing",       "description": "Engineering design drawing",           "expected_file_types": ["pdf"] },
         { "code": "PI-PID", "label": "P&ID Drawing",           "ontology_class": "PID_Drawing",   "description": "Piping and instrumentation diagram",  "expected_file_types": ["pdf", "dgn"] },
         { "code": "SPC",    "label": "Technical Specification","ontology_class": "Specification",  "description": "Technical specification document",    "expected_file_types": ["pdf", "docx"] },
@@ -64,6 +66,7 @@
         { "element_type": "note",           "description": "Page 1 annotation block",                                                   "source_method": "heuristic", "phase_2_use": "Skip",             "phase_3_use": "Annotation nodes",      "expected_by_cover_types": ["A", "B"] }
     ],
     "element_expectations": {
+        "CAD":    { "expected_elements": ["cover_page", "revision_table", "section", "image", "link"], "threshold": 4, "cover_type": "A" },
         "DWG":    { "expected_elements": ["cover_page", "revision_table", "section", "image", "link"], "threshold": 4, "cover_type": "A" },
         "PI-PID": { "expected_elements": ["cover_page", "revision_table", "section", "image", "link"], "threshold": 4, "cover_type": "B" },
         "SPC":    { "expected_elements": [], "threshold": 0, "cover_type": "C" },
@@ -71,5 +74,153 @@
         "MAN":    { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" },
         "OM":     { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" },
         "RPT":    { "expected_elements": ["cover_page", "section", "table"], "threshold": 2, "cover_type": "E" }
+    },
+    "filename_patterns": {
+        "131101": {
+            "description": "TWRP WSD11 tenderspec naming: {project}-{area}-{type}-{disc}-{seq}[_suffix].ext",
+            "parser_type": "delimited",
+            "separator": "-",
+            "min_segments": 5,
+            "max_segments": 5,
+            "segments": [
+                {
+                    "position": 0,
+                    "maps_to": "project_number",
+                    "label": "project_code",
+                    "required": true,
+                    "null_handling": { "strategy": "default_value", "default_value": "131101" },
+                    "validation": { "type": "pattern", "pattern": "^\\d{6}$" }
+                },
+                {
+                    "position": 1,
+                    "maps_to": "area",
+                    "label": "contract_or_area",
+                    "required": true,
+                    "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" },
+                    "validation": { "type": "pattern", "pattern": "^[A-Z0-9]{3,6}$" }
+                },
+                {
+                    "position": 2,
+                    "maps_to": "document_type",
+                    "label": "type_code",
+                    "required": true,
+                    "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" },
+                    "validation": { "type": "schema_reference", "reference": "document_type_registry" }
+                },
+                {
+                    "position": 3,
+                    "maps_to": "discipline",
+                    "label": "discipline_code",
+                    "required": true,
+                    "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" },
+                    "validation": { "type": "pattern", "pattern": "^[A-Z]{2}$" }
+                },
+                {
+                    "position": 4,
+                    "maps_to": null,
+                    "label": "sequence_number",
+                    "required": true,
+                    "null_handling": { "strategy": "default_value", "default_value": "0000" },
+                    "validation": { "type": "pattern", "pattern": "^\\d{4}$" }
+                }
+            ],
+            "rejoin_separator": "-",
+            "strip_suffixes": ["_Add1", "_Add2", "_Add3", "_2-Stage", "_2-stage", "_HAC"],
+            "revision_separators": ["_rev"],
+            "dash_revision_max_len": 3,
+            "output": {
+                "document_number_source": "rejoin_segments",
+                "fallback_doc_number": "full_stem",
+                "fallback_revision": null,
+                "preservation_mode": "overwrite_existing"
+            },
+            "error_subcodes": {
+                "too_few_segments": "P5-F-V-0004",
+                "too_many_segments": "P5-F-V-0005",
+                "segment_validation_failed": "P5-F-V-0006",
+                "unresolvable": "P5-F-P-0007"
+            },
+            "processing_phase": "P0"
+        },
+        "*": {
+            "description": "Default: generic dash-suffix revision detection (backward compatible)",
+            "parser_type": "delimited",
+            "separator": "-",
+            "min_segments": 1,
+            "max_segments": null,
+            "segments": [],
+            "rejoin_separator": "-",
+            "strip_suffixes": [],
+            "revision_separators": ["_rev"],
+            "dash_revision_max_len": 3,
+            "output": {
+                "document_number_source": "rejoin_segments",
+                "fallback_doc_number": "full_stem",
+                "fallback_revision": "00",
+                "preservation_mode": "overwrite_existing"
+            },
+            "error_subcodes": {},
+            "processing_phase": "P0"
+        }
+    },
+    "file_property_patterns": {
+        "os_properties": {
+            "enabled": true,
+            "collect": ["file_size", "fs_created", "fs_modified", "file_hash"],
+            "hash_algorithm": "md5"
+        },
+        "by_file_type": {
+            "pdf": {
+                "enabled": true,
+                "extraction_method": "parser_metadata",
+                "property_mapping": [
+                    { "source_key": "author", "maps_to": "created_by", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "title", "maps_to": "embedded_title", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "subject", "maps_to": "embedded_subject", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "creator", "maps_to": "embedded_creator_app", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "producer", "maps_to": "embedded_producer", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "creation_date", "maps_to": "embedded_created_date", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "mod_date", "maps_to": "embedded_modified_date", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "page_count", "maps_to": "page_count", "null_handling": { "strategy": "default_value", "default_value": 0 }, "required": false },
+                    { "source_key": "keywords", "maps_to": "embedded_keywords", "null_handling": { "strategy": "skip" }, "required": false }
+                ]
+            },
+            "docx": {
+                "enabled": true,
+                "extraction_method": "parser_metadata",
+                "property_mapping": [
+                    { "source_key": "author", "maps_to": "created_by", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "title", "maps_to": "embedded_title", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "subject", "maps_to": "embedded_subject", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "created", "maps_to": "embedded_created_date", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "modified", "maps_to": "embedded_modified_date", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "last_modified_by", "maps_to": "embedded_last_modified_by", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "revision", "maps_to": "embedded_revision_number", "null_handling": { "strategy": "skip" }, "required": false }
+                ]
+            },
+            "xlsx": {
+                "enabled": true,
+                "extraction_method": "parser_metadata",
+                "property_mapping": [
+                    { "source_key": "author", "maps_to": "created_by", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "title", "maps_to": "embedded_title", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "subject", "maps_to": "embedded_subject", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "created", "maps_to": "embedded_created_date", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "modified", "maps_to": "embedded_modified_date", "null_handling": { "strategy": "skip" }, "required": false },
+                    { "source_key": "sheet_count", "maps_to": "embedded_sheet_count", "null_handling": { "strategy": "default_value", "default_value": 0 }, "required": false },
+                    { "source_key": "last_modified_by", "maps_to": "embedded_last_modified_by", "null_handling": { "strategy": "skip" }, "required": false }
+                ]
+            },
+            "dgn": {
+                "enabled": true,
+                "extraction_method": "os_only",
+                "property_mapping": []
+            },
+            "dwg": {
+                "enabled": true,
+                "extraction_method": "os_only",
+                "property_mapping": []
+            }
+        }
     }
 }

@@ -55,6 +55,7 @@ dependencies:
 
       # ── Phase 3: Knowledge Graph ─────────────────────────────────────────────
       - neo4j==5.21.0              # Neo4j Python driver
+      - rdflib==7.6.0              # RDF/OWL ontology parsing and SPARQL queries
 
       # ── Phase 3: Engineering Object Extraction ───────────────────────────────
       - spacy==3.7.5               # NLP for rule-based entity extraction

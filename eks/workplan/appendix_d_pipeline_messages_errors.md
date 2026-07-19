@@ -1,12 +1,15 @@
 # Appendix D — Pipeline Messages & Error Codes
 
-**Version**: 0.3  
-**Last Updated**: 2026-06-19  
+**Version**: 0.4  
+**Last Updated**: 2026-07-18  
 **Phase**: 1 — Foundation (schema) / 3 (runtime)  
-**Status**: ✅ Implemented & Tested  
+**Status**: ✅ Implemented & Tested — I112 update (bootstrap error code alignment)  
 **Related Files**:
 - [`eks/engine/logging/logger.py`](../engine/logging/logger.py)
 - [`eks/engine/core/registry.py`](../engine/core/registry.py) — document_elements table
+- [`eks/engine/core/bootstrap.py`](../engine/core/bootstrap.py) — EKSBootstrapManager (I112)
+- [`common/library/bootstrap/manager.py`](../../common/library/bootstrap/manager.py) — universal BootstrapManager (L19)
+- [`common/library/bootstrap/errors.py`](../../common/library/bootstrap/errors.py) — universal BootstrapError
 - [`dcc/config/schemas/error_code_base.json`](../../dcc/config/schemas/error_code_base.json) — DCC reference pattern
 - [`dcc/config/schemas/pipeline_message_base.json`](../../dcc/config/schemas/pipeline_message_base.json) — DCC reference pattern
 
@@ -17,6 +20,7 @@
 | 0.1 | 2026-06-19 | opencode | Initial draft: D1–D10 (Overview, Error Code Format, Taxonomy, System/Data Catalogs, Messages, Health Scoring, Status Lifecycle, Implementation Files) |
 | 0.2 | 2026-06-19 | opencode | Revised D7: All-column health scoring (18 scorable columns, 3 weight tiers, 5 dimensions with weighted composite formula, extraction_notes JSON format, 3 worked examples) |
 | 0.3 | 2026-06-19 | opencode | Added D7.10 Structural Elements Table (`document_elements`); revised D7 to 6-dimension composite (added structural completeness); added 8 structural error codes (D5), 8 structural messages (D6); updated D9 implementation files; updated D8 status lifecycle |
+| 0.4 | 2026-07-18 | opencode | **I112**: Added Bootstrap (B) category to D3 system error categories with range S-B-S-0600–0699; added S-B system error catalog in D4 (S-B-S-0601 BOOTSTRAP_NOT_COMPLETE, S-B-S-0602 PHASE_DEPENDENCY_FAILED); documented P1-BOOT-* format in D2 as setup/bootstrap hybrid (third format); added bootstrap_p1 data error ranges entry to D5; added bootstrap_universal B-* format documentation; added bootstrap messages to D6 (MILESTONE_BOOTSTRAP_START/COMPLETE, STATUS_CONFIG_LOADED/PATHS_RESOLVED/READINESS_PASSED/MANAGERS_INITIALIZED, WARNING_BOOTSTRAP_PHASE_FAILED); updated D9 implementation files |
 
 ---
 
@@ -86,6 +90,38 @@ S  -  F  -  S  -  0201
 
 **Example**: `S-F-S-0201` = System, File category, error #201
 
+### Setup/Bootstrap Hybrid Format
+
+**Format**: `P1-BOOT-{reason}`
+
+```
+P1  -  BOOT  -  READINESS
+│       │         │
+│       │         └── Reason code (READINESS/CONFIG/PATHS/OS/CTX/ENV)
+│       └──────────── BOOT = Bootstrap phase
+└──────────────────── P1 = Phase 1 (Foundation / Setup)
+```
+
+**Example**: `P1-BOOT-READINESS` = Phase 1, Bootstrap, readiness gate failure
+
+This hybrid format bridges the gap between `P1-SETUP-*` (setup validation) and `S-B-S-*` (system-level bootstrap). Used for EKS-specific bootstrap phase failures that are registered in `eks_error_config.json` under the `bootstrap_p1` range.
+
+### Universal Bootstrap Format
+
+**Format**: `B-{module}-{id}`
+
+```
+B  -  CLI  -  001
+│     │       │
+│     │       └── 3-4 digit sequential ID
+│     └────────── Module (CLI/PATH/REG/DEF/FALL/ENV/SCH/PAR/BOOT/CTX/UNK)
+└──────────────── B = Bootstrap (universal)
+```
+
+**Example**: `B-CLI-001` = Bootstrap, CLI module, error #1
+
+These universal codes are defined in `common/library/bootstrap/errors.py` and `manager.py`, and are registered in `eks_error_config.json` under the `bootstrap_universal` range. They serve as fallback codes when project-specific error codes are not available.
+
 ---
 
 ## D3. Error Code Taxonomy
@@ -144,6 +180,7 @@ S  -  F  -  S  -  0201
 | `C` | Config | `S-C-S-0300–0399` | Schema, config, parameters |
 | `R` | Runtime | `S-R-S-0400–0499` | Exceptions, memory, fail-fast |
 | `D` | Database | `S-D-S-0500–0599` | DuckDB/PostgreSQL/Neo4j |
+| `B` | Bootstrap | `S-B-S-0600–0699` | Bootstrap initialization, preload traces, readiness gates, phase dependency checks |
 
 ---
 
@@ -217,6 +254,13 @@ S  -  F  -  S  -  0201
 | `S-D-S-0506` | DB_TRANSACTION_FAIL | CRITICAL | Transaction commit failed | Yes |
 | `S-D-S-0507` | DB_LOCK_TIMEOUT | HIGH | Database lock timeout | No |
 
+### S-B: Bootstrap Errors (0600–0699)
+
+| Code | Name | Severity | Description | Stops Pipeline |
+|------|------|----------|-------------|:--------------:|
+| `S-B-S-0601` | BOOTSTRAP_NOT_COMPLETE | FATAL | Bootstrap must be completed before pipeline execution | Yes |
+| `S-B-S-0602` | PHASE_DEPENDENCY_FAILED | FATAL | Required prior phase has not completed successfully | Yes |
+
 ---
 
 ## D5. Data Error Catalog
@@ -233,6 +277,37 @@ S  -  F  -  S  -  0201
 | `P1-V-V-0001` | FIELD_TYPE_MISMATCH | WARNING | Field value does not match expected type | -1 |
 | `P1-V-V-0002` | FIELD_ENUM_INVALID | WARNING | Field value not in allowed enum | -1 |
 | `P1-C-C-0001` | CONFIG_LOAD_FAIL | CRITICAL | Failed to load project config | -5 |
+
+### Phase 1 — Bootstrap Errors (P1-BOOT)
+
+| Code | Name | Severity | Description | Health Impact |
+|------|------|----------|-------------|:-------------:|
+| `P1-BOOT-READINESS` | BOOT_READINESS_FAILED | FATAL | Bootstrap readiness gate failed — project setup not ready | -10 |
+| `P1-BOOT-CONFIG` | BOOT_CONFIG_FAILED | FATAL | Bootstrap config loading failed — unable to load project configuration | -10 |
+| `P1-BOOT-PATHS` | BOOT_PATHS_FAILED | FATAL | Bootstrap path resolution failed — invalid or missing project paths | -10 |
+| `P1-BOOT-OS` | BOOT_OS_DETECTION_FAILED | FATAL | Bootstrap OS detection failed — unable to determine operating system | -10 |
+| `P1-BOOT-CTX` | BOOT_CONTEXT_FAILED | FATAL | Bootstrap context creation failed — must bootstrap before creating PipelineContext | -10 |
+| `P1-BOOT-ENV` | BOOT_ENVIRONMENT_FAILED | FATAL | Bootstrap environment check failed — required dependencies missing | -10 |
+
+### Bootstrap Universal Errors (B-*)
+
+| Code | Name | Severity | Description | Health Impact |
+|------|------|----------|-------------|:-------------:|
+| `B-CLI-001` | BOOTSTRAP_CLI_PARSE_FAILED | FATAL | Bootstrap CLI parsing failed | -10 |
+| `B-PATH-001` | BOOTSTRAP_PROJECT_ROOT_MISSING | FATAL | Project root does not exist | -10 |
+| `B-PATH-002` | BOOTSTRAP_PATH_VALIDATION_FAILED | FATAL | Bootstrap path validation failed | -10 |
+| `B-REG-001` | BOOTSTRAP_REGISTRY_LOAD_FAILED | FATAL | Bootstrap registry / config loading failed | -10 |
+| `B-DEF-001` | BOOTSTRAP_DEFAULTS_BUILD_FAILED | FATAL | Bootstrap native defaults building failed | -10 |
+| `B-FALL-001` | BOOTSTRAP_FALLBACK_VALIDATION_FAILED | FATAL | Bootstrap fallback validation failed | -10 |
+| `B-ENV-001` | BOOTSTRAP_ENV_TESTING_FAILED | FATAL | Bootstrap environment testing failed | -10 |
+| `B-ENV-002` | BOOTSTRAP_DEPS_MISSING | FATAL | Required dependencies missing during bootstrap | -10 |
+| `B-SCH-001` | BOOTSTRAP_SCHEMA_RESOLUTION_FAILED | FATAL | Bootstrap schema resolution failed | -10 |
+| `B-PAR-001` | BOOTSTRAP_CLI_PARAMS_FAILED | FATAL | Bootstrap CLI parameters resolution failed | -10 |
+| `B-PAR-002` | BOOTSTRAP_UI_PARAMS_FAILED | FATAL | Bootstrap UI parameters resolution failed | -10 |
+| `B-BOOT-0601` | BOOTSTRAP_PRELOAD_NOT_READY | FATAL | Bootstrap must be completed before accessing preload trace | -10 |
+| `B-CTX-001` | BOOTSTRAP_CTX_NOT_READY | FATAL | Must bootstrap before creating PipelineContext | -10 |
+| `B-UNK-001` | BOOTSTRAP_UNHANDLED_CLI_ERROR | FATAL | Unexpected bootstrap error (CLI mode) | -10 |
+| `B-UNK-002` | BOOTSTRAP_UNHANDLED_UI_ERROR | FATAL | Unexpected bootstrap error (UI mode) | -10 |
 
 ### Phase 2 — Parser Errors (P2-P)
 
@@ -319,6 +394,30 @@ Each message is defined with:
 | `MILESTONE_INGESTION_COMPLETE` | 1 | `Ingestion complete: {count} documents ({success} OK, {fail} failed, {skip} skipped)` | ✓ |
 | `MILESTONE_GRAPH_START` | 1 | `Building knowledge graph...` | ▶ |
 | `MILESTONE_GRAPH_COMPLETE` | 1 | `Graph built: {nodes} nodes, {edges} edges` | ✓ |
+
+### Bootstrap Messages
+
+#### Milestone
+
+| ID | Level | Template | Icon |
+|----|-------|----------|------|
+| `MILESTONE_BOOTSTRAP_START` | 1 | `Starting EKS bootstrap initialization...` | ▶ |
+| `MILESTONE_BOOTSTRAP_COMPLETE` | 1 | `Bootstrap complete: {completed_count}/{total_count} phases passed ({duration_ms:.0f}ms)` | ✓ |
+
+#### Status
+
+| ID | Level | Template | Icon |
+|----|-------|----------|------|
+| `STATUS_CONFIG_LOADED` | 1 | `Config loaded: {config_count} keys, {path}` | ℹ |
+| `STATUS_PATHS_RESOLVED` | 2 | `Paths resolved: {count} paths from project root` | ℹ |
+| `STATUS_READINESS_PASSED` | 1 | `Readiness gate passed — project setup validated` | ✓ |
+| `STATUS_MANAGERS_INITIALIZED` | 2 | `Managers initialized: ErrorManager + MessageManager ready` | ℹ |
+
+#### Warning
+
+| ID | Level | Template | Icon |
+|----|-------|----------|------|
+| `WARNING_BOOTSTRAP_PHASE_FAILED` | 0 | `Bootstrap phase {phase} failed: {detail}` | ⚠ |
 
 ### Status Messages
 
@@ -815,6 +914,15 @@ Stored in `extract_status` column of document registry:
 | `eks/engine/core/message_manager.py` | Message catalog lookup, template hydration, verbosity control | `dcc/workflow/utility_engine/console/console_output.py` |
 | `eks/engine/core/health_scorer.py` | Per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency) | `dcc/workflow/reporting_engine/core/report_health.py` |
 | `eks/engine/core/structure_detector.py` | PDF structural element detection (cover page, revision table, sections, tables, images, links) | — |
+
+### Phase 1 — Bootstrap Modules
+
+| File | Purpose | Pattern Reference |
+|------|---------|-------------------|
+| `common/library/bootstrap/manager.py` | Universal L19 BootstrapManager (8-phase orchestrator with P1–P8 phases) | `dcc/workflow/utility_engine/bootstrap/boot_pipeline.py` |
+| `common/library/bootstrap/errors.py` | Universal BootstrapError (code/message/phase, to_system_error()) | — |
+| `common/library/bootstrap/phases.py` | BootstrapPhaseRegistry + BootstrapPhaseStatus (phase tracking) | — |
+| `eks/engine/core/bootstrap.py` | EKS-specific BootstrapManager subclass (EKSBootstrapManager) | — |
 
 ---
 

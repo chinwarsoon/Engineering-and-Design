@@ -6,6 +6,7 @@ Architecture-aligned sub-packages
 config/     Runtime behavior parameter normalization and lookup (L15)
 cli/        Universal schema-driven pipeline CLI parser (L18)
 bootstrap/  Universal BootstrapManager orchestrator (L19)
+export/     Universal CSV + Excel DataExporter (L22)
 logging/    Shared logger and tracing utilities
 telemetry/  Shared telemetry and heartbeat support
 pipeline/   Shared pipeline context and engine contracts
@@ -19,7 +20,7 @@ factories/  Shared factory abstractions
 Legacy compatibility modules remain available under core/ and utility/.
 """
 
-from . import bootstrap, cli, config, errors, factories, logging, messages, paths, pipeline, telemetry, ui, validation
+from . import bootstrap, cli, config, errors, export, factories, logging, messages, paths, pipeline, telemetry, ui, utility, validation
 
 # L20 — core.system is a sub-package under core/, accessed via common.library.core.system
 # (not imported at this level to avoid circular dependencies)
@@ -29,6 +30,7 @@ __all__ = [
     "cli",
     "config",
     "errors",
+    "export",
     "factories",
     "logging",
     "messages",
@@ -36,5 +38,6 @@ __all__ = [
     "pipeline",
     "telemetry",
     "ui",
+    "utility",
     "validation",
 ]

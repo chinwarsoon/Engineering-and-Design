@@ -1,10 +1,22 @@
 {
   "metadata": {
-    "version": "1.0.0",
-    "last_updated": "2026-06-19",
-    "total_messages": 33
+    "version": "1.1.0",
+    "last_updated": "2026-07-18",
+    "total_messages": 39
   },
   "messages": {
+    "MILESTONE_BOOTSTRAP_START": {
+      "template": "Starting EKS bootstrap initialization...",
+      "level": 1,
+      "category": "milestone",
+      "icon": "▶"
+    },
+    "MILESTONE_BOOTSTRAP_COMPLETE": {
+      "template": "Bootstrap complete: {completed_count}/{total_count} phases passed ({duration_ms:.0f}ms)",
+      "level": 1,
+      "category": "milestone",
+      "icon": "✓"
+    },
     "MILESTONE_PIPELINE_START": {
       "template": "Starting EKS pipeline for {target}",
       "level": 1,
@@ -85,6 +97,30 @@
       "level": 1,
       "category": "status"
     },
+    "STATUS_CONFIG_LOADED": {
+      "template": "Config loaded: {config_count} keys, {path}",
+      "level": 1,
+      "category": "status",
+      "icon": "ℹ"
+    },
+    "STATUS_PATHS_RESOLVED": {
+      "template": "Paths resolved: {count} paths from project root",
+      "level": 2,
+      "category": "status",
+      "icon": "ℹ"
+    },
+    "STATUS_READINESS_PASSED": {
+      "template": "Readiness gate passed — project setup validated",
+      "level": 1,
+      "category": "status",
+      "icon": "✓"
+    },
+    "STATUS_MANAGERS_INITIALIZED": {
+      "template": "Managers initialized: ErrorManager + MessageManager ready",
+      "level": 2,
+      "category": "status",
+      "icon": "ℹ"
+    },
     "PROGRESS_PARSING": {
       "template": "  {filename}",
       "level": 1,
@@ -144,6 +180,12 @@
       "template": "Low structural completeness ({score}%): {filename}",
       "level": 1,
       "category": "warning"
+    },
+    "WARNING_BOOTSTRAP_PHASE_FAILED": {
+      "template": "Bootstrap phase {phase} failed: {detail}",
+      "level": 0,
+      "category": "warning",
+      "icon": "⚠"
     },
     "ERROR_EXTRACTION_FAILED": {
       "template": "Extraction failed for {filename}: {detail}",

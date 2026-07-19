@@ -1,19 +1,19 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_base_schema.json",
-    "version": "1.2.0",
+    "version": "1.7.0",
     "title": "EKS Document Base Schema - Definitions",
-    "description": "Document metadata, structural element definitions, and shared enums for document type, file type, and element type codes per T1.35. revision_id moved from base schema to doc base (v1.2.0). discipline_code consolidated into discipline_entry_def.properties.code.",
+    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, and lifecycle stages per T1.35. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111).",
     "type": "object",
     "definitions": {
         "doc_id_format": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+-[A-Za-z0-9]+$",
-            "description": "Document identifier format: '{doc_number}-{revision}'."
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "Document identifier format: UUID v4 (system-generated). T1.99.150 (I186) changed from '{doc_number}-{revision}' business key to pure UUID."
         },
         "document_type_code": {
             "type": "string",
-            "enum": ["DWG", "PI-PID", "SPC", "DS", "MAN", "OM", "RPT"],
+            "enum": ["CAD", "DWG", "PI-PID", "SPC", "DS", "MAN", "OM", "RPT"],
             "description": "Document type codes aligned with ontology document_type_mapping (Appendix C) and TWRP assets."
         },
         "file_type_code": {
@@ -29,6 +29,12 @@
         "revision_id": {
             "type": "string",
             "description": "Document revision identifier. Validation patterns defined in doc config (revision_validation)."
+        },
+        "lifecycle_stage_code": {
+            "type": "string",
+            "enum": ["draft", "issued_for_review", "issued_for_construction", "as_built", "superseded", "archived"],
+            "default": "draft",
+            "description": "Document lifecycle stage codes per engineering document control workflow. T1.99.143."
         },
         "project_metadata_def": {
             "type": "object",
@@ -76,7 +82,35 @@
                 },
                 "extraction_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
                 "extraction_notes": { "type": "string" },
-                "verified_by": { "type": "string" }
+                "verified_by": { "type": "string" },
+                "file_size": { "type": "integer", "description": "OS-level file size in bytes (from Path.stat().st_size)" },
+                "file_created_at": { "type": "string", "description": "OS-level file creation timestamp (from st_ctime, UTC ISO 8601)" },
+                "file_modified_at": { "type": "string", "description": "OS-level file last-modified timestamp (from st_mtime, UTC ISO 8601)" },
+                "file_hash": { "type": "string", "description": "Content hash (MD5 or SHA256) for integrity verification" },
+                "embedded_title": { "type": "string", "description": "Embedded document title from parser metadata" },
+                "embedded_subject": { "type": "string", "description": "Embedded document subject from parser metadata" },
+                "embedded_created_date": { "type": "string", "description": "Embedded creation date from parser metadata" },
+                "embedded_modified_date": { "type": "string", "description": "Embedded modification date from parser metadata" },
+                "embedded_creator_app": { "type": "string", "description": "Application that created the file (e.g. AutoCAD 2024)" },
+                "embedded_producer": { "type": "string", "description": "Library/producer that generated the file (e.g. pdfplot15.hdi)" },
+                "embedded_last_modified_by": { "type": "string", "description": "Last user who modified the file (from DOCX/XLSX core properties)" },
+                "embedded_keywords": { "type": "string", "description": "Embedded keywords from parser metadata" },
+                "embedded_sheet_count": { "type": "integer", "description": "Number of sheets in XLSX workbook" },
+                "document_title": { "type": "string", "description": "Human-readable document title. T1.99.142." },
+                "supersedes": { "type": "string", "description": "FK to documents.id — the previous revision this document supersedes. T1.99.141." },
+                "superseded_by": { "type": "string", "description": "FK to documents.id — the next revision that supersedes this document. T1.99.141." },
+                "lifecycle_stage": { "$ref": "#/definitions/lifecycle_stage_code", "description": "Document lifecycle stage. T1.99.143." },
+                "revision_date": { "type": "string", "description": "Date of this revision (ISO 8601 string). T1.99.143." },
+                "revision_description": { "type": "string", "description": "Description of changes in this revision. T1.99.143." },
+                "embedded_revision_number": { "type": "string", "description": "Revision number from embedded DOCX/XLSX core properties. T1.99.144." },
+                "references_documents": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Array of doc_id strings this document references. T1.99.145." },
+                "project_phase": { "type": "string", "description": "Project lifecycle phase (e.g. tender, construction, as_built). T1.99.146." },
+                "contract_package": { "type": "string", "description": "Procurement contract package grouping. T1.99.146." },
+                "issued_date": { "type": "string", "description": "Formal issue/submission date to client (ISO 8601 string). T1.99.146." },
+                "responsible_engineer": { "type": "string", "description": "Engineer accountable for the document. T1.99.146." },
+                "total_sheets": { "type": "integer", "description": "Total sheets in multi-sheet drawing set. T1.99.146." },
+                "language": { "type": "string", "default": "en", "description": "ISO 639-1 language code of document content. T1.99.146." },
+                "vendor_name": { "type": "string", "description": "Equipment vendor name for vendor-supplied documents. T1.99.146." }
             },
             "required": ["source_type", "document_type", "document_number", "revision"],
             "additionalProperties": false
@@ -94,6 +128,145 @@
                 "source": { "type": "string", "enum": ["regex", "ocr", "heuristic", "manual"] }
             },
             "required": ["doc_id", "element_type", "source"],
+            "additionalProperties": false
+        },
+        "filename_segment_def": {
+            "type": "object",
+            "description": "Single positional segment definition within a filename pattern (Appendix I §I4.4).",
+            "properties": {
+                "position": { "type": "integer", "minimum": 0 },
+                "maps_to": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+                "label": { "type": "string" },
+                "required": { "type": "boolean" },
+                "null_handling": {
+                    "type": "object",
+                    "properties": {
+                        "strategy": { "type": "string", "enum": ["default_value", "skip", "error"] },
+                        "default_value": { "type": "string" }
+                    },
+                    "required": ["strategy"],
+                    "additionalProperties": false
+                },
+                "validation": {
+                    "type": "object",
+                    "properties": {
+                        "type": { "type": "string", "enum": ["pattern", "schema_reference", "enum", "none"] },
+                        "pattern": { "type": "string" },
+                        "reference": { "type": "string" },
+                        "values": { "type": "array", "items": { "type": "string" } }
+                    },
+                    "required": ["type"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["position", "maps_to", "label", "required", "null_handling", "validation"],
+            "additionalProperties": false
+        },
+        "filename_output_def": {
+            "type": "object",
+            "description": "Output control configuration for filename parsing (Appendix I §I4.5).",
+            "properties": {
+                "document_number_source": { "type": "string", "enum": ["rejoin_segments", "full_stem"] },
+                "fallback_doc_number": { "type": "string", "enum": ["full_stem", "none"] },
+                "fallback_revision": { "oneOf": [{ "type": "string" }, { "type": "null" }] },
+                "preservation_mode": { "type": "string", "enum": ["overwrite_existing", "fill_blanks_only"] }
+            },
+            "required": ["document_number_source", "fallback_doc_number", "preservation_mode"],
+            "additionalProperties": false
+        },
+        "filename_error_subcodes_def": {
+            "type": "object",
+            "description": "Maps error conditions to P5-F-* error codes (Appendix I §I4.2).",
+            "properties": {
+                "too_few_segments": { "type": "string" },
+                "too_many_segments": { "type": "string" },
+                "segment_validation_failed": { "type": "string" },
+                "unresolvable": { "type": "string" }
+            },
+            "additionalProperties": true
+        },
+        "filename_pattern_def": {
+            "type": "object",
+            "description": "Single filename pattern entry (Appendix I §I4.2). Keyed by project_code or '*' for default.",
+            "properties": {
+                "description": { "type": "string" },
+                "parser_type": { "type": "string", "enum": ["delimited"] },
+                "separator": { "type": "string" },
+                "min_segments": { "type": "integer", "minimum": 1 },
+                "max_segments": { "oneOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }] },
+                "segments": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/filename_segment_def" }
+                },
+                "rejoin_separator": { "type": "string" },
+                "strip_suffixes": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
+                "revision_separators": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
+                "dash_revision_max_len": { "type": "integer", "minimum": 0 },
+                "output": { "$ref": "#/definitions/filename_output_def" },
+                "error_subcodes": { "$ref": "#/definitions/filename_error_subcodes_def" },
+                "processing_phase": { "type": "string", "enum": ["P0"] }
+            },
+            "required": ["parser_type", "separator", "min_segments", "max_segments", "segments", "rejoin_separator", "strip_suffixes", "revision_separators", "dash_revision_max_len", "output", "error_subcodes", "processing_phase"],
+            "additionalProperties": false
+        },
+        "file_property_source_def": {
+            "type": "object",
+            "description": "Single source-key-to-registry-column mapping for parser-embedded metadata (Appendix J §J2.1).",
+            "properties": {
+                "source_key": { "type": "string", "description": "Key name in parser extract_metadata() return dict" },
+                "maps_to": { "type": "string", "description": "Target registry column name (from document_metadata_def)" },
+                "null_handling": {
+                    "type": "object",
+                    "properties": {
+                        "strategy": { "type": "string", "enum": ["skip", "default_value"] },
+                        "default_value": { }
+                    },
+                    "required": ["strategy"],
+                    "additionalProperties": false
+                },
+                "required": { "type": "boolean", "description": "Whether this property is required for health scoring" }
+            },
+            "required": ["source_key", "maps_to", "null_handling", "required"],
+            "additionalProperties": false
+        },
+        "file_property_os_def": {
+            "type": "object",
+            "description": "OS-level property collection configuration (Appendix J §J2.1).",
+            "properties": {
+                "enabled": { "type": "boolean", "description": "Master switch for OS-level property extraction" },
+                "collect": {
+                    "type": "array",
+                    "items": { "type": "string", "enum": ["file_size", "fs_created", "fs_modified", "fs_accessed", "file_mode", "file_hash"] },
+                    "description": "OS property keys to collect"
+                },
+                "hash_algorithm": { "type": "string", "enum": ["md5", "sha256"], "description": "Hashing algorithm for file integrity check" }
+            },
+            "required": ["enabled", "collect"],
+            "additionalProperties": false
+        },
+        "file_property_pattern_def": {
+            "type": "object",
+            "description": "Per-file-type property extraction configuration (Appendix J §J2.1).",
+            "properties": {
+                "enabled": { "type": "boolean", "description": "Whether property extraction is enabled for this file type" },
+                "extraction_method": {
+                    "type": "string",
+                    "enum": ["parser_metadata", "os_only"],
+                    "description": "parser_metadata = read embedded metadata from parser output; os_only = only Path.stat()"
+                },
+                "property_mapping": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/file_property_source_def" },
+                    "description": "Mapping from parser extract_metadata() keys to registry columns"
+                }
+            },
+            "required": ["enabled", "extraction_method", "property_mapping"],
             "additionalProperties": false
         }
     }

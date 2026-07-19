@@ -46,7 +46,8 @@ class XLSXParser(BaseParser):
                 "subject": props.subject,
                 "created": props.created.isoformat() if props.created else None,
                 "modified": props.modified.isoformat() if props.modified else None,
-                "sheet_count": len(wb.sheetnames)
+                "sheet_count": len(wb.sheetnames),
+                "last_modified_by": props.last_modified_by
             }
         finally:
             wb.close()

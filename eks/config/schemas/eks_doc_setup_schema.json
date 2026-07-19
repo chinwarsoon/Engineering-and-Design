@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
-    "version": "1.3.0",
+    "version": "1.5.0",
     "title": "EKS Document Setup Schema - Declarations",
-    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, and element expectations per Appendix B, C & D. v1.3.0: added revision_validation.",
+    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, and element expectations per Appendix B, C & D. v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110).",
     "allOf": [
         { "$ref": "eks_doc_base_schema.json" }
     ],
@@ -148,8 +148,39 @@
                 "additionalProperties": false
             },
             "propertyNames": {
-                "pattern": "^(DWG|PI-PID|SPC|DS|MAN|OM|RPT)$"
+                "pattern": "^(CAD|DWG|PI-PID|SPC|DS|MAN|OM|RPT)$"
             }
+        },
+        "filename_patterns": {
+            "type": "object",
+            "description": "Per-project filename parsing patterns. Keys are project_code or '*' for catch-all default. Each value is a filename_pattern_def per Appendix I §I4.",
+            "propertyNames": {
+                "pattern": "^(\\*|\\d{6})$"
+            },
+            "additionalProperties": {
+                "$ref": "eks_doc_base_schema.json#/definitions/filename_pattern_def"
+            }
+        },
+        "file_property_patterns": {
+            "type": "object",
+            "description": "File property extraction configuration per Appendix J §J2. Contains os-level config + per-file-type property mappings.",
+            "properties": {
+                "os_properties": {
+                    "$ref": "eks_doc_base_schema.json#/definitions/file_property_os_def"
+                },
+                "by_file_type": {
+                    "type": "object",
+                    "description": "Per-file-extension property extraction configuration.",
+                    "propertyNames": {
+                        "pattern": "^(pdf|dgn|docx|xlsx|dwg)$"
+                    },
+                    "additionalProperties": {
+                        "$ref": "eks_doc_base_schema.json#/definitions/file_property_pattern_def"
+                    }
+                }
+            },
+            "required": ["os_properties", "by_file_type"],
+            "additionalProperties": false
         }
     },
     "required": ["revision_validation", "ontology_triggers", "health_scoring", "element_expectations"],

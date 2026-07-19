@@ -128,7 +128,8 @@ class TestPhase1(unittest.TestCase):
             "file_path": "data/test.pdf"
         }
         doc_id = self.registry.register_document(meta)
-        self.assertEqual(doc_id, "DOC-001-A")
+        # T1.99.150 (I186): id is now UUID — validate format, not business-key string
+        self.assertRegex(doc_id, r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
         
         # Test Retrieval
         doc = self.registry.get_document("DOC-001")
@@ -472,9 +473,10 @@ class TestPhase1(unittest.TestCase):
         schema = SchemaToDDL.load_doc_base_schema(self.config_dir)
         gen = SchemaToDDL(schema)
         indexes = gen.generate_indexes()
-        self.assertEqual(len(indexes), 2)
-        self.assertIn("idx_elements_doc_id", indexes[0])
-        self.assertIn("idx_elements_type", indexes[1])
+        self.assertEqual(len(indexes), 3)  # T1.99.150 (I186): +1 idx_doc_business_key
+        self.assertTrue(any("idx_elements_doc_id" in idx for idx in indexes))
+        self.assertTrue(any("idx_elements_type" in idx for idx in indexes))
+        self.assertTrue(any("idx_doc_business_key" in idx for idx in indexes))
 
     def test_schema_to_ddl_migration_detects_missing_columns(self):
         """T1.36: SchemaToDDL.generate_migration_ddl finds missing columns."""
@@ -724,7 +726,10 @@ class TestPhase1(unittest.TestCase):
             "document_number": "REV-001", "revision": "A",
             "document_type": "DWG", "status": "DRAFT"
         })
-        result = reviewer.correct_metadata("REV-001-A", {"status": "APPROVED", "checked_by": "Reviewer"})
+        # T1.99.150 (I186): resolve doc_id via get_latest_by_key
+        latest = self.registry.get_latest_by_key("REV-001", "A")
+        self.assertIsNotNone(latest)
+        result = reviewer.correct_metadata(latest["id"], {"status": "APPROVED", "checked_by": "Reviewer"})
         self.assertTrue(result)
         doc = self.registry.get_document("REV-001", revision="A")
         self.assertEqual(doc["status"], "APPROVED")
@@ -739,7 +744,10 @@ class TestPhase1(unittest.TestCase):
             "document_number": "LOCK-001", "revision": "A",
             "document_type": "DWG", "extract_status": "pending"
         })
-        result = reviewer.lock_document("LOCK-001-A", "admin")
+        # T1.99.150 (I186): resolve doc_id via get_latest_by_key
+        latest = self.registry.get_latest_by_key("LOCK-001", "A")
+        self.assertIsNotNone(latest)
+        result = reviewer.lock_document(latest["id"], "admin")
         self.assertTrue(result)
         doc = self.registry.get_document("LOCK-001", revision="A")
         self.assertEqual(doc["verified_by"], "admin")
@@ -912,11 +920,12 @@ class TestPhase1(unittest.TestCase):
 
     def test_registry_update_document_status(self):
         """T1.71: DocumentRegistry.update_document_status updates extraction fields."""
-        self.registry.register_document({
+        doc_id = self.registry.register_document({
             "document_number": "STATUS-001", "revision": "A",
             "document_type": "SPEC", "extract_status": "pending"
         })
-        ok = self.registry.update_document_status("STATUS-001-A", "success", confidence=0.95, notes="Auto-parsed")
+        # T1.99.150 (I186): id is now UUID — use returned value
+        ok = self.registry.update_document_status(doc_id, "success", confidence=0.95, notes="Auto-parsed")
         self.assertTrue(ok)
         doc = self.registry.get_document("STATUS-001", revision="A")
         self.assertEqual(doc["extract_status"], "success")

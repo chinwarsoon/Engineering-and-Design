@@ -41,7 +41,8 @@ class PDFParser(BaseParser):
                 "producer": meta.get("producer"),
                 "creation_date": meta.get("creationDate"),
                 "mod_date": meta.get("modDate"),
-                "page_count": doc.page_count
+                "page_count": doc.page_count,
+                "keywords": meta.get("keywords")
             }
         finally:
             doc.close()

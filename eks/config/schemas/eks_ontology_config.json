@@ -114,6 +114,7 @@
     { "name": "DataSheet", "label": "Equipment Data Sheet", "subClassOf": "Specification", "document_type_mapping": "DS" },
     { "name": "Manual", "label": "Vendor O&M Manual", "subClassOf": "Document", "document_type_mapping": "MAN" },
     { "name": "OpsManual", "label": "Operation Manual", "subClassOf": "Manual", "document_type_mapping": "OM" },
+    { "name": "CAD_Drawing", "label": "AutoCAD Drawing", "subClassOf": "Drawing", "document_type_mapping": "CAD" },
     { "name": "Report", "label": "Technical Report", "subClassOf": "Document", "document_type_mapping": "RPT" }
   ],
   "relationships": [

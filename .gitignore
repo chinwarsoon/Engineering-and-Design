@@ -216,6 +216,7 @@ eks/data
 
 # EKS output files (generated DB, logs, debug artifacts)
 eks/output/
+eks/test_output/
 
 #deepcode
 .deepcode/

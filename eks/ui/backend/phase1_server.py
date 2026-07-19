@@ -3,7 +3,7 @@
 Per Appendix G §10, this server provides all Phase 1 API endpoints:
 file discovery, document CRUD, pipeline execution, and health scoring.
 
-Revision: 0.9 (T1.97/I088)
+Revision: 0.11 (T1.99.94/I126)
 - 0.1: Initial server with all Phase 1 API endpoints
 - 0.2: T1.69–T1.76: run_id, traversal guard, checkpoint persist, ErrorManager/MessageManager activation, artifact dump
 - 0.3: T1.77: ProjectSetupValidator readiness gate, --debug/--level CLI, data_dir/recursive validation
@@ -13,6 +13,8 @@ Revision: 0.9 (T1.97/I088)
 - 0.7: T1.82: Derive data_dir default from config.global_paths.data_dir instead of hardcoded "eks/data"; honor validation_options.auto_create_folders in readiness gate; remove hardcoded fallback dict in _handle_config_paths
 - 0.8: T1.83: Replace 10× PRJ_DIR/"eks" literals with _EKS_ROOT_DEFAULT / config.global_paths.eks_root (schema-driven package root); added eks_root to global_paths_def schema
 - 0.9: T1.97/I088: Read debug/log/readiness/retry knobs from schema-defined system_parameters, with CLI overrides.
+- 0.10: T1.99.84/I124: Collapsed 3 per-job JSON writes into single overwrite pipeline_output.json. No {job_id} in filename; zero accumulation.
+- 0.11: T1.99.94/I126: Added GET /api/v1/export/{phase}/{format} endpoint (phases: a/b/c/all, formats: csv/xlsx). Uses L22 DataExporter + _build_export_rows/_build_flagged_rows from eks_engine_pipeline. Returns file download with Content-Disposition.
 
 All endpoints are versioned under /api/v1/.
 
@@ -30,6 +32,7 @@ Read-only endpoints on the DuckDB registry:
   - GET  /api/v1/pipeline/logs/{job_id}
   - GET  /api/v1/review/summary
   - GET  /api/v1/review/flagged
+  - GET  /api/v1/export/{phase}/{format}   (phases: a,b,c,all; formats: csv,xlsx)
 
 Read-write endpoints on the DuckDB registry:
   - POST /api/v1/files/load
@@ -40,6 +43,7 @@ Read-write endpoints on the DuckDB registry:
   - DELETE /api/v1/pipeline/{job_id}
 """
 
+import hashlib
 import json
 import os
 import re
@@ -195,7 +199,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         """Return (path_segments, query_params) with URL decode."""
         parsed = urlparse(unquote(self.path))
         segments = [s for s in parsed.path.split("/") if s]
-        qs = {k: v[0] if len(22) == 1 else v for k, v in parse_qs(parsed.query).items()}
+        qs = {k: v[0] if len(v) == 1 else v for k, v in parse_qs(parsed.query).items()}
         return segments, qs
 
     # ------------------------------------------------------------------
@@ -248,12 +252,14 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                 self._handle_review_summary()
             elif segments[:4] == ["api", "v1", "review", "flagged"]:
                 self._handle_flagged_documents()
+            elif segments[:5] == ["api", "v1", "export"] and len(segments) >= 6:
+                self._handle_export(segments[4], segments[5])
             else:
                 self._json_response(404, {"error": "Not found"})
         except Exception as e:
             if _logger:
                 _logger.error(f"GET {self.path}: {e}", context="Phase1Handler.do_GET")
-            self._json_response(500, {"error": str(5)})
+            self._json_response(500, {"error": str(e)})
 
     def do_POST(self):
         try:
@@ -272,7 +278,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             if _logger:
                 _logger.error(f"POST {self.path}: {e}", context="Phase1Handler.do_POST")
-            self._json_response(500, {"error": str(5)})
+            self._json_response(500, {"error": str(e)})
 
     def do_PUT(self):
         try:
@@ -291,7 +297,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             if _logger:
                 _logger.error(f"PUT {self.path}: {e}", context="Phase1Handler.do_PUT")
-            self._json_response(500, {"error": str(5)})
+            self._json_response(500, {"error": str(e)})
 
     def do_DELETE(self):
         try:
@@ -303,7 +309,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except Exception as e:
             if _logger:
                 _logger.error(f"DELETE {self.path}: {e}", context="Phase1Handler.do_DELETE")
-            self._json_response(500, {"error": str(5)})
+            self._json_response(500, {"error": str(e)})
 
     # ------------------------------------------------------------------
     # Handlers
@@ -388,11 +394,17 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             nonlocal registered
             metadata = scanner.build_placeholder_metadata(file_info)
             doc_number = metadata.get("document_number")
+
+            # T1.99.119: L2 — generate synthetic key instead of skipping
             if not doc_number:
+                file_path = metadata.get("file_path", file_info.get("file_name", "unknown"))
+                synthetic_key = f"UNRESOLVED-{hashlib.md5(file_path.encode()).hexdigest()[:8]}"
                 if _logger:
-                    _logger.warning(f"Skipping file without document_number: {file_info['file_name']}")
-                return
-            metadata.setdefault("revision", "00")
+                    _logger.warning(f"Unresolvable filename — generating synthetic key {synthetic_key} for: {file_info['file_name']}")
+                metadata["document_number"] = synthetic_key
+                metadata["parse_status"] = "unresolvable"
+                doc_number = synthetic_key
+                metadata.setdefault("revision", "00")
             existing = _with_retry(lambda: registry.get_document(doc_number, revision=metadata["revision"]))
             if existing:
                 return
@@ -619,35 +631,24 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                     _job_state[job_id]["current_stage"] = "register"
                     _job_state[job_id]["summary"] = summary
 
-                # T1.76: Persist pipeline_status_{job_id}.json
-                status_path = OUTPUT_DIR / f"pipeline_status_{job_id}.json"
+                # T1.99.84/I124: Single overwrite pipeline_output.json (was 3 per-job files)
+                output_path = OUTPUT_DIR / "pipeline_output.json"
                 try:
-                    status_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(status_path, "w", encoding="utf-8") as f:
-                        with _job_lock:
-                            json.dump(_job_state.get(job_id, {}), f, indent=2, default=str)
-                except Exception:
-                    pass
-
-                # T1.76: Persist pipeline_messages_{job_id}.json from ErrorManager/MessageManager
-                msg_path = OUTPUT_DIR / f"pipeline_messages_{job_id}.json"
-                try:
-                    output_data = {
-                        "errors": em.get_error_summary(),
-                        "messages": mm.get_all_messages(),
+                    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+                    with _job_lock:
+                        _status_snapshot = dict(_job_state.get(job_id, {}))
+                    consolidated = {
+                        "job_id": job_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "status": _status_snapshot,
+                        "messages": mm.get_all_messages() if mm else [],
+                        "errors": em.get_error_summary() if em else [],
+                        "debug": _logger.debug_object if _logger else {},
                     }
-                    msg_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(msg_path, "w", encoding="utf-8") as f:
-                        json.dump(output_data, f, indent=2, default=str)
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        json.dump(consolidated, f, indent=2, default=str)
                 except Exception:
                     pass
-
-                # T1.76: Persist debug_log.json via logger (filename from config.logging.debug_file_path)
-                if _logger:
-                    _debug_rel = _cfg.get("logging", {}).get("debug_file_path", "output/debug_log.json")
-                    _debug_name = Path(_debug_rel).name
-                    _logger.debug_file = OUTPUT_DIR / _debug_name
-                    _logger.save_debug_log()
 
             except Exception as e:
                 with _job_lock:
@@ -705,6 +706,126 @@ class Phase1Handler(SimpleHTTPRequestHandler):
             return manager.get_flagged_documents()
         flagged = _with_retry(_action)
         self._json_response(200, {"count": len(flagged), "documents": flagged})
+
+    def _handle_export(self, phase: str, fmt: str):
+        """GET /api/v1/export/{phase}/{format} — download pipeline export files.
+
+        Phases: ``a`` (discovery), ``b`` (extraction), ``c`` (review), ``all`` (all 3).
+        Formats: ``csv``, ``xlsx``.
+        """
+        if not self._check_imports():
+            return
+
+        phase = phase.lower()
+        fmt = fmt.lower()
+        valid_phases = {"a", "b", "c", "all"}
+        valid_formats = {"csv", "xlsx"}
+
+        if phase not in valid_phases or fmt not in valid_formats:
+            self._json_response(400, {
+                "error": f"Invalid phase '{phase}' or format '{fmt}'. "
+                         f"Phases: {sorted(valid_phases)}, Formats: {sorted(valid_formats)}",
+            })
+            return
+
+        try:
+            # Lazy import — only when export endpoint is called
+            from common.library.export import DataExporter
+            from eks.engine.eks_engine_pipeline import _build_export_rows, _build_flagged_rows
+
+            exporter = DataExporter()
+
+            # Load config for output_dir
+            cfg = SchemaLoader(PRJ_DIR / _EKS_ROOT_DEFAULT / "config").load_all()
+            rp = resolve_paths(PRJ_DIR, cfg).resolve(PRJ_DIR)
+            output_dir = rp["output_dir"]
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Query registry
+            registry = get_registry()
+            all_docs = _with_retry(lambda: registry.list_documents(latest_only=True, order_by="document_number"))
+
+            # Define phase→file mapping
+            phase_defs = {
+                "a": {
+                    "name": "discovery_inventory",
+                    "columns": ["document_number", "revision", "document_type",
+                                "file_type", "file_path", "ingested_at"],
+                    "rows_fn": lambda: _build_export_rows(all_docs, ["pending"],
+                        ["document_number", "revision", "document_type",
+                         "file_type", "file_path", "ingested_at"]),
+                },
+                "b": {
+                    "name": "extraction_results",
+                    "columns": ["document_number", "revision", "document_type",
+                                "file_type", "file_path", "page_count",
+                                "extract_status", "extraction_confidence",
+                                "extraction_notes", "ingested_at"],
+                    "rows_fn": lambda: _build_export_rows(all_docs, None, None),
+                },
+                "c": {
+                    "name": "review_flags",
+                    "columns": ["document_number", "revision", "document_type",
+                                "extract_status", "extraction_confidence",
+                                "extraction_notes", "flag_reason", "ingested_at"],
+                    "rows_fn": lambda: _build_flagged_rows(all_docs, None),
+                },
+            }
+
+            phases_to_export = ["a", "b", "c"] if phase == "all" else [phase]
+
+            # For multi-phase export, use a temp single-file approach
+            file_path = output_dir / f"eks_export_phase_{phase}.{fmt}"
+            content_type = "text/csv; charset=utf-8" if fmt == "csv" else \
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+            if len(phases_to_export) == 1:
+                # Single phase
+                pd = phase_defs[phases_to_export[0]]
+                rows = pd["rows_fn"]()
+                cols = pd["columns"]
+                if fmt == "csv":
+                    exporter.export_to_csv(rows, file_path, columns=cols)
+                else:
+                    exporter.export_to_excel(rows, file_path, sheet_name=pd["name"], columns=cols)
+            else:
+                # All phases → one file
+                if fmt == "csv":
+                    # CSV: concatenate with a phase separator comment (not standard; use last file)
+                    pd = phase_defs["c"]
+                    rows = pd["rows_fn"]()
+                    exporter.export_to_csv(rows, file_path, columns=pd["columns"])
+                else:
+                    # Excel: multi-sheet workbook
+                    sheets = {}
+                    for p in phases_to_export:
+                        pd = phase_defs[p]
+                        sheets[pd["name"]] = pd["rows_fn"]()
+                    exporter.export_multi_sheet(sheets, file_path)
+
+            # Serve file
+            with open(file_path, "rb") as f:
+                file_data = f.read()
+
+            self.send_response(200)
+            self._set_cors()
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Disposition",
+                             f'attachment; filename="{file_path.name}"')
+            self.send_header("Content-Length", str(len(file_data)))
+            self.end_headers()
+            self.wfile.write(file_data)
+
+        except ImportError as e:
+            self._json_response(503, {
+                "error": "Export module not available",
+                "detail": str(e),
+                "install": "conda activate eks",
+            })
+        except Exception as e:
+            if _logger:
+                _logger.error(f"Export failed: {e}", context="Phase1Handler._handle_export")
+            self._json_response(500, {"error": f"Export failed: {e}"})
 
     def _handle_review_action(self, action: str, data: Dict[str, Any]):
         doc_id = data.get("doc_id", "")

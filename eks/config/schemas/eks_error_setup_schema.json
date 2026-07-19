@@ -40,6 +40,9 @@
         },
         "bootstrap_p1": {
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
+        },
+        "bootstrap_universal": {
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         }
       }
     },
@@ -68,6 +71,9 @@
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "phase_3_graph": {
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
+        },
+        "phase_5_file_ops": {
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         }
       }

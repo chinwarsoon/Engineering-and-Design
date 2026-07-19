@@ -59,5 +59,6 @@ class DOCXParser(BaseParser):
             "subject": props.subject,
             "created": props.created.isoformat() if props.created else None,
             "modified": props.modified.isoformat() if props.modified else None,
-            "revision": props.revision
+            "revision": props.revision,
+            "last_modified_by": props.last_modified_by
         }

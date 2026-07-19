@@ -42,15 +42,23 @@ objects) so the function itself never depends on ``common.library`` at runtime.
 preload gate passes. All 6 failure points immediately print to stderr with
 ``FATAL:`` prefix — no error is ever silently collected.
 
-Revision: 0.7
-Date: 2026-07-17
-Author: opencode
-Summary: T1.99.84 (I118) — ``_preload_infrastructure()`` v2: true pure-stdlib.
-(a) All 6 failure points print to stderr immediately (no silent errors).
-(b) All variables pre-bound with safe defaults — no NameError possible.
-(c) logger/heartbeat instantiation moved from preload to main() — preload
-returns imported classes (_UniversalLogger, _TelemetryHeartbeat), not objects.
-(d) Removed logger_name parameter (now hardcoded in main()).
+Revision: 1.1
+Date: 2026-07-19
+Author: CodeBuddy
+Summary: 1.1: T1.99.153 (I189/F2–F3) — per-run export scoping: pre/post-run doc diff
+     filtering, per-run output subdirectory (output/<run_id>/).
+1.0: T1.99.95–100/I127 — Preload import gate hardening: added 6 new guarded import
+     blocks to _preload_infrastructure() (EngineInput, EngineOutput, parse_cli_args,
+     PipelineOrchestrator, DocumentRegistry, DataExporter); replaced all 6 bare
+     from...import statements in main()/run_pipeline()/parse_eks_cli() with
+     preloaded references; updated EKSBootstrapManager._eks_cli_parser to forward
+     _preloaded_parse_cli_args; all 3 return dicts extended with 6 new keys.
+0.9: T1.99.92–93/I126 — added --export flag (csv/xlsx/both/none) to both CLI parsers;
+     wired 3 export calls in main() after run_pipeline() returns; L22 DataExporter
+     (common.library.export) used for CSV + Excel output via returned_ctx.registry.
+0.8: T1.99.85/I124 — commented out per-phase checkpoint writes in _after() closure;
+     checkpoint unused by resume logic; context held in-memory via orchestrator.checkpoint_states
+0.7: I117 v2 pure-stdlib preload + lazy-import refactor (I114/I119/I120/I121)
 """
 from __future__ import annotations
 
@@ -84,12 +92,35 @@ from typing import Any, Callable, Dict, Optional
 # default (I102). The import-time discovery below also uses the literals inline.
 
 
+# ---------------------------------------------------------------------------
+# Stdlib-only project-root bootstrap (I118 fix):
+# Walk up from __file__ until we find a directory that contains BOTH "eks"
+# and "common" sub-directories — that is the repository root.  This runs
+# BEFORE any common.library import so the package is already on sys.path
+# when _preload_infrastructure() tries to import it.  No common.library
+# dependency; pure pathlib only.
+# ---------------------------------------------------------------------------
+def _stdlib_find_repo_root(start: Path, anchors=("eks", "common")) -> Path:
+    """Return the first ancestor of *start* that contains all *anchors*."""
+    candidate = start.resolve()
+    for _ in range(10):  # guard against infinite loops
+        if all((candidate / a).exists() for a in anchors):
+            return candidate
+        parent = candidate.parent
+        if parent == candidate:
+            break
+        candidate = parent
+    return start.resolve()  # fallback — caller proceeds without root on path
+
+
+_PRJ_DIR = _stdlib_find_repo_root(Path(__file__).parent)
+if str(_PRJ_DIR) not in sys.path:
+    sys.path.insert(0, str(_PRJ_DIR))
+
 # T1.99.80 (I114): Deferred import-time discovery.
-# discover_project_root() is a lightweight common.library import (stdlib-only),
-# but to keep ALL common.library imports deferred, we use a try/except with
-# a deferred import. If discovery fails at import time, main() will resolve
-# via discover_project_root() inside the function body.
-_PRJ_DIR = Path.cwd()  # safe default; main() will re-resolve
+# Now that _PRJ_DIR is on sys.path, the common.library import below can
+# succeed.  If it still fails (e.g., broken install), _PRJ_DIR keeps the
+# stdlib-resolved value and main() will re-resolve via discover_project_root().
 try:
     from common.library.paths.root_discovery import discover_project_root as _dr
     _PRJ_DIR = _dr(
@@ -98,7 +129,7 @@ try:
     if str(_PRJ_DIR) not in sys.path:
         sys.path.insert(0, str(_PRJ_DIR))
 except Exception:
-    pass  # _PRJ_DIR stays at Path.cwd(); main() handles real discovery
+    pass  # _PRJ_DIR stays at stdlib-resolved value; main() handles real discovery
 
 # Strip the script's own directory from sys.path so that eks/engine/logging/
 # cannot shadow stdlib `logging` when openpyxl/PIL etc. do "import logging"
@@ -143,7 +174,7 @@ def bootstrap_pipeline(
         dict with keys: config, doc_config, config_registry, em, mm, resolved_paths,
         os_info, level, data_dir, project_root, config_dir, parsed (namespace)
     """
-    from .core.bootstrap import EKSBootstrapManager
+    from eks.engine.core.bootstrap import EKSBootstrapManager
 
     project_root = Path(project_root)
 
@@ -190,6 +221,11 @@ def run_pipeline(
     on_phase: Optional[Callable[[str], None]] = None,
     auto_create: bool = True,
     context: Optional[Any] = None,
+    # T1.99.97–98 (I127/G3–G4): Preloaded class references from
+    # _preload_infrastructure(). When provided (by main()), used directly;
+    # when None (e.g. called from phase1_server), falls back to deferred import.
+    _PipelineOrchestrator_cls: Any = None,
+    _DocumentRegistry_cls: Any = None,
 ) -> Dict[str, Any]:
     """Run the Phase 1 pipeline, optionally a single phase. Returns a result dict.
 
@@ -214,14 +250,24 @@ def run_pipeline(
         on_phase: Optional callback invoked with phase letter after each phase.
         context: Optional pre-seeded EKSPipelineContext (T1.99.42). If provided,
             bootstrap is skipped and the context is used directly.
+        _PipelineOrchestrator_cls: Preloaded PipelineOrchestrator class (I127).
+        _DocumentRegistry_cls: Preloaded DocumentRegistry class (I127).
 
     Returns:
         dict with keys: summary (depends on phase), em, mm, config_registry,
         resolved_paths, context (EKSPipelineContext instance)
     """
-    # T1.99.80 (I114): Deferred heavy imports
-    from .core.pipeline_orchestrator import PipelineOrchestrator
-    from .core.registry import DocumentRegistry
+    # T1.99.97–98 (I127/G3–G4): Use preloaded classes when available;
+    # fall back to deferred import for callers that don't use preload
+    # (e.g. phase1_server.py, direct test imports).
+    if _PipelineOrchestrator_cls is not None:
+        PipelineOrchestrator = _PipelineOrchestrator_cls
+    else:
+        from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator  # type: ignore[no-redef]
+    if _DocumentRegistry_cls is not None:
+        DocumentRegistry = _DocumentRegistry_cls
+    else:
+        from eks.engine.core.registry import DocumentRegistry  # type: ignore[no-redef]
 
     # T1.99.42: if context is provided, skip bootstrap and use it directly
     if context is not None:
@@ -288,10 +334,13 @@ def run_pipeline(
     def _after(ph: str) -> None:
         if on_phase:
             on_phase(ph)
-        if checkpoint_dir is not None and job_id is not None:
-            orchestrator.save_checkpoint(
-                ph, checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{ph}.json"
-            )
+        # T1.99.85/I124: Per-phase checkpoint writes removed — unused by resume logic;
+        # context held in-memory via orchestrator.checkpoint_states. Restore from git
+        # history if future resume-from-checkpoint support is needed.
+        # if checkpoint_dir is not None and job_id is not None:
+        #     orchestrator.save_checkpoint(
+        #         ph, checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{ph}.json"
+        #     )
 
     if phase == "A":
         summary = {"phase_a": orchestrator.run_phase_a(root, recursive=recursive)}
@@ -325,10 +374,10 @@ def run_pipeline(
 def _read_system_params(config_dir: Path) -> Dict[str, Any]:
     """Load config to resolve schema-driven system-parameter defaults (L15)."""
     try:
-        from .core.config_registry import ConfigRegistry
+        from eks.engine.core.config_registry import ConfigRegistry
         if ConfigRegistry is not None:
             return ConfigRegistry(str(config_dir)).config
-        from .core.schema_loader import SchemaLoader
+        from eks.engine.core.schema_loader import SchemaLoader
         return SchemaLoader(config_dir).load_all()
     except Exception:
         return {}
@@ -397,6 +446,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--json", action="store_true", help="Emit the run summary as JSON to stdout.",
     )
+    parser.add_argument(
+        "--export", dest="export_format", type=str, default="none",
+        choices=["csv", "xlsx", "both", "none"],
+        help="Export pipeline results as CSV/Excel spreadsheets (default: none).",
+    )
     return parser
 
 
@@ -437,6 +491,11 @@ _EKS_CORE_ARG_SPECS = [
         "help": "Logging level (0=error, 1=info, 2=debug, 3=trace); default from "
                 "eks_config.json system_parameters.log_level (L15).",
     },
+    {
+        "opts": ["--export"], "dest": "export_format", "type": str,
+        "choices": ["csv", "xlsx", "both", "none"], "default": "none",
+        "help": "Export pipeline results as CSV/Excel spreadsheets (default: none).",
+    },
 ]
 
 
@@ -468,6 +527,9 @@ def parse_eks_cli(
     args: Optional[list] = None,
     pipeline_root_dir: str = "eks",
     pipeline_dir: str = "engine",
+    # T1.99.96 (I127/G2): Preloaded parse_cli_args from _preload_infrastructure().
+    # When provided (via bootstrap chain), used directly; falls back to bare import.
+    _parse_cli_args_fn: Any = None,
 ):
     """L18 — run the universal, schema-driven, precedence-aware EKS parse (I099).
 
@@ -476,7 +538,10 @@ def parse_eks_cli(
     ``anchor`` / ``pipeline_dir`` default to the EKS literals but accept
     explicit values (I104 / T1.99.34) so the caller owns its folder literals.
     """
-    from common.library.cli import parse_cli_args
+    if _parse_cli_args_fn is not None:
+        parse_cli_args = _parse_cli_args_fn
+    else:
+        from common.library.cli import parse_cli_args  # type: ignore[no-redef]
     return parse_cli_args(
         args,
         pipeline_root_dir=pipeline_root_dir, pipeline_dir=pipeline_dir,
@@ -564,6 +629,13 @@ def _preload_infrastructure(
         - ``should_auto_create_folders`` (Callable | None): OS-gated folder creation guard.
         - ``_UniversalLogger`` (type | None): Imported class (not instantiated).
         - ``_TelemetryHeartbeat`` (type | None): Imported class (not instantiated).
+        - ``_EKSBootstrapManager`` (type | None): Imported class (not instantiated).
+        - ``_EngineInput`` (type | None): Imported class (T1.99.95/I127).
+        - ``_EngineOutput`` (type | None): Imported class (T1.99.95/I127).
+        - ``_parse_cli_args`` (Callable | None): Imported function (T1.99.96/I127).
+        - ``_PipelineOrchestrator`` (type | None): Imported class (T1.99.97/I127).
+        - ``_DocumentRegistry`` (type | None): Imported class (T1.99.98/I127).
+        - ``_DataExporter`` (type | None): Imported class (T1.99.99/I127).
     """
     errors: list = []
 
@@ -576,6 +648,15 @@ def _preload_infrastructure(
     _discover_root = None
     _UniversalLogger = None
     _TelemetryHeartbeat = None
+    _EKSBootstrapManager = None
+    # T1.99.95–99 (I127): Pre-bind all post-bootstrap imports so a failure in
+    # any guard never causes a NameError in return dicts below.
+    _EngineInput = None
+    _EngineOutput = None
+    _parse_cli_args = None
+    _PipelineOrchestrator = None
+    _DocumentRegistry = None
+    _DataExporter = None
 
     # print message the preload will start
     print("Preload Reference Labraries now:")
@@ -620,9 +701,58 @@ def _preload_infrastructure(
 
     try:
         from common.library.core.pipeline import TelemetryHeartbeat as _TH
-        _TelemetryHeartbeat = _TH
+        from common.library.core.pipeline import EngineInput as _EI
+        from common.library.core.pipeline import EngineOutput as _EO
+        _TelemetryHeartbeat, _EngineInput, _EngineOutput = _TH, _EI, _EO
     except ImportError as e:
         msg = f"common.library.core.pipeline not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    # Step 1c: EKS-local bootstrap manager — guarded like common.library imports
+    # so a broken eks.engine.core.bootstrap raises a collected FATAL, not a bare
+    # ImportError that bypasses the preload gate (I117 / T1.99.81).
+    try:
+        from eks.engine.core.bootstrap import EKSBootstrapManager as _BSM
+        _EKSBootstrapManager = _BSM
+    except ImportError as e:
+        msg = f"eks.engine.core.bootstrap not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    # T1.99.96 (I127/G2): common.library.cli — parse_cli_args
+    try:
+        from common.library.cli import parse_cli_args as _PCA
+        _parse_cli_args = _PCA
+    except ImportError as e:
+        msg = f"common.library.cli not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    # T1.99.97 (I127/G3): eks.engine.core.pipeline_orchestrator
+    try:
+        from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator as _PO
+        _PipelineOrchestrator = _PO
+    except ImportError as e:
+        msg = f"eks.engine.core.pipeline_orchestrator not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    # T1.99.98 (I127/G4): eks.engine.core.registry — DocumentRegistry
+    try:
+        from eks.engine.core.registry import DocumentRegistry as _DR
+        _DocumentRegistry = _DR
+    except ImportError as e:
+        msg = f"eks.engine.core.registry not available: {e}"
+        errors.append(msg)
+        print(f"FATAL: {msg}", file=sys.stderr)
+
+    # T1.99.99 (I127/G5): common.library.export — DataExporter
+    try:
+        from common.library.export import DataExporter as _DE
+        _DataExporter = _DE
+    except ImportError as e:
+        msg = f"common.library.export not available: {e}"
         errors.append(msg)
         print(f"FATAL: {msg}", file=sys.stderr)
 
@@ -634,6 +764,10 @@ def _preload_infrastructure(
             "debug_mode": debug_mode,
             "safe_posix": None, "should_auto_create_folders": None,
             "_UniversalLogger": None, "_TelemetryHeartbeat": None,
+            "_EKSBootstrapManager": None,
+            "_EngineInput": None, "_EngineOutput": None,
+            "_parse_cli_args": None, "_PipelineOrchestrator": None,
+            "_DocumentRegistry": None, "_DataExporter": None,
         }
 
     # Step 2: discover project root (stdlib-only — Path + the already-imported
@@ -653,6 +787,10 @@ def _preload_infrastructure(
             "debug_mode": debug_mode,
             "safe_posix": _safe_posix, "should_auto_create_folders": _should_auto_create,
             "_UniversalLogger": _UniversalLogger, "_TelemetryHeartbeat": _TelemetryHeartbeat,
+            "_EKSBootstrapManager": _EKSBootstrapManager,
+            "_EngineInput": _EngineInput, "_EngineOutput": _EngineOutput,
+            "_parse_cli_args": _parse_cli_args, "_PipelineOrchestrator": _PipelineOrchestrator,
+            "_DocumentRegistry": _DocumentRegistry, "_DataExporter": _DataExporter,
         }
 
     return {
@@ -661,6 +799,10 @@ def _preload_infrastructure(
         "debug_mode": debug_mode,
         "safe_posix": _safe_posix, "should_auto_create_folders": _should_auto_create,
         "_UniversalLogger": _UniversalLogger, "_TelemetryHeartbeat": _TelemetryHeartbeat,
+        "_EKSBootstrapManager": _EKSBootstrapManager,
+        "_EngineInput": _EngineInput, "_EngineOutput": _EngineOutput,
+        "_parse_cli_args": _parse_cli_args, "_PipelineOrchestrator": _PipelineOrchestrator,
+        "_DocumentRegistry": _DocumentRegistry, "_DataExporter": _DataExporter,
     }
 
 
@@ -720,6 +862,14 @@ def main(args: Optional[list] = None) -> int:
     should_auto_create_folders = infra["should_auto_create_folders"]
     _UniversalLogger = infra["_UniversalLogger"]
     _TelemetryHeartbeat = infra["_TelemetryHeartbeat"]
+    EKSBootstrapManager = infra["_EKSBootstrapManager"]
+    # T1.99.100 (I127): Preloaded deferred imports — no bare imports inside main().
+    _EngineInput = infra["_EngineInput"]
+    _EngineOutput = infra["_EngineOutput"]
+    _parse_cli_args_fn = infra["_parse_cli_args"]
+    _PipelineOrchestrator = infra["_PipelineOrchestrator"]
+    _DocumentRegistry = infra["_DocumentRegistry"]
+    _DataExporter = infra["_DataExporter"]
 
     # T1.99.71 (I113): create logger + heartbeat (warm before bootstrap).
     # These are instantiated here in main() — NOT inside _preload_infrastructure()
@@ -730,7 +880,8 @@ def main(args: Optional[list] = None) -> int:
 
     # T1.99.59 + T1.99.71 (I113): use EKSBootstrapManager chain with pre-created
     # logger — mirrors DCC exactly (logger warm before bootstrap_all).
-    from .core.bootstrap import EKSBootstrapManager
+    # EKSBootstrapManager class pre-loaded and guarded in _preload_infrastructure()
+    # (Step 1c) — no bare import here.
     mgr = EKSBootstrapManager(
         project_root=prj,
         pipeline_root_dir=pipeline_root_dir,
@@ -740,6 +891,9 @@ def main(args: Optional[list] = None) -> int:
         auto_create=True,
         logger=logger,
     )
+    # T1.99.96 (I127/G2): Inject preloaded parse_cli_args so the CLI parser
+    # uses the preloaded reference instead of a bare import inside parse_eks_cli.
+    mgr._preloaded_parse_cli_args = _parse_cli_args_fn
     mgr.bootstrap_all(args)
 
     # Extract bootstrap results from the manager
@@ -751,6 +905,7 @@ def main(args: Optional[list] = None) -> int:
     config_dir = mgr.config_dir
     resolved = mgr.resolved_paths
     mm = mgr.message_manager
+    export_fmt = parsed.export_format if parsed else "none"
 
     # L11 — entry milestone printing (logger already created pre-bootstrap)
     if mm is not None:
@@ -758,13 +913,13 @@ def main(args: Optional[list] = None) -> int:
 
     # Reconcile heartbeat level if bootstrap resolved a different level
     if level != early_level:
-        hb = TelemetryHeartbeat(enabled=level >= 2)
+        hb = _TelemetryHeartbeat(enabled=level >= 2)
         hb.start()
 
     try:
-        # T1.99.80 (I114): Deferred heavy imports — only after bootstrap
-        # (which includes test_environment()) has succeeded.
-        from common.library.core.pipeline import EngineInput, EngineOutput
+        # T1.99.95 (I127/G1): Use preloaded references — no bare import here.
+        EngineInput = _EngineInput
+        EngineOutput = _EngineOutput
 
         # T1.99.60–61: collapse manual context assembly — use to_pipeline_context()
         ctx = mgr.to_pipeline_context()
@@ -782,6 +937,17 @@ def main(args: Optional[list] = None) -> int:
             },
         )
 
+        # T1.99.154 (I189/F2 fix): Capture pre-run document set BEFORE
+        # run_pipeline() registers new documents. The export block later
+        # uses this to scope exports to only docs from this invocation.
+        pre_doc_numbers: set = set()
+        if export_fmt != "none":
+            try:
+                reg_pre = _DocumentRegistry(logger=logger)
+                pre_doc_numbers = {d["document_number"] for d in reg_pre.list_documents(latest_only=True)}
+            except Exception:
+                pass  # if registry unavailable, pre_doc_numbers stays empty → export all
+
         # T1.99.59: pass context to run_pipeline (skips bootstrap, DCC pattern)
         result = run_pipeline(
             project_root=project_root,
@@ -794,6 +960,8 @@ def main(args: Optional[list] = None) -> int:
             phase=parsed.phase if parsed else "full",
             auto_create=should_auto_create_folders(os_info),
             context=ctx,
+            _PipelineOrchestrator_cls=_PipelineOrchestrator,
+            _DocumentRegistry_cls=_DocumentRegistry,
         )
         summary = result["summary"]
         returned_ctx = result.get("context")
@@ -804,11 +972,96 @@ def main(args: Optional[list] = None) -> int:
         })
         hb.stop()
 
+        # T1.99.93/I126 — Export pipeline results as CSV/Excel spreadsheets
+        # Export in main() after run_pipeline() returns; not in PipelineOrchestrator.
+        # The orchestrator stays pure (processing only); export is output formatting.
+        # export_fmt computed earlier (pre-bootstrap); pre_doc_numbers captured
+        # before run_pipeline() (T1.99.154 / I189/F2 fix).
+        exported_files: list = []
+        if export_fmt != "none" and returned_ctx is not None:
+            # T1.99.99–100 (I127/G5–G6): Use preloaded references — no bare imports.
+            DataExporter = _DataExporter
+            DocumentRegistry = _DocumentRegistry
+            if DataExporter is None or DocumentRegistry is None:
+                logger.warning("Export module not available — skipping export", context="main")
+            else:
+                try:
+                    exporter = DataExporter()
+                    output_dir = Path(resolved.get("output_dir",
+                        project_root / "eks" / "output"))
+
+                    # T1.99.153 (I189/F3): Per-run output subdirectory to prevent
+                    # test-production file overwrite. Each run writes to
+                    # output/<run_id>/ isolating exports from concurrent/CI runs.
+                    run_output_dir = output_dir / engine_in.run_id
+                    run_output_dir.mkdir(parents=True, exist_ok=True)
+
+                    # Query registry for document data (read-only, post-pipeline)
+                    reg = DocumentRegistry(logger=logger)
+                    all_docs = reg.list_documents(latest_only=True, order_by="document_number")
+
+                    # Filter to only documents registered during this run (I189/F2)
+                    run_docs = [d for d in all_docs if d["document_number"] not in pre_doc_numbers]
+                    logger.info(
+                        f"Export: {len(run_docs)} new docs (from {len(all_docs)} total, "
+                        f"{len(pre_doc_numbers)} pre-existing)", context="main"
+                    )
+
+                    # Phase A: discovery_inventory
+                    discovery_cols = [
+                        "document_number", "revision", "document_type",
+                        "file_type", "file_path", "ingested_at",
+                    ]
+                    discovery_rows = _build_export_rows(run_docs, None, discovery_cols)
+
+                    # Phase B: extraction_results — all documents with status + page count
+                    extraction_cols = discovery_cols + [
+                        "page_count", "extract_status", "extraction_confidence",
+                        "extraction_notes",
+                    ]
+                    extraction_rows = _build_export_rows(run_docs, None, extraction_cols)
+
+                    # Phase C: review_flags — documents needing attention
+                    review_cols = [
+                        "document_number", "revision", "document_type",
+                        "extract_status", "extraction_confidence", "extraction_notes",
+                        "flag_reason", "ingested_at",
+                    ]
+                    flagged_rows = _build_flagged_rows(run_docs, review_cols)
+
+                    # Write files to per-run subdirectory (I189/F3)
+                    if export_fmt in ("csv", "both"):
+                        if discovery_rows:
+                            p = exporter.export_to_csv(discovery_rows, run_output_dir / "discovery_inventory.csv", columns=discovery_cols)
+                            exported_files.append(str(p))
+                        if extraction_rows:
+                            p = exporter.export_to_csv(extraction_rows, run_output_dir / "extraction_results.csv", columns=extraction_cols)
+                            exported_files.append(str(p))
+                        if flagged_rows:
+                            p = exporter.export_to_csv(flagged_rows, run_output_dir / "review_flags.csv", columns=review_cols)
+                            exported_files.append(str(p))
+                    if export_fmt in ("xlsx", "both"):
+                        if discovery_rows:
+                            p = exporter.export_to_excel(discovery_rows, run_output_dir / "discovery_inventory.xlsx", sheet_name="Discovery", columns=discovery_cols)
+                            exported_files.append(str(p))
+                        if extraction_rows:
+                            p = exporter.export_to_excel(extraction_rows, run_output_dir / "extraction_results.xlsx", sheet_name="Extraction", columns=extraction_cols)
+                            exported_files.append(str(p))
+                        if flagged_rows:
+                            p = exporter.export_to_excel(flagged_rows, run_output_dir / "review_flags.xlsx", sheet_name="Review Flags", columns=review_cols)
+                            exported_files.append(str(p))
+
+                    if exported_files:
+                        logger.status(f"Exported {len(exported_files)} file(s) to {run_output_dir}", context="main")
+
+                except Exception as e:
+                    logger.warning(f"Export failed: {e}", context="main")
+
         # L08 — wrap the run in the common EngineOutput contract for structured output
         engine_out = EngineOutput(
             run_id=engine_in.run_id,
             status="SUCCESS" if returned_ctx and returned_ctx.state.status == "COMPLETE" else "FAILED",
-            output_files=[],
+            output_files=exported_files,
             metadata={"phase": parsed.phase if parsed else "full", "summary": summary},
             errors=[],
             checkpoint_state={"last_completed_phase": _last_phase(parsed.phase if parsed else "full")},
@@ -823,6 +1076,101 @@ def main(args: Optional[list] = None) -> int:
         logger.error(f"Pipeline failed: {e}", context="eks-pipeline")
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
+
+
+# ---------------------------------------------------------------------------
+# T1.99.93/I126 — Export row helpers
+# ---------------------------------------------------------------------------
+
+def _build_export_rows(
+    docs: list,
+    status_filter: Optional[list] = None,
+    columns: Optional[list] = None,
+) -> list:
+    """Build export-safe rows from document registry results.
+
+    Args:
+        docs: List of document dicts from ``registry.list_documents()``.
+        status_filter: If provided, only include docs whose ``extract_status``
+                       is in this list (e.g. ``["pending"]`` for discovery).
+        columns: Column ordering (for consistent output).
+
+    Returns:
+        List of dicts suitable for ``DataExporter``.
+    """
+    rows = []
+    for doc in docs:
+        if status_filter is not None:
+            if doc.get("extract_status", "pending") not in status_filter:
+                continue
+        row = {
+            "document_number": doc.get("document_number", ""),
+            "revision": doc.get("revision", ""),
+            "document_type": doc.get("document_type", ""),
+            "file_type": doc.get("source_type", doc.get("file_type", "")),
+            "file_path": doc.get("file_path", ""),
+            "ingested_at": doc.get("ingested_at", ""),
+            "page_count": doc.get("page_count", ""),
+            "extract_status": doc.get("extract_status", "pending"),
+            "extraction_confidence": doc.get("extraction_confidence", ""),
+            "extraction_notes": doc.get("extraction_notes", ""),
+        }
+        # Subset to requested columns if specified
+        if columns:
+            row = {k: row.get(k, "") for k in columns}
+        rows.append(row)
+    return rows
+
+
+def _build_flagged_rows(
+    docs: list,
+    columns: Optional[list] = None,
+) -> list:
+    """Build review-flag rows for documents needing human attention.
+
+    Flags documents where:
+    - ``extract_status`` is not ``"success"``, or
+    - ``extraction_confidence`` is below 0.70 (or missing)
+
+    Adds a ``flag_reason`` column with a human-readable explanation.
+    """
+    rows = []
+    for doc in docs:
+        status = doc.get("extract_status", "pending")
+        confidence = doc.get("extraction_confidence")
+        notes = doc.get("extraction_notes", "")
+
+        # Determine flag reasons
+        reasons = []
+        if status != "success":
+            reasons.append(f"Status: {status}")
+        if confidence is not None:
+            try:
+                conf_val = float(confidence)
+            except (ValueError, TypeError):
+                conf_val = 0.0
+            if conf_val < 0.70:
+                reasons.append(f"Low confidence: {conf_val:.2f}")
+        else:
+            reasons.append("Confidence: missing")
+
+        if not reasons:
+            continue  # skip clean docs
+
+        row = {
+            "document_number": doc.get("document_number", ""),
+            "revision": doc.get("revision", ""),
+            "document_type": doc.get("document_type", ""),
+            "extract_status": status,
+            "extraction_confidence": confidence if confidence is not None else "",
+            "extraction_notes": notes,
+            "flag_reason": "; ".join(reasons),
+            "ingested_at": doc.get("ingested_at", ""),
+        }
+        if columns:
+            row = {k: row.get(k, "") for k in columns}
+        rows.append(row)
+    return rows
 
 
 if __name__ == "__main__":

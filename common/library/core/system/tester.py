@@ -8,10 +8,14 @@ and made project-agnostic — accepts a ``dependencies`` dict rather than readin
 Stdlib-only — uses only ``importlib``, ``platform``, ``json``, ``sys``,
 ``pathlib`` — so it can run before any heavy project imports are attempted.
 
-Revision: 0.1
+Revision: 0.2
 Date: 2026-07-17
 Author: opencode
-Summary: T1.99.75 — Universal test_environment() extracted from DCC for L20.
+Summary: 0.2 — Added PIP_TO_IMPORT mapping so pip distribution names like
+         ``python-docx``, ``qdrant-client``, ``pymupdf`` are translated to
+         their actual importable module names (``docx``, ``qdrant_client``,
+         ``fitz``) before calling ``importlib.import_module()``.
+         Original: 0.1 — T1.99.75 — Universal test_environment() extracted from DCC for L20.
 """
 from __future__ import annotations
 
@@ -20,6 +24,39 @@ import platform
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+# ---------------------------------------------------------------------------
+# Mapping from pip distribution name → importable module name.
+# Only entries that differ need to be listed here.
+# ---------------------------------------------------------------------------
+_PIP_TO_IMPORT: Dict[str, str] = {
+    "python-docx": "docx",
+    "qdrant-client": "qdrant_client",
+    "pymupdf": "fitz",
+    "pillow": "PIL",
+    "scikit-learn": "sklearn",
+    "beautifulsoup4": "bs4",
+    "python-dateutil": "dateutil",
+    "python-multipart": "multipart",
+    "rank-bm25": "rank_bm25",
+    "sentence-transformers": "sentence_transformers",
+    "psycopg2-binary": "psycopg2",
+}
+
+
+def _resolve_import_name(pip_name: str) -> str:
+    """Return the importable module name for a given pip distribution name.
+
+    Falls back to the pip name itself (with hyphens replaced by underscores)
+    when no explicit mapping is found.
+
+    Args:
+        pip_name: The pip distribution name (e.g. ``"python-docx"``).
+
+    Returns:
+        The importable module name (e.g. ``"docx"``).
+    """
+    return _PIP_TO_IMPORT.get(pip_name, pip_name.replace("-", "_"))
 
 
 def test_environment(
@@ -73,31 +110,34 @@ def test_environment(
     }
 
     # ---- required modules ----
-    for module_name in required_modules:
+    for pip_name in required_modules:
+        import_name = _resolve_import_name(pip_name)
         try:
-            importlib.import_module(module_name)
-            results["required_modules"][module_name] = "ok"
+            importlib.import_module(import_name)
+            results["required_modules"][pip_name] = "ok"
         except Exception as exc:
-            results["required_modules"][module_name] = f"error: {exc}"
-            results["errors"].append(f"{module_name}: {exc}")
+            results["required_modules"][pip_name] = f"error: {exc}"
+            results["errors"].append(f"{pip_name}: {exc}")
 
     # ---- optional modules ----
-    for module_name in optional_modules:
+    for pip_name in optional_modules:
+        import_name = _resolve_import_name(pip_name)
         try:
-            importlib.import_module(module_name)
-            results["optional_modules"][module_name] = "ok"
+            importlib.import_module(import_name)
+            results["optional_modules"][pip_name] = "ok"
         except Exception as exc:
-            results["optional_modules"][module_name] = f"warning: {exc}"
+            results["optional_modules"][pip_name] = f"warning: {exc}"
 
     # ---- engine modules (with attribute verification) ----
-    for module_name, attributes in engine_modules:
+    for pip_name, attributes in engine_modules:
+        import_name = _resolve_import_name(pip_name)
         try:
-            mod = importlib.import_module(module_name)
+            mod = importlib.import_module(import_name)
             for attr in attributes:
                 getattr(mod, attr)
-            results["engine_modules"][module_name] = "ok"
+            results["engine_modules"][pip_name] = "ok"
         except Exception as exc:
-            results["engine_modules"][module_name] = f"warning: {exc}"
+            results["engine_modules"][pip_name] = f"warning: {exc}"
 
     results["ready"] = not results["errors"]
     return results

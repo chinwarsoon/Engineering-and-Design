@@ -47,7 +47,7 @@ class ConfigRegistry:
             path = d / filename
             if path.exists():
                 with open(str(path), "r", encoding="utf-8") as f:
-                    return json.load(6)
+                    return json.load(f)
         return ref_obj
 
     @property

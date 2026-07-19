@@ -5,6 +5,13 @@ T1.63: Enhanced with checkpoints and telemetry heartbeat integration per Appendi
 T1.64: Added phase rollback capability per Appendix F.
 T1.68: Wired ErrorManager/MessageManager calls at phase boundaries and per-file failures.
 T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_document_status().
+
+Revision: 0.2
+Date: 2026-07-18
+Author: opencode
+Summary: 0.1: Initial orchestrator with checkpoint/telemetry/rollback/messaging integration.
+0.2: T1.99.85/I124 — commented out per-phase checkpoint writes in run_full_pipeline()
+     _after() closure; checkpoint unused by resume logic; context held in-memory.
 """
 from datetime import datetime
 from pathlib import Path
@@ -21,6 +28,8 @@ from .message_manager import MessageManager
 from .io_contracts import DiscoveryInput, DiscoveryOutput, HealthInput, HealthOutput
 from ..parsers.io_contracts import ParserInput, ParserOutput
 from .base import ErrorRecord, ValidationResult
+from .filename_parser import FilenameParser
+from .file_property_parser import FilePropertyExtractor
 
 
 class PipelineOrchestrator:
@@ -66,6 +75,22 @@ class PipelineOrchestrator:
         self.router = ParserRouter(doc_config, logger=self.logger, use_factory=True)
         self.scorer = HealthScorer(logger=self.logger)
         self.detector = StructureDetector(logger=self.logger)
+
+        # T1.99.116: Shared FilenameParser for Phase B inline replacements
+        filename_patterns = doc_config.get("filename_patterns", {})
+        document_type_registry = doc_config.get("document_type_registry", [])
+        self._parser = FilenameParser(
+            filename_patterns=filename_patterns,
+            project_code=None,
+            document_type_registry=document_type_registry,
+        )
+
+        # T1.99.134: FilePropertyExtractor for Phase B property extraction (Appendix J)
+        file_property_patterns = doc_config.get("file_property_patterns", {})
+        self._property_extractor = FilePropertyExtractor(
+            file_property_patterns=file_property_patterns,
+            logger=self.logger,
+        )
         
         # Initialize telemetry heartbeat
         self.telemetry = TelemetryHeartbeat(enabled=use_telemetry, verbose=False)
@@ -312,7 +337,7 @@ class PipelineOrchestrator:
             else:
                 failed += 1
                 if self.error_manager:
-                    self.error_manager.handle_data_error("D5-PARSE-001", doc_id=str(file_path),
+                    self.error_manager.handle_data_error("P5-F-V-0001", doc_id=str(file_path),
                                                           detail=f"File processing failed with status: {status}")
             
             # Add telemetry checkpoint for each file processed
@@ -452,11 +477,14 @@ class PipelineOrchestrator:
         def _after(phase: str) -> None:
             if on_phase:
                 on_phase(phase)
-            if checkpoint_dir is not None and job_id is not None:
-                self.save_checkpoint(
-                    phase,
-                    checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{phase}.json",
-                )
+            # T1.99.85/I124: Per-phase checkpoint writes removed — unused by resume logic;
+            # context held in-memory via self.checkpoint_states. Restore from git
+            # history if future resume-from-checkpoint support is needed.
+            # if checkpoint_dir is not None and job_id is not None:
+            #     self.save_checkpoint(
+            #         phase,
+            #         checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{phase}.json",
+            #     )
 
         try:
             phase_a = self.run_phase_a(root_dir, recursive=recursive)
@@ -533,7 +561,7 @@ class PipelineOrchestrator:
                 result["status"] = "failed"
                 pout.status = "FAILED"
                 if self.error_manager:
-                    self.error_manager.handle_data_error("D5-PARSE-002", doc_id=str(file_path),
+                    self.error_manager.handle_data_error("P5-F-S-0002", doc_id=str(file_path),
                                                           detail=parse_result.get("error", "Parse failed"))
                 self._update_doc_status(file_path, "failed", notes=result["error"])
                 return result
@@ -545,6 +573,25 @@ class PipelineOrchestrator:
                 pages = self._adapt_content_for_detector(content_blocks)
                 elements = self.detector.detect(file_path, pages=pages)
                 result["elements"] = elements
+
+                # T1.99.143: Extract revision_description from revision_table elements
+                revision_desc = None
+                for el in elements:
+                    if el.get("element_type") == "revision_table" and el.get("content"):
+                        # Use the first revision_table element's content as the description
+                        content = el.get("content", "")
+                        if isinstance(content, dict):
+                            # Try common keys: description, change_summary, revision_notes
+                            revision_desc = (
+                                content.get("description")
+                                or content.get("change_summary")
+                                or content.get("revision_notes")
+                                or str(content)
+                            )
+                        elif isinstance(content, str) and content.strip():
+                            revision_desc = content.strip()
+                        if revision_desc:
+                            break
             except Exception as e:
                 self.logger.warning(
                     f"Structure detection failed for {file_path}: {e}",
@@ -554,7 +601,9 @@ class PipelineOrchestrator:
                     self.error_manager.handle_data_error("D5-DETECT-001", doc_id=str(file_path),
                                                           detail=f"Structure detection failed: {e}")
 
-            doc_number = Path(file_path).stem.split("_rev")[0].rsplit("-", 1)[0]
+            # T1.99.116: Use shared FilenameParser instead of inline one-liner
+            parse_result = self._parser.parse(Path(file_path).name)
+            doc_number = parse_result.document_number or Path(file_path).stem
             doc = self.registry.get_document(doc_number)
             if doc:
                 try:
@@ -564,10 +613,28 @@ class PipelineOrchestrator:
                     pout.content_blocks = content_blocks
                     pout.metadata = metadata
                     pout.elements = elements
+
+                    # T1.99.135: Extract file properties (OS stat + embedded metadata)
+                    # and persist to registry via update_document_status(extra_properties=...)
+                    prop_result = self._property_extractor.extract(
+                        str(file_path), file_type, parser_metadata=metadata
+                    )
+                    registry_props = prop_result.to_registry_dict()
+                    # T1.99.143: Attach revision_description from element extraction
+                    if revision_desc:
+                        registry_props["revision_description"] = revision_desc
+                    self.logger.debug(
+                        f"File properties extracted for {Path(file_path).name}: "
+                        f"size={prop_result.file_size}, status={prop_result.extract_status}, "
+                        f"props={len(registry_props)} fields",
+                        context="PipelineOrchestrator._process_file",
+                    )
+
                     self._update_doc_status(
                         file_path, "success",
                         confidence=score.get("overall"),
-                        notes=f"Auto-parsed via pipeline"
+                        notes=f"Auto-parsed via pipeline",
+                        extra_properties=registry_props,
                     )
                     result["status"] = "success"
                     pout.status = "SUCCESS"
@@ -581,7 +648,7 @@ class PipelineOrchestrator:
                 result["status"] = "partial"
                 result["error"] = f"Document not registered: {doc_number}"
                 if self.error_manager:
-                    self.error_manager.handle_data_error("D5-PARSE-003", doc_id=str(file_path),
+                    self.error_manager.handle_data_error("P5-R-P-0003", doc_id=str(file_path),
                                                           detail=f"Document not registered: {doc_number}")
 
         except Exception as e:
@@ -630,9 +697,15 @@ class PipelineOrchestrator:
 
     def _update_doc_status(self, file_path: str, status: str,
                            confidence: Optional[float] = None,
-                           notes: Optional[str] = None) -> None:
+                           notes: Optional[str] = None,
+                           extra_properties: Optional[Dict[str, Any]] = None) -> None:
         """Update document extraction status in registry using registry.update_document_status()."""
-        doc_number = Path(file_path).stem.split("_rev")[0].rsplit("-", 1)[0]
+        # T1.99.116: Use shared FilenameParser instead of inline one-liner
+        parse_result = self._parser.parse(Path(file_path).name)
+        doc_number = parse_result.document_number or Path(file_path).stem
         doc = self.registry.get_document(doc_number)
         if doc:
-            self.registry.update_document_status(doc["id"], status, confidence=confidence, notes=notes)
+            self.registry.update_document_status(
+                doc["id"], status, confidence=confidence, notes=notes,
+                extra_properties=extra_properties,
+            )

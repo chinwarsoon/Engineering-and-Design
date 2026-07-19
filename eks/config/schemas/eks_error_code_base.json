@@ -3,7 +3,7 @@
   "$id": "https://eks.engineering/schemas/eks_error_code_base.json",
   "title": "EKS Error Code Base Schema",
   "description": "Base definitions for EKS error code taxonomy (definitions only - no properties)",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "type": "object",
   "definitions": {
     "layer_code": {
@@ -18,8 +18,8 @@
     },
     "function_code": {
       "type": "string",
-      "enum": ["P", "V", "C", "F", "S", "X", "G", "E"],
-      "description": "Function type code: P=Process, V=Validate, C=Calculate, F=Filter, S=System, X=Cross-reference, G=Graph, E=Extract"
+      "enum": ["P", "V", "C", "F", "S", "X", "G", "E", "PROP"],
+      "description": "Function type code: P=Process, V=Validate, C=Calculate, F=Filter, S=System, X=Cross-reference, G=Graph, E=Extract, PROP=File Property Extraction"
     },
     "unique_id": {
       "type": "string",
@@ -38,13 +38,13 @@
     },
     "error_code_format": {
       "type": "string",
-      "pattern": "^P[0-9]-[A-Z]-[A-Z]-[0-9]{4}$",
-      "description": "Data error code in P{M}-{Module}-{Function}-{ID} format"
+      "pattern": "^P[0-9]-[A-Z]-[A-Z]+-[0-9]{4}$",
+      "description": "Data error code in P{M}-{Module}-{Function}-{ID} format (Function may be multi-char, e.g. PROP)"
     },
     "system_error_code_format": {
       "type": "string",
-      "pattern": "^(S-[A-Z]-S-[0-9]{4}|P1-SETUP-[A-Z0-9]+|P1-BOOT-[A-Z0-9]+)$",
-      "description": "System error code: S-{Category}-S-{ID}, P1-SETUP-{type}{id}, or P1-BOOT-{type} format (P1-BOOT added T1.99.62)"
+      "pattern": "^(S-[A-Z]-S-[0-9]{4}|P1-SETUP-[A-Z0-9]+|P1-BOOT-[A-Z0-9]+|B-[A-Za-z0-9_]+-[A-Za-z0-9]+)$",
+      "description": "System error code: S-{Category}-S-{ID}, P1-SETUP-{type}{id}, P1-BOOT-{reason}, or B-{module}-{id} format (B-* added T1.99.65 / I112)"
     },
     "data_error_entry": {
       "type": "object",
@@ -103,7 +103,7 @@
         "system_codes": { "type": "integer" },
         "data_logic_codes": { "type": "integer" },
         "data_logic_format": { "type": "string", "enum": ["P{phase}-{module}-{function}-{id}"] },
-        "system_format": { "type": "string", "enum": ["S-{category}-S-{id}", "P1-SETUP-{type}{id}"] }
+        "system_format": { "type": "string", "enum": ["S-{category}-S-{id}", "P1-SETUP-{type}{id}", "S-{cat}-S-{id} | P1-SETUP-{type}{id} | P1-BOOT-{reason} | B-{module}-{id}"] }
       }
     },
     "migration_log_entry": {

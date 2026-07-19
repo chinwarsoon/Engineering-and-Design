@@ -1,11 +1,15 @@
 """
 File Scanner for EKS - Walk project directory, validate file types, register placeholders.
 T1.37: Phase A of pipeline workflow.
+Revision 1.5.0 — T1.99.148 (I187): migrated synthetic key generation to common.library.utility.synthetic_key; removed ad-hoc hashlib usage.
 """
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+from common.library.utility.synthetic_key import generate_synthetic_key
+from common.library.utility.file_hash import compute_file_hash
 from ..logging.logger import EKSLogger, log_depth
+from .filename_parser import FilenameParser
 
 
 class FileScanner:
@@ -24,6 +28,14 @@ class FileScanner:
         self.document_type_registry = self.doc_config.get("document_type_registry", [])
         self._ext_map = self._build_extension_map()
         self._doc_type_expected = self._build_expected_types_map()
+
+        # T1.99.115: FilenameParser — shared instance, project_code=None defaults to "*" pattern
+        filename_patterns = self.doc_config.get("filename_patterns", {})
+        self._parser = FilenameParser(
+            filename_patterns=filename_patterns,
+            project_code=None,
+            document_type_registry=self.document_type_registry,
+        )
 
     def _build_extension_map(self) -> Dict[str, Dict[str, Any]]:
         """Map file extension (without dot) to file_type_registry entry."""
@@ -119,7 +131,7 @@ class FileScanner:
     def build_placeholder_metadata(self, file_info: Dict[str, Any]) -> Dict[str, Any]:
         """
         Build a placeholder metadata dict for a discovered file.
-        Extracts filename-based metadata using simple heuristics.
+        Uses schema-driven FilenameParser for field extraction (T1.99.115).
         """
         file_name = file_info["file_name"]
         file_path = file_info["file_path"]
@@ -132,36 +144,16 @@ class FileScanner:
             "extract_status": "pending",
         }
 
-        parsed = self._parse_filename(file_name)
-        metadata.update(parsed)
+        # T1.99.115: Use shared FilenameParser instance
+        result = self._parser.parse(file_name)
+        metadata.update(result.to_metadata_dict())
+        metadata["parse_status"] = result.parse_status
+        metadata["parse_errors"] = result.parse_errors
+
+        # Safety net: guarantee 'revision' key exists before downstream use. (I131)
+        metadata.setdefault("revision", "00")
 
         return metadata
-
-    def _parse_filename(self, file_name: str) -> Dict[str, Any]:
-        """
-        Parse filename to extract document_number and revision.
-        Supports patterns like:
-            DOC-001-A.pdf → doc_number=DOC-001, revision=A
-            DOC-001_revA.pdf → doc_number=DOC-001, revision=A
-            DOC-001.pdf → doc_number=DOC-001, revision=None
-        """
-        stem = Path(file_name).stem
-        result: Dict[str, Any] = {}
-
-        parts = stem.split("_rev", 1)
-        if len(parts) == 2:
-            result["document_number"] = parts[0]
-            result["revision"] = parts[1]
-            return result
-
-        parts = stem.rsplit("-", 1)
-        if len(parts) == 2 and len(parts[1]) <= 3:
-            result["document_number"] = parts[0]
-            result["revision"] = parts[1]
-            return result
-
-        result["document_number"] = stem
-        return result
 
     @log_depth
     def register_placeholders(self, valid_files: List[Dict[str, Any]], registry) -> int:
@@ -169,34 +161,90 @@ class FileScanner:
         Register placeholder rows in the documents table for discovered files.
         Uses DocumentRegistry.register_document() for each file.
 
+        T1.99.151 (I185): Three-tier composite-key check:
+          1. get_latest_by_key(doc_number, revision) — no row → register
+          2. hash match → content unchanged → skip
+          3. hash mismatch → content changed → register new row + supersedes chain
+
+        T1.99.148 (I187): L2 null-tolerant — generates synthetic key via common library.
+        T1.99.119: L2 null-tolerant — generates synthetic UNRESOLVED-{hash} key
+        instead of skipping files with unresolvable document_number.
+
         Returns count of files registered.
         """
         self.logger.status(f"Registering {len(valid_files)} placeholder documents")
         count = 0
+        skipped = 0
+        superseded = 0
         for file_info in valid_files:
             metadata = self.build_placeholder_metadata(file_info)
             doc_number = metadata.get("document_number")
             revision = metadata.get("revision")
-            if not doc_number:
-                self.logger.warning(
-                    f"Cannot register file without document_number: {file_info['file_name']}",
-                    context="FileScanner.register_placeholders"
-                )
-                continue
 
-            existing = registry.get_document(doc_number, revision=revision)
-            if existing:
-                self.logger.info(
-                    f"Document already registered: {doc_number}-{revision or 'latest'}",
+            # T1.99.148 (I187): L2 — generate synthetic key via common library
+            if not doc_number:
+                file_path = metadata.get("file_path", file_info.get("file_name", "unknown"))
+                synthetic_key = generate_synthetic_key(file_path)
+                self.logger.warning(
+                    f"Unresolvable filename — generating synthetic key {synthetic_key} for: {file_info['file_name']}",
                     context="FileScanner.register_placeholders"
                 )
-                continue
+                metadata["document_number"] = synthetic_key
+                metadata["parse_status"] = "unresolvable"
+                doc_number = synthetic_key
+                if not revision:
+                    revision = "00"
+                    metadata["revision"] = revision
+
+            # T1.99.151 (I185): Three-tier composite-key check
+            # Tier 1 — key lookup: get latest row for (document_number, revision)
+            existing = None
+            try:
+                existing = registry.get_latest_by_key(doc_number, revision)
+            except AttributeError:
+                # Fallback for registries that don't yet have get_latest_by_key
+                existing = registry.get_document(doc_number, revision=revision)
+
+            if existing:
+                # Tier 2 — hash match: compute current file hash
+                try:
+                    current_hash = compute_file_hash(metadata["file_path"])
+                    metadata["file_hash"] = current_hash
+                except Exception:
+                    # Hash computation failed — register anyway (best-effort)
+                    current_hash = None
+
+                if current_hash and current_hash == existing.get("file_hash"):
+                    # Content unchanged → skip
+                    self.logger.info(
+                        f"Content unchanged — skipping: {doc_number}-{revision}",
+                        context="FileScanner.register_placeholders"
+                    )
+                    skipped += 1
+                    continue
+
+                # Tier 3 — hash mismatch: content has changed → register new row
+                self.logger.warning(
+                    f"Content change detected — creating supersedes chain: "
+                    f"{existing.get('id')} → {doc_number}-{revision}",
+                    context="FileScanner.register_placeholders"
+                )
+                superseded += 1
+                # metadata["file_hash"] already set above; registry handles supersedes chain
+            else:
+                # Tier 1 result: no existing row → compute hash for first-time registration
+                try:
+                    metadata["file_hash"] = compute_file_hash(metadata["file_path"])
+                except Exception:
+                    pass  # best-effort
 
             metadata["document_type"] = self._infer_doc_type(file_info["file_type"])
             registry.register_document(metadata)
             count += 1
 
-        self.logger.status(f"Registered {count} new placeholder documents")
+        self.logger.status(
+            f"Registered {count} new placeholder documents ({skipped} skipped, {superseded} superseded)"
+        )
         return count
 
     def _infer_doc_type(self, file_type: str) -> Optional[str]:
