@@ -131,6 +131,12 @@ class SchemaToDDL:
             for def_name in ["project_metadata_def", "document_metadata_def"]:
                 req = self.definitions.get(def_name, {}).get("required", [])
                 required_fields.update(req)
+            # T1.99.164 (I196): Apply always_nullable override for migration DDL
+            # — matches generate_documents_ddl() behavior so that columns added
+            # via ALTER TABLE get the same nullability as columns created via
+            # CREATE TABLE.
+            always_nullable = {"project_title", "project_number", "area", "discipline", "department"}
+            required_fields = required_fields - always_nullable
         elif table_name == "document_elements":
             el_def = self.definitions.get("document_element_def", {})
             all_props = el_def.get("properties", {})

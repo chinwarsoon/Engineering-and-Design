@@ -1,8 +1,8 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 **Document ID**: WP-EKS-P1-001  
-**Current Version**: 4.6
-**Status**: 🔷 IN PROGRESS — §44 ✅ COMPLETE (T1.99.141–145). §45 ✅ COMPLETE (T1.99.146). All 15 new metadata columns implemented across 6 tasks (U192). 6 gaps deferred to Phase 2. §46 🔷 PLANNED (I184–I187 — file registration, change detection & cross-project abstraction, T1.99.147–152). §32.8 ✅ COMPLETE (I189 — T1.99.153–156).
+**Current Version**: 4.7
+**Status**: 🔷 IN PROGRESS — §44 ✅ COMPLETE (T1.99.141–145). §45 ✅ COMPLETE (T1.99.146). All 15 new metadata columns implemented across 6 tasks (U192). 6 gaps deferred to Phase 2. §46 🔷 PLANNED (I184–I187 — file registration, change detection & cross-project abstraction, T1.99.147–152). §32.8 ✅ COMPLETE (I189 — T1.99.153–156). §47 ✅ COMPLETE (I193 — schema-driven export, T1.99.157–162). §48 🔷 WAVES 1-2 COMPLETE (I195–I202 — Appendix D vs. Pipeline cross-source audit, 7 gaps closed T1.99.163–168). Waves 3-5 🟡 deferred (I203–I207 docs-only, T1.99.169–175). **§49 🔷 PLANNED (I208–I225 — Appendix E+F vs. Pipeline Architecture cross-source audit, 16 actionable tasks across 5 waves, T1.99.179–193).**
 **Last Updated**: 2026-07-19
 **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)  
 **Phase Dependency**: None — first phase  
@@ -50523,6 +50523,481 @@ I184 (diff logging) ─────────────── independent (b
 - [x] All 36 tests pass
 - [x] I189 → Resolved
 - [x] `eks/output/` clean — no stale CSV/XLSX files
+
+---
+
+## 47. Schema-Driven Export Columns — Replace Hardcoded 11-Field Subset (I193) — ✅ COMPLETE
+
+### 47.1 Objective
+
+Replace the hardcoded 11-field export row builder in `_build_export_rows()` with schema-driven column resolution. The `eks_doc_base_schema.json` `document_metadata_def` already defines 54 fields — but only 11 are exported because `_build_export_rows()` manually constructs a dict with exactly those 11 keys. Add an `x_export` boolean flag to every field in the schema and an `export_artifact_def` enumerating the 3 export artifacts with their column subsets. The pipeline will read columns from schema at runtime instead of hardcoded lists.
+
+### 47.2 Scope Summary
+
+| Scope | Description |
+|:---|:---|
+| **Schema** | `eks_doc_base_schema.json` — add `x_export` (boolean) to every property in `document_metadata_def` and `project_metadata_def`; add new `export_artifact_def` enumerating 3 artifacts via `$ref` |
+| **Pipeline** | `eks_engine_pipeline.py` — replace hardcoded `discovery_cols`/`extraction_cols`/`review_cols` lists with schema-driven resolution; update `_build_export_rows()` and `_build_flagged_rows()` to accept full doc dicts |
+| **Registry** | `registry.py` — (no change needed; `list_documents()` already returns `SELECT *`) |
+| **Test** | `test_phase1.py` — add schema-validation tests for `x_export` flag and `export_artifact_def`; update export tests to verify all expected columns present |
+
+### 47.3 Current State vs Target State
+
+| Aspect | Current (broken) | Target (schema-driven) |
+|:---|:---|:---|
+| **Columns in DB** | 54 (SELECT *) | 54 (unchanged) |
+| **Columns exported** | 11 (hardcoded in `_build_export_rows()`) | ~45+ (all fields where `x_export: true`, excluding internal-only fields `id`, `is_latest`, `supersedes`, `superseded_by`) |
+| **Field-level control** | None — add/remove requires code change | `x_export: true/false` per field in schema |
+| **Artifact definitions** | Hardcoded Python lists | `export_artifact_def` in schema with `$ref` to field definitions |
+| **New field addition** | Must remember to edit 3 places (schema + `_build_export_rows` + column lists) | Add field to schema with `x_export: true` — pipeline picks it up automatically |
+
+### 47.4 Design Detail
+
+#### 47.4.1 Schema Changes — `x_export` Flag per Field
+
+Add `"x_export": true` (or `false` for internal fields) as a custom annotation to every property in `document_metadata_def` and `project_metadata_def` in `eks_doc_base_schema.json`.
+
+| Field | `x_export` | Rationale |
+|:---|:---:|:---|
+| `source_type`, `document_type`, `document_number`, `revision`, `status`, `file_path`, `file_type`, `ingested_at` | `true` | Core identity fields |
+| `created_by`, `checked_by`, `approved_by`, `originator_company`, `security_class`, `verified_by` | `true` | People/org — useful for audit |
+| `asset_tags` | `true` | Asset linking |
+| `page_count`, `extract_status`, `extraction_confidence`, `extraction_notes` | `true` | Extraction results |
+| `file_size`, `file_created_at`, `file_modified_at`, `file_hash` | `true` | File properties |
+| `embedded_title`, `embedded_subject`, `embedded_created_date`, `embedded_modified_date`, `embedded_creator_app`, `embedded_producer`, `embedded_last_modified_by`, `embedded_keywords`, `embedded_sheet_count` | `true` | Parser-extracted metadata |
+| `document_title`, `lifecycle_stage`, `revision_date`, `revision_description`, `embedded_revision_number` | `true` | Metadata completeness |
+| `references_documents`, `project_phase`, `contract_package`, `issued_date`, `responsible_engineer`, `total_sheets`, `language`, `vendor_name` | `true` | Completeness fields |
+| `project_title`, `project_number`, `area`, `discipline`, `department` | `true` | Project context |
+| `id` | `false` | Internal UUID — meaningless to users |
+| `is_latest` | `false` | Internal boolean — always TRUE for exported rows |
+| `supersedes`, `superseded_by` | `false` | Internal FK — UUID references not human-readable |
+
+**Export count**: 54 − 4 internal = **50 fields** (up from 11).
+
+#### 47.4.2 Schema Changes — `export_artifact_def`
+
+Add a new definition to `eks_doc_base_schema.json`:
+
+```json
+"export_artifact_def": {
+    "type": "object",
+    "description": "Defines the column subset for each export artifact.",
+    "properties": {
+        "discovery_inventory": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Columns for Phase A discovery inventory. All x_export fields except extraction-specific ones."
+        },
+        "extraction_results": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Columns for Phase B extraction results. All x_export fields."
+        },
+        "review_flags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Columns for Phase C review flags. Subset focusing on extraction quality + flag_reason."
+        }
+    },
+    "required": ["discovery_inventory", "extraction_results", "review_flags"],
+    "additionalProperties": false
+}
+```
+
+Each artifact's column list is the **source of truth** for what that CSV/Excel file contains. The pipeline reads this at runtime.
+
+#### 47.4.3 Pipeline Changes
+
+**`_build_export_rows()`** — remove the 11-field hardcoded `row` dict. Instead, pass through the full doc dict and subset to `columns`:
+
+```python
+def _build_export_rows(docs, status_filter=None, columns=None):
+    rows = []
+    for doc in docs:
+        if status_filter is not None:
+            if doc.get("extract_status", "pending") not in status_filter:
+                continue
+        row = dict(doc)  # copy all fields
+        if columns:
+            row = {k: row.get(k, "") for k in columns}
+        rows.append(row)
+    return rows
+```
+
+**`_build_flagged_rows()`** — same approach: pass through full doc, add `flag_reason`, then subset.
+
+**`main()` export block** — replace hardcoded lists with schema resolution:
+
+```python
+# Resolve columns from schema (one-time per run)
+export_config = resolve_export_columns(eks_doc_schema)
+discovery_cols = export_config["discovery_inventory"]
+extraction_cols = export_config["extraction_results"]  
+review_cols = export_config["review_flags"]
+```
+
+**`resolve_export_columns()`** — new helper function:
+
+```python
+def resolve_export_columns(doc_schema):
+    """Read x_export flags and artifact definitions from schema.
+    Returns dict of {artifact_name: [column_names]}.
+    """
+    props = doc_schema["definitions"]["document_metadata_def"]["properties"]
+    exportable = [k for k, v in props.items() if v.get("x_export")]
+
+    # discovery_inventory: exportable minus extraction-specific
+    discovery = [c for c in exportable if c not in {
+        "page_count", "extract_status", "extraction_confidence", "extraction_notes"
+    }]
+
+    # extraction_results: all exportable fields
+    extraction = list(exportable)
+
+    # review_flags: extraction-quality subset + flag_reason
+    review = [
+        "document_number", "revision", "document_type",
+        "extract_status", "extraction_confidence", "extraction_notes",
+        "flag_reason", "ingested_at",
+    ]
+
+    return {
+        "discovery_inventory": discovery,
+        "extraction_results": extraction,
+        "review_flags": review,
+    }
+```
+
+### 47.5 Task Breakdown
+
+| # | Scope | Task | Details | Status |
+|:---|:---|:---|:---|:---:|
+| T1.99.157 | Schema | Add `x_export` boolean to every property in `document_metadata_def` | 48 properties in `document_metadata_def` (45 `true`, 3 `false`: `is_latest`, `supersedes`, `superseded_by`) + 5 properties in `project_metadata_def` (all `true`). Schema version bumped to 1.8.0. | ✅ COMPLETE |
+| T1.99.158 | Schema | Add `export_artifact_def` definition | Enumerate `discovery_inventory`, `extraction_results`, `review_flags` artifact column sets with descriptions. Shape-only definition; actual columns derived from `x_export` at runtime. | ✅ COMPLETE |
+| T1.99.159 | Pipeline | Create `resolve_export_columns()` helper | Read `x_export` flags from schema JSON, derive per-artifact column lists in schema-definition order (project fields → doc fields). Falls back to hardcoded 11-column defaults with `_fallback: True` flag on load failure. | ✅ COMPLETE |
+| T1.99.160 | Pipeline | Replace hardcoded `_build_export_rows()` and column lists | `_build_export_rows()` → pass-through full doc dict (removed 11-field manual construction). `_build_flagged_rows()` → pass-through + `flag_reason`. `main()` → uses `resolve_export_columns()` with graceful fallback. | ✅ COMPLETE |
+| T1.99.161 | Test | Add schema-validation tests for `x_export` and artifacts | (a) `test_x_export_flag_present_on_all_properties` — every doc/proj property has boolean `x_export`, internal fields verified `false`. (b) `test_export_artifact_def_exists_and_valid` — 3 artifacts defined, structure valid. (c) `test_export_artifacts_have_different_column_sets` — discovery ⊂ extraction, extraction-only = {page_count, extract_status, ...}, review has flag_reason. | ✅ COMPLETE |
+| T1.99.162 | Pipeline | Verify full export with 50 columns | Pipeline run verified: `discovery_inventory`: 46 cols (was 6), `extraction_results`: 50 cols (was 10), `review_flags`: 12 cols (was 8). All 10 previously-missing fields present (project_title, embedded_title, file_size, file_hash, lifecycle_stage, created_by, vendor_name, originator_company, file_modified_at, security_class). | ✅ COMPLETE |
+
+### 47.6 File Changes Summary
+
+| File | T1.99.157 | T1.99.158 | T1.99.159 | T1.99.160 | T1.99.161 | T1.99.162 |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| `eks/config/schemas/eks_doc_base_schema.json` | ✏️ | ✏️ | | | | |
+| `eks/engine/eks_engine_pipeline.py` | | | ✏️ | ✏️ | | ✏️ |
+| `eks/test/test_phase1.py` | | | | | ✏️ | |
+
+### 47.7 Success Criteria
+
+- [x] **SC-1**: Every property in `document_metadata_def` has `x_export: true` or `x_export: false` — 45 true, 3 false
+- [x] **SC-2**: `export_artifact_def` exists with 3 artifacts; column names derived from `x_export` flags at runtime
+- [x] **SC-3**: `resolve_export_columns()` returns correct per-artifact column lists; `discovery_inventory` (46) ⊆ `extraction_results` (50)
+- [x] **SC-4**: `_build_export_rows()` no longer contains hardcoded field list — pass-through dict + column subsetting
+- [x] **SC-5**: CSV/Excel exports contain 46–50 columns (all `x_export: true` fields)
+- [x] **SC-6**: Previously-missing fields appear: `project_title`, `embedded_title`, `file_size`, `file_hash`, `lifecycle_stage`, `created_by`, `vendor_name`, `originator_company`, `file_modified_at`, `security_class` — all 10 verified
+- [x] **SC-7**: `review_flags` artifact includes `flag_reason` computed column
+- [x] **SC-8**: All 300 tests pass (was 71, now 300 with 3 new + test fix)
+- [x] **SC-9**: I193 → Resolved
+
+### 47.8 Risks
+
+| Risk | Likelihood | Mitigation |
+|:---|:---|:---|
+| Schema change (`x_export`) breaks existing validation | Low | `x_` prefix is a JSON Schema custom annotation — validators ignore unknown keywords per spec §6.4. No schema validation impact. |
+| ~50 columns make CSV/Excel too wide for casual review | Medium | Users explicitly asked for all columns. Excel auto-column-width handles this. CSV width is a viewer concern, not an export concern. |
+| `resolve_export_columns()` schema load failure | Low | Wrap in try/except; fallback to current hardcoded 11-column lists with a warning log — backward-compatible degradation. |
+| `review_flags` artifact grows too wide with 50 columns | Medium | Keep `review_flags` as the current focused subset (8 columns) — it's a triage view, not a complete data dump. Only `discovery_inventory` and `extraction_results` get the full 50-column treatment. |
+
+---
+
+## 48. Appendix D vs. Actual Pipeline Cross-Source Audit — 🔷 PLANNED
+
+### 48.1 Discovery (2026-07-19)
+
+A thorough cross-source audit was performed comparing Appendix D (`appendix_d_pipeline_messages_errors.md`) against the actual pipeline implementation across 8 source files: `pipeline_orchestrator.py`, `eks_engine_pipeline.py`, `health_scorer.py`, `error_manager.py`, `message_manager.py`, `eks_error_config.json`, `eks_message_config.json`, and `structure_detector.py`.
+
+**13 gaps identified**: 2 Critical 🔴, 2 High 🟠, 4 Medium 🟡, 5 Low 🔵.
+
+### 48.2 Gap Summary
+
+| Gap | Severity | Issue | Category | Description |
+|:---|:---:|:---|:---|:---|
+| **GAP-D1** | 🔴 | I195 | Code Bug | `HealthScorer.score()` called with positional args misrouted — structural elements treated as extraction_results |
+| **GAP-D2** | 🔴 | I196 | Config Gap | 10 message IDs called in code do not exist in `eks_message_config.json` — silent pipeline transitions |
+| **GAP-D3** | 🟠 | I197 | Config Gap | 6 ad-hoc error codes used in code not registered in `eks_error_config.json` — spurious FATAL fallbacks |
+| **GAP-D4** | 🟠 | I198 | Doc vs Code | Appendix D D5 data error taxonomy (P1-R/V/C) never implemented; code uses P1-D-P/P5-F/P3 taxonomy |
+| **GAP-D5** | 🟡 | I199 | Code Gap | 15 new schema columns absent from `HealthScorer.ALL_SCOABLE` — zero contribution to completeness scoring |
+| **GAP-D6** | 🟡 | I200 | Code Gap | `COVER_TYPE_SOURCE_SCORES` missing Type F (0.0) — failed parses get non-zero source score |
+| **GAP-D7** | 🟡 | I201 | Code Gap | `get_health_impact()` never called — error penalties never applied to health scores |
+| **GAP-D8** | 🟡 | I202 | Doc vs Code | Expected elements formula: Appendix D says 5, code uses 4 for Type A/B |
+| **GAP-D9** | 🔵 | I203 | Doc Stale | D7.1 column catalog: 25 listed, actual 54+ |
+| **GAP-D10** | 🔵 | I204 | Doc Stale | D8 status lifecycle: `NEW→EXTRACTED→REGISTERED→VERIFIED` not in code; code uses `extract_status` |
+| **GAP-D11** | 🔵 | I205 | Doc vs Code | System error catalog: names swapped/mismatched at same codes (S-E-S-0101–0105) |
+| **GAP-D12** | 🔵 | I206 | Doc vs Code | Database category 05xx relocated to AI services; DB errors uncoded |
+| **GAP-D13** | 🔵 | I207 | Doc vs Code | File I/O codes 0207–0212 + config codes 0309–0311 not implemented |
+
+### 48.3 Design Decisions
+
+For doc-vs-code gaps (D4, D8–D13), the **code is SSOT** (actual config and implementation). Appendix D documentation will be updated to reflect reality. The error/message taxonomy in actual config files (`eks_error_config.json`, `eks_message_config.json`) takes precedence over Appendix D's aspirational design.
+
+For code gaps (D1–D3, D5–D7), code fixes are required per the task breakdown below.
+
+### 48.4 Task Breakdown
+
+#### Priority 1 — Critical Bug Fixes (D1, D2)
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.163 | D1 | Health | Fix `HealthScorer.score()` caller — structural elements misrouted | `pipeline_orchestrator.py:640`: change `score(doc, elements)` → `score(doc, structural_elements=elements)`. `review_manager.py:129`: same fix. `test_t132_modules.py:101,112,131,133`: update test calls. | `pipeline_orchestrator.py`, `review_manager.py`, `test_t132_modules.py` | ✅ COMPLETE |
+| T1.99.164 | D2 | Message | Add 9 missing message IDs to `eks_message_config.json` + align pipeline names | Add: `STATUS_PHASE_A_START`, `STATUS_PHASE_A_COMPLETE`, `STATUS_PHASE_B_START`, `STATUS_PHASE_B_COMPLETE`, `STATUS_PHASE_C_START`, `STATUS_PHASE_C_COMPLETE`, `STATUS_PIPELINE_START`, `STATUS_PIPELINE_COMPLETE`, `ERROR_FILE_PROCESSING`. Align all code call sites. Keep existing `MILESTONE_*` as aliases or migrate. | `eks_message_config.json`, `pipeline_orchestrator.py`, `eks_engine_pipeline.py` | ✅ COMPLETE |
+
+#### Priority 2 — Error Code Registration (D3)
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.165 | D3 | Error | Register 6 ad-hoc error codes in `eks_error_config.json` with correct severity | Map S-PIP-001/002/003 → system_errors S-R-S range (severity: ERROR, not FATAL). Map D5-REG-001 → data_logic_errors P1-D-P range. Map D5-DETECT-001, D5-SCORE-001 → data_logic_errors P3-E-E range. Update code references if code values change. | `eks_error_config.json`, `pipeline_orchestrator.py` | ✅ COMPLETE |
+
+#### Priority 3 — Health Score Accuracy (D5, D6, D7)
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.166 | D5 | Health | Add 15 new columns to `ALL_SCOABLE` tier sets | Tier assignments: T2 — `document_title`, `lifecycle_stage`, `revision_date`, `project_phase`, `contract_package`, `issued_date`, `responsible_engineer`, `total_sheets`, `supersedes`, `superseded_by`. T3 — `revision_description`, `embedded_revision_number`, `references_documents`, `language`, `vendor_name`. | `health_scorer.py` | ✅ COMPLETE |
+| T1.99.167 | D6 | Health | Add `"F": 0.0` to `COVER_TYPE_SOURCE_SCORES` | Single-line addition. Type F = parse failed entirely → source quality score = 0.0. | `health_scorer.py` | ✅ COMPLETE |
+| T1.99.168 | D7 | Pipeline | Wire `get_health_impact()` into `_process_file()` | After `self.scorer.score()`, call `penalty = self.error_manager.get_health_impact(doc_id)`, compute `adjusted = max(0.0, score + penalty / 100.0)`, store adjusted score in DB. | `pipeline_orchestrator.py` | ✅ COMPLETE |
+
+#### Priority 4 — Expected Elements Alignment (D8)
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.169 | D8 | Health/Schema | Sync `EXPECTED_ELEMENTS_BY_TYPE` with Appendix D | Add `table` to Type A/B expectations (change from 4→5 expected elements) OR evaluate that code's 4-element model is correct and document the deviation. Decision deferred to review. | `health_scorer.py` or `appendix_d_pipeline_messages_errors.md` | ✅ COMPLETE |
+
+#### Priority 5 — Documentation Sync (D4, D9–D13)
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.170 | D4 | Docs | Update Appendix D D3/D5 error taxonomy to reflect actual P1-D-P/P5-F/P3 codes | Remove aspirational P1-R-R/P1-V-V/P1-C-C taxonomy; document actual module codes `P1-D-P`, `P3-G-G`, `P5-F-V/S/PROP`. Add cross-reference to actual `eks_error_config.json` entries. | `appendix_d_pipeline_messages_errors.md` | 🔷 PLANNED |
+| T1.99.171 | D9 | Docs | Update Appendix D D7.1 column catalog to 54+ columns | Replace 25-column table with current schema-derived 54-column catalog. Split T1/T2/T3 tiers to match `ALL_SCOABLE` after GAP-D5 fix (39 scorable). | `appendix_d_pipeline_messages_errors.md` | 🔷 PLANNED |
+| T1.99.172 | D10 | Docs | Update Appendix D D8 status lifecycle to code's `extract_status` model | Replace `NEW→EXTRACTED→REGISTERED→VERIFIED` with `pending→success/partial/failed`. Document that document state is column-based, not a lifecycle FSM. | `appendix_d_pipeline_messages_errors.md` | 🔷 PLANNED |
+| T1.99.173 | D11 | Docs | Update Appendix D D4 system error catalog names to match config | Swap mismatched names at S-E-S-0101–0105. Config values are SSOT. Add `ENVIRONMENT_NOT_READY` (S-E-S-0104), `DUCKDB_UNAVAILABLE` (S-E-S-0105). | `appendix_d_pipeline_messages_errors.md` | 🔷 PLANNED |
+| T1.99.174 | D12 | Docs | Update Appendix D D4.3 range allocation — 05xx = AI, not Database | Document that range 05xx is now S-A (AI/Optional services). Note gap: Database errors (DuckDB/Neo4j) have no dedicated range; evaluate whether S-D 06xx should be allocated. | `appendix_d_pipeline_messages_errors.md` | 🔷 PLANNED |
+| T1.99.175 | D13 | Docs | Update Appendix D D4 file I/O + config code ranges to actual config | Document actual ranges: file I/O 0201–0206 (not 0201–0212), config 0301–0308 (not 0301–0311). Note 10 missing aspirational codes may be added in future phase if needed. | `appendix_d_pipeline_messages_errors.md` | 🔷 PLANNED |
+
+### 48.5 Dependency Graph
+
+```
+D1 (I195) — independent, can execute immediately
+D2 (I196) — independent, can execute immediately
+D3 (I197) — independent, can execute immediately
+D5 (I199) → D9 (I203) — D5 fixes ALL_SCOABLE tiers → D9 documents them
+D6 (I200) — independent
+D7 (I201) — depends on D3 (error impact values must be correct in config)
+D8 (I202) — independent, but review decision needed
+D4/D9–D13 (I198/I203–I207) — all documentation-only, can batch
+```
+
+**Recommended execution order**:
+1. **Wave 1** (parallel): D1 + D2 + D6 (3 code fixes, no dependencies)
+2. **Wave 2**: D3 → D7 (error config → health impact wiring)
+3. **Wave 3**: D5 + D8 (health score column/element changes)
+4. **Wave 4**: D4 + D9–D13 (batch documentation sync after all code changes settle)
+
+### 48.6 Success Criteria
+
+- [x] **SC-D1**: `HealthScorer.score()` receives structural_elements as named kwarg; extraction confidence no longer bypassed
+- [x] **SC-D2**: All 9 phase/pipeline start/complete messages visible in pipeline output; `mm.show()` resolves to actual message text
+- [x] **SC-D3**: 6 ad-hoc error codes resolve to registered config entries with correct severity (not all FATAL)
+- [x] **SC-D4**: All tests pass after code fixes (D1–D3, D5–D8)
+- [ ] **SC-D5**: Appendix D content matches actual config/code for D4, D9–D13 (deferred to T1.99.170–175)
+- [x] **SC-D6**: `HealthScorer.ALL_SCOABLE` covers all 39 scorable columns
+- [x] **SC-D7**: `get_health_impact()` penalties reflected in stored health scores
+- [ ] **SC-D8**: I195–I207 → Resolved (or Deferred for documentation-only gaps)
+
+### 48.7 File Changes Summary
+
+| File | D1 | D2 | D3 | D5 | D6 | D7 | D8 | D4,9-13 | Total |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| `pipeline_orchestrator.py` | ✏️ | ✏️ | ✏️ | | | ✏️ | | | 4 |
+| `health_scorer.py` | | | | ✏️ | ✏️ | | ✏️ | | 3 |
+| `eks_message_config.json` | | ✏️ | | | | | | | 1 |
+| `eks_error_config.json` | | | ✏️ | | | | | | 1 |
+| `eks_engine_pipeline.py` | | ✏️ | | | | | | | 1 |
+| `review_manager.py` | ✏️ | | | | | | | | 1 |
+| `test_t132_modules.py` | ✏️ | | | | | | | | 1 |
+| `appendix_d_pipeline_messages_errors.md` | | | | | | | | ✏️ | 1 |
+
+**Total**: 8 files to modify (7 code/config + 1 documentation).
+
+### 48.8 Risks
+
+| Risk | Likelihood | Mitigation |
+|:---|:---|:---|
+| D1 fix changes health scores significantly for all existing documents | High | Run comparative scoring on TWRP 182-doc test set before/after fix. Expected: structural completeness scores will change since `_score_structural()` currently never runs on real data. |
+| D2 message additions may conflict with existing `MILESTONE_*` messages | Low | New messages are additive; existing `MILESTONE_*` entries preserved as-is. Code call sites use the new shorter names. |
+| D3 severity changes may affect existing error handling flow | Medium | Audit each code path that calls `handle_*_error()` with the 6 ad-hoc codes to verify correct severity. Non-fatal codes must not trigger fail-fast. |
+| D5 column additions change health scoring baselines | Medium | Tier assignments preserve existing T1/T2/T3 methodology. Run scoring on TWRP dataset to verify score distribution shifts are within expected range. |
+| Appendix D documentation sync is non-trivial (6 tasks) | Low | All documentation-only — no test failures possible. Each task updates one section of Appendix D. Batch all 6 in one commit. |
+| D7 error penalty application may produce negative health scores | Low | Clamp at `max(0.0, ...)`. Accumulated penalties per document expected to be small (< 5 impact total). |
+
+---
+
+## 49. Appendix E+F vs. Pipeline Architecture Cross-Source Audit — Gap Remediation (I208–I225)
+
+**Discovery (2026-07-19)**: A thorough comparison of Appendix E (Schema Design) + Appendix F (Pipeline Architecture Design) against the current `eks/engine/` codebase revealed 18 gaps (G1–G18) across 5 categories: folder structure (G1, G13), BaseEngine inheritance (G2), IO contracts (G3, G7, G11), dependency injection (G4), missing engine wiring (G5, G6, G17, G18), telemetry (G8, G14), checkpoint/resume (G9), UI contracts (G10), context data flow (G12), documentation freshness (G15), and missing CLI (G16). See `eks/log/issue_log.md` I208–I225 for full descriptions.
+
+**18 issues → 16 actionable (1 deferred: I223 per-engine CLI). Code/schema impact: 12 (I208–I209, I211–I216, I218, I224–I225), docs-only: 2 (I217, I222), no-logic structural: 2 (I210, I220).**
+
+### 49.1 Task Breakdown by Priority Wave
+
+#### Wave 1 — Critical Wiring Gaps (I212, I216, I224) — Must-Fix Before Phase 2
+
+These 3 gaps block core pipeline functionality — supersession tracking, checkpoint resume, and review persistence:
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.179 | I212 (G5) | Revision | Wire `RevisionManager` into Phase B for supersession detection | Implement `detect_supersession()` in `revision.py` — query existing documents by `document_number`, compare revisions, set `is_latest=False` on superseded docs, set `supersedes`/`superseded_by` chain. Integrate into `PipelineOrchestrator._process_file()` after `register_document()`. Add `revision_manager` field to orchestrator. Requires: `revision.py` method bodies (currently stubs), `registry.py` `set_not_latest()` + `set_superseded_by()`, orchestrator wiring, 2 test classes. | `revision.py`, `pipeline_orchestrator.py`, `registry.py`, `test_t132_modules.py` | 🔷 PLANNED |
+| T1.99.180 | I216 (G9) | Pipeline | Restore checkpoint persistence with resume capability | Uncomment `save_checkpoint()` calls in `PipelineOrchestrator._after()` + `run_full_pipeline()`. Write checkpoints to `output/<run_id>/checkpoint_<phase>.json` with: `{phase, completed_doc_ids, context_state, timestamp}`. On resume: `initialize_context(checkpoint_state=...)` skips completed phases, continues from next. Add `--resume <run_id>` CLI flag to `eks_engine_pipeline.py`. Requires: orchestrator checkpoint write/read methods, CLI flag, 4 tests. | `pipeline_orchestrator.py`, `eks_engine_pipeline.py`, `test_eks_engine_pipeline.py` | 🔷 PLANNED |
+| T1.99.181 | I224 (G17) | Review | Wire `ReviewManager` into Phase C for review status persistence | After Phase C query + export, iterate flagged docs: (1) apply auto-corrections via `correct_field()`, (2) expose remaining flags, (3) `approve_document()` persists `review_status`, `reviewed_by`, `reviewed_at` to registry. Add `POST /api/v1/review/approve` endpoint. Requires: `review_manager.py` method implementation, `registry.py` `update_review_status()`, orchestrator `run_phase_c()` wiring, `phase1_server.py` endpoint, 3 tests. | `review_manager.py`, `pipeline_orchestrator.py`, `registry.py`, `phase1_server.py`, `test_t132_modules.py` | 🔷 PLANNED |
+
+#### Wave 2 — Architecture Compliance (I209, I211, I215, I221) — Should-Fix
+
+These 4 gaps address architectural debt — BaseEngine inheritance, DI factories, telemetry unification, psutil guard:
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.182 | I209 (G2) | Architecture | Refactor `FileScanner`, `HealthScorer`, `StructureDetector` to inherit from `BaseEngine` | Each engine gets `validate_input()` → `execute()` → `validate_output()` structure. Use `EngineInput`/`EngineOutput` dataclasses from `core/base.py` (post-I210 consolidation). `ParserRouter` already partially follows pattern — complete it. `PipelineOrchestrator` stays as coordinator (doesn't inherit). Requires: 4 engine refactors, test updates for new interfaces. | `file_scanner.py`, `health_scorer.py`, `structure_detector.py`, `parser_router.py`, `base.py`, `test_t132_modules.py` | 🔷 PLANNED |
+| T1.99.183 | I211 (G4) | DI | Replace direct instantiation in `PipelineOrchestrator` with factory calls | Change `self.scanner = FileScanner(...)` → `self.scanner = EngineFactory.create("FileScanner", ...)`, same for `HealthScorer`, `StructureDetector`. `ParserRouter` already uses `ParserFactory` — verify consistency. Requires: `factories.py` class additions, orchestrator `__init__` changes, test DI injection verification. | `pipeline_orchestrator.py`, `factories.py`, `test_t132_modules.py` | 🔷 PLANNED |
+| T1.99.184 | I215 (G8) | Telemetry | Unify dual telemetry into single heartbeat stream | `PipelineOrchestrator` accepts `telemetry: Optional[TelemetryHeartbeat]` parameter — when provided from `main()`, uses it instead of creating local instance. `run_full_pipeline()` forwards orchestrator checkpoints to main heartbeat. `DocumentProcessingHeartbeat` stays as subclass. Requires: orchestrator `__init__` parameter, `main()` wiring, 2 tests. | `pipeline_orchestrator.py`, `eks_engine_pipeline.py`, `telemetry.py`, `test_t132_modules.py` | 🔷 PLANNED |
+| T1.99.185 | I221 (G14) | Safety | Guard `psutil` import in `telemetry.py` | Wrap `import psutil` in try/except ImportError; memory/CPU sampling becomes no-op when absent (log WARNING once). Add `psutil` to `eks.yml` as optional dependency with `# telemetry` comment. Prevents bare `ModuleNotFoundError` on restricted systems. | `telemetry.py`, `eks.yml` | 🔷 PLANNED |
+
+#### Wave 3 — IO Contracts & Data Flow (I210, I214, I218, I219) — Should-Fix
+
+These 4 gaps close the IO contract gap and fix context data flow:
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.186 | I210 (G3) | Contracts | Consolidate dual `EngineInput`/`EngineOutput` — EKS versions subclass `common.library` versions | Option B: Keep EKS `core/base.py EngineInput`/`EngineOutput` as subclasses of `common.library.core.pipeline.EngineInput`/`EngineOutput`. EKS versions add domain-specific fields (`discovery_config`, `health_config`, `structural_config`). Delete EKS standalone definitions; re-export from `core/base.py`. Requires: `base.py` refactor, `eks_engine_pipeline.py` import path update, verify DCC isolation. | `base.py`, `eks_engine_pipeline.py`, `test_eks_engine_pipeline.py` | 🔷 PLANNED |
+| T1.99.187 | I214 (G7) | Contracts | Wire `HealthInput`/`HealthOutput` + `DiscoveryInput`/`DiscoveryOutput` into pipeline calls | Phase A: construct `DiscoveryInput` from file list → `scanner.scan(discovery_input)` → unpack `DiscoveryOutput`. Phase B: construct `HealthInput(doc, extraction_results, structural_elements)` → `scorer.score(health_input)` → unpack `HealthOutput` for DB write. Requires: `pipeline_orchestrator.py` Phase A + `_process_file()` changes, `io_contracts.py` field alignment, 3 tests. | `pipeline_orchestrator.py`, `io_contracts.py`, `test_t132_modules.py` | 🔷 PLANNED |
+| T1.99.188 | I218 (G11) | Data | Pass context-resolved paths into `ParserInput` defaults | Replace `ParserInput(config_file="", schema_dir="", output_dir="")` with `self.context.paths` values. Same for `DiscoveryInput` in Phase A. Requires: orchestrator `_process_file()` + `run_phase_a()` changes. | `pipeline_orchestrator.py` | 🔷 PLANNED |
+| T1.99.189 | I219 (G12) | Data | Write parsed content to `context.data.extracted_content` during execution | After successful parse in `_process_file()`, store: `self.context.data.extracted_content[doc_id] = extraction_result`. Enables downstream engines to read extraction without re-querying registry. Also populates checkpoint data for resume. Requires: orchestrator `_process_file()` change. | `pipeline_orchestrator.py` | 🔷 PLANNED |
+
+#### Wave 4 — Folder Structure & Schema Wiring (I208, I220, I225) — Should-Fix
+
+These 3 gaps address folder restructuring and schema-to-DDL automation:
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.190 | I208+I220 (G1+G13) | Structure | Migrate to Appendix F domain subdirectory layout | Create 6 subdirectories: `engine/discovery/` (FileScanner), `engine/router/` (ParserRouter), `engine/registry/` (DocumentRegistry), `engine/revision/` (RevisionManager), `engine/health/` (HealthScorer), `engine/structure/` (StructureDetector). Keep `engine/core/` for shared: `base.py`, `context.py`, `factories.py`, `bootstrap.py`, `config_registry.py`, `schema_loader.py`, `io_contracts.py`, `telemetry.py`, `validator.py`, `__init__.py`. Move `parser_router.py` from `engine/parsers/` to `engine/router/`. Relocate test modules accordingly. **Project-wide grep for all import paths** — update every file referencing old locations. Run full test suite after migration. **This is the largest single task** — 7 modules moved, ~30 files updated. | `engine/discovery/__init__.py`, `engine/router/__init__.py`, `engine/registry/__init__.py`, `engine/revision/__init__.py`, `engine/health/__init__.py`, `engine/structure/__init__.py`, `pipeline_orchestrator.py`, `eks_engine_pipeline.py`, `phase1_server.py`, `test_*.py`, `__init__.py` files | 🔷 PLANNED |
+| T1.99.191 | I225 (G18) | Bootstrap | Wire `SchemaToDDL` into bootstrap P4 for auto-DDL generation | In `EKSBootstrapManager._bootstrap_registry()`: call `SchemaToDDL.generate_ddl()` from `eks_doc_base_schema.json` → compare with existing table schema → apply `generate_migration_ddl()` if needed. On fresh DB: generate full CREATE TABLE DDL. Requires: `bootstrap.py` integration, `registry.py` `init_db(ddl=...)` parameter, schema version tracking in DB metadata table. | `bootstrap.py`, `schema_to_ddl.py`, `registry.py`, `test_t132_modules.py` | 🔷 PLANNED |
+
+#### Wave 5 — Documentation & UI Contracts (I217, I222) — Nice-to-Have
+
+| # | Gap | Scope | Task | Details | Files | Status |
+|:---|:---|:---|:---|:---|:---|:---:|
+| T1.99.192 | I217 (G10) | UI | Implement `DocumentSelectionContract` + `PipelineConfigContract` per Appendix F | Add contract schemas to `contracts.py`, wire `ContractManager` to validate before pipeline execution. Add endpoints: `POST /api/v1/contracts/document-selection` (filter/sort/select docs), `POST /api/v1/contracts/pipeline-config` (per-run parameter override). Requires: `contracts.py` additions, `contract_manager.py` wiring, `phase1_server.py` endpoints, 3 tests. | `contracts.py`, `contract_manager.py`, `phase1_server.py` | 🔷 PLANNED |
+| T1.99.193 | I222 (G15) | Docs | Cross-audit Appendix E schema versions vs. actual `version` fields | Read `"version"` from all 23 schema files, compare against Appendix E E5.1 table. Update stale entries. Add validation script `eks/test/verify_appendix_e_versions.py` to make this a repeatable gate. | `appendix_e_schema_design.md`, `test/verify_appendix_e_versions.py` | 🔷 PLANNED |
+
+### 49.2 Deferred to Phase 2
+
+| # | Gap | Reason |
+|:---|:---|:---|
+| I223 (G16) | No per-engine CLI entry points | Current `--phase A/B/C` flag provides adequate per-phase isolation. Independent engine CLIs add maintenance burden without immediate user benefit. Re-evaluate in Phase 2 when engines are refactored to BaseEngine (I209). |
+
+### 49.3 Dependency Graph
+
+```
+Wave 1 (I212, I216, I224) — independent, can execute immediately in parallel
+  |
+  ├── I212 (RevisionManager) — no deps, revisions are self-contained
+  ├── I216 (Checkpoint restore) — no deps, existing code needs uncommenting
+  └── I224 (ReviewManager phase C) — no deps, review methods exist as stubs
+
+Wave 2 (I209, I211, I215, I221) — depends on Wave 1 completing (touches same files)
+  |
+  ├── I209 (BaseEngine) — independent of other Wave 2 tasks
+  ├── I211 (DI factories) — safer after I209 (engines have stable interfaces)
+  ├── I215 (Telemetry) — independent, only PipelineOrchestrator + main()
+  └── I221 (psutil guard) — independent, single-file change
+
+Wave 3 (I210, I214, I218, I219) — depends on I209 (BaseEngine) for EngineInput/Output alignment
+  |
+  ├── I210 (EngineInput consolidation) — prerequisite for I214
+  ├── I214 (IO contracts) — prerequisite: I210 completed
+  ├── I218 (ParserInput defaults) — independent, depends only on context
+  └── I219 (extracted_content) — independent, single-line addition
+
+Wave 4 (I208, I220, I225) — depends on Waves 1-2 completing (touches all files for folder migration)
+  |
+  ├── I208+I220 (folder migration) — largest task, touches ~30 files
+  └── I225 (SchemaToDDL) — safer after folder migration (import paths stable)
+
+Wave 5 (I217, I222) — documentation-only, always parallelizable
+```
+
+**Recommended execution order**:
+1. **Wave 1** (parallel): T1.99.179 + T1.99.180 + T1.99.181 — 3 blocking gaps
+2. **Wave 2** (parallel): T1.99.182 + T1.99.183 + T1.99.184 + T1.99.185 — 4 architecture fixes
+3. **Wave 3** (parallel after Wave 2): T1.99.186 + T1.99.187 + T1.99.188 + T1.99.189 — 4 IO/data flow fixes
+4. **Wave 4** (sequential): T1.99.190 → T1.99.191 — folder migration → SchemaToDDL
+5. **Wave 5** (parallel, any time): T1.99.192 + T1.99.193 — 2 docs/UI tasks
+
+### 49.4 Success Criteria
+
+- [ ] **SC-A1**: `RevisionManager.detect_supersession()` correctly identifies and chains document revisions
+- [ ] **SC-A2**: Pipeline can resume from checkpoint after interruption — `--resume <run_id>` continues from last completed phase
+- [ ] **SC-A3**: Phase C persists review corrections to registry — `review_status` updated, flagged docs re-exportable
+- [ ] **SC-A4**: `FileScanner`, `HealthScorer`, `StructureDetector` pass `isinstance(engine, BaseEngine)` check
+- [ ] **SC-A5**: `PipelineOrchestrator` instantiates all engines via factories — zero direct `ClassName(...)` calls for engines
+- [ ] **SC-A6**: Single `TelemetryHeartbeat` instance covers bootstrap → all pipeline phases → export
+- [ ] **SC-A7**: Pipeline runs without `psutil` installed (graceful degradation, WARNING logged)
+- [ ] **SC-A8**: `HealthInput`/`HealthOutput` contracts used end-to-end in scoring
+- [ ] **SC-A9**: `EKSData.extracted_content` populated during execution, available on checkpoint restore
+- [ ] **SC-A10**: Code organized in Appendix F domain subdirectories — no modules remain in flat `core/`
+- [ ] **SC-A11**: `SchemaToDDL` generates DDL at bootstrap; DDL always synchronized with schema
+- [ ] **SC-A12**: All existing tests pass after each wave (full regression after Waves 1–5)
+- [ ] **SC-A13**: I208–I225 → Resolved (or Deferred for I223)
+
+### 49.5 File Changes Summary
+
+| File | W1 | W2 | W3 | W4 | W5 | Total |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|
+| `pipeline_orchestrator.py` | ✏️ | ✏️ | ✏️ | ✏️ | | 4 |
+| `revision.py` | ✏️ | | | ✏️ | | 2 |
+| `registry.py` | ✏️ | | | | | 1 |
+| `review_manager.py` | ✏️ | | | | | 1 |
+| `eks_engine_pipeline.py` | ✏️ | ✏️ | | ✏️ | | 3 |
+| `file_scanner.py` | | ✏️ | | ✏️ | | 2 |
+| `health_scorer.py` | | ✏️ | | ✏️ | | 2 |
+| `structure_detector.py` | | ✏️ | | ✏️ | | 2 |
+| `parser_router.py` | | ✏️ | | ✏️ | | 2 |
+| `base.py` | | ✏️ | ✏️ | | | 2 |
+| `factories.py` | | ✏️ | | | | 1 |
+| `telemetry.py` | | ✏️ | | | | 1 |
+| `io_contracts.py` | | | ✏️ | | | 1 |
+| `context.py` | | | ✏️ | | | 1 |
+| `bootstrap.py` | | | | ✏️ | | 1 |
+| `schema_to_ddl.py` | | | | ✏️ | | 1 |
+| `phase1_server.py` | ✏️ | | | | ✏️ | 2 |
+| `contracts.py` | | | | | ✏️ | 1 |
+| `contract_manager.py` | | | | | ✏️ | 1 |
+| `eks.yml` | | ✏️ | | | | 1 |
+| `appendix_e_schema_design.md` | | | | | ✏️ | 1 |
+| `test_t132_modules.py` | ✏️ | ✏️ | ✏️ | ✏️ | | 4 |
+| `test_eks_engine_pipeline.py` | ✏️ | ✏️ | | ✏️ | | 3 |
+| `test/verify_appendix_e_versions.py` | | | | | ✏️ | 1 (new) |
+| `__init__.py` (×7 domain dirs) | | | | ✏️ | | 7 (new) |
+
+**Total**: 21 existing files modified + 8 new files created.
+
+### 49.6 Risks
+
+| Risk | Likelihood | Mitigation |
+|:---|:---|:---|
+| Folder migration (I208) causes cascading import failures | High | Project-wide grep before any file move; update all references in single commit; verify with full test suite before and after. |
+| BaseEngine refactor (I209) changes engine signatures | Medium | Each engine refactored independently; preserve existing public method names; add adapter methods if needed. |
+| Revision chain logic (I212) has edge cases with non-linear revisions | Medium | Handle R0→R2 (skip R1), same-revision re-upload (hash change only), and missing parent revisions. Log all edge cases. |
+| Checkpoint resume (I216) may restore stale state | Medium | Include `schema_version` in checkpoint; verify before restore. Auto-invalidate checkpoints when schema version changes. |
+| I210 EngineInput consolidation may break DCC import paths | Low | Keep EKS versions as subclasses; DCC continues using `common.library` versions independently. |
+| Wave 4 folder migration touches ~30 files | High | Execute as single atomic commit after all tests pass on feature branch. Do not interleave with other waves. |
 
 ---
 

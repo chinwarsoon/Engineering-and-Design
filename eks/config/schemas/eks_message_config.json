@@ -2,7 +2,7 @@
   "metadata": {
     "version": "1.1.0",
     "last_updated": "2026-07-18",
-    "total_messages": 39
+    "total_messages": 49
   },
   "messages": {
     "MILESTONE_BOOTSTRAP_START": {
@@ -56,6 +56,59 @@
       "template": "EKS pipeline complete — {total} documents processed ({elapsed}s)",
       "level": 1,
       "category": "milestone"
+    },
+    "STATUS_PHASE_A_START": {
+      "template": "=== Phase {phase} Start: File Discovery ===",
+      "level": 1,
+      "category": "milestone",
+      "icon": "▶"
+    },
+    "STATUS_PHASE_A_COMPLETE": {
+      "template": "Phase A complete — {registered} files registered",
+      "level": 1,
+      "category": "milestone",
+      "icon": "✓"
+    },
+    "STATUS_PHASE_B_START": {
+      "template": "=== Phase {phase} Start: Parse + Detect + Score ===",
+      "level": 1,
+      "category": "milestone",
+      "icon": "▶"
+    },
+    "STATUS_PHASE_B_COMPLETE": {
+      "template": "Phase B complete — {success}/{total} success, {partial} partial, {failed} failed",
+      "level": 1,
+      "category": "milestone",
+      "icon": "✓"
+    },
+    "STATUS_PHASE_C_START": {
+      "template": "=== Phase {phase} Start: Review ===",
+      "level": 1,
+      "category": "milestone",
+      "icon": "▶"
+    },
+    "STATUS_PHASE_C_COMPLETE": {
+      "template": "Phase C complete — {flagged} documents flagged for review",
+      "level": 1,
+      "category": "milestone",
+      "icon": "✓"
+    },
+    "STATUS_PIPELINE_START": {
+      "template": "Starting EKS pipeline for {root_dir}",
+      "level": 1,
+      "category": "milestone",
+      "icon": "▶"
+    },
+    "STATUS_PIPELINE_COMPLETE": {
+      "template": "EKS pipeline complete",
+      "level": 1,
+      "category": "milestone",
+      "icon": "✓"
+    },
+    "ERROR_FILE_PROCESSING": {
+      "template": "Error processing {filename}: {detail}",
+      "level": 0,
+      "category": "error"
     },
     "STATUS_PARSING_FILE": {
       "template": "Parsing: {filename}",

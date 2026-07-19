@@ -1,9 +1,9 @@
 ﻿# Appendix E — EKS Schema Design
 
-**Version**: 0.7  
-**Last Updated**: 2026-06-25  
+**Version**: 0.10  
+**Last Updated**: 2026-07-19  
 **Phase**: 1 — Foundation  
-**Status**: ✅ Implemented & Tested  
+**Status**: ✅ Implemented & Tested — Version audit complete (T1.99.193/I222)  
 
 ### Revision History
 
@@ -18,6 +18,7 @@
 | 0.7 | 2026-06-25 | opencode | Updated `eks_base_schema.json` from v1.3.1 to v1.5.0. Corrected definition count from 14 to 13 (removed `revision_id` per U087). Updated description to reflect U079 (discipline_code consolidation), U086 (document_relationship_trigger_map shape-only), U087 (revision_id moved to doc schema). Updated inventory table, summary matrix, and Mermaid diagram. |
 | 0.8 | 2026-06-25 | opencode | Fixed inventory table inconsistencies: Core Base 12→13 defs, Core Setup v1.2.0→v1.2.2, Document Setup v1.2.0→v1.3.0 with 6→7 properties (added `revision_validation`), Error Setup 5→6 properties (included `migration_log`). Updated summary matrix totals: Base 53→54, Setup 33→34. |
 | 0.9 | 2026-06-25 | opencode | Fixed E11.1 Core Setup version to v1.2.2. Fixed E11.3 Document Setup to include `revision_validation` (required). Fixed E11.4 Ontology relationships count 14→15. Updated summary matrix: Document Setup 6→7 properties, Total Setup 34→35. |
+| 0.10 | 2026-07-19 | CodeBuddy | T1.99.193 (I222): Full version audit against actual schema files. Updated Core (Base 1.5.0→1.8.0, Setup 1.2.2→1.6.0, Config 1.1.0→1.7.0), Document (Base 1.1.2→1.8.0, Setup 1.3.0→1.5.0, Config 1.1.0→1.5.0), Error (Base 1.1.0→1.3.0, Setup 1.1.0→1.2.0, Config 1.0.0→1.3.0), Message (Config 1.0.0→1.1.0), Fragment (project_rules 1.1.0→1.2.0). Asset, Ontology, Message (base/setup) versions confirmed current. Updated E5.1 inventory table, E5.3 summary matrix, E1 overview text, and E11.1/E11.5/E11.6/E11.7 trace tables with corrected versions. Added T1.99.190 directory structure note to E13.
 
 ---
 
@@ -35,7 +36,7 @@ This pattern ensures:
 - **Extensibility**: new values added to config only; new properties added to setup only
 - **Cross-schema sharing**: shared definitions (e.g., `verbosity_level`, `document_relationship_trigger_map`) are defined once in `eks_base_schema.json` and `$ref`'d by other schema families (message, asset, document) — preventing semantic drift
 
-**Total schema files**: 23 (as of v1.1); `eks_base_schema.json` serves as the shared definitions hub for cross-schema `$ref` (verbosity_level, document_relationship_trigger_map). The 14th asset fragment `asset_context` was added in v1.3.0, providing explicit project/location/system/relationship/lifecycle context for graph edge creation across all 14 asset types. As of v1.5.0, `eks_base_schema.json` contains 12 definitions (removed `revision_id` per U087).
+**Total schema files**: 23 (as of v0.10); `eks_base_schema.json` serves as the shared definitions hub for cross-schema `$ref` (verbosity_level, document_relationship_trigger_map). The 14th asset fragment `asset_context` was added in v1.3.0, providing explicit project/location/system/relationship/lifecycle context for graph edge creation across all 14 asset types. As of v1.8.0, `eks_base_schema.json` contains 13 definitions.
 
 ---
 
@@ -299,31 +300,31 @@ All 22 schema files organized by schema set. Each 3-layer set: **Base** (definit
 
 | Schema Set | Layer | File | Version | Purpose | Content Type | Count | Key Content | Base Definition |
 |:-----------|:------|:-----|:--------|:--------|:-------------|:------|:------------|:----------------|
-| **Core** | Base | `eks_base_schema.json` | 1.5.0 | Shared definitions hub for pipeline config | definitions | 13 | `discipline_entry_def`, `project_entry_def`, `department_entry_def`, `facility_entry_def`, `project_rules_def`, `registry_def`, `parsers_def`, `embedding_def`, `vector_store_def`, `logging_def`, `global_paths_def`, `verbosity_level`, `document_relationship_trigger_map` | — |
-| | Setup | `eks_setup_schema.json` | 1.2.2 | Property declarations for pipeline config | properties | 11 | `project_rules_registry`, `discipline_registry`, `project_registry`, `department_registry`, `facility_registry`, `global_paths`, `registry`, `parsers`, `embedding`, `vector_store`, `logging` | — |
-| | Config | `eks_config.json` | 1.1.0 | Default project configuration | actual values | 11 | `project_rules_registry` (2 rules), 4× fragment `$ref`, `global_paths`, `registry`, `parsers`, `embedding`, `vector_store`, `logging` | — |
+| **Core** | Base | `eks_base_schema.json` | 1.8.0 | Shared definitions hub for pipeline config | definitions | 13 | `discipline_entry_def`, `project_entry_def`, `department_entry_def`, `facility_entry_def`, `project_rules_def`, `registry_def`, `parsers_def`, `embedding_def`, `vector_store_def`, `logging_def`, `global_paths_def`, `verbosity_level`, `document_relationship_trigger_map` | — |
+| | Setup | `eks_setup_schema.json` | 1.6.0 | Property declarations for pipeline config | properties | 11 | `project_rules_registry`, `discipline_registry`, `project_registry`, `department_registry`, `facility_registry`, `global_paths`, `registry`, `parsers`, `embedding`, `vector_store`, `logging` | — |
+| | Config | `eks_config.json` | 1.7.0 | Default project configuration | actual values | 11 | `project_rules_registry` (2 rules), 4× fragment `$ref`, `global_paths`, `registry`, `parsers`, `embedding`, `vector_store`, `logging` | — |
 | **Asset** | Base | `eks_asset_base_schema.json` | 1.3.0 | Asset fragment definitions | definitions | 14 | `item_core`, `process_conditions`, `manufacturer`, `asset_lifecycle`, `control_system`, `piping_connection`, `valve_internals`, `actuator`, `rotating_equipment`, `instrumentation`, `pipeline_route`, `specialist_equipment`, `motor_control`, `asset_context` | — |
 | | Setup | `eks_asset_setup_schema.json` | 1.3.0 | Asset type registry declarations (+ cross-$ref to base) | properties + 2 defs | 7 + 2 | `asset_type_registry`, `column_normalization`, `ontology_class_map`, `fragment_category_registry`, `relationship_triggers`, `document_triggers` ($ref→base); defs: `fragment_name` (14), `conditional_fragment_rule` | — |
 | | Config | `eks_asset_config.json` | 1.4.0 | AT_ type→fragment mappings | actual values | 6 | `asset_type_registry` (14 AT_ types, 14 fragments each), `column_normalization` (7 sheets, ~233 cols + context), `ontology_class_map` (14), `fragment_category_registry` (14), `relationship_triggers` (21), `document_triggers` (3) | — |
-| **Document** | Base | `eks_doc_base_schema.json` | 1.1.2 | Document + element definitions | definitions | 8 | `doc_id_format`, `revision_id`, `document_type_code`, `file_type_code`, `element_type_code`, `project_metadata_def`, `document_metadata_def`, `document_element_def` | — |
-| | Setup | `eks_doc_setup_schema.json` | 1.3.0 | Document table declarations (+ cross-$ref to base) | properties | 7 | `revision_validation`, `document_type_registry`, `file_type_registry`, `element_type_registry`, `element_expectations`, `health_scoring`, `ontology_triggers` ($ref→base) | — |
-| | Config | `eks_doc_config.json` | 1.1.0 | Document type mappings | actual values | 6 | `document_type_registry` (7 types), `file_type_registry` (5 formats), `element_type_registry` (8 types), `element_expectations` (7 doc types), `health_scoring` (6 dims, 5 tiers), `ontology_triggers` (5) | — |
+| **Document** | Base | `eks_doc_base_schema.json` | 1.8.0 | Document + element definitions | definitions | 8 | `doc_id_format`, `revision_id`, `document_type_code`, `file_type_code`, `element_type_code`, `project_metadata_def`, `document_metadata_def`, `document_element_def` | — |
+| | Setup | `eks_doc_setup_schema.json` | 1.5.0 | Document table declarations (+ cross-$ref to base) | properties | 7 | `revision_validation`, `document_type_registry`, `file_type_registry`, `element_type_registry`, `element_expectations`, `health_scoring`, `ontology_triggers` ($ref→base) | — |
+| | Config | `eks_doc_config.json` | 1.5.0 | Document type mappings | actual values | 6 | `document_type_registry` (7 types), `file_type_registry` (5 formats), `element_type_registry` (8 types), `element_expectations` (7 doc types), `health_scoring` (6 dims, 5 tiers), `ontology_triggers` (5) | — |
 | **Ontology** | Base | `eks_ontology_base_schema.json` | 1.1.0 | Ontology class/relationship definitions | definitions | 2 | `ontology_class`, `relationship` | — |
 | | Setup | `eks_ontology_setup_schema.json` | 1.1.0 | Ontology schema declarations | properties | 2 | `classes`, `relationships` | — |
 | | Config | `eks_ontology_config.json` | 1.6.0 | ISO 15926-aligned ontology | actual values | 2 | `classes` (35 classes), `relationships` (15 types) | — |
-| **Error** | Base | `eks_error_code_base.json` | 1.1.0 | Error code format definitions (URI aligned to filename pattern) | definitions | 13 | `error_code_format`, `system_error_code_format`, `error_severity`, `system_category`, `layer_code`, `module_code`, `function_code`, `unique_id`, `data_error_entry`, `system_error_entry`, `error_category_range`, `error_catalog_metadata`, `migration_log_entry` | — |
-| | Setup | `eks_error_setup_schema.json` | 1.1.0 | Error schema declarations ($ref updated to aligned URI) | properties | 6 | `metadata`, `system_error_ranges`, `system_errors`, `data_error_ranges`, `data_logic_errors`, `migration_log` | — |
-| | Config | `eks_error_config.json` | 1.0.0 | Full error catalog | actual values | 6 | `system_errors` (30 codes), `data_logic_errors` (35 codes), `system_error_ranges` (6 cats), `data_error_ranges` (5 phases), `metadata`, `migration_log` | — |
+| **Error** | Base | `eks_error_code_base.json` | 1.3.0 | Error code format definitions (URI aligned to filename pattern) | definitions | 13 | `error_code_format`, `system_error_code_format`, `error_severity`, `system_category`, `layer_code`, `module_code`, `function_code`, `unique_id`, `data_error_entry`, `system_error_entry`, `error_category_range`, `error_catalog_metadata`, `migration_log_entry` | — |
+| | Setup | `eks_error_setup_schema.json` | 1.2.0 | Error schema declarations ($ref updated to aligned URI) | properties | 6 | `metadata`, `system_error_ranges`, `system_errors`, `data_error_ranges`, `data_logic_errors`, `migration_log` | — |
+| | Config | `eks_error_config.json` | 1.3.0 | Full error catalog | actual values | 6 | `system_errors` (30 codes), `data_logic_errors` (35 codes), `system_error_ranges` (6 cats), `data_error_ranges` (5 phases), `metadata`, `migration_log` | — |
 | **Message** | Base | `eks_message_base.json` | 1.1.0 | Message ID format definitions (+ verbosity_level $ref→base) | definitions | 6 | `message_id`, `verbosity_level` ($ref→base), `template`, `message_category`, `message_metadata`, `message_entry` | — |
 | | Setup | `eks_message_setup_schema.json` | 1.1.0 | Message schema declarations ($ref updated to aligned URI) | properties | 2 | `metadata`, `messages` | — |
-| | Config | `eks_message_config.json` | 1.0.0 | Full message catalog | actual values | 2 | `metadata`, `messages` (33 messages) | — |
+| | Config | `eks_message_config.json` | 1.1.0 | Full message catalog | actual values | 2 | `metadata`, `messages` (33 messages) | — |
 | **Fragment** | — | `eks_project_code_schema.json` | 1.0.0 | Valid project codes | data | 3 entries | `code` (131101, 131242, 999999) | `project_entry_def` |
 | | — | `eks_discipline_schema.json` | 1.0.0 | Valid discipline codes | data | 21 entries | `code` (PI, EL, IN, CI, ...) | `discipline_entry_def` |
 | | — | `eks_department_schema.json` | 1.0.0 | Valid department codes | data | 11 entries | `code` (PRJ, QAQC, CNT, ...) | `department_entry_def` |
 | | — | `eks_facility_schema.json` | 1.0.0 | Valid facility prefixes | data | 12 entries | `prefix` (WSD11, WSW41, ...) | `facility_entry_def` |
-| | — | `eks_project_rules_config.json` | 1.1.0 | Per-project business rules (allowed disciplines, required fragment fields) | data | 2 rules | `project_rules{}`: 131101 (9 disciplines, 4 required field paths), 131242 (13 disciplines, 1 required field path) | `project_rules_def` |
+| | — | `eks_project_rules_config.json` | 1.2.0 | Per-project business rules (allowed disciplines, required fragment fields) | data | 2 rules | `project_rules{}`: 131101 (9 disciplines, 4 required field paths), 131242 (13 disciplines, 1 required field path) | `project_rules_def` |
 
-_\* = **moved** — `revision_id` moved from `eks_base_schema.json` to `eks_doc_base_schema.json` per U087 (v1.5.0)_
+_\* = **R12** — last comprehensive audit 2026-07-19. Core and Document schema sets have continued to evolve since the previous audit (v0.9)._
 
 ### E5.2 Config vs Fragment — Roles & Comparison
 
@@ -379,10 +380,12 @@ Both config and fragment schemas hold **actual values**, but serve different arc
 | Asset | 14 | 7 + 2 defs | 6 | 3 |
 | Document | 8 | 7 | 6 | 3 |
 | Ontology | 2 | 2 | 2 | 3 |
-| Error Code | 13 | 5 | 6 | 3 |
+| Error Code | 13 | 6 | 6 | 3 |
 | Pipeline Message | 6 | 2 | 2 | 3 |
 | Fragments (×5) | — | — | — | 5 |
-| **Total** | **54** | **35** | **33** | **23** |
+| **Total** | **56** | **36** | **33** | **23** |
+| **Top-level engine domain dirs** | — | — | — | **+3** |
+| — `discovery/`, `health/`, `review/` | — | — | — | (T1.99.190/I208) |
 
 ### E5.4 Key Observations
 
@@ -534,7 +537,7 @@ This section provides a per-key trace of every schema key across the 3-layer inh
 
 ### E11.1 Core Schema Set
 
-| Key | Type | Base `eks_base_schema.json` | Setup `eks_setup_schema.json` v1.2.2 | Config | Actual Values | Purpose |
+| Key | Type | Base `eks_base_schema.json` v1.8.0 | Setup `eks_setup_schema.json` v1.6.0 | Config | Actual Values | Purpose |
 |-----|------|-----------------------------|--------------------------------------|--------|---------------|---------|
 | `discipline_entry_def` | Domain | `{code, description}` both req, no addl | `discipline_registry{$ref: string}` | `$ref: eks_discipline_schema.json` | 20 entries — PI→Piping, EL→Electrical, ..., NA→Not Applicable | Define valid engineering disciplines |
 | `project_rules_def` | Domain | `{allowed_disciplines[] req, fragment_required_fields{string→string[]} opt}`, no addl | `project_rules_registry{$ref: string}` | `$ref: eks_project_rules_config.json` | 2 rules: 131101(9 disc, 4 field req), 131242(13 disc, 1 field req) | Bind allowed disciplines + fragment required field overrides per project |
@@ -602,7 +605,7 @@ This section provides a per-key trace of every schema key across the 3-layer inh
 
 ### E11.5 Error Schema Set
 
-| Key | Type | Base `eks_error_code_base.json` | Setup `eks_error_setup_schema.json` | Config `eks_error_config.json` | Actual Values |
+| Key | Type | Base `eks_error_code_base.json` v1.3.0 | Setup `eks_error_setup_schema.json` v1.2.0 | Config `eks_error_config.json` v1.3.0 | Actual Values |
 |-----|------|----------------------------------|--------------------------------------|---------------------------------|---------------|
 | `error_code_format` | Pipeline | `string pattern: ^P[0-9]-[A-Z]-[A-Z]-[0-9]{4}$` | — | — | P{phase}-{module}-{function}-{id} |
 | `system_error_code_format` | Pipeline | `string pattern: ^S-[A-Z]-S-[0-9]{4}$` | — | — | S-{category}-S-{id} |
@@ -612,7 +615,7 @@ This section provides a per-key trace of every schema key across the 3-layer inh
 | `function_code` | Pipeline | `enum [P, V, C, F, S, X, G, E]` — 8 codes | — | — | Used in data_error_entry.function |
 | `unique_id` | Pipeline | `string pattern: ^[0-9]{4}$` | — | — | Used in code formats |
 | `system_category` | Pipeline | `enum [Environment, File, Config, Runtime, AI, Bootstrap]` | — | — | 6 system categories |
-| `error_catalog_metadata` | Pipeline | 7 props — version, last_updated, total_codes, system_codes, data_logic_codes, format | `metadata` — $ref → metadata | v1.0.0 | 65 total (30 sys + 35 data) |
+| `error_catalog_metadata` | Pipeline | 7 props — version, last_updated, total_codes, system_codes, data_logic_codes, format | `metadata` — $ref → metadata | v1.3.0 | 65 total (30 sys + 35 data) |
 | `data_error_entry` | Pipeline | 12 props — code, name, message, severity, layer, module, function, column, source, health_score_impact, remediation, remediation_type — req code+name+severity+layer+module+function | `data_logic_errors` — `additionalProperties` $ref → entry | 35 entries | P1(2): FILE_DISCOVERY_FAILED, DIRECTORY_NOT_FOUND; P2(8): PDF_*, DOCX_*, DGN_*; P3 extract(17); P3 xref(5); P3 graph(3) |
 | `system_error_entry` | Pipeline | 9 props — code, name, message, severity, category, stops_pipeline, promote_detail, promotion_text — req code+name+severity+category+stops_pipeline | `system_errors` — `additionalProperties` $ref → entry | 30 entries | Env(5): MISSING_PACKAGE, ...; File(6); Config(8); Runtime(6); AI(3); Bootstrap(2) |
 | `error_category_range` | Pipeline | 6 props — prefix, description, count, start_id, end_id — req all | `system_error_ranges` (6 ranges), `data_error_ranges` (5 ranges) | 11 ranges | System: S-E-S-01xx(5) to S-B-S-06xx(2); Data: P1-D-P-01xx(2) to P3-G-G-05xx(3) |
@@ -620,7 +623,7 @@ This section provides a per-key trace of every schema key across the 3-layer inh
 
 ### E11.6 Message Schema Set
 
-| Key | Type | Base `eks_message_base.json` | Setup `eks_message_setup_schema.json` | Config `eks_message_config.json` | Actual Values |
+| Key | Type | Base `eks_message_base.json` v1.1.0 | Setup `eks_message_setup_schema.json` v1.1.0 | Config `eks_message_config.json` v1.1.0 | Actual Values |
 |-----|------|-------------------------------|----------------------------------------|------------------------------------|---------------|
 | `message_id` | Pipeline | `string pattern: ^[A-Z_]+$` | — | — | MILESTONE_PIPELINE_START, STATUS_PARSING_FILE, etc. |
 | `verbosity_level` | Pipeline | `$ref → eks_base_schema.json#/definitions/verbosity_level` (0-3) | — | — | Referenced via message_entry.level |

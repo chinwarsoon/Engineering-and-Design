@@ -21,7 +21,7 @@ class TestErrorManager(unittest.TestCase):
         self.em = ErrorManager(config_dir=CONFIG_DIR)
 
     def test_loads_catalog(self):
-        self.assertEqual(self.em._catalog.get("metadata", {}).get("total_codes"), 103)
+        self.assertEqual(self.em._catalog.get("metadata", {}).get("total_codes"), 109)
 
     def test_system_error_lookup(self):
         entry = self.em.get_system_error("S-E-S-0101")
@@ -101,7 +101,7 @@ class TestHealthScorer(unittest.TestCase):
             {"element_type": "section"},
             {"element_type": "image"},
         ]
-        score = self.scorer.score(doc, elements)
+        score = self.scorer.score(doc, structural_elements=elements)
         # Doc has only 2 of ~23 scorable fields → ceiling ~0.54 under current weights
         self.assertGreaterEqual(score.get("health_score", 0), 0.5)
 
@@ -112,7 +112,7 @@ class TestHealthScorer(unittest.TestCase):
             "page_count": 1,
         }
         elements = []
-        score = self.scorer.score(doc, elements)
+        score = self.scorer.score(doc, structural_elements=elements)
         self.assertLess(score.get("health_score", 1), 0.6)
 
     def test_score_batch(self):
@@ -131,8 +131,8 @@ class TestHealthScorer(unittest.TestCase):
         self.assertGreaterEqual(results["avg_document_health"], 0.0)
         self.assertLessEqual(results["avg_document_health"], 1.0)
         # Doc 1 has more populated fields → should score higher than doc 2
-        score1 = self.scorer.score(docs[0], elements_list[0])
-        score2 = self.scorer.score(docs[1], elements_list[1])
+        score1 = self.scorer.score(docs[0], structural_elements=elements_list[0])
+        score2 = self.scorer.score(docs[1], structural_elements=elements_list[1])
         self.assertGreater(score1.get("health_score", 0), score2.get("health_score", 1))
 
 
@@ -616,7 +616,7 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             base_path = CONFIG_DIR / "eks_doc_base_schema.json"
         with open(base_path) as f:
             base = json.load(f)
-        self.assertEqual(base["version"], "1.7.0")  # T1.99.150 (I186): UUID id
+        self.assertEqual(base["version"], "1.8.0")  # T1.99.157–158 (I193): x_export + export_artifact_def
 
 
 # ---------------------------------------------------------------------------

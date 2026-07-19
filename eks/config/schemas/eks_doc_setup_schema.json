@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "title": "EKS Document Setup Schema - Declarations",
-    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, and element expectations per Appendix B, C & D. v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110).",
+    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, and element expectations per Appendix B, C & D. v1.6.0: added document_title_config for boilerplate prefix filtering (T1.99.193/I194 G9). v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110).",
     "allOf": [
         { "$ref": "eks_doc_base_schema.json" }
     ],
@@ -180,6 +180,20 @@
                 }
             },
             "required": ["os_properties", "by_file_type"],
+            "additionalProperties": false
+        },
+        "document_title_config": {
+            "type": "object",
+            "description": "Configuration for embedded title extraction quality. Defines boilerplate prefixes that are discarded in favor of filename-derived titles.",
+            "properties": {
+                "boilerplate_prefixes": {
+                    "type": "array",
+                    "description": "Embedded titles starting with any of these prefixes are treated as boilerplate and discarded.",
+                    "items": { "type": "string" }
+                },
+                "description": { "type": "string" }
+            },
+            "required": ["boilerplate_prefixes"],
             "additionalProperties": false
         }
     },

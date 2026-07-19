@@ -560,8 +560,12 @@ class TestI107BootstrapCompleteness(TestCase):
         # PDF was available for ingestion. If no PDF was copied, fall back to
         # the original assertion (export block must not crash).
         if _copied > 0 and rc == 0:
+            # I192 copies latest exports to output/ root as individual files.
+            # Filter to directories only so glob("*.csv") works (files have
+            # no children). If no UUID subdirectory exists, the I192 root-level
+            # fallback files can be checked directly.
             output_dirs = sorted(
-                (_ROOT / "eks" / "output").glob("*"),
+                [p for p in (_ROOT / "eks" / "output").glob("*") if p.is_dir()],
                 key=lambda p: p.stat().st_mtime,
             )
             if output_dirs:

@@ -21,6 +21,10 @@ from typing import Optional
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# Project-scoped root for test artifacts — all test output goes under eks/test_output/
+# per AGENTS.md §6.1
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 from eks.ui.backend.phase1_server import (
     Phase1Handler,
     ReusableTCPServer,
@@ -103,11 +107,12 @@ class TestPhase1ServerIntegration(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Clean stale test artifacts from previous runs
-        for p in Path("test_output").glob("scan_test_*"):
+        _test_output = _PROJECT_ROOT / "test_output"
+        for p in _test_output.glob("scan_test_*"):
             p.unlink(missing_ok=True) if p.is_file() else shutil.rmtree(p, ignore_errors=True)
-        for p in Path("test_output").glob("pipeline_*"):
+        for p in _test_output.glob("pipeline_*"):
             shutil.rmtree(p, ignore_errors=True)
-        for p in Path("test_output").glob("review_lock_*"):
+        for p in _test_output.glob("review_lock_*"):
             shutil.rmtree(p, ignore_errors=True)
 
         # Pick a free port
@@ -220,7 +225,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         """POST /api/v1/files/load with a test directory."""
         import uuid
         tag = uuid.uuid4().hex[:8]
-        test_dir = Path(f"test_output/scan_test_{tag}")
+        test_dir = _PROJECT_ROOT / "test_output" / f"scan_test_{tag}"
         test_dir.mkdir(parents=True, exist_ok=True)
         (test_dir / "DOC-001-A.pdf").touch()
         (test_dir / "DOC-002-B.dgn").touch()
@@ -254,7 +259,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         import uuid
         from urllib.error import HTTPError
         tag = uuid.uuid4().hex[:8]
-        pdir = Path(f"test_output/pipeline_sas_{tag}")
+        pdir = _PROJECT_ROOT / "test_output" / f"pipeline_sas_{tag}"
         pdir.mkdir(parents=True, exist_ok=True)
         # Retry in case a background job from a previous test is still running
         max_retries = 5
@@ -284,7 +289,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         """GET /api/v1/pipeline/logs/{job_id} returns log entries."""
         import uuid
         tag = uuid.uuid4().hex[:8]
-        pdir = Path(f"test_output/pipeline_logs_{tag}")
+        pdir = _PROJECT_ROOT / "test_output" / f"pipeline_logs_{tag}"
         pdir.mkdir(parents=True, exist_ok=True)
         result = self._request("POST", "/api/v1/pipeline/start", {
             "data_dir": str(pdir),
@@ -306,7 +311,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         """DELETE /api/v1/pipeline/{job_id} cancels a job."""
         import uuid
         tag = uuid.uuid4().hex[:8]
-        pdir = Path(f"test_output/pipeline_cancel_{tag}")
+        pdir = _PROJECT_ROOT / "test_output" / f"pipeline_cancel_{tag}"
         pdir.mkdir(parents=True, exist_ok=True)
         start = self._request("POST", "/api/v1/pipeline/start", {
             "data_dir": str(pdir),
@@ -331,7 +336,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         """Second pipeline start while one is running returns 409."""
         import uuid
         tag = uuid.uuid4().hex[:8]
-        pdir = Path(f"test_output/concurrent_{tag}")
+        pdir = _PROJECT_ROOT / "test_output" / f"concurrent_{tag}"
         pdir.mkdir(parents=True, exist_ok=True)
         first = self._request("POST", "/api/v1/pipeline/start", {
             "data_dir": str(pdir),
@@ -361,7 +366,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
     def test_pipeline_start_nonexistent_data_dir(self):
         """Pipeline start with non-existent data_dir returns 400 (T1.77)."""
         result = self._request("POST", "/api/v1/pipeline/start", {
-            "data_dir": "test_output/nonexistent_dir_xyz",
+            "data_dir": str(_PROJECT_ROOT / "test_output" / "nonexistent_dir_xyz"),
             "recursive": False,
         }, expect=400)
         self.assertIn("error", result)
@@ -371,7 +376,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         """Pipeline start with non-boolean recursive returns 400 (T1.77)."""
         import uuid
         tag = uuid.uuid4().hex[:8]
-        pdir = Path(f"test_output/pipeline_bool_{tag}")
+        pdir = _PROJECT_ROOT / "test_output" / f"pipeline_bool_{tag}"
         pdir.mkdir(parents=True, exist_ok=True)
         result = self._request("POST", "/api/v1/pipeline/start", {
             "data_dir": str(pdir),
@@ -397,7 +402,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         from urllib.error import HTTPError
         import uuid
         tag = uuid.uuid4().hex[:8]
-        pdir = Path(f"test_output/pipeline_complete_{tag}")
+        pdir = _PROJECT_ROOT / "test_output" / f"pipeline_complete_{tag}"
         pdir.mkdir(parents=True, exist_ok=True)
         (pdir / "DOC-001-A.pdf").touch()
         (pdir / "DOC-002-B.dgn").touch()
@@ -435,7 +440,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         import uuid
         tag = uuid.uuid4().hex[:8]
         doc_num = f"RVLOCK-{tag}"
-        test_dir = Path(f"test_output/review_lock_{tag}")
+        test_dir = _PROJECT_ROOT / "test_output" / f"review_lock_{tag}"
         test_dir.mkdir(parents=True, exist_ok=True)
         (test_dir / f"{doc_num}-A.pdf").touch()
 
@@ -464,7 +469,7 @@ class TestPhase1ServerIntegration(unittest.TestCase):
         import uuid
         tag = uuid.uuid4().hex[:8]
         # Use a file path (not directory) — exists but is_dir fails first, then readability
-        pfile = Path(f"test_output/pipeline_readable_{tag}.txt")
+        pfile = _PROJECT_ROOT / "test_output" / f"pipeline_readable_{tag}.txt"
         pfile.parent.mkdir(parents=True, exist_ok=True)
         pfile.touch()
         result = self._request("POST", "/api/v1/pipeline/start", {

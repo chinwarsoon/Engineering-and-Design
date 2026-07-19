@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_base_schema.json",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "title": "EKS Document Base Schema - Definitions",
-    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, and lifecycle stages per T1.35. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111).",
+    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, and lifecycle stages per T1.35. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111).",
     "type": "object",
     "definitions": {
         "doc_id_format": {
@@ -39,11 +39,11 @@
         "project_metadata_def": {
             "type": "object",
             "properties": {
-                "project_title": { "type": "string" },
-                "project_number": { "type": "string" },
-                "area": { "type": "string" },
-                "discipline": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discipline_entry_def/properties/code" },
-                "department": { "type": "string" }
+                "project_title": { "type": "string", "x_export": true },
+                "project_number": { "type": "string", "x_export": true },
+                "area": { "type": "string", "x_export": true },
+                "discipline": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/discipline_entry_def/properties/code", "x_export": true },
+                "department": { "type": "string", "x_export": true }
             },
             "required": ["project_title", "project_number"],
             "additionalProperties": false
@@ -54,63 +54,66 @@
                 "source_type": {
                     "type": "string",
                     "enum": ["ingested", "referenced", "stub"],
-                    "default": "ingested"
+                    "default": "ingested",
+                    "x_export": true
                 },
-                "document_type": { "$ref": "#/definitions/document_type_code" },
-                "document_number": { "type": "string" },
-                "revision": { "$ref": "#/definitions/revision_id" },
-                "status": { "type": "string" },
-                "is_latest": { "type": "boolean", "default": true },
-                "file_path": { "type": "string", "description": "Relative path to source file on disk" },
-                "file_type": { "$ref": "#/definitions/file_type_code", "description": "Source file format for parser routing" },
-                "ingested_at": { "type": "string", "format": "date-time", "description": "UTC timestamp of ingestion" },
-                "created_by": { "type": "string" },
-                "checked_by": { "type": "string" },
-                "approved_by": { "type": "string" },
-                "originator_company": { "type": "string" },
-                "security_class": { "type": "string" },
+                "document_type": { "$ref": "#/definitions/document_type_code", "x_export": true },
+                "document_number": { "type": "string", "x_export": true },
+                "revision": { "$ref": "#/definitions/revision_id", "x_export": true },
+                "status": { "type": "string", "x_export": true },
+                "is_latest": { "type": "boolean", "default": true, "x_export": false },
+                "file_path": { "type": "string", "description": "Relative path to source file on disk", "x_export": true },
+                "file_type": { "$ref": "#/definitions/file_type_code", "description": "Source file format for parser routing", "x_export": true },
+                "ingested_at": { "type": "string", "format": "date-time", "description": "UTC timestamp of ingestion", "x_export": true },
+                "created_by": { "type": "string", "x_export": true },
+                "checked_by": { "type": "string", "x_export": true },
+                "approved_by": { "type": "string", "x_export": true },
+                "originator_company": { "type": "string", "x_export": true },
+                "security_class": { "type": "string", "x_export": true },
                 "asset_tags": {
                     "type": "array",
                     "items": { "type": "string" },
-                    "default": []
+                    "default": [],
+                    "x_export": true
                 },
-                "page_count": { "type": "integer" },
+                "page_count": { "type": "integer", "x_export": true },
                 "extract_status": {
                     "type": "string",
                     "enum": ["pending", "success", "partial", "failed"],
-                    "default": "pending"
+                    "default": "pending",
+                    "x_export": true
                 },
-                "extraction_confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-                "extraction_notes": { "type": "string" },
-                "verified_by": { "type": "string" },
-                "file_size": { "type": "integer", "description": "OS-level file size in bytes (from Path.stat().st_size)" },
-                "file_created_at": { "type": "string", "description": "OS-level file creation timestamp (from st_ctime, UTC ISO 8601)" },
-                "file_modified_at": { "type": "string", "description": "OS-level file last-modified timestamp (from st_mtime, UTC ISO 8601)" },
-                "file_hash": { "type": "string", "description": "Content hash (MD5 or SHA256) for integrity verification" },
-                "embedded_title": { "type": "string", "description": "Embedded document title from parser metadata" },
-                "embedded_subject": { "type": "string", "description": "Embedded document subject from parser metadata" },
-                "embedded_created_date": { "type": "string", "description": "Embedded creation date from parser metadata" },
-                "embedded_modified_date": { "type": "string", "description": "Embedded modification date from parser metadata" },
-                "embedded_creator_app": { "type": "string", "description": "Application that created the file (e.g. AutoCAD 2024)" },
-                "embedded_producer": { "type": "string", "description": "Library/producer that generated the file (e.g. pdfplot15.hdi)" },
-                "embedded_last_modified_by": { "type": "string", "description": "Last user who modified the file (from DOCX/XLSX core properties)" },
-                "embedded_keywords": { "type": "string", "description": "Embedded keywords from parser metadata" },
-                "embedded_sheet_count": { "type": "integer", "description": "Number of sheets in XLSX workbook" },
-                "document_title": { "type": "string", "description": "Human-readable document title. T1.99.142." },
-                "supersedes": { "type": "string", "description": "FK to documents.id — the previous revision this document supersedes. T1.99.141." },
-                "superseded_by": { "type": "string", "description": "FK to documents.id — the next revision that supersedes this document. T1.99.141." },
-                "lifecycle_stage": { "$ref": "#/definitions/lifecycle_stage_code", "description": "Document lifecycle stage. T1.99.143." },
-                "revision_date": { "type": "string", "description": "Date of this revision (ISO 8601 string). T1.99.143." },
-                "revision_description": { "type": "string", "description": "Description of changes in this revision. T1.99.143." },
-                "embedded_revision_number": { "type": "string", "description": "Revision number from embedded DOCX/XLSX core properties. T1.99.144." },
-                "references_documents": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Array of doc_id strings this document references. T1.99.145." },
-                "project_phase": { "type": "string", "description": "Project lifecycle phase (e.g. tender, construction, as_built). T1.99.146." },
-                "contract_package": { "type": "string", "description": "Procurement contract package grouping. T1.99.146." },
-                "issued_date": { "type": "string", "description": "Formal issue/submission date to client (ISO 8601 string). T1.99.146." },
-                "responsible_engineer": { "type": "string", "description": "Engineer accountable for the document. T1.99.146." },
-                "total_sheets": { "type": "integer", "description": "Total sheets in multi-sheet drawing set. T1.99.146." },
-                "language": { "type": "string", "default": "en", "description": "ISO 639-1 language code of document content. T1.99.146." },
-                "vendor_name": { "type": "string", "description": "Equipment vendor name for vendor-supplied documents. T1.99.146." }
+                "extraction_confidence": { "type": "number", "minimum": 0, "maximum": 1, "x_export": true },
+                "extraction_notes": { "type": "string", "x_export": true },
+                "verified_by": { "type": "string", "x_export": true },
+                "file_size": { "type": "integer", "description": "OS-level file size in bytes (from Path.stat().st_size)", "x_export": true },
+                "file_created_at": { "type": "string", "description": "OS-level file creation timestamp (from st_ctime, UTC ISO 8601)", "x_export": true },
+                "file_modified_at": { "type": "string", "description": "OS-level file last-modified timestamp (from st_mtime, UTC ISO 8601)", "x_export": true },
+                "file_hash": { "type": "string", "description": "Content hash (MD5 or SHA256) for integrity verification", "x_export": true },
+                "embedded_title": { "type": "string", "description": "Embedded document title from parser metadata", "x_export": true },
+                "embedded_subject": { "type": "string", "description": "Embedded document subject from parser metadata", "x_export": true },
+                "embedded_created_date": { "type": "string", "description": "Embedded creation date from parser metadata", "x_export": true },
+                "embedded_modified_date": { "type": "string", "description": "Embedded modification date from parser metadata", "x_export": true },
+                "embedded_creator_app": { "type": "string", "description": "Application that created the file (e.g. AutoCAD 2024)", "x_export": true },
+                "embedded_producer": { "type": "string", "description": "Library/producer that generated the file (e.g. pdfplot15.hdi)", "x_export": true },
+                "embedded_last_modified_by": { "type": "string", "description": "Last user who modified the file (from DOCX/XLSX core properties)", "x_export": true },
+                "embedded_keywords": { "type": "string", "description": "Embedded keywords from parser metadata", "x_export": true },
+                "embedded_sheet_count": { "type": "integer", "description": "Number of sheets in XLSX workbook", "x_export": true },
+                "document_title": { "type": "string", "description": "Human-readable document title. T1.99.142.", "x_export": true },
+                "supersedes": { "type": "string", "description": "FK to documents.id — the previous revision this document supersedes. T1.99.141.", "x_export": false },
+                "superseded_by": { "type": "string", "description": "FK to documents.id — the next revision that supersedes this document. T1.99.141.", "x_export": false },
+                "lifecycle_stage": { "$ref": "#/definitions/lifecycle_stage_code", "description": "Document lifecycle stage. T1.99.143.", "x_export": true },
+                "revision_date": { "type": "string", "description": "Date of this revision (ISO 8601 string). T1.99.143.", "x_export": true },
+                "revision_description": { "type": "string", "description": "Description of changes in this revision. T1.99.143.", "x_export": true },
+                "embedded_revision_number": { "type": "string", "description": "Revision number from embedded DOCX/XLSX core properties. T1.99.144.", "x_export": true },
+                "references_documents": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Array of doc_id strings this document references. T1.99.145.", "x_export": true },
+                "project_phase": { "type": "string", "description": "Project lifecycle phase (e.g. tender, construction, as_built). T1.99.146.", "x_export": true },
+                "contract_package": { "type": "string", "description": "Procurement contract package grouping. T1.99.146.", "x_export": true },
+                "issued_date": { "type": "string", "description": "Formal issue/submission date to client (ISO 8601 string). T1.99.146.", "x_export": true },
+                "responsible_engineer": { "type": "string", "description": "Engineer accountable for the document. T1.99.146.", "x_export": true },
+                "total_sheets": { "type": "integer", "description": "Total sheets in multi-sheet drawing set. T1.99.146.", "x_export": true },
+                "language": { "type": "string", "default": "en", "description": "ISO 639-1 language code of document content. T1.99.146.", "x_export": true },
+                "vendor_name": { "type": "string", "description": "Equipment vendor name for vendor-supplied documents. T1.99.146.", "x_export": true }
             },
             "required": ["source_type", "document_type", "document_number", "revision"],
             "additionalProperties": false
@@ -267,6 +270,29 @@
                 }
             },
             "required": ["enabled", "extraction_method", "property_mapping"],
+            "additionalProperties": false
+        },
+        "export_artifact_def": {
+            "type": "object",
+            "description": "Defines the column subset for each export artifact (CSV/XLSX). Pipeline reads this at runtime instead of hardcoded column lists. T1.99.158 (I193).",
+            "properties": {
+                "discovery_inventory": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Columns for Phase A discovery inventory. All x_export fields except extraction-specific ones (page_count, extract_status, extraction_confidence, extraction_notes)."
+                },
+                "extraction_results": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Columns for Phase B extraction results. All x_export fields including extraction metadata."
+                },
+                "review_flags": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Columns for Phase C review flags. Focused subset for extraction-quality triage + computed flag_reason."
+                }
+            },
+            "required": ["discovery_inventory", "extraction_results", "review_flags"],
             "additionalProperties": false
         }
     }

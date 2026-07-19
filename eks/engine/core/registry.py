@@ -35,6 +35,13 @@ class DocumentRegistry:
 
     _SCHEMA_DERIVED_ALLOWLIST: Optional[set] = None
 
+    # T1.99.165 (I196): SSOT fallback — the authoritative source is
+    # eks_doc_config.json → document_title_config → boilerplate_prefixes.
+    # This constant is used only when that config cannot be loaded.
+    _BOILERPLATE_PREFIXES_FALLBACK = (
+        "Microsoft Word", "AutoCAD Drawing", "Microsoft Excel"
+    )
+
     @classmethod
     def _get_column_allowlist(cls) -> set:
         """
@@ -160,6 +167,24 @@ class DocumentRegistry:
                 for stmt in migration_stmts:
                     conn.execute(stmt)
 
+            # T1.99.166 (I196): Diagnose misapplied NOT NULL constraints on
+            # project-metadata columns.  These columns should be nullable
+            # (always_nullable set in SchemaToDDL) but old DDL may have
+            # applied NOT NULL.  Pragma NOTNULL check is advisory only —
+            # DuckDB does not support ALTER COLUMN DROP NOT NULL.
+            always_nullable_cols = {"project_title", "project_number", "area", "discipline", "department"}
+            null_check = conn.execute(
+                "SELECT name FROM pragma_table_info('documents') WHERE \"notnull\" = 1"
+            ).fetchall()
+            bogus_notnull = [row[0] for row in null_check if row[0] in always_nullable_cols]
+            if bogus_notnull:
+                self.logger.warning(
+                    f"Schema drift: {len(bogus_notnull)} project-metadata column(s) "
+                    f"have NOT NULL constraint but should be nullable: {bogus_notnull}. "
+                    f"Delete eks_registry.db and re-run to rebuild with correct DDL.",
+                    context="DocumentRegistry._migrate_schema",
+                )
+
             # T1.99.150 (I186): Migrate existing business-key ids to UUIDs
             self._migrate_ids_to_uuid(conn)
         finally:
@@ -225,6 +250,33 @@ class DocumentRegistry:
         else:
             config_dir = Path("eks/config")
         return SchemaToDDL.load_doc_base_schema(config_dir)
+
+    def _get_boilerplate_prefixes(self) -> tuple:
+        """
+        Read boilerplate title prefixes from eks_doc_config.json
+        → document_title_config → boilerplate_prefixes (SSOT).
+        Falls back to class-level _BOILERPLATE_PREFIXES_FALLBACK.
+
+        T1.99.165 (I196): Replaces hardcoded in-function list per SSOT rule.
+        """
+        try:
+            loader = getattr(self.config, '_loader', None)
+            if loader and hasattr(loader, 'config_dir'):
+                config_dir = Path(loader.config_dir)
+            else:
+                config_dir = Path("eks/config")
+            doc_config_path = config_dir / "schemas" / "eks_doc_config.json"
+            if not doc_config_path.exists():
+                doc_config_path = config_dir / "eks_doc_config.json"
+            if doc_config_path.exists():
+                with open(doc_config_path, "r", encoding="utf-8") as f:
+                    doc_cfg = json.load(f)
+                prefixes = doc_cfg.get("document_title_config", {}).get("boilerplate_prefixes", [])
+                if prefixes:
+                    return tuple(prefixes)
+        except Exception:
+            pass
+        return self._BOILERPLATE_PREFIXES_FALLBACK
 
     @log_depth
     def sync_schema(self) -> Dict[str, Any]:
@@ -388,9 +440,9 @@ class DocumentRegistry:
         doc_title = metadata.get("document_title")
         if not doc_title:
             embedded_title = metadata.get("embedded_title")
-            # Skip boilerplate titles from authoring tools
-            _BOILERPLATE_PREFIXES = ("Microsoft Word", "AutoCAD Drawing", "Microsoft Excel")
-            if embedded_title and embedded_title.strip() and not embedded_title.strip().startswith(_BOILERPLATE_PREFIXES):
+            # T1.99.165 (I196): Schema-driven boilerplate prefix check (SSOT)
+            boilerplate_prefixes = self._get_boilerplate_prefixes()
+            if embedded_title and embedded_title.strip() and not embedded_title.strip().startswith(boilerplate_prefixes):
                 doc_title = embedded_title.strip()
             else:
                 # Fallback: filename stem

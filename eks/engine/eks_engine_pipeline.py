@@ -42,10 +42,12 @@ objects) so the function itself never depends on ``common.library`` at runtime.
 preload gate passes. All 6 failure points immediately print to stderr with
 ``FATAL:`` prefix — no error is ever silently collected.
 
-Revision: 1.1
+Revision: 1.2
 Date: 2026-07-19
 Author: CodeBuddy
-Summary: 1.1: T1.99.153 (I189/F2–F3) — per-run export scoping: pre/post-run doc diff
+Summary: 1.2: I192 — copy latest CSV/XLSX exports to output/ root (atomic tmp→final)
+     so users don't need to locate the correct UUID subdirectory.
+1.1: T1.99.153 (I189/F2–F3) — per-run export scoping: pre/post-run doc diff
      filtering, per-run output subdirectory (output/<run_id>/).
 1.0: T1.99.95–100/I127 — Preload import gate hardening: added 6 new guarded import
      blocks to _preload_infrastructure() (EngineInput, EngineOutput, parse_cli_args,
@@ -64,6 +66,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 import uuid
 from pathlib import Path
@@ -334,13 +337,11 @@ def run_pipeline(
     def _after(ph: str) -> None:
         if on_phase:
             on_phase(ph)
-        # T1.99.85/I124: Per-phase checkpoint writes removed — unused by resume logic;
-        # context held in-memory via orchestrator.checkpoint_states. Restore from git
-        # history if future resume-from-checkpoint support is needed.
-        # if checkpoint_dir is not None and job_id is not None:
-        #     orchestrator.save_checkpoint(
-        #         ph, checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{ph}.json"
-        #     )
+        # T1.99.180 (I216): Restore per-phase checkpoint writes for resume capability.
+        if checkpoint_dir is not None and job_id is not None:
+            orchestrator.save_checkpoint(
+                ph, checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{ph}.json"
+            )
 
     if phase == "A":
         summary = {"phase_a": orchestrator.run_phase_a(root, recursive=recursive)}
@@ -937,17 +938,6 @@ def main(args: Optional[list] = None) -> int:
             },
         )
 
-        # T1.99.154 (I189/F2 fix): Capture pre-run document set BEFORE
-        # run_pipeline() registers new documents. The export block later
-        # uses this to scope exports to only docs from this invocation.
-        pre_doc_numbers: set = set()
-        if export_fmt != "none":
-            try:
-                reg_pre = _DocumentRegistry(logger=logger)
-                pre_doc_numbers = {d["document_number"] for d in reg_pre.list_documents(latest_only=True)}
-            except Exception:
-                pass  # if registry unavailable, pre_doc_numbers stays empty → export all
-
         # T1.99.59: pass context to run_pipeline (skips bootstrap, DCC pattern)
         result = run_pipeline(
             project_root=project_root,
@@ -975,8 +965,7 @@ def main(args: Optional[list] = None) -> int:
         # T1.99.93/I126 — Export pipeline results as CSV/Excel spreadsheets
         # Export in main() after run_pipeline() returns; not in PipelineOrchestrator.
         # The orchestrator stays pure (processing only); export is output formatting.
-        # export_fmt computed earlier (pre-bootstrap); pre_doc_numbers captured
-        # before run_pipeline() (T1.99.154 / I189/F2 fix).
+        # export_fmt computed earlier (pre-bootstrap).
         exported_files: list = []
         if export_fmt != "none" and returned_ctx is not None:
             # T1.99.99–100 (I127/G5–G6): Use preloaded references — no bare imports.
@@ -1000,33 +989,34 @@ def main(args: Optional[list] = None) -> int:
                     reg = DocumentRegistry(logger=logger)
                     all_docs = reg.list_documents(latest_only=True, order_by="document_number")
 
-                    # Filter to only documents registered during this run (I189/F2)
-                    run_docs = [d for d in all_docs if d["document_number"] not in pre_doc_numbers]
+                    # T1.99.154 (I189/F2): Export all documents from registry,
+                    # not only "new" docs. The per-run UUID subdirectory (I189/F3)
+                    # already prevents overwrites. Users expect complete exports
+                    # on every run — filtering to new-only produces empty exports
+                    # after the first run, which is confusing.
+                    run_docs = list(all_docs)
                     logger.info(
-                        f"Export: {len(run_docs)} new docs (from {len(all_docs)} total, "
-                        f"{len(pre_doc_numbers)} pre-existing)", context="main"
+                        f"Export: {len(run_docs)} docs total", context="main"
                     )
 
+                    # T1.99.159 (I193): Resolve columns from schema — replaces hardcoded lists
+                    export_config = resolve_export_columns(Path(safe_posix(config_dir)) / "schemas")
+                    if export_config.get("_fallback"):
+                        logger.warning(
+                            "Schema-driven export columns unavailable — using hardcoded 11-field fallback",
+                            context="main",
+                        )
+                    discovery_cols = export_config["discovery_inventory"]
+                    extraction_cols = export_config["extraction_results"]
+                    review_cols = export_config["review_flags"]
+
                     # Phase A: discovery_inventory
-                    discovery_cols = [
-                        "document_number", "revision", "document_type",
-                        "file_type", "file_path", "ingested_at",
-                    ]
                     discovery_rows = _build_export_rows(run_docs, None, discovery_cols)
 
-                    # Phase B: extraction_results — all documents with status + page count
-                    extraction_cols = discovery_cols + [
-                        "page_count", "extract_status", "extraction_confidence",
-                        "extraction_notes",
-                    ]
+                    # Phase B: extraction_results — all documents
                     extraction_rows = _build_export_rows(run_docs, None, extraction_cols)
 
                     # Phase C: review_flags — documents needing attention
-                    review_cols = [
-                        "document_number", "revision", "document_type",
-                        "extract_status", "extraction_confidence", "extraction_notes",
-                        "flag_reason", "ingested_at",
-                    ]
                     flagged_rows = _build_flagged_rows(run_docs, review_cols)
 
                     # Write files to per-run subdirectory (I189/F3)
@@ -1054,6 +1044,28 @@ def main(args: Optional[list] = None) -> int:
                     if exported_files:
                         logger.status(f"Exported {len(exported_files)} file(s) to {run_output_dir}", context="main")
 
+                        # I192: Copy latest exports to output/ root so users
+                        # don't need to find the correct UUID subdirectory.
+                        # Atomic tmp→final rename prevents partial writes.
+                        # T1.99.167 (I196): Separate try/except so a copy failure
+                        # does not obscure a successful export.
+                        try:
+                            for src in run_output_dir.iterdir():
+                                if src.is_file():
+                                    dst_tmp = output_dir / f".{src.name}.tmp"
+                                    dst_final = output_dir / src.name
+                                    shutil.copy2(src, dst_tmp)
+                                    dst_tmp.replace(dst_final)
+                            logger.status(
+                                f"Copied {len(exported_files)} file(s) to {output_dir}",
+                                context="main",
+                            )
+                        except Exception as copy_err:
+                            logger.warning(
+                                f"Root-level copy failed (per-run exports unaffected): {copy_err}",
+                                context="main",
+                            )
+
                 except Exception as e:
                     logger.warning(f"Export failed: {e}", context="main")
 
@@ -1080,7 +1092,115 @@ def main(args: Optional[list] = None) -> int:
 
 # ---------------------------------------------------------------------------
 # T1.99.93/I126 — Export row helpers
+# T1.99.157–160 (I193) — schema-driven export columns replace hardcoded 11-field subset
 # ---------------------------------------------------------------------------
+
+def resolve_export_columns(schema_dir: Path) -> dict:
+    """Read x_export flags from eks_doc_base_schema.json and return per-artifact column lists.
+
+    T1.99.159 (I193): Replaces hardcoded discovery_cols/extraction_cols/review_cols
+    with schema-driven resolution. Column ordering follows schema definition order:
+    project metadata first (context), then document metadata.
+
+    Args:
+        schema_dir: Path to the config/schemas/ directory containing eks_doc_base_schema.json.
+
+    Returns:
+        Dict of {artifact_name: [column_names]} with keys:
+        ``discovery_inventory``, ``extraction_results``, ``review_flags``.
+
+        Falls back to hardcoded 11-column defaults if schema load fails, with a
+        ``_fallback`` key set to True so callers can log a warning.
+    """
+    # Schema-prescribed ordering — must stay in sync with eks_doc_base_schema.json
+    _project_meta_order = [
+        "project_title", "project_number", "area", "discipline", "department",
+    ]
+    _doc_meta_order = [
+        "source_type", "document_type", "document_number", "revision", "status",
+        "is_latest", "file_path", "file_type", "ingested_at",
+        "created_by", "checked_by", "approved_by", "originator_company",
+        "security_class", "asset_tags", "page_count",
+        "extract_status", "extraction_confidence", "extraction_notes",
+        "verified_by",
+        "file_size", "file_created_at", "file_modified_at", "file_hash",
+        "embedded_title", "embedded_subject", "embedded_created_date",
+        "embedded_modified_date", "embedded_creator_app", "embedded_producer",
+        "embedded_last_modified_by", "embedded_keywords", "embedded_sheet_count",
+        "document_title", "supersedes", "superseded_by", "lifecycle_stage",
+        "revision_date", "revision_description", "embedded_revision_number",
+        "references_documents", "project_phase", "contract_package",
+        "issued_date", "responsible_engineer", "total_sheets", "language",
+        "vendor_name",
+    ]
+
+    try:
+        doc_base_path = schema_dir / "eks_doc_base_schema.json"
+        if not doc_base_path.exists():
+            raise FileNotFoundError(f"{doc_base_path} not found")
+
+        with open(doc_base_path, "r", encoding="utf-8") as f:
+            schema = json.load(f)
+
+        doc_props = schema.get("definitions", {}).get("document_metadata_def", {}).get("properties", {})
+        proj_props = schema.get("definitions", {}).get("project_metadata_def", {}).get("properties", {})
+
+        # Collect exportable fields in schema-defined order
+        all_exportable = []
+
+        # Project fields first (context)
+        for col in _project_meta_order:
+            if col in proj_props and proj_props[col].get("x_export"):
+                all_exportable.append(col)
+
+        # Document fields — skip is_latest, supersedes, superseded_by (internal FK/UUID)
+        for col in _doc_meta_order:
+            if col in doc_props and doc_props[col].get("x_export"):
+                all_exportable.append(col)
+
+        # discovery_inventory: all exportable minus extraction-specific
+        extraction_specific = {"page_count", "extract_status", "extraction_confidence", "extraction_notes"}
+        discovery = [c for c in all_exportable if c not in extraction_specific]
+
+        # extraction_results: all exportable fields
+        extraction = list(all_exportable)
+
+        # review_flags: focused extraction-quality subset + flag_reason + key id fields
+        review = [
+            "project_title", "project_number", "area", "discipline",
+            "document_number", "revision", "document_type",
+            "extract_status", "extraction_confidence", "extraction_notes",
+            "flag_reason", "ingested_at",
+        ]
+
+        return {
+            "discovery_inventory": discovery,
+            "extraction_results": extraction,
+            "review_flags": review,
+            "_fallback": False,
+        }
+
+    except Exception:
+        # Graceful fallback to hardcoded 11-column defaults (backward-compatible)
+        return {
+            "discovery_inventory": [
+                "document_number", "revision", "document_type",
+                "file_type", "file_path", "ingested_at",
+            ],
+            "extraction_results": [
+                "document_number", "revision", "document_type",
+                "file_type", "file_path", "ingested_at",
+                "page_count", "extract_status", "extraction_confidence",
+                "extraction_notes",
+            ],
+            "review_flags": [
+                "document_number", "revision", "document_type",
+                "extract_status", "extraction_confidence", "extraction_notes",
+                "flag_reason", "ingested_at",
+            ],
+            "_fallback": True,
+        }
+
 
 def _build_export_rows(
     docs: list,
@@ -1089,11 +1209,14 @@ def _build_export_rows(
 ) -> list:
     """Build export-safe rows from document registry results.
 
+    T1.99.160 (I193): Pass-through full doc dict — schema-driven columns handle
+    subsetting. No hardcoded field list.
+
     Args:
         docs: List of document dicts from ``registry.list_documents()``.
         status_filter: If provided, only include docs whose ``extract_status``
-                       is in this list (e.g. ``["pending"]`` for discovery).
-        columns: Column ordering (for consistent output).
+                       is in this list.
+        columns: Column ordering (for consistent output). Excludes ``id``.
 
     Returns:
         List of dicts suitable for ``DataExporter``.
@@ -1103,21 +1226,10 @@ def _build_export_rows(
         if status_filter is not None:
             if doc.get("extract_status", "pending") not in status_filter:
                 continue
-        row = {
-            "document_number": doc.get("document_number", ""),
-            "revision": doc.get("revision", ""),
-            "document_type": doc.get("document_type", ""),
-            "file_type": doc.get("source_type", doc.get("file_type", "")),
-            "file_path": doc.get("file_path", ""),
-            "ingested_at": doc.get("ingested_at", ""),
-            "page_count": doc.get("page_count", ""),
-            "extract_status": doc.get("extract_status", "pending"),
-            "extraction_confidence": doc.get("extraction_confidence", ""),
-            "extraction_notes": doc.get("extraction_notes", ""),
-        }
-        # Subset to requested columns if specified
+        # Pass through full doc — schema-driven columns handle subsetting
+        row = dict(doc)
         if columns:
-            row = {k: row.get(k, "") for k in columns}
+            row = {k: row.get(k, "") for k in columns if k != "id"}
         rows.append(row)
     return rows
 
@@ -1127,6 +1239,9 @@ def _build_flagged_rows(
     columns: Optional[list] = None,
 ) -> list:
     """Build review-flag rows for documents needing human attention.
+
+    T1.99.160 (I193): Pass-through full doc dict + add computed ``flag_reason``.
+    No hardcoded field list.
 
     Flags documents where:
     - ``extract_status`` is not ``"success"``, or
@@ -1138,7 +1253,6 @@ def _build_flagged_rows(
     for doc in docs:
         status = doc.get("extract_status", "pending")
         confidence = doc.get("extraction_confidence")
-        notes = doc.get("extraction_notes", "")
 
         # Determine flag reasons
         reasons = []
@@ -1157,18 +1271,11 @@ def _build_flagged_rows(
         if not reasons:
             continue  # skip clean docs
 
-        row = {
-            "document_number": doc.get("document_number", ""),
-            "revision": doc.get("revision", ""),
-            "document_type": doc.get("document_type", ""),
-            "extract_status": status,
-            "extraction_confidence": confidence if confidence is not None else "",
-            "extraction_notes": notes,
-            "flag_reason": "; ".join(reasons),
-            "ingested_at": doc.get("ingested_at", ""),
-        }
+        # Pass through full doc + add computed flag_reason
+        row = dict(doc)
+        row["flag_reason"] = "; ".join(reasons)
         if columns:
-            row = {k: row.get(k, "") for k in columns}
+            row = {k: row.get(k, "") for k in columns if k != "id"}
         rows.append(row)
     return rows
 

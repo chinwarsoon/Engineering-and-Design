@@ -16,6 +16,10 @@
         "file_type": "HAS_FORMAT",
         "references_documents": "REFERENCES_DOC"
     },
+    "document_title_config": {
+        "boilerplate_prefixes": ["Microsoft Word", "AutoCAD Drawing", "Microsoft Excel"],
+        "description": "Embedded titles starting with these prefixes are treated as boilerplate and discarded in favor of filename-derived titles."
+    },
     "health_scoring": {
         "dimensions": [
             { "name": "completeness", "weight": 0.20 },

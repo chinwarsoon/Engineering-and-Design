@@ -129,7 +129,7 @@ class ManualReviewManager:
         if elements is None:
             elements = self.registry.get_elements(doc_id)
 
-        score = self.scorer.score(doc, elements)
+        score = self.scorer.score(doc, structural_elements=elements)
         self.logger.info(
             f"Recalculated score for {doc_id}: {score.get('overall', 'N/A')}",
             context="ManualReviewManager.recalculate_score"

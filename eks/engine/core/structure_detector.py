@@ -14,6 +14,9 @@ COVER_PAGE_PATTERNS = {
     "revision": re.compile(r'(?:Revision|Rev)[.:]\s*(\S+)', re.IGNORECASE),
     "discipline": re.compile(r'(?:Discipline)[.:]\s*(\S+)', re.IGNORECASE),
     "status": re.compile(r'(?:Status)[.:]\s*(\S+)', re.IGNORECASE),
+    # T1.99.162 (I196): Best-effort asset tag detection from title block.
+    # Matches patterns like "Tag: P-101, V-202" or "Equipment No: E-301A"
+    "asset_tags": re.compile(r'(?:Tag|Asset|Equipment)\s*(?:s|No|Number|#)?[.:]\s*([\w\-,\s]+)', re.IGNORECASE),
 }
 
 REVISION_ROW_PATTERN = re.compile(r'^\s*(\d+)\s+(\S+)\s+(\S+)')

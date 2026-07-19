@@ -1,15 +1,27 @@
 """
 EKS Health Scorer - 6-dimension per-document health scoring.
+
+Revision: 0.2
+Date: 2026-07-19
+Author: CodeBuddy
+Summary: 0.2: T1.99.187 (I214) — added score_from_input(HealthInput) → HealthOutput
+         contract method for Appendix F compliance. score() unchanged for backward
+         compatibility.
 """
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 from ..logging.logger import EKSLogger, log_depth
 
 TIER_1_COLUMNS = {"project_number", "discipline", "document_type", "document_number", "revision", "asset_tags"}
-TIER_2_COLUMNS = {"project_title", "area", "status", "created_by", "checked_by", "approved_by", "originator_company", "page_count"}
+TIER_2_COLUMNS = {"project_title", "area", "status", "created_by", "checked_by", "approved_by", "originator_company", "page_count",
+                   "document_title", "lifecycle_stage", "revision_date", "project_phase",
+                   "contract_package", "issued_date", "responsible_engineer", "total_sheets",
+                   "supersedes", "superseded_by", "file_type"}
 TIER_3_COLUMNS = {"department", "security_class", "verified_by",
                    "file_size", "file_hash", "embedded_title", "embedded_subject",
-                   "embedded_creator_app", "embedded_producer"}
+                   "embedded_creator_app", "embedded_producer",
+                   "revision_description", "embedded_revision_number",
+                   "references_documents", "language", "vendor_name"}
 ALL_SCOABLE = TIER_1_COLUMNS | TIER_2_COLUMNS | TIER_3_COLUMNS
 
 TIER_1_WEIGHT = 2.0
@@ -29,11 +41,12 @@ COVER_TYPE_SOURCE_SCORES = {
     "C": 0.3,
     "D": 0.9,
     "E": 0.8,
+    "F": 0.0,
 }
 
 EXPECTED_ELEMENTS_BY_TYPE = {
-    "A": {"cover_page", "revision_table", "sections", "image"},
-    "B": {"cover_page", "revision_table", "sections", "image"},
+    "A": {"cover_page", "revision_table", "sections", "image", "table"},
+    "B": {"cover_page", "revision_table", "sections", "image", "table"},
     "C": set(),
     "D": {"cover_page", "sections"},
     "E": {"cover_page", "sections", "table"},
@@ -260,6 +273,37 @@ class HealthScorer:
             "missing_columns": result["missing_columns"],
             "tier1_fields": result["tier1_fields"],
         }, default=str)
+
+    @log_depth
+    def score_from_input(self, health_input: "HealthInput") -> "HealthOutput":
+        """T1.99.187 (I214): Score from a HealthInput contract → HealthOutput.
+
+        Wraps the existing ``score()`` method in the Appendix F HealthInput/
+        HealthOutput contract pattern. Lazy-imports HealthOutput to avoid
+        circular dependencies.
+
+        Args:
+            health_input: HealthInput with document, elements, etc.
+
+        Returns:
+            HealthOutput with overall score and per-dimension breakdown.
+        """
+        from .io_contracts import HealthOutput
+        doc = health_input.document or {}
+        result = self.score(
+            doc,
+            structural_elements=health_input.elements or None,
+        )
+        return HealthOutput(
+            run_id=health_input.run_id,
+            status="SUCCESS",
+            overall=result.get("health_score", 0.0),
+            dimensions={
+                k: v.get("score", v) if isinstance(v, dict) else v
+                for k, v in result.get("dimensions", {}).items()
+            },
+            metadata=result,
+        )
 
     @log_depth
     def score_batch(self, documents: List[Dict[str, Any]],

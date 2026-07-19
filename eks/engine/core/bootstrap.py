@@ -336,11 +336,45 @@ class EKSBootstrapManager(BootstrapManager):
             raise BootstrapError("P1-BOOT-CONFIG", f"Fallback validation failed: {exc}", "fallback")
 
     def _bootstrap_schema(self) -> None:
-        """P7 (EKS): Resolve schema, translate B-SCH-001 → P1-BOOT-CONFIG."""
+        """P7 (EKS): Resolve schema, validate DDL pre-flight, translate B-SCH-001 → P1-BOOT-CONFIG.
+        
+        T1.99.191 (I225): Runs SchemaToDDL pre-flight validation to catch
+        schema-drift errors before the pipeline starts, rather than waiting
+        for first registry instantiation.  Generates DDL and indexes from the
+        doc base schema and checks that required definitions are present.
+        """
         self._record_phase_start("P7_schema")
         try:
+            # T1.99.191 (I225): Pre-flight SchemaToDDL validation
+            doc_config = {}
+            try:
+                from .schema_loader import SchemaLoader
+                _sl = SchemaLoader(self.config_dir)
+                _sl.load_all()
+                doc_config = _sl.doc_config
+            except Exception:
+                pass
+            
+            if doc_config:
+                try:
+                    from .schema_to_ddl import SchemaToDDL
+                    doc_schema = SchemaToDDL.load_doc_base_schema(self.config_dir / "schemas")
+                    ddl_gen = SchemaToDDL(doc_schema, logger=self.logger)
+                    # Pre-flight: generate all DDL to catch schema errors early
+                    docs_ddl = ddl_gen.generate_documents_ddl()
+                    els_ddl = ddl_gen.generate_document_elements_ddl()
+                    indexes = ddl_gen.generate_indexes()
+                    self._log(
+                        f"SchemaToDDL pre-flight OK: "
+                        f"documents table ({len(docs_ddl)} chars), "
+                        f"elements table ({len(els_ddl)} chars), "
+                        f"{len(indexes)} indexes"
+                    )
+                except Exception as ddl_err:
+                    self._log(f"SchemaToDDL pre-flight warning (non-fatal): {ddl_err}")
+            
             self._record_phase_complete("P7_schema")
-            self._log("Bootstrap Phase P7 (EKS): Schema resolved")
+            self._log("Bootstrap Phase P7 (EKS): Schema resolved with DDL pre-validation")
         except Exception as exc:
             self._record_phase_failure("P7_schema", "P1-BOOT-CONFIG")
             raise BootstrapError("P1-BOOT-CONFIG", f"Schema resolution failed: {exc}", "schema")

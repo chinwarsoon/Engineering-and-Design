@@ -5,9 +5,14 @@ This module implements the BaseEngine pattern per Appendix F Section 2.3.1,
 providing a standard execution flow (validate → execute → validate) for all
 pipeline engines.
 
-Revision: 0.1
-Date: 2026-06-30
-Author: System
+Revision: 0.2
+Date: 2026-07-19
+Author: CodeBuddy
+Summary: 0.2: T1.99.186 (I210) — EngineInput/EngineOutput now inherit from
+         common.library.core.pipeline base classes, eliminating the dual-contract
+         gap. Backward-compatible: all original fields preserved, to_dict()
+         unchanged. try/except guards handle missing common.library gracefully.
+0.1: Initial base engine implementation.
 """
 
 from abc import ABC, abstractmethod
@@ -15,6 +20,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+
+# T1.99.186 (I210): Consolidate EngineInput/EngineOutput with common.library
+# base classes. Gracefully degrade to local standalone dataclasses when
+# common.library is not importable.
+try:
+    from common.library.core.pipeline import EngineInput as _LibEngineInput
+    from common.library.core.pipeline import EngineOutput as _LibEngineOutput
+    _LIB_AVAILABLE = True
+except ImportError:
+    _LibEngineInput = None  # type: ignore
+    _LibEngineOutput = None  # type: ignore
+    _LIB_AVAILABLE = False
 
 
 @dataclass
@@ -51,60 +68,89 @@ class ValidationResult:
         )
 
 
-@dataclass
-class EngineInput:
-    """
-    Standard input contract for all EKS engines.
-    
-    This class implements the EngineInput contract per Appendix F Section 2.3.1.
-    """
-    run_id: str
-    data_dir: Path
-    config_file: Path
-    schema_dir: Path
-    output_dir: Path
-    parameters: Dict[str, Any] = field(default_factory=dict)
-    checkpoint_state: Optional[Dict[str, Any]] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
-        return {
-            "run_id": self.run_id,
-            "data_dir": str(self.data_dir),
-            "config_file": str(self.config_file),
-            "schema_dir": str(self.schema_dir),
-            "output_dir": str(self.output_dir),
-            "parameters": self.parameters,
-            "checkpoint_state": self.checkpoint_state
-        }
+if _LIB_AVAILABLE:
+
+    @dataclass
+    class EngineInput(_LibEngineInput):  # type: ignore[misc]
+        """
+        Standard input contract for all EKS engines.
+        
+        T1.99.186 (I210): Now extends common.library.core.pipeline.EngineInput
+        for cross-project contract consistency. All common.library fields
+        (run_id, data_dir, config_file, schema_dir, output_dir, parameters,
+        checkpoint_state) are inherited directly — no redefinition needed.
+        """
+        pass
+
+    @dataclass
+    class EngineOutput(_LibEngineOutput):  # type: ignore[misc]
+        """
+        Standard output contract for all EKS engines.
+        
+        T1.99.186 (I210): Now extends common.library.core.pipeline.EngineOutput
+        for cross-project contract consistency.
+        """
+        pass
+
+else:
+    # Fallback: standalone dataclasses when common.library is not available
+
+    @dataclass
+    class EngineInput:
+        """
+        Standard input contract for all EKS engines.
+        
+        This class implements the EngineInput contract per Appendix F Section 2.3.1.
+        (Standalone fallback — common.library not available.)
+        """
+        run_id: str
+        data_dir: Path
+        config_file: Path
+        schema_dir: Path
+        output_dir: Path
+        parameters: Dict[str, Any] = field(default_factory=dict)
+        checkpoint_state: Optional[Dict[str, Any]] = None
+        
+        def to_dict(self) -> Dict[str, Any]:
+            """Convert to dictionary for serialization."""
+            return {
+                "run_id": self.run_id,
+                "data_dir": str(self.data_dir),
+                "config_file": str(self.config_file),
+                "schema_dir": str(self.schema_dir),
+                "output_dir": str(self.output_dir),
+                "parameters": self.parameters,
+                "checkpoint_state": self.checkpoint_state
+            }
 
 
-@dataclass
-class EngineOutput:
-    """
-    Standard output contract for all EKS engines.
-    
-    This class implements the EngineOutput contract per Appendix F Section 2.3.1.
-    """
-    run_id: str
-    status: str  # SUCCESS, PARTIAL, FAILED
-    output_files: List[Path] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    errors: List[ErrorRecord] = field(default_factory=list)
-    checkpoint_state: Dict[str, Any] = field(default_factory=dict)
-    telemetry: Dict[str, Any] = field(default_factory=dict)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
-        return {
-            "run_id": self.run_id,
-            "status": self.status,
-            "output_files": [str(f) for f in self.output_files],
-            "metadata": self.metadata,
-            "errors": [e.to_dict() for e in self.errors],
-            "checkpoint_state": self.checkpoint_state,
-            "telemetry": self.telemetry
-        }
+    @dataclass
+    class EngineOutput:
+        """
+        Standard output contract for all EKS engines.
+        
+        This class implements the EngineOutput contract per Appendix F Section 2.3.1.
+        (Standalone fallback — common.library not available.)
+        """
+        run_id: str
+        status: str  # SUCCESS, PARTIAL, FAILED
+        output_files: List[Path] = field(default_factory=list)
+        metadata: Dict[str, Any] = field(default_factory=dict)
+        errors: List[ErrorRecord] = field(default_factory=list)
+        checkpoint_state: Dict[str, Any] = field(default_factory=dict)
+        telemetry: Dict[str, Any] = field(default_factory=dict)
+        
+        def to_dict(self) -> Dict[str, Any]:
+            """Convert to dictionary for serialization."""
+            return {
+                "run_id": self.run_id,
+                "status": self.status,
+                "output_files": [str(f) for f in self.output_files],
+                "metadata": self.metadata,
+                "errors": [e.to_dict() for e in self.errors],
+                "checkpoint_state": self.checkpoint_state,
+                "telemetry": self.telemetry
+            }
 
 
 class BaseEngine(ABC):

@@ -4,9 +4,13 @@ Factories for Dependency Injection pattern.
 This module implements factory classes for component creation per Appendix F,
 providing config-driven instantiation for parsers, health scorers, and structure detectors.
 
-Revision: 0.1
-Date: 2026-06-30
-Author: System
+Revision: 0.2
+Date: 2026-07-19
+Author: CodeBuddy
+Summary: 0.2: T1.99.183 (I211) — fixed broken import path in HealthScorerFactory
+         (engine.core → eks.engine.core); added try/except guards with clear
+         ImportError messages for all dynamic imports.
+0.1: Initial factory implementation.
 """
 
 from abc import ABC, abstractmethod
@@ -152,8 +156,8 @@ class HealthScorerFactory(Factory):
         config_dimensions = self._get_config("health_scoring.dimensions")
         scoring_dimensions = dimensions or config_dimensions or self._default_dimensions
         
-        # Import health scorer module
-        from engine.core.health_scorer import HealthScorer
+        # T1.99.183 (I211): Fixed import path from 'engine.core' → 'eks.engine.core'
+        from eks.engine.core.health_scorer import HealthScorer
         
         # Create health scorer with dimensions
         return HealthScorer(dimensions=scoring_dimensions, **kwargs)

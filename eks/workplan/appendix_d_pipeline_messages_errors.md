@@ -1,26 +1,28 @@
 # Appendix D — Pipeline Messages & Error Codes
 
-**Version**: 0.4  
-**Last Updated**: 2026-07-18  
-**Phase**: 1 — Foundation (schema) / 3 (runtime)  
-**Status**: ✅ Implemented & Tested — I112 update (bootstrap error code alignment)  
-**Related Files**:
-- [`eks/engine/logging/logger.py`](../engine/logging/logger.py)
-- [`eks/engine/core/registry.py`](../engine/core/registry.py) — document_elements table
-- [`eks/engine/core/bootstrap.py`](../engine/core/bootstrap.py) — EKSBootstrapManager (I112)
-- [`common/library/bootstrap/manager.py`](../../common/library/bootstrap/manager.py) — universal BootstrapManager (L19)
-- [`common/library/bootstrap/errors.py`](../../common/library/bootstrap/errors.py) — universal BootstrapError
-- [`dcc/config/schemas/error_code_base.json`](../../dcc/config/schemas/error_code_base.json) — DCC reference pattern
-- [`dcc/config/schemas/pipeline_message_base.json`](../../dcc/config/schemas/pipeline_message_base.json) — DCC reference pattern
+**Version**: 1.0
+**Last Updated**: 2026-07-19
+**Phase**: 1 — Foundation (schema) / 3 (runtime)
+**Status**: ✅ Implemented & Tested — full re-sync with config v1.3.0 + code v1.2
+**Source of Truth**:
+- [`eks/config/schemas/eks_error_config.json`](../config/schemas/eks_error_config.json) v1.3.0 (61 system + 50 data = 111 codes)
+- [`eks/config/schemas/eks_message_config.json`](../config/schemas/eks_message_config.json) v1.1.0 (49 messages)
+- [`eks/engine/core/health_scorer.py`](../engine/core/health_scorer.py)
+- [`eks/engine/core/pipeline_orchestrator.py`](../engine/core/pipeline_orchestrator.py)
+- [`eks/engine/core/structure_detector.py`](../engine/core/structure_detector.py)
+- [`eks/engine/core/filename_parser.py`](../engine/core/filename_parser.py)
+- [`eks/engine/core/file_property_parser.py`](../engine/core/file_property_parser.py)
+- [`eks/engine/eks_engine_pipeline.py`](../engine/eks_engine_pipeline.py)
 
 ### Revision History
 
 | Revision | Date | Author | Summary |
 | :------- | :--- | :----- | :------ |
-| 0.1 | 2026-06-19 | opencode | Initial draft: D1–D10 (Overview, Error Code Format, Taxonomy, System/Data Catalogs, Messages, Health Scoring, Status Lifecycle, Implementation Files) |
-| 0.2 | 2026-06-19 | opencode | Revised D7: All-column health scoring (18 scorable columns, 3 weight tiers, 5 dimensions with weighted composite formula, extraction_notes JSON format, 3 worked examples) |
-| 0.3 | 2026-06-19 | opencode | Added D7.10 Structural Elements Table (`document_elements`); revised D7 to 6-dimension composite (added structural completeness); added 8 structural error codes (D5), 8 structural messages (D6); updated D9 implementation files; updated D8 status lifecycle |
-| 0.4 | 2026-07-18 | opencode | **I112**: Added Bootstrap (B) category to D3 system error categories with range S-B-S-0600–0699; added S-B system error catalog in D4 (S-B-S-0601 BOOTSTRAP_NOT_COMPLETE, S-B-S-0602 PHASE_DEPENDENCY_FAILED); documented P1-BOOT-* format in D2 as setup/bootstrap hybrid (third format); added bootstrap_p1 data error ranges entry to D5; added bootstrap_universal B-* format documentation; added bootstrap messages to D6 (MILESTONE_BOOTSTRAP_START/COMPLETE, STATUS_CONFIG_LOADED/PATHS_RESOLVED/READINESS_PASSED/MANAGERS_INITIALIZED, WARNING_BOOTSTRAP_PHASE_FAILED); updated D9 implementation files |
+| 0.1 | 2026-06-19 | opencode | Initial draft: D1–D10 |
+| 0.2 | 2026-06-19 | opencode | Revised D7: 6-dimension health scoring |
+| 0.3 | 2026-06-19 | opencode | Added D7.10 structural elements; 6-dimension composite |
+| 0.4 | 2026-07-18 | opencode | I112: Added bootstrap (B) category, S-B codes, P1-BOOT-* format, B-* universal codes |
+| **1.0** | **2026-07-19** | **CodeBuddy** | **Full re-sync to match config/code. D3: added A/AI category, F/D module codes, PROP function code, ERROR severity. D4: 61 real codes (replaced 45 fabricated). D5: 50 real codes (replaced 65 fabricated); P5 codes added. D6: 49 real messages (replaced 42 fabricated). D7: tiers updated (6/16/13), source quality bonus, timestamp drift. D8: Phase A/B/C states added. D9: new implementation files. D10: fixed duplicate references.** |
 
 ---
 
@@ -66,9 +68,9 @@ EKS adopts the DCC error code taxonomy pattern with domain-specific adaptations:
 ```
 P  3  -  E  -  E  -  0001
 │  │     │     │     │
-│  │     │     │     └── 4-digit sequential ID (0001–9999)
-│  │     │     └──────── Function code (R/P/E/V/L/F/S)
-│  │     └────────────── Module code (R/P/E/G/V/X/C)
+│  │     │     │     └── 4-5 digit sequential ID (0001–0019)
+│  │     │     └──────── Function code (R/P/E/V/L/F/S/G/PROP)
+│  │     └────────────── Module code (D/P/E/X/G/R/F)
 │  └──────────────────── Phase number (1–5)
 └─────────────────────── Prefix: P = Phase
 ```
@@ -84,11 +86,25 @@ S  -  F  -  S  -  0201
 │     │     │     │
 │     │     │     └── 4-digit sequential ID (0001–9999)
 │     │     └──────── S = System
-│     └────────────── Category (E/F/C/R/D)
+│     └────────────── Category (E/F/C/R/A/B)
 └──────────────────── S = System prefix
 ```
 
 **Example**: `S-F-S-0201` = System, File category, error #201
+
+### Setup Validation Format
+
+**Format**: `P1-SETUP-{type}{id}`
+
+```
+P1  -  SETUP  -  F001
+│       │         │
+│       │         └── Type code (F/D/O/E) + 3-digit id, or READINESS
+│       └──────────── SETUP = Project setup validation
+└──────────────────── P1 = Phase 1 (Foundation / Setup)
+```
+
+**Example**: `P1-SETUP-F001` = Phase 1, Setup, Missing Required Folder #1
 
 ### Setup/Bootstrap Hybrid Format
 
@@ -104,8 +120,6 @@ P1  -  BOOT  -  READINESS
 
 **Example**: `P1-BOOT-READINESS` = Phase 1, Bootstrap, readiness gate failure
 
-This hybrid format bridges the gap between `P1-SETUP-*` (setup validation) and `S-B-S-*` (system-level bootstrap). Used for EKS-specific bootstrap phase failures that are registered in `eks_error_config.json` under the `bootstrap_p1` range.
-
 ### Universal Bootstrap Format
 
 **Format**: `B-{module}-{id}`
@@ -120,8 +134,6 @@ B  -  CLI  -  001
 
 **Example**: `B-CLI-001` = Bootstrap, CLI module, error #1
 
-These universal codes are defined in `common/library/bootstrap/errors.py` and `manager.py`, and are registered in `eks_error_config.json` under the `bootstrap_universal` range. They serve as fallback codes when project-specific error codes are not available.
-
 ---
 
 ## D3. Error Code Taxonomy
@@ -130,35 +142,35 @@ These universal codes are defined in `common/library/bootstrap/errors.py` and `m
 
 | Code | Phase | Description |
 |------|-------|-------------|
-| `P1` | Phase 1 — Foundation | Schema, registry, config |
-| `P2` | Phase 2 — Chunking & Embedding | Parsing, chunking, embedding |
-| `P3` | Phase 3 — Knowledge Graph | Extraction, ingestion, graph |
-| `P4` | Phase 4 — Retrieval | Query, retrieval, scoring |
-| `P5` | Phase 5 — UI | Interface, display |
+| `P1` | Phase 1 — Foundation | File discovery, placeholder registration |
+| `P2` | Phase 2 — Parsing | PDF/DOCX/DGN file parsing |
+| `P3` | Phase 3 — Extraction & Graph | Metadata extraction, cross-reference, graph operations |
+| `P4` | Phase 4 — Retrieval | Query, retrieval, scoring (future) |
+| `P5` | Phase 5 — File Operations | Filename parsing, property extraction, pipeline file ops |
 
 ### Module Codes
 
 | Code | Module | Phase(s) | Description |
 |------|--------|----------|-------------|
-| `R` | Registry | 1, 3 | Document registry CRUD |
-| `P` | Parser | 2 | File parsing (PDF, DOCX, XLSX) |
+| `D` | Discovery | 1 | File walk and placeholder registration |
+| `P` | Parser | 2 | File parsing (PDF, DOCX, XLSX, DGN) |
 | `E` | Extractor | 3 | Metadata extraction (cover sheet, filename) |
-| `G` | Graph | 3, 4 | Neo4j graph operations |
-| `V` | Validator | 1, 3 | Schema/data validation |
 | `X` | CrossRef | 3 | Cross-reference (datadrop, asset tags) |
-| `C` | Config | 1 | Configuration loading |
+| `G` | Graph | 3 | Graph node/edge operations |
+| `R` | Registry | 5 | Document registry lookup |
+| `F` | File | 5 | File-level operations (filename parse, property extraction) |
 
 ### Function Codes
 
 | Code | Function | Description |
 |------|----------|-------------|
-| `R` | Register | Registration / write operations |
-| `P` | Parse | File parsing operations |
+| `P` | Parse | File parsing, filename parsing, discovery operations |
 | `E` | Extract | Metadata extraction operations |
-| `V` | Validate | Validation operations |
-| `L` | Load | Load / ingest operations |
-| `F` | Format | Format / output operations |
-| `S` | System | System-level operations |
+| `V` | Validate | Validation operations (filename segment, file type) |
+| `S` | System | System-level file operations |
+| `G` | Graph | Graph node/edge/query operations |
+| `X` | CrossRef | Cross-reference operations |
+| `PROP` | Property | File property extraction (OS stat + embedded metadata) |
 
 ### Severity Levels
 
@@ -166,311 +178,349 @@ These universal codes are defined in `common/library/bootstrap/errors.py` and `m
 |-------|-------------|-----------------|
 | `FATAL` | Unrecoverable error, pipeline cannot continue | Stops execution immediately |
 | `CRITICAL` | Major failure, requires intervention | Stops execution, allows cleanup |
+| `ERROR` | Significant pipeline error, phase may fail | Phase may stop, file processing continues |
 | `HIGH` | Significant issue, degraded output | Logs error, continues with fallback |
-| `MEDIUM` | Moderate issue, partial impact | Logs warning, continues |
-| `WARNING` | Minor issue, no data loss | Logs warning, continues |
+| `WARNING` | Moderate or minor issue, partial impact | Logs warning, continues |
 | `INFO` | Informational, no error | Logs info, continues |
 
 ### System Error Categories
 
 | Code | Category | Range | Description |
 |------|----------|-------|-------------|
-| `E` | Environment | `S-E-S-0100–0199` | Python, packages, OS |
-| `F` | File | `S-F-S-0200–0299` | File I/O, paths, permissions |
-| `C` | Config | `S-C-S-0300–0399` | Schema, config, parameters |
-| `R` | Runtime | `S-R-S-0400–0499` | Exceptions, memory, fail-fast |
-| `D` | Database | `S-D-S-0500–0599` | DuckDB/PostgreSQL/Neo4j |
-| `B` | Bootstrap | `S-B-S-0600–0699` | Bootstrap initialization, preload traces, readiness gates, phase dependency checks |
+| `E` | Environment | `S-E-S-0100–0199` | Python, packages, DuckDB |
+| `F` | File | `S-F-S-0200–0299` | File I/O, paths, schema files, config files |
+| `C` | Config | `S-C-S-0300–0399` | Schema, config, parameters, registry |
+| `R` | Runtime | `S-R-S-0400–0499` | Exceptions, memory, fail-fast, pipeline phase |
+| `A` | AI | `S-A-S-0500–0599` | AI operations, embedding service, Ollama |
+| `B` | Bootstrap | `S-B-S-0600–0699` | Bootstrap initialization, preload traces, readiness gates |
+
+### Extended System Error Categories
+
+| Category | Prefix Format | Count | Description |
+|----------|---------------|:-----:|-------------|
+| Setup Validation | `P1-SETUP-{type}{id}` | 7 | Required folders, files, dependencies, environment |
+| Bootstrap P1 | `P1-BOOT-{reason}` | 6 | Readiness gate, config, paths, OS, context, environment |
+| Bootstrap Universal | `B-{module}-{id}` | 15 | CLI, paths, registry, defaults, fallback, schema, params, unhandled |
 
 ---
 
 ## D4. System Error Catalog
 
-### S-E: Environment Errors (0100–0199)
+**Total: 61 codes** across 9 categories.
+
+### S-E: Environment Errors (0101–0105)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
-| `S-E-S-0101` | PYTHON_VERSION_WRONG | FATAL | Python version below 3.10 | Yes |
-| `S-E-S-0102` | PACKAGE_MISSING | FATAL | Required package not installed | Yes |
-| `S-E-S-0103` | PACKAGE_VERSION_CONFLICT | CRITICAL | Package version incompatible | Yes |
-| `S-E-S-0104` | IMPORT_ERROR | CRITICAL | Module import failed | Yes |
-| `S-E-S-0105` | MEMORY_LOW | HIGH | Available memory below threshold | No |
-| `S-E-S-0106` | DISK_LOW | HIGH | Available disk below threshold | No |
+| `S-E-S-0101` | MISSING_PACKAGE | FATAL | Required Python package is not installed | Yes |
+| `S-E-S-0102` | WRONG_PYTHON_VERSION | FATAL | Python version does not meet requirements | Yes |
+| `S-E-S-0103` | IMPORT_ERROR | FATAL | Failed to import required module | Yes |
+| `S-E-S-0104` | ENVIRONMENT_NOT_READY | FATAL | Environment validation failed | Yes |
+| `S-E-S-0105` | DUCKDB_UNAVAILABLE | FATAL | DuckDB not available for pipeline execution | Yes |
 
-### S-F: File I/O Errors (0200–0299)
-
-| Code | Name | Severity | Description | Stops Pipeline |
-|------|------|----------|-------------|:--------------:|
-| `S-F-S-0201` | FILE_NOT_FOUND | FATAL | Input file does not exist | Yes |
-| `S-F-S-0202` | FILE_READ_ERROR | CRITICAL | File exists but cannot be read | Yes |
-| `S-F-S-0203` | FILE_WRITE_ERROR | CRITICAL | Cannot write output file | Yes |
-| `S-F-S-0204` | FILE_PERMISSION_DENIED | FATAL | No read/write permission | Yes |
-| `S-F-S-0205` | FILE_ENCODING_ERROR | HIGH | File encoding not supported | No |
-| `S-F-S-0206` | FILE_CORRUPT | HIGH | File is corrupted or truncated | No |
-| `S-F-S-0207` | PATH_NOT_FOUND | FATAL | Directory path does not exist | Yes |
-| `S-F-S-0208` | PATH_CREATE_FAIL | CRITICAL | Cannot create output directory | Yes |
-| `S-F-S-0209` | FILE_TOO_LARGE | WARNING | File exceeds size threshold | No |
-| `S-F-S-0210` | FILE_EMPTY | WARNING | File exists but is empty | No |
-| `S-F-S-0211` | SYMLINK_BROKEN | WARNING | Symbolic link target missing | No |
-| `S-F-S-0212` | LOCK_CONFLICT | HIGH | File locked by another process | No |
-
-### S-C: Config Errors (0300–0399)
+### S-F: File I/O Errors (0201–0206)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
-| `S-C-S-0301` | CONFIG_FILE_MISSING | FATAL | Config file not found | Yes |
-| `S-C-S-0302` | CONFIG_PARSE_ERROR | FATAL | Config file is invalid JSON | Yes |
-| `S-C-S-0303` | CONFIG_SCHEMA_INVALID | CRITICAL | Config fails schema validation | Yes |
-| `S-C-S-0304` | CONFIG_KEY_MISSING | CRITICAL | Required config key absent | Yes |
-| `S-C-S-0305` | CONFIG_VALUE_INVALID | CRITICAL | Config value out of range | Yes |
-| `S-C-S-0306` | SCHEMA_FILE_MISSING | FATAL | Schema file not found | Yes |
-| `S-C-S-0307` | SCHEMA_PARSE_ERROR | FATAL | Schema file is invalid JSON | Yes |
-| `S-C-S-0308` | SCHEMA_VALIDATION_FAIL | CRITICAL | Data fails schema validation | Yes |
-| `S-C-S-0309` | CONFIG_ENV_OVERRIDE_CONFLICT | WARNING | Environment variable conflicts with config | No |
-| `S-C-S-0310` | CONFIG_FALLBACK_USED | INFO | Default config value used | No |
-| `S-C-S-0311` | CONFIG_DEPRECATED_KEY | WARNING | Deprecated config key found | No |
+| `S-F-S-0201` | INPUT_FILE_NOT_FOUND | FATAL | Input file not found at specified path | Yes |
+| `S-F-S-0202` | FILE_UNREADABLE | FATAL | File exists but cannot be read | Yes |
+| `S-F-S-0203` | OUTPUT_DIR_NOT_WRITABLE | FATAL | Output directory is not writable | Yes |
+| `S-F-S-0204` | SCHEMA_FILE_NOT_FOUND | FATAL | Schema configuration file not found | Yes |
+| `S-F-S-0205` | CONFIG_FILE_NOT_FOUND | FATAL | Configuration file not found | Yes |
+| `S-F-S-0206` | OUTPUT_DIR_CREATION_FAILED | FATAL | Cannot create output directory | Yes |
 
-### S-R: Runtime Errors (0400–0499)
+### S-C: Config Errors (0301–0308)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
-| `S-R-S-0401` | UNHANDLED_EXCEPTION | FATAL | Uncaught exception | Yes |
-| `S-R-S-0402` | TYPE_ERROR | CRITICAL | Unexpected type encountered | Yes |
-| `S-R-S-0403` | VALUE_ERROR | CRITICAL | Invalid value encountered | Yes |
-| `S-R-S-0404` | KEY_ERROR | HIGH | Expected key not found in dict | No |
-| `S-R-S-0405` | INDEX_ERROR | HIGH | Index out of range | No |
-| `S-R-S-0406` | TIMEOUT | CRITICAL | Operation timed out | Yes |
-| `S-R-S-0407` | FAIL_FAST_TRIGGERED | FATAL | Fail-fast threshold exceeded | Yes |
+| `S-C-S-0301` | INVALID_PARAMETER | FATAL | Invalid parameter provided to pipeline | Yes |
+| `S-C-S-0302` | SCHEMA_PARSE_ERROR | FATAL | Failed to parse schema JSON | Yes |
+| `S-C-S-0303` | SCHEMA_VALIDATION_FAILED | FATAL | Schema validation failed against schema definition | Yes |
+| `S-C-S-0304` | MISSING_REQUIRED_CONFIG | FATAL | Required configuration is missing | Yes |
+| `S-C-S-0305` | ERROR_CATALOG_LOAD_FAILED | WARNING | Failed to load error catalog | No |
+| `S-C-S-0306` | MESSAGE_CATALOG_LOAD_FAILED | WARNING | Failed to load message catalog | No |
+| `S-C-S-0307` | REGISTRY_CONNECTION_FAILED | FATAL | Failed to connect to document registry | Yes |
+| `S-C-S-0308` | SCHEMA_RESOLUTION_ERROR | FATAL | Schema resolution failed via $ref chain | Yes |
 
-### S-D: Database Errors (0500–0599)
+### S-R: Runtime Errors (0401–0409)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
-| `S-D-S-0501` | DB_CONN_FAIL | FATAL | Cannot connect to database | Yes |
-| `S-D-S-0502` | DB_QUERY_FAIL | CRITICAL | SQL query execution failed | Yes |
-| `S-D-S-0503` | DB_TABLE_MISSING | CRITICAL | Expected table not found | Yes |
-| `S-D-S-0504` | DB_COLUMN_MISSING | CRITICAL | Expected column not found | Yes |
-| `S-D-S-0505` | DB_CONSTRAINT_VIOLATION | HIGH | Unique/PK constraint violated | No |
-| `S-D-S-0506` | DB_TRANSACTION_FAIL | CRITICAL | Transaction commit failed | Yes |
-| `S-D-S-0507` | DB_LOCK_TIMEOUT | HIGH | Database lock timeout | No |
+| `S-R-S-0401` | FAIL_FAST_TRIGGERED | FATAL | Fail-fast condition triggered — stopping pipeline | Yes |
+| `S-R-S-0402` | PIPELINE_ABORTED | FATAL | Pipeline execution aborted by user or timeout | Yes |
+| `S-R-S-0403` | MEMORY_ERROR | FATAL | Memory allocation failed during processing | Yes |
+| `S-R-S-0404` | BATCH_PROCESSING_FAILED | FATAL | Batch processing encountered an unrecoverable error | Yes |
+| `S-R-S-0405` | GRAPH_ENGINE_FAILED | HIGH | Graph engine operation failed | No |
+| `S-R-S-0406` | PRE_PIPELINE_VALIDATION_FAILED | FATAL | Pre-pipeline validation failed | Yes |
+| `S-R-S-0407` | FILE_PROCESSING_FAILED | ERROR | Unhandled error during per-file processing | No |
+| `S-R-S-0408` | PIPELINE_PHASE_FAILED | ERROR | Pipeline phase execution failed | Yes |
+| `S-R-S-0409` | PIPELINE_PROCESSING_FATAL | ERROR | Fatal error during pipeline processing | Yes |
 
-### S-B: Bootstrap Errors (0600–0699)
+### S-A: AI / Optional Service Errors (0501–0503)
+
+| Code | Name | Severity | Description | Stops Pipeline |
+|------|------|----------|-------------|:--------------:|
+| `S-A-S-0501` | AI_OPS_FAILED | WARNING | AI operations failed to complete | No |
+| `S-A-S-0502` | EMBEDDING_SERVICE_FAILED | WARNING | Embedding service not available | No |
+| `S-A-S-0503` | OLLAMA_UNAVAILABLE | WARNING | Ollama service is not available | No |
+
+### S-B: Bootstrap Errors (0601–0602)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
 | `S-B-S-0601` | BOOTSTRAP_NOT_COMPLETE | FATAL | Bootstrap must be completed before pipeline execution | Yes |
 | `S-B-S-0602` | PHASE_DEPENDENCY_FAILED | FATAL | Required prior phase has not completed successfully | Yes |
 
+### P1-SETUP: Setup Validation Errors (F001–READINESS)
+
+| Code | Name | Severity | Description | Stops Pipeline |
+|------|------|----------|-------------|:--------------:|
+| `P1-SETUP-F001` | MISSING_REQUIRED_FOLDER | FATAL | Required project folder does not exist | Yes |
+| `P1-SETUP-F002` | MISSING_REQUIRED_FILE | FATAL | Required project file does not exist | Yes |
+| `P1-SETUP-F003` | MISSING_EKS_YML | FATAL | eks/eks.yml environment file not found | Yes |
+| `P1-SETUP-D001` | MISSING_DEPENDENCY | WARNING | Required Python dependency not installed | No |
+| `P1-SETUP-O001` | OUTPUT_PATH_NOT_WRITABLE | WARNING | Output directory is not writable | No |
+| `P1-SETUP-E001` | PYTHON_VERSION_MISMATCH | WARNING | Python version does not match expected version | No |
+| `P1-SETUP-READINESS` | SETUP_NOT_READY | FATAL | Project setup validation failed — readiness check not passed | Yes |
+
+### P1-BOOT: Bootstrap Phase 1 Errors
+
+| Code | Name | Severity | Description | Stops Pipeline |
+|------|------|----------|-------------|:--------------:|
+| `P1-BOOT-READINESS` | BOOT_READINESS_FAILED | FATAL | Bootstrap readiness gate failed | Yes |
+| `P1-BOOT-CONFIG` | BOOT_CONFIG_FAILED | FATAL | Bootstrap config loading failed | Yes |
+| `P1-BOOT-PATHS` | BOOT_PATHS_FAILED | FATAL | Bootstrap path resolution failed | Yes |
+| `P1-BOOT-OS` | BOOT_OS_DETECTION_FAILED | FATAL | Bootstrap OS detection failed | Yes |
+| `P1-BOOT-CTX` | BOOT_CONTEXT_FAILED | FATAL | Bootstrap context creation failed | Yes |
+| `P1-BOOT-ENV` | BOOT_ENVIRONMENT_FAILED | FATAL | Bootstrap environment check failed | Yes |
+
+### B-*: Universal Bootstrap Errors (15 codes)
+
+| Code | Name | Severity | Description | Stops Pipeline |
+|------|------|----------|-------------|:--------------:|
+| `B-CLI-001` | BOOTSTRAP_CLI_PARSE_FAILED | FATAL | Bootstrap CLI parsing failed | Yes |
+| `B-PATH-001` | BOOTSTRAP_PROJECT_ROOT_MISSING | FATAL | Project root does not exist — cannot bootstrap | Yes |
+| `B-PATH-002` | BOOTSTRAP_PATH_VALIDATION_FAILED | FATAL | Bootstrap path validation failed | Yes |
+| `B-REG-001` | BOOTSTRAP_REGISTRY_LOAD_FAILED | FATAL | Bootstrap registry / config loading failed | Yes |
+| `B-DEF-001` | BOOTSTRAP_DEFAULTS_BUILD_FAILED | FATAL | Bootstrap native defaults building failed | Yes |
+| `B-FALL-001` | BOOTSTRAP_FALLBACK_VALIDATION_FAILED | FATAL | Bootstrap fallback validation failed | Yes |
+| `B-ENV-001` | BOOTSTRAP_ENV_TESTING_FAILED | FATAL | Bootstrap environment testing failed | Yes |
+| `B-ENV-002` | BOOTSTRAP_DEPS_MISSING | FATAL | Required dependencies missing during bootstrap | Yes |
+| `B-SCH-001` | BOOTSTRAP_SCHEMA_RESOLUTION_FAILED | FATAL | Bootstrap schema resolution failed | Yes |
+| `B-PAR-001` | BOOTSTRAP_CLI_PARAMS_FAILED | FATAL | Bootstrap CLI parameters resolution failed | Yes |
+| `B-PAR-002` | BOOTSTRAP_UI_PARAMS_FAILED | FATAL | Bootstrap UI parameters resolution failed | Yes |
+| `B-BOOT-0601` | BOOTSTRAP_PRELOAD_NOT_READY | FATAL | Bootstrap must be completed before accessing preload trace | Yes |
+| `B-CTX-001` | BOOTSTRAP_CTX_NOT_READY | FATAL | Must bootstrap before creating PipelineContext | Yes |
+| `B-UNK-001` | BOOTSTRAP_UNHANDLED_CLI_ERROR | FATAL | Unexpected bootstrap error in CLI mode | Yes |
+| `B-UNK-002` | BOOTSTRAP_UNHANDLED_UI_ERROR | FATAL | Unexpected bootstrap error in UI mode | Yes |
+
 ---
 
 ## D5. Data Error Catalog
 
-### Phase 1 — Registry Errors (P1-R)
+**Total: 50 codes** across 6 phase/module groups.
 
-| Code | Name | Severity | Description | Health Impact |
-|------|------|----------|-------------|:-------------:|
-| `P1-R-R-0001` | DOC_ID_DUPLICATE | WARNING | Document ID already exists with same revision | -1 |
-| `P1-R-R-0002` | DOC_ID_MISSING | CRITICAL | document_number is null or empty | -5 |
-| `P1-R-R-0003` | REVISION_MISSING | HIGH | revision field is null | -3 |
-| `P1-R-R-0004` | SCHEMA_VALIDATION_FAIL | CRITICAL | Metadata fails schema validation | -5 |
-| `P1-R-R-0005` | ASSET_TAGS_INVALID | WARNING | asset_tags is not a valid JSON array | -1 |
-| `P1-V-V-0001` | FIELD_TYPE_MISMATCH | WARNING | Field value does not match expected type | -1 |
-| `P1-V-V-0002` | FIELD_ENUM_INVALID | WARNING | Field value not in allowed enum | -1 |
-| `P1-C-C-0001` | CONFIG_LOAD_FAIL | CRITICAL | Failed to load project config | -5 |
+### Phase 1 — Discovery Errors (P1-D-P)
 
-### Phase 1 — Bootstrap Errors (P1-BOOT)
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P1-D-P-0001` | FILE_DISCOVERY_FAILED | CRITICAL | File walk/discovery failed for target directory | `eks/engine/core/discovery.py` | -5 |
+| `P1-D-P-0002` | DIRECTORY_NOT_FOUND | CRITICAL | Target directory does not exist or is inaccessible | `eks/engine/core/discovery.py` | -5 |
+| `P1-D-P-0003` | REGISTRATION_FAILED | HIGH | Placeholder registration failed during file discovery | `eks/engine/core/pipeline_orchestrator.py` | -3 |
 
-| Code | Name | Severity | Description | Health Impact |
-|------|------|----------|-------------|:-------------:|
-| `P1-BOOT-READINESS` | BOOT_READINESS_FAILED | FATAL | Bootstrap readiness gate failed — project setup not ready | -10 |
-| `P1-BOOT-CONFIG` | BOOT_CONFIG_FAILED | FATAL | Bootstrap config loading failed — unable to load project configuration | -10 |
-| `P1-BOOT-PATHS` | BOOT_PATHS_FAILED | FATAL | Bootstrap path resolution failed — invalid or missing project paths | -10 |
-| `P1-BOOT-OS` | BOOT_OS_DETECTION_FAILED | FATAL | Bootstrap OS detection failed — unable to determine operating system | -10 |
-| `P1-BOOT-CTX` | BOOT_CONTEXT_FAILED | FATAL | Bootstrap context creation failed — must bootstrap before creating PipelineContext | -10 |
-| `P1-BOOT-ENV` | BOOT_ENVIRONMENT_FAILED | FATAL | Bootstrap environment check failed — required dependencies missing | -10 |
+### Phase 2 — Parser Errors (P2-P-P)
 
-### Bootstrap Universal Errors (B-*)
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P2-P-P-0001` | PDF_PARSE_OPEN_FAIL | HIGH | Failed to open PDF file for parsing | `eks/engine/parsers/pdf_parser.py` | -3 |
+| `P2-P-P-0002` | PDF_PAGE_EXTRACT_FAIL | HIGH | Failed to extract a specific page from PDF | `eks/engine/parsers/pdf_parser.py` | -3 |
+| `P2-P-P-0003` | PDF_NO_TEXT_LAYER | WARNING | PDF has no selectable text layer (scanned) | `eks/engine/parsers/pdf_parser.py` | -3 |
+| `P2-P-P-0004` | PDF_ENCRYPTED | HIGH | PDF is password-protected or encrypted | `eks/engine/parsers/pdf_parser.py` | -3 |
+| `P2-P-P-0005` | PDF_IMAGE_EXTRACT_FAIL | WARNING | Failed to extract image from PDF | `eks/engine/parsers/pdf_parser.py` | -2 |
+| `P2-P-P-0006` | PDF_TABLE_EXTRACT_FAIL | WARNING | Failed to extract table from PDF page | `eks/engine/parsers/pdf_parser.py` | -2 |
+| `P2-P-P-0007` | DOCX_PARSE_FAIL | HIGH | DOCX structure invalid or corrupt | `eks/engine/parsers/docx_parser.py` | -3 |
+| `P2-P-P-0008` | DGN_UNSUPPORTED | HIGH | DGN file format not yet supported | `eks/engine/parsers/dgn_parser.py` | -3 |
 
-| Code | Name | Severity | Description | Health Impact |
-|------|------|----------|-------------|:-------------:|
-| `B-CLI-001` | BOOTSTRAP_CLI_PARSE_FAILED | FATAL | Bootstrap CLI parsing failed | -10 |
-| `B-PATH-001` | BOOTSTRAP_PROJECT_ROOT_MISSING | FATAL | Project root does not exist | -10 |
-| `B-PATH-002` | BOOTSTRAP_PATH_VALIDATION_FAILED | FATAL | Bootstrap path validation failed | -10 |
-| `B-REG-001` | BOOTSTRAP_REGISTRY_LOAD_FAILED | FATAL | Bootstrap registry / config loading failed | -10 |
-| `B-DEF-001` | BOOTSTRAP_DEFAULTS_BUILD_FAILED | FATAL | Bootstrap native defaults building failed | -10 |
-| `B-FALL-001` | BOOTSTRAP_FALLBACK_VALIDATION_FAILED | FATAL | Bootstrap fallback validation failed | -10 |
-| `B-ENV-001` | BOOTSTRAP_ENV_TESTING_FAILED | FATAL | Bootstrap environment testing failed | -10 |
-| `B-ENV-002` | BOOTSTRAP_DEPS_MISSING | FATAL | Required dependencies missing during bootstrap | -10 |
-| `B-SCH-001` | BOOTSTRAP_SCHEMA_RESOLUTION_FAILED | FATAL | Bootstrap schema resolution failed | -10 |
-| `B-PAR-001` | BOOTSTRAP_CLI_PARAMS_FAILED | FATAL | Bootstrap CLI parameters resolution failed | -10 |
-| `B-PAR-002` | BOOTSTRAP_UI_PARAMS_FAILED | FATAL | Bootstrap UI parameters resolution failed | -10 |
-| `B-BOOT-0601` | BOOTSTRAP_PRELOAD_NOT_READY | FATAL | Bootstrap must be completed before accessing preload trace | -10 |
-| `B-CTX-001` | BOOTSTRAP_CTX_NOT_READY | FATAL | Must bootstrap before creating PipelineContext | -10 |
-| `B-UNK-001` | BOOTSTRAP_UNHANDLED_CLI_ERROR | FATAL | Unexpected bootstrap error (CLI mode) | -10 |
-| `B-UNK-002` | BOOTSTRAP_UNHANDLED_UI_ERROR | FATAL | Unexpected bootstrap error (UI mode) | -10 |
+### Phase 3 — Extraction Errors (P3-E-E)
 
-### Phase 2 — Parser Errors (P2-P)
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P3-E-E-0001` | COVERSHEET_UNRECOGNIZED | WARNING | Cover sheet format not identified | `structure_detector.py` | -2 |
+| `P3-E-E-0002` | DOC_NUMBER_EXTRACT_FAIL | WARNING | Could not extract document number | `extractor.py` | -2 |
+| `P3-E-E-0003` | REVISION_EXTRACT_FAIL | WARNING | Could not extract revision | `extractor.py` | -2 |
+| `P3-E-E-0004` | DISCIPLINE_EXTRACT_FAIL | WARNING | Could not extract discipline code | `extractor.py` | -1 |
+| `P3-E-E-0005` | STATUS_EXTRACT_FAIL | WARNING | Could not extract approval status | `extractor.py` | -1 |
+| `P3-E-E-0006` | CREATED_BY_EXTRACT_FAIL | INFO | Could not extract author | `extractor.py` | 0 |
+| `P3-E-E-0007` | ORIGINATOR_EXTRACT_FAIL | INFO | Could not extract originator company | `extractor.py` | 0 |
+| `P3-E-E-0008` | METADATA_INCOMPLETE | INFO | Some optional fields missing | `extractor.py` | 0 |
+| `P3-E-E-0009` | CONFIDENCE_LOW | WARNING | Extraction confidence below threshold | `health_scorer.py` | -2 |
+| `P3-E-E-0010` | COVER_PAGE_MISSING | WARNING | No cover page / title block detected | `structure_detector.py` | -3 |
+| `P3-E-E-0011` | REVISION_TABLE_MISSING | WARNING | No revision history table detected | `structure_detector.py` | -2 |
+| `P3-E-E-0012` | SECTIONS_MISSING | INFO | No section headings detected | `structure_detector.py` | 0 |
+| `P3-E-E-0013` | TABLES_EMPTY | INFO | No data tables detected in body | `structure_detector.py` | 0 |
+| `P3-E-E-0014` | IMAGES_DETECTED | INFO | Document contains images/charts | `structure_detector.py` | 0 |
+| `P3-E-E-0015` | SCANNED_PAGES_FOUND | WARNING | Some pages have no text layer | `structure_detector.py` | -2 |
+| `P3-E-E-0016` | ELEMENT_STORAGE_FAIL | WARNING | Detected element failed to store in DB | `registry.py` | -1 |
+| `P3-E-E-0017` | STRUCTURE_LOW_SCORE | WARNING | Structural completeness below 0.5 | `health_scorer.py` | -2 |
+| `P3-E-E-0018` | STRUCTURE_DETECTION_FAIL | WARNING | Structure detection failed for file | `pipeline_orchestrator.py` | -2 |
+| `P3-E-E-0019` | HEALTH_SCORE_FAILED | WARNING | Health scoring computation failed | `pipeline_orchestrator.py` | -2 |
 
-| Code | Name | Severity | Description | Health Impact |
-|------|------|----------|-------------|:-------------:|
-| `P2-P-P-0001` | FILE_NOT_FOUND | FATAL | Source file does not exist | -10 |
-| `P2-P-P-0002` | FILE_READ_ERROR | CRITICAL | File exists but cannot be parsed | -5 |
-| `P2-P-P-0003` | PDF_NO_TEXT_LAYER | WARNING | Scanned PDF, no extractable text | -2 |
-| `P2-P-P-0004` | PDF_PARSE_PARTIAL | WARNING | PDF parsed but some pages failed | -1 |
-| `P2-P-P-0005` | XLSX_SHEET_MISSING | HIGH | Expected sheet not found in workbook | -3 |
-| `P2-P-P-0006` | XLSX_CELL_ERROR | WARNING | Cell value cannot be read | -1 |
-| `P2-P-P-0007` | DOCX_PARSE_FAIL | HIGH | DOCX structure invalid | -3 |
-| `P2-P-P-0008` | DGN_UNSUPPORTED | HIGH | DGN file format not supported | -3 |
+### Phase 3 — Cross-Reference Errors (P3-X-X)
 
-### Phase 3 — Extraction Errors (P3-E)
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P3-X-X-0001` | KEYTAG_NO_MATCH | WARNING | asset_tag has no matching datadrop keytag | `xref.py` | -1 |
+| `P3-X-X-0002` | KEYTAG_AMBIGUOUS | WARNING | asset_tag matches multiple keytags | `xref.py` | -1 |
+| `P3-X-X-0003` | KEYTAG_FORMAT_INVALID | WARNING | asset_tag format does not match expected pattern | `xref.py` | -1 |
+| `P3-X-X-0004` | DATADROP_LOAD_FAIL | CRITICAL | Cannot load datadrop Excel file | `xref.py` | -5 |
+| `P3-X-X-0005` | DATADROP_SHEET_MISSING | HIGH | Expected datadrop sheet not found | `xref.py` | -3 |
 
-| Code | Name | Severity | Description | Health Impact |
-|------|------|----------|-------------|:-------------:|
-| `P3-E-E-0001` | COVERSHEET_UNRECOGNIZED | WARNING | Cover sheet format not identified | -2 |
-| `P3-E-E-0002` | DOC_NUMBER_EXTRACT_FAIL | WARNING | Could not extract document number | -2 |
-| `P3-E-E-0003` | REVISION_EXTRACT_FAIL | WARNING | Could not extract revision | -2 |
-| `P3-E-E-0004` | DISCIPLINE_EXTRACT_FAIL | WARNING | Could not extract discipline code | -1 |
-| `P3-E-E-0005` | STATUS_EXTRACT_FAIL | WARNING | Could not extract approval status | -1 |
-| `P3-E-E-0006` | CREATED_BY_EXTRACT_FAIL | INFO | Could not extract author | 0 |
-| `P3-E-E-0007` | ORIGINATOR_EXTRACT_FAIL | INFO | Could not extract originator company | 0 |
-| `P3-E-E-0008` | METADATA_INCOMPLETE | INFO | Some optional fields missing | 0 |
-| `P3-E-E-0009` | CONFIDENCE_LOW | WARNING | Extraction confidence below threshold | -2 |
-| `P3-E-E-0010` | COVER_PAGE_MISSING | WARNING | No cover page / title block detected | -3 |
-| `P3-E-E-0011` | REVISION_TABLE_MISSING | WARNING | No revision history table detected | -2 |
-| `P3-E-E-0012` | SECTIONS_MISSING | INFO | No section headings detected | 0 |
-| `P3-E-E-0013` | TABLES_EMPTY | INFO | No data tables detected in body | 0 |
-| `P3-E-E-0014` | IMAGES_DETECTED | INFO | Document contains images/charts | 0 |
-| `P3-E-E-0015` | SCANNED_PAGES_FOUND | WARNING | Some pages have no text layer | -2 |
-| `P3-E-E-0016` | ELEMENT_STORAGE_FAIL | WARNING | Detected element failed to store in DB | -1 |
-| `P3-E-E-0017` | STRUCTURE_LOW_SCORE | WARNING | Structural completeness below 0.5 | -2 |
+### Phase 3 — Graph Errors (P3-G-G)
 
-### Phase 3 — Cross-Reference Errors (P3-X)
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P3-G-G-0001` | NODE_CREATION_FAILED | WARNING | Graph node creation failed | `graph_engine.py` | -2 |
+| `P3-G-G-0002` | EDGE_CREATION_FAILED | WARNING | Graph edge creation failed | `graph_engine.py` | -2 |
+| `P3-G-G-0003` | GRAPH_QUERY_FAILED | WARNING | Graph query execution failed | `graph_engine.py` | -2 |
 
-| Code | Name | Severity | Description | Health Impact |
-|------|------|----------|-------------|:-------------:|
-| `P3-X-X-0001` | KEYTAG_NO_MATCH | WARNING | asset_tag has no matching datadrop keytag | -1 |
-| `P3-X-X-0002` | KEYTAG_AMBIGUOUS | WARNING | asset_tag matches multiple keytags | -1 |
-| `P3-X-X-0003` | KEYTAG_FORMAT_INVALID | WARNING | asset_tag format does not match expected pattern | -1 |
-| `P3-X-X-0004` | DATADROP_LOAD_FAIL | CRITICAL | Cannot load datadrop Excel file | -5 |
-| `P3-X-X-0005` | DATADROP_SHEET_MISSING | HIGH | Expected datadrop sheet not found | -3 |
+### Phase 5 — File Operations Errors (P5-F-*)
 
-### Phase 3 — Graph Errors (P3-G)
+#### File Validation (P5-F-V)
 
-| Code | Name | Severity | Description | Health Impact |
-|------|------|----------|-------------|:-------------:|
-| `P3-G-L-0001` | NEO4J_CONN_FAIL | FATAL | Cannot connect to Neo4j | -10 |
-| `P3-G-L-0002` | NODE_CREATE_FAIL | CRITICAL | Node creation failed | -5 |
-| `P3-G-L-0003` | EDGE_CREATE_FAIL | CRITICAL | Edge creation failed | -3 |
-| `P3-G-L-0004` | ONTOLOGY_CLASS_MISSING | WARNING | Target ontology class not found | -1 |
-| `P3-G-L-0005` | RELATIONSHIP_DUPLICATE | WARNING | Duplicate relationship already exists | 0 |
-| `P3-G-L-0006` | NODE_PROPERTY_MISSING | WARNING | Required node property absent | -1 |
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P5-F-V-0001` | FILE_TYPE_NOT_SUPPORTED | HIGH | File type not supported for processing | `pipeline_orchestrator.py` | -3 |
+| `P5-F-V-0004` | TOO_FEW_FILENAME_SEGMENTS | WARNING | Filename has fewer segments than minimum required | `filename_parser.py` | -2 |
+| `P5-F-V-0005` | TOO_MANY_FILENAME_SEGMENTS | WARNING | Filename has more segments than maximum allowed | `filename_parser.py` | -2 |
+| `P5-F-V-0006` | SEGMENT_VALIDATION_FAILED | WARNING | Filename segment failed regex/schema validation | `filename_parser.py` | -1 |
+
+#### File System (P5-F-S)
+
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P5-F-S-0002` | FILE_NOT_FOUND | HIGH | File not found or unreadable during processing | `pipeline_orchestrator.py` | -3 |
+
+#### Registry Lookup (P5-R-P)
+
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P5-R-P-0003` | DOCUMENT_NOT_REGISTERED | WARNING | Document not found in registry during Phase B lookup | `pipeline_orchestrator.py` | -2 |
+
+#### Filename Parse (P5-F-P)
+
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P5-F-P-0007` | UNRESOLVABLE_FILENAME | WARNING | Filename cannot be resolved by any pattern — synthetic key generated | `filename_parser.py` | -2 |
+
+#### File Property Extraction (P5-F-PROP)
+
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P5-F-PROP-0001` | FILE_PROP_NOT_FOUND | CRITICAL | File not found during property extraction (Path.stat failed) | `file_property_parser.py` | -3 |
+| `P5-F-PROP-0002` | FILE_PROP_STAT_FAILED | CRITICAL | OS stat failed during property extraction (OSError) | `file_property_parser.py` | -3 |
+| `P5-F-PROP-0003` | FILE_PROP_NO_METADATA | WARNING | No parser metadata available for embedded property extraction | `file_property_parser.py` | -1 |
+| `P5-F-PROP-0004` | FILE_PROP_MAPPING_FAILURE | WARNING | Property mapping failure — source_key not found in parser metadata | `file_property_parser.py` | -1 |
+| `P5-F-PROP-0005` | FILE_PROP_HASH_FAILED | CRITICAL | Hash computation failed during file property extraction | `file_property_parser.py` | -2 |
 
 ---
 
 ## D6. Pipeline Message Catalog
 
-### Message Schema
+**Total: 49 messages** across 7 categories.
 
-Each message is defined with:
+### Message Schema
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | string | Unique message identifier (UPPER_SNAKE_CASE) |
 | `category` | enum | `milestone`, `status`, `progress`, `warning`, `error` |
-| `level` | integer | Verbosity: 0=quiet, 1=normal, 2=debug, 3=trace |
+| `level` | integer | Verbosity: 0=error, 1=normal/status, 2=debug, 3=trace |
 | `template` | string | Python-style template with `{placeholders}` |
-| `icon` | string | Display icon/emoji |
+| `icon` | string | Display icon (optional) |
 
 ### Milestone Messages
 
-| ID | Level | Template | Icon |
-|----|-------|----------|------|
-| `MILESTONE_SETUP_VALIDATED` | 1 | `Setup validated: {config_count} configs loaded` | ✓ |
-| `MILESTONE_REGISTRATION_START` | 1 | `Starting document registration...` | ▶ |
-| `MILESTONE_REGISTRATION_COMPLETE` | 1 | `Registered {count} documents ({success} OK, {fail} failed)` | ✓ |
-| `MILESTONE_PARSING_START` | 1 | `Starting batch parse of {path}...` | ▶ |
-| `MILESTONE_PARSING_COMPLETE` | 1 | `Parse complete: {count} files processed` | ✓ |
-| `MILESTONE_INGESTION_START` | 1 | `Starting bulk ingestion of {path}...` | ▶ |
-| `MILESTONE_INGESTION_COMPLETE` | 1 | `Ingestion complete: {count} documents ({success} OK, {fail} failed, {skip} skipped)` | ✓ |
-| `MILESTONE_GRAPH_START` | 1 | `Building knowledge graph...` | ▶ |
-| `MILESTONE_GRAPH_COMPLETE` | 1 | `Graph built: {nodes} nodes, {edges} edges` | ✓ |
+| ID | Category | Level | Template | Icon |
+|----|----------|-------|----------|------|
+| `MILESTONE_BOOTSTRAP_START` | milestone | 1 | `Starting EKS bootstrap initialization...` | ▶ |
+| `MILESTONE_BOOTSTRAP_COMPLETE` | milestone | 1 | `Bootstrap complete: {completed_count}/{total_count} phases passed ({duration_ms:.0f}ms)` | ✓ |
+| `MILESTONE_PIPELINE_START` | milestone | 1 | `Starting EKS pipeline for {target}` | — |
+| `MILESTONE_FILE_DISCOVERY` | milestone | 1 | `Discovered {count} files in {target}` | — |
+| `MILESTONE_PARSE_COMPLETE` | milestone | 1 | `Parsed {count} files ({success}/{failed} ok)` | — |
+| `MILESTONE_EXTRACTION_COMPLETE` | milestone | 1 | `Extraction complete for {count} documents` | — |
+| `MILESTONE_REGISTRATION_COMPLETE` | milestone | 1 | `Registered {count} documents in registry` | — |
+| `MILESTONE_PHASE_COMPLETE` | milestone | 1 | `Phase {phase} complete — {summary}` | — |
+| `MILESTONE_HEALTH_SCORED` | milestone | 1 | `Health scored {count} documents (avg: {avg_score})` | — |
+| `MILESTONE_PIPELINE_DONE` | milestone | 1 | `EKS pipeline complete — {total} documents processed ({elapsed}s)` | — |
 
-### Bootstrap Messages
+### Phase A/B/C Milestone Messages
 
-#### Milestone
-
-| ID | Level | Template | Icon |
-|----|-------|----------|------|
-| `MILESTONE_BOOTSTRAP_START` | 1 | `Starting EKS bootstrap initialization...` | ▶ |
-| `MILESTONE_BOOTSTRAP_COMPLETE` | 1 | `Bootstrap complete: {completed_count}/{total_count} phases passed ({duration_ms:.0f}ms)` | ✓ |
-
-#### Status
-
-| ID | Level | Template | Icon |
-|----|-------|----------|------|
-| `STATUS_CONFIG_LOADED` | 1 | `Config loaded: {config_count} keys, {path}` | ℹ |
-| `STATUS_PATHS_RESOLVED` | 2 | `Paths resolved: {count} paths from project root` | ℹ |
-| `STATUS_READINESS_PASSED` | 1 | `Readiness gate passed — project setup validated` | ✓ |
-| `STATUS_MANAGERS_INITIALIZED` | 2 | `Managers initialized: ErrorManager + MessageManager ready` | ℹ |
-
-#### Warning
-
-| ID | Level | Template | Icon |
-|----|-------|----------|------|
-| `WARNING_BOOTSTRAP_PHASE_FAILED` | 0 | `Bootstrap phase {phase} failed: {detail}` | ⚠ |
+| ID | Category | Level | Template | Icon |
+|----|----------|-------|----------|------|
+| `STATUS_PHASE_A_START` | milestone | 1 | `=== Phase {phase} Start: File Discovery ===` | ▶ |
+| `STATUS_PHASE_A_COMPLETE` | milestone | 1 | `Phase A complete — {registered} files registered` | ✓ |
+| `STATUS_PHASE_B_START` | milestone | 1 | `=== Phase {phase} Start: Parse + Detect + Score ===` | ▶ |
+| `STATUS_PHASE_B_COMPLETE` | milestone | 1 | `Phase B complete — {success}/{total} success, {partial} partial, {failed} failed` | ✓ |
+| `STATUS_PHASE_C_START` | milestone | 1 | `=== Phase {phase} Start: Review ===` | ▶ |
+| `STATUS_PHASE_C_COMPLETE` | milestone | 1 | `Phase C complete — {flagged} documents flagged for review` | ✓ |
+| `STATUS_PIPELINE_START` | milestone | 1 | `Starting EKS pipeline for {root_dir}` | ▶ |
+| `STATUS_PIPELINE_COMPLETE` | milestone | 1 | `EKS pipeline complete` | ✓ |
 
 ### Status Messages
 
-| ID | Level | Template | Icon |
-|----|-------|----------|------|
-| `STATUS_CONFIG_LOADED` | 1 | `Config loaded: {path}` | ℹ |
-| `STATUS_DB_INITIALIZED` | 1 | `Database initialized: {path}` | ℹ |
-| `STATUS_PARSING_FILE` | 1 | `Parsing: {filename}` | ⚙ |
-| `STATUS_EXTRACTING_METADATA` | 1 | `Extracting metadata from {filename}` | ⚙ |
-| `STATUS_REGISTERING_DOC` | 1 | `Registering: {doc_id} Rev {revision}` | ⚙ |
-| `STATUS_CROSS_REF` | 2 | `Cross-referencing {count} asset tags...` | ⚙ |
-| `STATUS_GRAPH_NODE` | 2 | `Creating node: {node_type} ({label})` | ⚙ |
-| `STATUS_GRAPH_EDGE` | 2 | `Creating edge: {source} → {edge_type} → {target}` | ⚙ |
-| `STATUS_DETECTING_STRUCTURE` | 2 | `Detecting structural elements in {filename}` | ⚙ |
-| `STATUS_STORING_ELEMENTS` | 2 | `Storing {count} elements for {doc_id}` | ⚙ |
-| `STRUCTURE_COVER_PAGE` | 3 | `Cover page detected: {fields_found} fields, confidence {score}` | ℹ |
-| `STRUCTURE_REVISION_TABLE` | 3 | `Revision table: {rows} rows, confidence {score}` | ℹ |
-| `STRUCTURE_SECTIONS` | 3 | `Sections detected: {count} (max level {max_level})` | ℹ |
+| ID | Category | Level | Template |
+|----|----------|-------|----------|
+| `STATUS_PARSING_FILE` | status | 1 | `Parsing: {filename}` |
+| `STATUS_EXTRACTING` | status | 1 | `Extracting metadata from {filename}` |
+| `STATUS_REGISTERING` | status | 1 | `Registering document: {doc_id}` |
+| `STATUS_DETECTING_STRUCTURE` | status | 2 | `Detecting structural elements in {filename}` |
+| `STATUS_STORING_ELEMENTS` | status | 2 | `Storing {count} elements for {doc_id}` |
+| `STATUS_HEALTH_SCORE` | status | 2 | `Scoring {doc_id}: completeness={c:.2f} confidence={e:.2f} structural={s:.2f}` |
+| `STATUS_XREF_CHECK` | status | 2 | `Cross-referencing {count} asset tags for {doc_id}` |
+| `STATUS_BATCH_PROGRESS` | status | 1 | `Progress: [{current}/{total}] {percent}%` |
+| `STATUS_CONFIG_LOADED` | status | 1 | `Config loaded: {config_count} keys, {path}` |
+| `STATUS_PATHS_RESOLVED` | status | 2 | `Paths resolved: {count} paths from project root` |
+| `STATUS_READINESS_PASSED` | status | 1 | `Readiness gate passed — project setup validated` |
+| `STATUS_MANAGERS_INITIALIZED` | status | 2 | `Managers initialized: ErrorManager + MessageManager ready` |
 
 ### Progress Messages
 
-| ID | Level | Template | Icon |
-|----|-------|----------|------|
-| `PROGRESS_INGESTION` | 1 | `[{current}/{total}] {filename}` | ◐ |
-| `PROGRESS_EXTRACTION` | 2 | `Extracted {field}: {value} (confidence: {score}%)` | ◑ |
+| ID | Category | Level | Template |
+|----|----------|-------|----------|
+| `PROGRESS_PARSING` | progress | 1 | `  {filename}` |
+| `PROGRESS_EXTRACTION` | progress | 1 | `  Extracting fields from {filename}` |
+| `PROGRESS_REGISTRATION` | progress | 1 | `  Registering {count} documents` |
+| `PROGRESS_HEALTH_SCORE` | progress | 1 | `  Health scoring document {n}/{total}` |
 
 ### Warning Messages
 
-| ID | Level | Template | Icon |
-|----|-------|----------|------|
-| `WARNING_SCANNED_PDF` | 1 | `Scanned PDF detected (no text layer): {filename}` | ⚠ |
-| `WARNING_LOW_CONFIDENCE` | 1 | `Low extraction confidence ({score}%): {filename}` | ⚠ |
-| `WARNING_NO_MATCH` | 2 | `Asset tag "{tag}" has no datadrop match` | ⚠ |
-| `WARNING_AMBIGUOUS_MATCH` | 2 | `Asset tag "{tag}" matches {count} keytags: {matches}` | ⚠ |
-| `WARNING_SKIPPED_FILE` | 1 | `Skipped: {filename} — {reason}` | ⚠ |
-| `WARNING_NO_COVER_PAGE` | 1 | `No cover page detected: {filename}` | ⚠ |
-| `WARNING_NO_REVISION_TABLE` | 1 | `No revision history table: {filename}` | ⚠ |
-| `WARNING_STRUCTURE_LOW` | 1 | `Low structural completeness ({score}%): {filename}` | ⚠ |
+| ID | Category | Level | Template |
+|----|----------|-------|----------|
+| `WARNING_SCANNED_PDF` | warning | 1 | `Scanned PDF detected (no text layer): {filename}` |
+| `WARNING_LOW_CONFIDENCE` | warning | 1 | `Low extraction confidence ({score}%): {filename}` |
+| `WARNING_NO_MATCH` | warning | 2 | `Asset tag "{tag}" has no datadrop match` |
+| `WARNING_AMBIGUOUS_MATCH` | warning | 2 | `Asset tag "{tag}" matches {count} keytags: {matches}` |
+| `WARNING_SKIPPED_FILE` | warning | 1 | `Skipped: {filename} — {reason}` |
+| `WARNING_NO_COVER_PAGE` | warning | 1 | `No cover page detected: {filename}` |
+| `WARNING_NO_REVISION_TABLE` | warning | 1 | `No revision history table: {filename}` |
+| `WARNING_STRUCTURE_LOW` | warning | 1 | `Low structural completeness ({score}%): {filename}` |
+| `WARNING_BOOTSTRAP_PHASE_FAILED` | warning | 0 | `Bootstrap phase {phase} failed: {detail}` |
 
 ### Error Messages
 
-| ID | Level | Template | Icon |
-|----|-------|----------|------|
-| `ERROR_EXTRACTION_FAILED` | 0 | `Extraction failed for {filename}: {detail}` | ✗ |
-| `ERROR_REGISTRATION_FAILED` | 0 | `Registration failed for {doc_id}: {detail}` | ✗ |
-| `ERROR_GRAPH_FAILED` | 0 | `Graph operation failed: {detail}` | ✗ |
-| `ERROR_INGESTION_ABORTED` | 0 | `Ingestion aborted at [{current}/{total}]: {detail}` | ✗ |
+| ID | Category | Level | Template |
+|----|----------|-------|----------|
+| `ERROR_FILE_PROCESSING` | error | 0 | `Error processing {filename}: {detail}` |
+| `ERROR_EXTRACTION_FAILED` | error | 0 | `Extraction failed for {filename}: {detail}` |
+| `ERROR_REGISTRATION_FAILED` | error | 0 | `Registration failed for {doc_id}: {detail}` |
+| `ERROR_GRAPH_FAILED` | error | 0 | `Graph operation failed: {detail}` |
+| `ERROR_INGESTION_ABORTED` | error | 0 | `Ingestion aborted at [{current}/{total}]: {detail}` |
 
 ---
 
 ## D7. Health Scoring
 
-### D7.1 Column Classification — All 25 Registry Columns
+### D7.1 Column Classification — All 35 Scorable Registry Columns
 
 Every registry column is classified as scorable or non-scorable, and assigned a weight tier.
 
@@ -485,32 +535,54 @@ Every registry column is classified as scorable or non-scorable, and assigned a 
 | 7 | Project | `department` | ✓ | Cover sheet | T3 |
 | 8 | Document | `document_type` | ✓ | Filename / cover sheet | T1 |
 | 9 | Document | `document_number` | ✓ | Filename / cover sheet | T1 |
-| 10 | Document | `revision` | ✓ | Cover sheet | T1 |
-| 11 | Document | `status` | ✓ | Cover sheet revision table | T2 |
-| 12 | Document | `is_latest` | — | System-generated | — |
-| 13 | Document | `file_path` | — | System-generated | — |
-| 14 | Document | `ingested_at` | — | System-generated | — |
-| 15 | Account | `created_by` | ✓ | Cover sheet | T2 |
-| 16 | Account | `checked_by` | ✓ | Cover sheet | T2 |
-| 17 | Account | `approved_by` | ✓ | Cover sheet | T2 |
-| 18 | Origin | `originator_company` | ✓ | Cover sheet | T2 |
-| 19 | Origin | `security_class` | ✓ | Manual (Phase 5) | T3 |
-| 20 | Origin | `asset_tags` | ✓ | Regex / content extraction | T1 |
-| 21 | Technical | `page_count` | ✓ | PDF metadata | T2 |
-| 22 | Quality | `extract_status` | — | System-generated | — |
-| 23 | Quality | `extraction_confidence` | — | Stores the score | — |
-| 24 | Quality | `extraction_notes` | — | System-generated | — |
-| 25 | Quality | `verified_by` | ✓ | Manual (Phase 5) | T3 |
+| 10 | Document | `document_title` | ✓ | Cover sheet / embedded | T2 |
+| 11 | Document | `revision` | ✓ | Cover sheet | T1 |
+| 12 | Document | `revision_date` | ✓ | Cover sheet / revision table | T2 |
+| 13 | Document | `revision_description` | ✓ | Revision table / embedded | T3 |
+| 14 | Document | `lifecycle_stage` | ✓ | Cover sheet / config | T2 |
+| 15 | Document | `status` | ✓ | Cover sheet revision table | T2 |
+| 16 | Document | `is_latest` | — | System-generated | — |
+| 17 | Document | `file_path` | — | System-generated | — |
+| 18 | Document | `file_type` | — | System-generated | — |
+| 19 | Document | `ingested_at` | — | System-generated | — |
+| 20 | Document | `project_phase` | ✓ | Cover sheet / config | T2 |
+| 21 | Document | `contract_package` | ✓ | Cover sheet / filename | T2 |
+| 22 | Document | `issued_date` | ✓ | Cover sheet | T2 |
+| 23 | Document | `supersedes` | ✓ | Cover sheet | T2 |
+| 24 | Document | `superseded_by` | ✓ | Cover sheet | T2 |
+| 25 | Document | `references_documents` | ✓ | Cover sheet / embedded | T3 |
+| 26 | Document | `language` | ✓ | Embedded metadata | T3 |
+| 27 | Account | `created_by` | ✓ | Cover sheet | T2 |
+| 28 | Account | `checked_by` | ✓ | Cover sheet | T2 |
+| 29 | Account | `approved_by` | ✓ | Cover sheet | T2 |
+| 30 | Account | `responsible_engineer` | ✓ | Cover sheet | T2 |
+| 31 | Origin | `originator_company` | ✓ | Cover sheet | T2 |
+| 32 | Origin | `vendor_name` | ✓ | Cover sheet / embedded | T3 |
+| 33 | Origin | `security_class` | ✓ | Manual (Phase 5) | T3 |
+| 34 | Origin | `asset_tags` | ✓ | Regex / content extraction | T1 |
+| 35 | Technical | `page_count` | ✓ | PDF metadata | T2 |
+| 36 | Technical | `total_sheets` | ✓ | Cover sheet | T2 |
+| 37 | File Props | `file_size` | ✓ | OS stat | T3 |
+| 38 | File Props | `file_hash` | ✓ | SHA-256 hash | T3 |
+| 39 | Embedded | `embedded_title` | ✓ | PDF/DOCX metadata | T3 |
+| 40 | Embedded | `embedded_subject` | ✓ | PDF/DOCX metadata | T3 |
+| 41 | Embedded | `embedded_creator_app` | ✓ | PDF/DOCX metadata | T3 |
+| 42 | Embedded | `embedded_producer` | ✓ | PDF metadata | T3 |
+| 43 | Embedded | `embedded_revision_number` | ✓ | PDF/DOCX metadata | T3 |
+| 44 | Quality | `extract_status` | — | System-generated | — |
+| 45 | Quality | `extraction_confidence` | — | Stores the score | — |
+| 46 | Quality | `extraction_notes` | — | System-generated | — |
+| 47 | Quality | `verified_by` | ✓ | Manual (Phase 5) | T3 |
 
-**Summary**: 18 scorable columns, 7 non-scorable (system/meta).
+**Summary**: 35 scorable columns, 12 non-scorable (system/meta).
 
 ### D7.2 Weight Tiers
 
 | Tier | Columns | Count | Rationale |
 |------|---------|:-----:|-----------|
 | **T1 — Critical Identity** | `project_number`, `discipline`, `document_type`, `document_number`, `revision`, `asset_tags` | 6 | Must be correct for registry to function; wrong value = broken graph |
-| **T2 — Important Context** | `project_title`, `area`, `status`, `created_by`, `checked_by`, `approved_by`, `originator_company`, `page_count` | 8 | Valuable for retrieval and display; missing reduces usefulness |
-| **T3 — Optional / Manual** | `department`, `security_class`, `verified_by` | 4 | Often null at extraction; filled during verification or rarely used |
+| **T2 — Important Context** | `project_title`, `area`, `document_title`, `lifecycle_stage`, `revision_date`, `status`, `project_phase`, `contract_package`, `issued_date`, `created_by`, `checked_by`, `approved_by`, `responsible_engineer`, `originator_company`, `page_count`, `total_sheets`, `supersedes`, `superseded_by` | 16 | Valuable for retrieval and display; missing reduces usefulness |
+| **T3 — Optional / Manual / Derived** | `department`, `revision_description`, `references_documents`, `language`, `vendor_name`, `security_class`, `verified_by`, `file_size`, `file_hash`, `embedded_title`, `embedded_subject`, `embedded_creator_app`, `embedded_producer`, `embedded_revision_number` | 14 | Often null at extraction; filled during verification or derived from file metadata |
 
 ### D7.3 Scoring Dimensions (6)
 
@@ -519,18 +591,16 @@ Every registry column is classified as scorable or non-scorable, and assigned a 
 What fraction of scorable columns are populated.
 
 ```
-completeness = populated_scorable_columns / 18
+completeness = populated_scorable_columns / 35
 ```
 
 | Population | Score |
 |:----------:|:-----:|
-| 18/18 | 1.00 |
-| 15/18 | 0.83 |
-| 12/18 | 0.67 |
-| 9/18 | 0.50 |
-| 6/18 | 0.33 |
-| 3/18 | 0.17 |
-| 0/18 | 0.00 |
+| 35/35 | 1.00 |
+| 28/35 | 0.80 |
+| 18/35 | 0.51 |
+| 9/35 | 0.26 |
+| 0/35 | 0.00 |
 
 #### Dimension 2: Extraction Confidence (20%)
 
@@ -554,21 +624,23 @@ Per-column regex/extraction match quality, weighted by tier.
 | T3 | ×0.5 | Optional fields, low penalty if null |
 
 ```
-field_weighted_score = sum(field_score × tier_multiplier) / sum(tier_multiplier_for_present_fields)
+field_weighted_score = sum(field_score × tier_multiplier) / sum(tier_multiplier_for_all_fields)
 ```
 
 #### Dimension 3: Source Quality (20%)
 
-Reliability of the document format.
+Reliability of the document format plus embedded metadata bonus.
 
 | Type | Score | Description |
 |------|:-----:|-------------|
 | A | 1.0 | Standard drawing cover sheet — full field block |
 | E | 0.8 | Specification doc — rich PDF metadata |
+| D | 0.9 | Volume cover page — limited fields |
 | B | 0.7 | Standard detail — partial fields |
-| D | 0.7 | Volume cover page — limited fields |
 | C | 0.3 | Scanned/vector-only — no text layer |
 | F | 0.0 | Parse failed entirely |
+
+**Embedded creator bonus**: If `embedded_creator_app` is non-null (file was generated by a known authoring tool), add **+0.05** bonus to the source quality score, capped at 1.0.
 
 #### Dimension 4: Cross-Reference Quality (15%)
 
@@ -586,7 +658,7 @@ Validation of extracted values against known data and config.
 xref_score = sum(check_pass) / total_applicable_checks
 ```
 
-If no checks are applicable (e.g. no asset_tags, no config project), defaults to 1.0.
+If no checks are applicable, defaults to 1.0.
 
 #### Dimension 5: Consistency (15%)
 
@@ -599,6 +671,7 @@ Cross-field agreement and logical checks. Violations apply a multiplicative modi
 | `page_count` > 0 for non-stub documents | Zero pages | -0.10 |
 | `project_title` contains project context | Mismatch with `project_number` | -0.10 |
 | `discipline` matches `document_type` category | Inconsistent classification | -0.10 |
+| File timestamp drift (>24h) | \|`file_modified_at` − `embedded_modified_date`\| > 86400s | -0.10 |
 
 ```
 consistency_modifier = 1.0 - (0.1 × violation_count)
@@ -626,9 +699,9 @@ Clamped to [0.0, 1.0].
 | Completeness | 20% | Fraction of scorable columns populated |
 | Extraction Confidence | 20% | Per-column regex/extraction match quality |
 | Structural Completeness | 20% | Fraction of expected structural elements detected |
-| Source Quality | 15% | Cover sheet type quality baseline |
+| Source Quality | 15% | Cover sheet type quality baseline + embedded bonus |
 | Cross-Reference | 15% | Asset tag, datadrop, document number validation |
-| Consistency | 10% | Cross-field validation checks |
+| Consistency | 10% | Cross-field validation checks + timestamp drift |
 
 ### D7.5 Score → Status Mapping
 
@@ -648,14 +721,14 @@ The `extraction_notes` field stores the full dimension breakdown as JSON:
 {
   "health_score": 0.87,
   "dimensions": {
-    "completeness": {"score": 0.83, "populated": 15, "total": 18},
+    "completeness": {"score": 0.83, "populated": 29, "total": 35},
     "extraction_confidence": {
       "score": 0.91,
       "tier1_avg": 0.95,
       "tier2_avg": 0.88,
       "tier3_avg": 0.67
     },
-    "structural_completeness": {"score": 0.80, "detected": 4, "expected": 5, "elements": ["cover_page", "revision_table", "sections", "images"]},
+    "structural_completeness": {"score": 0.80, "detected": 4, "expected": 5, "elements": ["cover_page", "revision_table", "sections", "image"]},
     "source_quality": {"score": 1.0, "type": "A"},
     "xref_quality": {"score": 0.80, "checks_passed": 4, "checks_total": 5},
     "consistency": {"score": 1.0, "violations": 0}
@@ -696,11 +769,11 @@ avg_document_health = sum(health_scores) / total_docs
 
 ### D7.8 Health Score Impact per Error
 
-Each data error code includes a `health_score_impact` value (see D5 tables). Error impacts are additive per document:
+Each data error code includes a `health_score_impact` value (see D5 tables). Impact is additive per document:
 
 ```
 document_penalty = sum(health_score_impact for errors on this document)
-adjusted_health = max(0.0, raw_health_score + document_penalty / 100)
+adjusted_health = max(0.0, raw_health_score + document_penalty / 100.0)
 ```
 
 ### D7.9 Worked Examples
@@ -709,96 +782,41 @@ adjusted_health = max(0.0, raw_health_score + document_penalty / 100)
 
 **Input**: `131101-WSW41-DR-C-0001.pdf` (standard cover sheet)
 
-| Column | Value | Tier | Present | Confidence | XRef |
-|--------|-------|:----:|:-------:|:----------:|:----:|
-| `project_number` | WSD11 | T1 | ✓ | 1.0 | ✓ |
-| `discipline` | C | T1 | ✓ | 1.0 | ✓ |
-| `document_type` | DWG | T1 | ✓ | 1.0 | ✓ |
-| `document_number` | 131101-WSW41-DR-C-0001 | T1 | ✓ | 1.0 | ✓ |
-| `revision` | T3 | T1 | ✓ | 1.0 | ✓ |
-| `asset_tags` | ["P-101"] | T1 | ✓ | 1.0 | ✓ |
-| `project_title` | TUAS WRP | T2 | ✓ | 1.0 | — |
-| `area` | WSW41 | T2 | ✓ | 1.0 | — |
-| `status` | APPROVED | T2 | ✓ | 1.0 | — |
-| `created_by` | JS | T2 | ✓ | 1.0 | — |
-| `checked_by` | PE | T2 | ✓ | 1.0 | — |
-| `approved_by` | — | T2 | ✗ | — | — |
-| `originator_company` | CH2M HILL | T2 | ✓ | 1.0 | — |
-| `page_count` | 1 | T2 | ✓ | 1.0 | — |
-| `department` | — | T3 | ✗ | — | — |
-| `security_class` | — | T3 | ✗ | — | — |
-| `verified_by` | — | T3 | ✗ | — | — |
-
 | Dimension | Calculation | Score |
 |-----------|-------------|:-----:|
-| Completeness | 14/18 | 0.78 |
-| Extraction Confidence | T1: 6/6×1.0×2.0=12.0, T2: 6/8×1.0×1.0=6.0, T3: 0/3×0.0×0.5=0 → 18.0/18.0 | 1.0 |
-| Structural Completeness | 4/4 expected detected (cover, rev table, sections, image) | 1.0 |
-| Source Quality | Type A | 1.0 |
+| Completeness | 29/35 (all T1+T2 fields populated, 2 T3) | 0.83 |
+| Extraction Confidence | T1: 6/6×1.0×2.0=12.0, T2: 16/16×1.0×1.0=16.0, T3: 4/14×1.0×0.5=2.0 → 30.0/41.0 | 0.73 |
+| Structural Completeness | 4/5 expected (cover, rev table, sections, image) — missing table | 0.80 |
+| Source Quality | Type A + embedded_creator_app bonus | 1.0 |
 | Cross-Reference | 5/5 checks pass | 1.0 |
 | Consistency | 0 violations → modifier 1.0 | 1.0 |
 
 ```
-health_score = (0.78×0.20 + 1.0×0.20 + 1.0×0.20 + 1.0×0.15 + 1.0×0.15 + 1.0×0.10) × 1.0
-             = (0.156 + 0.20 + 0.20 + 0.15 + 0.15 + 0.10) × 1.0
-             = 0.956
+health_score = (0.83×0.20 + 0.73×0.20 + 0.80×0.20 + 1.0×0.15 + 1.0×0.15 + 1.0×0.10) × 1.0
+             = (0.166 + 0.146 + 0.160 + 0.15 + 0.15 + 0.10) = 0.872
 ```
 
-**Result**: `extract_status = "success"`, `extraction_confidence = 0.95`
+**Result**: `extract_status = "success"`, flagged for optional review
 
 #### Example 2: Type C Document (Low Score)
 
 **Input**: `131101-WIL00-DR-E-7000.pdf` (scanned, no text layer)
 
-| Column | Value | Tier | Present | Confidence | XRef |
-|--------|-------|:----:|:-------:|:----------:|:----:|
-| `discipline` | E (from filename) | T1 | ✓ | 1.0 | ✓ |
-| `project_number` | — | T1 | ✗ | — | — |
-| `document_type` | — | T1 | ✗ | — | — |
-| `document_number` | — | T1 | ✗ | — | — |
-| `revision` | — | T1 | ✗ | — | — |
-| `asset_tags` | — | T1 | ✗ | — | — |
-| All T2 fields | — | T2 | ✗ | — | — |
-| All T3 fields | — | T3 | ✗ | — | — |
-
 | Dimension | Calculation | Score |
 |-----------|-------------|:-----:|
-| Completeness | 1/18 | 0.06 |
-| Extraction Confidence | T1: 1/6×1.0×2.0=2.0, T2: 0, T3: 0 → 2.0/12.0 | 0.17 |
+| Completeness | 1/35 (discipline from filename only) | 0.03 |
+| Extraction Confidence | T1: 1/6×1.0×2.0=2.0, T2: 0, T3: 0 → 2.0/41.0 | 0.05 |
 | Structural Completeness | 0/0 expected (Type C: no structure expected) | 1.0 |
 | Source Quality | Type C | 0.3 |
 | Cross-Reference | 1/1 check pass | 1.0 |
 | Consistency | 0 violations → modifier 1.0 | 1.0 |
 
 ```
-health_score = (0.06×0.20 + 0.17×0.20 + 1.0×0.20 + 0.3×0.15 + 1.0×0.15 + 1.0×0.10) × 1.0
-             = (0.012 + 0.034 + 0.20 + 0.045 + 0.15 + 0.10) × 1.0
-             = 0.541
+health_score = (0.03×0.20 + 0.05×0.20 + 1.0×0.20 + 0.3×0.15 + 1.0×0.15 + 1.0×0.10)
+             = (0.006 + 0.010 + 0.20 + 0.045 + 0.15 + 0.10) = 0.511
 ```
 
-**Result**: `extract_status = "partial"`, `extraction_confidence = 0.54`, flagged for review
-
-#### Example 3: Type B Document with Inconsistency
-
-**Input**: `16023.pdf` (standard detail, `created_by` = `checked_by`)
-
-| Dimension | Calculation | Score |
-|-----------|-------------|:-----:|
-| Completeness | 11/18 | 0.61 |
-| Extraction Confidence | T1: 4/6×0.8×2.0=6.4, T2: 5/8×0.8×1.0=4.0, T3: 0 → 10.4/16.0 | 0.65 |
-| Structural Completeness | 3/4 expected (missing image) | 0.75 |
-| Source Quality | Type B | 0.7 |
-| Cross-Reference | 3/4 checks pass | 0.75 |
-| Consistency | 1 violation (created_by = checked_by) → modifier 0.9 | 0.9 |
-
-```
-health_score = (0.61×0.20 + 0.65×0.20 + 0.75×0.20 + 0.7×0.15 + 0.75×0.15 + 1.0×0.10) × 0.9
-             = (0.122 + 0.13 + 0.15 + 0.105 + 0.1125 + 0.10) × 0.9
-             = 0.7195 × 0.9
-             = 0.648
-```
-
-**Result**: `extract_status = "partial"`, `extraction_confidence = 0.65`, flagged for review
+**Result**: `extract_status = "partial"`, flagged for review
 
 ---
 
@@ -822,7 +840,7 @@ Each document in `document_registry` can have multiple structural elements store
 
 | `element_type` | Source | Content | Phase 2 Use | Phase 3 Use |
 |----------------|--------|---------|:-----------:|:-----------:|
-| `cover_page` | First page extraction | JSON: fields + values + confidence | Section anchor | Document-type node |
+| `cover_page` | First page regex extraction | JSON: fields + values + confidence | Section anchor | Document-type node |
 | `revision_table` | Table detection on page 1 | JSON: rows[{rev, date, by, desc}] | Change tracking | Revision nodes |
 | `section` | Heading detection (regex `\d+\.\d+`) | Text of heading | Chunk boundary | Section nodes |
 | `table` | `page.find_tables()` | HTML or Markdown | Context chunks | Table nodes |
@@ -843,7 +861,7 @@ Each document in `document_registry` can have multiple structural elements store
 **Structural completeness scoring**:
 
 ```
-expected_elements = {cover_page, revision_table, sections, table, image}
+expected_elements = {cover_page, revision_table, sections, image, table}
 detected_count = count(elements where element_type in expected_elements)
 structural_completeness = detected_count / len(expected_elements)
 ```
@@ -852,8 +870,8 @@ Document type expectations:
 
 | Document Type | Expected Elements | Threshold |
 |---------------|-------------------|:---------:|
-| Type A (standard drawing) | cover_page, revision_table, sections, image | 4 |
-| Type B (standard detail) | cover_page, revision_table, sections, image | 4 |
+| Type A (standard drawing) | cover_page, revision_table, sections, image, table | 5 |
+| Type B (standard detail) | cover_page, revision_table, sections, image, table | 5 |
 | Type C (scanned) | (none expected) | 0 |
 | Type D (volume cover) | cover_page, sections | 2 |
 | Type E (specification) | cover_page, sections, table | 3 |
@@ -862,6 +880,22 @@ Document type expectations:
 
 ## D8. Status Lifecycle
 
+### Pipeline Phase States
+
+The Phase 1 pipeline operates in three phases (A/B/C), each tracked with IN_PROGRESS → COMPLETE transitions:
+
+```
+Phase A:  File Discovery      IN_PROGRESS ──► COMPLETE
+Phase B:  Parse + Extract     IN_PROGRESS ──► COMPLETE
+Phase C:  Review              IN_PROGRESS ──► COMPLETE
+```
+
+| Phase | Action | Description |
+|-------|--------|-------------|
+| **A** | File Discovery | Scan directory, validate file types, register placeholder documents |
+| **B** | Parse + Detect + Score | Route files to parsers → detect structural elements → compute health scores → update registry |
+| **C** | Review | Flag documents with `extract_status ≠ 'success'` or `extraction_confidence < 0.70` for manual review |
+
 ### Document Status States
 
 Each document progresses through a lifecycle during ingestion:
@@ -869,7 +903,7 @@ Each document progresses through a lifecycle during ingestion:
 ```
 NEW ──────► EXTRACTED ──────► REGISTERED ──────► VERIFIED
  │              │                   │                  │
- │ (parse)      │ (extract)         │ (register)       │ (human review)
+ │ (discover)   │ (extract)         │ (register)       │ (human review)
  │              │                   │                  │
  ▼              ▼                   ▼                  ▼
 pending      success/partial    success            verified_by set
@@ -889,40 +923,54 @@ Stored in `extract_status` column of document registry:
 | Value | Meaning | Trigger |
 |-------|---------|---------|
 | `pending` | Not yet extracted (default) | `register_document()` |
-| `success` | All auto-extractable fields populated | Extraction pipeline |
-| `partial` | Some fields extracted, some missing | Extraction pipeline |
-| `failed` | Extraction failed entirely | Extraction pipeline |
+| `success` | All auto-extractable fields populated | Extraction pipeline (score ≥ 0.70) |
+| `partial` | Some fields extracted, some missing | Extraction pipeline (score 0.20–0.69) |
+| `failed` | Extraction failed entirely | Extraction pipeline (score < 0.20) |
 
 ---
 
 ## D9. Implementation Files
 
-### Phase 1 — Schema Design (T1.30, T1.31)
+### Config Files
 
-| File | Purpose | Pattern Reference |
-|------|---------|-------------------|
-| `eks/config/schemas/eks_error_code_base.json` | Error code taxonomy definitions | `dcc/config/schemas/error_code_base.json` |
-| `eks/config/schemas/eks_error_config.json` | Error code catalog (all system + data codes) | `dcc/config/schemas/system_error_config.json` |
-| `eks/config/schemas/eks_message_base.json` | Message schema definitions | `dcc/config/schemas/pipeline_message_base.json` |
-| `eks/config/schemas/eks_message_config.json` | Message catalog (all pipeline messages) | `dcc/config/schemas/pipeline_message_config.json` |
+| File | Purpose |
+|------|---------|
+| `eks/config/schemas/eks_error_config.json` | Error code catalog — 111 codes (61 system + 50 data) |
+| `eks/config/schemas/eks_message_config.json` | Message catalog — 49 pipeline messages |
+| `eks/config/schemas/eks_doc_base_schema.json` | Document registry schema definitions + x_export flags |
+| `eks/config/schemas/eks_doc_config.json` | Document config with filename_patterns + file_property_patterns |
+| `eks/config/schemas/eks_config.json` | Pipeline configuration with global_paths + system_parameters |
 
-### Phase 1 — Engine Modules (T1.32)
+### Engine Modules — Core Pipeline
 
-| File | Purpose | Pattern Reference |
-|------|---------|-------------------|
-| `eks/engine/core/error_manager.py` | Error handling utilities (handle_system_error, handle_data_error, fail-fast check) | `dcc/workflow/core_engine/errors/error_manager.py` |
-| `eks/engine/core/message_manager.py` | Message catalog lookup, template hydration, verbosity control | `dcc/workflow/utility_engine/console/console_output.py` |
-| `eks/engine/core/health_scorer.py` | Per-document 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency) | `dcc/workflow/reporting_engine/core/report_health.py` |
-| `eks/engine/core/structure_detector.py` | PDF structural element detection (cover page, revision table, sections, tables, images, links) | — |
+| File | Purpose |
+|------|---------|
+| `eks/engine/eks_engine_pipeline.py` | **Main entry point** — CLI, bootstrap_pipeline(), run_pipeline(), _preload_infrastructure(), export helpers |
+| `eks/engine/core/pipeline_orchestrator.py` | **Phase A/B/C orchestrator** — run_phase_a/b/c, run_full_pipeline, _process_file |
+| `eks/engine/core/bootstrap.py` | EKSBootstrapManager — readiness gate, config loading, path resolution |
+| `eks/engine/core/registry.py` | DocumentRegistry — CRUD, store_elements, get_elements, update_document_status |
+| `eks/engine/core/health_scorer.py` | 6-dimension per-document health scoring engine |
+| `eks/engine/core/structure_detector.py` | PDF structural element detection (cover page, revision table, sections, tables, images, links, legend, notes) |
+| `eks/engine/core/review_manager.py` | ManualReviewManager — flagged docs, metadata correction, element confirmation, recalculation |
+| `eks/engine/core/error_manager.py` | ErrorManager — handle_system_error, handle_data_error, get_health_impact |
+| `eks/engine/core/message_manager.py` | MessageManager — catalog lookup, template hydration, verbosity control |
+| `eks/engine/core/filename_parser.py` | FilenameParser — schema-driven filename-to-field extraction (Appendix I) |
+| `eks/engine/core/file_property_parser.py` | FilePropertyExtractor — OS stat + embedded metadata extraction (Appendix J) |
+| `eks/engine/core/context.py` | EKSPipelineContext + EKSPaths + EKSData |
+| `eks/engine/core/file_scanner.py` | FileScanner — directory walk, file type validation, placeholder registration |
+| `eks/engine/parsers/parser_router.py` | ParserRouter — route file to correct parser by type |
 
-### Phase 1 — Bootstrap Modules
+### Common Library — Universal Infrastructure
 
-| File | Purpose | Pattern Reference |
-|------|---------|-------------------|
-| `common/library/bootstrap/manager.py` | Universal L19 BootstrapManager (8-phase orchestrator with P1–P8 phases) | `dcc/workflow/utility_engine/bootstrap/boot_pipeline.py` |
-| `common/library/bootstrap/errors.py` | Universal BootstrapError (code/message/phase, to_system_error()) | — |
-| `common/library/bootstrap/phases.py` | BootstrapPhaseRegistry + BootstrapPhaseStatus (phase tracking) | — |
-| `eks/engine/core/bootstrap.py` | EKS-specific BootstrapManager subclass (EKSBootstrapManager) | — |
+| File | Purpose |
+|------|---------|
+| `common/library/bootstrap/manager.py` | Universal L19 BootstrapManager (8-phase orchestrator) |
+| `common/library/bootstrap/errors.py` | Universal BootstrapError (code/message/phase, to_system_error()) |
+| `common/library/paths/root_discovery.py` | discover_project_root() — anchor-verified project root discovery |
+| `common/library/paths/path_utils.py` | safe_posix(), should_auto_create_folders() |
+| `common/library/cli/__init__.py` | build_parser_from_schema(), parse_cli_args() |
+| `common/library/export/__init__.py` | DataExporter — CSV + Excel export |
+| `common/library/utility/file_hash.py` | compute_file_hash() — SHA-256 chunked hash |
 
 ---
 
@@ -931,13 +979,12 @@ Stored in `extract_status` column of document registry:
 1. [AGENTS.md §19](../../AGENTS.md) — "Each business logic must have an independent error code defined"
 2. [AGENTS.md §12](../../AGENTS.md) — Debugging: tiered logging, debug object, fail-fast
 3. [AGENTS.md §8](../../AGENTS.md) — Messaging and errors: status, errors, warnings, data quality
-4. [Appendix B](appendix_b_document_registry.md) — Document registry schema (v0.7)
-5. [DCC Error Code Pattern](../../dcc/config/schemas/error_code_base.json) — Reference for `P{phase}-{module}-{function}-{id}` format
-6. [DCC Pipeline Messages](../../dcc/config/schemas/pipeline_message_base.json) — Reference for message catalog structure
-4. [`dcc/config/schemas/error_code_base.json`](../../dcc/config/schemas/error_base.json) — DCC error code taxonomy
-5. [`dcc/config/schemas/pipeline_message_base.json`](../../dcc/config/schemas/pipeline_message_base.json) — DCC message schema
-6. [`dcc/workflow/core_engine/errors/error_manager.py`](../../dcc/workflow/core_engine/errors/error_manager.py) — DCC error manager
-7. [`dcc/workflow/utility_engine/console/console_output.py`](../../dcc/workflow/utility_engine/console/console_output.py) — DCC console messaging
-8. [`dcc/workflow/reporting_engine/core/report_health.py`](../../dcc/workflow/reporting_engine/core/report_health.py) — DCC health scoring
-9. [`eks/engine/logging/logger.py`](../engine/logging/logger.py) — EKS tiered logger (existing)
-10. [appendix_b_document_registry.md](appendix_b_document_registry.md) — Document registry schema (extraction fields)
+4. [AGENTS.md §10](../../AGENTS.md) — SSOT: single source of truth for error/message codes
+5. [Appendix B](appendix_b_document_registry.md) — Document registry schema
+6. [DCC Error Code Pattern](../../dcc/config/schemas/error_code_base.json) — Reference for `P{phase}-{module}-{function}-{id}` format
+7. [DCC Pipeline Messages](../../dcc/config/schemas/pipeline_message_base.json) — Reference for message catalog structure
+8. [`eks/config/schemas/eks_error_config.json`](../config/schemas/eks_error_config.json) — Authoritative error code source (v1.3.0)
+9. [`eks/config/schemas/eks_message_config.json`](../config/schemas/eks_message_config.json) — Authoritative message source (v1.1.0)
+10. [`eks/engine/core/health_scorer.py`](../engine/core/health_scorer.py) — Health scoring implementation
+11. [`eks/engine/eks_engine_pipeline.py`](../engine/eks_engine_pipeline.py) — Main pipeline entry point
+12. [`common/library/bootstrap/manager.py`](../../common/library/bootstrap/manager.py) — Universal bootstrap manager

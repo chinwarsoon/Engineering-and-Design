@@ -5,17 +5,28 @@ This module implements the TelemetryHeartbeat pattern per Appendix F,
 providing document processing checkpoints, performance metrics, and
 progress tracking.
 
-Revision: 0.1
-Date: 2026-06-30
-Author: System
+Revision: 0.2
+Date: 2026-07-19
+Author: CodeBuddy
+Summary: 0.2: T1.99.185 (I221) — guarded psutil import with try/except; system
+         metrics (memory/CPU) degrade gracefully to None when psutil is absent.
+0.1: Initial telemetry heartbeat implementation.
 """
 
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, Callable
 from datetime import datetime
 import time
-import psutil
 import threading
+
+# T1.99.185 (I221): Guard psutil import — gracefully degrade system metrics when
+# psutil is not installed (e.g., minimal environments, CI runners).
+try:
+    import psutil
+    _PSUTIL_AVAILABLE = True
+except ImportError:
+    psutil = None  # type: ignore
+    _PSUTIL_AVAILABLE = False
 
 
 @dataclass
@@ -86,7 +97,8 @@ class TelemetryHeartbeat:
         self.enabled = enabled
         self.verbose = verbose
         self._lock = threading.Lock()
-        self._process = psutil.Process()
+        # T1.99.185 (I221): Gracefully degrade when psutil is not available
+        self._process = psutil.Process() if _PSUTIL_AVAILABLE else None
         self._cpu_samples: list = []
         self._memory_samples: list = []
         self._documents_processed: int = 0
@@ -185,7 +197,12 @@ class TelemetryHeartbeat:
                 )
     
     def _collect_system_metrics(self):
-        """Collect system metrics (memory, CPU)."""
+        """Collect system metrics (memory, CPU).
+        
+        T1.99.185 (I221): Degrades gracefully when psutil is not installed.
+        """
+        if self._process is None:
+            return
         try:
             memory_info = self._process.memory_info()
             memory_mb = memory_info.rss / (1024 * 1024)

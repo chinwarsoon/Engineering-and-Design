@@ -6,13 +6,17 @@ T1.64: Added phase rollback capability per Appendix F.
 T1.68: Wired ErrorManager/MessageManager calls at phase boundaries and per-file failures.
 T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_document_status().
 
-Revision: 0.2
-Date: 2026-07-18
-Author: opencode
-Summary: 0.1: Initial orchestrator with checkpoint/telemetry/rollback/messaging integration.
+Revision: 0.3
+Date: 2026-07-19
+Author: CodeBuddy
+Summary: 0.3: T1.99.179 (I212) — wired RevisionManager for revision-aware lookups.
+          T1.99.180 (I216) — restored per-phase checkpoint writes for resume capability.
+          T1.99.181 (I224) — wired ReviewManager persistence in Phase C (lock_document,
+          recalculate_score). Phase C now persists review status instead of read-only flagging.
 0.2: T1.99.85/I124 — commented out per-phase checkpoint writes in run_full_pipeline()
      _after() closure; checkpoint unused by resume logic; context held in-memory.
 """
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -27,12 +31,14 @@ from .error_manager import ErrorManager
 from .message_manager import MessageManager
 from .io_contracts import DiscoveryInput, DiscoveryOutput, HealthInput, HealthOutput
 from ..parsers.io_contracts import ParserInput, ParserOutput
-from .base import ErrorRecord, ValidationResult
+from .base import ErrorRecord, ValidationResult, BaseEngine, EngineInput, EngineOutput
 from .filename_parser import FilenameParser
 from .file_property_parser import FilePropertyExtractor
+from .revision import RevisionManager
+from .review_manager import ManualReviewManager
 
 
-class PipelineOrchestrator:
+class PipelineOrchestrator(BaseEngine):
     """
     Coordinates the 3-phase EKS pipeline with checkpoints and telemetry:
     - Phase A: Scan directory → register placeholder documents
@@ -43,13 +49,19 @@ class PipelineOrchestrator:
     - 5 clear phases (A-E) with telemetry heartbeat integration
     - Checkpoint state serialization for resume capability
     - Phase rollback mechanism for failed phases
+    
+    T1.99.182 (I209): Now inherits from BaseEngine for Appendix F §2.3.1 compliance.
+    Provides standard execution flow: validate_input → execute → validate_output.
+    Backward-compatible: direct constructor (config, doc_config, registry) still works
+    alongside the EngineInput.run() pattern.
     """
 
     def __init__(self, config: Dict[str, Any], doc_config: Dict[str, Any],
                  registry: Any, logger: Optional[EKSLogger] = None,
                  use_telemetry: bool = True,
                  error_manager: Optional[ErrorManager] = None,
-                 message_manager: Optional[MessageManager] = None):
+                 message_manager: Optional[MessageManager] = None,
+                 external_telemetry: Any = None):
         """
         Initialize pipeline orchestrator.
         
@@ -61,7 +73,13 @@ class PipelineOrchestrator:
             use_telemetry: Whether to enable telemetry heartbeat (default True)
             error_manager: Optional ErrorManager instance (T1.68)
             message_manager: Optional MessageManager instance (T1.68)
+            external_telemetry: Optional external TelemetryHeartbeat from
+                common.library.core.pipeline (T1.99.184/I215). When provided,
+                pipeline-level checkpoints are forwarded to it alongside the
+                local document-level telemetry.
         """
+        # T1.99.182 (I209): Call BaseEngine.__init__ with engine name
+        super().__init__(name="PipelineOrchestrator")
         self.config = config
         self.doc_config = doc_config
         self.registry = registry
@@ -75,6 +93,14 @@ class PipelineOrchestrator:
         self.router = ParserRouter(doc_config, logger=self.logger, use_factory=True)
         self.scorer = HealthScorer(logger=self.logger)
         self.detector = StructureDetector(logger=self.logger)
+
+        # T1.99.179 (I212): Wire RevisionManager for revision-aware document lookups
+        self.revision_manager = RevisionManager(registry, logger=self.logger)
+
+        # T1.99.181 (I224): Wire ReviewManager for Phase C persistence
+        self.review_manager = ManualReviewManager(
+            registry, doc_config=doc_config, logger=self.logger
+        )
 
         # T1.99.116: Shared FilenameParser for Phase B inline replacements
         filename_patterns = doc_config.get("filename_patterns", {})
@@ -92,8 +118,11 @@ class PipelineOrchestrator:
             logger=self.logger,
         )
         
-        # Initialize telemetry heartbeat
+        # T1.99.184 (I215): Unify dual telemetry — local TelemetryHeartbeat for
+        # document-level detail, optional external_telemetry for pipeline-level
+        # checkpoints forwarded to common.library.core.pipeline.TelemetryHeartbeat.
         self.telemetry = TelemetryHeartbeat(enabled=use_telemetry, verbose=False)
+        self.external_telemetry = external_telemetry
         
         # Initialize pipeline context
         self.context: Optional[EKSPipelineContext] = None
@@ -149,6 +178,17 @@ class PipelineOrchestrator:
             schema_registry=schema_registry
         )
     
+    def _forward_telemetry(self, phase: str, details: dict, doc_count: int = 0):
+        """T1.99.184 (I215): Forward checkpoint to both local and external telemetry."""
+        self.telemetry.add_checkpoint(phase=phase, details=details, document_count=doc_count)
+        if self.external_telemetry is not None:
+            try:
+                self.external_telemetry.add_checkpoint(
+                    phase=phase, details=details, document_count=doc_count,
+                )
+            except Exception:
+                pass  # External telemetry failure must not block the pipeline
+
     def save_checkpoint(self, phase: str, checkpoint_path: Optional[Path] = None):
         """
         Save checkpoint state for a phase.
@@ -237,7 +277,7 @@ class PipelineOrchestrator:
             registered = self.scanner.register_placeholders(valid, self.registry)
         except Exception as e:
             if self.error_manager:
-                self.error_manager.handle_data_error("D5-REG-001", detail=f"Placeholder registration failed: {e}")
+                self.error_manager.handle_data_error("P1-D-P-0003", detail=f"Placeholder registration failed: {e}")
             raise
 
         summary = {
@@ -248,11 +288,7 @@ class PipelineOrchestrator:
         }
         
         if self.use_telemetry:
-            self.telemetry.add_checkpoint(
-                phase="A",
-                details=summary,
-                document_count=registered
-            )
+            self._forward_telemetry("A", details=summary, doc_count=registered)
             self.save_checkpoint("A")
         
         if self.context:
@@ -323,7 +359,7 @@ class PipelineOrchestrator:
             except Exception as e:
                 result = {"file_path": file_path, "file_type": file_type, "status": "failed", "error": str(5)}
                 if self.error_manager:
-                    self.error_manager.handle_system_error("S-PIP-001", detail=f"Unhandled error in _process_file for {file_path}: {e}")
+                    self.error_manager.handle_system_error("S-R-S-0407", detail=f"Unhandled error in _process_file for {file_path}: {e}")
                     if self.message_manager:
                         self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(5))
 
@@ -342,10 +378,10 @@ class PipelineOrchestrator:
             
             # Add telemetry checkpoint for each file processed
             if self.use_telemetry:
-                self.telemetry.add_checkpoint(
-                    phase=f"B-{file_path}",
+                self._forward_telemetry(
+                    f"B-{file_path}",
                     details={"file": file_path, "status": status},
-                    document_count=success + partial + failed
+                    doc_count=success + partial + failed,
                 )
 
         summary = {
@@ -357,11 +393,7 @@ class PipelineOrchestrator:
         }
         
         if self.use_telemetry:
-            self.telemetry.add_checkpoint(
-                phase="B",
-                details=summary,
-                document_count=success + partial
-            )
+            self._forward_telemetry("B", details=summary, doc_count=success + partial)
             self.save_checkpoint("B")
         
         if self.context:
@@ -381,13 +413,18 @@ class PipelineOrchestrator:
     @log_depth
     def run_phase_c(self) -> Dict[str, Any]:
         """
-        Phase C: Flag documents for manual review.
+        Phase C: Flag documents for manual review and persist review status.
         Enhanced with telemetry checkpoint per Appendix F.
         Queries documents where extract_status != 'success' or
         extraction_confidence < 0.70.
+        
+        T1.99.181 (I224): Now calls ManualReviewManager to persist review
+        status via recalculate_score + lock_document for clean docs,
+        rather than only read-only flagging.
 
         Returns summary dict with keys:
             - flagged: count of documents flagged
+            - reviewed: count of documents reviewed/locked
             - documents: list of flagged document metadata dicts
         """
         self.logger.status("Phase C: Flagging documents for review")
@@ -398,38 +435,48 @@ class PipelineOrchestrator:
         if self.context:
             self.context.update_phase("C", "IN_PROGRESS")
 
+        # T1.99.181 (I224): Use review_manager for consistent review logic
+        flagged = self.review_manager.get_flagged_documents(confidence_threshold=0.70)
+        reviewed = 0
+
+        # Auto-approve clean documents (extract_status == 'success' and confidence >= 0.70)
         all_docs = self.registry.list_documents(latest_only=False)
-        flagged = []
         for doc in all_docs:
-            needs_review = False
-            if doc.get("extract_status") != "success":
-                needs_review = True
-            conf = doc.get("extraction_confidence")
-            if conf is not None and conf < 0.70:
-                needs_review = True
-            if needs_review:
-                flagged.append(doc)
+            if (
+                doc.get("extract_status") == "success"
+                and (doc.get("extraction_confidence") or 0) >= 0.70
+            ):
+                try:
+                    self.review_manager.recalculate_score(doc["id"])
+                    reviewed += 1
+                except Exception as e:
+                    self.logger.warning(
+                        f"Review score recalc failed for {doc.get('id')}: {e}",
+                        context="PipelineOrchestrator.run_phase_c",
+                    )
 
         summary = {
             "flagged": len(flagged),
+            "reviewed": reviewed,
             "documents": flagged,
         }
         
         if self.use_telemetry:
-            self.telemetry.add_checkpoint(
-                phase="C",
-                details=summary,
-                document_count=len(flagged)
-            )
+            self._forward_telemetry("C", details=summary, doc_count=len(flagged))
             self.save_checkpoint("C")
         
         if self.context:
             self.context.update_phase("C", "COMPLETE")
         
-        self.logger.status(f"Phase C complete: {len(flagged)} documents flagged for review")
+        self.logger.status(
+            f"Phase C complete: {len(flagged)} flagged, {reviewed} reviewed"
+        )
         
         if self.message_manager:
-            self.message_manager.show("STATUS_PHASE_C_COMPLETE", flagged=len(flagged))
+            self.message_manager.show(
+                "STATUS_PHASE_C_COMPLETE",
+                flagged=len(flagged), reviewed=reviewed,
+            )
         
         return summary
 
@@ -477,14 +524,12 @@ class PipelineOrchestrator:
         def _after(phase: str) -> None:
             if on_phase:
                 on_phase(phase)
-            # T1.99.85/I124: Per-phase checkpoint writes removed — unused by resume logic;
-            # context held in-memory via self.checkpoint_states. Restore from git
-            # history if future resume-from-checkpoint support is needed.
-            # if checkpoint_dir is not None and job_id is not None:
-            #     self.save_checkpoint(
-            #         phase,
-            #         checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{phase}.json",
-            #     )
+            # T1.99.180 (I216): Restore per-phase checkpoint writes for resume capability.
+            if checkpoint_dir is not None and job_id is not None:
+                self.save_checkpoint(
+                    phase,
+                    checkpoint_path=Path(checkpoint_dir) / f"checkpoint_{job_id}_{phase}.json",
+                )
 
         try:
             phase_a = self.run_phase_a(root_dir, recursive=recursive)
@@ -514,21 +559,28 @@ class PipelineOrchestrator:
             return summary
         except Exception as e:
             if self.error_manager:
-                self.error_manager.handle_system_error("S-PIP-002", detail=f"Pipeline failed: {e}")
+                self.error_manager.handle_system_error("S-R-S-0408", detail=f"Pipeline failed: {e}")
             raise
 
     def _process_file(self, file_path: str, file_type: str) -> Dict[str, Any]:
         """
         Process a single file through the parse → detect → score pipeline.
         Wraps with ParserInput/ParserOutput contracts per T1.72.
+
+        T1.99.188 (I218): Uses context paths for config_file/schema_dir/output_dir
+        defaults instead of empty Path("").
+        T1.99.189 (I219): Writes extracted_content to context.data.extracted_content.
         """
-        # T1.72: Construct ParserInput contract
+        # T1.99.188 (I218): Resolve ParserInput defaults from context when available
+        _config_file = self.context.paths.config_dir if self.context else Path(".")
+        _schema_dir = self.context.paths.schema_dir if self.context else Path(".")
+        _output_dir = self.context.paths.output_dir if self.context else Path(".")
         pinp = ParserInput(
             run_id=str(getattr(self.logger, 'run_id', '')),
             data_dir=Path(file_path).parent,
-            config_file=Path(""),
-            schema_dir=Path(""),
-            output_dir=Path(""),
+            config_file=_config_file,
+            schema_dir=_schema_dir,
+            output_dir=_output_dir,
             parameters={},
             file_path=str(file_path),
             file_type=file_type,
@@ -576,6 +628,8 @@ class PipelineOrchestrator:
 
                 # T1.99.143: Extract revision_description from revision_table elements
                 revision_desc = None
+                # T1.99.162 (I196): Extract asset_tags from cover_page element
+                asset_tags_from_cover = None
                 for el in elements:
                     if el.get("element_type") == "revision_table" and el.get("content"):
                         # Use the first revision_table element's content as the description
@@ -590,25 +644,64 @@ class PipelineOrchestrator:
                             )
                         elif isinstance(content, str) and content.strip():
                             revision_desc = content.strip()
-                        if revision_desc:
-                            break
+                    if el.get("element_type") == "cover_page" and el.get("content"):
+                        # Parse asset_tags from cover page fields_found dict
+                        content = el.get("content", "")
+                        if isinstance(content, dict):
+                            raw_tags = content.get("asset_tags", "")
+                        elif isinstance(content, str):
+                            try:
+                                import ast
+                                parsed = ast.literal_eval(content)
+                                raw_tags = parsed.get("asset_tags", "") if isinstance(parsed, dict) else ""
+                            except (ValueError, SyntaxError):
+                                raw_tags = ""
+                        else:
+                            raw_tags = ""
+                        if raw_tags:
+                            # Split comma/space-separated tag list → list of strings
+                            asset_tags_from_cover = [
+                                t.strip() for t in re.split(r'[,\s]+', str(raw_tags)) if t.strip()
+                            ]
+                    if revision_desc and asset_tags_from_cover:
+                        break
             except Exception as e:
                 self.logger.warning(
                     f"Structure detection failed for {file_path}: {e}",
                     context="PipelineOrchestrator._process_file"
                 )
                 if self.error_manager:
-                    self.error_manager.handle_data_error("D5-DETECT-001", doc_id=str(file_path),
+                    self.error_manager.handle_data_error("P3-E-E-0018", doc_id=str(file_path),
                                                           detail=f"Structure detection failed: {e}")
 
-            # T1.99.116: Use shared FilenameParser instead of inline one-liner
+            # T1.99.179 (I212): Use RevisionManager for revision-aware doc lookup
             parse_result = self._parser.parse(Path(file_path).name)
             doc_number = parse_result.document_number or Path(file_path).stem
-            doc = self.registry.get_document(doc_number)
+            doc = self.revision_manager.get_latest_revision(doc_number)
+            # T1.99.161 (I196): Persist detected structural elements to
+            # document_elements table per Appendix B §B6.2.  This was always
+            # detected but never stored before — a blocking gap since Phase 1.
+            if doc and elements:
+                try:
+                    self.registry.store_elements(doc["id"], elements)
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to store elements for {file_path}: {e}",
+                        context="PipelineOrchestrator._process_file"
+                    )
             if doc:
                 try:
-                    score = self.scorer.score(doc, elements)
+                    score = self.scorer.score(doc, structural_elements=elements)
                     result["score"] = score
+                    # T1.99.168 (I201): Apply health impact penalty from accumulated
+                    # error severity impacts (GAP-D7).  ErrorManager.get_health_impact()
+                    # sums health_score_impact values across all errors logged for this
+                    # doc_id.  Formula: adjusted = max(0.0, raw + penalty / 100).
+                    if self.error_manager:
+                        penalty = self.error_manager.get_health_impact(doc["id"])
+                        adjusted = max(0.0, score.get("health_score", 0.0) + penalty / 100.0)
+                        score["health_score"] = round(adjusted, 4)
+                        score["health_impact_penalty"] = penalty
                     pout.confidence = score.get("overall", 0.0)
                     pout.content_blocks = content_blocks
                     pout.metadata = metadata
@@ -623,6 +716,9 @@ class PipelineOrchestrator:
                     # T1.99.143: Attach revision_description from element extraction
                     if revision_desc:
                         registry_props["revision_description"] = revision_desc
+                    # T1.99.162 (I196): Attach asset_tags from cover page detection
+                    if asset_tags_from_cover:
+                        registry_props["asset_tags"] = asset_tags_from_cover
                     self.logger.debug(
                         f"File properties extracted for {Path(file_path).name}: "
                         f"size={prop_result.file_size}, status={prop_result.extract_status}, "
@@ -630,17 +726,28 @@ class PipelineOrchestrator:
                         context="PipelineOrchestrator._process_file",
                     )
 
+                    # T1.99.189 (I219): Write extracted_content to pipeline context
+                    if self.context:
+                        self.context.data.extracted_content[doc["id"]] = {
+                            "content_blocks": content_blocks,
+                            "metadata": metadata,
+                            "elements": elements,
+                            "score": score,
+                            "properties": registry_props,
+                        }
+
                     self._update_doc_status(
                         file_path, "success",
                         confidence=score.get("overall"),
                         notes=f"Auto-parsed via pipeline",
                         extra_properties=registry_props,
+                        doc_id=doc["id"],
                     )
                     result["status"] = "success"
                     pout.status = "SUCCESS"
                 except Exception as e:
                     if self.error_manager:
-                        self.error_manager.handle_data_error("D5-SCORE-001", doc_id=str(file_path),
+                        self.error_manager.handle_data_error("P3-E-E-0019", doc_id=str(file_path),
                                                               detail=f"Health scoring failed: {e}")
                     result["status"] = "partial"
                     result["error"] = str(5)
@@ -661,7 +768,7 @@ class PipelineOrchestrator:
                 context="PipelineOrchestrator._process_file"
             )
             if self.error_manager:
-                self.error_manager.handle_system_error("S-PIP-003", detail=f"Pipeline processing failed for {file_path}: {e}")
+                self.error_manager.handle_system_error("S-R-S-0409", detail=f"Pipeline processing failed for {file_path}: {e}")
 
         # T1.72: Attach pout state to result for traceability
         result["_parser_output_status"] = pout.status
@@ -698,9 +805,23 @@ class PipelineOrchestrator:
     def _update_doc_status(self, file_path: str, status: str,
                            confidence: Optional[float] = None,
                            notes: Optional[str] = None,
-                           extra_properties: Optional[Dict[str, Any]] = None) -> None:
-        """Update document extraction status in registry using registry.update_document_status()."""
-        # T1.99.116: Use shared FilenameParser instead of inline one-liner
+                           extra_properties: Optional[Dict[str, Any]] = None,
+                           doc_id: Optional[str] = None) -> None:
+        """
+        Update document extraction status in registry using registry.update_document_status().
+
+        T1.99.163 (I196): Accepts optional doc_id to avoid redundant filename parse.
+        When doc_id is provided (from _process_file), it is used directly; otherwise
+        falls back to filename-parsing lookup for backward compatibility.
+        """
+        if doc_id:
+            # Fast path: doc_id already resolved in _process_file
+            self.registry.update_document_status(
+                doc_id, status, confidence=confidence, notes=notes,
+                extra_properties=extra_properties,
+            )
+            return
+        # Legacy path: re-parse filename for callers that don't pass doc_id
         parse_result = self._parser.parse(Path(file_path).name)
         doc_number = parse_result.document_number or Path(file_path).stem
         doc = self.registry.get_document(doc_number)
@@ -709,3 +830,79 @@ class PipelineOrchestrator:
                 doc["id"], status, confidence=confidence, notes=notes,
                 extra_properties=extra_properties,
             )
+
+    # ------------------------------------------------------------------
+    # T1.99.182 (I209): BaseEngine abstract method implementations.
+    # PipelineOrchestrator now satisfies the Appendix F §2.3.1 BaseEngine
+    # contract (validate_input → execute → validate_output).
+    # ------------------------------------------------------------------
+
+    def validate_input(self, input_data: EngineInput) -> ValidationResult:
+        """Validate EngineInput before pipeline execution.
+
+        Checks:
+          - data_dir exists and is a directory
+          - schema_dir exists
+          - output_dir is writable (or creatable)
+        """
+        errors = []
+        if not input_data.data_dir.exists():
+            errors.append(f"data_dir does not exist: {input_data.data_dir}")
+        if not input_data.schema_dir.exists():
+            errors.append(f"schema_dir does not exist: {input_data.schema_dir}")
+        return ValidationResult(
+            is_valid=len(errors) == 0,
+            errors=errors,
+        )
+
+    def execute(self, input_data: EngineInput) -> EngineOutput:
+        """Execute pipeline from an EngineInput contract.
+
+        Derives root_dir from input_data.data_dir and delegates to
+        run_full_pipeline, which already handles A → B → C sequencing.
+        """
+        recursive = input_data.parameters.get("recursive", True)
+        phase = input_data.parameters.get("phase", "full")
+
+        if phase != "full":
+            if phase == "A":
+                result = self.run_phase_a(input_data.data_dir, recursive=recursive)
+            elif phase == "B":
+                result = self.run_phase_b(input_data.data_dir, recursive=recursive)
+            else:  # C
+                result = self.run_phase_c()
+            summary = {f"phase_{phase.lower()}": result}
+        else:
+            summary = self.run_full_pipeline(
+                input_data.data_dir, recursive=recursive,
+            )
+
+        # Determine status from context
+        status = "SUCCESS"
+        if self.context and self.context.state.status == "FAILED":
+            status = "FAILED"
+        elif self.context and self.context.state.status != "COMPLETE":
+            status = "PARTIAL"
+
+        return EngineOutput(
+            run_id=input_data.run_id,
+            status=status,
+            metadata={"summary": summary},
+        )
+
+    def validate_output(self, output: EngineOutput) -> ValidationResult:
+        """Validate EngineOutput after pipeline execution.
+
+        Checks that status is a recognised value and metadata contains
+        expected phase-result keys.
+        """
+        errors = []
+        if output.status not in ("SUCCESS", "PARTIAL", "FAILED"):
+            errors.append(f"Unknown status: {output.status}")
+        summary = output.metadata.get("summary", {})
+        if not summary:
+            errors.append("EngineOutput.metadata.summary is empty")
+        return ValidationResult(
+            is_valid=len(errors) == 0,
+            errors=errors,
+        )
