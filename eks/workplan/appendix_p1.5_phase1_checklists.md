@@ -1,18 +1,19 @@
-# Appendix P1-D: Phase 1 Checklists
+# Appendix P1.5: Phase 1 Checklists — Success Criteria & Deliverables
 
+> **Canonical source for [main workplan §33](phase_1_foundation_workplan.md#33-success-criteria) and §34 Deliverables.** §36 (duplicate of §33) also deduplicated here.
 > Extracted from [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
-> Auto-generated: 2026-07-20
+> Last Updated: 2026-07-20
 
 ---
 
 ## Contents
 
-- [36. Success Criteria](#success-criteria)
-- [37. Deliverables](#deliverables)
+- [33. Success Criteria (ex-main-workplan §33)](#success-criteria)
+- [34. Deliverables (ex-main-workplan §34)](#deliverables)
 
 ---
 
-## 36. Success Criteria
+## Success Criteria (ex-main-workplan §33)
 
 - [x] EKS folder structure created and compliant with AGENTS.md project folder conventions
 - [x] `eks.yml` created and environment activates cleanly (`conda env create -f eks.yml`)
@@ -106,7 +107,7 @@
 
 ---
 
-## 37. Deliverables
+## Deliverables (ex-main-workplan §34)
 
 - EKS project folder structure (including `eks/config/schemas/`)
 - `eks/eks.yml` — Conda environment file

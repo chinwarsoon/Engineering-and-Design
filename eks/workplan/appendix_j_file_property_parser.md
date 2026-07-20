@@ -1,10 +1,10 @@
 # Appendix J — Schema-Driven File Property Parser (Universal Class)
 
 **Document ID**: WP-EKS-P1-APX-J  
-**Version**: 0.2  
-**Last Updated**: 2026-07-18  
+**Version**: 0.3  
+**Last Updated**: 2026-07-20  
 **Phase**: 1 — Foundation  
-**Status**: 📋 Proposed for Review  
+**Status**: ✅ Implemented — See [J14 Implementation Record](#j14-implementation-record--complete) below  
 **Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) §20 (Document Registry & Revision Management)  
 **Related Appendices**:
 - [Appendix B — Document Registry](appendix_b_document_registry.md) — registry columns (B3), ontology triggers (B3.1), file_type_registry (B3.3)
@@ -30,6 +30,7 @@
 
 | Revision | Date | Author | Summary |
 | :------- | :--- | :----- | :------ |
+| 0.3 | 2026-07-20 | CodeBuddy | Added J14 Implementation Record (relocated from main workplan §43): 14 closed issues, 13 new registry columns, 2-layer extraction pipeline integration, cross-references. Updated status to ✅ Implemented. |
 | 0.2 | 2026-07-18 | CodeBuddy | Added §J1.1 boundary definition: explicit separation from FilenameParser (Appendix I), system-values breakdown table (3 categories), why OS+embedded stay together, why filename is separate |
 | 0.1 | 2026-07-18 | CodeBuddy | Initial draft: J1–J14 covering OS-level + embedded property extraction, schema-driven `file_property_patterns` config, `FilePropertyExtractor` class, 5 file-type capability matrix, registry column alignment, pipeline integration, error taxonomy, and implementation plan |
 
@@ -1223,3 +1224,34 @@ No embedded metadata extraction. Only OS-level properties apply.
 - [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) §20 — Document Registry & Revision Management
 - [`eks/engine/parsers/io_contracts.py`](../engine/parsers/io_contracts.py) — `ParserOutput.metadata` field (currently unused downstream)
 - [`eks/engine/core/pipeline_orchestrator.py`](../engine/core/pipeline_orchestrator.py) — L552 metadata capture, L575 pout assignment, L577 `update_document_status()` call
+
+---
+
+## J14. Implementation Record — ✅ COMPLETE
+
+> **Relocated from [main workplan §43](phase_1_foundation_workplan.md#43-file-property-extraction--appendix-j-implementation-i147i162--complete).** Canonical source is now here.
+
+### J14.1 Objective
+
+Implement the schema-driven file property extractor defined in this appendix, closing 14 open issues (I147–I154, I156, I158–I162). This module is the **first code anywhere in EKS** to call `os.stat()` / `Path.stat()` and `hashlib` — OS-level file properties are completely absent today. It also closes the **data-dropping pipeline gap**: parser `extract_metadata()` results are captured at `_process_file()` L552 but never persisted to the Document Registry.
+
+**What changes**: Two-layer extraction (OS stat + embedded parser metadata) runs inside Phase B `_process_file()`. Results flow through `update_document_status(extra_properties=...)` → DuckDB `INSERT`/`UPDATE` with dynamically-built column lists. 13 new registry columns are added via auto-migration. All extraction rules are schema-driven via `file_property_patterns` config.
+
+### J14.2 Scope Summary
+
+| Dimension | Detail |
+|:---|:---|
+| **Issues closed** | I147–I154, I156, I158–I162 (14 total) |
+| **New registry columns** | 13: `file_size`, `file_created_at`, `file_modified_at`, `file_hash`, `embedded_title`, `embedded_subject`, `embedded_created_date`, `embedded_modified_date`, `embedded_creator_app`, `embedded_producer`, `embedded_last_modified_by`, `embedded_keywords`, `embedded_sheet_count` |
+| **Existing columns populated** | `created_by` (from parser `author`), `page_count` (from PDF parser) |
+| **Files created** | `eks/engine/core/file_property_parser.py` — `FilePropertyExtractor` class + `FilePropertyResult` dataclass |
+| **Files modified** | `pipeline_orchestrator.py` (Phase B wiring), `registry.py` (`update_document_status()` + `extra_properties` param), `eks_doc_base_schema.json` (13 new columns + 3 definitions), `eks_doc_setup_schema.json` (`file_property_patterns`), `eks_doc_config.json` (5 per-type mappings), `eks_error_config.json` (D5-PROP-001..005) |
+
+### J14.3 Cross-References
+
+| Ref | Location | Detail |
+|:---|:---|:---|
+| I147–I162 | `eks/log/issue_log.md` | 14 file property extraction issues |
+| U183 | `eks/log/update_log.md` | Implementation update entry |
+| [P1.1 §5.3](appendix_p1.1_architecture.md#53-option-a2--unified-p-prefix-error-codes--appendix-i-filename-parser-i133i146-i155-i157-i163--complete) | P-prefix error code rename (D5-PROP → P5) |
+| [Appendix I](appendix_i_filename_parser.md) | FilenameParser — boundary definition (J1.1) |

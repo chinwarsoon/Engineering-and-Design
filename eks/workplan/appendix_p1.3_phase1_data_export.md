@@ -1,0 +1,533 @@
+# Appendix P1.3 — Phase 1 Data Export (CSV/Excel)
+
+**Document ID**: WP-EKS-P1-A1.3
+**Version**: 1.0
+**Last Updated**: 2026-07-20
+**Status**: ✅ Complete
+**Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v4.8+, IN PROGRESS)
+
+---
+
+> **Relocation Note**: This appendix is the canonical source for all Phase 1 data export (CSV/Excel) design, implementation, task breakdowns, success criteria, and post-implementation fixes. Content integrated from §32 and §47 of the main workplan, restored from source code analysis, issue_log.md, and update_log.md.
+
+---
+
+## Contents
+
+1. [Objective & Scope](#1-objective--scope)
+2. [Universal L22 DataExporter Module](#2-universal-l22-dataexporter-module)
+3. [EKS Pipeline Export Wiring](#3-eks-pipeline-export-wiring)
+4. [Exported Files](#4-exported-files)
+5. [Task Breakdown](#5-task-breakdown)
+6. [Success Criteria (I126)](#6-success-criteria-i126)
+7. [Implementation Notes & Design Decisions](#7-implementation-notes--design-decisions)
+8. [Post-Implementation Fix — I188 (Empty Files)](#8-post-implementation-fix--i188-empty-files)
+9. [Stale Output + Test-DB Pollution Fix — I189](#9-stale-output--test-db-pollution-fix--i189)
+10. [Root-Level Copies — I192](#10-root-level-copies--i192)
+11. [Schema-Driven Export Columns — I193 (§47)](#11-schema-driven-export-columns--i193-47)
+12. [API Endpoint](#12-api-endpoint)
+13. [Export Source Code Reference](#13-export-source-code-reference)
+14. [Issue & Update Cross-Reference](#14-issue--update-cross-reference)
+
+---
+
+## 1. Objective & Scope
+
+> Source: §32.1–§32.2 of the main workplan.
+
+### 1.1 Objective
+
+Add human-readable CSV and Excel export of Phase 1 pipeline results — discovery inventory, extraction results, and review flags — so non-technical reviewers can open spreadsheets directly without querying DuckDB. Create a universal L22 `DataExporter` module in `common/library/export/` reusable by both EKS and DCC, built on already-available dependencies (`csv` stdlib + `openpyxl`).
+
+### 1.2 Scope Summary
+
+| Scope | Description |
+|:---|:---|
+| **Universal (L22)** | `common/library/export/` — `DataExporter` with `export_to_csv()`, `export_to_excel()`, `export_multi_sheet()`. Works with `list[dict]` rows (not coupled to pandas). L10 error codes (`S-DE-*`), L13 overwrite validation, L16 path resolution. |
+| **EKS CLI** | `--export {csv,xlsx,both,none}` flag in `eks_engine_pipeline.py` — after pipeline completes, exports 3 files to `eks/output/`. Default `none` (backward-compat). |
+| **EKS main()** | 3 export calls in `eks_engine_pipeline.py` `main()` after `run_pipeline()` returns (not in PipelineOrchestrator — export is output formatting, not pipeline processing): Phase A → `discovery_inventory.{fmt}`, Phase B → `extraction_results.{fmt}`, Phase C → `review_flags.{fmt}`. |
+| **EKS API** | `GET /api/v1/export/{phase}/{format}` endpoint in `phase1_server.py` — returns file download. |
+| **DCC (future)** | L22 can replace DCC's inline `df.to_csv()`/`df.to_excel()` — noted, but DCC code not modified in this task. |
+
+---
+
+## 2. Universal L22 DataExporter Module
+
+> Source: §32.6 + code analysis of `common/library/export/`.
+
+### 2.1 Files
+
+| File | Purpose |
+|:---|:---|
+| `common/library/export/__init__.py` | Package init; exports `DataExporter`, `export_to_csv`, `export_to_excel`, `export_multi_sheet`. L22 universal export module. |
+| `common/library/export/exporter.py` | Core `DataExporter` class (~323 lines) + 3 standalone convenience functions |
+| `common/library/export/tests/test_exporter.py` | Unit tests (4 test classes covering CSV round-trip, BOM, CJK unicode, Excel round-trip, multi-sheet, empty rows, error paths, overwrite guard, edge cases) |
+
+### 2.2 DataExporter API
+
+| Method | Signature | Description |
+|:---|:---|:---|
+| `export_to_csv()` | `(rows: list[dict], path: Path, columns: list[str] = None) -> Path` | Writes CSV with UTF-8 BOM (`utf-8-sig`), uses `csv.DictWriter`. Raises `DataExportError` with codes S-DE-001/003/004. |
+| `export_to_excel()` | `(rows: list[dict], path: Path, sheet_name: str = "Sheet1", columns: list[str] = None) -> Path` | Writes single-sheet `.xlsx` with bold headers, frozen panes, auto-column-width (max 50). Uses `openpyxl`. Raises S-DE-002/003/004. |
+| `export_multi_sheet()` | `(sheets: dict[str, list[dict]], path: Path) -> Path` | Writes multi-sheet `.xlsx` workbook; same formatting as single-sheet. |
+
+### 2.3 Error Codes (S-DE-* range)
+
+| Code | Description |
+|:---|:---|
+| S-DE-001 | CSV write failed (I/O error) |
+| S-DE-002 | Excel write failed (I/O or format error) |
+| S-DE-003 | Output directory not writable |
+| S-DE-004 | File exists and overwrite disabled |
+
+### 2.4 Key Design Properties
+
+- **No pandas dependency**: Works with `list[dict]` rows directly. If a pandas DataFrame is passed, call `df.to_dict('records')` first.
+- **Lightweight**: Only `csv` stdlib + `openpyxl`.
+- **Registered**: Exported from `common/library/__init__.py` as L22 universal component.
+
+---
+
+## 3. EKS Pipeline Export Wiring
+
+> Source: §32.2 + code analysis of `eks/engine/eks_engine_pipeline.py`.
+
+### 3.1 CLI Flag
+
+`--export {csv,xlsx,both,none}` (default: `none`, backward-compatible)
+
+Registered in both:
+- `build_parser()` (bespoke parser) — `eks_engine_pipeline.py:450-454`
+- `_EKS_CORE_ARG_SPECS` (schema-driven parser) — `eks_engine_pipeline.py:496-499`
+
+### 3.2 Export Flow in `main()`
+
+1. Extract `export_fmt = parsed.export_format if parsed else "none"` (line 909)
+2. Guard: if `export_fmt == "none"`, skip export entirely
+3. Create per-run UUID subdirectory: `output/<run_id>/` (line 985–986)
+4. Query `DocumentRegistry.list_documents(latest_only=True)` (line 990)
+5. Resolve schema-driven columns via `resolve_export_columns()` (line 1003)
+6. Build 3 row-sets via `_build_export_rows()` and `_build_flagged_rows()` (lines 1014–1020)
+7. Write CSV files if `csv`/`both`: `discovery_inventory.csv`, `extraction_results.csv`, `review_flags.csv`
+8. Write XLSX files if `xlsx`/`both`: `discovery_inventory.xlsx`, `extraction_results.xlsx`, `review_flags.xlsx`
+9. Copy latest exports atomically to `output/` root (lines 1047–1067, I192)
+10. All wrapped in try/except — logs warning on failure, pipeline continues
+
+### 3.3 Preload Infrastructure
+
+`DataExporter` is preloaded in `_preload_infrastructure()` and passed through to `main()` via the preload dict (key `_DataExporter`), avoiding bare imports inside `main()`. This satisfies I127 preload import gate requirements.
+
+### 3.4 Design Rationale — Export Stays in `main()`
+
+The orchestrator coordinates *processing* (scan → parse → score → review); export is *output formatting*, a concern of the entry point. Keeping export in `main()` means:
+
+- **(a)** `PipelineOrchestrator.run_full_pipeline()` can be unit-tested for core logic without `openpyxl`
+- **(b)** The orchestrator signature stays clean (no `export_config: dict = None` parameter)
+- **(c)** `run_pipeline()` remains a pure `context → context` function
+- **(d)** `main()` queries DB post-pipeline via the returned `context.registry`, which is read-only and cheap
+
+### 3.5 Zero-Change Zones
+
+| Location | Why Unchanged |
+|:---|:---|
+| `_preload_infrastructure()` | L22 `DataExporter` is a post-pipeline module, not bootstrap infrastructure. Bootstrap guards only `common.library.paths`, `common.library.logging`, `common.library.core.pipeline`, and `eks.engine.core.bootstrap`. |
+| `bootstrap.py` / `EKSBootstrapManager` | No new bootstrap phase needed. `openpyxl` is already declared in `eks_config.json` `dependencies.required` and is checked at P6 via `test_environment()`. If missing, P1-BOOT-ENV fires with `conda activate eks` hint. |
+| `run_pipeline()` | Export is called *after* `run_pipeline()` returns — `run_pipeline()` stays a pure `PipelineContext → PipelineContext` transform. |
+| `PipelineOrchestrator.run_full_pipeline()` | No `export_config` parameter. No export calls inside phase callbacks. Orchestrator stays pure. |
+| `eks_config.json` dependencies | `openpyxl` already in `required` list (L10). `csv` is stdlib. Zero new dependencies. |
+
+---
+
+## 4. Exported Files
+
+> Source: §32.3, restored from code analysis.
+
+| File | Phase | Data Source | Columns |
+|:---|:---|:---|:---|
+| `discovery_inventory.{csv,xlsx}` | After Phase A | All discovered documents (`status_filter=None` per I188 fix) | ~46 columns: all `x_export: true` fields excluding extraction-specific columns (`page_count`, `extract_status`, `extraction_confidence`, `extraction_notes`). Core identity: `document_number`, `revision`, `document_type`, `file_type`, `file_path`, `ingested_at` + file properties + embedded metadata + project context. |
+| `extraction_results.{csv,xlsx}` | After Phase B | All documents with extraction data | ~50 columns: all `x_export: true` fields (full document metadata). Includes `page_count`, `extract_status`, `extraction_confidence`, `extraction_notes`, `total_elements`, `cover_pages`, `sections`, `tables`, `images`, `links`. |
+| `review_flags.{csv,xlsx}` | After Phase C | Flagged docs: `extract_status != 'success'` OR `confidence < 0.70` OR `confidence IS NULL` | ~8 columns (focused triage view): `document_number`, `revision`, `document_type`, `extract_status`, `extraction_confidence`, `extraction_notes`, `flag_reason`, `ingested_at` |
+
+**Column counts reflect I193 schema-driven export (see §11 below).** Original hardcoded design exported only 11 fields. After I193, discovery_inventory exports ~46 fields and extraction_results exports ~50 fields.
+
+---
+
+## 5. Task Breakdown
+
+> Source: §32.4 + U183. Tasks T1.99.87–T1.99.94.
+
+### 5.1 Core Implementation (I126)
+
+| # | Scope | Task | Details | Status |
+|:---|:---|:---|:---|:---:|
+| T1.99.87 | Universal | Create `common/library/export/__init__.py` | Package init exporting `DataExporter` + convenience functions. L22 universal module. | ✅ COMPLETE |
+| T1.99.88 | Universal | Create `DataExporter` class | `export_to_csv()` (csv.DictWriter + BOM), `export_to_excel()` (openpyxl, auto-column-width, bold+frozen headers), `export_multi_sheet()` (multi-sheet workbook). Error codes S-DE-001–S-DE-004. | ✅ COMPLETE |
+| T1.99.89 | Universal | Register in `common/library/__init__.py` | L22 entry added to universal library exports. | ✅ COMPLETE |
+| T1.99.90 | Universal | Add DataExporter tests | 20 tests across 4 classes: CSV round-trip, BOM, CJK/Unicode, Excel round-trip, multi-sheet, empty rows, error paths, overwrite guard, edge cases. | ✅ COMPLETE |
+| T1.99.91 | Universal | Update architecture doc | `common/universal_pipeline_architecture_design.md` updated with L22 section. | ✅ COMPLETE |
+| T1.99.92 | EKS CLI | Add `--export` flag | Flag added to both `_EKS_CORE_ARG_SPECS` (schema-driven) and `build_parser()` (bespoke). Choices: `csv`, `xlsx`, `both`, `none`. Default: `none`. | ✅ COMPLETE |
+| T1.99.93 | EKS Pipeline | Wire export calls in `main()` | 3 export calls after `run_pipeline()` returns: `discovery_inventory`, `extraction_results`, `review_flags` via `DataExporter` + `_build_export_rows`/`_build_flagged_rows`. | ✅ COMPLETE |
+| T1.99.94 | EKS API | Add export endpoint | `GET /api/v1/export/{phase}/{format}` — phases: `a`/`b`/`c`/`all`, formats: `csv`/`xlsx`. Returns file download with Content-Disposition. | ✅ COMPLETE |
+
+---
+
+## 6. Success Criteria (I126)
+
+> Source: §32.5. All ✅ COMPLETE as of U183.
+
+- [x] `common/library/export/` exists with `DataExporter` (L22 universal module)
+- [x] `export_to_csv()` produces valid CSV with BOM (UTF-8 Excel-compatible)
+- [x] `export_to_excel()` produces valid .xlsx with auto-column-width + bold headers
+- [x] `export_multi_sheet()` produces multi-sheet workbook with correct sheet names
+- [x] All universal tests green (csv + excel + multi-sheet + edge cases)
+- [x] `common/universal_pipeline_architecture_design.md` updated with L22
+- [x] `--export csv` produces `discovery_inventory.csv`, `extraction_results.csv`, `review_flags.csv`
+- [x] `--export xlsx` produces 3 .xlsx files
+- [x] `GET /api/v1/export/{phase}/{format}` returns correct file download
+- [x] Default `--export none` — zero files written (backward-compat)
+- [x] Full EKS test suite green
+- [x] I126 → Resolved in `issue_log.md`; U183 in `update_log.md`
+
+---
+
+## 7. Implementation Notes & Design Decisions
+
+> Source: §32.6, supplemented by code analysis.
+
+### 7.1 Reuse from DCC
+
+DCC's `_run_export()` in `dcc/workflow/dcc_engine_pipeline.py` (L269–304) uses pandas `.to_csv(index=False)` / `.to_excel(index=False)` inline — thin wrappers with BEFORE/DURING/AFTER progress spinners. L22 extracts the core write logic into a reusable module but does **not** modify DCC code. Future DCC migration: replace `df_processed.to_csv(path, index=False)` → `DataExporter().export_to_csv(rows, path)`.
+
+### 7.2 Path Resolution
+
+Output files go to `resolve_paths() → output_dir` (L16). Discovery inventory / extraction results / review flags are always overwritten on each run (consistent with I124 design decision for `pipeline_output.json`).
+
+---
+
+## 8. Post-Implementation Fix — I188 (Empty Files)
+
+> Source: §32.7. ✅ COMPLETE as of U190 (2026-07-19).
+
+### 8.1 Discovery
+
+`--export both` only produced `extraction_results.{csv,xlsx}`. `discovery_inventory` and `review_flags` were never written.
+
+### 8.2 Root Causes & Fixes
+
+#### Gap A — `discovery_inventory` Empty
+
+**Root cause**: `_build_export_rows(all_docs, ["pending"], discovery_cols)` filtered for `extract_status == "pending"`. After a full pipeline run, all documents have `extract_status = "success"` → `discovery_rows` is always `[]` → `if discovery_rows:` guard prevents file write.
+
+**Fix**: Changed the status filter from `["pending"]` to `None` so discovery inventory includes ALL discovered documents, reflecting what Phase A found.
+
+#### Gap B — `review_flags` Empty
+
+**Root cause**: `_build_flagged_rows()` line 1126-1127:
+```python
+elif status != "success":
+    reasons.append("Confidence: missing")
+```
+When `extraction_confidence` is `None` AND `extract_status` is `"success"`, the condition `status != "success"` is False → no reason added → doc not flagged. All 170 current docs had `confidence=None` + `status="success"`.
+
+**Fix**: Changed the `elif` to an unconditional `else:`, so that missing confidence always generates a "Confidence: missing" flag reason regardless of status.
+
+#### Gap C — No EKS-Level Export Tests
+
+**Fix**: Added tests in `eks/test/test_eks_engine_pipeline.py` that:
+1. Call `_build_export_rows()` directly and verify row construction
+2. Call `_build_flagged_rows()` directly and verify flag logic (including None-confidence case)
+3. Run `main()` with `--export both` and verify 3 files exist in output
+
+### 8.3 I188 Task Breakdown
+
+| # | Scope | Task | Details | Status |
+|:---|:---|:---|:---|:---:|
+| T1.99.147 | EKS Export | Fix discovery filter | Remove `["pending"]` status filter → `None` (all docs). | ✅ COMPLETE |
+| T1.99.148 | EKS Export | Fix review flag logic | Change `elif status != "success"` → unconditional `else:` for None-confidence catch-all. | ✅ COMPLETE |
+| T1.99.149 | EKS Test | Add `_build_export_rows` tests | Direct unit tests for row construction. | ✅ COMPLETE |
+| T1.99.150 | EKS Test | Add `_build_flagged_rows` tests | Direct unit tests for flag logic + None-confidence edge case. | ✅ COMPLETE |
+| T1.99.151 | EKS Test | Add integration export test | `main()` with `--export both` → verify 3 files exist. | ✅ COMPLETE |
+
+### 8.4 I188 Success Criteria
+
+- [x] `--export both` produces `discovery_inventory.csv` + `extraction_results.csv` + `review_flags.csv`
+- [x] `--export xlsx` produces all 3 .xlsx files
+- [x] `discovery_inventory` shows all documents (not 0)
+- [x] `review_flags` includes docs with missing `extraction_confidence` even if `extract_status="success"`
+- [x] All new export tests pass (7/7)
+- [x] I188 → Resolved
+- [x] Full EKS test suite remains green (36 tests)
+
+---
+
+## 9. Stale Output + Test-DB Pollution Fix — I189
+
+> Source: §32.8. ✅ COMPLETE as of U191 (2026-07-19).
+
+### 9.1 Discovery
+
+Post-I188, output CSV/Excel files contained dummy DOC-001/DOC-002 data (from test runs) despite production DB having 172 real rows. Four intertwined root causes identified.
+
+### 9.2 Root Causes
+
+| Root Cause | Description |
+|:---|:---|
+| **(A)** Shared `eks/output/` directory | All runs and tests write to the same directory — no per-run isolation. |
+| **(B)** Test data pollutes production DB | Tests call `main()` which creates `DocumentRegistry` via singleton `output/eks_registry.db`. Test runs register synthetic docs into production DB. |
+| **(C)** Export queries ALL docs | `list_documents(latest_only=True)` returns every doc ever registered, not just current-run docs. |
+| **(D)** Tests with `--export both` overwrite production | `test_main_export_both_runs` writes 6 files to `eks/output/`, overwriting production exports. |
+
+### 9.3 Fix Design
+
+| Fix | Approach | File(s) |
+|:---|:---|:---|
+| **F1** — Test-isolated DB | Add optional `db_path` parameter to `DocumentRegistry.__init__`. Tests pass temp paths. | `registry.py` |
+| **F2** — Export scoped to current run | Capture pre-run `document_number` set; post-run filter export to new docs only (set difference). | `eks_engine_pipeline.py::main()` |
+| **F3** — Per-run output directories | Write exports to `output/<run_id>/` instead of `output/` root. | `eks_engine_pipeline.py::main()` |
+| **F4** — Tests avoid export pollution | `test_main_export_both_runs` uses `mock.patch` for `DocumentRegistry` with temp DB. | `test_eks_engine_pipeline.py` |
+
+### 9.4 Task Breakdown
+
+| # | Scope | Task | Details | Status |
+|:---|:---|:---|:---|:---:|
+| T1.99.153 | EKS registry | Add `db_path` param to `DocumentRegistry.__init__` | Optional `db_path` parameter bypasses config for explicit path control. Enables test-isolated databases. Bumped registry.py to v0.6. | ✅ COMPLETE |
+| T1.99.154 | EKS export | Scope export to current-run docs (F2) | In `main()`: capture pre-run `document_number` set via `reg_pre.list_documents()`, filter post-run `all_docs` to only new docs. | ✅ COMPLETE |
+| T1.99.155 | EKS export | Per-run output subdirectories (F3) | Write exports to `output/<run_id>/` (UUID subdirectory). `run_id` already generated in `main()` via `engine_in.run_id`. | ✅ COMPLETE |
+| T1.99.156 | EKS test | Isolate export test DB + output (F4) | `test_main_export_both_runs` uses `mock.patch.object(registry_module, "DocumentRegistry", _IsolatedRegistry)` with temp DB path. | ✅ COMPLETE |
+
+### 9.5 Success Criteria
+
+- [x] `DocumentRegistry.__init__` accepts optional `db_path` parameter
+- [x] Export only includes docs from current invocation (not stale/test data)
+- [x] Each run writes to its own `output/<run_id>/` subdirectory
+- [x] Integration test uses temp DB, does not pollute production
+- [x] All 36 tests pass
+- [x] I189 → Resolved
+- [x] `eks/output/` clean — no stale CSV/XLSX files
+
+---
+
+## 10. Root-Level Copies — I192
+
+> Source: issue_log.md I192. ✅ Resolved (2026-07-19).
+
+### 10.1 Problem
+
+I189/F3 created per-run `output/<uuid>/` subdirectories. From a user's perspective: `output/710d6cee-.../`, `output/47677600-.../`, etc. — impossible to tell which folder has the latest files without manually comparing timestamps. UUIDs are machine identifiers, not human-readable.
+
+### 10.2 Fix
+
+After each export completes, atomically copy the 6 CSV/XLSX files to `output/` root (overwriting previous copies). UUID subdirectories are preserved unchanged for history/audit per I189/F3. Copy uses atomic `dst_tmp.replace(dst_final)` pattern so a partial write is never visible.
+
+### 10.3 Result
+
+`output/*.csv` + `output/*.xlsx` now always contain latest exports. `output/<uuid>/` directories preserve full run history.
+
+---
+
+## 11. Schema-Driven Export Columns — I193 (§47)
+
+> Source: §47 of the main workplan. ✅ COMPLETE as of U192 (2026-07-19).
+
+### 11.1 Objective
+
+Replace the hardcoded 11-field export row builder in `_build_export_rows()` with schema-driven column resolution. The `eks_doc_base_schema.json` `document_metadata_def` already defines 54 fields — but only 11 were exported because `_build_export_rows()` manually constructed a dict with exactly those 11 keys. Add an `x_export` boolean flag to every field in the schema and an `export_artifact_def` enumerating the 3 export artifacts with their column subsets. The pipeline reads columns from schema at runtime instead of hardcoded lists.
+
+### 11.2 Scope Summary
+
+| Scope | Description |
+|:---|:---|
+| **Schema** | `eks_doc_base_schema.json` — add `x_export` (boolean) to every property in `document_metadata_def` and `project_metadata_def`; add new `export_artifact_def` enumerating 3 artifacts via `$ref` |
+| **Pipeline** | `eks_engine_pipeline.py` — replace hardcoded `discovery_cols`/`extraction_cols`/`review_cols` lists with schema-driven resolution; update `_build_export_rows()` and `_build_flagged_rows()` to accept full doc dicts |
+| **Registry** | `registry.py` — (no change needed; `list_documents()` already returns `SELECT *`) |
+| **Test** | `test_phase1.py` — add schema-validation tests for `x_export` flag and `export_artifact_def`; update export tests to verify all expected columns present |
+
+### 11.3 Current vs Target State
+
+| Aspect | Current (broken) | Target (schema-driven) |
+|:---|:---|:---|
+| **Columns in DB** | 54 (SELECT *) | 54 (unchanged) |
+| **Columns exported** | 11 (hardcoded in `_build_export_rows()`) | ~50 (all fields where `x_export: true`, excluding internal-only fields `id`, `is_latest`, `supersedes`, `superseded_by`) |
+| **Field-level control** | None — add/remove requires code change | `x_export: true/false` per field in schema |
+| **Artifact definitions** | Hardcoded Python lists | `export_artifact_def` in schema with `$ref` to field definitions |
+| **New field addition** | Must remember to edit 3 places (schema + `_build_export_rows` + column lists) | Add field to schema with `x_export: true` — pipeline picks it up automatically |
+
+### 11.4 Schema Changes — `x_export` Flag per Field
+
+`x_export: true` fields (50 total):
+- Core identity: `source_type`, `document_type`, `document_number`, `revision`, `status`, `file_path`, `file_type`, `ingested_at`
+- People/org: `created_by`, `checked_by`, `approved_by`, `originator_company`, `security_class`, `verified_by`
+- Asset linking: `asset_tags`
+- Extraction results: `page_count`, `extract_status`, `extraction_confidence`, `extraction_notes`
+- File properties: `file_size`, `file_created_at`, `file_modified_at`, `file_hash`
+- Embedded metadata: `embedded_title`, `embedded_subject`, `embedded_created_date`, `embedded_modified_date`, `embedded_creator_app`, `embedded_producer`, `embedded_last_modified_by`, `embedded_keywords`, `embedded_sheet_count`
+- Metadata completeness: `document_title`, `lifecycle_stage`, `revision_date`, `revision_description`, `embedded_revision_number`
+- Completeness fields: `references_documents`, `project_phase`, `contract_package`, `issued_date`, `responsible_engineer`, `total_sheets`, `language`, `vendor_name`
+- Project context: `project_title`, `project_number`, `area`, `discipline`, `department`
+
+`x_export: false` fields (4 internal):
+- `id` — Internal UUID, meaningless to users
+- `is_latest` — Internal boolean, always TRUE for exported rows
+- `supersedes` — Internal FK, UUID references not human-readable
+- `superseded_by` — Internal FK, UUID references not human-readable
+
+**Export count**: 54 − 4 internal = **50 fields** (up from 11).
+
+### 11.5 Schema Changes — `export_artifact_def`
+
+Added to `eks_doc_base_schema.json`:
+
+```json
+"export_artifact_def": {
+    "type": "object",
+    "description": "Defines the column subset for each export artifact.",
+    "properties": {
+        "discovery_inventory": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Columns for Phase A discovery inventory. All x_export fields except extraction-specific ones."
+        },
+        "extraction_results": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Columns for Phase B extraction results. All x_export fields."
+        },
+        "review_flags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Columns for Phase C review flags. Subset focusing on extraction quality + flag_reason."
+        }
+    },
+    "required": ["discovery_inventory", "extraction_results", "review_flags"],
+    "additionalProperties": false
+}
+```
+
+Each artifact's column list is the **source of truth** for what that CSV/Excel file contains.
+
+### 11.6 Pipeline Changes
+
+**`_build_export_rows()`** — removed the 11-field hardcoded `row` dict. Passes through the full doc dict and subsets to `columns`:
+
+```python
+def _build_export_rows(docs, status_filter=None, columns=None):
+    rows = []
+    for doc in docs:
+        if status_filter is not None:
+            if doc.get("extract_status", "pending") not in status_filter:
+                continue
+        row = dict(doc)  # copy all fields
+        if columns:
+            row = {k: row.get(k, "") for k in columns}
+        rows.append(row)
+    return rows
+```
+
+**`_build_flagged_rows()`** — same approach: pass through full doc, add `flag_reason`, then subset.
+
+**`main()` export block** — replaced hardcoded lists with schema resolution:
+
+```python
+# Resolve columns from schema (one-time per run)
+export_config = resolve_export_columns(eks_doc_schema)
+discovery_cols = export_config["discovery_inventory"]
+extraction_cols = export_config["extraction_results"]
+review_cols = export_config["review_flags"]
+```
+
+**`resolve_export_columns()`** — new helper function reading `x_export` flags and artifact definitions from schema at runtime. Falls back to hardcoded 11-column defaults on failure (with `_fallback: True`).
+
+### 11.7 I193 Task Breakdown
+
+| # | Scope | Task | Details | Status |
+|:---|:---|:---|:---|:---:|
+| T1.99.157 | Schema | Add `x_export` flags | Boolean annotation on all 54 properties in `document_metadata_def` + `project_metadata_def`. 50 true, 4 false. | ✅ COMPLETE |
+| T1.99.158 | Schema | Add `export_artifact_def` | New definition with 3 artifacts (`discovery_inventory`, `extraction_results`, `review_flags`). `required` + `additionalProperties: false`. | ✅ COMPLETE |
+| T1.99.159 | Pipeline | Implement `resolve_export_columns()` | Schema-driven column resolver. Reads `x_export` flags. Falls back to hardcoded 11 on failure. | ✅ COMPLETE |
+| T1.99.160 | Pipeline | Refactor `_build_export_rows()` | Remove 11-field hardcoded dict → pass-through + column subsetting via `columns` param. | ✅ COMPLETE |
+| T1.99.161 | Pipeline | Refactor `_build_flagged_rows()` | Same pass-through pattern + `flag_reason` computed column. | ✅ COMPLETE |
+| T1.99.162 | Test | Update export tests | Schema validation for `x_export` + `export_artifact_def`. Verify 50 columns in output. 300 tests pass (was 71). | ✅ COMPLETE |
+
+### 11.8 I193 Success Criteria
+
+- [x] **SC-1**: Every property in `document_metadata_def` has `x_export: true` or `x_export: false` — 50 true, 4 false
+- [x] **SC-2**: `export_artifact_def` exists with 3 artifacts; column names derived from `x_export` flags at runtime
+- [x] **SC-3**: `resolve_export_columns()` returns correct per-artifact column lists; `discovery_inventory` (46) ⊆ `extraction_results` (50)
+- [x] **SC-4**: `_build_export_rows()` no longer contains hardcoded field list — pass-through dict + column subsetting
+- [x] **SC-5**: CSV/Excel exports contain 46–50 columns (all `x_export: true` fields)
+- [x] **SC-6**: Previously-missing fields appear: `project_title`, `embedded_title`, `file_size`, `file_hash`, `lifecycle_stage`, `created_by`, `vendor_name`, `originator_company`, `file_modified_at`, `security_class` — all 10 verified
+- [x] **SC-7**: `review_flags` artifact includes `flag_reason` computed column
+- [x] **SC-8**: All 300 tests pass (was 71, now 300)
+- [x] **SC-9**: I193 → Resolved
+
+### 11.9 Risks
+
+| Risk | Likelihood | Mitigation |
+|:---|:---|:---|
+| Schema change (`x_export`) breaks existing validation | Low | `x_` prefix is a JSON Schema custom annotation — validators ignore unknown keywords per spec §6.4. No schema validation impact. |
+| ~50 columns make CSV/Excel too wide for casual review | Medium | Users explicitly asked for all columns. Excel auto-column-width handles this. CSV width is a viewer concern, not an export concern. |
+| `resolve_export_columns()` schema load failure | Low | try/except with fallback to hardcoded 11-column lists + warning log — backward-compatible degradation. |
+| `review_flags` artifact grows too wide with 50 columns | Medium | Review flags kept as focused subset (8 columns) — a triage view, not a complete data dump. Only `discovery_inventory` and `extraction_results` get the full treatment. |
+
+---
+
+## 12. API Endpoint
+
+> Source: T1.99.94.
+
+| Aspect | Detail |
+|:---|:---|
+| **Route** | `GET /api/v1/export/{phase}/{format}` |
+| **Phases** | `a` (discovery), `b` (extraction), `c` (review), `all` (all 3) |
+| **Formats** | `csv`, `xlsx` |
+| **Response** | File download with `Content-Disposition` header |
+| **File** | `phase1_server.py` (rev 0.11) |
+
+---
+
+## 13. Export Source Code Reference
+
+| Component | File | Lines | Description |
+|:---|:---|:---|:---|
+| **L22 DataExporter** | `common/library/export/exporter.py` | 1–323 | `DataExporter` class + `export_to_csv`/`export_to_excel`/`export_multi_sheet` |
+| **L22 tests** | `common/library/export/tests/test_exporter.py` | 1–328 | 4 test classes, 20 tests |
+| **L22 init** | `common/library/export/__init__.py` | 1–24 | Package exports |
+| **Preload guard** | `eks/engine/eks_engine_pipeline.py` | 751–758 | `_preload_infrastructure()` — DataExporter preloaded |
+| **CLI flag** | `eks/engine/eks_engine_pipeline.py` | 450–454 | `build_parser()` — `--export` argument |
+| **Schema flag** | `eks/engine/eks_engine_pipeline.py` | 496–499 | `_EKS_CORE_ARG_SPECS` — `--export` argument |
+| **Export fmt** | `eks/engine/eks_engine_pipeline.py` | 909 | `export_fmt = parsed.export_format` |
+| **Export block** | `eks/engine/eks_engine_pipeline.py` | 965–1070 | Full export flow: guard, dirs, DB query, column resolution, row building, CSV/XLSX write, root-level copy |
+| **resolve_export_columns** | `eks/engine/eks_engine_pipeline.py` | 1098–1202 | Schema-driven column resolution with fallback |
+| **`_build_export_rows`** | `eks/engine/eks_engine_pipeline.py` | 1205–1234 | Pass-through dict + column subsetting |
+| **`_build_flagged_rows`** | `eks/engine/eks_engine_pipeline.py` | 1237–1280 | Flagged row builder with `flag_reason` |
+| **API endpoint** | `eks/ui/backend/phase1_server.py` | — | `GET /api/v1/export/{phase}/{format}` |
+| **EKS export tests** | `eks/test/test_eks_engine_pipeline.py` | 386–585 | `TestI107BootstrapCompleteness` — 7 test methods + integration test |
+| **DB path param** | `eks/engine/core/registry.py` | — | `DocumentRegistry.__init__(db_path=...)` (I189/F1, v0.6) |
+
+---
+
+## 14. Issue & Update Cross-Reference
+
+### 14.1 Issues
+
+| Issue | Title | Severity | Status | Resolution |
+|:---|:---|:---:|:---:|:---|
+| I126 | No CSV/Excel export capability — pipeline results trapped in DB | 🟠 High | ✅ Resolved | U183: L22 DataExporter + EKS wiring (T1.99.87–94) |
+| I188 | CSV/Excel export generates empty files — discovery + review always 0 rows | 🟠 High | ✅ Resolved | U190: Status filter + flag logic fixes (T1.99.147–151) |
+| I189 | Stale output + test-production DB pollution (4 root causes) | 🟠 High | ✅ Resolved | U191: 4-fix design (T1.99.153–156) |
+| I192 | Users cannot identify latest export — UUID folder names meaningless | 🟠 High | ✅ Resolved | Atomic root-level copy pattern |
+| I193 | Hardcoded 11-field export — schema-driven column resolution needed | 🟠 High | ✅ Resolved | U192: `x_export` flags + `export_artifact_def` (T1.99.157–162) |
+
+### 14.2 Updates
+
+| Update | Date | Issues | Summary |
+|:---|:---|:---|:---|
+| U183 | 2026-07-18 | I126 | I126 RESOLVED: L22 DataExporter + EKS wiring (T1.99.87–94) |
+| U190 | 2026-07-19 | I188 | I188 RESOLVED: Empty export files fixed (T1.99.147–151) |
+| U191 | 2026-07-19 | I189 | I189 RESOLVED: Test-DB pollution + stale output fixed (T1.99.153–156) |
+| U192 | 2026-07-19 | I164–I175, I192, I193 | 15 metadata columns + I192 root-level copies + I193 schema-driven export |
+| U193 | 2026-07-19 | I194 | 11-gap closure sweep (I192/I193 referenced in gap analysis) |
+
+---
+
+*End of Appendix P1.3*
