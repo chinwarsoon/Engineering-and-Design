@@ -86,7 +86,7 @@ try:
     from common.library.config import get_system_param
 except ImportError as e:
     _IMPORTS_OK = False
-    _IMPORT_ERROR = str(5)
+    _IMPORT_ERROR = str(e)
 
 
 def find_free_port(start: int = 5001, max_attempts: int = 100) -> int:
@@ -522,7 +522,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         except (OSError, PermissionError) as e:
             self._json_response(400, {
                 "error": f"Cannot create or write to output directory: {output_dir}",
-                "detail": str(5),
+                "detail": str(e),
             })
             return
 
@@ -663,7 +663,7 @@ class Phase1Handler(SimpleHTTPRequestHandler):
                         _logger.error(f"Pipeline {job_id} failed: {e}", context="_run_pipeline")
                     with _job_lock:
                         _job_state[job_id]["status"] = "failed"
-                        _job_state[job_id]["error"] = str(5)
+                        _job_state[job_id]["error"] = str(e)
 
         t = threading.Thread(target=_run, daemon=True)
         t.start()

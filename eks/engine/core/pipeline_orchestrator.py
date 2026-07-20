@@ -357,11 +357,11 @@ class PipelineOrchestrator(BaseEngine):
             try:
                 result = self._process_file(file_path, file_type)
             except Exception as e:
-                result = {"file_path": file_path, "file_type": file_type, "status": "failed", "error": str(5)}
+                result = {"file_path": file_path, "file_type": file_type, "status": "failed", "error": str(e)}
                 if self.error_manager:
                     self.error_manager.handle_system_error("S-R-S-0407", detail=f"Unhandled error in _process_file for {file_path}: {e}")
                     if self.message_manager:
-                        self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(5))
+                        self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(e))
 
             results.append(result)
 
@@ -750,7 +750,7 @@ class PipelineOrchestrator(BaseEngine):
                         self.error_manager.handle_data_error("P3-E-E-0019", doc_id=str(file_path),
                                                               detail=f"Health scoring failed: {e}")
                     result["status"] = "partial"
-                    result["error"] = str(5)
+                    result["error"] = str(e)
             else:
                 result["status"] = "partial"
                 result["error"] = f"Document not registered: {doc_number}"
@@ -760,9 +760,9 @@ class PipelineOrchestrator(BaseEngine):
 
         except Exception as e:
             result["status"] = "failed"
-            result["error"] = str(5)
+            result["error"] = str(e)
             pout.status = "FAILED"
-            pout.errors.append(ErrorRecord("PipelineError", str(5), context={"file_path": file_path}))
+            pout.errors.append(ErrorRecord("PipelineError", str(e), context={"file_path": file_path}))
             self.logger.error(
                 f"Pipeline processing failed for {file_path}: {e}",
                 context="PipelineOrchestrator._process_file"

@@ -157,7 +157,7 @@ Examples:
                 ))
         except Exception as e:  # surfaced but non-fatal to the EngineOutput contract
             errors.append(ErrorRecord(
-                "DiscoveryEngineError", str(5),
+                "DiscoveryEngineError", str(e),
                 context={"data_dir": str(parsed_args.data_dir)},
             ))
 

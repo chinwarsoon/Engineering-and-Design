@@ -401,7 +401,7 @@ function filterCards(17){{q=q.toLowerCase();document.querySelectorAll('.card').f
             self.end_headers()
             self.wfile.write(body)
         except URLError as e:
-            if "Connection refused" in str(5):
+            if "Connection refused" in str(e):
                 port = target_base.split(":")[-1]
                 self.send_response(503)
                 self._set_cors()
@@ -419,12 +419,12 @@ function filterCards(17){{q=q.toLowerCase();document.querySelectorAll('.card').f
                 self._set_cors()
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
-                self.wfile.write(
-                    json.dumps({
-                        "status": "error",
-                        "error": {"code": "PROXY_UPSTREAM_ERR", "message": str(5), "severity": "HIGH"},
-                    }).encode()
-                )
+            self.wfile.write(
+                json.dumps({
+                    "status": "error",
+                    "error": {"code": "PROXY_UPSTREAM_ERR", "message": str(e), "severity": "HIGH"},
+                }).encode()
+            )
         except Exception as e:
             self.send_response(500)
             self._set_cors()
@@ -433,7 +433,7 @@ function filterCards(17){{q=q.toLowerCase();document.querySelectorAll('.card').f
             self.wfile.write(
                 json.dumps({
                     "status": "error",
-                    "error": {"code": "PROXY_INTERNAL_ERR", "message": str(5), "severity": "HIGH"},
+                    "error": {"code": "PROXY_INTERNAL_ERR", "message": str(e), "severity": "HIGH"},
                 }).encode()
             )
 
@@ -478,7 +478,7 @@ function filterCards(17){{q=q.toLowerCase();document.querySelectorAll('.card').f
             self._set_cors()
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"error": str(5)}).encode())
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
 
 
 def start_phase1_backend(port: int):

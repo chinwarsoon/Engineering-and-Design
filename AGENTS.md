@@ -104,6 +104,36 @@ conda activate eks
 14. **Pre-bootstrap safety**: Pipeline entry points must guard all non-stdlib imports individually inside a pure-stdlib `_preload_infrastructure()` function that runs before any bootstrap phase. Every import must be individually `try/except ImportError`-guarded with errors printed to `stderr` immediately at the failure point. Pre-bootstrap logger, telemetry/heartbeat, and project-root discovery must also run before bootstrap phases begin. If `common.library` is not importable, the entry point must exit with a human-readable message — never a bare `ModuleNotFoundError` traceback.
 15. **Path resolution SSOT**: All directory and file paths must be resolved through the schema-driven `global_paths` definitions with precedence: CLI argument > Schema default > code-native fallback. Never use hardcoded path literals (e.g., `parent.parent.parent`, `"data"`, `"output"`). Use anchor-folder-based discovery (`default_base_path(anchor)`) to find the project root, then derive all sub-paths from `global_paths` schema values. Every path must flow through `resolve_paths()` so a single schema change updates all consumers.
 16. **Hardcoded fallback removal**: Never maintain hardcoded fallback lists (required folders, required files, dependency lists, default paths) that duplicate values already defined in schema/config files. If config is absent, raise a descriptive error — never silently fall back to a second source of truth. Hardcoded duplicates diverge over time and violate SSOT.
+17. **Issue log layout integrity**: The `<project>/log/issue_log.md` file has a fixed structure that must be preserved on every edit. Replacing the entire file content is the primary cause of issue loss (see I190 — 189 issues wiped). The following checks are mandatory before and after every modification:
+
+   **a. Required sections — verify all 4 structural blocks are present and in order:**
+   | Order | Section | Contents |
+   | :---: | :------ | :------- |
+   | 1 | Metadata header | `# Issue Log`, Project, Location, Last Updated line |
+   | 2 | Legend block | `## Legend` → `### Status` table (marker, status, meaning for all 8 statuses) → `### Severity` table (marker, severity, meaning for all 5 severities) |
+   | 3 | Status Summary | `### Status Summary` table with per-status count (✅, 🔴, ⏳, ⏸️, 🔷, ⛔, 🔶) and grand total |
+   | 4 | Priority Resolution Sequence | `## Priority Resolution Sequence` → priority table (Seq, Priority, Issue IDs, Count, Theme) |
+   | 5 | Issue Log Table | `## Issue Log Table` → pipe-delimited issue rows with columns: Issue ID, Date, Phase, Severity, Title, Description, Status, Resolution |
+
+   **b. Status Summary regeneration**: After every edit, recount all statuses across every `I\d+` row and update the Status Summary table. Stale counts are treated as a layout defect.
+
+   **c. Issue tag integrity check**: After every edit, grep the entire log for `I\d+` tags to confirm:
+   - No duplicates (same ID appearing more than once)
+   - No gaps in the sequence from I001 to last issue
+   - All referenced issue IDs in the Priority Resolution Sequence table exist in the Issue Log Table
+   - All listed counts in the Priority Resolution Sequence match the number of Issue IDs listed in the same row
+
+   **d. Table formatting check**: All markdown tables must have proper pipe-delimited rows with aligned columns, consistent whitespace, and no broken rows caused by unescaped pipes in description text.
+
+   **e. Targeted edits only**: Use `replace_in_file` for all modifications. Never read the full file and write it back as a single block — this is the exact mechanism that caused I190.
+
+   **f. Validation workflow — execute after every edit sequence completes:**
+
+   1. `### Status Summary` → recount and update
+   2. `### Status` and `### Severity` legend tables → confirm all 8 statuses + 5 severities present
+   3. `## Priority Resolution Sequence` → verify all Issue IDs exist in the Issue Log Table; verify `Count` column matches listed IDs per row
+   4. Issue tags → grep `I\d+`, confirm sequential from I001 with no duplicates or gaps
+   5. Table rows → confirm all issue rows have 8 pipe-delimited columns (| Issue | Date | Phase | Severity | Title | Description | Status | Resolution |)
 
 ## 6. Folder Convention (all projects)
 
