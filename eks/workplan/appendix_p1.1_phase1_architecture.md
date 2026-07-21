@@ -1,10 +1,10 @@
 # Appendix P1.1: Phase 1 — Architecture & Design Blueprints
 
 **Document ID**: WP-EKS-P1-APX-1.1  
-**Version**: 1.5  
-**Last Updated**: 2026-07-20  
-**Status**: 🔷 IN PROGRESS — §40–§42, §44–§46, §48–§50 relocated from main workplan into §5 (defect deep-dives + cross-source audits). §43 relocated to [Appendix J](appendix_j_file_property_parser.md). §47 → [P1.3 §11](appendix_p1.3_phase1_data_export.md) (redirect stub).  
-**Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v4.8, IN PROGRESS)
+**Version**: 1.6  
+**Last Updated**: 2026-07-21  
+**Status**: 🔷 IN PROGRESS — Major restructure: added Contents (TOC), §1 Features Overview & Architecture Summary, consolidated all 10 issue fixes from former §4.4+§5 into single §7 cross-reference table with separate Root Cause / Fix / Outcome columns. Renumbered sections for logical design-first flow. Subsection numbering fixed in Schema Design (§5.x→§6.x). Module inventory promoted to §1.3.  
+**Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.3, IN PROGRESS)
 
 ---
 
@@ -12,7 +12,101 @@ This appendix provides indexed cross-references to Phase 1 architecture and desi
 
 ---
 
-## 1. Phase Project Folder Structure
+## Contents
+
+- [1. Features Overview & Architecture Summary](#1-features-overview--architecture-summary)
+  - [1.1 What Phase 1 Delivers](#11-what-phase-1-delivers)
+  - [1.2 Architecture at a Glance](#12-architecture-at-a-glance)
+  - [1.3 Module Inventory](#13-module-inventory)
+- [2. Phase Project Folder Structure](#2-phase-project-folder-structure)
+- [3. Phase 1 Pipeline Architecture & Function Tables](#3-phase-1-pipeline-architecture--function-tables)
+- [4. Phase 1 Pipeline Orchestrator and Entry Points](#4-phase-1-pipeline-orchestrator-and-entry-points)
+- [5. Independent Parser Module Architecture](#5-independent-parser-module-architecture)
+- [6. Schema Design](#6-schema-design)
+- [7. Issues & Fixes — Summary with Cross-References](#7-issues--fixes--summary-with-cross-references)
+- [8. Cross-Reference Index](#8-cross-reference-index)
+- [Revision History](#revision-history)
+
+---
+
+## 1. Features Overview & Architecture Summary
+
+### 1.1 What Phase 1 Delivers
+
+Phase 1 establishes the EKS foundation — a complete document ingestion and analysis pipeline:
+
+| Category | Capability |
+|:---|:---|
+| **Schema System** | 23 JSON schema files across 5 schema sets (Core, Asset, Document, Ontology, Error/Message) following 3-layer inheritance (Base → Setup → Config) |
+| **Document Registry** | DuckDB-backed with 37+ metadata columns, schema-synced via auto-DDL, revision chain management, element storage |
+| **File Processing** | 5 plug-in parsers (PDF, DOCX, XLSX, DGN stub, DWG stub) with schema-driven discovery via `parser_router.py` |
+| **Structure Detection** | 8 element types: cover page, revision table, sections, data tables, images, links, legends, notes |
+| **Health Scoring** | 6-dimension per-document composite score: completeness (20%), extraction confidence (20%), structural (20%), source quality (15%), cross-reference quality (15%), consistency (10%) |
+| **Error & Messaging** | 111 error codes (61 system + 50 data), 49 pipeline messages, tiered logging (levels 0–3) with debug JSON output |
+| **Pipeline Orchestrator** | Phase A (discovery) → Phase B (parse/detect/score) → Phase C (manual review), with checkpoint/resume, rollback, IO contracts |
+| **Entry Points** | 3 converging paths — CLI (`eks-pipeline`), Web (`serve.py` proxy), HTTP Backend (`phase1_server.py` port 5001) — all funnel through `run_pipeline(context)` |
+| **Bootstrap** | Universal 8-phase BootstrapManager with preload infrastructure guard, environment checks, cross-platform path resolution |
+| **Path Resolution** | Schema-driven SSOT with anchor-folder discovery and CLI > Schema > Native precedence |
+
+### 1.2 Architecture at a Glance
+
+The Phase 1 pipeline follows a **Bootstrap → Discovery → Parse → Score → Review** flow executed by 11 core modules across 4 stages:
+
+1. **Bootstrap** (8 phases): Schema loading → config registry → path resolution → registry init → logger/error/message wiring → environment check → context setup → readiness gate
+2. **Phase A — File Discovery**: `FileScanner.scan()` walks `data/`, validates file types against schema registries, registers placeholder documents in DuckDB
+3. **Phase B — Parse & Score**: `ParserRouter` routes each file → plug-in parser extracts content → `StructureDetector` identifies elements → `HealthScorer` computes 6-dimension score → registry updated
+4. **Phase C — Manual Review**: Low-confidence documents flagged → `ManualReviewManager` supports metadata correction, element confirmation, score recalculation, document locking
+
+**Key metrics**: 11 core modules | 23 schema files | 111 error codes | 49 pipeline messages | 37+ registry columns | 5 parsers | 3 entry points.
+
+### 1.3 Module Inventory
+
+#### Pipeline Core
+
+| Module | Workplan § | Appendix | Description |
+|--------|-----------|----------|-------------|
+| `pipeline_orchestrator.py` | [§9.1.1](#911-pipeline-orchestrator-eksenginecorepipeline_orchestratorpy) / [§23](phase_1_foundation_workplan.md#23-pipeline-orchestration-r54r58r57) | [F §2](appendix_f_pipeline_architecture_design.md#2-proposed-architecture-enhancement) | Coordinates Phase A→B→C, rollback, checkpoints, ErrorManager/MessageManager wiring |
+| `file_scanner.py` | [§9.1.2](#912-file-scanner-eksenginecorefile_scannerpy) / [§23](phase_1_foundation_workplan.md#23-pipeline-orchestration-r54r58r57) | — | Directory walk, file type validation, placeholder registration |
+| `context.py` | [§9.1.11](#9111-infrastructure-functions) / [§15](phase_1_foundation_workplan.md#15-architectural-patterns--context-factories--orchestration-hardening-appendix-f) | [F §3.1](appendix_f_pipeline_architecture_design.md) | `EKSPipelineContext`, `EKSPaths`, checkpoint serialization |
+| `base.py` | [§14](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) | [F §3.2](appendix_f_pipeline_architecture_design.md) | `BaseEngine` abstract class |
+| `factories.py` | [§15](phase_1_foundation_workplan.md#15-architectural-patterns--context-factories--orchestration-hardening-appendix-f) | [F §3.4](appendix_f_pipeline_architecture_design.md) | `ParserFactory`, `HealthScorerFactory`, `StructureDetectorFactory` |
+| `telemetry.py` | [§15](phase_1_foundation_workplan.md#15-architectural-patterns--context-factories--orchestration-hardening-appendix-f) | [F §3.5](appendix_f_pipeline_architecture_design.md) | `TelemetryHeartbeat` — phase tracking, checkpoint recording |
+| `validator.py` | [§14](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) | — | Multi-stage validation logic |
+| `setup_validator.py` | [§14](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) / [§24–§26](phase_1_foundation_workplan.md#24-initiation-integrity-hardening--harmonization-t177t189) | — | `ProjectSetupValidator` — fail-fast readiness gate |
+
+#### Document Registry & Parsers
+
+| Module | Workplan § | Appendix | Description |
+|--------|-----------|----------|-------------|
+| `registry.py` | [§9.1.7](#917-document-registry-eksenginecoreregistrypy) / [§20](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | [B](appendix_b_document_registry.md) | DuckDB-backed CRUD, schema sync, 15-column metadata |
+| `revision.py` | [§20](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | [B §B4](appendix_b_document_registry.md) | Preserve-all revisions, `is_latest` flag, chain lookup |
+| `parser_router.py` | [§9.1.3](#913-parser-router-eksengineparsersparser_routerpy) / [§23](phase_1_foundation_workplan.md#23-pipeline-orchestration-r54r58r57) | — | file_type → parser class routing |
+| `base_parser.py` | [§13](phase_1_foundation_workplan.md#13-independent-parser-module-architecture-t18---t111) | — | Abstract parser interface |
+| `pdf_parser.py` / `docx_parser.py` / `xlsx_parser.py` | [§9.1.4](#914-plug-in-parsers-eksengineparsers) / [§21](phase_1_foundation_workplan.md#21-document-parsers--pdfdocxxlsx-r01r26) | — | Concrete parsers (pymupdf, python-docx, openpyxl) |
+| `filename_parser.py` | [§20](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | [I](appendix_i_filename_parser.md) | Schema-driven filename parsing (universal class) |
+| `file_property_parser.py` | [§20](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | [J](appendix_j_file_property_parser.md) | OS-level + embedded property extraction |
+
+#### Health, Errors & Logging
+
+| Module | Workplan § | Appendix | Description |
+|--------|-----------|----------|-------------|
+| `health_scorer.py` | [§9.1.6](#916-health-scorer-eksenginecorehealth_scorerpy) / [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | [D §D7](appendix_d_pipeline_messages_errors.md) | 6-dimension per-document health scoring |
+| `structure_detector.py` | [§9.1.5](#915-structure-detector-eksenginecorestructure_detectorpy) / [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | — | Cover page, revision table, sections, data tables detection |
+| `error_manager.py` | [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | [D](appendix_d_pipeline_messages_errors.md) | System/data error catalog — 111 codes |
+| `message_manager.py` | [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | [D](appendix_d_pipeline_messages_errors.md) | Pipeline message catalog — 49 messages |
+| `logger.py` | [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | — | Tiered logger (levels 0–3), debug object, trace table |
+
+#### Schema & Config
+
+| Module | Workplan § | Appendix | Description |
+|--------|-----------|----------|-------------|
+| `schema_loader.py` | [§9.1.9](#919-schema-loader-eksenginecoreschema_loaderpy) / [§16](phase_1_foundation_workplan.md#16-core-schema-suite-basesetupconfig--fragment-schemas) / [§27](phase_1_foundation_workplan.md#27-schema-discovery--registration--discovery-driven-loading-t196) | — | Load & validate 23 JSON schema files; discovery-driven loading |
+| `config_registry.py` | [§9.1.10](#9110-config-registry-eksenginecoreconfig_registrypy) / [§14](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) | — | SSOT config singleton, dot-path key access |
+| `schema_to_ddl.py` | [§23](phase_1_foundation_workplan.md#23-pipeline-orchestration-r54r58r57) | — | Auto-generate SQL DDL from JSON schema definitions |
+
+---
+
+## 2. Phase Project Folder Structure
 
 > **Relocated from [§11 — Proposed Project Folder Structure](phase_1_foundation_workplan.md#11-proposed-project-folder-structure)** of the main workplan (v4.8). Canonical source is now here.
 
@@ -67,7 +161,7 @@ eks/
 
 ---
 
-## 2. Phase 1 Pipeline Architecture & Function Tables
+## 3. Phase 1 Pipeline Architecture & Function Tables
 
 > **Relocated from [§9 — Phase 1 Pipeline Architecture (Detailed)](phase_1_foundation_workplan.md#9-phase-1-pipeline-architecture-detailed)** of the main workplan (v4.8). Canonical source is now here.
 
@@ -161,11 +255,11 @@ graph TB
     style PHC fill:#3a1a1a,stroke:#f44336
 ```
 
-### 9. Phase 1 Function Table1
+### 3.1. Phase 1 Function Table1
 
 Table organized by module, listing all pipeline-critical public functions per AGENTS.md §17.
 
-#### 9.1.1 Pipeline Orchestrator (`eks/engine/core/pipeline_orchestrator.py`)
+#### 3.1.1 Pipeline Orchestrator (`eks/engine/core/pipeline_orchestrator.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -179,7 +273,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `save_checkpoint` | Save pipeline state to file | `phase: str`, `checkpoint_path: Path` | `None` | EKSPipelineContext.save_checkpoint() | IOError caught and logged | Status message on success |
 | `rollback_to_checkpoint` | Restore pipeline from saved state | `phase: str`, `checkpoint_path: Path` | `bool` | EKSPipelineContext.load_checkpoint() | Returns `False` on failure; error logged | Status message on success |
 
-#### 9.1.2 File Scanner (`eks/engine/core/file_scanner.py`)
+#### 3.1.2 File Scanner (`eks/engine/core/file_scanner.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -189,7 +283,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `build_placeholder_metadata` | Construct placeholder metadata dict from file info + filename parsing | `file_info: Dict` | `Dict[str, Any]` with fields: doc_number, revision, project_title, etc. | _parse_filename(), _infer_doc_type() | Default values for unparseable filenames | None |
 | `register_placeholders` | Register placeholder rows in registry for valid files | `valid_files: List[Dict]`, `registry: DocumentRegistry` | `int` — count of successfully registered | build_placeholder_metadata(), DocumentRegistry.register_document() | Skips files that fail registration; logs each error | `@log_depth`, status with count |
 
-#### 9.1.3 Parser Router (`eks/engine/parsers/parser_router.py`)
+#### 3.1.3 Parser Router (`eks/engine/parsers/parser_router.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -199,7 +293,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `route` | Full parse flow for single file: look up → instantiate → parse → extract metadata | `file_path: str`, `file_type: str` | `Dict` with keys: `status`, `content_blocks`, `metadata`, `parser_class`, `error` | get_parser_class(), instantiate_parser(), parser.parse(), parser.extract_metadata() | try/except around each step; `status: "failed"` + error detail on failure | `@log_depth` |
 | `route_batch` | Batch route for multiple files | `files: List[Dict]` | `List[Dict]` — per-file route results | route() per file | Individual file failures isolated | None |
 
-#### 9.1.4 Plug-in Parsers (`eks/engine/parsers/`)
+#### 3.1.4 Plug-in Parsers (`eks/engine/parsers/`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -212,21 +306,21 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `DGNParserStub.parse` | Stub — returns placeholder | (none) | `List[Dict]` — single block with "DGN parsing not implemented" | None | Returns content block with error status | None |
 | `DWGParserStub.parse` | Stub — returns placeholder | (none) | `List[Dict]` — single block with "DWG parsing not implemented" | None | Returns content block with error status | None |
 
-#### 9.1.5 Structure Detector (`eks/engine/core/structure_detector.py`)
+#### 3.1.5 Structure Detector (`eks/engine/core/structure_detector.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
 | `StructureDetector.__init__` | Initialize detector | `logger: EKSLogger` | `None` | EKSLogger | N/A | N/A |
 | `detect` | Analyze document pages for structural elements | `file_path: str`, `pages: List[Dict]` — each with `text`, `tables`, `images` | `List[Dict]` — elements with `element_type`, `element_id`, `title`, `content`, `confidence`, `source` | Element type heuristics (cover_page, revision_table, section, table, image, link, legend, note) | Logged warning on failure; returns empty list | `@log_depth` |
 
-#### 9.1.6 Health Scorer (`eks/engine/core/health_scorer.py`)
+#### 3.1.6 Health Scorer (`eks/engine/core/health_scorer.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
 | `HealthScorer.__init__` | Initialize with 6-dimension weights | `logger: EKSLogger` | `None` | EKSLogger | N/A | N/A |
 | `score` | Compute 6-dimension composite health score | `document: Dict`, `elements: List[Dict]` | `Dict` with keys: `overall` (float 0.0–1.0), `completeness`, `extraction_confidence`, `structural_completeness`, `source_quality`, `xref_quality`, `consistency` | Element type analysis, metadata completeness check | Returns all dimensions as 0.0 on error; logged | `@log_depth` |
 
-#### 9.1.7 Document Registry (`eks/engine/core/registry.py`)
+#### 3.1.7 Document Registry (`eks/engine/core/registry.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -238,7 +332,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `get_elements` | Retrieve elements for a document | `doc_id: str` | `List[Dict]` | DuckDB | Returns empty list on error | None |
 | `sync_schema` | Sync DB columns with JSON schema | (none) | `Dict` with `documents_added`, `document_elements_added`, `indexes_created` | SchemaToDDL, DuckDB, PRAGMA table_info | Logged per column | Status message with total changes |
 
-#### 9.1.8 Review Manager (`eks/engine/core/review_manager.py`)
+#### 3.1.8 Review Manager (`eks/engine/core/review_manager.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -247,14 +341,14 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `correct_metadata` | Update specific document fields | `doc_id: str`, `updates: Dict` — allowed fields only | `bool` — True on success | DocumentRegistry, allowed_fields validation | Returns False on invalid field; logged | `@log_depth` |
 | `lock_document` | Lock document with reviewer attribution | `doc_number: str`, `verified_by: str`, `score_override: float` | `bool` — True on success | HealthScorer.score(), DocumentRegistry | Returns False on document not found; logged | `@log_depth` |
 
-#### 9.1.9 Schema Loader (`eks/engine/core/schema_loader.py`)
+#### 3.1.9 Schema Loader (`eks/engine/core/schema_loader.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
 | `SchemaLoader.__init__` | Initialize with config directory | `config_dir: str | Path` | `None` | pathlib, json | N/A | N/A |
 | `load_all` | Load all 23 schema files across 6 schema sets + fragments | (none — uses `self.config_dir`) | `Dict` with: `base_schema`, `setup_schema`, `config`, `doc_base_schema`, `doc_setup_schema`, `doc_config`, `asset_base_schema`, `asset_setup_schema`, `asset_config`, `ontology_base_schema`, `ontology_setup_schema`, `ontology_config`, `error_code_base`, `error_setup_schema`, `error_config`, `message_base`, `message_setup_schema`, `message_config`, and fragment schemas, `project_rules_config` | json.load(), file discovery by pattern, $ref resolution | FileNotFoundError → graceful fallback with warning; validation errors collected without aborting | Status message per file loaded |
 
-#### 9.1.10 Config Registry (`eks/engine/core/config_registry.py`)
+#### 3.1.10 Config Registry (`eks/engine/core/config_registry.py`)
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -263,7 +357,7 @@ Table organized by module, listing all pipeline-critical public functions per AG
 | `data_dir` | Shorthand for `get("registry_settings.data_dir")` | (none) | `Path` | get() | Returns fallback path | None |
 | `output_dir` | Shorthand for `get("registry_settings.output_dir")` | (none) | `Path` | get() | Returns fallback path | None |
 
-#### 9.1.11 Infrastructure Functions
+#### 3.1.11 Infrastructure Functions
 
 | Function | Description | Parameters (In) | Return (Out) | Dependencies | Error Handling | Tracing |
 | :------- | :---------- | :-------------- | :----------- | :----------- | :------------- | :------ |
@@ -281,58 +375,12 @@ Table organized by module, listing all pipeline-critical public functions per AG
 
 ---
 
-### 2.1 Architecture Notes
+### 3.2 Architecture Notes
 
 - **Architecture patterns**: [Appendix F — Pipeline Architecture Design](appendix_f_pipeline_architecture_design.md) (v1.6) — high-level EKS pipeline design, Engine I/O contracts (EngineInput/EngineOutput), BaseEngine pattern, protocol-level orchestrator design.
   - **Parent reference**: [Universal Pipeline Architecture Design](../../common/universal_pipeline_architecture_design.md) — cross-project pipeline architecture standards.
 - **Bootstrap subsystem**: [Appendix H — Bootstrap Module Design](appendix_h_bootstrap_module_design.md) (v0.4) — 8-phase bootstrap sequence, BootstrapError, Universal BootstrapManager (L19), EKSBootstrapManager subclass, `to_pipeline_context()`, dual-mode bootstrap, `_preload_infrastructure()` guard.
 - **Interface/entry-point architecture**: [Appendix G — Interface Architecture](appendix_g_interface_architecture.md) (v0.5) — two-server pattern, port allocation (5001–5005), proxy routing, `/api/v{N}/` prefix, Phase 1.2 UI server design.
-
----
-## 3. Key Modules and Their Functional Summary
-
-### 3.1 Pipeline Core
-
-| Module | Workplan § | Appendix | Description |
-|--------|-----------|----------|-------------|
-| `pipeline_orchestrator.py` | [§9.1.1](#911-pipeline-orchestrator-eksenginecorepipeline_orchestratorpy) / [§23](phase_1_foundation_workplan.md#23-pipeline-orchestration-r54r58r57) | [F §2](appendix_f_pipeline_architecture_design.md#2-proposed-architecture-enhancement) | Coordinates Phase A→B→C, rollback, checkpoints, ErrorManager/MessageManager wiring |
-| `file_scanner.py` | [§9.1.2](#912-file-scanner-eksenginecorefile_scannerpy) / [§23](phase_1_foundation_workplan.md#23-pipeline-orchestration-r54r58r57) | — | Directory walk, file type validation, placeholder registration |
-| `context.py` | [§9.1.11](#9111-infrastructure-functions) / [§15](phase_1_foundation_workplan.md#15-architectural-patterns--context-factories--orchestration-hardening-appendix-f) | [F §3.1](appendix_f_pipeline_architecture_design.md) | `EKSPipelineContext`, `EKSPaths`, checkpoint serialization |
-| `base.py` | [§14](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) | [F §3.2](appendix_f_pipeline_architecture_design.md) | `BaseEngine` abstract class |
-| `factories.py` | [§15](phase_1_foundation_workplan.md#15-architectural-patterns--context-factories--orchestration-hardening-appendix-f) | [F §3.4](appendix_f_pipeline_architecture_design.md) | `ParserFactory`, `HealthScorerFactory`, `StructureDetectorFactory` |
-| `telemetry.py` | [§15](phase_1_foundation_workplan.md#15-architectural-patterns--context-factories--orchestration-hardening-appendix-f) | [F §3.5](appendix_f_pipeline_architecture_design.md) | `TelemetryHeartbeat` — phase tracking, checkpoint recording |
-| `validator.py` | [§14](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) | — | Multi-stage validation logic |
-| `setup_validator.py` | [§14](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) / [§24–§26](phase_1_foundation_workplan.md#24-initiation-integrity-hardening--harmonization-t177t189) | — | `ProjectSetupValidator` — fail-fast readiness gate |
-
-### 3.2 Document Registry & Parsers
-
-| Module | Workplan § | Appendix | Description |
-|--------|-----------|----------|-------------|
-| `registry.py` | [§9.1.7](#917-document-registry-eksenginecoreregistrypy) / [§20](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | [B](appendix_b_document_registry.md) | DuckDB-backed CRUD, schema sync, 15-column metadata |
-| `revision.py` | [§20](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | [B §B4](appendix_b_document_registry.md) | Preserve-all revisions, `is_latest` flag, chain lookup |
-| `parser_router.py` | [§9.1.3](#913-parser-router-eksengineparsersparser_routerpy) / [§23](phase_1_foundation_workplan.md#23-pipeline-orchestration-r54r58r57) | — | file_type → parser class routing |
-| `base_parser.py` | [§13](phase_1_foundation_workplan.md#13-independent-parser-module-architecture-t18---t111) | — | Abstract parser interface |
-| `pdf_parser.py` / `docx_parser.py` / `xlsx_parser.py` | [§9.1.4](#914-plug-in-parsers-eksengineparsers) / [§21](phase_1_foundation_workplan.md#21-document-parsers--pdfdocxxlsx-r01r26) | — | Concrete parsers (pymupdf, python-docx, openpyxl) |
-| `filename_parser.py` | [§20](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | [I](appendix_i_filename_parser.md) | Schema-driven filename parsing (universal class) |
-| `file_property_parser.py` | [§20](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | [J](appendix_j_file_property_parser.md) | OS-level + embedded property extraction |
-
-### 3.3 Health, Errors & Logging
-
-| Module | Workplan § | Appendix | Description |
-|--------|-----------|----------|-------------|
-| `health_scorer.py` | [§9.1.6](#916-health-scorer-eksenginecorehealth_scorerpy) / [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | [D §D7](appendix_d_pipeline_messages_errors.md) | 6-dimension per-document health scoring |
-| `structure_detector.py` | [§9.1.5](#915-structure-detector-eksenginecorestructure_detectorpy) / [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | — | Cover page, revision table, sections, data tables detection |
-| `error_manager.py` | [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | [D](appendix_d_pipeline_messages_errors.md) | System/data error catalog — 111 codes |
-| `message_manager.py` | [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | [D](appendix_d_pipeline_messages_errors.md) | Pipeline message catalog — 49 messages |
-| `logger.py` | [§19](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51) | — | Tiered logger (levels 0–3), debug object, trace table |
-
-### 3.4 Schema & Config
-
-| Module | Workplan § | Appendix | Description |
-|--------|-----------|----------|-------------|
-| `schema_loader.py` | [§9.1.9](#919-schema-loader-eksenginecoreschema_loaderpy) / [§16](phase_1_foundation_workplan.md#16-core-schema-suite-basesetupconfig--fragment-schemas) / [§27](phase_1_foundation_workplan.md#27-schema-discovery--registration--discovery-driven-loading-t196) | — | Load & validate 23 JSON schema files; discovery-driven loading |
-| `config_registry.py` | [§9.1.10](#9110-config-registry-eksenginecoreconfig_registrypy) / [§14](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) | — | SSOT config singleton, dot-path key access |
-| `schema_to_ddl.py` | [§23](phase_1_foundation_workplan.md#23-pipeline-orchestration-r54r58r57) | — | Auto-generate SQL DDL from JSON schema definitions |
 
 ---
 
@@ -380,406 +428,9 @@ Table organized by module, listing all pipeline-critical public functions per AG
   - L15 universal `get_system_param()` in `common/library/config/`
   - `system_parameters` block in `eks_config.json`
 
-### 4.4 Bootstrap Path-Resolution Rooting Defect Fix — I130 (T1.99.101–T1.99.103) — ✅ COMPLETE
-
-> **Relocated from [main workplan §39](phase_1_foundation_workplan.md#39-bootstrap-path-resolution-rooting-defect--i130-t199101t199103--complete).**
-
-#### Objective
-
-Fix a 5-step defect chain in `EKSBootstrapManager._bootstrap_paths()` where P2_paths (which runs before P3_registry) calls `resolve_paths()` with empty config `{}`, causing `resolve_paths()` to fall into the DCC branch with `eks_root=""` — anchoring all 6 sub-paths at the repository root instead of under `eks/`.
-
-#### Root Cause (5-Step Defect Chain)
-
-1. Bootstrap phase ordering: `P2_paths` executes before `P3_registry` (by design, universal `BootstrapManager`)
-2. During P2, `self.config = {}` (config not yet loaded by P3)
-3. `_bootstrap_paths()` L250-251 calls `self._path_resolver(self.project_root, self.config)` with empty config
-4. `resolve_paths()` sees no `global_paths` → falls to DCC branch → `ResolvedPaths(eks_root="")`
-5. `ResolvedPaths.resolve()` anchors all paths at `root / ""` = repo root
-
-**Secondary defect**: P8 `_bootstrap_params()` only fixes `data_dir` with `eks_root` prefix (L424-433); 5 other paths (`output_dir`, `archive_dir`, `config_dir`, `log_dir`, `schema_dir`) remain anchored at repo root.
-
-**Observed damage**: `engine/` (10 empty subdirs), `archive/` (empty), `test_output/` (56 files) created at `/Engineering-and-Design/` instead of under `eks/`.
-
-#### Fix Strategy — Option A ✅ Selected
-
-**Option A (selected)**: In `_bootstrap_paths()`, add `and self.config` guard to the path resolver call. When config is empty, skip the resolver and use the existing else-branch (L257-267) which correctly anchors under `self.pipeline_root_dir = "eks"`.
-
-**Code change** (`bootstrap.py` L250):
-```python
-# Before:
-if self._path_resolver is not None:
-
-# After:
-if self._path_resolver is not None and self.config:
-```
-
-**Rejected alternatives**:
-- **Option B**: Reorder phases (P3 before P2) — risks circular dependency (P2 resolves config_dir path needed by P3 to load config)
-- **Option C**: Fix all 6 paths in `_bootstrap_params()` and `to_pipeline_context()` — band-aid that doesn't address the root cause
-
-#### Task Breakdown
-
-| ID | Area | Task | Detail | Status |
-|:---|:---|:---|:---|:---|
-| T1.99.101 | `bootstrap.py` | Add `and self.config` guard | One-line logic change at L250: `if self._path_resolver is not None:` → `if self._path_resolver is not None and self.config:` | ✅ |
-| T1.99.102 | Cleanup | Remove stale root-level directories | Delete `engine/`, `archive/`, `test_output/` created at repo root by the defect | ✅ |
-| T1.99.103 | Verification | Confirm no new root-level directories | Run pipeline and verify zero new directories created outside `eks/` | ✅ |
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I130 | `eks/log/issue_log.md` L205 | Full issue description + resolution |
-| U181 | `eks/log/update_log.md` | Implementation update entry |
-| Appendix H | [appendix_h_bootstrap_module_design.md](appendix_h_bootstrap_module_design.md) | Bootstrap architecture — 8-phase sequence, L19 BootstrapManager |
-| §4.3 | [Path Resolution & System Parameters](#43-path-resolution--system-parameters) | Upstream design (L16, `resolve_paths`, anchor-folder discovery) |
-| §28–§30 | [main workplan](phase_1_foundation_workplan.md#28-system-parameters--ssot-centralization-t197) | System parameters, path resolution, entry-point convergence |
-
 ---
 
-## 5. Defect Root-Cause Deep-Dives & System-Wide Fixes
-
-> **Relocated from [main workplan §40–§46, §48–§50](phase_1_foundation_workplan.md#40-keyerror-revision-in-register_placeholders--i131-t199104t199107--complete).** Canonical source is now here. All sections are ✅ COMPLETE unless otherwise noted.
-
-### 5.1 KeyError: 'revision' in register_placeholders — I131 (T1.99.104–T1.99.107) — ✅ COMPLETE
-
-> **Relocated from [main workplan §40](phase_1_foundation_workplan.md#40-keyerror-revision-in-register_placeholders--i131-t199104t199107--complete).**
-
-#### Objective
-
-Fix `KeyError: 'revision'` thrown by `DocumentRegistry.register_document()` when `_parse_filename()` returns a metadata dict without a `revision` key for filenames that match none of the recognized revision-bearing patterns.
-
-#### Root Cause (5-Step Defect Chain)
-
-1. `_parse_filename()` has 3 code paths: `_rev` pattern (Path 1), short-dash-suffix (Path 2), fallback (Path 3)
-2. Filename `131101-WSW41-SP-SG-0101.pdf` stem = `131101-WSW41-SP-SG-0101` — no `_rev`, dash-suffix `0101` = 4 chars > 3 limit → both pattern paths fail
-3. Path 3 returns `{"document_number": stem}` only — **no `revision` key**
-4. `build_placeholder_metadata()` passes parsed dict through `metadata.update()` — still no `revision`
-5. `register_document()` line 256: `revision = metadata["revision"]` — direct dict access → **KeyError**
-
-**Interesting asymmetry**: `phase1_server.py` line 400 already has `metadata.setdefault("revision", "00")` — the HTTP API path handles this gracefully, but the pipeline path (`FileScanner.register_placeholders()`) does not.
-
-#### Fix — 3-Level Layered Defense
-
-| Level | File | Change |
-|:---|:---|:---|
-| 1 (source) | `file_scanner.py` `_parse_filename()` | Add `revision` default (`"00"`) to Path 3 fallback return dict |
-| 2 (gate) | `file_scanner.py` `build_placeholder_metadata()` | Add `metadata.setdefault("revision", "00")` after `_parse_filename()` call |
-| 3 (defense) | `registry.py` `register_document()` | Change direct access `metadata["revision"]` to `metadata.get("revision", "00")` |
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I131 | `eks/log/issue_log.md` | Full issue description + resolution |
-| §20 | [main workplan](phase_1_foundation_workplan.md#20-document-registry--revision-management-r02r21r22r29) | Document Registry design |
-| [Appendix B](appendix_b_document_registry.md) | Document Registry — revision columns |
-
----
-
-### 5.2 .dwg File Type Orphan Fix — I132 / Option B — ✅ COMPLETE
-
-> **Relocated from [main workplan §41](phase_1_foundation_workplan.md#41-dwg-file-type-orphan-fix--i132--option-b--complete).**
-
-#### Objective
-
-Resolve `.dwg` file type orphan: `.dwg` was registered in `file_type_registry` but no document type listed it in `expected_file_types`, so `.dwg` files were discovered by `scan()` but classified as `unknown` by `validate_file_types()` and never registered.
-
-#### Root Cause
-
-- `file_type_registry` had 5 extensions including `.dwg` (AutoCAD Drawing, `DWGParserStub`)
-- `document_type_registry` had 7 entries — none with `"expected_file_types": ["dwg"]`
-- The existing `DWG` code maps to `["pdf"]` only
-- Two-step gate: `scan()` discovers `.dwg` (in `_ext_map`) → `validate_file_types()` discards it (no doc type expects it)
-
-#### Fix — Option B: New "CAD" Document Type
-
-Created a new `CAD` document type in `document_type_registry` with `"expected_file_types": ["dwg", "dgn"]`, giving DWG and DGN files a valid gate path through `validate_file_types()`.
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I132 | `eks/log/issue_log.md` | Full issue description + resolution |
-| [Appendix B §B3.3](appendix_b_document_registry.md) | file_type_registry + document_type_registry |
-
----
-
-### 5.3 Option A2 — Unified P-Prefix Error Codes + Appendix I Filename Parser (I133–I146, I155, I157, I163) — ✅ COMPLETE
-
-> **Relocated from [main workplan §42](phase_1_foundation_workplan.md#42-option-a2--unified-p-prefix-error-codes--appendix-i-filename-parser-i133i146-i155-i157-i163--complete).**
-
-#### Objective
-
-1. **Option A2**: Rename all 12 D5-prefix error codes (`D5-PARSE-001..007`, `D5-PROP-001..005`) to the system-standard P-prefix format (`P5-{module}-{function}-{id}`), eliminating the only non-conforming error format in the codebase.
-2. **Appendix I**: Implement the universal `FilenameParser` class — schema-driven, single shared instance across all 4 call sites, extracting 7 filename-derived fields per Appendix B §B3.
-
-#### Why Option A2 (Not A1 or A3)
-
-| Factor | A1 (extend schema) | A2 (P-prefix rename) | A3 (oneOf dual format) |
-|:---|:---|:---|:---|
-| Schema changes | New dual-format validation | Zero schema changes | Complex `oneOf` with 2 branches |
-| Backward compatibility | Both formats accepted | All existing codes renamed atomically | Both formats accepted but confusion risk |
-| SSOT compliance | Violates — 2 formats coexist | Compliant — single format | Violates — schema admits both |
-| Test impact | All test fixtures updated twice | Single pass, grep+replace | Double test fixtures |
-
-**Decision**: Option A2 — one-time rename, single format thereafter.
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I133–I146, I155, I157, I163 | `eks/log/issue_log.md` | Error code rename + filename parser issues |
-| [Appendix D](appendix_d_pipeline_messages_errors.md) | Error code taxonomy — P5-* codes |
-| [Appendix I](appendix_i_filename_parser.md) | Schema-driven filename parser canonical design |
-
----
-
-### 5.4 Document Metadata Completeness — Schema Gaps (I164–I168) — ✅ COMPLETE
-
-> **Relocated from [main workplan §44](phase_1_foundation_workplan.md#44-document-metadata-completeness--schema-gaps-i164i168--complete).**
-
-#### Objective
-
-Close 5 metadata gaps identified in the 2026-07-19 Document Registry Metadata Review. The Phase 1 registry (37 columns + `document_elements`) captures extraction mechanics well but lacks revision-chain, lifecycle, and cross-reference metadata.
-
-#### Gap Summary
-
-| Gap | Issue | Severity | Schema Change | Registry Impact |
-|:---|:---|:---|:---|:---|
-| G1 | I164 | 🟠 HIGH | Add `revision_date` to `document_metadata_def` | New column (DATE) |
-| G2 | I165 | 🟡 MED | Add `revision_description` to `document_metadata_def` | New column (VARCHAR) |
-| G3 | I166 | 🟡 MED | Add `references_documents` cross-ref | New column (JSON array) |
-| G4 | I167 | 🟠 HIGH | Add `lifecycle_stage` with enum values | New column (VARCHAR) |
-| G5 | I168 | 🟡 MED | Add `project_phase` to `document_metadata_def` | New column (VARCHAR) |
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I164–I168 | `eks/log/issue_log.md` | 5 metadata gap issues |
-| [Appendix B §B3](appendix_b_document_registry.md) | Registry columns |
-| §5.5 below | Continuation: 7 remaining schema gaps |
-
----
-
-### 5.5 Remaining Metadata Schema Gaps — Phase 1 Bulk Addition (I169–I175) — ✅ COMPLETE
-
-> **Relocated from [main workplan §45](phase_1_foundation_workplan.md#45-remaining-metadata-schema-gaps--phase-1-bulk-addition-i169i175--complete).**
-
-#### Objective
-
-Add 7 remaining metadata columns identified as Phase 1 gaps to `document_metadata_def`. Schema-only additions — nullable columns with sensible defaults, no population logic beyond config defaults. All 7 share the same implementation pattern (add to base schema → `SchemaToDDL._migrate_schema()` auto-adds column → bump version).
-
-#### Column Summary
-
-| # | Issue | Column | Type | Default | Phase 1 Populated? |
-|:---|:---|:---|:---|:---|:---|
-| 6 | I169 | `contract_package` | VARCHAR | null | No (Phase 2) |
-| 7 | I170 | `issued_date` | DATE | null | No (Phase 2) |
-| 8 | I171 | `responsible_engineer` | VARCHAR | null | No (manual review) |
-| 9 | I172 | `total_sheets` | INTEGER | null | No (Phase 2) |
-| 10 | I173 | `document_title` | VARCHAR | null | Yes (from parser metadata) |
-| 11 | I174 | `language` | VARCHAR | "en" | Yes (default) |
-| 12 | I175 | `vendor_name` | VARCHAR | null | No (manual review) |
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I169–I175 | `eks/log/issue_log.md` | 7 remaining metadata gap issues |
-| U192 | `eks/log/update_log.md` | 15 new columns across 6 tasks |
-| [Appendix B §B3](appendix_b_document_registry.md) | Updated registry column table |
-
----
-
-### 5.6 File Registration, Change Detection & Cross-Project Abstraction (I184–I187) — 🔷 PLANNED
-
-> **Relocated from [main workplan §46](phase_1_foundation_workplan.md#46-file-registration-change-detection--cross-project-abstraction-i184i187--planned).**
-
-#### Objective
-
-Address four Phase 1 gaps in file registration, change detection, and cross-project code reuse. I184–I186 close critical integrity blind spots in the document registry (no change logging, no content-aware registration, destructive `INSERT OR REPLACE` on business-key PK). I187 extracts five reusable utilities to `common/library/`.
-
-#### Gap Summary
-
-| Issue | Severity | Gap | Resolution |
-|:---|:---|:---|:---|
-| I184 | 🟠 HIGH | No `file_change_log` table — hash changes, renames, re-registrations invisible | Create `file_change_log` DuckDB table; trigger INSERT on hash change or file rename |
-| I185 | 🔴 CRIT | No content-aware `file_hash` registration — same file re-registered on every scan | Compute `file_hash` at registration; skip `INSERT OR REPLACE` when hash matches existing |
-| I186 | 🟠 HIGH | `INSERT OR REPLACE` on `document_number` (business-key PK) destroys historical data | Refactor to `INSERT OR UPDATE` with selective column overwrite |
-| I187 | 🟡 MED | 5 reusable utilities duplicated in EKS but needed by dcc and code_tracer | Extract to `common/library/`: `file_hash.py`, `file_scanner.py` (reusable), `diff_engine.py`, `hash_registry.py`, `content_dedup.py` |
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I184–I187 | `eks/log/issue_log.md` | 4 registration/change-detection issues |
-| T1.99.147–152 | [P1.4 Task Details](appendix_p1.4_phase1_tasks.md) | Task breakdown |
-| [Appendix B](appendix_b_document_registry.md) | Document Registry design |
-
----
-
-### 5.7 Appendix D vs. Actual Pipeline Cross-Source Audit (I195–I207) — 🔷 WAVES 1-2 COMPLETE, Waves 3-5 DEFERRED
-
-> **Relocated from [main workplan §48](phase_1_foundation_workplan.md#48-appendix-d-vs-actual-pipeline-cross-source-audit--planned).**
-
-#### Discovery (2026-07-19)
-
-Cross-source audit of Appendix D against 8 pipeline source files. **13 gaps identified**: 2 Critical 🔴, 2 High 🟠, 4 Medium 🟡, 5 Low 🔵.
-
-#### Gap Summary
-
-| Gap | Sev. | Issue | Category | Description |
-|:---|:---:|:---|:---|:---|
-| GAP-D1 | 🔴 | I195 | Code Bug | `HealthScorer.score()` called with positional args misrouted |
-| GAP-D2 | 🔴 | I196 | Config Gap | 10 message IDs called in code do not exist in `eks_message_config.json` |
-| GAP-D3 | 🟠 | I197 | Config Gap | 6 ad-hoc error codes not registered in `eks_error_config.json` |
-| GAP-D4 | 🟠 | I198 | Doc vs Code | D5 data error taxonomy never implemented in code |
-| GAP-D5 | 🟡 | I199 | Code Gap | 15 new schema columns absent from `HealthScorer.ALL_SCOABLE` |
-| GAP-D6 | 🟡 | I200 | Code Gap | `COVER_TYPE_SOURCE_SCORES` missing Type F (0.0) |
-| GAP-D7 | 🟡 | I201 | Code Gap | `get_health_impact()` never called — error penalties never applied |
-| GAP-D8 | 🟡 | I202 | Doc vs Code | Expected elements formula mismatch (5 vs 4) |
-| GAP-D9 | 🔵 | I203 | Doc Stale | D7.1 column catalog: 25 listed, actual 54+ |
-| GAP-D10 | 🔵 | I204 | Doc Stale | D8 status lifecycle not in code |
-| GAP-D11 | 🔵 | I205 | Doc vs Code | System error catalog names swapped |
-| GAP-D12 | 🔵 | I206 | Doc vs Code | Database category 05xx relocated to AI services |
-| GAP-D13 | 🔵 | I207 | Doc vs Code | File I/O + config codes not implemented |
-
-#### Design Decision
-
-For doc-vs-code gaps, **code is SSOT**. Appendix D documentation updated to reflect reality. For code gaps, code fixes applied per wave plan.
-
-#### Execution Waves
-
-1. **Wave 1** (parallel): D1 + D2 + D6 — ✅ COMPLETE
-2. **Wave 2**: D3 → D7 (error config → health impact wiring) — ✅ COMPLETE
-3. **Wave 3**: D5 + D8 (health score column/element changes) — 🟡 DEFERRED
-4. **Wave 4**: D4 + D9–D13 (batch documentation sync) — 🟡 DEFERRED
-
-#### Success Criteria (Waves 1-2)
-
-- [x] SC-D1: `HealthScorer.score()` receives structural_elements as named kwarg
-- [x] SC-D2: All 9 phase/pipeline start/complete messages visible
-- [x] SC-D3: 6 ad-hoc error codes resolve to registered config entries
-- [x] SC-D6: `HealthScorer.ALL_SCOABLE` covers all 39 scorable columns
-- [x] SC-D7: `get_health_impact()` penalties reflected in stored health scores
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I195–I207 | `eks/log/issue_log.md` | 13 gap issues |
-| T1.99.163–175 | [P1.4 Task Details](appendix_p1.4_phase1_tasks.md) | Task breakdown |
-| [Appendix D](appendix_d_pipeline_messages_errors.md) | Document being audited/corrected |
-
----
-
-### 5.8 Appendix E+F vs. Pipeline Architecture Cross-Source Audit (I208–I225) — 🔷 PLANNED
-
-> **Relocated from [main workplan §49](phase_1_foundation_workplan.md#49-appendix-ef-vs-pipeline-architecture-cross-source-audit--gap-remediation-i208i225).**
-
-#### Discovery (2026-07-19)
-
-Comparison of Appendix E + Appendix F against `eks/engine/` codebase revealed **18 gaps (G1–G18)** across 5 categories. **18 issues → 16 actionable** (1 deferred: I223 per-engine CLI). Code/schema impact: 12, docs-only: 2, no-logic structural: 2.
-
-#### Execution Waves & Dependency Graph
-
-```
-Wave 1 (I212, I216, I224) — independent, parallel
-  ├── I212 (RevisionManager)
-  ├── I216 (Checkpoint restore)
-  └── I224 (ReviewManager phase C)
-
-Wave 2 (I209, I211, I215, I221) — depends on Wave 1
-  ├── I209 (BaseEngine)
-  ├── I211 (DI factories)
-  ├── I215 (Telemetry)
-  └── I221 (psutil guard)
-
-Wave 3 (I210, I214, I218, I219) — depends on I209
-  ├── I210 (EngineInput consolidation)
-  ├── I214 (IO contracts)
-  ├── I218 (ParserInput defaults)
-  └── I219 (extracted_content)
-
-Wave 4 (I208, I220, I225) — depends on Waves 1-2
-  ├── I208+I220 (folder migration, ~30 files)
-  └── I225 (SchemaToDDL)
-
-Wave 5 (I217, I222) — documentation-only, parallelizable
-```
-
-#### Success Criteria
-
-- [ ] SC-A1–A13: 13 criteria covering revision chains, checkpoint/resume, review persistence, BaseEngine, DI factories, telemetry, psutil degradation, IO contracts, extracted_content, folder migration, SchemaToDDL, test regression, issue closure.
-
-#### File Impact
-
-**Total**: 21 existing files modified + 8 new files created. Largest single change: Wave 4 folder migration (~30 files touched).
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I208–I225 | `eks/log/issue_log.md` | 18 gap issues |
-| T1.99.179–193 | [P1.4 Task Details](appendix_p1.4_phase1_tasks.md) | Task breakdown |
-| [Appendix E](appendix_e_schema_design.md) | Schema design doc being audited |
-| [Appendix F](appendix_f_pipeline_architecture_design.md) | Pipeline arch doc being audited |
-
----
-
-### 5.9 `str(5)` Bug Fix — Restore Exception Messages Across All Error Paths (I226) — ✅ COMPLETE
-
-> **Relocated from [main workplan §50](phase_1_foundation_workplan.md#50-str5-bug-fix--restore-exception-messages-across-all-error-paths-i226).**
-
-#### Discovery (2026-07-20)
-
-13 call sites across 4 files use literal `str(5)` where `str(e)` was intended — a copy-paste bug where `str(5)` was used as a placeholder and never replaced. All error messages silently become the literal string `"5"`.
-
-#### Affected Files
-
-| File | Count | Lines |
-|:---|:---:|:---|
-| `eks/engine/core/pipeline_orchestrator.py` | 5 | L360, L364, L753, L763, L765 |
-| `eks/engine/core/discovery_cli.py` | 1 | L160 |
-| `eks/ui/backend/phase1_server.py` | 3 | L89, L525, L666 |
-| `eks/serve.py` | 4 | L404, L425, L436, L481 |
-
-#### Fix Summary
-
-| Category | Count | Fix |
-|:---|:---:|:---|
-| Simple `str(5)` → `str(e)` (inside `except ... as e:`) | 13 | Direct replacement — every instance verified against valid `e` in scope |
-
-#### Impact by Call Path
-
-| Path | Before | After |
-|:---|:---|:---|
-| CLI `--scan` | `error_message: "5"` | Actual Python exception |
-| UI pipeline start | `"detail": "5"` | Exact OS error |
-| UI job status poll | `"error": "5"` | Actual pipeline exception |
-| Pipeline file processing | result=`"5"` | Actual processing exception |
-| Document export | `"error": "5"` | Actual health scoring exception |
-| UI proxy — backend down | falls to generic `"5"` | `503` with correct message |
-
-#### Success Criteria
-
-- [x] Zero `str(5)` remaining in `eks/**/*.py`
-- [x] All 13 instances replaced with `str(e)` where `e` is in scope
-- [x] All linter checks pass on modified files
-- [x] I226 → Resolved
-
-#### Cross-References
-
-| Ref | Location | Detail |
-|:---|:---|:---|
-| I226 | `eks/log/issue_log.md` | Full issue description + resolution |
-| T1.99.194–197 | [P1.4 Task Details](appendix_p1.4_phase1_tasks.md) | Task breakdown |
-
----
-
-## 6. Independent Parser Module Architecture
+## 5. Independent Parser Module Architecture
 
 > **Relocated from [§13 — Independent Parser Module Architecture (T1.8 - T1.11)](phase_1_foundation_workplan.md#13-independent-parser-module-architecture-t18---t111)** of the main workplan (v4.8). Canonical source is now here.
 
@@ -816,23 +467,23 @@ Parsers are mapped to file extensions in `eks_config.json`. The EKS engine uses 
 ### Related References
 
 - **Parser function tables**: [§9.1.4 — Plug-in Parsers](#914-plug-in-parsers-eksengineparsers) — per-function detail for each concrete parser.
-- **Module summary**: [§3.2 — Document Registry & Parsers](#32-document-registry--parsers) — parser module inventory.
+- **Module summary**: [§1.3 — Module Inventory](#13-module-inventory) — parser module inventory.
 - **Orchestration integration**: [§4.1 — Pipeline Orchestrator](#41-pipeline-orchestrator) — how parsers route through `ParserRouter`.
 - **Parser tasks**: [§21 — Document Parsers — PDF/DOCX/XLSX (R01/R26)](phase_1_foundation_workplan.md#21-document-parsers--pdfdocxxlsx-r01r26) — task definitions for parser implementation.
 
 ---
 
-## 7. Schema Design
+## 6. Schema Design
 
 The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup → Config) across 5 schema sets: Core, Asset, Document, Ontology, Error/Message.
 
-### 5.1 Schema Architecture
+### 6.1 Schema Architecture
 
 - **Canonical definition**: [§12 — Detailed Schema Design (T1.3–T1.5)](phase_1_foundation_workplan.md#12-detailed-schema-design-t13---t15)
 - **Comprehensive design**: [Appendix E — EKS Schema Design](appendix_e_schema_design.md) (v0.10)
   - E1–E13: Overview, architecture, 3-layer pattern, fragment schemas, file inventory (23 files across 5 sets), summary matrix, inheritance chains, business logic vs schema layers, schema discovery & registration.
 
-### 5.2 Core Schema Suite
+### 6.2 Core Schema Suite
 
 - **Canonical definition**: [§16 — Core Schema Suite](phase_1_foundation_workplan.md#16-core-schema-suite-basesetupconfig--fragment-schemas)
   - `eks_base_schema.json` (v1.8.0) — 13 shared definitions
@@ -841,7 +492,7 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
   - 4 fragment schemas: `eks_project_code_schema.json`, `eks_discipline_schema.json`, `eks_department_schema.json`, `eks_facility_schema.json`
   - `asset_context` fragment with extensible location/system hierarchy
 
-### 5.3 Asset Schema — Universal Plant Item
+### 6.3 Asset Schema — Universal Plant Item
 
 - **Canonical definition**: [§17 — Asset Schema (R36/R39)](phase_1_foundation_workplan.md#17-asset-schema--universal-plant-item-r36r39)
 - **Detailed design**: [Appendix A — Universal Plant Item Schema](appendix_a_asset_schema.md) (v0.5)
@@ -850,7 +501,7 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
   - Zero-code extensibility via `conditional_fragments`
   - Column normalization maps
 
-### 5.4 Document Schema v2
+### 6.4 Document Schema v2
 
 - **Canonical definition**: [§22 — Document Schema v2 (R52/R53)](phase_1_foundation_workplan.md#22-document-schema-v2--3-layer-reorganization-r52r53)
 - **Registry design**: [Appendix B — Document Registry](appendix_b_document_registry.md) (v2.0.0)
@@ -858,7 +509,7 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
   - 3 registries: document_type, file_type, element_type
   - 15 metadata columns (T1.99.141–146)
 
-### 5.5 Ontology Integration (ISO 15926)
+### 6.5 Ontology Integration (ISO 15926)
 
 - **Canonical definition**: [§18 — Ontology Integration (R44)](phase_1_foundation_workplan.md#18-ontology-integration-r44-iso-15926)
 - **Detailed design**: [Appendix C — Dynamic ISO 15926-Aligned Ontology](appendix_c_ontology.md) (v1.8)
@@ -867,13 +518,37 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
   - Document lifecycle relationships: SUPERSEDES, SUPPLEMENTS, REFERENCES_DOC
   - Fragment-to-ontology class mapping
 
-### 5.6 Error & Message Schemas
+### 6.6 Error & Message Schemas
 
 - **Canonical definition**: [§19 — Logging, Errors & Health Scoring](phase_1_foundation_workplan.md#19-logging-errors--health-scoring-r33r34r51)
 - **Detailed catalog**: [Appendix D — Pipeline Messages & Error Codes](appendix_d_pipeline_messages_errors.md) (v1.0)
   - 111 error codes (61 system + 50 data) in `eks_error_config.json` v1.3.0
   - 49 pipeline messages in `eks_message_config.json` v1.1.0
   - 6-dimension health scoring (completeness, confidence, structural, source, xref, consistency)
+
+---
+
+## 7. Issues & Fixes — Summary with Cross-References
+
+> **Consolidated from former §4.4 (I130) and §5 (I131–I233).** All 13 Phase 1 defect fixes and planned remediations in a single cross-reference table with separate Root Cause, Fix, and Outcome columns. Detailed narratives and task breakdowns are in `eks/log/issue_log.md`.
+
+| # | Issue ID | Title | Severity | Related Design § | Root Cause | Fix | Outcome | Status |
+|:---:|:---|:---|:---:|:---|:---|:---|:---|:---:|
+| 1 | I130 | Bootstrap Path-Resolution Rooting | 🟠 HIGH | [§4.3](#43-path-resolution--system-parameters), [Appx H](appendix_h_bootstrap_module_design.md) | 5-step chain: `P2_paths` calls `resolve_paths()` before `P3_registry` loads config. Empty `{}` triggers DCC fallback → all 6 paths anchor at repo root instead of `eks/`. P8 patches only `data_dir`; 5 other paths remain broken. | Add `and self.config` guard at `bootstrap.py` L250. When config empty, skip resolver; existing else-branch correctly anchors under `eks/`. | All paths resolve under `eks/`. Stale root-level `engine/`, `archive/`, `test_output/` cleaned up. Tasks T1.99.101–103. | ✅ |
+| 2 | I131 | KeyError: 'revision' in register_placeholders | 🟠 HIGH | [§3.2](#912-file-scanner-eksenginecorefile_scannerpy) (File Scanner), [§5.1](#51-the-parser-interface-baseparser) (Parsers) | `_parse_filename()` Path 3 fallback returns dict without `revision` key. `register_document()` direct access `metadata["revision"]` → KeyError. HTTP path already handled via `setdefault`; pipeline path did not. | 3-layer defense: (1) add `"revision": "00"` to Path 3 fallback, (2) `setdefault("revision", "00")` in `build_placeholder_metadata()`, (3) `.get("revision", "00")` in `register_document()`. | All parse paths guarantee `revision` key. Pipeline and HTTP entry paths now consistent. | ✅ |
+| 3 | I132 | .dwg File Type Orphan | 🟡 MED | [§1.3](#13-module-inventory) (Registry), [§5.3](#53-schema-driven-discovery-ssot) (Parser routing) | `.dwg` registered in `file_type_registry` but no document type lists it in `expected_file_types`. `scan()` discovers → `validate_file_types()` discards. | New `CAD` document type in `document_type_registry` with `"expected_file_types": ["dwg", "dgn"]`. | DWG and DGN files now pass through validation gate and are registered. | ✅ |
+| 4 | I133–I163 | Unified P-Prefix Error Codes + Filename Parser | 🟠 HIGH | [§6.6](#66-error--message-schemas) (Error catalog), [Appx D](appendix_d_pipeline_messages_errors.md), [Appx I](appendix_i_filename_parser.md) | 12 D5-prefix codes only non-conforming format (`D5-PARSE-*`, `D5-PROP-*`) vs. standard `P{n}-{module}-{function}-{id}`. Filename parsing duplicated across 4 call sites. | One-time rename all 12 codes to P-prefix (zero schema changes). Implement universal `FilenameParser` — schema-driven, shared single instance across all call sites, extracts 7 fields. | Single error code format across entire codebase. 4 duplicated parse sites → 1 shared instance. 31 issues total: 2×🟠 + 6×🟡 + 23×🟢. | ✅ |
+| 5 | I164–I168 | Document Metadata Schema Gaps | 🟠 HIGH | [§6.4](#64-document-schema-v2) (Doc Schema), [Appx B](appendix_b_document_registry.md) | Registry (37 cols) missing 5 areas: revision-chain (`supersedes`/`superseded_by`, I164), title derivation (I165), lifecycle/revision fields — `lifecycle_stage`, `revision_date`, `revision_description` (I166), embedded metadata + x-refs — `embedded_revision_number`, `references_documents` (I167), and 7 contextual columns — `project_phase`, `contract_package`, `issued_date`, `responsible_engineer`, `total_sheets`, `language`, `vendor_name` (I168). | Add 5 columns to `document_metadata_def`. `SchemaToDDL._migrate_schema()` auto-adds via ALTER TABLE. | 5 columns added. 2 HIGH (G1 `revision_date`, G4 `lifecycle_stage`), 3 MED (G2, G3, G5). | ✅ |
+| 6 | I169–I175 | Remaining Metadata Gaps (Phase 1 bulk) | 🟢 LOW | [§6.4](#64-document-schema-v2) (Doc Schema), [Appx B](appendix_b_document_registry.md) | 7 additional Phase 1-relevant columns not in schema: `contract_package`, `issued_date`, `responsible_engineer`, `total_sheets`, `document_title`, `language`, `vendor_name`. | Bulk addition to `document_metadata_def`. Schema-only (nullable with defaults). Population deferred to Phase 2 or manual review. | 7 columns added. Only `document_title` and `language` populated in Phase 1. | ✅ |
+| 7 | I182–I183 | File Hash Prerequisites — Scan-Time Hash Computation & DB Column | 🟡 MED | [§1.3](#13-module-inventory) (Registry), [Appx B](appendix_b_document_registry.md) | I184–I187 (3-tier composite-key check, diff logging, UUID migration) all depend on `file_hash` being computed during scan (I182) and stored in the documents table (I183). Neither exists yet — hash computed only on-demand, no DB column to persist it. | Wire `FilePropertyExtractor` (or inline `compute_file_hash()`) into `FileScanner.build_placeholder_metadata()` scan phase. Add `file_hash` column to `document_metadata_def`. | PLANNED — prerequisite for I184–I187. Tasks via §46 dependency chain: I187 (lib) → I186 (UUID) → I183 (DB column) → I182 (compute in scan) → I185 (3-tier check) + I184 (diff). | 🔷 |
+| 8 | I184–I187 | File Registration, Change Detection & Cross-Project Abstraction | 🟡 MED | [§1.3](#13-module-inventory) (Registry), [Appx B](appendix_b_document_registry.md) | No change logging (I184); no content-aware `file_hash` causes re-registration every scan (I185); `INSERT OR REPLACE` on business-key PK destroys history (I186); 5 utils duplicated across projects (I187). | Create `file_change_log` DuckDB table + `file_hash` computation at registration + `INSERT OR UPDATE` refactor + extract 5 utilities to `common/library/`. | PLANNED — tasks T1.99.147–152 defined. 1 CRIT (I185), 2 HIGH (I184, I186), 1 MED (I187). | 🔷 |
+| 9 | I188–I194 | Pipeline Export, DB Integrity & Cross-Source Audit Fixes | 🟠 HIGH | [§3](#3-phase-1-pipeline-architecture--function-tables) (Export), [§6.4](#64-document-schema-v2) (Schema), [Appx B](appendix_b_document_registry.md) | 7 Phase 1 pipeline bugs: empty CSV/XLSX exports due to status filter mismatch (I188); shared `eks/output/` + test-production DB pollution (I189); issue log wipe → 189 issues lost (I190); zero export files after first run → `pre_doc_numbers` filtering bug (I191); stale root-level copies in bootstrap (I192); Excel number formatting (I193); 11-gap Appendix B vs codebase cross-source inconsistencies (I194). | I188: removed status filter + unconditional catch-all. I189: test-isolated DB + per-run `output/<run_id>/` subdirs. I190: restored from git + reconstructed missing entries. I191: removed `pre_doc_numbers` filtering. I192: exception isolation + stale cleanup. I193: Excel number format preservation. I194: targeted edits to 6 files + Appendix B v0.9→1.0.0. | All 7 resolved. 36/36 tests green. 0 linter errors. Tasks T1.99.147–167. | ✅ |
+| 10 | I195–I207 | Appendix D vs. Pipeline Cross-Source Audit (13 gaps) | 🔴 CRIT | [§6.6](#66-error--message-schemas) (Errors), [§3](#3-phase-1-pipeline-architecture--function-tables) (Orchestrator funcs), [Appx D](appendix_d_pipeline_messages_errors.md) | Cross-source audit against 8 pipeline source files found 13 gaps. Key: `HealthScorer.score()` positional arg misrouted (I195), 10 message IDs missing from config (I196), 6 ad-hoc error codes unregistered (I197), D5 taxonomy never implemented (I198). | 5 execution waves. W1–2 ✅: arg fix (I195), 10 messages added (I196), 6 codes registered (I197), health impact wired (I201). W3–5 deferred: health score columns + batch documentation sync. Code is SSOT for doc-vs-code gaps. | 2 CRIT + 2 HIGH + 2 MED gaps closed (Waves 1–2). 13 gaps total: 2×🔴 + 2×🟠 + 4×🟡 + 5×🔵. Waves 1–2 ✅ (7 issues resolved). | 🔷 |
+| 11 | I208–I225 | Appendix E+F vs. Pipeline Cross-Source Audit (18 gaps) | 🟠 HIGH | [§4](#4-phase-1-pipeline-orchestrator-and-entry-points) (Orchestrator/Entry points), [Appx E](appendix_e_schema_design.md), [Appx F](appendix_f_pipeline_architecture_design.md) | Comparison of Appx E+F against `eks/engine/` found 18 gaps (G1–G18) across 5 categories, 16 actionable. Largest single change: folder migration ~30 files (I208+I220). | 5-wave dependency graph: W1 (I212 RevMgr, I216 checkpoint, I224 review — parallel) → W2 (I209 BaseEngine, I211 DI factories, I215 telemetry, I221 psutil) → W3 (I210 EngineInput, I214 IO contracts, I218/I219 parser) → W4 (I208+I220 migration ~30 files, I225 SchemaToDDL) → W5 (I217+I222 docs). | 7 resolved (I209, I210, I215, I218, I219, I221, I222) + 11 deferred. Per U199 reclassification: I211, I212, I214, I217, I225 demoted to 🔷 Deferred for further study (each has unresolved pending actions). Tasks T1.99.179–193. | 🔷 |
+| 12 | I226 | `str(5)` Bug — 13 Call Sites, 4 Files | 🔴 CRIT | [§4.1](#41-pipeline-orchestrator) (Orchestrator), [§4.2](#42-entry-points--cli-web--http-backend) (Entry points) | Copy-paste bug: `str(5)` used as placeholder in 13 `try/except` blocks across 4 files and never replaced. All error messages became literal `"5"` instead of actual exception text. | Replace all 13 instances with `str(e)` where `e` is scope-verified. Zero `str(5)` remaining confirmed via project-wide grep. | CLI `--scan`, UI pipeline start/poll, file processing, doc export, UI proxy — all 6 call paths recovered actual exception messages. | ✅ |
+| 13 | I227–I233 | Pipeline Audit — Scan Efficiency, Asset Integration, Telemetry, Validation, Versioning & Module Split | 🟠 HIGH | [§3](#3-phase-1-pipeline-architecture--function-tables) (Pipeline), [§4](#4-phase-1-pipeline-orchestrator-and-entry-points) (Orchestrator), [Appx A](appendix_a_asset_schema.md), [Appx F](appendix_f_pipeline_architecture_design.md) | Pipeline audit (U198) identified 7 architecture gaps: Phase B re-scans entire directory tree instead of reusing Phase A results (I227); asset schema has zero runtime pipeline integration — schema-only artifact with no engine code (I228); per-file telemetry checkpoints overwhelm storage at scale (I229); no cross-phase data consistency validation gates (I230); 3 sources disagree on EKS version (I231); legacy `doc_id` fallback path conflicts with new `RevisionManager` lookup (I232); `eks_engine_pipeline.py` at 1,500+ lines mixes CLI, bootstrap, pipeline, export concerns (I233). | I227: pass Phase A discovered file list into Phase B. I228: Phase 3 asset loaders (T3.9–T3.15). I229: batch-level telemetry (per-N files or percentage milestones). I230: `validate_phase_transition()` at A→B and B→C boundaries. I231: single `__version__` in `eks/__init__.py`. I232: remove legacy fallback, require `doc_id` always from caller. I233: split into `cli.py` + `pipeline_runner.py` + `exporter.py`. | OPEN — all 7 issues 🔴 Open. Priority sequence: P0 (I227), P1 sprint (I229, I230, I232), P2 closeout (I231, I233). | 🔴 |
+
+> **Status legend**: ✅ = COMPLETE | 🔷 = PLANNED / PARTIAL | 🔴 = OPEN
 
 ---
 
@@ -884,7 +559,7 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
 | Appendix | File | Description |
 |----------|------|-------------|
 | P1-B | [appendix_p1_component_specs.md](appendix_p1_component_specs.md) | Component Specification Index — maps all Phase 1 components to workplan sections (§14–§30) |
-| P1-C | (deleted) | Resolved Issue Deep-Dives — content redistributed: I130 → [§4.4](#44-bootstrap-path-resolution-rooting-defect-fix--i130-t199101t199103--complete), I126/I188/I189/I192/I193 → [P1.3](appendix_p1.3_phase1_data_export.md), I131/I132 → [§5.1–§5.2](#51-keyerror-revision-in-register_placeholders--i131-t199104t199107--complete), I133–I163 → [§5.3](#53-option-a2--unified-p-prefix-error-codes--appendix-i-filename-parser-i133i146-i155-i157-i163--complete) + [Appendix I](appendix_i_filename_parser.md) + [Appendix D](appendix_d_pipeline_messages_errors.md), I164–I175 → [§5.4–§5.5](#54-document-metadata-completeness--schema-gaps-i164i168--complete), I184–I187 → [§5.6](#56-file-registration-change-detection--cross-project-abstraction-i184i187--planned), I195–I207 → [§5.7](#57-appendix-d-vs-actual-pipeline-cross-source-audit-i195i207---waves-1-2-complete-waves-3-5-deferred), I208–I225 → [§5.8](#58-appendix-ef-vs-pipeline-architecture-cross-source-audit-i208i225---planned), I226 → [§5.9](#59-str5-bug-fix--restore-exception-messages-across-all-error-paths-i226--complete) |
+| P1-C | (deleted) | Resolved Issue Deep-Dives — all content consolidated in [§7 — Issues & Fixes](#7-issues--fixes--summary-with-cross-references): I130 (row 1), I131 (row 2), I132 (row 3), I133–I163 (row 4), I164–I168 (row 5), I169–I175 (row 6), I182–I183 (row 7), I184–I187 (row 8), I188–I194 (row 9), I195–I207 (row 10), I208–I225 (row 11), I226 (row 12), I227–I233 (row 13). |
 | P1-D | [appendix_p1_checklists.md](appendix_p1_checklists.md) | Success Criteria (114 items, all ✓) + Deliverables list extracted from main workplan |
 
 ### General Appendices (A–J)
@@ -906,9 +581,9 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
 
 | § | Section | Topics |
 |---|---------|--------|
-| §9 | [Phase 1 Pipeline Architecture](#2-phase-1-pipeline-architecture--function-tables) | Mermaid diagram, 11 per-module function tables — **relocated here from main workplan** |
+| §9 | [Phase 1 Pipeline Architecture](#3-phase-1-pipeline-architecture--function-tables) | Mermaid diagram, 11 per-module function tables — **relocated here from main workplan** |
 | §10 | [Files and Modules](phase_1_foundation_workplan.md#10-files-and-modules-to-createupdate) | Per-file create/update table |
-| §11 | [Project Folder Structure](#1-phase-project-folder-structure) | Full 5-phase folder tree — **relocated here from main workplan** |
+| §11 | [Project Folder Structure](#2-phase-project-folder-structure) | Full 5-phase folder tree — **relocated here from main workplan** |
 | §12–§13 | [Schema Design](phase_1_foundation_workplan.md#12-detailed-schema-design-t13---t15) + [Parser Architecture](phase_1_foundation_workplan.md#13-independent-parser-module-architecture-t18---t111) | Canonical schema + plug-in parser design |
 | §14 | [Foundation & Compliance](phase_1_foundation_workplan.md#14-foundation-environment--compliance-r99) | T1.1–T1.2, T1.14–T1.16, T1.33, T1.48–T1.49, T1.52–T1.57, T1.65–T1.67, T1.70, T1.74 |
 | §15 | [Architectural Patterns](phase_1_foundation_workplan.md#15-architectural-patterns--context-factories--orchestration-hardening-appendix-f) | Context, factories, telemetry, checkpoints, rollback |
@@ -923,6 +598,7 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
 
 | Version | Date | Author | Summary |
 | :------ | :--- | :----- | :------ |
+| 1.6 | 2026-07-21 | CodeBuddy | Major restructure — added **Contents (TOC)** and **§1 Features Overview & Architecture Summary** (§1.1 What Phase 1 Delivers, §1.2 Architecture at a Glance, §1.3 Module Inventory promoted from former §3). Consolidated all 10 issue fixes from former §4.4 (I130) + §5 (I131–I226) into single **§7 cross-reference table** with separate Root Cause / Fix / Outcome / Status columns. Renumbered: §1→§2 (Folder), §2→§3 (Pipeline, `§2.1`→`§3.3`), §4.1–4.3→§4 (Orchestrator, I130 removed), §6→§5 (Parser arch), §7→§6 (Schema design, `§5.x`→`§6.x` numbering fixed), §8→§8 (Cross-refs, P1-C + Key Workplan § links updated). |
 | 1.5 | 2026-07-20 | CodeBuddy | Relocated 9 sections from main workplan §40–§50 into new §5 (Defect Root-Cause Deep-Dives & System-Wide Fixes): §5.1 I131 KeyError fix, §5.2 I132 .dwg orphan fix, §5.3 I133–I163 P-prefix error codes + Appendix I filename parser, §5.4 I164–I168 metadata schema gaps, §5.5 I169–I175 remaining schema gaps, §5.6 I184–I187 file registration/change detection, §5.7 I195–I207 Appendix D cross-source audit, §5.8 I208–I225 Appendix E+F cross-source audit, §5.9 I226 str(5) bug fix. Renumbered §5→§6, §6→§7, §7→§8. Updated §8 P1-C entry. |
 | 1.4 | 2026-07-20 | CodeBuddy | Relocated I130 Bootstrap Path-Resolution Rooting Defect Fix from main workplan §39 into §4.4 (5-step defect chain, Option A fix, T1.99.101–103 task breakdown, cross-references). Updated §7 P1-C cross-reference to reflect content redistribution. |
 | 1.3 | 2026-07-20 | CodeBuddy | Relocated Independent Parser Module Architecture (BaseParser interface, standardized output, schema-driven discovery, implementation strategy) from main workplan §13 into §5. Renumbered Schema Design §5→§6 and Cross-Reference §6→§7. |

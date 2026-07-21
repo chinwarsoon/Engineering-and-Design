@@ -1,12 +1,29 @@
 # Appendix P1.2: Phase 1 — Scope Summary, Files & Modules, and Deliverables
 
+**Document ID**: WP-EKS-P1-APX-1.2  
+**Version**: 1.0  
+**Last Updated**: 2026-07-21  
+**Status**: 🔷 IN PROGRESS — Gap analysis review; added metadata block, scope caveat for I227–I233 (7 open pipeline issues), corrected 4 file paths to `eks/config/schemas/`, appended 12 missing deliverables (T1.72–T1.99), added §4 Issue Cross-Reference.  
+**Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.3, IN PROGRESS)
+
+---
+
+## Contents
+
+- [1. Phase 1 Scope Summary](#1-phase-1-scope-summary)
+- [2. Scope Summary](#2-scope-summary)
+- [3. Files and Modules to Create/Update](#3-files-and-modules-to-createupdate)
+- [4. Phase 1 Deliverables (Consolidated from §34 + §37)](#4-phase-1-deliverables-consolidated-from-34--37)
+- [5. Issue Cross-Reference](#5-issue-cross-reference)
+- [Revision History](#revision-history)
+
 ---
 
 ## 1. Phase 1 Scope Summary
 
 > **Source:** [§5. Scope Summary](../phase_1_foundation_workplan.md#5-scope-summary)
 
-## 5. Scope Summary
+## 2. Scope Summary
 
 | ID  | Category             | Requirement               | Details                                                                                      | Related Tasks | Status     |
 | :-- | :------------------- | :------------------------ | :------------------------------------------------------------------------------------------- | :------------ | :--------: |
@@ -39,16 +56,29 @@
 
 **Status Legend:** ✅ PASS / COMPLETE | 🔶 PARTIAL | ❌ FAIL | ✅ COMPLETE  (status column uses only these four symbols; severity emojis 🟠/🔴/🟡 are not status values)
 
+> **⚠️ Caveat — 7 Open Pipeline Issues (I227–I233):** The ✅ PASS statuses above reflect scope implementation completion. However, a 2026-07-20 pipeline audit identified 7 unresolved issues affecting runtime correctness, performance, and maintainability:
+>
+> | Issue | Scope Affected | Summary |
+> |:------|:---------------|:--------|
+> | **I227** 🔴 | R57 | Phase B re-scans entire directory (2× I/O) |
+> | **I228** 🔴 | R36, R39 | Asset schema fragments have zero runtime pipeline code |
+> | **I229** 🔴 | R33, R34, R51 | Per-file telemetry overwhelms storage at scale |
+> | **I230** 🔴 | R57 | No `validate_phase_transition()` between phases |
+> | **I231** 🔴 | R99 | Version diverges across 3 sources (SSOT violation) |
+> | **I232** 🔴 | R21, R22 | Legacy `doc_id` fallback conflicts with `RevisionManager` |
+> | **I233** 🔴 | R99 | 1500-line monolithic `eks_engine_pipeline.py` |
+>
+> See [§4 Issue Cross-Reference](#4-issue-cross-reference) for details and resolution tracking.
+
 ---
 
 
 ---
 
-## 2. Files and Modules to Create/Update
+## 3. Files and Modules to Create/Update
 
 > **Source:** [§10. Files and Modules to Create/Update](../phase_1_foundation_workplan.md#10-files-and-modules-to-createupdate)
 
-## 10. Files and Modules to Create/Update
 
 | File/Folder                                         | Action | Purpose                                                    |
 | :-------------------------------------------------- | :----- | :--------------------------------------------------------- |
@@ -57,17 +87,17 @@
 | `eks/engine/core/__init__.py`                       | Create | Core engine package init                                   |
 | `eks/engine/core/registry.py`                       | Update | Document registry — implement G1-G3 remediation + Extended Metadata |
 | `eks/engine/core/revision.py`                       | Create | Revision management — preserve, filter, chain lookup       |
-| `eks/engine/core/config_registry.py"                | Create | SSOT global parameter access via schema config             |
+| `eks/engine/core/config_registry.py`                 | Create | SSOT global parameter access via schema config             |
 | `eks/engine/parsers/__init__.py`                    | Create | Parser plug-in package init                                |
 | `eks/engine/parsers/base_parser.py`                 | Create | Abstract base parser interface                             |
 | `eks/engine/parsers/pdf_parser.py`                  | Create | PDF document parser                                        |
 | `eks/engine/parsers/docx_parser.py`                 | Create | DOCX document parser                                       |
-| `eks/engine/parsers/xlsx_parser.py"                 | Create | XLSX document parser                                       |
+| `eks/engine/parsers/xlsx_parser.py`                  | Create | XLSX document parser                                       |
 | `eks/engine/logging/__init__.py`                    | Create | Logging package init                                       |
 | `eks/engine/logging/logger.py`                      | Create | Tiered logger (levels 0–3), debug object, trace table      |
-| `eks/config/eks_base_schema.json`                   | Update | Canonical schema — add relationship annotations            |
-| `eks/config/eks_asset_config.json`                  | Update | Add `relationship_triggers` and `document_triggers` sections |
-| `eks/config/eks_ontology_config.json"               | Update | Add new relationship pairs and classes (Asset & Document)  |
+| `eks/config/schemas/eks_base_schema.json`              | Update | Canonical schema — add relationship annotations            |
+| `eks/config/schemas/eks_asset_config.json`             | Update | Add `relationship_triggers` and `document_triggers` sections |
+| `eks/config/schemas/eks_ontology_config.json`          | Update | Add new relationship pairs and classes (Asset & Document)  |
 | `eks/engine/core/schema_loader.py`                  | Update | Extended to validate ontology and asset fragments alignment |
 | `eks/config/schemas/eks_error_code_base.json`        | Create | Error code base definitions (T1.30) |
 | `eks/config/schemas/eks_error_config.json`           | Create | Full error code catalog — 65 codes (T1.30) |
@@ -114,7 +144,7 @@
 | `eks/test/test_phase1.py`                             | Update | Add 6 fragment schema tests; update test_project_scoped_config (T1.47) |
 | `eks/config/schemas/eks_asset_base_schema.json`      | Update | Add asset_context fragment (T1.51) |
 | `eks/config/schemas/eks_asset_setup_schema.json`     | Update | Add asset_context to fragment enum (T1.51) |
-| `eks/config/eks_asset_config.json`                   | Update | Populate asset_context for all 14 AT_ types (T1.51) |
+| `eks/config/schemas/eks_asset_config.json`             | Update | Populate asset_context for all 14 AT_ types (T1.51) |
 | `eks/engine/core/context.py`                         | Create | EKSPipelineContext implementation (T1.52) |
 | `eks/engine/core/base.py`                            | Create | BaseEngine abstract class (T1.53) |
 | `eks/engine/core/telemetry.py`                       | Create | TelemetryHeartbeat implementation (T1.54) |
@@ -144,7 +174,7 @@
 
 ---
 
-## 3. Phase 1 Deliverables (Consolidated from §34 + §37)
+## 4. Phase 1 Deliverables (Consolidated from §34 + §37)
 
 > **Sources:** [§34. Deliverables](../phase_1_foundation_workplan.md#34-deliverables) and [§37. Deliverables](../phase_1_foundation_workplan.md#37-deliverables)
 >
@@ -198,4 +228,40 @@
 - **Bootstrap path-rooting fix (I130 / T1.99.101–T1.99.103)**: `bootstrap.py` L250 — `if self._path_resolver is not None:` → `if self._path_resolver is not None and self.config:`. Option A guard prevents resolver call with empty config during P2_paths (runs before P3_registry), falling through to else-branch correctly anchored under `pipeline_root_dir="eks"`. See §39.
 - **KeyError 'revision' fix (I131 / T1.99.104–T1.99.107)**: 3-level layered fix in `file_scanner.py` + `registry.py`: (L1) `_parse_filename()` fallback returns `revision="00"`, (L2) `build_placeholder_metadata()` safety net `setdefault("revision", "00")`, (L3) `register_document()` uses `.get("revision", "00")` + `.get("document_number")`. Pipeline now runs Phase A→B→C: 19 files, 7 flagged. See §40.
 - **.dwg file type orphan fix (I132 / Option B)**: Added `"CAD"` document type to `eks_doc_base_schema.json` enum, `eks_doc_setup_schema.json` propertyNames pattern, and `eks_doc_config.json` document_type_registry + element_expectations. `.dwg` files now have a document type that expects them. See §41.
+- **Pipeline IO contracts (T1.72)**: `io_contracts.py` — `DiscoveryInput`/`DiscoveryOutput`/`ParserInput`/`ParserOutput` dataclasses for phase-boundary contract enforcement
+- **Per-run artifacts (T1.73, T1.76)**: `checkpoint_{job_id}.json` (resume state), `pipeline_status_{job_id}.json` (final status summary), `pipeline_messages_{job_id}.json` (message/error catalog), `debug_log.json` (structured debug log)
+- **Filename & property parsers (T1.99.133–T1.99.167)**: `filename_parser.py` (document number/revision extraction from filename), `file_property_parser.py` (file system metadata extraction)
+- **Common library — bootstrap (T1.99.50–T1.99.63)**: `common/library/bootstrap/` — universal `BootstrapManager` (L19), phase tracking, dual-mode (`bootstrap_all`/`bootstrap_for_ui`), structured `BootstrapError`
+- **Common library — paths (T1.98)**: `common/library/paths/` — schema-driven `global_paths` resolution with anchor-folder-based discovery
+- **Common library — CLI (T1.99.27–T1.99.29)**: `common/library/cli/` — shared CLI entry-point patterns
+- **Common library — export (T1.99.147–T1.99.167)**: `common/library/export/` — structured export utilities
+- **DGN/DWG stub parsers (T1.35)**: Placeholder parser stubs for CAD formats; full implementation deferred to Phase 3 per R01 scope note
+
+---
+
+## 5. Issue Cross-Reference
+
+> Maps open issues (I227–I233) to affected scope items for traceability. For resolved issues I130–I226, see [Appendix P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references).
+
+| Issue ID | Date | Severity | Title | Affected Scope | Root Cause | Status |
+|:---------|:-----|:---------|:------|:---------------|:-----------|:------:|
+| **I227** | 2026-07-20 | 🔴 CRITICAL | Phase B re-scans entire directory (2× I/O) | R57 — Pipeline Orchestration | `Phase B` entry re-calls `_scan_directory()` instead of reusing Phase A results | 🔴 OPEN |
+| **I228** | 2026-07-20 | 🔴 CRITICAL | Asset schema fragments have zero runtime pipeline code | R36, R39 — Asset Schema | 13 fragments + 14 AT_ types defined in JSON schema but no pipeline module consumes them; schema-only artifact | 🔴 OPEN |
+| **I229** | 2026-07-20 | 🔴 CRITICAL | Per-file telemetry overwhelms storage at scale | R33, R34, R51 — Logging & Health | Telemetry heartbeat fires per-file without aggregation, sampling, or rotation at scale | 🔴 OPEN |
+| **I230** | 2026-07-20 | 🔴 CRITICAL | No `validate_phase_transition()` between phases | R57 — Pipeline Orchestration | Phase transitions lack guard validation; pipeline can skip or reorder phases silently | 🔴 OPEN |
+| **I231** | 2026-07-20 | 🔴 CRITICAL | Version diverges across 3 sources (SSOT violation) | R99 — Foundation | `knowledge.json`, `eks_engine_pipeline.py`, and `engine/__init__.py` report different version strings | 🔴 OPEN |
+| **I232** | 2026-07-20 | 🔴 CRITICAL | Legacy `doc_id` fallback conflicts with `RevisionManager` | R21, R22 — Revision Management | `registry.py` uses legacy `doc_id`-based lookup as fallback path, bypassing revision chain integrity | 🔴 OPEN |
+| **I233** | 2026-07-20 | 🔴 CRITICAL | 1500-line monolithic `eks_engine_pipeline.py` | R99 — Foundation | Pipeline entry point grew to ~1500 lines without module decomposition; violates single-responsibility and maintainability | 🔴 OPEN |
+
+> **Source:** `eks/log/issue_log.md` — 2026-07-20 pipeline audit. See [Appendix P1.6](appendix_p1.6_phase1_revision_history.md) for change history.
+
+---
+
+## Revision History
+
+| Version | Date       | Author    | Summary |
+| :------ | :--------- | :-------- | :------ |
+| 1.0     | 2026-07-21 | CodeBuddy | Initial versioning — added metadata block (Document ID, Version, Status, Parent Workplan), scope caveat for I227–I233 (7 open pipeline issues), corrected 4 file paths from `eks/config/` to `eks/config/schemas/`, fixed 3 trailing-quote typos in §3 file table, appended 12 missing deliverables (T1.72–T1.99) to §4, added §5 Issue Cross-Reference with full I227–I233 root cause / affected scope / status table, added Table of Contents and Revision History. |
+
+
 

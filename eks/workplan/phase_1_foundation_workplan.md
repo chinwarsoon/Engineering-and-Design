@@ -1,11 +1,11 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
-**Document ID**: WP-EKS-P1-001
-**Current Version**: 5.3
-**Status**: 🔷 IN PROGRESS — **v5.3**: §10.3 (Defect Root-Cause Fixes) merged into §10.1 — single 36-row table covering design (§5–§30) + defects (§39–§50) in one view. Full history in [Appendix P1.6](appendix_p1.6_phase1_revision_history.md).
-**Last Updated**: 2026-07-20
-**Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)
-**Phase Dependency**: None — first phase
+- **Document ID**: WP-EKS-P1-001
+- **Current Version**: 5.3
+- **Status**: 🔷 IN PROGRESS — **v5.3**: §10.3 (Defect Root-Cause Fixes) merged into §10.1 — single 36-row table covering design (§5–§30) + defects (§39–§50) in one view. Full history in [Appendix P1.6](appendix_p1.6_phase1_revision_history.md).
+- **Last Updated**: 2026-07-20
+- **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)
+- **Phase Dependency**: None — first phase
 
 ---
 
@@ -43,9 +43,9 @@ Deliverables:
 
 ---
 
-## 3. Revision Control & Version History
+## 3. Revision History → Appendix P1.6
 
-> **Full detailed history relocated to [Appendix P1.6](appendix_p1.6_phase1_revision_history.md)** — 96 revision entries from v0.1 (2026-06-11) through v3.87 (2026-07-17). The appendix also includes an eras summary table.
+> **All revision history relocated to [Appendix P1.6](appendix_p1.6_phase1_revision_history.md)** — 102 revision entries from v0.1 (2026-06-11) through v5.3 (2026-07-20). Only the high-level eras summary is retained below.
 
 ### Eras Summary
 
@@ -55,19 +55,8 @@ Deliverables:
 | **Pipeline Integration** | v3.0–v3.29 | 2026-06-22 to 2026-07-08 | Auto-DDL, file scanner, parser router, orchestrator, Phase 1.3 initiation harmonization, error/message catalog, 6-dim health scoring, project_setup integration, Appendix F architecture patterns |
 | **Workplan Restructure** | v3.40–v3.52 | 2026-07-09 to 2026-07-11 | Initiation config flattening, schema discovery, system parameters SSOT, universal path resolution, workplan restructuring (Master Task Index), section resequence, canonical workplan promotion |
 | **Bootstrap & Entry-Point Convergence** | v3.53–v3.87 | 2026-07-11 to 2026-07-20 | Universal BootstrapManager (L19), entry-point relocation (CLI + web + backend), anchor-folder path resolution, cross-platform discovery, universal CLI parser (L18), pre-bootstrap logger (I113), environment checks (I114), structured BootstrapError (I111), preload infrastructure guard (I117), lazy-import refactor |
-| **Appendix Relocation** | v4.8–v5.0 | 2026-07-20 | §32/§33/§34/§36 → P1.3/P1.5; §39–§50 → P1.1/Appendix J/P1.3; §3 full history → P1.6; **v5.0**: 50→11 section collapse, §10 Implementation Index consolidates all appendix redirects |
-
-### Latest Revisions
-
-| Version | Date       | Author | Summary |
-| :------ | :--------- | :----- | :------ |
-| 5.3     | 2026-07-20 | opencode | **Merge §10.3 into §10.1** — 12 defect-fix rows (§39–§50) appended to design table, eliminating the separate §10.3 subsection. Single unified 36-row table now covers all 24 design sections + 12 defect fixes. Tasks column uses — for defect rows (no design tasks). TOC simplified: 10.1 + 10.2 only. |
-| 5.2     | 2026-07-20 | opencode | **Status column** — §10.1 table enhanced: added Status column with section-level completion status sourced from P1.4 task statuses. §11–§29 marked ✅ (all subtasks complete), §8/§30 marked 🔷 (pending: T1.99.50–T1.99.61, T1.99.64–T1.99.69 🔷 PLANNED; T1.99.30 ⛔ Won't Implement). Design docs (§5,§9,§10) marked ✅. |
-| 5.1     | 2026-07-20 | opencode | **Task/issue cross-reference** — §10.1 table enhanced: added Tasks column (T1.x ranges per section, sourced from P1.4 Master Task Index) and Key Issues column (Ixxx IDs per section, sourced from `eks/log/issue_log.md`). 24 rows × 5 columns now provide full bidirectional traceability: workplan § → tasks → issues → appendix. |
-| 5.0     | 2026-07-20 | opencode | **Major restructure** — 50 sections collapsed to 11. §5,§8–§30,§33,§34,§36,§39–§50 consolidated into single §10 (Implementation Index) with 3 sub-tables. Deleted §37 (reserved), §38 (dup references). TOC simplified to execution-order flow: context → risks → success → implementation → references. |
-| 4.9     | 2026-07-20 | opencode | **§3 revision history relocated to [Appendix P1.6](appendix_p1.6_phase1_revision_history.md)** — full 96-entry table moved; high-level eras summary retained here. |
-| 4.8     | 2026-07-20 | opencode | **§40–§50 relocated** — defect deep-dives (§40–§42, §44–§46, §48–§50 → P1.1 §5.1–§5.9), file property extraction (§43 → Appendix J §J14), schema-driven export (§47 → P1.3 §11). |
-| 3.87    | 2026-07-17 | opencode | **I117 docs/logs/reports completeness update** — test_log.md v0.2, update_log U175, appendix H §H.12.1, test_eks_engine_pipeline.py import fix. |
+| **Appendix Relocation** | v4.8–v5.0 | 2026-07-20 | §40–§50 defect deep-dives → P1.1; §43 file property extraction → Appendix J; §47 schema-driven export → P1.3; §3 full history → P1.6; 50→11 section collapse; §10 Implementation Index consolidates all appendix redirects |
+| **Implementation Index Consolidation** | v5.1–v5.3 | 2026-07-20 | §10.1 table enhanced: added Tasks column (P1.4 cross-ref), Key Issues column (issue_log cross-ref), Status column (completion status per section); §10.3 merged into §10.1 as a single 36-row table |
 
 ---
 

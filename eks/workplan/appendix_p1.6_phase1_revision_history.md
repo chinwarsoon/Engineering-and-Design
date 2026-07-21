@@ -1,8 +1,9 @@
 # Appendix P1.6: Phase 1 — Full Revision History
 
-> **Canonical source for [main workplan §3](phase_1_foundation_workplan.md#3-revision-control--version-history).**
-> Extracted from [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
+> **Canonical source for all Phase 1 revision history.**
+> Consolidated from [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
 > Last Updated: 2026-07-20
+> Version Range: v0.1 (2026-06-11) through v5.3 (2026-07-20) — 102 revision entries
 
 ---
 
@@ -17,6 +18,12 @@
 
 | Version | Date       | Author | Summary of Changes                            |
 | :------ | :--------- | :----- | :-------------------------------------------- |
+| 5.3     | 2026-07-20 | opencode | **Merge §10.3 into §10.1** — 12 defect-fix rows (§39–§50) appended to design table, eliminating the separate §10.3 subsection. Single unified 36-row table now covers all 24 design sections + 12 defect fixes. Tasks column uses — for defect rows (no design tasks). TOC simplified: 10.1 + 10.2 only. |
+| 5.2     | 2026-07-20 | opencode | **Status column** — §10.1 table enhanced: added Status column with section-level completion status sourced from P1.4 task statuses. §11–§29 marked ✅ (all subtasks complete), §8/§30 marked 🔷 (pending: T1.99.50–T1.99.61, T1.99.64–T1.99.69 🔷 PLANNED; T1.99.30 ⛔ Won't Implement). Design docs (§5,§9,§10) marked ✅. |
+| 5.1     | 2026-07-20 | opencode | **Task/issue cross-reference** — §10.1 table enhanced: added Tasks column (T1.x ranges per section, sourced from P1.4 Master Task Index) and Key Issues column (Ixxx IDs per section, sourced from `eks/log/issue_log.md`). 24 rows × 5 columns now provide full bidirectional traceability: workplan § → tasks → issues → appendix. |
+| 5.0     | 2026-07-20 | opencode | **Major restructure** — 50 sections collapsed to 11. §5,§8–§30,§33,§34,§36,§39–§50 consolidated into single §10 (Implementation Index) with 3 sub-tables. Deleted §37 (reserved), §38 (dup references). TOC simplified to execution-order flow: context → risks → success → implementation → references. |
+| 4.9     | 2026-07-20 | opencode | **§3 revision history relocated to [Appendix P1.6](appendix_p1.6_phase1_revision_history.md)** — full 96-entry table moved; high-level eras summary retained here. |
+| 4.8     | 2026-07-20 | opencode | **§40–§50 relocated** — defect deep-dives (§40–§42, §44–§46, §48–§50 → P1.1 §5.1–§5.9), file property extraction (§43 → Appendix J §J14), schema-driven export (§47 → P1.3 §11). |
 | 3.87    | 2026-07-17 | opencode | **I117 docs/logs/reports completeness update**: **(a)** `test_log.md` v0.2 — added TL003 (I108–I117 focused: 17 passed) and TL004 (full regression: 265/277 pass, 12 expected P1-BOOT-ENV failures). **(b)** `update_log.md` — U175 entry. **(c)** `appendix_h_bootstrap_module_design.md` v0.4 — added §H.12.1 Preload Infrastructure Guard (I117) with problem analysis, `_preload_infrastructure()` design, return dict, main() flow, and universal preload pattern note; updated §H.1/H.3/H.12. **(d)** `test_eks_engine_pipeline.py` v0.7 — fixed `discover_project_root` import (moved to `common.library.paths.root_discovery` after lazy-import refactor). All docs consistent with `eks_engine_pipeline.py` v0.6. |
 | 3.86    | 2026-07-17 | opencode | **I117 RESOLVED + T1.99.81–83 implemented**: Added `_preload_infrastructure()` pure-stdlib guard in `eks_engine_pipeline.py` v0.6 — all `common.library` imports individually try/except-guarded; errors collected and reported at once. `main()` simplified to single `infra["ready"]` gate. Added §30.10 Preload Infrastructure Guard section with problem analysis (chicken-and-egg), solution design, DCC comparison, task table, and success criteria. Documented universal preload pattern (§3.23) — NOT in common.library (circular). I117 → Resolved. Issue log + workplan updated. |
 | 3.85    | 2026-07-17 | opencode | **T1.99.80 v2 — Complete lazy-import refactor**: User review found remaining `common.library` module-level imports (`path_utils`, `root_discovery`, `core.system`) in `eks_engine_pipeline.py`. Removed all three; `safe_posix` + `should_auto_create_folders` + `discover_project_root` moved into `main()`; module-level try/except uses deferred import; `detect_os` and `test_environment` were unused at module level — removed entirely. Module now has stdlib-only imports. Updated workplan v3.84→v3.85, appendix H §H.4/H.7/H.8/H.11/H.12, update_log U174. |
@@ -123,7 +130,9 @@
 | **Foundation** | v0.1–v2.5 | 2026-06-11 to 2026-06-22 | Folder scaffolding, conda env, 3-layer schemas, document parsers, DuckDB registry, document schema v2 |
 | **Pipeline Integration** | v3.0–v3.29 | 2026-06-22 to 2026-07-08 | Auto-DDL, file scanner, parser router, orchestrator, Phase 1.3 initiation harmonization, error/message catalog, 6-dim health scoring, project_setup integration, Appendix F architecture patterns |
 | **Workplan Restructure** | v3.40–v3.52 | 2026-07-09 to 2026-07-11 | Initiation config flattening, schema discovery, system parameters SSOT, universal path resolution, workplan restructuring (Master Task Index), section resequence, canonical workplan promotion |
-| **Bootstrap & Entry-Point Convergence** | v3.53–v3.87 | 2026-07-11 to 2026-07-20 | Universal BootstrapManager (L19), entry-point relocation (CLI + web + backend), anchor-folder path resolution, cross-platform discovery, universal CLI parser (L18), pre-bootstrap logger (I113), environment checks (I114), structured BootstrapError (I111), preload infrastructure guard (I117), lazy-import refactor, §40–§50 appendix relocation |
+| **Bootstrap & Entry-Point Convergence** | v3.53–v3.87 | 2026-07-11 to 2026-07-20 | Universal BootstrapManager (L19), entry-point relocation (CLI + web + backend), anchor-folder path resolution, cross-platform discovery, universal CLI parser (L18), pre-bootstrap logger (I113), environment checks (I114), structured BootstrapError (I111), preload infrastructure guard (I117), lazy-import refactor |
+| **Appendix Relocation** | v4.8–v5.0 | 2026-07-20 | §40–§50 defect deep-dives → P1.1; §43 file property extraction → Appendix J; §47 schema-driven export → P1.3; §3 full history → P1.6; 50→11 section collapse; §10 Implementation Index consolidates all appendix redirects |
+| **Implementation Index Consolidation** | v5.1–v5.3 | 2026-07-20 | §10.1 table enhanced: added Tasks column (P1.4 cross-ref), Key Issues column (issue_log cross-ref), Status column (completion status per section); §10.3 merged into §10.1 as a single 36-row table |
 
 ---
 
