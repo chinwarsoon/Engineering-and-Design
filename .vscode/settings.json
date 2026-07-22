@@ -4,5 +4,5 @@
     "python-envs.defaultPackageManager": "ms-python.python:conda",
     "Codegeex.CommitMessage.LanguagePreference": "English",
     "Codegeex.Comment.LanguagePreference": "English",
-    "Codegeex.Chat.LanguagePreference": "English"
+    "Codegeex.Chat.LanguagePreference": "中文"
 }

@@ -1,9 +1,9 @@
 # Appendix P1.3: Phase 1 — Data Export Design (CSV/Excel)
 
 **Document ID**: WP-EKS-P1-APX-1.3
-**Version**: 1.1
-**Last Updated**: 2026-07-21
-**Status**: 🔷 IN PROGRESS — Layout restructure for design-first flow; 7 OPEN pipeline issues (I227–I233) directly impact export data quality. Consolidated 4 post-implementation fix sections (§8–§11) + issue cross-reference (§14) into single §5 Consolidated Summary with master table and collapsible details per issue. Added §1 Design Features Overview, §6 Cross-Reference Index, and Revision History. Document ID corrected from `A1.3` → `APX-1.3`.
+**Version**: 1.2
+**Last Updated**: 2026-07-22
+**Status**: 🔷 IN PROGRESS — §5.3–§5.5 root cause/fix narrative stripped to align with SSOT (issue_log.md). 7 OPEN pipeline issues (I227–I233) directly impact export data quality. Layout restructure for design-first flow completed in v1.1.
 **Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.3, IN PROGRESS)
 
 ---
@@ -180,15 +180,15 @@ The export subsystem sits **outside the core pipeline** — it is output formatt
 
 ## 5. Implementation & Issues — Consolidated Summary
 
-All implementation work was driven by 5 issues. The master table below maps each issue to its root cause, fix approach, tasks, and criteria. Expand each detail section for the full task breakdown and success criteria.
+All implementation work was driven by 5 issues. The master table below maps each issue to its tasks and criteria. Expand each detail section for the full task breakdown and success criteria. Issue detail (root cause, fix, outcome) is tracked in the issue log only.
 
-| # | Issue | Severity | Root Cause | Fix / Design Rationale | Tasks | Criteria | Status |
-|:---:|:---|:---:|:---|:---|:---:|:---:|:---:|
-| 1 | **I126** — No CSV/Excel export capability | 🟠 HIGH | Pipeline results trapped in DuckDB; no export path exists | **L22 DataExporter** (`common/library/export/`) + EKS CLI wiring (`--export` flag). Design decision: export stays in `main()` (output formatting, not pipeline processing) — keeps orchestrator pure, `run_pipeline()` remains `context → context`. DCC reuse path: replace `df.to_csv()` with L22 in future. | 8 | 12/12 | ✅ |
-| 2 | **I188** — Empty export files (discovery + review always 0 rows) | 🟠 HIGH | (a) Status filter `["pending"]` matched nothing post-run; (b) `elif status != "success"` missed `None`-confidence docs with `status="success"` | (a) Remove status filter → `None` (all docs); (b) Replace `elif status != "success"` → unconditional `else:` for None-confidence catch-all. Added EKS-level export unit tests. | 5 | 7/7 | ✅ |
-| 3 | **I189** — Stale output + test-DB pollution (4 intertwined root causes) | 🟠 HIGH | (A) Shared `output/` — all runs overwrite; (B) tests write to production DB via singleton registry; (C) export queries all docs ever registered; (D) test `--export both` overwrites production output | **F1**: optional `db_path` param on `DocumentRegistry.__init__`; **F2**: export scoped to current-run docs (pre/post set difference); **F3**: per-run UUID subdirs; **F4**: mocked registry in export tests via `mock.patch` | 4 | 7/7 | ✅ |
-| 4 | **I192** — UUID folder names not human-readable | 🟠 HIGH | I189/F3 created per-run `output/<uuid>/` subdirs; users cannot identify latest run | Atomic root-level copy after each run using `dst_tmp.replace(dst_final)` pattern. `output/*.csv`/`.xlsx` always latest. UUID subdirs preserved unchanged for history/audit. | — | 1/1 | ✅ |
-| 5 | **I193** — Hardcoded 11-field export; 43 DB columns ignored | 🟠 HIGH | `_build_export_rows()` manually constructed 11-key dict; no schema linkage | Schema-driven: **`x_export` flags** (50 true / 4 false) on all 54 `document_metadata_def` properties; **`export_artifact_def`** with 3 artifact column lists; **`resolve_export_columns()`** runtime resolver with 11-field fallback. Design decision: `x_` prefix is a JSON Schema custom annotation — validators ignore unknown keywords per spec §6.4; zero schema-breaking risk. `_build_export_rows()` refactored to pass-through dict + column subsetting. | 6 | 9/9 | ✅ |
+| # | Issue | Tasks | Criteria |
+|:---:|:---|:---:|:---:|
+| 1 | **I126** — No CSV/Excel export capability | 8 | 12/12 |
+| 2 | **I188** — Empty export files (discovery + review always 0 rows) | 5 | 7/7 |
+| 3 | **I189** — Stale output + test-DB pollution | 4 | 7/7 |
+| 4 | **I192** — UUID folder names not human-readable | — | 1/1 |
+| 5 | **I193** — Hardcoded 11-field export; 43 DB columns ignored | 6 | 9/9 |
 
 ### 5.1 Open Pipeline Issues Caveat (I227–I233)
 
@@ -234,7 +234,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 - [x] Full EKS test suite green
 - [x] I126 → Resolved in `issue_log.md`; U183 in `update_log.md`
 
-**Design Decisions for I126:**
+**Design Decisions:**
 - **Reuse from DCC:** DCC's `_run_export()` uses pandas `.to_csv(index=False)` / `.to_excel(index=False)` inline. L22 extracts the core write logic into a reusable module but does **not** modify DCC code. Future DCC migration: replace `df_processed.to_csv(path, index=False)` → `DataExporter().export_to_csv(rows, path)`.
 - **Path Resolution:** Output files go to `resolve_paths() → output_dir` (L16). Discovery inventory / extraction results / review flags are always overwritten on each run.
 
@@ -243,21 +243,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 ### 5.3 Detail: I188 — Empty Export Files (T1.99.147–151)
 
 <details>
-<summary><b>Discovery, Root Causes, Task Breakdown (5 tasks, 7/7 criteria met)</b></summary>
-
-**Discovery:** `--export both` only produced `extraction_results.{csv,xlsx}`. `discovery_inventory` and `review_flags` were never written.
-
-**Root Causes & Fixes:**
-
-**Gap A — `discovery_inventory` Empty:**
-- **Root cause:** `_build_export_rows(all_docs, ["pending"], discovery_cols)` filtered for `extract_status == "pending"`. After a full pipeline run, all documents have `extract_status = "success"` → `discovery_rows` is always `[]` → `if discovery_rows:` guard prevents file write.
-- **Fix:** Changed status filter from `["pending"]` to `None` so discovery inventory includes ALL discovered documents.
-
-**Gap B — `review_flags` Empty:**
-- **Root cause:** `_build_flagged_rows()` line 1126-1127: `elif status != "success": reasons.append("Confidence: missing")`. When `extraction_confidence` is `None` AND `extract_status` is `"success"`, the condition `status != "success"` is False → no reason added → doc not flagged. All 170 current docs had `confidence=None` + `status="success"`.
-- **Fix:** Changed `elif` to unconditional `else:`, so missing confidence always generates a "Confidence: missing" flag reason regardless of status.
-
-**Gap C — No EKS-Level Export Tests:** Added tests in `eks/test/test_eks_engine_pipeline.py` for `_build_export_rows()`, `_build_flagged_rows()`, and integration `main()` with `--export both`.
+<summary><b>Task Breakdown (5 tasks, 7/7 criteria met)</b></summary>
 
 | # | Scope | Task | Details | Status |
 |:---|:---|:---|:---|:---:|
@@ -281,27 +267,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 ### 5.4 Detail: I189 — Stale Output + Test-DB Pollution (T1.99.153–156)
 
 <details>
-<summary><b>Discovery, Root Causes, Fix Design, Task Breakdown (4 tasks, 7/7 criteria met)</b></summary>
-
-**Discovery:** Post-I188, output CSV/Excel files contained dummy DOC-001/DOC-002 data (from test runs) despite production DB having 172 real rows. Four intertwined root causes identified.
-
-**Root Causes:**
-
-| Root Cause | Description |
-|:---|:---|
-| **(A)** Shared `eks/output/` directory | All runs and tests write to the same directory — no per-run isolation. |
-| **(B)** Test data pollutes production DB | Tests call `main()` which creates `DocumentRegistry` via singleton `output/eks_registry.db`. Test runs register synthetic docs into production DB. |
-| **(C)** Export queries ALL docs | `list_documents(latest_only=True)` returns every doc ever registered, not just current-run docs. |
-| **(D)** Tests with `--export both` overwrite production | `test_main_export_both_runs` writes 6 files to `eks/output/`, overwriting production exports. |
-
-**Fix Design:**
-
-| Fix | Approach | File(s) |
-|:---|:---|:---|
-| **F1** — Test-isolated DB | Add optional `db_path` parameter to `DocumentRegistry.__init__`. Tests pass temp paths. | `registry.py` |
-| **F2** — Export scoped to current run | Capture pre-run `document_number` set; post-run filter export to new docs only (set difference). | `eks_engine_pipeline.py::main()` |
-| **F3** — Per-run output directories | Write exports to `output/<run_id>/` instead of `output/` root. | `eks_engine_pipeline.py::main()` |
-| **F4** — Tests avoid export pollution | `test_main_export_both_runs` uses `mock.patch` for `DocumentRegistry` with temp DB. | `test_eks_engine_pipeline.py` |
+<summary><b>Task Breakdown (4 tasks, 7/7 criteria met)</b></summary>
 
 | # | Scope | Task | Details | Status |
 |:---|:---|:---|:---|:---:|
@@ -324,13 +290,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 ### 5.5 Detail: I192 — UUID Folder Names Not Human-Readable
 
 <details>
-<summary><b>Problem, Fix, Result</b></summary>
-
-**Problem:** I189/F3 created per-run `output/<uuid>/` subdirectories. From a user's perspective: `output/710d6cee-.../`, `output/47677600-.../`, etc. — impossible to tell which folder has the latest files without manually comparing timestamps. UUIDs are machine identifiers, not human-readable.
-
-**Fix:** After each export completes, atomically copy the 6 CSV/XLSX files to `output/` root (overwriting previous copies). UUID subdirectories are preserved unchanged for history/audit per I189/F3. Copy uses atomic `dst_tmp.replace(dst_final)` pattern so a partial write is never visible.
-
-**Result:** `output/*.csv` + `output/*.xlsx` now always contain latest exports. `output/<uuid>/` directories preserve full run history.
+<summary><b>Success Criteria (1/1 criteria met)</b></summary>
 
 **Success Criteria:**
 - [x] Root-level `output/*.csv`/`.xlsx` always reflect latest run
@@ -446,7 +406,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 |:---|:---|:---|
 | [P1.1](appendix_p1.1_phase1_architecture.md) | Phase 1 — Architecture & Design Blueprints | Overall architecture; export subsystem is a Phase 1 output-formatting layer |
 | [P1.2](appendix_p1.2_phase1_scope.md) | Phase 1 — Scope & Module Inventory | Scope caveat (§2) for I227–I233 impacting export quality |
-| P1-D | Phase 1 — Checklists | Export-related verification items |
+| P1-D | Phase 1 — Checklists (superseded by [p1_sc_log.md](../log/phase1/p1_sc_log.md)) | Export-related verification items |
 
 ### 6.2 General Appendices
 
@@ -467,12 +427,12 @@ All implementation work was driven by 5 issues. The master table below maps each
 
 | Issue | Location | Description |
 |:---|:---|:---|
-| I126 | `eks/log/issue_log.md` | No CSV/Excel export capability |
-| I188 | `eks/log/issue_log.md` | Empty export files |
-| I189 | `eks/log/issue_log.md` | Stale output + test-DB pollution |
-| I192 | `eks/log/issue_log.md` | UUID folder names not human-readable |
-| I193 | `eks/log/issue_log.md` | Hardcoded 11-field export |
-| I227–I233 | `eks/log/issue_log.md` | OPEN pipeline issues (see §5.1 caveat) |
+| I126 | `../log/phase1/p1_issue_log.md` | No CSV/Excel export capability |
+| I188 | `../log/phase1/p1_issue_log.md` | Empty export files |
+| I189 | `../log/phase1/p1_issue_log.md` | Stale output + test-DB pollution |
+| I192 | `../log/phase1/p1_issue_log.md` | UUID folder names not human-readable |
+| I193 | `../log/phase1/p1_issue_log.md` | Hardcoded 11-field export |
+| I227–I233 | `../log/phase1/p1_issue_log.md` | OPEN pipeline issues (see §5.1 caveat) |
 
 ### 6.5 Update Log
 
@@ -490,6 +450,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 
 | Version | Date | Author | Changes |
 |:---|:---|:---|:---|
+| **1.2** | 2026-07-22 | AI Agent (SSOT alignment) | §5.3–§5.5 root cause/fix narrative removed (I188 Discovery + Root Causes & Fixes, I189 Discovery + Root Causes + Fix Design, I192 Problem/Fix/Result). Only task tables + SC checklists retained per SSOT rule (issue detail lives only in `issue_log.md`). §5 intro updated. |
 | **1.1** | 2026-07-21 | AI Agent (layout restructure) | Major restructure for design-first flow: fixed Document ID (`A1.3` → `APX-1.3`), changed status to 🔷 IN PROGRESS, added §1 Design Features Overview (1.1–1.3), merged current §2+§3 → §2 Export Architecture & Design, consolidated §5–§11+§14 into single §5 master table with collapsible `<details>` blocks per issue, added §5.1 I227–I233 scope caveat, added §6 Cross-Reference Index, added Revision History. 14 sections → 6 sections. No content loss. |
 | **1.0** | 2026-07-20 | AI Agent (initial) | Initial creation: integrated §32 and §47 content from main workplan, restored export design from source code analysis, `issue_log.md`, and `update_log.md`. Documented L22 DataExporter, EKS wiring, 4 post-implementation fixes (I188/I189/I192/I193), API endpoint, and source code reference. |
 

@@ -180,80 +180,72 @@
 >
 > Merged and deduplicated. §37 was a later extension of §34 with 3 additional bootstrap-fix deliverables appended.
 
-- EKS project folder structure (including `eks/config/schemas/`)
-- `eks/eks.yml` — Conda environment file
-- Canonical schema files (Base/Setup/Config): `eks_base_schema.json`, `eks_setup_schema.json`, `eks_config.json` (moved to `eks/config/schemas/`)
-- Engine modules: `registry.py`, `revision.py`, `config_registry.py`, `schema_loader.py`
-- Parser modules: `base_parser.py`, `pdf_parser.py`, `docx_parser.py`, `xlsx_parser.py`
-- Logging module: `logger.py`
-- Test files: `test_phase1.py`, `test_asset_schema.py`, `test_loader_full.py`, `validate_ontology.py`
-- Log files: `update_log.md`, `issue_log.md`
-- Package init files: `engine/__init__.py`, `engine/core/__init__.py`, `engine/parsers/__init__.py`, `engine/logging/__init__.py`
-- Asset schema files: `eks_asset_base_schema.json` (13 fragments), `eks_asset_setup_schema.json` (fragment categories + inheritance), `eks_asset_config.json` (fragment categories populated) (moved to `eks/config/schemas/`)
-- Ontology files: `eks_ontology_base_schema.json`, `eks_ontology_setup_schema.json`, `eks_ontology_config.json` (moved to `eks/config/schemas/`)
-- Pipeline message & error schema files: `eks_error_code_base.json`, `eks_error_config.json`, `eks_message_base.json`, `eks_message_config.json` (`eks/config/schemas/`)
-- Error/message/scoring modules: `error_manager.py`, `message_manager.py`, `health_scorer.py`, `structure_detector.py`
-- Test file: `test_t132_modules.py` (47 tests, all passing)
-- Reports: `phase_1_foundation_report.md` (includes T1.30–T1.32 results consolidated)
-- Document schema files (T1.34): `eks_doc_base_schema.json` (document + element definitions), `eks_doc_setup_schema.json` (table declarations, extraction rules, health scoring), `eks_doc_config.json` (ontology triggers, health score tiers, element expectations)
-- Enhanced document schema files (T1.35): `eks_doc_base_schema.json` v1.1 (enums + missing fields), `eks_doc_setup_schema.json` v1.1 (3 registries), `eks_doc_config.json` v1.1 (registry values + refactored expectations)
-- Updated test file: `test_phase1.py` (+6 tests for enhanced doc schema)
-- Updated appendix: `appendix_b_document_registry.md` v0.9 (B3.2, B3.3, B3.4 sections)
-- Auto-DDL module (T1.36): `schema_to_ddl.py` (generates SQL from JSON schema definitions)
-- File scanner module (T1.37): `file_scanner.py` (directory walk, type validation, placeholder registration)
-- Parser router module (T1.38): `parser_router.py` (file_type → parser class routing)
-- Pipeline orchestrator (T1.39): `pipeline_orchestrator.py` (Phase A/B/C coordinator)
-- Manual review workflow (T1.40): `review_manager.py` (query flagged docs, metadata correction, element confirmation, score recalculation, document lock) + 4 tests
-- Error/message schema setup layers (T1.41): `eks_error_setup_schema.json`, `eks_message_setup_schema.json` (allOf + $ref pattern)
-- Fragment schemas (T1.42–T1.45): `eks_project_code_schema.json` (3 projects), `eks_discipline_schema.json` (21 disciplines), `eks_department_schema.json` (11 departments), `eks_facility_schema.json` (12 facilities)
-- Base schema definitions (T1.46): `project_entry_def`, `department_entry_def`, `facility_entry_def` added to `eks_base_schema.json`
-- Config updates (T1.46): `eks_config.json` with real WSD11 codes (131101, 131242) and `$ref` to fragment schemas
-- Setup schema updates (T1.46): `eks_setup_schema.json` with `project_registry`, `department_registry`, `facility_registry` property declarations
-- Fragment schema tests (T1.47): 6 new tests in `test_phase1.py` (59/59 total)
-- Data challenge analysis: I015–I021 logged to `eks/log/issue_log.md`, §25 added to master workplan
-- Schema audit fixes (T1.48): duplicate defs removed, parser paths aligned, missing parsers added, I022–I028 logged
-- URI alignment (I027): error/message base schema `$id` changed to filename-based pattern
-- Shared `verbosity_level` definition in `eks_base_schema.json` (SSOT for message + logging levels)
-- Shared `document_relationship_trigger_map` definition in `eks_base_schema.json` (SSOT for asset + doc trigger mappings)
-- `schema_loader.py` updated: `base_schema` added to all validation registries for cross-schema `$ref` support
-- `test_asset_schema.py` and `test_phase1.py` updated: `eks_base_schema.json` included in validation registries
-- **T1.50 Base schema SSOT enforcement**: `document_relationship_trigger_map` stripped to shape-only (U086), `revision_id` moved to doc schema set + `revision_validation` 3-layer chain (U087), `revision_pattern` removed from `project_rules_def`
-- `eks_doc_setup_schema.json` v1.3.0: added `revision_validation` property
-- `eks_doc_config.json` v1.2.0: added `revision_validation` entries (131101→`^[A-Z0-9]{1,2}$`, 131242→`^[0-9]{3}$`)
-- `eks_project_rules_config.json` v1.1.0: removed `revision_pattern` (now SSOT in doc config)
-- `config_registry.py`: `_load_ref()` + `get()` + helper methods resolve `$ref` on-the-fly
-- `schema_inheritance_chain.md` v1.6: report updated with SSOT changes
-- **Initiation Integrity & Hardening (T1.77–T1.83)**: `setup_validator.py` v0.6 (P1-SETUP-* codes + ErrorManager gate), `phase1_server.py` v0.8 (config-driven paths, `eks_root`, `--skip-readiness`), `eks_error_code_base.json`/`eks_error_setup_schema.json`/`eks_error_config.json` (7 P1-SETUP-* codes, "Setup" category), `test_setup_validator.py` (+7 T1.79 tests + 1 SSOT test), `test_phase1_server.py` (+36 tests); 215/215 pass
-- **Phase 1.3 Initiation Harmonization (T1.84–T1.89)**: `common/library/utility/validation/manager.py` + `__init__.py` (universal `ValidationManager`), `eks_project_setup_config.json` v1.0.0 (extracted `project_setup`), `eks_base_schema.json` v1.7.0 (8 object defs), `eks_setup_schema.json` v1.4.0, `eks_config.json` v1.5.0, `setup_validator.py` v0.7 (thin adapter), `test_validation_manager.py` (20), `test_setup_validator.py` (19); 235/235 pass
-- **Bootstrap path-rooting fix (I130 / T1.99.101–T1.99.103)**: `bootstrap.py` L250 — `if self._path_resolver is not None:` → `if self._path_resolver is not None and self.config:`. Option A guard prevents resolver call with empty config during P2_paths (runs before P3_registry), falling through to else-branch correctly anchored under `pipeline_root_dir="eks"`. See §39.
-- **KeyError 'revision' fix (I131 / T1.99.104–T1.99.107)**: 3-level layered fix in `file_scanner.py` + `registry.py`: (L1) `_parse_filename()` fallback returns `revision="00"`, (L2) `build_placeholder_metadata()` safety net `setdefault("revision", "00")`, (L3) `register_document()` uses `.get("revision", "00")` + `.get("document_number")`. Pipeline now runs Phase A→B→C: 19 files, 7 flagged. See §40.
-- **.dwg file type orphan fix (I132 / Option B)**: Added `"CAD"` document type to `eks_doc_base_schema.json` enum, `eks_doc_setup_schema.json` propertyNames pattern, and `eks_doc_config.json` document_type_registry + element_expectations. `.dwg` files now have a document type that expects them. See §41.
-- **Pipeline IO contracts (T1.72)**: `io_contracts.py` — `DiscoveryInput`/`DiscoveryOutput`/`ParserInput`/`ParserOutput` dataclasses for phase-boundary contract enforcement
-- **Per-run artifacts (T1.73, T1.76)**: `checkpoint_{job_id}.json` (resume state), `pipeline_status_{job_id}.json` (final status summary), `pipeline_messages_{job_id}.json` (message/error catalog), `debug_log.json` (structured debug log)
-- **Filename & property parsers (T1.99.133–T1.99.167)**: `filename_parser.py` (document number/revision extraction from filename), `file_property_parser.py` (file system metadata extraction)
-- **Common library — bootstrap (T1.99.50–T1.99.63)**: `common/library/bootstrap/` — universal `BootstrapManager` (L19), phase tracking, dual-mode (`bootstrap_all`/`bootstrap_for_ui`), structured `BootstrapError`
-- **Common library — paths (T1.98)**: `common/library/paths/` — schema-driven `global_paths` resolution with anchor-folder-based discovery
-- **Common library — CLI (T1.99.27–T1.99.29)**: `common/library/cli/` — shared CLI entry-point patterns
-- **Common library — export (T1.99.147–T1.99.167)**: `common/library/export/` — structured export utilities
-- **DGN/DWG stub parsers (T1.35)**: Placeholder parser stubs for CAD formats; full implementation deferred to Phase 3 per R01 scope note
+| ID | Deliverable | Category | Status | Tasks | Issues | Ref |
+|:---|:------------|:---------|:------:|:------|:-------|:---:|
+| D001 | EKS project folder structure (including `eks/config/schemas/`) | Foundation | ✅ | T1.1 | — | §11 |
+| D002 | `eks/eks.yml` Conda environment file | Config | ✅ | T1.2 | — | §5 |
+| D003 | Canonical schema files (base/setup/config): `eks_base_schema.json`, `eks_setup_schema.json`, `eks_config.json` | Schema | ✅ | T1.3–T1.5 | — | §12, §16 |
+| D004 | Engine modules: `registry.py`, `revision.py`, `config_registry.py`, `schema_loader.py` | Module | ✅ | T1.7, T1.21 | — | §20 |
+| D005 | Parser modules: `base_parser.py`, `pdf_parser.py`, `docx_parser.py`, `xlsx_parser.py` | Module | ✅ | T1.9–T1.12 | — | §21 |
+| D006 | Logging module: `logger.py` | Module | ✅ | T1.13 | — | §19 |
+| D007 | Test files: `test_phase1.py`, `test_asset_schema.py`, `test_loader_full.py`, `validate_ontology.py` | Test | ✅ | T1.47, T1.35.5 | — | §12, §22 |
+| D008 | Log files: `update_log.md`, `issue_log.md` | Doc | ✅ | — | — | — |
+| D009 | Package init files: `engine/__init__.py`, `engine/core/__init__.py`, `engine/parsers/__init__.py`, `engine/logging/__init__.py` | Module | ✅ | — | — | — |
+| D010 | Asset schema files: `eks_asset_base_schema.json` (13 fragments), `eks_asset_setup_schema.json`, `eks_asset_config.json` | Schema | ✅ | T1.17–T1.20 | I228 | §17 |
+| D011 | Ontology files: `eks_ontology_base_schema.json`, `eks_ontology_setup_schema.json`, `eks_ontology_config.json` | Schema | ✅ | T1.23–T1.29 | I007, I008 | §18 |
+| D012 | Pipeline message & error schema files: `eks_error_code_base.json`, `eks_error_config.json`, `eks_message_base.json`, `eks_message_config.json` | Schema | ✅ | T1.41 | I014 | §19, §19.3 |
+| D013 | Error/message/scoring modules: `error_manager.py`, `message_manager.py`, `health_scorer.py`, `structure_detector.py` | Module | ✅ | T1.30–T1.32, T1.68–T1.71 | I105, I195–I207 | §19 |
+| D014 | `test_t132_modules.py` (47 tests, all passing) | Test | ✅ | T1.30–T1.32 | — | §19 |
+| D015 | `phase_1_foundation_report.md` (includes T1.30–T1.32 results consolidated) | Doc | ✅ | T1.30–T1.32 | — | — |
+| D016 | Document schema files (T1.34): `eks_doc_base_schema.json`, `eks_doc_setup_schema.json`, `eks_doc_config.json` | Schema | ✅ | T1.34 | I012 | §22 |
+| D017 | Enhanced document schema files (T1.35): v1.1 of all 3 doc schema files (enums, registries, expectations) | Schema | ✅ | T1.35 | I164–I175 | §22 |
+| D018 | Updated test file: `test_phase1.py` (+6 tests for enhanced doc schema) | Test | ✅ | T1.35.5 | — | §22 |
+| D019 | Updated `appendix_b_document_registry.md` v0.9 (B3.2, B3.3, B3.4 sections) | Doc | ✅ | T1.35.6 | — | §22 |
+| D020 | Auto-DDL module (T1.36): `schema_to_ddl.py` | Module | ✅ | T1.36 | — | §23 |
+| D021 | File scanner module (T1.37): `file_scanner.py` | Module | ✅ | T1.37 | — | §23 |
+| D022 | Parser router module (T1.38): `parser_router.py` | Module | ✅ | T1.38 | — | §23 |
+| D023 | Pipeline orchestrator (T1.39): `pipeline_orchestrator.py` (Phase A/B/C coordinator) | Module | ✅ | T1.39 | I013, I215, I225, I229 | §23 |
+| D024 | Manual review workflow (T1.40): `review_manager.py` + 4 tests | Module | ✅ | T1.40 | — | §23 |
+| D025 | Error/message schema setup layers (T1.41): `eks_error_setup_schema.json`, `eks_message_setup_schema.json` | Schema | ✅ | T1.41 | I014 | §19 |
+| D026 | Fragment schemas (T1.42–T1.45): `eks_project_code_schema.json`, `eks_discipline_schema.json`, `eks_department_schema.json`, `eks_facility_schema.json` | Schema | ✅ | T1.42–T1.45 | — | §12, §16 |
+| D027 | Base schema definitions (T1.46): `project_entry_def`, `department_entry_def`, `facility_entry_def` | Schema | ✅ | T1.46 | I005 | §12, §16 |
+| D028 | Config updates (T1.46): real WSD11 codes (131101, 131242), `$ref` to fragment schemas | Config | ✅ | T1.46 | I005 | §12, §16 |
+| D029 | Setup schema updates (T1.46): `project_registry`, `department_registry`, `facility_registry` registries | Schema | ✅ | T1.46 | — | §12, §16 |
+| D030 | Fragment schema tests (T1.47): 6 new tests in `test_phase1.py` | Test | ✅ | T1.47 | — | §12, §16 |
+| D031 | Data challenge analysis: I015–I021 logged to issue_log, §25 added to master workplan | Doc | ✅ | — | I015–I021 | §25 |
+| D032 | Schema audit fixes (T1.48): duplicate defs removed, parser paths aligned, missing parsers added | Fix | ✅ | T1.48 | I022–I028 | §14 |
+| D033 | URI alignment (I027): error/message base schema `$id` → filename-based pattern | Fix | ✅ | T1.48 | I027 | §14 |
+| D034 | Shared `verbosity_level` definition in `eks_base_schema.json` (SSOT for message + logging) | Schema | ✅ | — | — | §19 |
+| D035 | Shared `document_relationship_trigger_map` definition in `eks_base_schema.json` (SSOT for asset + doc) | Schema | ✅ | — | — | §17, §22 |
+| D036 | `schema_loader.py` updated: `base_schema` added to all validation registries | Module | ✅ | T1.48 | I022 | §14 |
+| D037 | Test files updated: `eks_base_schema.json` included in validation registries | Test | ✅ | T1.48 | — | §14 |
+| D038 | T1.50 Base schema SSOT enforcement: trigger_map→shape-only, revision_id→doc schema chain | Fix | ✅ | T1.50 | I031, I032 | §16 |
+| D039 | `eks_doc_setup_schema.json` v1.3.0: added `revision_validation` property | Schema | ✅ | T1.50 | — | §22 |
+| D040 | `eks_doc_config.json` v1.2.0: revision_validation entries (131101→`^[A-Z0-9]{1,2}$`, 131242→`^[0-9]{3}$`) | Config | ✅ | T1.50 | — | §22 |
+| D041 | `eks_project_rules_config.json` v1.1.0: removed `revision_pattern` (SSOT in doc config) | Config | ✅ | T1.50 | — | §16 |
+| D042 | `config_registry.py`: `_load_ref()` + `get()` + helpers for on-the-fly `$ref` resolution | Module | ✅ | T1.50 | — | §14 |
+| D043 | `schema_inheritance_chain.md` v1.6: report updated with SSOT changes | Doc | ✅ | T1.50 | — | — |
+| D044 | Initiation Integrity & Hardening (T1.77–T1.83): `setup_validator.py`, `phase1_server.py`, P1-SETUP-* codes, test files | Module | ✅ | T1.77–T1.83 | I046, I100 | §24 |
+| D045 | Phase 1.3 Initiation Harmonization (T1.84–T1.89): universal `ValidationManager`, adapted `setup_validator` | Module | ✅ | T1.84–T1.89 | I046 | §25 |
+| D046 | Bootstrap path-rooting fix (I130): `self._path_resolver` guard in `bootstrap.py` | Fix | ✅ | T1.99.101–103 | I130 | §39 |
+| D047 | KeyError `revision` fix (I131): 3-level layered fallback in `file_scanner.py` + `registry.py` | Fix | ✅ | T1.99.104–107 | I131 | §40 |
+| D048 | `.dwg` file type orphan fix (I132): CAD document type added to doc schema enum + config | Fix | ✅ | T1.99.108 | I132 | §41 |
+| D049 | Pipeline IO contracts (T1.72): `io_contracts.py` — phase-boundary dataclasses | Module | ✅ | T1.72 | — | §23 |
+| D050 | Per-run artifacts (T1.73, T1.76): checkpoint, status, messages, debug JSON | Module | ✅ | T1.73, T1.76 | I124 | §23, §32 |
+| D051 | Filename & property parsers (T1.99.133–167): `filename_parser.py`, `file_property_parser.py` | Module | ✅ | T1.99.133–167 | I133–I162 | §21, §42–§43 |
+| D052 | Common library — bootstrap (T1.99.50–63): `BootstrapManager`, phase tracking, dual-mode, `BootstrapError` | Common | ✅ | T1.99.50–63 | I108–I111 | §30 |
+| D053 | Common library — paths (T1.98): `global_paths` resolution, anchor-folder-based discovery | Common | ✅ | T1.98.1–8 | I089, I090, I130 | §29 |
+| D054 | Common library — CLI (T1.99.27–29): shared CLI entry-point patterns | Common | ✅ | T1.99.27–29 | I099 | §30 |
+| D055 | Common library — export (T1.99.147–167): `DataExporter` CSV/XLSX export utilities | Common | ✅ | T1.99.147–167 | I126, I188, I189 | §32 |
+| D056 | DGN/DWG stub parsers (T1.35): Placeholder CAD parser stubs; full impl deferred to Phase 3 | Module | 🔷 | T1.35 | I132, I228 | §21 |
 
 ---
 
 ## 5. Issue Cross-Reference
 
-> Maps open issues (I227–I233) to affected scope items for traceability. For resolved issues I130–I226, see [Appendix P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references).
+> 7 open pipeline issues (I227–I233) — see [`p1_issue_log.md`](../log/phase1/p1_issue_log.md) for full details. Resolved issues I130–I226 are documented in [Appendix P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references).
 
-| Issue ID | Date | Severity | Title | Affected Scope | Root Cause | Status |
-|:---------|:-----|:---------|:------|:---------------|:-----------|:------:|
-| **I227** | 2026-07-20 | 🔴 CRITICAL | Phase B re-scans entire directory (2× I/O) | R57 — Pipeline Orchestration | `Phase B` entry re-calls `_scan_directory()` instead of reusing Phase A results | 🔴 OPEN |
-| **I228** | 2026-07-20 | 🔴 CRITICAL | Asset schema fragments have zero runtime pipeline code | R36, R39 — Asset Schema | 13 fragments + 14 AT_ types defined in JSON schema but no pipeline module consumes them; schema-only artifact | 🔴 OPEN |
-| **I229** | 2026-07-20 | 🔴 CRITICAL | Per-file telemetry overwhelms storage at scale | R33, R34, R51 — Logging & Health | Telemetry heartbeat fires per-file without aggregation, sampling, or rotation at scale | 🔴 OPEN |
-| **I230** | 2026-07-20 | 🔴 CRITICAL | No `validate_phase_transition()` between phases | R57 — Pipeline Orchestration | Phase transitions lack guard validation; pipeline can skip or reorder phases silently | 🔴 OPEN |
-| **I231** | 2026-07-20 | 🔴 CRITICAL | Version diverges across 3 sources (SSOT violation) | R99 — Foundation | `knowledge.json`, `eks_engine_pipeline.py`, and `engine/__init__.py` report different version strings | 🔴 OPEN |
-| **I232** | 2026-07-20 | 🔴 CRITICAL | Legacy `doc_id` fallback conflicts with `RevisionManager` | R21, R22 — Revision Management | `registry.py` uses legacy `doc_id`-based lookup as fallback path, bypassing revision chain integrity | 🔴 OPEN |
-| **I233** | 2026-07-20 | 🔴 CRITICAL | 1500-line monolithic `eks_engine_pipeline.py` | R99 — Foundation | Pipeline entry point grew to ~1500 lines without module decomposition; violates single-responsibility and maintainability | 🔴 OPEN |
-
-> **Source:** `eks/log/issue_log.md` — 2026-07-20 pipeline audit. See [Appendix P1.6](appendix_p1.6_phase1_revision_history.md) for change history.
+> **Source:** `../log/phase1/p1_issue_log.md` — 2026-07-20 pipeline audit. See [Appendix P1.6](appendix_p1.6_phase1_revision_history.md) for change history.
 
 ---
 
@@ -262,6 +254,7 @@
 | Version | Date       | Author    | Summary |
 | :------ | :--------- | :-------- | :------ |
 | 1.0     | 2026-07-21 | CodeBuddy | Initial versioning — added metadata block (Document ID, Version, Status, Parent Workplan), scope caveat for I227–I233 (7 open pipeline issues), corrected 4 file paths from `eks/config/` to `eks/config/schemas/`, fixed 3 trailing-quote typos in §3 file table, appended 12 missing deliverables (T1.72–T1.99) to §4, added §5 Issue Cross-Reference with full I227–I233 root cause / affected scope / status table, added Table of Contents and Revision History. |
+| 1.1     | 2026-07-22 | opencode | §4 deliverable list converted to structured table (D001–D056) with columns: Category, Status, Tasks, Issues, Workplan Ref. All 56 entries preserved — includes bootstrap-fix artifacts (D046–D048), pipeline contracts (D049–D051), and common library modules (D052–D055). |
 
 
 

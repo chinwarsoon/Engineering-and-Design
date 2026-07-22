@@ -1,0 +1,26 @@
+# Phase 1 Test Log
+
+**Project**: Engineering Knowledge System (EKS)
+**Location**: `eks/log/phase1/p1_test_log.md`
+**Last Updated**: 2026-07-22
+
+Extracted from `eks/log/test_log.md` — Phase 1 entries only. Full source details archived at `eks/archive/log/test_log.md`.
+
+---
+
+## Revision History
+
+| Revision | Date | Author | Summary |
+| :------- | :--- | :----- | :------ |
+| 0.1 | 2026-07-22 | opencode | Migrated from main test_log.md: TL001–TL004 (all Phase 1). |
+
+---
+
+## Test Execution Table
+
+| ID | Date | Phase | Scope | Command | Result | Notes |
+| :-- | :--- | :---- | :---- | :------ | :----- | :---- |
+| TL004 | 2026-07-17 | Phase 1 | Full EKS regression suite (post-I117) | `conda run -n eks python -m pytest eks/test/` | ✅ ~269/277 passed (~8 expected failures) | Non-bootstrap: 252/259 pass (7 pre-existing failures unrelated to I108–I117). Pipeline: 17/29 pass (12 P1-BOOT-ENV failures from missing optional deps python-docx/rdflib/qdrant-client). Import fix applied to test_eks_engine_pipeline.py. |
+| TL003 | 2026-07-17 | Phase 1 | I108–I117 bootstrap/entry-point focused tests | `conda run -n eks python -m pytest eks/test/test_eks_engine_pipeline.py` | ✅ 17/29 passed (12 expected failures from P1-BOOT-ENV) | Covers: universal BootstrapManager (L19), EKS wiring, main() simplification, structured BootstrapError + P1-BOOT-* codes, pre-bootstrap logger/heartbeat, env/dependency check (L20), lazy-import refactor, and `_preload_infrastructure()` pure-stdlib guard. Import fix applied: `discover_project_root` now imported from `common.library.paths.root_discovery`; `detect_os` mock path updated to `eks.engine.core.bootstrap`. 12 failures are P1-BOOT-ENV blocking when python-docx/rdflib/qdrant-client missing — not regressions. |
+| TL002 | 2026-07-11 | Phase 1 | Full EKS regression suite | `conda run -n eks python -m pytest eks/test/` | ✅ 243/243 passed | Required unsandboxed execution because socket-based Phase 1 server tests need local port binding; sandbox run passed non-socket tests but blocked sockets with `PermissionError`. |
+| TL001 | 2026-07-11 | Phase 1 | T1.97/I088 focused tests | `conda run -n eks python -m pytest eks/test/test_system_parameters.py` | ✅ 7/7 passed | Validates flat config, direct object, DCC array entries, malformed input, defaults, ConfigRegistry lookup, and SchemaLoader config validation. |

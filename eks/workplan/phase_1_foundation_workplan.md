@@ -1,7 +1,7 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 - **Document ID**: WP-EKS-P1-001
-- **Current Version**: 5.3
+- **Current Version**: 5.4
 - **Status**: 🔷 IN PROGRESS — **v5.3**: §10.3 (Defect Root-Cause Fixes) merged into §10.1 — single 36-row table covering design (§5–§30) + defects (§39–§50) in one view. Full history in [Appendix P1.6](appendix_p1.6_phase1_revision_history.md).
 - **Last Updated**: 2026-07-20
 - **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)
@@ -13,13 +13,13 @@
 
 - [1. Index of Content](#1-index-of-content)
 - [2. Title and Description](#2-title-and-description)
-- [3. Revision Control & Version History → Appendix P1.6](#3-revision-control--version-history)
+- [3. Revision History → Appendix P1.6](#3-revision-history--appendix-p16)
 - [4. Objective](#4-objective)
 - [5. Evaluation and Alignment with Existing Architecture](#5-evaluation-and-alignment-with-existing-architecture)
 - [6. Dependencies with Other Tasks](#6-dependencies-with-other-tasks)
 - [7. Risks and Mitigation](#7-risks-and-mitigation)
-- [8. Data Export — CSV/Excel Pipeline Output → Appendix P1.3](#8-data-export--csvexcel-pipeline-output--appendix-p13)
-- [9. Success Criteria & Deliverables → Appendix P1.5](#9-success-criteria--deliverables--appendix-p15)
+- [8. Data Export — CSV/Excel Pipeline Output — ✅ COMPLETE](#8-data-export--csvexcel-pipeline-output--complete)
+- [9. Success Criteria & Deliverables → SC Log + P1.2 §4](#9-success-criteria--deliverables)
 - [10. Phase 1 Implementation Index](#10-phase-1-implementation-index)
   - [10.1 Design & Implementation](#101-design--implementation)
   - [10.2 Checklists & Deliverables](#102-checklists--deliverables)
@@ -119,7 +119,9 @@ Deliverables:
 
 ## 9. Success Criteria & Deliverables
 
-> **Relocated to [Appendix P1.5](appendix_p1.5_phase1_checklists.md)** — Full success criteria checklist (89 items across T1.22–T1.89, including schema, registry, parser, pipeline, ontology, fragment, and initiation harmonization deliverables) and consolidated deliverables list. Canonical source: [appendix_p1.5_phase1_checklists.md](appendix_p1.5_phase1_checklists.md).
+> **Success Criteria → [p1_sc_log.md](../log/phase1/p1_sc_log.md)** — 349 success criteria items with issue and task cross-references. Includes all 89 items from retired appendix P1.5 §33 plus per-section criteria, appendix F/I/J items, and Phase 1.2 workplan criteria.
+>
+> **Deliverables → [P1.2 §4](appendix_p1.2_phase1_scope.md#4-phase-1-deliverables-consolidated-from-34--37)** — Consolidated deliverable list merged from §34 + §37 of this workplan. Includes all artifacts from schema files through pipeline modules and common library components. Appendix P1.5 (source for SC checklist) is retired — archived at `eks/archive/workplan/appendix_p1.5_phase1_checklists.md`.
 
 ---
 
@@ -129,53 +131,51 @@ Deliverables:
 
 ### 10.1 Design & Implementation
 
-| Original § | Topic | Tasks | Status | Key Issues | Canonical Source |
-| :---------- | :---- | :---- | :----: | :--------- | :--------------- |
-| §5 | Scope Summary (R01–R100) | — (scoping doc) | ✅ | — | [P1.2 §1](appendix_p1.2_phase1_scope.md#1-phase-1-scope-summary) |
-| §8 | Master Task Index | T1.1–T1.99.203 (all 203+) | 🔷 | I001–I233 (all Phase 1) | [P1.4 §1](appendix_p1.4_phase1_tasks.md#1-8--task-breakdown-tasks) |
-| §9 | Pipeline Architecture & 11 Function Tables | — (design doc) | ✅ | I013, I215, I225, I229, I230 | [P1.1 §2](appendix_p1.1_architecture.md#2-phase-1-pipeline-architecture--function-tables) |
-| §10 | Files & Modules to Create/Update | — (per-file index) | ✅ | I024, I094, I231 | [P1.2 §2](appendix_p1.2_phase1_scope.md#2-files-and-modules-to-createupdate) + [P1.1 §3](appendix_p1.1_architecture.md#3-key-modules-and-their-functional-summary) |
-| §11 | Project Folder Structure | T1.1 | ✅ | — | [P1.1 §1](appendix_p1.1_architecture.md#1-phase-project-folder-structure) |
-| §12 | Detailed Schema Design | T1.3–T1.5 (design); T1.42–T1.47, T1.50–T1.51 (fragments) | ✅ | I004, I005, I010, I011, I194 | [P1.4 §4](appendix_p1.4_phase1_tasks.md#4-16--core-schema-suite-basesetupconfig--fragment-schemas-tasks) |
-| §13 | Parser Module Architecture | T1.8–T1.11 (parsers); T1.9 (abstract base) | ✅ | I015, I016, I024 | [P1.1 §6](appendix_p1.1_architecture.md#6-independent-parser-module-architecture) |
-| §14 | Foundation & Compliance (R99) | T1.1–T1.2, T1.14–T1.16, T1.33, T1.48–T1.49, T1.52–T1.53, T1.55–T1.57, T1.65–T1.67, T1.70, T1.74 | ✅ | I001, I002, I003, I010, I017–I020, I046, I093, I226, I227 | [P1.4 §2](appendix_p1.4_phase1_tasks.md#2-14--foundation-environment--compliance-r99-tasks) |
-| §15 | Architectural Patterns — Context, Factories & Orchestration | T1.54, T1.58–T1.64 | ✅ | I208–I225 (GAP-A1/A18), I230 | [P1.4 §3](appendix_p1.4_phase1_tasks.md#3-15--architectural-patterns--context-factories--orchestration-hardening-appendix-f-tasks) |
-| §16 | Core Schema Suite (base/setup/config + fragments) | T1.3–T1.6, T1.42–T1.47, T1.50–T1.51 | ✅ | I004, I005, I010, I011, I022–I023, I026–I027, I029–I031, I194 | [P1.4 §4](appendix_p1.4_phase1_tasks.md#4-16--core-schema-suite-basesetupconfig--fragment-schemas-tasks) + [P1.1 §7.2](appendix_p1.1_architecture.md#72-core-schema-suite) |
-| §17 | Asset Schema — Universal Plant Item (R36/R39) | T1.17–T1.20 | ✅ | I228, I021 | [P1.4 §5](appendix_p1.4_phase1_tasks.md#5-17--asset-schema--universal-plant-item-r36r39-tasks) + [P1.1 §7.3](appendix_p1.1_architecture.md#73-asset-schema--universal-plant-item) |
-| §18 | Ontology Integration (R44, ISO 15926) | T1.23–T1.29 | ✅ | I007, I008 | [P1.4 §6](appendix_p1.4_phase1_tasks.md#6-18--ontology-integration-r44-iso-15926-tasks) + [P1.1 §7.5](appendix_p1.1_architecture.md#75-ontology-integration-iso-15926) |
-| §19 | Logging, Errors & Health Scoring (R33/R34/R51) | T1.13, T1.30–T1.32, T1.41, T1.68–T1.69, T1.71, T1.75–T1.76, T1.99.35–T1.99.39 | ✅ | I014, I105, I195–I198, I199–I203, I204–I207 (GAP-D1/D13) | [P1.4 §7](appendix_p1.4_phase1_tasks.md#7-19--logging-errors--health-scoring-r33r34r51-tasks) + [P1.1 §3.3](appendix_p1.1_architecture.md#33-health-errors--logging) |
-| §20 | Document Registry & Revision Management (R02/R21/R22/R29) | T1.7–T1.8, T1.21–T1.22 | ✅ | I006, I131, I147–I162 (file properties), I184–I187 (registration/change), I212, I224 | [P1.4 §8](appendix_p1.4_phase1_tasks.md#8-20--document-registry--revision-management-r02r21r22r29-tasks) |
-| §21 | Document Parsers — PDF/DOCX/XLSX (R01/R26) | T1.9–T1.12 | ✅ | I015, I132, I024, I025, I133–I146, I155, I157, I163 (error codes + FilenameParser) | [P1.4 §9](appendix_p1.4_phase1_tasks.md#9-21--document-parsers--pdfdocxxlsx-r01r26-tasks) + [P1.1 §3.2](appendix_p1.1_architecture.md#32-document-registry--parsers) |
-| §22 | Document Schema v2 — 3-Layer Reorganization (R52/R53) | T1.34, T1.35.1–T1.35.6 | ✅ | I012, I164–I168 (5 metadata gaps), I169–I175 (7-column bulk), I194 (cross-source) | [P1.4 §10](appendix_p1.4_phase1_tasks.md#10-22--document-schema-v2--3-layer-reorganization-r52r53-tasks) + [P1.1 §7.4](appendix_p1.1_architecture.md#74-document-schema-v2) |
-| §23 | Pipeline Orchestration (R54–R58/R57) | T1.36–T1.40, T1.72–T1.73 | ✅ | I013, I215, I225, I229 | [P1.4 §11](appendix_p1.4_phase1_tasks.md#11-23--pipeline-orchestration-r54r58r57-tasks) + [P1.1 §2,§4.1](appendix_p1.1_architecture.md#2-phase-1-pipeline-architecture--function-tables) |
-| §24 | Initiation Integrity, Hardening & Harmonization | T1.77–T1.83 | ✅ | I046, I100 | [P1.4 §12](appendix_p1.4_phase1_tasks.md#12-24--initiation-integrity-hardening--harmonization-t177t189-tasks) |
-| §25 | Initiation Schema & Validation Harmonization | T1.84–T1.89 | ✅ | I046 | [P1.4 §13](appendix_p1.4_phase1_tasks.md#13-25--phase-13--initiation-schema--validation-harmonization-t184t189-tasks) |
-| §26 | Initiation Config Flattening — DCC Pattern | T1.90–T1.95 | ✅ | — | [P1.4 §14](appendix_p1.4_phase1_tasks.md#14-26--initiation-config-flattening--dcc-project_config-pattern-t190t195-tasks) |
-| §27 | Schema Discovery & Registration — Discovery-Driven Loading | T1.96.1–T1.96.6 | ✅ | — | [P1.4 §15](appendix_p1.4_phase1_tasks.md#15-27--schema-discovery--registration--discovery-driven-loading-t196-tasks) |
-| §28 | System Parameters — SSOT Centralization | T1.97.1–T1.97.14 | ✅ | I091 | [P1.4 §16](appendix_p1.4_phase1_tasks.md#16-28--system-parameters--ssot-centralization-t197-tasks) |
-| §29 | Universal Path Resolution & Schema-Driven Init | T1.98.1–T1.98.8 | ✅ | I089, I090, I130 | [P1.4 §17](appendix_p1.4_phase1_tasks.md#17-29--universal-path-resolution--schema-driven-initialization-i089--i090-tasks) |
-| §30 | Pipeline Entry-Point & Sub-Pipeline Convergence (I092 / R60) | T1.99.1–T1.99.83 | 🔷 | I078, I092, I096–I100, I102–I107, I109–I117, I126, I188–I192, I231–I233 | [P1.4 §18](appendix_p1.4_phase1_tasks.md#18-30--pipeline-entry-point--per-phase-sub-pipeline-convergence-i092--r60-tasks) |
-| §39 | Bootstrap path-resolution rooting defect fix | — | ✅ | I130 | [P1.1 §4.4](appendix_p1.1_architecture.md#44-bootstrap-path-resolution-rooting-defect-fix--i130-t199101t199103--complete) |
-| §40 | KeyError: 'revision' in register_placeholders | — | ✅ | I131 | [P1.1 §5.1](appendix_p1.1_architecture.md#51-keyerror-revision-in-register_placeholders--i131-t199104t199107--complete) |
-| §41 | .dwg file type orphan fix (Option B: CAD document type) | — | ✅ | I132 | [P1.1 §5.2](appendix_p1.1_architecture.md#52-dwg-file-type-orphan-fix--i132--option-b--complete) |
-| §42 | Unified P-prefix error codes + Appendix I FilenameParser | — | ✅ | I133–I146, I155, I157, I163 | [P1.1 §5.3](appendix_p1.1_architecture.md#53-option-a2--unified-p-prefix-error-codes--appendix-i-filename-parser-i133i146-i155-i157-i163--complete) |
-| §43 | File property extraction — 14 issues, 13 registry columns | — | ✅ | I147–I162 | [Appendix J §J14](appendix_j_file_property_parser.md#j14-implementation-record--complete) |
-| §44 | Document metadata completeness — 5 schema gaps | — | ✅ | I164–I168 | [P1.1 §5.4](appendix_p1.1_architecture.md#54-document-metadata-completeness--schema-gaps-i164i168--complete) |
-| §45 | Remaining metadata schema gaps — 7-column bulk addition | — | ✅ | I169–I175 | [P1.1 §5.5](appendix_p1.1_architecture.md#55-remaining-metadata-schema-gaps--phase-1-bulk-addition-i169i175--complete) |
-| §46 | File registration, change detection & cross-project abstraction | — | 🔷 | I184–I187 | [P1.1 §5.6](appendix_p1.1_architecture.md#56-file-registration-change-detection--cross-project-abstraction-i184i187--planned) |
-| §47 | Schema-driven export columns (~50 fields, replaces 11-field subset) | — | ✅ | I193 | [P1.3 §11](appendix_p1.3_phase1_data_export.md#11-schema-driven-export-columns--i193-47) |
-| §48 | Appendix D vs. actual pipeline cross-source audit (13 gaps) | — | 🔷 | I195–I207 | [P1.1 §5.7](appendix_p1.1_architecture.md#57-appendix-d-vs-actual-pipeline-cross-source-audit-i195i207---waves-1-2-complete-waves-3-5-deferred) |
-| §49 | Appendix E+F vs. pipeline architecture cross-source audit (18 gaps) | — | 🔷 | I208–I225 | [P1.1 §5.8](appendix_p1.1_architecture.md#58-appendix-ef-vs-pipeline-architecture-cross-source-audit-i208i225---planned) |
-| §50 | `str(5)` bug fix — restore exception messages (13 instances, 4 files) | — | ✅ | I226 | [P1.1 §5.9](appendix_p1.1_architecture.md#59-str5-bug-fix--restore-exception-messages-across-all-error-paths-i226--complete) |
-
-> **Status legend**: ✅ COMPLETE (all tasks done) | 🔷 IN PROGRESS (has pending/planned tasks) | — (no tasks, defect fix row)
+| Original § | Topic | Tasks | Key Issues | Canonical Source |
+| :---------- | :---- | :---- | :--------- | :--------------- |
+| §5 | Scope Summary (R01–R100) | — (scoping doc) | — | [P1.2 §1](appendix_p1.2_phase1_scope.md#1-phase-1-scope-summary) |
+| §8 | Master Task Index | T1.1–T1.99.203 (all 203+) | I001–I233 (all Phase 1) | [Task Log](../log/phase1/p1_task_log.md#status-summary) (§2–23) |
+| §9 | Pipeline Architecture & 11 Function Tables | — (design doc) | I013, I215, I225, I229, I230 | [P1.1 §3](appendix_p1.1_phase1_architecture.md#3-phase-1-pipeline-architecture--function-tables) |
+| §10 | Files & Modules to Create/Update | — (per-file index) | I024, I094, I231 | [P1.2 §3](appendix_p1.2_phase1_scope.md#3-files-and-modules-to-createupdate) + [P1.1 §1.3](appendix_p1.1_phase1_architecture.md#13-module-inventory) |
+| §11 | Project Folder Structure | T1.1 | — | [P1.1 §2](appendix_p1.1_phase1_architecture.md#2-phase-project-folder-structure) |
+| §12 | Detailed Schema Design | T1.3–T1.5 (design); T1.42–T1.47, T1.50–T1.51 (fragments) | I004, I005, I010, I011, I194 | [Task Log §4](../log/phase1/p1_task_log.md#4-core-schema-suite-basesetupconfig-fragment-schemas-tasks) |
+| §13 | Parser Module Architecture | T1.8–T1.11 (parsers); T1.9 (abstract base) | I015, I016, I024 | [P1.1 §5](appendix_p1.1_phase1_architecture.md#5-independent-parser-module-architecture) |
+| §14 | Foundation & Compliance (R99) | T1.1–T1.2, T1.14–T1.16, T1.33, T1.48–T1.49, T1.52–T1.53, T1.55–T1.57, T1.65–T1.67, T1.70, T1.74 | I001, I002, I003, I010, I017–I020, I046, I093, I226, I227 | [Task Log §2](../log/phase1/p1_task_log.md#2-foundation-environment-compliance-r99-tasks) |
+| §15 | Architectural Patterns — Context, Factories & Orchestration | T1.54, T1.58–T1.64 | I208–I225 (GAP-A1/A18), I230 | [Task Log §3](../log/phase1/p1_task_log.md#3-architectural-patterns-context-factories-orchestration-hardening-appendix-f-tasks) |
+| §16 | Core Schema Suite (base/setup/config + fragments) | T1.3–T1.6, T1.42–T1.47, T1.50–T1.51 | I004, I005, I010, I011, I022–I023, I026–I027, I029–I031, I194 | [Task Log §4](../log/phase1/p1_task_log.md#4-core-schema-suite-basesetupconfig-fragment-schemas-tasks) + [P1.1 §6.2](appendix_p1.1_phase1_architecture.md#62-core-schema-suite) |
+| §17 | Asset Schema — Universal Plant Item (R36/R39) | T1.17–T1.20 | I228, I021 | [Task Log §5](../log/phase1/p1_task_log.md#5-asset-schema-universal-plant-item-r36r39-tasks) + [P1.1 §6.3](appendix_p1.1_phase1_architecture.md#63-asset-schema--universal-plant-item) |
+| §18 | Ontology Integration (R44, ISO 15926) | T1.23–T1.29 | I007, I008 | [Task Log §6](../log/phase1/p1_task_log.md#6-ontology-integration-r44-iso-15926-tasks) + [P1.1 §6.5](appendix_p1.1_phase1_architecture.md#65-ontology-integration-iso-15926) |
+| §19 | Logging, Errors & Health Scoring (R33/R34/R51) | T1.13, T1.30–T1.32, T1.41, T1.68–T1.69, T1.71, T1.75–T1.76, T1.99.35–T1.99.39 | I014, I105, I195–I198, I199–I203, I204–I207 (GAP-D1/D13) | [Task Log §7](../log/phase1/p1_task_log.md#7-logging-errors-health-scoring-r33r34r51-tasks) + [P1.1 §6.6](appendix_p1.1_phase1_architecture.md#66-error--message-schemas) |
+| §20 | Document Registry & Revision Management (R02/R21/R22/R29) | T1.7–T1.8, T1.21–T1.22 | I006, I131, I147–I162 (file properties), I184–I187 (registration/change), I212, I224 | [Task Log §8](../log/phase1/p1_task_log.md#8-document-registry-revision-management-r02r21r22r29-tasks) |
+| §21 | Document Parsers — PDF/DOCX/XLSX (R01/R26) | T1.9–T1.12 | I015, I132, I024, I025, I133–I146, I155, I157, I163 (error codes + FilenameParser) | [Task Log §9](../log/phase1/p1_task_log.md#9-document-parsers-pdfdocxxlsx-r01r26-tasks) + [P1.1 §5](appendix_p1.1_phase1_architecture.md#5-independent-parser-module-architecture) |
+| §22 | Document Schema v2 — 3-Layer Reorganization (R52/R53) | T1.34, T1.35.1–T1.35.6 | I012, I164–I168 (5 metadata gaps), I169–I175 (7-column bulk), I194 (cross-source) | [Task Log §10](../log/phase1/p1_task_log.md#10-document-schema-v2-3-layer-reorganization-r52r53-tasks) + [P1.1 §6.4](appendix_p1.1_phase1_architecture.md#64-document-schema-v2) |
+| §23 | Pipeline Orchestration (R54–R58/R57) | T1.36–T1.40, T1.72–T1.73 | I013, I215, I225, I229 | [Task Log §11](../log/phase1/p1_task_log.md#11-pipeline-orchestration-r54r58r57-tasks) + [P1.1 §3,§4](appendix_p1.1_phase1_architecture.md#3-phase-1-pipeline-architecture--function-tables) |
+| §24 | Initiation Integrity, Hardening & Harmonization | T1.77–T1.83 | I046, I100 | [Task Log §12](../log/phase1/p1_task_log.md#12-initiation-integrity-hardening-harmonization-t177t189-tasks) |
+| §25 | Initiation Schema & Validation Harmonization | T1.84–T1.89 | I046 | [Task Log §13](../log/phase1/p1_task_log.md#13-initiation-schema-validation-harmonization-t184t189-tasks) |
+| §26 | Initiation Config Flattening — DCC Pattern | T1.90–T1.95 | — | [Task Log §14](../log/phase1/p1_task_log.md#14-initiation-config-flattening-dcc-projectconfig-pattern-t190t195-tasks) |
+| §27 | Schema Discovery & Registration — Discovery-Driven Loading | T1.96.1–T1.96.6 | — | [Task Log §15](../log/phase1/p1_task_log.md#15-schema-discovery-registration-discovery-driven-loading-t196-tasks) |
+| §28 | System Parameters — SSOT Centralization | T1.97.1–T1.97.14 | I091 | [Task Log §16](../log/phase1/p1_task_log.md#16-system-parameters-ssot-centralization-t197-tasks) |
+| §29 | Universal Path Resolution & Schema-Driven Init | T1.98.1–T1.98.8 | I089, I090, I130 | [Task Log §17](../log/phase1/p1_task_log.md#17-universal-path-resolution-schema-driven-initialization-i089-i090-tasks) |
+| §30 | Pipeline Entry-Point & Sub-Pipeline Convergence (I092 / R60) | T1.99.1–T1.99.83 | I078, I092, I096–I100, I102–I107, I109–I117, I126, I188–I192, I231–I233 | [Task Log §18](../log/phase1/p1_task_log.md#18-pipeline-entry-point-per-phase-sub-pipeline-convergence-i092-r60-tasks) |
+| §39 | Bootstrap path-resolution rooting defect fix | — | I130 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §40 | KeyError: 'revision' in register_placeholders | — | I131 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §41 | .dwg file type orphan fix (Option B: CAD document type) | — | I132 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §42 | Unified P-prefix error codes + Appendix I FilenameParser | — | I133–I146, I155, I157, I163 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §43 | File property extraction — 14 issues, 13 registry columns | — | I147–I162 | [Appendix J §J14](appendix_j_file_property_parser.md#j14-implementation-record--complete) |
+| §44 | Document metadata completeness — 5 schema gaps | — | I164–I168 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §45 | Remaining metadata schema gaps — 7-column bulk addition | — | I169–I175 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §46 | File registration, change detection & cross-project abstraction | — | I184–I187 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §47 | Schema-driven export columns (~50 fields, replaces 11-field subset) | — | I193 | [P1.3 §5.6](appendix_p1.3_phase1_data_export.md#56-detail-i193--schema-driven-export-columns-t199157-162) |
+| §48 | Appendix D vs. actual pipeline cross-source audit (13 gaps) | — | I195–I207 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §49 | Appendix E+F vs. pipeline architecture cross-source audit (18 gaps) | — | I208–I225 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §50 | `str(5)` bug fix — restore exception messages (13 instances, 4 files) | — | I226 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
 
 ### 10.2 Checklists & Deliverables
 
 | Original § | Topic | Canonical Source |
 | :---------- | :---- | :--------------- |
-| §33, §36 | Success Criteria (114-item checklist) | [P1.5](appendix_p1.5_phase1_checklists.md) |
-| §34 | Deliverables | [P1.5](appendix_p1.5_phase1_checklists.md) + [P1.2 §3](appendix_p1.2_phase1_scope.md#3-phase-1-deliverables-consolidated-from-34--37) |
+| §33, §36 | Success Criteria (349-item checklist) | [SC Log](../log/phase1/p1_sc_log.md) |
+| §34 | Deliverables | [P1.2 §4](appendix_p1.2_phase1_scope.md#4-phase-1-deliverables-consolidated-from-34--37) |
 
 ---
 
@@ -193,9 +193,9 @@ Deliverables:
 
 | Appendix | File | Coverage |
 | :------- | :--- | :------- |
-| P1.1 | [appendix_p1.1_architecture.md](appendix_p1.1_architecture.md) | Architecture & design blueprints |
+| P1.1 | [appendix_p1.1_phase1_architecture.md](appendix_p1.1_phase1_architecture.md) | Architecture & design blueprints |
 | P1.2 | [appendix_p1.2_phase1_scope.md](appendix_p1.2_phase1_scope.md) | Scope summary, files/modules, deliverables |
 | P1.3 | [appendix_p1.3_phase1_data_export.md](appendix_p1.3_phase1_data_export.md) | Data export (CSV/Excel) design & implementation |
-| P1.4 | [appendix_p1.4_phase1_tasks.md](appendix_p1.4_phase1_tasks.md) | All task breakdown tables |
-| P1.5 | [appendix_p1.5_phase1_checklists.md](appendix_p1.5_phase1_checklists.md) | Success criteria & deliverables checklists |
+| P1.4 | [p1_task_log.md](../log/phase1/p1_task_log.md) | Task breakdown (replaces retired appendix_p1.4) |
+| P1.5 | retired — archived at [eks/archive/workplan/](../archive/workplan/appendix_p1.5_phase1_checklists.md) | SC → [SC Log](../log/phase1/p1_sc_log.md); Deliverables → [P1.2 §4](appendix_p1.2_phase1_scope.md#4-phase-1-deliverables-consolidated-from-34--37) |
 | P1.6 | [appendix_p1.6_phase1_revision_history.md](appendix_p1.6_phase1_revision_history.md) | Full revision history |

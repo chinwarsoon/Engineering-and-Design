@@ -1,54 +1,28 @@
-# Appendix P1.4 — Phase 1 Task Details
+# Phase 1 Task Log
 
-**Document ID**: WP-EKS-P1-A1.4
-
-**Version**: 1.6
-
+**Project**: Engineering Knowledge System (EKS)  
+**Location**: `eks/log/phase1/p1_task_log.md`  
 **Last Updated**: 2026-07-22
 
-> **v1.6**: All §2–§23 task tables reformatted to 12-column enriched standard: `ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section`. [Category] prefix added to Task column. Status unified to emoji + uppercase text format. `Updated` stores Uxxx references. `Section` maps to workplan source. Cross-reference index updated.
+## Legend
 
+### Task Status
 
-> All task breakdown tables relocated from the [Phase 1 Foundation Workplan](phase_1_foundation_workplan.md).
+| Marker | Status | Meaning |
+|:------:|:-------|:--------|
+| ✅ | Complete | Task fully implemented and verified |
+| 🔷 | Planned | Task defined but not yet implemented |
+| ⛔ | Won't Implement | Explicitly rejected or out of scope |
 
----
+### Column Format
 
-## Contents
+All tables use the standard 12-column enriched format:
 
-- [1. Task Status Summary](#1-task-status-summary)
-- [2. Foundation, Environment & Compliance (R99) Tasks](#2-foundation-environment--compliance-r99-tasks)
-- [3. Architectural Patterns Tasks](#3-architectural-patterns--context-factories--orchestration-hardening-appendix-f-tasks)
-- [4. Core Schema Suite Tasks](#4-core-schema-suite-basesetupconfig--fragment-schemas-tasks)
-- [5. Asset Schema Tasks](#5-asset-schema--universal-plant-item-r36r39-tasks)
-- [6. Ontology Integration Tasks](#6-ontology-integration-r44-iso-15926-tasks)
-- [7. Logging, Errors & Health Scoring Tasks](#7-logging-errors--health-scoring-r33r34r51-tasks)
-- [8. Document Registry Tasks](#8-document-registry--revision-management-r02r21r22r29-tasks)
-- [9. Document Parsers Tasks](#9-document-parsers--pdfdocxxlsx-r01r26-tasks)
-- [10. Document Schema v2 Tasks](#10-document-schema-v2--3-layer-reorganization-r52r53-tasks)
-- [11. Pipeline Orchestration Tasks](#11-pipeline-orchestration-r54r58r57-tasks)
-- [12. Initiation Integrity Tasks](#12-initiation-integrity-hardening--harmonization-t177t189-tasks)
-- [13. Initiation Schema Harmonization Tasks](#13-initiation-schema--validation-harmonization-t184t189-tasks)
-- [14. Initiation Config Flattening Tasks](#14-initiation-config-flattening--dcc-project_config-pattern-t190t195-tasks)
-- [15. Schema Discovery Tasks](#15-schema-discovery--registration--discovery-driven-loading-t196-tasks)
-- [16. System Parameters Tasks](#16-system-parameters--ssot-centralization-t197-tasks)
-- [17. Universal Path Resolution Tasks](#17-universal-path-resolution--schema-driven-initialization-i089--i090-tasks)
-- [18. Pipeline Entry-Point Convergence Tasks](#18-pipeline-entry-point--per-phase-sub-pipeline-convergence-i092--r60-tasks)
-- [19. Data Export Tasks](#19-data-export--csvexcel-pipeline-output-i126--l22--planned-tasks)
-- [20. Schema-Driven Export Columns Tasks](#20-schema-driven-export-columns--replace-hardcoded-11-field-subset-i193--complete-tasks)
-- [21. Appendix D Cross-Source Audit Tasks](#21-appendix-d-vs-actual-pipeline-cross-source-audit--planned-tasks)
-- [22. Appendix E+F Architecture Audit Tasks](#22-appendix-ef-vs-pipeline-architecture-cross-source-audit--gap-remediation-i208i225-tasks)
-- [23. str(5) Bug Fix Tasks](#23-str5-bug-fix--restore-exception-messages-across-all-error-paths-i226-tasks)
-- [Cross-Reference Index](#cross-reference-index)
+`ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section`
 
 ---
 
-## 1. Task Status Summary
-
-> Source: [§8](phase_1_foundation_workplan.md#8)
->
-> Individual task detail rows are located exclusively in their per-section breakdown tables (§2–§23). This summary table mirrors the `issue_log.md` Status Summary pattern — counts only, no individual task rows.
-
-### Task Status Summary
+## Status Summary
 
 | Status | Marker | Count |
 | :----- | :----: | ----: |
@@ -57,16 +31,11 @@
 | Won't Implement | ⛔ | 0 |
 | **Total** | | **295** |
 
-> **Counts as of 2026-07-22**. Status Summary counts derived from `grep` on completed reformat — 4 duplicate rows removed (T1.99.153–156 duplicate sub-table in §19), 2 WONT_IMPLEMENT tasks migrated during prior reformat cycles. Must be refreshed whenever a task status changes. See per-section tables for canonical status of each task.
-
-
 ---
 
 ## 2. Foundation, Environment & Compliance (R99) Tasks
 
-
 > Source: [§14](phase_1_foundation_workplan.md#14)
-
 
 ### Task Breakdown
 
@@ -96,14 +65,11 @@
 | T1.70 | [Code] Add data_dir traversal guard to phase1_server.py | Resolve `data_dir` against `PRJ_DIR`, check `is_relative_to(PRJ_DIR)` — return HTTP 403 if outside project root. | R99 | ✅ COMPLETE | — | — | `ui/backend/phase1_server.py` | — | — | — | §14 |
 | T1.74 | [Code] Cross-platform path compatibility | Fix 4 cross-platform gaps in `phase1_server.py`, `context.py`. Resolves I078–I081. | R99 | ✅ COMPLETE | I078, I079, I080, I081 | — | `phase1_server.py`, `engine/core/context.py` | ← T1.69, T1.70 | — | — | §14 |
 
-
 ---
 
 ## 3. Architectural Patterns — Context, Factories & Orchestration Hardening (Appendix F) Tasks
 
-
 > Source: [§15](phase_1_foundation_workplan.md#15)
-
 
 ### Task Breakdown
 
@@ -118,14 +84,11 @@
 | T1.63 | [Code] Enhance PipelineOrchestrator with Checkpoints | Add 5 clear phases (A-E) with telemetry heartbeat integration per Appendix F | R57 | ✅ COMPLETE | — | — | `pipeline_orchestrator.py` | — | — | — | §15 |
 | T1.64 | [Code] Implement Phase Rollback Capability | Add checkpoint restoration mechanism for failed phases per Appendix F | R57 | ✅ COMPLETE | — | — | `pipeline_orchestrator.py` | ← T1.63 | — | — | §15 |
 
-
 ---
 
 ## 4. Core Schema Suite (base/setup/config + fragment schemas) Tasks
 
-
 > Source: [§16](phase_1_foundation_workplan.md#16)
-
 
 ### Task Breakdown
 
@@ -144,16 +107,11 @@
 | T1.50 | [Schema] Base schema SSOT enforcement | Strip trigger map to shape-only (I031); move revision_id to doc base (I032); update ConfigRegistry; update schema_inheritance_chain.md. 114/114 tests pass. | R06, R35 | ✅ COMPLETE | I031, I032 | — | `eks_base_schema.json`, `eks_doc_base_schema.json`, `ConfigRegistry` | — | — | — | §16 |
 | T1.51 | [Schema] Asset Context Fragment — hierarchy + relationships | Extensible location/system hierarchy + asset/document relationships + lifecycle context for all 14 AT_ types. Version bumps: base 1.3.0, setup 1.3.0, config 1.4.0. | R36 | ✅ COMPLETE | — | — | `eks_asset_base_schema.json`, `eks_asset_setup_schema.json`, `eks_asset_config.json` | — | — | — | §16 |
 
-
-
-
 ---
 
 ## 5. Asset Schema — Universal Plant Item (R36/R39) Tasks
 
-
 > Source: [§17](phase_1_foundation_workplan.md#17)
-
 
 ### Task Breakdown
 
@@ -164,13 +122,10 @@
 | T1.19 | [Config] Update config with asset source | Add project asset datadrop path and per-project config to `eks_config.json` | R36 | ✅ COMPLETE | — | — | `eks_config.json` | — | — | — | §17 |
 | T1.20 | [Schema] Update asset schema files for R39 + gap analysis | Add specialist_equipment/motor_control fragments; expand actuator/rotating/instrumentation/valve with gap fields; update fragment enum to 13; add conditional_fragments entries | R36, R39 | ✅ COMPLETE | — | — | `eks_asset_base_schema.json`, `eks_asset_setup_schema.json`, `eks_asset_config.json` | — | — | — | §17 |
 
-
 ---
 ## 6. Ontology Integration (R44, ISO 15926) Tasks
 
-
 > Source: [§18](phase_1_foundation_workplan.md#18)
-
 
 ### Task Breakdown
 
@@ -184,14 +139,11 @@
 | T1.28 | [Schema] Embedded Relationship Metadata | Update base schema with relationship-triggering fields; update config with relationship_triggers mapping to graph edges | R44 | ✅ COMPLETE | — | — | `eks_asset_base_schema.json`, `eks_asset_config.json` | — | — | — | §18 |
 | T1.29 | [Schema] Document Ontology & Mapping Metadata | Update ontology config with Document hierarchy + lifecycle relationships; update asset config with document_triggers | R44 | ✅ COMPLETE | — | — | `eks_ontology_config.json`, `eks_asset_config.json` | — | — | — | §18 |
 
-
 ---
 
 ## 7. Logging, Errors & Health Scoring (R33/R34/R51) Tasks
 
-
 > Source: [§19](phase_1_foundation_workplan.md#19)
-
 
 ### Task Breakdown
 
@@ -223,14 +175,11 @@
 | T1.99.48 | [Fix] Single MessageManager instance (I107 Defect B) | mm created once in bootstrap; main() reuses boot["mm"] | R99 | ✅ COMPLETE | I107 | — | `eks_engine_pipeline.py` | ← T1.99.47 | — | — | §19 |
 | T1.99.49 | [Testing] Tests + knowledge base for bootstrap completeness (I107) | 4 integration tests (TestI107BootstrapCompleteness). 23/23 pass. knowledge.json v2.7.0, update_log U165. | R99 | ✅ COMPLETE | I107 | U165 | `test/`, `knowledge.json`, `update_log.md`, `issue_log.md` | ← T1.99.45–48 | — | — | §19 |
 
-
 ---
 
 ## 8. Document Registry & Revision Management (R02/R21/R22/R29) Tasks
 
-
 > Source: [§20](phase_1_foundation_workplan.md#20)
-
 
 ### Task Breakdown
 
@@ -241,14 +190,11 @@
 | T1.21 | [Code] Document Registry Remediation (G1-G3) | Add source_type column; column allowlist for list_documents; SQL ORDER BY for revision history | R02 | ✅ COMPLETE | — | — | `registry.py` | — | — | — | §20 |
 | T1.22 | [Code] Extended Document Metadata | Implement 11 new fields (Accountability, Quality, Technical); asset_tags JSON array; ALTER TABLE migration logic | R02 | ✅ COMPLETE | — | — | `registry.py` | — | — | — | §20 |
 
-
 ---
 
 ## 9. Document Parsers — PDF/DOCX/XLSX (R01/R26) Tasks
 
-
 > Source: [§21](phase_1_foundation_workplan.md#21)
-
 
 ### Task Breakdown
 
@@ -259,14 +205,11 @@
 | T1.11 | [Code] Implement XLSX parser | xlsx_parser.py: extract sheet data, metadata | R01, R26 | ✅ COMPLETE | — | — | `xlsx_parser.py` | — | — | — | §21 |
 | T1.12 | [Code] Implement DOCX parser | docx_parser.py: extract text, metadata, sections | R01, R26 | ✅ COMPLETE | — | — | `docx_parser.py` | — | — | — | §21 |
 
-
 ---
 
 ## 10. Document Schema v2 — 3-Layer Reorganization (R52/R53) Tasks
 
-
 > Source: [§22](phase_1_foundation_workplan.md#22)
-
 
 ### Task Breakdown
 
@@ -280,14 +223,11 @@
 | T1.35.5 | [Testing] Update tests — new validation tests | 6 tests: doc_type_enum, doc_type_registry, file_type_registry, element_type_registry, expectations_keys, metadata_fields | R53 | ✅ COMPLETE | — | — | `test/` | — | — | — | §22 |
 | T1.35.6 | [Docs] Update appendix B — document registry schema | Add B3.2/B3.3/B3.4 registry sections; update B3 schema table with file_type column; bump v0.9 | R53 | ✅ COMPLETE | — | — | `appendix_b_document_registry.md` | — | — | — | §22 |
 
-
 ---
 
 ## 11. Pipeline Orchestration (R54–R58/R57) Tasks
 
-
 > Source: [§23](phase_1_foundation_workplan.md#23)
-
 
 ### Task Breakdown
 
@@ -301,24 +241,18 @@
 | T1.72 | [Code] Enforce DiscoveryInput/Output + ParserInput/Output contracts | Wrap run_phase_a() and _process_file() with input/output contracts from base.py | R57 | ✅ COMPLETE | — | — | `pipeline_orchestrator.py` | — | — | — | §23 |
 | T1.73 | [Code] Persist checkpoint JSON to disk in _run() | After each _set_phase(), save checkpoint to output/checkpoint_{job_id}.json; support resume | R57 | ✅ COMPLETE | — | — | `phase1_server.py` | — | — | — | §23 |
 
-
 ---
 
 ## 12. Initiation Integrity, Hardening & Harmonization (T1.77–T1.89) Tasks
 
-
 > Source: [§24](phase_1_foundation_workplan.md#24)
 
-
 ### Initiation Integrity (T1.77–T1.78)
-
-> Relocated from [§24 — Initiation Integrity (T1.77–T1.78)](phase_1_foundation_workplan.md#24-initiation-integrity-hardening--harmonization-t177t189) of the main workplan. Canonical source is now here.
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :---: | :--- | :--- | :---: |
 | T1.77 | [Code] Wire ProjectSetupValidator into fail-fast gate | validate_all() + get_readiness_status() wired into phase1_server._run(); --debug/--level CLI; data_dir existence checked. 8+3 tests, 202/202 pass. | R99 | ✅ COMPLETE | — | U122 | `phase1_server.py`, `setup_validator.py`, `test/test_setup_validator.py` | ← T1.65 | — | — | §24 |
 | T1.78 | [Code] DCC gap remediation (eks.yml path, input readability, dep probe) | Fix eks.yml path, input readability (G2), dep probe (G3/G4), --skip-readiness (G5), error code constants (G7); fix _LogCapture.level bug. 207/207 pass. | R99 | ✅ COMPLETE | I079 | U124 | `phase1_server.py`, `setup_validator.py`, `eks.yml` | ← T1.77 | — | — | §24 |
-
 
 ### Initiation Schema-Driven Hardening (T1.79–T1.83)
 
@@ -330,21 +264,11 @@
 | T1.82 | [Code] Honor validation_options.auto_create_folders | Schema-driven input defaults; honor auto_create from config | R99 | ✅ COMPLETE | I082, I083 | — | `setup_validator.py`, `eks_config.json` | — | — | — | §24 |
 | T1.83 | [Code] Make eks package root schema-driven | Replace 10× PRJ_DIR/"eks" literals with global_paths.eks_root | R99 | ✅ COMPLETE | I084 | — | `phase1_server.py`, `context.py` | — | — | — | §24 |
 
-
 ---
 
 ## 13. Initiation Schema & Validation Harmonization (T1.84–T1.89) Tasks
 
-> **Relocated from [§25 — Phase 1.3 — Initiation Schema & Validation Harmonization (T1.84–T1.89)](phase_1_foundation_workplan.md#25-phase-13--initiation-schema--validation-harmonization-t184t189)** of the main workplan (v4.8). Canonical source is now here.
-
-**Source workplan (archived)**: [phase_1.3_initiation_harmonization_workplan.md](../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001
-**Status**: ✅ COMPLETE — T1.84–T1.89 all implemented. Universal `ValidationManager` in `common/library/utility/validation/`. EKS `project_setup` schema reshaped to DCC-aligned object model. DCC itself NOT modified (deferred follow-up).
-
-### 13.1 Objective
-
-Achieve **schema-design consistency** and **code-module universality** for project-setup validation, so that EKS and (later) DCC validate project structure through one shared, well-tested module and through schemas that follow the same shape. EKS's AGENTS.md §7-mandated folder names are preserved — only the *schema shape* (not the folder names) aligns with DCC.
-
-### 13.2 Task Breakdown
+### Task Breakdown
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :---: | :--- | :--- | :---: |
@@ -355,45 +279,9 @@ Achieve **schema-design consistency** and **code-module universality** for proje
 | T1.88 | [Testing] Test migration + coverage | test_setup_validator.py (19 tests) + test_validation_manager.py (20 tests); full suite 235/235 green | R99 | ✅ COMPLETE | I085 | — | `test/test_setup_validator.py`, `test/test_validation_manager.py` | ← T1.87 | — | U130 | §25 |
 | T1.89 | [Docs] Workplan/log/knowledge update | knowledge.json v2.3.0, update_log U130, issue_log I085 resolved | R99 | ✅ COMPLETE | I085 | U130 | `knowledge.json`, `update_log.md`, `issue_log.md` | ← T1.84–88 | — | U130 | §25 |
 
-### 13.3 Files and Modules (T1.84–T1.89)
-
-| File/Folder | Action | Purpose |
-| :---------- | :----- | :------ |
-| `common/library/utility/validation/manager.py` | Create | Universal, path-agnostic `ValidationManager` |
-| `common/library/utility/validation/__init__.py` | Update | Export `ValidationManager` |
-| `eks/config/schemas/eks_project_setup_config.json` | Create | Instance data for `project_setup` (object model) |
-| `eks/config/schemas/eks_base_schema.json` | Update | Replace flat-array defs with 8 DCC-aligned object defs (v1.7.0) |
-| `eks/config/schemas/eks_setup_schema.json` | Update | Reshape `project_setup` property (v1.4.0) |
-| `eks/config/schemas/eks_config.json` | Update | Remove inline `project_setup`; keep `global_paths` + `$ref` (v1.5.0) |
-| `eks/engine/core/setup_validator.py` | Update | Thin adapter delegating to universal `ValidationManager` (v0.7) |
-| `eks/test/test_setup_validator.py` | Update | Migrate to object-array config; keep `P1-SETUP-*` + SSOT tests |
-| `eks/test/test_validation_manager.py` | Create | Unit tests for universal module (20) |
-
-### 13.4 Success Criteria
-
-- [x] EKS `project_setup` schema shape matches DCC's (object arrays with metadata; per-folder `auto_created`).
-- [x] Reusable `ValidationManager` exists in `common/library/utility/validation/` and is path-agnostic (usable by EKS and later DCC).
-- [x] EKS validation runs through the universal module; `phase1_server.py` readiness gate, `P1-SETUP-*` codes, and `ErrorManager` wiring behaviorally unchanged.
-- [x] Full EKS test suite green (235/235); universal module has its own tests (20).
-- [x] DCC left untouched (deferred follow-up).
-- [x] Workplan, `knowledge.json`, `update_log`, `issue_log`, and universal architecture doc updated.
-
-### 13.5 References
-
-- [Phase 1.3 Initiation Harmonization Workplan (archived)](../archive/phase_1.3_initiation_harmonization_workplan.md) — WP-EKS-P1.3-001
-- [Phase 1 T1.79–T1.83 Report (archived)](../archive/phase_1_t179_t183_report.md) — RP-EKS-P1-T179-001
-- [Universal Pipeline Architecture Design](../../common/universal_pipeline_architecture_design.md) — §4.9 Project Setup Validation, §4.9.1 Initiation Integrity Layers
-- DCC reference (not modified): `dcc/config/schemas/project_setup_base.json`, `project_setup.json`, `project_config.json`; `dcc/workflow/initiation_engine/core/validator.py`; `dcc/utility_engine/validation/validation_manager.py`
-- EKS issue: I085 (schema-design divergence between EKS and DCC `project_setup`)
-
-
 ---
 
 ## 14. Initiation Config Flattening — DCC project_config Pattern (T1.90–T1.95) Tasks
-
-> **Relocated from [§26 — Initiation Config Flattening — DCC project_config Pattern (T1.90–T1.95)](phase_1_foundation_workplan.md#26-initiation-config-flattening--dcc-project_config-pattern-t190t195)** of the main workplan (v4.8). Canonical source is now here.
-
-**Objective**: Align EKS `eks_config.json` with DCC `project_config.json` — store the actual setup values (`folders` / `root_files` / `schema_files` / `environment` / `dependencies` / `project_metadata` / `discovery_rules`) at the **top level** instead of nested under a `project_setup` wrapper. This makes the universal `ValidationManager` (and a future universal schema loader) work for both projects with **zero per-project branching**, completing the Phase 1.3 universality goal, and removes the orphaned `eks_project_setup_config.json` (T1.86 artifact).
 
 ### 14.1 Task Breakdown
 
@@ -406,24 +294,9 @@ Achieve **schema-design consistency** and **code-module universality** for proje
 | T1.94 | [Cleanup] Delete orphan eks_project_setup_config.json | Archive per AGENTS.md §5.3 | R99 | ✅ COMPLETE | — | — | `eks_project_setup_config.json` | ← T1.86 | — | — | §26 |
 | T1.95 | [Testing] Tests + suite green | Update test assertion; full suite 236/236 | R99 | ✅ COMPLETE | — | — | `test/` | ← T1.92–94 | — | — | §26 |
 
-### 14.2 Success Criteria
-- [x] `eks_config.json` has setup values top-level (no `project_setup` wrapper), matching DCC `project_config.json`.
-- [x] `eks_setup_schema.json` declares the 7 setup keys top-level (no `project_setup` property); `additionalProperties: false` preserved.
-- [x] `setup_validator.py` reads setup from top-level config with backward-compat `project_setup` fallback; public API + P1-SETUP-* codes + ErrorManager wiring unchanged.
-- [x] `phase1_server.py` is flatten-aware.
-- [x] `eks_project_setup_config.json` removed (archived); no dangling references.
-- [x] Full EKS suite green (236/236).
-
-
 ---
 
 ## 15. Schema Discovery & Registration — Discovery-Driven Loading (T1.96) Tasks
-
-> **Relocated from [§27 — Schema Discovery & Registration — Discovery-Driven Loading (T1.96)](phase_1_foundation_workplan.md#27-schema-discovery--registration--discovery-driven-loading-t196)** of the main workplan (v4.8). Canonical source is now here.
-
-**Objective**: Add discovery-driven schema registration to EKS by (1) extracting the shared `discover_schema_files()` function from DCC `ref_resolver.py:164-230` into the `common/` library, (2) adding `discovery_rules` data to `eks_config.json`, (3) refactoring `schema_loader.py` to use config-driven loading (explicit `schema_files` + `discovery_rules` glob), and (4) wiring `ValidationManager.validate_discovery_rules()` into `setup_validator.py`. Closes I087.
-
-**Rationale**: Currently `schema_loader.py` hardcodes 22 filenames — adding a new schema set requires source code changes. DCC's `_extract_registered_schemas()` implements a reusable pattern: explicit `schema_files` merge with glob-based `discovery_rules`. Extracting this to `common/` makes it available to both projects and future phases.
 
 ### 15.1 Task Breakdown
 
@@ -436,48 +309,9 @@ Achieve **schema-design consistency** and **code-module universality** for proje
 | T1.96.5 | [Docs] Update universal architecture doc | Verify §4.16 Schema Discovery pattern alignment with extracted function | R99 | ✅ COMPLETE | I087 | — | `common/universal_pipeline_architecture_design.md` | ← T1.96.1 | — | — | §27 |
 | T1.96.6 | [Testing] Tests + suite green | Fix *_base.json pattern gap; full EKS suite 236/236 green | R99 | ✅ COMPLETE | I087 | — | `test/` | ← T1.96.1–5 | — | — | §27 |
 
-
-### 15.2 DCC Function Reuse Mapping
-
-| Sub-Task | Priority | DCC Function | DCC Location | Lines | Role |
-| :------- | :------: | :----------- | :----------- | :---: | :--- |
-| T1.96.1 | **P0** | `RefResolver._extract_registered_schemas()` | `dcc/workflow/schema_engine/loader/ref_resolver.py` | 164–256 | Extract → `discover_schema_files()`. Core glob-walk, exclude-filter, merge-with-explicit loop. |
-| T1.96.1 | **P0** | `safe_resolve()` | `dcc/workflow/schema_engine/utils/paths.py` | 10–12 | Resolve `project_root / directory_rel` to absolute path. Used at line 221 of `_extract_registered_schemas`. Also present in `dcc/workflow/core_engine/paths/path_core.py:29` and `dcc/workflow/utility_engine/paths/path_resolvers.py:71`. |
-| T1.96.1 | P1 | `SchemaCache` (class) | `dcc/workflow/schema_engine/loader/schema_cache.py` | 41–250 | Multi-level cache (L1 mem, L2 disk, L3 session) with TTL + mtime validation. Load-after-discovery caching pattern. |
-| T1.96.1 | P1 | `SchemaDependencyGraph.build_graph()` | `dcc/workflow/schema_engine/loader/dependency_graph.py` | 83–102 | Build adjacency list from `$ref` links in registered schemas — load ordering post-discovery. |
-| T1.96.1 | P2 | `SchemaPaths.list_available_schemas()` | `dcc/workflow/core_engine/paths/path_schema.py` | 99–111 | Simple `glob("*.json")` — fallback if full discovery not needed. |
-| T1.96.3 | **P0** | `RefResolver._build_uri_registry()` | `dcc/workflow/schema_engine/loader/ref_resolver.py` | 258–298 | Scan directories for JSON files, extract `$id`, build URI→Path map. Essential for `$ref` resolution post-discovery. |
-| T1.96.3 | **P0** | `RefResolver._find_schema_file()` | `dcc/workflow/schema_engine/loader/ref_resolver.py` | 679–705 | Search multiple directories for schema file by name. Replaces EKS `schema_loader.py` two-location hardcoded search. |
-| T1.96.3 | P1 | `SchemaLoader.load_schema()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 309–353 | Load by stem name from registered directories with caching — pattern for consuming discovery output. |
-| T1.96.3 | P1 | `SchemaLoader._resolve_reference_path()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 282–307 | Multi-fallback path resolution (base → main → CWD). |
-| T1.96.3 | P1 | `SchemaLoader.load_json_file()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 276–280 | Generic JSON file loader. |
-| T1.96.3 | P1 | `SchemaLoader.set_main_schema_path()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 124–129 | Anchor base_path to schema's parent directory. |
-| T1.96.3 | P1 | `SchemaDependencyGraph._extract_dependencies()` | `dcc/workflow/schema_engine/loader/dependency_graph.py` | 140–184 | Recursive JSON walker extracting all `$ref` targets. |
-| T1.96.3 | P1 | `SchemaDependencyGraph.detect_cycles()` | `dcc/workflow/schema_engine/loader/dependency_graph.py` | 186–226 | DFS cycle detection for dependency graph. |
-| T1.96.3 | P1 | `SchemaDependencyGraph.get_resolution_order()` | `dcc/workflow/schema_engine/loader/dependency_graph.py` | 228–262 | Topological sort for load ordering. |
-| T1.96.3 | P2 | `SchemaLoader.load_recursive()` | `dcc/workflow/schema_engine/loader/schema_loader.py` | 172–228 | Full recursive load with dependency resolution. |
-| T1.96.4 | already in `common/` | `ValidationManager.validate_discovery_rules()` | `common/library/utility/validation/manager.py` | 449–489 | Validates rule payload + directory existence. **Does NOT execute discovery** — validation gate only. |
-| T1.96.2 | config only | `project_config.json` data pattern | `dcc/config/schemas/project_config.json` | 41–46 | 4 discovery rules as live example. Schema def already in `eks_base_schema.json:167`. |
-
-### 15.3 Success Criteria
-- [x] `discover_schema_files()` exists in `common/library/loader/schema_discovery.py` and returns unified registry dict.
-- [x] `eks_config.json` has `discovery_rules` array with 5 rules matching existing schema conventions (incl. `*_base.json` for outlier files).
-- [x] `schema_loader.py` reads `schema_files` + `discovery_rules` from config; 22 hardcoded filenames replaced with config-driven loop.
-- [x] Path root inconsistency fixed: discovery rules use `eks/config/schemas/...` paths to match actual file locations.
-- [x] `setup_validator.py` calls `validate_discovery_rules()` when rules present.
-- [x] Full EKS suite 236/236 green.
-- [x] `common/universal_pipeline_architecture_design.md` §4.16 references align with implementation.
-
-
 ---
 
 ## 16. System Parameters — SSOT Centralization (T1.97) Tasks
-
-> **Relocated from [§28 — System Parameters — SSOT Centralization (T1.97)](phase_1_foundation_workplan.md#28-system-parameters--ssot-centralization-t197)** of the main workplan (v4.8). Canonical source is now here.
-
-**Objective**: Centralize all runtime behavior knobs (`fail_fast`, `log_level`, `debug_mode`, `skip_readiness`, `retry_count`, `retry_delay`, `api_timeout`, `ollama_timeout`, `db_timeout`) into a schema-defined `system_parameters` block in `eks_config.json`. Create a universal `get_system_param()` function in `common/library/config/` that handles both EKS flat-object and DCC array-of-entries shapes. Remove hardcoded equivalents from `phase1_server.py`, `error_manager.py`, `registry.py`, `server.py`. Closes I088.
-
-**Rationale**: Currently these values are scattered across global variables (`phase1_server.py:103-105`), constructor defaults (`error_manager.py:21`), function defaults (`registry.py:326`), and literal constants (`server.py:359,429`). I088 documents this as a SSOT violation versus DCC's `project_config.json → system_parameters` pattern. A universal `get_system_param()` in `common/` makes the fix reusable for DCC and future phases.
 
 ### 16.1 Task Breakdown
 
@@ -493,16 +327,6 @@ Achieve **schema-design consistency** and **code-module universality** for proje
 | T1.97.8 | [Code] Replace hardcoded timeouts in server.py | api_timeout, ollama_timeout from EKS config via get_system_param() | R99 | ✅ COMPLETE | I088 | — | `eks/server.py` | ← T1.97.1, T1.97.4 | — | — | §28 |
 | T1.97.9 | [Testing] Tests + suite green | Add test_system_parameters.py; full suite green | R99 | ✅ COMPLETE | I088 | — | `test/test_system_parameters.py` | ← T1.97.1–8 | — | — | §28 |
 
-### 16.2 Success Criteria
-- [x] `common/library/config/__init__.py` exports `get_system_param()` and `normalize_system_parameters()`.
-- [x] `normalize_system_parameters()` handles EKS flat-object, DCC flat-object, and DCC array-of-entries shapes.
-- [x] `eks_base_schema.json` has `system_parameters_def` with all 9 typed properties and defaults.
-- [x] `eks_setup_schema.json` has `system_parameters` property with `additionalProperties: false` enforced through the referenced definition.
-- [x] `eks_config.json` has `system_parameters` block; `registry.timeout` consolidated into block.
-- [x] `phase1_server.py`, `error_manager.py`, `registry.py`, `eks/server.py` read from config via `get_system_param()` / `ConfigRegistry.get_system_param()` for the T1.97 runtime knobs.
-- [x] Full EKS suite green; unit tests for normalize + get cover all 3 source shapes.
-- [x] I088 closed.
-
 ### 16.3 Universal Architecture Elevation (I091)
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
@@ -513,42 +337,9 @@ Achieve **schema-design consistency** and **code-module universality** for proje
 | T1.97.13 | [Docs] Update §4.1/§4.2/§9/§10 in universal doc | Add System Parameters to guidelines, order, checklist, criteria | R99 | ✅ COMPLETE | I091 | — | `common/universal_pipeline_architecture_design.md` | — | — | — | §28 |
 | T1.97.14 | [Docs] Update EKS knowledge.json | Reflect L15 status and universal architecture alignment | R99 | ✅ COMPLETE | I091 | — | `eks/knowledge.json` | — | — | — | §28 |
 
-### 16.4 I091 Success Criteria
-- [x] `common/library/__init__.py` registers `config` as architecture-aligned sub-package with docstring, import, and `__all__`.
-- [x] `common/universal_pipeline_architecture_design.md` has L15 row in §2.2 Inventory Table, `config/` in §2.3, L15 detail in §2.4.
-- [x] `common/universal_pipeline_architecture_design.md` has §3.17 System Parameters Pattern.
-- [x] `common/universal_pipeline_architecture_design.md` updated §4.1/§4.2/§9/§10.
-- [x] EKS knowledge.json updated with v2.5.0 and revision entry.
-- [x] I091 closed in issue log.
-- [x] Full EKS suite 243/243 green.
-
-
 ---
 
 ## 17. Universal Path Resolution & Schema-Driven Initialization (I089 + I090) Tasks
-
-> **Relocated from [§29 — Universal Path Resolution & Schema-Driven Initialization (I089 + I090)](phase_1_foundation_workplan.md#29-universal-path-resolution--schema-driven-initialization-i089--i090)** of the main workplan (v4.8). Canonical source is now here.
-
-**Objective**: (1) Adopt EKS's `global_paths` as the universal canonical schema-driven path pattern and provide a shared `PathResolver` in `common/library/paths/` that normalizes both EKS and DCC path shapes — closes **I089**. (2) Bring EKS to DCC parity for `workflow_files`/`tool_files`/`folder_creation` (schema-driven initialization) — closes **I090**.
-
-**Rationale**: A re-audit of DCC's actual code (I089 re-evaluation) found its path model is weaker than EKS's:
-- `base_path` is derived by **script-location traversal** (`default_base_path()` walks `Path(__file__).parents` to find `"workflow"`), not from config.
-- `data`/`output` dirs are **hardcoded literals** (`base_path / "data"`, `base_path / "output"`).
-- `discovery_rules[].directory` are used **only for schema discovery**, not working dirs.
-- `folder_creation.required_directories[].name` is used only for auto-create checks.
-
-By contrast, EKS's `global_paths` (hardened by T1.80/T1.82/T1.83 — no hardcoded fallbacks) is **genuinely schema-driven SSOT**. Therefore the universal pattern adopts EKS `global_paths` as canonical, with a bidirectional `PathResolver` normalizing DCC's shape into it. For I090, EKS gains `workflow_files`/`tool_files` blocks (currently absent), while `folder_creation` is satisfied by the resolver deriving the create-list from the canonical `global_paths` — EKS deliberately does **not** add a separate DCC-style `folder_creation` block (documented design decision).
-
-### 17.1 Canonical `global_paths` Shape (adopted as universal)
-
-```json
-"global_paths": {
-  "data_dir": "data", "output_dir": "output", "archive_dir": "archive",
-  "config_dir": "config", "log_dir": "log", "eks_root": "eks"
-}
-```
-
-DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults are **normalized into this shape** by the resolver (e.g. `schema_dir` ← first schema-config `discovery_rules` directory; `data_dir` ← `folder_creation` entry named `data` or native default).
 
 ### 17.2 Task Breakdown
 
@@ -563,25 +354,9 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.98.7 | [Code] EKS loader/initializer for workflow/tool files | Register file manifest; auto-create declared dirs from global_paths via resolver | R99 | ✅ COMPLETE | I090 | — | `setup_validator.py`, `config_registry.py` | ← T1.98.1 | — | — | §29 |
 | T1.98.8 | [Testing] Tests + suite green | test_path_resolver.py + workflow_files/tool_files schema tests; full suite 252/252 green | R99 | ✅ COMPLETE | I089, I090 | — | `test/test_path_resolver.py` | ← T1.98.1–7 | — | — | §29 |
 
-### 17.3 Success Criteria
-- [x] `common/library/paths/resolver.py` exists with `resolve_paths()` + `ResolvedPaths`; handles EKS `global_paths` and DCC shape.
-- [x] `common/library/paths/__init__.py` exports `resolve_paths`, `ResolvedPaths`.
-- [x] EKS `ConfigRegistry` + `phase1_server.py` route path access through the resolver; all 6 paths uniform.
-- [x] `common/universal_pipeline_architecture_design.md` has L16 (§2.2/§2.3/§2.4) + §4.18 Path Resolution Pattern + §5.1/§10/§24 updates.
-- [x] `eks/knowledge.json` updated with L16 status.
-- [x] `eks_base_schema.json`/`eks_setup_schema.json`/`eks_config.json` have `workflow_files`/`tool_files` blocks; `global_paths` drives folder creation (no separate `folder_creation` block).
-- [x] `setup_validator.py`/`config_registry.py` consume `workflow_files`/`tool_files` and auto-create dirs via resolver.
-- [x] `eks/test/test_path_resolver.py` + `workflow_files`/`tool_files` schema tests added; full EKS suite 252/252 green (243 + 9 new).
-- [x] I089 closed, I090 closed in issue log.
-
-
 ---
 
 ## 18. Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence (I092 / R60) Tasks
-
-> **Relocated from [§30 — Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence (I092 / R60)](phase_1_foundation_workplan.md#30-pipeline-entry-point--per-phase-sub-pipeline-convergence-i092--r60)** of the main workplan (v4.8). Canonical source is now here.
-
-**Objective**: Resolve I092 by converging EKS pipeline entry points on a shared `run_pipeline(context)` funnel (mirroring DCC's CLI + UI + web → one `run_engine_pipeline(context)`) and satisfying R60 / AGENTS.md §18.13 — every phase (1–5) runs as an independent sub-pipeline with its own `phase{N}_server.py` backend. Phase 1 already has `phase1_server.py`; it needs the convergence cleanup. Phases 2–5 need the full backend + runner.
 
 ### Task Breakdown
 
@@ -629,37 +404,7 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.33 | Merge `run()` into `main()` (DCC-faithful entry point, I103) | Move `run()` body into `main(args) -> int`; delete separate `run()`; `if __name__ == "__main__": sys.exit(main())`. | ✅ COMPLETE | I103, I092, I096, I099 | — | `eks_engine_pipeline.py` | — | T1.99.32 |
 | T1.99.34 | Declare `anchor`/`pipeline_dir` as locals in `main()` + pass explicitly (I104) | DCC-faithful I/O clarity: declare `pipeline_root_dir = "eks"` and `pipeline_dir = "engine"` locally in `main()` and pass explicitly. Module-level constants removed. | ✅ COMPLETE | I104, I092, I096, I099, I102 | — | `eks_engine_pipeline.py` | — | T1.99.33 |
 
-
-> **Phase 2–5 convergence tasks are tracked in their respective phase workplans** (AGENTS.md §15 — Phase 1 is COMPLETE, no cross-phase tasks defined here): `phase_2_chunking_embedding_workplan.md` §8 (T2.25–T2.26), `phase_3_knowledge_graph_workplan.md` §8 (T3.36–T3.37), `phase_4_retrieval_pipeline_workplan.md` §8 (T4.26–T4.27), `phase_5_ui_integration_workplan.md` §8 (T5.21–T5.22). I092/R60 status for Phases 2–5 is reflected in those workplans.
-
-### Success Criteria
-
-- [x] Shared `run_pipeline(context)` helper exists and is called by Phase 1 CLI + `phase1_server`.
-- [x] EKS CLI (`eks-pipeline`) runs the full pipeline end-to-end.
-- [x] `phase1_server._run` calls `run_full_pipeline()` (no inline A→C); 409 + `resolve_paths()` preserved.
-- [x] `engine_endpoints.py` removed; `eks/serve.py` present (§18.12).
-- [x] `ConfigRegistry` SSOT passed at entry.
-- [ ] Phases 2–5 each have a standalone `phase{N}_server.py` + `run_phase{N}_pipeline(context)`; `serve.py` proxies `/api/v{N}/*` — tasks tracked in respective phase workplans (phase_2/3/4/5 §8).
-- [x] Full EKS suite green (275/275).
-- [x] `resolve_pipeline_base_path()` walks `__file__.parents` for `engine/` anchor; falls back to `Path.cwd()` (T1.99.13).
-- [x] `--data-dir` is optional; defaults to `global_paths.data_dir` from config (T1.99.14).
-- [x] All path defaults route through resolved base path + `global_paths` schema (T1.99.15).
-- [x] Path resolution tests exist; full suite green (T1.99.16).
-- [x] `detect_os()` invoked at EKS entry; `os_info` captured (T1.99.17).
-- [x] `default_base_path("eks")` returns parent of anchor; no hardcoded depth (T1.99.18).
-- [x] `resolve_pipeline_base_path()` = `--base-path` else `cwd` (T1.99.19).
-- [x] `discover_project_root()` + `--base-path` CLI + `==pipeline_dir` strip; deterministic root (T1.99.20).
-- [x] Default `data_dir` → `project_root/eks/data` via `resolve_paths()` (T1.99.21).
-- [x] Auto-create OS-gated; paths serialized via `safe_posix()` (T1.99.22).
-- [x] Anchor-missing raises `FileNotFoundError` (T1.99.23).
-- [x] Entry-point resolution tests green (T1.99.24).
-- [x] EKS consumes common L12/L17 (I078 advanced) (T1.99.25).
-
-> **Phase test report**: `workplan/reports/phase_1_foundation_entrypoint_discovery_report.md` (RP-EKS-P1-ENTRY-001, v1.0) covers I098 / T1.99.17–26 — 8 new entry-point tests, full EKS suite 275/275 green. U154 / I098 → Resolved.
-
-### Universal Bootstrap Manager (I108–I111 / L19) Tasks — ✅ COMPLETE
-
-> **Option A (library-first)**: Universal `BootstrapManager` in `common/library/bootstrap/` as L19, extracted from DCC's mature implementation. EKS delegates to it. Subsequent tasks (I109–I111) depend on it. All 14 tasks below are complete.
+### Universal Bootstrap Manager (I108–I111 / L19) Tasks
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
@@ -680,8 +425,6 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 
 ### Error Code Alignment, Pre-Bootstrap Logger, and Environment Check Tasks (I112–I114)
 
-> Cross-reference audit of 5 sources found 6 misalignments between bootstrap error codes and Appendix D (I112, 🔷 PLANNED). Pre-bootstrap logger sequencing gap vs DCC fixed (I113, ✅). Environment/dependency check added via L20 + lazy imports (I114, ✅).
-
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
 | T1.99.64 | [Docs] Update Appendix D: add Bootstrap category (`S-B-S-0600–0699`) | D3 updated; `P1-BOOT-*` format documented in D2. | Docs | 🔷 PLANNED | I112 | — | `appendix_d_pipeline_messages_errors.md` | ← T1.99.63 | — | — | §30 |
@@ -699,22 +442,18 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.76 | [Code] **L19**: Add `env_tester` strategy hook to universal `BootstrapManager` | P6 calls it after OS detection; backward-compat (not injected → OS-detection-only). | L19 | ✅ COMPLETE | I114 | — | `common/library/bootstrap/` | ← T1.99.75 | — | — | §30 |
 | T1.99.77 | [Code] **EKS**: Wire `_bootstrap_env()` to universal `test_environment()` via `env_tester` hook | `ready=False` → `BootstrapError("P1-BOOT-ENV", ...)` with "Run: conda activate eks" guidance. | EKS | ✅ COMPLETE | I114 | — | `eks/engine/core/bootstrap.py` | ← T1.99.76 | — | — | §30 |
 | T1.99.78 | [Schema] **EKS**: Register `P1-BOOT-ENV` in `eks_error_config.json`; update schemas | Error code + schema updates. | EKS | ✅ COMPLETE | I114 | — | `eks/config/schemas/eks_error_config.json` | ← T1.99.77 | — | — | §30 |
-| T1.99.79 | [Docs] Update `update_log.md` + `issue_log.md`; close I114 | I114 → Resolved. | EKS | ✅ COMPLETE | I114 | U179 | `eks/log/update_log.md`, `eks/log/issue_log.md` | ← T1.99.75–78 | — | U179 | §30 |
+| T1.99.79 | [Docs] Update `update_log.md` + `issue_log.md`; close I114 | I114 → Resolved. | EKS | ✅ COMPLETE | I114 | U179 | `p1_update_log.md`, `p1_issue_log.md` | ← T1.99.75–78 | — | U179 | §30 |
 | T1.99.80 v2 | [Fix] **Lazy-import refactor**: ALL `common.library` imports deferred from module level to inside functions | Module-level now stdlib-only; no bare `ModuleNotFoundError` reaches user. | EKS | ✅ COMPLETE | I114 | U179 | `eks/engine/eks_engine_pipeline.py` | ← T1.99.79 | TL002, TL003 | U179 | §30 |
 
-### Preload Infrastructure Guard (I117) Tasks — ✅ COMPLETE
-
-> **Revision note (v3.86):** Chicken-and-egg problem — `main()` imports 4 `common.library` modules before bootstrap runs, but environment check lives inside bootstrap Phase 6. If `common.library` is not importable, a bare `ImportError` hits the user. These imports cannot be deferred (bootstrap itself needs them). **Solution**: `_preload_infrastructure()` — pure-stdlib guard function with individual `try/except ImportError`-guards on all 4 import groups (paths, root_discovery, logging, pipeline). Cannot live in `common.library` (circular); is a universal preload pattern (§3.23). `main()` simplified from ~20 lines of scattered imports to single `infra = _preload_infrastructure(...)` call with `infra["ready"]` gate. DCC does not have this issue (no external `common.library` dependency).
+### Preload Infrastructure Guard (I117) Tasks
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
 | T1.99.81 | [Code] Create `_preload_infrastructure()` pure-stdlib guard in `eks_engine_pipeline.py` | Individually try/except-guards all 4 `common.library` import groups (paths, root_discovery, logging, pipeline); collects errors into single dict `{ready, errors, logger, heartbeat, project_root, ...}`; `main()` gates on `infra["ready"]`, prints all errors with `FATAL:` prefix on failure; happy path preserved — if all imports succeed, `main()` proceeds identically. | EKS | ✅ COMPLETE | I117 | — | `eks/engine/eks_engine_pipeline.py` | ← T1.99.80 | TL002, TL003 | — | §30 |
-| T1.99.82 | [Docs] Update `eks/log/issue_log.md` | Log I117 with root-cause analysis (chicken-and-egg problem). | EKS | ✅ COMPLETE | I117 | — | `eks/log/issue_log.md` | ← T1.99.81 | — | — | §30 |
+| T1.99.82 | [Docs] Update `p1_issue_log.md` | Log I117 with root-cause analysis (chicken-and-egg problem). | EKS | ✅ COMPLETE | I117 | — | `p1_issue_log.md` | ← T1.99.81 | — | — | §30 |
 | T1.99.83 | [Docs] Update workplan | Add T1.99.81–83 tasks, §30.3 section; document universal preload pattern. | EKS | ✅ COMPLETE | I117 | — | `eks/workplan/phase_1_foundation_workplan.md` | ← T1.99.81–82 | — | — | §30 |
 
-### I130/I131/I132 Pipeline Defect Fixes Tasks — ✅ COMPLETE
-
-> **Resolution note (U181):** I130 (bootstrap path-resolution rooting defect), I131 (KeyError 'revision' in register_placeholders), and I132 (.dwg file type orphan) were discovered during Phase 1 pipeline execution. All three were resolved in a single fix cycle (U181). These tasks were missing from the original P1.4 task registry; added here for completeness.
+### I130/I131/I132 Pipeline Defect Fixes Tasks
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
@@ -724,17 +463,14 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.104 | [Fix] **I131**: Fix `_parse_filename()` fallback to include `revision="00"` | L1 defense: `_parse_filename()` had 3 code paths; filename `131101-WSW41-SP-SG-0101.pdf` matched no revision pattern → fallback returned `{"document_number": stem}` only (no `revision` key). Fix: fallback now returns `revision="00"`. | EKS | ✅ COMPLETE | I131 | U181 | `eks/engine/core/file_scanner.py` | — | — | U181 | §30 |
 | T1.99.105 | [Fix] **I131**: Add `setdefault("revision", "00")` safety net in `build_placeholder_metadata()` | L2 defense: `build_placeholder_metadata()` now has `setdefault("revision", "00")` safety net — catches any upstream source that omits `revision`. | EKS | ✅ COMPLETE | I131 | U181 | `eks/engine/pipeline_orchestrator.py` | ← T1.99.104 | — | U181 | §30 |
 | T1.99.106 | [Fix] **I131**: Use `.get("revision", "00")` in `register_document()` | L3 defense: `register_document()` now uses `.get("revision", "00")` instead of direct dict access `metadata["revision"]`. Three-layer layered defense complete. | EKS | ✅ COMPLETE | I131 | U181 | `eks/engine/core/registry.py` | ← T1.99.105 | — | U181 | §30 |
-| T1.99.107 | [Testing] **I131**: Tests + logs update for revision KeyError fix | Verify Phase A→B→C pipeline runs (19 files, 7 flagged). All 3 layers applied. Update `update_log.md`. | EKS | ✅ COMPLETE | I131 | U181 | `eks/test/test_t132_modules.py`, `eks/log/update_log.md` | ← T1.99.104–106 | TL003 | U181 | §30 |
+| T1.99.107 | [Testing] **I131**: Tests + logs update for revision KeyError fix | Verify Phase A→B→C pipeline runs (19 files, 7 flagged). All 3 layers applied. Update `update_log.md`. | EKS | ✅ COMPLETE | I131 | U181 | `eks/test/test_t132_modules.py`, `p1_update_log.md` | ← T1.99.104–106 | TL003 | U181 | §30 |
 | T1.99.108 | [Fix] **I132**: Add CAD document type for `.dwg` files | `.dwg` was registered in `file_type_registry` but no document type listed `.dwg` in `expected_file_types` → files classified as `unknown`. Fix: added `"CAD"` document type to `eks_doc_base_schema.json` enum, `eks_doc_setup_schema.json` propertyNames pattern, and `eks_doc_config.json` document_type_registry + element_expectations. | EKS | ✅ COMPLETE | I132 | U181 | `eks/config/schemas/eks_doc_base_schema.json`, `eks/config/schemas/eks_doc_setup_schema.json`, `eks/config/schemas/eks_doc_config.json` | — | TL003 | U181 | §30 |
-
 
 ---
 
-## 19. Data Export — CSV/Excel Pipeline Output (I126 / L22) — 🔷 PLANNED Tasks
-
+## 19. Data Export — CSV/Excel Pipeline Output (I126 / L22) Tasks
 
 > Source: [§32](phase_1_foundation_workplan.md#32)
-
 
 ### Task Breakdown
 
@@ -745,10 +481,7 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.155 | [Code] Per-run output subdirectories (F3) | Write exports to `output/<run_id>/` (UUID subdirectory). `run_id` already generated in `main()` via `engine_in.run_id`. | EKS export | ✅ COMPLETE | I126 | — | `eks/engine/eks_engine_pipeline.py` | ← T1.99.154 | — | — | §32 |
 | T1.99.156 | [Testing] Isolate export test DB + output (F4) | `test_main_export_both_runs` uses `mock.patch.object(registry_module, "DocumentRegistry", _IsolatedRegistry)` with temp DB path. | EKS test | ✅ COMPLETE | I126 | — | `eks/test/` | ← T1.99.153–155 | TL002 | — | §32 |
 
-
 ### Task Breakdown — L22 Universal DataExporter
-
-> Source: §32.4 (originally mislabeled as §32.8.4 in original workplan)
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
@@ -761,10 +494,7 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.93 | [Code] Wire 3 export calls after pipeline returns | **Design decision (2026-07-18): Export stays in `main()`, not in `PipelineOrchestrator`** — export is output formatting, not pipeline processing. The orchestrator remains pure (no `export_config` parameter). In `eks_engine_pipeline.py` `main()`, after `run_pipeline()` returns: **(a)** Query `returned_ctx.registry.list_documents(extract_status='pending')` → `DataExporter().export_to_csv/excel(rows, output_dir / "discovery_inventory.{fmt}")`. **(b)** Query all documents + aggregate element counts from `returned_ctx.data` → `extraction_results.{fmt}`. **(c)** Query flagged documents (`extract_status!='success'` or `confidence<0.70`) → `review_flags.{fmt}`. | EKS main() | 🔷 PLANNED | I126 | — | `eks/engine/eks_engine_pipeline.py` | ← T1.99.92 | — | — | §32.4 |
 | T1.99.94 | [Code] Add export endpoint + update logs | Add `GET /api/v1/export/{phase}/{format}` to `phase1_server.py` — phases: `a`, `b`, `c`, `all`; formats: `csv`, `xlsx`. Returns `FileResponse` with correct Content-Type. Update logs. | EKS API | 🔷 PLANNED | I126 | — | `eks/ui/backend/phase1_server.py` | ← T1.99.87–93 | TL005 | — | §32.4 |
 
-
 ### Task Breakdown — Post-Implementation Gap Fix (I188)
-
-> Source: §32.7.4 (originally mislabeled as §32.8.4 in original workplan)
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
@@ -772,16 +502,13 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.148 | [Fix] Fix `review_flags` empty — flag missing confidence unconditionally | Change L1126-1127 `elif status != "success"` → unconditional `else:` so `confidence=None` always generates `"Confidence: missing"` flag. Unblocks review_flags output. | EKS export | ✅ COMPLETE | I188 | U19x | `eks/engine/eks_engine_pipeline.py` | ← T1.99.147 | — | U19x | §32.7 |
 | T1.99.149 | [Testing] Verify — run pipeline with `--export both` and assert 3 files | Manual verification: run `main(["--data-dir", "...", "--export", "both"])`, check `eks/output/` for `discovery_inventory.csv`, `extraction_results.csv`, `review_flags.csv` (and xlsx equivalents). | EKS export | ✅ COMPLETE | I188 | U19x | — | ← T1.99.147–148 | — | U19x | §32.7 |
 | T1.99.150 | [Testing] Add export-specific unit tests | In `test_eks_engine_pipeline.py`: test `_build_export_rows` (with/without status filter, column subset), test `_build_flagged_rows` (None-confidence + success, low confidence, non-success), test `main()` with `--export both` (assert output files exist). | EKS test | ✅ COMPLETE | I188 | U19x | `eks/test/test_eks_engine_pipeline.py` | ← T1.99.147–149 | — | U19x | §32.7 |
-| T1.99.151 | [Docs] Update issue log + workplan | Set I188 → Resolved in `issue_log.md`; mark T1.99.147–150 as ✅ COMPLETE; update `update_log.md` U19x. | EKS docs | ✅ COMPLETE | I188 | U19x | `eks/log/issue_log.md`, `eks/log/update_log.md` | ← T1.99.147–150 | — | U19x | §32.7 |
-
+| T1.99.151 | [Docs] Update issue log + workplan | Set I188 → Resolved in `issue_log.md`; mark T1.99.147–150 as ✅ COMPLETE; update `update_log.md` U19x. | EKS docs | ✅ COMPLETE | I188 | U19x | `p1_issue_log.md`, `p1_update_log.md` | ← T1.99.147–150 | — | U19x | §32.7 |
 
 ---
 
-## 20. Schema-Driven Export Columns — Replace Hardcoded 11-Field Subset (I193) — ✅ COMPLETE Tasks
-
+## 20. Schema-Driven Export Columns — Replace Hardcoded 11-Field Subset (I193) Tasks
 
 > Source: [§47](phase_1_foundation_workplan.md#47)
-
 
 ### Task Breakdown
 
@@ -794,16 +521,11 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.161 | [Testing] Add schema-validation tests for `x_export` and artifacts | (a) `test_x_export_flag_present_on_all_properties` — every doc/proj property has boolean `x_export`, internal fields verified `false`. (b) `test_export_artifact_def_exists_and_valid` — 3 artifacts defined, structure valid. (c) `test_export_artifacts_have_different_column_sets` — discovery ⊂ extraction, extraction-only = {page_count, extract_status, ...}, review has flag_reason. | Test | ✅ COMPLETE | I193 | — | `eks/test/` | ← T1.99.157–160 | TL002 | — | §47 |
 | T1.99.162 | [Testing] Verify full export with 50 columns | Pipeline run verified: `discovery_inventory`: 46 cols (was 6), `extraction_results`: 50 cols (was 10), `review_flags`: 12 cols (was 8). All 10 previously-missing fields present (project_title, embedded_title, file_size, file_hash, lifecycle_stage, created_by, vendor_name, originator_company, file_modified_at, security_class). | Pipeline | ✅ COMPLETE | I193 | — | — | ← T1.99.157–161 | TL002 | — | §47 |
 
-
 ---
 
-## 21. Appendix D vs. Actual Pipeline Cross-Source Audit — 🔷 PLANNED Tasks
-
+## 21. Appendix D vs. Actual Pipeline Cross-Source Audit Tasks
 
 > Source: [§48](phase_1_foundation_workplan.md#48)
-
-
-### Priority 1 — Critical Bug Fixes (D1, D2)
 
 ### Priority 1 — Critical Bug Fixes (D1, D2)
 
@@ -843,14 +565,11 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.174 | [Docs] D12: Update Appendix D D4.3 range allocation — 05xx = AI, not Database | Document that range 05xx is now S-A (AI/Optional services). Note gap: Database errors (DuckDB/Neo4j) have no dedicated range; evaluate whether S-D 06xx should be allocated. | Docs | 🔷 PLANNED | — | — | `docs/appendix_d_pipeline_messages_errors.md` | ← T1.99.165 | — | — | §48 |
 | T1.99.175 | [Docs] D13: Update Appendix D D4 file I/O + config code ranges to actual config | Document actual ranges: file I/O 0201–0206 (not 0201–0212), config 0301–0308 (not 0301–0311). Note 10 missing aspirational codes may be added in future phase if needed. | Docs | 🔷 PLANNED | — | — | `docs/appendix_d_pipeline_messages_errors.md` | ← T1.99.165 | — | — | §48 |
 
-
 ---
 
 ## 22. Appendix E+F vs. Pipeline Architecture Cross-Source Audit — Gap Remediation (I208–I225) Tasks
 
-
 > Source: [§49](phase_1_foundation_workplan.md#49)
-
 
 ### Wave 1 — Critical Wiring Gaps (I212, I216, I224) — Must-Fix Before Phase 2
 
@@ -892,14 +611,11 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.192 | [Code] G10: Implement `DocumentSelectionContract` + `PipelineConfigContract` per Appendix F | Add contract schemas to `contracts.py`, wire `ContractManager` to validate before pipeline execution. Add `POST /api/v1/contracts/document-selection` and `POST /api/v1/contracts/pipeline-config` endpoints. | UI | 🔷 PLANNED | I217 | — | `eks/engine/core/contracts.py`, `eks/engine/core/contract_manager.py`, `eks/ui/backend/phase1_server.py` | ← T1.99.186–191 | — | — | §49 |
 | T1.99.193 | [Docs] G15: Cross-audit Appendix E schema versions vs. actual `version` fields | Read `"version"` from all 23 schema files, compare against Appendix E E5.1 table. Update stale entries. Add validation script `eks/test/verify_appendix_e_versions.py`. | Docs | 🔷 PLANNED | I222 | — | `docs/appendix_e_schema_design.md`, `eks/test/verify_appendix_e_versions.py` | — | — | — | §49 |
 
-
 ---
 
 ## 23. `str(5)` Bug Fix — Restore Exception Messages Across All Error Paths (I226) Tasks
 
-
 > Source: [§50](phase_1_foundation_workplan.md#50)
-
 
 ### Task Breakdown
 
@@ -909,35 +625,3 @@ DCC's `discovery_rules` + `folder_creation` + native `base_path/"data"` defaults
 | T1.99.195 | [Fix] Fix `discovery_cli.py` — 1 instance | Replace `str(5)` with `str(e)` in DiscoveryEngineError ErrorRecord. | EKS workflow | ✅ COMPLETE | I226 | — | `eks/engine/core/discovery_cli.py` | ← T1.99.194 | — | — | §50 |
 | T1.99.196 | [Fix] Fix `phase1_server.py` — 3 instances | L89 `_IMPORT_ERROR`, L525 `"detail"`, L666 `_job_state["error"]`. | EKS UI | ✅ COMPLETE | I226 | — | `eks/ui/backend/phase1_server.py` | ← T1.99.195 | — | — | §50 |
 | T1.99.197 | [Fix] Fix `serve.py` — 4 instances | L404 ConnectionRefused check, L425 upstream err, L436 internal err, L481 Ollama err. | EKS UI | ✅ COMPLETE | I226 | — | `eks/serve.py` | ← T1.99.196 | — | — | §50 |
-
-
----
-
-## Cross-Reference Index
-
-
-| Appendix § | Main Workplan Source | Content |
-|:---:|:---|:---|
-| 1 | §8 | Task Status Summary (counts only; detail rows in §2–§23) |
-| 2 | §14 | Foundation, Environment & Compliance (R99) |
-| 3 | §15 | Architectural Patterns — Context, Factories & Orchestration Hardening (Appendix F) |
-| 4 | §16 | Core Schema Suite (base/setup/config + fragment schemas) |
-| 5 | §17 | Asset Schema — Universal Plant Item (R36/R39) |
-| 6 | §18 | Ontology Integration (R44, ISO 15926) |
-| 7 | §19 | Logging, Errors & Health Scoring (R33/R34/R51) |
-| 8 | §20 | Document Registry & Revision Management (R02/R21/R22/R29) |
-| 9 | §21 | Document Parsers — PDF/DOCX/XLSX (R01/R26) |
-| 10 | §22 | Document Schema v2 — 3-Layer Reorganization (R52/R53) |
-| 11 | §23 | Pipeline Orchestration (R54–R58/R57) |
-| 12 | §24 | Initiation Integrity, Hardening & Harmonization (T1.77–T1.89) |
-| 13 | §25 | Phase 1.3 — Initiation Schema & Validation Harmonization (T1.84–T1.89) |
-| 14 | §26 | Initiation Config Flattening — DCC project_config Pattern (T1.90–T1.95) |
-| 15 | §27 | Schema Discovery & Registration — Discovery-Driven Loading (T1.96) |
-| 16 | §28 | System Parameters — SSOT Centralization (T1.97) |
-| 17 | §29 | Universal Path Resolution & Schema-Driven Initialization (I089 + I090) |
-| 18 | §30 | Pipeline Entry-Point & Per-Phase Sub-Pipeline Convergence (I092 / R60) |
-| 19 | §32 | Data Export — CSV/Excel Pipeline Output (I126 / L22) — 🔷 PLANNED |
-| 20 | §47 | Schema-Driven Export Columns — Replace Hardcoded 11-Field Subset (I193) — ✅ COMPLETE |
-| 21 | §48 | Appendix D vs. Actual Pipeline Cross-Source Audit — 🔷 PLANNED |
-| 22 | §49 | Appendix E+F vs. Pipeline Architecture Cross-Source Audit — Gap Remediation (I208–I225) |
-| 23 | §50 | `str(5)` Bug Fix — Restore Exception Messages Across All Error Paths (I226) |

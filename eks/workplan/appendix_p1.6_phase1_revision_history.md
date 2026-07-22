@@ -139,4 +139,4 @@
 ## Cross-References
 
 - **Main Workplan**: [phase_1_foundation_workplan.md §3](phase_1_foundation_workplan.md#3-revision-control--version-history) — high-level summary
-- **All Appendix P1.x files**: [P1.1](appendix_p1.1_architecture.md) | [P1.2](appendix_p1.2_phase1_scope.md) | [P1.3](appendix_p1.3_phase1_data_export.md) | [P1.4](appendix_p1.4_phase1_tasks.md) | [P1.5](appendix_p1.5_phase1_checklists.md)
+- **All Appendix P1.x files**: [P1.1](appendix_p1.1_phase1_architecture.md) | [P1.2](appendix_p1.2_phase1_scope.md) | [P1.3](appendix_p1.3_phase1_data_export.md) | P1.4 (retired — tasks in [p1_task_log.md](../log/phase1/p1_task_log.md)) | P1.5 (retired — SC in [p1_sc_log.md](../log/phase1/p1_sc_log.md), deliverables in [P1.2 §4](appendix_p1.2_phase1_scope.md#4-phase-1-deliverables-consolidated-from-34--37))

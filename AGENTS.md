@@ -110,10 +110,10 @@ conda activate eks
    | Order | Section | Contents |
    | :---: | :------ | :------- |
    | 1 | Metadata header | `# Issue Log`, Project, Location, Last Updated line |
-   | 2 | Legend block | `## Legend` → `### Status` table (marker, status, meaning for all 8 statuses) → `### Severity` table (marker, severity, meaning for all 5 severities) |
+    | 2 | Legend block | `## Legend` → `### Status` table (marker, status, meaning for all 10 statuses) → `### Severity` table (marker, severity, meaning for all 5 severities) |
    | 3 | Status Summary | `### Status Summary` table with per-status count (✅, 🔴, ⏳, ⏸️, 🔷, ⛔, 🔶) and grand total |
    | 4 | Priority Resolution Sequence | `## Priority Resolution Sequence` → priority table (Seq, Priority, Issue IDs, Count, Theme) |
-   | 5 | Issue Log Table | `## Issue Log Table` → pipe-delimited issue rows with columns: Issue ID, Date, Phase, Severity, Title, Description, Status, Resolution |
+    | 5 | Issue Log Table | `## Issue Log Table` → pipe-delimited issue rows with columns: Issue ID, Date, Phase, Severity, Title, Description, Status, Tasks, Resolution |
 
    **b. Status Summary regeneration**: After every edit, recount all statuses across every `I\d+` row and update the Status Summary table. Stale counts are treated as a layout defect.
 
@@ -133,7 +133,7 @@ conda activate eks
    2. `### Status` and `### Severity` legend tables → confirm all 8 statuses + 5 severities present
    3. `## Priority Resolution Sequence` → verify all Issue IDs exist in the Issue Log Table; verify `Count` column matches listed IDs per row
    4. Issue tags → grep `I\d+`, confirm sequential from I001 with no duplicates or gaps
-   5. Table rows → confirm all issue rows have 8 pipe-delimited columns (| Issue | Date | Phase | Severity | Title | Description | Status | Resolution |)
+   5. Table rows → confirm all issue rows have 9 pipe-delimited columns (| ID | Date | Phase | Severity | Title | Description | Status | Tasks | Resolution |)
 
 ## 6. Folder Convention (all projects)
 
@@ -754,3 +754,128 @@ When a concept (error code format, message ID, field name, configuration value, 
   - Explicit cleanup phase in the pipeline lifecycle
 - At each phase completion, check `output/` for accumulated stale files and clean them up.
 - Checkpoint files that are never used by resume/restart logic are dead code and should be removed — not just commented out.
+
+## 26. Issue Lifecycle Management
+
+Every pipeline project must follow a standardized 5-stage issue lifecycle from discovery through closure. Detailed design reference: `<project>/workplan/appendix_k_issue_management.md`.
+
+### 26.1 Five-Stage Lifecycle
+
+Every issue progresses through these stages:
+
+```
+① RECORD & EVALUATE → ② PLAN & APPROVE → ③ IMPLEMENT & UPDATE → ④ TEST & VERIFY → ⑤ CLOSE & ALIGN
+```
+
+| Stage | Exit Criteria | Artifacts |
+|-------|--------------|-----------|
+| ① | Severity, priority, phase assigned | issue_log entry `🔴 Open` |
+| ② | Tasks defined and approved | Task rows `🔷 PLANNED`; issue `🟢 Approved` |
+| ③ | All tasks `✅ COMPLETE`; update_log entry written | update_log entry `Uxxx` |
+| ④ | Test results documented; closure criteria met | test_log entry `TLxxx` |
+| ⑤ | Issue closed; workplan updated | issue_log `✅ Resolved` or `📐 Aligned` |
+
+### 26.2 Issue Log Table — 9-Column Format
+
+The `<project>/log/issue_log.md` table must use this column layout:
+
+```
+| ID | Date | Phase | Severity | Title | Description | Status | Tasks | Resolution |
+```
+
+- **Tasks column** (new): Holds task ID(s) that implement this issue (e.g. `T1.99.31` or `T1.21/T1.22`). This is the primary link to the workplan task table.
+- **Resolution column**: Structured format with ` — `-separated segments (see §26.5).
+
+### 26.3 Status Markers
+
+| Marker | Status | Meaning |
+|:------:|:-------|:--------|
+| ✅ | Resolved | Fixed and verified; no remaining action |
+| 🔴 | Open | Not yet addressed; active in queue |
+| ⏳ | In Progress | Currently being worked on |
+| ⏸️ | Deferred | Moved to a future phase |
+| 🔷 | Deferred for further study | Marked resolved but has unresolved pending work |
+| 🔷 | Deferred for further review | Requires debate/discussion before action can proceed |
+| ⛔ | Won't Implement | Explicitly rejected or out of scope |
+| 🔶 | Open (partial) | Open with partial progress or conditional resolution |
+| 📐 | Aligned | Issue resolved AND workplan/docs updated to reflect the change |
+| 🟢 | Approved | Tasks defined and approved; awaiting implementation |
+
+### 26.4 Severity Markers
+
+| Marker | Severity | Meaning |
+|:------:|:---------|:--------|
+| 🔴 | Critical | Blocks phase completion |
+| 🟠 | High | Significant impact; workaround needed |
+| 🟡 | Medium | Moderate impact; can proceed |
+| 🟢 | Low | Minor, cosmetic, or non-blocking |
+| 🔷 | Deferred | Moved to future phase; not currently blocking |
+
+### 26.5 Resolution Column — Structured Format
+
+The Resolution column uses segments separated by ` — ` (space-emdash-space):
+
+```
+Updates: Uxxx — Tests: TLxxx — Close: {summary} — Workplan: {filename} vX→vY — Approved: date by author
+```
+
+| Segment | Purpose | Required? |
+|---------|---------|:---------:|
+| `Updates:` | Update log entry IDs (Uxxx) | Recommended for ✅/📐 |
+| `Tests:` | Test log entry IDs (TLxxx) | Optional |
+| `Close:` | 1-line human-readable summary | Optional |
+| `Workplan:` | Workplan file name + version change (e.g. `phase_1_foundation_workplan.md v3.71→v3.72`) | Recommended for 📐 |
+| `Approved:` | Who approved and when | Recommended for 🟢/✅ |
+
+### 26.6 Approval Gate
+
+Between task planning and implementation, every issue must pass an approval gate:
+
+- `🔷 PLANNED` → Tasks defined but not yet approved
+- `🟢 Approved` → Tasks reviewed and approved; `Resolution` records `Approved: YYYY-MM-DD by {author}`
+- `✅ Resolved` or `📐 Aligned` → Implementation complete
+
+### 26.7 Per-Issue Closure Criteria (Checklist)
+
+Complex issues should embed a checklist of closure criteria in the Description column, using standard `[ ]` / `[x]` markdown format:
+
+```
+[x] Fix search path — Done T1.99.31
+[x] Add 2 regression tests — Done TL003
+[x] Verify 277/277 green — Result: all pass
+```
+
+Each item is a specific, verifiable claim. Simple issues (single-task, trivial) may omit the checklist.
+
+### 26.8 Workplan Alignment
+
+Issues that change pipeline architecture, task tables, config schemas, or shared libraries must transition from `✅ Resolved` to `📐 Aligned` after the workplan is updated. The Resolution `Workplan:` segment records the file name and version change.
+
+The status `📐 Aligned` is a superset of `✅ Resolved` — every Aligned issue was first Resolved, then had its documentation sync completed.
+
+### 26.9 Cross-Reference Integrity Rules
+
+**Rule 1 — Resolved Issue Completeness**: Every `✅ Resolved` or `📐 Aligned` issue must have its Tasks column populated and its Resolution reference at least one `U{xxx}`.
+
+**Rule 2 — Task Test Coverage**: Every `[Code]`, `[Schema]`, `[Fix]` task with status `✅ COMPLETE` must have its Tests column populated (at least one `TLxxx`).
+
+**Rule 3 — Update Log Consistency**: Every `Uxxx` marked `✅ Done` must reference at least one `Ixxx` and one `T{phase}.{seq}`.
+
+**Rule 4 — Approval Gate**: Issues transitioning from `🔷 PLANNED` to implementation should record `Approved: {date} by {author}` in Resolution.
+
+**Rule 5 — Workplan Alignment**: Architecture-impacting issues should transition to `📐 Aligned` and reference the workplan file+version in Resolution.
+
+### 26.10 Task Table — Tests Column Policy
+
+In the workplan task table (`appendix_p1.4` or equivalent), the Tests column follows these rules:
+
+| Task category | Tests column policy |
+|:--------------|:--------------------|
+| `[Code]` | Required — at least one `TLxxx` |
+| `[Schema]` | Required — at least one `TLxxx` |
+| `[Fix]` | Required — at least one `TLxxx` |
+| `[Config]` | Recommended |
+| `[Testing]` | Required — self-referencing (`TLxxx` for the test file itself) |
+| `[Docs]` | Optional — `—` is acceptable |
+| `[Cleanup]` | Optional — `—` is acceptable |
+| `[Init]` | Optional — `—` is acceptable |
