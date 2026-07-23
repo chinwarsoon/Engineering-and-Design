@@ -6,13 +6,20 @@ T1.64: Added phase rollback capability per Appendix F.
 T1.68: Wired ErrorManager/MessageManager calls at phase boundaries and per-file failures.
 T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_document_status().
 
-Revision: 0.3
-Date: 2026-07-19
+Revision: 0.5
+Date: 2026-07-23
 Author: CodeBuddy
-Summary: 0.3: T1.99.179 (I212) — wired RevisionManager for revision-aware lookups.
-          T1.99.180 (I216) — restored per-phase checkpoint writes for resume capability.
-          T1.99.181 (I224) — wired ReviewManager persistence in Phase C (lock_document,
-          recalculate_score). Phase C now persists review status instead of read-only flagging.
+Summary: 0.5: T1.106 (I232) — _process_file() resolves doc_id once via
+          registry.get_document_by_file_path() at entry; removed stem-based
+          fallback (lines 721-724). _update_doc_status() requires doc_id;
+          legacy path removed.
+0.4: T1.100 (I227) — run_phase_b() reads file list from DuckDB instead of
+          re-scanning filesystem. Added _resolve_phase_b_files() with DuckDB-first
+          logic and filesystem fallback.
+0.3: T1.99.179 (I212) — wired RevisionManager for revision-aware lookups.
+     T1.99.180 (I216) — restored per-phase checkpoint writes for resume capability.
+     T1.99.181 (I224) — wired ReviewManager persistence in Phase C (lock_document,
+     recalculate_score). Phase C now persists review status instead of read-only flagging.
 0.2: T1.99.85/I124 — commented out per-phase checkpoint writes in run_full_pipeline()
      _after() closure; checkpoint unused by resume logic; context held in-memory.
 """
@@ -328,6 +335,10 @@ class PipelineOrchestrator(BaseEngine):
         Phase B: For each discovered file, route → parse → detect → score → update.
         Enhanced with telemetry checkpoint per Appendix F.
 
+        I227: Reads file list from DuckDB (written by Phase A) instead of
+        re-scanning the filesystem. Falls back to filesystem scan if the
+        registry is empty.
+
         Returns summary dict with keys:
             - total: count of files processed
             - success: count parsed successfully
@@ -343,15 +354,19 @@ class PipelineOrchestrator(BaseEngine):
         if self.context:
             self.context.update_phase("B", "IN_PROGRESS")
 
-        discovered = self.scanner.scan(root_dir, recursive=recursive)
-        valid, _ = self.scanner.validate_file_types(discovered)
+        # I227: Read file list from DuckDB (Phase A output) — avoids redundant filesystem walk
+        valid = self._resolve_phase_b_files(root_dir, recursive)
 
         results = []
         success = 0
         partial = 0
         failed = 0
+        total = len(valid)
+        # I229: Batch telemetry milestones at 25%/50%/75%/100%
+        BATCH_MILESTONES = {0.25, 0.50, 0.75}
+        last_milestone_pct = 0.0
 
-        for file_info in valid:
+        for idx, file_info in enumerate(valid):
             file_path = file_info["file_path"]
             file_type = file_info["file_type"]
             try:
@@ -376,13 +391,22 @@ class PipelineOrchestrator(BaseEngine):
                     self.error_manager.handle_data_error("P5-F-V-0001", doc_id=str(file_path),
                                                           detail=f"File processing failed with status: {status}")
             
-            # Add telemetry checkpoint for each file processed
-            if self.use_telemetry:
-                self._forward_telemetry(
-                    f"B-{file_path}",
-                    details={"file": file_path, "status": status},
-                    doc_count=success + partial + failed,
-                )
+            # I229: Batch-level telemetry — emit checkpoints at 25%/50%/75%/100%,
+            # not per-file. Per-file errors still logged via ErrorManager.
+            if self.use_telemetry and total > 0:
+                pct = (idx + 1) / total
+                if pct >= 1.0:
+                    self._forward_telemetry(
+                        "B-progress", details={"milestone": "100%", "files": total},
+                        doc_count=total,
+                    )
+                for m in sorted(BATCH_MILESTONES):
+                    if last_milestone_pct < m <= pct:
+                        self._forward_telemetry(
+                            f"B-progress", details={"milestone": f"{int(m*100)}%", "files": int(total * m)},
+                            doc_count=int(total * m),
+                        )
+                        last_milestone_pct = m
 
         summary = {
             "total": len(valid),
@@ -534,8 +558,26 @@ class PipelineOrchestrator(BaseEngine):
         try:
             phase_a = self.run_phase_a(root_dir, recursive=recursive)
             _after("A")
+
+            # I230: validate A→B transition
+            ab_gate = self.validate_phase_transition("A", "B")
+            if not ab_gate["passed"]:
+                self.logger.warning(
+                    f"Phase A→B transition warnings: {ab_gate['warnings']}; errors: {ab_gate['errors']}",
+                    context="run_full_pipeline",
+                )
+
             phase_b = self.run_phase_b(root_dir, recursive=recursive)
             _after("B")
+
+            # I230: validate B→C transition
+            bc_gate = self.validate_phase_transition("B", "C")
+            if not bc_gate["passed"]:
+                self.logger.warning(
+                    f"Phase B→C transition warnings: {bc_gate['warnings']}; errors: {bc_gate['errors']}",
+                    context="run_full_pipeline",
+                )
+
             phase_c = self.run_phase_c()
             _after("C")
 
@@ -543,6 +585,7 @@ class PipelineOrchestrator(BaseEngine):
                 "phase_a": phase_a,
                 "phase_b": phase_b,
                 "phase_c": phase_c,
+                "gates": {"A_B": ab_gate, "B_C": bc_gate},
             }
 
             if self.use_telemetry:
@@ -562,6 +605,82 @@ class PipelineOrchestrator(BaseEngine):
                 self.error_manager.handle_system_error("S-R-S-0408", detail=f"Pipeline failed: {e}")
             raise
 
+    @log_depth
+    def _resolve_phase_b_files(self, root_dir: Path, recursive: bool = True) -> List[Dict[str, Any]]:
+        """
+        Resolve the file list for Phase B processing.
+        
+        I227: Primary path reads from DuckDB (Phase A output). Falls back to
+        filesystem scan if the registry is empty.
+        
+        Returns a list of file_info dicts with at minimum 'file_path' and 'file_type' keys.
+        """
+        rows = self.registry.list_documents(latest_only=False)
+        if rows:
+            valid = [
+                {
+                    "file_path": r["file_path"],
+                    "file_type": r.get("file_type", ""),
+                    "file_name": Path(r["file_path"]).name,
+                }
+                for r in rows
+                if r.get("file_path")
+            ]
+            self.logger.info(
+                f"Phase B: Loaded {len(valid)} files from registry (I227) — "
+                f"skipping filesystem scan",
+                context="run_phase_b",
+            )
+            return valid
+
+        self.logger.warning(
+            "Phase B: Registry returned no documents — falling back to filesystem scan",
+            context="run_phase_b",
+        )
+        discovered = self.scanner.scan(root_dir, recursive=recursive)
+        valid, _ = self.scanner.validate_file_types(discovered)
+        return valid
+
+    @log_depth
+    def validate_phase_transition(self, from_phase: str, to_phase: str) -> Dict[str, Any]:
+        """I230: Validate pre-conditions before transitioning between phases.
+
+        Returns dict with keys:
+            - passed: bool
+            - warnings: list[str]
+            - errors: list[str]
+        """
+        warnings: List[str] = []
+        errors: List[str] = []
+
+        if from_phase == "A" and to_phase == "B":
+            docs = self.registry.list_documents(latest_only=False)
+            if not docs:
+                errors.append("Phase A→B: registry has zero documents — nothing to process")
+            if docs and not any(d.get("file_path") for d in docs):
+                errors.append("Phase A→B: all registered documents lack file_path")
+
+        elif from_phase == "B" and to_phase == "C":
+            flagged = self.review_manager.get_flagged_documents(confidence_threshold=0.70)
+            all_docs = self.registry.list_documents(latest_only=False)
+            scored = [d for d in all_docs if d.get("extraction_confidence") is not None]
+            if not scored:
+                errors.append("Phase B→C: no documents have extraction scores")
+            if not all_docs:
+                errors.append("Phase B→C: registry is empty")
+
+        passed = len(errors) == 0
+        if not passed:
+            for e in errors:
+                self.logger.error(f"Phase transition {from_phase}→{to_phase} failed: {e}",
+                                  context="PipelineOrchestrator.validate_phase_transition")
+            if self.error_manager:
+                for e in errors:
+                    self.error_manager.handle_data_error("P5-F-V-0001", doc_id=f"{from_phase}→{to_phase}", detail=e)
+
+        return {"passed": passed, "warnings": warnings, "errors": errors}
+
+    @log_depth
     def _process_file(self, file_path: str, file_type: str) -> Dict[str, Any]:
         """
         Process a single file through the parse → detect → score pipeline.
@@ -604,6 +723,11 @@ class PipelineOrchestrator(BaseEngine):
             "error": None,
         }
 
+        # T1.106 (I232): Resolve doc_id once via file_path lookup (SSOT from Phase A).
+        # Avoids filename-parse divergence between _process_file and _update_doc_status.
+        doc = self.registry.get_document_by_file_path(file_path)
+        doc_id = doc["id"] if doc else None
+
         try:
             parse_result = self.router.route(file_path, file_type)
             result["parse_status"] = parse_result.get("status", "failed")
@@ -615,7 +739,7 @@ class PipelineOrchestrator(BaseEngine):
                 if self.error_manager:
                     self.error_manager.handle_data_error("P5-F-S-0002", doc_id=str(file_path),
                                                           detail=parse_result.get("error", "Parse failed"))
-                self._update_doc_status(file_path, "failed", notes=result["error"])
+                self._update_doc_status(file_path, "failed", doc_id, notes=result["error"])
                 return result
 
             content_blocks = parse_result.get("content_blocks", [])
@@ -674,10 +798,8 @@ class PipelineOrchestrator(BaseEngine):
                     self.error_manager.handle_data_error("P3-E-E-0018", doc_id=str(file_path),
                                                           detail=f"Structure detection failed: {e}")
 
-            # T1.99.179 (I212): Use RevisionManager for revision-aware doc lookup
-            parse_result = self._parser.parse(Path(file_path).name)
-            doc_number = parse_result.document_number or Path(file_path).stem
-            doc = self.revision_manager.get_latest_revision(doc_number)
+            # T1.106 (I232): doc already resolved at top of _process_file via
+            # registry.get_document_by_file_path(). No stem-based fallback needed.
             # T1.99.161 (I196): Persist detected structural elements to
             # document_elements table per Appendix B §B6.2.  This was always
             # detected but never stored before — a blocking gap since Phase 1.
@@ -803,33 +925,19 @@ class PipelineOrchestrator(BaseEngine):
         return [pages[pn] for pn in sorted(pages.keys())] if pages else [{"text": "", "tables": [], "images": []}]
 
     def _update_doc_status(self, file_path: str, status: str,
+                           doc_id: str,
                            confidence: Optional[float] = None,
                            notes: Optional[str] = None,
-                           extra_properties: Optional[Dict[str, Any]] = None,
-                           doc_id: Optional[str] = None) -> None:
-        """
-        Update document extraction status in registry using registry.update_document_status().
+                           extra_properties: Optional[Dict[str, Any]] = None) -> None:
+        """Update document extraction status in registry using registry.update_document_status().
 
-        T1.99.163 (I196): Accepts optional doc_id to avoid redundant filename parse.
-        When doc_id is provided (from _process_file), it is used directly; otherwise
-        falls back to filename-parsing lookup for backward compatibility.
+        T1.106 (I232): doc_id is now required — resolved once in _process_file()
+        via registry.get_document_by_file_path(). Legacy filename-parse fallback removed.
         """
-        if doc_id:
-            # Fast path: doc_id already resolved in _process_file
-            self.registry.update_document_status(
-                doc_id, status, confidence=confidence, notes=notes,
-                extra_properties=extra_properties,
-            )
-            return
-        # Legacy path: re-parse filename for callers that don't pass doc_id
-        parse_result = self._parser.parse(Path(file_path).name)
-        doc_number = parse_result.document_number or Path(file_path).stem
-        doc = self.registry.get_document(doc_number)
-        if doc:
-            self.registry.update_document_status(
-                doc["id"], status, confidence=confidence, notes=notes,
-                extra_properties=extra_properties,
-            )
+        self.registry.update_document_status(
+            doc_id, status, confidence=confidence, notes=notes,
+            extra_properties=extra_properties,
+        )
 
     # ------------------------------------------------------------------
     # T1.99.182 (I209): BaseEngine abstract method implementations.

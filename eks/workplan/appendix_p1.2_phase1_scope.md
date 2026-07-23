@@ -3,7 +3,7 @@
 **Document ID**: WP-EKS-P1-APX-1.2  
 **Version**: 1.0  
 **Last Updated**: 2026-07-21  
-**Status**: 🔷 IN PROGRESS — Gap analysis review; added metadata block, scope caveat for I227–I233 (7 open pipeline issues), corrected 4 file paths to `eks/config/schemas/`, appended 12 missing deliverables (T1.72–T1.99), added §4 Issue Cross-Reference.  
+**Status**: 🔷 IN PROGRESS — Gap analysis review; caveat updated for I228 (1 remaining open) + I227, I229–I233 (6 resolved). All 7 pipeline audit issues now closed or deferred.  
 **Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.3, IN PROGRESS)
 
 ---
@@ -56,17 +56,17 @@
 
 **Status Legend:** ✅ PASS / COMPLETE | 🔶 PARTIAL | ❌ FAIL | ✅ COMPLETE  (status column uses only these four symbols; severity emojis 🟠/🔴/🟡 are not status values)
 
-> **⚠️ Caveat — 7 Open Pipeline Issues (I227–I233):** The ✅ PASS statuses above reflect scope implementation completion. However, a 2026-07-20 pipeline audit identified 7 unresolved issues affecting runtime correctness, performance, and maintainability:
+> **⚠️ Caveat — 1 Unresolved Pipeline Issue (I228) + 6 Resolved (I227, I229–I233):** The ✅ PASS statuses above reflect scope implementation completion. A 2026-07-20 pipeline audit identified 7 issues. As of 2026-07-23, 6 of 7 are resolved:
 >
-> | Issue | Scope Affected | Summary |
-> |:------|:---------------|:--------|
-> | **I227** 🔴 | R57 | Phase B re-scans entire directory (2× I/O) |
-> | **I228** 🔴 | R36, R39 | Asset schema fragments have zero runtime pipeline code |
-> | **I229** 🔴 | R33, R34, R51 | Per-file telemetry overwhelms storage at scale |
-> | **I230** 🔴 | R57 | No `validate_phase_transition()` between phases |
-> | **I231** 🔴 | R99 | Version diverges across 3 sources (SSOT violation) |
-> | **I232** 🔴 | R21, R22 | Legacy `doc_id` fallback conflicts with `RevisionManager` |
-> | **I233** 🔴 | R99 | 1500-line monolithic `eks_engine_pipeline.py` |
+> | Issue | Scope Affected | Status |
+> |:------|:---------------|:-------|
+> | **I227** ✅ | R57 | Phase B re-scans — **RESOLVED:** DuckDB SSOT, code + tests complete |
+> | **I228** 🔴 | R36, R39 | Asset schema fragments have zero runtime pipeline code — **OPEN:** deferred to Phase 3 |
+> | **I229** ✅ | R33, R34, R51 | Per-file telemetry — **RESOLVED:** batch milestones 25%/50%/75%/100% |
+> | **I230** ✅ | R57 | Validation gates — **RESOLVED:** `validate_phase_transition()` wired |
+> | **I231** ✅ | R99 | Version SSOT — **RESOLVED:** `eks.__version__` canonical, all 8 subpackages import from `eks` |
+> | **I232** ✅ | R21, R22 | Legacy doc_id fallback — **RESOLVED:** `get_document_by_file_path()` eliminates divergence |
+> | **I233** ✅ | R99 | Pipeline monolith — **ALIGNED:** split into `pipeline_engine/cli.py`, `runner.py`, `exporter.py`. 1,284→295 lines, zero module-level globals. Workplan §56 added. |
 >
 > See [§4 Issue Cross-Reference](#4-issue-cross-reference) for details and resolution tracking.
 
@@ -243,7 +243,7 @@
 
 ## 5. Issue Cross-Reference
 
-> 7 open pipeline issues (I227–I233) — see [`p1_issue_log.md`](../log/phase1/p1_issue_log.md) for full details. Resolved issues I130–I226 are documented in [Appendix P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references).
+> 7 pipeline issues identified (I227–I233) — 6 resolved/aligned, 1 open (I228). See [`p1_issue_log.md`](../log/phase1/p1_issue_log.md) for full details. Resolved issues I130–I226 are documented in [Appendix P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references).
 
 > **Source:** `../log/phase1/p1_issue_log.md` — 2026-07-20 pipeline audit. See [Appendix P1.6](appendix_p1.6_phase1_revision_history.md) for change history.
 
@@ -255,6 +255,7 @@
 | :------ | :--------- | :-------- | :------ |
 | 1.0     | 2026-07-21 | CodeBuddy | Initial versioning — added metadata block (Document ID, Version, Status, Parent Workplan), scope caveat for I227–I233 (7 open pipeline issues), corrected 4 file paths from `eks/config/` to `eks/config/schemas/`, fixed 3 trailing-quote typos in §3 file table, appended 12 missing deliverables (T1.72–T1.99) to §4, added §5 Issue Cross-Reference with full I227–I233 root cause / affected scope / status table, added Table of Contents and Revision History. |
 | 1.1     | 2026-07-22 | opencode | §4 deliverable list converted to structured table (D001–D056) with columns: Category, Status, Tasks, Issues, Workplan Ref. All 56 entries preserved — includes bootstrap-fix artifacts (D046–D048), pipeline contracts (D049–D051), and common library modules (D052–D055). |
+| 1.2     | 2026-07-23 | opencode | Updated §2 caveat: 1 open (I228) + 6 resolved (I227, I229–I233). I233 status changed 🔴→✅ (monolith split aligned, workplan §56 added). Updated §5 cross-reference to reflect 6/7 resolved status. |
 
 
 

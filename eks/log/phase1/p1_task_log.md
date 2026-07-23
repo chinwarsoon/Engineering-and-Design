@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/phase1/p1_task_log.md`  
-**Last Updated**: 2026-07-22
+**Last Updated**: 2026-07-23 (U202 — I233 monolith split)
 
 ## Legend
 
@@ -11,6 +11,7 @@
 | Marker | Status | Meaning |
 |:------:|:-------|:--------|
 | ✅ | Complete | Task fully implemented and verified |
+| ⏳ | In Progress | Task currently being implemented |
 | 🔷 | Planned | Task defined but not yet implemented |
 | ⛔ | Won't Implement | Explicitly rejected or out of scope |
 
@@ -26,10 +27,11 @@ All tables use the standard 12-column enriched format:
 
 | Status | Marker | Count |
 | :----- | :----: | ----: |
-| Complete | ✅ | 255 |
-| Planned | 🔷 | 40 |
+| Complete | ✅ | 265 |
+| In Progress | ⏳ | 0 |
+| Planned | 🔷 | 38 |
 | Won't Implement | ⛔ | 0 |
-| **Total** | | **295** |
+| **Total** | | **303** |
 
 ---
 
@@ -427,12 +429,12 @@ All tables use the standard 12-column enriched format:
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
-| T1.99.64 | [Docs] Update Appendix D: add Bootstrap category (`S-B-S-0600–0699`) | D3 updated; `P1-BOOT-*` format documented in D2. | Docs | 🔷 PLANNED | I112 | — | `appendix_d_pipeline_messages_errors.md` | ← T1.99.63 | — | — | §30 |
-| T1.99.65 | [Schema] Register 14 universal `B-*` codes in `eks_error_config.json` | Under new `bootstrap_universal` range; `eks_error_code_base.json` pattern updated. | Schema | 🔷 PLANNED | I112 | — | `eks/config/schemas/eks_error_config.json` | ← T1.99.64 | — | — | §30 |
-| T1.99.66 | [Schema] Add bootstrap milestone/status messages to `eks_message_config.json` | `eks_message_base.json` + Appendix D D6 updated. | Schema | 🔷 PLANNED | I112 | — | `eks/config/schemas/eks_message_config.json` | ← T1.99.64 | — | — | §30 |
-| T1.99.67 | [Config] Decide and implement `P1-BOOT-*` format (A: migrate to `S-B-S-06xx` or B: keep hybrid) | Format decision made and implemented across all sources. | Config | 🔷 PLANNED | I112 | — | — | ← T1.99.64–66 | — | — | §30 |
-| T1.99.68 | [Code] Ensure all EKS code paths use registered error codes | No unregistered `B-*` codes can fire in EKS context. | EKS | 🔷 PLANNED | I112 | — | `eks/engine/` | ← T1.99.67 | — | — | §30 |
-| T1.99.69 | [Testing] Tests + docs + close I112 | Verify all bootstrap codes resolve via `ErrorManager`; messages via `MessageManager`; Appendix D fully updated. | EKS | 🔷 PLANNED | I112 | — | — | ← T1.99.64–68 | — | — | §30 |
+| T1.99.64 | [Docs] Update Appendix D: add Bootstrap category (`S-B-S-0600–0699`) | D3 updated; `P1-BOOT-*` format documented in D2. | Docs | ✅ COMPLETE | I112 | U181 | `appendix_d_pipeline_messages_errors.md` | ← T1.99.63 | — | U181 | §30 |
+| T1.99.65 | [Schema] Register 14 universal `B-*` codes in `eks_error_config.json` | Under new `bootstrap_universal` range; `eks_error_code_base.json` pattern updated. | Schema | ✅ COMPLETE | I112 | U181 | `eks/config/schemas/eks_error_config.json` | ← T1.99.64 | — | U181 | §30 |
+| T1.99.66 | [Schema] Add bootstrap milestone/status messages to `eks_message_config.json` | `eks_message_base.json` + Appendix D D6 updated. | Schema | ✅ COMPLETE | I112 | U181 | `eks/config/schemas/eks_message_config.json` | ← T1.99.64 | — | U181 | §30 |
+| T1.99.67 | [Config] Decide and implement `P1-BOOT-*` format (A: migrate to `S-B-S-06xx` or B: keep hybrid) | Format decision made and implemented across all sources. | Config | ✅ COMPLETE | I112 | U181 | — | ← T1.99.64–66 | — | U181 | §30 |
+| T1.99.68 | [Code] Ensure all EKS code paths use registered error codes | No unregistered `B-*` codes can fire in EKS context. | EKS | ✅ COMPLETE | I112 | U181 | `eks/engine/` | ← T1.99.67 | — | U181 | §30 |
+| T1.99.69 | [Testing] Tests + docs + close I112 | Verify all bootstrap codes resolve via `ErrorManager`; messages via `MessageManager`; Appendix D fully updated. | EKS | ✅ COMPLETE | I112 | U181 | — | ← T1.99.64–68 | — | U181 | §30 |
 | T1.99.70 | [Code] Early CLI parse for `--level`/`--debug` before bootstrap | `_parse_early_verbosity()` at L470–504. | EKS | ✅ COMPLETE | I113 | — | `eks/engine/eks_engine_pipeline.py` | — | — | — | §30 |
 | T1.99.71 | [Code] `UniversalLogger` created pre-bootstrap, passed to `EKSBootstrapManager(logger=logger)` | L548, L573. | EKS | ✅ COMPLETE | I113 | — | `eks/engine/eks_engine_pipeline.py`, `common/library/logger/` | ← T1.99.70 | — | — | §30 |
 | T1.99.72 | [Code] `TelemetryHeartbeat` created pre-bootstrap, covers all 8 phases | L552–553. | EKS | ✅ COMPLETE | I113 | — | `eks/engine/core/telemetry.py` | ← T1.99.71 | — | — | §30 |
@@ -625,3 +627,85 @@ All tables use the standard 12-column enriched format:
 | T1.99.195 | [Fix] Fix `discovery_cli.py` — 1 instance | Replace `str(5)` with `str(e)` in DiscoveryEngineError ErrorRecord. | EKS workflow | ✅ COMPLETE | I226 | — | `eks/engine/core/discovery_cli.py` | ← T1.99.194 | — | — | §50 |
 | T1.99.196 | [Fix] Fix `phase1_server.py` — 3 instances | L89 `_IMPORT_ERROR`, L525 `"detail"`, L666 `_job_state["error"]`. | EKS UI | ✅ COMPLETE | I226 | — | `eks/ui/backend/phase1_server.py` | ← T1.99.195 | — | — | §50 |
 | T1.99.197 | [Fix] Fix `serve.py` — 4 instances | L404 ConnectionRefused check, L425 upstream err, L436 internal err, L481 Ollama err. | EKS UI | ✅ COMPLETE | I226 | — | `eks/serve.py` | ← T1.99.196 | — | — | §50 |
+
+---
+
+## 24. Scan Redundancy — Eliminate Phase B Re-Scan via DuckDB SSOT (I227) Tasks
+
+> Source: I227 — Phase B re-scans entire directory tree despite Phase A having already written all file metadata to DuckDB.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.100 | [Code] Eliminate redundant Phase B filesystem scan — read file list from DuckDB | In `pipeline_orchestrator.py:run_phase_b()`, replace `self.scanner.scan(root_dir)` + `validate_file_types()` with `self.registry.list_documents(latest_only=False)` to read files already registered by Phase A. Map DuckDB columns (`file_path`, `file_type`) to the `file_info` dict expected by `_process_file()`. Preserve `self.scanner.scan()` as fallback if registry returns empty. See I227 resolution for detailed rationale. | I227 | ✅ COMPLETE | I227 | 2026-07-23 | `eks/engine/core/pipeline_orchestrator.py` | — | TL005 | U198 | §51 |
+| T1.101 | [Testing] Add regression test — Phase B does not re-scan filesystem when DuckDB has data | Assert that `FileScanner.scan()` is NOT called during `run_phase_b()` when DuckDB has pre-populated rows from Phase A. Verify `registry.list_documents()` is called instead. Test fallback path when DB is empty. | I227 | ✅ COMPLETE | I227 | 2026-07-23 | `eks/test/test_phase1.py` | TL005 | — | U198 | §51 |
+
+---
+
+## 25. Phase B Telemetry — Batch-Level Checkpoints (I229) Tasks
+
+> Source: I229 — Phase B emits per-file telemetry checkpoint for every document (7000+), overwhelming storage.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.102 | [Code] Replace per-file telemetry with batch-level checkpoints in `run_phase_b()` | In `pipeline_orchestrator.py:run_phase_b()`, replace the per-file `telemetry.track(...)` inside the `_process_file()` loop with a batch accumulator. Emit checkpoints at 25%/50%/75%/100% milestones using BATCH_MILESTONES + last_milestone_pct tracker. Keep per-file error logging via `self.error_manager.log_error()` — only progress telemetry becomes coarse. | EKS pipeline | ✅ COMPLETE | I229 | 2026-07-23 | `eks/engine/core/pipeline_orchestrator.py` | — | TL007 | U200 | §53 |
+| T1.103 | [Testing] Add test — batch telemetry emits correct milestones | Mock `TelemetryHeartbeat.track()` and assert it is called only at expected batch boundaries, not per-file. Verify 25%/50%/75%/100% milestone accuracy. | EKS test | 🔷 PLANNED | I229 | — | `eks/test/test_phase1.py` | ← T1.102 | — | — | §53 |
+
+## 26. Cross-Phase Validation Gates (I230) Tasks
+
+> Source: I230 — No cross-phase data consistency checks exist. Nothing verifies discovered_files non-empty before Phase B, or scored docs before Phase C.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.104 | [Code] Add `validate_phase_transition()` to `PipelineOrchestrator` | Method called at each A→B and B→C boundary. A→B gate checks registry has documents with file_path; B→C gate checks extraction_confidence scores exist. Returns `{"passed": bool, "warnings": list, "errors": list}`. Wired into `run_full_pipeline()` — non-blocking by default, results in summary["gates"]. | EKS pipeline | ✅ COMPLETE | I230 | 2026-07-23 | `eks/engine/core/pipeline_orchestrator.py` | — | TL007 | U200 | §54 |
+| T1.105 | [Testing] Add test — phase transition gates catch empty states | Mock empty registry → assert A→B fails with clear error. Mock no scored docs → assert B→C fails. Verify happy path passes through. | EKS test | 🔷 PLANNED | I230 | — | `eks/test/test_phase1.py` | ← T1.104 | — | — | §54 |
+
+## 27. Legacy `doc_id` Fallback Removal (I232) Tasks
+
+> Source: I232 — `_update_doc_status()` has legacy filename-based fallback that diverges from `RevisionManager`-based `_process_file()` path.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.106 | [Code] Remove legacy filename-based fallback — resolve doc_id once at top of `_process_file()` via `registry.get_document_by_file_path()` | Added `registry.get_document_by_file_path()` for SSOT lookup. `_process_file()` resolves `doc`/`doc_id` once at entry, replaces stem-based fallback (removed L721-724). `_update_doc_status()` now requires `doc_id: str` — legacy path removed. Updated both call sites. Bumped pipeline_orchestrator.py rev 0.5, registry.py rev 0.7. | EKS pipeline | ✅ COMPLETE | I232 | 2026-07-23 | `eks/engine/core/pipeline_orchestrator.py`, `eks/engine/core/registry.py` | — | T1.107 | — | §51 |
+| T1.107 | [Testing] 3 tests — file_path lookup found/not-found + synthetic key roundtrip proving stem divergence eliminated | `test_get_document_by_file_path_found`, `test_get_document_by_file_path_not_found`, `test_get_document_by_file_path_synthetic_key_roundtrip`. Full test suite 79/79 passes. | EKS test | ✅ COMPLETE | I232 | 2026-07-23 | `eks/test/test_phase1.py` | ← T1.106 | — | — | §51 |
+
+## 28. Version SSOT (I231) Tasks
+
+> Source: I231 — Three sources disagree: knowledge.json v2.6.0, `__init__.py` v1.4.0, `bootstrap.py` rev 0.3.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.108 | [Code] Declare single `__version__` in `eks/__init__.py`; all 8 subpackages import from `eks` | `eks/__init__.py` now canonical with `__version__ = "2.6.0"`. All 8 subpackage `__init__.py` files import `__version__` from `eks` instead of hardcoding. pyproject.toml and knowledge.json already at 2.6.0. Full test suite 291/305 pass (14 pre-existing rdflib env failures). | EKS pipeline | ✅ COMPLETE | I231 | 2026-07-23 | `eks/__init__.py`, `eks/engine/__init__.py`, `eks/engine/core/__init__.py`, `eks/engine/parsers/__init__.py`, `eks/config/schemas/__init__.py`, `eks/test/__init__.py`, `eks/ui/__init__.py`, `eks/ui/backend/__init__.py`, `eks/log/phase1/__init__.py` | — | TL008 | U201 | §55 |
+
+## 29. Pipeline Entry-Point Monolith Split (I233) Tasks
+
+> Source: I233 — `eks_engine_pipeline.py` is 1,284 lines mixing CLI parsing, pipeline orchestration, export helpers, and preload infrastructure in a single file. Per AGENTS.md §10 (SSOT) and §15 (Path Resolution), split into focused modules under `eks/engine/pipeline_engine/` following DCC `workflow/*_engine/` convention.
+
+### Design Summary
+
+| Aspect | Decision |
+|--------|----------|
+| Subfolder | `eks/engine/pipeline_engine/` (matches DCC `*_engine/` pattern) |
+| Modules | `cli.py` (parsers), `runner.py` (preload/bootstrap/run), `exporter.py` (export helpers) |
+| Module-level globals | **Zero** — `_PRJ_DIR`, `_THIS`, `_SCRIPT_DIR` removed from extracted modules; all paths flow from `main()` via `_preload_infrastructure()` returned `project_root` |
+| Entry shell | `eks_engine_pipeline.py` ~50 lines — import-time sys.path bootstrap + `main()` + re-exports |
+| Backward compat | All public functions re-exported; `pyproject.toml` console_scripts unchanged |
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.109 | [Code] Create `pipeline_engine/` with `cli.py`, `runner.py`, `exporter.py` | **`cli.py`**: Extract `build_parser()`, `_EKS_CORE_ARG_SPECS`, `build_schema_driven_parser(root, schema_config)` — `root` becomes **required** parameter (no `_PRJ_DIR` fallback), `parse_eks_cli()`, `_parse_early_verbosity()` — zero module-level globals. **`runner.py`**: Extract `_preload_infrastructure()` (imports `_parse_early_verbosity` from `cli.py`), `bootstrap_pipeline(project_root, ...)`, `run_pipeline(project_root, ...)`, `_read_system_params(config_dir)`, `_last_phase()`, `_print_human_summary()` — all paths received as explicit parameters, no `_PRJ_DIR`/`_THIS`/`_SCRIPT_DIR` module-level globals. **`exporter.py`**: Extract `resolve_export_columns(schema_dir)`, `_build_export_rows()`, `_build_flagged_rows()` — pure functions, zero pipeline dependencies. | EKS pipeline | ✅ COMPLETE | I233 | 2026-07-23 | `eks/engine/pipeline_engine/__init__.py`, `eks/engine/pipeline_engine/cli.py`, `eks/engine/pipeline_engine/runner.py`, `eks/engine/pipeline_engine/exporter.py` | — | TL009 | U202 | §56 |
+| T1.110 | [Code] Rewrite `eks_engine_pipeline.py` as thin entry-point shell | Keep: import-time sys.path bootstrap (`_stdlib_find_repo_root()` + `sys.path.insert`), `main()` with folder literals declared locally, `__main__` guard. Add: re-exports of `bootstrap_pipeline`, `run_pipeline`, `build_parser`, `parse_eks_cli`, `resolve_export_columns` from `pipeline_engine/` modules. Remove: all extracted function bodies, `_PRJ_DIR` module-level global reassignment (L128-135, now done inside `_preload_infrastructure()`), `_THIS`/`_SCRIPT_DIR` sys.path cleanup (moved into `main()`). `main()` must discover project root via `infra["project_root"]` returned by `_preload_infrastructure()` and pass explicitly to all downstream calls — no fallback to `_PRJ_DIR`. | EKS pipeline | ✅ COMPLETE | I233 | 2026-07-23 | `eks/engine/eks_engine_pipeline.py` | ← T1.109 | TL009 | U202 | §56 |
+| T1.111 | [Testing] Verify backward compatibility and full test suite | Full regression suite: `python -m pytest eks/test/` → must pass 291/305 (14 pre-existing rdflib failures unchanged). Verify all 4 public functions importable from `eks.engine.eks_engine_pipeline`. Verify `pyproject.toml` console_scripts entry `eks-pipeline = eks.engine.eks_engine_pipeline:main` resolves correctly. | EKS test | ✅ COMPLETE | I233 | 2026-07-23 | `eks/test/test_eks_engine_pipeline.py`, `eks/test/test_phase1.py` | ← T1.109, T1.110 | TL009 | U202 | §56 |
+
+(End of file)

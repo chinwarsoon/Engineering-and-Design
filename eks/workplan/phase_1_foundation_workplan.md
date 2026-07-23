@@ -136,7 +136,7 @@ Deliverables:
 | §5 | Scope Summary (R01–R100) | — (scoping doc) | — | [P1.2 §1](appendix_p1.2_phase1_scope.md#1-phase-1-scope-summary) |
 | §8 | Master Task Index | T1.1–T1.99.203 (all 203+) | I001–I233 (all Phase 1) | [Task Log](../log/phase1/p1_task_log.md#status-summary) (§2–23) |
 | §9 | Pipeline Architecture & 11 Function Tables | — (design doc) | I013, I215, I225, I229, I230 | [P1.1 §3](appendix_p1.1_phase1_architecture.md#3-phase-1-pipeline-architecture--function-tables) |
-| §10 | Files & Modules to Create/Update | — (per-file index) | I024, I094, I231 | [P1.2 §3](appendix_p1.2_phase1_scope.md#3-files-and-modules-to-createupdate) + [P1.1 §1.3](appendix_p1.1_phase1_architecture.md#13-module-inventory) |
+| §10 | Files & Modules to Create/Update | — (per-file index) | I024, I094 | [P1.2 §3](appendix_p1.2_phase1_scope.md#3-files-and-modules-to-createupdate) + [P1.1 §1.3](appendix_p1.1_phase1_architecture.md#13-module-inventory) |
 | §11 | Project Folder Structure | T1.1 | — | [P1.1 §2](appendix_p1.1_phase1_architecture.md#2-phase-project-folder-structure) |
 | §12 | Detailed Schema Design | T1.3–T1.5 (design); T1.42–T1.47, T1.50–T1.51 (fragments) | I004, I005, I010, I011, I194 | [Task Log §4](../log/phase1/p1_task_log.md#4-core-schema-suite-basesetupconfig-fragment-schemas-tasks) |
 | §13 | Parser Module Architecture | T1.8–T1.11 (parsers); T1.9 (abstract base) | I015, I016, I024 | [P1.1 §5](appendix_p1.1_phase1_architecture.md#5-independent-parser-module-architecture) |
@@ -156,7 +156,7 @@ Deliverables:
 | §27 | Schema Discovery & Registration — Discovery-Driven Loading | T1.96.1–T1.96.6 | — | [Task Log §15](../log/phase1/p1_task_log.md#15-schema-discovery-registration-discovery-driven-loading-t196-tasks) |
 | §28 | System Parameters — SSOT Centralization | T1.97.1–T1.97.14 | I091 | [Task Log §16](../log/phase1/p1_task_log.md#16-system-parameters-ssot-centralization-t197-tasks) |
 | §29 | Universal Path Resolution & Schema-Driven Init | T1.98.1–T1.98.8 | I089, I090, I130 | [Task Log §17](../log/phase1/p1_task_log.md#17-universal-path-resolution-schema-driven-initialization-i089-i090-tasks) |
-| §30 | Pipeline Entry-Point & Sub-Pipeline Convergence (I092 / R60) | T1.99.1–T1.99.83 | I078, I092, I096–I100, I102–I107, I109–I117, I126, I188–I192, I231–I233 | [Task Log §18](../log/phase1/p1_task_log.md#18-pipeline-entry-point-per-phase-sub-pipeline-convergence-i092-r60-tasks) |
+| §30 | Pipeline Entry-Point & Sub-Pipeline Convergence (I092 / R60) | T1.99.1–T1.99.83 | I078, I092, I096–I100, I102–I107, I109–I117, I126, I188–I192, I233 | [Task Log §18](../log/phase1/p1_task_log.md#18-pipeline-entry-point-per-phase-sub-pipeline-convergence-i092-r60-tasks) |
 | §39 | Bootstrap path-resolution rooting defect fix | — | I130 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
 | §40 | KeyError: 'revision' in register_placeholders | — | I131 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
 | §41 | .dwg file type orphan fix (Option B: CAD document type) | — | I132 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
@@ -169,6 +169,12 @@ Deliverables:
 | §48 | Appendix D vs. actual pipeline cross-source audit (13 gaps) | — | I195–I207 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
 | §49 | Appendix E+F vs. pipeline architecture cross-source audit (18 gaps) | — | I208–I225 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
 | §50 | `str(5)` bug fix — restore exception messages (13 instances, 4 files) | — | I226 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
+| §51 | Scan Redundancy — DuckDB SSOT eliminates Phase B re-scan | T1.100, T1.101 | I227 | [Task Log §24](../log/phase1/p1_task_log.md#24-scan-redundancy-eliminate-phase-b-re-scan-via-duckdb-ssot-i227-tasks) |
+| §52 | Legacy doc_id fallback removal — file_path SSOT lookup, doc_id required | T1.106, T1.107 | I232 | [Task Log §27](../log/phase1/p1_task_log.md#27-legacy-doc_id-fallback-removal-i232-tasks) |
+| §53 | Batch-level telemetry — per-file checkpoints replaced with 25%/50%/75%/100% milestones | T1.102 | I229 | [Task Log §25](../log/phase1/p1_task_log.md#25-phase-b-telemetry-batch-level-checkpoints-i229-tasks) |
+| §54 | Cross-phase validation gates — A→B (registry non-empty) and B→C (scores exist) | T1.104 | I230 | [Task Log §26](../log/phase1/p1_task_log.md#26-cross-phase-validation-gates-i230-tasks) |
+| §55 | Version SSOT — single `__version__` in `eks/__init__.py`; all subpackages import from `eks` | T1.108 | I231 | [Task Log §28](../log/phase1/p1_task_log.md#28-version-ssot-i231-tasks) |
+| §56 | Pipeline monolith split — `pipeline_engine/` subfolder; entry-point shell (1,284 → 295 lines); zero module-level globals | T1.109–T1.111 | I233 | [Task Log §29](../log/phase1/p1_task_log.md#29-pipeline-monolith-split-i233-tasks) |
 
 ### 10.2 Checklists & Deliverables
 

@@ -16,4 +16,4 @@ try:
 except ImportError:
     DocumentRegistry = None
 
-__version__ = "1.4.0"
+from eks import __version__

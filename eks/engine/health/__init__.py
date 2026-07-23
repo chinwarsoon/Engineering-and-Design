@@ -5,4 +5,4 @@ Future: HealthScorer, scoring dimensions, and batch health aggregation will
 migrate here from core/ for domain separation.
 """
 
-__version__ = "0.1.0"
+from eks import __version__

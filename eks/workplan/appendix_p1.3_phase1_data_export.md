@@ -2,8 +2,8 @@
 
 **Document ID**: WP-EKS-P1-APX-1.3
 **Version**: 1.2
-**Last Updated**: 2026-07-22
-**Status**: 🔷 IN PROGRESS — §5.3–§5.5 root cause/fix narrative stripped to align with SSOT (issue_log.md). 7 OPEN pipeline issues (I227–I233) directly impact export data quality. Layout restructure for design-first flow completed in v1.1.
+**Last Updated**: 2026-07-23 (I233 Aligned, §5.1 caveat updated — 6/7 pipeline issues resolved)
+**Status**: 🔷 IN PROGRESS — §5.3–§5.5 root cause/fix narrative stripped to align with SSOT (issue_log.md). As of 2026-07-23, pipeline issues I227/I229–I233 resolved (6 of 7); I228 remains open. Layout restructure for design-first flow completed in v1.1.
 **Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.3, IN PROGRESS)
 
 ---
@@ -190,19 +190,19 @@ All implementation work was driven by 5 issues. The master table below maps each
 | 4 | **I192** — UUID folder names not human-readable | — | 1/1 |
 | 5 | **I193** — Hardcoded 11-field export; 43 DB columns ignored | 6 | 9/9 |
 
-### 5.1 Open Pipeline Issues Caveat (I227–I233)
+### 5.1 Pipeline Issues Impacting Export (I227–I233)
 
-7 OPEN pipeline issues in the main workplan (see [P1.2 §2](appendix_p1.2_phase1_scope.md#2-scope-caveat--open-issues)) directly impact export data quality. These issues are tracked in the main workplan and `issue_log.md`, not resolved within export scope:
+6 of 7 pipeline issues now resolved/aligned (I228 remains open). Issue details tracked in [`p1_issue_log.md`](../log/phase1/p1_issue_log.md):
 
-| Issue | Title | Impact on Data Export |
-|:---|:---|:---|
-| I227 | 2× I/O scan (no doc-level caching) | Export queries may reflect stale registry state if `scan()` is re-run post-export |
-| I228 | No post-parse schema/dependency/health validation gate | Documents with `extract_status = "success"` may still have incomplete metadata → exported as-is |
-| I229 | File-by-file logging without aggregation | No per-run export summary statistics (row counts, column coverage, flag distribution) |
-| I230 | No phase-level validation gate (checkpoint quality) | Documents entering Phase B/C without validated Phase A output affect extraction/review exports |
-| I231 | Lack of idempotency guarantees for `run_pipeline()` | Re-running pipeline before export changes which docs are "current-run" (I189/F2 scoping dependent on stable pre-run set) |
-| I232 | Parser module cross-dependencies not formally documented | Parser failures cascading into `extraction_confidence = None` → flagged in review_flags export — but root cause unclear |
-| I233 | Monolithic `install_eks_deps()` — no version pinning | `openpyxl` version drift could affect Excel export formatting without detection |
+| Issue | Title | Impact on Data Export | Status |
+|:---|:---|:---|:---:|
+| I227 | 2× I/O scan (no doc-level caching) | Export queries may reflect stale registry state if `scan()` is re-run post-export | ✅ |
+| I228 | No post-parse schema/dependency/health validation gate | Documents with `extract_status = "success"` may still have incomplete metadata → exported as-is | 🔴 |
+| I229 | File-by-file logging without aggregation | No per-run export summary statistics (row counts, column coverage, flag distribution) | ✅ |
+| I230 | No phase-level validation gate (checkpoint quality) | Documents entering Phase B/C without validated Phase A output affect extraction/review exports | ✅ |
+| I231 | Version SSOT | Single `__version__` in `eks/__init__.py`. All subpackages import from `eks` | ✅ |
+| I232 | Parser module cross-dependencies not formally documented | Parser failures cascading into `extraction_confidence = None` → flagged in review_flags export | ✅ |
+| I233 | Monolithic pipeline module | Split into `pipeline_engine/`, zero module-level globals. No impact on export logic | ✅ |
 
 ### 5.2 Detail: I126 — No CSV/Excel Export Capability (T1.99.87–94)
 
@@ -432,7 +432,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 | I189 | `../log/phase1/p1_issue_log.md` | Stale output + test-DB pollution |
 | I192 | `../log/phase1/p1_issue_log.md` | UUID folder names not human-readable |
 | I193 | `../log/phase1/p1_issue_log.md` | Hardcoded 11-field export |
-| I227–I233 | `../log/phase1/p1_issue_log.md` | OPEN pipeline issues (see §5.1 caveat) |
+| I227–I233 | `../log/phase1/p1_issue_log.md` | Pipeline audit issues — 6 resolved/aligned, 1 open (see §5.1) |
 
 ### 6.5 Update Log
 
@@ -450,6 +450,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 
 | Version | Date | Author | Changes |
 |:---|:---|:---|:---|
+| **1.3** | 2026-07-23 | opencode | Updated §5.1 caveat: 6/7 pipeline issues resolved (I227/I229–I233 ✅; I228 🔴 remains open). I233 status changed from `install_eks_deps()` description to module split. Added Status column to caveat table. Updated status line and §6.3 cross-reference. |
 | **1.2** | 2026-07-22 | AI Agent (SSOT alignment) | §5.3–§5.5 root cause/fix narrative removed (I188 Discovery + Root Causes & Fixes, I189 Discovery + Root Causes + Fix Design, I192 Problem/Fix/Result). Only task tables + SC checklists retained per SSOT rule (issue detail lives only in `issue_log.md`). §5 intro updated. |
 | **1.1** | 2026-07-21 | AI Agent (layout restructure) | Major restructure for design-first flow: fixed Document ID (`A1.3` → `APX-1.3`), changed status to 🔷 IN PROGRESS, added §1 Design Features Overview (1.1–1.3), merged current §2+§3 → §2 Export Architecture & Design, consolidated §5–§11+§14 into single §5 master table with collapsible `<details>` blocks per issue, added §5.1 I227–I233 scope caveat, added §6 Cross-Reference Index, added Revision History. 14 sections → 6 sections. No content loss. |
 | **1.0** | 2026-07-20 | AI Agent (initial) | Initial creation: integrated §32 and §47 content from main workplan, restored export design from source code analysis, `issue_log.md`, and `update_log.md`. Documented L22 DataExporter, EKS wiring, 4 post-implementation fixes (I188/I189/I192/I193), API endpoint, and source code reference. |

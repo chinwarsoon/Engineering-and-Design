@@ -1066,5 +1066,155 @@ class TestPhase1(unittest.TestCase):
         self.assertTrue((PRJ_DIR / "eks" / "config").is_dir(), "eks/config not found relative to PRJ_DIR")
         self.assertTrue((PRJ_DIR / "eks" / "data").is_dir(), "eks/data not found relative to PRJ_DIR")
 
+    # ── I227: Scan Redundancy Tests ──────────────────────────────────────────
+
+    def test_phase_b_reads_from_registry_instead_of_rescan(self):
+        """T1.100 (I227): run_phase_b() reads file list from DuckDB — does not re-scan filesystem."""
+        from unittest.mock import patch, MagicMock
+        from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
+
+        # Pre-populate registry with documents (simulating Phase A output)
+        test_docs = [
+            {"document_number": "I227-001", "revision": "A", "file_path": str(_PROJECT_ROOT / "test_output/i227_doc_a.pdf"), "file_type": "pdf", "document_type": "PDF"},
+            {"document_number": "I227-002", "revision": "A", "file_path": str(_PROJECT_ROOT / "test_output/i227_doc_b.dgn"), "file_type": "dgn", "document_type": "DGN"},
+            {"document_number": "I227-003", "revision": "00", "file_path": str(_PROJECT_ROOT / "test_output/i227_doc_c.docx"), "file_type": "docx", "document_type": "DOC"},
+        ]
+        for doc in test_docs:
+            self.registry.register_document(doc)
+
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        loader = SchemaLoader(config_parent)
+        config = loader.load_all()
+        orch = PipelineOrchestrator(config, loader.doc_config, self.registry)
+
+        # Patch scanner.scan to fail loudly if called
+        original_scan = orch.scanner.scan
+        orch.scanner.scan = MagicMock(side_effect=AssertionError("I227: scan() should not be called when registry has data"))
+
+        summary = orch.run_phase_b(_PROJECT_ROOT / "test_output")
+
+        # Verify scan was never called
+        orch.scanner.scan.assert_not_called()
+
+        # Verify results returned — loop completes without exception
+        self.assertIn("total", summary)
+        self.assertIn("results", summary)
+        self.assertGreaterEqual(summary["total"], len(test_docs),
+                                "Phase B should process at minimum the 3 I227 test files")
+        self.assertEqual(len(summary["results"]), summary["total"],
+                         "Results count should match total files processed")
+
+        # Restore
+        orch.scanner.scan = original_scan
+
+    def test_phase_b_falls_back_to_scan_when_registry_empty(self):
+        """T1.100 (I227): run_phase_b() falls back to filesystem scan when DuckDB is empty."""
+        from unittest.mock import MagicMock
+        from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
+
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        loader = SchemaLoader(config_parent)
+        config = loader.load_all()
+
+        # Use a registry that has no documents
+        empty_reg_path = _PROJECT_ROOT / "test_output" / "eks_registry_empty_i227.db"
+        if empty_reg_path.exists():
+            empty_reg_path.unlink()
+        from eks.engine.core import DocumentRegistry
+        empty_registry = DocumentRegistry(db_path=str(empty_reg_path))
+
+        orch = PipelineOrchestrator(config, loader.doc_config, empty_registry)
+
+        # Set up test files on disk
+        test_dir = _PROJECT_ROOT / "test_output" / "pipe_b_fallback"
+        test_dir.mkdir(parents=True, exist_ok=True)
+        (test_dir / "FALLBACK-001-A.pdf").touch()
+        (test_dir / "FALLBACK-002-B.dgn").touch()
+
+        # Patch scanner.scan to verify it IS called
+        original_scan = orch.scanner.scan
+        orch.scanner.scan = MagicMock(wraps=original_scan)
+
+        summary = orch.run_phase_b(test_dir)
+
+        # Verify scan was called (fallback path)
+        orch.scanner.scan.assert_called_once()
+        self.assertGreaterEqual(summary["total"], 1, "Phase B should discover files via fallback scan")
+
+        # Restore
+        orch.scanner.scan = original_scan
+
+
+    # ------------------------------------------------------------------
+    # I232 — Legacy doc_id fallback removal (T1.106, T1.107)
+    # ------------------------------------------------------------------
+
+    def test_get_document_by_file_path_found(self):
+        """T1.106 (I232): registry.get_document_by_file_path() returns doc by file_path."""
+        reg_path = self.test_dir / "eks_registry_i232_found.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        registry = DocumentRegistry(db_path=str(reg_path))
+        doc_id = registry.register_document({
+            "document_number": "UNRESOLVED-a1b2c3d4",
+            "revision": "00",
+            "document_type": "OTHER",
+            "file_path": "/data/test/Site_Photo_001.pdf",
+            "file_type": "pdf",
+            "status": "registered",
+        })
+        result = registry.get_document_by_file_path("/data/test/Site_Photo_001.pdf")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["id"], doc_id)
+        self.assertEqual(result["document_number"], "UNRESOLVED-a1b2c3d4")
+        if reg_path.exists():
+            reg_path.unlink()
+
+    def test_get_document_by_file_path_not_found(self):
+        """T1.106 (I232): returns None for unknown file_path."""
+        reg_path = self.test_dir / "eks_registry_i232_miss.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        registry = DocumentRegistry(db_path=str(reg_path))
+        result = registry.get_document_by_file_path("/nonexistent/path.pdf")
+        self.assertIsNone(result)
+        if reg_path.exists():
+            reg_path.unlink()
+
+    def test_get_document_by_file_path_synthetic_key_roundtrip(self):
+        """T1.106 (I232): Phase A registers unresolvable filename with synthetic key;
+        Phase B resolves doc_id via file_path, not stem."""
+        reg_path = self.test_dir / "eks_registry_i232_synth.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        registry = DocumentRegistry(db_path=str(reg_path))
+
+        # Simulate Phase A: filename unresolvable → synthetic key
+        file_path = "/data/test/Site_Photo_001.pdf"
+        doc_id = registry.register_document({
+            "document_number": "UNRESOLVED-a1b2c3d4",
+            "revision": "00",
+            "document_type": "OTHER",
+            "file_path": file_path,
+            "file_type": "pdf",
+            "status": "registered",
+        })
+
+        # Simulate Phase B: resolve by file_path (not Path(file_path).stem)
+        doc = registry.get_document_by_file_path(file_path)
+        self.assertIsNotNone(doc)
+        resolved_id = doc["id"]
+
+        # Verify: doc_id from file_path lookup matches the registered UUID
+        self.assertEqual(resolved_id, doc_id)
+
+        # Verify: legacy Stem-based lookup would fail
+        stem_doc = registry.get_document("Site_Photo_001")
+        self.assertIsNone(stem_doc, "Stem-based lookup must return None — document_number is UNRESOLVED-a1b2c3d4, not Site_Photo_001")
+
+        if reg_path.exists():
+            reg_path.unlink()
+
+
 if __name__ == "__main__":
     unittest.main()

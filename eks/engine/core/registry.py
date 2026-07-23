@@ -2,15 +2,16 @@
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
 DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 
-Revision: 0.6
-Date: 2026-07-19
+Revision: 0.7
+Date: 2026-07-23
 Author: CodeBuddy
-Summary: 0.6: T1.99.153 (I189/F1) — added optional db_path parameter for test-isolated databases.
-        0.5: T1.99.148 (I187) — migrated synthetic key generation to common.library.utility.synthetic_key.
-         Removed ad-hoc hashlib usage for key generation.
-         T1.99.150 (I186) — changed id from business-key to pure UUID, INSERT OR REPLACE → INSERT.
-         T1.99.152 (I184) — added diff logging to update_document_status().
-         Prior: T1.99.141–T1.99.146 — document metadata completeness.
+Summary: 0.7: T1.106 (I232) — added get_document_by_file_path() for SSOT doc_id lookup.
+         0.6: T1.99.153 (I189/F1) — added optional db_path parameter for test-isolated databases.
+         0.5: T1.99.148 (I187) — migrated synthetic key generation to common.library.utility.synthetic_key.
+          Removed ad-hoc hashlib usage for key generation.
+          T1.99.150 (I186) — changed id from business-key to pure UUID, INSERT OR REPLACE → INSERT.
+          T1.99.152 (I184) — added diff logging to update_document_status().
+          Prior: T1.99.141–T1.99.146 — document metadata completeness.
 """
 import duckdb
 import json
@@ -551,6 +552,27 @@ class DocumentRegistry:
                 return None
             
             # Convert to dict
+            cols = [d[0] for d in conn.description]
+            return dict(zip(cols, res))
+        finally:
+            conn.close()
+
+    @log_depth
+    def get_document_by_file_path(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """Retrieve the latest (is_latest=TRUE) document by its file_path.
+
+        T1.106 (I232): SSOT lookup that avoids filename-parse divergence.
+        Phase A registered every file with its absolute file_path, so this
+        always returns the correct doc_id regardless of filename parseability.
+        """
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            res = conn.execute(
+                "SELECT * FROM documents WHERE file_path = ? AND is_latest = TRUE",
+                [file_path],
+            ).fetchone()
+            if not res:
+                return None
             cols = [d[0] for d in conn.description]
             return dict(zip(cols, res))
         finally:

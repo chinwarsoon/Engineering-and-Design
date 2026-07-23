@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/phase1/p1_sc_log.md`  
-**Last Updated**: 2026-07-22 v4 (345 items — 155/345 issues filled, 107/345 tasks filled)
+**Last Updated**: 2026-07-23 v5 (352 items — I232 doc_id SSOT: SC-P1.350–352 added, TL006 referenced)
 
 > Self-contained — cross-references extracted from all source appendixes and embedded inline. Source data from: `appendix_p1.5` §33 (89 items), per-section criteria (v2/v1, ~170 items), `appendix_p1.3` §5.2–5.6 (37 items), `appendix_f` (10 items), `appendix_i` (10 items), `appendix_j` (10 items), `phase_1.2` workplan (88 items).
 
@@ -396,14 +396,17 @@
 | SC-P1.347 | DocumentSelectionContract validates data folder and file types (per Appendix G §7.2) | Phase 1.2 | Documentation | ✅ | I105,I106,I107| — | — | — | §10.3 I/O Contracts |
 | SC-P1.348 | PipelineConfigContract validates debug mode, workers, thresholds (per Appendix G §7.2) | Phase 1.2 | Pipeline | ✅ | I105,I106,I107| — | — | — | §10.3 I/O Contracts |
 | SC-P1.349 | UIContractManager provides file browsing and validation (per Appendix G §7.3) | Phase 1.2 | Initiation | ✅ | I105,I106,I107| — | — | — | §10.3 I/O Contracts |
+| SC-P1.350 | `registry.get_document_by_file_path()` returns doc by absolute file_path for both normal and unresolvable filenames | Phase 1 | Registry | ✅ | I232 | T1.106 | — | TL006 | §51 |
+| SC-P1.351 | Legacy doc_id fallback removed — `_update_doc_status()` requires doc_id; stem-based divergence with RevisionManager eliminated | Phase 1 | Pipeline | ✅ | I232 | T1.106 | — | TL006 | §51 |
+| SC-P1.352 | 3 I232 regression tests pass: file_path lookup found/not-found + synthetic key roundtrip proving stem divergence eliminated | Phase 1 | Testing | ✅ | I232 | T1.107 | — | TL006 | §51 |
 
 ---
 
 ## Notes
 
 - **Self-contained**: All cross-references (issue, task, update IDs) extracted from source appendixes and embedded inline in this log. No external source document is required to resolve traceability.
-- **Cross-reference gaps**: 194/349 SC items lack issue refs (mostly §33 foundation items with no issue tracking); 242/349 lack task refs; 349/349 lack test refs (TL001–TL004 exist in p1_test_log.md but SC items not yet updated with references). These are source-text gaps, not extraction misses.
-- **Status counts**: 303 ✅ Complete + 17 [ ] Pending + 29 🔷 Planned = 349 total
+- **Cross-reference gaps**: 194/352 SC items lack issue refs (mostly §33 foundation items with no issue tracking); 242/352 lack task refs; 349/352 lack test refs (SC-P1.350–352 have TL006; TL001–TL005 exist but most SC items not yet updated). These are source-text gaps, not extraction misses.
+- **Status counts**: 306 ✅ Complete + 17 [ ] Pending + 29 🔷 Planned = 352 total
 - **P1 warnings**: 16 SC items from §30.6–30.7 remain [ ] Pending (universal BootstrapManager not yet delivered); 29 Phase 1.2 items remain 🔷 Planned (server hardening, design system rollout, cross-platform fixes)
 - **Duplicate note**: ~5 SC items appear in both `appendix_f` and `phase_1.2` §10.3 (I/O contract criteria). Deduplication attempted but a small number may remain.
 - **ID ranges**: SC-P1.01–89 from §33 checklist; SC-P1.90–206 from per-section criteria + pipeline architecture; SC-P1.207–349 from remaining sources (parsers, data export, UI)
