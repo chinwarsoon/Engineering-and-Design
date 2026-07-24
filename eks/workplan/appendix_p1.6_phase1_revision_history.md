@@ -2,8 +2,8 @@
 
 > **Canonical source for all Phase 1 revision history.**
 > Consolidated from [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md)
-> Last Updated: 2026-07-20
-> Version Range: v0.1 (2026-06-11) through v5.3 (2026-07-20) — 102 revision entries
+> Last Updated: 2026-07-24
+> Version Range: v0.1 (2026-06-11) through v5.4 (2026-07-24) — 103 revision entries
 
 ---
 
@@ -18,6 +18,7 @@
 
 | Version | Date       | Author | Summary of Changes                            |
 | :------ | :--------- | :----- | :-------------------------------------------- |
+| 5.4     | 2026-07-24 | opencode | **Added §57 row in §10.1 for I234 CLI default pipeline output** — pipeline_output.json, debug_log.json, schema-driven --export default, 5 default output files (T1.112–T1.115). Updated §8 Data Export section to reference I234. test_log TL014 added. |
 | 5.3     | 2026-07-20 | opencode | **Merge §10.3 into §10.1** — 12 defect-fix rows (§39–§50) appended to design table, eliminating the separate §10.3 subsection. Single unified 36-row table now covers all 24 design sections + 12 defect fixes. Tasks column uses — for defect rows (no design tasks). TOC simplified: 10.1 + 10.2 only. |
 | 5.2     | 2026-07-20 | opencode | **Status column** — §10.1 table enhanced: added Status column with section-level completion status sourced from P1.4 task statuses. §11–§29 marked ✅ (all subtasks complete), §8/§30 marked 🔷 (pending: T1.99.50–T1.99.61, T1.99.64–T1.99.69 🔷 PLANNED; T1.99.30 ⛔ Won't Implement). Design docs (§5,§9,§10) marked ✅. |
 | 5.1     | 2026-07-20 | opencode | **Task/issue cross-reference** — §10.1 table enhanced: added Tasks column (T1.x ranges per section, sourced from P1.4 Master Task Index) and Key Issues column (Ixxx IDs per section, sourced from `eks/log/issue_log.md`). 24 rows × 5 columns now provide full bidirectional traceability: workplan § → tasks → issues → appendix. |
@@ -133,6 +134,7 @@
 | **Bootstrap & Entry-Point Convergence** | v3.53–v3.87 | 2026-07-11 to 2026-07-20 | Universal BootstrapManager (L19), entry-point relocation (CLI + web + backend), anchor-folder path resolution, cross-platform discovery, universal CLI parser (L18), pre-bootstrap logger (I113), environment checks (I114), structured BootstrapError (I111), preload infrastructure guard (I117), lazy-import refactor |
 | **Appendix Relocation** | v4.8–v5.0 | 2026-07-20 | §40–§50 defect deep-dives → P1.1; §43 file property extraction → Appendix J; §47 schema-driven export → P1.3; §3 full history → P1.6; 50→11 section collapse; §10 Implementation Index consolidates all appendix redirects |
 | **Implementation Index Consolidation** | v5.1–v5.3 | 2026-07-20 | §10.1 table enhanced: added Tasks column (P1.4 cross-ref), Key Issues column (issue_log cross-ref), Status column (completion status per section); §10.3 merged into §10.1 as a single 36-row table |
+| **CLI Default Pipeline Output** | v5.4 | 2026-07-24 | Added §57 row in §10.1 for I234 CLI default pipeline output (T1.112–T1.115); updated §8 to reference I234 default-on export; test_log TL014 added |
 
 ---
 

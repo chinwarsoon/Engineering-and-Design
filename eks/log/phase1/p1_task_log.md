@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/phase1/p1_task_log.md`  
-**Last Updated**: 2026-07-23 (U202 — I233 monolith split)
+**Last Updated**: 2026-07-24 (Added T1.116–T1.119 for I235 batch telemetry fix and I236 ERROR_FILE_PROCESSING kwarg fix; T1.103 spec sharpened)
 
 ## Legend
 
@@ -27,11 +27,11 @@ All tables use the standard 12-column enriched format:
 
 | Status | Marker | Count |
 | :----- | :----: | ----: |
-| Complete | ✅ | 265 |
+| Complete | ✅ | 271 |
 | In Progress | ⏳ | 0 |
-| Planned | 🔷 | 38 |
+| Planned | 🔷 | 48 |
 | Won't Implement | ⛔ | 0 |
-| **Total** | | **303** |
+| **Total** | | **319** |
 
 ---
 
@@ -85,6 +85,14 @@ All tables use the standard 12-column enriched format:
 | T1.62 | [Code] Update Engines to Use Factories | Refactor existing engines to use factories instead of direct instantiation per Appendix F | R26 | ✅ COMPLETE | — | — | `engine/` | ← T1.59–61 | — | — | §15 |
 | T1.63 | [Code] Enhance PipelineOrchestrator with Checkpoints | Add 5 clear phases (A-E) with telemetry heartbeat integration per Appendix F | R57 | ✅ COMPLETE | — | — | `pipeline_orchestrator.py` | — | — | — | §15 |
 | T1.64 | [Code] Implement Phase Rollback Capability | Add checkpoint restoration mechanism for failed phases per Appendix F | R57 | ✅ COMPLETE | — | — | `pipeline_orchestrator.py` | ← T1.63 | — | — | §15 |
+| T1.182.1 | [Code] Remove duplicate Factory base class from EKS factories.py | Remove lines 22-41 (duplicate Factory class); add import from common.library.utility.factories.base_factory | R99 | ✅ COMPLETE | I211 | TL010 | `engine/core/factories.py` | — | TL010 | U203 | §15 |
+| T1.182.2 | [Code] Refactor ParserFactory to inherit from common.Factory | Ensure ParserFactory inherits from common.Factory; replace manual _load_class() with self._load_class(); verify _get_config() uses common version | R99 | ✅ COMPLETE | I211 | TL010 | `engine/core/factories.py` | ← T1.182.1 | TL010 | U203 | §15 |
+| T1.182.3 | [Code] Refactor HealthScorerFactory to inherit from common.Factory | Ensure HealthScorerFactory inherits from common.Factory; replace manual import with self._load_class() if applicable; verify config access uses common._get_config() | R99 | ✅ COMPLETE | I211 | TL010 | `engine/core/factories.py` | ← T1.182.1 | TL010 | U203 | §15 |
+| T1.182.4 | [Code] Refactor StructureDetectorFactory to inherit from common.Factory | Ensure StructureDetectorFactory inherits from common.Factory; replace manual _load_class() logic (lines 205-208) with self._load_class(); verify config access uses common._get_config() | R99 | ✅ COMPLETE | I211 | TL010 | `engine/core/factories.py` | ← T1.182.1 | TL010 | U203 | §15 |
+| T1.182.5 | [Code] Refactor EngineFactory to inherit from common.Factory | Ensure EngineFactory inherits from common.Factory; replace manual _load_class() logic (lines 272-275) with self._load_class(); verify config access uses common._get_config() | R99 | ✅ COMPLETE | I211 | TL010 | `engine/core/factories.py` | ← T1.182.1 | TL010 | U203 | §15 |
+| T1.182.6 | [Docs] Update factories.py revision metadata | Update revision header in factories.py to document SSOT compliance fix; reference I211 and T1.99.182 | R99 | ✅ COMPLETE | I211 | TL010 | `engine/core/factories.py` | ← T1.182.1–5 | TL010 | U203 | §15 |
+| T1.182.7 | [Testing] Run EKS test suite for factory SSOT compliance | Run EKS test suite to verify no breaking changes; focus on tests that use factories; verify dynamic class loading still works | R99 | ✅ COMPLETE | I211 | TL010 | `test/` | ← T1.182.1–5 | TL010 | U203 | §15 |
+| T1.182.8 | [Docs] Update I211 status in p1_issue_log.md | Update I211 resolution note to reflect completion; change status from "Deferred for further study" to "Resolved"; update last updated version | R99 | ✅ COMPLETE | I211 | TL010 | `log/phase1/p1_issue_log.md` | ← T1.182.1–7 | TL010 | U203 | §15 |
 
 ---
 
@@ -577,7 +585,7 @@ All tables use the standard 12-column enriched format:
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
-| T1.99.179 | [Code] G5: Wire `RevisionManager` into Phase B for supersession detection | Implement `detect_supersession()` in `revision.py` — query existing docs by document_number, compare revisions, set `is_latest=False`, set `supersedes`/`superseded_by` chain. Integrate into `PipelineOrchestrator._process_file()` after `register_document()`. | Revision | 🔷 PLANNED | I212 | — | `eks/engine/core/revision.py`, `eks/engine/pipeline_orchestrator.py`, `eks/engine/core/registry.py` | — | — | — | §49 |
+| T1.99.179 | [Code] G5: Wire `RevisionManager` into Phase B for supersession detection | Implement `detect_supersession()` in `revision.py` — query existing docs by document_number, compare revisions with `_compare_revisions()` supporting numeric/alphabetic; wired into `PipelineOrchestrator._process_file()` after successful parse+score, using parsed revision from metadata. 5 tests covering all supersession cases. 296/305 pass, 0 regressions. | Revision | ✅ COMPLETE | I212 | — | `eks/engine/core/revision.py`, `eks/engine/pipeline_orchestrator.py` | — | TL012 | U205 | §49 |
 | T1.99.180 | [Code] G9: Restore checkpoint persistence with resume capability | Uncomment `save_checkpoint()` calls. Write checkpoints to `output/<run_id>/checkpoint_<phase>.json`. Add `--resume <run_id>` CLI flag. | Pipeline | 🔷 PLANNED | I216 | — | `eks/engine/pipeline_orchestrator.py`, `eks/engine/eks_engine_pipeline.py` | ← T1.99.179 | — | — | §49 |
 | T1.99.181 | [Code] G17: Wire `ReviewManager` into Phase C for review status persistence | Iterate flagged docs: apply auto-corrections, expose remaining flags, `approve_document()` persists to registry. Add `POST /api/v1/review/approve` endpoint. | Review | 🔷 PLANNED | I224 | — | `eks/engine/core/review_manager.py`, `eks/engine/pipeline_orchestrator.py`, `eks/engine/core/registry.py`, `eks/ui/backend/phase1_server.py` | ← T1.99.179–180 | — | — | §49 |
 
@@ -586,7 +594,7 @@ All tables use the standard 12-column enriched format:
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
 | T1.99.182 | [Code] G2: Refactor `FileScanner`, `HealthScorer`, `StructureDetector` to inherit from `BaseEngine` | Each engine gets `validate_input()` → `execute()` → `validate_output()`. Use `EngineInput`/`EngineOutput` from `core/base.py`. Complete `ParserRouter`. | Architecture | 🔷 PLANNED | I209 | — | `eks/engine/core/file_scanner.py`, `eks/engine/core/health_scorer.py`, `eks/engine/core/structure_detector.py`, `eks/engine/parsers/parser_router.py` | — | — | — | §49 |
-| T1.99.183 | [Code] G4: Replace direct instantiation in `PipelineOrchestrator` with factory calls | Change `self.scanner = FileScanner(...)` → `self.scanner = EngineFactory.create("FileScanner", ...)` for all engines. Verify `ParserRouter` consistency. | DI | 🔷 PLANNED | I211 | — | `eks/engine/pipeline_orchestrator.py`, `eks/engine/core/factories.py` | ← T1.99.182 | — | — | §49 |
+| T1.99.183 | [Code] G4: Replace direct instantiation in `PipelineOrchestrator` with factory calls | Change `self.scanner = FileScanner(...)` → `self.scanner = EngineFactory.create("FileScanner", ...)` for all engines. Verify `ParserRouter` consistency. | DI | ✅ COMPLETE | I211 | TL010 | `eks/engine/pipeline_orchestrator.py`, `eks/engine/core/factories.py` | ← T1.99.182, T1.182.1–5 | TL010 | U203 | §49 |
 | T1.99.184 | [Code] G8: Unify dual telemetry into single heartbeat stream | `PipelineOrchestrator` accepts `telemetry: Optional[TelemetryHeartbeat]` parameter; forwards checkpoints to main heartbeat. | Telemetry | 🔷 PLANNED | I215 | — | `eks/engine/pipeline_orchestrator.py`, `eks/engine/eks_engine_pipeline.py`, `eks/engine/core/telemetry.py` | — | — | — | §49 |
 | T1.99.185 | [Fix] G14: Guard `psutil` import in `telemetry.py` | Wrap `import psutil` in try/except ImportError; memory/CPU sampling becomes no-op when absent. Add `psutil` to `eks.yml` as optional dependency. | Safety | 🔷 PLANNED | I221 | — | `eks/engine/core/telemetry.py`, `eks/eks.yml` | ← T1.99.184 | — | — | §49 |
 
@@ -596,6 +604,7 @@ All tables use the standard 12-column enriched format:
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
 | T1.99.186 | [Code] G3: Consolidate dual `EngineInput`/`EngineOutput` | EKS `core/base.py` versions subclass `common.library.core.pipeline` versions. Add domain-specific fields. Delete standalone definitions; re-export. | Contracts | 🔷 PLANNED | I210 | — | `eks/engine/core/base.py`, `eks/engine/eks_engine_pipeline.py` | — | — | — | §49 |
 | T1.99.187 | [Code] G7: Wire `HealthInput`/`HealthOutput` + `DiscoveryInput`/`DiscoveryOutput` into pipeline | Phase A: `DiscoveryInput` → `scanner.scan()` → `DiscoveryOutput`. Phase B: `HealthInput` → `scorer.score()` → `HealthOutput` for DB write. | Contracts | 🔷 PLANNED | I214 | — | `eks/engine/pipeline_orchestrator.py`, `eks/engine/core/io_contracts.py` | ← T1.99.186 | — | — | §49 |
+| T1.99.199 | [Code] G7b: Activate `score_from_input()` contract wrapper in `_process_file()` | Replace direct `self.scorer.score(doc, structural_elements=elements)` with `HealthInput(...)` → `self.scorer.score_from_input(health_input)` → `HealthOutput` consumption. Downstream code reads `hout.metadata` (full score dict) and `hout.overall` for backward compatibility. | Contracts | ✅ COMPLETE | I214 | TL011 | `eks/engine/core/pipeline_orchestrator.py`, `eks/engine/core/io_contracts.py` | ← T1.99.187 | TL011 | U204 | §49 |
 | T1.99.188 | [Code] G11: Pass context-resolved paths into `ParserInput` defaults | Replace `ParserInput(config_file="", schema_dir="", output_dir="")` with `self.context.paths` values. Same for `DiscoveryInput`. | Data | 🔷 PLANNED | I218 | — | `eks/engine/pipeline_orchestrator.py` | ← T1.99.187 | — | — | §49 |
 | T1.99.189 | [Code] G12: Write parsed content to `context.data.extracted_content` during execution | After successful parse, store `self.context.data.extracted_content[doc_id] = extraction_result`. Enables downstream reads without re-querying registry. | Data | 🔷 PLANNED | I219 | — | `eks/engine/pipeline_orchestrator.py` | ← T1.99.188 | — | — | §49 |
 
@@ -604,7 +613,7 @@ All tables use the standard 12-column enriched format:
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
 | T1.99.190 | [Code] G1+G13: Migrate to Appendix F domain subdirectory layout | Create 6 subdirectories: `engine/discovery/`, `engine/router/`, `engine/registry/`, `engine/revision/`, `engine/health/`, `engine/structure/`. Move `parser_router.py` from `engine/parsers/` to `engine/router/`. Project-wide grep for all import paths. 7 modules moved, ~30 files updated. | Structure | 🔷 PLANNED | I208, I220 | — | Multiple — see Depends On for scope | ← T1.99.182–189 | — | — | §49 |
-| T1.99.191 | [Code] G18: Wire `SchemaToDDL` into bootstrap P4 for auto-DDL generation | In `_bootstrap_registry()`: generate DDL from `eks_doc_base_schema.json`, compare with existing table schema, apply migration if needed. On fresh DB: full CREATE TABLE DDL. | Bootstrap | 🔷 PLANNED | I225 | — | `eks/engine/core/bootstrap.py`, `eks/engine/schema_to_ddl.py`, `eks/engine/core/registry.py` | ← T1.99.190 | — | — | §49 |
+| T1.99.191 | [Code] G18: Wire `SchemaToDDL` into bootstrap P4 for auto-DDL generation | Bootstrap P7 stores pre-generated DDL (documents_ddl, elements_ddl, indexes, doc_base_schema). DocumentRegistry accepts pre_generated_ddl param to skip schema re-load. _ensure_schema_version() tracks DDL hash in _eks_schema_meta table. runner.py + CLI tools pass DDL through. 4 new tests. 88/88 pass, no regressions. | Bootstrap | ✅ COMPLETE | I225 | — | `eks/engine/core/bootstrap.py`, `eks/engine/core/registry.py`, `eks/engine/pipeline_engine/runner.py`, `eks/engine/core/discovery_cli.py`, `eks/engine/core/health_cli.py` | — | TL013 | U206 | §49 |
 
 ### Wave 5 — Documentation & UI Contracts (I217, I222) — Nice-to-Have
 
@@ -612,6 +621,12 @@ All tables use the standard 12-column enriched format:
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
 | T1.99.192 | [Code] G10: Implement `DocumentSelectionContract` + `PipelineConfigContract` per Appendix F | Add contract schemas to `contracts.py`, wire `ContractManager` to validate before pipeline execution. Add `POST /api/v1/contracts/document-selection` and `POST /api/v1/contracts/pipeline-config` endpoints. | UI | 🔷 PLANNED | I217 | — | `eks/engine/core/contracts.py`, `eks/engine/core/contract_manager.py`, `eks/ui/backend/phase1_server.py` | ← T1.99.186–191 | — | — | §49 |
 | T1.99.193 | [Docs] G15: Cross-audit Appendix E schema versions vs. actual `version` fields | Read `"version"` from all 23 schema files, compare against Appendix E E5.1 table. Update stale entries. Add validation script `eks/test/verify_appendix_e_versions.py`. | Docs | 🔷 PLANNED | I222 | — | `docs/appendix_e_schema_design.md`, `eks/test/verify_appendix_e_versions.py` | — | — | — | §49 |
+
+### Wave 6 — Residual Cleanup & Contract Wiring (I211 residual, I214)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.99.198 | [Cleanup] Remove dead `HealthScorerFactory` and `StructureDetectorFactory` from `factories.py` | Audit revealed ParserFactory IS actively used by ParserRouter — retained. HealthScorerFactory and StructureDetectorFactory had zero instantiation sites. Both class definitions removed from factories.py. Dead `_engine_map` / `_parser_map` declarations also removed. Project-wide grep: zero remaining imports of removed classes. | Cleanup | ✅ COMPLETE | I211 (residual), I214 | TL011 | `eks/engine/core/factories.py` | ← T1.99.183 | TL011 | U204 | §49 |
 
 ---
 
@@ -652,7 +667,7 @@ All tables use the standard 12-column enriched format:
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
 | T1.102 | [Code] Replace per-file telemetry with batch-level checkpoints in `run_phase_b()` | In `pipeline_orchestrator.py:run_phase_b()`, replace the per-file `telemetry.track(...)` inside the `_process_file()` loop with a batch accumulator. Emit checkpoints at 25%/50%/75%/100% milestones using BATCH_MILESTONES + last_milestone_pct tracker. Keep per-file error logging via `self.error_manager.log_error()` — only progress telemetry becomes coarse. | EKS pipeline | ✅ COMPLETE | I229 | 2026-07-23 | `eks/engine/core/pipeline_orchestrator.py` | — | TL007 | U200 | §53 |
-| T1.103 | [Testing] Add test — batch telemetry emits correct milestones | Mock `TelemetryHeartbeat.track()` and assert it is called only at expected batch boundaries, not per-file. Verify 25%/50%/75%/100% milestone accuracy. | EKS test | 🔷 PLANNED | I229 | — | `eks/test/test_phase1.py` | ← T1.102 | — | — | §53 |
+| T1.103 | [Testing] Add dedicated test — batch milestone firing count, order, and no-duplicate guard | **Scope updated (I235)**: Mock `_forward_telemetry` via `unittest.mock.patch`. (1) 4-file batch: assert exactly 5 `_forward_telemetry` calls (4 milestone + 1 end-of-phase "B" summary); assert milestone call order is strictly `25% → 50% → 75% → 100%`. (2) 1-file batch: assert 4 calls in same order with no duplicates. (3) 2-file batch: assert `75%` fires **before** `100%`, not after. Verifies both T1.102 logic and T1.116 ordering fix. Prerequisite: T1.116 must be applied before this test can pass. | EKS test | 🔷 PLANNED | I229, I235 | — | `eks/test/test_phase1.py` | ← T1.116 | — | — | §53 |
 
 ## 26. Cross-Phase Validation Gates (I230) Tasks
 
@@ -707,5 +722,46 @@ All tables use the standard 12-column enriched format:
 | T1.109 | [Code] Create `pipeline_engine/` with `cli.py`, `runner.py`, `exporter.py` | **`cli.py`**: Extract `build_parser()`, `_EKS_CORE_ARG_SPECS`, `build_schema_driven_parser(root, schema_config)` — `root` becomes **required** parameter (no `_PRJ_DIR` fallback), `parse_eks_cli()`, `_parse_early_verbosity()` — zero module-level globals. **`runner.py`**: Extract `_preload_infrastructure()` (imports `_parse_early_verbosity` from `cli.py`), `bootstrap_pipeline(project_root, ...)`, `run_pipeline(project_root, ...)`, `_read_system_params(config_dir)`, `_last_phase()`, `_print_human_summary()` — all paths received as explicit parameters, no `_PRJ_DIR`/`_THIS`/`_SCRIPT_DIR` module-level globals. **`exporter.py`**: Extract `resolve_export_columns(schema_dir)`, `_build_export_rows()`, `_build_flagged_rows()` — pure functions, zero pipeline dependencies. | EKS pipeline | ✅ COMPLETE | I233 | 2026-07-23 | `eks/engine/pipeline_engine/__init__.py`, `eks/engine/pipeline_engine/cli.py`, `eks/engine/pipeline_engine/runner.py`, `eks/engine/pipeline_engine/exporter.py` | — | TL009 | U202 | §56 |
 | T1.110 | [Code] Rewrite `eks_engine_pipeline.py` as thin entry-point shell | Keep: import-time sys.path bootstrap (`_stdlib_find_repo_root()` + `sys.path.insert`), `main()` with folder literals declared locally, `__main__` guard. Add: re-exports of `bootstrap_pipeline`, `run_pipeline`, `build_parser`, `parse_eks_cli`, `resolve_export_columns` from `pipeline_engine/` modules. Remove: all extracted function bodies, `_PRJ_DIR` module-level global reassignment (L128-135, now done inside `_preload_infrastructure()`), `_THIS`/`_SCRIPT_DIR` sys.path cleanup (moved into `main()`). `main()` must discover project root via `infra["project_root"]` returned by `_preload_infrastructure()` and pass explicitly to all downstream calls — no fallback to `_PRJ_DIR`. | EKS pipeline | ✅ COMPLETE | I233 | 2026-07-23 | `eks/engine/eks_engine_pipeline.py` | ← T1.109 | TL009 | U202 | §56 |
 | T1.111 | [Testing] Verify backward compatibility and full test suite | Full regression suite: `python -m pytest eks/test/` → must pass 291/305 (14 pre-existing rdflib failures unchanged). Verify all 4 public functions importable from `eks.engine.eks_engine_pipeline`. Verify `pyproject.toml` console_scripts entry `eks-pipeline = eks.engine.eks_engine_pipeline:main` resolves correctly. | EKS test | ✅ COMPLETE | I233 | 2026-07-23 | `eks/test/test_eks_engine_pipeline.py`, `eks/test/test_phase1.py` | ← T1.109, T1.110 | TL009 | U202 | §56 |
+
+---
+
+## 30. CLI Default Pipeline Output — pipeline_output.json + Default-On CSV/Excel Export (I234) Tasks
+
+> Source: I234 — CLI pipeline generates zero output files by default. `pipeline_output.json` is server-only; `--export` defaults to `none`; no `debug_log.json` in CLI path. Per §25.1, write-only files use single-overwrite pattern.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :--- |
+| T1.112 | [Code] Write `pipeline_output.json` to CLI `main()` after pipeline completes | After `run_pipeline()` returns, build a human-readable summary dict (job_id, timestamp, status, summary, exported_files) and write to `output/pipeline_output.json` (single-overwrite). Pattern matches `phase1_server.py:635`. | EKS CLI | ✅ COMPLETE | I234 | — | `eks/engine/eks_engine_pipeline.py` | — | — | U207 | §57 |
+| T1.113 | [Schema/Code] Schema-driven `--export` default — register in config, CLI reads at runtime | [Schema] Added `export_default` to `system_parameters_def` in `eks_base_schema.json` with `"enum": ["csv", "xlsx", "both", "none"], "default": "both"`. Added `"export_default": "both"` to `eks_config.json`. [Code] Removed hardcoded `default="none"` from `_EKS_CORE_ARG_SPECS` and `build_parser()` — uses `None`; `main()` resolves from `mgr.effective_parameters.get("export_default", "both")` at runtime. Per §16 hardcoded fallback removal. | EKS CLI + Schema | ✅ COMPLETE | I234 | — | `eks/config/schemas/eks_base_schema.json`, `eks/config/schemas/eks_config.json`, `eks/engine/pipeline_engine/cli.py`, `eks/engine/eks_engine_pipeline.py` | — | — | U207 | §57 |
+| T1.114 | [Code] Write `debug_log.json` from CLI `main()` | After pipeline completes, serialize `logger.debug_object` to `output/debug_log.json` (single-overwrite). Replaces the per-run `debug_log` pattern removed in U180. | EKS CLI | ✅ COMPLETE | I234 | — | `eks/engine/eks_engine_pipeline.py` | ← T1.112 | — | U207 | §57 |
+| T1.115 | [Testing] Verify CLI generates 5 output files by default | Run `main()` with default args (no `--export` flag). Assert `output/pipeline_output.json`, `output/debug_log.json`, `output/discovery_inventory.csv`, `output/extraction_results.csv`, `output/review_flags.csv` exist and are non-empty. | EKS test | ✅ COMPLETE | I234 | — | `eks/test/` | ← T1.112–114 | — | U207 | §57 |
+
+---
+
+## 31. Batch Telemetry Logic Order Fix (I235) Tasks
+
+> Source: I235 — In `run_phase_b()` (`pipeline_orchestrator.py` lines 395–408), the `pct >= 1.0` block fires the 100% checkpoint BEFORE the `BATCH_MILESTONES` loop executes. For small batches (total ≤ 3), intermediate milestones (25%/50%/75%) fire after 100% in the wrong order — up to 4 redundant out-of-order checkpoints on the final file. `last_milestone_pct` is also never updated to `1.0` after the 100% block, leaving the tracker stale. Discovered during I229 code evaluation 2026-07-24.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.116 | [Code] Fix milestone ordering — fold `1.0` into `BATCH_MILESTONES`, remove separate `pct >= 1.0` block | **Root cause**: `BATCH_MILESTONES = {0.25, 0.50, 0.75}` — the 100% checkpoint is emitted in a separate `if pct >= 1.0:` block (line 397) that runs before the sorted milestone loop, so for batches where the last file jumps straight to 100%, all uncrossed intermediate milestones fire after 100%. **Fix (3 changes to `pipeline_orchestrator.py`)**: (1) Change line 365: `BATCH_MILESTONES = {0.25, 0.50, 0.75, 1.0}`. (2) Remove lines 397–401 (`if pct >= 1.0:` block) entirely. (3) Inside the sorted loop (line 402–408), update label: `"milestone": "100%" if m == 1.0 else f"{int(m*100)}%"` and `"files": idx + 1`. `last_milestone_pct` is now set to `1.0` inside the loop on the last milestone — no stale tracker. Zero change to per-file `ErrorManager` logging or end-of-phase `_forward_telemetry("B", ...)`. | `eks/engine/core/pipeline_orchestrator.py` | 🔷 PLANNED | I235 | — | `eks/engine/core/pipeline_orchestrator.py` | — | T1.103, T1.117 | — | §58 |
+| T1.117 | [Testing] Run full test suite after T1.116 and implement T1.103 milestone-order assertions | After applying T1.116: (1) Run `python -m pytest eks/test/ -v` — assert suite passes at same baseline (291/305; 14 pre-existing rdflib failures unchanged). (2) Confirm `test_phase_b_reads_from_registry_instead_of_rescan` and `test_phase_b_falls_back_to_scan_when_registry_empty` still pass (I227 regression guard). (3) Implement T1.103 three-case assertions (4-file, 1-file, 2-file batches). All three T1.103 assertions must be green before I235 can be closed. | EKS test | 🔷 PLANNED | I235 | — | `eks/test/test_phase1.py` | ← T1.116 | T1.103 | — | §58 |
+
+---
+
+## 32. ERROR_FILE_PROCESSING Kwarg Mismatch Fix (I236) Tasks
+
+> Source: I236 — In `run_phase_b()` (`pipeline_orchestrator.py` line 378), `mm.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(e))` passes kwarg key `error` but the `eks_message_config.json` template `"Error processing {filename}: {detail}"` expects `detail`. `BaseMessageManager.show()` catches the `KeyError` silently and falls back to the raw template string — every file-processing error prints `"Error processing <path>: {detail}"` literally. Level=0 means this broken output fires at all verbosity levels. Discovered during messaging audit 2026-07-24.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.118 | [Code] Fix `ERROR_FILE_PROCESSING` kwarg — rename `error=` to `detail=` at call site | **Option A (preferred — fix call site, keep template)**: Change `pipeline_orchestrator.py` line 378 from `mm.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(e))` to `mm.show("ERROR_FILE_PROCESSING", filename=file_path, detail=str(e))`. Template `"Error processing {filename}: {detail}"` already correct — only the call-site kwarg key is wrong. **Do NOT change the template** (it is the SSOT in the schema). Grep project-wide for all `mm.show("ERROR_FILE_PROCESSING"` call sites to confirm this is the only occurrence before closing. Verify no other `show()` calls pass `error=` where a different placeholder is expected. | `eks/engine/core/pipeline_orchestrator.py` line 378, `eks/config/schemas/eks_message_config.json` | 🔷 PLANNED | I236 | — | `eks/engine/core/pipeline_orchestrator.py` | — | T1.119 | — | §59 |
+| T1.119 | [Testing] Add test asserting `ERROR_FILE_PROCESSING` emits actual exception message, not raw template literal | Mock `MessageManager.show()` via `unittest.mock.patch` on `_forward_telemetry` path, or directly instrument `mm.get("ERROR_FILE_PROCESSING", filename=..., detail=str(e))` and assert the returned string **contains the actual exception text** and **does not contain the literal substring `"{detail}"`**. Use a test orchestrator with a forced `_process_file()` failure (e.g., mock raises `RuntimeError("test error")`). Assert the resulting message string equals `"Error processing <path>: test error"`. Run full suite — assert 291/305 baseline unchanged. | EKS test | 🔷 PLANNED | I236 | — | `eks/test/test_phase1.py` | ← T1.118 | — | — | §59 |
 
 (End of file)

@@ -57,6 +57,7 @@ Deliverables:
 | **Bootstrap & Entry-Point Convergence** | v3.53–v3.87 | 2026-07-11 to 2026-07-20 | Universal BootstrapManager (L19), entry-point relocation (CLI + web + backend), anchor-folder path resolution, cross-platform discovery, universal CLI parser (L18), pre-bootstrap logger (I113), environment checks (I114), structured BootstrapError (I111), preload infrastructure guard (I117), lazy-import refactor |
 | **Appendix Relocation** | v4.8–v5.0 | 2026-07-20 | §40–§50 defect deep-dives → P1.1; §43 file property extraction → Appendix J; §47 schema-driven export → P1.3; §3 full history → P1.6; 50→11 section collapse; §10 Implementation Index consolidates all appendix redirects |
 | **Implementation Index Consolidation** | v5.1–v5.3 | 2026-07-20 | §10.1 table enhanced: added Tasks column (P1.4 cross-ref), Key Issues column (issue_log cross-ref), Status column (completion status per section); §10.3 merged into §10.1 as a single 36-row table |
+| **CLI Default Pipeline Output** | v5.4 | 2026-07-24 | Added §57 row in §10.1 for I234 CLI default pipeline output (T1.112–T1.115); updated §8 to reference I234 default-on export; test_log TL014 added |
 
 ---
 
@@ -111,9 +112,9 @@ Deliverables:
 
 ## 8. Data Export — CSV/Excel Pipeline Output — ✅ COMPLETE
 
-> **Canonical Source**: [appendix_p1.3_phase1_data_export.md](appendix_p1.3_phase1_data_export.md) — full design, implementation, task breakdowns, success criteria, and post-implementation fixes (I188, I189, I192, I193).
+> **Canonical Source**: [appendix_p1.3_phase1_data_export.md](appendix_p1.3_phase1_data_export.md) — full design, implementation, task breakdowns, success criteria, and post-implementation fixes (I188, I189, I192, I193). **I234**: CLI default pipeline output added — see [Task Log §30](../log/phase1/p1_task_log.md#30-cli-default-pipeline-output-i234-tasks).
 
-**Summary**: Human-readable CSV/Excel export of Phase 1 pipeline results (discovery inventory, extraction results, review flags) via universal L22 `DataExporter` module in `common/library/export/`. Schema-driven column resolution (I193) replaces the original hardcoded 11-field subset with ~50 `x_export`-flagged fields. Three post-implementation fixes applied: I188 (empty files), I189 (stale output + test-DB pollution), I192 (root-level copies for user convenience). All 5 issues (I126, I188, I189, I192, I193) resolved. Detailed in [Appendix P1.3](appendix_p1.3_phase1_data_export.md).
+**Summary**: Human-readable CSV/Excel export of Phase 1 pipeline results (discovery inventory, extraction results, review flags) via universal L22 `DataExporter` module in `common/library/export/`. Schema-driven column resolution (I193) replaces the original hardcoded 11-field subset with ~50 `x_export`-flagged fields. Three post-implementation fixes applied: I188 (empty files), I189 (stale output + test-DB pollution), I192 (root-level copies for user convenience). **I234**: `--export` now defaults to `"both"` (CSV+Excel) via schema-driven `export_default` in `eks_config.json`; CLI also writes `pipeline_output.json` and `debug_log.json` by default (5 output files total). All 6 issues (I126, I188, I189, I192, I193, I234) resolved. Detailed in [Appendix P1.3](appendix_p1.3_phase1_data_export.md) + [Task Log §30](../log/phase1/p1_task_log.md#30-cli-default-pipeline-output-i234-tasks).
 
 ---
 
@@ -175,6 +176,7 @@ Deliverables:
 | §54 | Cross-phase validation gates — A→B (registry non-empty) and B→C (scores exist) | T1.104 | I230 | [Task Log §26](../log/phase1/p1_task_log.md#26-cross-phase-validation-gates-i230-tasks) |
 | §55 | Version SSOT — single `__version__` in `eks/__init__.py`; all subpackages import from `eks` | T1.108 | I231 | [Task Log §28](../log/phase1/p1_task_log.md#28-version-ssot-i231-tasks) |
 | §56 | Pipeline monolith split — `pipeline_engine/` subfolder; entry-point shell (1,284 → 295 lines); zero module-level globals | T1.109–T1.111 | I233 | [Task Log §29](../log/phase1/p1_task_log.md#29-pipeline-monolith-split-i233-tasks) |
+| §57 | CLI Default Pipeline Output — pipeline_output.json, debug_log.json, schema-driven --export default, 5 default output files | T1.112–T1.115 | I234 | [Task Log §30](../log/phase1/p1_task_log.md#30-cli-default-pipeline-output-i234-tasks) |
 
 ### 10.2 Checklists & Deliverables
 

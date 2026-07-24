@@ -1,10 +1,10 @@
 # Appendix P1.3: Phase 1 — Data Export Design (CSV/Excel)
 
 **Document ID**: WP-EKS-P1-APX-1.3
-**Version**: 1.2
-**Last Updated**: 2026-07-23 (I233 Aligned, §5.1 caveat updated — 6/7 pipeline issues resolved)
-**Status**: 🔷 IN PROGRESS — §5.3–§5.5 root cause/fix narrative stripped to align with SSOT (issue_log.md). As of 2026-07-23, pipeline issues I227/I229–I233 resolved (6 of 7); I228 remains open. Layout restructure for design-first flow completed in v1.1.
-**Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.3, IN PROGRESS)
+**Version**: 1.4
+**Last Updated**: 2026-07-24 (I234 Aligned, §5.1 caveat updated — 7/8 pipeline issues resolved)
+**Status**: 🔷 IN PROGRESS — §5.3–§5.5 root cause/fix narrative stripped to align with SSOT (issue_log.md). As of 2026-07-24, pipeline issues I227/I229–I234 resolved (7 of 8); I228 remains open. Layout restructure for design-first flow completed in v1.1.
+**Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.4, IN PROGRESS)
 
 ---
 
@@ -60,7 +60,7 @@ The export subsystem sits **outside the core pipeline** — it is output formatt
 2. **EKS Wiring** (`eks_engine_pipeline.py::main()`): Queries `DocumentRegistry.list_documents(latest_only=True)` post-pipeline, resolves schema-driven columns via `resolve_export_columns()`, builds 3 row-sets via `_build_export_rows()` and `_build_flagged_rows()`, writes 6 files (CSV + XLSX per artifact), copies latest to `output/` root atomically.
 3. **API** (`phase1_server.py`): `GET /api/v1/export/{phase}/{format}` serves file downloads with `Content-Disposition`.
 
-**Key metrics**: 1 universal module | 4 error codes (S-DE-001–004) | 3 export artifacts | 46–50 columns (schema-driven) | 6 output files | 20 universal tests + 280 EKS export tests | 5 resolved issues (I126/I188/I189/I192/I193).
+**Key metrics**: 1 universal module | 4 error codes (S-DE-001–004) | 3 export artifacts | 46–50 columns (schema-driven) | 6 output files | 20 universal tests + 280 EKS export tests | 6 resolved issues (I126/I188/I189/I192/I193/I234).
 
 ### 1.3 Module Inventory
 
@@ -190,9 +190,9 @@ All implementation work was driven by 5 issues. The master table below maps each
 | 4 | **I192** — UUID folder names not human-readable | — | 1/1 |
 | 5 | **I193** — Hardcoded 11-field export; 43 DB columns ignored | 6 | 9/9 |
 
-### 5.1 Pipeline Issues Impacting Export (I227–I233)
+### 5.1 Pipeline Issues Impacting Export (I227–I234)
 
-6 of 7 pipeline issues now resolved/aligned (I228 remains open). Issue details tracked in [`p1_issue_log.md`](../log/phase1/p1_issue_log.md):
+7 of 8 pipeline issues now resolved/aligned (I228 remains open). Issue details tracked in [`p1_issue_log.md`](../log/phase1/p1_issue_log.md):
 
 | Issue | Title | Impact on Data Export | Status |
 |:---|:---|:---|:---:|
@@ -203,6 +203,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 | I231 | Version SSOT | Single `__version__` in `eks/__init__.py`. All subpackages import from `eks` | ✅ |
 | I232 | Parser module cross-dependencies not formally documented | Parser failures cascading into `extraction_confidence = None` → flagged in review_flags export | ✅ |
 | I233 | Monolithic pipeline module | Split into `pipeline_engine/`, zero module-level globals. No impact on export logic | ✅ |
+| I234 | CLI default pipeline output gap | Defaults `--export` to `"both"`, writes `pipeline_output.json` and `debug_log.json` by default | ✅ |
 
 ### 5.2 Detail: I126 — No CSV/Excel Export Capability (T1.99.87–94)
 
@@ -432,7 +433,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 | I189 | `../log/phase1/p1_issue_log.md` | Stale output + test-DB pollution |
 | I192 | `../log/phase1/p1_issue_log.md` | UUID folder names not human-readable |
 | I193 | `../log/phase1/p1_issue_log.md` | Hardcoded 11-field export |
-| I227–I233 | `../log/phase1/p1_issue_log.md` | Pipeline audit issues — 6 resolved/aligned, 1 open (see §5.1) |
+| I227–I234 | `../log/phase1/p1_issue_log.md` | Pipeline audit issues — 7 resolved/aligned, 1 open (see §5.1) |
 
 ### 6.5 Update Log
 
@@ -443,6 +444,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 | U191 | 2026-07-19 | I189 | I189 RESOLVED: Test-DB pollution + stale output fixed (T1.99.153–156) |
 | U192 | 2026-07-19 | I164–I175, I192, I193 | 15 metadata columns + I192 root-level copies + I193 schema-driven export |
 | U193 | 2026-07-19 | I194 | 11-gap closure sweep (I192/I193 referenced in gap analysis) |
+| U207 | 2026-07-24 | I234 | I234 RESOLVED: CLI default-on CSV/Excel export, pipeline_output.json, debug_log.json |
 
 ---
 
@@ -450,6 +452,7 @@ All implementation work was driven by 5 issues. The master table below maps each
 
 | Version | Date | Author | Changes |
 |:---|:---|:---|:---|
+| **1.4** | 2026-07-24 | opencode | Updated §5.1 caveat, §6.4 Issue Log, §6.5 Update Log for I234 alignment (CLI default pipeline output, 7/8 pipeline issues resolved, 6 resolved export issues). |
 | **1.3** | 2026-07-23 | opencode | Updated §5.1 caveat: 6/7 pipeline issues resolved (I227/I229–I233 ✅; I228 🔴 remains open). I233 status changed from `install_eks_deps()` description to module split. Added Status column to caveat table. Updated status line and §6.3 cross-reference. |
 | **1.2** | 2026-07-22 | AI Agent (SSOT alignment) | §5.3–§5.5 root cause/fix narrative removed (I188 Discovery + Root Causes & Fixes, I189 Discovery + Root Causes + Fix Design, I192 Problem/Fix/Result). Only task tables + SC checklists retained per SSOT rule (issue detail lives only in `issue_log.md`). §5 intro updated. |
 | **1.1** | 2026-07-21 | AI Agent (layout restructure) | Major restructure for design-first flow: fixed Document ID (`A1.3` → `APX-1.3`), changed status to 🔷 IN PROGRESS, added §1 Design Features Overview (1.1–1.3), merged current §2+§3 → §2 Export Architecture & Design, consolidated §5–§11+§14 into single §5 master table with collapsible `<details>` blocks per issue, added §5.1 I227–I233 scope caveat, added §6 Cross-Reference Index, added Revision History. 14 sections → 6 sections. No content loss. |

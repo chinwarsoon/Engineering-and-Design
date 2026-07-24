@@ -7,17 +7,20 @@ gate, ``parse_eks_cli`` as CLI parser, ``resolve_paths`` as path resolver,
 ``detect_os`` as OS detector, and ``ErrorManager`` / ``MessageManager``
 as manager factories.
 
-Revision: 0.3
-Date: 2026-07-18
+Revision: 0.4
+Date: 2026-07-24
 Author: opencode
-Summary: T1.99.68 — Override P1-P5, P7 phases to use EKS-registered P1-BOOT-*
-         error codes instead of universal B-* codes; override bootstrap_all/
-         bootstrap_for_ui catch-alls (B-UNK-* → P1-BOOT-READINESS); override
-         preload_trace/postload_trace (B-BOOT-0601/B-CTX-001 → P1-BOOT-CTX).
-         T1.99.57 — EKS BootstrapManager subclass for L19 delegation.
-         T1.99.96 (I127/G2) — _eks_cli_parser forwards preloaded
-         _parse_cli_args_fn to parse_eks_cli(); __init__ initializes
-         _preloaded_parse_cli_args=None.
+Summary: 0.4: T1.99.191 (I225) — _bootstrap_schema() stores _pre_generated_ddl
+          (documents_ddl, elements_ddl, indexes, doc_base_schema) for reuse by
+          DocumentRegistry. Exposed via to_dict() and to_pipeline_context().
+0.3:          T1.99.68 — Override P1-P5, P7 phases to use EKS-registered P1-BOOT-*
+          error codes instead of universal B-* codes; override bootstrap_all/
+          bootstrap_for_ui catch-alls (B-UNK-* → P1-BOOT-READINESS); override
+          preload_trace/postload_trace (B-BOOT-0601/B-CTX-001 → P1-BOOT-CTX).
+          T1.99.57 — EKS BootstrapManager subclass for L19 delegation.
+          T1.99.96 (I127/G2) — _eks_cli_parser forwards preloaded
+          _parse_cli_args_fn to parse_eks_cli(); __init__ initializes
+          _preloaded_parse_cli_args=None.
 """
 from __future__ import annotations
 
@@ -92,6 +95,10 @@ class EKSBootstrapManager(BootstrapManager):
         # caller (main()) after preload; used by _eks_cli_parser to skip
         # the bare import inside parse_eks_cli().
         self._preloaded_parse_cli_args: Any = None
+        # T1.99.191 (I225): Pre-generated DDL from SchemaToDDL, set during P7.
+        # Stored so downstream DocumentRegistry can reuse generated DDL
+        # instead of re-loading the schema from disk.
+        self._pre_generated_ddl: Optional[Dict[str, Any]] = None
 
     # ------------------------------------------------------------------
     # Hook implementations
@@ -364,6 +371,13 @@ class EKSBootstrapManager(BootstrapManager):
                     docs_ddl = ddl_gen.generate_documents_ddl()
                     els_ddl = ddl_gen.generate_document_elements_ddl()
                     indexes = ddl_gen.generate_indexes()
+                    # T1.99.191 (I225): Store for reuse by DocumentRegistry
+                    self._pre_generated_ddl = {
+                        "documents_ddl": docs_ddl,
+                        "elements_ddl": els_ddl,
+                        "indexes": indexes,
+                        "doc_base_schema": doc_schema,
+                    }
                     self._log(
                         f"SchemaToDDL pre-flight OK: "
                         f"documents table ({len(docs_ddl)} chars), "
@@ -567,6 +581,7 @@ class EKSBootstrapManager(BootstrapManager):
             "project_root": self.project_root,
             "config_dir": self.config_dir,
             "parsed": self.parsed,
+            "pre_generated_ddl": self._pre_generated_ddl,
         }
 
     # ------------------------------------------------------------------
@@ -612,6 +627,7 @@ class EKSBootstrapManager(BootstrapManager):
         ctx_params["doc_config"] = self.doc_config
         ctx_params["em"] = self.error_manager
         ctx_params["mm"] = self.message_manager
+        ctx_params["pre_generated_ddl"] = self._pre_generated_ddl
 
         # Lazy-init managers if needed
         if self.error_manager is None and self._error_manager_factory is not None:

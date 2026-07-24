@@ -140,7 +140,10 @@ Examples:
                 skip_readiness=not parsed_args.validate,
                 debug=parsed_args.verbose,
             )
-            registry = DocumentRegistry(logger=logger)
+            registry = DocumentRegistry(
+                logger=logger,
+                pre_generated_ddl=boot.get("pre_generated_ddl"),
+            )
             orchestrator = PipelineOrchestrator(
                 boot["config"], boot["doc_config"], registry, logger=logger,
                 use_telemetry=False, error_manager=boot["em"], message_manager=boot["mm"],

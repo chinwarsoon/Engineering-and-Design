@@ -176,6 +176,55 @@ class TestPhase1(unittest.TestCase):
         self.assertEqual(len(history), 2)
         self.assertEqual(history[0]["revision"], "B") # Latest first
 
+    def test_detect_supersession_no_existing(self):
+        """detect_supersession with no existing documents returns no supersession."""
+        result = self.rev_manager.detect_supersession("DOC-NONEXISTENT", "A")
+        self.assertFalse(result["has_supersession"])
+        self.assertIsNone(result["current_latest"])
+        self.assertIsNone(result["supersedes"])
+        self.assertIsNone(result["superseded_by"])
+
+    def test_detect_supersession_newer_revision(self):
+        """Newer alphabetic revision supersedes older one (read-only query)."""
+        self.registry.register_document({
+            "document_number": "DOC-SUPER-ALPHA", "revision": "A",
+            "document_type": "SPEC", "file_path": "data/super_alpha_a.pdf"
+        })
+        result = self.rev_manager.detect_supersession("DOC-SUPER-ALPHA", "B")
+        self.assertTrue(result["has_supersession"])
+        self.assertTrue(result["is_newer"])
+        self.assertIsNotNone(result["current_latest"])
+        self.assertEqual(result["latest_revision"], "A")
+        self.assertIsNotNone(result["supersedes"])
+        self.assertIsNone(result["superseded_by"])
+
+    def test_detect_supersession_same_revision(self):
+        """Same revision as current latest returns is_same."""
+        result = self.rev_manager.detect_supersession("DOC-SUPER-ALPHA", "A")
+        self.assertTrue(result["is_same"])
+        self.assertFalse(result["has_supersession"])
+
+    def test_detect_supersession_older_revision(self):
+        """Older revision is marked superseded_by current latest."""
+        result = self.rev_manager.detect_supersession("DOC-SUPER-ALPHA", "0")
+        self.assertTrue(result["has_supersession"])
+        self.assertIsNone(result["supersedes"])
+        self.assertIsNotNone(result["superseded_by"])
+        self.assertEqual(result["latest_revision"], "A")
+
+    def test_detect_supersession_numeric(self):
+        """Numeric revision comparison works correctly."""
+        self.registry.register_document({
+            "document_number": "DOC-SUPER-NUM", "revision": "01",
+            "document_type": "SPEC", "file_path": "data/super_num_01.pdf"
+        })
+        result = self.rev_manager.detect_supersession("DOC-SUPER-NUM", "02")
+        self.assertTrue(result["has_supersession"])
+        self.assertTrue(result["is_newer"])
+        result_older = self.rev_manager.detect_supersession("DOC-SUPER-NUM", "00")
+        self.assertTrue(result_older["has_supersession"])
+        self.assertIsNotNone(result_older["superseded_by"])
+
     def test_remediation_t121_source_type(self):
         """T1.21 G1: Verify source_type is stored and defaults correctly."""
         # Explicit source_type
@@ -1214,6 +1263,179 @@ class TestPhase1(unittest.TestCase):
 
         if reg_path.exists():
             reg_path.unlink()
+
+
+    # ------------------------------------------------------------------
+    # I225 — SchemaToDDL auto-migration + pre-generated DDL + version tracking
+    # ------------------------------------------------------------------
+
+    def test_registry_with_pre_generated_ddl(self):
+        """T1.99.191 (I225): DocumentRegistry accepts pre-generated DDL from bootstrap."""
+        from eks.engine.core.schema_to_ddl import SchemaToDDL
+        schema = SchemaToDDL.load_doc_base_schema(self.config_dir)
+        ddl_gen = SchemaToDDL(schema)
+        docs_ddl = ddl_gen.generate_documents_ddl()
+        els_ddl = ddl_gen.generate_document_elements_ddl()
+        indexes = ddl_gen.generate_indexes()
+        pre_generated = {
+            "documents_ddl": docs_ddl,
+            "elements_ddl": els_ddl,
+            "indexes": indexes,
+            "doc_base_schema": schema,
+        }
+
+        reg_path = _PROJECT_ROOT / "test_output" / "test_pregen_registry.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        try:
+            reg = DocumentRegistry(
+                db_path=str(reg_path),
+                pre_generated_ddl=pre_generated,
+            )
+            docs = reg.list_documents()
+            self.assertIsInstance(docs, list)
+            import duckdb as _duckdb
+            conn = _duckdb.connect(str(reg_path))
+            try:
+                meta = conn.execute(
+                    "SELECT value FROM _eks_schema_meta WHERE key = 'schema_hash'"
+                ).fetchone()
+                self.assertIsNotNone(meta, "Schema hash must be recorded in _eks_schema_meta")
+                self.assertIn(":", meta[0])
+            finally:
+                conn.close()
+        finally:
+            if reg_path.exists():
+                reg_path.unlink()
+
+    def test_schema_version_tracking(self):
+        """T1.99.191 (I225): Schema version hash recorded and updated on schema change."""
+        from eks.engine.core.schema_to_ddl import SchemaToDDL
+        schema = SchemaToDDL.load_doc_base_schema(self.config_dir)
+        ddl_gen = SchemaToDDL(schema)
+        pre_generated_v1 = {
+            "documents_ddl": ddl_gen.generate_documents_ddl(),
+            "elements_ddl": ddl_gen.generate_document_elements_ddl(),
+            "indexes": ddl_gen.generate_indexes(),
+            "doc_base_schema": schema,
+        }
+        pre_generated_v2 = dict(pre_generated_v1)
+        pre_generated_v2["documents_ddl"] = pre_generated_v1["documents_ddl"].replace(
+            "id VARCHAR PRIMARY KEY", "id VARCHAR PRIMARY KEY, dummy_col VARCHAR"
+        )
+
+        reg_path = _PROJECT_ROOT / "test_output" / "test_schema_version.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        try:
+            reg1 = DocumentRegistry(
+                db_path=str(reg_path),
+                pre_generated_ddl=pre_generated_v1,
+            )
+            import duckdb as _duckdb
+            conn = _duckdb.connect(str(reg_path))
+            try:
+                hash_v1 = conn.execute(
+                    "SELECT value FROM _eks_schema_meta WHERE key = 'schema_hash'"
+                ).fetchone()[0]
+            finally:
+                conn.close()
+
+            reg2 = DocumentRegistry(
+                db_path=str(reg_path),
+                pre_generated_ddl=pre_generated_v2,
+            )
+            conn = _duckdb.connect(str(reg_path))
+            try:
+                hash_v2 = conn.execute(
+                    "SELECT value FROM _eks_schema_meta WHERE key = 'schema_hash'"
+                ).fetchone()[0]
+            finally:
+                conn.close()
+
+            self.assertNotEqual(hash_v1, hash_v2, "Schema hash must change when DDL changes")
+        finally:
+            if reg_path.exists():
+                reg_path.unlink()
+
+    def test_bootstrap_pre_generated_ddl(self):
+        """T1.99.191 (I225): Bootstrap P7 stores pre-generated DDL accessible via to_dict()."""
+        from eks.engine.core.bootstrap import EKSBootstrapManager
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        boot = EKSBootstrapManager(
+            project_root=_PROJECT_ROOT,
+            skip_readiness=True,
+            auto_create=False,
+        )
+        boot.cli_args = {"level": 1}
+        boot.config_dir = config_parent
+        boot._bootstrap_schema()
+        ddl = boot._pre_generated_ddl
+        self.assertIsNotNone(ddl, "P7 must generate DDL")
+        self.assertIn("documents_ddl", ddl)
+        self.assertIn("elements_ddl", ddl)
+        self.assertIn("indexes", ddl)
+        self.assertIn("doc_base_schema", ddl)
+        self.assertGreater(len(ddl["documents_ddl"]), 50)
+        self.assertGreater(len(ddl["elements_ddl"]), 50)
+        self.assertIsInstance(ddl["indexes"], list)
+        self.assertGreater(len(ddl["indexes"]), 0)
+
+        out = boot.to_dict()
+        self.assertIn("pre_generated_ddl", out)
+        self.assertIs(out["pre_generated_ddl"], ddl)
+
+    def test_registry_pre_generated_ddl_uses_bootstrap_ddl(self):
+        """T1.99.191 (I225): Registry with bootstrap pre-generated DDL creates identical tables."""
+        from eks.engine.core.bootstrap import EKSBootstrapManager
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        boot = EKSBootstrapManager(
+            project_root=_PROJECT_ROOT,
+            skip_readiness=True,
+            auto_create=False,
+        )
+        boot.cli_args = {"level": 1}
+        boot.config_dir = config_parent
+        boot._bootstrap_schema()
+        pre_generated = boot._pre_generated_ddl
+
+        reg_path_pre = _PROJECT_ROOT / "test_output" / "test_boot_ddl_pre.db"
+        reg_path_no = _PROJECT_ROOT / "test_output" / "test_boot_ddl_no.db"
+        for p in [reg_path_pre, reg_path_no]:
+            if p.exists():
+                p.unlink()
+        try:
+            reg_pre = DocumentRegistry(
+                db_path=str(reg_path_pre),
+                pre_generated_ddl=pre_generated,
+            )
+            reg_no = DocumentRegistry(
+                db_path=str(reg_path_no),
+            )
+
+            import duckdb as _duckdb
+            for table in ["documents", "document_elements"]:
+                conn_pre = _duckdb.connect(str(reg_path_pre))
+                conn_no = _duckdb.connect(str(reg_path_no))
+                try:
+                    cols_pre = {row[1] for row in conn_pre.execute(
+                        f"PRAGMA table_info('{table}')"
+                    ).fetchall()}
+                    cols_no = {row[1] for row in conn_no.execute(
+                        f"PRAGMA table_info('{table}')"
+                    ).fetchall()}
+                    self.assertEqual(
+                        cols_pre, cols_no,
+                        f"Column sets must match for '{table}' "
+                        f"with and without pre-generated DDL"
+                    )
+                finally:
+                    conn_pre.close()
+                    conn_no.close()
+        finally:
+            for p in [reg_path_pre, reg_path_no]:
+                if p.exists():
+                    p.unlink()
 
 
 if __name__ == "__main__":

@@ -5,11 +5,12 @@ The ``main()`` function is the single console_scripts entry point.  All
 implementation is delegated to ``eks.engine.pipeline_engine.{cli,runner,exporter}``
 — this file handles only import-time sys.path bootstrap and re-exports.
 
-Revision: 2.0
-Date: 2026-07-23
+Revision: 2.1
+Date: 2026-07-24
 Author: opencode
-Summary: 2.0: I233 — monolith split. CLI, runner, exporter extracted to
-     pipeline_engine/ subfolder. Zero module-level globals.
+Summary: 2.1: I234 — schema-driven --export default (reads from
+     system_parameters.export_default); CLI writes pipeline_output.json
+     and debug_log.json by default.
 """
 from __future__ import annotations
 
@@ -164,7 +165,9 @@ def main(args: Optional[list] = None) -> int:
     config_dir = mgr.config_dir
     resolved = mgr.resolved_paths
     mm = mgr.message_manager
-    export_fmt = parsed.export_format if parsed else "none"
+    _cli_export = parsed.export_format if parsed else None
+    _cfg_export = mgr.effective_parameters.get("export_default", "both") if hasattr(mgr, "effective_parameters") and mgr.effective_parameters else "both"
+    export_fmt = _cli_export if _cli_export is not None else _cfg_export
 
     if mm is not None:
         mm.show("STATUS_PIPELINE_START", root_dir=safe_posix(data_dir))
@@ -294,6 +297,30 @@ def main(args: Optional[list] = None) -> int:
 
                 except Exception as e:
                     logger.warning(f"Export failed: {e}", context="main")
+
+        # T1.112/I234: Write single-overwrite pipeline_output.json
+        try:
+            pout_path = Path(resolved.get("output_dir", project_root / "eks" / "output")) / "pipeline_output.json"
+            pout = {
+                "job_id": engine_in.run_id,
+                "timestamp": __import__("datetime").datetime.utcnow().isoformat(),
+                "status": "SUCCESS" if returned_ctx and returned_ctx.state.status == "COMPLETE" else "FAILED",
+                "summary": {k: str(v) for k, v in summary.items()},
+                "exported_files": exported_files,
+            }
+            pout_path.parent.mkdir(parents=True, exist_ok=True)
+            pout_path.write_text(json.dumps(pout, indent=2, default=str), encoding="utf-8")
+        except Exception as pout_err:
+            logger.warning(f"pipeline_output.json write failed: {pout_err}", context="main")
+
+        # T1.114/I234: Write debug_log.json from logger debug_object
+        try:
+            dout_path = Path(resolved.get("output_dir", project_root / "eks" / "output")) / "debug_log.json"
+            if hasattr(logger, "debug_object") and logger.debug_object:
+                dout_path.parent.mkdir(parents=True, exist_ok=True)
+                dout_path.write_text(json.dumps(logger.debug_object, indent=2, default=str), encoding="utf-8")
+        except Exception as dout_err:
+            logger.warning(f"debug_log.json write failed: {dout_err}", context="main")
 
         engine_out = EngineOutput(
             run_id=engine_in.run_id,

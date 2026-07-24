@@ -2,11 +2,13 @@
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
 DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 
-Revision: 0.7
-Date: 2026-07-23
-Author: CodeBuddy
-Summary: 0.7: T1.106 (I232) — added get_document_by_file_path() for SSOT doc_id lookup.
-         0.6: T1.99.153 (I189/F1) — added optional db_path parameter for test-isolated databases.
+Revision: 0.8
+Date: 2026-07-24
+Author: opencode
+Summary: 0.8: T1.99.191 (I225) — added pre_generated_ddl param to reuse bootstrap
+          DDL; added _ensure_schema_version() metadata table for schema hash tracking.
+0.7: T1.106 (I232) — added get_document_by_file_path() for SSOT doc_id lookup.
+          0.6: T1.99.153 (I189/F1) — added optional db_path parameter for test-isolated databases.
          0.5: T1.99.148 (I187) — migrated synthetic key generation to common.library.utility.synthetic_key.
           Removed ad-hoc hashlib usage for key generation.
           T1.99.150 (I186) — changed id from business-key to pure UUID, INSERT OR REPLACE → INSERT.
@@ -14,6 +16,7 @@ Summary: 0.7: T1.106 (I232) — added get_document_by_file_path() for SSOT doc_i
           Prior: T1.99.141–T1.99.146 — document metadata completeness.
 """
 import duckdb
+import hashlib
 import json
 import time
 import uuid
@@ -93,7 +96,8 @@ class DocumentRegistry:
         "revision_description",
     }
 
-    def __init__(self, logger: Optional[EKSLogger] = None, db_path: Optional[str] = None):
+    def __init__(self, logger: Optional[EKSLogger] = None, db_path: Optional[str] = None,
+                 pre_generated_ddl: Optional[Dict[str, Any]] = None):
         """
         Initialize the DocumentRegistry.
 
@@ -102,6 +106,11 @@ class DocumentRegistry:
             db_path: Optional explicit database file path. When provided, used
                 directly (bypassing config). Enables test-isolated databases
                 (I189/F1).
+            pre_generated_ddl: Optional pre-generated DDL from bootstrap P7
+                SchemaToDDL pre-flight. When provided, schema-to-ddl loading
+                is skipped and the pre-generated DDL is used directly for
+                table creation and migration. Keys: documents_ddl, elements_ddl,
+                indexes, definitions.
         """
         self.config = ConfigRegistry()
         if db_path is not None:
@@ -120,25 +129,41 @@ class DocumentRegistry:
         self.retry_delay = float(self.config.get_system_param("retry_delay", 0.5))
         self.db_timeout = int(self.config.get_system_param("db_timeout", 30))
         self.logger = logger or EKSLogger("Registry", level=1)
+        # T1.99.191 (I225): Store pre-generated DDL for schema-version tracking
+        self._pre_generated_ddl = pre_generated_ddl
         self._init_db()
         self._migrate_schema()
+        self._ensure_schema_version()
 
     @log_depth
     def _init_db(self):
-        """Initialize the metadata database tables with DDL auto-generated from JSON schema."""
+        """Initialize the metadata database tables with DDL auto-generated from JSON schema.
+        
+        T1.99.191 (I225): Uses pre-generated DDL from bootstrap if available,
+        skipping schema re-loading from disk.
+        """
         self.logger.status(f"Initializing Document Registry at {self.db_path}")
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        loader = getattr(self.config, '_loader', None)
-        if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
-            schema_to_ddl = SchemaToDDL(loader.doc_base_schema, self.logger)
-            docs_ddl = schema_to_ddl.generate_documents_ddl()
-            els_ddl = schema_to_ddl.generate_document_elements_ddl()
-            indexes = schema_to_ddl.generate_indexes()
+        if self._pre_generated_ddl:
+            docs_ddl = self._pre_generated_ddl["documents_ddl"]
+            els_ddl = self._pre_generated_ddl["elements_ddl"]
+            indexes = self._pre_generated_ddl["indexes"]
+            self.logger.info(
+                "Using pre-generated DDL from bootstrap (I225)",
+                context="DocumentRegistry._init_db",
+            )
         else:
-            docs_ddl = SchemaToDDL(self._load_doc_schema()).generate_documents_ddl()
-            els_ddl = SchemaToDDL(self._load_doc_schema()).generate_document_elements_ddl()
-            indexes = SchemaToDDL(self._load_doc_schema()).generate_indexes()
+            loader = getattr(self.config, '_loader', None)
+            if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
+                schema_to_ddl = SchemaToDDL(loader.doc_base_schema, self.logger)
+                docs_ddl = schema_to_ddl.generate_documents_ddl()
+                els_ddl = schema_to_ddl.generate_document_elements_ddl()
+                indexes = schema_to_ddl.generate_indexes()
+            else:
+                docs_ddl = SchemaToDDL(self._load_doc_schema()).generate_documents_ddl()
+                els_ddl = SchemaToDDL(self._load_doc_schema()).generate_document_elements_ddl()
+                indexes = SchemaToDDL(self._load_doc_schema()).generate_indexes()
 
         conn = duckdb.connect(str(self.db_path))
         try:
@@ -151,18 +176,27 @@ class DocumentRegistry:
 
     @log_depth
     def _migrate_schema(self):
-        """Handle schema evolution by adding missing columns via SchemaToDDL."""
+        """Handle schema evolution by adding missing columns via SchemaToDDL.
+        
+        T1.99.191 (I225): Uses pre-generated DDL doc_base_schema from bootstrap
+        if available, avoiding redundant schema loading.
+        """
         conn = duckdb.connect(str(self.db_path))
         try:
             for table_name in ["documents", "document_elements"]:
                 res = conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()
                 existing_cols = {row[1] for row in res}
 
-                loader = getattr(self.config, '_loader', None)
-                if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
-                    ddl_gen = SchemaToDDL(loader.doc_base_schema, self.logger)
+                if self._pre_generated_ddl and "doc_base_schema" in self._pre_generated_ddl:
+                    ddl_gen = SchemaToDDL(
+                        self._pre_generated_ddl["doc_base_schema"], self.logger
+                    )
                 else:
-                    ddl_gen = SchemaToDDL(self._load_doc_schema())
+                    loader = getattr(self.config, '_loader', None)
+                    if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
+                        ddl_gen = SchemaToDDL(loader.doc_base_schema, self.logger)
+                    else:
+                        ddl_gen = SchemaToDDL(self._load_doc_schema())
 
                 migration_stmts = ddl_gen.generate_migration_ddl(table_name, existing_cols)
                 for stmt in migration_stmts:
@@ -188,6 +222,60 @@ class DocumentRegistry:
 
             # T1.99.150 (I186): Migrate existing business-key ids to UUIDs
             self._migrate_ids_to_uuid(conn)
+        finally:
+            conn.close()
+
+    @log_depth
+    def _ensure_schema_version(self):
+        """Track schema version in a metadata table.
+        
+        Creates ``_eks_schema_meta`` table on first run and stores a hash
+        of the current DDL. On subsequent runs, compares the stored hash
+        against the current DDL to detect schema drift.
+        
+        T1.99.191 (I225): Schema version tracking for auto-migration audit trail.
+        """
+        conn = duckdb.connect(str(self.db_path))
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS _eks_schema_meta (
+                    key VARCHAR PRIMARY KEY,
+                    value VARCHAR,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            if self._pre_generated_ddl:
+                docs_md5 = hashlib.md5(
+                    self._pre_generated_ddl.get("documents_ddl", "").encode()
+                ).hexdigest()
+                els_md5 = hashlib.md5(
+                    self._pre_generated_ddl.get("elements_ddl", "").encode()
+                ).hexdigest()
+                schema_hash = f"{docs_md5}:{els_md5}"
+
+                existing = conn.execute(
+                    "SELECT value FROM _eks_schema_meta WHERE key = 'schema_hash'"
+                ).fetchone()
+                if existing:
+                    if existing[0] != schema_hash:
+                        self.logger.warning(
+                            f"Schema hash mismatch: stored={existing[0]}, current={schema_hash}. "
+                            f"Schema definitions have changed since last bootstrap.",
+                            context="DocumentRegistry._ensure_schema_version",
+                        )
+                        conn.execute(
+                            "UPDATE _eks_schema_meta SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = 'schema_hash'",
+                            [schema_hash],
+                        )
+                else:
+                    conn.execute(
+                        "INSERT INTO _eks_schema_meta (key, value) VALUES ('schema_hash', ?)",
+                        [schema_hash],
+                    )
+                    self.logger.info(
+                        f"Schema version recorded: {schema_hash[:16]}...",
+                        context="DocumentRegistry._ensure_schema_version",
+                    )
         finally:
             conn.close()
 
@@ -296,11 +384,16 @@ class DocumentRegistry:
 
         conn = duckdb.connect(str(self.db_path))
         try:
-            loader = getattr(self.config, '_loader', None)
-            if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
-                ddl_gen = SchemaToDDL(loader.doc_base_schema, self.logger)
+            if self._pre_generated_ddl and "doc_base_schema" in self._pre_generated_ddl:
+                ddl_gen = SchemaToDDL(
+                    self._pre_generated_ddl["doc_base_schema"], self.logger
+                )
             else:
-                ddl_gen = SchemaToDDL(self._load_doc_schema())
+                loader = getattr(self.config, '_loader', None)
+                if loader and hasattr(loader, 'doc_base_schema') and loader.doc_base_schema:
+                    ddl_gen = SchemaToDDL(loader.doc_base_schema, self.logger)
+                else:
+                    ddl_gen = SchemaToDDL(self._load_doc_schema())
 
             for table_name, key in [("documents", "documents_added"), ("document_elements", "document_elements_added")]:
                 res = conn.execute(f"PRAGMA table_info('{table_name}')").fetchall()

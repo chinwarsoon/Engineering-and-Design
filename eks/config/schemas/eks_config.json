@@ -1,8 +1,8 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.7.0",
-    "title": "EKS Default Project Configuration — v1.7.0 (system parameters centralized — T1.97/I088; workflow/tool files parity — T1.98.6/I090)",
+    "version": "1.8.0",
+    "title": "EKS Default Project Configuration — v1.8.0 (export_default added to system_parameters — T1.113/I234)",
     "project_rules_registry": {
         "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
     },
@@ -60,7 +60,8 @@
         "retry_delay": 0.5,
         "api_timeout": 120,
         "ollama_timeout": 30,
-        "db_timeout": 30
+        "db_timeout": 30,
+        "export_default": "both"
     },
     "folders": [
         { "name": "eks/archive", "required": true, "purpose": "Archived/superseded files", "auto_created": true },

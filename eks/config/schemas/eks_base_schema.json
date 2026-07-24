@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
-    "version": "1.8.0",
+    "version": "1.10.0",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity).",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default.",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
@@ -60,7 +60,7 @@
         },
         "system_parameters_def": {
             "type": "object",
-            "description": "Runtime behavior settings for loaders, validators, servers, and registry retry behavior (T1.97/I088).",
+            "description": "Runtime behavior settings for loaders, validators, servers, and registry retry behavior (T1.97/I088). Updated v1.10.0: added export_default for schema-driven CLI --export default (T1.113/I234).",
             "properties": {
                 "fail_fast": { "type": "boolean", "default": true },
                 "log_level": { "$ref": "#/definitions/verbosity_level", "default": 1 },
@@ -70,9 +70,10 @@
                 "retry_delay": { "type": "number", "minimum": 0, "default": 0.5 },
                 "api_timeout": { "type": "integer", "minimum": 1, "default": 120 },
                 "ollama_timeout": { "type": "integer", "minimum": 1, "default": 30 },
-                "db_timeout": { "type": "integer", "minimum": 1, "default": 30 }
+                "db_timeout": { "type": "integer", "minimum": 1, "default": 30 },
+                "export_default": { "type": "string", "enum": ["csv", "xlsx", "both", "none"], "default": "both", "description": "Default export format for CLI --export flag (I234). Schema-driven SSOT — CLI reads at runtime." }
             },
-            "required": ["fail_fast", "log_level", "debug_mode", "skip_readiness", "retry_count", "retry_delay", "api_timeout", "ollama_timeout", "db_timeout"],
+            "required": ["fail_fast", "log_level", "debug_mode", "skip_readiness", "retry_count", "retry_delay", "api_timeout", "ollama_timeout", "db_timeout", "export_default"],
             "additionalProperties": false
         },
         "parsers_def": {

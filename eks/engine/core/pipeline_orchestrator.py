@@ -28,10 +28,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 from ..logging.logger import EKSLogger, log_depth
-from .file_scanner import FileScanner
-from .health_scorer import HealthScorer
-from .structure_detector import StructureDetector
 from ..parsers.parser_router import ParserRouter
+from .factories import EngineFactory
 from .context import EKSPipelineContext, EKSPaths
 from .telemetry import TelemetryHeartbeat
 from .error_manager import ErrorManager
@@ -95,11 +93,12 @@ class PipelineOrchestrator(BaseEngine):
         self.error_manager = error_manager
         self.message_manager = message_manager
         
-        # Initialize components
-        self.scanner = FileScanner(config, doc_config=doc_config, logger=self.logger)
+        # Initialize components via factory for DI compliance (T1.99.183/I211)
+        self._engine_factory = EngineFactory(config_registry=config)
+        self.scanner = self._engine_factory.create("FileScanner", config=config, doc_config=doc_config, logger=self.logger)
         self.router = ParserRouter(doc_config, logger=self.logger, use_factory=True)
-        self.scorer = HealthScorer(logger=self.logger)
-        self.detector = StructureDetector(logger=self.logger)
+        self.scorer = self._engine_factory.create("HealthScorer", logger=self.logger)
+        self.detector = self._engine_factory.create("StructureDetector", logger=self.logger)
 
         # T1.99.179 (I212): Wire RevisionManager for revision-aware document lookups
         self.revision_manager = RevisionManager(registry, logger=self.logger)
@@ -813,7 +812,20 @@ class PipelineOrchestrator(BaseEngine):
                     )
             if doc:
                 try:
-                    score = self.scorer.score(doc, structural_elements=elements)
+                    # T1.99.199 (I214): Use HealthInput/HealthOutput contract wrapper
+                    health_input = HealthInput(
+                        run_id=str(getattr(self.logger, 'run_id', '')),
+                        data_dir=Path(file_path).parent,
+                        config_file=_config_file,
+                        schema_dir=_schema_dir,
+                        output_dir=_output_dir,
+                        parameters={},
+                        document=doc,
+                        elements=elements or [],
+                    )
+                    hout = self.scorer.score_from_input(health_input)
+                    score = hout.metadata
+                    score["overall"] = hout.overall
                     result["score"] = score
                     # T1.99.168 (I201): Apply health impact penalty from accumulated
                     # error severity impacts (GAP-D7).  ErrorManager.get_health_impact()
@@ -865,6 +877,16 @@ class PipelineOrchestrator(BaseEngine):
                         extra_properties=registry_props,
                         doc_id=doc["id"],
                     )
+
+                    # T1.99.179 (I212): Verify supersession chain after successful parse.
+                    # Use parsed revision from metadata if available (more accurate than
+                    # Phase A filename-based revision), otherwise fall back to Phase A value.
+                    parsed_revision = metadata.get("revision") or doc.get("revision", "00")
+                    self.revision_manager.detect_supersession(
+                        doc["document_number"],
+                        parsed_revision,
+                    )
+
                     result["status"] = "success"
                     pout.status = "SUCCESS"
                 except Exception as e:

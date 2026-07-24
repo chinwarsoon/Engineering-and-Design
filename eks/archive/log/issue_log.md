@@ -61,7 +61,7 @@ Issues below are ordered by resolution priority for Phase 1 completion. Each gro
 | **5** | 🟢 P2 — Phase 1 Close | I231, I233 | 2 | **Version SSOT + module split** — single `__version__`; `eks_engine_pipeline.py` refactor |
 | **6** | 🔵 P2 — Phase 1.2 UI | I064–I071 | 8 | **UI design system** — CSS tokens, theme picker, sidebar, KPI cards, sortable table, icon bar |
 | **7** | 🔶 P3 — Phase 2 Prep | I015, I016, I019, I020, I021, I078, I228 | 7 | **TWRP data + common-lib wiring + asset schema** — DGN parser, folder hierarchy, project codes, datadrop mapping, data incompleteness |
-| **8** | 🔷 P4 — Deferred (was Resolved) | I211, I212, I214, I217, I225 | 5 | **Partial resolutions** — DI factory usage, full supersession detection, contract usage, UI contract implementation, DDL auto-migration all have pending work |
+| **8** | 🔷 P4 — Deferred (was Resolved) | I211, I212, I214, I217 | 4 | **Partial resolutions** — DI factory usage, full supersession detection, contract usage, UI contract implementation all have pending work |
 | **9** | 🔷 P5 — Docs Sync | I198, I203–I208, I213, I216, I220, I223, I224 | 13 | **Appendix D/E/F ↔ codebase alignment** — taxonomy mismatch, column catalog stale, status lifecycle, error catalog names, folder restructuring, ReviewManager write-back, checkpoint resume, per-engine CLI |
 | **10** | 🔷 P6 — Phase 2–3 Blocks | I176–I181, I182–I187 | 12 | **Metadata gaps Phase 2 + §46 file registration** — asset registry, CAD parser, size detection, review UI, composite-key check, UUID migration |
 

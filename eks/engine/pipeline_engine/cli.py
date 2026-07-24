@@ -4,10 +4,11 @@ CLI argument parsing for the EKS pipeline.
 Extracted from ``eks_engine_pipeline.py`` (I233).  Zero module-level runtime
 globals — all paths flow from callers.
 
-Revision: 1.0
-Date: 2026-07-23
+Revision: 1.1
+Date: 2026-07-24
 Author: opencode
-Summary: I233 split — CLI functions extracted from eks_engine_pipeline.py.
+Summary: 1.1: I234/T1.113 — --export default changed to None (schema-driven);
+     runtime resolution from system_parameters.export_default.
 """
 from __future__ import annotations
 
@@ -55,8 +56,8 @@ _EKS_CORE_ARG_SPECS = [
     },
     {
         "opts": ["--export"], "dest": "export_format", "type": str,
-        "choices": ["csv", "xlsx", "both", "none"], "default": "none",
-        "help": "Export pipeline results as CSV/Excel spreadsheets (default: none).",
+        "choices": ["csv", "xlsx", "both", "none"], "default": None,
+        "help": "Export pipeline results as CSV/Excel spreadsheets (default: from system_parameters.export_default in eks_config.json; use 'none' to disable).",
     },
 ]
 
@@ -110,9 +111,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", help="Emit the run summary as JSON to stdout.",
     )
     parser.add_argument(
-        "--export", dest="export_format", type=str, default="none",
+        "--export", dest="export_format", type=str, default=None,
         choices=["csv", "xlsx", "both", "none"],
-        help="Export pipeline results as CSV/Excel spreadsheets (default: none).",
+        help="Export pipeline results as CSV/Excel spreadsheets (default: from system_parameters.export_default in eks_config.json; use 'none' to disable).",
     )
     return parser
 

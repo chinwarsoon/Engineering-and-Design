@@ -142,7 +142,10 @@ Examples:
                 skip_readiness=True,
                 debug=parsed_args.verbose,
             )
-            registry = DocumentRegistry(logger=logger)
+            registry = DocumentRegistry(
+                logger=logger,
+                pre_generated_ddl=boot.get("pre_generated_ddl"),
+            )
             scorer = HealthScorer(logger=logger)
 
             if parsed_args.document_id:

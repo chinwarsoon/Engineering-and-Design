@@ -173,7 +173,10 @@ def run_pipeline(
         orchestrator = PipelineOrchestrator(
             context.parameters.get("config", {}),
             context.parameters.get("doc_config", {}),
-            registry or DocumentRegistry(logger=logger),
+            registry or DocumentRegistry(
+                logger=logger,
+                pre_generated_ddl=context.parameters.get("pre_generated_ddl"),
+            ),
             logger=logger,
             use_telemetry=False,
             error_manager=em,
@@ -201,7 +204,10 @@ def run_pipeline(
         config_registry = boot["config_registry"]
 
         if registry is None:
-            registry = DocumentRegistry(logger=logger)
+            registry = DocumentRegistry(
+                logger=logger,
+                pre_generated_ddl=boot.get("pre_generated_ddl"),
+            )
 
         orchestrator = PipelineOrchestrator(
             config, doc_config, registry, logger=logger,

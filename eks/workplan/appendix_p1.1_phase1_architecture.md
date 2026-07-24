@@ -1,10 +1,10 @@
 # Appendix P1.1: Phase 1 — Architecture & Design Blueprints
 
 **Document ID**: WP-EKS-P1-APX-1.1  
-**Version**: 1.6  
-**Last Updated**: 2026-07-21  
-**Status**: 🔷 IN PROGRESS — Major restructure: added Contents (TOC), §1 Features Overview & Architecture Summary, consolidated all 10 issue fixes from former §4.4+§5 into single §7 cross-reference table with separate Root Cause / Fix / Outcome columns. Renumbered sections for logical design-first flow. Subsection numbering fixed in Schema Design (§5.x→§6.x). Module inventory promoted to §1.3.  
-**Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.3, IN PROGRESS)
+**Version**: 1.7  
+**Last Updated**: 2026-07-24  
+**Status**: 🔷 IN PROGRESS — Major restructure: added Contents (TOC), §1 Features Overview & Architecture Summary, consolidated all 10 issue fixes from former §4.4+§5 into single §7 cross-reference table with separate Root Cause / Fix / Outcome columns. Renumbered sections for logical design-first flow. Subsection numbering fixed in Schema Design (§5.x→§6.x). Module inventory promoted to §1.3. Added Row 14 to §7 for I234 CLI default pipeline output.  
+**Parent Workplan**: [phase_1_foundation_workplan.md](phase_1_foundation_workplan.md) (WP-EKS-P1-001, v5.4, IN PROGRESS)
 
 ---
 
@@ -547,6 +547,7 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
 | 11 | I208–I225 | Appendix E+F vs. Pipeline Cross-Source Audit (18 gaps) | [§4](#4-phase-1-pipeline-orchestrator-and-entry-points), [Appx E](appendix_e_schema_design.md), [Appx F](appendix_f_pipeline_architecture_design.md) | [`issue_log.md`](../log/phase1/p1_issue_log.md) |
 | 12 | I226 | `str(5)` Bug — 13 Call Sites, 4 Files | [§4.1](#41-pipeline-orchestrator), [§4.2](#42-entry-points--cli-web--http-backend) | [`issue_log.md`](../log/phase1/p1_issue_log.md) |
 | 13 | I227–I233 | Pipeline Audit — Scan Efficiency, Asset Integration, Telemetry, Validation, Versioning & Module Split | [§3](#3-phase-1-pipeline-architecture--function-tables), [§4](#4-phase-1-pipeline-orchestrator-and-entry-points), [Appx A](appendix_a_asset_schema.md), [Appx F](appendix_f_pipeline_architecture_design.md) | [`issue_log.md`](../log/phase1/p1_issue_log.md) |
+| 14 | I234 | CLI Default Pipeline Output — default-on CSV/Excel export, pipeline_output.json, debug_log.json | [§4.2](#42-entry-points--cli-web--http-backend), [Appx P1.3](appendix_p1.3_phase1_data_export.md) | [`issue_log.md`](../log/phase1/p1_issue_log.md) |
 
 ---
 
@@ -557,7 +558,7 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
 | Appendix | File | Description |
 |----------|------|-------------|
 | P1-B | — (consolidated) | Component mappings integrated into §7 Issues & Fixes table and module inventory (§1.3) — no separate file needed |
-| P1-C | (deleted) | Resolved Issue Deep-Dives — all content consolidated in [§7 — Issues & Fixes](#7-issues--fixes--summary-with-cross-references): I130 (row 1), I131 (row 2), I132 (row 3), I133–I163 (row 4), I164–I168 (row 5), I169–I175 (row 6), I182–I183 (row 7), I184–I187 (row 8), I188–I194 (row 9), I195–I207 (row 10), I208–I225 (row 11), I226 (row 12), I227–I233 (row 13). |
+| P1-C | (deleted) | Resolved Issue Deep-Dives — all content consolidated in [§7 — Issues & Fixes](#7-issues--fixes--summary-with-cross-references): I130 (row 1), I131 (row 2), I132 (row 3), I133–I163 (row 4), I164–I168 (row 5), I169–I175 (row 6), I182–I183 (row 7), I184–I187 (row 8), I188–I194 (row 9), I195–I207 (row 10), I208–I225 (row 11), I226 (row 12), I227–I233 (row 13), I234 (row 14). |
 | P1-D | — (superseded) | Superseded by [p1_sc_log.md](../log/phase1/p1_sc_log.md) — 349 items replace original 114 + all ✓ |
 
 ### General Appendices (A–J)
@@ -596,6 +597,7 @@ The EKS schema system follows a **3-layer inheritance pattern** (Base → Setup 
 
 | Version | Date | Author | Summary |
 | :------ | :--- | :----- | :------ |
+| 1.7 | 2026-07-24 | opencode | Added Row 14 for I234 in §7 Issues & Fixes table; updated §8 P1-C cross-references. |
 | 1.6 | 2026-07-21 | CodeBuddy | Major restructure — added **Contents (TOC)** and **§1 Features Overview & Architecture Summary** (§1.1 What Phase 1 Delivers, §1.2 Architecture at a Glance, §1.3 Module Inventory promoted from former §3). Consolidated all 10 issue fixes from former §4.4 (I130) + §5 (I131–I226) into single **§7 cross-reference table** with separate Root Cause / Fix / Outcome / Status columns. Renumbered: §1→§2 (Folder), §2→§3 (Pipeline, `§2.1`→`§3.3`), §4.1–4.3→§4 (Orchestrator, I130 removed), §6→§5 (Parser arch), §7→§6 (Schema design, `§5.x`→`§6.x` numbering fixed), §8→§8 (Cross-refs, P1-C + Key Workplan § links updated). |
 | 1.5 | 2026-07-20 | CodeBuddy | Relocated 9 sections from main workplan §40–§50 into new §5 (Defect Root-Cause Deep-Dives & System-Wide Fixes): §5.1 I131 KeyError fix, §5.2 I132 .dwg orphan fix, §5.3 I133–I163 P-prefix error codes + Appendix I filename parser, §5.4 I164–I168 metadata schema gaps, §5.5 I169–I175 remaining schema gaps, §5.6 I184–I187 file registration/change detection, §5.7 I195–I207 Appendix D cross-source audit, §5.8 I208–I225 Appendix E+F cross-source audit, §5.9 I226 str(5) bug fix. Renumbered §5→§6, §6→§7, §7→§8. Updated §8 P1-C entry. |
 | 1.4 | 2026-07-20 | CodeBuddy | Relocated I130 Bootstrap Path-Resolution Rooting Defect Fix from main workplan §39 into §4.4 (5-step defect chain, Option A fix, T1.99.101–103 task breakdown, cross-references). Updated §7 P1-C cross-reference to reflect content redistribution. |
