@@ -1,27 +1,27 @@
 {
     "metadata": {
-    "version": "1.3.0",
-    "last_updated": "2026-07-18",
-    "total_codes": 109,
-    "system_codes": 61,
-    "data_logic_codes": 48,
-    "system_format": "S-{cat}-S-{id} | P1-SETUP-{type}{id} | P1-BOOT-{reason} | B-{module}-{id}",
+    "version": "1.5.0",
+    "last_updated": "2026-07-28",
+    "total_codes": 118,
+    "system_codes": 68,
+    "data_logic_codes": 50,
+    "system_format": "S-{cat}-S-{id4}",
     "data_logic_format": "P{phase}-{module}-{function}-{id}"
   },
   "system_error_ranges": {
     "environment": {
       "prefix": "S-E-S-01xx",
-      "description": "Environment errors (Python, packages, imports)",
-      "count": 5,
+      "description": "Environment errors (Python, packages, imports, dependencies)",
+      "count": 7,
       "start_id": "S-E-S-0101",
-      "end_id": "S-E-S-0105"
+      "end_id": "S-E-S-0107"
     },
     "file_io": {
       "prefix": "S-F-S-02xx",
-      "description": "File/IO errors (not found, unreadable, permissions)",
-      "count": 6,
+      "description": "File/IO errors (not found, unreadable, permissions, setup)",
+      "count": 10,
       "start_id": "S-F-S-0201",
-      "end_id": "S-F-S-0206"
+      "end_id": "S-F-S-0210"
     },
     "config": {
       "prefix": "S-C-S-03xx",
@@ -32,10 +32,10 @@
     },
     "runtime": {
       "prefix": "S-R-S-04xx",
-      "description": "Runtime errors (exceptions, memory, fail-fast)",
-      "count": 9,
+      "description": "Runtime errors (exceptions, memory, fail-fast, readiness)",
+      "count": 10,
       "start_id": "S-R-S-0401",
-      "end_id": "S-R-S-0409"
+      "end_id": "S-R-S-0410"
     },
     "ai": {
       "prefix": "S-A-S-05xx",
@@ -46,31 +46,17 @@
     },
     "bootstrap": {
       "prefix": "S-B-S-06xx",
-      "description": "Bootstrap initialization errors",
-      "count": 2,
+      "description": "Bootstrap initialization errors (including P1 phase codes)",
+      "count": 15,
       "start_id": "S-B-S-0601",
-      "end_id": "S-B-S-0602"
-    },
-    "setup_validation": {
-      "prefix": "P1-SETUP-xxxx",
-      "description": "Project setup validation errors (T1.79)",
-      "count": 7,
-      "start_id": "P1-SETUP-F001",
-      "end_id": "P1-SETUP-READINESS"
-    },
-    "bootstrap_p1": {
-      "prefix": "P1-BOOT-xxxx",
-      "description": "EKS Phase 1 bootstrap errors (I111 / L19)",
-      "count": 6,
-      "start_id": "P1-BOOT-READINESS",
-      "end_id": "P1-BOOT-ENV"
+      "end_id": "S-B-S-0615"
     },
     "bootstrap_universal": {
-      "prefix": "B-XXXX-xxxx",
+      "prefix": "B-C-S-xxxx",
       "description": "Universal bootstrap errors (common/library/bootstrap/ — L19, I112)",
       "count": 15,
-      "start_id": "B-CLI-001",
-      "end_id": "B-UNK-002"
+      "start_id": "B-C-S-0001",
+      "end_id": "B-U-S-0002"
     }
   },
   "system_errors": {
@@ -156,7 +142,67 @@
       "code": "S-R-S-0408", "name": "PIPELINE_PHASE_FAILED", "message": "Pipeline phase execution failed", "severity": "CRITICAL", "category": "Runtime", "stops_pipeline": true, "promote_detail": true
     },
     "S-R-S-0409": {
-      "code": "S-R-S-0409", "name": "PIPELINE_PROCESSING_FATAL", "message": "Fatal error during pipeline processing", "severity": "FATAL", "category": "Runtime", "stops_pipeline": true, "promote_detail": true
+      "code": "S-R-S-0409", "name": "PIPELINE_PROCESSING_FATAL", "message": "Fatal error during pipeline processing", "severity": "HIGH", "category": "Runtime", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-E-S-0106": {
+      "code": "S-E-S-0106", "name": "MISSING_DEPENDENCY", "message": "Required Python dependency not installed", "severity": "WARNING", "category": "Environment", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-E-S-0107": {
+      "code": "S-E-S-0107", "name": "PYTHON_VERSION_MISMATCH", "message": "Python version does not match expected version", "severity": "WARNING", "category": "Environment", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-F-S-0207": {
+      "code": "S-F-S-0207", "name": "MISSING_REQUIRED_FOLDER", "message": "Required project folder does not exist", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0208": {
+      "code": "S-F-S-0208", "name": "MISSING_REQUIRED_FILE", "message": "Required project file does not exist", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0209": {
+      "code": "S-F-S-0209", "name": "MISSING_EKS_YML", "message": "eks/eks.yml environment file not found", "severity": "FATAL", "category": "File", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-F-S-0210": {
+      "code": "S-F-S-0210", "name": "OUTPUT_PATH_NOT_WRITABLE", "message": "Output directory is not writable", "severity": "WARNING", "category": "File", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-R-S-0410": {
+      "code": "S-R-S-0410", "name": "SETUP_NOT_READY", "message": "Project setup validation failed — readiness check not passed", "severity": "FATAL", "category": "Runtime", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-B-S-0603": {
+      "code": "S-B-S-0603", "name": "BOOT_READINESS_FAILED", "message": "Bootstrap readiness gate failed — project setup not ready", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-B-S-0604": {
+      "code": "S-B-S-0604", "name": "BOOT_CONFIG_FAILED", "message": "Bootstrap config loading failed — unable to load project configuration", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-B-S-0605": {
+      "code": "S-B-S-0605", "name": "BOOT_PATHS_FAILED", "message": "Bootstrap path resolution failed — invalid or missing project paths", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-B-S-0606": {
+      "code": "S-B-S-0606", "name": "BOOT_OS_DETECTION_FAILED", "message": "Bootstrap OS detection failed — unable to determine operating system", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-B-S-0607": {
+      "code": "S-B-S-0607", "name": "BOOT_CONTEXT_FAILED", "message": "Bootstrap context creation failed — must bootstrap before creating PipelineContext", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-B-S-0608": {
+      "code": "S-B-S-0608", "name": "BOOT_ENVIRONMENT_FAILED", "message": "Bootstrap environment check failed — required dependencies missing. Run: conda activate eks", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    },
+    "S-B-S-0609": {
+      "code": "S-B-S-0609", "name": "BOOT_CONFIG_DEGRADED", "message": "doc_config schema validation failed — using empty defaults (0 keys)", "severity": "WARNING", "category": "Bootstrap", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-B-S-0610": {
+      "code": "S-B-S-0610", "name": "BOOT_CONFIGREGISTRY_FAILED", "message": "ConfigRegistry init failed — falling back to SchemaLoader", "severity": "WARNING", "category": "Bootstrap", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-B-S-0611": {
+      "code": "S-B-S-0611", "name": "BOOT_SCCONFIG_DEGRADED", "message": "Schema phase doc_config load failed — using empty defaults (0 keys)", "severity": "WARNING", "category": "Bootstrap", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-B-S-0612": {
+      "code": "S-B-S-0612", "name": "BOOT_ERRORMGR_TODICT_FAILED", "message": "ErrorManager lazy-init failed in to_dict() — error handling degraded", "severity": "WARNING", "category": "Bootstrap", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-B-S-0613": {
+      "code": "S-B-S-0613", "name": "BOOT_MSGMGR_TODICT_FAILED", "message": "MessageManager lazy-init failed in to_dict() — message catalog degraded", "severity": "WARNING", "category": "Bootstrap", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-B-S-0614": {
+      "code": "S-B-S-0614", "name": "BOOT_ERRORMGR_CTX_FAILED", "message": "ErrorManager lazy-init failed in to_pipeline_context() — error handling degraded", "severity": "WARNING", "category": "Bootstrap", "stops_pipeline": false, "promote_detail": true
+    },
+    "S-B-S-0615": {
+      "code": "S-B-S-0615", "name": "BOOT_MSGMGR_CTX_FAILED", "message": "MessageManager lazy-init failed in to_pipeline_context() — message catalog degraded", "severity": "WARNING", "category": "Bootstrap", "stops_pipeline": false, "promote_detail": true
     },
     "S-A-S-0501": {
       "code": "S-A-S-0501", "name": "AI_OPS_FAILED", "message": "AI operations failed to complete", "severity": "WARNING", "category": "AI", "stops_pipeline": false, "promote_detail": true
@@ -173,89 +219,50 @@
     "S-B-S-0602": {
       "code": "S-B-S-0602", "name": "PHASE_DEPENDENCY_FAILED", "message": "Required prior phase has not completed successfully", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-SETUP-F001": {
-      "code": "P1-SETUP-F001", "name": "MISSING_REQUIRED_FOLDER", "message": "Required project folder does not exist", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
+    "B-C-S-0001": {
+      "code": "B-C-S-0001", "name": "BOOTSTRAP_CLI_PARSE_FAILED", "message": "Bootstrap CLI parsing failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-SETUP-F002": {
-      "code": "P1-SETUP-F002", "name": "MISSING_REQUIRED_FILE", "message": "Required project file does not exist", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
+    "B-H-S-0001": {
+      "code": "B-H-S-0001", "name": "BOOTSTRAP_PROJECT_ROOT_MISSING", "message": "Project root does not exist — cannot bootstrap", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-SETUP-F003": {
-      "code": "P1-SETUP-F003", "name": "MISSING_EKS_YML", "message": "eks/eks.yml environment file not found", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
+    "B-H-S-0002": {
+      "code": "B-H-S-0002", "name": "BOOTSTRAP_PATH_VALIDATION_FAILED", "message": "Bootstrap path validation failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-SETUP-D001": {
-      "code": "P1-SETUP-D001", "name": "MISSING_DEPENDENCY", "message": "Required Python dependency not installed", "severity": "WARNING", "category": "Setup", "stops_pipeline": false, "promote_detail": true
+    "B-R-S-0001": {
+      "code": "B-R-S-0001", "name": "BOOTSTRAP_REGISTRY_LOAD_FAILED", "message": "Bootstrap registry / config loading failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-SETUP-O001": {
-      "code": "P1-SETUP-O001", "name": "OUTPUT_PATH_NOT_WRITABLE", "message": "Output directory is not writable", "severity": "WARNING", "category": "Setup", "stops_pipeline": false, "promote_detail": true
+    "B-D-S-0001": {
+      "code": "B-D-S-0001", "name": "BOOTSTRAP_DEFAULTS_BUILD_FAILED", "message": "Bootstrap native defaults building failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-SETUP-E001": {
-      "code": "P1-SETUP-E001", "name": "PYTHON_VERSION_MISMATCH", "message": "Python version does not match expected version", "severity": "WARNING", "category": "Setup", "stops_pipeline": false, "promote_detail": true
+    "B-A-S-0001": {
+      "code": "B-A-S-0001", "name": "BOOTSTRAP_FALLBACK_VALIDATION_FAILED", "message": "Bootstrap fallback validation failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-SETUP-READINESS": {
-      "code": "P1-SETUP-READINESS", "name": "SETUP_NOT_READY", "message": "Project setup validation failed — readiness check not passed", "severity": "FATAL", "category": "Setup", "stops_pipeline": true, "promote_detail": true
+    "B-E-S-0001": {
+      "code": "B-E-S-0001", "name": "BOOTSTRAP_ENV_TESTING_FAILED", "message": "Bootstrap environment testing failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-BOOT-READINESS": {
-      "code": "P1-BOOT-READINESS", "name": "BOOT_READINESS_FAILED", "message": "Bootstrap readiness gate failed — project setup not ready", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    "B-E-S-0002": {
+      "code": "B-E-S-0002", "name": "BOOTSTRAP_DEPS_MISSING", "message": "Required dependencies missing during bootstrap environment check", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-BOOT-CONFIG": {
-      "code": "P1-BOOT-CONFIG", "name": "BOOT_CONFIG_FAILED", "message": "Bootstrap config loading failed — unable to load project configuration", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    "B-K-S-0001": {
+      "code": "B-K-S-0001", "name": "BOOTSTRAP_SCHEMA_RESOLUTION_FAILED", "message": "Bootstrap schema resolution failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-BOOT-PATHS": {
-      "code": "P1-BOOT-PATHS", "name": "BOOT_PATHS_FAILED", "message": "Bootstrap path resolution failed — invalid or missing project paths", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    "B-M-S-0001": {
+      "code": "B-M-S-0001", "name": "BOOTSTRAP_CLI_PARAMS_FAILED", "message": "Bootstrap CLI parameters resolution failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-BOOT-OS": {
-      "code": "P1-BOOT-OS", "name": "BOOT_OS_DETECTION_FAILED", "message": "Bootstrap OS detection failed — unable to determine operating system", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    "B-M-S-0002": {
+      "code": "B-M-S-0002", "name": "BOOTSTRAP_UI_PARAMS_FAILED", "message": "Bootstrap UI parameters resolution failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-BOOT-CTX": {
-      "code": "P1-BOOT-CTX", "name": "BOOT_CONTEXT_FAILED", "message": "Bootstrap context creation failed — must bootstrap before creating PipelineContext", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    "B-B-S-0001": {
+      "code": "B-B-S-0001", "name": "BOOTSTRAP_PRELOAD_NOT_READY", "message": "Bootstrap must be completed before accessing preload trace", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "P1-BOOT-ENV": {
-      "code": "P1-BOOT-ENV", "name": "BOOT_ENVIRONMENT_FAILED", "message": "Bootstrap environment check failed — required dependencies missing. Run: conda activate eks", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    "B-X-S-0001": {
+      "code": "B-X-S-0001", "name": "BOOTSTRAP_CTX_NOT_READY", "message": "Must bootstrap before creating PipelineContext", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "B-CLI-001": {
-      "code": "B-CLI-001", "name": "BOOTSTRAP_CLI_PARSE_FAILED", "message": "Bootstrap CLI parsing failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    "B-U-S-0001": {
+      "code": "B-U-S-0001", "name": "BOOTSTRAP_UNHANDLED_CLI_ERROR", "message": "Unexpected bootstrap error in CLI mode — see traceback for details", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     },
-    "B-PATH-001": {
-      "code": "B-PATH-001", "name": "BOOTSTRAP_PROJECT_ROOT_MISSING", "message": "Project root does not exist — cannot bootstrap", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-PATH-002": {
-      "code": "B-PATH-002", "name": "BOOTSTRAP_PATH_VALIDATION_FAILED", "message": "Bootstrap path validation failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-REG-001": {
-      "code": "B-REG-001", "name": "BOOTSTRAP_REGISTRY_LOAD_FAILED", "message": "Bootstrap registry / config loading failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-DEF-001": {
-      "code": "B-DEF-001", "name": "BOOTSTRAP_DEFAULTS_BUILD_FAILED", "message": "Bootstrap native defaults building failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-FALL-001": {
-      "code": "B-FALL-001", "name": "BOOTSTRAP_FALLBACK_VALIDATION_FAILED", "message": "Bootstrap fallback validation failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-ENV-001": {
-      "code": "B-ENV-001", "name": "BOOTSTRAP_ENV_TESTING_FAILED", "message": "Bootstrap environment testing failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-ENV-002": {
-      "code": "B-ENV-002", "name": "BOOTSTRAP_DEPS_MISSING", "message": "Required dependencies missing during bootstrap environment check", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-SCH-001": {
-      "code": "B-SCH-001", "name": "BOOTSTRAP_SCHEMA_RESOLUTION_FAILED", "message": "Bootstrap schema resolution failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-PAR-001": {
-      "code": "B-PAR-001", "name": "BOOTSTRAP_CLI_PARAMS_FAILED", "message": "Bootstrap CLI parameters resolution failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-PAR-002": {
-      "code": "B-PAR-002", "name": "BOOTSTRAP_UI_PARAMS_FAILED", "message": "Bootstrap UI parameters resolution failed", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-BOOT-0601": {
-      "code": "B-BOOT-0601", "name": "BOOTSTRAP_PRELOAD_NOT_READY", "message": "Bootstrap must be completed before accessing preload trace", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-CTX-001": {
-      "code": "B-CTX-001", "name": "BOOTSTRAP_CTX_NOT_READY", "message": "Must bootstrap before creating PipelineContext", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-UNK-001": {
-      "code": "B-UNK-001", "name": "BOOTSTRAP_UNHANDLED_CLI_ERROR", "message": "Unexpected bootstrap error in CLI mode — see traceback for details", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
-    },
-    "B-UNK-002": {
-      "code": "B-UNK-002", "name": "BOOTSTRAP_UNHANDLED_UI_ERROR", "message": "Unexpected bootstrap error in UI mode — see traceback for details", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
+    "B-U-S-0002": {
+      "code": "B-U-S-0002", "name": "BOOTSTRAP_UNHANDLED_UI_ERROR", "message": "Unexpected bootstrap error in UI mode — see traceback for details", "severity": "FATAL", "category": "Bootstrap", "stops_pipeline": true, "promote_detail": true
     }
   },
   "data_error_ranges": {
@@ -388,10 +395,10 @@
       "code": "P3-E-E-0017", "name": "STRUCTURE_LOW_SCORE", "message": "Structural completeness below 0.5", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/health_scorer.py", "health_score_impact": -2
     },
     "P3-E-E-0018": {
-      "code": "P3-E-E-0018", "name": "STRUCTURE_DETECTION_FAIL", "message": "Structure detection failed for file", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/pipeline_orchestrator.py", "health_score_impact": -2
+      "code": "P3-E-E-0018", "name": "STRUCTURE_DETECTION_FAIL", "message": "Structure detection failed for file", "severity": "HIGH", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/pipeline_orchestrator.py", "health_score_impact": -2
     },
     "P3-E-E-0019": {
-      "code": "P3-E-E-0019", "name": "HEALTH_SCORE_FAILED", "message": "Health scoring computation failed", "severity": "WARNING", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/pipeline_orchestrator.py", "health_score_impact": -2
+      "code": "P3-E-E-0019", "name": "HEALTH_SCORE_FAILED", "message": "Health scoring computation failed", "severity": "HIGH", "layer": "P3", "module": "E", "function": "E", "source": "eks/engine/core/pipeline_orchestrator.py", "health_score_impact": -2
     },
     "P3-X-X-0001": {
       "code": "P3-X-X-0001", "name": "KEYTAG_NO_MATCH", "message": "asset_tag has no matching datadrop keytag", "severity": "WARNING", "layer": "P3", "module": "X", "function": "X", "column": "asset_tags", "source": "eks/engine/core/xref.py", "health_score_impact": -1
@@ -424,7 +431,7 @@
       "code": "P5-F-S-0002", "name": "FILE_NOT_FOUND", "message": "File not found or unreadable during processing", "severity": "HIGH", "layer": "P5", "module": "F", "function": "S", "source": "eks/engine/core/pipeline_orchestrator.py", "health_score_impact": -3
     },
     "P5-R-P-0003": {
-      "code": "P5-R-P-0003", "name": "DOCUMENT_NOT_REGISTERED", "message": "Document not found in registry during Phase B lookup", "severity": "WARNING", "layer": "P5", "module": "R", "function": "P", "source": "eks/engine/core/pipeline_orchestrator.py", "health_score_impact": -2
+      "code": "P5-R-P-0003", "name": "DOCUMENT_NOT_REGISTERED", "message": "Document not found in registry during Phase B lookup", "severity": "HIGH", "layer": "P5", "module": "R", "function": "P", "source": "eks/engine/core/pipeline_orchestrator.py", "health_score_impact": -2
     },
     "P5-F-V-0004": {
       "code": "P5-F-V-0004", "name": "TOO_FEW_FILENAME_SEGMENTS", "message": "Filename has fewer segments than minimum required", "severity": "WARNING", "layer": "P5", "module": "F", "function": "V", "source": "eks/engine/core/filename_parser.py", "health_score_impact": -2
@@ -472,7 +479,9 @@
       "Added 5 new P5-F-* data error codes (T1.99.121 / I137+I142): P5-F-V-0004..P5-F-V-0006 (segment validation, filename parser), P5-F-P-0007 (unresolvable filename). P5-F-V-0001..P5-R-P-0003 already used by pipeline_orchestrator.py after D5→P5 rename (T1.99.108). Added phase_5_file_ops range (count:12, start:P5-F-V-0001, end:P5-F-P-0012) to data_error_ranges (T1.99.122 / I163). Bumped version to 1.2.0.",
       "Updated total_codes: 93→98, data_logic_codes: 35→40",
       "Added 5 P5-F-PROP-* data error codes (T1.99.133 / Appendix J): P5-F-PROP-0001 (file not found), P5-F-PROP-0002 (OS stat failed), P5-F-PROP-0003 (no parser metadata), P5-F-PROP-0004 (mapping failure), P5-F-PROP-0005 (hash computation failed). All registered under existing phase_5_file_ops range. Bumped version to 1.3.0.",
-      "Updated total_codes: 98→103, data_logic_codes: 40→45"
+      "Updated total_codes: 98→103, data_logic_codes: 40→45",
+      "Version 1.4.0: Standardized error codes to X-X-X-XXXX format. Removed P1-SETUP-* and P1-BOOT-* codes (13 codes); replaced with S-E-S-0106/0107, S-F-S-0207-0210, S-R-S-0410, S-B-S-0603-0608. Renamed 15 B-* codes to B-{cat}-S-{4-digit} format. Fixed data_logic_codes count from 48→50. Updated total_codes: 109→111, system_codes: 61 (unchanged). system_format simplified to single format.",
+      "Version 1.5.0: Added 7 S-B-S bootstrap degradation codes (I257/I258): S-B-S-0609 (BOOT_CONFIG_DEGRADED), S-B-S-0610 (BOOT_CONFIGREGISTRY_FAILED), S-B-S-0611 (BOOT_SCCONFIG_DEGRADED), S-B-S-0612 (BOOT_ERRORMGR_TODICT_FAILED), S-B-S-0613 (BOOT_MSGMGR_TODICT_FAILED), S-B-S-0614 (BOOT_ERRORMGR_CTX_FAILED), S-B-S-0615 (BOOT_MSGMGR_CTX_FAILED). All WARNING, stops_pipeline: false. bootstrap range count 8→15, end_id 0608→0615. total_codes 111→118, system_codes 61→68."
     ]
   }
 }

@@ -6,10 +6,22 @@ T1.64: Added phase rollback capability per Appendix F.
 T1.68: Wired ErrorManager/MessageManager calls at phase boundaries and per-file failures.
 T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_document_status().
 
-Revision: 0.5
-Date: 2026-07-23
-Author: CodeBuddy
-Summary: 0.5: T1.106 (I232) — _process_file() resolves doc_id once via
+Revision: 0.9
+Date: 2026-07-28
+Author: opencode
+Summary: 0.9: T1.160 (I256) — FilenameParser now receives project_code_titles from
+          SchemaLoader-injected doc_config.
+          T1.161 (I256) — I252 block extended with project_title write-back:
+          cover sheet metadata > code→title lookup > Phase A value.
+0.8: T1.157 (I255) — FilenameParser now receives project_code_registry derived from
+          filename_patterns keys (minus '*') instead of project_code=None, enabling auto-pattern
+          detection.
+          0.7: T1.118 (I236) — Fixed ERROR_FILE_PROCESSING kwarg mismatch:
+          error=str(e) → detail=str(e) at show() call site.
+          0.6: T1.116 (I235) — Folded 1.0 into BATCH_MILESTONES ({0.25, 0.50, 0.75, 1.0});
+          removed separate pct>=1.0 block; all milestones flow through single
+          sorted loop in correct order. last_milestone_pct now set to 1.0.
+          0.5: T1.106 (I232) — _process_file() resolves doc_id once via
           registry.get_document_by_file_path() at entry; removed stem-based
           fallback (lines 721-724). _update_doc_status() requires doc_id;
           legacy path removed.
@@ -66,7 +78,8 @@ class PipelineOrchestrator(BaseEngine):
                  use_telemetry: bool = True,
                  error_manager: Optional[ErrorManager] = None,
                  message_manager: Optional[MessageManager] = None,
-                 external_telemetry: Any = None):
+                 external_telemetry: Any = None,
+                 telemetry_verbose: bool = True):
         """
         Initialize pipeline orchestrator.
         
@@ -82,6 +95,9 @@ class PipelineOrchestrator(BaseEngine):
                 common.library.core.pipeline (T1.99.184/I215). When provided,
                 pipeline-level checkpoints are forwarded to it alongside the
                 local document-level telemetry.
+            telemetry_verbose: Whether to emit milestone progress (25/50/75/100%)
+                to console during Phase B (I237/T1.122). Default True matches
+                system_parameters.telemetry_verbose schema default.
         """
         # T1.99.182 (I209): Call BaseEngine.__init__ with engine name
         super().__init__(name="PipelineOrchestrator")
@@ -108,12 +124,18 @@ class PipelineOrchestrator(BaseEngine):
             registry, doc_config=doc_config, logger=self.logger
         )
 
-        # T1.99.116: Shared FilenameParser for Phase B inline replacements
+        # T1.157 (I255): Shared FilenameParser — auto-detects project code per filename
+        # T1.160 (I256): project_code_titles derived from project_code_schema injected by SchemaLoader
         filename_patterns = doc_config.get("filename_patterns", {})
         document_type_registry = doc_config.get("document_type_registry", [])
+        project_code_registry = [
+            k for k in filename_patterns if k != "*"
+        ]
+        project_code_titles = doc_config.get("project_code_titles", {})
         self._parser = FilenameParser(
             filename_patterns=filename_patterns,
-            project_code=None,
+            project_code_registry=project_code_registry,
+            project_code_titles=project_code_titles,
             document_type_registry=document_type_registry,
         )
 
@@ -127,7 +149,7 @@ class PipelineOrchestrator(BaseEngine):
         # T1.99.184 (I215): Unify dual telemetry — local TelemetryHeartbeat for
         # document-level detail, optional external_telemetry for pipeline-level
         # checkpoints forwarded to common.library.core.pipeline.TelemetryHeartbeat.
-        self.telemetry = TelemetryHeartbeat(enabled=use_telemetry, verbose=False)
+        self.telemetry = TelemetryHeartbeat(enabled=use_telemetry, verbose=telemetry_verbose)
         self.external_telemetry = external_telemetry
         
         # Initialize pipeline context
@@ -362,7 +384,7 @@ class PipelineOrchestrator(BaseEngine):
         failed = 0
         total = len(valid)
         # I229: Batch telemetry milestones at 25%/50%/75%/100%
-        BATCH_MILESTONES = {0.25, 0.50, 0.75}
+        BATCH_MILESTONES = {0.25, 0.50, 0.75, 1.0}
         last_milestone_pct = 0.0
 
         for idx, file_info in enumerate(valid):
@@ -375,7 +397,7 @@ class PipelineOrchestrator(BaseEngine):
                 if self.error_manager:
                     self.error_manager.handle_system_error("S-R-S-0407", detail=f"Unhandled error in _process_file for {file_path}: {e}")
                     if self.message_manager:
-                        self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(e))
+                        self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, detail=str(e))
 
             results.append(result)
 
@@ -394,16 +416,13 @@ class PipelineOrchestrator(BaseEngine):
             # not per-file. Per-file errors still logged via ErrorManager.
             if self.use_telemetry and total > 0:
                 pct = (idx + 1) / total
-                if pct >= 1.0:
-                    self._forward_telemetry(
-                        "B-progress", details={"milestone": "100%", "files": total},
-                        doc_count=total,
-                    )
                 for m in sorted(BATCH_MILESTONES):
                     if last_milestone_pct < m <= pct:
+                        label = "100%" if m == 1.0 else f"{int(m*100)}%"
+                        files = idx + 1 if m == 1.0 else int(total * m)
                         self._forward_telemetry(
-                            f"B-progress", details={"milestone": f"{int(m*100)}%", "files": int(total * m)},
-                            doc_count=int(total * m),
+                            "B-progress", details={"milestone": label, "files": files},
+                            doc_count=files,
                         )
                         last_milestone_pct = m
 
@@ -414,6 +433,15 @@ class PipelineOrchestrator(BaseEngine):
             "failed": failed,
             "results": results,
         }
+
+        # I248: Compute batch health summary from registry
+        try:
+            all_docs = self.registry.list_documents(latest_only=False)
+            batch_health = self.scorer.score_batch(all_docs)
+            summary["avg_document_health"] = batch_health["avg_document_health"]
+            summary["batch_health"] = batch_health
+        except Exception as e:
+            self.logger.warning(f"Batch health scoring failed: {e}", context="run_phase_b")
         
         if self.use_telemetry:
             self._forward_telemetry("B", details=summary, doc_count=success + partial)
@@ -429,7 +457,7 @@ class PipelineOrchestrator(BaseEngine):
         
         if self.message_manager:
             self.message_manager.show("STATUS_PHASE_B_COMPLETE",
-                                       success=success, partial=partial, failed=failed)
+                                       success=success, total=total, partial=partial, failed=failed)
         
         return summary
 
@@ -619,7 +647,7 @@ class PipelineOrchestrator(BaseEngine):
             valid = [
                 {
                     "file_path": r["file_path"],
-                    "file_type": r.get("file_type", ""),
+                    "file_type": r.get("file_type") or "",
                     "file_name": Path(r["file_path"]).name,
                 }
                 for r in rows
@@ -753,6 +781,8 @@ class PipelineOrchestrator(BaseEngine):
                 revision_desc = None
                 # T1.99.162 (I196): Extract asset_tags from cover_page element
                 asset_tags_from_cover = None
+                # T1.161 (I256): Extract project_title from cover_page element
+                cover_project_title = None
                 for el in elements:
                     if el.get("element_type") == "revision_table" and el.get("content"):
                         # Use the first revision_table element's content as the description
@@ -772,13 +802,17 @@ class PipelineOrchestrator(BaseEngine):
                         content = el.get("content", "")
                         if isinstance(content, dict):
                             raw_tags = content.get("asset_tags", "")
+                            # Extract project_title from cover page content for write-back
+                            cover_project_title = content.get("project_title")
                         elif isinstance(content, str):
                             try:
                                 import ast
                                 parsed = ast.literal_eval(content)
                                 raw_tags = parsed.get("asset_tags", "") if isinstance(parsed, dict) else ""
+                                cover_project_title = parsed.get("project_title") if isinstance(parsed, dict) else None
                             except (ValueError, SyntaxError):
                                 raw_tags = ""
+                                cover_project_title = None
                         else:
                             raw_tags = ""
                         if raw_tags:
@@ -853,6 +887,33 @@ class PipelineOrchestrator(BaseEngine):
                     # T1.99.162 (I196): Attach asset_tags from cover page detection
                     if asset_tags_from_cover:
                         registry_props["asset_tags"] = asset_tags_from_cover
+                    # I252: Extract identity fields from parser metadata and write back to DB.
+                    # These may come from cover sheet extraction (PDF metadata) or filename parsing.
+                    # Priority for document_type: parser metadata > Phase A value (filename) > extension inference.
+                    for id_field in ("project_number", "area", "discipline", "document_type"):
+                        meta_val = metadata.get(id_field)
+                        if meta_val:
+                            if id_field == "document_type":
+                                # Document_type priority: cover sheet > filename > extension
+                                existing_val = doc.get(id_field) if doc else None
+                                if existing_val and existing_val != meta_val and existing_val not in ("UNKNOWN", None):
+                                    continue  # keep Phase A filename-derived value over parser guess
+                            registry_props[id_field] = meta_val
+                    # T1.161 (I256): Write back project_title with priority:
+                    # cover page element > parser metadata > code→title lookup > Phase A value
+                    if cover_project_title:
+                        registry_props["project_title"] = cover_project_title
+                    elif metadata.get("project_title"):
+                        registry_props["project_title"] = metadata.get("project_title")
+                    elif "project_number" in registry_props:
+                        project_code_titles = doc_config.get("project_code_titles", {})
+                        code_to_title = project_code_titles.get(registry_props["project_number"])
+                        if code_to_title:
+                            registry_props["project_title"] = code_to_title
+                    else:
+                        existing_title = doc.get("project_title") if doc else None
+                        if existing_title:
+                            registry_props["project_title"] = existing_title
                     self.logger.debug(
                         f"File properties extracted for {Path(file_path).name}: "
                         f"size={prop_result.file_size}, status={prop_result.extract_status}, "
@@ -907,10 +968,8 @@ class PipelineOrchestrator(BaseEngine):
             result["error"] = str(e)
             pout.status = "FAILED"
             pout.errors.append(ErrorRecord("PipelineError", str(e), context={"file_path": file_path}))
-            self.logger.error(
-                f"Pipeline processing failed for {file_path}: {e}",
-                context="PipelineOrchestrator._process_file"
-            )
+            if self.message_manager:
+                self.message_manager.show("ERROR_FILE_PROCESSING", filename=file_path, detail=str(e))
             if self.error_manager:
                 self.error_manager.handle_system_error("S-R-S-0409", detail=f"Pipeline processing failed for {file_path}: {e}")
 

@@ -71,22 +71,8 @@
         },
         "document_type_registry": {
             "type": "array",
-            "description": "Canonical registry of document type codes mapped to ontology classes (Appendix C). Validated at load time against ontology config.",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "code": { "$ref": "eks_doc_base_schema.json#/definitions/document_type_code" },
-                    "label": { "type": "string" },
-                    "ontology_class": { "type": "string" },
-                    "description": { "type": "string" },
-                    "expected_file_types": {
-                        "type": "array",
-                        "items": { "$ref": "eks_doc_base_schema.json#/definitions/file_type_code" }
-                    }
-                },
-                "required": ["code", "label", "ontology_class"],
-                "additionalProperties": false
-            },
+            "description": "Canonical registry of document type codes mapped to ontology classes (Appendix C). SSOT definition in eks_document_type_schema.json. Validated against document_type_entry_def in doc base schema.",
+            "items": { "$ref": "eks_doc_base_schema.json#/definitions/document_type_entry_def" },
             "minItems": 1
         },
         "file_type_registry": {
@@ -148,7 +134,7 @@
                 "additionalProperties": false
             },
             "propertyNames": {
-                "pattern": "^(CAD|DWG|PI-PID|SPC|DS|MAN|OM|RPT)$"
+                "pattern": "^(CAD|DWG|PI-PID|SPC|DS|MAN|OM|RPT|DR|SP|CL|BQ|VI|M3|QA)$"
             }
         },
         "filename_patterns": {
@@ -195,6 +181,12 @@
             },
             "required": ["boilerplate_prefixes"],
             "additionalProperties": false
+        },
+        "project_code_titles": {
+            "type": "object",
+            "description": "Runtime-injected mapping of project_code → project_title, loaded from eks_project_code_schema.json by SchemaLoader. Not present in the config file; injected after schema loading.",
+            "additionalProperties": { "type": "string" },
+            "propertyNames": { "pattern": "^\\d{6}$" }
         }
     },
     "required": ["revision_validation", "ontology_triggers", "health_scoring", "element_expectations"],

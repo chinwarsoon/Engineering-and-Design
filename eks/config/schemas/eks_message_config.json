@@ -107,7 +107,7 @@
     },
     "ERROR_FILE_PROCESSING": {
       "template": "Error processing {filename}: {detail}",
-      "level": 0,
+      "level": 2,
       "category": "error"
     },
     "STATUS_PARSING_FILE": {

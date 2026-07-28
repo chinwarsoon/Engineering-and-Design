@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eks.engineering/schemas/eks_document_type_schema.json",
+  "title": "EKS Document Type Schema",
+  "description": "Valid document type classifications for the EKS knowledge base. SSOT for all document type codes used in filename parsing, cover sheet extraction, and pipeline dispatch.",
+  "version": "1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {"$ref": "https://eks.engineering/schemas/eks_doc_base_schema.json#/definitions/document_type_entry_def"}
+  ],
+  "document_types": [
+    {"code": "DWG",    "label": "Engineering Drawing",    "ontology_class": "Drawing",       "description": "Engineering design drawing",           "expected_file_types": ["pdf"]},
+    {"code": "PI-PID", "label": "P&ID Drawing",           "ontology_class": "PID_Drawing",   "description": "Piping and instrumentation diagram",  "expected_file_types": ["pdf", "dgn"]},
+    {"code": "SPC",    "label": "Technical Specification","ontology_class": "Specification",  "description": "Technical specification document",    "expected_file_types": ["pdf", "docx"]},
+    {"code": "DS",     "label": "Data Sheet",             "ontology_class": "Specification",  "description": "Equipment/instrument data sheet",     "expected_file_types": ["pdf", "xlsx"]},
+    {"code": "MAN",    "label": "Vendor O&M Manual",      "ontology_class": "Manual",         "description": "Vendor operation and maintenance manual", "expected_file_types": ["pdf"]},
+    {"code": "OM",     "label": "Operation Manual",       "ontology_class": "Manual",         "description": "System operation manual",             "expected_file_types": ["pdf", "docx"]},
+    {"code": "RPT",    "label": "Technical Report",       "ontology_class": "Report",         "description": "Technical report or study",          "expected_file_types": ["pdf", "docx"]},
+    {"code": "CAD",    "label": "AutoCAD Drawing",        "ontology_class": "Drawing",       "description": "AutoCAD DWG native drawing file",    "expected_file_types": ["dwg"]},
+    {"code": "DR",     "label": "Drawing",                "ontology_class": "Drawing",       "description": "Engineering drawing (TWRP filename code)", "expected_file_types": ["pdf"]},
+    {"code": "SP",     "label": "Specification",          "ontology_class": "Specification",  "description": "Technical specification (TWRP filename code)", "expected_file_types": ["pdf", "docx"]},
+    {"code": "CL",     "label": "Civil/Structural",       "ontology_class": "Specification",  "description": "Civil/structural document (TWRP filename code)", "expected_file_types": ["pdf", "docx"]},
+    {"code": "BQ",     "label": "Bill of Quantities",     "ontology_class": "Specification",  "description": "Bill of quantities (TWRP filename code)", "expected_file_types": ["pdf", "xlsx"]},
+    {"code": "VI",     "label": "Vendor Information",     "ontology_class": "Manual",         "description": "Vendor information document (TWRP filename code)", "expected_file_types": ["pdf"]},
+    {"code": "M3",     "label": "3D Model",               "ontology_class": "Drawing",       "description": "3D model reference (TWRP filename code)", "expected_file_types": ["pdf"]},
+    {"code": "QA",     "label": "Quality Assurance",      "ontology_class": "Report",         "description": "Quality assurance document (TWRP filename code)", "expected_file_types": ["pdf", "docx"]}
+  ]
+}

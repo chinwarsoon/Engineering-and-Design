@@ -7,16 +7,22 @@ gate, ``parse_eks_cli`` as CLI parser, ``resolve_paths`` as path resolver,
 ``detect_os`` as OS detector, and ``ErrorManager`` / ``MessageManager``
 as manager factories.
 
-Revision: 0.4
-Date: 2026-07-24
+Revision: 0.6
+Date: 2026-07-28
 Author: opencode
-Summary: 0.4: T1.99.191 (I225) — _bootstrap_schema() stores _pre_generated_ddl
+Summary: 0.6: T1.163–T1.169 (I257/I258) — Replaced 7 silent 'except Exception: pass'
+          sites with WARNING-level self._log() calls. Error codes S-B-S-0609–S-B-S-0615
+          registered in eks_error_config.json v1.5.0. Graceful degradation preserved.
+0.5:          T1.156 (I254) — Strip eks_root prefix from relative CLI
+          --data-dir paths in _bootstrap_params() to prevent path doubling
+          (eks/eks/data instead of eks/data).
+0.4:          T1.99.191 (I225) — _bootstrap_schema() stores _pre_generated_ddl
           (documents_ddl, elements_ddl, indexes, doc_base_schema) for reuse by
           DocumentRegistry. Exposed via to_dict() and to_pipeline_context().
-0.3:          T1.99.68 — Override P1-P5, P7 phases to use EKS-registered P1-BOOT-*
+0.3:          T1.99.68 — Override P1-P5, P7 phases to use EKS-registered S-B-S-06xx
           error codes instead of universal B-* codes; override bootstrap_all/
-          bootstrap_for_ui catch-alls (B-UNK-* → P1-BOOT-READINESS); override
-          preload_trace/postload_trace (B-BOOT-0601/B-CTX-001 → P1-BOOT-CTX).
+          bootstrap_for_ui catch-alls (B-U-S-* → S-B-S-0603); override
+          preload_trace/postload_trace (B-B-S-0001/B-X-S-0001 → S-B-S-0607).
           T1.99.57 — EKS BootstrapManager subclass for L19 delegation.
           T1.99.96 (I127/G2) — _eks_cli_parser forwards preloaded
           _parse_cli_args_fn to parse_eks_cli(); __init__ initializes
@@ -122,8 +128,8 @@ class EKSBootstrapManager(BootstrapManager):
                         ConfigRegistry._instance = None
                 self.config_registry = ConfigRegistry(str(config_dir))
                 return self.config_registry.config
-        except Exception:
-            pass
+        except Exception as exc:
+            self._log(f"ConfigRegistry init failed — falling back to SchemaLoader: {exc}", level=2)
 
         # Fallback: SchemaLoader
         from .schema_loader import SchemaLoader
@@ -178,30 +184,30 @@ class EKSBootstrapManager(BootstrapManager):
         )
 
     # ------------------------------------------------------------------
-    # Override bootstrap_all / bootstrap_for_ui — translate B-UNK → P1-BOOT-*
+    # Override bootstrap_all / bootstrap_for_ui — translate B-UNK → S-B-S-06xx
     # ------------------------------------------------------------------
 
     def bootstrap_all(self, cli_args: Optional[List[str]] = None) -> BootstrapManager:
-        """Run all bootstrap phases for CLI mode (EKS: B-UNK-001 → P1-BOOT-READINESS)."""
+        """Run all bootstrap phases for CLI mode (EKS: B-UNK-001 → S-B-S-0603)."""
         try:
             return super().bootstrap_all(cli_args)
         except BootstrapError as exc:
             if exc.code == "B-UNK-001":
-                raise BootstrapError("P1-BOOT-READINESS", exc.message, exc.phase)
+                raise BootstrapError("S-B-S-0603", exc.message, exc.phase)
             raise
         except Exception as exc:
-            raise BootstrapError("P1-BOOT-READINESS", f"Unexpected bootstrap error: {exc}", "unknown")
+            raise BootstrapError("S-B-S-0603", f"Unexpected bootstrap error: {exc}", "unknown")
 
     def bootstrap_for_ui(self, **ui_params: Any) -> BootstrapManager:
-        """Run bootstrap phases for UI mode (EKS: B-UNK-002 → P1-BOOT-READINESS)."""
+        """Run bootstrap phases for UI mode (EKS: B-UNK-002 → S-B-S-0603)."""
         try:
             return super().bootstrap_for_ui(**ui_params)
         except BootstrapError as exc:
             if exc.code == "B-UNK-002":
-                raise BootstrapError("P1-BOOT-READINESS", exc.message, exc.phase)
+                raise BootstrapError("S-B-S-0603", exc.message, exc.phase)
             raise
         except Exception as exc:
-            raise BootstrapError("P1-BOOT-READINESS", f"Unexpected bootstrap error (UI): {exc}", "unknown")
+            raise BootstrapError("S-B-S-0603", f"Unexpected bootstrap error (UI): {exc}", "unknown")
 
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
@@ -209,7 +215,7 @@ class EKSBootstrapManager(BootstrapManager):
     # ------------------------------------------------------------------
 
     def _bootstrap_cli(self, cli_args: Optional[List[str]] = None) -> None:
-        """P1 (EKS): Parse CLI args, translate B-CLI-001 → P1-BOOT-CONFIG."""
+        """P1 (EKS): Parse CLI args, translate B-CLI-001 → S-B-S-0604."""
         self._record_phase_start("P1_cli")
         try:
             if self._cli_parser is not None:
@@ -240,16 +246,16 @@ class EKSBootstrapManager(BootstrapManager):
         except BootstrapError:
             raise
         except Exception as exc:
-            self._record_phase_failure("P1_cli", "P1-BOOT-CONFIG")
-            raise BootstrapError("P1-BOOT-CONFIG", f"CLI parsing failed: {exc}", "cli")
+            self._record_phase_failure("P1_cli", "S-B-S-0604")
+            raise BootstrapError("S-B-S-0604", f"CLI parsing failed: {exc}", "cli")
 
     def _bootstrap_paths(self) -> None:
-        """P2 (EKS): Validate paths, translate B-PATH-* → P1-BOOT-PATHS."""
+        """P2 (EKS): Validate paths, translate B-PATH-* → S-B-S-0605."""
         self._record_phase_start("P2_paths")
         try:
             if not self.project_root.exists():
                 raise BootstrapError(
-                    "P1-BOOT-PATHS",
+                    "S-B-S-0605",
                     f"Project root does not exist: {self.project_root}",
                     "paths",
                 )
@@ -279,11 +285,11 @@ class EKSBootstrapManager(BootstrapManager):
         except BootstrapError:
             raise
         except Exception as exc:
-            self._record_phase_failure("P2_paths", "P1-BOOT-PATHS")
-            raise BootstrapError("P1-BOOT-PATHS", f"Path validation failed: {exc}", "paths")
+            self._record_phase_failure("P2_paths", "S-B-S-0605")
+            raise BootstrapError("S-B-S-0605", f"Path validation failed: {exc}", "paths")
 
     def _bootstrap_registry(self) -> None:
-        """P3 (EKS): Load config, translate B-REG-001 → P1-BOOT-CONFIG."""
+        """P3 (EKS): Load config, translate B-REG-001 → S-B-S-0604."""
         self._record_phase_start("P3_registry")
         try:
             if self._config_loader is not None:
@@ -299,8 +305,8 @@ class EKSBootstrapManager(BootstrapManager):
                 _sl = SchemaLoader(self.config_dir)
                 _sl.load_all()
                 self.doc_config = _sl.doc_config
-            except Exception:
-                pass  # doc_config stays at default {}; non-fatal for pipeline
+            except Exception as exc:
+                self._log(f"doc_config schema validation failed — using empty defaults: {exc}", level=2)
 
             self._record_phase_complete("P3_registry")
             self._log(f"Bootstrap Phase P3 (EKS): Config loaded: {len(self.config)} keys, "
@@ -309,11 +315,11 @@ class EKSBootstrapManager(BootstrapManager):
         except BootstrapError:
             raise
         except Exception as exc:
-            self._record_phase_failure("P3_registry", "P1-BOOT-CONFIG")
-            raise BootstrapError("P1-BOOT-CONFIG", f"Registry loading failed: {exc}", "registry")
+            self._record_phase_failure("P3_registry", "S-B-S-0604")
+            raise BootstrapError("S-B-S-0604", f"Registry loading failed: {exc}", "registry")
 
     def _bootstrap_defaults(self) -> None:
-        """P4 (EKS): Build native defaults, translate B-DEF-001 → P1-BOOT-CONFIG."""
+        """P4 (EKS): Build native defaults, translate B-DEF-001 → S-B-S-0604."""
         self._record_phase_start("P4_defaults")
         try:
             gp = self.config.get("global_paths", {}) if isinstance(self.config, dict) else {}
@@ -329,21 +335,21 @@ class EKSBootstrapManager(BootstrapManager):
             self._log(f"Bootstrap Phase P4 (EKS): Native defaults: {len(self.native_defaults)} parameters")
 
         except Exception as exc:
-            self._record_phase_failure("P4_defaults", "P1-BOOT-CONFIG")
-            raise BootstrapError("P1-BOOT-CONFIG", f"Defaults building failed: {exc}", "defaults")
+            self._record_phase_failure("P4_defaults", "S-B-S-0604")
+            raise BootstrapError("S-B-S-0604", f"Defaults building failed: {exc}", "defaults")
 
     def _bootstrap_fallback(self) -> None:
-        """P5 (EKS): Validate fallback, translate B-FALL-001 → P1-BOOT-CONFIG."""
+        """P5 (EKS): Validate fallback, translate B-FALL-001 → S-B-S-0604."""
         self._record_phase_start("P5_fallback")
         try:
             self._record_phase_complete("P5_fallback")
             self._log("Bootstrap Phase P5 (EKS): Fallback validation passed")
         except Exception as exc:
-            self._record_phase_failure("P5_fallback", "P1-BOOT-CONFIG")
-            raise BootstrapError("P1-BOOT-CONFIG", f"Fallback validation failed: {exc}", "fallback")
+            self._record_phase_failure("P5_fallback", "S-B-S-0604")
+            raise BootstrapError("S-B-S-0604", f"Fallback validation failed: {exc}", "fallback")
 
     def _bootstrap_schema(self) -> None:
-        """P7 (EKS): Resolve schema, validate DDL pre-flight, translate B-SCH-001 → P1-BOOT-CONFIG.
+        """P7 (EKS): Resolve schema, validate DDL pre-flight, translate B-SCH-001 → S-B-S-0604.
         
         T1.99.191 (I225): Runs SchemaToDDL pre-flight validation to catch
         schema-drift errors before the pipeline starts, rather than waiting
@@ -359,9 +365,9 @@ class EKSBootstrapManager(BootstrapManager):
                 _sl = SchemaLoader(self.config_dir)
                 _sl.load_all()
                 doc_config = _sl.doc_config
-            except Exception:
-                pass
-            
+            except Exception as exc:
+                self._log(f"Schema phase doc_config load failed — using empty defaults: {exc}", level=2)
+
             if doc_config:
                 try:
                     from .schema_to_ddl import SchemaToDDL
@@ -390,8 +396,8 @@ class EKSBootstrapManager(BootstrapManager):
             self._record_phase_complete("P7_schema")
             self._log("Bootstrap Phase P7 (EKS): Schema resolved with DDL pre-validation")
         except Exception as exc:
-            self._record_phase_failure("P7_schema", "P1-BOOT-CONFIG")
-            raise BootstrapError("P1-BOOT-CONFIG", f"Schema resolution failed: {exc}", "schema")
+            self._record_phase_failure("P7_schema", "S-B-S-0604")
+            raise BootstrapError("S-B-S-0604", f"Schema resolution failed: {exc}", "schema")
 
     def _bootstrap_env(self) -> None:
         """P6 (EKS): OS detection + dependency testing via universal L20 test_environment().
@@ -401,7 +407,7 @@ class EKSBootstrapManager(BootstrapManager):
         2. Tests dependencies via L20 ``test_environment()`` using
            ``dependencies`` from ``eks_config.json``
 
-        On failure, raises ``BootstrapError("P1-BOOT-ENV", ...)`` with the
+        On failure, raises ``BootstrapError("S-B-S-0608", ...)`` with the
         list of missing required packages and guidance to activate conda env.
         """
         self._record_phase_start("P6_env")
@@ -418,7 +424,7 @@ class EKSBootstrapManager(BootstrapManager):
                 errors = env_results.get("errors", [])
                 missing = ", ".join(errors) if errors else "unknown packages"
                 raise BootstrapError(
-                    "P1-BOOT-ENV",
+                    "S-B-S-0608",
                     f"Required dependencies missing: {missing}. "
                     f"Run: conda activate eks",
                     "env",
@@ -433,9 +439,9 @@ class EKSBootstrapManager(BootstrapManager):
         except BootstrapError:
             raise
         except Exception as exc:
-            self._record_phase_failure("P6_env", "P1-BOOT-ENV")
+            self._record_phase_failure("P6_env", "S-B-S-0608")
             raise BootstrapError(
-                "P1-BOOT-ENV",
+                "S-B-S-0608",
                 f"Environment testing failed: {exc}. Run: conda activate eks",
                 "env",
             )
@@ -482,7 +488,15 @@ class EKSBootstrapManager(BootstrapManager):
                 if cli_path.is_absolute():
                     data_dir = cli_path
                 else:
-                    data_dir = self.project_root / eks_root / str(self.cli_args["data_dir"])
+                    # T1.156 (I254): Strip eks_root prefix from relative CLI paths
+                    # to prevent path doubling (eks/eks/data instead of eks/data).
+                    cli_str = str(self.cli_args["data_dir"])
+                    eks_prefix = f"{eks_root}/"
+                    if cli_str.startswith(eks_prefix):
+                        cli_str = cli_str[len(eks_prefix):]
+                    elif cli_str == eks_root:
+                        cli_str = ""
+                    data_dir = self.project_root / eks_root / cli_str
             self.effective_parameters["data_dir"] = data_dir
 
             self._record_phase_complete("P8_params")
@@ -491,8 +505,8 @@ class EKSBootstrapManager(BootstrapManager):
         except BootstrapError:
             raise
         except Exception as exc:
-            self._record_phase_failure("P8_params", "P1-BOOT-PARAMS")
-            raise BootstrapError("P1-BOOT-PARAMS", f"Parameters resolution failed: {exc}", "params")
+            self._record_phase_failure("P8_params", "S-B-S-0608")
+            raise BootstrapError("S-B-S-0608", f"Parameters resolution failed: {exc}", "params")
 
     # ------------------------------------------------------------------
     # Properties — overridden for EKS-specific error codes
@@ -500,10 +514,10 @@ class EKSBootstrapManager(BootstrapManager):
 
     @property
     def preload_trace(self) -> Optional[Dict[str, Any]]:
-        """Get preload trace data (EKS: B-BOOT-0601 → P1-BOOT-CTX)."""
+        """Get preload trace data (EKS: B-B-S-0001 → S-B-S-0607)."""
         if not self._bootstrapped:
             raise BootstrapError(
-                "P1-BOOT-CTX",
+                "S-B-S-0607",
                 "Bootstrap must be completed before accessing preload trace",
                 "traces",
             )
@@ -511,10 +525,10 @@ class EKSBootstrapManager(BootstrapManager):
 
     @property
     def postload_trace(self) -> Optional[Dict[str, Any]]:
-        """Get postload trace data (EKS: B-CTX-001 → P1-BOOT-CTX)."""
+        """Get postload trace data (EKS: B-X-S-0001 → S-B-S-0607)."""
         if not self._bootstrapped:
             raise BootstrapError(
-                "P1-BOOT-CTX",
+                "S-B-S-0607",
                 "Must bootstrap before accessing postload trace",
                 "traces",
             )
@@ -554,16 +568,16 @@ class EKSBootstrapManager(BootstrapManager):
                 self.error_manager = self._error_manager_factory(
                     config_dir=self.config_dir, logger=self.logger, config=self.config,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                self._log(f"ErrorManager lazy-init failed in to_dict(): {exc}", level=2)
 
         if self.message_manager is None and self._message_manager_factory is not None:
             try:
                 self.message_manager = self._message_manager_factory(
                     config_dir=self.config_dir, logger=self.logger,
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                self._log(f"MessageManager lazy-init failed in to_dict(): {exc}", level=2)
 
         # Resolve data_dir from effective params
         data_dir = self.effective_parameters.get("data_dir", self.resolved_paths.get("data_dir", self.project_root / "data"))
@@ -597,7 +611,7 @@ class EKSBootstrapManager(BootstrapManager):
         """
         if not self._bootstrapped:
             raise BootstrapError(
-                "P1-BOOT-CTX",
+                "S-B-S-0607",
                 "Must bootstrap before creating PipelineContext",
                 "context",
             )
@@ -636,8 +650,8 @@ class EKSBootstrapManager(BootstrapManager):
                     config_dir=self.config_dir, logger=self.logger, config=self.config,
                 )
                 ctx_params["em"] = self.error_manager
-            except Exception:
-                pass
+            except Exception as exc:
+                self._log(f"ErrorManager lazy-init failed in to_pipeline_context(): {exc}", level=2)
 
         if self.message_manager is None and self._message_manager_factory is not None:
             try:
@@ -645,8 +659,8 @@ class EKSBootstrapManager(BootstrapManager):
                     config_dir=self.config_dir, logger=self.logger,
                 )
                 ctx_params["mm"] = self.message_manager
-            except Exception:
-                pass
+            except Exception as exc:
+                self._log(f"MessageManager lazy-init failed in to_pipeline_context(): {exc}", level=2)
 
         ctx = EKSPipelineContext(
             paths=ctx_paths,

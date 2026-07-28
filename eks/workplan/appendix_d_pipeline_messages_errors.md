@@ -1,9 +1,9 @@
 # Appendix D — Pipeline Messages & Error Codes
 
-**Version**: 1.0
-**Last Updated**: 2026-07-19
+**Version**: 2.0
+**Last Updated**: 2026-07-27
 **Phase**: 1 — Foundation (schema) / 3 (runtime)
-**Status**: ✅ Implemented & Tested — full re-sync with config v1.3.0 + code v1.2
+**Status**: ✅ Tested — full re-sync with config v1.3.0 + code v1.2 (D1–D8); D9–D13 added to document output routing, verbosity, and debugging features found in implementation
 **Source of Truth**:
 - [`eks/config/schemas/eks_error_config.json`](../config/schemas/eks_error_config.json) v1.3.0 (61 system + 50 data = 111 codes)
 - [`eks/config/schemas/eks_message_config.json`](../config/schemas/eks_message_config.json) v1.1.0 (49 messages)
@@ -23,18 +23,57 @@
 | 0.3 | 2026-06-19 | opencode | Added D7.10 structural elements; 6-dimension composite |
 | 0.4 | 2026-07-18 | opencode | I112: Added bootstrap (B) category, S-B codes, P1-BOOT-* format, B-* universal codes |
 | **1.0** | **2026-07-19** | **CodeBuddy** | **Full re-sync to match config/code. D3: added A/AI category, F/D module codes, PROP function code, ERROR severity. D4: 61 real codes (replaced 45 fabricated). D5: 50 real codes (replaced 65 fabricated); P5 codes added. D6: 49 real messages (replaced 42 fabricated). D7: tiers updated (6/16/13), source quality bonus, timestamp drift. D8: Phase A/B/C states added. D9: new implementation files. D10: fixed duplicate references.** |
+| **2.0** | **2026-07-27** | **opencode** | **Added output architecture, verbosity control, debugging, and known gaps (D9–D13). Updated D1 with 4-channel overview. Renumbered D9→D14, D10→D15.** |
+
+---
+
+## Table of Contents
+
+| # | Section | Title |
+| :- | :------ | :---- |
+| — | — | [Revision History](#revision-history) |
+| D1 | [D1. Overview](#d1-overview) | Purpose, four-channel architecture, design principles, DCC alignment |
+| D2 | [D2. Error Code Format](#d2-error-code-format) | Data, system, setup, bootstrap, universal formats |
+| D3 | [D3. Error Code Taxonomy](#d3-error-code-taxonomy) | Phase/module/function codes, severity levels, system categories |
+| D4 | [D4. System Error Catalog](#d4-system-error-catalog) | 61 codes across 9 categories |
+| D5 | [D5. Data Error Catalog](#d5-data-error-catalog) | 50 codes across 6 phase/module groups |
+| D6 | [D6. Pipeline Message Catalog](#d6-pipeline-message-catalog) | Message schema, 49 messages with templates |
+| D7 | [D7. Health Scoring](#d7-health-scoring) | 6-dimension scoring, weight tiers, composite formula, worked examples |
+| D8 | [D8. Status Lifecycle](#d8-status-lifecycle) | Phase A/B/C states, document states, extract status values |
+| D9 | [D9. Output Architecture](#d9-output-architecture) | Four-channel design, logger implementations, dual telemetry, common library |
+| D10 | [D10. Output Channels in Detail](#d10-output-channels-in-detail) | UniversalLogger, MessageManager, ErrorManager, Preload Print |
+| D11 | [D11. Verbosity Control & Data Flow](#d11-verbosity-control--data-flow) | CLI flags, level matrix, data flow diagram, reconciliation gap |
+| D12 | [D12. Debugging & Diagnostics](#d12-debugging--diagnostics) | Debug object schema, trace table, depth tracking, DCC shims |
+| D13 | [D13. Known Gaps & Open Issues](#d13-known-gaps--open-issues) | I244–I248 with root cause and impact |
+| D14 | [D14. Implementation Files](#d14-implementation-files) | Config files, engine modules, common library |
+| D15 | [D15. References](#d15-references) | AGENTS.md, appendices, source files |
 
 ---
 
 ## D1. Overview
 
-The EKS pipeline messaging and error system follows the DCC pattern (per AGENTS.md §19: "Each business logic must have an independent error code defined to trace related errors"). It consists of three components:
+The EKS pipeline messaging and error system follows the DCC pattern (per AGENTS.md §19: "Each business logic must have an independent error code defined to trace related errors"). It consists of four independent output channels plus a health scoring subsystem:
 
-1. **Error Codes** — Unique identifiers for every system and data error, enabling precise tracing
-2. **Pipeline Messages** — Schema-driven user-facing status/milestone/warning messages
-3. **Health Scoring** — Per-document extraction confidence and pipeline-level quality metrics
+### D1.1 Four-Channel Output Architecture
 
-### Design Principles
+| Channel | Source Class | Gate | Destination | Purpose |
+|:--------|:-------------|:----:|:------------|:--------|
+| **A** — Direct Logging | `UniversalLogger` | Level 0–3 | `print()` + debug_object | General-purpose progress, warnings, diagnostics |
+| **B** — Catalog Messages | `MessageManager` | Level 0–3 | `logger.status()/.info()/.warning()/.error()` | Schema-driven user-facing text with template hydration |
+| **C** — Error Codes | `ErrorManager` | Severity | `logger.error()/.warning()/.info()` + fail-fast | Unique-by-business-logic error tracking with health impact |
+| **D** — Preload Print | Pure stdlib | None (always) | `print(msg, file=sys.stderr)` | Bootstrap failure reporting before any logger exists |
+
+All channels except D record entries in the logger's **debug object** for post-run diagnostics regardless of verbosity level (record-before-gate principle; see I249 for current implementation gap).
+
+### D1.2 Components
+
+1. **Error Codes** — Unique identifiers for every system and data error, enabling precise tracing (Channels C + D)
+2. **Pipeline Messages** — Schema-driven user-facing status/milestone/warning messages (Channel B)
+3. **Direct Logging** — Tiered console output with debug object persistence (Channel A)
+4. **Preload Bootstrap** — Pure-stdlib failure reporting before infrastructure loads (Channel D)
+5. **Health Scoring** — Per-document extraction confidence and pipeline-level quality metrics
+
+### D1.3 Design Principles
 
 | Principle | Description |
 |-----------|-------------|
@@ -44,8 +83,9 @@ The EKS pipeline messaging and error system follows the DCC pattern (per AGENTS.
 | **Fail-fast metadata** | Critical errors stop the pipeline; warnings accumulate |
 | **Traceable** | Every error links to its source module, function, and phase |
 | **Health-aware** | Errors impact health scores; scores drive quality gates |
+| **Level-gated** | All output respects a unified verbosity level (0–3) controlling visibility |
 
-### DCC Alignment
+### D1.4 DCC Alignment
 
 EKS adopts the DCC error code taxonomy pattern with domain-specific adaptations:
 
@@ -56,6 +96,7 @@ EKS adopts the DCC error code taxonomy pattern with domain-specific adaptations:
 | Error domains | System + Data | System + Data |
 | Health scoring | Per-row (tabular) | Per-document (registry) |
 | Status lifecycle | NEW → IN_PROGRESS → RESOLVED → CLOSED | NEW → EXTRACTED → REGISTERED → VERIFIED |
+| Logger | DCC module-level functions + global singleton | UniversalLogger class per-component |
 
 ---
 
@@ -92,47 +133,22 @@ S  -  F  -  S  -  0201
 
 **Example**: `S-F-S-0201` = System, File category, error #201
 
-### Setup Validation Format
-
-**Format**: `P1-SETUP-{type}{id}`
-
-```
-P1  -  SETUP  -  F001
-│       │         │
-│       │         └── Type code (F/D/O/E) + 3-digit id, or READINESS
-│       └──────────── SETUP = Project setup validation
-└──────────────────── P1 = Phase 1 (Foundation / Setup)
-```
-
-**Example**: `P1-SETUP-F001` = Phase 1, Setup, Missing Required Folder #1
-
-### Setup/Bootstrap Hybrid Format
-
-**Format**: `P1-BOOT-{reason}`
-
-```
-P1  -  BOOT  -  READINESS
-│       │         │
-│       │         └── Reason code (READINESS/CONFIG/PATHS/OS/CTX/ENV)
-│       └──────────── BOOT = Bootstrap phase
-└──────────────────── P1 = Phase 1 (Foundation / Setup)
-```
-
-**Example**: `P1-BOOT-READINESS` = Phase 1, Bootstrap, readiness gate failure
-
 ### Universal Bootstrap Format
 
-**Format**: `B-{module}-{id}`
+**Format**: `B-{cat}-S-{id4}`
 
 ```
-B  -  CLI  -  001
-│     │       │
-│     │       └── 3-4 digit sequential ID
-│     └────────── Module (CLI/PATH/REG/DEF/FALL/ENV/SCH/PAR/BOOT/CTX/UNK)
-└──────────────── B = Bootstrap (universal)
+B  -  C  -  S  -  0001
+│     │     │     │
+│     │     │     └── 4-digit sequential ID
+│     │     └──────── S = System
+│     └────────────── Category letter (C/H/R/D/A/E/K/M/B/X/U)
+└──────────────────── B = Bootstrap (universal)
 ```
 
-**Example**: `B-CLI-001` = Bootstrap, CLI module, error #1
+**Example**: `B-C-S-0001` = Bootstrap, CLI category, System, error #1
+
+**Note**: All error codes now follow the `X-X-X-XXXX` pattern. Previously used hybrid formats (`P1-SETUP-{type}{id}` and `P1-BOOT-{reason}`) were absorbed into standard `S-{cat}-S-{id4}` ranges during I112 standardization (v2.0).
 
 ---
 
@@ -198,9 +214,7 @@ B  -  CLI  -  001
 
 | Category | Prefix Format | Count | Description |
 |----------|---------------|:-----:|-------------|
-| Setup Validation | `P1-SETUP-{type}{id}` | 7 | Required folders, files, dependencies, environment |
-| Bootstrap P1 | `P1-BOOT-{reason}` | 6 | Readiness gate, config, paths, OS, context, environment |
-| Bootstrap Universal | `B-{module}-{id}` | 15 | CLI, paths, registry, defaults, fallback, schema, params, unhandled |
+| Bootstrap Universal | `B-{cat}-S-{id4}` | 15 | CLI, path, registry, defaults, fallback, env, schema, params, boot, context, unknown |
 
 ---
 
@@ -208,7 +222,7 @@ B  -  CLI  -  001
 
 **Total: 61 codes** across 9 categories.
 
-### S-E: Environment Errors (0101–0105)
+### S-E: Environment Errors (0101–0107)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
@@ -217,8 +231,10 @@ B  -  CLI  -  001
 | `S-E-S-0103` | IMPORT_ERROR | FATAL | Failed to import required module | Yes |
 | `S-E-S-0104` | ENVIRONMENT_NOT_READY | FATAL | Environment validation failed | Yes |
 | `S-E-S-0105` | DUCKDB_UNAVAILABLE | FATAL | DuckDB not available for pipeline execution | Yes |
+| `S-E-S-0106` | MISSING_DEPENDENCY | WARNING | Required Python dependency not installed | No |
+| `S-E-S-0107` | PYTHON_VERSION_MISMATCH | WARNING | Python version does not match expected version | No |
 
-### S-F: File I/O Errors (0201–0206)
+### S-F: File I/O Errors (0201–0210)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
@@ -228,6 +244,10 @@ B  -  CLI  -  001
 | `S-F-S-0204` | SCHEMA_FILE_NOT_FOUND | FATAL | Schema configuration file not found | Yes |
 | `S-F-S-0205` | CONFIG_FILE_NOT_FOUND | FATAL | Configuration file not found | Yes |
 | `S-F-S-0206` | OUTPUT_DIR_CREATION_FAILED | FATAL | Cannot create output directory | Yes |
+| `S-F-S-0207` | MISSING_REQUIRED_FOLDER | FATAL | Required project folder does not exist | Yes |
+| `S-F-S-0208` | MISSING_REQUIRED_FILE | FATAL | Required project file does not exist | Yes |
+| `S-F-S-0209` | MISSING_EKS_YML | FATAL | eks/eks.yml environment file not found | Yes |
+| `S-F-S-0210` | OUTPUT_PATH_NOT_WRITABLE | WARNING | Output directory is not writable | No |
 
 ### S-C: Config Errors (0301–0308)
 
@@ -242,7 +262,7 @@ B  -  CLI  -  001
 | `S-C-S-0307` | REGISTRY_CONNECTION_FAILED | FATAL | Failed to connect to document registry | Yes |
 | `S-C-S-0308` | SCHEMA_RESOLUTION_ERROR | FATAL | Schema resolution failed via $ref chain | Yes |
 
-### S-R: Runtime Errors (0401–0409)
+### S-R: Runtime Errors (0401–0410)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
@@ -255,6 +275,7 @@ B  -  CLI  -  001
 | `S-R-S-0407` | FILE_PROCESSING_FAILED | ERROR | Unhandled error during per-file processing | No |
 | `S-R-S-0408` | PIPELINE_PHASE_FAILED | ERROR | Pipeline phase execution failed | Yes |
 | `S-R-S-0409` | PIPELINE_PROCESSING_FATAL | ERROR | Fatal error during pipeline processing | Yes |
+| `S-R-S-0410` | SETUP_NOT_READY | FATAL | Project setup validation failed — readiness check not passed | Yes |
 
 ### S-A: AI / Optional Service Errors (0501–0503)
 
@@ -264,55 +285,38 @@ B  -  CLI  -  001
 | `S-A-S-0502` | EMBEDDING_SERVICE_FAILED | WARNING | Embedding service not available | No |
 | `S-A-S-0503` | OLLAMA_UNAVAILABLE | WARNING | Ollama service is not available | No |
 
-### S-B: Bootstrap Errors (0601–0602)
+### S-B: Bootstrap Errors (0601–0608)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
 | `S-B-S-0601` | BOOTSTRAP_NOT_COMPLETE | FATAL | Bootstrap must be completed before pipeline execution | Yes |
 | `S-B-S-0602` | PHASE_DEPENDENCY_FAILED | FATAL | Required prior phase has not completed successfully | Yes |
+| `S-B-S-0603` | BOOT_READINESS_FAILED | FATAL | Bootstrap readiness gate failed — project setup not ready | Yes |
+| `S-B-S-0604` | BOOT_CONFIG_FAILED | FATAL | Bootstrap config loading failed — unable to load project configuration | Yes |
+| `S-B-S-0605` | BOOT_PATHS_FAILED | FATAL | Bootstrap path resolution failed — invalid or missing project paths | Yes |
+| `S-B-S-0606` | BOOT_OS_DETECTION_FAILED | FATAL | Bootstrap OS detection failed — unable to determine operating system | Yes |
+| `S-B-S-0607` | BOOT_CONTEXT_FAILED | FATAL | Bootstrap context creation failed — must bootstrap before creating PipelineContext | Yes |
+| `S-B-S-0608` | BOOT_ENVIRONMENT_FAILED | FATAL | Bootstrap environment check failed — required dependencies missing. Run: conda activate eks | Yes |
 
-### P1-SETUP: Setup Validation Errors (F001–READINESS)
-
-| Code | Name | Severity | Description | Stops Pipeline |
-|------|------|----------|-------------|:--------------:|
-| `P1-SETUP-F001` | MISSING_REQUIRED_FOLDER | FATAL | Required project folder does not exist | Yes |
-| `P1-SETUP-F002` | MISSING_REQUIRED_FILE | FATAL | Required project file does not exist | Yes |
-| `P1-SETUP-F003` | MISSING_EKS_YML | FATAL | eks/eks.yml environment file not found | Yes |
-| `P1-SETUP-D001` | MISSING_DEPENDENCY | WARNING | Required Python dependency not installed | No |
-| `P1-SETUP-O001` | OUTPUT_PATH_NOT_WRITABLE | WARNING | Output directory is not writable | No |
-| `P1-SETUP-E001` | PYTHON_VERSION_MISMATCH | WARNING | Python version does not match expected version | No |
-| `P1-SETUP-READINESS` | SETUP_NOT_READY | FATAL | Project setup validation failed — readiness check not passed | Yes |
-
-### P1-BOOT: Bootstrap Phase 1 Errors
+### B-*: Universal Bootstrap Errors — Standardized Format (15 codes)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
-| `P1-BOOT-READINESS` | BOOT_READINESS_FAILED | FATAL | Bootstrap readiness gate failed | Yes |
-| `P1-BOOT-CONFIG` | BOOT_CONFIG_FAILED | FATAL | Bootstrap config loading failed | Yes |
-| `P1-BOOT-PATHS` | BOOT_PATHS_FAILED | FATAL | Bootstrap path resolution failed | Yes |
-| `P1-BOOT-OS` | BOOT_OS_DETECTION_FAILED | FATAL | Bootstrap OS detection failed | Yes |
-| `P1-BOOT-CTX` | BOOT_CONTEXT_FAILED | FATAL | Bootstrap context creation failed | Yes |
-| `P1-BOOT-ENV` | BOOT_ENVIRONMENT_FAILED | FATAL | Bootstrap environment check failed | Yes |
-
-### B-*: Universal Bootstrap Errors (15 codes)
-
-| Code | Name | Severity | Description | Stops Pipeline |
-|------|------|----------|-------------|:--------------:|
-| `B-CLI-001` | BOOTSTRAP_CLI_PARSE_FAILED | FATAL | Bootstrap CLI parsing failed | Yes |
-| `B-PATH-001` | BOOTSTRAP_PROJECT_ROOT_MISSING | FATAL | Project root does not exist — cannot bootstrap | Yes |
-| `B-PATH-002` | BOOTSTRAP_PATH_VALIDATION_FAILED | FATAL | Bootstrap path validation failed | Yes |
-| `B-REG-001` | BOOTSTRAP_REGISTRY_LOAD_FAILED | FATAL | Bootstrap registry / config loading failed | Yes |
-| `B-DEF-001` | BOOTSTRAP_DEFAULTS_BUILD_FAILED | FATAL | Bootstrap native defaults building failed | Yes |
-| `B-FALL-001` | BOOTSTRAP_FALLBACK_VALIDATION_FAILED | FATAL | Bootstrap fallback validation failed | Yes |
-| `B-ENV-001` | BOOTSTRAP_ENV_TESTING_FAILED | FATAL | Bootstrap environment testing failed | Yes |
-| `B-ENV-002` | BOOTSTRAP_DEPS_MISSING | FATAL | Required dependencies missing during bootstrap | Yes |
-| `B-SCH-001` | BOOTSTRAP_SCHEMA_RESOLUTION_FAILED | FATAL | Bootstrap schema resolution failed | Yes |
-| `B-PAR-001` | BOOTSTRAP_CLI_PARAMS_FAILED | FATAL | Bootstrap CLI parameters resolution failed | Yes |
-| `B-PAR-002` | BOOTSTRAP_UI_PARAMS_FAILED | FATAL | Bootstrap UI parameters resolution failed | Yes |
-| `B-BOOT-0601` | BOOTSTRAP_PRELOAD_NOT_READY | FATAL | Bootstrap must be completed before accessing preload trace | Yes |
-| `B-CTX-001` | BOOTSTRAP_CTX_NOT_READY | FATAL | Must bootstrap before creating PipelineContext | Yes |
-| `B-UNK-001` | BOOTSTRAP_UNHANDLED_CLI_ERROR | FATAL | Unexpected bootstrap error in CLI mode | Yes |
-| `B-UNK-002` | BOOTSTRAP_UNHANDLED_UI_ERROR | FATAL | Unexpected bootstrap error in UI mode | Yes |
+| `B-C-S-0001` | BOOTSTRAP_CLI_PARSE_FAILED | FATAL | Bootstrap CLI parsing failed | Yes |
+| `B-H-S-0001` | BOOTSTRAP_PROJECT_ROOT_MISSING | FATAL | Project root does not exist — cannot bootstrap | Yes |
+| `B-H-S-0002` | BOOTSTRAP_PATH_VALIDATION_FAILED | FATAL | Bootstrap path validation failed | Yes |
+| `B-R-S-0001` | BOOTSTRAP_REGISTRY_LOAD_FAILED | FATAL | Bootstrap registry / config loading failed | Yes |
+| `B-D-S-0001` | BOOTSTRAP_DEFAULTS_BUILD_FAILED | FATAL | Bootstrap native defaults building failed | Yes |
+| `B-A-S-0001` | BOOTSTRAP_FALLBACK_VALIDATION_FAILED | FATAL | Bootstrap fallback validation failed | Yes |
+| `B-E-S-0001` | BOOTSTRAP_ENV_TESTING_FAILED | FATAL | Bootstrap environment testing failed | Yes |
+| `B-E-S-0002` | BOOTSTRAP_DEPS_MISSING | FATAL | Required dependencies missing during bootstrap | Yes |
+| `B-K-S-0001` | BOOTSTRAP_SCHEMA_RESOLUTION_FAILED | FATAL | Bootstrap schema resolution failed | Yes |
+| `B-M-S-0001` | BOOTSTRAP_CLI_PARAMS_FAILED | FATAL | Bootstrap CLI parameters resolution failed | Yes |
+| `B-M-S-0002` | BOOTSTRAP_UI_PARAMS_FAILED | FATAL | Bootstrap UI parameters resolution failed | Yes |
+| `B-B-S-0001` | BOOTSTRAP_PRELOAD_NOT_READY | FATAL | Bootstrap must be completed before accessing preload trace | Yes |
+| `B-X-S-0001` | BOOTSTRAP_CTX_NOT_READY | FATAL | Must bootstrap before creating PipelineContext | Yes |
+| `B-U-S-0001` | BOOTSTRAP_UNHANDLED_CLI_ERROR | FATAL | Unexpected bootstrap error in CLI mode | Yes |
+| `B-U-S-0002` | BOOTSTRAP_UNHANDLED_UI_ERROR | FATAL | Unexpected bootstrap error in UI mode | Yes |
 
 ---
 
@@ -929,7 +933,447 @@ Stored in `extract_status` column of document registry:
 
 ---
 
-## D9. Implementation Files
+## D9. Output Architecture
+
+### D9.1 Summary
+
+The pipeline produces output through four independent channels. This section provides the high-level architecture; D10 describes each channel in detail, D11 covers verbosity control, and D12 covers debugging diagnostics.
+
+```
+                    ┌─────────────────────┐
+                    │  CLI --level N      │
+                    │  (0=silent, 1=norm, │
+                    │   2=debug, 3=trace) │
+                    └──────────┬──────────┘
+                               │ feeds into
+              ┌────────────────┼──────────────────┐
+              ▼                ▼                  ▼
+      ┌──────────────┐ ┌────────────┐ ┌────────────────┐
+      │Universal     │ │Message     │ │ErrorManager    │
+      │Logger        │ │Manager     │ │(severity→log)  │
+      │(4 tiers)     │ │(catalog)   │ │+ fail-fast     │
+      └──────┬───────┘ └─────┬──────┘ └───────┬────────┘
+             │               │                │
+             ▼               ▼                ▼
+         print()          print()          print()
+         +debug_obj       +icon prefix     +error code
+```
+
+**Preload Print (Channel D)** runs before this diagram — pure `print(file=stderr)`, no logger, no level gate.
+
+### D9.2 Logger Implementations
+
+Two logger implementations exist in the codebase. The pipeline uses **UniversalLogger** from the common library:
+
+| Feature | EKSLogger (`eks/engine/`) | UniversalLogger (`common/library/`) |
+|:--------|:-------------------------:|:-----------------------------------:|
+| Production use | Legacy — not used by `main()` | **Active** — created in `eks_engine_pipeline.py` |
+| Verbosity levels | 0–3 | 0–3 |
+| `fatal` parameter on `error()` | No | Yes — raises `RuntimeError` |
+| `global_parameters` tracking | No | Yes — `track_global_param()` |
+| Module-level shim | No | Yes — `log_status()`, `log_error()` etc. |
+| Shared depth counter with `log_context` | No | Yes — `depth.py` shares `_depth` |
+
+### D9.3 Telemetry Dual-Channel Architecture
+
+The `PipelineOrchestrator` wires **two** telemetry instances:
+
+| Instance | Class | Scope | Created by |
+|:---------|:------|:------|:-----------|
+| Local | `eks/engine/core/telemetry.TelemetryHeartbeat` | Per-orchestrator document-level detail | `PipelineOrchestrator.__init__()` |
+| External | `common.library.core.pipeline.TelemetryHeartbeat` | Pipeline-level checkpoints shared across components | `main()` — passed into orchestrator as `external_telemetry` |
+
+Both instances receive the same `add_checkpoint()` calls via `_forward_telemetry()`, which forwards checkpoints to local + external. Failure in the external channel is silently caught to avoid blocking the pipeline.
+
+### D9.4 Relationship to the Common Library
+
+EKS output infrastructure is built on shared modules from `common/library/core/`:
+
+| Module | L-Level | Provides |
+|:-------|:-------:|:---------|
+| `logging/logger.py` | L01 | `UniversalLogger` class |
+| `logging/depth.py` | L02 | `log_depth` decorator, `log_context` manager |
+| `logging/trace.py` | L03 | `trace_step()`, `track_global_param()` |
+| `logging/snapshot.py` | L04 | `get_system_snapshot()` |
+| `logging/__init__.py` | — | All four above as a consolidated API |
+| `pipeline/heartbeat.py` | L05 | Universal `TelemetryHeartbeat` + `DocumentProcessingHeartbeat` |
+| `core/messages/message_manager.py` | L11 | `BaseMessageManager` ABC with catalog loading, template hydration, verbosity gate |
+
+---
+
+## D10. Output Channels in Detail
+
+### D10.1 UniversalLogger — Direct Console Logging (Channel A)
+
+#### D10.1.1 Log Level Definitions
+
+| Level | Name | Description | CLI Equivalent |
+|:-----:|:-----|:------------|:---------------|
+| 0 | Silent | Only fatal errors printed | `--level 0` |
+| 1 | Normal | Milestones + high-level status (default) | `--level 1` |
+| 2 | Debug | Warnings + internal state | `--level 2` / `--debug` |
+| 3 | Trace | Deep technical info, raw JSON | `--level 3` / `--verbose` |
+
+#### D10.1.2 Available Methods
+
+| Method | Level | Category Tag | Purpose |
+|:-------|:-----:|:-------------|:--------|
+| `error(msg, context, fatal=False)` | 0 | `ERROR` | Always visible. If `fatal=True`, raises `RuntimeError` after printing. |
+| `status(msg, context)` | 1 | `STATUS` | Milestone progress, high-level workflow status. |
+| `info(msg, context)` | 1 | `INFO` | General informational messages. |
+| `warning(msg, context)` | 2 | `WARNING` | Warnings, degraded quality, fallback paths. |
+| `debug(msg, context)` | 2 | `DEBUG` | Variable values, path resolutions, internal state. |
+| `trace(msg, context)` | 3 | `TRACE` | Deep technical detail (OS paths, raw extraction). |
+
+#### D10.1.3 Output Format
+
+```
+{timestamp} | {category:7} | {name}[{context}] | {indent}{message}
+```
+
+Example output at level 1:
+```
+2026-07-27 14:30:01.234 | STATUS  | eks-pipeline | Phase A complete: 42 files registered
+2026-07-27 14:30:01.456 | INFO    | eks-pipeline[data:P5-F-V-0001] | [file.pdf] File type not supported
+```
+
+Indentation is controlled by the global `_depth` counter, incremented by the `log_depth` decorator and `log_context` manager (see D12.3).
+
+#### D10.1.4 Debug Object Accumulation
+
+All log entries (regardless of level) **should** be appended to `logger.debug_object["logs"]` in memory — the design principle is **record-before-gate**: always save to the debug object, then gate only the console `print()` by verbosity level. This ensures post-run diagnostics can inspect suppressed messages even when running at `--level 0`. However, as of v2.0, `UniversalLogger._log()` gates recording + printing at the same point (I249). The fix is to reorder: record first, gate print second. The debug object is persisted to `debug_log.json` via `logger.save()` at pipeline completion.
+
+At default `--level 1`, per-document messages are suppressed. The pipeline entry point prints a startup notice directing users to `--level 2` or `debug_log.json` for full diagnostics:
+
+```
+Per-document details suppressed at default level.
+Use --level 2 (--debug) for per-file messages,
+or check debug_log.json for full diagnostics.
+```
+
+### D10.2 MessageManager — Catalog-Driven Messages (Channel B)
+
+Messages are defined in `eks_message_config.json` with this schema:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique message identifier (UPPER_SNAKE_CASE) |
+| `category` | enum | `milestone`, `status`, `progress`, `warning`, `error` |
+| `level` | integer | Verbosity: 0=error, 1=normal/status, 2=debug, 3=trace |
+| `template` | string | Python-style template with `{placeholders}` |
+| `icon` | string | Display icon (optional, e.g. ▶ ✓ ℹ ⚠) |
+
+#### D10.2.1 Category-to-Logger Routing
+
+When `MessageManager.show(msg_id, **kwargs)` is called, it looks up the message definition and routes to a logger method based on category:
+
+| `category` | Logger method | Example |
+|:-----------|:--------------|:--------|
+| `milestone` | `logger.status()` | `=== Phase A Start: File Discovery ===` |
+| `warning` | `logger.warning()` | `Scanned PDF detected (no text layer): {filename}` |
+| `error` | `logger.error()` | `Error processing {filename}: {detail}` |
+| `status` | `logger.info()` | `Parsing: {filename}` |
+| `progress` | `logger.info()` | `  {filename}` (indented sub-step) |
+
+If the message has an `icon` field, it is prepended: `{icon} {hydrated_template}`.
+
+The level gate is `msg_def.level ≤ manager.verbosity`. If the level check fails, `show()` returns silently — no log entry is created.
+
+### D10.3 ErrorManager — Error Code Output (Channel C)
+
+The ErrorManager is an **orchestrator-level component**. It serves three purposes, all scoped to pipeline orchestration:
+
+| Purpose | Description | Scope |
+|:--------|:------------|:------|
+| **Fail-fast** | Raise `RuntimeError` for unrecoverable errors (missing config, bootstrap failure) | Pipeline infrastructure — not per-document |
+| **Health impact** | Accumulate `health_score_impact` per-document and adjust final health scores | Called after `HealthScorer.score()` in the orchestration loop |
+| **Error summary** | Return counts of errors by severity for pipeline-level reporting | Pipeline completion |
+
+Sub-modules (`filename_parser.py`, `file_property_parser.py`, parsers, etc.) use `logger.warning()` directly — not ErrorManager. This is by design: per-document validation warnings should never trigger fail-fast, their health impact is already captured by the completeness dimension in the health scorer, and all log entries are recorded in `debug_log.json` regardless of verbosity level. See D13.1 for the full rationale.
+
+Error codes are defined in `eks_error_config.json` with two domains: system errors (`S-{cat}-S-{id}`) and data errors (`P{phase}-{module}-{function}-{id}`).
+
+#### D10.3.1 Severity-to-Logger Routing
+
+| Severity | handle_system_error | handle_data_error | Stops Pipeline? |
+|:---------|:--------------------|:------------------|:---------------:|
+| FATAL | `logger.error()` | `logger.error()` | Yes (fail-fast) |
+| CRITICAL | `logger.error()` | `logger.error()` | Yes (fail-fast) |
+| HIGH | `logger.warning()` | `logger.warning()` | No |
+| WARNING | `logger.warning()` | `logger.info()` | No |
+| INFO | `logger.warning()` | `logger.info()` | No |
+
+**Note**: `handle_data_error` maps WARNING→`logger.info()` (level 1) while `handle_system_error` maps WARNING→`logger.warning()` (level 2). The three data errors that were problematic (P3-E-E-0018, P3-E-E-0019, P5-R-P-0003) were bumped from WARNING to HIGH severity (T1.135), routing them through `logger.warning()` at level 2 instead. Remaining WARNING-severity data errors at `logger.info()` are less impactful — they are INFO-level fields where missing data is expected (e.g., optional metadata).
+
+#### D10.3.2 Fail-Fast Mechanism
+
+When `error_manager._fail_fast_enabled` is `True` (default, read from `system_parameters.fail_fast`) and the error has `stops_pipeline: true`, the ErrorManager raises `RuntimeError(f"FAIL_FAST [{code}]: {message}")` after logging. This immediately stops the pipeline.
+
+#### D10.3.3 Health Score Impact
+
+Each data error has a `health_score_impact` field (−1 to −5). The ErrorManager accumulates these per-document:
+
+```python
+impact = sum(err["health_score_impact"] for err in errors if err["doc_id"] == target_doc)
+adjusted_health = max(0.0, raw_health_score + impact / 100.0)
+```
+
+### D10.4 Preload Print — Pre-Bootstrap Output (Channel D)
+
+Before any logger, message manager, or error manager exists, the pipeline entry point uses raw `print()` to stderr:
+
+```python
+print(f"FATAL: {err}", file=sys.stderr)
+```
+
+This is the **only** output channel during `_preload_infrastructure()`. It has:
+- **No level gate** — always visible
+- **No formatting** — raw plain text
+- **No debug object** — not captured for diagnostics
+
+Used for: missing `common.library` imports, Python version mismatch, project root not found.
+
+---
+
+## D11. Verbosity Control & Data Flow
+
+### D11.1 CLI Flags
+
+| Flag | Effect | Internal Level |
+|:-----|:-------|:--------------:|
+| `--level 0` | Silent — only fatal errors | 0 |
+| `(default)` | Normal — milestones + info | 1 |
+| `--level 2` / `--debug` | Debug — warnings + variable values | 2 |
+| `--level 3` / `--verbose` | Trace — deep technical detail | 3 |
+
+### D11.2 Verbosity Level Matrix
+
+What fires at each level across all four channels. At default `--level 1`, the pipeline prints a startup notice:
+
+```
+Per-document details suppressed at default level.
+Use --level 2 (--debug) for per-file messages,
+or check debug_log.json for full diagnostics.
+```
+
+| Level | Logger (Ch A) | Messages (Ch B) | ErrorManager (Ch C) | Preload (Ch D) | Telemetry |
+|:-----:|:--------------|:----------------|:--------------------|:---------------|:----------|
+| **0** | `error()` only | Messages with `level: 0` (ERROR category) | FATAL / CRITICAL only | Always visible | Disabled |
+| **1** | `error()` + `status()` + `info()` | Messages with `level ≤ 1` (milestones, status, progress, WARNING, ERROR) | All severities — but WARNING data→`info()` (level 1), HIGH system→`warning()` (level 2) | Always visible | Disabled |
+| **2** | All except `trace()` | Messages with `level ≤ 2` (all categories) | All severities — HIGH/WARNING via `warning()` (level 2) | Always visible | **Enabled** |
+| **3** | All methods including `trace()` | Messages with `level ≤ 3` (all) | All severities | Always visible | Enabled |
+
+**Note**: At default level 1, WARNING-severity system errors (S-C-S-0305, S-C-S-0306, S-A-S-0501–0503) are suppressed because `handle_system_error` routes WARNING→`logger.warning()` (level 2). WARNING-severity data errors are visible because `handle_data_error` routes WARNING→`logger.info()` (level 1). The three problematic data errors (P3-E-E-0018, P3-E-E-0019, P5-R-P-0003) were bumped to HIGH severity (T1.135) so they route through `logger.warning()` at level 2.
+
+### D11.3 Data Flow: `--level` Through the System
+
+```
+CLI args  ──►  _parse_early_verbosity()     [pure argparse, before bootstrap]
+                    │
+                    ▼
+              early_level  ──►  UniversalLogger(level=early_level)
+                           ──►  TelemetryHeartbeat(enabled=early_level >= 2)
+                           ──►  EKSBootstrapManager(logger=logger)
+                                    │
+                                    ▼
+                                bootstrap_all()
+                                P2: CLI parse → resolved level from schema
+                                    │
+                                    ▼
+                                mgr.effective_parameters["level"]
+                                    │
+                         ┌──────────┴──────────┐
+                         ▼                     ▼
+                   MessageManager           (logger stays at
+                   .verbosity = level        early_level)
+                         │
+                         ▼
+                   PipelineOrchestrator
+                   (error_manager + message_manager injected)
+                         │
+                         ▼
+                   run_phase_a/b/c()
+                   em.handle_data_error(code, ...)
+                   mm.show(msg_id, ...)
+```
+
+### D11.4 Known Gap: Verbosity Reconciliation
+
+When bootstrap resolves a `level` different from `early_level` (e.g., a config file overrides the CLI default), the `TelemetryHeartbeat` is recreated with the new level, but **`UniversalLogger.level` is not updated** — it stays at `early_level`. This means:
+
+- `logger.warning()` (level 2) may fire at the wrong threshold
+- `message_manager.verbosity` is at default `1` — the resolved level is never passed to the MessageManager at all (hardcoded in `_eks_message_factory()`)
+
+**Planned fixes**:
+- T1.136: Add `mm.set_verbosity(level)` after level reconcile in `main()` so the MessageManager respects `--level 0/2/3`
+- I249: Add `logger.set_level(level)` after reconcile and fix `UniversalLogger._log()` to record before gating print
+
+---
+
+## D12. Debugging & Diagnostics
+
+### D12.1 Debug Object Schema
+
+The `UniversalLogger` maintains a structured debug object in memory throughout the pipeline run. All log entries, errors, trace steps, and global parameters **should** be recorded regardless of verbosity level (record-before-gate principle, see I249 for current implementation gap).
+
+```json
+{
+  "project": "eks-pipeline",
+  "start_time": "2026-07-27T14:30:00",
+  "end_time": "2026-07-27T14:35:12",
+  "duration_ms": 312000,
+  "system_snapshot": {
+    "os": "win32",
+    "python_version": "3.10.12",
+    "cpu_count": 16,
+    "memory_total": 34359738368,
+    "cwd": "C:\\Users\\...\\EKS"
+  },
+  "trace_table": [
+    {
+      "timestamp": "2026-07-27T14:30:01",
+      "step": "parse_filename",
+      "parameter": "document_number",
+      "value": "131101-WSW41-DR-C-0001",
+      "source": "filename_parser.py",
+      "status": "SUCCESS",
+      "duration_ms": 2.5,
+      "depth": 3
+    }
+  ],
+  "global_parameters": {
+    "level": {"post_cli": {"value": "1", "timestamp": "..."},
+              "post_bootstrap": {"value": "1", "timestamp": "..."}},
+    "data_dir": {"post_cli": {"value": "C:\\...\\data", "timestamp": "..."}}
+  },
+  "logs": [
+    {
+      "timestamp": "2026-07-27T14:30:01.234",
+      "level": 1,
+      "category": "STATUS",
+      "context": null,
+      "module": "eks-pipeline",
+      "message": "Phase A complete: 42 files registered"
+    }
+  ],
+  "errors": [
+    {
+      "timestamp": "2026-07-27T14:31:05",
+      "context": "data:P5-F-V-0001",
+      "message": "[file.pdf] File type not supported",
+      "fatal": false
+    }
+  ]
+}
+```
+
+### D12.2 Trace Table
+
+The `trace_table` is populated via `logger.trace_step()` and the module-level `trace_step()` / `track_global_param()` functions from `common.library.core.logging.trace`. Each entry captures:
+
+| Field | Description |
+|:------|:------------|
+| `step` | Logical step name (e.g. `"load_schema"`, `"parse_filename"`) |
+| `parameter` | Variable or parameter name being traced |
+| `value` | String value (truncated to 200 chars) |
+| `source` | Origin module or function |
+| `status` | `SUCCESS`, `FAIL`, `SKIP`, etc. |
+| `duration_ms` | Elapsed time in milliseconds |
+| `depth` | Call depth at recording time |
+
+`track_global_param()` records a named parameter's value at a named pipeline stage, stored under `debug_object["global_parameters"][name][stage]`. This enables cross-phase parameter flow tracing.
+
+### D12.3 Call Depth Tracking
+
+Two forms share the global `_depth` counter:
+
+| Form | Type | Usage |
+|:-----|:-----|:------|
+| `@log_depth` | Decorator | Applied to methods; auto-increments before call, decrements after |
+| `log_context()` | Context manager | Wraps a `with` block; auto-increments on entry, decrements on exit, logs entry/exit with timing |
+
+The depth counter controls indentation in the output format. Each level adds `"  "` (two spaces):
+
+```
+2026-07-27 14:30:01 | STATUS | PipelineOrchestrator | Phase B: Parsing files
+2026-07-27 14:30:02 | INFO   | PipelineOrchestrator |   Parsing: 131101-WSW41-DR-C-0001.pdf
+2026-07-27 14:30:03 | INFO   | PipelineOrchestrator |   Parsing: 131101-WIL00-DR-E-7000.pdf
+```
+
+### D12.4 Debug Log File Lifecycle
+
+1. Logger is created with optional `debug_file` path
+2. All entries accumulate in memory in `logger.debug_object`
+3. At pipeline completion, `logger.save()` is called:
+   - Sets `end_time` and `duration_ms`
+   - Creates parent directories if needed
+   - Writes `debug_log.json` with `json.dumps(indent=2)`
+4. The file is a single overwrite — per-job accumulation is not supported (per I124)
+
+### D12.5 DCC Backward-Compatibility Shims
+
+For projects migrating from the DCC module-level API, `common.library.core.logging.logger` provides:
+
+| Function | Delegates to |
+|:---------|:-------------|
+| `log_status(msg, module, context)` | `get_global_logger().status()` |
+| `log_warning(msg, module, context)` | `get_global_logger().warning()` |
+| `log_error(msg, module, context, fatal)` | `get_global_logger().error()` |
+| `log_trace(msg, module, context)` | `get_global_logger().trace()` |
+
+These access a process-wide `UniversalLogger` singleton via `get_global_logger()` / `set_global_logger()`.
+
+---
+
+## D13. Known Gaps & Open Issues
+
+| Issue | Severity | Title | Status |
+|:------|:--------:|:------|:-----:|
+| I245 | 🟡 Medium | Sub-modules lack ErrorManager wiring — 44 data + 58 system codes catalog-only | ⛔ Won't Implement |
+| I246 | 🟢 Low | Message catalog under-deployed — 39 of 49 messages never emitted | 🔴 Open |
+| I247 | 🟢 Low | Config metadata miscount — `data_logic_codes: 48` should be `50` | 🔴 Open |
+| I248 | 🟡 Medium | Pipeline batch health scoring not wired — `score_batch()` never called | 🔴 Open |
+| I249 | 🟡 Medium | UniversalLogger level not reconciled after bootstrap; `_log()` gates record + print together | 🔴 Open |
+
+### D13.1 Sub-module ErrorManager Wiring (I245)
+
+**Decision**: ⛔ Won't Implement (I245). The current design is correct — ErrorManager is an orchestrator-level component, not a sub-module utility. Rationale:
+
+1. **Fail-fast is for infrastructure errors, not per-document warnings** — A filename parsing warning or missing optional metadata should never stop the pipeline. Only orchestrator-level errors (missing config, bootstrap failure) warrant fail-fast.
+2. **Health score impact is already captured by completeness dimension** — The health scorer measures 39 scorable columns. A missing field due to a parser error is automatically reflected in the completeness score. Wiring ErrorManager would add redundant double-counting.
+3. **All `logger.warning()` calls are captured in `debug_log.json`** — The debug object records every log entry regardless of verbosity level (T1.138). Post-run diagnostics have full detail.
+4. **Utility classes lack ErrorManager injection** — `filename_parser` and `file_property_parser` are schema-driven utility classes. Adding ErrorManager injection would add coupling without meaningful benefit.
+5. **Bootstrap already uses the correct mechanism** — `BootstrapError` from `common.library.bootstrap` is the designed path for bootstrap-phase errors.
+
+The error codes remain registered in `eks_error_config.json` for documentation, cross-reference, and searchability.
+
+### D13.2 Message Catalog Under-Deployment (I246)
+
+**Root cause**: Only `pipeline_orchestrator.py` calls `message_manager.show()`. No other module (bootstrap, scanners, parsers, extractors) emits catalog messages.
+
+**Impact**: 39 of 49 registered messages are catalog-only. The message system works end-to-end only for Phase A/B/C milestones and one error message.
+
+### D13.3 Verbosity Reconciliation Gap (I249 — partially resolved)
+
+**Root cause**: Three independent gaps prevented verbosity level from being consistently applied.
+
+**Resolved (T1.136)**: `logger.set_level(level)` and `mm.set_verbosity(level)` added after bootstrap reconcile in `main()`. Both Logger and MessageManager now respect `--level 0/2/3`. A startup message directs users to `--level 2` or `debug_log.json` for detailed diagnostics.
+
+**Remaining**: Logger created with `early_level` still not updated if bootstrap resolves a different level — `logger.set_level(level)` runs, which updates the instance, so this is fully resolved.
+
+### D13.4 Batch Health Scoring Not Wired (I248)
+
+**Root cause**: `health_scorer.score_batch()` exists but is never called from any pipeline code. Appendix D §D7.7 defines pipeline-level health grades (A+ through F) with the formula `(total_docs - critical_errors - high_errors) / total_docs × 100` — none of this is executed.
+
+**Impact**: Pipeline-level health metrics and grades are design artifacts only; no consumer exists.
+
+### D13.5 UniversalLogger Record-Before-Gate (I249 — resolved)
+
+**Root cause**: `UniversalLogger._log()` checked the level gate before appending to `debug_object["logs"]` — entries above verbosity were neither printed NOR saved.
+
+**Resolution (T1.138)**: Reordered `_log()` to always append to `debug_object["logs"]` first, then gate only the `print()`. All log entries are now saved regardless of verbosity level. Post-run diagnostics at `--level 0` have complete `debug_object["logs"]` data.
+
+## D14. Implementation Files
 
 ### Config Files
 
@@ -974,7 +1418,7 @@ Stored in `extract_status` column of document registry:
 
 ---
 
-## D10. References
+## D15. References
 
 1. [AGENTS.md §19](../../AGENTS.md) — "Each business logic must have an independent error code defined"
 2. [AGENTS.md §12](../../AGENTS.md) — Debugging: tiered logging, debug object, fail-fast
@@ -988,3 +1432,10 @@ Stored in `extract_status` column of document registry:
 10. [`eks/engine/core/health_scorer.py`](../engine/core/health_scorer.py) — Health scoring implementation
 11. [`eks/engine/eks_engine_pipeline.py`](../engine/eks_engine_pipeline.py) — Main pipeline entry point
 12. [`common/library/bootstrap/manager.py`](../../common/library/bootstrap/manager.py) — Universal bootstrap manager
+13. [`common/library/core/logging/logger.py`](../../common/library/core/logging/logger.py) — UniversalLogger implementation
+14. [`common/library/core/logging/depth.py`](../../common/library/core/logging/depth.py) — log_depth / log_context
+15. [`common/library/core/logging/trace.py`](../../common/library/core/logging/trace.py) — trace_step / track_global_param
+16. [`common/library/core/pipeline/heartbeat.py`](../../common/library/core/pipeline/heartbeat.py) — Universal TelemetryHeartbeat
+17. [`eks/engine/core/telemetry.py`](../engine/core/telemetry.py) — EKS TelemetryHeartbeat
+18. [`eks/engine/logging/logger.py`](../engine/logging/logger.py) — Legacy EKSLogger
+19. [`eks/log/issue_log.md`](../log/issue_log.md) — I244–I248 gap tracking

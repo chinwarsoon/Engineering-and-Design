@@ -43,7 +43,7 @@
     },
     "system_error_code_format": {
       "type": "string",
-      "pattern": "^(S-[A-Z]-S-[0-9]{4}|P1-SETUP-[A-Z0-9]+|P1-BOOT-[A-Z0-9]+|B-[A-Za-z0-9_]+-[A-Za-z0-9]+)$",
+      "pattern": "^(S-[A-Z]-S-[0-9]{4}|P1-SETUP-[A-Z0-9]+|P1-BOOT-[A-Z0-9]+|B-[A-Za-z0-9_]+-[A-Za-z0-9]+|B-[A-Z]-S-[0-9]{4})$",
       "description": "System error code: S-{Category}-S-{ID}, P1-SETUP-{type}{id}, P1-BOOT-{reason}, or B-{module}-{id} format (B-* added T1.99.65 / I112)"
     },
     "data_error_entry": {
@@ -103,7 +103,7 @@
         "system_codes": { "type": "integer" },
         "data_logic_codes": { "type": "integer" },
         "data_logic_format": { "type": "string", "enum": ["P{phase}-{module}-{function}-{id}"] },
-        "system_format": { "type": "string", "enum": ["S-{category}-S-{id}", "P1-SETUP-{type}{id}", "S-{cat}-S-{id} | P1-SETUP-{type}{id} | P1-BOOT-{reason} | B-{module}-{id}"] }
+        "system_format": { "type": "string", "enum": ["S-{cat}-S-{id4}", "S-{category}-S-{id}", "P1-SETUP-{type}{id}", "S-{cat}-S-{id} | P1-SETUP-{type}{id} | P1-BOOT-{reason} | B-{module}-{id}"] }
       }
     },
     "migration_log_entry": {

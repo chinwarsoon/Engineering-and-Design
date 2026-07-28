@@ -1,8 +1,8 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.8.0",
-    "title": "EKS Default Project Configuration — v1.8.0 (export_default added to system_parameters — T1.113/I234)",
+    "version": "1.9.0",
+    "title": "EKS Default Project Configuration — v1.9.0 (telemetry_verbose added to system_parameters — T1.121/I237)",
     "project_rules_registry": {
         "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
     },
@@ -61,7 +61,8 @@
         "api_timeout": 120,
         "ollama_timeout": 30,
         "db_timeout": 30,
-        "export_default": "both"
+        "export_default": "both",
+        "telemetry_verbose": true
     },
     "folders": [
         { "name": "eks/archive", "required": true, "purpose": "Archived/superseded files", "auto_created": true },

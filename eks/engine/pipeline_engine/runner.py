@@ -102,7 +102,7 @@ def bootstrap_pipeline(
         if not ready:
             from common.library.bootstrap import BootstrapError
             raise BootstrapError(
-                "P1-BOOT-READINESS",
+                "S-B-S-0603",
                 "Bootstrap readiness gate failed — project setup not ready",
                 "readiness",
             )
@@ -170,8 +170,10 @@ def run_pipeline(
     if context is not None:
         em = context.parameters.get("em")
         mm = context.parameters.get("mm")
+        _cfg = context.parameters.get("config", {})
+        _telemetry_verbose = _cfg.get("system_parameters", {}).get("telemetry_verbose", True)
         orchestrator = PipelineOrchestrator(
-            context.parameters.get("config", {}),
+            _cfg,
             context.parameters.get("doc_config", {}),
             registry or DocumentRegistry(
                 logger=logger,
@@ -181,6 +183,7 @@ def run_pipeline(
             use_telemetry=False,
             error_manager=em,
             message_manager=mm,
+            telemetry_verbose=_telemetry_verbose,
         )
         orchestrator.context = context
         config = context.parameters.get("config", {})
@@ -209,9 +212,11 @@ def run_pipeline(
                 pre_generated_ddl=boot.get("pre_generated_ddl"),
             )
 
+        _telemetry_verbose = config.get("system_parameters", {}).get("telemetry_verbose", True)
         orchestrator = PipelineOrchestrator(
             config, doc_config, registry, logger=logger,
             use_telemetry=False, error_manager=em, message_manager=mm,
+            telemetry_verbose=_telemetry_verbose,
         )
 
         params = {**config.get("global_parameters", {}), **config.get("project_setup", {})}

@@ -144,9 +144,11 @@ Examples:
                 logger=logger,
                 pre_generated_ddl=boot.get("pre_generated_ddl"),
             )
+            _telemetry_verbose = boot["config"].get("system_parameters", {}).get("telemetry_verbose", True)
             orchestrator = PipelineOrchestrator(
                 boot["config"], boot["doc_config"], registry, logger=logger,
                 use_telemetry=False, error_manager=boot["em"], message_manager=boot["mm"],
+                telemetry_verbose=_telemetry_verbose,
             )
 
             # Phase A performs the actual discovery (scan + register).

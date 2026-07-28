@@ -101,9 +101,9 @@ def main(args: Optional[list] = None) -> int:
     Error handling (T1.99.62–63, I117):
       - Preload failures (I117): collected in ``infra["errors"]``, printed to
         stderr with ``FATAL:`` prefix, exit code 1 — no bare ImportError.
-      - Bootstrap failures raise ``BootstrapError`` with ``P1-BOOT-*`` codes
+      - Bootstrap failures raise ``BootstrapError`` with ``S-B-S-06xx`` codes
         (READINESS, CONFIG, PATHS, OS, CTX), all registered in the EKS error
-        catalog under the ``bootstrap_p1`` range.
+        catalog under the ``bootstrap`` range.
       - Top-level ``except Exception`` catches pipeline failures, logs via
         ``UniversalLogger``, prints to stderr, and returns exit code 1.
 
@@ -171,6 +171,17 @@ def main(args: Optional[list] = None) -> int:
 
     if mm is not None:
         mm.show("STATUS_PIPELINE_START", root_dir=safe_posix(data_dir))
+    # T1.136: Reconcile verbosity across all output channels after bootstrap
+    logger.set_level(level)
+    if mm is not None:
+        mm.set_verbosity(level)
+    if level < 2:
+        logger.info(
+            "Per-document details suppressed at default level. "
+            "Use --level 2 (--debug) for per-file messages, "
+            "or check debug_log.json for full diagnostics.",
+            context="eks-pipeline",
+        )
 
     if level != early_level:
         hb = _TelemetryHeartbeat(enabled=level >= 2)

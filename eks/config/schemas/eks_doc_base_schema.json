@@ -13,7 +13,7 @@
         },
         "document_type_code": {
             "type": "string",
-            "enum": ["CAD", "DWG", "PI-PID", "SPC", "DS", "MAN", "OM", "RPT"],
+            "enum": ["CAD", "DWG", "PI-PID", "SPC", "DS", "MAN", "OM", "RPT", "DR", "SP", "CL", "BQ", "VI", "M3", "QA"],
             "description": "Document type codes aligned with ontology document_type_mapping (Appendix C) and TWRP assets."
         },
         "file_type_code": {
@@ -35,6 +35,18 @@
             "enum": ["draft", "issued_for_review", "issued_for_construction", "as_built", "superseded", "archived"],
             "default": "draft",
             "description": "Document lifecycle stage codes per engineering document control workflow. T1.99.143."
+        },
+        "document_type_entry_def": {
+            "type": "object",
+            "properties": {
+                "code": { "$ref": "#/definitions/document_type_code" },
+                "label": { "type": "string", "description": "Human-readable label" },
+                "ontology_class": { "type": "string", "enum": ["Drawing", "PID_Drawing", "Specification", "Manual", "Report"], "description": "Ontology class for graph mapping" },
+                "description": { "type": "string", "description": "Full description" },
+                "expected_file_types": { "type": "array", "items": { "$ref": "#/definitions/file_type_code" }, "description": "File extensions expected for this document type" }
+            },
+            "required": ["code", "label", "description"],
+            "additionalProperties": false
         },
         "project_metadata_def": {
             "type": "object",

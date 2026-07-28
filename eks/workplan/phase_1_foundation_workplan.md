@@ -1,9 +1,9 @@
 # EKS Phase 1 — Foundation: Project Structure, Schema & Document Registry
 
 - **Document ID**: WP-EKS-P1-001
-- **Current Version**: 5.4
-- **Status**: 🔷 IN PROGRESS — **v5.3**: §10.3 (Defect Root-Cause Fixes) merged into §10.1 — single 36-row table covering design (§5–§30) + defects (§39–§50) in one view. Full history in [Appendix P1.6](appendix_p1.6_phase1_revision_history.md).
-- **Last Updated**: 2026-07-20
+- **Current Version**: 5.9
+- **Status**: 🔷 IN PROGRESS — **v5.13**: §71 (I255 FilenameParser auto-pattern detection ✅). **v5.12**: §70 (I254 path doubling fix ✅). **v5.11**: §64 (I244 default-level verbosity noise — open). Full history in [Appendix P1.6](appendix_p1.6_phase1_revision_history.md).
+- **Last Updated**: 2026-07-28 (v5.13 — §71 I255 FilenameParser auto-pattern detection ✅ complete)
 - **Parent Workplan**: [eks_system_workplan.md](eks_system_workplan.md)
 - **Phase Dependency**: None — first phase
 
@@ -177,6 +177,15 @@ Deliverables:
 | §55 | Version SSOT — single `__version__` in `eks/__init__.py`; all subpackages import from `eks` | T1.108 | I231 | [Task Log §28](../log/phase1/p1_task_log.md#28-version-ssot-i231-tasks) |
 | §56 | Pipeline monolith split — `pipeline_engine/` subfolder; entry-point shell (1,284 → 295 lines); zero module-level globals | T1.109–T1.111 | I233 | [Task Log §29](../log/phase1/p1_task_log.md#29-pipeline-monolith-split-i233-tasks) |
 | §57 | CLI Default Pipeline Output — pipeline_output.json, debug_log.json, schema-driven --export default, 5 default output files | T1.112–T1.115 | I234 | [Task Log §30](../log/phase1/p1_task_log.md#30-cli-default-pipeline-output-i234-tasks) |
+| §58 | Batch telemetry milestone ordering fix — 100% folded into BATCH_MILESTONES; single sorted loop eliminates out-of-order checkpoints | T1.103, T1.116, T1.117 | I235 | [Task Log §31](../log/phase1/p1_task_log.md#31-batch-telemetry-logic-order-fix-i235-tasks) |
+| §59 | ERROR_FILE_PROCESSING kwarg mismatch fix — error= → detail= at call site; template kept as SSOT | T1.118, T1.119 | I236 | [Task Log §32](../log/phase1/p1_task_log.md#32-error_file_processing-kwarg-mismatch-fix-i236-tasks) |
+| §60 | Schema-driven telemetry verbose — `telemetry_verbose` added to `system_parameters` schema chain (base v1.11.0 + config v1.9.0); PipelineOrchestrator passes to TelemetryHeartbeat; milestone prints/suppress verified | T1.120–T1.123 | I237 | [Task Log §33](../log/phase1/p1_task_log.md#33-schema-driven-telemetry-verbosity-i237-tasks) |
+| §61 | Phase A batch milestones — downgrade per-document STATUS to INFO; add 25/50/75/100% milestone progress in registration loop matching Phase B pattern | T1.124–T1.126 | I238 | [Task Log §34](../log/phase1/p1_task_log.md#34-phase-a-batch-milestones-i238-tasks) |
+| §62 | ERROR_FILE_PROCESSING level fix — change level from 0 to 1; suppress per-file errors in silent --level 0 mode | T1.127, T1.128 | I242 | [Task Log §35](../log/phase1/p1_task_log.md#35-error_file_processing-level-fix-i242-tasks) |
+| §63 | STATUS_PHASE_B_COMPLETE kwarg fix — add missing total= to call site; hydrate template placeholders correctly | T1.129, T1.130 | I243 | [Task Log §36](../log/phase1/p1_task_log.md#36-status_phase_b_complete-kwarg-fix-i243-tasks) |
+| §64 | Default-level verbosity noise — 7 per-document info calls, 3 WARNING codes misrouted to logger.info(), MessageManager verbosity hardcoded to 1 | TBD | I244 | [Issue Log §52](../log/issue_log.md#52--default-level-verbosity-noise-audit-i244) |
+| §70 | Path doubling fix — strip `eks_root` prefix from relative CLI `--data-dir` in bootstrap path resolution; prevents `eks/eks/data` instead of `eks/data` | T1.156 | I254 | [Task Log §70](../log/phase1/p1_task_log.md#70-path-doubling-fix-i254) |
+| §71 | FilenameParser auto-pattern detection — try all registered project code patterns per filename, use first match, fall back to `"*"` (0 segments). Unblocks I252 identity field extraction. | T1.157, T1.158 | I255 | [Task Log §71](../log/phase1/p1_task_log.md#71-filenameparser-auto-pattern-detection-i255) |
 
 ### 10.2 Checklists & Deliverables
 

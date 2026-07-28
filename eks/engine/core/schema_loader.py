@@ -3,6 +3,10 @@ Schema Loader for EKS - Handles loading and validation of base, setup, and confi
 
 Uses config-driven discovery (T1.96): reads schema_files + discovery_rules from
 eks_config.json instead of hardcoding 22 filenames.
+
+Revision: 1.1.0 — T1.159 (I256): registered eks_project_code_schema in _STEM_TO_ATTR;
+          injected project_code_titles into doc_config post-load for runtime use.
+1.0.0: Initial implementation.
 """
 import importlib
 import json
@@ -28,6 +32,8 @@ _STEM_TO_ATTR = {
     "eks_doc_base_schema": "doc_base_schema",
     "eks_doc_setup_schema": "doc_setup_schema",
     "eks_doc_config": "doc_config",
+    "eks_document_type_schema": "document_type_schema",
+    "eks_project_code_schema": "project_code_schema",
     "eks_error_code_base": "error_base_schema",
     "eks_error_setup_schema": "error_setup_schema",
     "eks_error_config": "error_config",
@@ -73,6 +79,7 @@ class SchemaLoader:
         self.message_base_schema: Dict[str, Any] = {}
         self.message_setup_schema: Dict[str, Any] = {}
         self.message_config: Dict[str, Any] = {}
+        self.project_code_schema: Dict[str, Any] = {}
         self.project_rules_config: Dict[str, Any] = {}
         self._extra_schemas: Dict[str, Dict[str, Any]] = {}
 
@@ -138,6 +145,12 @@ class SchemaLoader:
             setattr(self, attr_name, self._load_json(meta["filename"]))
 
         # ---------- Post-load setup ----------
+        self.doc_config["project_code_titles"] = {
+            p["code"]: p["description"]
+            for p in self.project_code_schema.get("projects", [])
+            if isinstance(p, dict) and "code" in p and "description" in p
+        }
+
         self.asset_ontology_class_map = {
             self._normalize_tag_type(k): v
             for k, v in self.asset_config.get("ontology_class_map", {}).items()

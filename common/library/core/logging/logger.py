@@ -82,12 +82,10 @@ class UniversalLogger:
     # ------------------------------------------------------------------
 
     def _log(self, level: int, msg: str, category: str, context: Optional[str] = None) -> None:
-        if level > self.level:
-            return
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         indent = "  " * _depth
         ctx_str = f" [{context}]" if context else ""
-        print(f"{timestamp} | {category:7} | {self.name}{ctx_str} | {indent}{msg}", flush=True)
+        # T1.138: Always record to debug_object — gate only the print()
         self.debug_object["logs"].append({
             "timestamp": timestamp,
             "level": level,
@@ -96,6 +94,8 @@ class UniversalLogger:
             "module": self.name,
             "message": msg,
         })
+        if level <= self.level:
+            print(f"{timestamp} | {category:7} | {self.name}{ctx_str} | {indent}{msg}", flush=True)
 
     # ------------------------------------------------------------------
     # Public log methods

@@ -1,16 +1,24 @@
 """
 Schema-Driven Filename Parser — Universal Class (Appendix I)
 
+Revision 1.2.0 — T1.160 (I256): Added project_title to FilenameParseResult;
+added project_code_titles __init__ param; _extract_segments() now looks up
+project_title from code->title map when project_number extracted.
+
+Revision 1.1.0 — T1.157 (I255): Auto-detect project code pattern per filename.
+Instead of accepting a single project_code at init (which was always None),
+accepts project_code_registry (list of valid codes). On each parse() call,
+iterates all registered codes, tries each pattern, uses the first that matches
+the stem's first segment. Falls back to '*' (0 segments) when no code matches.
+
 Revision 1.0.0 — T1.99.113: Initial implementation.
 Single shared class across all 4 EKS call sites.
 Extracts 7 filename-derived fields per Appendix B §B3.
 Schema-driven via filename_patterns block in eks_doc_config.json.
 
-Date: 2026-07-18
-Author: CodeBuddy
-Summary: FilenameParser + FilenameParseResult dataclass,
-         segment-based field extraction, null-tolerant output,
-         P5-format error codes.
+Date: 2026-07-28
+Author: opencode
+Summary: I256: project_title population from project_code_titles mapping.
 """
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -33,6 +41,7 @@ class FilenameParseResult:
     document_number: Optional[str] = None
     revision: Optional[str] = None
     project_number: Optional[str] = None
+    project_title: Optional[str] = None
     area: Optional[str] = None
     document_type: Optional[str] = None
     discipline: Optional[str] = None
@@ -52,6 +61,7 @@ class FilenameParseResult:
                 "document_number": self.document_number,
                 "revision": self.revision,
                 "project_number": self.project_number,
+                "project_title": self.project_title,
                 "area": self.area,
                 "document_type": self.document_type,
                 "discipline": self.discipline,
@@ -66,15 +76,20 @@ class FilenameParser:
 
     Design:
       - Instantiated once per project per pipeline run.
+      - Accepts project_code_registry (list of valid codes from schema).
+      - On each .parse(file_name) call, auto-detects the project code pattern
+        by trying each registered code's pattern against the stem's first segment.
+      - Falls back to '*' pattern (0 segments) when no code matches.
       - Caches compiled regex patterns and resolved schema references.
       - .parse(file_name) → FilenameParseResult (never raises).
       - Call sites: FileScanner (Phase A), PipelineOrchestrator (Phase B),
                     phase1_server.py (UI endpoint).
 
-    Revision: 1.0.0
-    Date: 2026-07-18
-    Author: CodeBuddy
-    Summary: Universal class with segment-based field extraction,
+    Revision: 1.1.0
+    Date: 2026-07-28
+    Author: opencode
+    Summary: Auto-detect project code pattern per filename (I255).
+             Universal class with segment-based field extraction,
              FilenameParseResult dataclass, cached validators, P5-format error codes.
     """
 
@@ -111,49 +126,88 @@ class FilenameParser:
     def __init__(
         self,
         filename_patterns: Optional[Dict[str, Any]] = None,
-        project_code: Optional[str] = None,
+        project_code_registry: Optional[List[str]] = None,
+        project_code_titles: Optional[Dict[str, str]] = None,
         document_type_registry: Optional[List[Dict[str, Any]]] = None,
     ):
         """
         Args:
             filename_patterns: The 'filename_patterns' block from eks_doc_config.json.
                                If None, use _HARDCODED_DEFAULT.
-            project_code: Optional project code to select project-specific pattern.
-                          Falls back to '*' pattern if not found.
+            project_code_registry: List of valid project code strings (from schema).
+                                   On each parse(), tries each code's pattern and
+                                   uses the first that matches the stem's first segment.
+                                   Falls back to '*' pattern if none match.
+            project_code_titles: Optional mapping of project_code → project_title,
+                                 loaded from project_code_schema by SchemaLoader.
+                                 Used in _extract_segments() to populate project_title
+                                 when project_number is extracted.
             document_type_registry: Optional list of document type entries for
                                     schema_reference validation (maps_to: "document_type").
         """
         self._patterns = filename_patterns or {}
-        self._project_code = project_code
+        self._project_code_registry = project_code_registry or []
+        self._project_code_titles = project_code_titles or {}
         self._doc_type_registry = document_type_registry or []
-        self._pattern = self._resolve_pattern()
+        self._pattern = dict(self._HARDCODED_DEFAULT)
         self._compiled_validators: Dict[int, re.Pattern] = {}
         self._doc_type_codes: Optional[Set[str]] = None
-        self._precompile_validators()
+        self._precompile_doc_type_codes()
 
     # ---- Pattern Resolution ----
 
-    def _resolve_pattern(self) -> Dict[str, Any]:
-        """Resolve the active pattern: project_code → '*' → hardcoded default."""
+    def _resolve_pattern(self, code: Optional[str] = None) -> Dict[str, Any]:
+        """Resolve pattern by project code, then '*' fallback, then hardcoded default."""
         if not self._patterns:
             return dict(self._HARDCODED_DEFAULT)
-        pattern = self._patterns.get(self._project_code) if self._project_code else None
+        pattern = self._patterns.get(code) if code else None
         if pattern is None:
             pattern = self._patterns.get("*", self._HARDCODED_DEFAULT)
-        # Merge with hardcoded default for any missing keys
         merged = dict(self._HARDCODED_DEFAULT)
         merged.update(pattern)
         return merged
 
+    def _detect_pattern(self, stem: str) -> Dict[str, Any]:
+        """Try each registered project code's pattern against the stem.
+
+        Splits the stem by the common separator and checks if the first
+        segment matches any registered project code. Returns the matching
+        pattern, or the '*' fallback when no code matches.
+        """
+        if not self._project_code_registry or not self._patterns:
+            return dict(self._HARDCODED_DEFAULT)
+
+        separator = self._patterns.get("*", {}).get("separator", "-")
+        parts = stem.split(separator)
+
+        for code in self._project_code_registry:
+            pattern = self._patterns.get(code)
+            if not pattern or not pattern.get("segments"):
+                continue
+            first_seg = pattern["segments"][0]
+            if first_seg.get("position") != 0:
+                continue
+            if len(parts) > 0 and parts[0] == code:
+                merged = dict(self._HARDCODED_DEFAULT)
+                merged.update(pattern)
+                return merged
+
+        return self._resolve_pattern(None)
+
     def _precompile_validators(self) -> None:
-        """Pre-compile regex patterns for segment validation to avoid re-compile per file."""
+        """Pre-compile regex patterns for the currently active pattern."""
+        self._compiled_validators = {}
         for seg in self._pattern.get("segments", []):
             validation = seg.get("validation", {})
             if validation.get("type") == "pattern" and validation.get("pattern"):
                 self._compiled_validators[seg["position"]] = re.compile(validation["pattern"])
-        # Pre-build document_type lookup set for schema_reference validation
-        if self._doc_type_registry:
-            self._doc_type_codes = {entry.get("code", "") for entry in self._doc_type_registry}
+
+    def _precompile_doc_type_codes(self) -> None:
+        """Pre-build document_type lookup set (pattern-independent, done once at init)."""
+        self._doc_type_codes = (
+            {entry.get("code", "") for entry in self._doc_type_registry}
+            if self._doc_type_registry else None
+        )
 
     def _get_error_code(self, key: str) -> str:
         """Get error code from pattern's error_subcodes or fallback to P5-format default."""
@@ -166,6 +220,10 @@ class FilenameParser:
         """
         Parse a single filename into structured metadata.
 
+        Auto-detects the project code pattern per filename by trying each
+        registered project code's pattern against the stem's first segment.
+        Falls back to '*' pattern (0 segments) when no code matches.
+
         Never raises — always returns FilenameParseResult
         with parse_status indicating extraction quality.
 
@@ -177,6 +235,10 @@ class FilenameParser:
         """
         result = FilenameParseResult()
         stem = Path(file_name).stem
+
+        # Step 1: Auto-detect project code pattern for this stem
+        self._pattern = self._detect_pattern(stem)
+        self._precompile_validators()
 
         # Step 3: Strip known non-revision suffixes
         stem = self._strip_suffixes(stem)
@@ -194,7 +256,10 @@ class FilenameParser:
 
         # Finalize parse_status
         if not result.parse_errors:
-            result.parse_status = "ok"
+            if segments_extracted:
+                result.parse_status = "ok"
+            else:
+                result.parse_status = "unresolvable"
         elif result.parse_status == "unresolvable":
             pass  # keep unresolvable
         else:
@@ -294,6 +359,11 @@ class FilenameParser:
             # Store the value
             if maps_to:
                 setattr(result, maps_to, raw_value)
+                # T1.160 (I256): When project_number is extracted, look up project_title
+                if maps_to == "project_number" and self._project_code_titles:
+                    title = self._project_code_titles.get(raw_value)
+                    if title:
+                        result.project_title = title
                 any_extracted = True
             else:
                 # maps_to is null — value used only in rejoined document_number
@@ -381,7 +451,8 @@ class FilenameParser:
 def parse_filename(
     file_name: str,
     filename_patterns: Optional[Dict[str, Any]] = None,
-    project_code: Optional[str] = None,
+    project_code_registry: Optional[List[str]] = None,
+    project_code_titles: Optional[Dict[str, str]] = None,
     document_type_registry: Optional[List[Dict[str, Any]]] = None,
 ) -> FilenameParseResult:
     """
@@ -390,5 +461,7 @@ def parse_filename(
     Prefer instantiating FilenameParser once and calling .parse() in a loop
     for batch operations (Phase A scan, pipeline processing).
     """
-    parser = FilenameParser(filename_patterns, project_code, document_type_registry)
+    parser = FilenameParser(
+        filename_patterns, project_code_registry, project_code_titles, document_type_registry
+    )
     return parser.parse(file_name)

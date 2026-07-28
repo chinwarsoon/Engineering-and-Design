@@ -50,7 +50,14 @@
         { "code": "DS",     "label": "Data Sheet",             "ontology_class": "Specification",  "description": "Equipment/instrument data sheet",     "expected_file_types": ["pdf", "xlsx"] },
         { "code": "MAN",    "label": "Vendor O&M Manual",      "ontology_class": "Manual",         "description": "Vendor operation and maintenance manual", "expected_file_types": ["pdf"] },
         { "code": "OM",     "label": "Operation Manual",       "ontology_class": "Manual",         "description": "System operation manual",             "expected_file_types": ["pdf", "docx"] },
-        { "code": "RPT",    "label": "Technical Report",       "ontology_class": "Report",         "description": "Technical report or study",          "expected_file_types": ["pdf", "docx"] }
+        { "code": "RPT",    "label": "Technical Report",       "ontology_class": "Report",         "description": "Technical report or study",          "expected_file_types": ["pdf", "docx"] },
+        { "code": "DR",     "label": "Drawing",                 "ontology_class": "Drawing",       "description": "Engineering drawing (TWRP filename code)", "expected_file_types": ["pdf"] },
+        { "code": "SP",     "label": "Specification",           "ontology_class": "Specification",  "description": "Technical specification (TWRP filename code)", "expected_file_types": ["pdf", "docx"] },
+        { "code": "CL",     "label": "Civil/Structural",        "ontology_class": "Specification",  "description": "Civil/structural document (TWRP filename code)", "expected_file_types": ["pdf", "docx"] },
+        { "code": "BQ",     "label": "Bill of Quantities",      "ontology_class": "Specification",  "description": "Bill of quantities (TWRP filename code)", "expected_file_types": ["pdf", "xlsx"] },
+        { "code": "VI",     "label": "Vendor Information",      "ontology_class": "Manual",         "description": "Vendor information document (TWRP filename code)", "expected_file_types": ["pdf"] },
+        { "code": "M3",     "label": "3D Model",                "ontology_class": "Drawing",       "description": "3D model reference (TWRP filename code)", "expected_file_types": ["pdf"] },
+        { "code": "QA",     "label": "Quality Assurance",       "ontology_class": "Report",         "description": "Quality assurance document (TWRP filename code)", "expected_file_types": ["pdf", "docx"] }
     ],
     "file_type_registry": [
         { "extension": "pdf",  "display_name": "PDF Document",   "parser_class": "eks.engine.parsers.pdf_parser.PDFParser",    "description": "Portable Document Format",  "mime_type": "application/pdf" },
@@ -77,7 +84,14 @@
         "DS":     { "expected_elements": ["cover_page", "section", "table"], "threshold": 2, "cover_type": "E" },
         "MAN":    { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" },
         "OM":     { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" },
-        "RPT":    { "expected_elements": ["cover_page", "section", "table"], "threshold": 2, "cover_type": "E" }
+        "RPT":    { "expected_elements": ["cover_page", "section", "table"], "threshold": 2, "cover_type": "E" },
+        "DR":     { "expected_elements": ["cover_page", "revision_table", "section", "image", "link"], "threshold": 4, "cover_type": "A" },
+        "SP":     { "expected_elements": ["cover_page", "section", "table"], "threshold": 2, "cover_type": "E" },
+        "CL":     { "expected_elements": [], "threshold": 0, "cover_type": "C" },
+        "BQ":     { "expected_elements": [], "threshold": 0, "cover_type": "C" },
+        "VI":     { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" },
+        "M3":     { "expected_elements": ["cover_page", "revision_table", "section", "image", "link"], "threshold": 4, "cover_type": "A" },
+        "QA":     { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" }
     },
     "filename_patterns": {
         "131101": {
@@ -117,7 +131,7 @@
                     "label": "discipline_code",
                     "required": true,
                     "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" },
-                    "validation": { "type": "pattern", "pattern": "^[A-Z]{2}$" }
+                    "validation": { "type": "pattern", "pattern": "^[A-Z]{1,2}$" }
                 },
                 {
                     "position": 4,

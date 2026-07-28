@@ -23,7 +23,8 @@
       "Bash(eof)",
       "Bash(python *)",
       "Bash(tr *)",
-      "Bash(rm *)"
+      "Bash(rm *)",
+      "Bash(c:\\users\\franklin.song\\appdata\\local\\miniconda3\\scripts\\conda.exe *)"
     ]
   },
   "$version": 4

@@ -58,6 +58,8 @@ class ParserFactory(Factory):
         """
         Create a parser instance for the given file type.
         """
+        if not file_type:
+            raise ValueError(f"No file type provided")
         parser_class_path = self._parser_mappings.get(file_type.lower())
         if not parser_class_path:
             raise ValueError(f"No parser registered for file type: {file_type}")

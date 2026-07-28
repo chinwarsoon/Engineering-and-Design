@@ -1,7 +1,10 @@
 """
 File Scanner for EKS - Walk project directory, validate file types, register placeholders.
 T1.37: Phase A of pipeline workflow.
-Revision 1.5.0 — T1.99.148 (I187): migrated synthetic key generation to common.library.utility.synthetic_key; removed ad-hoc hashlib usage.
+Revision 1.7.0 — T1.160 (I256): FilenameParser now receives project_code_titles from
+SchemaLoader-injected doc_config, enabling project_title population during parse.
+1.6.0: T1.157 (I255): FilenameParser now receives project_code_registry derived from
+filename_patterns keys (minus '*') instead of project_code=None, enabling auto-pattern detection.
 """
 import os
 from pathlib import Path
@@ -29,11 +32,17 @@ class FileScanner:
         self._ext_map = self._build_extension_map()
         self._doc_type_expected = self._build_expected_types_map()
 
-        # T1.99.115: FilenameParser — shared instance, project_code=None defaults to "*" pattern
+        # T1.157 (I255): FilenameParser — shared instance, auto-detects project code per filename
+        # T1.160 (I256): project_code_titles derived from project_code_schema injected by SchemaLoader
         filename_patterns = self.doc_config.get("filename_patterns", {})
+        project_code_registry = [
+            k for k in filename_patterns if k != "*"
+        ]
+        project_code_titles = self.doc_config.get("project_code_titles", {})
         self._parser = FilenameParser(
             filename_patterns=filename_patterns,
-            project_code=None,
+            project_code_registry=project_code_registry,
+            project_code_titles=project_code_titles,
             document_type_registry=self.document_type_registry,
         )
 
@@ -176,6 +185,9 @@ class FileScanner:
         count = 0
         skipped = 0
         superseded = 0
+        total = len(valid_files)
+        BATCH_MILESTONES = {0.25, 0.50, 0.75, 1.0}
+        last_milestone_pct = 0.0
         for file_info in valid_files:
             metadata = self.build_placeholder_metadata(file_info)
             doc_number = metadata.get("document_number")
@@ -216,7 +228,7 @@ class FileScanner:
 
                 if current_hash and current_hash == existing.get("file_hash"):
                     # Content unchanged → skip
-                    self.logger.info(
+                    self.logger.debug(
                         f"Content unchanged — skipping: {doc_number}-{revision}",
                         context="FileScanner.register_placeholders"
                     )
@@ -238,9 +250,23 @@ class FileScanner:
                 except Exception:
                     pass  # best-effort
 
-            metadata["document_type"] = self._infer_doc_type(file_info["file_type"])
+            # Only infer document_type from extension if filename parser didn't yield a value
+            if not metadata.get("document_type") or metadata["document_type"] in ("UNKNOWN", None):
+                metadata["document_type"] = self._infer_doc_type(file_info["file_type"])
             registry.register_document(metadata)
             count += 1
+
+            processed = count + skipped + superseded
+            if total > 0:
+                pct = processed / total
+                for m in sorted(BATCH_MILESTONES):
+                    if last_milestone_pct < m <= pct:
+                        label = "100%" if m == 1.0 else f"{int(m*100)}%"
+                        milestone_files = count if m == 1.0 else int(total * m)
+                        self.logger.status(
+                            f"[TELEMETRY] A-registration: milestone={label} files={milestone_files}"
+                        )
+                        last_milestone_pct = m
 
         self.logger.status(
             f"Registered {count} new placeholder documents ({skipped} skipped, {superseded} superseded)"

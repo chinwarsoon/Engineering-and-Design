@@ -15,6 +15,7 @@ from eks.engine.logging.logger import EKSLogger
 from eks.engine.parsers.pdf_parser import PDFParser
 from eks.engine.parsers.xlsx_parser import XLSXParser
 from eks.engine.parsers.docx_parser import DOCXParser
+from unittest.mock import patch
 
 # Project-scoped root for test artifacts — all test output goes under eks/test_output/
 # per AGENTS.md §6.1: "Test runtime artifacts must be placed in <project>/test_output/"
@@ -1266,6 +1267,175 @@ class TestPhase1(unittest.TestCase):
 
 
     # ------------------------------------------------------------------
+    # I235 — Batch telemetry milestone ordering (T1.103, T1.116)
+    # ------------------------------------------------------------------
+
+    def _run_phase_b_with_milestone_mock(self, doc_count):
+        """Helper: register {doc_count} docs, create orchestrator, mock _forward_telemetry,
+        run_phase_b, return (orch, mock_calls)."""
+        from unittest.mock import MagicMock
+        from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
+
+        reg_path = self.test_dir / f"eks_registry_i235_{doc_count}file.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        registry = DocumentRegistry(db_path=str(reg_path))
+
+        test_docs = [
+            {"document_number": f"I235-{i:03d}", "revision": "A",
+             "file_path": str(self.test_dir / f"i235_doc_{i}.pdf"),
+             "file_type": "pdf", "document_type": "PDF"}
+            for i in range(doc_count)
+        ]
+        for doc in test_docs:
+            registry.register_document(doc)
+
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        loader = SchemaLoader(config_parent)
+        config = loader.load_all()
+
+        # Enable telemetry; suppress scanner by pre-populating registry
+        orch = PipelineOrchestrator(config, loader.doc_config, registry,
+                                    use_telemetry=True)
+        mock_tel = MagicMock(wraps=orch._forward_telemetry)
+        orch._forward_telemetry = mock_tel
+
+        summary = orch.run_phase_b(self.test_dir)
+
+        if reg_path.exists():
+            reg_path.unlink()
+        return orch, mock_tel, summary
+
+    def test_phase_b_milestone_order_4_file_batch(self):
+        """T1.103 (I235): 4-file batch emits exactly 4 milestones (25/50/75/100)
+        in strict ascending order, plus end-of-phase 'B' summary (5 total)."""
+        orch, mock_tel, summary = self._run_phase_b_with_milestone_mock(4)
+        self.assertIn("total", summary)
+        self.assertGreaterEqual(summary["total"], 4)
+
+        calls = mock_tel.call_args_list
+        # End-of-phase summary call uses phase "B"
+        milestone_calls = [c for c in calls if c[0][0] == "B-progress"]
+        milestone_labels = [c[1]["details"]["milestone"] for c in milestone_calls]
+        self.assertEqual(milestone_labels, ["25%", "50%", "75%", "100%"],
+                         "4-file batch: milestones must fire in 25% → 50% → 75% → 100% order")
+
+    def test_phase_b_milestone_order_1_file_batch(self):
+        """T1.103 (I235): 1-file batch emits 4 milestones in order with no duplicates."""
+        orch, mock_tel, summary = self._run_phase_b_with_milestone_mock(1)
+        self.assertIn("total", summary)
+        self.assertGreaterEqual(summary["total"], 1)
+
+        calls = mock_tel.call_args_list
+        milestone_calls = [c for c in calls if c[0][0] == "B-progress"]
+        milestone_labels = [c[1]["details"]["milestone"] for c in milestone_calls]
+        self.assertEqual(milestone_labels, ["25%", "50%", "75%", "100%"],
+                         "1-file batch: all 4 milestones must fire with no duplicates")
+        self.assertEqual(len(milestone_calls), 4,
+                         "1-file batch: exactly 4 milestone calls, no extra")
+
+    def test_phase_b_milestone_order_2_file_batch(self):
+        """T1.103 (I235): 2-file batch — 75% fires before 100%, not after."""
+        orch, mock_tel, summary = self._run_phase_b_with_milestone_mock(2)
+        self.assertIn("total", summary)
+        self.assertGreaterEqual(summary["total"], 2)
+
+        calls = mock_tel.call_args_list
+        milestone_calls = [c for c in calls if c[0][0] == "B-progress"]
+        milestone_labels = [c[1]["details"]["milestone"] for c in milestone_calls]
+        seventy_five_idx = milestone_labels.index("75%")
+        hundred_idx = milestone_labels.index("100%")
+        self.assertLess(seventy_five_idx, hundred_idx,
+                        "2-file batch: 75% must fire BEFORE 100%")
+
+    # ------------------------------------------------------------------
+    # I237 — Schema-driven telemetry verbosity (T1.122, T1.123)
+    # ------------------------------------------------------------------
+
+    def test_telemetry_verbose_true_prints_milestones(self):
+        """T1.123 (I237): telemetry_verbose=True causes milestone [TELEMETRY] lines to print."""
+        from unittest.mock import patch
+        from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
+
+        reg_path = self.test_dir / "eks_registry_i237_verbose.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        registry = DocumentRegistry(db_path=str(reg_path))
+
+        for i in range(4):
+            registry.register_document({
+                "document_number": f"I237-{i:03d}", "revision": "A",
+                "file_path": str(self.test_dir / f"i237_doc_{i}.pdf"),
+                "file_type": "pdf", "document_type": "PDF",
+            })
+
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        loader = SchemaLoader(config_parent)
+        config = loader.load_all()
+
+        captured = []
+
+        def _fake_print(*args, **kwargs):
+            captured.append(" ".join(str(a) for a in args))
+
+        orch = PipelineOrchestrator(config, loader.doc_config, registry,
+                                    use_telemetry=True, telemetry_verbose=True)
+        with patch("builtins.print", _fake_print):
+            summary = orch.run_phase_b(self.test_dir)
+
+        telemetry_lines = [l for l in captured if "[TELEMETRY]" in l]
+        checkpoint_phases = set()
+        for line in telemetry_lines:
+            # Extract phase name from "[TELEMETRY] Checkpoint: {phase} | ..."
+            parts = line.split("Checkpoint: ")
+            if len(parts) > 1:
+                checkpoint_phases.add(parts[1].split(" |")[0])
+
+        self.assertIn("B-progress", checkpoint_phases,
+                       "telemetry_verbose=True: B-progress milestone must appear in printed output")
+
+        if reg_path.exists():
+            reg_path.unlink()
+
+    def test_telemetry_verbose_false_suppresses_milestones(self):
+        """T1.123 (I237): telemetry_verbose=False suppresses milestone [TELEMETRY] print."""
+        from unittest.mock import patch
+        from eks.engine.core.pipeline_orchestrator import PipelineOrchestrator
+
+        reg_path = self.test_dir / "eks_registry_i237_silent.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        registry = DocumentRegistry(db_path=str(reg_path))
+
+        for i in range(4):
+            registry.register_document({
+                "document_number": f"I237s-{i:03d}", "revision": "A",
+                "file_path": str(self.test_dir / f"i237s_doc_{i}.pdf"),
+                "file_type": "pdf", "document_type": "PDF",
+            })
+
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        loader = SchemaLoader(config_parent)
+        config = loader.load_all()
+
+        captured = []
+
+        def _fake_print(*args, **kwargs):
+            captured.append(" ".join(str(a) for a in args))
+
+        orch = PipelineOrchestrator(config, loader.doc_config, registry,
+                                    use_telemetry=True, telemetry_verbose=False)
+        with patch("builtins.print", _fake_print):
+            summary = orch.run_phase_b(self.test_dir)
+
+        telemetry_lines = [l for l in captured if "[TELEMETRY]" in l]
+        self.assertEqual(len(telemetry_lines), 0,
+                         "telemetry_verbose=False: zero [TELEMETRY] lines must print")
+
+        if reg_path.exists():
+            reg_path.unlink()
+
+    # ------------------------------------------------------------------
     # I225 — SchemaToDDL auto-migration + pre-generated DDL + version tracking
     # ------------------------------------------------------------------
 
@@ -1436,6 +1606,622 @@ class TestPhase1(unittest.TestCase):
             for p in [reg_path_pre, reg_path_no]:
                 if p.exists():
                     p.unlink()
+
+
+    def test_phase_a_batch_milestones_emitted(self):
+        """T1.126 (I238): register_placeholders() emits batch milestones at 25/50/75/100%."""
+        from unittest.mock import MagicMock
+        from eks.engine.core.file_scanner import FileScanner
+
+        captured_status = []
+
+        scanner = FileScanner(config={}, doc_config={}, logger=MagicMock())
+        scanner.logger.status = lambda msg: captured_status.append(msg)
+        scanner.logger.info = lambda msg, **kwargs: None
+        scanner.logger.warning = lambda msg, **kwargs: None
+
+        valid_files = []
+        for i in range(8):
+            valid_files.append({
+                "file_name": f"doc_{i}.pdf",
+                "file_path": str(self.test_dir / f"doc_{i}.pdf"),
+                "file_type": "pdf",
+            })
+
+        mock_registry = MagicMock()
+        mock_registry.get_latest_by_key.return_value = None
+        mock_registry.register_document.return_value = "mock-id"
+
+        count = scanner.register_placeholders(valid_files, mock_registry)
+
+        self.assertEqual(count, 8)
+
+        milestone_msgs = [m for m in captured_status if "[TELEMETRY] A-registration" in m]
+        self.assertEqual(len(milestone_msgs), 4,
+                         "Should have 4 milestone messages for 8 files")
+        percentages = set()
+        for msg in milestone_msgs:
+            for pct in ["100%", "75%", "50%", "25%"]:
+                if f"milestone={pct}" in msg:
+                    percentages.add(pct)
+        self.assertEqual(percentages, {"25%", "50%", "75%", "100%"},
+                         "Milestones should cover all 4 thresholds")
+
+    def test_phase_a_per_document_info_not_status(self):
+        """T1.126 (I238): Per-document 'registered successfully' is at DEBUG, not STATUS."""
+        from eks.engine.core.registry import DocumentRegistry
+
+        reg_path = self.test_dir / "eks_registry_i238_info.db"
+        if reg_path.exists():
+            reg_path.unlink()
+        registry = DocumentRegistry(db_path=str(reg_path))
+
+        captured_status = []
+        captured_debug = []
+        original_status = registry.logger.status
+        original_debug = registry.logger.debug
+        registry.logger.status = lambda msg, **kw: captured_status.append(msg)
+        registry.logger.debug = lambda msg, **kw: captured_debug.append(msg)
+
+        registry.register_document({
+            "document_number": "I238-TEST", "revision": "A",
+            "file_path": str(self.test_dir / "i238_doc.pdf"),
+            "file_type": "pdf", "document_type": "PDF",
+        })
+
+        registry.logger.status = original_status
+        registry.logger.debug = original_debug
+
+        self.assertTrue(
+            any("registered successfully" in msg for msg in captured_debug),
+            "Per-document message should appear at DEBUG level"
+        )
+        self.assertFalse(
+            any("registered successfully" in msg for msg in captured_status),
+            "Per-document message should NOT appear at STATUS level"
+        )
+
+        if reg_path.exists():
+            reg_path.unlink()
+
+    # ------------------------------------------------------------------
+    # I254 — Path doubling fix
+    # ------------------------------------------------------------------
+
+    def test_path_doubling_prevents_eks_eks_data_dir(self):
+        """T1.156 (I254): Relative CLI --data-dir with eks/ prefix must not
+        produce eks/eks/data. e.g. --data-dir eks/data → .../eks/data (correct)."""
+        from eks.engine.core.bootstrap import EKSBootstrapManager
+        from pathlib import Path
+
+        # project_root is the REPO root (parent of eks/), not eks/ itself
+        repo_root = _PROJECT_ROOT.parent
+        boot = EKSBootstrapManager(
+            project_root=repo_root,
+            skip_readiness=True,
+            auto_create=False,
+        )
+        boot.project_root = repo_root
+        boot.cli_args = {"data_dir": "eks/data", "level": 1}
+        boot.cli_overrides_provided = True
+        boot.config_dir = repo_root / "eks" / "config"
+        boot.resolved_paths = {
+            "data_dir": repo_root / "eks" / "data",
+        }
+
+        boot._bootstrap_params()
+
+        result = boot.effective_parameters["data_dir"]
+        expected = repo_root / "eks" / "data"
+        self.assertEqual(result, expected,
+            f"I254: data_dir should be {expected}, got {result}")
+        self.assertNotIn("eks/eks", str(result.as_posix()),
+            "I254: Path must not contain doubled eks/eks segment")
+
+    def test_path_doubling_handles_bare_data(self):
+        """T1.156 (I254): Relative CLI --data-dir data (no eks/ prefix) works unchanged."""
+        from eks.engine.core.bootstrap import EKSBootstrapManager
+
+        repo_root = _PROJECT_ROOT.parent
+        boot = EKSBootstrapManager(
+            project_root=repo_root,
+            skip_readiness=True,
+            auto_create=False,
+        )
+        boot.project_root = repo_root
+        boot.cli_args = {"data_dir": "data", "level": 1}
+        boot.cli_overrides_provided = True
+        boot.config_dir = repo_root / "eks" / "config"
+        boot.resolved_paths = {
+            "data_dir": repo_root / "eks" / "data",
+        }
+
+        boot._bootstrap_params()
+
+        result = boot.effective_parameters["data_dir"]
+        expected = repo_root / "eks" / "data"
+        self.assertEqual(result, expected)
+
+    def test_path_doubling_handles_absolute_path(self):
+        """T1.156 (I254): Absolute CLI --data-dir paths are unchanged."""
+        from eks.engine.core.bootstrap import EKSBootstrapManager
+        from pathlib import Path
+
+        repo_root = _PROJECT_ROOT.parent
+        boot = EKSBootstrapManager(
+            project_root=repo_root,
+            skip_readiness=True,
+            auto_create=False,
+        )
+        boot.project_root = repo_root
+        boot.cli_args = {"data_dir": str(repo_root / "eks" / "data"), "level": 1}
+        boot.cli_overrides_provided = True
+        boot.config_dir = repo_root / "eks" / "config"
+        boot.resolved_paths = {
+            "data_dir": repo_root / "eks" / "data",
+        }
+
+        boot._bootstrap_params()
+
+        result = boot.effective_parameters["data_dir"]
+        expected = repo_root / "eks" / "data"
+        self.assertEqual(result, expected)
+
+    # ------------------------------------------------------------------
+    # T1.158 (I255): FilenameParser auto-pattern detection
+    # ------------------------------------------------------------------
+
+    def test_filename_parser_auto_detects_131101_pattern(self):
+        """T1.158 (I255): FilenameParser with project_code_registry=['131101']
+        parses '131101-AREA-SPC-CIV-0001_rev01.pdf' and extracts all 4 identity fields."""
+        from eks.engine.core.filename_parser import FilenameParser
+
+        patterns = {
+            "131101": {
+                "description": "TWRP WSD11 tenderspec naming",
+                "parser_type": "delimited",
+                "separator": "-",
+                "min_segments": 5,
+                "max_segments": 5,
+                "segments": [
+                    {"position": 0, "maps_to": "project_number", "label": "project_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "131101"},
+                     "validation": {"type": "pattern", "pattern": "^\\d{6}$"}},
+                    {"position": 1, "maps_to": "area", "label": "contract_or_area",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z0-9]{3,6}$"}},
+                    {"position": 2, "maps_to": "document_type", "label": "type_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z]{3}$"}},
+                    {"position": 3, "maps_to": "discipline", "label": "discipline_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z]{1,2}$"}},
+                    {"position": 4, "maps_to": None, "label": "sequence_number",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "0000"},
+                     "validation": {"type": "pattern", "pattern": "^\\d{4}$"}},
+                ],
+                "rejoin_separator": "-",
+                "strip_suffixes": ["_Add1"],
+                "revision_separators": ["_rev"],
+                "dash_revision_max_len": 3,
+                "output": {
+                    "document_number_source": "rejoin_segments",
+                    "fallback_doc_number": "full_stem",
+                    "fallback_revision": None,
+                    "preservation_mode": "overwrite_existing",
+                },
+                "error_subcodes": {},
+                "processing_phase": "P0",
+            },
+            "*": {
+                "description": "Default fallback",
+                "parser_type": "delimited",
+                "separator": "-",
+                "min_segments": 1,
+                "max_segments": None,
+                "segments": [],
+                "rejoin_separator": "-",
+                "strip_suffixes": [],
+                "revision_separators": ["_rev"],
+                "dash_revision_max_len": 3,
+                "output": {
+                    "document_number_source": "rejoin_segments",
+                    "fallback_doc_number": "full_stem",
+                    "fallback_revision": "00",
+                    "preservation_mode": "overwrite_existing",
+                },
+                "error_subcodes": {},
+                "processing_phase": "P0",
+            },
+        }
+
+        parser = FilenameParser(
+            filename_patterns=patterns,
+            project_code_registry=["131101"],
+        )
+        result = parser.parse("131101-AREA-SPC-CV-0001_rev01.pdf")
+
+        self.assertEqual(result.project_number, "131101",
+            "I255: project_number should be 131101")
+        self.assertEqual(result.area, "AREA",
+            "I255: area should be AREA")
+        self.assertEqual(result.document_type, "SPC",
+            "I255: document_type should be SPC")
+        self.assertEqual(result.discipline, "CV",
+            "I255: discipline should be CV")
+        self.assertEqual(result.sequence_number, "0001",
+            "I255: sequence_number should be 0001")
+        self.assertEqual(result.document_number, "131101-AREA-SPC-CV-0001",
+            "I255: document_number should be full rejoin")
+        self.assertEqual(result.revision, "01",
+            "I255: revision should be 01")
+        self.assertEqual(result.parse_status, "ok",
+            "I255: parse_status should be ok")
+
+    def test_filename_parser_falls_back_to_star_pattern(self):
+        """T1.158 (I255): FilenameParser with project_code_registry=['131101']
+        falls back to '*' pattern for 'random_name.pdf' — all identity fields are None."""
+        from eks.engine.core.filename_parser import FilenameParser
+
+        patterns = {
+            "131101": {
+                "description": "TWRP WSD11 tenderspec naming",
+                "parser_type": "delimited",
+                "separator": "-",
+                "min_segments": 5,
+                "max_segments": 5,
+                "segments": [
+                    {"position": 0, "maps_to": "project_number", "label": "project_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "131101"},
+                     "validation": {"type": "pattern", "pattern": "^\\d{6}$"}},
+                    {"position": 1, "maps_to": "area", "label": "contract_or_area",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z0-9]{3,6}$"}},
+                ],
+                "rejoin_separator": "-",
+                "strip_suffixes": ["_Add1"],
+                "revision_separators": ["_rev"],
+                "dash_revision_max_len": 3,
+                "output": {
+                    "document_number_source": "rejoin_segments",
+                    "fallback_doc_number": "full_stem",
+                    "fallback_revision": "00",
+                    "preservation_mode": "overwrite_existing",
+                },
+                "error_subcodes": {},
+                "processing_phase": "P0",
+            },
+            "*": {
+                "description": "Default fallback (0 segments)",
+                "parser_type": "delimited",
+                "separator": "-",
+                "min_segments": 1,
+                "max_segments": None,
+                "segments": [],
+                "rejoin_separator": "-",
+                "strip_suffixes": [],
+                "revision_separators": ["_rev"],
+                "dash_revision_max_len": 3,
+                "output": {
+                    "document_number_source": "rejoin_segments",
+                    "fallback_doc_number": "full_stem",
+                    "fallback_revision": "00",
+                    "preservation_mode": "overwrite_existing",
+                },
+                "error_subcodes": {},
+                "processing_phase": "P0",
+            },
+        }
+
+        parser = FilenameParser(
+            filename_patterns=patterns,
+            project_code_registry=["131101"],
+        )
+        result = parser.parse("random_name.pdf")
+
+        self.assertIsNone(result.project_number,
+            "I255: project_number should be None (no pattern matched)")
+        self.assertIsNone(result.area,
+            "I255: area should be None (no pattern matched)")
+        self.assertIsNone(result.document_type,
+            "I255: document_type should be None (no pattern matched)")
+        self.assertIsNone(result.discipline,
+            "I255: discipline should be None (no pattern matched)")
+        self.assertIsNone(result.sequence_number,
+            "I255: sequence_number should be None (no pattern matched)")
+        self.assertEqual(result.document_number, "random_name",
+            "I255: document_number should be full_stem fallback")
+        self.assertEqual(result.revision, "00",
+            "I255: revision should be fallback_revision '00'")
+        self.assertEqual(result.parse_status, "unresolvable",
+            "I255: parse_status should be unresolvable (0 segments)")
+
+    def test_filename_parser_populates_project_title(self):
+        """T1.162 (I256): FilenameParser with project_code_titles maps project_number
+        to project_title when project_code_titles is supplied."""
+        from eks.engine.core.filename_parser import FilenameParser
+
+        patterns = {
+            "131101": {
+                "description": "TWRP WSD11 tenderspec naming",
+                "parser_type": "delimited",
+                "separator": "-",
+                "min_segments": 5,
+                "max_segments": 5,
+                "segments": [
+                    {"position": 0, "maps_to": "project_number", "label": "project_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "131101"},
+                     "validation": {"type": "pattern", "pattern": "^\\d{6}$"}},
+                    {"position": 1, "maps_to": "area", "label": "contract_or_area",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z0-9]{3,6}$"}},
+                    {"position": 2, "maps_to": "document_type", "label": "type_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z]{3}$"}},
+                    {"position": 3, "maps_to": "discipline", "label": "discipline_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z]{1,2}$"}},
+                    {"position": 4, "maps_to": None, "label": "sequence_number",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "0000"},
+                     "validation": {"type": "pattern", "pattern": "^\\d{4}$"}},
+                ],
+                "rejoin_separator": "-",
+                "strip_suffixes": ["_Add1"],
+                "revision_separators": ["_rev"],
+                "dash_revision_max_len": 3,
+                "output": {
+                    "document_number_source": "rejoin_segments",
+                    "fallback_doc_number": "full_stem",
+                    "fallback_revision": None,
+                    "preservation_mode": "overwrite_existing",
+                },
+                "error_subcodes": {},
+                "processing_phase": "P0",
+            },
+            "999999": {
+                "description": "Unknown project pattern",
+                "parser_type": "delimited",
+                "separator": "-",
+                "min_segments": 5,
+                "max_segments": 5,
+                "segments": [
+                    {"position": 0, "maps_to": "project_number", "label": "project_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "999999"},
+                     "validation": {"type": "pattern", "pattern": "^\\d{6}$"}},
+                    {"position": 1, "maps_to": "area", "label": "contract_or_area",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z0-9]{3,6}$"}},
+                    {"position": 2, "maps_to": "document_type", "label": "type_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z]{3}$"}},
+                    {"position": 3, "maps_to": "discipline", "label": "discipline_code",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "UNKNOWN"},
+                     "validation": {"type": "pattern", "pattern": "^[A-Z]{1,2}$"}},
+                    {"position": 4, "maps_to": None, "label": "sequence_number",
+                     "required": True,
+                     "null_handling": {"strategy": "default_value", "default_value": "0000"},
+                     "validation": {"type": "pattern", "pattern": "^\\d{4}$"}},
+                ],
+                "rejoin_separator": "-",
+                "strip_suffixes": ["_Add1"],
+                "revision_separators": ["_rev"],
+                "dash_revision_max_len": 3,
+                "output": {
+                    "document_number_source": "rejoin_segments",
+                    "fallback_doc_number": "full_stem",
+                    "fallback_revision": None,
+                    "preservation_mode": "overwrite_existing",
+                },
+                "error_subcodes": {},
+                "processing_phase": "P0",
+            },
+            "*": {
+                "description": "Default fallback",
+                "parser_type": "delimited",
+                "separator": "-",
+                "min_segments": 1,
+                "max_segments": None,
+                "segments": [],
+                "rejoin_separator": "-",
+                "strip_suffixes": [],
+                "revision_separators": ["_rev"],
+                "dash_revision_max_len": 3,
+                "output": {
+                    "document_number_source": "rejoin_segments",
+                    "fallback_doc_number": "full_stem",
+                    "fallback_revision": "00",
+                    "preservation_mode": "overwrite_existing",
+                },
+                "error_subcodes": {},
+                "processing_phase": "P0",
+            },
+        }
+
+        project_code_titles = {
+            "131101": "WSD11 — Project Specifications",
+            "999999": "Unknown Project",
+        }
+
+        parser = FilenameParser(
+            filename_patterns=patterns,
+            project_code_registry=["131101", "999999"],
+            project_code_titles=project_code_titles,
+        )
+
+        # Test 1: known project code → project_title populated
+        result = parser.parse("131101-AREA-SPC-CV-0001_rev01.pdf")
+        self.assertEqual(result.project_number, "131101",
+            "I256: project_number should be 131101")
+        self.assertEqual(result.project_title, "WSD11 — Project Specifications",
+            "I256: project_title should be looked up from project_code_titles")
+        self.assertEqual(result.document_type, "SPC",
+            "I256: document_type should be SPC (still extracted)")
+
+        # Test 2: another known project code → project_title populated
+        result2 = parser.parse("999999-ENG-DRG-CV-0002_rev00.pdf")
+        self.assertEqual(result2.project_number, "999999",
+            "I256: project_number should be 999999")
+        self.assertEqual(result2.project_title, "Unknown Project",
+            "I256: project_title should map 999999 to 'Unknown Project'")
+
+        # Test 3: fallback pattern → no project_title (no project_number)
+        result3 = parser.parse("random_name.pdf")
+        self.assertIsNone(result3.project_number,
+            "I256: project_number should be None (fallback)")
+        self.assertIsNone(result3.project_title,
+            "I256: project_title should be None when no project_number extracted")
+
+
+# ------------------------------------------------------------------
+# I257/I258: Bootstrap silent swallow degradation tests
+# ------------------------------------------------------------------
+
+class TestBootstrapDegradation(unittest.TestCase):
+    """I257/I258: All 7 silent exception swallows in EKSBootstrapManager now produce
+    log entries in debug_object["logs"] instead of silent 'except Exception: pass'."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_dir = _PROJECT_ROOT / "test_output"
+        cls.test_dir.mkdir(exist_ok=True)
+        from eks.engine.logging.logger import EKSLogger
+        cls.logger_class = EKSLogger
+
+    def _make_boot(self) -> tuple:
+        """Create an EKSBootstrapManager with a logger that captures debug_object."""
+        from eks.engine.core.bootstrap import EKSBootstrapManager
+        config_parent = _PROJECT_ROOT / "config"
+        boot = EKSBootstrapManager(
+            project_root=_PROJECT_ROOT,
+            skip_readiness=True,
+            auto_create=False,
+        )
+        boot.cli_args = {"level": 1}
+        boot.config_dir = config_parent
+        logger = self.logger_class("test_degradation", level=3, run_id="test_257_258")
+        boot.logger = logger
+        return boot, logger
+
+    def _has_log(self, logger, substr: str) -> bool:
+        """Check if any log entry contains substr in its message."""
+        return any(
+            substr in l.get("message", "")
+            for l in logger.debug_object.get("logs", [])
+        )
+
+    # ----- I257: doc_config load failure in _bootstrap_registry() (P3) -----
+
+    def test_257_doc_config_failure_logged(self):
+        """I257 S-B-S-0609: doc_config load failure in _bootstrap_registry() produces WARNING."""
+        boot, logger = self._make_boot()
+        boot._config_loader = None
+        with patch(
+            "eks.engine.core.schema_loader.SchemaLoader.load_all",
+            side_effect=Exception("mock doc_config validation error"),
+        ):
+            boot._bootstrap_registry()
+        self.assertTrue(
+            self._has_log(logger, "doc_config schema validation failed"),
+            "I257: Expected log entry about doc_config failure in debug_log"
+        )
+
+    # ----- I258 #1: ConfigRegistry failure in _eks_config_loader() -----
+
+    def test_258_configregistry_failure_logged(self):
+        """I258#1 S-B-S-0610: ConfigRegistry init failure logs WARNING and falls back."""
+        boot, logger = self._make_boot()
+        with patch(
+            "eks.engine.core.config_registry.ConfigRegistry",
+            side_effect=Exception("mock ConfigRegistry failure"),
+        ):
+            result = boot._eks_config_loader(boot.config_dir)
+        self.assertTrue(
+            self._has_log(logger, "ConfigRegistry init failed"),
+            "I258#1: Expected log entry about ConfigRegistry fallback in debug_log"
+        )
+        self.assertIsInstance(result, dict)
+
+    # ----- I258 #2: doc_config load failure in _bootstrap_schema() (P7) -----
+
+    def test_258_p7_doc_config_failure_logged(self):
+        """I258#2 S-B-S-0611: P7 doc_config load failure produces WARNING."""
+        boot, logger = self._make_boot()
+        boot._pre_generated_ddl = None
+        # Patch at schema_loader module level to isolate from ConfigRegistry path
+        with patch(
+            "eks.engine.core.schema_loader.SchemaLoader.load_all",
+            side_effect=Exception("mock P7 schema failure"),
+        ) as mock_load:
+            boot._bootstrap_schema()
+        self.assertTrue(
+            self._has_log(logger, "Schema phase doc_config load failed"),
+            "I258#2: Expected log entry about P7 doc_config failure in debug_log"
+        )
+
+    # ----- I258 #3/#4: Manager failures in to_dict() -----
+
+    def test_258_managers_to_dict_failure_logged(self):
+        """I258#3/#4 S-B-S-0612/S-B-S-0613: ErrorManager/MessageManager lazy-init in
+        to_dict() produces WARNING."""
+        boot, logger = self._make_boot()
+        boot._error_manager_factory = lambda **kw: (_ for _ in ()).throw(Exception("mock EM"))
+        boot._message_manager_factory = lambda **kw: (_ for _ in ()).throw(Exception("mock MM"))
+        result = boot.to_dict()
+        self.assertTrue(
+            self._has_log(logger, "ErrorManager lazy-init failed in to_dict()"),
+            "I258#3: Expected log entry about ErrorManager in to_dict()"
+        )
+        self.assertTrue(
+            self._has_log(logger, "MessageManager lazy-init failed in to_dict()"),
+            "I258#4: Expected log entry about MessageManager in to_dict()"
+        )
+        self.assertIsNone(result.get("em"), "I258#3: em should be None on failure")
+        self.assertIsNone(result.get("mm"), "I258#4: mm should be None on failure")
+
+    # ----- I258 #5/#6: Manager failures in to_pipeline_context() -----
+
+    def test_258_managers_context_failure_logged(self):
+        """I258#5/#6 S-B-S-0614/S-B-S-0615: ErrorManager/MessageManager lazy-init in
+        to_pipeline_context() produces WARNING."""
+        boot, logger = self._make_boot()
+        boot._bootstrapped = True
+        boot._eks_root = _PROJECT_ROOT
+        boot.resolved_paths = {"data_dir": str(_PROJECT_ROOT / "data")}
+        boot.effective_parameters = {"level": 1, "data_dir": str(_PROJECT_ROOT / "data")}
+        boot.config = {}
+        boot.doc_config = {}
+        boot.os_info = "windows"
+        boot.parsed = None
+        boot._error_manager_factory = lambda **kw: (_ for _ in ()).throw(Exception("mock EM ctx"))
+        boot._message_manager_factory = lambda **kw: (_ for _ in ()).throw(Exception("mock MM ctx"))
+        with patch.object(boot, '_build_postload_trace', return_value=None):
+            ctx = boot.to_pipeline_context()
+        self.assertTrue(
+            self._has_log(logger, "ErrorManager lazy-init failed in to_pipeline_context()"),
+            "I258#5: Expected log entry about ErrorManager in to_pipeline_context()"
+        )
+        self.assertTrue(
+            self._has_log(logger, "MessageManager lazy-init failed in to_pipeline_context()"),
+            "I258#6: Expected log entry about MessageManager in to_pipeline_context()"
+        )
+        self.assertIsNone(ctx.parameters.get("em"), "I258#5: em should be None on failure")
+        self.assertIsNone(ctx.parameters.get("mm"), "I258#6: mm should be None on failure")
 
 
 if __name__ == "__main__":

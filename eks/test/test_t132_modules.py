@@ -82,6 +82,61 @@ class TestMessageManager(unittest.TestCase):
         msg = self.mm.get("WARNING_NO_COVER_PAGE")
         self.assertIsNotNone(msg)
 
+    # T1.119 (I236) — ERROR_FILE_PROCESSING kwarg mismatch regression guard
+    def test_error_file_processing_hydrates_detail(self):
+        """T1.119 (I236): With correct kwarg key 'detail=', the exception
+        message appears in the output — not the literal template placeholder.
+        Uses verbosity=2 because ERROR_FILE_PROCESSING is level=2."""
+        mm_debug = MessageManager(config_dir=CONFIG_DIR, verbosity=2)
+        msg = mm_debug.get("ERROR_FILE_PROCESSING", filename="/path/doc.pdf", detail="[Errno 2] No such file")
+        self.assertIsNotNone(msg,
+                            "ERROR_FILE_PROCESSING must resolve at verbosity >= 2")
+        self.assertIn("[Errno 2] No such file", msg,
+                      "Actual exception text must appear in hydrated message")
+        self.assertNotIn("{detail}", msg,
+                         "Literal '{detail}' placeholder must be replaced")
+        self.assertIn("/path/doc.pdf", msg,
+                      "Filename must appear in hydrated message")
+
+    def test_error_file_processing_wrong_kwarg_fallback(self):
+        """T1.119 (I236): With wrong kwarg key 'error=', the raw template
+        literal '{detail}' appears — documents the broken behavior as
+        a regression guard for the kwarg key fix.
+        Uses verbosity=2 because ERROR_FILE_PROCESSING is level=2."""
+        mm_debug = MessageManager(config_dir=CONFIG_DIR, verbosity=2)
+        msg = mm_debug.get("ERROR_FILE_PROCESSING", filename="/path/doc.pdf", error="[Errno 2] No such file")
+        self.assertIsNotNone(msg,
+                             "ERROR_FILE_PROCESSING must resolve at verbosity >= 2")
+        self.assertIn("{detail}", msg,
+                      "Literal '{detail}' must appear when wrong kwarg key is used")
+
+    # T1.128 (I242) — ERROR_FILE_PROCESSING suppressed at verbosity 0 and 1
+    def test_error_file_processing_suppressed_at_level_0(self):
+        """T1.128 (I242): With verbosity=0, ERROR_FILE_PROCESSING (level=2)
+        must return None — message is suppressed in silent mode."""
+        mm_silent = MessageManager(config_dir=CONFIG_DIR, verbosity=0)
+        msg = mm_silent.get("ERROR_FILE_PROCESSING", filename="/path/doc.pdf", detail="[Errno 2] No such file")
+        self.assertIsNone(msg, "ERROR_FILE_PROCESSING must be suppressed at verbosity=0")
+
+    def test_error_file_processing_suppressed_at_default_level(self):
+        """I242: At default verbosity=1, ERROR_FILE_PROCESSING (level=2)
+        must return None — message is suppressed at default verbosity."""
+        mm_default = MessageManager(config_dir=CONFIG_DIR, verbosity=1)
+        msg = mm_default.get("ERROR_FILE_PROCESSING", filename="/path/doc.pdf", detail="[Errno 2] No such file")
+        self.assertIsNone(msg, "ERROR_FILE_PROCESSING must be suppressed at default verbosity=1")
+
+    # T1.130 (I243) — STATUS_PHASE_B_COMPLETE hydrates correctly with total= kwarg
+    def test_status_phase_b_complete_hydrates_correctly(self):
+        """T1.130 (I243): STATUS_PHASE_B_COMPLETE template with all 4 kwargs
+        (success, total, partial, failed) must hydrate fully — no literal placeholders."""
+        msg = self.mm.get("STATUS_PHASE_B_COMPLETE", success=15, total=753, partial=0, failed=738)
+        self.assertIsNotNone(msg, "STATUS_PHASE_B_COMPLETE must resolve with all required kwargs")
+        self.assertIn("15/753", msg, "Formatted '{success}/{total}' must appear in output")
+        self.assertNotIn("{total}", msg, "Literal '{total}' placeholder must be replaced")
+        self.assertNotIn("{success}", msg, "Literal '{success}' placeholder must be replaced")
+        self.assertNotIn("{partial}", msg, "Literal '{partial}' placeholder must be replaced")
+        self.assertNotIn("{failed}", msg, "Literal '{failed}' placeholder must be replaced")
+
 
 class TestHealthScorer(unittest.TestCase):
 

@@ -2,7 +2,7 @@
 Project Setup Validator - Validates project setup and auto-creates missing folders.
 
 Thin adapter that delegates to the universal common.library.validation.ValidationManager
-while preserving the EKS-specific public API and P1-SETUP-* error code wiring.
+while preserving the EKS-specific public API and standardized X-X-X-XXXX error code wiring.
 
 Revision: 0.7
 Date: 2026-07-09
@@ -20,14 +20,14 @@ from common.library.loader import discover_schema_files
 
 
 def _load_setup_error_codes() -> Dict[str, str]:
-    """Load P1-SETUP-* error codes from the error catalog (SSOT)."""
+    """Load standardized S-X-X-XXXX error codes from the error catalog (SSOT)."""
     codes = {
-        "ERR_MISSING_FOLDER": "P1-SETUP-F001",
-        "ERR_MISSING_FILE": "P1-SETUP-F002",
-        "ERR_MISSING_EKS_YML": "P1-SETUP-F003",
-        "ERR_MISSING_DEP": "P1-SETUP-D001",
-        "ERR_OUTPUT_PATH": "P1-SETUP-O001",
-        "ERR_PYTHON_MISMATCH": "P1-SETUP-E001",
+        "ERR_MISSING_FOLDER": "S-F-S-0207",
+        "ERR_MISSING_FILE": "S-F-S-0208",
+        "ERR_MISSING_EKS_YML": "S-F-S-0209",
+        "ERR_MISSING_DEP": "S-E-S-0106",
+        "ERR_OUTPUT_PATH": "S-F-S-0210",
+        "ERR_PYTHON_MISMATCH": "S-E-S-0107",
     }
     try:
         base = Path(__file__).parent.parent.parent / "config"
@@ -41,12 +41,12 @@ def _load_setup_error_codes() -> Dict[str, str]:
                 cat = json.load(6)
             sys_err = cat.get("system_errors", {})
             code_to_const = {
-                "P1-SETUP-F001": "ERR_MISSING_FOLDER",
-                "P1-SETUP-F002": "ERR_MISSING_FILE",
-                "P1-SETUP-F003": "ERR_MISSING_EKS_YML",
-                "P1-SETUP-D001": "ERR_MISSING_DEP",
-                "P1-SETUP-O001": "ERR_OUTPUT_PATH",
-                "P1-SETUP-E001": "ERR_PYTHON_MISMATCH",
+                "S-F-S-0207": "ERR_MISSING_FOLDER",
+                "S-F-S-0208": "ERR_MISSING_FILE",
+                "S-F-S-0209": "ERR_MISSING_EKS_YML",
+                "S-E-S-0106": "ERR_MISSING_DEP",
+                "S-F-S-0210": "ERR_OUTPUT_PATH",
+                "S-E-S-0107": "ERR_PYTHON_MISMATCH",
             }
             for code, const in code_to_const.items():
                 if code in sys_err:
@@ -57,7 +57,7 @@ def _load_setup_error_codes() -> Dict[str, str]:
 
 
 _SETUP_ERR = _load_setup_error_codes()
-ERR_PREFIX = "P1-SETUP"
+ERR_PREFIX = "S-X-X"
 ERR_MISSING_FOLDER = _SETUP_ERR["ERR_MISSING_FOLDER"]
 ERR_MISSING_FILE = _SETUP_ERR["ERR_MISSING_FILE"]
 ERR_MISSING_EKS_YML = _SETUP_ERR["ERR_MISSING_EKS_YML"]
@@ -78,7 +78,7 @@ _GENERIC_TO_EKS = {
 
 
 def _eks_code(generic_code: str) -> str:
-    """Map generic error code to EKS P1-SETUP-* code."""
+    """Map generic error code to standardized S-X-X-XXXX code."""
     return _GENERIC_TO_EKS.get(generic_code, generic_code)
 
 
@@ -150,7 +150,7 @@ class ProjectSetupValidator:
     Validates project setup — thin adapter delegating to universal ValidationManager.
 
     Preserves validate_all() and get_missing_items() public API (used by phase1_server.py)
-    and the P1-SETUP-* error code + ErrorManager wiring (T1.79).
+    and the standardized S-X-X-XXXX error code + ErrorManager wiring (T1.79).
     """
 
     def __init__(self, project_root: Path, config_registry: Optional[Dict[str, Any]] = None, verbose: bool = False):
@@ -233,7 +233,7 @@ class ProjectSetupValidator:
         result["workflow_files"] = self._validate_named_files(self._workflow_files)
         result["tool_files"] = self._validate_named_files(self._tool_files)
 
-        # Map generic error codes to P1-SETUP-* codes
+        # Map generic error codes to standardized S-X-X-XXXX codes
         for ec in result.get("error_codes", []):
             ec["code"] = _eks_code(ec["code"])
 

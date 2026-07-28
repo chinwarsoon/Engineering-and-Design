@@ -11,7 +11,7 @@
   ],
   "projects": [
     {"code": "131101", "description": "WSD11 — Project Specifications"},
-    {"code": "131242", "description": "WSD11 — TWRP Design Documents"},
+    {"code": "131242", "description": "TWRP C4B"},
     {"code": "999999", "description": "Unknown Project"}
   ]
 }

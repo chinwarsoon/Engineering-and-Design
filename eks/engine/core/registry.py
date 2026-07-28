@@ -514,7 +514,7 @@ class DocumentRegistry:
         # T1.99.150 (I186): id is now a pure UUID — business-key derived id is retired
         doc_id = str(uuid.uuid4())
         
-        self.logger.info(f"Registering document: {doc_id}", context="DocumentRegistry.register_document")
+        self.logger.debug(f"Registering document: {doc_id}", context="DocumentRegistry.register_document")
         
         # Serialize asset_tags if provided as list
         tags = metadata.get("asset_tags")
@@ -621,12 +621,12 @@ class DocumentRegistry:
                     "UPDATE documents SET superseded_by = ? WHERE id = ?",
                     [doc_id, prev_doc_id],
                 )
-                self.logger.info(
+                self.logger.debug(
                     f"Revision chain: {doc_id} supersedes {prev_doc_id}",
                     context="DocumentRegistry.register_document",
                 )
 
-            self.logger.status(f"Document {doc_id} registered successfully.")
+            self.logger.debug(f"Document {doc_id} registered successfully.")
             return doc_id
         finally:
             conn.close()

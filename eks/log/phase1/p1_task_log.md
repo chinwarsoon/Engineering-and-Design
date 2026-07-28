@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/phase1/p1_task_log.md`  
-**Last Updated**: 2026-07-24 (Added T1.116–T1.119 for I235 batch telemetry fix and I236 ERROR_FILE_PROCESSING kwarg fix; T1.103 spec sharpened)
+**Last Updated**: 2026-07-28 (I257/I258 resolved — 7 silent bootstrap swallows fixed; §73–§74 all tasks ✅ COMPLETE)
 
 ## Legend
 
@@ -27,11 +27,11 @@ All tables use the standard 12-column enriched format:
 
 | Status | Marker | Count |
 | :----- | :----: | ----: |
-| Complete | ✅ | 271 |
+| Complete | ✅ | 293 |
 | In Progress | ⏳ | 0 |
-| Planned | 🔷 | 48 |
+| Planned | 🔷 | 36 |
 | Won't Implement | ⛔ | 0 |
-| **Total** | | **319** |
+| **Total** | | **329** |
 
 ---
 
@@ -667,7 +667,7 @@ All tables use the standard 12-column enriched format:
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
 | T1.102 | [Code] Replace per-file telemetry with batch-level checkpoints in `run_phase_b()` | In `pipeline_orchestrator.py:run_phase_b()`, replace the per-file `telemetry.track(...)` inside the `_process_file()` loop with a batch accumulator. Emit checkpoints at 25%/50%/75%/100% milestones using BATCH_MILESTONES + last_milestone_pct tracker. Keep per-file error logging via `self.error_manager.log_error()` — only progress telemetry becomes coarse. | EKS pipeline | ✅ COMPLETE | I229 | 2026-07-23 | `eks/engine/core/pipeline_orchestrator.py` | — | TL007 | U200 | §53 |
-| T1.103 | [Testing] Add dedicated test — batch milestone firing count, order, and no-duplicate guard | **Scope updated (I235)**: Mock `_forward_telemetry` via `unittest.mock.patch`. (1) 4-file batch: assert exactly 5 `_forward_telemetry` calls (4 milestone + 1 end-of-phase "B" summary); assert milestone call order is strictly `25% → 50% → 75% → 100%`. (2) 1-file batch: assert 4 calls in same order with no duplicates. (3) 2-file batch: assert `75%` fires **before** `100%`, not after. Verifies both T1.102 logic and T1.116 ordering fix. Prerequisite: T1.116 must be applied before this test can pass. | EKS test | 🔷 PLANNED | I229, I235 | — | `eks/test/test_phase1.py` | ← T1.116 | — | — | §53 |
+| T1.103 | [Testing] Add dedicated test — batch milestone firing count, order, and no-duplicate guard | **Scope updated (I235)**: Mock `_forward_telemetry` via `unittest.mock.patch`. (1) 4-file batch: assert exactly 5 `_forward_telemetry` calls (4 milestone + 1 end-of-phase "B" summary); assert milestone call order is strictly `25% → 50% → 75% → 100%`. (2) 1-file batch: assert 4 calls in same order with no duplicates. (3) 2-file batch: assert `75%` fires **before** `100%`, not after. Verifies both T1.102 logic and T1.116 ordering fix. Prerequisite: T1.116 must be applied before this test can pass. | EKS test | ✅ COMPLETE | I229, I235 | 2026-07-27 | `eks/test/test_phase1.py` | ← T1.116 | TL015 | U211 | §53 |
 
 ## 26. Cross-Phase Validation Gates (I230) Tasks
 
@@ -748,8 +748,8 @@ All tables use the standard 12-column enriched format:
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
-| T1.116 | [Code] Fix milestone ordering — fold `1.0` into `BATCH_MILESTONES`, remove separate `pct >= 1.0` block | **Root cause**: `BATCH_MILESTONES = {0.25, 0.50, 0.75}` — the 100% checkpoint is emitted in a separate `if pct >= 1.0:` block (line 397) that runs before the sorted milestone loop, so for batches where the last file jumps straight to 100%, all uncrossed intermediate milestones fire after 100%. **Fix (3 changes to `pipeline_orchestrator.py`)**: (1) Change line 365: `BATCH_MILESTONES = {0.25, 0.50, 0.75, 1.0}`. (2) Remove lines 397–401 (`if pct >= 1.0:` block) entirely. (3) Inside the sorted loop (line 402–408), update label: `"milestone": "100%" if m == 1.0 else f"{int(m*100)}%"` and `"files": idx + 1`. `last_milestone_pct` is now set to `1.0` inside the loop on the last milestone — no stale tracker. Zero change to per-file `ErrorManager` logging or end-of-phase `_forward_telemetry("B", ...)`. | `eks/engine/core/pipeline_orchestrator.py` | 🔷 PLANNED | I235 | — | `eks/engine/core/pipeline_orchestrator.py` | — | T1.103, T1.117 | — | §58 |
-| T1.117 | [Testing] Run full test suite after T1.116 and implement T1.103 milestone-order assertions | After applying T1.116: (1) Run `python -m pytest eks/test/ -v` — assert suite passes at same baseline (291/305; 14 pre-existing rdflib failures unchanged). (2) Confirm `test_phase_b_reads_from_registry_instead_of_rescan` and `test_phase_b_falls_back_to_scan_when_registry_empty` still pass (I227 regression guard). (3) Implement T1.103 three-case assertions (4-file, 1-file, 2-file batches). All three T1.103 assertions must be green before I235 can be closed. | EKS test | 🔷 PLANNED | I235 | — | `eks/test/test_phase1.py` | ← T1.116 | T1.103 | — | §58 |
+| T1.116 | [Code] Fix milestone ordering — fold `1.0` into `BATCH_MILESTONES`, remove separate `pct >= 1.0` block | **Root cause**: `BATCH_MILESTONES = {0.25, 0.50, 0.75}` — the 100% checkpoint is emitted in a separate `if pct >= 1.0:` block (line 397) that runs before the sorted milestone loop, so for batches where the last file jumps straight to 100%, all uncrossed intermediate milestones fire after 100%. **Fix (3 changes to `pipeline_orchestrator.py`)**: (1) Change line 365: `BATCH_MILESTONES = {0.25, 0.50, 0.75, 1.0}`. (2) Remove lines 397–401 (`if pct >= 1.0:` block) entirely. (3) Inside the sorted loop (line 402–408), update label: `"milestone": "100%" if m == 1.0 else f"{int(m*100)}%"` and `"files": idx + 1`. `last_milestone_pct` is now set to `1.0` inside the loop on the last milestone — no stale tracker. Zero change to per-file `ErrorManager` logging or end-of-phase `_forward_telemetry("B", ...)`. | `eks/engine/core/pipeline_orchestrator.py` | ✅ COMPLETE | I235 | 2026-07-27 | `eks/engine/core/pipeline_orchestrator.py` | — | T1.103, T1.117 | U211 | §58 |
+| T1.117 | [Testing] Run full test suite after T1.116 and implement T1.103 milestone-order assertions | After applying T1.116: (1) Run `python -m pytest eks/test/ -v` — assert suite passes at same baseline (291/305; 14 pre-existing rdflib failures unchanged). (2) Confirm `test_phase_b_reads_from_registry_instead_of_rescan` and `test_phase_b_falls_back_to_scan_when_registry_empty` still pass (I227 regression guard). (3) Implement T1.103 three-case assertions (4-file, 1-file, 2-file batches). All three T1.103 assertions must be green before I235 can be closed. | EKS test | ✅ COMPLETE | I235 | 2026-07-27 | `eks/test/test_phase1.py` | ← T1.116 | T1.103 | U211 | §58 |
 
 ---
 
@@ -761,7 +761,163 @@ All tables use the standard 12-column enriched format:
 
 | ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
 | :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
-| T1.118 | [Code] Fix `ERROR_FILE_PROCESSING` kwarg — rename `error=` to `detail=` at call site | **Option A (preferred — fix call site, keep template)**: Change `pipeline_orchestrator.py` line 378 from `mm.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(e))` to `mm.show("ERROR_FILE_PROCESSING", filename=file_path, detail=str(e))`. Template `"Error processing {filename}: {detail}"` already correct — only the call-site kwarg key is wrong. **Do NOT change the template** (it is the SSOT in the schema). Grep project-wide for all `mm.show("ERROR_FILE_PROCESSING"` call sites to confirm this is the only occurrence before closing. Verify no other `show()` calls pass `error=` where a different placeholder is expected. | `eks/engine/core/pipeline_orchestrator.py` line 378, `eks/config/schemas/eks_message_config.json` | 🔷 PLANNED | I236 | — | `eks/engine/core/pipeline_orchestrator.py` | — | T1.119 | — | §59 |
-| T1.119 | [Testing] Add test asserting `ERROR_FILE_PROCESSING` emits actual exception message, not raw template literal | Mock `MessageManager.show()` via `unittest.mock.patch` on `_forward_telemetry` path, or directly instrument `mm.get("ERROR_FILE_PROCESSING", filename=..., detail=str(e))` and assert the returned string **contains the actual exception text** and **does not contain the literal substring `"{detail}"`**. Use a test orchestrator with a forced `_process_file()` failure (e.g., mock raises `RuntimeError("test error")`). Assert the resulting message string equals `"Error processing <path>: test error"`. Run full suite — assert 291/305 baseline unchanged. | EKS test | 🔷 PLANNED | I236 | — | `eks/test/test_phase1.py` | ← T1.118 | — | — | §59 |
+| T1.118 | [Code] Fix `ERROR_FILE_PROCESSING` kwarg — rename `error=` to `detail=` at call site | **Option A (preferred — fix call site, keep template)**: Change `pipeline_orchestrator.py` line 378 from `mm.show("ERROR_FILE_PROCESSING", filename=file_path, error=str(e))` to `mm.show("ERROR_FILE_PROCESSING", filename=file_path, detail=str(e))`. Template `"Error processing {filename}: {detail}"` already correct — only the call-site kwarg key is wrong. **Do NOT change the template** (it is the SSOT in the schema). Grep project-wide for all `mm.show("ERROR_FILE_PROCESSING"` call sites to confirm this is the only occurrence before closing. Verify no other `show()` calls pass `error=` where a different placeholder is expected. | `eks/engine/core/pipeline_orchestrator.py` line 378, `eks/config/schemas/eks_message_config.json` | ✅ COMPLETE | I236 | 2026-07-27 | `eks/engine/core/pipeline_orchestrator.py` | — | T1.119 | U212 | §59 |
+| T1.119 | [Testing] Add test asserting `ERROR_FILE_PROCESSING` emits actual exception message, not raw template literal | Mock `MessageManager.show()` via `unittest.mock.patch` on `_forward_telemetry` path, or directly instrument `mm.get("ERROR_FILE_PROCESSING", filename=..., detail=str(e))` and assert the returned string **contains the actual exception text** and **does not contain the literal substring `"{detail}"`**. Use a test orchestrator with a forced `_process_file()` failure (e.g., mock raises `RuntimeError("test error")`). Assert the resulting message string equals `"Error processing <path>: test error"`. Run full suite — assert 291/305 baseline unchanged. | EKS test | ✅ COMPLETE | I236 | 2026-07-27 | `eks/test/test_t132_modules.py` | ← T1.118 | — | U212 | §59 |
 
-(End of file)
+---
+## 33. Schema-Driven Telemetry Verbosity (I237) Tasks
+
+> Source: I237 — `TelemetryHeartbeat` created with `verbose=False` (hardcoded literal at `pipeline_orchestrator.py:135`). `add_checkpoint()` only prints via `if self.verbose` guard (`heartbeat.py:268`). No `telemetry` or `verbose` key exists in any EKS schema/config JSON — violates §15 (SSOT) and §16 (hardcoded fallback removal). Resolution: add `telemetry_verbose` to `system_parameters` schema chain, pass through bootstrap → PipelineOrchestrator → TelemetryHeartbeat, default `true` so 25/50/75/100% milestones visible at default `--level 1`.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.120 | [Schema] Add `telemetry_verbose` to `system_parameters_def` in `eks_base_schema.json` | Add property: `"telemetry_verbose": { "type": "boolean", "default": true, "description": "Emit milestone checkpoints (25/50/75/100%) to console during Phase B (I237)" }`. Add to `required` array. Increment base schema version to 1.11.0. | `eks/config/schemas/eks_base_schema.json` | ✅ COMPLETE | I237 | 2026-07-27 | `eks/config/schemas/eks_base_schema.json` | — | T1.121 | U214 | §60 |
+| T1.121 | [Config] Add `telemetry_verbose: true` to `eks_config.json` `system_parameters` | Add `"telemetry_verbose": true` to the `system_parameters` object. Increment config version to 1.9.0. | `eks/config/schemas/eks_config.json` | ✅ COMPLETE | I237 | 2026-07-27 | `eks/config/schemas/eks_config.json` | ← T1.120 | T1.122 | U214 | §60 |
+| T1.122 | [Code] Pass `telemetry_verbose` through bootstrap → runner → PipelineOrchestrator → TelemetryHeartbeat | (a) `pipeline_orchestrator.py`: added `telemetry_verbose: bool = True` param to `__init__`, passed to `TelemetryHeartbeat(verbose=telemetry_verbose)`. (b) `runner.py`: both call sites (context and non-context paths) extract from config and pass as kwarg. (c) `discovery_cli.py`: same extraction pattern. | `eks/engine/core/pipeline_orchestrator.py`, `eks/engine/pipeline_engine/runner.py`, `eks/engine/core/discovery_cli.py` | ✅ COMPLETE | I237 | 2026-07-27 | `eks/engine/core/pipeline_orchestrator.py`, `eks/engine/pipeline_engine/runner.py`, `eks/engine/core/discovery_cli.py` | ← T1.121 | T1.123 | U214 | §60 |
+| T1.123 | [Testing] Add test verifying milestone `[TELEMETRY]` prints when `telemetry_verbose=True` and suppresses when `False` | Added 2 tests in `test_phase1.py`: `test_telemetry_verbose_true_prints_milestones` (patches `builtins.print`, captures `[TELEMETRY]` output, asserts `B-progress` checkpoint appears) and `test_telemetry_verbose_false_suppresses_milestones` (patches `builtins.print`, asserts zero `[TELEMETRY]` lines). Both pass alongside 3 existing I235 milestone-order tests. Full suite: 321/321 pass. | EKS test | ✅ COMPLETE | I237 | 2026-07-27 | `eks/test/test_phase1.py` | ← T1.122 | — | U214 | §60 |
+
+---
+
+## 34. Phase A Batch Milestones (I238) Tasks
+
+> Source: I238 — Phase A `register_placeholders()` emits `logger.status("Document {doc_id} registered successfully.")` once per document via `registry.register_document()` (registry.py:629). For 42 registrations in a real run, this produces 42 STATUS-level lines at default `--level 1` — flooding the CLI. Phase B solved the same problem via 4 batch milestones (25/50/75/100%) at STATUS level with per-file details at INFO only. Resolution: downgrade per-document STATUS to INFO; add batch milestone progress in the registration loop matching Phase B pattern; add regression tests.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.124 | [Code] Downgrade per-document STATUS to INFO in `registry.register_document()` | Change `registry.py:629` from `self.logger.status(f"Document {doc_id} registered successfully.")` to `self.logger.info(...)`. Per-document messages move to level 2+ (visible with `--debug` or `--level 2`). | `eks/engine/core/registry.py` | ✅ COMPLETE | I238 | 2026-07-27 | `eks/engine/core/registry.py` | — | T1.126 | U215 | §61 |
+| T1.125 | [Code] Add batch milestone progress in `register_placeholders()` loop | In `file_scanner.py:register_placeholders()`, after each document is registered, compute `pct = count / total` and emit `logger.status(f"[TELEMETRY] A-registration: milestone={int(m*100)}% files={files}")` at 25%/50%/75%/100% thresholds (same `BATCH_MILESTONES = {0.25, 0.50, 0.75, 1.0}` pattern as Phase B). Track `last_milestone_pct` to avoid duplicates. Final `"Registered N new..."` summary at loop end retained at STATUS. | `eks/engine/core/file_scanner.py` | ✅ COMPLETE | I238 | 2026-07-27 | `eks/engine/core/file_scanner.py` | ← T1.124 | T1.126 | U215 | §61 |
+| T1.126 | [Testing] Add regression tests for Phase A milestone behavior | 2 tests in `test_phase1.py`: `test_phase_a_batch_milestones_emitted` — mock registry, call register_placeholders() with 8 files, assert `[TELEMETRY] A-registration` appears at 25%/50%/75%/100%. `test_phase_a_per_document_info_not_status` — register document, assert `registered successfully` appears at INFO but not STATUS. | EKS test | ✅ COMPLETE | I238 | 2026-07-27 | `eks/test/test_phase1.py` | ← T1.124, T1.125 | — | U215 | §61 |
+
+---
+
+## 35. ERROR_FILE_PROCESSING Level Fix (I242) Tasks
+
+> Source: I242 — `eks_message_config.json` defines `ERROR_FILE_PROCESSING` with `"level": 0`, firing at ALL verbosity levels including silent `--level 0`. With 738/753 Phase B file failures, this produces ~740 visible error lines at default `--level 1`. Resolution: change level to 1 (fires at `--level 1+`, silent at `--level 0`).
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.127 | [Config] Change ERROR_FILE_PROCESSING level from 0 to 1 in `eks_message_config.json` | Change `"level": 0` to `"level": 1` for the `ERROR_FILE_PROCESSING` message entry. Error messages now show at default `--level 1` but are suppressed in silent `--level 0` mode. | `eks/config/schemas/eks_message_config.json` | ✅ COMPLETE | I242 | 2026-07-27 | `eks/config/schemas/eks_message_config.json` | — | T1.128 | — | §62 |
+| T1.128 | [Testing] Add test verifying ERROR_FILE_PROCESSING suppressed at --level 0 | Add test that creates a MessageManager with verbosity=0, calls get("ERROR_FILE_PROCESSING", ...), and asserts None is returned. | EKS test | ✅ COMPLETE | I242 | 2026-07-27 | `eks/test/test_t132_modules.py` | ← T1.127 | — | — | §62 |
+| T1.131 | [Code] Escalate ERROR_FILE_PROCESSING level 1→2; replace bare logger.error() with MessageManager | Change level from 1 to 2 in `eks_message_config.json`. Replace bare `logger.error()` at `pipeline_orchestrator.py:916` with `message_manager.show("ERROR_FILE_PROCESSING")` so it routes through MessageManager level gate. | `eks/config/schemas/eks_message_config.json`, `eks/engine/core/pipeline_orchestrator.py` | ✅ COMPLETE | I242 | 2026-07-27 | `eks/config/schemas/eks_message_config.json`, `eks/engine/core/pipeline_orchestrator.py` | ← T1.127 | T1.134 | TL005 | §62 |
+
+## 36. STATUS_PHASE_B_COMPLETE Kwarg Fix (I243) Tasks
+
+> Source: I243 — `STATUS_PHASE_B_COMPLETE` template `"{success}/{total} success, {partial} partial, {failed} failed"` has `{total}` placeholder but call site at `pipeline_orchestrator.py:437` passes `success=, partial=, failed=` but NOT `total=`. `KeyError` is caught silently in `BaseMessageManager.show()` — all 4 placeholders appear literally: `"✓ Phase B complete — {success}/{total} success, ..."`. Same bug pattern as I236.
+
+### Task Breakdown
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.129 | [Code] Add `total=` kwarg to STATUS_PHASE_B_COMPLETE call site | In `pipeline_orchestrator.py:437`, change `show("STATUS_PHASE_B_COMPLETE", success=success, partial=partial, failed=failed)` to include `total=total`. | `eks/engine/core/pipeline_orchestrator.py` | ✅ COMPLETE | I243 | 2026-07-27 | `eks/engine/core/pipeline_orchestrator.py` | — | T1.130 | — | §63 |
+| T1.130 | [Testing] Add test verifying STATUS_PHASE_B_COMPLETE hydrates correctly | Add test that gets STATUS_PHASE_B_COMPLETE with success=15, total=753, partial=0, failed=738, and asserts no literal placeholders remain. | EKS test | ✅ COMPLETE | I243 | 2026-07-27 | `eks/test/test_t132_modules.py` | ← T1.129 | — | — | §63 |
+
+## 37. Default-Level Verbosity Noise (I244) — Tasks
+
+> Source: I244 — Post-I242 noise audit identified 4 per-document `logger.info()` sites at level 1 (`file_scanner.py:222`, `registry.py:444,483,799`), 3 error codes with severity WARNING that route to `logger.info()` (not `logger.warning()`) via `handle_data_error()`, and MessageManager verbosity hardcoded to 1. Tasks T1.132–T1.133 completed during initial audit; remaining work tracked in T1.135–T1.137.
+
+> **Status**: 🔶 Partial — 2 tasks complete, 3 pending. See [Issue Log §52](../../issue_log.md#52--default-level-verbosity-noise-audit-i244).
+
+### Completed Tasks
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.132 | [Code] Downgrade 4 per-document logger.info()→logger.debug() | Change `logger.info()` to `logger.debug()` at `file_scanner.py:222` (Content unchanged — skipping) and `registry.py:444` (Stored {n} elements), `registry.py:483` (Deleted {n} elements), `registry.py:799` (Updated status for {doc_id}). | `eks/engine/core/file_scanner.py`, `eks/engine/core/registry.py` | ✅ COMPLETE | I244 | 2026-07-27 | `eks/engine/core/file_scanner.py`, `eks/engine/core/registry.py` | — | — | TL005 | §64 |
+| T1.133 | [Config] Change S-R-S-0409 severity FATAL→HIGH, stops_pipeline true→false | Per-file system errors should not halt the pipeline. Change `severity` from `FATAL` to `HIGH` and `stops_pipeline` from `true` to `false` in `eks_error_config.json`. | `eks/config/schemas/eks_error_config.json` | ✅ COMPLETE | I244 | 2026-07-27 | `eks/config/schemas/eks_error_config.json` | — | — | TL005 | §64 |
+
+### §64 — Default-Level Verbosity Noise — ✅ ALL RESOLVED (I244)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.134 | [Testing] Add test for ERROR_FILE_PROCESSING suppressed at default --level 1 | Add test that creates MessageManager with verbosity=1, calls get("ERROR_FILE_PROCESSING", ...), and asserts None is returned (level 2 suppressed at default verbosity 1). | EKS test | 🔴 Open | I242 | 2026-07-27 | — | ← T1.131 | — | — | §62 |
+| T1.135 | [Config] Bump P3-E-E-0018, P3-E-E-0019, P5-R-P-0003 severity to HIGH | Change severity WARNING→HIGH for these 3 error codes so `handle_data_error()` routes through `logger.warning()` (level 2) instead of `logger.info()` (level 1). | `eks/config/schemas/eks_error_config.json` | ✅ COMPLETE | I244 | — | — | — | — | — | §64 |
+| T1.136 | [Code] Reconcile MessageManager verbosity after bootstrap | Add `mm.set_verbosity(level)` call after level reconcile in `eks_engine_pipeline.py::main()`. Also add `logger.set_level(level)` for logger consistency. | `eks/engine/eks_engine_pipeline.py` | ✅ COMPLETE | I244 | — | — | — | — | — | §64 |
+| T1.137 | [Code] file_scanner.py:222 info→debug | Change per-document `logger.info("Content unchanged — skipping")` to `logger.debug()` so it's suppressed at default --level 1. | `eks/engine/core/file_scanner.py` | ✅ COMPLETE | I244 | — | — | — | — | — | §64 |
+| T1.138 | [Code] Fix UniversalLogger._log() record-before-gate | Reorder `_log()` to append to `debug_object["logs"]` before the level gate, so all entries are saved regardless of verbosity. | `common/library/core/logging/logger.py` | ✅ COMPLETE | I244 | — | — | — | — | — | §64 |
+
+### §65 — Error Code Standardization to X-X-X-XXXX (I112)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.139 | [Testing] Verify DuckDB-first path + close I227 | Run full pipeline against TWRP data; confirm Phase B reads from registry via `list_documents()`, not from filesystem `scan()`. Update I227 → ✅ Resolved. | EKS test | ✅ COMPLETE | I227 | — | — | — | — | — | §65 |
+| T1.140 | [Schema] Migrate 6 `P1-BOOT-*` → `S-B-S-0603`–`S-B-S-0608` | Replace codes in `eks_error_config.json`. Update `system_error_ranges`: remove `bootstrap_p1`, merge into existing `bootstrap` range (start 0601, end 0608). | Config | ✅ COMPLETE | I112 | — | `eks/config/schemas/eks_error_config.json` | — | — | — | §65 |
+| T1.141 | [Schema] Migrate 7 `P1-SETUP-*` → existing `S-E`/`S-F`/`S-R` ranges | Absorb by category: 3× F→`S-F-S-0207/0208/0209`, 1× D→`S-E-S-0106`, 1× O→`S-F-S-0210`, 1× E→`S-E-S-0107`, 1× READINESS→`S-R-S-0410`. Remove `setup_validation` range. | Config | ✅ COMPLETE | I112 | — | `eks/config/schemas/eks_error_config.json` | T1.140 | — | — | §65 |
+| T1.142 | [Schema] Migrate 15 `B-*` → `B-{cat}-S-{id4}` with single-letter categories | Map CLI→C, PATH→H, REG→R, DEF→D, FALL→A, ENV→E, SCH→K, PAR→M, BOOT→B, CTX→X, UNK→U. Update codes and sequential IDs. | Config | ✅ COMPLETE | I112 | — | `eks/config/schemas/eks_error_config.json` | T1.140 | — | — | §65 |
+| T1.143 | [Schema] Update `system_format` metadata + remove hybrid ranges | Remove `P1-SETUP-{type}{id}` and `P1-BOOT-{reason}` from `system_format`. Remove `setup_validation` and `bootstrap_p1` ranges. | Config | ✅ COMPLETE | I112 | — | `eks/config/schemas/eks_error_config.json` | T1.140–T1.142 | — | — | §65 |
+| T1.144 | [Schema] Update `eks_error_setup_schema.json` ranges | Remove `setup_validation` and `bootstrap_p1` from `system_error_ranges.properties`. | Schema | ✅ COMPLETE | I112 | — | `eks/config/schemas/eks_error_setup_schema.json` | T1.143 | — | — | §65 |
+| T1.145 | [Code] Update EKS call sites with new codes | Update `bootstrap.py` (40× `P1-BOOT-*` → `S-B-S-06xx`). Update `setup_validator.py` (18× `P1-SETUP-*` → `S-E`/`S-F`/`S-R`). | Code | ✅ COMPLETE | I112 | — | `eks/engine/core/bootstrap.py`, `eks/engine/core/setup_validator.py` | T1.140–T1.144 | — | — | §65 |
+| T1.146 | [Docs] Update Appendix D — remove hybrid formats, document new codes | Remove `P1-SETUP-{type}{id}` and `P1-BOOT-{reason}` from D2 format table. Update D3/D4 ranges. | Docs | ✅ COMPLETE | I112 | — | `eks/workplan/appendix_d_pipeline_messages_errors.md` | T1.145 | — | — | §65 |
+| T1.147 | [Testing] Full suite + grep for stale non-standard code references | Run project-wide grep for `P1-BOOT` and `P1-SETUP` — zero matches. Verify tests pass. | Test | ✅ COMPLETE | I112 | — | — | T1.145–T1.146 | — | — | §65 |
+
+### §66 — Pipeline Batch Health Scoring (I248)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.148 | [Code] Wire `score_batch()` into `run_phase_b()` | After processing loop in `run_phase_b()`, query `registry.list_documents()` and call `self.scorer.score_batch(all_docs)`. Append `avg_document_health` and full `batch_health` dict to Phase B summary. Wrap in try/except with logger.warning on failure. | `eks/engine/core/pipeline_orchestrator.py` | ✅ COMPLETE | I248 | — | `eks/engine/core/pipeline_orchestrator.py` | — | — | — | §66 |
+
+### §67 — Document Type Schema Extraction (I250)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.149 | [Schema] Extract document type registry to standalone schema | Follow facility/discipline/department pattern. Add `document_type_entry_def` to `eks_doc_base_schema.json`. Create `eks_document_type_schema.json` with 15 valid codes plus metadata (label, ontology_class, description, expected_file_types). Update `eks_doc_setup_schema.json` to validate against new definition. | Config + Schema | ✅ COMPLETE | I250 | — | `eks/config/schemas/eks_doc_base_schema.json`, `eks/config/schemas/eks_document_type_schema.json`, `eks/config/schemas/eks_doc_config.json`, `eks/config/schemas/eks_doc_setup_schema.json` | — | — | — | §67 |
+
+### §68 — Document Type Schema Pipeline Wiring (I251)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.150 | [Schema] Register `eks_document_type_schema.json` in SchemaLoader load chain | Add the new schema file to `SchemaLoader.load_all()` so `$ref` resolution works. Register with `Registry().with_resources()`. | Schema | ✅ COMPLETE | I251 | — | `eks/engine/core/schema_loader.py` | T1.149 | — | — | §68 |
+| T1.151 | [Config] Update `eks_doc_setup_schema.json` to `$ref` new definition | Replace inline item properties with `$ref` to `document_type_entry_def` from the base schema. | Config | ✅ COMPLETE | I251 | — | `eks/config/schemas/eks_doc_setup_schema.json` | T1.149 | — | — | §68 |
+| T1.152 | [Code] Update FilenameParser `_doc_type_codes` to use schema-sourced registry | Currently `_doc_type_codes` is built from the inline config array. After I250, this will come from schema `$ref`. Ensure `FilenameParser._precompile_validators()` reads from the schema-resolved config. | Code | ✅ COMPLETE | I251 | — | `eks/engine/core/filename_parser.py` | T1.150–T1.151 | — | — | §68 |
+
+### §69 — Phase B Identity Field Write-Back (I252)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.153 | [Code] Extract project_number, area, discipline, document_type from PDF parser metadata in Phase B | PDFParser returns `parse_result["metadata"]` which may contain cover sheet fields. Extract identity fields from this dict and pass them to `_update_doc_status()` via `extra_properties`. | Code | ✅ COMPLETE | I252 | — | `eks/engine/core/pipeline_orchestrator.py` | — | — | — | §69 |
+| T1.154 | [Code] Add identity fields to `_update_doc_status()` extra_properties pass-through | Ensure `project_number`, `area`, `discipline`, `document_type` are included in the `extra_properties` dict passed to `registry.update_document_status()`. Verify COLUMN_ALLOWLIST in registry.py includes these four fields. | Code | ✅ COMPLETE | I252 | — | `eks/engine/core/pipeline_orchestrator.py`, `eks/engine/core/registry.py` | T1.153 | — | — | §69 |
+| T1.155 | [Code] Add `document_type` priority chain: cover sheet > filename > extension inference | `_infer_doc_type()` previously unconditionally overrode filename-derived document_type. Made conditional. Phase B write-back uses priority: parser metadata > Phase A filename value > UNKNOWN. | Code | ✅ COMPLETE | I252 | — | `eks/engine/core/pipeline_orchestrator.py`, `eks/engine/core/file_scanner.py` | T1.153–T1.154 | — | — | §69 |
+
+### §70 — Path Doubling Fix (I254)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.156 | [Fix] Strip `eks_root` prefix from relative CLI `--data-dir` in bootstrap path resolution | In `bootstrap.py:_bootstrap_params()` line 488, before combining `self.project_root / eks_root / cli_path`, strip the `eks_root` prefix from `cli_path` if present. E.g., `"eks/data"` → strip `"eks/"` → `"data"` → resolves to `.../eks/data` (correct). Absolute paths unchanged. 3 regression tests added (test_path_doubling_prevents_eks_eks_data_dir, test_path_doubling_handles_bare_data, test_path_doubling_handles_absolute_path). bootstrap.py rev 0.4→0.5. | Code | ✅ COMPLETE | I254 | TL019 | `eks/engine/core/bootstrap.py` | — | — | — | §70 |
+
+### §71 — FilenameParser Auto-Pattern Detection (I255)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.157 | [Code] Make FilenameParser auto-detect project code pattern per filename — try all registered project codes, use first match, fall back to `"*"` (0 segments) | Removed `project_code` param from `FilenameParser.__init__()`. Added `project_code_registry: Optional[List[str]]` param. New `_detect_pattern(stem)` method: splits stem by common separator, iterates all registered codes, checks first segment against each code — uses matching pattern or returns `"*"` fallback. Called per-filename in `parse()`. Both call sites updated: `FileScanner` and `PipelineOrchestrator` derive `project_code_registry` from `filename_patterns` keys (excluding `"*"`). Also fixed pre-existing finalization bug in `parse()` where 0-segment `"*"` pattern resulted in `parse_status="ok"` instead of `"unresolvable"`. `filename_parser.py` rev 1.0.0→1.1.0, `file_scanner.py` rev 1.5.0→1.6.0, `pipeline_orchestrator.py` rev 0.7→0.8. | Code | ✅ COMPLETE | I255 | TL020 | `eks/engine/core/filename_parser.py`, `eks/engine/core/file_scanner.py`, `eks/engine/core/pipeline_orchestrator.py` | — | — | — | §71 |
+| T1.158 | [Testing] Add regression tests for FilenameParser auto-pattern-detection: matching pattern case, non-matching pattern → `"*"` fallback | Added 2 tests in `eks/test/test_phase1.py`: (1) `test_filename_parser_auto_detects_131101_pattern` — supply `project_code_registry=["131101"]`, parse `"131101-AREA-SPC-CV-0001_rev01.pdf"`, assert `project_number="131101"`, `area="AREA"`, `document_type="SPC"`, `discipline="CV"`, `sequence_number="0001"`, `document_number="131101-AREA-SPC-CV-0001"`, `revision="01"`, `parse_status="ok"`. (2) `test_filename_parser_falls_back_to_star_pattern` — parse `"random_name.pdf"`, assert all 5 identity fields are `None`, `document_number="random_name"` (full_stem fallback), `revision="00"`, `parse_status="unresolvable"`. Both pass. | Testing | ✅ COMPLETE | I255 | TL020 | `eks/test/test_phase1.py` | T1.157 | — | — | §71 |
+
+### §72 — project_title Population from project_number (I256)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.159 | [Schema] Register eks_project_code_schema.json in SchemaLoader._STEM_TO_ATTR | Option A implemented: Added `"eks_project_code_schema": "project_code_schema"` to `_STEM_TO_ATTR` in `schema_loader.py`. Added `self.project_code_schema` attribute. In post-load, injects `project_code_titles` dict into `doc_config` from `projects[].code→description`. Updated `eks_doc_setup_schema.json` `additionalProperties` to allow `project_code_titles`. | Schema | ✅ COMPLETE | I256 | U223 | `eks/engine/core/schema_loader.py`, `eks/config/schemas/eks_doc_setup_schema.json` | — | TL021 | U223 | §72 |
+| T1.160 | [Code] Accept project_code→title mapping in FilenameParser; populate project_title in FilenameParseResult when project_number extracted | Added `project_title: Optional[str]` to `FilenameParseResult`. Added to `to_metadata_dict()`. Added `project_code_titles: Optional[Dict[str, str]]` to `__init__`. In `_extract_segments()`, after `setattr(result, "project_number", raw_value)`, looks up title from map. Call sites (`FileScanner`, `PipelineOrchestrator`) pass `project_code_titles` from `doc_config`. `parse_filename()` wrapper updated. | Code | ✅ COMPLETE | I256 | U224, U225, U226 | `eks/engine/core/filename_parser.py`, `eks/engine/core/file_scanner.py`, `eks/engine/core/pipeline_orchestrator.py` | T1.159 | TL021 | U224–U226 | §72 |
+| T1.161 | [Code] Extend I252 Phase B identity write-back to include cover-sheet-derived project_title | Extended I252 block with 3-tier `project_title` priority: (1) cover sheet metadata → (2) code→title lookup from `project_code_titles` → (3) Phase A existing value. Added after existing `for id_field in ...` loop. | Code | ✅ COMPLETE | I256 | U226 | `eks/engine/core/pipeline_orchestrator.py` | T1.159 | — | U226 | §72 |
+| T1.162 | [Testing] Add regression test: filename with known project_code → project_title populated correctly | Added `test_filename_parser_populates_project_title` in `test_phase1.py`. Three sub-tests: (1) `131101`→`WSD11 — Project Specifications`, (2) `999999`→`Unknown Project`, (3) fallback→`None`. All pass. | Testing | ✅ COMPLETE | I256 | U227 | `eks/test/test_phase1.py` | T1.160 | TL021 | U227 | §72 |
+
+### §73 — Silent doc_config Validation Failure (I257)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.163 | [Code] Replace silent `except Exception: pass` with logged exception in `_bootstrap_registry()` using S-B-S-0609 | In `bootstrap.py:305`, change `except Exception: pass` to `except Exception as exc:` with `self._log(f"doc_config schema validation failed — using empty defaults: {exc}", level=2)`. Error code `S-B-S-0609` `BOOT_CONFIG_DEGRADED` (WARNING, `stops_pipeline: false`). Fail-fast does NOT apply — inner try/except is intentionally non-fatal; outer P3 handler catches fatal errors. Pipeline continues with `doc_config = {}`. | Code | ✅ COMPLETE | I257 | U228 | `eks/engine/core/bootstrap.py`, `eks/config/schemas/eks_error_config.json` | T1.165 | TL022 | U228 | §73 |
+| T1.164 | [Testing] Add test verifying doc_config load failure produces WARNING entry with S-B-S-0609 | Add test case that injects a broken schema/config pair into a `SchemaLoader` instance, triggers `_bootstrap_registry()` path, and asserts `debug_object["logs"]` contains a WARNING-level entry mentioning the schema error and code S-B-S-0609. Implemented as `TestBootstrapDegradation.test_257_doc_config_failure_logged`. | Testing | ✅ COMPLETE | I257 | U228 | `eks/test/test_phase1.py` | T1.163 | TL022 | U228 | §73 |
+
+### §74 — Six Remaining Silent Bootstrap Swallows (I258)
+
+| ID | Task | Details | Scope | Status | Issues | Updated | Files | Dependencies | Tests | UpdateRef | Section |
+| :--- | :--- | :--- | :--- | :---: | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| T1.165 | [Schema] Register 7 new error codes S-B-S-0609–S-B-S-0615 in eks_error_config.json (I257 + I258) | All WARNING severity, `stops_pipeline: false`. **S-B-S-0609** `BOOT_CONFIG_DEGRADED` — P3 doc_config validation failed (I257). **S-B-S-0610** `BOOT_CONFIGREGISTRY_FAILED` — ConfigRegistry init failed (I258#1). **S-B-S-0611** `BOOT_SCCONFIG_DEGRADED` — P7 doc_config load failed (I258#2). **S-B-S-0612** `BOOT_ERRORMGR_TODICT_FAILED` — ErrorManager in `to_dict()` (I258#3). **S-B-S-0613** `BOOT_MSGMGR_TODICT_FAILED` — MessageManager in `to_dict()` (I258#4). **S-B-S-0614** `BOOT_ERRORMGR_CTX_FAILED` — ErrorManager in `to_pipeline_context()` (I258#5). **S-B-S-0615** `BOOT_MSGMGR_CTX_FAILED` — MessageManager in `to_pipeline_context()` (I258#6). Update bootstrap range: end_id `S-B-S-0608`→`S-B-S-0615`, count `8`→`15`. Bump version to 1.5.0. | Schema | ✅ COMPLETE | I257, I258 | U228 | `eks/config/schemas/eks_error_config.json` | — | TL022 | U228 | §74 |
+| T1.166 | [Code] Fix ConfigRegistry silent swallow in _eks_config_loader() (#1) using S-B-S-0610 | `bootstrap.py:128` — change `except Exception: pass` to `except Exception as exc: self._log(f"ConfigRegistry init failed, falling back to SchemaLoader: {exc}", level=2)` referencing code `S-B-S-0610`. Preserves graceful fallback to SchemaLoader. Fail-fast does NOT apply — inner try/except is non-fatal; phase outer handler catches fatals separately. | Code | ✅ COMPLETE | I258 | U228 | `eks/engine/core/bootstrap.py` | T1.165 | TL022 | U228 | §74 |
+| T1.167 | [Code] Fix P7 SchemaLoader silent swallow in _bootstrap_schema() (#2) using S-B-S-0611 | `bootstrap.py:365` — same pattern as T1.163 (I257) but for the P7 duplicate site. Replace `except Exception: pass` with `self._log(f"Schema phase doc_config load failed — using empty defaults: {exc}", level=2)` using code `S-B-S-0611`. Non-fatal — SchemaToDDL pre-flight is skipped but schema validation proceeds. | Code | ✅ COMPLETE | I258 | U228 | `eks/engine/core/bootstrap.py` | T1.165 | TL022 | U228 | §74 |
+| T1.168 | [Code] Fix ErrorManager/MessageManager silent swallows in to_dict() (#3, #4) using S-B-S-0612, S-B-S-0613 | `bootstrap.py:568,576` — replace both `except Exception: pass` with `self._log(f"ErrorManager/MessageManager lazy-init failed in to_dict(): {exc}", level=2)` using codes `S-B-S-0612`, `S-B-S-0613`. Both remain `None` — existing callers check for None and degrade gracefully (bare print/log). | Code | ✅ COMPLETE | I258 | U228 | `eks/engine/core/bootstrap.py` | T1.165 | TL022 | U228 | §74 |
+| T1.169 | [Code] Fix ErrorManager/MessageManager silent swallows in to_pipeline_context() (#5, #6) using S-B-S-0614, S-B-S-0615 | `bootstrap.py:650,659` — same pattern as T1.168 using codes `S-B-S-0614`, `S-B-S-0615`. Pipeline context passes None managers; consumers degrade gracefully. | Code | ✅ COMPLETE | I258 | U228 | `eks/engine/core/bootstrap.py` | T1.165 | TL022 | U228 | §74 |
+| T1.170 | [Testing] Add regression tests for all 7 logged bootstrap degradation paths (I257 + I258) | Add test cases to `test_phase1.py` that: (1) inject a broken schema/config pair triggering S-B-S-0609 (via I257 T1.163), (2) inject a broken config/registry triggering S-B-S-0610, (3) inject a broken schema for P7 triggering S-B-S-0611, (4–5) mock ErrorManager/MessageManager in to_dict() to raise and assert S-B-S-0612/S-B-S-0613 in logs, (6–7) same for to_pipeline_context() with S-B-S-0614/S-B-S-0615. Each test asserts the WARNING entry exists in `debug_object["logs"]` with the correct error code or descriptive text. Implemented as `class TestBootstrapDegradation` with 5 test methods covering all 7 paths. 105/106 pass (1 pre-existing unrelated failure). | Testing | ✅ COMPLETE | I257, I258 | U228 | `eks/test/test_phase1.py` | T1.163, T1.166–T1.169 | TL022 | U228 | §74 |
