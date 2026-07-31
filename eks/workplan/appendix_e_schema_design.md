@@ -1,14 +1,15 @@
 ﻿# Appendix E — EKS Schema Design
 
-**Version**: 0.10  
-**Last Updated**: 2026-07-19  
+**Version**: 0.11  
+**Last Updated**: 2026-07-29  
 **Phase**: 1 — Foundation  
-**Status**: ✅ Implemented & Tested — Version audit complete (T1.99.193/I222)  
+**Status**: ✅ Implemented & Tested — Version audit complete (T1.99.193/I222); 4-stage schema lifecycle documented (E13)  
 
 ### Revision History
 
 | Revision | Date | Author | Summary |
 | :------- | :--- | :----- | :------ |
+| 0.11 | 2026-07-29 | opencode | Added E13 — 4-stage schema lifecycle (Discover → Load → Validate → Extract) with 3-tier discovery cascade, bootstrap P7_schema integration, and common/ library references. Updated E7 compliance checklist (discovery tier, Stage 4, bootstrap). Updated E8 validation flow to show bootstrap orchestration. Updated E9 step 6 for _STEM_TO_ATTR mapping. |
 | 0.1 | 2026-06-23 | opencode | Initial draft: E1–E5 (Overview, Schema Architecture, 3-Layer Pattern, Fragment Schemas, File Inventory) |
 | 0.2 | 2026-06-23 | opencode | Added E6: Schema Layer Distribution tables (per-schema-set breakdown of definitions, properties, values) |
 | 0.3 | 2026-06-23 | opencode | Added E6.8: Config vs Fragment comparison table (roles, overlap analysis, design principle) |
@@ -435,23 +436,33 @@ The EKS schema system uses `$ref` to link schemas across sets:
 | Use `definitions` for repetitive objects | ✅ | Base schemas define reusable property groups |
 | `additionalProperties: false` | ✅ | All setup and fragment schemas |
 | Define `required` for properties | ✅ | All setup schemas declare required fields |
-| `$schema`, `$id`, `title`, `description`, `version` | ✅ | All 22 files have required metadata |
+| `$schema`, `$id`, `title`, `description`, `version` | ✅ | All 23 files have required metadata |
 | `allOf`, `$ref` calls if applicable | ✅ | All setup schemas use `allOf`; fragment schemas use `$ref`; cross-schema `$ref` across 3 schema families |
 | Unified Schema Registry (URIs) | ✅ | All `$id` use `https://eks.engineering/schemas/`; all follow consistent filename-based pattern (I027 resolved) |
-| Pattern-based discovery | ✅ | Files named `eks_*_schema.json` or `eks_*_config.json` |
+| 3-tier discovery cascade | ✅ | Tier 1 (explicit `schema_files`) — 2 bootstrap files; Tier 2 (glob patterns) — 6 files matched; Tier 3 (directory scan fallback) — 5 auxiliary schemas caught. See E13.1 |
+| Stage 4 key extraction per-project | ✅ | Hardcoded rules in `schema_loader.py` post-load setup block. E.g. `project_code_schema["projects"][]` → `doc_config["project_code_titles"]`. See E13.4 |
+| Bootstrap P7_schema integration | ⏳ Planned | P7_schema phase stub exists in `BootstrapManager`; full wiring (discover → load → validate) deferred to next bootstrap hardening cycle |
 
 ---
 
-## E8. Schema Validation Flow
+## E8. Schema Lifecycle Flow (Bootstrap → Common → Project)
 
 ```mermaid
 sequenceDiagram
-    participant SL as SchemaLoader
+    participant BM as BootstrapManager P7_schema
+    participant CD as common/library/loader
+    participant SL as SchemaLoader (project)
     participant BS as Base Schema
     participant SS as Setup Schema
     participant CS as Config Schema
     participant FS as Fragment Schema
+    participant VM as common/library/validation
 
+    BM->>CD: discover_schema_files(config, project_root)
+    Note over CD: Tier 1: explicit schema_files<br/>Tier 2: glob discovery_rules<br/>Tier 3: directory scan fallback
+    CD-->>BM: registry: Dict[stem → metadata]
+
+    BM->>SL: load_all() for each discovered stem
     SL->>BS: Load base definitions
     SL->>SS: Load setup schema
     SS->>BS: Validate allOf/$ref
@@ -459,8 +470,15 @@ sequenceDiagram
     CS->>SS: Validate against setup
     CS->>FS: Resolve $ref to fragments
     FS->>BS: Validate fragment against base definitions
+
+    SL->>VM: validate_named_files(schema_files)
+    VM-->>SL: existence check result
+
     SL->>SL: Cross-validate registries
-    SL-->>SL: Return validated config
+    Note over SL: Stage 4 — Extract keys to runtime<br/>(project_code_titles, ontology_class_map, etc.)
+
+    SL-->>BM: validated config + extracted keys
+    BM->>BM: Store in context.config / context.doc_config
 ```
 
 ---
@@ -518,11 +536,23 @@ sequenceDiagram
        self.assertTrue(path.exists())
    ```
 
+6. **Add `_STEM_TO_ATTR` mapping** in `eks/engine/core/schema_loader.py`:
+   ```python
+   # In _STEM_TO_ATTR dict (line ~43):
+   "eks_new_schema": "new_schema",
+   ```
+   This binds the loaded schema to `self.new_schema` at runtime, enabling Stage 2 attribute binding and Stage 4 key extraction.
+
 ---
 
 ## E10. References
 
 - AGENTS.md §9 — Schema Pattern (3-layer inheritance, fragment pattern, URI rules)
+- AGENTS.md §23 — BootstrapManager and bootstrap phases (P7_schema)
+- AGENTS.md §24 — Cross-source alignment audit
+- `common/library/loader/schema_discovery.py` — 3-tier schema discovery (shared)
+- `common/library/validation/manager.py` — Readiness gate and file existence validation
+- `common/library/bootstrap/manager.py` — BootstrapManager P7_schema phase (stub)
 - DCC reference: `dcc/config/schemas/discipline_schema.json`, `project_code_schema.json`
 - `eks_base_schema.json` — Core definitions
 - `eks_setup_schema.json` — Core property declarations
@@ -675,3 +705,189 @@ Starting with the `asset_context` addition (v1.3.0), a clean separation is enfor
 | Message | `eks_message_base.json` + `eks_message_setup_schema.json` + `eks_message_config.json` | 5 | 2 groups (33 messages) | 5 defs → 2 props(0 req) → 2 config |
 | Fragments | 5 standalone files | 5 | 47 entries | Direct allOf → base_entry_def |
 | **Total** | **23 files** | **63+** | **78+ config sections** | **52 base defs → 35 setup props → 33 config groups** |
+
+---
+
+## E13. Schema Lifecycle: Discover → Load → Validate → Extract
+
+The schema lifecycle spans 4 stages, shared across projects via `common/library/` with project-specific Stage 4 extraction.
+
+```
+BootstrapManager P7_schema
+│
+├─ E13.1 DISCOVER (common/library/loader/schema_discovery.py)
+│   3-tier cascade → Dict[stem → metadata]
+│
+├─ E13.2 LOAD (common/library/loader/ + per-project SchemaLoader)
+│   JSON parse + $ref resolution + _STEM_TO_ATTR attribute binding
+│
+├─ E13.3 VALIDATE (common/library/validation/manager.py + per-project)
+│   File existence → Schema conformance → Cross-reference
+│
+└─ E13.4 EXTRACT keys → runtime (per-project: SchemaLoader post-load setup)
+    Hardcoded extraction rules → doc_config, ontology_class_map, etc.
+```
+
+### E13.1 Stage 1 — Discovery (common)
+
+**Purpose:** Find all schema files on disk using a 3-tier cascade. First match wins.
+
+| Tier | Mechanism | Config Source | Fail-fast | EKS files discovered |
+|:----:|-----------|:-------------:|:---------:|:--------------------|
+| 1 | Explicit filename list | `schema_files[].filename` in `eks_config.json` | ✅ Yes — `required: true` | `eks_base_schema.json`, `eks_setup_schema.json` |
+| 2 | Glob pattern match | `discovery_rules[].pattern` in `eks_config.json` | ❌ No — missing = skipped | 6 files: `eks_*_base_schema.json` (4), `eks_*_config.json` (2) |
+| 3 | Directory scan fallback | `config/schemas/*.json` — any stem in `_STEM_TO_ATTR` not already registered | ❌ No — missing = silent | 5 auxiliary schemas: `eks_project_code_schema.json`, `eks_department_schema.json`, `eks_discipline_schema.json`, `eks_document_type_schema.json`, `eks_facility_schema.json` |
+
+**Implementation:** `common/library/loader/schema_discovery.py` provides `discover_schema_files(project_setup, project_root)` for tiers 1+2. Tier 3 is a fallback loop in the project's `SchemaLoader.load_all()` that scans schema directories for unmatched stems in `_STEM_TO_ATTR`.
+
+**Discovery tier per EKS schema file:**
+
+| Schema Set | File | Tier | Reason |
+|:-----------|:-----|:----:|:-------|
+| Core Base | `eks_base_schema.json` | 1 | `schema_files[0]` — required bootstrap |
+| Core Setup | `eks_setup_schema.json` | 1 | `schema_files[1]` — required bootstrap |
+| Core Config | `eks_config.json` | 2 | Matches `*_config.json` pattern |
+| Asset Base | `eks_asset_base_schema.json` | 2 | Matches `*_base_schema.json` pattern |
+| Asset Setup | `eks_asset_setup_schema.json` | 2 | Matches `*_setup_schema.json` pattern |
+| Asset Config | `eks_asset_config.json` | 2 | Matches `*_config.json` pattern |
+| Document Base | `eks_doc_base_schema.json` | 2 | Matches `*_base_schema.json` pattern |
+| Document Setup | `eks_doc_setup_schema.json` | 2 | Matches `*_setup_schema.json` pattern |
+| Document Config | `eks_doc_config.json` | 2 | Matches `*_config.json` pattern |
+| Ontology Base | `eks_ontology_base_schema.json` | 2 | Matches `*_base_schema.json` pattern |
+| Ontology Setup | `eks_ontology_setup_schema.json` | 2 | Matches `*_setup_schema.json` pattern |
+| Ontology Config | `eks_ontology_config.json` | 2 | Matches `*_config.json` pattern |
+| Error Base | `eks_error_code_base.json` | 2 | Matches `*_base.json` pattern |
+| Error Setup | `eks_error_setup_schema.json` | 2 | Matches `*_setup_schema.json` pattern |
+| Error Config | `eks_error_config.json` | 2 | Matches `*_config.json` pattern |
+| Message Base | `eks_message_base.json` | 2 | Matches `*_base.json` pattern |
+| Message Setup | `eks_message_setup_schema.json` | 2 | Matches `*_setup_schema.json` pattern |
+| Message Config | `eks_message_config.json` | 2 | Matches `*_config.json` pattern |
+| Fragment | `eks_project_code_schema.json` | **3** | Matches no Tier 1 or Tier 2 pattern |
+| Fragment | `eks_department_schema.json` | **3** | Matches no Tier 1 or Tier 2 pattern |
+| Fragment | `eks_discipline_schema.json` | **3** | Matches no Tier 1 or Tier 2 pattern |
+| Fragment | `eks_document_type_schema.json` | **3** | Matches no Tier 1 or Tier 2 pattern |
+| Fragment | `eks_facility_schema.json` | **3** | Matches no Tier 1 or Tier 2 pattern |
+
+**Key insight:** The 5 auxiliary schemas matched no Tier 2 pattern because only `*_base_schema.json`, `*_setup_schema.json`, and `*_config.json` are defined — no `*_schema.json` (generic) pattern exists. Without Tier 3, these files are silently missed, causing `project_code_titles` to remain empty at runtime.
+
+### E13.2 Stage 2 — Load
+
+**Purpose:** Parse JSON, resolve `$ref` URIs, bind schema dicts to runtime attributes.
+
+**Sub-steps:**
+
+1. **Read + parse** — `SchemaLoader._load_json(filename)` reads JSON from disk, searching `_search_dirs` in order.
+2. **URI resolution** — `ref_resolver._build_uri_registry()` scans all schema files for `$id` URIs, building `URI → file_path` map. Used by `jsonschema.validate()` with `referencing.Registry` to resolve cross-file `$ref`.
+3. **Attribute binding** — `_STEM_TO_ATTR` maps each file stem to a `SchemaLoader` attribute:
+   ```python
+   _STEM_TO_ATTR = {
+       "eks_base_schema": "base_schema",
+       "eks_project_code_schema": "project_code_schema",
+       ...
+   }
+   ```
+   After loading: `setattr(self, "project_code_schema", loaded_dict)`
+
+**Shared utilities in `common/library/loader/`:**
+
+| Function | Purpose |
+|----------|---------|
+| `discover_schema_files()` | Tiers 1+2 discovery |
+| `find_schema_file(filename, directories)` | Direct file lookup by name |
+| `safe_resolve(path)` | Absolute path without filesystem I/O |
+
+**Remaining:** `ref_resolver._build_uri_registry()` exists in DCC only — needs extraction into `common/library/loader/` for cross-project reuse.
+
+### E13.3 Stage 3 — Validate
+
+**Purpose:** Ensure every loaded schema is correct at 4 levels:
+
+| Level | What it checks | When | Shared? | Failure mode |
+|:-----:|:---------------|:----:|:-------:|:-------------|
+| 1 — Existence | File exists on disk at expected path | Pre-load (readiness gate) | ✅ `ValidationManager.validate_named_files()` | Fail-fast — required schema missing = pipeline won't start |
+| 2 — Integrity | Valid JSON, readable, no parse errors | During load | ✅ `json.load()` (stdlib) | Fail-fast — malformed file |
+| 3 — Conformance | Data validates against its setup schema via `jsonschema.validate()` | After load | ✅ Stdlib + `referencing` | Fail-fast — config violates its schema definition |
+| 4 — Cross-reference | Values in one schema reference valid entries in another | After all loaded | ❌ Per-project `_validate_*()` methods | Fail on startup — e.g. document_type references undefined ontology class |
+
+**Current project-specific validators in `SchemaLoader`:**
+
+| Validator | Cross-reference check |
+|-----------|----------------------|
+| `_validate_doc_registries()` | `document_type_registry.ontology_class` must exist in `ontology.classes[].name` |
+| `_validate_ontology_class_map()` | `ontology_class_map` values must reference real ontology classes |
+| `_validate_ontology_fragments()` | All `fragments[]` in ontology must exist in `asset_base_schema.definitions` |
+| `_validate_project_rules()` | `fragment_required_fields` keys must match actual fragment definitions |
+
+### E13.4 Stage 4 — Extract Keys to Runtime (Per-Project)
+
+**Purpose:** Transform schema data into derived runtime attributes consumed by pipeline code.
+
+**Design decision:** Stage 4 is **not in `common/`** because every project extracts different keys with different transformations. The mapping from file → attribute is shared (`_STEM_TO_ATTR`), but the extraction logic is project-specific.
+
+**Current EKS extractions in `SchemaLoader` post-load setup (lines 148–165):**
+
+| Derived Key | Source Schema | Source Path | Transformation | Used By |
+|-------------|:------------:|:-----------:|:--------------|:--------|
+| `doc_config["project_code_titles"]` | `project_code_schema` | `["projects"][]["code", "description"]` | Array → Dict `{code: description}` | `FilenameParser._extract_segments()` — code→title lookup |
+| `asset_ontology_class_map` | `asset_config` | `["ontology_class_map"]{}` | Key normalization (upper+strip) | `resolve_ontology_class()` — tag→class resolution |
+| `ontology_class_names` (set) | `ontology` | `["classes"][]["name"]` | List → Set | Cross-reference validation |
+| `ontology_tag_type_map` | `ontology` | `["classes"][]["tag_type_mapping"]` | Deduplicated normalized dict | `resolve_ontology_class()` |
+| `ontology_tag_type_alias_map` | `ontology` | `["classes"][]["tag_type_aliases"][]` | Deduplicated normalized dict | `resolve_ontology_class()` fallback |
+
+**Pattern for adding a new extraction:**
+
+```python
+# In SchemaLoader post-load setup block:
+self.doc_config["new_derived_key"] = {
+    item["key_field"]: item["value_field"]
+    for item in self.source_schema.get("array_path", [])
+    if isinstance(item, dict) and "key_field" in item and "value_field" in item
+}
+```
+
+### E13.5 Bootstrap Integration (P7_schema)
+
+The universal `BootstrapManager` (in `common/library/bootstrap/manager.py`) defines `P7_schema` as the dedicated phase for schema lifecycle stages 1–3. Currently a stub:
+
+```python
+def _bootstrap_schema(self) -> None:
+    self._record_phase_start("P7_schema")
+    try:
+        self._record_phase_complete("P7_schema")  # TODO: implement
+    except Exception as exc:
+        raise BootstrapError("B-SCH-001", f"Schema resolution failed: {exc}", "schema")
+```
+
+**Planned implementation** wires stages 1–3 for any project:
+
+```python
+def _bootstrap_schema(self) -> None:
+    # Stage 1: Discover
+    registry = discover_schema_files(self.config, self.project_root)
+    registry.update(self._tier3_fallback_scan(self.config_dir))
+
+    # Stage 2: Load
+    loader = self._schema_loader_factory(self.config_dir)
+    loader.load_all(registry=registry)
+
+    # Stage 3: Validate
+    validator = self._readiness_validator_factory(
+        schema_registry=loader,
+        project_root=self.project_root,
+    )
+    results = validator.validate_project_setup(...)
+
+    # Store for pipeline context
+    self.schema_loader = loader
+    self.schema_registry = registry
+```
+
+**Phase ordering context (from AGENTS.md §23):**
+
+| Phase | Name | Purpose |
+|:-----:|:-----|:--------|
+| P3 | Registry Loading | Load project config (lightweight — `eks_config.json` only) |
+| P5 | Fallback Validation | Validate native fallback files |
+| P6 | Environment Testing | Verify required/optional dependencies |
+| **P7** | **Schema Resolution** | **Discover → Load → Validate schemas (stages 1–3)** |
+| P8 | Parameters Resolution | Merge CLI + schema + native into effective parameters |

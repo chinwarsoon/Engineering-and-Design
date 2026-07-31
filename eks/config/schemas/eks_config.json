@@ -6,6 +6,9 @@
     "project_rules_registry": {
         "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
     },
+    "project_definition": {
+        "$ref": "https://eks.engineering/configs/eks_project_definition_config.json"
+    },
     "discipline_registry": {
         "$ref": "https://eks.engineering/schemas/eks_discipline_schema.json"
     },

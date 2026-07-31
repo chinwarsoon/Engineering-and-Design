@@ -21,7 +21,7 @@ class TestErrorManager(unittest.TestCase):
         self.em = ErrorManager(config_dir=CONFIG_DIR)
 
     def test_loads_catalog(self):
-        self.assertEqual(self.em._catalog.get("metadata", {}).get("total_codes"), 109)
+        self.assertEqual(self.em._catalog.get("metadata", {}).get("total_codes"), 121)
 
     def test_system_error_lookup(self):
         entry = self.em.get_system_error("S-E-S-0101")

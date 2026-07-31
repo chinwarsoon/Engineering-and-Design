@@ -53,6 +53,8 @@ from .filename_parser import FilenameParser
 from .file_property_parser import FilePropertyExtractor
 from .revision import RevisionManager
 from .review_manager import ManualReviewManager
+# T1.187: Schema-driven column processor for Phase A/B/C calculated columns
+from .column_processor import EKSColumnProcessor
 
 
 class PipelineOrchestrator(BaseEngine):
@@ -123,6 +125,18 @@ class PipelineOrchestrator(BaseEngine):
         self.review_manager = ManualReviewManager(
             registry, doc_config=doc_config, logger=self.logger
         )
+
+        # T1.187: Schema-driven column processor — dispatches calculated columns
+        # by processing_phase (A/B/C) via registered handler functions.
+        # Gracefully handles doc_configs without column_processing section.
+        try:
+            self._column_processor = EKSColumnProcessor.from_doc_config(doc_config)
+        except Exception:
+            self._column_processor = None
+            self.logger.debug(
+                "ColumnProcessor not available — doc_config missing 'column_processing'",
+                context="PipelineOrchestrator.__init__",
+            )
 
         # T1.157 (I255): Shared FilenameParser — auto-detects project code per filename
         # T1.160 (I256): project_code_titles derived from project_code_schema injected by SchemaLoader
@@ -303,6 +317,16 @@ class PipelineOrchestrator(BaseEngine):
         valid, unknown = self.scanner.validate_file_types(discovered)
         try:
             registered = self.scanner.register_placeholders(valid, self.registry)
+            # T1.187: Process Phase A calculated columns through ColumnProcessor.
+            # Currently handles filename_segment columns (document_number, project_number,
+            # area, discipline, document_type, sequence_number, revision) which are already
+            # populated by the scanner — the ColumnProcessor pass ensures schema-driven
+            # consistency and automatically picks up any future Phase A calculated columns.
+            docs = self.registry.list_documents(latest_only=False)
+            if self._column_processor:
+                for doc_row in docs:
+                    data = dict(doc_row)
+                    self._column_processor.process("A", data, {})
         except Exception as e:
             if self.error_manager:
                 self.error_manager.handle_data_error("P1-D-P-0003", detail=f"Placeholder registration failed: {e}")
@@ -505,6 +529,15 @@ class PipelineOrchestrator(BaseEngine):
                         f"Review score recalc failed for {doc.get('id')}: {e}",
                         context="PipelineOrchestrator.run_phase_c",
                     )
+
+        # T1.187: Process Phase C calculated columns through ColumnProcessor.
+        # Currently no processing_phase "C" columns exist in the config, but
+        # this wiring ensures schema-driven review flag columns are automatically
+        # processed when added in future iterations.
+        if self._column_processor:
+            for doc in all_docs:
+                data = dict(doc)
+                self._column_processor.process("C", data, {})
 
         summary = {
             "flagged": len(flagged),
@@ -777,18 +810,14 @@ class PipelineOrchestrator(BaseEngine):
                 elements = self.detector.detect(file_path, pages=pages)
                 result["elements"] = elements
 
-                # T1.99.143: Extract revision_description from revision_table elements
+                # T1.187: Extract revision_description from revision_table elements.
+                # asset_tags and project_title are now calculated by ColumnProcessor.process("B")
+                # using the full elements list which is passed via the context dict.
                 revision_desc = None
-                # T1.99.162 (I196): Extract asset_tags from cover_page element
-                asset_tags_from_cover = None
-                # T1.161 (I256): Extract project_title from cover_page element
-                cover_project_title = None
                 for el in elements:
                     if el.get("element_type") == "revision_table" and el.get("content"):
-                        # Use the first revision_table element's content as the description
                         content = el.get("content", "")
                         if isinstance(content, dict):
-                            # Try common keys: description, change_summary, revision_notes
                             revision_desc = (
                                 content.get("description")
                                 or content.get("change_summary")
@@ -797,30 +826,7 @@ class PipelineOrchestrator(BaseEngine):
                             )
                         elif isinstance(content, str) and content.strip():
                             revision_desc = content.strip()
-                    if el.get("element_type") == "cover_page" and el.get("content"):
-                        # Parse asset_tags from cover page fields_found dict
-                        content = el.get("content", "")
-                        if isinstance(content, dict):
-                            raw_tags = content.get("asset_tags", "")
-                            # Extract project_title from cover page content for write-back
-                            cover_project_title = content.get("project_title")
-                        elif isinstance(content, str):
-                            try:
-                                import ast
-                                parsed = ast.literal_eval(content)
-                                raw_tags = parsed.get("asset_tags", "") if isinstance(parsed, dict) else ""
-                                cover_project_title = parsed.get("project_title") if isinstance(parsed, dict) else None
-                            except (ValueError, SyntaxError):
-                                raw_tags = ""
-                                cover_project_title = None
-                        else:
-                            raw_tags = ""
-                        if raw_tags:
-                            # Split comma/space-separated tag list → list of strings
-                            asset_tags_from_cover = [
-                                t.strip() for t in re.split(r'[,\s]+', str(raw_tags)) if t.strip()
-                            ]
-                    if revision_desc and asset_tags_from_cover:
+                    if revision_desc:
                         break
             except Exception as e:
                 self.logger.warning(
@@ -884,9 +890,6 @@ class PipelineOrchestrator(BaseEngine):
                     # T1.99.143: Attach revision_description from element extraction
                     if revision_desc:
                         registry_props["revision_description"] = revision_desc
-                    # T1.99.162 (I196): Attach asset_tags from cover page detection
-                    if asset_tags_from_cover:
-                        registry_props["asset_tags"] = asset_tags_from_cover
                     # I252: Extract identity fields from parser metadata and write back to DB.
                     # These may come from cover sheet extraction (PDF metadata) or filename parsing.
                     # Priority for document_type: parser metadata > Phase A value (filename) > extension inference.
@@ -899,21 +902,19 @@ class PipelineOrchestrator(BaseEngine):
                                 if existing_val and existing_val != meta_val and existing_val not in ("UNKNOWN", None):
                                     continue  # keep Phase A filename-derived value over parser guess
                             registry_props[id_field] = meta_val
-                    # T1.161 (I256): Write back project_title with priority:
-                    # cover page element > parser metadata > code→title lookup > Phase A value
-                    if cover_project_title:
-                        registry_props["project_title"] = cover_project_title
-                    elif metadata.get("project_title"):
-                        registry_props["project_title"] = metadata.get("project_title")
-                    elif "project_number" in registry_props:
-                        project_code_titles = doc_config.get("project_code_titles", {})
-                        code_to_title = project_code_titles.get(registry_props["project_number"])
-                        if code_to_title:
-                            registry_props["project_title"] = code_to_title
-                    else:
-                        existing_title = doc.get("project_title") if doc else None
-                        if existing_title:
-                            registry_props["project_title"] = existing_title
+                    # T1.187: Let schema-driven ColumnProcessor handle all calculated
+                    # Phase B columns (project_title priority chain, asset_tags from cover
+                    # page, document_title, total_sheets) using the full pipeline context.
+                    # The context carries metadata, elements, file_properties, and score
+                    # so each handler can resolve its value independently.
+                    if self._column_processor:
+                        self._column_processor.process("B", registry_props, {
+                            "metadata": metadata,
+                            "elements": elements,
+                            "file_properties": dict(registry_props),
+                            "project_code_titles": self.doc_config.get("project_code_titles", {}),
+                            "score": score,
+                        })
                     self.logger.debug(
                         f"File properties extracted for {Path(file_path).name}: "
                         f"size={prop_result.file_size}, status={prop_result.extract_status}, "

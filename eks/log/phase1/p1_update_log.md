@@ -2,7 +2,7 @@
 
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/phase1/p1_update_log.md`  
-**Last Updated**: 2026-07-28 (U228 — cover_page project_title extraction enhanced to include cover_page element as highest priority source)
+**Last Updated**: 2026-07-30 (U237 — T1.191: config refactoring, U238 — T1.192: SchemaLoader compat)
 
 ---
 
@@ -25,13 +25,13 @@
 
 | Status | Marker | Count |
 | :----- | :----: | ----: |
-| Done | ✅ | 177 |
+| Done | ✅ | 184 |
 | Complete | ✅ | 1 |
 | Resolved | ✅ | 2 |
 | Planned | 🔷 | 4 |
 | Open | 🔴 | 5 |
 | Partially reverted | ⚠️ | 1 |
-| **Total** | | **190** |
+| **Total** | | **194** |
 
 ---
 
@@ -39,6 +39,7 @@
 
 | # | Date | Phase | Task | Description | Author | Status |
 | :- | :--- | :---- | :--- | :---------- | :----- | :----: |
+| U229 | 2026-07-29 | Phase 1 | — | **Appendix E v0.11 — E13 4-stage schema lifecycle documented**: Added E13 (Discover → Load → Validate → Extract) with 3-tier discovery cascade per file, bootstrap P7_schema integration plan, common/ library references, and per-project Stage 4 extraction rules. Updated E7 compliance checklist (discovery tier, Stage 4, bootstrap). Updated E8 sequence diagram to show bootstrap + common/ orchestration. Updated E9 step 6 for _STEM_TO_ATTR mapping. | opencode | ✅ Done |
 | U227 | 2026-07-28 | Phase 1 | I256 / T1.162 | **I256 RESOLVED — Regression test for project_title population**: **(T1.162 — §72)** Added `test_filename_parser_populates_project_title` in `test_phase1.py`. Three sub-tests: (1) known project code `131101` → `project_title="WSD11 — Project Specifications"`. (2) another code `999999` → `project_title="Unknown Project"`. (3) fallback pattern → `project_title=None`. Also validates `document_type` still extracted (no regression). All 3 sub-tests pass. Full suite: 327/332 pass (5 pre-existing failures). Updated test_log (TL021 added). | opencode | ✅ Done |
 | U228 | 2026-07-28 | Phase 1 | I256 / T1.161 | **I256 — cover_page element project_title extraction added as highest priority**: Extended T1.161 project_title write-back to extract from cover_page structural element first (before parser metadata and code→title lookup). StructureDetector._detect_cover_page() already extracts project_title via regex from first page. Added `cover_project_title` variable to element loop in `_process_file()`. Priority chain: cover page element (regex) > parser metadata > project_code_titles lookup > Phase A value. 4 documents now have "TUAS WATER RECLAMATION PLANT" extracted. project_title column confirmed in extraction_results.csv export. | opencode | ✅ Done |
 | U226 | 2026-07-28 | Phase 1 | I256 / T1.160, T1.161 | **I256 — PipelineOrchestrator passes project_code_titles + I252 block extended**: **(T1.160 — §72)** `PipelineOrchestrator` now reads `project_code_titles` from `doc_config.get("project_code_titles", {})` and passes to `FilenameParser` constructor call. **(T1.161 — §72)** Extended the I252 identity write-back block with 3-tier priority for `project_title`: (1) cover sheet metadata (`metadata.get("project_title")`), (2) code→title lookup from `doc_config["project_code_titles"]` when `project_number` is in `registry_props`, (3) existing Phase A value from `doc.get("project_title")`. `pipeline_orchestrator.py` rev 0.8→0.9. Related: `filename_parser.py` rev 1.1.0→1.2.0. | opencode | ✅ Done |
@@ -257,3 +258,54 @@
 - Extracted from `eks/log/update_log.md` — Phase 1 entries only
 - Each entry corresponds to a workplan task or phase milestone
 - Timestamp format: YYYY-MM-DD
+| U230 | 2026-07-29 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: Implemented 4-stage schema lifecycle across common/ and EKS (I259–I263).
+| | | | | **I259** (Critical): Added discover_schema_files_tier3() to schema_discovery.py; wired into SchemaLoader._discover(); added regression test.
+| | | | | **I260** (Medium): Added 3 _STEM_TO_ATTR entries (department, discipline, facility) + __init__ attributes.
+| | | | | **I261** (Medium): Implemented _bootstrap_schema() with schema_loader hook in BootstrapManager; registered S-B-S-0616/S-B-S-0617; added validate_schema_conformance().
+| | | | | **I262** (Low): Extracted build_uri_registry() to common/library/loader/ref_resolver.py.
+| | | | | **I263** (Low): Refactored load_all() into _discover/_load/_validate/_extract; registered S-B-S-0618.
+| | | | | **Files affected**: schema_discovery.py, __init__.py (common/loader), schema_loader.py, bootstrap/manager.py, validation/manager.py, ref_resolver.py (new), eks_error_config.json v1.6.0, p1_issue_log.md v41, p1_task_log.md, p1_update_log.md.
+| | | | | **Tests**: 1 new (Tier 3 fallback). Full suite: 328/332 pass. |
+| U231 | 2026-07-29 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: Follow-up fixes for I259–I263 implementation (post-merge cleanup).
+| | | | | **Fixes**: (a) Added `document_type_schema` attr to `SchemaLoader.__init__()` (missing from I250 original gap — Tier 3 discovered but attr not initialized). (b) Fixed `pipeline_orchestrator.py:908` dead-code guard — merged `else` branch into `elif "project_number" in registry_props:` so `doc.get("project_title")` fallback is reachable when code→title lookup fails. (c) Fixed `\$id`/`\$ref` SyntaxWarning in `validation/manager.py` docstring.
+| | | | | **Test fixes**: Updated `test_t132_modules.py` error code count 109→121. Fixed `TestBootstrapDegradation` config_dir references (`_PROJECT_ROOT`).
+| | | | | **Files affected**: schema_loader.py (document_type_schema attr), pipeline_orchestrator.py (dead-code guard), validation/manager.py (SyntaxWarning), test_t132_modules.py (count 109→121), test_phase1.py (config_dir), test_tier3_fallback.py (new standalone). |
+| U232 | 2026-07-29 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: T1.182–T1.184 complete — column-processing schema definitions, setup property, and config entries for all 42 document registry columns (I264).
+| | | | | **T1.182** — Added 6 definitions to `eks_doc_base_schema.json` v1.9.0: column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def.
+| | | | | **T1.183** — Added `column_processing` property (object with column-name keys, DCC-aligned key-as-name pattern) to `eks_doc_setup_schema.json` v1.7.0.
+| | | | | **T1.184** — Populated 42 column processing entries in `eks_doc_config.json` v1.6.0: 9 Phase A columns (file_path, file_type, document_number, project_number, area, document_type, discipline, sequence_number, revision) + 33 Phase B columns (project_title, document_title, file_size, file_created_at, file_modified_at, file_hash, 9 embedded_* fields, page_count, created_by, checked_by, approved_by, originator_company, asset_tags, references_documents, language, vendor_name, total_sheets, lifecycle_stage, revision_description, revision_date, project_phase, contract_package, issued_date, responsible_engineer).
+| | | | | **Files affected**: eks_doc_base_schema.json v1.8.0→1.9.0, eks_doc_setup_schema.json v1.6.0→1.7.0, eks_doc_config.json v1.5.0→1.6.0, p1_issue_log.md v43→v44, p1_task_log.md §75, p1_update_log.md. |
+| U233 | 2026-07-29 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: T1.185 complete — common/library/column_processor/ package + EKSColumnProcessor subclass (I264).
+| | | | | **common/library/column_processor/**: BaseColumnProcessor (phase-filtered dispatch + fallback), HandlerRegistry (register/lookup by calc type), ColumnProcessorError. Registered in common/library/__init__.py.
+| | | | | **eks/engine/core/column_processor.py**: EKSColumnProcessor(BaseColumnProcessor) with 9 pre-registered handler stubs + from_doc_config() factory.
+| | | | | **Verified**: All imports, dispatch, registry, fallback, factory, and Phase B processing pass.
+| | | | | **Files affected**: common/library/column_processor/{__init__.py,base.py,registry.py} (new), common/library/__init__.py (updated), eks/engine/core/column_processor.py (new), p1_task_log.md §75, p1_update_log.md. |
+| U234 | 2026-07-29 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: T1.187 complete — ColumnProcessor wired into PipelineOrchestrator phases (I264).
+| | | | | **Core change**: Added EKSColumnProcessor import and `self._column_processor` to `PipelineOrchestrator.__init__()`. In `_process_file()` (Phase B), replaced 3 hardcoded blocks (project_title priority chain, asset_tags cover-page extraction, cover_project_title extraction) with a single `ColumnProcessor.process("B", registry_props, context)` call. Added `ColumnProcessor.process("A")` after Phase A placeholder registration and `ColumnProcessor.process("C")` after Phase C review loop for schema-driven future-proofing.
+| | | | | **Ancillary fixes**: (a) Fixed bare `doc_config` bug in `_process_file()` (line used bare name `doc_config` instead of `self.doc_config`). (b) Changed `position` schema type from `"integer"` to `["integer", "null"]` — `revision` column uses `position: null` (separator-based extraction). (c) Changed `min_length` schema minimum from 1 to 0 — `asset_tags` uses `min_length: 0`.
+| | | | | **Files affected**: eks/engine/core/pipeline_orchestrator.py (import + __init__ + 3 process() call sites + elements loop simplified), eks/config/schemas/eks_doc_base_schema.json (position type, min_length minimum), p1_task_log.md §75 (T1.187→✅ COMPLETE, Status Summary 293→294), p1_update_log.md. |
+| U238 | 2026-07-30 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: T1.192 complete — SchemaLoader compatibility verified for Project Definition (I265).
+| | | | | **Changes**: Added `eks_project_definition_config` to `_STEM_TO_ATTR` mapping + `project_definition_config` attr. Added `_validate_project_definition()` validation stage with per-entry jsonschema validation. Added `$ref` resolution in `_discover()` (resolves before `_validate_config()` to satisfy object type check). Backward-compat injection in `_extract()` reconstructs `filename_patterns` and `revision_validation` from Project Definition. Contract boundary documented: SchemaLoader returns raw validated schema objects; no RuntimeProjectDefinition assembly.
+| | | | | **Files affected**: `eks/engine/core/schema_loader.py` v1.1.0→1.2.0, `p1_task_log.md` (T1.192→✅ COMPLETE), `p1_update_log.md` (U238). |
+| | | | | **Tests**: 364/368 pass (4 pre-existing failures unrelated to these changes). |
+| U237 | 2026-07-30 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: T1.191 complete — reusable configuration libraries refactored (I265).
+| | | | | **Changes**: Removed `revision_validation` (per-project revision patterns) from `eks_doc_config.json`. Removed `filename_patterns` (per-project filename parsing) from `eks_doc_config.json`. Added `filename_profiles` as reusable profile-keyed section (`twrp_standard`, `default`). Added `revision_validation` field to each project entry in `eks_project_definition_config.json`. Added `revision_validation` property to `project_definition_entry_def` in `eks_base_schema.json` v1.14.0. Updated `eks_doc_setup_schema.json` v1.8.0 — replaced `filename_patterns` with `filename_profiles` property, removed `revision_validation` from required. Backward-compat injection in SchemaLoader._extract() populates `doc_config["filename_patterns"]` and `doc_config["revision_validation"]` from Project Definition data.
+| | | | | **Files affected**: `eks/config/schemas/eks_doc_config.json` v1.6.0→1.7.0, `eks/config/schemas/eks_doc_setup_schema.json` v1.7.0→1.8.0, `eks/config/schemas/eks_base_schema.json` v1.13.0→1.14.0, `eks/config/schemas/eks_project_definition_config.json` v1.1.0→1.2.0, `eks/engine/core/schema_loader.py` v1.1.0→1.2.0, `p1_task_log.md` (T1.191→✅ COMPLETE), `p1_update_log.md` (U237). |
+| | | | | **Tests**: 364/368 pass (4 pre-existing failures unrelated to these changes). |
+| U236 | 2026-07-30 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: T1.199 cancelled — `eks_config.json` already serves as environment configuration.
+| | | | | **Rationale**: `eks_config.json` already holds all deployment-specific settings (`vector_store`, `embedding`, `registry`, `global_paths`, `logging`, `system_parameters`). Creating a separate environment config file would duplicate this. The principle of L.6.3 (deployment config separate from Project Definition) is already satisfied. Remaining scope (add `graph_db`, `storage`, `messaging` properties) absorbed into T1.196.
+| | | | | **Files affected**: `p1_task_log.md` (T1.199→⛔ Cancelled, Status Summary Planned 34→33, Won't Implement 0→1), `p1_update_log.md` (U236). |
+| U235 | 2026-07-29 | opencode | Phase 1 | ✅ Done |
+| | | | | **Summary**: T1.188 complete — regression tests for ColumnProcessor central orchestrator (I264).
+| | | | | **New file**: `eks/test/test_column_processing.py` (25 tests, 5 test classes).
+| | | | | **Test coverage**: (a) `TestColumnProcessorDispatch` — 9 tests verifying each `calculation.type` dispatches to correct handler (priority_chain, filename_segment, file_property, parser_metadata, cover_page_element, code_to_title_lookup, health_score, auto_increment, existing_record). (b) `TestPriorityChainResolution` — 5 tests verifying resolution order (cover > metadata > lookup > existing) and all-sources-none returns None. (c) `TestColumnProcessingFallback` — 1 test for leave_null behavior. (d) `TestFortyTwoColumnConfigValidation` — 3 tests: entry count (42+), required field presence, SchemaLoader validation. (e) `TestColumnProcessingEndToEnd` — 7 tests: Phase A filename pass-through, Phase B project_title from cover, asset_tags split, priority chain order, document_title, total_sheets, health score.
+| | | | | **Files affected**: eks/test/test_column_processing.py (new, 518 lines), p1_task_log.md §75 (T1.188→✅ COMPLETE, Status Summary 294→295), p1_update_log.md. |
+

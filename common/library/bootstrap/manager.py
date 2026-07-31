@@ -58,6 +58,9 @@ ErrorManagerFactory = Callable[..., Any]
 # Callable that creates a MessageManager.
 MessageManagerFactory = Callable[..., Any]
 
+# Callable that loads all schemas from a config directory and returns config dict.
+SchemaLoader = Callable[..., Dict[str, Any]]
+
 # Callable that detects OS (returns str like "windows", "linux", "macos").
 OsDetector = Callable[[], str]
 
@@ -115,6 +118,7 @@ class BootstrapManager:
         message_manager_factory: Optional[MessageManagerFactory] = None,
         os_detector: Optional[OsDetector] = None,
         env_tester: Optional[EnvTester] = None,
+        schema_loader: Optional[SchemaLoader] = None,
         # Phase registry (default = DCC 8-phase)
         phase_registry: Optional[BootstrapPhaseRegistry] = None,
         # Logger
@@ -133,6 +137,7 @@ class BootstrapManager:
         self._message_manager_factory = message_manager_factory
         self._os_detector = os_detector
         self._env_tester = env_tester
+        self._schema_loader = schema_loader
         self.logger = logger
 
         # Phase tracking
@@ -678,15 +683,34 @@ class BootstrapManager:
         """
         Phase P7: Resolve schema paths and load schema definitions.
 
-        Subclasses override for project-specific schema loading.
+        Uses the injected ``schema_loader`` strategy hook.  If none is
+        provided, the phase records complete with a log-only warning.
         """
         self._record_phase_start("P7_schema")
         try:
+            if self._schema_loader:
+                self.config = self._schema_loader(self.config_dir)
+                if not self.config:
+                    raise BootstrapError(
+                        "S-B-S-0616",
+                        "Schema resolution returned empty config",
+                        "schema",
+                    )
+                schema_keys = len(self.config)
+            else:
+                schema_keys = 0
+                self._log("Bootstrap Phase P7: No schema_loader hook — config unchanged", level=1)
             self._record_phase_complete("P7_schema")
-            self._log("Bootstrap Phase P7: Schema resolved")
+            self._log(f"Bootstrap Phase P7: Schema resolved ({schema_keys} keys)")
+        except BootstrapError:
+            raise
         except Exception as exc:
-            self._record_phase_failure("P7_schema", "B-SCH-001")
-            raise BootstrapError("B-SCH-001", f"Schema resolution failed: {exc}", "schema")
+            self._record_phase_failure("P7_schema", "S-B-S-0617")
+            raise BootstrapError(
+                "S-B-S-0617",
+                f"Schema resolution failed: {exc}",
+                "schema",
+            )
 
     # ==========================================================================
     # Phase P8: Parameters Resolution

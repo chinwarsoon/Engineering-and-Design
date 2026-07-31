@@ -125,3 +125,40 @@ def discover_schema_files(
                 }
 
     return registry
+
+
+def discover_schema_files_tier3(
+    known_stems: List[str],
+    search_directories: List[Path],
+    existing_registry: Dict[str, Dict[str, Any]],
+) -> Dict[str, Dict[str, Any]]:
+    """Tier 3 fallback: scan directories for known stem names not yet discovered.
+
+    For each stem in known_stems, check if a file ``{stem}.json`` exists in any
+    search directory.  If found and not already in the registry, add it.
+
+    Args:
+        known_stems: Schema stem names to look for (e.g., ``eks_project_code_schema``).
+        search_directories: Directories to scan.
+        existing_registry: Already-discovered schema registry (from Tiers 1+2).
+
+    Returns:
+        Newly discovered entries (subset of known_stems not already in registry).
+    """
+    new_entries: Dict[str, Dict[str, Any]] = {}
+    for stem in known_stems:
+        if stem in existing_registry:
+            continue
+        for directory in search_directories:
+            candidate = directory / f"{stem}.json"
+            if candidate.exists():
+                new_entries[stem] = {
+                    "filename": candidate.name,
+                    "path": str(safe_resolve(candidate)),
+                    "required": False,
+                    "description": f"discovered (tier 3 fallback: {directory.name})",
+                    "registered": True,
+                    "source": "tier3",
+                }
+                break
+    return new_entries

@@ -4,9 +4,12 @@ Schema Loader for EKS - Handles loading and validation of base, setup, and confi
 Uses config-driven discovery (T1.96): reads schema_files + discovery_rules from
 eks_config.json instead of hardcoding 22 filenames.
 
-Revision: 1.1.0 — T1.159 (I256): registered eks_project_code_schema in _STEM_TO_ATTR;
-          injected project_code_titles into doc_config post-load for runtime use.
-1.0.0: Initial implementation.
+Revision: 1.2.0 — T1.192: registered eks_project_definition_config in _STEM_TO_ATTR;
+           added _validate_project_definition() validation stage;
+           added project_definition $ref resolution in _extract() for backward compat.
+           T1.191: inject filename_patterns and revision_validation from
+           project_definition_config into doc_config for backward compat.
+1.1.0: T1.159 (I256): registered eks_project_code_schema in _STEM_TO_ATTR;
 """
 import importlib
 import json
@@ -16,7 +19,7 @@ from jsonschema import validate
 from referencing import Registry
 from referencing.jsonschema import DRAFT7
 
-from common.library.loader import discover_schema_files, find_schema_file
+from common.library.loader import discover_schema_files, discover_schema_files_tier3, find_schema_file
 
 
 _STEM_TO_ATTR = {
@@ -34,6 +37,9 @@ _STEM_TO_ATTR = {
     "eks_doc_config": "doc_config",
     "eks_document_type_schema": "document_type_schema",
     "eks_project_code_schema": "project_code_schema",
+    "eks_department_schema": "department_schema",
+    "eks_discipline_schema": "discipline_schema",
+    "eks_facility_schema": "facility_schema",
     "eks_error_code_base": "error_base_schema",
     "eks_error_setup_schema": "error_setup_schema",
     "eks_error_config": "error_config",
@@ -41,6 +47,7 @@ _STEM_TO_ATTR = {
     "eks_message_setup_schema": "message_setup_schema",
     "eks_message_config": "message_config",
     "eks_project_rules_config": "project_rules_config",
+    "eks_project_definition_config": "project_definition_config",
 }
 
 _BOOTSTRAP_STEMS = {"eks_base_schema", "eks_setup_schema", "eks_config"}
@@ -79,8 +86,13 @@ class SchemaLoader:
         self.message_base_schema: Dict[str, Any] = {}
         self.message_setup_schema: Dict[str, Any] = {}
         self.message_config: Dict[str, Any] = {}
+        self.document_type_schema: Dict[str, Any] = {}
         self.project_code_schema: Dict[str, Any] = {}
+        self.department_schema: Dict[str, Any] = {}
+        self.discipline_schema: Dict[str, Any] = {}
+        self.facility_schema: Dict[str, Any] = {}
         self.project_rules_config: Dict[str, Any] = {}
+        self.project_definition_config: Dict[str, Any] = {}
         self._extra_schemas: Dict[str, Dict[str, Any]] = {}
 
         self._search_dirs = [self.config_dir / "schemas", self.config_dir]
@@ -118,21 +130,53 @@ class SchemaLoader:
     def load_all(self) -> Dict[str, Any]:
         """Loads all schema files, ontology config, and validates them.
 
-        Bootstrap order: base → setup → config (needed for validation +
-        discovery rules).  Remaining schemas are loaded from the
-        config-driven registry (schema_files + discovery_rules).
+        Delegates to 4 stage methods: _discover → _load → _validate → _extract.
         """
-        # ---------- Bootstrap ----------
+        registry = self._discover()
+        self._load(registry)
+        self._validate()
+        self._extract()
+        return self.config
+
+    def _discover(self) -> Dict[str, Dict[str, Any]]:
+        """Stage 1: Bootstrap load + config-driven schema discovery with Tier 3 fallback.
+
+        Loads core bootstrap schemas (base, setup, config), validates config,
+        then runs discovery rules from config.  Falls back to Tier 3 scan
+        for auxiliary schemas not matched by any glob pattern.
+        """
         self.base_schema = self._load_json("eks_base_schema.json")
         self.setup_schema = self._load_json("eks_setup_schema.json")
         self.config = self._load_json("eks_config.json")
+
+        # Resolve project_definition $ref before validation so the resolved
+        # data satisfies the object schema type check.
+        pd_ref = self.config.get("project_definition", {}).get("$ref")
+        if pd_ref:
+            ref_path = pd_ref.split("/")[-1]
+            try:
+                pd_file = self._load_json(ref_path)
+                pd_data = pd_file.get("project_definition", pd_file)
+                self.config["project_definition"] = pd_data
+            except (FileNotFoundError, json.JSONDecodeError):
+                raise ValueError(
+                    f"project_definition $ref target not loadable: {pd_ref}"
+                )
+
         self._validate_config()
 
-        # ---------- Config-driven discovery ----------
         project_root = self._project_root()
         registry = discover_schema_files(self.config, project_root)
 
-        # ---------- Load remaining discovered schemas ----------
+        # Tier 3 fallback: scan for known stems not yet discovered
+        all_stems = list(_STEM_TO_ATTR.keys())
+        tier3_entries = discover_schema_files_tier3(all_stems, self._search_dirs, registry)
+        registry.update(tier3_entries)
+
+        return registry
+
+    def _load(self, registry: Dict[str, Dict[str, Any]]) -> None:
+        """Stage 2: Load all non-bootstrap schemas from the discovered registry."""
         for stem, meta in registry.items():
             if stem in _BOOTSTRAP_STEMS:
                 continue
@@ -141,22 +185,11 @@ class SchemaLoader:
                 continue
             attr_name = _STEM_TO_ATTR[stem]
             if getattr(self, attr_name):
-                continue  # already populated
+                continue
             setattr(self, attr_name, self._load_json(meta["filename"]))
 
-        # ---------- Post-load setup ----------
-        self.doc_config["project_code_titles"] = {
-            p["code"]: p["description"]
-            for p in self.project_code_schema.get("projects", [])
-            if isinstance(p, dict) and "code" in p and "description" in p
-        }
-
-        self.asset_ontology_class_map = {
-            self._normalize_tag_type(k): v
-            for k, v in self.asset_config.get("ontology_class_map", {}).items()
-            if isinstance(k, str) and isinstance(v, str)
-        }
-
+    def _validate(self) -> None:
+        """Stage 3: Validate all loaded schemas and cross-registries."""
         self._validate_asset_config()
         self._validate_ontology()
         self._build_ontology_index()
@@ -167,7 +200,51 @@ class SchemaLoader:
         self._validate_error_config()
         self._validate_message_config()
         self._validate_project_rules()
-        return self.config
+        self._validate_project_definition()
+
+    def _extract(self) -> None:
+        """Stage 4: Build runtime indexes and derived data from loaded schemas.
+
+        This stage produces raw validated schema objects only — no
+        RuntimeProjectDefinition assembly (contract boundary).
+        RuntimeProjectDefinition is constructed by ProjectDefinitionResolver
+        during pipeline bootstrap.
+        """
+        self.doc_config["project_code_titles"] = {
+            p["code"]: p["description"]
+            for p in self.project_code_schema.get("projects", [])
+            if isinstance(p, dict) and "code" in p and "description" in p
+        }
+
+        # Backward-compat injection for T1.191: build filename_patterns and
+        # revision_validation from Project Definition so existing consumers
+        # (FileScanner, FilenameParser) continue to work unchanged.
+        filename_profiles = self.doc_config.get("filename_profiles", {})
+        if self.project_definition_config and filename_profiles:
+            pd_data = self.project_definition_config.get("project_definition", {})
+            injected_patterns = {}
+            injected_revision = {}
+            for proj_code, proj_entry in pd_data.items():
+                if not isinstance(proj_entry, dict):
+                    continue
+                dp = proj_entry.get("document_profile", {})
+                profile_name = dp.get("filename_pattern", "")
+                if profile_name in filename_profiles:
+                    injected_patterns[proj_code] = filename_profiles[profile_name]
+                rev_val = proj_entry.get("revision_validation", {})
+                if isinstance(rev_val, dict) and "pattern" in rev_val:
+                    injected_revision[proj_code] = rev_val
+            if injected_patterns:
+                injected_patterns["*"] = filename_profiles.get("default", {})
+                self.doc_config["filename_patterns"] = injected_patterns
+            if injected_revision:
+                self.doc_config["revision_validation"] = injected_revision
+
+        self.asset_ontology_class_map = {
+            self._normalize_tag_type(k): v
+            for k, v in self.asset_config.get("ontology_class_map", {}).items()
+            if isinstance(k, str) and isinstance(v, str)
+        }
 
     def _validate_config(self) -> None:
         """
@@ -429,6 +506,34 @@ class SchemaLoader:
                             f"Project '{project_id}': fragment_required_fields['{frag_name}'] contains "
                             f"unknown field '{field}'. Valid: {sorted(frag_props.keys())}"
                         )
+
+    def _validate_project_definition(self) -> None:
+        """Validate project_definition entries against setup schema project_definition_def.
+
+        Each entry in project_definition must have required fields (project_identity,
+        document_profile). Validates using jsonschema with base+setup $ref resolution.
+        Silently returns if project_definition_config is not loaded.
+        """
+        if not self.project_definition_config:
+            return
+        resources = {}
+        if self.base_schema.get("$id"):
+            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
+        if self.setup_schema.get("$id"):
+            resources[self.setup_schema["$id"]] = DRAFT7.create_resource(self.setup_schema)
+        registry = Registry().with_resources(
+            (uri, resource) for uri, resource in resources.items()
+        )
+        pd_def = self.setup_schema.get("definitions", {}).get("project_definition_entry_def", {})
+        if not pd_def:
+            return
+        pd_data = self.project_definition_config.get("project_definition", {})
+        for proj_code, entry in pd_data.items():
+            if not isinstance(entry, dict):
+                raise ValueError(
+                    f"Project '{proj_code}' project_definition entry is not an object."
+                )
+            validate(instance=entry, schema=pd_def, registry=registry)
 
     def resolve_ontology_class(self, tag_type: str) -> Optional[str]:
         """Resolves a TAG_TYPE or alias to an ontology class name."""

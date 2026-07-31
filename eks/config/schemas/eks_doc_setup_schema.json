@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
-    "version": "1.6.0",
+    "version": "1.8.0",
     "title": "EKS Document Setup Schema - Declarations",
-    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, and element expectations per Appendix B, C & D. v1.6.0: added document_title_config for boilerplate prefix filtering (T1.99.193/I194 G9). v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110).",
+    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, element expectations, and column processing metadata per Appendix B, C & D. v1.8.0: removed revision_validation and filename_patterns (moved to Project Definition — I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.7.0: added column_processing property — object with column-name keys (DCC-aligned pattern per T1.184 review) for all 42 registry columns (I264, T1.183). v1.6.0: added document_title_config for boilerplate prefix filtering (T1.99.193/I194 G9). v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110).",
     "allOf": [
         { "$ref": "eks_doc_base_schema.json" }
     ],
@@ -14,18 +14,6 @@
         "version": { "type": "string" },
         "title": { "type": "string" },
         "description": { "type": "string" },
-        "revision_validation": {
-            "type": "object",
-            "description": "Per-project revision validation patterns. Keys are project codes, values contain the regex pattern for valid revisions.",
-            "additionalProperties": {
-                "type": "object",
-                "properties": {
-                    "pattern": { "type": "string", "description": "Regex pattern that valid revision strings must match." }
-                },
-                "required": ["pattern"],
-                "additionalProperties": false
-            }
-        },
         "ontology_triggers": {
             "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/document_relationship_trigger_map",
             "description": "Maps document registry fields to knowledge graph relationship types for Phase 3 ingestion (shared SSOT with asset config)"
@@ -137,12 +125,10 @@
                 "pattern": "^(CAD|DWG|PI-PID|SPC|DS|MAN|OM|RPT|DR|SP|CL|BQ|VI|M3|QA)$"
             }
         },
-        "filename_patterns": {
+        "filename_profiles": {
             "type": "object",
-            "description": "Per-project filename parsing patterns. Keys are project_code or '*' for catch-all default. Each value is a filename_pattern_def per Appendix I §I4.",
-            "propertyNames": {
-                "pattern": "^(\\*|\\d{6})$"
-            },
+            "description": "Reusable filename parsing profiles keyed by profile name. Each value follows filename_pattern_def per Appendix I §I4. Profile names referenced by Project Definition's document_profile.filename_pattern.",
+            "propertyNames": { "pattern": "^[a-z_]+$" },
             "additionalProperties": {
                 "$ref": "eks_doc_base_schema.json#/definitions/filename_pattern_def"
             }
@@ -187,8 +173,14 @@
             "description": "Runtime-injected mapping of project_code → project_title, loaded from eks_project_code_schema.json by SchemaLoader. Not present in the config file; injected after schema loading.",
             "additionalProperties": { "type": "string" },
             "propertyNames": { "pattern": "^\\d{6}$" }
+        },
+        "column_processing": {
+            "type": "object",
+            "description": "Column processing entries keyed by column name. Each entry defines classification, calculation strategy, validation rules, and pipeline phase. DCC-aligned key-as-name pattern per T1.184 review. Schema-driven replacement for hardcoded column logic in pipeline_orchestrator.py / filename_parser.py / _validate_* methods (I264, T1.183).",
+            "propertyNames": { "pattern": "^[a-z_]+$" },
+            "additionalProperties": { "$ref": "eks_doc_base_schema.json#/definitions/column_processing_entry_def" }
         }
     },
-    "required": ["revision_validation", "ontology_triggers", "health_scoring", "element_expectations"],
+    "required": ["ontology_triggers", "health_scoring", "element_expectations", "column_processing"],
     "additionalProperties": false
 }

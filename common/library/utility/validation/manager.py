@@ -19,6 +19,14 @@ from common.library.utility.validation.models import (
     ValidationResult,
     ValidationStatus,
 )
+try:
+    from jsonschema import validate as jsonschema_validate
+    from referencing import Registry
+    from referencing.jsonschema import DRAFT7
+except ImportError:
+    jsonschema_validate = None
+    Registry = None
+    DRAFT7 = None
 
 
 class ValidationManager:
@@ -133,6 +141,63 @@ class ValidationManager:
         return ValidationItem(name=param_name, path=empty_path, status=ValidationStatus.PASS,
                               message=f"Parameter valid: {param_name}", exists=True,
                               details=str(param_value))
+
+    def validate_schema_conformance(
+        self,
+        instance: Dict[str, Any],
+        schema: Dict[str, Any],
+        name: str = "schema",
+        base_schemas: Optional[Dict[str, Dict[str, Any]]] = None,
+    ) -> ValidationItem:
+        """Validate an instance dict against a JSON schema (conformance check).
+
+        Args:
+            instance: The data instance to validate.
+            schema: The JSON Schema to validate against.
+            name: Human-readable name for the validation item.
+            base_schemas: Optional dict of $id → schema dict for $ref resolution.
+
+        Returns:
+            ValidationItem with PASS/FAIL status.
+        """
+        if jsonschema_validate is None:
+            return ValidationItem(
+                name=name, path=Path(""),
+                status=ValidationStatus.FAIL,
+                message=f"jsonschema not available — cannot validate {name}",
+                exists=False,
+            )
+
+        try:
+            resources = {}
+            if base_schemas:
+                for uid, base in base_schemas.items():
+                    if uid and base:
+                        if DRAFT7:
+                            resources[uid] = DRAFT7.create_resource(base)
+            registry = Registry().with_resources(
+                (uri, res) for uri, res in resources.items()
+            ) if resources else None
+
+            if registry:
+                jsonschema_validate(instance=instance, schema=schema, registry=registry)
+            else:
+                jsonschema_validate(instance=instance, schema=schema)
+
+            return ValidationItem(
+                name=name, path=Path(""),
+                status=ValidationStatus.PASS,
+                message=f"Schema conformance passed: {name}",
+                exists=True,
+            )
+        except Exception as exc:
+            return ValidationItem(
+                name=name, path=Path(""),
+                status=ValidationStatus.FAIL,
+                message=f"Schema conformance failed: {name} — {exc}",
+                exists=True,
+                details=str(exc),
+            )
 
     # ------------------------------------------------------------------
     # Batch validator

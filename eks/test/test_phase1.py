@@ -2223,6 +2223,64 @@ class TestBootstrapDegradation(unittest.TestCase):
         self.assertIsNone(ctx.parameters.get("em"), "I258#5: em should be None on failure")
         self.assertIsNone(ctx.parameters.get("mm"), "I258#6: mm should be None on failure")
 
+    def test_tier3_fallback_discovers_auxiliary_schemas(self):
+        """I259/T1.173: Verify Tier 3 fallback discovers auxiliary schemas not matched by glob patterns."""
+        from common.library.loader.schema_discovery import discover_schema_files, discover_schema_files_tier3
+
+        config_dir = _PROJECT_ROOT / "config"
+        loader = SchemaLoader(config_dir)
+        project_root = loader._project_root()
+        registry = discover_schema_files(loader.config, project_root)
+
+        # Confirm these 5 are NOT in Tier 1+2 registry (the original bug)
+        aux_stems = [
+            "eks_project_code_schema",
+            "eks_document_type_schema",
+            "eks_department_schema",
+            "eks_discipline_schema",
+            "eks_facility_schema",
+        ]
+        for stem in aux_stems:
+            self.assertNotIn(
+                stem, registry,
+                f"{stem} should NOT be in Tier 1+2 registry (original bug)"
+            )
+
+        # Tier 3 fallback should find all 5
+        all_stems = aux_stems + [
+            "eks_base_schema", "eks_setup_schema", "eks_config",
+            "eks_doc_base_schema", "eks_doc_setup_schema", "eks_doc_config",
+            "eks_asset_base_schema", "eks_asset_setup_schema", "eks_asset_config",
+            "eks_ontology_base_schema", "eks_ontology_setup_schema", "eks_ontology_config",
+            "eks_error_code_base", "eks_error_setup_schema", "eks_error_config",
+            "eks_message_base", "eks_message_setup_schema", "eks_message_config",
+            "eks_project_rules_config",
+        ]
+
+        tier3_entries = discover_schema_files_tier3(all_stems, loader._search_dirs, registry)
+        for stem in aux_stems:
+            self.assertIn(
+                stem, tier3_entries,
+                f"Tier 3 should discover {stem}"
+            )
+            self.assertEqual(
+                tier3_entries[stem]["source"], "tier3",
+                f"{stem} source should be 'tier3'"
+            )
+
+    def test_loader_4stage_refactoring(self):
+        """I263/T1.180: Verify load_all() delegates to 4 stage methods."""
+        config_dir = _PROJECT_ROOT / "config"
+        loader = SchemaLoader(config_dir)
+        self.assertTrue(hasattr(loader, '_discover'), "missing _discover method")
+        self.assertTrue(hasattr(loader, '_load'), "missing _load method")
+        self.assertTrue(hasattr(loader, '_validate'), "missing _validate method")
+        self.assertTrue(hasattr(loader, '_extract'), "missing _extract method")
+        result = loader.load_all()
+        self.assertIsNotNone(result)
+        self.assertIn("registry", result)
+        self.assertIn("project_rules_registry", result)
+
 
 if __name__ == "__main__":
     unittest.main()

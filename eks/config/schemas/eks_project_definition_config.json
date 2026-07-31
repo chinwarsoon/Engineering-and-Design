@@ -1,0 +1,167 @@
+{
+    "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
+    "$id": "https://eks.engineering/configs/eks_project_definition_config.json",
+    "version": "1.2.0",
+    "title": "EKS Project Definition Configuration",
+    "description": "Per-project definitions (I265 T1.191: added revision_validation per project). Each key is a project code. Profile references are resolved by ProjectDefinitionResolver at runtime against reusable config libraries. Deployment-specific URIs moved to environment config per L.6.3.",
+    "project_definition": {
+        "131101": {
+            "project_identity": {
+                "project_code": "131101",
+                "project_name": "FPSO TWRP",
+                "project_type": "offshore",
+                "discipline": "multi",
+                "client": "Client A",
+                "contractor": "Contractor X",
+                "region": "APAC",
+                "execution_center": "Kuala Lumpur",
+                "status": "active"
+            },
+            "project_lifecycle": {
+                "project_phase": "Detailed Design",
+                "execution_stage": "IFC",
+                "baseline_revision": "A",
+                "issue_status": "issued",
+                "document_status": "current",
+                "planned_completion": "2027-06-30"
+            },
+            "engineering_convention": {
+                "drawing_standard": "ISO",
+                "numbering_scheme": "TWRP",
+                "revision_scheme": "alpha_numeric",
+                "tag_format": "ANSI/ISA-5.1",
+                "engineering_units": "metric",
+                "allowed_disciplines": ["SP", "DS", "PI", "EL", "IN", "CI", "ME", "QA", "RT"]
+            },
+            "revision_validation": {
+                "pattern": "^[A-Z0-9]{1,2}$"
+            },
+            "engineering_standards": {
+                "piping": "ASME B31.3",
+                "instrumentation": "IEC 61511",
+                "electrical": "IEC 61892",
+                "mechanical": "ASME VIII",
+                "structural": "AISC 360"
+            },
+            "document_profile": {
+                "filename_pattern": "twrp_standard",
+                "parser": "technip_pdf",
+                "revision": "alpha_numeric",
+                "ocr": "default",
+                "column_processing": "dcc_aligned"
+            },
+            "parsing_profile": "technip_pdf",
+            "chunking_profile": "standard",
+            "embedding_profile": "openai_1536",
+            "metadata_policy": "standard_inherit",
+            "asset_profile": {
+                "profile": "process"
+            },
+            "ontology_profile": {
+                "profile": "default"
+            },
+            "retrieval_profile": {
+                "profile": "standard"
+            },
+            "prompt_profile": "engineering_assistant",
+            "validation_profile": "strict",
+            "security_profile": {
+                "document_classification": "internal",
+                "access_policy": "restricted",
+                "redaction_policy": "none"
+            },
+            "runtime_profiles": {
+                "storage": "default_storage",
+                "vector_db": "default_vector",
+                "graph_db": "default_graph",
+                "messaging": "none",
+                "cache": "default_cache"
+            },
+            "compatibility": {
+                "legacy_project_rules": true,
+                "schema_version": "1.0.0"
+            },
+            "fragment_required_fields": {
+                "item_core": ["keytag", "tag_type", "tag_no", "description"],
+                "manufacturer": ["brand", "model_number"]
+            }
+        },
+        "131242": {
+            "project_identity": {
+                "project_code": "131242",
+                "project_name": "FPSO Platform",
+                "project_type": "offshore",
+                "discipline": "multi",
+                "client": "Client B",
+                "contractor": "Contractor Y",
+                "region": "APAC",
+                "execution_center": "Jakarta",
+                "status": "active"
+            },
+            "project_lifecycle": {
+                "project_phase": "Detailed Design",
+                "execution_stage": "IFD",
+                "baseline_revision": "A",
+                "issue_status": "issued",
+                "document_status": "current"
+            },
+            "engineering_convention": {
+                "drawing_standard": "ISO",
+                "numbering_scheme": "TWRP",
+                "revision_scheme": "alpha_numeric",
+                "tag_format": "ANSI/ISA-5.1",
+                "engineering_units": "metric",
+                "allowed_disciplines": ["PI", "EL", "IN", "CI", "AR", "ME", "CL", "BQ", "QA", "DR", "DS", "SP", "RT"]
+            },
+            "revision_validation": {
+                "pattern": "^[0-9]{3}$"
+            },
+            "engineering_standards": {
+                "piping": "ASME B31.3",
+                "instrumentation": "IEC 61511",
+                "electrical": "IEC 61892"
+            },
+            "document_profile": {
+                "filename_pattern": "twrp_standard",
+                "parser": "technip_pdf",
+                "revision": "alpha_numeric",
+                "ocr": "default",
+                "column_processing": "dcc_aligned"
+            },
+            "parsing_profile": "technip_pdf",
+            "chunking_profile": "standard",
+            "embedding_profile": "openai_1536",
+            "metadata_policy": "standard_inherit",
+            "asset_profile": {
+                "profile": "process"
+            },
+            "ontology_profile": {
+                "profile": "default"
+            },
+            "retrieval_profile": {
+                "profile": "standard"
+            },
+            "prompt_profile": "engineering_assistant",
+            "validation_profile": "strict",
+            "security_profile": {
+                "document_classification": "internal",
+                "access_policy": "restricted",
+                "redaction_policy": "none"
+            },
+            "runtime_profiles": {
+                "storage": "default_storage",
+                "vector_db": "default_vector",
+                "graph_db": "default_graph",
+                "messaging": "none",
+                "cache": "default_cache"
+            },
+            "compatibility": {
+                "legacy_project_rules": true,
+                "schema_version": "1.0.0"
+            },
+            "fragment_required_fields": {
+                "item_core": ["keytag", "tag_type", "tag_no"]
+            }
+        }
+    }
+}

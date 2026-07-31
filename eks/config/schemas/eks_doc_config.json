@@ -1,13 +1,9 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_doc_config_default.json",
-    "version": "1.5.0",
+    "version": "1.7.0",
     "title": "EKS Document Configuration",
-    "description": "Document schema config v1.5.0: added DOCX embedded_revision_number mapping (T1.99.144) + references_documents ontology trigger (T1.99.145). v1.4.0: populated file_property_patterns with OS config + 5 file-type mappings (pdf/docx/xlsx/dgn/dwg) per Appendix J (T1.99.130). v1.3.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.112).",
-    "revision_validation": {
-        "131101": { "pattern": "^[A-Z0-9]{1,2}$" },
-        "131242": { "pattern": "^[0-9]{3}$" }
-    },
+    "description": "Document schema config v1.7.0: moved revision_validation and filename_patterns to Project Definition (I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.6.0: added column_processing object (DCC-aligned key-as-name pattern) with 42 column entries — Phase A (9): file_path, file_type, document_number, project_number, area, document_type, discipline, sequence_number, revision. Phase B (33): project_title, document_title, file_size, file_created_at, file_modified_at, file_hash, 9 embedded_* fields, page_count, created_by, checked_by, approved_by, originator_company, asset_tags, references_documents, language, vendor_name, total_sheets, lifecycle_stage, revision_description, revision_date, project_phase, contract_package, issued_date, responsible_engineer (I264, T1.184). v1.5.0: added DOCX embedded_revision_number mapping (T1.99.144) + references_documents ontology trigger (T1.99.145). v1.4.0: populated file_property_patterns with OS config + 5 file-type mappings (pdf/docx/xlsx/dgn/dwg) per Appendix J (T1.99.130). v1.3.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.112).",
     "ontology_triggers": {
         "document_type": "IS_A",
         "document_number": "SUPERSEDES",
@@ -93,75 +89,30 @@
         "M3":     { "expected_elements": ["cover_page", "revision_table", "section", "image", "link"], "threshold": 4, "cover_type": "A" },
         "QA":     { "expected_elements": ["cover_page", "section"], "threshold": 2, "cover_type": "D" }
     },
-    "filename_patterns": {
-        "131101": {
+    "filename_profiles": {
+        "twrp_standard": {
             "description": "TWRP WSD11 tenderspec naming: {project}-{area}-{type}-{disc}-{seq}[_suffix].ext",
             "parser_type": "delimited",
             "separator": "-",
             "min_segments": 5,
             "max_segments": 5,
             "segments": [
-                {
-                    "position": 0,
-                    "maps_to": "project_number",
-                    "label": "project_code",
-                    "required": true,
-                    "null_handling": { "strategy": "default_value", "default_value": "131101" },
-                    "validation": { "type": "pattern", "pattern": "^\\d{6}$" }
-                },
-                {
-                    "position": 1,
-                    "maps_to": "area",
-                    "label": "contract_or_area",
-                    "required": true,
-                    "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" },
-                    "validation": { "type": "pattern", "pattern": "^[A-Z0-9]{3,6}$" }
-                },
-                {
-                    "position": 2,
-                    "maps_to": "document_type",
-                    "label": "type_code",
-                    "required": true,
-                    "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" },
-                    "validation": { "type": "schema_reference", "reference": "document_type_registry" }
-                },
-                {
-                    "position": 3,
-                    "maps_to": "discipline",
-                    "label": "discipline_code",
-                    "required": true,
-                    "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" },
-                    "validation": { "type": "pattern", "pattern": "^[A-Z]{1,2}$" }
-                },
-                {
-                    "position": 4,
-                    "maps_to": null,
-                    "label": "sequence_number",
-                    "required": true,
-                    "null_handling": { "strategy": "default_value", "default_value": "0000" },
-                    "validation": { "type": "pattern", "pattern": "^\\d{4}$" }
-                }
+                { "position": 0, "maps_to": "project_number", "label": "project_code", "required": true, "null_handling": { "strategy": "default_value", "default_value": "131101" }, "validation": { "type": "pattern", "pattern": "^\\d{6}$" } },
+                { "position": 1, "maps_to": "area", "label": "contract_or_area", "required": true, "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" }, "validation": { "type": "pattern", "pattern": "^[A-Z0-9]{3,6}$" } },
+                { "position": 2, "maps_to": "document_type", "label": "type_code", "required": true, "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" }, "validation": { "type": "schema_reference", "reference": "document_type_registry" } },
+                { "position": 3, "maps_to": "discipline", "label": "discipline_code", "required": true, "null_handling": { "strategy": "default_value", "default_value": "UNKNOWN" }, "validation": { "type": "pattern", "pattern": "^[A-Z]{1,2}$" } },
+                { "position": 4, "maps_to": null, "label": "sequence_number", "required": true, "null_handling": { "strategy": "default_value", "default_value": "0000" }, "validation": { "type": "pattern", "pattern": "^\\d{4}$" } }
             ],
             "rejoin_separator": "-",
             "strip_suffixes": ["_Add1", "_Add2", "_Add3", "_2-Stage", "_2-stage", "_HAC"],
             "revision_separators": ["_rev"],
             "dash_revision_max_len": 3,
-            "output": {
-                "document_number_source": "rejoin_segments",
-                "fallback_doc_number": "full_stem",
-                "fallback_revision": null,
-                "preservation_mode": "overwrite_existing"
-            },
-            "error_subcodes": {
-                "too_few_segments": "P5-F-V-0004",
-                "too_many_segments": "P5-F-V-0005",
-                "segment_validation_failed": "P5-F-V-0006",
-                "unresolvable": "P5-F-P-0007"
-            },
+            "output": { "document_number_source": "rejoin_segments", "fallback_doc_number": "full_stem", "fallback_revision": null, "preservation_mode": "overwrite_existing" },
+            "error_subcodes": { "too_few_segments": "P5-F-V-0004", "too_many_segments": "P5-F-V-0005", "segment_validation_failed": "P5-F-V-0006", "unresolvable": "P5-F-P-0007" },
             "processing_phase": "P0"
         },
-        "*": {
-            "description": "Default: generic dash-suffix revision detection (backward compatible)",
+        "default": {
+            "description": "Generic dash-suffix revision detection (backward compatible)",
             "parser_type": "delimited",
             "separator": "-",
             "min_segments": 1,
@@ -171,12 +122,7 @@
             "strip_suffixes": [],
             "revision_separators": ["_rev"],
             "dash_revision_max_len": 3,
-            "output": {
-                "document_number_source": "rejoin_segments",
-                "fallback_doc_number": "full_stem",
-                "fallback_revision": "00",
-                "preservation_mode": "overwrite_existing"
-            },
+            "output": { "document_number_source": "rejoin_segments", "fallback_doc_number": "full_stem", "fallback_revision": "00", "preservation_mode": "overwrite_existing" },
             "error_subcodes": {},
             "processing_phase": "P0"
         }
@@ -240,5 +186,49 @@
                 "property_mapping": []
             }
         }
+    },
+    "column_processing": {
+        "file_path": {"column_type": "file_path_column", "is_calculated": false, "processing_phase": "A", "required": true, "description": "Relative path to source file on disk, populated by scanner discovery."},
+        "file_type": {"column_type": "text_column", "is_calculated": false, "processing_phase": "A", "required": true, "validation": [{"type": "format", "format": "file_extension"}], "description": "Source file format extension for parser routing."},
+        "document_number": {"column_type": "code_column", "is_calculated": true, "calculation": {"type": "filename_segment", "position": 0, "separator": "-", "maps_to": "document_number"}, "processing_phase": "A", "required": true, "description": "Rejoined filename segments forming the unique document identifier."},
+        "project_number": {"column_type": "code_column", "is_calculated": true, "calculation": {"type": "filename_segment", "position": 0, "separator": "-", "maps_to": "project_number"}, "processing_phase": "A", "required": true, "validation": [{"type": "pattern", "pattern": "^\\\\d{6}$"}], "description": "Project code from filename segment 0."},
+        "area": {"column_type": "text_column", "is_calculated": true, "calculation": {"type": "filename_segment", "position": 1, "separator": "-", "maps_to": "area"}, "processing_phase": "A", "validation": [{"type": "pattern", "pattern": "^[A-Z0-9]{3,6}$"}], "description": "Contract or area code from filename segment 1."},
+        "document_type": {"column_type": "code_column", "is_calculated": true, "calculation": {"type": "filename_segment", "position": 2, "separator": "-", "maps_to": "document_type"}, "processing_phase": "A", "required": true, "schema_ref": "document_type_registry", "schema_ref_field": "code", "validation": [{"type": "schema_reference_check", "reference": "document_type_registry", "data_section": "document_type_registry", "field": "code"}], "description": "Document type code from filename segment 2, validated against document_type_registry."},
+        "discipline": {"column_type": "code_column", "is_calculated": true, "calculation": {"type": "filename_segment", "position": 3, "separator": "-", "maps_to": "discipline"}, "processing_phase": "A", "validation": [{"type": "pattern", "pattern": "^[A-Z]{1,2}$"}], "description": "Discipline code from filename segment 3."},
+        "sequence_number": {"column_type": "sequence_column", "is_calculated": true, "calculation": {"type": "filename_segment", "position": 4, "separator": "-", "maps_to": "sequence_number"}, "processing_phase": "A", "validation": [{"type": "pattern", "pattern": "^\\\\d{4}$"}], "description": "Sequence number from filename segment 4."},
+        "revision": {"column_type": "revision_column", "is_calculated": true, "calculation": {"type": "filename_segment", "position": null, "separator": "_rev", "maps_to": "revision"}, "processing_phase": "A", "required": true, "description": "Revision identifier detected from filename suffix or revision separators."},
+        "project_title": {"column_type": "text_column", "is_calculated": true, "calculation": {"type": "priority_chain", "sources": [{"source": "cover_page_element", "field": "project_title"}, {"source": "parser_metadata", "field": "project_title"}, {"source": "code_to_title_lookup", "field": "project_number"}], "fallback": "leave_null"}, "processing_phase": "B", "description": "Project title resolved via priority chain: cover page > parser metadata > code-to-title lookup."},
+        "document_title": {"column_type": "text_column", "is_calculated": true, "calculation": {"type": "priority_chain", "sources": [{"source": "parser_metadata", "field": "embedded_title"}, {"source": "file_property", "field": "filename_stem"}], "fallback": "leave_null"}, "processing_phase": "B", "description": "Human-readable document title derived from embedded title or filename stem."},
+        "file_size": {"column_type": "numeric_column", "is_calculated": false, "processing_phase": "B", "description": "OS-level file size in bytes from FilePropertyExtractor."},
+        "file_created_at": {"column_type": "date_column", "is_calculated": false, "processing_phase": "B", "description": "OS-level file creation timestamp from FilePropertyExtractor."},
+        "file_modified_at": {"column_type": "date_column", "is_calculated": false, "processing_phase": "B", "description": "OS-level file last-modified timestamp from FilePropertyExtractor."},
+        "file_hash": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Content hash for integrity verification from FilePropertyExtractor."},
+        "embedded_title": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Embedded document title from parser metadata."},
+        "embedded_subject": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Embedded document subject from parser metadata."},
+        "embedded_created_date": {"column_type": "date_column", "is_calculated": false, "processing_phase": "B", "description": "Embedded creation date from parser metadata."},
+        "embedded_modified_date": {"column_type": "date_column", "is_calculated": false, "processing_phase": "B", "description": "Embedded modification date from parser metadata."},
+        "embedded_creator_app": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Application that created the file from parser metadata."},
+        "embedded_producer": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Library/producer that generated the file from parser metadata."},
+        "embedded_last_modified_by": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Last user who modified the file from DOCX/XLSX core properties."},
+        "embedded_keywords": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Embedded keywords from parser metadata."},
+        "embedded_sheet_count": {"column_type": "numeric_column", "is_calculated": false, "processing_phase": "B", "description": "Number of sheets in XLSX workbook from parser metadata."},
+        "embedded_revision_number": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Revision number from embedded DOCX/XLSX core properties."},
+        "page_count": {"column_type": "numeric_column", "is_calculated": false, "processing_phase": "B", "description": "Page count from parser metadata."},
+        "created_by": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Author/creator from parser metadata."},
+        "checked_by": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Last checker from parser metadata or cover page."},
+        "approved_by": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Last approver from parser metadata or cover page."},
+        "originator_company": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Originating company from parser metadata or cover page."},
+        "asset_tags": {"column_type": "json_column", "is_calculated": true, "calculation": {"type": "cover_page_element", "field": "asset_tags"}, "processing_phase": "B", "validation": [{"type": "min_length", "min_length": 0}], "description": "Asset tag list extracted from cover page content, comma-split to JSON array."},
+        "references_documents": {"column_type": "json_column", "is_calculated": false, "processing_phase": "B", "description": "Array of document IDs this document references, from content parser."},
+        "language": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "ISO 639-1 language code of document content. Default: en."},
+        "vendor_name": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Equipment vendor name for vendor-supplied documents."},
+        "total_sheets": {"column_type": "numeric_column", "is_calculated": true, "calculation": {"type": "priority_chain", "sources": [{"source": "parser_metadata", "field": "total_sheets"}, {"source": "parser_metadata", "field": "page_count"}], "fallback": "leave_null"}, "processing_phase": "B", "description": "Total sheets in multi-sheet drawing set. Defaults to page_count when not explicit."},
+        "lifecycle_stage": {"column_type": "code_column", "is_calculated": false, "processing_phase": "B", "schema_ref": "lifecycle_stage_code", "validation": [{"type": "enum_reference", "reference": "lifecycle_stage_code", "field": "code"}], "description": "Document lifecycle stage from cover page or parser metadata."},
+        "revision_description": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Description of changes in this revision from revision table element."},
+        "revision_date": {"column_type": "date_column", "is_calculated": false, "processing_phase": "B", "description": "Date of this revision from revision table or parser metadata."},
+        "project_phase": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Project lifecycle phase from cover page or parser metadata."},
+        "contract_package": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Procurement contract package grouping from cover page or parser metadata."},
+        "issued_date": {"column_type": "date_column", "is_calculated": false, "processing_phase": "B", "description": "Formal issue/submission date from cover page or parser metadata."},
+        "responsible_engineer": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Engineer accountable for the document from cover page or parser metadata."}
     }
 }

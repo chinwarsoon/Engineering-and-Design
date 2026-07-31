@@ -1,18 +1,25 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
-    "version": "1.11.0",
+    "version": "1.14.0",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) — actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) — U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default. v1.11.0: added telemetry_verbose to system_parameters_def for T1.120/I237 schema-driven TelemetryHeartbeat verbosity.",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) \u00e2\u20ac\u201d actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) \u00e2\u20ac\u201d U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default. v1.11.0: added telemetry_verbose to system_parameters_def for T1.120/I237 schema-driven TelemetryHeartbeat verbosity. v1.12.0: added 11 project definition definitions for I265 T1.190. v1.13.0: aligned project_definition_entry_def with appendix_l L.6.1 \u00e2\u20ac\u201d added project_lifecycle_def, engineering_standards_def, runtime_profiles_def; removed pipeline_config_def and integration_config_def (deployment details moved to environment config per L.6.3); renamed security_config to security_profile; added 6 inline profile ref fields (parsing_profile, chunking_profile, embedding_profile, metadata_policy, prompt_profile, validation_profile) for I265 T1.198.",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
             "type": "object",
             "properties": {
-                "code": { "type": "string" },
-                "description": { "type": "string" }
+                "code": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                }
             },
-            "required": ["code", "description"],
+            "required": [
+                "code",
+                "description"
+            ],
             "additionalProperties": false
         },
         "project_rules_def": {
@@ -20,270 +27,1068 @@
             "properties": {
                 "allowed_disciplines": {
                     "type": "array",
-                    "items": { "type": "string" },
+                    "items": {
+                        "type": "string"
+                    },
                     "description": "List of discipline codes permitted for this project"
                 },
                 "fragment_required_fields": {
                     "type": "object",
-                    "description": "Per-fragment required field overrides for this project. Key = fragment name (item_core, manufacturer, etc.), value = array of required property paths. Shape-only definitions in asset base schema carry no required constraints — this is the SSOT for mandatory fields.",
+                    "description": "Per-fragment required field overrides for this project. Key = fragment name (item_core, manufacturer, etc.), value = array of required property paths. Shape-only definitions in asset base schema carry no required constraints \u00e2\u20ac\u201d this is the SSOT for mandatory fields.",
                     "additionalProperties": {
                         "type": "array",
-                        "items": { "type": "string" },
+                        "items": {
+                            "type": "string"
+                        },
                         "minItems": 1
                     }
                 }
             },
-            "required": ["allowed_disciplines"],
+            "required": [
+                "allowed_disciplines"
+            ],
             "additionalProperties": false
         },
         "global_paths_def": {
             "type": "object",
             "properties": {
-                "data_dir": { "type": "string" },
-                "output_dir": { "type": "string" },
-                "archive_dir": { "type": "string" },
-                "config_dir": { "type": "string" },
-                "log_dir": { "type": "string", "description": "Log directory relative to eks_root (T1.83 follow-up)" },
-                "eks_root": { "type": "string", "description": "EKS package root relative to project root (T1.83)" }
+                "data_dir": {
+                    "type": "string"
+                },
+                "output_dir": {
+                    "type": "string"
+                },
+                "archive_dir": {
+                    "type": "string"
+                },
+                "config_dir": {
+                    "type": "string"
+                },
+                "log_dir": {
+                    "type": "string",
+                    "description": "Log directory relative to eks_root (T1.83 follow-up)"
+                },
+                "eks_root": {
+                    "type": "string",
+                    "description": "EKS package root relative to project root (T1.83)"
+                }
             },
-            "required": ["data_dir", "output_dir", "archive_dir", "config_dir", "log_dir"],
+            "required": [
+                "data_dir",
+                "output_dir",
+                "archive_dir",
+                "config_dir",
+                "log_dir"
+            ],
             "additionalProperties": false
         },
         "registry_def": {
             "type": "object",
             "properties": {
-                "type": { "type": "string", "enum": ["duckdb", "postgresql"] },
-                "connection_string": { "type": "string" }
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "duckdb",
+                        "postgresql"
+                    ]
+                },
+                "connection_string": {
+                    "type": "string"
+                }
             },
-            "required": ["type", "connection_string"],
+            "required": [
+                "type",
+                "connection_string"
+            ],
             "additionalProperties": false
         },
         "system_parameters_def": {
             "type": "object",
             "description": "Runtime behavior settings for loaders, validators, servers, and registry retry behavior (T1.97/I088). Updated v1.10.0: added export_default for schema-driven CLI --export default (T1.113/I234). v1.11.0: added telemetry_verbose for schema-driven TelemetryHeartbeat verbosity (T1.120/I237).",
             "properties": {
-                "fail_fast": { "type": "boolean", "default": true },
-                "log_level": { "$ref": "#/definitions/verbosity_level", "default": 1 },
-                "debug_mode": { "type": "boolean", "default": false },
-                "skip_readiness": { "type": "boolean", "default": false },
-                "retry_count": { "type": "integer", "minimum": 0, "default": 3 },
-                "retry_delay": { "type": "number", "minimum": 0, "default": 0.5 },
-                "api_timeout": { "type": "integer", "minimum": 1, "default": 120 },
-                "ollama_timeout": { "type": "integer", "minimum": 1, "default": 30 },
-                "db_timeout": { "type": "integer", "minimum": 1, "default": 30 },
-                "export_default": { "type": "string", "enum": ["csv", "xlsx", "both", "none"], "default": "both", "description": "Default export format for CLI --export flag (I234). Schema-driven SSOT — CLI reads at runtime." },
-                "telemetry_verbose": { "type": "boolean", "default": true, "description": "Emit milestone checkpoints (25/50/75/100%) to console during Phase B (I237). Schema-driven SSOT — PipelineOrchestrator reads at init." }
+                "fail_fast": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "log_level": {
+                    "$ref": "#/definitions/verbosity_level",
+                    "default": 1
+                },
+                "debug_mode": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "skip_readiness": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "retry_count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "default": 3
+                },
+                "retry_delay": {
+                    "type": "number",
+                    "minimum": 0,
+                    "default": 0.5
+                },
+                "api_timeout": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 120
+                },
+                "ollama_timeout": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 30
+                },
+                "db_timeout": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 30
+                },
+                "export_default": {
+                    "type": "string",
+                    "enum": [
+                        "csv",
+                        "xlsx",
+                        "both",
+                        "none"
+                    ],
+                    "default": "both",
+                    "description": "Default export format for CLI --export flag (I234). Schema-driven SSOT \u00e2\u20ac\u201d CLI reads at runtime."
+                },
+                "telemetry_verbose": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Emit milestone checkpoints (25/50/75/100%) to console during Phase B (I237). Schema-driven SSOT \u00e2\u20ac\u201d PipelineOrchestrator reads at init."
+                }
             },
-            "required": ["fail_fast", "log_level", "debug_mode", "skip_readiness", "retry_count", "retry_delay", "api_timeout", "ollama_timeout", "db_timeout", "export_default", "telemetry_verbose"],
+            "required": [
+                "fail_fast",
+                "log_level",
+                "debug_mode",
+                "skip_readiness",
+                "retry_count",
+                "retry_delay",
+                "api_timeout",
+                "ollama_timeout",
+                "db_timeout",
+                "export_default",
+                "telemetry_verbose"
+            ],
             "additionalProperties": false
         },
         "parsers_def": {
             "type": "object",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+                "type": "string"
+            }
         },
         "embedding_def": {
             "type": "object",
             "properties": {
-                "active_provider": { "type": "string", "enum": ["openai", "ollama"] },
-                "model_name": { "type": "string" },
-                "dimensions": { "type": "integer" }
+                "active_provider": {
+                    "type": "string",
+                    "enum": [
+                        "openai",
+                        "ollama"
+                    ]
+                },
+                "model_name": {
+                    "type": "string"
+                },
+                "dimensions": {
+                    "type": "integer"
+                }
             },
-            "required": ["active_provider", "model_name", "dimensions"],
+            "required": [
+                "active_provider",
+                "model_name",
+                "dimensions"
+            ],
             "additionalProperties": false
         },
         "vector_store_def": {
             "type": "object",
             "properties": {
-                "url": { "type": "string" },
-                "collection_name": { "type": "string" },
-                "distance_metric": { "type": "string", "enum": ["Cosine", "Euclidean", "Dot"] }
+                "url": {
+                    "type": "string"
+                },
+                "collection_name": {
+                    "type": "string"
+                },
+                "distance_metric": {
+                    "type": "string",
+                    "enum": [
+                        "Cosine",
+                        "Euclidean",
+                        "Dot"
+                    ]
+                }
             },
-            "required": ["url", "collection_name", "distance_metric"],
+            "required": [
+                "url",
+                "collection_name",
+                "distance_metric"
+            ],
             "additionalProperties": false
         },
         "logging_def": {
             "type": "object",
             "properties": {
-                "default_level": { "$ref": "#/definitions/verbosity_level", "default": 1 },
-                "debug_file_path": { "type": "string" }
+                "default_level": {
+                    "$ref": "#/definitions/verbosity_level",
+                    "default": 1
+                },
+                "debug_file_path": {
+                    "type": "string"
+                }
             },
-            "required": ["default_level"],
+            "required": [
+                "default_level"
+            ],
             "additionalProperties": false
         },
         "verbosity_level": {
             "type": "integer",
-            "enum": [0, 1, 2, 3],
+            "enum": [
+                0,
+                1,
+                2,
+                3
+            ],
             "description": "Shared verbosity/logging level (0=quiet/errors only, 1=normal, 2=debug, 3=trace)"
         },
         "document_relationship_trigger_map": {
             "type": "object",
             "description": "Shape definition: maps document metadata field names to ontology relationship types. Actual entries defined per-schema-set in config files (eks_asset_config.json, eks_doc_config.json).",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+                "type": "string"
+            }
         },
         "project_entry_def": {
             "type": "object",
             "properties": {
-                "code": { "type": "string", "description": "Project code identifier" },
-                "description": { "type": "string", "description": "Project name or description" }
+                "code": {
+                    "type": "string",
+                    "description": "Project code identifier"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Project name or description"
+                }
             },
-            "required": ["code", "description"],
+            "required": [
+                "code",
+                "description"
+            ],
             "additionalProperties": false
         },
         "department_entry_def": {
             "type": "object",
             "properties": {
-                "code": { "type": "string", "description": "Department code identifier" },
-                "description": { "type": "string", "description": "Department name" }
+                "code": {
+                    "type": "string",
+                    "description": "Department code identifier"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Department name"
+                }
             },
-            "required": ["code", "description"],
+            "required": [
+                "code",
+                "description"
+            ],
             "additionalProperties": false
         },
         "facility_entry_def": {
             "type": "object",
             "properties": {
-                "prefix": { "type": "string", "description": "Facility prefix code" },
-                "description": { "type": "string", "description": "Facility description" }
+                "prefix": {
+                    "type": "string",
+                    "description": "Facility prefix code"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Facility description"
+                }
             },
-            "required": ["prefix", "description"],
+            "required": [
+                "prefix",
+                "description"
+            ],
             "additionalProperties": false
         },
         "folder_entry_def": {
             "type": "object",
             "description": "Folder/directory entry with metadata (DCC-aligned)",
             "properties": {
-                "name": { "type": "string", "description": "Relative path of the folder from project root" },
-                "required": { "type": "boolean", "description": "Whether this folder is mandatory" },
-                "purpose": { "type": "string", "description": "Description of the folder's purpose" },
-                "auto_created": { "type": "boolean", "description": "Whether this folder is auto-created on first run", "default": false }
+                "name": {
+                    "type": "string",
+                    "description": "Relative path of the folder from project root"
+                },
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether this folder is mandatory"
+                },
+                "purpose": {
+                    "type": "string",
+                    "description": "Description of the folder's purpose"
+                },
+                "auto_created": {
+                    "type": "boolean",
+                    "description": "Whether this folder is auto-created on first run",
+                    "default": false
+                }
             },
-            "required": ["name", "required", "purpose"],
+            "required": [
+                "name",
+                "required",
+                "purpose"
+            ],
             "additionalProperties": false
         },
         "root_file_entry_def": {
             "type": "object",
             "description": "File at project root level (DCC-aligned)",
             "properties": {
-                "name": { "type": "string", "description": "Filename at root level" },
-                "required": { "type": "boolean", "description": "Whether this file is mandatory" },
-                "purpose": { "type": "string", "description": "Description of the file's purpose" },
-                "extension": { "type": "string", "enum": ["yml", "yaml", "md", "txt", "py", "json", "other"], "description": "File type extension" }
+                "name": {
+                    "type": "string",
+                    "description": "Filename at root level"
+                },
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether this file is mandatory"
+                },
+                "purpose": {
+                    "type": "string",
+                    "description": "Description of the file's purpose"
+                },
+                "extension": {
+                    "type": "string",
+                    "enum": [
+                        "yml",
+                        "yaml",
+                        "md",
+                        "txt",
+                        "py",
+                        "json",
+                        "other"
+                    ],
+                    "description": "File type extension"
+                }
             },
-            "required": ["name", "required", "purpose"],
+            "required": [
+                "name",
+                "required",
+                "purpose"
+            ],
             "additionalProperties": false
         },
         "schema_file_entry_def": {
             "type": "object",
             "description": "Schema file entry with metadata (DCC-aligned)",
             "properties": {
-                "filename": { "type": "string", "description": "Schema filename relative to config/schemas" },
-                "required": { "type": "boolean", "description": "Whether this schema file is mandatory" },
-                "description": { "type": "string", "description": "Purpose of this schema file" }
+                "filename": {
+                    "type": "string",
+                    "description": "Schema filename relative to config/schemas"
+                },
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether this schema file is mandatory"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Purpose of this schema file"
+                }
             },
-            "required": ["filename", "required", "description"],
+            "required": [
+                "filename",
+                "required",
+                "description"
+            ],
             "additionalProperties": false
         },
         "workflow_file_entry_def": {
             "type": "object",
-            "description": "Workflow/pipeline file entry with metadata (DCC-aligned — project_config.json#/workflow_files, T1.98.6/I090)",
+            "description": "Workflow/pipeline file entry with metadata (DCC-aligned \u00e2\u20ac\u201d project_config.json#/workflow_files, T1.98.6/I090)",
             "properties": {
-                "filename": { "type": "string", "description": "Workflow filename relative to project root" },
-                "required": { "type": "boolean", "description": "Whether this workflow file is mandatory" },
-                "description": { "type": "string", "description": "Purpose of this workflow file" },
-                "type": { "type": "string", "description": "File classification (e.g. python_module, python_script)", "default": "python_module" }
+                "filename": {
+                    "type": "string",
+                    "description": "Workflow filename relative to project root"
+                },
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether this workflow file is mandatory"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Purpose of this workflow file"
+                },
+                "type": {
+                    "type": "string",
+                    "description": "File classification (e.g. python_module, python_script)",
+                    "default": "python_module"
+                }
             },
-            "required": ["filename", "required", "description"],
+            "required": [
+                "filename",
+                "required",
+                "description"
+            ],
             "additionalProperties": false
         },
         "tool_file_entry_def": {
             "type": "object",
-            "description": "Tool/utility file entry with metadata (DCC-aligned — project_config.json#/tool_files, T1.98.6/I090)",
+            "description": "Tool/utility file entry with metadata (DCC-aligned \u00e2\u20ac\u201d project_config.json#/tool_files, T1.98.6/I090)",
             "properties": {
-                "filename": { "type": "string", "description": "Tool filename relative to project root" },
-                "required": { "type": "boolean", "description": "Whether this tool file is mandatory" },
-                "description": { "type": "string", "description": "Purpose of this tool file" },
-                "type": { "type": "string", "description": "File classification (e.g. python_module, python_script)", "default": "python_script" }
+                "filename": {
+                    "type": "string",
+                    "description": "Tool filename relative to project root"
+                },
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether this tool file is mandatory"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Purpose of this tool file"
+                },
+                "type": {
+                    "type": "string",
+                    "description": "File classification (e.g. python_module, python_script)",
+                    "default": "python_script"
+                }
             },
-            "required": ["filename", "required", "description"],
+            "required": [
+                "filename",
+                "required",
+                "description"
+            ],
             "additionalProperties": false
         },
         "discovery_rule_def": {
             "type": "object",
             "description": "Pattern-based discovery rule (DCC-aligned)",
             "properties": {
-                "pattern": { "type": "string", "description": "File pattern to match" },
-                "directory": { "type": "string", "description": "Directory to search in" },
-                "recursive": { "type": "boolean", "description": "Whether to search recursively", "default": false },
-                "auto_register": { "type": "boolean", "description": "Whether to auto-register discovered files", "default": false },
-                "category": { "type": "string", "description": "Category of discovered files" },
-                "exclude_patterns": { "type": "array", "description": "Patterns to exclude", "items": { "type": "string" } }
+                "pattern": {
+                    "type": "string",
+                    "description": "File pattern to match"
+                },
+                "directory": {
+                    "type": "string",
+                    "description": "Directory to search in"
+                },
+                "recursive": {
+                    "type": "boolean",
+                    "description": "Whether to search recursively",
+                    "default": false
+                },
+                "auto_register": {
+                    "type": "boolean",
+                    "description": "Whether to auto-register discovered files",
+                    "default": false
+                },
+                "category": {
+                    "type": "string",
+                    "description": "Category of discovered files"
+                },
+                "exclude_patterns": {
+                    "type": "array",
+                    "description": "Patterns to exclude",
+                    "items": {
+                        "type": "string"
+                    }
+                }
             },
-            "required": ["pattern", "directory", "category"],
+            "required": [
+                "pattern",
+                "directory",
+                "category"
+            ],
             "additionalProperties": false
         },
         "environment_entry_def": {
             "type": "object",
             "description": "Environment specification entry (DCC-aligned)",
             "properties": {
-                "name": { "type": "string", "description": "Environment name (e.g. conda, venv)" },
-                "required": { "type": "boolean", "description": "Whether this environment is mandatory" },
-                "file": { "type": "string", "description": "Environment specification file (e.g. eks.yml)" },
-                "location": { "type": "string", "enum": ["root", "config", "tools"], "description": "Where the environment file is located" },
-                "setup_commands": { "type": "array", "description": "Commands to set up the environment", "items": { "type": "string" } },
-                "key_dependencies": { "type": "array", "description": "Primary dependencies for this project", "items": { "type": "string" } },
-                "python_version": { "type": "string", "description": "Expected Python version (e.g. 3.13)" },
-                "conda_env": { "type": "string", "description": "Conda environment name" }
+                "name": {
+                    "type": "string",
+                    "description": "Environment name (e.g. conda, venv)"
+                },
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether this environment is mandatory"
+                },
+                "file": {
+                    "type": "string",
+                    "description": "Environment specification file (e.g. eks.yml)"
+                },
+                "location": {
+                    "type": "string",
+                    "enum": [
+                        "root",
+                        "config",
+                        "tools"
+                    ],
+                    "description": "Where the environment file is located"
+                },
+                "setup_commands": {
+                    "type": "array",
+                    "description": "Commands to set up the environment",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "key_dependencies": {
+                    "type": "array",
+                    "description": "Primary dependencies for this project",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "python_version": {
+                    "type": "string",
+                    "description": "Expected Python version (e.g. 3.13)"
+                },
+                "conda_env": {
+                    "type": "string",
+                    "description": "Conda environment name"
+                }
             },
-            "required": ["name", "required"],
+            "required": [
+                "name",
+                "required"
+            ],
             "additionalProperties": false
         },
         "dependency_config_def": {
             "type": "object",
             "description": "Complete dependencies configuration (DCC-aligned)",
             "properties": {
-                "required": { "type": "array", "description": "Required Python packages", "items": { "type": "string" } },
-                "optional": { "type": "array", "description": "Optional Python packages", "items": { "type": "string" } },
+                "required": {
+                    "type": "array",
+                    "description": "Required Python packages",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "optional": {
+                    "type": "array",
+                    "description": "Optional Python packages",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "engines": {
                     "type": "array",
                     "description": "Engine modules with their exports",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "module": { "type": "string", "description": "Python module name" },
-                            "members": { "type": "array", "description": "Required classes/functions from this module", "items": { "type": "string" } },
-                            "optional": { "type": "boolean", "description": "Whether this engine dependency is optional", "default": false }
+                            "module": {
+                                "type": "string",
+                                "description": "Python module name"
+                            },
+                            "members": {
+                                "type": "array",
+                                "description": "Required classes/functions from this module",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "optional": {
+                                "type": "boolean",
+                                "description": "Whether this engine dependency is optional",
+                                "default": false
+                            }
                         },
-                        "required": ["module"]
+                        "required": [
+                            "module"
+                        ]
                     }
                 }
             },
-            "required": ["required"],
+            "required": [
+                "required"
+            ],
             "additionalProperties": false
         },
         "validation_rule_entry_def": {
             "type": "object",
             "description": "Validation rule configuration (DCC-aligned)",
             "properties": {
-                "rule": { "type": "string", "description": "Validation rule identifier" },
-                "enabled": { "type": "boolean", "description": "Whether this rule is active", "default": true },
-                "description": { "type": "string", "description": "Purpose of this validation rule" },
-                "severity": { "type": "string", "enum": ["error", "warning", "info"], "default": "error", "description": "Validation failure severity level" },
-                "parameters": { "type": "object", "description": "Rule-specific configuration parameters" }
+                "rule": {
+                    "type": "string",
+                    "description": "Validation rule identifier"
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "description": "Whether this rule is active",
+                    "default": true
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Purpose of this validation rule"
+                },
+                "severity": {
+                    "type": "string",
+                    "enum": [
+                        "error",
+                        "warning",
+                        "info"
+                    ],
+                    "default": "error",
+                    "description": "Validation failure severity level"
+                },
+                "parameters": {
+                    "type": "object",
+                    "description": "Rule-specific configuration parameters"
+                }
             },
-            "required": ["rule", "description"],
+            "required": [
+                "rule",
+                "description"
+            ],
             "additionalProperties": false
         },
         "project_metadata_def": {
             "type": "object",
             "description": "Project metadata and identification (DCC-aligned)",
             "properties": {
-                "project_id": { "type": "string", "description": "Unique project identifier" },
-                "project_name": { "type": "string", "description": "Human-readable project name" },
-                "version": { "type": "string", "description": "Project version" },
-                "created_date": { "type": "string", "format": "date", "description": "Project creation date" },
-                "last_modified": { "type": "string", "format": "date", "description": "Last modification date" }
+                "project_id": {
+                    "type": "string",
+                    "description": "Unique project identifier"
+                },
+                "project_name": {
+                    "type": "string",
+                    "description": "Human-readable project name"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Project version"
+                },
+                "created_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Project creation date"
+                },
+                "last_modified": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Last modification date"
+                }
             },
-            "required": ["project_id", "project_name", "version"],
+            "required": [
+                "project_id",
+                "project_name",
+                "version"
+            ],
             "additionalProperties": false
+        },
+        "project_identity_def": {
+            "type": "object",
+            "description": "Project identity metadata (I265 T1.190/T1.198). Defines core project identification and classification fields used across the EKS pipeline.",
+            "properties": {
+                "project_code": {
+                    "type": "string",
+                    "description": "Unique project code (e.g. 131101)"
+                },
+                "project_name": {
+                    "type": "string",
+                    "description": "Human-readable project name"
+                },
+                "project_type": {
+                    "type": "string",
+                    "enum": [
+                        "offshore",
+                        "onshore",
+                        "brownfield",
+                        "greenfield",
+                        "other"
+                    ],
+                    "description": "Project classification"
+                },
+                "discipline": {
+                    "type": "string",
+                    "description": "Primary engineering discipline"
+                },
+                "client": {
+                    "type": "string",
+                    "description": "Client or operator name"
+                },
+                "contractor": {
+                    "type": "string",
+                    "description": "EPC contractor or main contractor name"
+                },
+                "region": {
+                    "type": "string",
+                    "description": "Geographic region"
+                },
+                "execution_center": {
+                    "type": "string",
+                    "description": "Engineering execution center location"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "completed",
+                        "planned",
+                        "archived"
+                    ],
+                    "description": "Project lifecycle status"
+                }
+            },
+            "required": [
+                "project_code",
+                "project_name"
+            ],
+            "additionalProperties": false
+        },
+        "engineering_convention_def": {
+            "type": "object",
+            "description": "Engineering conventions and standards applied to the project (I265 T1.190). Each field references a standard or scheme the project follows.",
+            "properties": {
+                "drawing_standard": {
+                    "type": "string",
+                    "description": "Drawing standard (e.g. ISO, ANSI, BS)"
+                },
+                "numbering_scheme": {
+                    "type": "string",
+                    "description": "Document numbering scheme (e.g. TWRP, client_standard)"
+                },
+                "revision_scheme": {
+                    "type": "string",
+                    "description": "Revision scheme (e.g. alpha_numeric, numeric)"
+                },
+                "tag_format": {
+                    "type": "string",
+                    "description": "Equipment tag format standard (e.g. ANSI/ISA-5.1)"
+                },
+                "engineering_units": {
+                    "type": "string",
+                    "description": "Engineering units system (e.g. metric, imperial)"
+                },
+                "allowed_disciplines": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "List of discipline codes permitted for this project (migrated from project_rules_def)"
+                }
+            },
+            "required": [
+                "drawing_standard",
+                "numbering_scheme",
+                "revision_scheme"
+            ],
+            "additionalProperties": false
+        },
+        "document_profile_selection_def": {
+            "type": "object",
+            "description": "Document processing profile references (I265 T1.190). Each field is a profile name resolved by ProjectDefinitionResolver against reusable config libraries.",
+            "properties": {
+                "filename_pattern": {
+                    "type": "string",
+                    "description": "Filename pattern profile name"
+                },
+                "parser": {
+                    "type": "string",
+                    "description": "Document parser profile name"
+                },
+                "revision": {
+                    "type": "string",
+                    "description": "Revision validation profile name"
+                },
+                "ocr": {
+                    "type": "string",
+                    "description": "OCR processing profile name"
+                },
+                "column_processing": {
+                    "type": "string",
+                    "description": "Column processing profile name"
+                }
+            },
+            "required": [
+                "parser",
+                "column_processing"
+            ],
+            "additionalProperties": false
+        },
+        "asset_profile_ref_def": {
+            "type": "object",
+            "description": "Asset processing profile reference (I265 T1.190). Resolved by ProjectDefinitionResolver against reusable asset config libraries.",
+            "properties": {
+                "profile": {
+                    "type": "string",
+                    "description": "Asset processing profile name (e.g. process, instrument, electrical)"
+                }
+            },
+            "required": [
+                "profile"
+            ],
+            "additionalProperties": false
+        },
+        "ontology_profile_ref_def": {
+            "type": "object",
+            "description": "Ontology profile reference (I265 T1.190). Resolved by ProjectDefinitionResolver against reusable ontology config.",
+            "properties": {
+                "profile": {
+                    "type": "string",
+                    "description": "Ontology profile name (e.g. default, twrp)"
+                }
+            },
+            "required": [
+                "profile"
+            ],
+            "additionalProperties": false
+        },
+        "retrieval_profile_ref_def": {
+            "type": "object",
+            "description": "Retrieval and RAG profile reference (I265 T1.190). Resolved by ProjectDefinitionResolver against reusable retrieval config.",
+            "properties": {
+                "profile": {
+                    "type": "string",
+                    "description": "Retrieval profile name (e.g. standard, fast)"
+                }
+            },
+            "required": [
+                "profile"
+            ],
+            "additionalProperties": false
+        },
+        "security_config_def": {
+            "type": "object",
+            "description": "Project security and access configuration (I265 T1.190/T1.198). Defines document classification and access policies for this project.",
+            "properties": {
+                "document_classification": {
+                    "type": "string",
+                    "enum": [
+                        "internal",
+                        "confidential",
+                        "restricted",
+                        "public"
+                    ],
+                    "default": "internal",
+                    "description": "Default document classification level"
+                },
+                "access_policy": {
+                    "type": "string",
+                    "enum": [
+                        "open",
+                        "restricted",
+                        "role_based"
+                    ],
+                    "default": "open",
+                    "description": "Access control policy"
+                },
+                "redaction_policy": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "auto",
+                        "manual"
+                    ],
+                    "default": "none",
+                    "description": "Redaction policy for sensitive content"
+                }
+            },
+            "required": [
+                "document_classification"
+            ],
+            "additionalProperties": false
+        },
+        "project_lifecycle_def": {
+            "type": "object",
+            "description": "Project lifecycle and execution stage information (I265 T1.198). Provides contextual metadata influencing document processing and retrieval.",
+            "properties": {
+                "project_phase": {
+                    "type": "string",
+                    "description": "Current project phase (e.g. FEED, Detailed Design, Construction)"
+                },
+                "execution_stage": {
+                    "type": "string",
+                    "description": "Execution stage within the phase (e.g. IFC, IFD, AFC)"
+                },
+                "baseline_revision": {
+                    "type": "string",
+                    "description": "Baseline revision identifier for the project"
+                },
+                "issue_status": {
+                    "type": "string",
+                    "description": "Current issue status (e.g. issued, working, superseded)"
+                },
+                "document_status": {
+                    "type": "string",
+                    "description": "Default document status for the project"
+                },
+                "planned_completion": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Planned completion date"
+                }
+            },
+            "required": [
+                "project_phase"
+            ],
+            "additionalProperties": false
+        },
+        "engineering_standards_def": {
+            "type": "object",
+            "description": "Engineering design standards adopted by the project (I265 T1.198). Keyed by discipline, value is the applicable standard code.",
+            "additionalProperties": {
+                "type": "string",
+                "description": "Standard code for this discipline (e.g. ASME B31.3, IEC 61511)"
+            }
+        },
+        "runtime_profiles_def": {
+            "type": "object",
+            "description": "Runtime service profile references (I265 T1.198). Deployment-specific infrastructure selected by profile name. Resolved against environment configuration by ProjectDefinitionResolver. No URIs or connection strings \u00e2\u20ac\u201d profile references only.",
+            "properties": {
+                "storage": {
+                    "type": "string",
+                    "description": "Storage service profile name (e.g. default_storage, s3_production)"
+                },
+                "vector_db": {
+                    "type": "string",
+                    "description": "Vector database profile name (e.g. default_vector, production_qdrant)"
+                },
+                "graph_db": {
+                    "type": "string",
+                    "description": "Graph database profile name (e.g. default_graph, neo4j_cluster)"
+                },
+                "messaging": {
+                    "type": "string",
+                    "description": "Messaging profile name (e.g. none, rabbitmq_dev)"
+                },
+                "cache": {
+                    "type": "string",
+                    "description": "Cache profile name (e.g. default_cache, redis_cluster)"
+                }
+            },
+            "required": [
+                "storage",
+                "vector_db",
+                "graph_db"
+            ],
+            "additionalProperties": false
+        },
+        "project_definition_entry_def": {
+            "type": "object",
+            "description": "Complete project definition entry (I265 T1.190/T1.198). Wraps all 18 configuration sections for a single project. Profile references are resolved by ProjectDefinitionResolver at runtime.",
+            "properties": {
+                "project_identity": {
+                    "$ref": "#/definitions/project_identity_def"
+                },
+                "project_lifecycle": {
+                    "$ref": "#/definitions/project_lifecycle_def"
+                },
+                "engineering_convention": {
+                    "$ref": "#/definitions/engineering_convention_def"
+                },
+                "engineering_standards": {
+                    "$ref": "#/definitions/engineering_standards_def"
+                },
+                "revision_validation": {
+                    "type": "object",
+                    "description": "Revision format validation for this project. Specifies the regex pattern that valid revision strings must match (T1.191).",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": "Regex pattern that valid revision strings must match."
+                        }
+                    },
+                    "required": [
+                        "pattern"
+                    ],
+                    "additionalProperties": false
+                },
+                "document_profile": {
+                    "$ref": "#/definitions/document_profile_selection_def"
+                },
+                "parsing_profile": {
+                    "type": "string",
+                    "description": "Parsing profile name (e.g. technip_pdf, standard_docx)"
+                },
+                "chunking_profile": {
+                    "type": "string",
+                    "description": "Chunking profile name (e.g. standard, semantic)"
+                },
+                "embedding_profile": {
+                    "type": "string",
+                    "description": "Embedding profile name (e.g. openai_1536, ollama_local)"
+                },
+                "metadata_policy": {
+                    "type": "string",
+                    "description": "Metadata inheritance policy name (e.g. standard_inherit, minimal)"
+                },
+                "asset_profile": {
+                    "$ref": "#/definitions/asset_profile_ref_def"
+                },
+                "ontology_profile": {
+                    "$ref": "#/definitions/ontology_profile_ref_def"
+                },
+                "retrieval_profile": {
+                    "$ref": "#/definitions/retrieval_profile_ref_def"
+                },
+                "prompt_profile": {
+                    "type": "string",
+                    "description": "AI prompt profile name (e.g. engineering_assistant, citation_focused)"
+                },
+                "validation_profile": {
+                    "type": "string",
+                    "description": "Validation policy profile name (e.g. strict, relaxed)"
+                },
+                "security_profile": {
+                    "$ref": "#/definitions/security_config_def"
+                },
+                "runtime_profiles": {
+                    "$ref": "#/definitions/runtime_profiles_def"
+                },
+                "compatibility": {
+                    "type": "object",
+                    "description": "Backward compatibility settings (I265 T1.198). Used during migration from legacy configuration.",
+                    "properties": {
+                        "legacy_project_rules": {
+                            "type": "boolean",
+                            "default": false,
+                            "description": "Whether to fall back to eks_project_rules_config.json for backward compatibility"
+                        },
+                        "schema_version": {
+                            "type": "string",
+                            "description": "Minimum compatible schema version"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "fragment_required_fields": {
+                    "type": "object",
+                    "description": "Per-fragment required field overrides (migrated from project_rules_def.fragment_required_fields). Key = fragment name, value = array of required property paths.",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1
+                    }
+                }
+            },
+            "required": [
+                "project_identity",
+                "engineering_convention",
+                "document_profile"
+            ],
+            "additionalProperties": false
+        },
+        "project_definition_registry_def": {
+            "type": "object",
+            "description": "Project definition registry (I265 T1.190). Maps project codes to their Project Definition entries.",
+            "additionalProperties": {
+                "$ref": "#/definitions/project_definition_entry_def"
+            }
         }
     }
 }
