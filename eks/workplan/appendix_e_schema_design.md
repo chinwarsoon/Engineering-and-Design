@@ -301,9 +301,9 @@ All 22 schema files organized by schema set. Each 3-layer set: **Base** (definit
 
 | Schema Set | Layer | File | Version | Purpose | Content Type | Count | Key Content | Base Definition |
 |:-----------|:------|:-----|:--------|:--------|:-------------|:------|:------------|:----------------|
-| **Core** | Base | `eks_base_schema.json` | 1.8.0 | Shared definitions hub for pipeline config | definitions | 13 | `discipline_entry_def`, `project_entry_def`, `department_entry_def`, `facility_entry_def`, `project_rules_def`, `registry_def`, `parsers_def`, `embedding_def`, `vector_store_def`, `logging_def`, `global_paths_def`, `verbosity_level`, `document_relationship_trigger_map` | — |
-| | Setup | `eks_setup_schema.json` | 1.6.0 | Property declarations for pipeline config | properties | 11 | `project_rules_registry`, `discipline_registry`, `project_registry`, `department_registry`, `facility_registry`, `global_paths`, `registry`, `parsers`, `embedding`, `vector_store`, `logging` | — |
-| | Config | `eks_config.json` | 1.7.0 | Default project configuration | actual values | 11 | `project_rules_registry` (2 rules), 4× fragment `$ref`, `global_paths`, `registry`, `parsers`, `embedding`, `vector_store`, `logging` | — |
+| **Core** | Base | `eks_base_schema.json` | 1.8.0 | Shared definitions hub for pipeline config | definitions | 13 | `discipline_entry_def`, `project_entry_def`, `department_entry_def`, `facility_entry_def`, `project_definition_registry_def`, `registry_def`, `parsers_def`, `embedding_def`, `vector_store_def`, `logging_def`, `global_paths_def`, `verbosity_level`, `document_relationship_trigger_map` | — |
+| | Setup | `eks_setup_schema.json` | 1.6.0 | Property declarations for pipeline config | properties | 11 | `project_definition`, `discipline_registry`, `project_registry`, `department_registry`, `facility_registry`, `global_paths`, `registry`, `parsers`, `embedding`, `vector_store`, `logging` | — |
+| | Config | `eks_config.json` | 1.7.0 | Default project configuration | actual values | 11 | `project_definition` (2 projects), 4× fragment `$ref`, `global_paths`, `registry`, `parsers`, `embedding`, `vector_store`, `logging` | — |
 | **Asset** | Base | `eks_asset_base_schema.json` | 1.3.0 | Asset fragment definitions | definitions | 14 | `item_core`, `process_conditions`, `manufacturer`, `asset_lifecycle`, `control_system`, `piping_connection`, `valve_internals`, `actuator`, `rotating_equipment`, `instrumentation`, `pipeline_route`, `specialist_equipment`, `motor_control`, `asset_context` | — |
 | | Setup | `eks_asset_setup_schema.json` | 1.3.0 | Asset type registry declarations (+ cross-$ref to base) | properties + 2 defs | 7 + 2 | `asset_type_registry`, `column_normalization`, `ontology_class_map`, `fragment_category_registry`, `relationship_triggers`, `document_triggers` ($ref→base); defs: `fragment_name` (14), `conditional_fragment_rule` | — |
 | | Config | `eks_asset_config.json` | 1.4.0 | AT_ type→fragment mappings | actual values | 6 | `asset_type_registry` (14 AT_ types, 14 fragments each), `column_normalization` (7 sheets, ~233 cols + context), `ontology_class_map` (14), `fragment_category_registry` (14), `relationship_triggers` (21), `document_triggers` (3) | — |
@@ -344,7 +344,7 @@ Both config and fragment schemas hold **actual values**, but serve different arc
 
 | Property | Type | Content |
 |:---------|:-----|:--------|
-| `project_rules_registry` | inline | Project-specific rules (allowed disciplines, revision pattern per project code) |
+| `project_definition` | `$ref` → config | Per-project definitions (allowed disciplines, fragment_required_fields, profiles) — I265; supersedes `project_rules_registry` (retired T1.196) |
 | `discipline_registry` | `$ref` → fragment | Delegates to shared discipline codes |
 | `project_registry` | `$ref` → fragment | Delegates to shared project codes |
 | `department_registry` | `$ref` → fragment | Delegates to shared department codes |
@@ -416,7 +416,7 @@ The EKS schema system uses `$ref` to link schemas across sets:
 | `eks_config.json` | `discipline_registry.$ref` | `eks_discipline_schema.json` | Fragment lookup |
 | `eks_config.json` | `department_registry.$ref` | `eks_department_schema.json` | Fragment lookup |
 | `eks_config.json` | `facility_registry.$ref` | `eks_facility_schema.json` | Fragment lookup |
-| `eks_setup_schema.json` | `project_rules_registry.*` | `eks_base_schema.json#/definitions/project_rules_def` | Definition ref |
+| `eks_setup_schema.json` | `project_definition.*` | `eks_base_schema.json#/definitions/project_definition_registry_def` | Definition ref (I265; `project_rules_registry` retired T1.196) |
 | `eks_setup_schema.json` | `discipline_registry.*` | `eks_base_schema.json#/definitions/discipline_entry_def` | Definition ref |
 | `eks_asset_config.json` | `ontology_class_map.*` | `eks_ontology_config.json` classes | Semantic link |
 | `eks_doc_config.json` | `document_type_registry[].ontology_class` | `eks_ontology_config.json` classes | Semantic link |
@@ -570,7 +570,7 @@ This section provides a per-key trace of every schema key across the 3-layer inh
 | Key | Type | Base `eks_base_schema.json` v1.8.0 | Setup `eks_setup_schema.json` v1.6.0 | Config | Actual Values | Purpose |
 |-----|------|-----------------------------|--------------------------------------|--------|---------------|---------|
 | `discipline_entry_def` | Domain | `{code, description}` both req, no addl | `discipline_registry{$ref: string}` | `$ref: eks_discipline_schema.json` | 20 entries — PI→Piping, EL→Electrical, ..., NA→Not Applicable | Define valid engineering disciplines |
-| `project_rules_def` | Domain | `{allowed_disciplines[] req, fragment_required_fields{string→string[]} opt}`, no addl | `project_rules_registry{$ref: string}` | `$ref: eks_project_rules_config.json` | 2 rules: 131101(9 disc, 4 field req), 131242(13 disc, 1 field req) | Bind allowed disciplines + fragment required field overrides per project |
+| ~~`project_rules_def`~~ (retired T1.196) | Domain | superseded by `project_definition_entry_def.engineering_convention.allowed_disciplines` + per-project `fragment_required_fields` | `project_definition` — $ref → def, req | `$ref: eks_project_definition_config.json` | 2 projects: 131101(9 disc, 4 field req), 131242(13 disc, 1 field req) | Per-project SSOT migrated to Project Definition (I265) |
 | `project_entry_def` | Domain | `{code, description}` both req, no addl | `project_registry{$ref: string}` req | `$ref: eks_project_code_schema.json` | 3 entries: 131101, 131242, 999999 | Register valid project codes |
 | `department_entry_def` | Domain | `{code, description}` both req, no addl | `department_registry{$ref: string}` req | `$ref: eks_department_schema.json` | 11 entries: PRJ, QAQC, CNT, ..., NA | Define valid department codes |
 | `facility_entry_def` | Domain | `{prefix, description}` both req, no addl | `facility_registry{$ref: string}` req | `$ref: eks_facility_schema.json` | 12 prefixes: WSD11, WSW41, WST02, ..., WST01 | Register facility prefixes |
@@ -683,14 +683,14 @@ Starting with the `asset_context` addition (v1.3.0), a clean separation is enfor
 | **Shape** (what properties exist, their types) | Base | `*_base_schema.json` | Universal |
 | **Composition rules** (which fragments compose which types) | Setup | `*_setup_schema.json` | Universal |
 | **Standard values** (actual asset types, column maps, triggers) | Config | `*_config.json` | Universal |
-| **Business logic** (per-project required field overrides, allowed disciplines) | Project Rules | `eks_project_rules_config.json` | Per-project |
+| **Business logic** (per-project required field overrides, allowed disciplines) | Project Definition | `eks_project_definition_config.json` | Per-project |
 
-**Rule:** Fragment definitions in `eks_asset_base_schema.json` are **shape-only** — they define properties and types but never carry `required` constraints. Per-project mandatory field rules are defined in `eks_project_rules_config.json` under `fragment_required_fields`.
+**Rule:** Fragment definitions in `eks_asset_base_schema.json` are **shape-only** — they define properties and types but never carry `required` constraints. Per-project mandatory field rules are defined per-project in `eks_project_definition_config.json` under `fragment_required_fields` (migrated from `eks_project_rules_config.json`, retired in T1.196).
 
 **Validation flow:**
 1. `SchemaLoader.load_all()` validates all schema files against their setup schemas
-2. `_validate_project_rules()` cross-checks `fragment_required_fields` against actual fragment definitions
-3. At asset ingest time, `ConfigRegistry.resolve_required_fields(project_id, fragment_name)` returns the project's required field list for that fragment
+2. ProjectDefinitionResolver validates project definition completeness + profile refs (L.13, T1.195); `fragment_required_fields` shape validated against `project_definition_entry_def`
+3. At asset ingest time, `ConfigRegistry.resolve_required_fields(project_id, fragment_name)` returns the project's required field list for that fragment (repointed to the Project Definition in T1.196/I266)
 4. Asset instance validation merges base shape + project-specific required constraints
 
 **Aggregate Summary:**

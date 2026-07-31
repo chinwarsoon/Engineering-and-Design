@@ -1,12 +1,12 @@
 # Appendix D — Pipeline Messages & Error Codes
 
-**Version**: 2.0
-**Last Updated**: 2026-07-27
+**Version**: 2.1
+**Last Updated**: 2026-07-31
 **Phase**: 1 — Foundation (schema) / 3 (runtime)
 **Status**: ✅ Tested — full re-sync with config v1.3.0 + code v1.2 (D1–D8); D9–D13 added to document output routing, verbosity, and debugging features found in implementation
 **Source of Truth**:
-- [`eks/config/schemas/eks_error_config.json`](../config/schemas/eks_error_config.json) v1.3.0 (61 system + 50 data = 111 codes)
-- [`eks/config/schemas/eks_message_config.json`](../config/schemas/eks_message_config.json) v1.1.0 (49 messages)
+- [`eks/config/schemas/eks_error_config.json`](../config/schemas/eks_error_config.json) v1.7.0 (75 system + 53 data = 128 codes)
+- [`eks/config/schemas/eks_message_config.json`](../config/schemas/eks_message_config.json) v1.2.0 (52 messages)
 - [`eks/engine/core/health_scorer.py`](../engine/core/health_scorer.py)
 - [`eks/engine/core/pipeline_orchestrator.py`](../engine/core/pipeline_orchestrator.py)
 - [`eks/engine/core/structure_detector.py`](../engine/core/structure_detector.py)
@@ -24,6 +24,7 @@
 | 0.4 | 2026-07-18 | opencode | I112: Added bootstrap (B) category, S-B codes, P1-BOOT-* format, B-* universal codes |
 | **1.0** | **2026-07-19** | **CodeBuddy** | **Full re-sync to match config/code. D3: added A/AI category, F/D module codes, PROP function code, ERROR severity. D4: 61 real codes (replaced 45 fabricated). D5: 50 real codes (replaced 65 fabricated); P5 codes added. D6: 49 real messages (replaced 42 fabricated). D7: tiers updated (6/16/13), source quality bonus, timestamp drift. D8: Phase A/B/C states added. D9: new implementation files. D10: fixed duplicate references.** |
 | **2.0** | **2026-07-27** | **opencode** | **Added output architecture, verbosity control, debugging, and known gaps (D9–D13). Updated D1 with 4-channel overview. Renumbered D9→D14, D10→D15.** |
+| **2.1** | **2026-07-31** | **opencode** | **T1.195 (I265): Added S-C-S-0901–0904 Project Definition config system errors (D4), P1-C-V-0001–0003 data errors (D5), 4 PDEF messages (D6), updated error_config to v1.7.0 (128 codes), message_config to v1.2.0 (52 messages), and Config category ranges.** |
 
 ---
 
@@ -35,9 +36,9 @@
 | D1 | [D1. Overview](#d1-overview) | Purpose, four-channel architecture, design principles, DCC alignment |
 | D2 | [D2. Error Code Format](#d2-error-code-format) | Data, system, setup, bootstrap, universal formats |
 | D3 | [D3. Error Code Taxonomy](#d3-error-code-taxonomy) | Phase/module/function codes, severity levels, system categories |
-| D4 | [D4. System Error Catalog](#d4-system-error-catalog) | 61 codes across 9 categories |
-| D5 | [D5. Data Error Catalog](#d5-data-error-catalog) | 50 codes across 6 phase/module groups |
-| D6 | [D6. Pipeline Message Catalog](#d6-pipeline-message-catalog) | Message schema, 49 messages with templates |
+| D4 | [D4. System Error Catalog](#d4-system-error-catalog) | 75 codes across 9 categories |
+| D5 | [D5. Data Error Catalog](#d5-data-error-catalog) | 53 codes across 7 phase/module groups |
+| D6 | [D6. Pipeline Message Catalog](#d6-pipeline-message-catalog) | Message schema, 52 messages with templates |
 | D7 | [D7. Health Scoring](#d7-health-scoring) | 6-dimension scoring, weight tiers, composite formula, worked examples |
 | D8 | [D8. Status Lifecycle](#d8-status-lifecycle) | Phase A/B/C states, document states, extract status values |
 | D9 | [D9. Output Architecture](#d9-output-architecture) | Four-channel design, logger implementations, dual telemetry, common library |
@@ -205,7 +206,7 @@ B  -  C  -  S  -  0001
 |------|----------|-------|-------------|
 | `E` | Environment | `S-E-S-0100–0199` | Python, packages, DuckDB |
 | `F` | File | `S-F-S-0200–0299` | File I/O, paths, schema files, config files |
-| `C` | Config | `S-C-S-0300–0399` | Schema, config, parameters, registry |
+| `C` | Config | `S-C-S-0300–0399`, `S-C-S-0901–0904` | Schema, config, parameters, registry |
 | `R` | Runtime | `S-R-S-0400–0499` | Exceptions, memory, fail-fast, pipeline phase |
 | `A` | AI | `S-A-S-0500–0599` | AI operations, embedding service, Ollama |
 | `B` | Bootstrap | `S-B-S-0600–0699` | Bootstrap initialization, preload traces, readiness gates |
@@ -220,7 +221,7 @@ B  -  C  -  S  -  0001
 
 ## D4. System Error Catalog
 
-**Total: 61 codes** across 9 categories.
+**Total: 75 codes** across 9 categories.
 
 ### S-E: Environment Errors (0101–0107)
 
@@ -262,6 +263,27 @@ B  -  C  -  S  -  0001
 | `S-C-S-0307` | REGISTRY_CONNECTION_FAILED | FATAL | Failed to connect to document registry | Yes |
 | `S-C-S-0308` | SCHEMA_RESOLUTION_ERROR | FATAL | Schema resolution failed via $ref chain | Yes |
 
+### S-C: Project Definition Config Errors (0901–0904) — I265 T1.195
+
+Project Definition configuration validation errors (Appendix L §L.13). System errors hard-fail pipeline initialization via `resolver.errors` → bootstrap raises (V1 failure semantics). Both `S-C-S-09xx` codes extend the existing `S-C-S-XXXX` system format.
+
+| Code | Name | Severity | Description | Stops Pipeline |
+|------|------|----------|-------------|:--------------:|
+| `S-C-S-0901` | PDEF_MISSING_MANDATORY_SECTION | FATAL | Project definition missing a mandatory section (project_identity, project_lifecycle, engineering_convention, engineering_standards, document_profile) or mandatory identity field | Yes |
+| `S-C-S-0902` | PDEF_UNKNOWN_PROFILE_REF | FATAL | Unknown profile reference — a reusable profile (parsing/chunking/embedding/asset/ontology/retrieval/prompt/validation/document parser) or runtime profile (storage/vector_db/graph_db/messaging/cache) is not registered in the owning schema library | Yes |
+| `S-C-S-0903` | PDEF_DUPLICATE_PROJECT_OR_PROFILE | FATAL | Duplicate project code or duplicate reusable profile id across owning schema registries | Yes |
+| `S-C-S-0904` | PDEF_RUNTIME_CONSTRUCTION_FAILED | FATAL | RuntimeProjectConfiguration construction failed during resolution | Yes |
+
+### P1-C: Project Definition Data Errors (0001–0003) — I265 T1.195
+
+Project Definition configuration validation data errors (Appendix L §L.13.6/.7/.10). Data errors never block pipeline construction (V1) — they are logged via `resolver.data_errors`. Format `P{phase}-{module}-{function}-{id}` with layer `P1`, module `C` (Config), function `V` (Validate).
+
+| Code | Name | Severity | Description | Health Impact |
+|------|------|----------|-------------|:-------------:|
+| `P1-C-V-0001` | PDEF_CAPABILITY_CONSISTENCY_FAILED | WARNING | Profile capability mismatch — resolved profile does not support the selected document profile, file extension, OCR requirement, or revision scheme (L.13.6, capability-driven V2) | −1 |
+| `P1-C-V-0002` | PDEF_METADATA_POLICY_GAP | WARNING | Mandatory metadata field declared for a project has no inheritance rule under the selected metadata policy (L.13.7) | −1 |
+| `P1-C-V-0003` | PDEF_UNUSED_PROFILE | INFO | Reusable profile registered in an owning schema library but never referenced by any project definition (L.13.10) | 0 |
+
 ### S-R: Runtime Errors (0401–0410)
 
 | Code | Name | Severity | Description | Stops Pipeline |
@@ -285,7 +307,7 @@ B  -  C  -  S  -  0001
 | `S-A-S-0502` | EMBEDDING_SERVICE_FAILED | WARNING | Embedding service not available | No |
 | `S-A-S-0503` | OLLAMA_UNAVAILABLE | WARNING | Ollama service is not available | No |
 
-### S-B: Bootstrap Errors (0601–0608)
+### S-B: Bootstrap Errors (0601–0618)
 
 | Code | Name | Severity | Description | Stops Pipeline |
 |------|------|----------|-------------|:--------------:|
@@ -297,6 +319,16 @@ B  -  C  -  S  -  0001
 | `S-B-S-0606` | BOOT_OS_DETECTION_FAILED | FATAL | Bootstrap OS detection failed — unable to determine operating system | Yes |
 | `S-B-S-0607` | BOOT_CONTEXT_FAILED | FATAL | Bootstrap context creation failed — must bootstrap before creating PipelineContext | Yes |
 | `S-B-S-0608` | BOOT_ENVIRONMENT_FAILED | FATAL | Bootstrap environment check failed — required dependencies missing. Run: conda activate eks | Yes |
+| `S-B-S-0609` | BOOT_CONFIG_DEGRADED | WARNING | Bootstrap config loaded in degraded mode — partial configuration | No |
+| `S-B-S-0610` | BOOT_CONFIGREGISTRY_FAILED | WARNING | Bootstrap config registry construction degraded | No |
+| `S-B-S-0611` | BOOT_SCCONFIG_DEGRADED | WARNING | Bootstrap schema/config load degraded — fallback used | No |
+| `S-B-S-0612` | BOOT_ERRORMGR_TODICT_FAILED | WARNING | ErrorManager to_dict export failed | No |
+| `S-B-S-0613` | BOOT_MSGMGR_TODICT_FAILED | WARNING | MessageManager to_dict export failed | No |
+| `S-B-S-0614` | BOOT_ERRORMGR_CTX_FAILED | WARNING | ErrorManager context binding failed | No |
+| `S-B-S-0615` | BOOT_MSGMGR_CTX_FAILED | WARNING | MessageManager context binding failed | No |
+| `S-B-S-0616` | BOOT_SCHEMA_EMPTY | FATAL | Bootstrap schema registry loaded empty — no schemas available | Yes |
+| `S-B-S-0617` | BOOT_SCHEMA_CROSSREF_FAILED | FATAL | Bootstrap schema cross-reference validation failed | Yes |
+| `S-B-S-0618` | BOOT_SCHEMA_CONFORMANCE_FAILED | FATAL | Bootstrap schema conformance check failed | Yes |
 
 ### B-*: Universal Bootstrap Errors — Standardized Format (15 codes)
 
@@ -322,7 +354,7 @@ B  -  C  -  S  -  0001
 
 ## D5. Data Error Catalog
 
-**Total: 50 codes** across 6 phase/module groups.
+**Total: 53 codes** across 7 phase/module groups.
 
 ### Phase 1 — Discovery Errors (P1-D-P)
 
@@ -331,6 +363,16 @@ B  -  C  -  S  -  0001
 | `P1-D-P-0001` | FILE_DISCOVERY_FAILED | CRITICAL | File walk/discovery failed for target directory | `eks/engine/core/discovery.py` | -5 |
 | `P1-D-P-0002` | DIRECTORY_NOT_FOUND | CRITICAL | Target directory does not exist or is inaccessible | `eks/engine/core/discovery.py` | -5 |
 | `P1-D-P-0003` | REGISTRATION_FAILED | HIGH | Placeholder registration failed during file discovery | `eks/engine/core/pipeline_orchestrator.py` | -3 |
+
+### Phase 1 — Project Definition Config Validation Errors (P1-C-V) — I265 T1.195
+
+Project Definition configuration validation data errors (Appendix L §L.13.6/.7/.10). These never block pipeline construction (V1 failure semantics) — they are accumulated in `ProjectDefinitionResolver.data_errors` and logged during bootstrap.
+
+| Code | Name | Severity | Description | Source | Health Impact |
+|------|------|----------|-------------|--------|:-------------:|
+| `P1-C-V-0001` | PDEF_CAPABILITY_CONSISTENCY_FAILED | WARNING | Resolved profile does not support the selected document profile, file extension, OCR requirement, or revision scheme (L.13.6 capability-driven V2) | `eks/engine/core/project_definition.py` | -1 |
+| `P1-C-V-0002` | PDEF_METADATA_POLICY_GAP | WARNING | Mandatory metadata field declared for a project has no inheritance rule under the selected metadata policy (L.13.7) | `eks/engine/core/project_definition.py` | -1 |
+| `P1-C-V-0003` | PDEF_UNUSED_PROFILE | INFO | Reusable profile registered in an owning schema library but never referenced by any project definition (L.13.10) | `eks/engine/core/project_definition.py` | 0 |
 
 ### Phase 2 — Parser Errors (P2-P-P)
 
@@ -430,7 +472,7 @@ B  -  C  -  S  -  0001
 
 ## D6. Pipeline Message Catalog
 
-**Total: 49 messages** across 7 categories.
+**Total: 52 messages** across 7 categories.
 
 ### Message Schema
 
@@ -486,6 +528,8 @@ B  -  C  -  S  -  0001
 | `STATUS_PATHS_RESOLVED` | status | 2 | `Paths resolved: {count} paths from project root` |
 | `STATUS_READINESS_PASSED` | status | 1 | `Readiness gate passed — project setup validated` |
 | `STATUS_MANAGERS_INITIALIZED` | status | 2 | `Managers initialized: ErrorManager + MessageManager ready` |
+| `PDEF_RESOLVE_START` | status | 1 | `Resolving {count} project definitions...` |
+| `PDEF_RESOLVE_COMPLETE` | status | 1 | `Resolved {count} project definitions ({errors} errors, {data_errors} data warnings)` |
 
 ### Progress Messages
 
@@ -509,6 +553,7 @@ B  -  C  -  S  -  0001
 | `WARNING_NO_REVISION_TABLE` | warning | 1 | `No revision history table: {filename}` |
 | `WARNING_STRUCTURE_LOW` | warning | 1 | `Low structural completeness ({score}%): {filename}` |
 | `WARNING_BOOTSTRAP_PHASE_FAILED` | warning | 0 | `Bootstrap phase {phase} failed: {detail}` |
+| `PDEF_DATA_ERROR` | warning | 2 | `Project definition data warning ({code}): {detail}` |
 
 ### Error Messages
 
@@ -519,6 +564,7 @@ B  -  C  -  S  -  0001
 | `ERROR_REGISTRATION_FAILED` | error | 0 | `Registration failed for {doc_id}: {detail}` |
 | `ERROR_GRAPH_FAILED` | error | 0 | `Graph operation failed: {detail}` |
 | `ERROR_INGESTION_ABORTED` | error | 0 | `Ingestion aborted at [{current}/{total}]: {detail}` |
+| `PDEF_SYSTEM_ERROR` | error | 0 | `Project definition system error ({code}): {detail}` |
 
 ---
 

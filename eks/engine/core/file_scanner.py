@@ -1,7 +1,14 @@
 """
 File Scanner for EKS - Walk project directory, validate file types, register placeholders.
 T1.37: Phase A of pipeline workflow.
-Revision 1.7.0 — T1.160 (I256): FilenameParser now receives project_code_titles from
+Revision 1.8.0 — T1.194 (I265): ProjectConfigurationRegistry injection per
+Appendix L caller-injection contract (D1). When injected, the scanner derives
+the FilenameParser project_code_registry from the authoritative
+registry.project_codes (D2 — Phase A auto-detect, no committed project
+assignment) and project_code_titles from registry project names. Falls back
+to doc_config-derived registries when no ProjectConfigurationRegistry is
+injected (L.14.7 backward compatibility until T1.196).
+1.7.0: T1.160 (I256): FilenameParser now receives project_code_titles from
 SchemaLoader-injected doc_config, enabling project_title population during parse.
 1.6.0: T1.157 (I255): FilenameParser now receives project_code_registry derived from
 filename_patterns keys (minus '*') instead of project_code=None, enabling auto-pattern detection.
@@ -20,13 +27,21 @@ class FileScanner:
     Walks a project directory tree, discovers engineering documents,
     validates file extensions against file_type_registry, and registers
     placeholder rows in the documents table.
+
+    T1.194 (I265): The scanner is the Phase A *caller* in the Appendix L
+    caller-injection contract. It holds the injected ProjectConfigurationRegistry
+    (optional), but the FilenameParser child module never holds the registry —
+    the scanner resolves project codes and titles and passes them to
+    FilenameParser at construction time.
     """
 
     def __init__(self, config: Dict[str, Any], doc_config: Optional[Dict[str, Any]] = None,
-                 logger: Optional[EKSLogger] = None):
+                 logger: Optional[EKSLogger] = None,
+                 project_config_registry: Optional[Any] = None):
         self.config = config
         self.doc_config = doc_config or config
         self.logger = logger or EKSLogger("FileScanner", level=1)
+        self.project_config_registry = project_config_registry
         self.file_type_registry = self.doc_config.get("file_type_registry", [])
         self.document_type_registry = self.doc_config.get("document_type_registry", [])
         self._ext_map = self._build_extension_map()
@@ -34,17 +49,47 @@ class FileScanner:
 
         # T1.157 (I255): FilenameParser — shared instance, auto-detects project code per filename
         # T1.160 (I256): project_code_titles derived from project_code_schema injected by SchemaLoader
+        # T1.194 (I265): When a ProjectConfigurationRegistry is injected, the
+        # project_code_registry comes from the authoritative registry.project_codes
+        # (D2 — Phase A auto-detect over the Project Definition registry) instead
+        # of the doc_config filename_patterns keys. project_code_titles likewise
+        # come from registry project names when available.
         filename_patterns = self.doc_config.get("filename_patterns", {})
-        project_code_registry = [
-            k for k in filename_patterns if k != "*"
-        ]
-        project_code_titles = self.doc_config.get("project_code_titles", {})
+        if self.project_config_registry is not None:
+            project_code_registry = list(self.project_config_registry.project_codes)
+            project_code_titles = self._registry_code_titles(self.doc_config.get("project_code_titles", {}))
+            self.logger.info(
+                f"ProjectConfigurationRegistry injected — FilenameParser auto-detect over "
+                f"{len(project_code_registry)} authoritative project code(s) (I265 D2)",
+                context="FileScanner.__init__",
+            )
+        else:
+            project_code_registry = [k for k in filename_patterns if k != "*"]
+            project_code_titles = self.doc_config.get("project_code_titles", {})
         self._parser = FilenameParser(
             filename_patterns=filename_patterns,
             project_code_registry=project_code_registry,
             project_code_titles=project_code_titles,
             document_type_registry=self.document_type_registry,
         )
+
+    def _registry_code_titles(self, doc_config_titles: Dict[str, str]) -> Dict[str, str]:
+        """Build code → title map from the Project Configuration Registry.
+
+        Registry project names (from Project Definition ``project_identity``)
+        are authoritative; doc_config titles fill any gaps not covered by the
+        registry. Merges registry-first so Project Definition wins.
+        """
+        titles = dict(doc_config_titles or {})
+        if self.project_config_registry is None:
+            return titles
+        for code in self.project_config_registry.project_codes:
+            cfg = self.project_config_registry.get(code)
+            if cfg is not None:
+                title = getattr(getattr(cfg, "project", None), "project_name", None)
+                if title:
+                    titles[code] = title
+        return titles
 
     def _build_extension_map(self) -> Dict[str, Dict[str, Any]]:
         """Map file extension (without dot) to file_type_registry entry."""

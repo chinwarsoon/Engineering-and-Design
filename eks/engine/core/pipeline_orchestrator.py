@@ -6,10 +6,17 @@ T1.64: Added phase rollback capability per Appendix F.
 T1.68: Wired ErrorManager/MessageManager calls at phase boundaries and per-file failures.
 T1.71: Replaced raw duckdb.connect in _update_doc_status with registry.update_document_status().
 
-Revision: 0.9
-Date: 2026-07-28
+Revision: 1.0
+Date: 2026-07-31
 Author: opencode
-Summary: 0.9: T1.160 (I256) — FilenameParser now receives project_code_titles from
+Summary: 1.0: T1.194 (I265) — ProjectConfigurationRegistry injection per Appendix L
+          caller-injection contract (D1). The orchestrator is the Phase B *caller*:
+          it holds the injected registry, resolves each file's committed project
+          identity, fetches the config slice, and passes project_code + slice to
+          child modules (ColumnProcessor, FilePropertyExtractor, RevisionManager).
+          Phase A stays project-agnostic (D2) — FileScanner auto-detects over
+          registry.project_codes with no committed assignment.
+0.9: T1.160 (I256) — FilenameParser now receives project_code_titles from
           SchemaLoader-injected doc_config.
           T1.161 (I256) — I252 block extended with project_title write-back:
           cover sheet metadata > code→title lookup > Phase A value.
@@ -81,7 +88,8 @@ class PipelineOrchestrator(BaseEngine):
                  error_manager: Optional[ErrorManager] = None,
                  message_manager: Optional[MessageManager] = None,
                  external_telemetry: Any = None,
-                 telemetry_verbose: bool = True):
+                 telemetry_verbose: bool = True,
+                 project_config_registry: Optional[Any] = None):
         """
         Initialize pipeline orchestrator.
         
@@ -100,6 +108,12 @@ class PipelineOrchestrator(BaseEngine):
             telemetry_verbose: Whether to emit milestone progress (25/50/75/100%)
                 to console during Phase B (I237/T1.122). Default True matches
                 system_parameters.telemetry_verbose schema default.
+            project_config_registry: Optional injected ProjectConfigurationRegistry
+                (T1.194/I265, Appendix L D1). The orchestrator is the Phase B
+                *caller*: it holds the registry, resolves each file's committed
+                project identity, and passes project_code + config slice to child
+                modules. Child modules never hold the registry themselves.
+                Falls back to doc_config dicts when None (L.14.7).
         """
         # T1.99.182 (I209): Call BaseEngine.__init__ with engine name
         super().__init__(name="PipelineOrchestrator")
@@ -110,16 +124,27 @@ class PipelineOrchestrator(BaseEngine):
         self.use_telemetry = use_telemetry
         self.error_manager = error_manager
         self.message_manager = message_manager
+        # T1.194 (I265): Injected Project Configuration Registry (Appendix L D1).
+        self.project_config_registry = project_config_registry
         
         # Initialize components via factory for DI compliance (T1.99.183/I211)
         self._engine_factory = EngineFactory(config_registry=config)
-        self.scanner = self._engine_factory.create("FileScanner", config=config, doc_config=doc_config, logger=self.logger)
-        self.router = ParserRouter(doc_config, logger=self.logger, use_factory=True)
+        self.scanner = self._engine_factory.create(
+            "FileScanner", config=config, doc_config=doc_config, logger=self.logger,
+            project_config_registry=self.project_config_registry,
+        )
+        self.router = ParserRouter(
+            doc_config, logger=self.logger, use_factory=True,
+            runtime_slice=self._slice_for_orchestrator(),
+        )
         self.scorer = self._engine_factory.create("HealthScorer", logger=self.logger)
         self.detector = self._engine_factory.create("StructureDetector", logger=self.logger)
 
         # T1.99.179 (I212): Wire RevisionManager for revision-aware document lookups
-        self.revision_manager = RevisionManager(registry, logger=self.logger)
+        self.revision_manager = RevisionManager(
+            registry, logger=self.logger,
+            runtime_slice=self._slice_for_orchestrator(),
+        )
 
         # T1.99.181 (I224): Wire ReviewManager for Phase C persistence
         self.review_manager = ManualReviewManager(
@@ -129,8 +154,12 @@ class PipelineOrchestrator(BaseEngine):
         # T1.187: Schema-driven column processor — dispatches calculated columns
         # by processing_phase (A/B/C) via registered handler functions.
         # Gracefully handles doc_configs without column_processing section.
+        # T1.194 (I265): Runtime slice is injected so handlers can consult
+        # project-specific resolved configuration (Appendix L D1).
         try:
-            self._column_processor = EKSColumnProcessor.from_doc_config(doc_config)
+            self._column_processor = EKSColumnProcessor.from_doc_config(
+                doc_config, runtime_slice=self._slice_for_orchestrator(),
+            )
         except Exception:
             self._column_processor = None
             self.logger.debug(
@@ -140,12 +169,17 @@ class PipelineOrchestrator(BaseEngine):
 
         # T1.157 (I255): Shared FilenameParser — auto-detects project code per filename
         # T1.160 (I256): project_code_titles derived from project_code_schema injected by SchemaLoader
+        # T1.194 (I265): When a ProjectConfigurationRegistry is injected, the
+        # project_code_registry and project_code_titles come from the registry
+        # (mirrors FileScanner, keeping the two callers in sync).
         filename_patterns = doc_config.get("filename_patterns", {})
         document_type_registry = doc_config.get("document_type_registry", [])
-        project_code_registry = [
-            k for k in filename_patterns if k != "*"
-        ]
-        project_code_titles = doc_config.get("project_code_titles", {})
+        if self.project_config_registry is not None:
+            project_code_registry = list(self.project_config_registry.project_codes)
+            project_code_titles = self._registry_code_titles(doc_config.get("project_code_titles", {}))
+        else:
+            project_code_registry = [k for k in filename_patterns if k != "*"]
+            project_code_titles = doc_config.get("project_code_titles", {})
         self._parser = FilenameParser(
             filename_patterns=filename_patterns,
             project_code_registry=project_code_registry,
@@ -158,6 +192,7 @@ class PipelineOrchestrator(BaseEngine):
         self._property_extractor = FilePropertyExtractor(
             file_property_patterns=file_property_patterns,
             logger=self.logger,
+            runtime_slice=self._slice_for_orchestrator(),
         )
         
         # T1.99.184 (I215): Unify dual telemetry — local TelemetryHeartbeat for
@@ -169,7 +204,63 @@ class PipelineOrchestrator(BaseEngine):
         # Initialize pipeline context
         self.context: Optional[EKSPipelineContext] = None
         self.checkpoint_states: Dict[str, Dict[str, Any]] = {}
-    
+
+    # ------------------------------------------------------------------
+    # T1.194 (I265): Project Configuration slice resolution — Appendix L D1
+    # ------------------------------------------------------------------
+
+    def _registry_code_titles(self, doc_config_titles: Dict[str, str]) -> Dict[str, str]:
+        """Build code → title map from the Project Configuration Registry.
+
+        Registry project names (from Project Definition ``project_identity``)
+        are authoritative; doc_config titles fill any gaps. Mirrors
+        ``FileScanner._registry_code_titles()`` so both callers agree.
+        """
+        titles = dict(doc_config_titles or {})
+        if self.project_config_registry is None:
+            return titles
+        for code in self.project_config_registry.project_codes:
+            cfg = self.project_config_registry.get(code)
+            if cfg is not None:
+                title = getattr(getattr(cfg, "project", None), "project_name", None)
+                if title:
+                    titles[code] = title
+        return titles
+
+    def _slice_for_orchestrator(self) -> Dict[str, Any]:
+        """Return the init-time default config slice for orchestrator children.
+
+        With a single registered project, the Pipeline slice is known at
+        construction time. With zero or multiple projects the per-file project
+        identity is not yet established, so an empty slice is returned and child
+        modules fall back to doc_config dicts (L.14.7).
+        """
+        if self.project_config_registry is not None and len(self.project_config_registry) == 1:
+            code = self.project_config_registry.project_codes[0]
+            cfg = self.project_config_registry.get(code)
+            if cfg is not None:
+                return cfg.slice_for("Pipeline")
+        return {}
+
+    def _resolve_project_context(self, project_code: Optional[str]) -> Dict[str, Any]:
+        """Resolve the config slice for a file's committed project identity.
+
+        Phase B committed identity (D1): the orchestrator looks up the project
+        code in the injected registry and fetches the slice. Returns
+        ``{"project_code": ..., "config_slice": {...}}``. When the code is
+        missing or the registry is absent, both fall back to None / {} so child
+        modules degrade to doc_config dicts (L.14.7).
+        """
+        ctx: Dict[str, Any] = {"project_code": None, "config_slice": {}}
+        if not project_code:
+            return ctx
+        if self.project_config_registry is not None and project_code in self.project_config_registry:
+            cfg = self.project_config_registry.get(project_code)
+            if cfg is not None:
+                ctx["project_code"] = project_code
+                ctx["config_slice"] = cfg.slice_for("Pipeline")
+        return ctx
+
     def initialize_context(self, data_dir: Path, schema_dir: Path, output_dir: Path,
                           archive_dir: Path, config_dir: Path, log_dir: Path,
                           parameters: Optional[Dict[str, Any]] = None,
@@ -680,7 +771,11 @@ class PipelineOrchestrator(BaseEngine):
             valid = [
                 {
                     "file_path": r["file_path"],
-                    "file_type": r.get("file_type") or "",
+                    # T1.197 (I253 regression): derive file_type from the file
+                    # extension when the stored value is NULL/empty — repairs
+                    # rows registered under the static-fallback allowlist that
+                    # dropped file_type (e.g. CLI runs from a non-root CWD).
+                    "file_type": r.get("file_type") or Path(r["file_path"]).suffix.lstrip(".").lower(),
                     "file_name": Path(r["file_path"]).name,
                 }
                 for r in rows
@@ -787,6 +882,14 @@ class PipelineOrchestrator(BaseEngine):
         # Avoids filename-parse divergence between _process_file and _update_doc_status.
         doc = self.registry.get_document_by_file_path(file_path)
         doc_id = doc["id"] if doc else None
+
+        # T1.194 (I265): Phase B committed project identity — resolve the config
+        # slice from the injected ProjectConfigurationRegistry (Appendix L D1).
+        # project_number written by Phase A (or later parser metadata) is the
+        # authoritative key. Falls back to empty slice when unresolved.
+        project_context = self._resolve_project_context(
+            doc.get("project_number") if doc else None
+        )
 
         try:
             parse_result = self.router.route(file_path, file_type)
@@ -912,8 +1015,13 @@ class PipelineOrchestrator(BaseEngine):
                             "metadata": metadata,
                             "elements": elements,
                             "file_properties": dict(registry_props),
-                            "project_code_titles": self.doc_config.get("project_code_titles", {}),
+                            "project_code_titles": self._registry_code_titles(
+                                self.doc_config.get("project_code_titles", {})
+                            ),
                             "score": score,
+                            # T1.194 (I265): Phase B committed identity + slice
+                            "project_code": project_context.get("project_code"),
+                            "config_slice": project_context.get("config_slice"),
                         })
                     self.logger.debug(
                         f"File properties extracted for {Path(file_path).name}: "
@@ -947,6 +1055,9 @@ class PipelineOrchestrator(BaseEngine):
                     self.revision_manager.detect_supersession(
                         doc["document_number"],
                         parsed_revision,
+                        # T1.194 (I265): Pass the file's committed config slice so
+                        # revision-scheme awareness can be applied (Appendix L D1).
+                        runtime_slice=project_context.get("config_slice"),
                     )
 
                     result["status"] = "success"

@@ -1,8 +1,8 @@
 {
   "metadata": {
-    "version": "1.1.0",
-    "last_updated": "2026-07-18",
-    "total_messages": 49
+    "version": "1.2.0",
+    "last_updated": "2026-07-31",
+    "total_messages": 52
   },
   "messages": {
     "MILESTONE_BOOTSTRAP_START": {
@@ -259,6 +259,30 @@
       "template": "Ingestion aborted at [{current}/{total}]: {detail}",
       "level": 0,
       "category": "error"
+    },
+    "PDEF_RESOLVE_START": {
+      "template": "Resolving {count} project definitions...",
+      "level": 1,
+      "category": "status",
+      "icon": "▶"
+    },
+    "PDEF_RESOLVE_COMPLETE": {
+      "template": "Resolved {count} project definitions ({errors} errors, {data_errors} data warnings)",
+      "level": 1,
+      "category": "status",
+      "icon": "✓"
+    },
+    "PDEF_DATA_ERROR": {
+      "template": "Project definition data warning ({code}): {detail}",
+      "level": 2,
+      "category": "warning",
+      "icon": "⚠"
+    },
+    "PDEF_SYSTEM_ERROR": {
+      "template": "Project definition system error ({code}): {detail}",
+      "level": 0,
+      "category": "error",
+      "icon": "✗"
     }
   }
 }

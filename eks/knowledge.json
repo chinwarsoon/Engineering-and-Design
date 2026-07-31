@@ -14,19 +14,20 @@
   },
   "architecture_overview": {
     "key_modules": [
-      "engine/core/ - Foundation: registry, revision, config, schema_loader, pipeline orchestration, context, base engine, telemetry, validator, factories, setup_validator",
+      "engine/core/ - Foundation: registry, revision, config, schema_loader, project_definition (ProjectDefinitionResolver/RuntimeProjectConfiguration, I265), pipeline orchestration, context, base engine, telemetry, validator, factories, setup_validator",
       "engine/parsers/ - Plug-in document parsers (PDF, DOCX, XLSX, DGN, DWG) with parser_router",
       "engine/logging/ - Tiered logging infrastructure (levels 0-3)",
       "engine/discovery/ - CLI entry points for scheduling engines",
       "engine/health/ - CLI entry points for health scorer",
       "ui/backend/ - HTTP API endpoints for independent engine execution (12 endpoints + log streaming)",
       "ui/ - Interactive dashboard (phase1_ingestion.html, eks.css, eks.js, ui_help.json)",
-      "config/schemas/ - 3-layer schema pattern (base/setup/config) for 6 schema sets + 4 fragments + project rules"
+      "config/schemas/ - 3-layer schema pattern (base/setup/config) for 6 schema sets + 4 fragments + project definition (eks_project_definition_config.json — project rules retired in T1.196)"
     ],
     "data_flows": [
       "File Scanner → Parser Router → Parser → Structure Detector → Health Scorer → Document Registry",
       "Schema Loader validates base/setup/config chain with $ref resolution",
       "ConfigRegistry provides SSOT access to global parameters",
+      "ProjectDefinitionResolver loads eks_project_definition_config.json → builds immutable RuntimeProjectConfiguration registry → per-module configuration slices (I265)",
       "common.library.config normalizes system_parameters across EKS flat-object and DCC array-entry config shapes"
     ],
     "integration_points": [
@@ -80,7 +81,7 @@
       "config/schemas/eks_message_base.json - Pipeline message catalog (v1.1.0, 6 defs)",
       "config/schemas/eks_error_setup_schema.json - Error schema setup layer",
       "config/schemas/eks_message_setup_schema.json - Message schema setup layer",
-      "config/schemas/eks_project_rules_config.json - Project rules SSOT",
+      "config/schemas/eks_project_definition_config.json - Project Definition SSOT (I265; per-project config — eks_project_rules_config.json retired in T1.196)",
       "config/schemas/eks_project_code_schema.json - WSD11 project codes fragment",
       "config/schemas/eks_discipline_schema.json - 21 discipline codes fragment",
       "config/schemas/eks_department_schema.json - 11 department codes fragment",
@@ -289,7 +290,5 @@
         "author": "opencode",
         "summary": "I107 + T1.99.45-49 resolved — bootstrap completeness achieved. bootstrap_pipeline() handles all init (OS, CLI, config, paths, level, data_dir, MM). Single resolved_paths source (Defect A) + single MessageManager (Defect B). EKSPipelineContext fully threaded. 4 new integration tests for single-source/phase1-key/context-consistency. Pre-existing bugs fixed: schema_cli.py anchor kwarg mismatch, main() missing project_root, run_pipeline() args=None sys.argv bleed, main() missing EKSPipelineContext import. 23/23 pipeline tests pass."
       }
-    ]
-  }
     ]
   }

@@ -172,6 +172,7 @@ Deliverables:
 | §50 | `str(5)` bug fix — restore exception messages (13 instances, 4 files) | — | I226 | [P1.1 §7](appendix_p1.1_phase1_architecture.md#7-issues--fixes--summary-with-cross-references) |
 | §51 | Scan Redundancy — DuckDB SSOT eliminates Phase B re-scan | T1.100, T1.101 | I227 | [Task Log §24](../log/phase1/p1_task_log.md#24-scan-redundancy-eliminate-phase-b-re-scan-via-duckdb-ssot-i227-tasks) |
 | §52 | Legacy doc_id fallback removal — file_path SSOT lookup, doc_id required | T1.106, T1.107 | I232 | [Task Log §27](../log/phase1/p1_task_log.md#27-legacy-doc_id-fallback-removal-i232-tasks) |
+| I265 | Project Definition Refactoring — RuntimeProjectConfiguration SSOT | T1.189–T1.197 | I255, I264, I265–I272 | [Appendix L](appendix_l_project_definition.md) + [Task Log §T1.189–T1.197](../log/phase1/p1_task_log.md#implementation-tasks) + [Migration Guide](../docs/project_definition_migration_guide.md) |
 | §53 | Batch-level telemetry — per-file checkpoints replaced with 25%/50%/75%/100% milestones | T1.102 | I229 | [Task Log §25](../log/phase1/p1_task_log.md#25-phase-b-telemetry-batch-level-checkpoints-i229-tasks) |
 | §54 | Cross-phase validation gates — A→B (registry non-empty) and B→C (scores exist) | T1.104 | I230 | [Task Log §26](../log/phase1/p1_task_log.md#26-cross-phase-validation-gates-i230-tasks) |
 | §55 | Version SSOT — single `__version__` in `eks/__init__.py`; all subpackages import from `eks` | T1.108 | I231 | [Task Log §28](../log/phase1/p1_task_log.md#28-version-ssot-i231-tasks) |
@@ -216,3 +217,4 @@ Deliverables:
 | P1.4 | [p1_task_log.md](../log/phase1/p1_task_log.md) | Task breakdown (replaces retired appendix_p1.4) |
 | P1.5 | retired — archived at [eks/archive/workplan/](../archive/workplan/appendix_p1.5_phase1_checklists.md) | SC → [SC Log](../log/phase1/p1_sc_log.md); Deliverables → [P1.2 §4](appendix_p1.2_phase1_scope.md#4-phase-1-deliverables-consolidated-from-34--37) |
 | P1.6 | [appendix_p1.6_phase1_revision_history.md](appendix_p1.6_phase1_revision_history.md) | Full revision history |
+

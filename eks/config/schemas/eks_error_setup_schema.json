@@ -3,7 +3,7 @@
   "$id": "https://eks.engineering/schemas/eks_error_setup_schema.json",
   "title": "EKS Error Code Setup Schema",
   "description": "Error code schema structure with properties (references base definitions only)",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "type": "object",
   "allOf": [
     { "$ref": "https://eks.engineering/schemas/eks_error_code_base.json" }
@@ -24,6 +24,9 @@
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "config": {
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
+        },
+        "project_definition": {
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "runtime": {
@@ -68,6 +71,9 @@
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         },
         "phase_5_file_ops": {
+          "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
+        },
+        "phase_1_config_validation": {
           "$ref": "https://eks.engineering/schemas/eks_error_code_base.json#/definitions/error_category_range"
         }
       }

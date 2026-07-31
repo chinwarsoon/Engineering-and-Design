@@ -8,12 +8,16 @@ Extracts two layers of per-file metadata:
 All extraction rules are schema-driven via ``file_property_patterns`` in
 eks_doc_config.json.  No hardcoded field lists.
 
-Revision: 0.2
-Date: 2026-07-19
-Author: CodeBuddy
-Summary: T1.99.147 (I187) — migrated _compute_hash() to common.library.utility.file_hash.
-         Removed direct hashlib import; delegates to compute_file_hash() from common.
-         Original: 0.1 — Initial implementation per Appendix J §J4.
+Revision: 0.3
+Date: 2026-07-31
+Author: opencode
+Summary: 0.3: T1.194 (I265) — FilePropertyExtractor accepts an optional injected
+          runtime_slice (Appendix L D1 caller-injection contract). The slice is
+          retained for traceability; extraction rules remain schema-driven via
+          file_property_patterns until T1.196 Stage 5 (L.14.7 backward compat).
+0.2: T1.99.147 (I187) — migrated _compute_hash() to common.library.utility.file_hash.
+          Removed direct hashlib import; delegates to compute_file_hash() from common.
+          Original: 0.1 — Initial implementation per Appendix J §J4.
 """
 
 from __future__ import annotations
@@ -128,15 +132,22 @@ class FilePropertyExtractor:
         The ``file_property_patterns`` block from eks_doc_config.json.
         If None, the extractor operates in no-op mode (all fields None).
     logger : EKSLogger, optional
+    runtime_slice : dict, optional
+        Injected config slice for the module's project (Appendix L D1).
+        Retained for traceability; extraction rules stay schema-driven via
+        ``file_property_patterns`` (L.14.7 backward compatibility).
     """
 
     def __init__(
         self,
         file_property_patterns: Optional[Dict[str, Any]] = None,
         logger: Optional[EKSLogger] = None,
+        runtime_slice: Optional[Dict[str, Any]] = None,
     ):
         self._config = file_property_patterns or {}
         self.logger = logger or EKSLogger("FilePropertyExtractor", level=2)
+        # T1.194 (I265): Injected config slice (Appendix L D1).
+        self.runtime_slice = runtime_slice or {}
 
         # Resolve OS config
         os_cfg = self._config.get("os_properties", {})
@@ -358,11 +369,12 @@ def extract_file_properties(
     file_property_patterns: Optional[Dict[str, Any]] = None,
     parser_metadata: Optional[Dict[str, Any]] = None,
     logger: Optional[EKSLogger] = None,
+    runtime_slice: Optional[Dict[str, Any]] = None,
 ) -> FilePropertyResult:
     """One-shot convenience wrapper — instantiates FilePropertyExtractor per call.
 
     Prefer instantiating FilePropertyExtractor once and calling .extract() in a
     loop for batch operations (Phase B pipeline processing).
     """
-    extractor = FilePropertyExtractor(file_property_patterns, logger)
+    extractor = FilePropertyExtractor(file_property_patterns, logger, runtime_slice)
     return extractor.extract(file_path, file_type, parser_metadata)

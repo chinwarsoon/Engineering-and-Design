@@ -1,6 +1,12 @@
 """
 Schema-Driven Filename Parser — Universal Class (Appendix I)
 
+Revision 1.3.0 — T1.194 (I265): Added project_code to FilenameParseResult;
+_detect_pattern() now records the auto-detected project code on _active_code
+so the caller (FileScanner / PipelineOrchestrator) can surface the matched
+project identity without holding the ProjectConfigurationRegistry itself
+(Appendix L caller-injection contract D1).
+
 Revision 1.2.0 — T1.160 (I256): Added project_title to FilenameParseResult;
 added project_code_titles __init__ param; _extract_segments() now looks up
 project_title from code->title map when project_number extracted.
@@ -46,6 +52,11 @@ class FilenameParseResult:
     document_type: Optional[str] = None
     discipline: Optional[str] = None
     sequence_number: Optional[str] = None
+    # T1.194 (I265): Auto-detected project code — the project pattern that
+    # matched this filename during _detect_pattern(). Excluded from
+    # to_metadata_dict() (not a registry column). Feeds Phase B committed
+    # identity resolution via the caller-injection contract.
+    project_code: Optional[str] = None
     parse_status: str = "unresolvable"   # "ok" | "partial" | "unresolvable"
     parse_errors: List[str] = field(default_factory=list)
 
@@ -153,6 +164,10 @@ class FilenameParser:
         self._compiled_validators: Dict[int, re.Pattern] = {}
         self._doc_type_codes: Optional[Set[str]] = None
         self._precompile_doc_type_codes()
+        # T1.194 (I265): Project code matched by the most recent parse() call.
+        # Set by _detect_pattern() — used to surface the auto-detected project
+        # identity on FilenameParseResult.project_code.
+        self._active_code: Optional[str] = None
 
     # ---- Pattern Resolution ----
 
@@ -173,8 +188,13 @@ class FilenameParser:
         Splits the stem by the common separator and checks if the first
         segment matches any registered project code. Returns the matching
         pattern, or the '*' fallback when no code matches.
+
+        T1.194 (I265): Records the matched project code on ``_active_code``
+        (or None for the '*' / hardcoded fallback) so the caller can surface
+        the detected project identity.
         """
         if not self._project_code_registry or not self._patterns:
+            self._active_code = None
             return dict(self._HARDCODED_DEFAULT)
 
         separator = self._patterns.get("*", {}).get("separator", "-")
@@ -190,8 +210,10 @@ class FilenameParser:
             if len(parts) > 0 and parts[0] == code:
                 merged = dict(self._HARDCODED_DEFAULT)
                 merged.update(pattern)
+                self._active_code = code
                 return merged
 
+        self._active_code = None
         return self._resolve_pattern(None)
 
     def _precompile_validators(self) -> None:
@@ -238,6 +260,9 @@ class FilenameParser:
 
         # Step 1: Auto-detect project code pattern for this stem
         self._pattern = self._detect_pattern(stem)
+        # T1.194 (I265): Surface the auto-detected project code (None if the
+        # '*' / hardcoded fallback matched). Feeds Phase B committed identity.
+        result.project_code = self._active_code
         self._precompile_validators()
 
         # Step 3: Strip known non-revision suffixes

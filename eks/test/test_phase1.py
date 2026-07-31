@@ -61,7 +61,8 @@ class TestPhase1(unittest.TestCase):
         """Test schema loading and validation."""
         config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
         config = load_eks_config(config_parent)
-        self.assertIn("project_rules_registry", config)
+        self.assertIn("project_definition", config)
+        self.assertNotIn("project_rules_registry", config)
         self.assertIn("discipline_registry", config)
         self.assertEqual(config["registry"]["type"], "duckdb")
 
@@ -663,6 +664,49 @@ class TestPhase1(unittest.TestCase):
         self.assertIn("extract_status", allowlist)
         self.assertIn("project_title", allowlist)
 
+    def test_register_document_persists_file_type(self):
+        """T1.197 (I253 regression): file_type must survive registration.
+
+        Regression: the static-fallback COLUMN_ALLOWLIST (used when the doc base
+        schema is unavailable, e.g. CLI run from a non-root CWD) omitted file_type,
+        silently dropping it on INSERT — every registered row stored NULL, and
+        Phase B failed with "No parser registered for file type: ".
+        """
+        import tempfile
+        from pathlib import Path
+        from eks.engine.core.registry import DocumentRegistry
+
+        tmp = Path(tempfile.mkdtemp()) / "ft_test.db"
+        reg = DocumentRegistry(db_path=str(tmp))
+        reg._init_db()
+        reg.register_document({
+            "document_number": "TEST-FT-001",
+            "revision": "A",
+            "document_type": "DGN",
+            "file_path": r"C:\x\sample.dgn",
+            "file_type": "dgn",
+        })
+        row = reg.get_document("TEST-FT-001", revision="A")
+        self.assertEqual(row.get("file_type"), "dgn")
+        # Force the static-fallback path (schema load failure) and assert that
+        # file_type is included — the root cause of the NULL rows.
+        from eks.engine.core import registry as _reg_mod
+        import eks.engine.core.schema_to_ddl as _stdl
+        _reg_mod.DocumentRegistry._SCHEMA_DERIVED_ALLOWLIST = None
+        orig = _stdl.SchemaToDDL.load_doc_base_schema
+
+        def _boom(*a, **k):
+            raise RuntimeError("schema unavailable (simulated non-root CWD)")
+
+        _stdl.SchemaToDDL.load_doc_base_schema = staticmethod(_boom)
+        try:
+            fallback = _reg_mod.DocumentRegistry._get_column_allowlist()
+            self.assertIn("file_type", fallback)
+            self.assertIn("file_path", fallback)
+        finally:
+            _stdl.SchemaToDDL.load_doc_base_schema = orig
+            _reg_mod.DocumentRegistry._SCHEMA_DERIVED_ALLOWLIST = None
+
     def test_schema_to_ddl_timestamp_format(self):
         """T1.36: ingested_at is TIMESTAMP not VARCHAR."""
         from eks.engine.core.schema_to_ddl import SchemaToDDL
@@ -942,16 +986,17 @@ class TestPhase1(unittest.TestCase):
                 self.assertIn(field, schema, f"{fname} missing {field}")
 
     def test_config_no_placeholder_data(self):
-        """T1.46: Verify project rules config has real project codes (no P123/P456)."""
+        """T1.46 (updated T1.196): Verify project definitions have real project codes (no P123/P456)."""
         import json
-        # project_rules_registry is now $ref; load the referenced file directly
-        rules_file = self.config_dir / 'eks_project_rules_config.json'
-        rules_data = json.load(open(rules_file, encoding='utf-8'))
-        project_rules = rules_data.get('project_rules', {})
-        self.assertNotIn('P123', str(project_rules), "Placeholder P123 still in project rules")
-        self.assertNotIn('P456', str(project_rules), "Placeholder P456 still in project rules")
-        self.assertIn('131101', project_rules, "Real project code 131101 missing")
-        self.assertIn('131242', project_rules, "Real project code 131242 missing")
+        # T1.196: eks_project_rules_config.json retired — rules live in eks_project_definition_config.json
+        pd_file = self.config_dir / 'eks_project_definition_config.json'
+        pd_data = json.load(open(pd_file, encoding='utf-8'))
+        project_defs = pd_data.get('project_definition', {})
+        self.assertNotIn('P123', str(project_defs), "Placeholder P123 still in project definitions")
+        self.assertNotIn('P456', str(project_defs), "Placeholder P456 still in project definitions")
+        self.assertIn('131101', project_defs, "Real project code 131101 missing")
+        self.assertIn('131242', project_defs, "Real project code 131242 missing")
+        self.assertNotIn('project_rules_registry', str(pd_data), "legacy project_rules_registry should be gone")
 
     def test_config_has_fragment_references(self):
         """T1.46: Verify eks_config.json has $ref to fragment schemas."""
@@ -996,14 +1041,14 @@ class TestPhase1(unittest.TestCase):
             self.assertIn(key, required, f"setup_schema missing top-level setup key in required: {key}")
 
     def test_project_rules_has_fragment_required_fields(self):
-        """T1.50: Verify project_rules_config has fragment_required_fields per project."""
+        """T1.50 (updated T1.196): project definitions carry fragment_required_fields per project."""
         import json
-        rules_file = self.config_dir / 'eks_project_rules_config.json'
-        rules_data = json.load(open(rules_file, encoding='utf-8'))
-        project_rules = rules_data.get('project_rules', {})
+        pd_file = self.config_dir / 'eks_project_definition_config.json'
+        pd_data = json.load(open(pd_file, encoding='utf-8'))
+        project_defs = pd_data.get('project_definition', {})
         for pid in ['131101', '131242']:
-            self.assertIn(pid, project_rules, f"Missing project: {pid}")
-            entry = project_rules[pid]
+            self.assertIn(pid, project_defs, f"Missing project: {pid}")
+            entry = project_defs[pid]
             self.assertIn('fragment_required_fields', entry,
                 f"Project {pid} missing fragment_required_fields")
             self.assertIsInstance(entry['fragment_required_fields'], dict)
@@ -1013,14 +1058,14 @@ class TestPhase1(unittest.TestCase):
                 f"Project {pid} item_core required fields is empty")
 
     def test_fragment_required_fields_validate_against_base(self):
-        """T1.50: fragment_required_fields fragment names and field paths must exist in asset base schema."""
+        """T1.50 (updated T1.196): fragment_required_fields names/paths must exist in asset base schema."""
         import json
-        rules_file = self.config_dir / 'eks_project_rules_config.json'
+        pd_file = self.config_dir / 'eks_project_definition_config.json'
         base_file = self.config_dir / 'eks_asset_base_schema.json'
-        rules_data = json.load(open(rules_file, encoding='utf-8'))
+        pd_data = json.load(open(pd_file, encoding='utf-8'))
         base_defs = json.load(open(base_file, encoding='utf-8')).get('definitions', {})
-        project_rules = rules_data.get('project_rules', {})
-        for pid, entry in project_rules.items():
+        project_defs = pd_data.get('project_definition', {})
+        for pid, entry in project_defs.items():
             overrides = entry.get('fragment_required_fields', {})
             for frag_name, field_list in overrides.items():
                 self.assertIn(frag_name, base_defs,
@@ -1058,7 +1103,7 @@ class TestPhase1(unittest.TestCase):
         item_core = base.get('definitions', {}).get('item_core', {})
         self.assertNotIn('required', item_core,
             "item_core must not have required at base level. Required constraints "
-            "are defined per-project in eks_project_rules_config.json (fragment_required_fields).")
+            "are defined per-project in eks_project_definition_config.json (fragment_required_fields).")
 
     def test_registry_update_document_status(self):
         """T1.71: DocumentRegistry.update_document_status updates extraction fields."""
@@ -2137,7 +2182,7 @@ class TestBootstrapDegradation(unittest.TestCase):
         ):
             boot._bootstrap_registry()
         self.assertTrue(
-            self._has_log(logger, "doc_config schema validation failed"),
+            self._has_log(logger, "doc_config schema validation"),
             "I257: Expected log entry about doc_config failure in debug_log"
         )
 
@@ -2254,7 +2299,6 @@ class TestBootstrapDegradation(unittest.TestCase):
             "eks_ontology_base_schema", "eks_ontology_setup_schema", "eks_ontology_config",
             "eks_error_code_base", "eks_error_setup_schema", "eks_error_config",
             "eks_message_base", "eks_message_setup_schema", "eks_message_config",
-            "eks_project_rules_config",
         ]
 
         tier3_entries = discover_schema_files_tier3(all_stems, loader._search_dirs, registry)
@@ -2279,7 +2323,8 @@ class TestBootstrapDegradation(unittest.TestCase):
         result = loader.load_all()
         self.assertIsNotNone(result)
         self.assertIn("registry", result)
-        self.assertIn("project_rules_registry", result)
+        self.assertIn("project_definition", result)
+        self.assertNotIn("project_rules_registry", result)
 
 
 if __name__ == "__main__":

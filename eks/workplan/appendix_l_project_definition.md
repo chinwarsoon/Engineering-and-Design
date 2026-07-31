@@ -10,6 +10,13 @@ Introduce **ProjectDefinitionResolver** as a common EKS pipeline component respo
 
 This work supersedes the earlier proposal to introduce `eks_project_rules_config.json`. Project-specific rules shall instead be integrated into the Project Definition.
 
+> **Naming (T1.196/I269)**: The authoritative Project Definition is implemented as
+> `eks_project_definition_config.json` (instance values) with its definitions in
+> `eks_base_schema.json` (`project_definition_registry_def`,
+> `project_definition_entry_def`). The proposed name `eks_project_definition_schema.json`
+> is not a file on disk — references to it in I265 and the L.12 task rows denote this
+> same Project Definition SSOT. `eks_project_rules_config.json` was retired in T1.196.
+
 ---
 
 # L.2 Scope
@@ -198,6 +205,14 @@ Examples include:
 * `eks_prompt_profiles.json`
 * `eks_validation_profiles.json`
 * future reusable libraries
+
+> **Implementation note (T1.195 V2 / T1.196 I271)**: reusable profile libraries are
+> implemented as sections of `eks_doc_config.json` (e.g. `parsing_profiles`) rather
+> than separate `eks_parser_profiles.json` files; `ProjectDefinitionResolver`
+> resolves them by exact key (`_resolve_profile`) and compares capabilities
+> generically. The chunking / embedding / asset / ontology / retrieval / prompt /
+> validation profile sections are declared by this architecture but not yet
+> populated — deferred to their consuming phases.
 
 These libraries own reusable configuration only.
 
@@ -795,6 +810,14 @@ Project-specific processing shall not occur during this phase.
 
 RuntimeProjectConfiguration is therefore not required during initial file registration.
 
+> **Wording amendment (T1.194 D2 / T1.197 alignment pass)**: Phase A keeps
+> `FilenameParser` in auto-detect mode over `registry.project_codes` from the
+> Project Configuration Registry — **no committed project assignment occurs in
+> Phase A**. The caller (FileScanner / PipelineOrchestrator) resolves the project
+> code (Phase A: auto-detect; Phase B: committed identity) and fetches the
+> configuration slice for the module at call time. Authoritative project
+> assignment is performed in Phase B only.
+
 ---
 
 ## L.9.4 Project Identification
@@ -1020,6 +1043,7 @@ Runtime modules perform business processing.
 Examples include:
 
 * FilenameParser
+* ColumnProcessor
 * RevisionValidator
 * DocumentParser
 * OCRProcessor
@@ -1158,10 +1182,10 @@ Remove deprecated compatibility layer after all runtime modules have migrated.
 | **T1.191** | 2026-07-30 | Phase 1 | Refactor Reusable Configuration Libraries        | Refactor `eks_doc_config.json` and related shared configuration libraries to retain only reusable profiles. Remove project-specific mappings while maintaining temporary compatibility for existing consumers.                                                                                                                                                                                                                       | T1.190                 | Franklin | 🔷 Planned |
 | **T1.192** | 2026-07-30 | Phase 1 | Verify SchemaLoader Compatibility                | Verify that the SchemaLoader architecture introduced in I261/I263 fully supports ProjectDefinitionResolver. Implement only minimal generic enhancements if justified. Define the contract that SchemaLoader returns raw validated schema objects and does not assemble runtime configuration.                                                                                                                                        | I261, I263             | Franklin | 🔷 Planned |
 | **T1.193** | 2026-07-30 | Phase 1 | Implement ProjectDefinitionResolver              | Implement the common EKS pipeline module that loads all Project Definitions from `eks_project_definition_config.json`, resolves reusable profile references, applies runtime environment profiles, validates each project configuration, merges configuration, constructs a RuntimeProjectConfiguration per project, and registers all in the Project Configuration Registry during pipeline bootstrap. The resolver shall not determine which project a document belongs to — project identification is a pipeline responsibility. | T1.190, T1.191, T1.192 | Franklin | 🔷 Planned |
-| **T1.194** | 2026-07-30 | Phase 1 | Migrate Runtime Modules                          | Replace direct schema loading and multiple runtime configuration dictionaries with RuntimeProjectConfiguration across FileScanner, FilenameParser, RevisionValidator, ColumnProcessor, Asset Loader, Pipeline, Retriever, and related runtime modules. Preserve the auto-detection behaviour introduced in I255 while replacing the internal `project_code_registry` with the Project Definition as the authoritative project registry. | T1.193, I255, I264     | Franklin | 🔷 Planned |
-| **T1.195** | 2026-07-30 | Phase 1 | Implement Configuration Validation               | Validate project completeness, reusable profile references, project-to-profile mappings, duplicate definitions, unused profiles, schema consistency, and RuntimeProjectConfiguration construction during ProjectDefinitionResolver execution.                                                                                                                                                                                           | T1.193                 | Franklin | 🔷 Planned |
-| **T1.196** | 2026-07-30 | Phase 1 | Migrate Existing Configuration                   | Update all `$ref` consumers (including `eks_config.json`), migrate project-specific rules into `eks_project_definition_schema.json`, retire `eks_project_rules_config.json`, and provide a temporary compatibility layer until migration is complete.                                                                                                                                                                                | T1.194, T1.195         | Franklin | 🔷 Planned |
-| **T1.197** | 2026-07-30 | Phase 1 | Documentation, Traceability & Regression Testing | Update architecture documentation, Phase 1 implementation index, issue traceability, migration guide, runtime lifecycle documentation, and verify regression across document ingestion, metadata extraction, column processing, asset processing, graph construction, retrieval, and RAG workflows.                                                                                                                                  | T1.196                 | Franklin | 🔷 Planned |
+| **T1.194** | 2026-07-31 | Phase 1 | Migrate Runtime Modules                          | Replace direct schema loading and multiple runtime configuration dictionaries with RuntimeProjectConfiguration across Phase 1 runtime modules. Preserve I255 auto-detection while replacing `project_code_registry` with Project Definition (`registry.project_codes`) as the authoritative project registry. **Approved design decisions (2026-07-31)**: **(D1 — Caller-injection contract)** Caller (FileScanner / PipelineOrchestrator) is constructed with the injected ProjectConfigurationRegistry; caller resolves the project code (Phase A: auto-detect; Phase B: committed identity) and fetches the config slice; caller passes `project_code` + resolved slice to the module at call time. Modules never hold the registry, self-fetch configuration, or identify projects (satisfies L.8.7 + L.9.5 + L.9.7). **(D2 — Phase A registration)** Phase A stays project-agnostic for assignment (L.9.3): FileScanner keeps FilenameParser in auto-detect mode over `registry.project_codes`; no committed project assignment in Phase A; authoritative assignment in Phase B. Requires L.9.3 wording amendment — recorded in T1.197 alignment pass. **Scope**: existing Phase 1 modules only — FileScanner, FilenameParser, PipelineOrchestrator (Pipeline), ColumnProcessor, FilePropertyParser, ParserRouter, RevisionManager. P3–P5 modules (AssetExtractor, GraphBuilder, Retriever, PromptEngine, OCRProcessor) deferred to their phases. **Backward-compat**: keep dict-based params as optional fallback per L.14.7 until T1.196 Stage 5 removal. **Tests**: TL029 — 21/21 slice-injection tests + full suite 413 passed (5 pre-existing). Update: U240. | T1.193, I255, I264     | Franklin | ✅ COMPLETE |
+| **T1.195** | 2026-07-30 | Phase 1 | Implement Configuration Validation               | Validate project completeness, reusable profile references, project-to-profile mappings, duplicate definitions, unused profiles, schema consistency, and RuntimeProjectConfiguration construction during ProjectDefinitionResolver execution. **Approved design decisions (2026-07-31)**: **(V1 — Failure semantics)** System errors (schema violations, missing mandatory sections, unknown profile IDs, unknown runtime profiles, duplicate project codes/profiles, runtime construction failure) hard-fail pipeline initialization via `resolver.errors` → bootstrap raises. Data-related errors (L.13.6 capability consistency, L.13.7 metadata gaps, L.13.10 unused profiles) are logged via new `resolver.data_errors` and never fail the pipeline. **(V2 — Capability-driven consistency, no hardcode)** L.13.6 implemented with NO hardcoded pairs and NO central compatibility matrix: each profile declares its capabilities in its owning schema — `parsing_profile_def` with `supported_document_profiles`/`supported_extensions`/`requires_ocr` (doc schema set), chunking `supported_document_types`, embedding `supported_retrieval_strategies`, ontology `supported_asset_profiles`, validation `supported_engineering_conventions`; ProjectDefinitionResolver extracts these during `_resolve_profile()` (exact-key lookup, not substring match) and a single generic `_evaluate_capability_compat()` compares resolved profiles. Adds `parsing_profiles` section to `eks_doc_config.json`. **(V3 — Error codes)** System errors: `S-C-S-{id}` (category `Config` — e.g. `S-C-S-0901` missing mandatory section, `S-C-S-0902` unknown profile ref, `S-C-S-0903` duplicate project code, `S-C-S-0904` runtime construction failure). Data errors: `P1-C-V-{id}` (layer P1, module C=Config, function V=Validate — e.g. `P1-C-V-0001` capability consistency violation, `P1-C-V-0002` metadata-policy gap, `P1-C-V-0003` unused profile). Both patterns already satisfy `eks_error_code_base.json` regexes (system `S-[A-Z]-S-[0-9]{4}`, data `P[0-9]-[A-Z]-[A-Z]+-[0-9]{4}`) — registration only in `eks_error_config.json` (system + data sections) + `eks_message_config.json` + Appendix D + cross-source audit per §24. **Scope**: split `_validate_resolved()` into per-category validators (project completeness, profile refs, environment refs, capability consistency, metadata policy, duplicate detection, unused config, runtime module L.13.11, runtime constructible L.13.8); extend `validation_report` to L.13.12 content (resolved profiles, runtime profiles, checksum, schema version, RPC version); 30+ tests per category incl. ErrorManager code resolution. **Implementation (2026-07-31)**: schemas (doc base v1.10.0 `parsing_profile_def`, setup v1.9.0 `parsing_profiles`, config v1.8.0 profiles), error registry v1.7.0 (S-C-S-0901..0904, P1-C-V-0001..0003, 2 new ranges), message catalog v1.2.0 (4 PDEF messages), resolver rev 1.1.0 (V1 data_errors, V2 exact-key + `_evaluate_capability_compat`, L.13.3/.4/.5/.6/.7/.9/.10 validators, L.13.12 report, `_known_runtime_profiles`), bootstrap surfaces data_errors. **Tests**: TL030 — 75/75 (test_project_definition.py, 47 new) + 65/65 (test_t132_modules.py, 12 new); full suite 472 passed / 5 pre-existing. Update: U242. Appendix D v2.1 re-synced (D4 75/75, D5 53/53, D6 52/52). | T1.193                 | Franklin | ✅ COMPLETE |
+| **T1.196** | 2026-07-30 | Phase 1 | Migrate Existing Configuration | **Scope (revised 2026-07-31 to cover I266–I272 — L.11 Stage 4 + Stage 5)**: **(1) $ref consumers (I267)** — remove `project_rules_registry` from `eks_setup_schema.json` (property + required) and `eks_config.json` ($ref); remove `project_rules_def` from `eks_base_schema.json`; archive `eks_project_rules_config.json`. **(2) Runtime consumers (I266)** — repoint `config_registry.py` `get_project_rules` / `get_fragment_required_fields` / `resolve_required_fields` to the Project Definition; expose `fragment_required_fields` via resolver / AssetExtractor slice. **(3) Stage 5 compat-layer removal (I268)** — drop the dead `legacy_project_rules` flag; remove `_validate_project_rules()` and the dead `revision_validation` reconstruction; keep the functional `filename_patterns` reconstruction (T1.191) until the filename_parser slice carries resolved patterns. **(4) Tests** — legacy assertions repointed to the Project Definition; regression tests with zero legacy presence. **(5) Cross-source audit (§24) + naming/doc alignment (I269–I272)** — naming reconciliation, L.6.2 note, L.13 V1/V2/V3 wording, L.10.6 ColumnProcessor, knowledge.json, eks_system_workplan, Appendix E. | T1.194, T1.195 | Franklin | ✅ COMPLETE |
+| **T1.197** | 2026-07-30 | Phase 1 | Documentation, Traceability & Regression Testing | Update architecture documentation, Phase 1 implementation index, issue traceability, migration guide, runtime lifecycle documentation, and verify regression across document ingestion, metadata extraction, column processing, asset processing, graph construction, retrieval, and RAG workflows. **Implementation (2026-07-31)**: L.9.3 wording amendment (T1.194 D2); cross-workplan audit — P1.1 (project_definition_config + ProjectDefinitionResolver row), Appendix F/G/H (I265 alignment notes), knowledge.json; migration guide created (`docs/project_definition_migration_guide.md`); regression cleanup (test_config_version_bumped — 5→4 pre-existing failures); p1_task_log status summary recounted (396 total); I265 → 📐 Aligned. Tests: TL032 — full suite 474 passed / 4 pre-existing. Update: U246. | T1.196                 | Franklin | ✅ COMPLETE |
 
 ---
 
@@ -1181,7 +1205,16 @@ Validation ensures that:
 * configuration sections are internally consistent;
 * runtime configuration can be constructed deterministically.
 
-Pipeline initialization shall fail if any mandatory validation fails.
+**Failure semantics (T1.195 V1/V3)**: System errors — schema violations, missing
+mandatory sections (`S-C-S-0901`), unknown profile references (`S-C-S-0902`),
+duplicate project codes/profiles (`S-C-S-0903`), and runtime construction failure
+(`S-C-S-0904`) — fail pipeline initialization via `resolver.errors` → bootstrap
+raises. Data-related issues — capability consistency (L.13.6, `P1-C-V-0001`),
+metadata-policy gaps (L.13.7, `P1-C-V-0002`), unused profiles (L.13.10,
+`P1-C-V-0003`) — are surfaced via `resolver.data_errors` and never block
+initialization.
+
+Pipeline initialization shall fail if any mandatory **system** validation fails.
 
 No runtime module shall execute until RuntimeProjectConfiguration has been successfully validated and constructed.
 
@@ -1305,7 +1338,11 @@ Examples include:
 * ontology supports asset profile;
 * validation profile supports engineering conventions.
 
-Incompatible combinations shall terminate initialization.
+Incompatible combinations are reported as non-blocking data errors
+(`P1-C-V-0001` via `resolver.data_errors`, T1.195 V1) — they never terminate
+initialization. Capability declarations are compared by the generic
+`_evaluate_capability_compat()` using each profile's own schema-declared
+capabilities (T1.195 V2 — no hardcoded compatibility matrix).
 
 ---
 
@@ -1374,7 +1411,8 @@ Examples include:
 * unused ontology profiles;
 * unused runtime profiles.
 
-Unused configuration shall generate warnings rather than errors.
+Unused configuration is surfaced via `resolver.data_errors` (`P1-C-V-0003`) and
+never blocks the pipeline (T1.195 V1).
 
 ---
 

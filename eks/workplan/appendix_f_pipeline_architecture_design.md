@@ -6,6 +6,13 @@
 **Last Updated**: 2026-06-29  
 **Parent Workplan**: [Universal Pipeline Architecture Design](../../common/universal_pipeline_architecture_design.md)
 
+> **I265 alignment note (T1.197)**: The pipeline now consumes per-project
+> configuration exclusively through the immutable **RuntimeProjectConfiguration**
+> (constructed by `ProjectDefinitionResolver` from `eks_project_definition_config.json`)
+> via per-module configuration slices — canonical source: [Appendix L](appendix_l_project_definition.md).
+> Project-specific rules previously carried in `eks_project_rules_config.json` were
+> migrated into the Project Definition (retired in T1.196).
+
 ---
 
 ## Revision History

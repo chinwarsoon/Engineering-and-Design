@@ -1,7 +1,15 @@
 """
 SSOT Config Registry for EKS - Centralized access to global parameters.
 
-Revision: 0.2
+Revision: 0.3
+Date: 2026-07-31
+Author: Franklin
+Summary: T1.196 (I266) — get_project_rules()/get_fragment_required_fields()/
+         resolve_required_fields() repointed from the retired legacy
+         eks_project_rules_config.json (project_rules_registry) to the Project
+         Definition (eks_project_definition_config.json) — allowed_disciplines
+         from engineering_convention, fragment_required_fields per project.
+0.2
 Date: 2026-07-11
 Author: Codex
 Summary: Add schema-driven system parameter accessor for T1.97/I088.
@@ -100,10 +108,22 @@ class ConfigRegistry:
         return [d for d in disciplines if d.get("code") == project_id] if project_id else disciplines
 
     def get_project_rules(self, project_id: str) -> Dict[str, Any]:
-        rules = self.get(f"project_rules_registry", {})
-        if "$ref" in rules:
-            rules = self._load_ref(rules)
-        return rules.get("project_rules", {}).get(project_id, {})
+        """Per-project validation rules from the Project Definition (I265/I266).
+
+        T1.196: repointed from the retired eks_project_rules_config.json to
+        eks_project_definition_config.json — allowed_disciplines come from
+        engineering_convention; fragment_required_fields is a per-project
+        top-level entry. Returns {} for unknown projects.
+        """
+        pd_config = getattr(self._loader, "project_definition_config", {}) or {}
+        entry = (pd_config.get("project_definition", {}) or {}).get(project_id, {})
+        if not isinstance(entry, dict) or not entry:
+            return {}
+        engineering = entry.get("engineering_convention", {}) or {}
+        return {
+            "allowed_disciplines": engineering.get("allowed_disciplines", []),
+            "fragment_required_fields": entry.get("fragment_required_fields", {}),
+        }
 
     def get_fragment_required_fields(self, project_id: str) -> Dict[str, list[str]]:
         """

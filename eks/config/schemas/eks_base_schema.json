@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
-    "version": "1.14.0",
+    "version": "1.15.0",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) \u00e2\u20ac\u201d actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) \u00e2\u20ac\u201d U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default. v1.11.0: added telemetry_verbose to system_parameters_def for T1.120/I237 schema-driven TelemetryHeartbeat verbosity. v1.12.0: added 11 project definition definitions for I265 T1.190. v1.13.0: aligned project_definition_entry_def with appendix_l L.6.1 \u00e2\u20ac\u201d added project_lifecycle_def, engineering_standards_def, runtime_profiles_def; removed pipeline_config_def and integration_config_def (deployment details moved to environment config per L.6.3); renamed security_config to security_profile; added 6 inline profile ref fields (parsing_profile, chunking_profile, embedding_profile, metadata_policy, prompt_profile, validation_profile) for I265 T1.198.",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) \u00e2\u20ac\u201d actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) \u00e2\u20ac\u201d U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default. v1.11.0: added telemetry_verbose to system_parameters_def for T1.120/I237 schema-driven TelemetryHeartbeat verbosity. v1.12.0: added 11 project definition definitions for I265 T1.190. v1.13.0: aligned project_definition_entry_def with appendix_l L.6.1 \u00e2\u20ac\u201d added project_lifecycle_def, engineering_standards_def, runtime_profiles_def; removed pipeline_config_def and integration_config_def (deployment details moved to environment config per L.6.3); renamed security_config to security_profile; added 6 inline profile ref fields (parsing_profile, chunking_profile, embedding_profile, metadata_policy, prompt_profile, validation_profile) for I265 T1.198. v1.15.0: removed project_rules_def and project_definition_entry_def.compatibility (legacy_project_rules flag) for I265 T1.196 — eks_project_rules_config.json retired; fragment_required_fields now lives per-project in eks_project_definition_config.json.",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
@@ -19,33 +19,6 @@
             "required": [
                 "code",
                 "description"
-            ],
-            "additionalProperties": false
-        },
-        "project_rules_def": {
-            "type": "object",
-            "properties": {
-                "allowed_disciplines": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "description": "List of discipline codes permitted for this project"
-                },
-                "fragment_required_fields": {
-                    "type": "object",
-                    "description": "Per-fragment required field overrides for this project. Key = fragment name (item_core, manufacturer, etc.), value = array of required property paths. Shape-only definitions in asset base schema carry no required constraints \u00e2\u20ac\u201d this is the SSOT for mandatory fields.",
-                    "additionalProperties": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        },
-                        "minItems": 1
-                    }
-                }
-            },
-            "required": [
-                "allowed_disciplines"
             ],
             "additionalProperties": false
         },
@@ -1047,22 +1020,6 @@
                 },
                 "runtime_profiles": {
                     "$ref": "#/definitions/runtime_profiles_def"
-                },
-                "compatibility": {
-                    "type": "object",
-                    "description": "Backward compatibility settings (I265 T1.198). Used during migration from legacy configuration.",
-                    "properties": {
-                        "legacy_project_rules": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "Whether to fall back to eks_project_rules_config.json for backward compatibility"
-                        },
-                        "schema_version": {
-                            "type": "string",
-                            "description": "Minimum compatible schema version"
-                        }
-                    },
-                    "additionalProperties": false
                 },
                 "fragment_required_fields": {
                     "type": "object",

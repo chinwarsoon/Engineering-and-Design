@@ -10,6 +10,11 @@
 - [`phase_1.2_interactive_ui_workplan.md`](phase_1.2_interactive_ui_workplan.md) — Phase 1.2 workplan referencing this appendix
 - [`phase_5_ui_integration_workplan.md`](phase_5_ui_integration_workplan.md) — Phase 5 workplan referencing this appendix
 
+> **I265 alignment note (T1.197)**: Runtime modules receive configuration through
+> **RuntimeProjectConfiguration slices** (`slice_for(module_name)` — L.9.6) instead
+> of direct schema/config access; modules never load configuration or resolve
+> profiles themselves. Canonical source: [Appendix L](appendix_l_project_definition.md).
+
 ### Revision History
 
 | Revision | Date | Author | Summary |

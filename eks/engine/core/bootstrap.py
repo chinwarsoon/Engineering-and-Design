@@ -105,6 +105,9 @@ class EKSBootstrapManager(BootstrapManager):
         # Stored so downstream DocumentRegistry can reuse generated DDL
         # instead of re-loading the schema from disk.
         self._pre_generated_ddl: Optional[Dict[str, Any]] = None
+        # T1.193: Project Configuration Registry — populated by
+        # ProjectDefinitionResolver after P3_registry.
+        self.project_config_registry: Any = None
 
     # ------------------------------------------------------------------
     # Hook implementations
@@ -300,13 +303,18 @@ class EKSBootstrapManager(BootstrapManager):
             # I128: Also load doc_config from SchemaLoader for file_type_registry,
             # document_type_registry, etc.  The main _eks_config_loader returns
             # only the pipeline config; doc_config lives in eks_doc_config.json.
+            # T1.193: After loading, run ProjectDefinitionResolver to construct
+            # the Project Configuration Registry.
             try:
                 from .schema_loader import SchemaLoader
                 _sl = SchemaLoader(self.config_dir)
                 _sl.load_all()
                 self.doc_config = _sl.doc_config
+                # T1.193: Resolve Project Definitions → RuntimeProjectConfiguration
+                self._resolve_project_definitions(_sl)
             except Exception as exc:
-                self._log(f"doc_config schema validation failed — using empty defaults: {exc}", level=2)
+                self._log(f"doc_config schema validation / project definition resolution failed — "
+                          f"using empty defaults: {exc}", level=2)
 
             self._record_phase_complete("P3_registry")
             self._log(f"Bootstrap Phase P3 (EKS): Config loaded: {len(self.config)} keys, "
@@ -509,6 +517,58 @@ class EKSBootstrapManager(BootstrapManager):
             raise BootstrapError("S-B-S-0608", f"Parameters resolution failed: {exc}", "params")
 
     # ------------------------------------------------------------------
+    # T1.193: Project Definition Resolution
+    # ------------------------------------------------------------------
+
+    def _resolve_project_definitions(self, schema_loader: Any) -> None:
+        """Run ProjectDefinitionResolver after SchemaLoader completes.
+
+        Uses the already-loaded schema_loader instance (avoids re-loading
+        from disk).  Populates ``self.project_config_registry``.
+
+        The resolver transforms raw Project Definitions into immutable
+        RuntimeProjectConfiguration objects (Appendix L).
+        """
+        try:
+            from .project_definition import ProjectDefinitionResolver
+
+            pd_config = getattr(schema_loader, "project_definition_config", {})
+            doc_config = getattr(schema_loader, "doc_config", {})
+            env_config = self.config if isinstance(self.config, dict) else {}
+
+            if not pd_config:
+                self._log("No project_definition_config found — skipping ProjectDefinitionResolver",
+                          level=2)
+                return
+
+            resolver = ProjectDefinitionResolver(
+                project_definition_config=pd_config,
+                doc_config=doc_config,
+                env_config=env_config,
+                logger=self.logger,
+            )
+            self.project_config_registry = resolver.resolve_all()
+
+            n_projects = len(self.project_config_registry)
+            n_errors = len(resolver.errors)
+            n_data_errors = len(resolver.data_errors)
+            n_warnings = len(resolver.warnings)
+            self._log(
+                f"ProjectDefinitionResolver: {n_projects} project(s) resolved, "
+                f"{n_errors} error(s), {n_data_errors} data error(s), "
+                f"{n_warnings} warning(s)",
+                level=1,
+            )
+            if n_errors:
+                self._log(f"Resolver errors: {resolver.errors}", level=0)
+            if n_data_errors:
+                self._log(f"Resolver data errors (non-blocking): {resolver.data_errors}",
+                          level=2)
+        except Exception as exc:
+            self._log(f"Project definition resolution failed: {exc}", level=0)
+            self.project_config_registry = None
+
+    # ------------------------------------------------------------------
     # Properties — overridden for EKS-specific error codes
     # ------------------------------------------------------------------
 
@@ -596,6 +656,7 @@ class EKSBootstrapManager(BootstrapManager):
             "config_dir": self.config_dir,
             "parsed": self.parsed,
             "pre_generated_ddl": self._pre_generated_ddl,
+            "project_config_registry": self.project_config_registry,
         }
 
     # ------------------------------------------------------------------
@@ -642,6 +703,7 @@ class EKSBootstrapManager(BootstrapManager):
         ctx_params["em"] = self.error_manager
         ctx_params["mm"] = self.message_manager
         ctx_params["pre_generated_ddl"] = self._pre_generated_ddl
+        ctx_params["project_config_registry"] = self.project_config_registry
 
         # Lazy-init managers if needed
         if self.error_manager is None and self._error_manager_factory is not None:

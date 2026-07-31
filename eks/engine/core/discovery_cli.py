@@ -149,6 +149,9 @@ Examples:
                 boot["config"], boot["doc_config"], registry, logger=logger,
                 use_telemetry=False, error_manager=boot["em"], message_manager=boot["mm"],
                 telemetry_verbose=_telemetry_verbose,
+                # T1.194 (I265): Inject the Project Configuration Registry from
+                # bootstrap (Appendix L D1).
+                project_config_registry=boot.get("project_config_registry"),
             )
 
             # Phase A performs the actual discovery (scan + register).

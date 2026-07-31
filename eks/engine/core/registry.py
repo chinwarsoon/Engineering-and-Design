@@ -69,7 +69,7 @@ class DocumentRegistry:
             return {
                 "id", "project_title", "project_number", "area", "discipline",
                 "department", "document_type", "document_number", "revision",
-                "status", "is_latest", "file_path", "ingested_at", "source_type",
+                "status", "is_latest", "file_path", "file_type", "ingested_at", "source_type",
                 "created_by", "checked_by", "approved_by", "originator_company",
                 "security_class", "asset_tags", "page_count", "extract_status",
                 "extraction_confidence", "extraction_notes", "verified_by",

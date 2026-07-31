@@ -1,11 +1,8 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_config_default.json",
-    "version": "1.9.0",
-    "title": "EKS Default Project Configuration — v1.9.0 (telemetry_verbose added to system_parameters — T1.121/I237)",
-    "project_rules_registry": {
-        "$ref": "https://eks.engineering/configs/eks_project_rules_config.json"
-    },
+    "version": "1.10.0",
+    "title": "EKS Default Project Configuration — v1.10.0 (project_rules_registry $ref removed — eks_project_rules_config.json retired, I265 T1.196)",
     "project_definition": {
         "$ref": "https://eks.engineering/configs/eks_project_definition_config.json"
     },

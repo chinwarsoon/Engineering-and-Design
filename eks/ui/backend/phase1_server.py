@@ -82,11 +82,38 @@ try:
     from eks.engine.core.error_manager import ErrorManager
     from eks.engine.core.message_manager import MessageManager
     from eks.engine.core.setup_validator import ProjectSetupValidator
+    from eks.engine.core.project_definition import ProjectDefinitionResolver
     from eks.engine.logging.logger import EKSLogger
     from common.library.config import get_system_param
 except ImportError as e:
     _IMPORTS_OK = False
     _IMPORT_ERROR = str(e)
+
+
+def _resolve_project_config_registry(loader: Any, env_config: Dict[str, Any]) -> Any:
+    """T1.194 (I265): Build the Project Configuration Registry for the server.
+
+    Mirrors EKSBootstrapManager._resolve_project_definitions() so the Phase 1
+    server's FileScanner auto-detects over the same authoritative project codes
+    as the CLI pipeline (Appendix L D1/D2). Returns None on any failure —
+    the server degrades to doc_config-driven behaviour (L.14.7).
+    """
+    try:
+        pd_config = getattr(loader, "project_definition_config", {})
+        doc_config = getattr(loader, "doc_config", {})
+        if not pd_config:
+            return None
+        resolver = ProjectDefinitionResolver(
+            project_definition_config=pd_config,
+            doc_config=doc_config,
+            env_config=env_config if isinstance(env_config, dict) else {},
+            logger=_logger,
+        )
+        return resolver.resolve_all()
+    except Exception as exc:
+        if _logger:
+            _logger.warning(f"Project definition resolution failed in server: {exc}")
+        return None
 
 
 def find_free_port(start: int = 5001, max_attempts: int = 100) -> int:
@@ -384,7 +411,12 @@ class Phase1Handler(SimpleHTTPRequestHandler):
         config = loader.load_all()
         doc_config = loader.doc_config
 
-        scanner = FileScanner(config, doc_config=doc_config, logger=_logger)
+        # T1.194 (I265): Inject the Project Configuration Registry so the server's
+        # Phase A FileScanner auto-detects over authoritative project codes (D2).
+        scanner = FileScanner(
+            config, doc_config=doc_config, logger=_logger,
+            project_config_registry=_resolve_project_config_registry(loader, config),
+        )
         discovered = scanner.scan(data_dir, recursive=recursive)
         valid, unknown = scanner.validate_file_types(discovered)
         registered = 0

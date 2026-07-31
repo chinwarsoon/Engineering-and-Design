@@ -1,5 +1,6 @@
 # EKS Update Log
 
+**Status**: ✅ Retired (2026-07-27)
 **Project**: Engineering Knowledge System (EKS)  
 **Location**: `eks/log/update_log.md`  
 **Last Updated**: 2026-07-30 (U205 — T1.198 COMPLETE: schema alignment, eks_base_schema v1.13.0, eks_project_definition_config v1.1.0)

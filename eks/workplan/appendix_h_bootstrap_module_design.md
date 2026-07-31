@@ -7,6 +7,12 @@
 **Author**: opencode  
 **Summary**: Comprehensive design summary for the universal L19 BootstrapManager and its EKS wiring (I108–I117 / T1.99.50–T1.99.83). v0.4 adds I117: `_preload_infrastructure()` pure-stdlib guard, §H.12.1 Preload Infrastructure Guard section, updated §H.1/H.3/H.12, universal preload pattern note.
 
+> **I265 alignment note (T1.197)**: `EKSBootstrapManager` resolves Project
+> Definitions after the P3 config stage — `_resolve_project_definitions()` builds
+> the `ProjectConfigurationRegistry` (immutable `RuntimeProjectConfiguration`
+> objects), surfaces resolver `data_errors` non-blocking, and exposes the registry
+> via `to_dict()` / `to_pipeline_context()`. Canonical source: [Appendix L](appendix_l_project_definition.md).
+
 ---
 
 ## H.1 Index

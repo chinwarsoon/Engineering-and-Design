@@ -16,11 +16,16 @@ Handlers (T1.186):
   - auto_increment         → UUID generation
   - existing_record        → preserve current data dict value
 
-Revision: 0.2
-Date: 2026-07-29
+Revision: 0.3
+Date: 2026-07-31
 Author: opencode
-Summary: 0.2: T1.186 — enhanced all 9 handlers with real pipeline logic.
-         0.1: T1.185 — initial handler stubs.
+Summary: 0.3: T1.194 (I265) — EKSColumnProcessor accepts an optional injected
+          runtime_slice (Appendix L D1). _resolve_code_to_title() falls back to
+          the slice's resolved project name when project_code_titles has no
+          entry. Backward-compatible: from_doc_config() without a slice behaves
+          exactly as before (L.14.7).
+0.2: T1.186 — enhanced all 9 handlers with real pipeline logic.
+0.1: T1.185 — initial handler stubs.
 """
 
 import re
@@ -234,13 +239,27 @@ def _resolve_code_to_title(column_config: Dict[str, Any], data: Dict[str, Any],
     Uses ``data[source_field]`` as the lookup key.
     Source field defaults to ``"project_number"`` (configurable via
     calculation.field).
+
+    T1.194 (I265): When the titles registry has no entry, falls back to the
+    injected ``config_slice`` resolved project name (Appendix L D1). The slice
+    comes from Project Definition ``project_identity.project_name``.
     """
     calc = column_config.get("calculation", {})
     source_field = calc.get("field", "project_number")
     key = data.get(source_field)
     if key:
         titles = context.get("project_code_titles", {})
-        return titles.get(key)
+        title = titles.get(key)
+        if title:
+            return title
+        # T1.194 (I265): Slice fallback — resolved project name from the
+        # injected ProjectConfigurationRegistry slice.
+        slice_ctx = context.get("config_slice", {})
+        project_domain = slice_ctx.get("project")
+        if project_domain is not None:
+            title = getattr(project_domain, "project_name", None)
+            if title:
+                return title
     return None
 
 
@@ -286,13 +305,16 @@ class EKSColumnProcessor(BaseColumnProcessor):
 
     Usage::
 
-        processor = EKSColumnProcessor.from_doc_config(doc_config)
+        processor = EKSColumnProcessor.from_doc_config(
+            doc_config, runtime_slice=cfg.slice_for("ColumnProcessor")
+        )
         result = processor.process("B", document_dict, {
             "metadata": metadata,
             "elements": elements,
             "file_properties": file_properties,
             "project_code_titles": project_code_titles,
             "score": score,
+            "config_slice": cfg.slice_for("ColumnProcessor"),
         })
     """
 
@@ -308,19 +330,27 @@ class EKSColumnProcessor(BaseColumnProcessor):
         "existing_record": _resolve_existing_record,
     }
 
-    def __init__(self, column_config: Dict[str, Any]) -> None:
+    def __init__(self, column_config: Dict[str, Any],
+                 runtime_slice: Optional[Dict[str, Any]] = None) -> None:
         registry = HandlerRegistry()
         for calc_type, handler_fn in self.HANDLER_TYPES.items():
             registry.register(calc_type, handler_fn)
         super().__init__(column_config, registry)
+        # T1.194 (I265): Injected config slice (Appendix L D1). Handlers receive
+        # the slice via the process() context; this copy is kept for traceability.
+        self.runtime_slice = runtime_slice or {}
 
     @classmethod
-    def from_doc_config(cls, doc_config: Dict[str, Any]) -> "EKSColumnProcessor":
+    def from_doc_config(cls, doc_config: Dict[str, Any],
+                        runtime_slice: Optional[Dict[str, Any]] = None) -> "EKSColumnProcessor":
         """
         Factory method: instantiate from EKS doc_config.
 
         Reads ``column_processing`` section and builds the processor.
         Raises ``ColumnProcessorError`` if ``column_processing`` is missing.
+
+        T1.194 (I265): Optional ``runtime_slice`` (the resolved config slice for
+        the module's project) is injected for handler consumption.
         """
         column_config = doc_config.get("column_processing")
         if not column_config:
@@ -328,4 +358,4 @@ class EKSColumnProcessor(BaseColumnProcessor):
                 "doc_config missing 'column_processing' section — "
                 "ensure eks_doc_config.json has column_processing entries"
             )
-        return cls(column_config)
+        return cls(column_config, runtime_slice=runtime_slice)

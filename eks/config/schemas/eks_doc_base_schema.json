@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_base_schema.json",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "title": "EKS Document Base Schema - Definitions",
-    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, lifecycle stages, and column processing metadata per T1.35. v1.9.0 (I264): added 6 column-processing definitions — column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111).",
+    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, lifecycle stages, and column processing metadata per T1.35. v1.10.0 (T1.195): added parsing_profile_def — named parser profile with declared capabilities (supported_extensions, supported_document_profiles, requires_ocr, extraction_methods) for capability-driven L.13.6 validation (V2). v1.9.0 (I264): added 6 column-processing definitions — column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111).",
     "type": "object",
     "definitions": {
         "doc_id_format": {
@@ -394,6 +394,38 @@
                 "description": { "type": "string", "description": "Human-readable description of this validation rule." }
             },
             "required": ["type"],
+            "additionalProperties": false
+        },
+
+        "parsing_profile_def": {
+            "type": "object",
+            "description": "Named parser profile with declared capabilities (T1.195 V2). Capabilities are properties of the profile itself — ProjectDefinitionResolver extracts them during resolution and a single generic evaluator checks compatibility. No central matrix and no hardcoded pairs.",
+            "properties": {
+                "profile_id": { "type": "string", "description": "Unique parser profile identifier (referenced by Project Definition parsing_profile / document_profile.parser)" },
+                "parser_class": { "type": "string", "description": "Fully qualified parser implementation class" },
+                "description": { "type": "string", "description": "Human-readable profile description" },
+                "supported_extensions": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/file_type_code" },
+                    "description": "Source file extensions this parser can process"
+                },
+                "supported_document_profiles": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Document filename profiles (from doc config filename_profiles keys) this parser supports"
+                },
+                "requires_ocr": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "True when this parser needs an OCR profile (scanned input). Compared against Project Definition document_profile.ocr."
+                },
+                "extraction_methods": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Metadata extraction methods this parser supports (e.g. parser_metadata, cover_page_element)"
+                }
+            },
+            "required": ["profile_id", "parser_class"],
             "additionalProperties": false
         },
 

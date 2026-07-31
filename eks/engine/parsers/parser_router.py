@@ -2,6 +2,10 @@
 Parser Router for EKS - Maps file_type to parser class, orchestrates parse flow.
 T1.38: Phase B of pipeline workflow.
 T1.62: Updated to use ParserFactory for Dependency Injection pattern per Appendix F.
+T1.194 (I265): Added optional runtime_slice injection (Appendix L D1) — the
+caller (PipelineOrchestrator) supplies the resolved config slice; ParserRouter
+never holds the ProjectConfigurationRegistry itself. Parser routing rules
+remain schema-driven via file_type_registry (L.14.7 backward compatibility).
 """
 import importlib
 from pathlib import Path
@@ -17,7 +21,8 @@ class ParserRouter:
     Uses ParserFactory for Dependency Injection pattern per Appendix F.
     """
 
-    def __init__(self, doc_config: Dict[str, Any], logger: Optional[EKSLogger] = None, use_factory: bool = True):
+    def __init__(self, doc_config: Dict[str, Any], logger: Optional[EKSLogger] = None,
+                 use_factory: bool = True, runtime_slice: Optional[Dict[str, Any]] = None):
         """
         Initialize parser router.
         
@@ -25,11 +30,16 @@ class ParserRouter:
             doc_config: Document configuration with file_type_registry
             logger: Optional logger instance
             use_factory: Whether to use ParserFactory (default True for Appendix F pattern)
+            runtime_slice: Optional injected config slice (T1.194/I265, Appendix L D1).
+                Retained for traceability; routing rules remain schema-driven via
+                file_type_registry (L.14.7 backward compatibility).
         """
         self.doc_config = doc_config
         self.logger = logger or EKSLogger("ParserRouter", level=1)
         self.file_type_registry = doc_config.get("file_type_registry", [])
         self.use_factory = use_factory
+        # T1.194 (I265): Injected config slice (Appendix L D1).
+        self.runtime_slice = runtime_slice or {}
         
         if use_factory:
             # Use ParserFactory for Dependency Injection

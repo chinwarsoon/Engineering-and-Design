@@ -1,5 +1,14 @@
 """
 Revision Management for EKS - Logic for tracking and filtering document revisions.
+
+Revision: 1.1
+Date: 2026-07-31
+Author: opencode
+Summary: 1.1: T1.194 (I265) — RevisionManager accepts an optional injected
+          runtime_slice (Appendix L D1). detect_supersession() accepts a
+          per-call slice override and logs the active revision_scheme for
+          traceability. Backward-compatible (L.14.7).
+1.0: Initial implementation.
 """
 from typing import Any, Dict, List, Optional
 from .registry import DocumentRegistry
@@ -9,10 +18,18 @@ class RevisionManager:
     """
     Orchestrates revision-specific logic, such as finding the latest version
     or retrieving the full history of a document.
+
+    T1.194 (I265): ``runtime_slice`` (the resolved config slice for the module's
+    project) is injected by the caller — RevisionManager never holds the
+    ProjectConfigurationRegistry itself (Appendix L D1).
     """
-    def __init__(self, registry: DocumentRegistry, logger: Optional[EKSLogger] = None):
+    def __init__(self, registry: DocumentRegistry, logger: Optional[EKSLogger] = None,
+                 runtime_slice: Optional[Dict[str, Any]] = None):
         self.registry = registry
         self.logger = logger or EKSLogger("RevisionManager", level=1)
+        # T1.194 (I265): Injected config slice (Appendix L D1). The slice exposes
+        # the engineering/document domains (revision_scheme) for revision logic.
+        self.runtime_slice = runtime_slice or {}
 
     @log_depth
     def get_latest_revision(self, document_number: str) -> Optional[Dict[str, Any]]:
@@ -52,13 +69,18 @@ class RevisionManager:
         return (a > b) - (a < b)
 
     @log_depth
-    def detect_supersession(self, document_number: str, revision: str) -> Dict[str, Any]:
+    def detect_supersession(self, document_number: str, revision: str,
+                            runtime_slice: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Detect supersession relationships for a (document_number, revision) pair.
 
         Queries the registry for existing documents with the same document_number,
         identifies the current is_latest revision, and determines if the given
         revision supersedes any existing document or is itself superseded.
+
+        T1.194 (I265): ``runtime_slice`` — per-call slice override (Appendix L D1).
+        Falls back to the constructor-injected slice. Logs the active
+        revision_scheme for traceability.
 
         Returns:
             dict with keys:
@@ -70,6 +92,17 @@ class RevisionManager:
                 - is_newer: bool — True if this revision is newer than current latest
                 - is_same: bool — True if this revision matches current latest exactly
         """
+        active_slice = runtime_slice if runtime_slice is not None else self.runtime_slice
+        revision_scheme = ""
+        document_domain = active_slice.get("document") if isinstance(active_slice, dict) else None
+        if document_domain is not None:
+            revision_scheme = getattr(document_domain, "revision_scheme", "")
+        if revision_scheme:
+            self.logger.debug(
+                f"Active revision_scheme for {document_number}: {revision_scheme}",
+                context="RevisionManager.detect_supersession",
+            )
+
         result: Dict[str, Any] = {
             "has_supersession": False,
             "current_latest": None,

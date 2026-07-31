@@ -184,6 +184,9 @@ def run_pipeline(
             error_manager=em,
             message_manager=mm,
             telemetry_verbose=_telemetry_verbose,
+            # T1.194 (I265): Inject the Project Configuration Registry built
+            # during bootstrap (Appendix L D1 caller-injection contract).
+            project_config_registry=context.parameters.get("project_config_registry"),
         )
         orchestrator.context = context
         config = context.parameters.get("config", {})
@@ -217,6 +220,9 @@ def run_pipeline(
             config, doc_config, registry, logger=logger,
             use_telemetry=False, error_manager=em, message_manager=mm,
             telemetry_verbose=_telemetry_verbose,
+            # T1.194 (I265): Inject the Project Configuration Registry from
+            # bootstrap to_dict() (Appendix L D1).
+            project_config_registry=boot.get("project_config_registry"),
         )
 
         params = {**config.get("global_parameters", {}), **config.get("project_setup", {})}

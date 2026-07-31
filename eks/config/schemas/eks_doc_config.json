@@ -1,9 +1,9 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_doc_config_default.json",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "title": "EKS Document Configuration",
-    "description": "Document schema config v1.7.0: moved revision_validation and filename_patterns to Project Definition (I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.6.0: added column_processing object (DCC-aligned key-as-name pattern) with 42 column entries — Phase A (9): file_path, file_type, document_number, project_number, area, document_type, discipline, sequence_number, revision. Phase B (33): project_title, document_title, file_size, file_created_at, file_modified_at, file_hash, 9 embedded_* fields, page_count, created_by, checked_by, approved_by, originator_company, asset_tags, references_documents, language, vendor_name, total_sheets, lifecycle_stage, revision_description, revision_date, project_phase, contract_package, issued_date, responsible_engineer (I264, T1.184). v1.5.0: added DOCX embedded_revision_number mapping (T1.99.144) + references_documents ontology trigger (T1.99.145). v1.4.0: populated file_property_patterns with OS config + 5 file-type mappings (pdf/docx/xlsx/dgn/dwg) per Appendix J (T1.99.130). v1.3.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.112).",
+    "description": "Document schema config v1.8.0: added parsing_profiles section (technip_pdf, technip_docx) — parser profiles with capability fields per T1.195 V2. v1.7.0: moved revision_validation and filename_patterns to Project Definition (I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.6.0: added column_processing object (DCC-aligned key-as-name pattern) with 42 column entries — Phase A (9): file_path, file_type, document_number, project_number, area, document_type, discipline, sequence_number, revision. Phase B (33): project_title, document_title, file_size, file_created_at, file_modified_at, file_hash, 9 embedded_* fields, page_count, created_by, checked_by, approved_by, originator_company, asset_tags, references_documents, language, vendor_name, total_sheets, lifecycle_stage, revision_description, revision_date, project_phase, contract_package, issued_date, responsible_engineer (I264, T1.184). v1.5.0: added DOCX embedded_revision_number mapping (T1.99.144) + references_documents ontology trigger (T1.99.145). v1.4.0: populated file_property_patterns with OS config + 5 file-type mappings (pdf/docx/xlsx/dgn/dwg) per Appendix J (T1.99.130). v1.3.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.112).",
     "ontology_triggers": {
         "document_type": "IS_A",
         "document_number": "SUPERSEDES",
@@ -125,6 +125,26 @@
             "output": { "document_number_source": "rejoin_segments", "fallback_doc_number": "full_stem", "fallback_revision": "00", "preservation_mode": "overwrite_existing" },
             "error_subcodes": {},
             "processing_phase": "P0"
+        }
+    },
+    "parsing_profiles": {
+        "technip_pdf": {
+            "profile_id": "technip_pdf",
+            "parser_class": "eks.engine.parsers.pdf_parser.PDFParser",
+            "description": "TWRP PDF document parser (cover page + metadata extraction)",
+            "supported_extensions": ["pdf"],
+            "supported_document_profiles": ["twrp_standard"],
+            "requires_ocr": false,
+            "extraction_methods": ["parser_metadata", "cover_page_element"]
+        },
+        "technip_docx": {
+            "profile_id": "technip_docx",
+            "parser_class": "eks.engine.parsers.docx_parser.DOCXParser",
+            "description": "TWRP Word document parser (embedded metadata extraction)",
+            "supported_extensions": ["docx"],
+            "supported_document_profiles": ["twrp_standard"],
+            "requires_ocr": false,
+            "extraction_methods": ["parser_metadata"]
         }
     },
     "file_property_patterns": {

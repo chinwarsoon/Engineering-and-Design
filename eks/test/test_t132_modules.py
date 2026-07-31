@@ -21,7 +21,7 @@ class TestErrorManager(unittest.TestCase):
         self.em = ErrorManager(config_dir=CONFIG_DIR)
 
     def test_loads_catalog(self):
-        self.assertEqual(self.em._catalog.get("metadata", {}).get("total_codes"), 121)
+        self.assertEqual(self.em._catalog.get("metadata", {}).get("total_codes"), 128)
 
     def test_system_error_lookup(self):
         entry = self.em.get_system_error("S-E-S-0101")
@@ -63,6 +63,80 @@ class TestErrorManager(unittest.TestCase):
         entry = self.em.handle_system_error("S-F-S-0201")
         self.assertEqual(entry["code"], "S-F-S-0201")
 
+    # -- T1.195 V3: Project Definition error codes ---------------------------
+
+    def test_pdef_system_codes_registered(self):
+        """S-C-S-0901..0904 (Project Definition system errors) registered."""
+        for code, name in {
+            "S-C-S-0901": "PDEF_MISSING_MANDATORY_SECTION",
+            "S-C-S-0902": "PDEF_UNKNOWN_PROFILE_REF",
+            "S-C-S-0903": "PDEF_DUPLICATE_PROJECT_OR_PROFILE",
+            "S-C-S-0904": "PDEF_RUNTIME_CONSTRUCTION_FAILED",
+        }.items():
+            entry = self.em.get_system_error(code)
+            self.assertIsNotNone(entry, f"Missing system code {code}")
+            self.assertEqual(entry["name"], name)
+
+    def test_pdef_data_codes_registered(self):
+        """P1-C-V-0001..0003 (Project Definition data errors) registered."""
+        for code, name in {
+            "P1-C-V-0001": "PDEF_CAPABILITY_CONSISTENCY_FAILED",
+            "P1-C-V-0002": "PDEF_METADATA_POLICY_GAP",
+            "P1-C-V-0003": "PDEF_UNUSED_PROFILE",
+        }.items():
+            entry = self.em.get_data_error(code)
+            self.assertIsNotNone(entry, f"Missing data code {code}")
+            self.assertEqual(entry["name"], name)
+
+    def test_pdef_system_code_metadata(self):
+        """New system codes are FATAL and stop the pipeline (V1)."""
+        for code in ("S-C-S-0901", "S-C-S-0902", "S-C-S-0903", "S-C-S-0904"):
+            entry = self.em.get_system_error(code)
+            self.assertEqual(entry["severity"], "FATAL", code)
+            self.assertTrue(entry["stops_pipeline"], code)
+            self.assertEqual(entry["category"], "Config", code)
+
+    def test_pdef_data_code_metadata(self):
+        """New data codes map to layer P1, module C, function V."""
+        for code in ("P1-C-V-0001", "P1-C-V-0002", "P1-C-V-0003"):
+            entry = self.em.get_data_error(code)
+            self.assertEqual(entry["layer"], "P1", code)
+            self.assertEqual(entry["module"], "C", code)
+            self.assertEqual(entry["function"], "V", code)
+
+    def test_pdef_system_ranges_registered(self):
+        """project_definition system range present with count 4."""
+        ranges = self.em._catalog.get("system_error_ranges", {})
+        self.assertIn("project_definition", ranges)
+        self.assertEqual(ranges["project_definition"]["count"], 4)
+        self.assertEqual(ranges["project_definition"]["start_id"], "S-C-S-0901")
+        self.assertEqual(ranges["project_definition"]["end_id"], "S-C-S-0904")
+
+    def test_pdef_data_ranges_registered(self):
+        """phase_1_config_validation data range present with count 3."""
+        ranges = self.em._catalog.get("data_error_ranges", {})
+        self.assertIn("phase_1_config_validation", ranges)
+        self.assertEqual(ranges["phase_1_config_validation"]["count"], 3)
+
+    def test_pdef_system_handle_no_stop_override(self):
+        """handle_system_error resolves the new codes end-to-end."""
+        self.em.set_fail_fast(False)
+        entry = self.em.handle_system_error("S-C-S-0902", detail="technip_bad")
+        self.assertEqual(entry["code"], "S-C-S-0902")
+        self.assertEqual(entry["name"], "PDEF_UNKNOWN_PROFILE_REF")
+
+    def test_pdef_data_handle(self):
+        """handle_data_error resolves P1-C-V-0001 end-to-end."""
+        entry = self.em.handle_data_error("P1-C-V-0001", doc_id="PDEF")
+        self.assertEqual(entry["code"], "P1-C-V-0001")
+        self.assertEqual(entry["health_score_impact"], -1)
+
+    def test_pdef_data_unused_profile_handle(self):
+        """P1-C-V-0003 is INFO severity with zero health impact (L.13.10)."""
+        entry = self.em.handle_data_error("P1-C-V-0003", doc_id="PDEF")
+        self.assertEqual(entry["severity"], "INFO")
+        self.assertEqual(entry["health_score_impact"], 0)
+
 
 class TestMessageManager(unittest.TestCase):
 
@@ -81,6 +155,25 @@ class TestMessageManager(unittest.TestCase):
     def test_empty_params(self):
         msg = self.mm.get("WARNING_NO_COVER_PAGE")
         self.assertIsNotNone(msg)
+
+    # -- T1.195: PDEF messages registered -----------------------------------
+    def test_pdef_messages_registered(self):
+        """PDEF_* status/warning/error messages registered in catalog."""
+        msgs = self.mm._catalog.get("messages", {})
+        for name in ("PDEF_RESOLVE_START", "PDEF_RESOLVE_COMPLETE",
+                     "PDEF_DATA_ERROR", "PDEF_SYSTEM_ERROR"):
+            self.assertIn(name, msgs, f"Missing message {name}")
+
+    def test_pdef_resolve_complete_hydrates(self):
+        msg = self.mm.get("PDEF_RESOLVE_COMPLETE", count=2, errors=0, data_errors=1)
+        self.assertIsNotNone(msg)
+        self.assertIn("2", msg)
+        self.assertIn("1", msg)
+
+    def test_pdef_system_error_hydrates(self):
+        msg = self.mm.get("PDEF_SYSTEM_ERROR", code="S-C-S-0901", detail="missing")
+        self.assertIsNotNone(msg)
+        self.assertIn("S-C-S-0901", msg)
 
     # T1.119 (I236) — ERROR_FILE_PROCESSING kwarg mismatch regression guard
     def test_error_file_processing_hydrates_detail(self):
@@ -664,14 +757,14 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             config_path = CONFIG_DIR / "eks_doc_config.json"
         with open(config_path) as f:
             config = json.load(f)
-        self.assertEqual(config["version"], "1.5.0")
+        self.assertEqual(config["version"], "1.8.0")  # T1.195 (I265): parsing_profiles added
 
         base_path = CONFIG_DIR / "schemas" / "eks_doc_base_schema.json"
         if not base_path.exists():
             base_path = CONFIG_DIR / "eks_doc_base_schema.json"
         with open(base_path) as f:
             base = json.load(f)
-        self.assertEqual(base["version"], "1.8.0")  # T1.99.157–158 (I193): x_export + export_artifact_def
+        self.assertEqual(base["version"], "1.10.0")  # T1.195 (I265): parsing_profile_def (V2)
 
 
 # ---------------------------------------------------------------------------

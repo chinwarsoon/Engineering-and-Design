@@ -4,7 +4,11 @@ Schema Loader for EKS - Handles loading and validation of base, setup, and confi
 Uses config-driven discovery (T1.96): reads schema_files + discovery_rules from
 eks_config.json instead of hardcoding 22 filenames.
 
-Revision: 1.2.0 — T1.192: registered eks_project_definition_config in _STEM_TO_ATTR;
+Revision: 1.3.0 — T1.196 (I265/I267/I268): removed eks_project_rules_config from
+           _STEM_TO_ATTR and _validate_project_rules() — eks_project_rules_config.json
+           retired (I267). Removed dead revision_validation backward-compat injection
+           (I268 — no consumers; RevisionManager migrated to slices in T1.194).
+1.2.0 — T1.192: registered eks_project_definition_config in _STEM_TO_ATTR;
            added _validate_project_definition() validation stage;
            added project_definition $ref resolution in _extract() for backward compat.
            T1.191: inject filename_patterns and revision_validation from
@@ -46,7 +50,6 @@ _STEM_TO_ATTR = {
     "eks_message_base": "message_base_schema",
     "eks_message_setup_schema": "message_setup_schema",
     "eks_message_config": "message_config",
-    "eks_project_rules_config": "project_rules_config",
     "eks_project_definition_config": "project_definition_config",
 }
 
@@ -91,7 +94,6 @@ class SchemaLoader:
         self.department_schema: Dict[str, Any] = {}
         self.discipline_schema: Dict[str, Any] = {}
         self.facility_schema: Dict[str, Any] = {}
-        self.project_rules_config: Dict[str, Any] = {}
         self.project_definition_config: Dict[str, Any] = {}
         self._extra_schemas: Dict[str, Dict[str, Any]] = {}
 
@@ -199,7 +201,6 @@ class SchemaLoader:
         self._validate_doc_registries()
         self._validate_error_config()
         self._validate_message_config()
-        self._validate_project_rules()
         self._validate_project_definition()
 
     def _extract(self) -> None:
@@ -216,14 +217,14 @@ class SchemaLoader:
             if isinstance(p, dict) and "code" in p and "description" in p
         }
 
-        # Backward-compat injection for T1.191: build filename_patterns and
-        # revision_validation from Project Definition so existing consumers
-        # (FileScanner, FilenameParser) continue to work unchanged.
+        # Functional reconstruction (T1.191): build filename_patterns from the
+        # Project Definition so FileScanner / FilenameParser keep matching.
+        # NOTE: revision_validation reconstruction removed in T1.196 (I268) — dead
+        # (RevisionManager consumes runtime slices since T1.194).
         filename_profiles = self.doc_config.get("filename_profiles", {})
         if self.project_definition_config and filename_profiles:
             pd_data = self.project_definition_config.get("project_definition", {})
             injected_patterns = {}
-            injected_revision = {}
             for proj_code, proj_entry in pd_data.items():
                 if not isinstance(proj_entry, dict):
                     continue
@@ -231,14 +232,9 @@ class SchemaLoader:
                 profile_name = dp.get("filename_pattern", "")
                 if profile_name in filename_profiles:
                     injected_patterns[proj_code] = filename_profiles[profile_name]
-                rev_val = proj_entry.get("revision_validation", {})
-                if isinstance(rev_val, dict) and "pattern" in rev_val:
-                    injected_revision[proj_code] = rev_val
             if injected_patterns:
                 injected_patterns["*"] = filename_profiles.get("default", {})
                 self.doc_config["filename_patterns"] = injected_patterns
-            if injected_revision:
-                self.doc_config["revision_validation"] = injected_revision
 
         self.asset_ontology_class_map = {
             self._normalize_tag_type(k): v
@@ -452,60 +448,6 @@ class SchemaLoader:
         )
 
         validate(instance=self.message_config, schema=self.message_setup_schema, registry=registry)
-
-    def _validate_project_rules(self) -> None:
-        """Validates self.project_rules_config against project_rules_def from base schema.
-
-        Checks:
-        1. Each project entry conforms to project_rules_def (allowed_disciplines required).
-        2. fragment_required_fields (if present) references valid fragment names from asset base schema.
-        3. Fragment field names in fragment_required_fields correspond to actual fragment properties.
-        """
-        if not self.project_rules_config:
-            return
-
-        resources = {}
-        if self.base_schema.get("$id"):
-            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
-
-        registry = Registry().with_resources(
-            (uri, resource) for uri, resource in resources.items()
-        )
-
-        base_def = self.base_schema.get("definitions", {}).get("project_rules_def", {})
-        project_rules_wrapper = self.project_rules_config.get("project_rules", {})
-        for project_id, entry in project_rules_wrapper.items():
-            if not isinstance(entry, dict):
-                raise ValueError(
-                    f"Project '{project_id}' entry in project_rules is not an object."
-                )
-
-            fragment_overrides = entry.get("fragment_required_fields", {})
-            if not isinstance(fragment_overrides, dict):
-                raise ValueError(
-                    f"Project '{project_id}': fragment_required_fields must be an object."
-                )
-
-            for frag_name, field_list in fragment_overrides.items():
-                if not isinstance(field_list, list) or len(field_list) < 1:
-                    raise ValueError(
-                        f"Project '{project_id}': fragment_required_fields['{frag_name}'] must be a non-empty array."
-                    )
-
-                frag_def = self.asset_base_schema.get("definitions", {}).get(frag_name)
-                if frag_def is None:
-                    raise ValueError(
-                        f"Project '{project_id}': fragment_required_fields references undefined fragment '{frag_name}'. "
-                        f"Valid: {sorted(self.asset_base_schema.get('definitions', {}).keys())}"
-                    )
-
-                frag_props = frag_def.get("properties", {})
-                for field in field_list:
-                    if field not in frag_props:
-                        raise ValueError(
-                            f"Project '{project_id}': fragment_required_fields['{frag_name}'] contains "
-                            f"unknown field '{field}'. Valid: {sorted(frag_props.keys())}"
-                        )
 
     def _validate_project_definition(self) -> None:
         """Validate project_definition entries against setup schema project_definition_def.
