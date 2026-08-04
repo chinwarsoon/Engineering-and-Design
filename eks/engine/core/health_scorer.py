@@ -44,12 +44,16 @@ COVER_TYPE_SOURCE_SCORES = {
     "F": 0.0,
 }
 
-EXPECTED_ELEMENTS_BY_TYPE = {
-    "A": {"cover_page", "revision_table", "sections", "image", "table"},
-    "B": {"cover_page", "revision_table", "sections", "image", "table"},
+# I279 (T1.213): EXPECTED_ELEMENTS_BY_TYPE is derived from the template
+# registry (document_templates) when available, instead of being hardcoded.
+# The legacy literal below is retained only as a scoring-policy fallback for
+# callers that construct HealthScorer without a template registry.
+_EXPECTED_ELEMENTS_BY_TYPE_FALLBACK = {
+    "A": {"cover_page", "revision_table", "section", "image", "table"},
+    "B": {"cover_page", "revision_table", "section", "image", "table"},
     "C": set(),
-    "D": {"cover_page", "sections"},
-    "E": {"cover_page", "sections", "table"},
+    "D": {"cover_page", "section"},
+    "E": {"cover_page", "section", "table"},
 }
 
 
@@ -60,8 +64,28 @@ class HealthScorer:
                 source quality, cross-reference quality, consistency.
     """
 
-    def __init__(self, logger: Optional[EKSLogger] = None):
+    def __init__(self, logger: Optional[EKSLogger] = None,
+                 document_templates: Optional[Dict[str, Any]] = None):
         self.logger = logger or EKSLogger("HealthScorer", level=2)
+        self.document_templates = document_templates or {}
+        self._expected_elements_by_type = self._build_expected_elements_map()
+
+    def _build_expected_elements_map(self) -> Dict[str, Set[str]]:
+        """Derive cover-type → expected elements from the template registry.
+
+        I279 (T1.213): reads ``document_templates[template_id].cover_type`` and
+        ``expected_elements`` instead of a hardcoded map. Uses ``section``
+        (singular) throughout — resolving the historical sections/section drift.
+        Falls back to the legacy map when no templates are provided.
+        """
+        if not self.document_templates:
+            return {k: set(v) for k, v in _EXPECTED_ELEMENTS_BY_TYPE_FALLBACK.items()}
+        result: Dict[str, Set[str]] = {}
+        for tpl in self.document_templates.values():
+            cover = tpl.get("cover_type", "C")
+            elements = set(tpl.get("expected_elements", []))
+            result.setdefault(cover, set()).update(elements)
+        return result
 
     @log_depth
     def score(self, metadata: Dict[str, Any],
@@ -194,7 +218,7 @@ class HealthScorer:
                            cover_type: Optional[str]) -> Dict[str, Any]:
         """Dimension 3: fraction of expected structural elements detected."""
         cover = cover_type or "C"
-        expected = EXPECTED_ELEMENTS_BY_TYPE.get(cover, set())
+        expected = self._expected_elements_by_type.get(cover, set())
         if not expected:
             return {"score": 1.0, "detected": 0, "expected": 0, "elements": []}
 

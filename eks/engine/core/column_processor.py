@@ -16,10 +16,22 @@ Handlers (T1.186):
   - auto_increment         → UUID generation
   - existing_record        → preserve current data dict value
 
-Revision: 0.3
-Date: 2026-07-31
+Revision: 0.4
+Date: 2026-08-04
 Author: opencode
-Summary: 0.3: T1.194 (I265) — EKSColumnProcessor accepts an optional injected
+Summary: 0.4: T1.209 (I277) — Phase B extraction gated by the resolved parsing
+          profile's extraction_methods ∩ binding format_category.
+          resolve_extraction_methods() computes the admitted method set;
+          _required_extraction_method() gates direct parser_metadata /
+          cover_page_element columns; _resolve_priority_chain() skips gated
+          sources individually. from_doc_config() injects parsing_profiles.
+0.5: T1.211 (I278) — cover_type-aware extraction-method resolution. A
+          no-cover template (cover_type "C") discards "cover_page_element"
+          from the admitted method set, so cover_page_element columns and
+          priority-chain sources are gated out (reuses the I277 gate).
+          resolve_cover_type() looks up the binding template's cover_type
+          from the injected document_templates registry.
+0.3: T1.194 (I265) — EKSColumnProcessor accepts an optional injected
           runtime_slice (Appendix L D1). _resolve_code_to_title() falls back to
           the slice's resolved project name when project_code_titles has no
           entry. Backward-compatible: from_doc_config() without a slice behaves
@@ -29,13 +41,19 @@ Summary: 0.3: T1.194 (I265) — EKSColumnProcessor accepts an optional injected
 """
 
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from common.library.column_processor import (
     BaseColumnProcessor,
     HandlerRegistry,
     ColumnProcessorError,
 )
+
+# I277 (T1.209): extraction-method handler names — used to gate Phase B
+# extraction by the resolved parsing profile's declared extraction_methods
+# intersected with the binding format_category. Method names come from the
+# parsing_profiles config (SSOT), never hardcoded per document.
+_EXTRACTION_METHOD_HANDLERS = frozenset({"parser_metadata", "cover_page_element"})
 
 
 def _resolve_priority_chain(column_config: Dict[str, Any], data: Dict[str, Any],
@@ -63,6 +81,16 @@ def _resolve_priority_chain(column_config: Dict[str, Any], data: Dict[str, Any],
     for source in sources:
         source_type = source.get("source")
         field = source.get("field")
+
+        # I277 (T1.209): skip a source whose extraction method is not admitted
+        # for this document (profile extraction_methods ∩ format_category).
+        # When context carries no extraction-method capability set, all sources
+        # are unrestricted (identical to pre-I277 behaviour).
+        if source_type in _EXTRACTION_METHOD_HANDLERS:
+            available = context.get("extraction_methods")
+            if available is not None and source_type not in available:
+                continue
+
         val = None
 
         if source_type == "parser_metadata":
@@ -331,7 +359,10 @@ class EKSColumnProcessor(BaseColumnProcessor):
     }
 
     def __init__(self, column_config: Dict[str, Any],
-                 runtime_slice: Optional[Dict[str, Any]] = None) -> None:
+                 runtime_slice: Optional[Dict[str, Any]] = None,
+                 document_type_registry: Optional[List[Dict[str, Any]]] = None,
+                 parsing_profiles: Optional[Dict[str, Any]] = None,
+                 document_templates: Optional[Dict[str, Any]] = None) -> None:
         registry = HandlerRegistry()
         for calc_type, handler_fn in self.HANDLER_TYPES.items():
             registry.register(calc_type, handler_fn)
@@ -339,6 +370,117 @@ class EKSColumnProcessor(BaseColumnProcessor):
         # T1.194 (I265): Injected config slice (Appendix L D1). Handlers receive
         # the slice via the process() context; this copy is kept for traceability.
         self.runtime_slice = runtime_slice or {}
+        # I275: projected document_type_registry from the I279 carrier — used to
+        # resolve the current document's concept_id + format_category for the
+        # applies_to_document_types / native_only scope filter.
+        self.document_type_registry = document_type_registry or []
+        # I277: parsing_profiles library (parsing_profile_def) — used to resolve
+        # the extraction-method capability set for a document and gate Phase B
+        # extraction by the selected profile's declared methods.
+        self.parsing_profiles = parsing_profiles or {}
+        # I278: document_templates (I279 carrier) — used to resolve a binding's
+        # cover_type so a no-cover (C) template discards cover_page_element
+        # from the admitted extraction methods.
+        self.document_templates = document_templates or {}
+
+    def _required_extraction_method(self, col_name: str, col_entry: Dict[str, Any],
+                                    context: Dict[str, Any]) -> Any:
+        """
+        I277: the extraction method a column requires.
+
+        When the column's ``calculation.type`` is a Phase B extraction handler
+        (parser_metadata / cover_page_element), that handler name is the
+        requirement. ``priority_chain`` columns declare no single method (their
+        sources are filtered individually in ``_resolve_priority_chain``), so
+        they yield ``None`` and are not blocked by capability gating.
+        """
+        calc = col_entry.get("calculation")
+        if calc:
+            calc_type = calc.get("type")
+            if calc_type in _EXTRACTION_METHOD_HANDLERS:
+                return calc_type
+            if calc_type == "priority_chain":
+                return None
+        return None
+
+    def resolve_extraction_methods(self, document_type: Optional[str],
+                                   format_category: Optional[str] = None) -> set:
+        """
+        I277 (T1.209): resolve the extraction-method capability set for a document.
+
+        Looks up the document's default parsing profile (its binding
+        ``default_parsing_profile`` in the projected registry), reads that
+        profile's declared ``extraction_methods``, and intersects with the
+        physical ``format_category``:
+
+        - native (dwg/dgn/docx/xlsx) may expose ``parser_metadata``;
+        - a PDF print is flattened — ``parser_metadata`` is unavailable.
+
+        I278 (T1.211): a binding whose template ``cover_type`` is ``"C"``
+        (no-cover) additionally discards ``cover_page_element`` — no cover
+        page exists to extract from.
+
+        Returns a set of admitted method names (empty when the document type
+        has no binding profile or the profile declares no methods).
+        """
+        profile_id = None
+        if document_type:
+            for entry in self.document_type_registry:
+                if entry.get("code") == document_type:
+                    profile_id = entry.get("default_parsing_profile")
+                    break
+        if not profile_id:
+            return set()
+        profile = self.parsing_profiles.get(profile_id, {})
+        methods = set(profile.get("extraction_methods", []))
+        if format_category == "print" or profile.get("format_category") == "print":
+            methods.discard("parser_metadata")
+        # I278 (T1.211): a no-cover template (cover_type "C") has no cover
+        # page to extract, so cover_page_element is never an admitted method.
+        if self.resolve_cover_type(document_type) == "C":
+            methods.discard("cover_page_element")
+        return methods
+
+    def resolve_cover_type(self, document_type: Optional[str]) -> str:
+        """
+        I278 (T1.211): resolve the binding template's cover_type (A/B/C/D/E).
+
+        Follows the document_type_registry entry's ``template`` id into the
+        injected ``document_templates`` (I279 carrier) and returns its
+        ``cover_type``. Unknown / missing template ids default to ``"C"`` —
+        treated as no-cover (safe: no cover is required to extract).
+        """
+        if not document_type:
+            return "C"
+        for entry in self.document_type_registry:
+            if entry.get("code") == document_type:
+                template_id = entry.get("template")
+                if template_id:
+                    tpl = self.document_templates.get(template_id, {})
+                    return tpl.get("cover_type", "C")
+                return "C"
+        return "C"
+
+    def resolve_scope(self, document_type: Optional[str]) -> Dict[str, Any]:
+        """
+        I275: resolve the document-type scope for a column run.
+
+        Looks up ``document_type`` (the project-local code stored in the
+        registry DB) in the projected ``document_type_registry`` (derived from
+        ``eks_document_type_schema.json#/project_document_types`` by
+        SchemaLoader). Returns ``{"concept_id": ..., "format_category": ...}``.
+        Unknown / missing codes yield empty scope — treated as unrestricted by
+        ``BaseColumnProcessor._applies`` (falls back to "apply").
+        """
+        if not document_type:
+            return {}
+        for entry in self.document_type_registry:
+            if entry.get("code") == document_type:
+                return {
+                    "concept_id": entry.get("concept_id"),
+                    "format_category": entry.get("format_category"),
+                }
+        return {}
 
     @classmethod
     def from_doc_config(cls, doc_config: Dict[str, Any],
@@ -351,6 +493,8 @@ class EKSColumnProcessor(BaseColumnProcessor):
 
         T1.194 (I265): Optional ``runtime_slice`` (the resolved config slice for
         the module's project) is injected for handler consumption.
+        I275: the projected ``document_type_registry`` (I279 carrier) is passed
+        through for document-type scope resolution.
         """
         column_config = doc_config.get("column_processing")
         if not column_config:
@@ -358,4 +502,10 @@ class EKSColumnProcessor(BaseColumnProcessor):
                 "doc_config missing 'column_processing' section — "
                 "ensure eks_doc_config.json has column_processing entries"
             )
-        return cls(column_config, runtime_slice=runtime_slice)
+        return cls(
+            column_config,
+            runtime_slice=runtime_slice,
+            document_type_registry=doc_config.get("document_type_registry") or [],
+            parsing_profiles=doc_config.get("parsing_profiles") or {},
+            document_templates=doc_config.get("document_templates") or {},
+        )

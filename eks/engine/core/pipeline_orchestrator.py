@@ -137,7 +137,10 @@ class PipelineOrchestrator(BaseEngine):
             doc_config, logger=self.logger, use_factory=True,
             runtime_slice=self._slice_for_orchestrator(),
         )
-        self.scorer = self._engine_factory.create("HealthScorer", logger=self.logger)
+        self.scorer = self._engine_factory.create(
+            "HealthScorer", logger=self.logger,
+            document_templates=doc_config.get("document_templates", {}),
+        )
         self.detector = self._engine_factory.create("StructureDetector", logger=self.logger)
 
         # T1.99.179 (I212): Wire RevisionManager for revision-aware document lookups
@@ -173,6 +176,8 @@ class PipelineOrchestrator(BaseEngine):
         # project_code_registry and project_code_titles come from the registry
         # (mirrors FileScanner, keeping the two callers in sync).
         filename_patterns = doc_config.get("filename_patterns", {})
+        # I279 (T1.213): flat document_type_registry derived from the three-section
+        # carrier by SchemaLoader; document_templates sourced the same way.
         document_type_registry = doc_config.get("document_type_registry", [])
         if self.project_config_registry is not None:
             project_code_registry = list(self.project_config_registry.project_codes)
@@ -892,7 +897,12 @@ class PipelineOrchestrator(BaseEngine):
         )
 
         try:
-            parse_result = self.router.route(file_path, file_type)
+            # I276 (T1.207): pass the project-local document_type so the router
+            # can resolve the binding parsing profile (two-axis routing) with
+            # file-type-only fallback. doc_type from the registry (Phase A) or
+            # the filename-derived value when not yet committed.
+            route_doc_type = (doc or {}).get("document_type") or None
+            parse_result = self.router.route(file_path, file_type, document_type=route_doc_type)
             result["parse_status"] = parse_result.get("status", "failed")
             result["error"] = parse_result.get("error")
 
@@ -908,9 +918,18 @@ class PipelineOrchestrator(BaseEngine):
             content_blocks = parse_result.get("content_blocks", [])
             metadata = parse_result.get("metadata", {})
 
+            # I278 (T1.211): resolve the binding template's cover_type so a
+            # no-cover (C) document skips cover-page detection and discards
+            # cover_page_element from the admitted extraction methods.
+            cover_type = None
+            if self._column_processor:
+                cover_type = self._column_processor.resolve_cover_type(route_doc_type)
+
             try:
                 pages = self._adapt_content_for_detector(content_blocks)
-                elements = self.detector.detect(file_path, pages=pages)
+                elements = self.detector.detect(
+                    file_path, pages=pages, skip_cover_page=(cover_type == "C")
+                )
                 result["elements"] = elements
 
                 # T1.187: Extract revision_description from revision_table elements.
@@ -1011,6 +1030,24 @@ class PipelineOrchestrator(BaseEngine):
                     # The context carries metadata, elements, file_properties, and score
                     # so each handler can resolve its value independently.
                     if self._column_processor:
+                        # I275: resolve the document-type scope (concept_id +
+                        # format_category from the I279 carrier projection) so the
+                        # column processor can apply applies_to_document_types /
+                        # native_only filters. Priority: Phase B committed value,
+                        # then Phase A registry value.
+                        doc_type_scope = self._column_processor.resolve_scope(
+                            registry_props.get("document_type")
+                            or (doc or {}).get("document_type")
+                        )
+                        # I277: resolve the extraction-method capability set for
+                        # this document so the processor gates parser_metadata /
+                        # cover_page_element by profile extraction_methods ∩
+                        # format_category.
+                        extraction_methods = self._column_processor.resolve_extraction_methods(
+                            registry_props.get("document_type")
+                            or (doc or {}).get("document_type"),
+                            doc_type_scope.get("format_category"),
+                        )
                         self._column_processor.process("B", registry_props, {
                             "metadata": metadata,
                             "elements": elements,
@@ -1022,6 +1059,11 @@ class PipelineOrchestrator(BaseEngine):
                             # T1.194 (I265): Phase B committed identity + slice
                             "project_code": project_context.get("project_code"),
                             "config_slice": project_context.get("config_slice"),
+                            # I275: document-type scope for the column filter
+                            "concept_id": doc_type_scope.get("concept_id"),
+                            "format_category": doc_type_scope.get("format_category"),
+                            # I277: extraction-method capability set for the gate
+                            "extraction_methods": extraction_methods,
                         })
                     self.logger.debug(
                         f"File properties extracted for {Path(file_path).name}: "

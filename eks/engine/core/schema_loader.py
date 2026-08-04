@@ -190,6 +190,12 @@ class SchemaLoader:
                 continue
             setattr(self, attr_name, self._load_json(meta["filename"]))
 
+        # I279 (T1.213): derive flat document-type projections from the
+        # three-section carrier so consumers (FileScanner, FilenameParser,
+        # pipeline_orchestrator, project_definition, health_scorer) read the
+        # single-source schema instead of a committed config array.
+        self._derive_doc_type_projection()
+
     def _validate(self) -> None:
         """Stage 3: Validate all loaded schemas and cross-registries."""
         self._validate_asset_config()
@@ -241,6 +247,68 @@ class SchemaLoader:
             for k, v in self.asset_config.get("ontology_class_map", {}).items()
             if isinstance(k, str) and isinstance(v, str)
         }
+
+    def _derive_doc_type_projection(self) -> None:
+        """Derive flat document-type projections from the three-section carrier.
+
+        I279 (T1.213): the carrier (eks_document_type_schema.json v2.0.0) is the
+        single runtime source. Runtime consumers expect a flat ``document_type_registry``
+        (code → label/ontology_class/expected_file_types/format_category map) plus
+        the template registry. We project these two into ``doc_config`` at load
+        time so no committed flat array (the old dead-duplicate SSOT) survives.
+        """
+        concepts = self.document_type_schema.get("document_type_concepts", [])
+        bindings = self.document_type_schema.get("project_document_types", {})
+        templates = self.document_type_schema.get("document_templates", {})
+
+        # concept_id lookup for label / ontology_class resolution
+        concept_by_id = {c.get("concept_id"): c for c in concepts}
+
+        # Build flat document_type_registry (union across all project bindings).
+        # A local_code may appear under multiple projects; first wins.
+        flat = []
+        seen_codes = set()
+        for project_code, binding_list in sorted(bindings.items()):
+            for entry in binding_list:
+                local_code = entry.get("local_code")
+                if local_code in seen_codes:
+                    continue
+                seen_codes.add(local_code)
+                concept = concept_by_id.get(entry.get("concept_id"), {})
+                flat.append({
+                    "code": local_code,
+                    "label": concept.get("label", local_code),
+                    "description": "Projected from eks_document_type_schema.json#/project_document_types (I279)",
+                    "ontology_class": concept.get("ontology_class", ""),
+                    "concept_id": entry.get("concept_id"),
+                    "template": entry.get("template"),
+                    "format_category": entry.get("format_category", "print"),
+                    "native_source": entry.get("native_source", ""),
+                    "expected_file_types": entry.get("expected_file_types", []),
+                    # I276 (T1.206): default parsing profile id for two-axis routing
+                    "default_parsing_profile": entry.get("default_parsing_profile", ""),
+                })
+        self.doc_config["document_type_registry"] = flat
+
+        # Template registry projection = the carrier document_templates section.
+        self.doc_config["document_templates"] = templates
+
+        # element_expectations projection (backward-compatible shape) derived
+        # from document_templates so legacy consumers of cover_type/threshold
+        # keep working without a second SSOT.
+        expect = {}
+        for template_id, tpl in templates.items():
+            expect[template_id] = {
+                "expected_elements": tpl.get("expected_elements", []),
+                "threshold": tpl.get("threshold", 0),
+                "cover_type": tpl.get("cover_type", "C"),
+            }
+        self.doc_config["element_expectations"] = expect
+
+        # document_type_schema_ref marker (I279 T1.213)
+        self.doc_config["document_type_schema_ref"] = (
+            self.document_type_schema.get("$id", "https://eks.engineering/schemas/eks_document_type_schema.json")
+        )
 
     def _validate_config(self) -> None:
         """
@@ -365,30 +433,89 @@ class SchemaLoader:
         validate(instance=self.doc_config, schema=self.doc_setup_schema, registry=registry)
 
     def _validate_doc_registries(self) -> None:
-        """Validates doc config cross-registries:
-        1. document_type_registry: ontology_class must exist in ontology config.
-        2. file_type_registry: parser_class must be importable.
-        3. element_type_registry: element_type must be valid.
-        4. element_expectations keys must match document_type_registry codes.
+        """Validates doc config cross-registries.
+
+        I279 (T1.213): document_type data now sources from the three-section
+        carrier (eks_document_type_schema.json v2.0.0), not a flat registry
+        array. Validation cross-checks the carrier sections against ontology
+        and element types. The flat project_document_type view is derived at
+        runtime in _extract() and injected into doc_config for consumers.
         """
         valid_element_types = {"cover_page", "revision_table", "section", "table", "image", "link", "legend", "note"}
 
-        doc_type_reg = self.doc_config.get("document_type_registry", [])
         file_type_reg = self.doc_config.get("file_type_registry", [])
         elem_type_reg = self.doc_config.get("element_type_registry", [])
-        elem_expect = self.doc_config.get("element_expectations", {})
 
-        # 1. Validate document_type_registry ontology_class
-        doc_type_codes = set()
-        for entry in doc_type_reg:
-            code = entry.get("code")
-            doc_type_codes.add(code)
-            ontology_class = entry.get("ontology_class", "")
-            if ontology_class not in self.ontology_class_names:
+        # I279: document_type entries come from the three-section carrier.
+        concepts = self.document_type_schema.get("document_type_concepts", [])
+        bindings = self.document_type_schema.get("project_document_types", {})
+        templates = self.document_type_schema.get("document_templates", {})
+        concept_by_id = {c.get("concept_id"): c for c in concepts}
+        local_codes = set()
+
+        # 1. Validate carrier concepts: ontology_class must exist in ontology config.
+        for c in concepts:
+            ontology_class = c.get("ontology_class", "")
+            if ontology_class and ontology_class not in self.ontology_class_names:
                 raise ValueError(
-                    f"Document type '{code}' references undefined ontology class: "
+                    f"Document type concept '{c.get('concept_id')}' references undefined ontology class: "
                     f"'{ontology_class}'. Available: {sorted(self.ontology_class_names)}"
                 )
+
+        # 1b. Validate each project binding: concept $id exists; template exists;
+        #     element_type entries valid; format_category/enum valid.
+        for project_code, binding_list in bindings.items():
+            for entry in binding_list:
+                local_code = entry.get("local_code")
+                local_codes.add(local_code)
+                concept_id = entry.get("concept_id")
+                if concept_id not in concept_by_id:
+                    raise ValueError(
+                        f"Binding {project_code}/{local_code} references undefined concept_id: "
+                        f"'{concept_id}'. Available concepts: {sorted(concept_by_id)}"
+                    )
+                template_id = entry.get("template")
+                if template_id not in templates:
+                    raise ValueError(
+                        f"Binding {project_code}/{local_code} references undefined template: "
+                        f"'{template_id}'. Available templates: {sorted(templates)}"
+                    )
+                if entry.get("format_category") not in ("native", "print"):
+                    raise ValueError(
+                        f"Binding {project_code}/{local_code} has invalid format_category: "
+                        f"'{entry.get('format_category')}'. Must be 'native' or 'print'."
+                    )
+                for ext in entry.get("expected_file_types", []):
+                    if ext not in self.doc_config.get("file_type_registry", []) and ext not in {
+                        ft.get("extension") for ft in file_type_reg
+                    }:
+                        # file_type_registry is the source of truth for extensions
+                        known = {ft.get("extension") for ft in file_type_reg}
+                        if ext not in known:
+                            raise ValueError(
+                                f"Binding {project_code}/{local_code} expects unknown file type: '{ext}'. "
+                                f"Known: {sorted(known)}"
+                            )
+
+        # 1c. Validate template registry: cover_type enum, expected_elements valid,
+        #     section/singular drift resolved (T1.213).
+        for tid, tpl in templates.items():
+            if tpl.get("cover_type") not in ("A", "B", "C", "D", "E"):
+                raise ValueError(
+                    f"Template '{tid}' has invalid cover_type: '{tpl.get('cover_type')}'"
+                )
+            for el in tpl.get("expected_elements", []):
+                if el not in valid_element_types:
+                    raise ValueError(
+                        f"Template '{tid}' has invalid expected element: '{el}'. "
+                        f"Valid: {sorted(valid_element_types)}"
+                    )
+            det = tpl.get("detection", {})
+            for mec in (det.get("native"), det.get("print")):
+                if mec not in ("embedded_structure", "page1_ocr"):
+                    raise ValueError(
+                        f"Template '{tid}' has invalid detection mechanism: '{mec}'"
+                    )
 
         # 2. Validate file_type_registry parser_class is importable
         for entry in file_type_reg:
@@ -409,14 +536,6 @@ class SchemaLoader:
                 raise ValueError(
                     f"Element type '{et}' is not a valid element type. "
                     f"Valid: {sorted(valid_element_types)}"
-                )
-
-        # 4. Validate element_expectations keys match document_type_registry codes
-        for key in elem_expect:
-            if key not in doc_type_codes:
-                raise ValueError(
-                    f"element_expectations key '{key}' does not match any document_type_registry code. "
-                    f"Valid codes: {sorted(doc_type_codes)}"
                 )
 
     def _validate_error_config(self) -> None:

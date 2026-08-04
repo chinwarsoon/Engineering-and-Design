@@ -43,6 +43,8 @@ class FileScanner:
         self.logger = logger or EKSLogger("FileScanner", level=1)
         self.project_config_registry = project_config_registry
         self.file_type_registry = self.doc_config.get("file_type_registry", [])
+        # I279 (T1.213): flat document_type_registry is derived at load time by
+        # SchemaLoader from the three-section eks_document_type_schema.json carrier.
         self.document_type_registry = self.doc_config.get("document_type_registry", [])
         self._ext_map = self._build_extension_map()
         self._doc_type_expected = self._build_expected_types_map()

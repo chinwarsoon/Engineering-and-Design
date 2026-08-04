@@ -35,6 +35,21 @@ The schema uses **fragment composition**: each tag_type is a set of property fra
 **Project**: WSD11 (Contract C4B, Units 003/006/008/111/112)  
 **Data quality note**: Pipeline sheet has 612 KEYTAGs with duplicate rows (same tag on multiple P&ID sheets — see ingestion rule in A5).
 
+Engineering Assets should consider:
+- Equipment
+- Instrument
+- Line
+- Valve
+- Cable
+- Signal
+- Process Stream
+- Structural Member
+- Foundation
+- Area
+- System
+- Subsystem
+- Package
+
 ---
 
 ## A2. Fragment Definitions

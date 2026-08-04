@@ -69,6 +69,12 @@ class BaseColumnProcessor:
             if not col_entry.get("is_calculated"):
                 continue
 
+            if not self._applies(col_name, col_entry, context):
+                continue
+
+            if not self._extraction_applies(col_name, col_entry, context):
+                continue
+
             calc = col_entry.get("calculation")
             if not calc:
                 continue
@@ -82,6 +88,80 @@ class BaseColumnProcessor:
                     data[col_name] = col_entry["default"]
 
         return data
+
+    def _applies(self, col_name: str, col_entry: Dict[str, Any],
+                 context: Dict[str, Any]) -> bool:
+        """
+        I275: document-type scope filter for a column.
+
+        Resolves the current document's concept_id (from context
+        ``"concept_id"``) and ``format_category`` (from context
+        ``"format_category"``), then:
+
+        1. If ``applies_to_document_types`` is present and does not contain the
+           resolved ``concept_id``, the column is skipped.
+        2. If ``native_only`` is true and the resolved ``format_category`` is
+           ``"print"``, the column is skipped (PDF prints carry no embedded
+           metadata).
+
+        Absent scope keys mean "all" — a column with no ``applies_to_document_types``
+        applies to every concept, and a column without ``native_only`` applies to
+        both native and print delivery. A document whose concept cannot be resolved
+        is treated as unrestricted (defaults to applying).
+        """
+        concept_id = context.get("concept_id")
+        format_category = context.get("format_category")
+
+        applies_to = col_entry.get("applies_to_document_types")
+        if applies_to and concept_id is not None:
+            if isinstance(applies_to, (list, tuple)) and concept_id not in applies_to:
+                return False
+            if isinstance(applies_to, str) and concept_id != applies_to:
+                return False
+
+        native_only = col_entry.get("native_only")
+        if native_only and format_category == "print":
+            return False
+
+        return True
+
+    def _extraction_applies(self, col_name: str, col_entry: Dict[str, Any],
+                            context: Dict[str, Any]) -> bool:
+        """
+        I277: gate a column by the resolved extraction-method capability set.
+
+        The context may carry ``"extraction_methods"`` — the set of methods
+        admitted for this document (resolved by the project from the selected
+        parsing profile's ``extraction_methods`` intersected with the binding
+        ``format_category``). When absent, the column is unrestricted (defaults
+        to applying) so existing callers that do not provide capability info
+        behave exactly as before.
+
+        Subclasses may override to derive the column's required method from its
+        calculation config; the base implementation applies no gating.
+        """
+        extraction_methods = context.get("extraction_methods")
+        if extraction_methods is None:
+            return True
+        required = self._required_extraction_method(col_name, col_entry, context)
+        if not required:
+            return True
+        return required in extraction_methods
+
+    def _required_extraction_method(self, col_name: str, col_entry: Dict[str, Any],
+                                    context: Dict[str, Any]) -> Any:
+        """
+        I277: determine the extraction method a column requires.
+
+        Subclasses may override. Returns the required method (or ``None`` for
+        no requirement). The base implementation treats only the direct
+        ``calculation.type`` as the requirement when it matches an extraction
+        handler name.
+        """
+        calc = col_entry.get("calculation")
+        if calc:
+            return calc.get("type")
+        return None
 
     @property
     def column_config(self) -> Dict[str, Any]:

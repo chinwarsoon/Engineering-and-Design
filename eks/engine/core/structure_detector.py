@@ -35,7 +35,8 @@ class StructureDetector:
 
     @log_depth
     def detect(self, filename: str, pages: Optional[List[Dict[str, Any]]] = None,
-               full_text: Optional[str] = None) -> List[Dict[str, Any]]:
+               full_text: Optional[str] = None,
+               skip_cover_page: bool = False) -> List[Dict[str, Any]]:
         """
         Detect all structural elements in a document.
 
@@ -47,6 +48,11 @@ class StructureDetector:
             List of page dicts from pdf_parser, each containing 'text', 'tables', 'images'.
         full_text : str, optional
             Concatenated text of all pages (alternative to pages).
+        skip_cover_page : bool, optional
+            I278 (T1.211): when the document's template cover_type is ``C``
+            (no-cover), skip cover-page detection entirely so ``cover_page``
+            elements are never produced and ``cover_page_element`` columns
+            have nothing to consume.
 
         Returns
         -------
@@ -70,8 +76,10 @@ class StructureDetector:
         else:
             page_texts = [text]
 
-        # Detect cover page (page 1)
-        cover = self._detect_cover_page(page_texts[0] if page_texts else text)
+        # Detect cover page (page 1) — I278: skipped for no-cover (C) templates
+        cover = None
+        if not skip_cover_page:
+            cover = self._detect_cover_page(page_texts[0] if page_texts else text)
         if cover:
             elements.append(cover)
 

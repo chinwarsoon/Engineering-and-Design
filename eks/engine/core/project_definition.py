@@ -611,7 +611,9 @@ class ProjectDefinitionResolver:
             "prompt": self._doc_config.get("prompt_profiles", {}),
             "validation": self._doc_config.get("validation_profiles", {}),
         }
-        # Backward-compatible fallback for the legacy document domain
+        # Backward-compatible fallback for the legacy document domain.
+        # I279 (T1.213): doc_config.document_type_registry is derived from the
+        # three-section eks_document_type_schema.json carrier by SchemaLoader.
         _DOMAIN_LIBRARY_MAP["document"] = self._doc_config.get("document_type_registry", [])
         _LEGACY_INDEX = {"parsing": self._doc_config.get("file_type_registry", [])}
 

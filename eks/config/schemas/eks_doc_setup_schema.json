@@ -73,7 +73,8 @@
                     "display_name": { "type": "string" },
                     "parser_class": { "type": "string" },
                     "description": { "type": "string" },
-                    "mime_type": { "type": "string" }
+                    "mime_type": { "type": "string" },
+                    "format_category": { "type": "string", "enum": ["native", "print"], "description": "I279: native vs PDF-print delivery format" }
                 },
                 "required": ["extension", "display_name", "parser_class"],
                 "additionalProperties": false
@@ -103,7 +104,7 @@
         },
         "element_expectations": {
             "type": "object",
-            "description": "Expected structural elements per document type for structural completeness scoring (Appendix D D7.10). Keys are document_type_code values from document_type_registry.",
+            "description": "Expected structural elements per template for structural completeness scoring (Appendix D D7.10). Runtime-derived from document_templates (three-section carrier, I279). Keys are template_id values from eks_document_type_schema.json#/document_templates.",
             "additionalProperties": {
                 "type": "object",
                 "properties": {
@@ -115,15 +116,25 @@
                     "cover_type": {
                         "type": "string",
                         "enum": ["A", "B", "C", "D", "E"],
-                        "description": "Backward-compatible cover type for structure_detector.py routing."
+                        "description": "Cover type for structure_detector.py routing."
                     }
                 },
                 "required": ["expected_elements"],
                 "additionalProperties": false
             },
             "propertyNames": {
-                "pattern": "^(CAD|DWG|PI-PID|SPC|DS|MAN|OM|RPT|DR|SP|CL|BQ|VI|M3|QA)$"
+                "pattern": "^[a-z_]+$"
             }
+        },
+        "document_type_schema_ref": {
+            "type": "string",
+            "description": "I279: URI of the three-section eks_document_type_schema.json carrier that is the single SSOT for document types."
+        },
+        "document_templates": {
+            "type": "object",
+            "description": "Runtime-derived template registry (I279) from eks_document_type_schema.json#/document_templates. Keyed by template_id.",
+            "propertyNames": { "pattern": "^[a-z_]+$" },
+            "additionalProperties": { "$ref": "eks_doc_base_schema.json#/definitions/document_template_entry_def" }
         },
         "filename_profiles": {
             "type": "object",

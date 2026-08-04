@@ -2,10 +2,13 @@
 Document Registry for EKS - Metadata DB CRUD interface using DuckDB.
 DDL is auto-generated from JSON schema definitions via SchemaToDDL (T1.36).
 
-Revision: 0.8
-Date: 2026-07-24
+Revision: 0.9
+Date: 2026-08-03
 Author: opencode
-Summary: 0.8: T1.99.191 (I225) — added pre_generated_ddl param to reuse bootstrap
+Summary: 0.9: T1.200/T1.201 (I274) -- removed hardcoded COLUMN_ALLOWLIST fallback;
+          _get_column_allowlist() now resolves doc base schema via schema-driven
+          paths (CWD-independent) and raises a descriptive error on absence.
+0.8: T1.99.191 (I225) — added pre_generated_ddl param to reuse bootstrap
           DDL; added _ensure_schema_version() metadata table for schema hash tracking.
 0.7: T1.106 (I232) — added get_document_by_file_path() for SSOT doc_id lookup.
           0.6: T1.99.153 (I189/F1) — added optional db_path parameter for test-isolated databases.
@@ -47,43 +50,75 @@ class DocumentRegistry:
     )
 
     @classmethod
+    def _resolve_doc_base_config_dir(cls) -> Path:
+        """Resolve the config dir holding ``eks_doc_base_schema.json`` from any CWD.
+
+        T1.201 (I274): replaces the hardcoded ``Path("eks/config")`` literal.
+        Resolution order (AGENTS.md §15 - no hardcoded path literals):
+          1. The already-resolved ``SchemaLoader.config_dir`` from the
+             ConfigRegistry singleton (bootstrap path - CWD-independent once
+             bootstrapped).
+          2. Anchor-based discovery: ``default_base_path`` locates the project
+             root, then schema-driven ``resolve_paths()`` (global_paths) derives
+             the config dir - works from any working directory.
+        Raises a descriptive ``FileNotFoundError`` when the config dir cannot be
+        resolved - there is NO silent fallback (AGENTS.md §16).
+        """
+        from .config_registry import ConfigRegistry
+        from common.library.paths.root_discovery import default_base_path
+        from common.library.paths import resolve_paths
+
+        # Priority 1: already-resolved bootstrap config dir.
+        loader = getattr(ConfigRegistry._instance, "_loader", None)
+        if loader is not None and getattr(loader, "config_dir", None):
+            cfg = Path(loader.config_dir)
+            if (cfg / "schemas" / "eks_doc_base_schema.json").exists() or \
+                    (cfg / "eks_doc_base_schema.json").exists():
+                return cfg
+
+        # Priority 2: anchor-based discovery + schema-driven global_paths.
+        project_root = default_base_path("eks", reference=__file__)
+        config = {}
+        for candidate in (
+            project_root / "eks" / "config" / "schemas" / "eks_config.json",
+            project_root / "eks" / "config" / "eks_config.json",
+            project_root / "config" / "eks_config.json",
+        ):
+            if candidate.exists():
+                with open(candidate, "r", encoding="utf-8") as fh:
+                    config = json.load(fh)
+                break
+        if not config.get("global_paths"):
+            raise FileNotFoundError(
+                "Could not resolve the EKS config dir: no eks_config.json with "
+                "global_paths found under the anchor-discovered project root "
+                f"{project_root}. Run from within the project tree or pass "
+                "--base-path/--config-dir (I274/T1.201)."
+            )
+        resolved = resolve_paths(project_root, config).resolve(project_root)
+        return Path(resolved["config_dir"])
+
+    @classmethod
     def _get_column_allowlist(cls) -> set:
         """
-        Derive COLUMN_ALLOWLIST from JSON schema definitions.
-        Falls back to static set if schema is unavailable.
+        Derive COLUMN_ALLOWLIST from JSON schema definitions (sole source).
+
+        T1.200 (I274): the schema-derived set is the ONLY source - no hardcoded
+        fallback list. On genuine schema absence, a descriptive error is raised
+        instead of silently degrading (AGENTS.md §16).
         """
         if cls._SCHEMA_DERIVED_ALLOWLIST is not None:
             return cls._SCHEMA_DERIVED_ALLOWLIST
-        try:
-            from .schema_to_ddl import SchemaToDDL
-            config_dir = Path("eks/config")
-            schema = SchemaToDDL.load_doc_base_schema(config_dir)
-            gen = SchemaToDDL(schema)
-            project_props = gen.definitions.get("project_metadata_def", {}).get("properties", {})
-            document_props = gen.definitions.get("document_metadata_def", {}).get("properties", {})
-            all_cols = set(project_props.keys()) | set(document_props.keys())
-            all_cols.add("id")
-            cls._SCHEMA_DERIVED_ALLOWLIST = all_cols
-            return all_cols
-        except Exception:
-            return {
-                "id", "project_title", "project_number", "area", "discipline",
-                "department", "document_type", "document_number", "revision",
-                "status", "is_latest", "file_path", "file_type", "ingested_at", "source_type",
-                "created_by", "checked_by", "approved_by", "originator_company",
-                "security_class", "asset_tags", "page_count", "extract_status",
-                "extraction_confidence", "extraction_notes", "verified_by",
-                "file_size", "file_created_at", "file_modified_at", "file_hash",
-                "embedded_title", "embedded_subject", "embedded_created_date",
-                "embedded_modified_date", "embedded_creator_app", "embedded_producer",
-                "embedded_last_modified_by", "embedded_keywords", "embedded_sheet_count",
-                # T1.99.141–T1.99.146: 15 new metadata columns
-                "supersedes", "superseded_by", "document_title",
-                "lifecycle_stage", "revision_date", "revision_description",
-                "embedded_revision_number", "references_documents",
-                "project_phase", "contract_package", "issued_date",
-                "responsible_engineer", "total_sheets", "language", "vendor_name",
-            }
+        from .schema_to_ddl import SchemaToDDL
+        config_dir = cls._resolve_doc_base_config_dir()
+        schema = SchemaToDDL.load_doc_base_schema(config_dir)
+        gen = SchemaToDDL(schema)
+        project_props = gen.definitions.get("project_metadata_def", {}).get("properties", {})
+        document_props = gen.definitions.get("document_metadata_def", {}).get("properties", {})
+        all_cols = set(project_props.keys()) | set(document_props.keys())
+        all_cols.add("id")
+        cls._SCHEMA_DERIVED_ALLOWLIST = all_cols
+        return all_cols
 
     @property
     def COLUMN_ALLOWLIST(self) -> set:
@@ -337,7 +372,7 @@ class DocumentRegistry:
         if loader and hasattr(loader, 'config_dir'):
             config_dir = Path(loader.config_dir)
         else:
-            config_dir = Path("eks/config")
+            config_dir = self._resolve_doc_base_config_dir()
         return SchemaToDDL.load_doc_base_schema(config_dir)
 
     def _get_boilerplate_prefixes(self) -> tuple:
@@ -353,7 +388,7 @@ class DocumentRegistry:
             if loader and hasattr(loader, 'config_dir'):
                 config_dir = Path(loader.config_dir)
             else:
-                config_dir = Path("eks/config")
+                config_dir = self._resolve_doc_base_config_dir()
             doc_config_path = config_dir / "schemas" / "eks_doc_config.json"
             if not doc_config_path.exists():
                 doc_config_path = config_dir / "eks_doc_config.json"

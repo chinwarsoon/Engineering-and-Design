@@ -302,6 +302,18 @@ class TestStructureDetector(unittest.TestCase):
         elements = self.detector.detect("test.pdf", pages=pages)
         self.assertTrue(any(el["element_type"] == "cover_page" for el in elements))
 
+    def test_skip_cover_page_no_cover_template(self):
+        """I278: skip_cover_page=True produces no cover_page element."""
+        pages = [{
+            "text": "PROJECT: Test Project\nDOC NO: DWG-001\nREV: A",
+            "tables": [],
+            "images": [],
+        }]
+        elements = self.detector.detect("test.pdf", pages=pages, skip_cover_page=True)
+        self.assertFalse(any(el["element_type"] == "cover_page" for el in elements),
+                         "no-cover (C) template must not emit a cover_page element")
+        self.assertTrue(all(el["element_type"] != "cover_page" for el in elements))
+
 
 # ---------------------------------------------------------------------------
 # T1.99.141–T1.99.146: Document Metadata Completeness Tests
@@ -757,14 +769,14 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             config_path = CONFIG_DIR / "eks_doc_config.json"
         with open(config_path) as f:
             config = json.load(f)
-        self.assertEqual(config["version"], "1.8.0")  # T1.195 (I265): parsing_profiles added
+        self.assertEqual(config["version"], "1.9.0")  # T1.213-T1.216 (I279): doc-type SSOT carrier
 
         base_path = CONFIG_DIR / "schemas" / "eks_doc_base_schema.json"
         if not base_path.exists():
             base_path = CONFIG_DIR / "eks_doc_base_schema.json"
         with open(base_path) as f:
             base = json.load(f)
-        self.assertEqual(base["version"], "1.10.0")  # T1.195 (I265): parsing_profile_def (V2)
+        self.assertEqual(base["version"], "1.13.0")  # T1.195 (I265): parsing_profile_def (V2) + I279 T1.214 + I275 T1.203 scope keys + I276 T1.206 default_parsing_profile
 
 
 # ---------------------------------------------------------------------------

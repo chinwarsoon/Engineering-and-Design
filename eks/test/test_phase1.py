@@ -688,24 +688,62 @@ class TestPhase1(unittest.TestCase):
         })
         row = reg.get_document("TEST-FT-001", revision="A")
         self.assertEqual(row.get("file_type"), "dgn")
-        # Force the static-fallback path (schema load failure) and assert that
-        # file_type is included — the root cause of the NULL rows.
+        # T1.202 (I274): the hardcoded fallback was removed (AGENTS.md 16).
+        # Assert the allowlist is still schema-derived from a non-root CWD and
+        # equals the schema SSOT - the regression that caused the NULL rows.
+        from eks.engine.core import registry as _reg_mod
+        _reg_mod.DocumentRegistry._SCHEMA_DERIVED_ALLOWLIST = None
+        orig_cwd = Path.cwd()
+        try:
+            tmp2 = Path(tempfile.mkdtemp())
+            os.chdir(tmp2)
+            allowlist = _reg_mod.DocumentRegistry._get_column_allowlist()
+            self.assertIn("file_type", allowlist)
+            self.assertIn("file_path", allowlist)
+            self.assertEqual(allowlist, self.registry.COLUMN_ALLOWLIST)
+        finally:
+            os.chdir(orig_cwd)
+            _reg_mod.DocumentRegistry._SCHEMA_DERIVED_ALLOWLIST = None
+
+    def test_column_allowlist_raises_when_schema_absent(self):
+        """T1.202 (I274): no silent fallback - descriptive error on schema absence."""
         from eks.engine.core import registry as _reg_mod
         import eks.engine.core.schema_to_ddl as _stdl
         _reg_mod.DocumentRegistry._SCHEMA_DERIVED_ALLOWLIST = None
         orig = _stdl.SchemaToDDL.load_doc_base_schema
 
         def _boom(*a, **k):
-            raise RuntimeError("schema unavailable (simulated non-root CWD)")
+            raise FileNotFoundError("eks_doc_base_schema.json genuinely absent (T1.202)")
 
         _stdl.SchemaToDDL.load_doc_base_schema = staticmethod(_boom)
         try:
-            fallback = _reg_mod.DocumentRegistry._get_column_allowlist()
-            self.assertIn("file_type", fallback)
-            self.assertIn("file_path", fallback)
+            with self.assertRaises(FileNotFoundError) as ctx:
+                _reg_mod.DocumentRegistry._get_column_allowlist()
+            self.assertIn("absent", str(ctx.exception))
         finally:
             _stdl.SchemaToDDL.load_doc_base_schema = orig
             _reg_mod.DocumentRegistry._SCHEMA_DERIVED_ALLOWLIST = None
+
+    def test_column_allowlist_equals_schema_derived_set(self):
+        """T1.202 (I274): allowlist equals schema-derived set (drift guard)."""
+        import json as _json
+        from pathlib import Path as _Path
+        from eks.engine.core.registry import DocumentRegistry
+        _reg_mod = DocumentRegistry
+        _reg_mod._SCHEMA_DERIVED_ALLOWLIST = None
+        try:
+            cfg = _Path(self.config_dir)
+            schema_path = cfg / "eks_doc_base_schema.json"
+            if not schema_path.exists():
+                schema_path = cfg.parent / "eks_doc_base_schema.json"
+            schema = _json.loads(schema_path.read_text(encoding="utf-8"))
+            defs = schema["definitions"]
+            expected = set(defs["project_metadata_def"]["properties"].keys()) | \
+                       set(defs["document_metadata_def"]["properties"].keys())
+            expected.add("id")
+            self.assertEqual(DocumentRegistry._get_column_allowlist(), expected)
+        finally:
+            _reg_mod._SCHEMA_DERIVED_ALLOWLIST = None
 
     def test_schema_to_ddl_timestamp_format(self):
         """T1.36: ingested_at is TIMESTAMP not VARCHAR."""

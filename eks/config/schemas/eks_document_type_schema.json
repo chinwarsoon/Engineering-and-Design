@@ -2,28 +2,82 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://eks.engineering/schemas/eks_document_type_schema.json",
   "title": "EKS Document Type Schema",
-  "description": "Valid document type classifications for the EKS knowledge base. SSOT for all document type codes used in filename parsing, cover sheet extraction, and pipeline dispatch.",
-  "version": "1.0.0",
+  "description": "Single runtime SSOT for EKS document types (I279). Three sections: document_type_concepts (global abstract concepts), project_document_types (per-project local-code bindings), document_templates (structural template registry). A document type is always bound to a project. v2.0.0 restructured from the v1.0.0 flat document_types list per I279 T1.214.",
+  "version": "2.0.0",
   "type": "object",
   "additionalProperties": false,
-  "allOf": [
-    {"$ref": "https://eks.engineering/schemas/eks_doc_base_schema.json#/definitions/document_type_entry_def"}
+  "required": ["document_type_concepts", "project_document_types", "document_templates"],
+  "document_type_concepts": [
+    { "concept_id": "DRAWING",       "label": "Engineering Drawing",      "ontology_class": "Drawing",       "common_rules": { "cover_bearing": true,  "requires_revision_table": true } },
+    { "concept_id": "PID_DRAWING",   "label": "P&ID Drawing",             "ontology_class": "PID_Drawing",   "common_rules": { "cover_bearing": true, "requires_revision_table": true } },
+    { "concept_id": "SPECIFICATION", "label": "Technical Specification", "ontology_class": "Specification", "common_rules": { "cover_bearing": true, "section_anchored": true } },
+    { "concept_id": "DATA_SHEET",    "label": "Data Sheet",              "ontology_class": "Specification", "common_rules": { "cover_bearing": true, "table_anchored": true } },
+    { "concept_id": "MANUAL",        "label": "Vendor O&M Manual",       "ontology_class": "Manual",        "common_rules": { "cover_bearing": true } },
+    { "concept_id": "REPORT",        "label": "Technical Report",        "ontology_class": "Report",        "common_rules": { "cover_bearing": true, "external_anchored": true } }
   ],
-  "document_types": [
-    {"code": "DWG",    "label": "Engineering Drawing",    "ontology_class": "Drawing",       "description": "Engineering design drawing",           "expected_file_types": ["pdf"]},
-    {"code": "PI-PID", "label": "P&ID Drawing",           "ontology_class": "PID_Drawing",   "description": "Piping and instrumentation diagram",  "expected_file_types": ["pdf", "dgn"]},
-    {"code": "SPC",    "label": "Technical Specification","ontology_class": "Specification",  "description": "Technical specification document",    "expected_file_types": ["pdf", "docx"]},
-    {"code": "DS",     "label": "Data Sheet",             "ontology_class": "Specification",  "description": "Equipment/instrument data sheet",     "expected_file_types": ["pdf", "xlsx"]},
-    {"code": "MAN",    "label": "Vendor O&M Manual",      "ontology_class": "Manual",         "description": "Vendor operation and maintenance manual", "expected_file_types": ["pdf"]},
-    {"code": "OM",     "label": "Operation Manual",       "ontology_class": "Manual",         "description": "System operation manual",             "expected_file_types": ["pdf", "docx"]},
-    {"code": "RPT",    "label": "Technical Report",       "ontology_class": "Report",         "description": "Technical report or study",          "expected_file_types": ["pdf", "docx"]},
-    {"code": "CAD",    "label": "AutoCAD Drawing",        "ontology_class": "Drawing",       "description": "AutoCAD DWG native drawing file",    "expected_file_types": ["dwg"]},
-    {"code": "DR",     "label": "Drawing",                "ontology_class": "Drawing",       "description": "Engineering drawing (TWRP filename code)", "expected_file_types": ["pdf"]},
-    {"code": "SP",     "label": "Specification",          "ontology_class": "Specification",  "description": "Technical specification (TWRP filename code)", "expected_file_types": ["pdf", "docx"]},
-    {"code": "CL",     "label": "Civil/Structural",       "ontology_class": "Specification",  "description": "Civil/structural document (TWRP filename code)", "expected_file_types": ["pdf", "docx"]},
-    {"code": "BQ",     "label": "Bill of Quantities",     "ontology_class": "Specification",  "description": "Bill of quantities (TWRP filename code)", "expected_file_types": ["pdf", "xlsx"]},
-    {"code": "VI",     "label": "Vendor Information",     "ontology_class": "Manual",         "description": "Vendor information document (TWRP filename code)", "expected_file_types": ["pdf"]},
-    {"code": "M3",     "label": "3D Model",               "ontology_class": "Drawing",       "description": "3D model reference (TWRP filename code)", "expected_file_types": ["pdf"]},
-    {"code": "QA",     "label": "Quality Assurance",      "ontology_class": "Report",         "description": "Quality assurance document (TWRP filename code)", "expected_file_types": ["pdf", "docx"]}
-  ]
+  "project_document_types": {
+    "131101": [
+      { "local_code": "DWG",    "concept_id": "DRAWING",       "template": "twrp_drawing",    "format_category": "print",  "native_source": "dwg",  "expected_file_types": ["pdf"],       "default_parsing_profile": "technip_pdf", "project_rules": { "comment": "Engineering drawing delivered as PDF print" } },
+      { "local_code": "PI-PID", "concept_id": "PID_DRAWING",   "template": "twrp_pandid",     "format_category": "print",  "native_source": "dgn",  "expected_file_types": ["pdf", "dgn"],  "default_parsing_profile": "technip_pdf", "project_rules": {} },
+      { "local_code": "SPC",    "concept_id": "SPECIFICATION", "template": "twrp_spec_c",     "format_category": "print",  "native_source": "docx", "expected_file_types": ["pdf", "docx"], "default_parsing_profile": "technip_pdf", "project_rules": {} },
+      { "local_code": "DS",     "concept_id": "DATA_SHEET",    "template": "twrp_datasheet_e","format_category": "print", "native_source": "xlsx", "expected_file_types": ["pdf", "xlsx"], "default_parsing_profile": "technip_pdf", "project_rules": {} },
+      { "local_code": "MAN",    "concept_id": "MANUAL",        "template": "twrp_manual_d",   "format_category": "print",  "native_source": "docx", "expected_file_types": ["pdf", "docx"], "default_parsing_profile": "technip_pdf", "project_rules": {} },
+      { "local_code": "OM",     "concept_id": "MANUAL",        "template": "twrp_manual_d",   "format_category": "print",  "native_source": "docx", "expected_file_types": ["pdf", "docx"], "default_parsing_profile": "technip_pdf", "project_rules": {} },
+      { "local_code": "RPT",    "concept_id": "REPORT",        "template": "twrp_report_e",   "format_category": "print",  "native_source": "docx", "expected_file_types": ["pdf", "docx"], "default_parsing_profile": "technip_pdf", "project_rules": {} },
+      { "local_code": "CAD",    "concept_id": "DRAWING",       "template": "twrp_drawing",    "format_category": "native", "native_source": "dwg",  "expected_file_types": ["dwg"],        "default_parsing_profile": "technip_dwg", "project_rules": { "comment": "Native AutoCAD DWG" } }
+    ],
+    "131242": [
+      { "local_code": "DR",  "concept_id": "DRAWING",       "template": "twrp_drawing",  "format_category": "print",  "native_source": "dwg",  "expected_file_types": ["pdf", "docx"], "default_parsing_profile": "technip_pdf", "project_rules": { "comment": "TWRP Drawing code" } },
+      { "local_code": "SP",  "concept_id": "SPECIFICATION", "template": "twrp_spec_c",   "format_category": "print",  "native_source": "docx", "expected_file_types": ["pdf", "docx"], "default_parsing_profile": "technip_pdf", "project_rules": { "comment": "TWRP Specification code" } },
+      { "local_code": "CL",  "concept_id": "SPECIFICATION", "template": "twrp_spec_c",   "format_category": "print",  "native_source": "docx", "expected_file_types": ["pdf", "docx"], "default_parsing_profile": "technip_pdf", "project_rules": { "comment": "TWRP Civil/Structural code" } },
+      { "local_code": "BQ",  "concept_id": "SPECIFICATION", "template": "twrp_spec_c",   "format_category": "print",  "native_source": "xlsx", "expected_file_types": ["pdf", "xlsx"], "default_parsing_profile": "technip_pdf", "project_rules": { "comment": "TWRP Bill of Quantities code" } },
+      { "local_code": "VI",  "concept_id": "MANUAL",        "template": "twrp_manual_d", "format_category": "print",  "native_source": "docx", "expected_file_types": ["pdf"],        "default_parsing_profile": "technip_pdf", "project_rules": { "comment": "TWRP Vendor Information code" } },
+      { "local_code": "M3",  "concept_id": "DRAWING",       "template": "twrp_drawing",  "format_category": "print",  "native_source": "pdf",  "expected_file_types": ["pdf"],        "default_parsing_profile": "technip_pdf", "project_rules": { "comment": "TWRP 3D Model reference code" } },
+      { "local_code": "QA",  "concept_id": "REPORT",        "template": "twrp_report_e", "format_category": "print",  "native_source": "docx", "expected_file_types": ["pdf", "docx"], "default_parsing_profile": "technip_pdf", "project_rules": { "comment": "TWRP Quality Assurance code" } }
+    ]
+  },
+  "document_templates": {
+    "twrp_drawing": {
+      "label": "TWRP Drawing Template",
+      "cover_type": "A",
+      "expected_elements": ["cover_page", "revision_table", "section", "image", "link"],
+      "threshold": 4,
+      "detection": { "native": "embedded_structure", "print": "page1_ocr" }
+    },
+    "twrp_pandid": {
+      "label": "TWRP P&ID Template",
+      "cover_type": "B",
+      "expected_elements": ["cover_page", "revision_table", "section", "image", "link"],
+      "threshold": 4,
+      "detection": { "native": "embedded_structure", "print": "page1_ocr" }
+    },
+    "twrp_spec_c": {
+      "label": "TWRP Specification (no-cover) Template",
+      "cover_type": "C",
+      "expected_elements": [],
+      "threshold": 0,
+      "detection": { "native": "embedded_structure", "print": "page1_ocr" }
+    },
+    "twrp_datasheet_e": {
+      "label": "TWRP Data Sheet Template",
+      "cover_type": "E",
+      "expected_elements": ["cover_page", "section", "table"],
+      "threshold": 2,
+      "detection": { "native": "embedded_structure", "print": "page1_ocr" }
+    },
+    "twrp_manual_d": {
+      "label": "TWRP Manual Template",
+      "cover_type": "D",
+      "expected_elements": ["cover_page", "section"],
+      "threshold": 2,
+      "detection": { "native": "embedded_structure", "print": "page1_ocr" }
+    },
+    "twrp_report_e": {
+      "label": "TWRP Report Template",
+      "cover_type": "E",
+      "expected_elements": ["cover_page", "section", "table"],
+      "threshold": 2,
+      "detection": { "native": "embedded_structure", "print": "page1_ocr" }
+    }
+  }
 }

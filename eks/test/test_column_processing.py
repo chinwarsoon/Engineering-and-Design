@@ -13,6 +13,10 @@ Revision: 0.1
 Date: 2026-07-29
 Author: opencode
 Summary: T1.188 — regression tests for ColumnProcessor central orchestrator.
+Tests: T1.210 (I277) — extraction-method gating regression tests.
+Revision: 0.2
+Date: 2026-08-04
+Author: opencode
 """
 
 import json
@@ -511,6 +515,457 @@ class TestColumnProcessingEndToEnd(unittest.TestCase):
         self.assertEqual(result.get("project_number"), "131101")
         self.assertEqual(result.get("area"), "SPC")
         self.assertEqual(result.get("revision"), "A")
+
+
+class TestDocumentTypeScopeFilter(unittest.TestCase):
+    """I275 (T1.204): concept_id x format_category column scope filter."""
+
+    def _make_processor(self, column_config):
+        from eks.engine.core.column_processor import EKSColumnProcessor
+
+        return EKSColumnProcessor(
+            column_config,
+            runtime_slice={},
+            document_type_registry=[
+                {"code": "DWG", "concept_id": "DRAWING", "format_category": "print"},
+                {"code": "PI-PID", "concept_id": "PID_DRAWING", "format_category": "print"},
+                {"code": "SPC", "concept_id": "SPECIFICATION", "format_category": "print"},
+                {"code": "CAD", "concept_id": "DRAWING", "format_category": "native"},
+            ],
+        )
+
+    def _native_only_column(self):
+        return {
+            "column_type": "text_column",
+            "is_calculated": True,
+            "calculation": {"type": "parser_metadata", "field": "embedded_creator_app"},
+            "processing_phase": "B",
+            "native_only": True,
+            "description": "I275 native_only column.",
+        }
+
+    def test_native_only_excluded_for_print(self):
+        """native_only column is skipped when format_category is 'print'."""
+        proc = self._make_processor({"embedded_creator_app": self._native_only_column()})
+        result = proc.process("B", {}, {"concept_id": "DRAWING", "format_category": "print"})
+        self.assertNotIn("embedded_creator_app", result,
+                         "native_only column must not populate from a PDF print")
+
+    def test_native_only_included_for_native(self):
+        """native_only column populates when format_category is 'native'."""
+        proc = self._make_processor({"embedded_creator_app": self._native_only_column()})
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "native",
+            "metadata": {"embedded_creator_app": "AutoCAD"},
+        })
+        self.assertEqual(result.get("embedded_creator_app"), "AutoCAD")
+
+    def test_applies_to_document_types_excludes_concept(self):
+        """Column restricted to DRAWING is excluded for a SPECIFICATION document."""
+        col = {
+            "column_type": "numeric_column",
+            "is_calculated": True,
+            "calculation": {"type": "parser_metadata", "field": "total_sheets"},
+            "processing_phase": "B",
+            "applies_to_document_types": ["DRAWING"],
+            "description": "Drawing-only column.",
+        }
+        proc = self._make_processor({"total_sheets": col})
+        result = proc.process("B", {}, {
+            "concept_id": "SPECIFICATION", "format_category": "print",
+            "metadata": {"total_sheets": 5},
+        })
+        self.assertNotIn("total_sheets", result,
+                         "applies_to_document_types=[DRAWING] must exclude SPECIFICATION")
+
+    def test_applies_to_document_types_includes_concept(self):
+        """Column applies when document concept is in applies_to_document_types."""
+        col = {
+            "column_type": "numeric_column",
+            "is_calculated": True,
+            "calculation": {"type": "parser_metadata", "field": "total_sheets"},
+            "processing_phase": "B",
+            "applies_to_document_types": ["DRAWING"],
+            "description": "Drawing-only column.",
+        }
+        proc = self._make_processor({"total_sheets": col})
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "print",
+            "metadata": {"total_sheets": 5},
+        })
+        self.assertEqual(result.get("total_sheets"), 5,
+                         "DRAWING document should populate the column")
+
+    def test_absent_scope_keys_apply_to_all(self):
+        """Columns without scope keys apply to any concept / format category."""
+        col = {
+            "column_type": "text_column",
+            "is_calculated": True,
+            "calculation": {"type": "parser_metadata", "field": "page_count"},
+            "processing_phase": "B",
+            "description": "Generic column (no scope keys).",
+        }
+        proc = self._make_processor({"page_count": col})
+        for concept in ("DRAWING", "SPECIFICATION", "REPORT"):
+            result = proc.process("B", {}, {
+                "concept_id": concept, "format_category": "print",
+                "metadata": {"page_count": 3},
+            })
+            self.assertEqual(result.get("page_count"), 3,
+                             f"generic column should apply to {concept}")
+
+    def test_unresolved_document_type_is_unrestricted(self):
+        """A document whose concept cannot be resolved defaults to apply (not skip)."""
+        col = {
+            "column_type": "text_column",
+            "is_calculated": True,
+            "calculation": {"type": "parser_metadata", "field": "embedded_keywords"},
+            "processing_phase": "B",
+            "native_only": True,
+            "description": "native_only column.",
+        }
+        proc = self._make_processor({"embedded_keywords": col})
+        # No concept_id/format_category in context — must not raise and must apply.
+        result = proc.process("B", {}, {"metadata": {"embedded_keywords": "x"}})
+        self.assertEqual(result.get("embedded_keywords"), "x",
+                         "unresolved scope should fall back to applying")
+
+    def test_eks_resolve_scope_doc_config(self):
+        """EKSColumnProcessor.from_doc_config carries the projected registry and
+        resolve_scope() maps a document_type code to concept + format."""
+        from eks.engine.core.column_processor import EKSColumnProcessor
+
+        # Minimal doc_config with projected document_type_registry.
+        doc_config = {
+            "column_processing": {"PAGE": {
+                "column_type": "text_column", "is_calculated": False,
+                "processing_phase": "B", "description": "dummy",
+            }},
+            "document_type_registry": [
+                {"code": "SPEC-PROC", "concept_id": "SPECIFICATION", "format_category": "print"},
+            ],
+        }
+        proc = EKSColumnProcessor.from_doc_config(doc_config)
+        scope = proc.resolve_scope("SPEC-PROC")
+        self.assertEqual(scope.get("concept_id"), "SPECIFICATION")
+        self.assertEqual(scope.get("format_category"), "print")
+        # Unknown code yields empty scope (unrestricted).
+        self.assertEqual(proc.resolve_scope("NOPE"), {})
+
+
+class TestExtractionMethodGating(unittest.TestCase):
+    """I277 (T1.210): Phase B extraction gated by profile extraction_methods x format_category."""
+
+    def _make_processor(self, column_config, parsing_profiles=None):
+        from eks.engine.core.column_processor import EKSColumnProcessor
+
+        return EKSColumnProcessor(
+            column_config,
+            runtime_slice={},
+            document_type_registry=[
+                {"code": "DWG", "concept_id": "DRAWING", "format_category": "print",
+                 "default_parsing_profile": "technip_pdf", "template": "twrp_drawing"},
+                {"code": "CAD", "concept_id": "DRAWING", "format_category": "native",
+                 "default_parsing_profile": "technip_dwg", "template": "twrp_drawing"},
+                {"code": "SPC", "concept_id": "SPECIFICATION", "format_category": "print",
+                 "default_parsing_profile": "technip_pdf", "template": "twrp_spec_c"},
+                {"code": "NO-PROFILE", "concept_id": "REPORT", "format_category": "print",
+                 "default_parsing_profile": ""},
+            ],
+            parsing_profiles=parsing_profiles or {},
+            document_templates={
+                "twrp_drawing": {"label": "TWRP Drawing", "cover_type": "A",
+                                 "expected_elements": ["cover_page", "revision_table", "section"],
+                                 "threshold": 2},
+                "twrp_spec_c": {"label": "TWRP Specification (no cover)", "cover_type": "C",
+                                "expected_elements": [], "threshold": 0},
+            },
+        )
+
+    def _cover_column(self):
+        return {
+            "column_type": "text_column", "is_calculated": True,
+            "calculation": {"type": "cover_page_element", "field": "asset_tags"},
+            "processing_phase": "B", "description": "cover-page-extracted column.",
+        }
+
+    def _parser_column(self):
+        return {
+            "column_type": "text_column", "is_calculated": True,
+            "calculation": {"type": "parser_metadata", "field": "embedded_title"},
+            "processing_phase": "B", "description": "parser-metadata column.",
+        }
+
+    def test_resolve_extraction_methods_print(self):
+        """PDF-print binding resolves to methods without parser_metadata."""
+        proc = self._make_processor(
+            {}, parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}}
+        )
+        methods = proc.resolve_extraction_methods("DWG", "print")
+        self.assertIn("cover_page_element", methods)
+        self.assertNotIn("parser_metadata", methods)
+
+    def test_resolve_extraction_methods_native(self):
+        """Native binding keeps declared parser_metadata."""
+        proc = self._make_processor(
+            {}, parsing_profiles={"technip_dwg": {"extraction_methods": ["parser_metadata"]}}
+        )
+        methods = proc.resolve_extraction_methods("CAD", "native")
+        self.assertIn("parser_metadata", methods)
+
+    def test_resolve_extraction_methods_no_profile(self):
+        """Binding without a profile resolves to an empty method set (no crash)."""
+        proc = self._make_processor({})
+        self.assertEqual(proc.resolve_extraction_methods("NO-PROFILE", "print"), set())
+
+    def test_cover_page_handler_skipped_when_not_declared(self):
+        """Profile declaring only parser_metadata skips cover_page_element columns."""
+        proc = self._make_processor(
+            {"asset_tags": self._cover_column()},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "print",
+            "extraction_methods": proc.resolve_extraction_methods("DWG", "print"),
+            "elements": [{"element_type": "cover_page", "content": {"asset_tags": "TAG-1"}}],
+        })
+        self.assertNotIn("asset_tags", result,
+                         "cover_page_element not declared -> column must be skipped")
+
+    def test_cover_page_handler_runs_when_declared(self):
+        """Profile declaring cover_page_element admits the column."""
+        proc = self._make_processor(
+            {"asset_tags": self._cover_column()},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "print",
+            "extraction_methods": proc.resolve_extraction_methods("DWG", "print"),
+            "elements": [{"element_type": "cover_page", "content": {"asset_tags": "TAG-1"}}],
+        })
+        self.assertEqual(result.get("asset_tags"), ["TAG-1"])
+
+    def test_parser_metadata_skipped_for_print(self):
+        """PDF-print document does not run parser_metadata (format_category=print)."""
+        proc = self._make_processor(
+            {"embedded_title": self._parser_column()},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "print",
+            "extraction_methods": proc.resolve_extraction_methods("DWG", "print"),
+            "metadata": {"embedded_title": "TITLE"},
+        })
+        self.assertNotIn("embedded_title", result,
+                         "parser_metadata unavailable for PDF print -> column must be skipped")
+
+    def test_parser_metadata_runs_for_native(self):
+        """Native document runs parser_metadata where the profile declares it."""
+        proc = self._make_processor(
+            {"embedded_title": self._parser_column()},
+            parsing_profiles={"technip_dwg": {"extraction_methods": ["parser_metadata"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "native",
+            "extraction_methods": proc.resolve_extraction_methods("CAD", "native"),
+            "metadata": {"embedded_title": "TITLE"},
+        })
+        self.assertEqual(result.get("embedded_title"), "TITLE")
+
+    def test_priority_chain_skips_gated_source_only(self):
+        """priority_chain skips a gated source but keeps remaining sources."""
+        col = {
+            "column_type": "text_column", "is_calculated": True,
+            "calculation": {"type": "priority_chain", "sources": [
+                {"source": "parser_metadata", "field": "project_title"},
+                {"source": "file_property", "field": "filename_stem"},
+            ]},
+            "processing_phase": "B", "description": "priority chain.",
+        }
+        proc = self._make_processor(
+            {"project_title": col},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["cover_page_element"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "print",
+            "extraction_methods": {"cover_page_element"},
+            "metadata": {"project_title": "META"},
+            "file_properties": {"filename_stem": "FILE"},
+        })
+        self.assertEqual(result.get("project_title"), "FILE",
+                         "gated parser_metadata source must be skipped; file_property wins")
+
+    def test_unknown_method_warned_not_fatal(self):
+        """An extraction method not in the capability set yields an empty result, never a crash."""
+        proc = self._make_processor(
+            {"embedded_title": self._parser_column()},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["cover_page_element"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "print",
+            "extraction_methods": {"cover_page_element"},
+            "metadata": {"embedded_title": "TITLE"},
+        })
+        self.assertNotIn("embedded_title", result)
+
+    def test_no_capability_context_is_unrestricted(self):
+        """Callers without an extraction-method capability set keep pre-I277 behaviour."""
+        proc = self._make_processor(
+            {"embedded_title": self._parser_column()},
+            parsing_profiles={"technip_dwg": {"extraction_methods": ["parser_metadata"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "native",
+            "metadata": {"embedded_title": "TITLE"},
+        })
+        self.assertEqual(result.get("embedded_title"), "TITLE")
+
+
+class TestCoverTypeBranching(unittest.TestCase):
+    """I278 (T1.212): parsing branches on template cover_type absence.
+
+    A no-cover template (cover_type "C") — e.g. ``twrp_spec_c`` for SPC/CL/BQ —
+    must skip cover-page extraction: ``cover_page_element`` is discarded from
+    the admitted extraction methods, so direct cover_page_element columns and
+    cover_page priority-chain sources are both gated out. Cover-bearing
+    templates (A/B/D/E) keep cover_page_element.
+    """
+
+    def _make_processor(self, column_config, parsing_profiles=None):
+        from eks.engine.core.column_processor import EKSColumnProcessor
+
+        return EKSColumnProcessor(
+            column_config,
+            runtime_slice={},
+            document_type_registry=[
+                {"code": "DWG", "concept_id": "DRAWING", "format_category": "print",
+                 "default_parsing_profile": "technip_pdf", "template": "twrp_drawing"},
+                {"code": "SPC", "concept_id": "SPECIFICATION", "format_category": "print",
+                 "default_parsing_profile": "technip_pdf", "template": "twrp_spec_c"},
+                {"code": "NO-PROFILE", "concept_id": "REPORT", "format_category": "print",
+                 "default_parsing_profile": ""},
+            ],
+            parsing_profiles=parsing_profiles or {},
+            document_templates={
+                "twrp_drawing": {"label": "TWRP Drawing", "cover_type": "A",
+                                 "expected_elements": ["cover_page", "revision_table", "section"],
+                                 "threshold": 2},
+                "twrp_spec_c": {"label": "TWRP Specification (no cover)", "cover_type": "C",
+                                "expected_elements": [], "threshold": 0},
+            },
+        )
+
+    def _cover_column(self):
+        return {
+            "column_type": "text_column", "is_calculated": True,
+            "calculation": {"type": "cover_page_element", "field": "asset_tags"},
+            "processing_phase": "B", "description": "cover-page-extracted column.",
+        }
+
+    def _parser_column(self):
+        return {
+            "column_type": "text_column", "is_calculated": True,
+            "calculation": {"type": "parser_metadata", "field": "embedded_title"},
+            "processing_phase": "B", "description": "parser-metadata column.",
+        }
+
+    def test_resolve_cover_type_cover_bearing(self):
+        """A cover-bearing binding (DWG → twrp_drawing, cover_type A) resolves to 'A'."""
+        proc = self._make_processor({})
+        self.assertEqual(proc.resolve_cover_type("DWG"), "A")
+
+    def test_resolve_cover_type_no_cover(self):
+        """A no-cover binding (SPC → twrp_spec_c, cover_type C) resolves to 'C'."""
+        proc = self._make_processor({})
+        self.assertEqual(proc.resolve_cover_type("SPC"), "C")
+
+    def test_resolve_cover_type_unknown_defaults_no_cover(self):
+        """An unknown binding with no template resolves to 'C' (safe no-cover default)."""
+        proc = self._make_processor({})
+        self.assertEqual(proc.resolve_cover_type("NO-PROFILE"), "C")
+        self.assertEqual(proc.resolve_cover_type("UNKNOWN"), "C")
+        self.assertEqual(proc.resolve_cover_type(None), "C")
+
+    def test_cover_type_c_discards_cover_page_element(self):
+        """No-cover binding discards cover_page_element from the admitted methods."""
+        proc = self._make_processor(
+            {}, parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}}
+        )
+        methods = proc.resolve_extraction_methods("SPC", "print")
+        self.assertNotIn("cover_page_element", methods,
+                         "no-cover (C) template must not admit cover_page_element")
+
+    def test_cover_type_a_keeps_cover_page_element(self):
+        """Cover-bearing binding keeps cover_page_element in the admitted methods."""
+        proc = self._make_processor(
+            {}, parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}}
+        )
+        methods = proc.resolve_extraction_methods("DWG", "print")
+        self.assertIn("cover_page_element", methods,
+                      "cover-bearing (A) template must admit cover_page_element")
+
+    def test_cover_page_column_skipped_for_no_cover(self):
+        """A direct cover_page_element column is skipped for a no-cover (C) document."""
+        proc = self._make_processor(
+            {"asset_tags": self._cover_column()},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "SPECIFICATION", "format_category": "print",
+            "extraction_methods": proc.resolve_extraction_methods("SPC", "print"),
+            "elements": [{"element_type": "cover_page", "content": {"asset_tags": "TAG-1"}}],
+        })
+        self.assertNotIn("asset_tags", result,
+                         "no-cover (C) template must skip the cover_page_element column")
+
+    def test_cover_page_column_runs_for_cover_bearing(self):
+        """A direct cover_page_element column runs for a cover-bearing (A) document."""
+        proc = self._make_processor(
+            {"asset_tags": self._cover_column()},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "DRAWING", "format_category": "print",
+            "extraction_methods": proc.resolve_extraction_methods("DWG", "print"),
+            "elements": [{"element_type": "cover_page", "content": {"asset_tags": "TAG-1"}}],
+        })
+        self.assertEqual(result.get("asset_tags"), ["TAG-1"])
+
+    def test_priority_chain_skips_cover_source_for_no_cover(self):
+        """A priority_chain with a cover_page source falls through for a no-cover (C) document."""
+        col = {
+            "column_type": "text_column", "is_calculated": True,
+            "calculation": {"type": "priority_chain", "sources": [
+                {"source": "cover_page_element", "field": "project_title"},
+                {"source": "file_property", "field": "filename_stem"},
+            ]},
+            "processing_phase": "B", "description": "priority chain with cover source.",
+        }
+        proc = self._make_processor(
+            {"project_title": col},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "SPECIFICATION", "format_category": "print",
+            "extraction_methods": proc.resolve_extraction_methods("SPC", "print"),
+            "elements": [{"element_type": "cover_page", "content": {"project_title": "COVER-TITLE"}}],
+            "file_properties": {"filename_stem": "FILE"},
+        })
+        self.assertEqual(result.get("project_title"), "FILE",
+                         "cover source must be skipped for no-cover; file_property wins")
+
+    def test_no_cover_document_keeps_parser_metadata_columns(self):
+        """A no-cover (C) document still runs parser_metadata where the format admits it."""
+        proc = self._make_processor(
+            {"embedded_title": self._parser_column()},
+            parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
+        )
+        result = proc.process("B", {}, {
+            "concept_id": "SPECIFICATION", "format_category": "native",
+            "extraction_methods": proc.resolve_extraction_methods("SPC", "native"),
+            "metadata": {"embedded_title": "TITLE"},
+        })
+        self.assertEqual(result.get("embedded_title"), "TITLE")
 
 
 if __name__ == "__main__":

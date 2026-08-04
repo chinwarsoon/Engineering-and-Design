@@ -6,6 +6,13 @@ T1.194 (I265): Added optional runtime_slice injection (Appendix L D1) — the
 caller (PipelineOrchestrator) supplies the resolved config slice; ParserRouter
 never holds the ProjectConfigurationRegistry itself. Parser routing rules
 remain schema-driven via file_type_registry (L.14.7 backward compatibility).
+I276 (T1.207): Two-axis parser routing. Routing unit is the project binding:
+axis 1 resolves the parsing profile from the projected document_type_registry
+entry (code -> default_parsing_profile, from eks_document_type_schema.json
+project_document_types); axis 2 resolves the reader by file_type. Falls back
+to file-type-only routing when no per-binding profile exists. The default
+profile is determined at route() time from the document_type (project-local
+code); caller passes the document_type when known.
 """
 import importlib
 from pathlib import Path
@@ -40,6 +47,11 @@ class ParserRouter:
         self.use_factory = use_factory
         # T1.194 (I265): Injected config slice (Appendix L D1).
         self.runtime_slice = runtime_slice or {}
+        # I276 (T1.207): two-axis routing sources — projected document_type_registry
+        # (code -> default_parsing_profile) and the parsing_profiles library
+        # (profile_id -> parser_class / supported_extensions).
+        self.document_type_registry = doc_config.get("document_type_registry", [])
+        self.parsing_profiles = doc_config.get("parsing_profiles", {})
         
         if use_factory:
             # Use ParserFactory for Dependency Injection
@@ -77,6 +89,69 @@ class ParserRouter:
             return self._ext_parser_map.get(file_type.lower())
 
     @log_depth
+    def resolve_parsing_profile(self, document_type: Optional[str]) -> Optional[str]:
+        """
+        I276 (T1.207): axis 1 — resolve the parsing profile for a document type.
+
+        Looks up ``document_type`` (the project-local code stored in the registry
+        DB) in the projected ``document_type_registry`` (derived from
+        ``eks_document_type_schema.json#/project_document_types``). Returns the
+        ``default_parsing_profile`` id declared on the binding, or ``None`` when
+        the code is unknown or the binding declares no profile (caller falls back
+        to file-type-only routing).
+        """
+        if not document_type:
+            return None
+        for entry in self.document_type_registry:
+            if entry.get("code") == document_type:
+                return entry.get("default_parsing_profile") or None
+        return None
+
+    @log_depth
+    def resolve_reader(self, file_type: str,
+                       document_type: Optional[str] = None) -> Optional[str]:
+        """
+        I276 (T1.207): two-axis routing resolution.
+
+        Axis 1 (profile): document_type -> default_parsing_profile -> parser_class.
+        Axis 2 (reader): file_type -> parser_class (existing file_type_registry /
+        ParserFactory mapping).
+
+        Precedence:
+          1. If the binding's parsing profile declares a parser_class AND the
+             profile's ``supported_extensions`` (or binding expected file types)
+             admit the given file_type, use the profile's parser_class.
+          2. Otherwise fall back to file-type-only routing (returns ``None`` to
+             signal the caller to use the factory / extension map).
+
+        Returns the fully-qualified parser class path, or ``None`` for fallback.
+        """
+        profile_id = self.resolve_parsing_profile(document_type)
+        if profile_id:
+            profile = self.parsing_profiles.get(profile_id, {})
+            parser_class = profile.get("parser_class", "")
+            if parser_class:
+                supported = set(profile.get("supported_extensions", []))
+                if not supported or file_type.lower() in supported:
+                    self.logger.debug(
+                        f"I276: profile '{profile_id}' -> {parser_class} for "
+                        f"document_type={document_type}, file_type={file_type}",
+                        context="ParserRouter.resolve_reader",
+                    )
+                    return parser_class
+                self.logger.debug(
+                    f"I276: profile '{profile_id}' does not support file_type "
+                    f"'{file_type}' (supported={sorted(supported)}) — falling back",
+                    context="ParserRouter.resolve_reader",
+                )
+        self.logger.debug(
+            f"I276: no binding profile for document_type={document_type}, "
+            f"file_type={file_type} — file-type-only routing",
+            context="ParserRouter.resolve_reader",
+        )
+        return None
+
+    @log_depth
     def instantiate_parser(self, parser_class_path: str, file_path: str) -> Any:
         """
         Dynamically import and instantiate a parser class.
@@ -96,10 +171,12 @@ class ParserRouter:
             raise
 
     @log_depth
-    def route(self, file_path: str, file_type: str) -> Dict[str, Any]:
+    def route(self, file_path: str, file_type: str,
+              document_type: Optional[str] = None) -> Dict[str, Any]:
         """
         Route a file through the parser pipeline:
-        1. Look up parser class from file_type_registry
+        1. Resolve parser (I276: two-axis — binding profile x file_type reader;
+           falls back to file-type-only when no per-binding profile exists)
         2. Instantiate parser
         3. Call parse() for content blocks
         4. Call extract_metadata() for file-level metadata
@@ -117,6 +194,7 @@ class ParserRouter:
         result = {
             "file_path": file_path,
             "file_type": file_type,
+            "document_type": document_type,
             "parser_class": "",
             "content_blocks": [],
             "metadata": {},
@@ -126,17 +204,23 @@ class ParserRouter:
 
         parser = None
         parser_class_path = None
-        
-        if self.use_factory:
-            # Factory mode: get parser directly
+
+        # I276 (T1.207): axis 1 — try the binding's parsing profile reader first.
+        profile_reader = self.resolve_reader(file_type, document_type)
+        if profile_reader:
+            parser_class_path = profile_reader
+            result["parser_class"] = parser_class_path
+
+        if self.use_factory and not parser_class_path:
+            # Factory mode: get parser directly by file_type (axis 2 / fallback)
             try:
                 parser = self.parser_factory.create(file_type, file_path=file_path)
                 parser_class_path = f"ParserFactory.{file_type}"
                 result["parser_class"] = parser_class_path
             except ValueError:
                 parser_class_path = None
-        else:
-            # Legacy mode: get parser class path
+        elif not parser_class_path:
+            # Legacy mode: get parser class path from extension map
             parser_class_path = self._ext_parser_map.get(file_type)
             result["parser_class"] = parser_class_path or ""
         
@@ -151,8 +235,13 @@ class ParserRouter:
 
         try:
             if not parser and parser_class_path:
-                # Legacy mode: instantiate parser
-                parser = self.instantiate_parser(parser_class_path, file_path)
+                # Instantiate from resolved class path (profile reader or legacy map)
+                if parser_class_path.startswith("ParserFactory."):
+                    parser = self.parser_factory.create(
+                        file_type, file_path=file_path
+                    )
+                else:
+                    parser = self.instantiate_parser(parser_class_path, file_path)
 
             try:
                 content = parser.parse()

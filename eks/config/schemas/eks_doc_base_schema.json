@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_base_schema.json",
-    "version": "1.10.0",
+    "version": "1.13.0",
     "title": "EKS Document Base Schema - Definitions",
-    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, lifecycle stages, and column processing metadata per T1.35. v1.10.0 (T1.195): added parsing_profile_def — named parser profile with declared capabilities (supported_extensions, supported_document_profiles, requires_ocr, extraction_methods) for capability-driven L.13.6 validation (V2). v1.9.0 (I264): added 6 column-processing definitions — column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111).",
+    "description": "Document metadata, structural element definitions, shared enums for document type, file type, element type codes, lifecycle stages, and column processing metadata per T1.35. v1.13.0 (I276 T1.206): document_type_entry_def extended with default_parsing_profile (two-axis parser routing projection). v1.12.0 (I275 T1.203): column_processing_entry_def extended with applies_to_document_types + native_only scope keys. v1.11.0 (I279 T1.214): added document_type_concept_def, project_document_type_def, document_template_entry_def — defs backing the three-section eks_document_type_schema.json v2.0.0 carrier. document_type_code enum is a derived mirror of the union of all local_code values in eks_document_type_schema.json#/project_document_types. v1.10.0 (T1.195): added parsing_profile_def — named parser profile with declared capabilities (supported_extensions, supported_document_profiles, requires_ocr, extraction_methods) for capability-driven L.13.6 validation (V2). v1.9.0 (I264): added 6 column-processing definitions — column_type_enum, processing_phase_enum, calculation_strategy_def, handler_def, validation_rule_def, column_processing_entry_def. v1.8.0: T1.99.157–158 (I193) — added x_export boolean flag to every property in document_metadata_def and project_metadata_def; added export_artifact_def enumerating 3 export artifacts (discovery_inventory, extraction_results, review_flags) with schema-driven column subsets. v1.7.0: T1.99.150 (I186) — doc_id_format changed from '{doc_number}-{revision}' pattern to UUID v4 pattern; id is now system-generated, not business-key-derived. v1.6.0: added lifecycle_stage_code enum + 15 new optional columns in document_metadata_def for document metadata completeness (T1.99.141–T1.99.146): supersedes, superseded_by, document_title, lifecycle_stage, revision_date, revision_description, embedded_revision_number, references_documents, project_phase, contract_package, issued_date, responsible_engineer, total_sheets, language, vendor_name. v1.5.0 was bypassed (combined into v1.6.0). v1.4.0: added file_property_source_def, file_property_pattern_def, file_property_os_def + 13 new optional columns in document_metadata_def for Appendix J FilePropertyExtractor (T1.99.128). v1.3.0: added filename_pattern_def, filename_segment_def, filename_output_def, filename_error_subcodes_def for Appendix I FilenameParser (T1.99.111).",
     "type": "object",
     "definitions": {
         "doc_id_format": {
@@ -43,9 +43,67 @@
                 "label": { "type": "string", "description": "Human-readable label" },
                 "ontology_class": { "type": "string", "enum": ["Drawing", "PID_Drawing", "Specification", "Manual", "Report"], "description": "Ontology class for graph mapping" },
                 "description": { "type": "string", "description": "Full description" },
-                "expected_file_types": { "type": "array", "items": { "$ref": "#/definitions/file_type_code" }, "description": "File extensions expected for this document type" }
+                "concept_id": { "type": "string", "description": "I279: abstract concept this code belongs to (projection from project_document_types)" },
+                "template": { "type": "string", "description": "I279: template_id from document_templates this code uses (projection)" },
+                "format_category": { "type": "string", "enum": ["native", "print"], "description": "I279: native vs PDF-print delivery format (projection)" },
+                "native_source": { "type": "string", "description": "I279: native source extension when format_category is print (projection)" },
+                "expected_file_types": { "type": "array", "items": { "$ref": "#/definitions/file_type_code" }, "description": "File extensions expected for this document type" },
+                "default_parsing_profile": { "type": "string", "description": "I276: default parsing profile id for two-axis routing (projection from project_document_types)" }
             },
             "required": ["code", "label", "description"],
+            "additionalProperties": false
+        },
+        "document_type_concept_def": {
+            "type": "object",
+            "description": "Global document-type concept (I279 three-section carrier). Abstract concept used for routing only; never stored in the registry DB. A document type is always bound to a project via project_document_type_def.",
+            "properties": {
+                "concept_id": { "type": "string", "description": "Abstract concept identifier (e.g. DRAWING, SPECIFICATION). Used for routing only." },
+                "label": { "type": "string", "description": "Human-readable label" },
+                "ontology_class": { "type": "string", "enum": ["Drawing", "PID_Drawing", "Specification", "Manual", "Report"], "description": "Ontology class for graph mapping" },
+                "common_rules": { "type": "object", "description": "Concept-level common processing rules shared across project bindings" }
+            },
+            "required": ["concept_id", "label", "ontology_class"],
+            "additionalProperties": false
+        },
+        "project_document_type_def": {
+            "type": "object",
+            "description": "Per-project document-type binding (I279 three-section carrier). Binds a project-local code to a concept and a template. Different projects may use different local codes for the same concept.",
+            "properties": {
+                "local_code": { "type": "string", "description": "Project-local document type code (stored in document_metadata_def.document_type)" },
+                "concept_id": { "$ref": "#/definitions/document_type_concept_def/properties/concept_id", "description": "Reference to a concept in document_type_concepts" },
+                "template": { "type": "string", "description": "Reference to a template_id in document_templates" },
+                "format_category": { "type": "string", "enum": ["native", "print"], "description": "Native format (dwg/dgn/docx/xlsx) vs PDF print of the same document" },
+                "native_source": { "type": "string", "description": "Native source file extension (e.g. dwg, docx) when the binding is a print of a native file" },
+                "expected_file_types": { "type": "array", "items": { "$ref": "#/definitions/file_type_code" }, "description": "File extensions accepted for this binding" },
+                "default_parsing_profile": { "type": "string", "description": "Default parsing profile id for this binding (I276)" },
+                "project_rules": { "type": "object", "description": "Project-specific rules for this binding" }
+            },
+            "required": ["local_code", "concept_id", "template", "format_category", "expected_file_types"],
+            "additionalProperties": false
+        },
+        "document_template_entry_def": {
+            "type": "object",
+            "description": "Structural template registry entry (I279 three-section carrier). Defines the expectations formerly carried by element_expectations.",
+            "properties": {
+                "label": { "type": "string", "description": "Human-readable template label" },
+                "cover_type": { "type": "string", "enum": ["A", "B", "C", "D", "E"], "description": "Cover sheet type letter for structure_detector routing" },
+                "expected_elements": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/element_type_code" },
+                    "description": "Structural elements expected for structural completeness scoring"
+                },
+                "threshold": { "type": "integer", "minimum": 0, "description": "Minimum detected elements to pass structural completeness" },
+                "detection": {
+                    "type": "object",
+                    "properties": {
+                        "native": { "type": "string", "enum": ["embedded_structure", "page1_ocr"], "description": "Detection mechanism for native-format delivery" },
+                        "print": { "type": "string", "enum": ["embedded_structure", "page1_ocr"], "description": "Detection mechanism for PDF-print delivery" }
+                    },
+                    "required": ["native", "print"],
+                    "additionalProperties": false
+                }
+            },
+            "required": ["label", "cover_type", "expected_elements", "threshold", "detection"],
             "additionalProperties": false
         },
         "project_metadata_def": {
@@ -446,6 +504,16 @@
                 },
                 "processing_phase": { "$ref": "#/definitions/processing_phase_enum" },
                 "required": { "type": "boolean", "description": "Whether a non-null value is required for this column." },
+                "applies_to_document_types": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/document_type_concept_def/properties/concept_id" },
+                    "description": "I275: array of concept_ids (from document_type_concepts) this column may populate. Absent = applies to all concepts. The document's resolved concept (local_code -> binding -> concept_id) must be listed for the column to run."
+                },
+                "native_only": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "I275: when true, this column can only populate when the resolved project binding's format_category is 'native' (dwg/dgn/docx/xlsx). Excluded for PDF-print delivery which lacks embedded metadata."
+                },
                 "description": { "type": "string", "description": "Human-readable description of this column and its processing." }
             },
             "required": ["column_type", "is_calculated", "processing_phase"],
