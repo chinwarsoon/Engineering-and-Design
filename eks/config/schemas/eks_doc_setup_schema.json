@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "title": "EKS Document Setup Schema - Declarations",
-    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, element expectations, and column processing metadata per Appendix B, C & D. v1.9.0: added parsing_profiles property — reusable parser profiles keyed by profile name with capability fields per T1.195 V2. v1.8.0: removed revision_validation and filename_patterns (moved to Project Definition — I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.7.0: added column_processing property — object with column-name keys (DCC-aligned pattern per T1.184 review) for all 42 registry columns (I264, T1.183). v1.6.0: added document_title_config for boilerplate prefix filtering (T1.99.193/I194 G9). v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110).",
+    "description": "Document table structure declarations, document/file/element type registries, ontology mapping triggers, revision validation, health scoring configuration, element expectations, and column processing metadata per Appendix B, C & D. v1.9.0: added parsing_profiles property — reusable parser profiles keyed by profile name with capability fields per T1.195 V2. v1.8.0: removed revision_validation and filename_patterns (moved to Project Definition — I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.7.0: added column_processing property — object with column-name keys (DCC-aligned pattern per T1.184 review) for all 42 registry columns (I264, T1.183). v1.6.0: added document_title_config for boilerplate prefix filtering (T1.99.193/I194 G9). v1.5.0: replaced stub file_property_patterns with full schema (os_properties + by_file_type) per Appendix J (T1.99.129). v1.4.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.110). v1.10.0 (I281 T1.223): REMOVED parsing_profiles property — superseded by core eks_setup_schema.json processing_profiles property (one-time migration, Q1). Extraction profile values now live in eks_processing_config.json#/extraction_profiles. Core schemas are the sole profile source.",
     "allOf": [
         { "$ref": "eks_doc_base_schema.json" }
     ],
@@ -142,14 +142,6 @@
             "propertyNames": { "pattern": "^[a-z_]+$" },
             "additionalProperties": {
                 "$ref": "eks_doc_base_schema.json#/definitions/filename_pattern_def"
-            }
-        },
-        "parsing_profiles": {
-            "type": "object",
-            "description": "Reusable parser profiles keyed by profile name (T1.195 V2). Each value follows parsing_profile_def — declares parser_class plus capability fields (supported_extensions, supported_document_profiles, requires_ocr). Profile names referenced by Project Definition's parsing_profile / document_profile.parser. Resolved by ProjectDefinitionResolver using exact-key lookup; capabilities feed the generic L.13.6 consistency evaluator.",
-            "propertyNames": { "pattern": "^[a-z_]+$" },
-            "additionalProperties": {
-                "$ref": "eks_doc_base_schema.json#/definitions/parsing_profile_def"
             }
         },
         "file_property_patterns": {

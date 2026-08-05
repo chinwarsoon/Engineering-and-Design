@@ -92,31 +92,30 @@ class BaseColumnProcessor:
     def _applies(self, col_name: str, col_entry: Dict[str, Any],
                  context: Dict[str, Any]) -> bool:
         """
-        I275: document-type scope filter for a column.
+        I275 / I282 (T1.229): document-class scope filter for a column.
 
-        Resolves the current document's concept_id (from context
-        ``"concept_id"``) and ``format_category`` (from context
-        ``"format_category"``), then:
+        Resolves the current document's class_id (from context ``"class_id"``)
+        and ``format_category`` (from context ``"format_category"``), then:
 
         1. If ``applies_to_document_types`` is present and does not contain the
-           resolved ``concept_id``, the column is skipped.
+           resolved ``class_id``, the column is skipped.
         2. If ``native_only`` is true and the resolved ``format_category`` is
            ``"print"``, the column is skipped (PDF prints carry no embedded
            metadata).
 
         Absent scope keys mean "all" — a column with no ``applies_to_document_types``
-        applies to every concept, and a column without ``native_only`` applies to
-        both native and print delivery. A document whose concept cannot be resolved
+        applies to every class, and a column without ``native_only`` applies to
+        both native and print delivery. A document whose class cannot be resolved
         is treated as unrestricted (defaults to applying).
         """
-        concept_id = context.get("concept_id")
+        class_id = context.get("class_id")
         format_category = context.get("format_category")
 
         applies_to = col_entry.get("applies_to_document_types")
-        if applies_to and concept_id is not None:
-            if isinstance(applies_to, (list, tuple)) and concept_id not in applies_to:
+        if applies_to and class_id is not None:
+            if isinstance(applies_to, (list, tuple)) and class_id not in applies_to:
                 return False
-            if isinstance(applies_to, str) and concept_id != applies_to:
+            if isinstance(applies_to, str) and class_id != applies_to:
                 return False
 
         native_only = col_entry.get("native_only")

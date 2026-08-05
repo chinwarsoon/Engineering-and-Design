@@ -1,9 +1,9 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_project_definition_config.json",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "title": "EKS Project Definition Configuration",
-    "description": "Per-project definitions (I265 T1.191: added revision_validation per project; T1.196: removed compatibility.legacy_project_rules — eks_project_rules_config.json retired). Each key is a project code. Profile references are resolved by ProjectDefinitionResolver at runtime against reusable config libraries. Deployment-specific URIs moved to environment config per L.6.3.",
+    "description": "Per-project definitions (I265 T1.191: added revision_validation per project; T1.196: removed compatibility.legacy_project_rules — eks_project_rules_config.json retired). Each key is a project code. Profile references are resolved by ProjectDefinitionResolver at runtime against reusable config libraries. Deployment-specific URIs moved to environment config per L.6.3. v1.4.0 (I281 T1.224): repointed native parsing profiles — 131101 parsing_profile technip_pdf→technip_dwg, 131242 parsing_profile→technip_dgn and document_profile.parser→technip_xlsx — so the 3 native extraction profiles are referenced and PDEF_UNUSED_PROFILE data warnings drop 4→1 (only technip_docx remains unreferenced).",
     "project_definition": {
         "131101": {
             "project_identity": {
@@ -50,7 +50,7 @@
                 "ocr": "default",
                 "column_processing": "dcc_aligned"
             },
-            "parsing_profile": "technip_pdf",
+            "parsing_profile": "technip_dwg",
             "chunking_profile": "standard",
             "embedding_profile": "openai_1536",
             "metadata_policy": "standard_inherit",
@@ -119,12 +119,12 @@
             },
             "document_profile": {
                 "filename_pattern": "twrp_standard",
-                "parser": "technip_pdf",
+                "parser": "technip_xlsx",
                 "revision": "alpha_numeric",
                 "ocr": "default",
                 "column_processing": "dcc_aligned"
             },
-            "parsing_profile": "technip_pdf",
+            "parsing_profile": "technip_dgn",
             "chunking_profile": "standard",
             "embedding_profile": "openai_1536",
             "metadata_policy": "standard_inherit",

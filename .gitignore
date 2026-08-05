@@ -220,3 +220,6 @@ eks/test_output/
 
 #deepcode
 .deepcode/
+
+#codex
+.codex/

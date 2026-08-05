@@ -89,7 +89,8 @@ class PipelineOrchestrator(BaseEngine):
                  message_manager: Optional[MessageManager] = None,
                  external_telemetry: Any = None,
                  telemetry_verbose: bool = True,
-                 project_config_registry: Optional[Any] = None):
+                 project_config_registry: Optional[Any] = None,
+                 processing_config: Optional[Dict[str, Any]] = None):
         """
         Initialize pipeline orchestrator.
         
@@ -119,6 +120,8 @@ class PipelineOrchestrator(BaseEngine):
         super().__init__(name="PipelineOrchestrator")
         self.config = config
         self.doc_config = doc_config
+        # I281 (T1.224): processing profile values SSOT (eks_processing_config.json)
+        self.processing_config = processing_config or {}
         self.registry = registry
         self.logger = logger or EKSLogger("PipelineOrchestrator", level=1)
         self.use_telemetry = use_telemetry
@@ -136,6 +139,7 @@ class PipelineOrchestrator(BaseEngine):
         self.router = ParserRouter(
             doc_config, logger=self.logger, use_factory=True,
             runtime_slice=self._slice_for_orchestrator(),
+            processing_config=self.processing_config,
         )
         self.scorer = self._engine_factory.create(
             "HealthScorer", logger=self.logger,
@@ -162,6 +166,7 @@ class PipelineOrchestrator(BaseEngine):
         try:
             self._column_processor = EKSColumnProcessor.from_doc_config(
                 doc_config, runtime_slice=self._slice_for_orchestrator(),
+                processing_config=self.processing_config,
             )
         except Exception:
             self._column_processor = None
@@ -1030,7 +1035,7 @@ class PipelineOrchestrator(BaseEngine):
                     # The context carries metadata, elements, file_properties, and score
                     # so each handler can resolve its value independently.
                     if self._column_processor:
-                        # I275: resolve the document-type scope (concept_id +
+                        # I275/I282: resolve the document-class scope (class_id +
                         # format_category from the I279 carrier projection) so the
                         # column processor can apply applies_to_document_types /
                         # native_only filters. Priority: Phase B committed value,
@@ -1059,8 +1064,8 @@ class PipelineOrchestrator(BaseEngine):
                             # T1.194 (I265): Phase B committed identity + slice
                             "project_code": project_context.get("project_code"),
                             "config_slice": project_context.get("config_slice"),
-                            # I275: document-type scope for the column filter
-                            "concept_id": doc_type_scope.get("concept_id"),
+                            # I275/I282: document-class scope for the column filter
+                            "class_id": doc_type_scope.get("class_id"),
                             "format_category": doc_type_scope.get("format_category"),
                             # I277: extraction-method capability set for the gate
                             "extraction_methods": extraction_methods,

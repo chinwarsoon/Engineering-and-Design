@@ -518,7 +518,7 @@ class TestColumnProcessingEndToEnd(unittest.TestCase):
 
 
 class TestDocumentTypeScopeFilter(unittest.TestCase):
-    """I275 (T1.204): concept_id x format_category column scope filter."""
+    """I275/I282 (T1.204/T1.229): class_id x format_category column scope filter."""
 
     def _make_processor(self, column_config):
         from eks.engine.core.column_processor import EKSColumnProcessor
@@ -527,10 +527,10 @@ class TestDocumentTypeScopeFilter(unittest.TestCase):
             column_config,
             runtime_slice={},
             document_type_registry=[
-                {"code": "DWG", "concept_id": "DRAWING", "format_category": "print"},
-                {"code": "PI-PID", "concept_id": "PID_DRAWING", "format_category": "print"},
-                {"code": "SPC", "concept_id": "SPECIFICATION", "format_category": "print"},
-                {"code": "CAD", "concept_id": "DRAWING", "format_category": "native"},
+                {"code": "DWG", "class_id": "Drawing", "format_category": "print"},
+                {"code": "PI-PID", "class_id": "Drawing", "format_category": "print"},
+                {"code": "SPC", "class_id": "Specification", "format_category": "print"},
+                {"code": "CAD", "class_id": "Drawing", "format_category": "native"},
             ],
         )
 
@@ -547,7 +547,7 @@ class TestDocumentTypeScopeFilter(unittest.TestCase):
     def test_native_only_excluded_for_print(self):
         """native_only column is skipped when format_category is 'print'."""
         proc = self._make_processor({"embedded_creator_app": self._native_only_column()})
-        result = proc.process("B", {}, {"concept_id": "DRAWING", "format_category": "print"})
+        result = proc.process("B", {}, {"class_id": "Drawing", "format_category": "print"})
         self.assertNotIn("embedded_creator_app", result,
                          "native_only column must not populate from a PDF print")
 
@@ -555,49 +555,49 @@ class TestDocumentTypeScopeFilter(unittest.TestCase):
         """native_only column populates when format_category is 'native'."""
         proc = self._make_processor({"embedded_creator_app": self._native_only_column()})
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "native",
+            "class_id": "Drawing", "format_category": "native",
             "metadata": {"embedded_creator_app": "AutoCAD"},
         })
         self.assertEqual(result.get("embedded_creator_app"), "AutoCAD")
 
-    def test_applies_to_document_types_excludes_concept(self):
-        """Column restricted to DRAWING is excluded for a SPECIFICATION document."""
+    def test_applies_to_document_types_excludes_class(self):
+        """Column restricted to Drawing is excluded for a Specification document."""
         col = {
             "column_type": "numeric_column",
             "is_calculated": True,
             "calculation": {"type": "parser_metadata", "field": "total_sheets"},
             "processing_phase": "B",
-            "applies_to_document_types": ["DRAWING"],
+            "applies_to_document_types": ["Drawing"],
             "description": "Drawing-only column.",
         }
         proc = self._make_processor({"total_sheets": col})
         result = proc.process("B", {}, {
-            "concept_id": "SPECIFICATION", "format_category": "print",
+            "class_id": "Specification", "format_category": "print",
             "metadata": {"total_sheets": 5},
         })
         self.assertNotIn("total_sheets", result,
-                         "applies_to_document_types=[DRAWING] must exclude SPECIFICATION")
+                         "applies_to_document_types=[Drawing] must exclude Specification")
 
-    def test_applies_to_document_types_includes_concept(self):
-        """Column applies when document concept is in applies_to_document_types."""
+    def test_applies_to_document_types_includes_class(self):
+        """Column applies when document class is in applies_to_document_types."""
         col = {
             "column_type": "numeric_column",
             "is_calculated": True,
             "calculation": {"type": "parser_metadata", "field": "total_sheets"},
             "processing_phase": "B",
-            "applies_to_document_types": ["DRAWING"],
+            "applies_to_document_types": ["Drawing"],
             "description": "Drawing-only column.",
         }
         proc = self._make_processor({"total_sheets": col})
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "print",
+            "class_id": "Drawing", "format_category": "print",
             "metadata": {"total_sheets": 5},
         })
         self.assertEqual(result.get("total_sheets"), 5,
-                         "DRAWING document should populate the column")
+                         "Drawing document should populate the column")
 
     def test_absent_scope_keys_apply_to_all(self):
-        """Columns without scope keys apply to any concept / format category."""
+        """Columns without scope keys apply to any class / format category."""
         col = {
             "column_type": "text_column",
             "is_calculated": True,
@@ -606,16 +606,16 @@ class TestDocumentTypeScopeFilter(unittest.TestCase):
             "description": "Generic column (no scope keys).",
         }
         proc = self._make_processor({"page_count": col})
-        for concept in ("DRAWING", "SPECIFICATION", "REPORT"):
+        for class_id in ("Drawing", "Specification", "Report"):
             result = proc.process("B", {}, {
-                "concept_id": concept, "format_category": "print",
+                "class_id": class_id, "format_category": "print",
                 "metadata": {"page_count": 3},
             })
             self.assertEqual(result.get("page_count"), 3,
-                             f"generic column should apply to {concept}")
+                             f"generic column should apply to {class_id}")
 
     def test_unresolved_document_type_is_unrestricted(self):
-        """A document whose concept cannot be resolved defaults to apply (not skip)."""
+        """A document whose class cannot be resolved defaults to apply (not skip)."""
         col = {
             "column_type": "text_column",
             "is_calculated": True,
@@ -625,14 +625,14 @@ class TestDocumentTypeScopeFilter(unittest.TestCase):
             "description": "native_only column.",
         }
         proc = self._make_processor({"embedded_keywords": col})
-        # No concept_id/format_category in context — must not raise and must apply.
+        # No class_id/format_category in context — must not raise and must apply.
         result = proc.process("B", {}, {"metadata": {"embedded_keywords": "x"}})
         self.assertEqual(result.get("embedded_keywords"), "x",
                          "unresolved scope should fall back to applying")
 
     def test_eks_resolve_scope_doc_config(self):
         """EKSColumnProcessor.from_doc_config carries the projected registry and
-        resolve_scope() maps a document_type code to concept + format."""
+        resolve_scope() maps a document_type code to class + format."""
         from eks.engine.core.column_processor import EKSColumnProcessor
 
         # Minimal doc_config with projected document_type_registry.
@@ -642,12 +642,12 @@ class TestDocumentTypeScopeFilter(unittest.TestCase):
                 "processing_phase": "B", "description": "dummy",
             }},
             "document_type_registry": [
-                {"code": "SPEC-PROC", "concept_id": "SPECIFICATION", "format_category": "print"},
+                {"code": "SPEC-PROC", "class_id": "Specification", "format_category": "print"},
             ],
         }
         proc = EKSColumnProcessor.from_doc_config(doc_config)
         scope = proc.resolve_scope("SPEC-PROC")
-        self.assertEqual(scope.get("concept_id"), "SPECIFICATION")
+        self.assertEqual(scope.get("class_id"), "Specification")
         self.assertEqual(scope.get("format_category"), "print")
         # Unknown code yields empty scope (unrestricted).
         self.assertEqual(proc.resolve_scope("NOPE"), {})
@@ -663,13 +663,13 @@ class TestExtractionMethodGating(unittest.TestCase):
             column_config,
             runtime_slice={},
             document_type_registry=[
-                {"code": "DWG", "concept_id": "DRAWING", "format_category": "print",
+                {"code": "DWG", "class_id": "Drawing", "format_category": "print",
                  "default_parsing_profile": "technip_pdf", "template": "twrp_drawing"},
-                {"code": "CAD", "concept_id": "DRAWING", "format_category": "native",
+                {"code": "CAD", "class_id": "Drawing", "format_category": "native",
                  "default_parsing_profile": "technip_dwg", "template": "twrp_drawing"},
-                {"code": "SPC", "concept_id": "SPECIFICATION", "format_category": "print",
+                {"code": "SPC", "class_id": "Specification", "format_category": "print",
                  "default_parsing_profile": "technip_pdf", "template": "twrp_spec_c"},
-                {"code": "NO-PROFILE", "concept_id": "REPORT", "format_category": "print",
+                {"code": "NO-PROFILE", "class_id": "Report", "format_category": "print",
                  "default_parsing_profile": ""},
             ],
             parsing_profiles=parsing_profiles or {},
@@ -725,7 +725,7 @@ class TestExtractionMethodGating(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "print",
+            "class_id": "Drawing", "format_category": "print",
             "extraction_methods": proc.resolve_extraction_methods("DWG", "print"),
             "elements": [{"element_type": "cover_page", "content": {"asset_tags": "TAG-1"}}],
         })
@@ -739,7 +739,7 @@ class TestExtractionMethodGating(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "print",
+            "class_id": "Drawing", "format_category": "print",
             "extraction_methods": proc.resolve_extraction_methods("DWG", "print"),
             "elements": [{"element_type": "cover_page", "content": {"asset_tags": "TAG-1"}}],
         })
@@ -752,7 +752,7 @@ class TestExtractionMethodGating(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "print",
+            "class_id": "Drawing", "format_category": "print",
             "extraction_methods": proc.resolve_extraction_methods("DWG", "print"),
             "metadata": {"embedded_title": "TITLE"},
         })
@@ -766,7 +766,7 @@ class TestExtractionMethodGating(unittest.TestCase):
             parsing_profiles={"technip_dwg": {"extraction_methods": ["parser_metadata"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "native",
+            "class_id": "Drawing", "format_category": "native",
             "extraction_methods": proc.resolve_extraction_methods("CAD", "native"),
             "metadata": {"embedded_title": "TITLE"},
         })
@@ -787,7 +787,7 @@ class TestExtractionMethodGating(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["cover_page_element"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "print",
+            "class_id": "Drawing", "format_category": "print",
             "extraction_methods": {"cover_page_element"},
             "metadata": {"project_title": "META"},
             "file_properties": {"filename_stem": "FILE"},
@@ -802,7 +802,7 @@ class TestExtractionMethodGating(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["cover_page_element"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "print",
+            "class_id": "Drawing", "format_category": "print",
             "extraction_methods": {"cover_page_element"},
             "metadata": {"embedded_title": "TITLE"},
         })
@@ -815,7 +815,7 @@ class TestExtractionMethodGating(unittest.TestCase):
             parsing_profiles={"technip_dwg": {"extraction_methods": ["parser_metadata"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "native",
+            "class_id": "Drawing", "format_category": "native",
             "metadata": {"embedded_title": "TITLE"},
         })
         self.assertEqual(result.get("embedded_title"), "TITLE")
@@ -838,11 +838,11 @@ class TestCoverTypeBranching(unittest.TestCase):
             column_config,
             runtime_slice={},
             document_type_registry=[
-                {"code": "DWG", "concept_id": "DRAWING", "format_category": "print",
+                {"code": "DWG", "class_id": "Drawing", "format_category": "print",
                  "default_parsing_profile": "technip_pdf", "template": "twrp_drawing"},
-                {"code": "SPC", "concept_id": "SPECIFICATION", "format_category": "print",
+                {"code": "SPC", "class_id": "Specification", "format_category": "print",
                  "default_parsing_profile": "technip_pdf", "template": "twrp_spec_c"},
-                {"code": "NO-PROFILE", "concept_id": "REPORT", "format_category": "print",
+                {"code": "NO-PROFILE", "class_id": "Report", "format_category": "print",
                  "default_parsing_profile": ""},
             ],
             parsing_profiles=parsing_profiles or {},
@@ -911,7 +911,7 @@ class TestCoverTypeBranching(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "SPECIFICATION", "format_category": "print",
+            "class_id": "Specification", "format_category": "print",
             "extraction_methods": proc.resolve_extraction_methods("SPC", "print"),
             "elements": [{"element_type": "cover_page", "content": {"asset_tags": "TAG-1"}}],
         })
@@ -925,7 +925,7 @@ class TestCoverTypeBranching(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "DRAWING", "format_category": "print",
+            "class_id": "Drawing", "format_category": "print",
             "extraction_methods": proc.resolve_extraction_methods("DWG", "print"),
             "elements": [{"element_type": "cover_page", "content": {"asset_tags": "TAG-1"}}],
         })
@@ -946,7 +946,7 @@ class TestCoverTypeBranching(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "SPECIFICATION", "format_category": "print",
+            "class_id": "Specification", "format_category": "print",
             "extraction_methods": proc.resolve_extraction_methods("SPC", "print"),
             "elements": [{"element_type": "cover_page", "content": {"project_title": "COVER-TITLE"}}],
             "file_properties": {"filename_stem": "FILE"},
@@ -961,7 +961,7 @@ class TestCoverTypeBranching(unittest.TestCase):
             parsing_profiles={"technip_pdf": {"extraction_methods": ["parser_metadata", "cover_page_element"]}},
         )
         result = proc.process("B", {}, {
-            "concept_id": "SPECIFICATION", "format_category": "native",
+            "class_id": "Specification", "format_category": "native",
             "extraction_methods": proc.resolve_extraction_methods("SPC", "native"),
             "metadata": {"embedded_title": "TITLE"},
         })

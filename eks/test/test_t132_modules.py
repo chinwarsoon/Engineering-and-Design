@@ -769,14 +769,14 @@ class TestDocumentMetadataCompleteness(unittest.TestCase):
             config_path = CONFIG_DIR / "eks_doc_config.json"
         with open(config_path) as f:
             config = json.load(f)
-        self.assertEqual(config["version"], "1.9.0")  # T1.213-T1.216 (I279): doc-type SSOT carrier
+        self.assertEqual(config["version"], "1.10.0")  # I281 T1.224: parsing_profiles removed → eks_processing_config SSOT
 
         base_path = CONFIG_DIR / "schemas" / "eks_doc_base_schema.json"
         if not base_path.exists():
             base_path = CONFIG_DIR / "eks_doc_base_schema.json"
         with open(base_path) as f:
             base = json.load(f)
-        self.assertEqual(base["version"], "1.13.0")  # T1.195 (I265): parsing_profile_def (V2) + I279 T1.214 + I275 T1.203 scope keys + I276 T1.206 default_parsing_profile
+        self.assertEqual(base["version"], "1.15.0")  # I281 T1.223: parsing_profile_def removed (I282 T1.226 was 1.14.0)
 
 
 # ---------------------------------------------------------------------------

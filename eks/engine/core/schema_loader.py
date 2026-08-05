@@ -4,7 +4,14 @@ Schema Loader for EKS - Handles loading and validation of base, setup, and confi
 Uses config-driven discovery (T1.96): reads schema_files + discovery_rules from
 eks_config.json instead of hardcoding 22 filenames.
 
-Revision: 1.3.0 — T1.196 (I265/I267/I268): removed eks_project_rules_config from
+Revision: 1.4.0 — I282 (T1.228): migrated document-type projection + validation
+           from the concept layer to the class/type/family carrier
+           (eks_document_type_schema.json v2.1.0). _derive_doc_type_projection()
+           resolves label/ontology_class via binding.class_id; _validate_doc_registries()
+           cross-references document_classes/document_types/document_family/
+           project_document_types; added class-based helpers
+           get_documents_by_class / get_documents_by_family / get_class_ancestry.
+1.3.0 — T1.196 (I265/I267/I268): removed eks_project_rules_config from
            _STEM_TO_ATTR and _validate_project_rules() — eks_project_rules_config.json
            retired (I267). Removed dead revision_validation backward-compat injection
            (I268 — no consumers; RevisionManager migrated to slices in T1.194).
@@ -18,7 +25,7 @@ Revision: 1.3.0 — T1.196 (I265/I267/I268): removed eks_project_rules_config fr
 import importlib
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from jsonschema import validate
 from referencing import Registry
 from referencing.jsonschema import DRAFT7
@@ -50,8 +57,9 @@ _STEM_TO_ATTR = {
     "eks_message_base": "message_base_schema",
     "eks_message_setup_schema": "message_setup_schema",
     "eks_message_config": "message_config",
-    "eks_project_definition_config": "project_definition_config",
-}
+        "eks_project_definition_config": "project_definition_config",
+        "eks_processing_config": "processing_config",
+    }
 
 _BOOTSTRAP_STEMS = {"eks_base_schema", "eks_setup_schema", "eks_config"}
 
@@ -95,6 +103,7 @@ class SchemaLoader:
         self.discipline_schema: Dict[str, Any] = {}
         self.facility_schema: Dict[str, Any] = {}
         self.project_definition_config: Dict[str, Any] = {}
+        self.processing_config: Dict[str, Any] = {}
         self._extra_schemas: Dict[str, Dict[str, Any]] = {}
 
         self._search_dirs = [self.config_dir / "schemas", self.config_dir]
@@ -205,6 +214,7 @@ class SchemaLoader:
         self._validate_ontology_class_map()
         self._validate_doc_config()
         self._validate_doc_registries()
+        self._validate_processing_config()
         self._validate_error_config()
         self._validate_message_config()
         self._validate_project_definition()
@@ -249,20 +259,24 @@ class SchemaLoader:
         }
 
     def _derive_doc_type_projection(self) -> None:
-        """Derive flat document-type projections from the three-section carrier.
+        """Derive flat document-type projections from the four-section carrier.
 
-        I279 (T1.213): the carrier (eks_document_type_schema.json v2.0.0) is the
-        single runtime source. Runtime consumers expect a flat ``document_type_registry``
-        (code → label/ontology_class/expected_file_types/format_category map) plus
-        the template registry. We project these two into ``doc_config`` at load
+        I279 (T1.213) / I282 (T1.228): the carrier
+        (eks_document_type_schema.json v2.1.0) is the single runtime source.
+        Runtime consumers expect a flat ``document_type_registry``
+        (code → label/ontology_class/class_id/expected_file_types/format_category map)
+        plus the template registry. We project these into ``doc_config`` at load
         time so no committed flat array (the old dead-duplicate SSOT) survives.
+        I282: the concept layer is removed (D4) — the flat registry resolves
+        label/ontology_class from the carrier ``document_classes`` registry via
+        the binding's ``class_id``.
         """
-        concepts = self.document_type_schema.get("document_type_concepts", [])
+        classes = self.document_type_schema.get("document_classes", [])
         bindings = self.document_type_schema.get("project_document_types", {})
         templates = self.document_type_schema.get("document_templates", {})
 
-        # concept_id lookup for label / ontology_class resolution
-        concept_by_id = {c.get("concept_id"): c for c in concepts}
+        # class_id lookup for label / ontology_class resolution
+        class_by_id = {c.get("class_id"): c for c in classes}
 
         # Build flat document_type_registry (union across all project bindings).
         # A local_code may appear under multiple projects; first wins.
@@ -274,13 +288,13 @@ class SchemaLoader:
                 if local_code in seen_codes:
                     continue
                 seen_codes.add(local_code)
-                concept = concept_by_id.get(entry.get("concept_id"), {})
+                class_entry = class_by_id.get(entry.get("class_id"), {})
                 flat.append({
                     "code": local_code,
-                    "label": concept.get("label", local_code),
+                    "label": class_entry.get("label", local_code),
                     "description": "Projected from eks_document_type_schema.json#/project_document_types (I279)",
-                    "ontology_class": concept.get("ontology_class", ""),
-                    "concept_id": entry.get("concept_id"),
+                    "ontology_class": class_entry.get("ontology_class", ""),
+                    "class_id": entry.get("class_id"),
                     "template": entry.get("template"),
                     "format_category": entry.get("format_category", "print"),
                     "native_source": entry.get("native_source", ""),
@@ -432,47 +446,132 @@ class SchemaLoader:
 
         validate(instance=self.doc_config, schema=self.doc_setup_schema, registry=registry)
 
+    def _validate_processing_config(self) -> None:
+        """Validates self.processing_config profile sections against the core setup schema.
+
+        I281 (T1.224): eks_processing_config.json holds the VALUES for all 11
+        processing profile types (SSOT §9/§16). Each top-level section
+        ({type}_profiles) is validated against the corresponding
+        processing_profiles.properties.{type}_profiles sub-schema in
+        eks_setup_schema.json, whose per-type additionalProperties $ref the
+        core eks_base_schema.json profile defs. The full setup schema is NOT
+        applied — the processing config is a profile-values-only file and does
+        not carry the core config sections.
+        """
+        resources = {}
+        if self.base_schema.get("$id"):
+            resources[self.base_schema["$id"]] = DRAFT7.create_resource(self.base_schema)
+        if self.setup_schema.get("$id"):
+            resources[self.setup_schema["$id"]] = DRAFT7.create_resource(self.setup_schema)
+        # extraction_profile_def.supported_extensions $refs the doc-base
+        # file_type_code def — register doc schemas for ref resolution (I281).
+        if self.doc_base_schema.get("$id"):
+            resources[self.doc_base_schema["$id"]] = DRAFT7.create_resource(self.doc_base_schema)
+        if self.doc_setup_schema.get("$id"):
+            resources[self.doc_setup_schema["$id"]] = DRAFT7.create_resource(self.doc_setup_schema)
+
+        registry = Registry().with_resources(
+            (uri, resource) for uri, resource in resources.items()
+        )
+
+        section_schemas = (
+            (self.setup_schema.get("properties", {})
+             .get("processing_profiles", {})
+             .get("properties", {}))
+        )
+        for section_key, section_value in self.processing_config.items():
+            if section_key.startswith("$") or section_key in ("version", "title", "description"):
+                continue
+            section_schema = section_schemas.get(section_key)
+            if section_schema is None:
+                raise ValueError(
+                    f"eks_processing_config.json has unknown section '{section_key}' — "
+                    f"not declared in eks_setup_schema.json#/properties/processing_profiles"
+                )
+            validate(instance=section_value, schema=section_schema, registry=registry)
+
     def _validate_doc_registries(self) -> None:
         """Validates doc config cross-registries.
 
-        I279 (T1.213): document_type data now sources from the three-section
-        carrier (eks_document_type_schema.json v2.0.0), not a flat registry
-        array. Validation cross-checks the carrier sections against ontology
-        and element types. The flat project_document_type view is derived at
-        runtime in _extract() and injected into doc_config for consumers.
+        I279 (T1.213) / I282 (T1.228): document_type data now sources from the
+        four-section carrier (eks_document_type_schema.json v2.1.0), not a flat
+        registry array. Validation cross-checks the carrier sections
+        (document_classes / document_types / document_family /
+        project_document_types / document_templates) against ontology and
+        element types. The flat project_document_type view is derived at load
+        time in _derive_doc_type_projection() and injected into doc_config.
         """
         valid_element_types = {"cover_page", "revision_table", "section", "table", "image", "link", "legend", "note"}
 
         file_type_reg = self.doc_config.get("file_type_registry", [])
         elem_type_reg = self.doc_config.get("element_type_registry", [])
 
-        # I279: document_type entries come from the three-section carrier.
-        concepts = self.document_type_schema.get("document_type_concepts", [])
+        # I282: carrier sections — class/family/type registries plus bindings.
+        classes = self.document_type_schema.get("document_classes", [])
+        families = self.document_type_schema.get("document_family", [])
+        types = self.document_type_schema.get("document_types", [])
         bindings = self.document_type_schema.get("project_document_types", {})
         templates = self.document_type_schema.get("document_templates", {})
-        concept_by_id = {c.get("concept_id"): c for c in concepts}
+        class_by_id = {c.get("class_id"): c for c in classes}
+        family_by_id = {f.get("family_id"): f for f in families}
+        type_by_id = {t.get("type_id"): t for t in types}
         local_codes = set()
 
-        # 1. Validate carrier concepts: ontology_class must exist in ontology config.
-        for c in concepts:
+        # 1a. Validate classes: unique class_id; ontology_class must exist in ontology config.
+        for c in classes:
+            cid = c.get("class_id")
+            if not cid:
+                raise ValueError("Document class entry missing 'class_id'.")
             ontology_class = c.get("ontology_class", "")
             if ontology_class and ontology_class not in self.ontology_class_names:
                 raise ValueError(
-                    f"Document type concept '{c.get('concept_id')}' references undefined ontology class: "
+                    f"Document class '{cid}' references undefined ontology class: "
                     f"'{ontology_class}'. Available: {sorted(self.ontology_class_names)}"
                 )
+        if len({c.get("class_id") for c in classes}) != len(classes):
+            raise ValueError("Document classes contain duplicate 'class_id' values.")
 
-        # 1b. Validate each project binding: concept $id exists; template exists;
+        # 1a2. Validate families: unique family_id; discipline label present.
+        for f in families:
+            fid = f.get("family_id")
+            if not fid:
+                raise ValueError("Document family entry missing 'family_id'.")
+            if not f.get("discipline"):
+                raise ValueError(f"Document family '{fid}' is missing its 'discipline' label.")
+        if len({f.get("family_id") for f in families}) != len(families):
+            raise ValueError("Document families contain duplicate 'family_id' values.")
+
+        # 1a3. Validate types: unique type_id; class_id exists; family_id exists-or-null.
+        for t in types:
+            tid = t.get("type_id")
+            if not tid:
+                raise ValueError("Document type entry missing 'type_id'.")
+            cid = t.get("class_id")
+            if cid not in class_by_id:
+                raise ValueError(
+                    f"Document type '{tid}' references undefined class_id: "
+                    f"'{cid}'. Available classes: {sorted(class_by_id)}"
+                )
+            fid = t.get("family_id")
+            if fid is not None and fid not in family_by_id:
+                raise ValueError(
+                    f"Document type '{tid}' references undefined family_id: "
+                    f"'{fid}'. Available families: {sorted(family_by_id)}"
+                )
+        if len({t.get("type_id") for t in types}) != len(types):
+            raise ValueError("Document types contain duplicate 'type_id' values.")
+
+        # 1b. Validate each project binding: class_id exists; template exists;
         #     element_type entries valid; format_category/enum valid.
         for project_code, binding_list in bindings.items():
             for entry in binding_list:
                 local_code = entry.get("local_code")
                 local_codes.add(local_code)
-                concept_id = entry.get("concept_id")
-                if concept_id not in concept_by_id:
+                class_id = entry.get("class_id")
+                if class_id not in class_by_id:
                     raise ValueError(
-                        f"Binding {project_code}/{local_code} references undefined concept_id: "
-                        f"'{concept_id}'. Available concepts: {sorted(concept_by_id)}"
+                        f"Binding {project_code}/{local_code} references undefined class_id: "
+                        f"'{class_id}'. Available classes: {sorted(class_by_id)}"
                     )
                 template_id = entry.get("template")
                 if template_id not in templates:
@@ -486,16 +585,29 @@ class SchemaLoader:
                         f"'{entry.get('format_category')}'. Must be 'native' or 'print'."
                     )
                 for ext in entry.get("expected_file_types", []):
-                    if ext not in self.doc_config.get("file_type_registry", []) and ext not in {
-                        ft.get("extension") for ft in file_type_reg
-                    }:
-                        # file_type_registry is the source of truth for extensions
-                        known = {ft.get("extension") for ft in file_type_reg}
-                        if ext not in known:
-                            raise ValueError(
-                                f"Binding {project_code}/{local_code} expects unknown file type: '{ext}'. "
-                                f"Known: {sorted(known)}"
-                            )
+                    # file_type_registry is the source of truth for extensions
+                    known = {ft.get("extension") for ft in file_type_reg}
+                    if ext not in known:
+                        raise ValueError(
+                            f"Binding {project_code}/{local_code} expects unknown file type: '{ext}'. "
+                            f"Known: {sorted(known)}"
+                        )
+
+        # 1b2. Cross-reference column_processing applies_to_document_types against
+        #      the class registry (I282 T1.235): the base schema only checks shape
+        #      (plain string), so runtime validates the referenced class exists.
+        col_proc = self.doc_config.get("column_processing", {})
+        col_proc_items = col_proc.values() if isinstance(col_proc, dict) else col_proc
+        for col_entry in col_proc_items:
+            if not isinstance(col_entry, dict):
+                continue
+            applies = col_entry.get("applies_to_document_types") or []
+            for ref in applies:
+                if ref not in class_by_id:
+                    raise ValueError(
+                        f"column_processing entry applies_to_document_types references undefined "
+                        f"class_id: '{ref}'. Available classes: {sorted(class_by_id)}"
+                    )
 
         # 1c. Validate template registry: cover_type enum, expected_elements valid,
         #     section/singular drift resolved (T1.213).
@@ -609,6 +721,60 @@ class SchemaLoader:
         if normalized in self.ontology_tag_type_alias_map:
             return self.ontology_tag_type_alias_map[normalized]
         return None
+
+    def _doc_class_by_id(self) -> Dict[str, Dict[str, Any]]:
+        return {c.get("class_id"): c for c in self.document_type_schema.get("document_classes", [])}
+
+    def get_documents_by_class(self, class_id: str) -> List[str]:
+        """Returns the type_ids of every document type classified under ``class_id``.
+
+        I282 (T1.228): class-based lookup into the carrier document_types
+        registry — replaces the old concept-wide lookup.
+        """
+        return [
+            t.get("type_id")
+            for t in self.document_type_schema.get("document_types", [])
+            if t.get("class_id") == class_id
+        ]
+
+    def get_documents_by_family(self, family_id: str) -> List[str]:
+        """Returns the type_ids of every document type grouped under ``family_id``.
+
+        I282 (T1.228): family-based lookup into the carrier document_types
+        registry. Types with no family_id are never returned.
+        """
+        return [
+            t.get("type_id")
+            for t in self.document_type_schema.get("document_types", [])
+            if t.get("family_id") == family_id
+        ]
+
+    def get_class_ancestry(self, class_id: str) -> List[str]:
+        """Returns the ordered class chain from ``class_id`` up to the root.
+
+        I282 (T1.228): walks the document class hierarchy (optional
+        ``parent_class_id`` per class entry) from a class to the root, ordered
+        top-down (class_id first). Guards against cycles (self-ref, A->B->A)
+        and dangling parents. Currently every carrier class is a top-level
+        root, so each class returns ``[class_id]``; the walk supports future
+        nested class hierarchies.
+        """
+        class_by_id = self._doc_class_by_id()
+        if class_id not in class_by_id:
+            raise ValueError(f"Unknown document class: '{class_id}'. Available: {sorted(class_by_id)}")
+        chain = []
+        seen = set()
+        current = class_id
+        while current is not None:
+            if current in seen:
+                raise ValueError(f"Document class hierarchy cycle detected at '{current}'.")
+            seen.add(current)
+            chain.append(current)
+            entry = class_by_id.get(current)
+            if entry is None:
+                raise ValueError(f"Document class '{current}' references an undefined parent class.")
+            current = entry.get("parent_class_id")
+        return chain
 
 
 def load_eks_config(config_dir: str | Path = "config") -> Dict[str, Any]:

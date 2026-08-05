@@ -32,7 +32,10 @@ class TestTwoAxisParserRouting(unittest.TestCase):
         config_dir = ROOT / "config"
         cls.loader = SchemaLoader(str(config_dir))
         cls.loader.load_all()
-        cls.router = ParserRouter(cls.loader.doc_config)
+        cls.router = ParserRouter(
+            cls.loader.doc_config,
+            processing_config=cls.loader.processing_config,
+        )
 
     # -- 1. Axis 1: profile resolution -------------------------------
 
@@ -76,7 +79,10 @@ class TestTwoAxisParserRouting(unittest.TestCase):
     def test_reader_profile_rejects_unsupported_extension(self):
         """A profile that does not support the file_type yields fallback (None)."""
         # technip_docx supports only docx — asking for xlsx must fall back.
-        router = ParserRouter(self.loader.doc_config)
+        router = ParserRouter(
+            self.loader.doc_config,
+            processing_config=self.loader.processing_config,
+        )
         cls = router.resolve_reader("xlsx", "SPC")
         self.assertIsNone(cls)
 
@@ -96,8 +102,8 @@ class TestTwoAxisParserRouting(unittest.TestCase):
     # -- 4. §24 capability consistency --------------------------------
 
     def test_all_binding_profiles_referenced_exist(self):
-        """Every default_parsing_profile on a binding exists in parsing_profiles."""
-        profiles = set(self.loader.doc_config.get("parsing_profiles", {}))
+        """Every default_parsing_profile on a binding exists in extraction_profiles."""
+        profiles = set(self.loader.processing_config.get("extraction_profiles", {}))
         for entry in self.loader.doc_config.get("document_type_registry", []):
             pid = entry.get("default_parsing_profile")
             if pid:
@@ -105,7 +111,7 @@ class TestTwoAxisParserRouting(unittest.TestCase):
 
     def test_profile_supported_extensions_admit_binding_file_types(self):
         """A binding's expected_file_types must be admitted by its profile reader."""
-        profiles = self.loader.doc_config.get("parsing_profiles", {})
+        profiles = self.loader.processing_config.get("extraction_profiles", {})
         for entry in self.loader.doc_config.get("document_type_registry", []):
             pid = entry.get("default_parsing_profile")
             if not pid:
@@ -124,7 +130,7 @@ class TestTwoAxisParserRouting(unittest.TestCase):
 
     def test_native_profiles_present(self):
         """GAP-N4 native reader profiles exist and are wired to native file types."""
-        profiles = self.loader.doc_config.get("parsing_profiles", {})
+        profiles = self.loader.processing_config.get("extraction_profiles", {})
         for pid, expected_parser in (
             ("technip_dwg", "eks.engine.parsers.dwg_parser.DWGParserStub"),
             ("technip_dgn", "eks.engine.parsers.dgn_parser.DGNParserStub"),

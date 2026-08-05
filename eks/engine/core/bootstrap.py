@@ -310,6 +310,8 @@ class EKSBootstrapManager(BootstrapManager):
                 _sl = SchemaLoader(self.config_dir)
                 _sl.load_all()
                 self.doc_config = _sl.doc_config
+                # I281 (T1.224): processing profiles values SSOT
+                self.processing_config = _sl.processing_config
                 # T1.193: Resolve Project Definitions → RuntimeProjectConfiguration
                 self._resolve_project_definitions(_sl)
             except Exception as exc:
@@ -546,6 +548,7 @@ class EKSBootstrapManager(BootstrapManager):
                 doc_config=doc_config,
                 env_config=env_config,
                 logger=self.logger,
+                processing_config=getattr(schema_loader, "processing_config", {}) or {},
             )
             self.project_config_registry = resolver.resolve_all()
 

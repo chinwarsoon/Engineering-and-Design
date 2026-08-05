@@ -29,7 +29,8 @@ class ParserRouter:
     """
 
     def __init__(self, doc_config: Dict[str, Any], logger: Optional[EKSLogger] = None,
-                 use_factory: bool = True, runtime_slice: Optional[Dict[str, Any]] = None):
+                 use_factory: bool = True, runtime_slice: Optional[Dict[str, Any]] = None,
+                 processing_config: Optional[Dict[str, Any]] = None):
         """
         Initialize parser router.
         
@@ -40,6 +41,10 @@ class ParserRouter:
             runtime_slice: Optional injected config slice (T1.194/I265, Appendix L D1).
                 Retained for traceability; routing rules remain schema-driven via
                 file_type_registry (L.14.7 backward compatibility).
+            processing_config: I281 (T1.224) — eks_processing_config.json values
+                SSOT. Extraction profiles come from ``extraction_profiles``,
+                superseding the removed doc_config parsing_profiles section (full
+                repoint, Q2).
         """
         self.doc_config = doc_config
         self.logger = logger or EKSLogger("ParserRouter", level=1)
@@ -50,8 +55,12 @@ class ParserRouter:
         # I276 (T1.207): two-axis routing sources — projected document_type_registry
         # (code -> default_parsing_profile) and the parsing_profiles library
         # (profile_id -> parser_class / supported_extensions).
+        # I281 (T1.224): extraction profiles from eks_processing_config.json.
         self.document_type_registry = doc_config.get("document_type_registry", [])
-        self.parsing_profiles = doc_config.get("parsing_profiles", {})
+        self.parsing_profiles = (
+            (processing_config or {}).get("extraction_profiles", {})
+            or doc_config.get("parsing_profiles", {})
+        )
         
         if use_factory:
             # Use ParserFactory for Dependency Injection

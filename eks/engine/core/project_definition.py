@@ -348,11 +348,18 @@ class ProjectDefinitionResolver:
         doc_config: Dict[str, Any],
         env_config: Dict[str, Any],
         logger: Any = None,
+        processing_config: Optional[Dict[str, Any]] = None,
     ):
         self._pd_config: Dict[str, Any] = project_definition_config
         self._doc_config: Dict[str, Any] = doc_config
         self._env_config: Dict[str, Any] = env_config
         self._logger = logger
+        # I281 (T1.224): processing profile VALUES SSOT. When injected, profile
+        # registries read from here; otherwise fall back to doc_config for
+        # backward compatibility (legacy parsing_profiles / empty sections).
+        self._processing_config: Dict[str, Any] = (
+            processing_config if processing_config is not None else {}
+        )
 
         # Validation accumulators
         self._errors: List[str] = []
@@ -595,21 +602,29 @@ class ProjectDefinitionResolver:
         """Return a profile resolver callable for the given domain.
 
         V2 — exact-key lookup against the owning schema registry.  Capability
-        fields declared by the profile (e.g. parsing_profile_def:
+        fields declared by the profile (e.g. extraction_profile_def:
         supported_extensions / supported_document_profiles / requires_ocr) are
         carried into the resolved dict for the generic capability evaluator.
         Unknown profile identifiers for domains with a declared library are
         system errors (S-C-S-0902).
         """
         _DOMAIN_LIBRARY_MAP = {
-            "parsing": self._doc_config.get("parsing_profiles", {}),
-            "chunking": self._doc_config.get("chunking_profiles", {}),
-            "embedding": self._doc_config.get("embedding_profiles", {}),
-            "asset": self._doc_config.get("asset_profiles", {}),
-            "ontology": self._doc_config.get("ontology_profiles", {}),
-            "retrieval": self._doc_config.get("retrieval_profiles", {}),
-            "prompt": self._doc_config.get("prompt_profiles", {}),
-            "validation": self._doc_config.get("validation_profiles", {}),
+            "parsing": self._processing_config.get("extraction_profiles", {})
+                       or self._doc_config.get("parsing_profiles", {}),
+            "chunking": self._processing_config.get("chunking_profiles", {})
+                        or self._doc_config.get("chunking_profiles", {}),
+            "embedding": self._processing_config.get("embedding_profiles", {})
+                         or self._doc_config.get("embedding_profiles", {}),
+            "asset": self._processing_config.get("asset_profiles", {})
+                     or self._doc_config.get("asset_profiles", {}),
+            "ontology": self._processing_config.get("ontology_profiles", {})
+                        or self._doc_config.get("ontology_profiles", {}),
+            "retrieval": self._processing_config.get("retrieval_profiles", {})
+                         or self._doc_config.get("retrieval_profiles", {}),
+            "prompt": self._processing_config.get("prompt_profiles", {})
+                      or self._doc_config.get("prompt_profiles", {}),
+            "validation": self._processing_config.get("validation_profiles", {})
+                          or self._doc_config.get("validation_profiles", {}),
         }
         # Backward-compatible fallback for the legacy document domain.
         # I279 (T1.213): doc_config.document_type_registry is derived from the
@@ -736,13 +751,14 @@ class ProjectDefinitionResolver:
 
         # L.13.4: document_profile.parser must be a registered parsing profile
         parser_profile = resolved.get("document", {}).get("parser_profile", "")
-        parsing_library = self._doc_config.get("parsing_profiles", {})
+        parsing_library = self._processing_config.get("extraction_profiles", {}) \
+            or self._doc_config.get("parsing_profiles", {})
         if parser_profile and isinstance(parsing_library, dict) and parsing_library:
             if parser_profile not in parsing_library:
                 errors.append(
                     f"S-C-S-0902|PDEF_UNKNOWN_PROFILE_REF|document profile "
                     f"parser '{parser_profile}' is not registered in the "
-                    f"parsing_profiles library"
+                    f"extraction_profiles library"
                 )
         return errors
 
@@ -900,14 +916,22 @@ class ProjectDefinitionResolver:
 
         # Duplicate reusable profile identifiers across owning schema registries
         profile_registries = [
-            self._doc_config.get("parsing_profiles", {}),
-            self._doc_config.get("chunking_profiles", {}),
-            self._doc_config.get("embedding_profiles", {}),
-            self._doc_config.get("asset_profiles", {}),
-            self._doc_config.get("ontology_profiles", {}),
-            self._doc_config.get("retrieval_profiles", {}),
-            self._doc_config.get("prompt_profiles", {}),
-            self._doc_config.get("validation_profiles", {}),
+            self._processing_config.get("extraction_profiles", {})
+            or self._doc_config.get("parsing_profiles", {}),
+            self._processing_config.get("chunking_profiles", {})
+            or self._doc_config.get("chunking_profiles", {}),
+            self._processing_config.get("embedding_profiles", {})
+            or self._doc_config.get("embedding_profiles", {}),
+            self._processing_config.get("asset_profiles", {})
+            or self._doc_config.get("asset_profiles", {}),
+            self._processing_config.get("ontology_profiles", {})
+            or self._doc_config.get("ontology_profiles", {}),
+            self._processing_config.get("retrieval_profiles", {})
+            or self._doc_config.get("retrieval_profiles", {}),
+            self._processing_config.get("prompt_profiles", {})
+            or self._doc_config.get("prompt_profiles", {}),
+            self._processing_config.get("validation_profiles", {})
+            or self._doc_config.get("validation_profiles", {}),
         ]
         seen_profiles: Dict[str, str] = {}
         for registry in profile_registries:
@@ -980,14 +1004,25 @@ class ProjectDefinitionResolver:
             self._pd_config.get("project_definition", self._pd_config)
         )
         registries = {
-            "parsing_profiles": self._doc_config.get("parsing_profiles", {}),
-            "chunking_profiles": self._doc_config.get("chunking_profiles", {}),
-            "embedding_profiles": self._doc_config.get("embedding_profiles", {}),
-            "asset_profiles": self._doc_config.get("asset_profiles", {}),
-            "ontology_profiles": self._doc_config.get("ontology_profiles", {}),
-            "retrieval_profiles": self._doc_config.get("retrieval_profiles", {}),
-            "prompt_profiles": self._doc_config.get("prompt_profiles", {}),
-            "validation_profiles": self._doc_config.get("validation_profiles", {}),
+            "extraction_profiles": self._processing_config.get("extraction_profiles", {})
+                                   or self._doc_config.get("parsing_profiles", {}),
+            "chunking_profiles": self._processing_config.get("chunking_profiles", {})
+                                 or self._doc_config.get("chunking_profiles", {}),
+            "embedding_profiles": self._processing_config.get("embedding_profiles", {})
+                                  or self._doc_config.get("embedding_profiles", {}),
+            "asset_profiles": self._processing_config.get("asset_profiles", {})
+                              or self._doc_config.get("asset_profiles", {}),
+            "ontology_profiles": self._processing_config.get("ontology_profiles", {})
+                                 or self._doc_config.get("ontology_profiles", {}),
+            "retrieval_profiles": self._processing_config.get("retrieval_profiles", {})
+                                  or self._doc_config.get("retrieval_profiles", {}),
+            "prompt_profiles": self._processing_config.get("prompt_profiles", {})
+                               or self._doc_config.get("prompt_profiles", {}),
+            "validation_profiles": self._processing_config.get("validation_profiles", {})
+                                   or self._doc_config.get("validation_profiles", {}),
+            "indexing_profiles": self._processing_config.get("indexing_profiles", {}),
+            "ai_reasoning_profiles": self._processing_config.get("ai_reasoning_profiles", {}),
+            "graph_mapping_profiles": self._processing_config.get("graph_mapping_profiles", {}),
         }
         for registry_name, registry in registries.items():
             if not isinstance(registry, dict):

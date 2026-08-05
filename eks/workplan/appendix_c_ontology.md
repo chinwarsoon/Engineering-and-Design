@@ -1,8 +1,8 @@
 # Appendix C — Dynamic ISO 15926-Aligned Ontology
 
-**Version**: 1.8  
+**Version**: 1.9  
 **Status**: ✅ APPROVED & IMPLEMENTED  
-**Last Updated**: 2026-06-22  
+**Last Updated**: 2026-08-05  
 
 ---
 
@@ -19,6 +19,7 @@
 | 1.6     | 2026-06-18 | Gemini CLI  | Refined transitivity logic: Hierarchical/directional relations with inverses (CONTROLS, GOVERNED_BY) set to transitive; Physical connectivity (CONNECTS_TO) set to non-transitive. |
 | 1.7     | 2026-06-18 | Gemini CLI  | Added Document Class Hierarchy and lifecycle relationships (SUPERSEDES, SUPPLEMENTS, REFERENCES_DOC). Linked Appendix B mapping triggers. |
 | 1.8     | 2026-06-22 | opencode    | Added `DataSheet` (subClassOf Specification, document_type_mapping: DS) and `OpsManual` (subClassOf Manual, document_type_mapping: OM) to support T1.35 document type code alignment. Updated C4 class hierarchy table. |
+| 1.9     | 2026-08-05 | opencode    | **I282 (T1.226)**: Renamed `DataSheet` → `Datasheet` and promoted to a direct `Document` subclass (D1); added `Calculation`, `Register`, `Procedure` Document subclasses; retained `CAD_Drawing`. `eks_ontology_config.json` v1.6.0 → v1.7.0. |
 
 ---
 
@@ -36,7 +37,7 @@ The system is fully dynamic: all classes, inheritance rules, and relationships a
 | :--- | :--- | :--- |
 | `$schema` | `https://eks.engineering/schemas/eks_ontology_setup_schema.json` | Link to property declarations and inheritance. |
 | `$id` | `https://eks.engineering/configs/eks_ontology_config.json` | Canonical URI for the config instance. |
-| `version` | `1.6.0` | Current version of the ontology configuration. |
+| `version` | `1.7.0` | Current version of the ontology configuration (I282 T1.226: Datasheet promoted, Calculation/Register/Procedure added). |
 | `title` | `EKS ISO 15926-Aligned Dynamic Ontology` | Descriptive title. |
 | `description` | `Dynamic ontology configuration for EKS classes...` | Scope and purpose statement. |
 
@@ -85,10 +86,16 @@ The following table represents the class taxonomy and its associated fragments/m
 | &nbsp;&nbsp;&nbsp;├─ `Drawing` | Engineering Drawing | `Document` | `DWG` |
 | &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ `PID_Drawing` | P&ID Drawing | `Drawing` | `PI-PID` |
 | &nbsp;&nbsp;&nbsp;├─ `Specification` | Technical Specification | `Document` | `SPC` |
-| &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ `DataSheet` | Equipment Data Sheet | `Specification` | `DS` |
+| &nbsp;&nbsp;&nbsp;├─ `Datasheet` | Equipment Data Sheet | `Document` | `DS` |
+| &nbsp;&nbsp;&nbsp;├─ `Calculation` | Engineering Calculation | `Document` | — |
 | &nbsp;&nbsp;&nbsp;├─ `Manual` | Vendor O&M Manual | `Document` | `MAN` |
 | &nbsp;&nbsp;&nbsp;│&nbsp;&nbsp;&nbsp;└─ `OpsManual` | Operation Manual | `Manual` | `OM` |
-| &nbsp;&nbsp;&nbsp;└─ `Report` | Technical Report | `Document` | `RPT` |
+| &nbsp;&nbsp;&nbsp;├─ `Register` | Document Register / List | `Document` | — |
+| &nbsp;&nbsp;&nbsp;├─ `Report` | Technical Report | `Document` | `RPT` |
+| &nbsp;&nbsp;&nbsp;├─ `Procedure` | Operating/Commissioning Procedure | `Document` | — |
+| &nbsp;&nbsp;&nbsp;└─ `CAD_Drawing` | Native CAD Drawing | `Document` | `CAD` |
+
+> **I282 (2026-08-05)**: `DataSheet` renamed to `Datasheet` and **promoted** to a direct `Document` subclass (D1 — a datasheet is not a specification). `Calculation`, `Register`, `Procedure` added as `Document` subclasses (closing the I282 gap). `CAD_Drawing` retained as a Document child. These 11 document classes align with the 8 `document_classes` entries in `eks_document_type_schema.json` v2.1.0 via `ontology_class`.
 
 ---
 

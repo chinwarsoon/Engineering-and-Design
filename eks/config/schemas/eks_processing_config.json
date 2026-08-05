@@ -1,0 +1,69 @@
+{
+    "$schema": "https://eks.engineering/schemas/eks_setup_schema.json",
+    "$id": "https://eks.engineering/configs/eks_processing_config_default.json",
+    "version": "1.0.0",
+    "title": "EKS Processing Profile Configuration",
+    "description": "Processing profile values SSOT (I281 T1.224). Actual VALUES for all processing profile types live here (SSOT §9/§16) — base/setup schemas hold shape only. v1.0.0: migrated 5 technip_* extraction profiles from eks_doc_config.json#/parsing_profiles into extraction_profiles (Q1 one-time migration); added 10 empty landing zones for the deferred profile types (chunking/embedding/asset/ontology/retrieval/prompt/validation/indexing/ai_reasoning/graph_mapping) — Phase 2/3 implementors populate these.",
+    "extraction_profiles": {
+        "technip_pdf": {
+            "profile_id": "technip_pdf",
+            "profile_type": "extraction",
+            "parser_class": "eks.engine.parsers.pdf_parser.PDFParser",
+            "description": "TWRP PDF document parser (cover page + metadata extraction)",
+            "supported_extensions": ["pdf"],
+            "supported_document_profiles": ["twrp_standard"],
+            "requires_ocr": false,
+            "extraction_methods": ["parser_metadata", "cover_page_element"]
+        },
+        "technip_docx": {
+            "profile_id": "technip_docx",
+            "profile_type": "extraction",
+            "parser_class": "eks.engine.parsers.docx_parser.DOCXParser",
+            "description": "TWRP Word document parser (embedded metadata extraction)",
+            "supported_extensions": ["docx"],
+            "supported_document_profiles": ["twrp_standard"],
+            "requires_ocr": false,
+            "extraction_methods": ["parser_metadata"]
+        },
+        "technip_dwg": {
+            "profile_id": "technip_dwg",
+            "profile_type": "extraction",
+            "parser_class": "eks.engine.parsers.dwg_parser.DWGParserStub",
+            "description": "TWRP native DWG drawing reader (I279 T1.215 — GAP-N4)",
+            "supported_extensions": ["dwg"],
+            "supported_document_profiles": ["twrp_standard"],
+            "requires_ocr": false,
+            "extraction_methods": ["parser_metadata"]
+        },
+        "technip_dgn": {
+            "profile_id": "technip_dgn",
+            "profile_type": "extraction",
+            "parser_class": "eks.engine.parsers.dgn_parser.DGNParserStub",
+            "description": "TWRP native DGN drawing reader (I279 T1.215 — GAP-N4)",
+            "supported_extensions": ["dgn"],
+            "supported_document_profiles": ["twrp_standard"],
+            "requires_ocr": false,
+            "extraction_methods": ["parser_metadata"]
+        },
+        "technip_xlsx": {
+            "profile_id": "technip_xlsx",
+            "profile_type": "extraction",
+            "parser_class": "eks.engine.parsers.xlsx_parser.XLSXParser",
+            "description": "TWRP native XLSX workbook reader (I279 T1.215 — GAP-N4)",
+            "supported_extensions": ["xlsx"],
+            "supported_document_profiles": ["twrp_standard"],
+            "requires_ocr": false,
+            "extraction_methods": ["parser_metadata"]
+        }
+    },
+    "chunking_profiles": {},
+    "embedding_profiles": {},
+    "asset_profiles": {},
+    "ontology_profiles": {},
+    "retrieval_profiles": {},
+    "prompt_profiles": {},
+    "validation_profiles": {},
+    "indexing_profiles": {},
+    "ai_reasoning_profiles": {},
+    "graph_mapping_profiles": {}
+}

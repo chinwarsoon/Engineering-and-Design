@@ -370,13 +370,13 @@ class EKSColumnProcessor(BaseColumnProcessor):
         # T1.194 (I265): Injected config slice (Appendix L D1). Handlers receive
         # the slice via the process() context; this copy is kept for traceability.
         self.runtime_slice = runtime_slice or {}
-        # I275: projected document_type_registry from the I279 carrier — used to
-        # resolve the current document's concept_id + format_category for the
+        # I275/I282: projected document_type_registry from the I279 carrier — used to
+        # resolve the current document's class_id + format_category for the
         # applies_to_document_types / native_only scope filter.
         self.document_type_registry = document_type_registry or []
-        # I277: parsing_profiles library (parsing_profile_def) — used to resolve
-        # the extraction-method capability set for a document and gate Phase B
-        # extraction by the selected profile's declared methods.
+        # I277: extraction_profiles library (extraction_profile_def, I281) — used
+        # to resolve the extraction-method capability set for a document and gate
+        # Phase B extraction by the selected profile's declared methods.
         self.parsing_profiles = parsing_profiles or {}
         # I278: document_templates (I279 carrier) — used to resolve a binding's
         # cover_type so a no-cover (C) template discards cover_page_element
@@ -463,12 +463,12 @@ class EKSColumnProcessor(BaseColumnProcessor):
 
     def resolve_scope(self, document_type: Optional[str]) -> Dict[str, Any]:
         """
-        I275: resolve the document-type scope for a column run.
+        I275 / I282 (T1.229): resolve the document-class scope for a column run.
 
         Looks up ``document_type`` (the project-local code stored in the
         registry DB) in the projected ``document_type_registry`` (derived from
         ``eks_document_type_schema.json#/project_document_types`` by
-        SchemaLoader). Returns ``{"concept_id": ..., "format_category": ...}``.
+        SchemaLoader). Returns ``{"class_id": ..., "format_category": ...}``.
         Unknown / missing codes yield empty scope — treated as unrestricted by
         ``BaseColumnProcessor._applies`` (falls back to "apply").
         """
@@ -477,14 +477,15 @@ class EKSColumnProcessor(BaseColumnProcessor):
         for entry in self.document_type_registry:
             if entry.get("code") == document_type:
                 return {
-                    "concept_id": entry.get("concept_id"),
+                    "class_id": entry.get("class_id"),
                     "format_category": entry.get("format_category"),
                 }
         return {}
 
     @classmethod
     def from_doc_config(cls, doc_config: Dict[str, Any],
-                        runtime_slice: Optional[Dict[str, Any]] = None) -> "EKSColumnProcessor":
+                        runtime_slice: Optional[Dict[str, Any]] = None,
+                        processing_config: Optional[Dict[str, Any]] = None) -> "EKSColumnProcessor":
         """
         Factory method: instantiate from EKS doc_config.
 
@@ -495,6 +496,9 @@ class EKSColumnProcessor(BaseColumnProcessor):
         the module's project) is injected for handler consumption.
         I275: the projected ``document_type_registry`` (I279 carrier) is passed
         through for document-type scope resolution.
+        I281 (T1.224): extraction profiles come from ``eks_processing_config.json``
+        (processing_config extraction_profiles), which supersedes the removed
+        doc_config parsing_profiles section (full repoint, Q2).
         """
         column_config = doc_config.get("column_processing")
         if not column_config:
@@ -502,10 +506,11 @@ class EKSColumnProcessor(BaseColumnProcessor):
                 "doc_config missing 'column_processing' section — "
                 "ensure eks_doc_config.json has column_processing entries"
             )
+        extraction_profiles = (processing_config or {}).get("extraction_profiles", {})
         return cls(
             column_config,
             runtime_slice=runtime_slice,
             document_type_registry=doc_config.get("document_type_registry") or [],
-            parsing_profiles=doc_config.get("parsing_profiles") or {},
+            parsing_profiles=extraction_profiles or doc_config.get("parsing_profiles") or {},
             document_templates=doc_config.get("document_templates") or {},
         )

@@ -438,7 +438,12 @@ class TestPhase1(unittest.TestCase):
         self.assertIn('source', required)
 
     def test_doc_type_enum_matches_ontology(self):
-        """T1.35: Verify document_type_code enum values match ontology document_type_mapping."""
+        """T1.35/I282: every ontology document_type_mapping appears in the enum.
+
+        The enum is a derived mirror of the carrier local_codes (§24), while the
+        ontology document_type_mapping covers only the 8 mapped classes — so the
+        correct relation is a SUBSET (mapping ⊆ enum), not equality.
+        """
         import json
         base = json.load(open(self.config_dir / 'eks_doc_base_schema.json', encoding='utf-8'))
         ontology = json.load(open(self.config_dir / 'eks_ontology_config.json', encoding='utf-8'))
@@ -448,8 +453,8 @@ class TestPhase1(unittest.TestCase):
             dtm = cls.get('document_type_mapping')
             if dtm:
                 mapping_values.add(dtm)
-        self.assertEqual(enum_values, mapping_values,
-            f"doc type enum {enum_values} != ontology mapping {mapping_values}")
+        self.assertTrue(mapping_values.issubset(enum_values),
+            f"ontology mapping {sorted(mapping_values)} not subset of enum {sorted(enum_values)}")
 
     def test_file_type_registry_completeness(self):
         """T1.35: Verify file_type_registry has all 5 expected entries."""
@@ -472,12 +477,17 @@ class TestPhase1(unittest.TestCase):
         self.assertEqual(ets, expected)
 
     def test_element_expectations_keys_match_doc_type_registry(self):
-        """T1.35: Verify element_expectations keys match document_type_registry codes."""
-        config = json.load(open(self.config_dir / 'eks_doc_config.json', encoding='utf-8'))
+        """T1.35/I282: every projected registry code's template has element expectations."""
+        from eks.engine.core.schema_loader import SchemaLoader
+        config_parent = self.config_dir.parent if self.config_dir.name == "schemas" else self.config_dir
+        loader = SchemaLoader(config_parent)
+        config = loader.load_all()
         doc_type_codes = {e['code'] for e in config.get('document_type_registry', [])}
         expect_keys = set(config.get('element_expectations', {}).keys())
-        self.assertEqual(expect_keys, doc_type_codes,
-            f"expectation keys {expect_keys} != doc type codes {doc_type_codes}")
+        templates_by_code = {e['code']: e.get('template') for e in config.get('document_type_registry', [])}
+        for code in doc_type_codes:
+            self.assertIn(templates_by_code[code], expect_keys,
+                f"template {templates_by_code[code]} for code {code} has no element expectations")
 
     def test_doc_metadata_has_new_fields(self):
         """T1.35: Verify doc metadata has file_path, ingested_at, file_type fields."""

@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_base_schema.json",
-    "version": "1.15.0",
+    "version": "1.16.0",
     "title": "EKS Base Schema - Definitions",
-    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) \u00e2\u20ac\u201d actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) \u00e2\u20ac\u201d U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default. v1.11.0: added telemetry_verbose to system_parameters_def for T1.120/I237 schema-driven TelemetryHeartbeat verbosity. v1.12.0: added 11 project definition definitions for I265 T1.190. v1.13.0: aligned project_definition_entry_def with appendix_l L.6.1 \u00e2\u20ac\u201d added project_lifecycle_def, engineering_standards_def, runtime_profiles_def; removed pipeline_config_def and integration_config_def (deployment details moved to environment config per L.6.3); renamed security_config to security_profile; added 6 inline profile ref fields (parsing_profile, chunking_profile, embedding_profile, metadata_policy, prompt_profile, validation_profile) for I265 T1.198. v1.15.0: removed project_rules_def and project_definition_entry_def.compatibility (legacy_project_rules flag) for I265 T1.196 — eks_project_rules_config.json retired; fragment_required_fields now lives per-project in eks_project_definition_config.json.",
+    "description": "Pipeline configuration definitions. Document metadata definitions moved to eks_doc_base_schema.json (T1.34). discipline_code consolidated into discipline_entry_def.properties.code (removed as standalone def per U079). document_relationship_trigger_map stripped to shape-only (v1.4.0) \u00e2\u20ac\u201d actual entries moved to config files (U086). revision_id moved to doc schema set (v1.5.0) \u00e2\u20ac\u201d U087. v1.6.0: added required_folder_setup_def, required_file_setup_def, environment_setup_def, validation_options_def (T1.67). v1.7.0: replaced flat-array project_setup defs with DCC-aligned object definitions: folder_entry_def, root_file_entry_def, schema_file_entry_def, discovery_rule_def, environment_entry_def, dependency_config_def, validation_rule_entry_def, project_metadata_def (T1.85). v1.8.0: added system_parameters_def for T1.97/I088 SSOT runtime behavior settings. v1.9.0: added workflow_file_entry_def and tool_file_entry_def for T1.98.6/I090 (DCC project_config parity). v1.10.0: added export_default to system_parameters_def for T1.113/I234 schema-driven CLI --export default. v1.11.0: added telemetry_verbose to system_parameters_def for T1.120/I237 schema-driven TelemetryHeartbeat verbosity. v1.12.0: added 11 project definition definitions for I265 T1.190. v1.13.0: aligned project_definition_entry_def with appendix_l L.6.1 \u00e2\u20ac\u201d added project_lifecycle_def, engineering_standards_def, runtime_profiles_def; removed pipeline_config_def and integration_config_def (deployment details moved to environment config per L.6.3); renamed security_config to security_profile; added 6 inline profile ref fields (parsing_profile, chunking_profile, embedding_profile, metadata_policy, prompt_profile, validation_profile) for I265 T1.198. v1.15.0: removed project_rules_def and project_definition_entry_def.compatibility (legacy_project_rules flag) for I265 T1.196 — eks_project_rules_config.json retired; fragment_required_fields now lives per-project in eks_project_definition_config.json. v1.16.0 (I281 T1.223): added generic processing_profile_registry_def container (profile_id, profile_type enum of 11, version, capabilities, constraints) shared by all processing profile types; added per-type defs — extraction_profile_def (superset of the removed doc-base parsing_profile_def: profile_id/parser_class/description/supported_extensions/supported_document_profiles/requires_ocr/extraction_methods + profile_type/version/capabilities/constraints), validation_profile_def (validation_layers), and shape-only stubs chunking_profile_def, retrieval_profile_def, indexing_profile_def, ai_reasoning_profile_def, graph_mapping_profile_def (recommended fields), embedding_profile_def, asset_profile_def, ontology_profile_def, prompt_profile_def. Values live in eks_processing_config.json (SSOT §9/§16); base holds shape only.",
     "type": "object",
     "definitions": {
         "discipline_entry_def": {
@@ -1037,6 +1037,468 @@
                 "project_identity",
                 "engineering_convention",
                 "document_profile"
+            ],
+            "additionalProperties": false
+        },
+        "processing_profile_registry_def": {
+            "type": "object",
+            "description": "Generic processing profile registry container (I281 T1.223). Shared by ALL processing profile types — each profile declares a profile_type from the 11-member enum and carries version/capabilities/constraints so it interoperates with other profile types. Per-type shapes are defined in extraction_profile_def / validation_profile_def / chunking_profile_def / retrieval_profile_def / indexing_profile_def / ai_reasoning_profile_def / graph_mapping_profile_def / embedding_profile_def / asset_profile_def / ontology_profile_def / prompt_profile_def. Actual profile VALUES live in eks_processing_config.json (SSOT §9/§16) — this is shape only.",
+            "properties": {
+                "profile_id": {
+                    "type": "string",
+                    "description": "Unique processing profile identifier (referenced by Project Definition profile refs and config sections)"
+                },
+                "profile_type": {
+                    "type": "string",
+                    "enum": [
+                        "extraction",
+                        "chunking",
+                        "embedding",
+                        "asset",
+                        "ontology",
+                        "retrieval",
+                        "prompt",
+                        "validation",
+                        "indexing",
+                        "ai_reasoning",
+                        "graph_mapping"
+                    ],
+                    "description": "Processing profile type (I281 Q3 — all 11 registry keys; each is a separate config section keyed {type}_profiles)"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Profile schema version"
+                },
+                "capabilities": {
+                    "type": "object",
+                    "description": "Declared capabilities of this profile — consumed by the generic ProjectDefinitionResolver capability evaluator (no central compatibility matrix, L.13.6 V2).",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                },
+                "constraints": {
+                    "type": "object",
+                    "description": "Usage constraints on this profile (e.g. document classes, format categories).",
+                    "additionalProperties": true
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "extraction_profile_def": {
+            "type": "object",
+            "description": "Named extraction (parsing) profile with declared capabilities (I281 T1.223 — superset of the removed doc-base parsing_profile_def, T1.195 V2). Capabilities are properties of the profile itself — ProjectDefinitionResolver extracts them during resolution and a single generic evaluator checks compatibility. No central matrix and no hardcoded pairs.",
+            "properties": {
+                "profile_id": {
+                    "type": "string",
+                    "description": "Unique extraction profile identifier (referenced by Project Definition parsing_profile / document_profile.parser)"
+                },
+                "profile_type": {
+                    "const": "extraction"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Profile schema version"
+                },
+                "parser_class": {
+                    "type": "string",
+                    "description": "Fully qualified parser implementation class"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Human-readable profile description"
+                },
+                "supported_extensions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "eks_doc_base_schema.json#/definitions/file_type_code"
+                    },
+                    "description": "Source file extensions this parser can process"
+                },
+                "supported_document_profiles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Document filename profiles (from doc config filename_profiles keys) this parser supports"
+                },
+                "requires_ocr": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "True when this parser needs an OCR profile (scanned input). Compared against Project Definition document_profile.ocr."
+                },
+                "extraction_methods": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Metadata extraction methods this parser supports (e.g. parser_metadata, cover_page_element)"
+                },
+                "capabilities": {
+                    "type": "object",
+                    "description": "Declared extraction capabilities (e.g. layout_analysis, table_detection, symbol_detection).",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                },
+                "constraints": {
+                    "type": "object",
+                    "description": "Usage constraints (e.g. format_category).",
+                    "additionalProperties": true
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type",
+                "parser_class"
+            ],
+            "additionalProperties": false
+        },
+        "validation_profile_def": {
+            "type": "object",
+            "description": "Validation profile (I281 T1.223). Container for the multi-layer document validation rules per Appendix B B2.1 §4 — metadata/structure/business/engineering/graph/quality. The I284 column scoring_tier / applies_to_concepts mechanism is the column-value validation LAYER within this container (Q4) — complementary, not merged.",
+            "properties": {
+                "profile_id": {
+                    "type": "string",
+                    "description": "Unique validation profile identifier"
+                },
+                "profile_type": {
+                    "const": "validation"
+                },
+                "version": {
+                    "type": "string",
+                    "description": "Profile schema version"
+                },
+                "validation_layers": {
+                    "type": "object",
+                    "description": "Per-layer validation rule sets per Appendix B B2.1 §4 Validation Profile.",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "capabilities": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                },
+                "constraints": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "chunking_profile_def": {
+            "type": "object",
+            "description": "Chunking profile (I281 T1.223 — shape-only stub, Phase 2). Per Appendix B B2.1 §4 Chunking Profile.",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "chunking"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "chunk_strategy": {
+                    "type": "string",
+                    "description": "Chunk strategy name (Section/Heading/Drawing/Table/Paragraph/Sheet/Revision/Title Block)"
+                },
+                "chunk_size": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "anchor_priority": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "embedding_scope": {
+                    "type": "string",
+                    "description": "Embedding scope (e.g. sheet)"
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "retrieval_profile_def": {
+            "type": "object",
+            "description": "Retrieval and RAG profile (I281 T1.223 — shape-only stub, Phase 2). Per Appendix B B2.1 §4 Retrieval Profile.",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "retrieval"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "embedding_model": {
+                    "type": "string"
+                },
+                "reranker": {
+                    "type": "string"
+                },
+                "vector_weight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "graph_weight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "metadata_weight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "keyword_weight": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                },
+                "hybrid_search": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "indexing_profile_def": {
+            "type": "object",
+            "description": "Indexing profile (I281 T1.223 — shape-only stub, Phase 3). Per Appendix B B2.1 §4 Indexing Profile (optional).",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "indexing"
+                },
+                "version": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "ai_reasoning_profile_def": {
+            "type": "object",
+            "description": "AI Reasoning profile (I281 T1.223 — shape-only stub, Phase 3). Per Appendix B B2.1 §4 AI Reasoning Profile.",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "ai_reasoning"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "question_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "reasoning_level": {
+                    "type": "string"
+                },
+                "requires_graph": {
+                    "type": "boolean"
+                },
+                "requires_multimodal": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "graph_mapping_profile_def": {
+            "type": "object",
+            "description": "Graph Mapping profile (I281 T1.223 — shape-only stub, Phase 3; recommended fields per Q6, details evaluated later). Per Appendix B B2.1 §4 Graph Mapping Profile (optional, future).",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "graph_mapping"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "entity_mapping": {
+                    "type": "object",
+                    "description": "Mapping of source entities to graph nodes (recommended — details evaluated in future phase).",
+                    "additionalProperties": true
+                },
+                "relationship_mapping": {
+                    "type": "object",
+                    "description": "Mapping of source relationships to graph edges (recommended — details evaluated in future phase).",
+                    "additionalProperties": true
+                },
+                "tag_type_mapping": {
+                    "type": "object",
+                    "description": "Mapping of tag types to graph labels (recommended).",
+                    "additionalProperties": true
+                },
+                "document_type_mapping": {
+                    "type": "object",
+                    "description": "Mapping of document types to graph node categories (recommended).",
+                    "additionalProperties": true
+                },
+                "node_label_strategy": {
+                    "type": "string",
+                    "description": "Strategy for deriving node labels (recommended)."
+                },
+                "edge_definition": {
+                    "type": "object",
+                    "description": "Definition of edge types (recommended).",
+                    "additionalProperties": true
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "embedding_profile_def": {
+            "type": "object",
+            "description": "Embedding profile (I281 T1.223 — shape-only stub, Phase 2/3). Defines embedding model and vectorisation behaviour.",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "embedding"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "embedding_model": {
+                    "type": "string"
+                },
+                "dimensions": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "batch_size": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "asset_profile_def": {
+            "type": "object",
+            "description": "Asset processing profile (I281 T1.223 — shape-only stub, Phase 3). Defines asset extraction behaviour per Appendix A fragment composition.",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "asset"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "fragments": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "ontology_profile_def": {
+            "type": "object",
+            "description": "Ontology profile (I281 T1.223 — shape-only stub, Phase 3). Defines ontology mapping behaviour.",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "ontology"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "mapping": {
+                    "type": "object",
+                    "description": "Ontology mapping rules (e.g. tag_type_mapping, document_type_mapping).",
+                    "additionalProperties": true
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
+            ],
+            "additionalProperties": false
+        },
+        "prompt_profile_def": {
+            "type": "object",
+            "description": "AI prompt profile (I281 T1.223 — shape-only stub, Phase 3). Defines prompt construction behaviour for retrieval/RAG.",
+            "properties": {
+                "profile_id": {
+                    "type": "string"
+                },
+                "profile_type": {
+                    "const": "prompt"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "template": {
+                    "type": "string",
+                    "description": "Prompt template reference"
+                },
+                "citation_priority": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            },
+            "required": [
+                "profile_id",
+                "profile_type"
             ],
             "additionalProperties": false
         },

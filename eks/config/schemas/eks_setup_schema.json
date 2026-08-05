@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://eks.engineering/schemas/eks_setup_schema.json",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "title": "EKS Setup Schema - Declarations",
-    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). v1.4.0: reshaped project_setup to DCC-aligned object model (folders/root_files/schema_files/environment/dependencies/discovery_rules/validation_rules/project_metadata) per T1.85. v1.5.0: flattened project_setup — setup values (folders/root_files/schema_files/environment/dependencies/project_metadata) are now TOP-LEVEL properties (no project_setup wrapper), aligning EKS eks_config.json with DCC project_config.json (T1.90). v1.6.0: added system_parameters property for T1.97/I088. v1.7.0: added workflow_files and tool_files top-level properties for T1.98.6/I090 (DCC project_config parity). v1.8.0: added project_definition property for I265 T1.190 — per-project definition registry superseding project_rules_registry. v1.9.0: removed project_rules_registry property + required entry for I265 T1.196 — eks_project_rules_config.json retired.",
+    "description": "Global property declarations. v1.2.1: discipline_registry changed to $ref-only. v1.2.2: project_rules_registry changed to $ref-only (inline values moved to eks_project_rules_config.json) per audit — SSOT enforced. v1.3.0: added project_setup property (T1.67). v1.4.0: reshaped project_setup to DCC-aligned object model (folders/root_files/schema_files/environment/dependencies/discovery_rules/validation_rules/project_metadata) per T1.85. v1.5.0: flattened project_setup — setup values (folders/root_files/schema_files/environment/dependencies/project_metadata) are now TOP-LEVEL properties (no project_setup wrapper), aligning EKS eks_config.json with DCC project_config.json (T1.90). v1.6.0: added system_parameters property for T1.97/I088. v1.7.0: added workflow_files and tool_files top-level properties for T1.98.6/I090 (DCC project_config parity). v1.8.0: added project_definition property for I265 T1.190 — per-project definition registry superseding project_rules_registry. v1.9.0: removed project_rules_registry property + required entry for I265 T1.196 — eks_project_rules_config.json retired. v1.10.0 (I281 T1.223): added processing_profiles property — object keyed {type}_profiles (extraction/chunking/embedding/asset/ontology/retrieval/prompt/validation/indexing/ai_reasoning/graph_mapping), each a name→per-type-def map; validates eks_processing_config.json (SSOT §9 — values live there, never in base/setup).",
     "allOf": [
         { "$ref": "eks_base_schema.json" }
     ],
@@ -17,6 +17,69 @@
         "project_definition": {
             "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/project_definition_registry_def",
             "description": "Per-project definitions (I265 T1.190). Keys are project codes. Profile references resolved by ProjectDefinitionResolver at runtime. Replaces project_rules_registry as the project-specific SSOT."
+        },
+        "processing_profiles": {
+            "type": "object",
+            "description": "Reusable processing profile registries (I281 T1.223). Object keyed by profile-type section — each {type}_profiles key maps profile names to their per-type def. Actual VALUES live in eks_processing_config.json (SSOT §9/§16); base/setup hold shape only.",
+            "properties": {
+                "extraction_profiles": {
+                    "type": "object",
+                    "description": "Extraction (parsing) profiles keyed by profile name.",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/extraction_profile_def" }
+                },
+                "chunking_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/chunking_profile_def" }
+                },
+                "embedding_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/embedding_profile_def" }
+                },
+                "asset_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/asset_profile_def" }
+                },
+                "ontology_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/ontology_profile_def" }
+                },
+                "retrieval_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/retrieval_profile_def" }
+                },
+                "prompt_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/prompt_profile_def" }
+                },
+                "validation_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/validation_profile_def" }
+                },
+                "indexing_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/indexing_profile_def" }
+                },
+                "ai_reasoning_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/ai_reasoning_profile_def" }
+                },
+                "graph_mapping_profiles": {
+                    "type": "object",
+                    "propertyNames": { "pattern": "^[a-z_]+$" },
+                    "additionalProperties": { "$ref": "https://eks.engineering/schemas/eks_base_schema.json#/definitions/graph_mapping_profile_def" }
+                }
+            },
+            "additionalProperties": false
         },
         "discipline_registry": {
             "type": "object",

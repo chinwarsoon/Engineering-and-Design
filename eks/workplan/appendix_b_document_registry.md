@@ -1,16 +1,79 @@
-# Appendix B — Document Registry
+﻿# Appendix B — Document Registry
 
-**Version**: 2.0.0  
-**Last Updated**: 2026-07-19  
+**Version**: 2.1.1  
+**Last Updated**: 2026-08-05  
 **Phase**: 1 — Foundation  
-**Status**: ✅ Implemented & Tested  
+**Status**: ✅ Official  
 **Related Files**:
 - [`eks/engine/core/registry.py`](../engine/core/registry.py)
 - [`eks/engine/core/revision.py`](../engine/core/revision.py)
 - [`eks/engine/core/config_registry.py`](../engine/core/config_registry.py)
-- [`eks/config/schemas/eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) — Document column definitions (v1.8.0)
+- [`eks/config/schemas/eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) — Document column definitions (v1.14.0)
 - [`eks/config/schemas/eks_doc_setup_schema.json`](../config/schemas/eks_doc_setup_schema.json) — Table declarations, extraction rules, health scoring
 - [`eks/config/schemas/eks_doc_config.json`](../config/schemas/eks_doc_config.json) — Element expectations, score tiers
+- [`eks/config/schemas/eks_document_type_schema.json`](../config/schemas/eks_document_type_schema.json) — 5-section carrier (classes/types/family/bindings/templates, v2.1.0)
+- [`eks/config/schemas/eks_ontology_config.json`](../config/schemas/eks_ontology_config.json) — Document class hierarchy (§C4, v1.7.0)
+
+**Migration Note**: This version implements the unified document type definition structure (B2.1) that merges the previous B2.1 Registry Structure and B3.2 Enrich Document Type sections. The content previously in B3.2 has been integrated into B2.1. Previous version archived as `archive/appendix_b_document_registry_v2.0.0_2026-08-04.md`. v2.1.1 (I282): the concept layer (`document_type_concepts`) is removed from the carrier; bindings reference `class_id`; document classes are the 8 shape-only entries in `document_classes`.
+
+---
+
+## Table of Contents
+
+- [Revision History](#revision-history)
+- [B1. Overview](#b1-overview)
+- [B2. Architecture](#b2-architecture)
+  - [B2.1 Unified Document Type Definition](#b21-unified-document-type-definition)
+    - [1. Identity & Classification](#1-identity--classification)
+    - [2. Structural Characteristics](#2-structural-characteristics)
+    - [3. Document Semantics](#3-document-semantics)
+    - [4. Processing Profiles](#4-processing-profiles)
+    - [5. Knowledge Relationships](#5-knowledge-relationships)
+    - [6. Lifecycle & Governance](#6-lifecycle--governance)
+    - [7. Capabilities & Extensions](#7-capabilities--extensions)
+  - [B2.2 Registry workflow](#b22-registry-workflow)
+- [B3. Ontology Hierarchy for EPC RAG System](#b3-ontology-hierarchy-for-epc-rag-system)
+  - [B3.1 Document Class, Document Type, and Document Family](#b31-document-class-document-type-and-document-family)
+  - [B3.2 Document Type Registry](#b32-document-type-registry)
+  - [B3.3 File Type Registry](#b33-file-type-registry)
+  - [B3.4 Element Type Registry](#b34-element-type-registry)
+- [B4. Database Schema](#b4-database-schema)
+  - [Schema to Unified Document Type Definition Mapping](#schema-to-unified-document-type-definition-mapping)
+  - [Identity (2 columns)](#identity-2-columns)
+  - [Project (5 columns)](#project-5-columns)
+  - [Document Core (7 columns)](#document-core-7-columns)
+  - [Timestamps (1 column)](#timestamps-1-column)
+  - [Account (3 columns)](#account-3-columns)
+  - [Origin & Security (2 columns)](#origin--security-2-columns)
+  - [Asset Tags & Technical (2 columns)](#asset-tags--technical-2-columns)
+  - [Quality (4 columns)](#quality-4-columns)
+  - [OS File Properties (4 columns — v1.4.0, Appendix J)](#os-file-properties-4-columns--v140-appendix-j)
+  - [Embedded Metadata (9 columns — v1.4.0, Appendix J)](#embedded-metadata-9-columns--v140-appendix-j)
+  - [Document Lifecycle (15 columns — v1.6.0)](#document-lifecycle-15-columns--v160)
+  - [B4.1. Ontology Mapping (Knowledge Graph Triggers)](#b41-ontology-mapping-knowledge-graph-triggers)
+- [B5. Function Reference](#b5-function-reference)
+### B5.1 `DocumentRegistry.__init__(logger, db_path=None, pre_generated_ddl=None)`
+  - [B5.2 `DocumentRegistry.register_document(metadata) → str`](#b52-documentregistryregister_documentmetadata--str)
+  - [B5.3 `DocumentRegistry.get_document(doc_number, revision=None) → dict | None`](#b53-documentregistryget_documentdoc_number-revisionnone--dict--none)
+  - [B5.4 `DocumentRegistry.get_latest_by_key(doc_number, revision) → dict | None`](#b54-documentregistryget_latest_by_keydoc_number-revision--dict--none)
+  - [B5.5 `DocumentRegistry.list_documents(filters, latest_only=True, order_by=None) → list[dict]`](#b55-documentregistrylist_documentsfilters-latest_onlytrue-order_bynone--listdict)
+  - [B5.6 `DocumentRegistry.update_document_status(doc_id, status, confidence=None, notes=None, extra_properties=None) → bool`](#b56-documentregistryupdate_document_statusdoc_id-status-confidencenone-notesnone-extra_propertiesnone--bool)
+  - [B5.7 `DocumentRegistry.sync_schema() → dict`](#b57-documentregistrysync_schema--dict)
+  - [B5.8 `DocumentRegistry.store_elements(doc_id, elements) → int`](#b58-documentregistrystore_elementsdoc_id-elements--int)
+  - [B5.9 `DocumentRegistry.get_elements(doc_id) → list[dict]`](#b59-documentregistryget_elementsdoc_id--listdict)
+  - [B5.10 `DocumentRegistry.get_elements_by_type(doc_id, element_type) → list[dict]`](#b510-documentregistryget_elements_by_typedoc_id-element_type--listdict)
+  - [B5.11 `DocumentRegistry.delete_elements(doc_id) → int`](#b511-documentregistrydelete_elementsdoc_id--int)
+- [B6. Extraction & Verification Workflow](#b6-extraction--verification-workflow)
+  - [Phase 1 — Foundation Extraction (✅ IMPLEMENTED)](#phase-1--foundation-extraction--implemented)
+  - [Phase 3 — Knowledge Graph Ingestion (🔷 PLANNED)](#phase-3--knowledge-graph-ingestion--planned)
+  - [Phase 5 — Manual Verification (🔷 PLANNED)](#phase-5--manual-verification--planned)
+- [B7. Document Registry Establishment Summary (TWRP Project)](#b7-document-registry-establishment-summary-twrp-project)
+  - [B7.1. Existing Data Assets (`eks/data/twrp/`)](#b71-existing-data-assets-ekdatatwrp)
+  - [B7.2. Establishment Workflow](#b72-establishment-workflow)
+  - [B7.3. Next Steps for TWRP Ingestion (Require Approval)](#b73-next-steps-for-twrp-ingestion-require-approval)
+- [B8. References](#b8-references)
+
+---
 
 ## Revision History
 
@@ -27,7 +90,12 @@
 | 0.9 | 2026-06-22 | opencode | Added B3.2 Document Type Registry, B3.3 File Type Registry, B3.4 Element Type Registry per T1.35; added `file_type` column to B3 table. |
 | 1.0 | 2026-07-19 | opencode | I196 gap-closure sweep: updated B3 `id` format to UUID v4 (I186), B2 diagram INSERT (not REPLACE); added `CAD` to B3.2; corrected B6.2 Phase 1 scope re: `asset_tags`; updated B3 PK description for composite index. |
 | 1.1 | 2026-07-19 | CodeBuddy | I196 full gap-closure: expanded B3 from 24→54 columns (v1.8.0 schema alignment); corrected auto/manual labels for checked_by, approved_by, originator_company; added references_documents + lifecycle_stage to B3.1 ontology mapping; added 7 missing public methods to B4 (sync_schema, store_elements, get_elements, get_elements_by_type, delete_elements, get_latest_by_key, update_document_status); documented I186 UUID migration in B4.1; rewrote B5 to document Phase 1 extraction pipeline (FilenameParser, FilePropertyExtractor, StructureDetector, HealthScorer); added column groupings, element thresholds to B3.4; corrected parser class paths to eks.engine.*; removed unsupported PostgreSQL claim; added export artifacts section to B6.2. |
-| 1.2 | 2026-08-04 | Franklin Song | Added requirements for document definitions in SEction B.3 |
+| 1.2 | 2026-08-04 | Franklin Song | Added requirements for document definitions in Section B.3 |
+| 2.1.0 | 2026-08-04 | Franklin Song | **ALIGNMENT FIX**: Unified B2.1 and B3.2 into single Document Type Definition structure with 7 functional domains; deprecated B3.2 with migration note; added B3.1 cross-reference to B2.1; updated B4 schema references to unified structure; standardized terminology across sections. |
+| 2.1.1 | 2026-08-05 | Franklin Song | **DOCS SYNC**: Aligned all sections to code/schema reality post I255/I264/I274/I275/I276/I277/I278/I279. Updated B2.1 tree with Phase 1 scope annotations; fixed B2.2 workflow diagram (added `_ensure_schema_version()`, fixed `COLUMN_ALLOWLIST` description); expanded B3.2 table to 15 codes with project-binding model and three-section SSOT reference; added `format_category` column to B3.3; updated B3.4 `element_expectations` source reference to `document_templates`; updated B4 schema version to v1.13.0; fixed B4.1 ontology trigger routing description; added `_ensure_schema_version()` + `pre_generated_ddl` to B5.1; updated B6 Phase 1 steps 2/3/6 for FilenameParser auto-detect/format_category/column-scope; updated B7.2 steps 3/4/7; added revision history entries for I264/I275–I279. Retired `appendix_b_document_registry.md` (original). |
+| 2.1.2 | 2026-08-05 | opencode | **I282 T1.236**: Documented removal of the concept layer (`document_type_concepts`) and the migration to the 5-section class-based carrier (`document_classes`/`document_types`/`document_family`/`project_document_types`/`document_templates`). Updated B2.1 Identity fields (class_id/type_id/family_id), B3.1 tree note, B3.2 binding tables (Concept→Class), document class list (8 classes closing I282), B4.1 ontology trigger, and related-file refs (v1.14.0 / v1.7.0). |
+| 2.1.3 | 2026-08-05 | opencode | **I281 T1.223/T1.224**: Documented the 11-type processing profile registry (Domain 4). Profile VALUES now live in `eks_processing_config.json` (SSOT §9/§16) — `extraction_profiles` (5 `technip_*`) migrated from `eks_doc_config.json#/parsing_profiles`; core `eks_base_schema.json` holds shape-only defs (`processing_profile_registry_def` + 11 per-type defs incl. `extraction_profile_def` superset); core `eks_setup_schema.json` `processing_profiles` declares the `{type}_profiles` sections; updated Phase 1 scope note. Related-file refs (base v1.16.0 / setup v1.10.0 / doc config v1.10.0). |
+
 ---
 
 ## B1. Overview
@@ -48,31 +116,357 @@ The registry is config-driven — the DB path is read from `eks_config.json` at 
 
 ## B2. Architecture
 
-### B2.1 Registry Structure
+### B2.1 Unified Document Type Definition
+
+The Document Type Definition provides a unified structure that serves both registry implementation and semantic ontology purposes. It is organized into 7 functional domains:
+
+> **Phase 1 Scope Note**: Domains 1 (Identity & Classification — partial), 4 (Processing Profiles — Extraction/Validation containers + config SSOT via I281; values in `eks_processing_config.json`), 5 (Knowledge Relationships — registry columns only), and 6 (Lifecycle & Governance) are implemented in Phase 1. Domains 2 (Structural Characteristics — template-level only), 3 (Document Semantics — 🔷 Phase 3), 4 remaining profiles (Chunking, Retrieval, Indexing, AI Reasoning, Graph Mapping, Embedding, Asset, Ontology, Prompt — 🔷 Phase 2/3), and 7 (Capabilities & Extensions — 🔷 future) are planned. See I280, I281, I283, I284 for open gaps.
+
 ```
-Document
-├── Document Type Registry
-│      ├── Identity (document_type_id, display_name, description, version)
-│      ├── Classification (document_class, document_family, discipline, category, project_phase)
-│      ├── Structure(title_block, revision_table, cover_page, signature_block, multi_sheet, vector_graphics)
-│      ├── Metadata (required, optional)
-│      ├── Relationships (references, related, supersedes)
-│      ├── Capabilities
-│      ├── Processing References (extraction_profile, chunk_profile, retrieval_profile, validation_profile)
-│      ├── Lifecycle
-│      └── Governance
+Document Type Life Cycle Definition
+├── 1. Identity & Classification  [✅ Phase 1 — partial]
+│      ├── Identity (class_id, type_id, label, ontology_class, family_id, display_name, description, version)
+│      ├── Classification (document_class, document_family, discipline, category, project_phase, lifecycle_stage)
+│      └── Metadata (required, optional fields)
+│          Note: class_id/label/ontology_class/common_rules implemented in document_class_def (shape-only, I282).
+│          family_id and nested parent_class_id supported at runtime via get_class_ancestry(); type hierarchy 🔷 I280/I283.
 │
-├── Processing Profile Registry
-│      ├── Extraction Profiles
-│      ├── Chunking Profiles
-│      ├── Retrieval Profiles
-│      ├── Validation Profiles
-│      ├── Indexing Profiles        (optional)
-│      ├── AI Reasoning Profiles    (future)
-│      └── Graph Mapping Profiles   (future)
+├── 2. Structural Characteristics  [✅ template-level only — full per-type profile 🔷 I280/I283]
+│      ├── Document Structure (cover_type, expected_elements, threshold — in document_templates)
+│      ├── Content Organization (section_based, drawing_based, embedded_tables — 🔷 I280)
+│      └── Visual Elements (contains_callouts, contains_symbols, title_block, legend, grid — 🔷 I280)
 │
-└── Processing Pipelines (optional, future)
+├── 3. Document Semantics  [🔷 Phase 3 — not implemented]
+│      ├── Semantic Entities (semantic_entities list)
+│      ├── Semantic Relationships (semantic_relationships list)
+│      ├── Semantic Constraints (semantic_constraints list)
+│      └── Business/Engineering Objects (business_objects, engineering_objects)
+│
+├── 4. Processing Profiles  [✅ Extraction/Validation containers + config — Chunking/Retrieval/Indexing/AI/Graph Mapping/Embedding/Asset/Ontology/Prompt 🔷 I281]
+│      ├── Extraction Profile [✅] (extraction_profiles in eks_processing_config.json — 5 profiles: technip_pdf/docx/dwg/dgn/xlsx; I281 migrated from eks_doc_config.json#/parsing_profiles)
+│      ├── Chunking Profile [🔷 Phase 2] (chunk_strategy, chunk_size, anchor_priority, embedding_scope)
+│      ├── Retrieval Profile [🔷 Phase 2] (embedding_model, reranker, vector/graph/metadata/keyword weights)
+│      ├── Validation Profile [🔷 I284] (validation_layers: metadata/structure/business/engineering/graph/quality; per-type tier columns — column-value layer hardcoded in health_scorer.py, I284)
+│      ├── Indexing Profile [🔷 Phase 3] (optional)
+│      ├── AI Reasoning Profile [🔷 Phase 3] (question_types, reasoning_level, requires_graph)
+│      ├── Graph Mapping Profile [🔷 Phase 3] (optional, future — stub fields: entity_mapping, relationship_mapping, tag_type_mapping, document_type_mapping, node_label_strategy, edge_definition)
+│      ├── Embedding Profile [🔷 Phase 2/3]
+│      ├── Asset Profile [🔷 Phase 3]
+│      ├── Ontology Profile [🔷 Phase 3]
+│      └── Prompt Profile [🔷 Phase 3]
+│          Note: profile VALUES live in eks_processing_config.json (SSOT §9/§16, I281);
+│          core eks_base_schema.json holds shape-only defs (processing_profile_registry_def
+│          + 11 per-type defs); core eks_setup_schema.json processing_profiles declares the
+│          {type}_profiles sections.
+│
+├── 5. Knowledge Relationships  [✅ registry columns only — graph edges 🔷 Phase 3]
+│      └── Relationship Types (supersedes, superseded_by, references_documents — in DB schema)
+│
+├── 6. Lifecycle & Governance  [✅ Phase 1]
+│      ├── Lifecycle (lifecycle_stage, revision_date, revision_description — in DB schema)
+│      └── Governance (originator_company, security_class, responsible_engineer — in DB schema)
+│
+└── 7. Capabilities & Extensions  [🔷 future]
+      ├── Capabilities (what operations this document type supports)
+      └── Extension Points (custom parsers, custom validators, etc.)
 ```
+
+#### 1. Identity & Classification
+
+**Identity** defines immutable properties of Document Type:
+
+```json
+{
+   "type_id": "PID_DRAWING",
+   "label": "P&ID Drawing",
+   "short_name": "P&ID",
+   "ontology_class": "PID_Drawing",
+   "class_id": "Drawing",
+   "family_id": "Process Drawing",
+   "document_type_id": "PI-PID",
+   "display_name": "P&ID Drawing",
+   "description": "Process and Instrumentation Diagram representing process flow, piping and instrumentation.",
+   "version": "1.0"
+}
+```
+
+**Classification** categorizes documents within the hierarchy:
+
+- `document_class`: High-level class (Drawing, Specification, Calculation, Manual, Datasheet, Register, Report, Procedure)
+- `document_family`: Grouping by discipline (Process Drawing, Instrument Drawing, Electrical Drawing, Mechanical Drawing)
+- `discipline`: Discipline code (Process, Instrument, Electrical, Civil, Mechanical)
+- `category`: Engineering category (Engineering, Design, Construction, Operation)
+- `project_phase`: Project lifecycle phase (tender, FEED, Detailed Engineering, Construction, Commissioning, Operation)
+- `lifecycle_stage`: Document lifecycle stage (draft, issued_for_review, issued_for_construction, as_built, superseded, archived)
+
+**Metadata** defines required and optional fields per document type.
+
+#### 2. Structural Characteristics
+
+**Document Structure** defines the physical layout:
+
+```json
+{
+   "title_block": "standard",
+   "revision_table": "standard",
+   "cover_page": "required",
+   "signature_block": "required",
+   "multi_sheet": true,
+   "vector_graphics": true
+}
+```
+
+**Content Organization** defines how content is organized:
+
+```json
+{
+   "section_based": false,
+   "drawing_based": true,
+   "embedded_tables": false,
+   "table_regions": "none",
+   "has_table_of_contents": false
+}
+```
+
+**Visual Elements** defines visual components present:
+
+```json
+{
+   "contains_callouts": true,
+   "contains_symbols": true,
+   "contains_cross_references": true,
+   "legend": "standard",
+   "grid": "standard",
+   "drawing_scale": "1:100",
+   "sheet_number": "standard",
+   "north_arrow": "standard",
+   "table_regions": "none",
+   "revision_block": "standard",
+   "signature_block": "required",
+   "approval_block": "required",
+   "change_cloud": "optional",
+   "callout_regions": "detected"
+}
+```
+
+#### 3. Document Semantics
+
+**Document Semantics** defines what knowledge a document contains, directly feeding the graph database:
+
+- `semantic_entities`: List of entity types (Equipment, Instrument, Valve, Pipe, Control Loop, Stream, Area, Subsystem)
+- `semantic_relationships`: List of relationship types (connected_to, measures, installed_on, controls)
+- `semantic_constraints`: Constraints on entity relationships
+- `business_objects`: Business-relevant objects
+- `engineering_objects`: Engineering-relevant objects
+
+**Example for P&ID**:
+```
+P&ID
+   contains
+      Equipment
+      Instrument
+      Valve
+      Pipe
+      Control Loop
+      Stream
+      Area
+      Subsystem
+
+Equipment
+   connected_to
+      Pipe
+
+Instrument
+   measures
+      Line
+
+Valve
+   installed_on
+      Line
+
+Control Loop
+   controls
+      Valve
+```
+
+#### 4. Processing Profiles
+
+**Extraction Profile** defines parser chains:
+
+```json
+{
+   "parser": "PDFParser",
+   "ocr": false,
+   "layout_analysis": true,
+   "vector_drawing": true,
+   "table_detection": false,
+   "symbol_detection": true,
+   "entity_linking": true,
+   "caption_detection": true,
+   "extraction_steps": [
+      "Layout",
+      "Title Block",
+      "Revision Table",
+      "Entity Extraction",
+      "Table Extraction",
+      "Figure Extraction",
+      "Cross-reference",
+      "Callout",
+      "Symbol Detection",
+      "CAD Parser",
+      "Vision LLM",
+      "LLM Verification"
+   ],
+   "confidence_threshold": 0.85
+}
+```
+
+**Parser Capability Matrix** helps with parser orchestration:
+
+| Document  | OCR | Table | CAD | Vision | Graph   |
+| --------- | --- | ----- | --- | ------ | ------- |
+| P&ID      | No  | No    | Yes | Yes    | Yes     |
+| Manual    | Yes | Yes   | No  | No     | No      |
+| Datasheet | Yes | Yes   | No  | No     | Partial |
+
+**Parser example for P&ID**:
+```
+P&ID
+↓
+PDF Parser
+↓
+CAD Parser
+↓
+Vision Model
+↓
+Symbol Detection
+↓
+Graph Builder
+```
+
+**Chunking Profile** defines how documents are chunked:
+
+```json
+{
+   "chunk_strategy": "drawing",
+   "chunk_size": 1,
+   "anchor_priority": ["Equipment", "Line", "Instrument", "Valve"],
+   "embedding_scope": "sheet"
+}
+```
+
+**Chunk Strategy Registry** (expandable):
+- Section
+- Heading
+- Drawing
+- Table
+- Paragraph
+- Sheet
+- Revision
+- Title Block
+
+**Document type mapping**:
+- Drawing → Sheet Chunk
+- Manual → Heading Chunk
+- Specification → Section Chunk
+- Register → Row Chunk
+
+**Retrieval Profile** defines retrieval behavior:
+
+```json
+{
+   "embedding_model": "text-embedding-3-small",
+   "reranker": "cross-encoder",
+   "vector_weight": 0.4,
+   "graph_weight": 0.3,
+   "metadata_weight": 0.2,
+   "keyword_weight": 0.1,
+   "hybrid_search": true,
+   "cross_document_search": true,
+   "section_priority": ["high"],
+   "entity_priority": ["Equipment", "Instrument"],
+   "table_priority": ["high"],
+   "figure_priority": ["medium"]
+}
+```
+
+**Validation Profile** defines validation rules across multiple layers:
+
+```json
+{
+   "validation_layers": {
+      "metadata": ["required_fields", "format_validation"],
+      "structure": ["element_presence", "element_order"],
+      "business": ["business_rules", "consistency_checks"],
+      "engineering": ["engineering_standards", "calculations"],
+      "graph": ["entity_integrity", "relationship_validity"],
+      "quality": ["completeness", "accuracy_thresholds"]
+   }
+}
+```
+
+**AI Reasoning Profile** defines how AI interacts with document type:
+
+```json
+{
+   "question_types": ["equipment_location", "line_routing", "control_loop", "valve_location", "instrument_function"],
+   "reasoning_level": "technical",
+   "preferred_context": ["title_block", "equipment_tags", "process_flow"],
+   "requires_graph": true,
+   "requires_multimodal": true,
+   "preferred_chunk": "sheet",
+   "citation_priority": ["equipment", "instrument", "valve"]
+}
+```
+
+**Note**: For example, AI can answer equipment, line routing, control loop, valve location, and instrument function from P&IDs, but it cannot answer operating procedures.
+
+#### 5. Knowledge Relationships
+
+**Relationship Types** define typed relationships between documents:
+
+```
+relationships
+   produced_from
+   validated_by
+   references
+   implements
+   supersedes
+   derived_from
+   contains
+   linked_to
+   verified_against
+   governs
+```
+
+#### 6. Lifecycle & Governance
+
+**Lifecycle** defines document lifecycle management:
+
+```json
+{
+   "lifecycle_stage": ["draft", "issued_for_review", "issued_for_construction", "as_built", "superseded", "archived"],
+   "revision_strategy": "sequential",
+   "revision_date": "ISO 8601",
+   "revision_description": "required"
+}
+```
+
+**Governance** defines ownership and security:
+
+```json
+{
+   "owner": "discipline_lead",
+   "confidentiality_default": "internal",
+   "approval_workflow": "standard"
+}
+```
+
+#### 7. Capabilities & Extensions
+
+**Capabilities** defines what operations this document type supports (🔷 placeholder for future definition).
+
+**Extension Points** defines custom parsers, validators, and other extensions (🔷 placeholder).
 
 
 ### B2.2 Registry workflow
@@ -127,9 +521,11 @@ Document
 
 ---
 
-## B3. Ontology Hierachy for EPC RAG System
+## B3. Ontology Hierarchy for EPC RAG System
 
-For an enterprise RAG system (especially Engineering, EPC, Oil & Gas, Pharma, Manufacturing), consider to enrich the document type into a knowledge ontology instead of just a lookup table.
+For an enterprise RAG system (especially Engineering, EPC, Oil & Gas, Pharma, Manufacturing), document types are enriched into a knowledge ontology instead of just a lookup table.
+
+**Cross-Reference**: For detailed document type definition structure, see B2.1 §Unified Document Type Definition.
 
 ### B3.1 Document Class, Document Type, and Document Family
 
@@ -144,8 +540,8 @@ Document Class
       ├── Register
       ├── Report
       └── Procedure
-
 ```
+
 **Document Type** should be categorized into a hierarchy and a Document Type can be linked to a Document Class. A sample is given below. The schema definition for Document Type should be expandible and shall not be hard coded in EKS system.
 
 `Document Type ID` should be considered.
@@ -207,7 +603,7 @@ Document Class
     └── Maintenance Procedure
 ```
 
-**Document Falmily** can group related document from related disciplines, which becomes useful for semantic search. Such as:
+**Document Family** can group related document from related disciplines, which becomes useful for semantic search. Such as:
 ```
 Drawing
 ├── Process Drawing
@@ -228,252 +624,96 @@ Drawing
     └──Assembly
 ```
 
-## B3.2 Enrich Document Type into a knowledge ontology
+**Implemented registry (I282, `eks_document_type_schema.json` v2.1.0)**: The carrier `document_types` section holds 28 types across the 8 classes (e.g. `PID_DRAWING`, `PFD`, `PLOT_PLAN`, `GA_DRAWING`, `ISOMETRIC`, `LOOP_DRAWING`, `SLD`, `WIRING_DIAGRAM`, `CAUSE_EFFECT` under `Drawing`; 6 `Specification` types; 5 `Datasheet` types; `CALCULATION`; `VENDOR_MANUAL`/`OPERATION_MANUAL`; `LINE_LIST`/`EQUIPMENT_LIST`/`INSTRUMENT_INDEX`; `REPORT`; `PROCEDURE`). `document_family` holds the 4 drawing families (Process/Instrument/Electrical/Mechanical Drawing). Each type declares `class_id` (required) and optional `family_id`. Base-schema defs are shape-only — no value enums (SSOT §9/§16).
 
-After **Document Type** has been categorized with a hierachy structure, the following compenents should be defined for a document:
-- `Document Identity`: to define immutable properties of Document Type.
-- `Document Semantics`: to define what knowledge a Document will contains.
-- `Structural Characteristics`: to defined what kind of structure a Document will have.
-- `Extraction Strategy`: Different document types require different parsers.
-- `Retrieval Behaviour`: Different document types should be chunked differently.
-- `Knowledge Relationships`: to define how a Document will be linked to other Documents.
-- `Validation Rules`: Each document type can specify required metadata and content checks.
-- `AI Behaviour`: Each document type should define how AI interacts with it.
+### B3.2 Document Type Registry
 
-Notes: to avoid repeating configuration in every document type, consider reusable registries, sucha as for `Extraction Profile`, `Chunk Profile`, `Validation Profile`, `Retrieval Profile`.
+**SSOT (I279/I282)**: Document type codes are defined in `eks_document_type_schema.json` v2.1.0 — the five-section runtime carrier (`document_classes` / `document_types` / `document_family` / `project_document_types` / `document_templates`). The `document_type_registry` section was removed from `eks_doc_config.json` v1.9.0, and the former concept layer (`document_type_concepts`) was **removed** in v2.1.0 (I282) — bindings reference `class_id` directly. Codes are **project-bound**: the same class (e.g. `Drawing`) may use different local codes in different projects (`DWG` in project 131101, `DR` in project 131242).
 
+**Project 131101 bindings**:
 
-### **Document Identity** should consider following subkeys:
-```
-{
-   "concept_id": "PID_DRAWING",
-   "label": "P&ID Drawing",
-   "short_name": "P&ID",
-   "ontology_class": "PID_Drawing",
-   "parent_class": "Drawing",
-   "discipline": "Process",
-   "category": "Engineering",
-   "lifecycle_stage": [
-         "FEED",
-         "Detailed Engineering",
-         "Construction",
-         "Commissioning",
-         "Operation"
-   ],
-   "description": "Process and Instrumentation Diagram representing process flow, piping and instrumentation."
-   "industry": "xxx"
-   "project_phase": "xxx"
-   "owner": "xxx"
-   "revision_strategy": "xxx"
-   "document_number_pattern": "xxx"
-   "default_file_formats": "xxx"
-   "native_application": "xxx"
-   "typical_size": "xxx"
-   "confidentiality_default": "xxx"
-}
-```
-### **Document Semantics** should consider:
-- semantic_entities
-- semantic_relationships
-- semantic_constraints
-- business_objects
-- engineering_objects
+| Local Code | Class | Ontology Class | Template | Format | Expected File Types |
+|:---------- |:------- |:-------------- |:-------- |:------ |:------------------- |
+| `DWG` | `Drawing` | `Drawing` | `twrp_drawing` | print | `pdf` |
+| `PI-PID` | `Drawing` | `PID_Drawing` | `twrp_pandid` | print | `pdf`, `dgn` |
+| `SPC` | `Specification` | `Specification` | `twrp_spec_c` | print | `pdf`, `docx` |
+| `DS` | `Datasheet` | `Datasheet` | `twrp_datasheet_e` | print | `pdf`, `xlsx` |
+| `MAN` | `Manual` | `Manual` | `twrp_manual_d` | print | `pdf`, `docx` |
+| `OM` | `Manual` | `OpsManual` | `twrp_manual_d` | print | `pdf`, `docx` |
+| `RPT` | `Report` | `Report` | `twrp_report_e` | print | `pdf`, `docx` |
+| `CAD` | `Drawing` | `CAD_Drawing` | `twrp_drawing` | native | `dwg` |
 
-which should directly feed graph database.
+**Project 131242 bindings**:
 
-Example for P&ID:
-```
-P&ID
-   contains
-      Equipment
-      Instrument
-      Valve
-      Pipe
-      Control Loop
-      Stream
-      Area
-      Subsystem
-```
-Relationshops will have:
-```
-Equipment
-   connected_to
-      Pipe
-Instrument
-   measures
-      Line
-Valve
-   installed_on
-      Line
-Control Loop
-   controls
-      Valve
-```
+| Local Code | Class | Ontology Class | Template | Format | Expected File Types |
+|:---------- |:------- |:-------------- |:-------- |:------ |:------------------- |
+| `DR` | `Drawing` | `Drawing` | `twrp_drawing` | print | `pdf`, `docx` |
+| `SP` | `Specification` | `Specification` | `twrp_spec_c` | print | `pdf`, `docx` |
+| `CL` | `Specification` | `Specification` | `twrp_spec_c` | print | `pdf`, `docx` |
+| `BQ` | `Specification` | `Specification` | `twrp_spec_c` | print | `pdf`, `xlsx` |
+| `VI` | `Manual` | `OpsManual` | `twrp_manual_d` | print | `pdf` |
+| `M3` | `Drawing` | `Drawing` | `twrp_drawing` | print | `pdf` |
+| `QA` | `Report` | `Report` | `twrp_report_e` | print | `pdf`, `docx` |
 
-### **Structural Characteristics** should be expandable:
-```
-"structural_profile": {
-   "cover_page": "xxx",
-   "revision_table": "xxx",
-   "has_table_of_contents": false,
-   "multi_sheet": "xxx",
-   "section_based": false,
-   "drawing_based": true,
-   "embedded_tables": "xxx",
-   "vector_graphics": "xxx",
-   "contains_callouts": true,
-   "contains_symbols": true,
-   "contains_cross_references": true
-   "title_block"
-   "legend"
-   "grid"
-   "drawing_scale"
-   "sheet_number"
-   "north_arrow"
-   "table_regions"
-   "revision_block"
-   "signature_block"
-   "approval_block"
-   "change_cloud"
-   "callout_regions"
-}
-```
-### **Extraction Strategy** should allow every document type to use different parser chains.
-```
-"extraction_profile":{
-   "Parser": "xxx",
-   "ocr": "xxx",
-   "layout_analysis":true,
-   "vector_drawing":true,
-   "table_detection":false,
-   "symbol_detection":true,
-   "entity_linking":true,
-   "caption_detection":true
-   "Extraction Profile"
-   "Layout"
-   "Title Block"
-   "Revision Table"
-   "Entity Extraction"
-   "Table Extraction"
-   "Figure Extraction"
-   "Cross-reference"
-   "Callout"
-   "Symbol Detection"
-   "CAD Parser"
-   "Vision LLM"
-   "LLM Verification"
-   "Confidence Threshold" 
-}
-```
-`Parser Capability Matrix` will help on parser orchestration. For example:
-```
-| Document  | OCR | Table | CAD | Vision | Graph   |
-| --------- | --- | ----- | --- | ------ | ------- |
-| P&ID      | No  | No    | Yes | Yes    | Yes     |
-| Manual    | Yes | Yes   | No  | No     | No      |
-| Datasheet | Yes | Yes   | No  | No     | Partial |
+**Document classes** (in `document_classes`): `Drawing`, `Specification`, `Datasheet`, `Calculation`, `Manual`, `Register`, `Report`, `Procedure` — the 8 core classes (I282, closing the I282 gap that previously omitted `CALCULATION`/`REGISTER`/`PROCEDURE`). Each class's `ontology_class` resolves against `eks_ontology_config.json` at load time.
 
-```
+**Alignment**:
+- Ontology class hierarchy per Appendix C §C4: `Drawing` -> `PID_Drawing`; `Specification` covers `SPC`/`DS`/`SP`/`CL`/`BQ`; `Manual` covers `MAN`/`OM`/`VI`.
+- TWRP assets per §B7.1: 100+ PDF drawings (DWG/PI-PID), 6 DGN drawings (PI-PID), specifications, manuals, reports.
+- Phase 1 filename parsing extracts local code; Phase 3 cover sheet parsing extracts it -> class -> ontology class assignment.
 
-Parser example:
-```
-P&ID
-↓
-PDF Parser
-↓
-CAD Parser
-↓
-Vision Model
-↓
-Symbol Detection
-↓
-Graph Builder
-```
+### B3.3 File Type Registry
 
-### **Retrieval Behaviour** should conider:
-```
-"retrieval_profile":{
-   "chunk_strategy":"drawing",
-   "chunk_size":1,
-   "anchor_priority":[
-      "Equipment",
-      "Line",
-      "Instrument",
-      "Valve"
-   ],
-   "embedding_scope":"sheet",
-   "graph_linking":true,
-   "retrieval_profile"
-   "embedding_model"
-   "reranker"
-   "vector_weight"
-   "graph_weight"
-   "metadata_weight"
-   "keyword_weight"
-   "hybrid_search"
-   "cross_document_search"
-   "section_priority"
-   "entity_priority"
-   "table_priority"
-   "figure_priority"
-}
-```
-**Chunk Strategy Registry** should be considered and expandable, such as:
-```
-Chunk Strategy Registry
-   Section
-   Heading
-   Drawing
-   Table
-   Paragraph
-   Sheet
-   Revision
-   Title Block
-```
-So each document type can refer to a related chunk strategy, such as:
-```
-Drawing -> Sheet Chunk
-Manual -> Heading Chunk
-Specification -> Section Chunk
-Register -> Row Chunk
-```
+Maps source file extensions to parser implementations (Phase 1 plug-in architecture) and MIME types. `format_category` (I279 T1.215) distinguishes native formats (rich embedded metadata available) from PDF prints (flattened â€” only OS properties + cover-page OCR). This field drives I275 column scope, I276 two-axis parser routing, and I277 extraction method gating.
 
-### **Knowledge Relationships** should have typed relatiions:
-```
-relationships
-   produced_from
-   validated_by
-   references
-   implements
-   supersedes
-   derived_from
-   contains
-   linked_to
-   verified_against
-   governs
-```
-### **Validation Rules** should split into multi layers:
-```
-Validation
-   Metadata
-   Structure
-   Business
-   Engineering
-   Graph
-   Quality
-```
-### **AI Behaviour** should define how AI interacts with each document type:
-```
-ai_profile
-   question_types
-   reasoning_level
-   preferred_context
-   requires_graph
-   requires_multimodal
-   preferred_chunk
-   citation_priority
-```
-For example, AI can answer equipment, line routing, control loop, valve location, and instrument function from P&IDs, but it can not answer, operating procedures.
+| Extension | Display Name | Parser Class | Format Category | TWRP Use | MIME Type |
+|:--------- |:------------ |:------------ |:--------------- |:-------- |:--------- |
+| `pdf` | PDF Document | `eks.engine.parsers.pdf_parser.PDFParser` | `print` | Drawings (100+), Specs, Manuals, Reports | `application/pdf` |
+| `dgn` | DGN Drawing | `eks.engine.parsers.dgn_parser.DGNParserStub` | `native` | CAD Drawings (6) | `image/vnd.dgn` |
+| `docx` | Word Document | `eks.engine.parsers.docx_parser.DOCXParser` | `native` | Specs, Manuals, Reports | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
+| `xlsx` | Excel Workbook | `eks.engine.parsers.xlsx_parser.XLSXParser` | `native` | Data Sheets, Datadrop | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |
+| `dwg` | AutoCAD Drawing | `eks.engine.parsers.dwg_parser.DWGParserStub` | `native` | Native CAD (CAD local code) | `image/vnd.dwg` |
+
+**Alignment**:
+- `format_category` stored in `eks_doc_config.json` -> `file_type_registry[].format_category` (I279 T1.215).
+- Phase 1 implements PDF, DOCX, XLSX parsers fully; DWG/DGN are stubs (OS-only extraction, `format_category=native`).
+- `file_type` column in registry (B4 table) stores extension for format tracking.
+
+### B3.4 Element Type Registry
+
+Structural element types per Appendix D Â§D7.10, used for structural completeness scoring and Phase 2/3 knowledge graph population.
+
+**SSOT (I279)**: Expected-element counts are defined in `eks_document_type_schema.json` -> `document_templates[template_id].expected_elements`. The `element_expectations` section was removed from `eks_doc_config.json` v1.9.0. Mapping: `local_code` -> project binding -> `template` -> `expected_elements` + `threshold` + `cover_type`.
+
+| Element Type | Description | Source Method | Phase 2 Use | Phase 3 Use | Expected By Cover Type |
+|:------------ |:----------- |:------------- |:----------- |:----------- |:---------------------- |
+| `cover_page` | Cover page fields from page 1 | `regex` | Section anchor | Document-type node | A, B, D, E |
+| `revision_table` | Revision history table from page 1 | `table` | Change tracking | Revision nodes | A, B |
+| `section` | Section heading (regex `\d+\.\d+`) | `regex` | Chunk boundary | Section nodes | A, B, D, E |
+| `table` | Data table on page | `heuristic` | Context chunks | Table nodes | E |
+| `image` | Image/chart on page | `heuristic` | Skip | Figure nodes | A, B |
+| `link` | URL or file path reference | `regex` | Skip | Reference edges | A, B, C, D, E |
+| `legend` | Page legend/symbol key | `heuristic` | Skip | Legend nodes | A, B |
+| `note` | Page 1 annotation block | `heuristic` | Skip | Annotation nodes | A, B |
+
+**Element Expectations by Template (from `document_templates` â€” I279)**:
+
+| Template | Expected Elements | Threshold | Cover Type | Used By |
+|:-------- |:----------------- |:--------: |:----------:|:------- |
+| `twrp_drawing` | cover_page, revision_table, section, image, link | 4 | A | DWG, CAD, DR, M3 |
+| `twrp_pandid` | cover_page, revision_table, section, image, link | 4 | B | PI-PID |
+| `twrp_spec_c` | (none) | 0 | C | SPC, SP, CL, BQ |
+| `twrp_datasheet_e` | cover_page, section, table | 2 | E | DS |
+| `twrp_manual_d` | cover_page, section | 2 | D | MAN, OM, VI |
+| `twrp_report_e` | cover_page, section, table | 2 | E | RPT, QA |
+
+The `threshold` is the minimum detected element types for structural completeness to reach a passing tier. Cover type `C` (no-cover) skips cover-page detection and `cover_page_element`-based columns entirely (I278).
+
+**Alignment**:
+- `structure_detector.py` detects elements and stores in `document_elements` table via `DocumentRegistry.store_elements()`.
+- `HealthScorer._build_expected_elements_map()` reads from `document_templates` at runtime (I279 T1.213) â€” no hardcoded map.
+- `EKSColumnProcessor.resolve_cover_type()` reads `document_templates[template_id].cover_type` as SSOT (I278).
+- Asset tag detection (`asset_tags`) is best-effort regex from cover page / title block (T1.99.162).
 
 ---
 
@@ -482,7 +722,7 @@ For example, AI can answer equipment, line routing, control loop, valve location
 **Table**: `documents`  
 **Backend**: DuckDB (`output/eks_registry.db`)  
 **Created by**: `_init_db()` on first instantiation (`CREATE TABLE IF NOT EXISTS`)  
-**Schema source**: [`eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) v1.8.0 — 54 columns  
+**Schema source**: [`eks_doc_base_schema.json`](../config/schemas/eks_doc_base_schema.json) v1.13.0 — 54 columns  
 
 **Primary key**: `id` (UUID v4, system-generated per I186). Business key `(document_number, revision)` is indexed separately via `idx_doc_business_key` for fast lookup. The old `{document_number}-{revision}` format is retired — each call to `register_document()` now generates a new UUID unconditionally, controlled by the I185 three-tier check (key lookup → hash match → hash mismatch/supersedes) in `FileScanner.register_placeholders()`.
 
@@ -490,6 +730,20 @@ For example, AI can answer equipment, line routing, control loop, valve location
 - `Auto` = Automatically extracted by the Phase 1 pipeline (parsers, filename scanner, FilePropertyExtractor, StructureDetector, or system logic)
 - `Manual` = Requires human input (planned for Phase 5 verification dashboard)
 - `System` = Set by internal pipeline logic (not from file content)
+
+### Schema to Unified Document Type Definition Mapping
+
+The database schema columns map to the unified document type definition structure (B2.1) as follows:
+
+| B2.1 Domain | Schema Columns | Description |
+|:----------- |:-------------- |:----------- |
+| Identity & Classification | `document_type`, `document_number`, `revision`, `project_number`, `area`, `discipline`, `department` | Document identity and classification fields |
+| Structural Characteristics | `page_count`, `total_sheets` | Document structure metadata |
+| Document Semantics | `asset_tags`, `references_documents` | Semantic entities and relationships |
+| Processing Profiles | `extract_status`, `extraction_confidence`, `extraction_notes` | Extraction and validation results |
+| Knowledge Relationships | `supersedes`, `superseded_by`, `references_documents` | Document relationship edges |
+| Lifecycle & Governance | `lifecycle_stage`, `revision_date`, `revision_description`, `project_phase`, `contract_package`, `issued_date`, `responsible_engineer`, `vendor_name`, `originator_company`, `security_class` | Lifecycle and governance fields |
+| Capabilities & Extensions | *(none in Phase 1)* | Future extension points |
 
 ### Identity (2 columns)
 
@@ -608,7 +862,7 @@ The following registry fields are mapped to Ontology classes and relationships d
 
 | Registry Field | Ontology Trigger | Logic / Edge Produced |
 | :--- | :--- | :--- |
-| `document_type` | `IS_A` | Class Assignment: maps to `Drawing`, `PID_Drawing`, `Specification`, `Manual`, or `Report`. |
+| `document_type` | `IS_A` | Class Assignment: `document_type` (project-local code) -> project binding -> `class_id` -> `ontology_class` (I279/I282). Maps to `Drawing`, `PID_Drawing`, `Specification`, `Datasheet`, `Manual`, `OpsManual`, `Report`, or `CAD_Drawing`. |
 | `document_number` | `SUPERSEDES` | Links revisions of the same number in a time-ordered chain. |
 | `asset_tags` | `REFERENCES_ASSET` | Produces M:N edges to `FunctionalObject` (Tag) nodes. |
 | `originator_company` | `PRODUCED_BY` | Links Document to a `GovernanceObject` (Company/Entity). |
@@ -618,95 +872,18 @@ The following registry fields are mapped to Ontology classes and relationships d
 
 ---
 
-### B4.2. Document Type Registry
-
-The following document type codes are defined in `eks_doc_config.json` → `document_type_registry`. They map to ontology classes (Appendix C) and expected file formats for TWRP ingestion.
-
-| Code | Label | Ontology Class | Description | Expected File Types |
-|:---- |:----- |:-------------- |:----------- |:------------------- |
-| `CAD` | AutoCAD Drawing | `Drawing` | Native AutoCAD DWG drawing file | `dwg` |
-| `DWG` | Engineering Drawing | `Drawing` | Engineering design drawing | `pdf` |
-| `PI-PID` | P&ID Drawing | `PID_Drawing` | Piping and instrumentation diagram | `pdf`, `dgn` |
-| `SPC` | Technical Specification | `Specification` | Technical specification document | `pdf`, `docx` |
-| `DS` | Data Sheet | `Specification` | Equipment/instrument data sheet | `pdf`, `xlsx` |
-| `OM` | Operation Manual | `Manual` | System operation manual | `pdf`, `docx` |
-| `MAN` | Vendor O&M Manual | `Manual` | Vendor operation and maintenance manual | `pdf` |
-| `RPT` | Technical Report | `Report` | Technical report or study | `pdf`, `docx` |
-
-**Alignment**:
-- Ontology class hierarchy per Appendix C §C4: `Drawing` → `PID_Drawing`; `Specification` covers `SPC` and `DS`; `Manual` covers `MAN` and `OM`.
-- TWRP assets per Appendix B §B6.1: 100+ PDF drawings (DWG/PI-PID), 6 DGN drawings (PI-PID), specifications, manuals, reports.
-- Phase 1 filename parsing extracts `document_type`; Phase 3 cover sheet parsing also extracts it → ontology class assignment.
-
----
-
-### B4.3. File Type Registry
-
-Maps source file extensions to parser implementations (Phase 1 plug-in architecture) and MIME types.
-
-| Extension | Display Name | Parser Class | TWRP Use | MIME Type |
-|:--------- |:------------ |:------------ |:-------- |:--------- |
-| `pdf` | PDF Document | `eks.engine.parsers.pdf_parser.PDFParser` | Drawings (100+), Specs, Manuals, Reports | `application/pdf` |
-| `dgn` | DGN Drawing | `eks.engine.parsers.dgn_parser.DGNParserStub` | CAD Drawings (6) | `image/vnd.dgn` |
-| `docx` | Word Document | `eks.engine.parsers.docx_parser.DOCXParser` | Specs, Manuals, Reports | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` |
-| `xlsx` | Excel Workbook | `eks.engine.parsers.xlsx_parser.XLSXParser` | Data Sheets, Datadrop | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` |
-| `dwg` | AutoCAD Drawing | `eks.engine.parsers.dwg_parser.DWGParserStub` | Future CAD support | `image/vnd.dwg` |
-
-**Alignment**:
-- Parser plug-ins defined in `eks_config.json` → `parsers` section. Full class paths as stored in `eks_config.json`.
-- Phase 1 implements PDF, DOCX, XLSX; DWG/DGN are stubs for Phase 3 (Appendix B §B6.2).
-- `file_type` column in registry (B3 table) stores extension for format tracking.
-
----
-
-### B4.4. Element Type Registry
-
-Structural element types per Appendix D §D7.10, used for structural completeness scoring and Phase 2/3 knowledge graph population.
-
-Expected-element counts per document type are defined in `eks_doc_config.json` → `element_expectations`:
-
-| Element Type | Description | Source Method | Phase 2 Use | Phase 3 Use | Expected By Cover Type |
-|:------------ |:----------- |:------------- |:----------- |:----------- |:---------------------- |
-| `cover_page` | Cover page fields from page 1 | `regex` | Section anchor | Document-type node | A, B, D, E |
-| `revision_table` | Revision history table from page 1 | `table` | Change tracking | Revision nodes | A, B |
-| `section` | Section heading (regex `\d+\.\d+`) | `regex` | Chunk boundary | Section nodes | A, B, D, E |
-| `table` | Data table on page | `heuristic` | Context chunks | Table nodes | E |
-| `image` | Image/chart on page | `heuristic` | Skip | Figure nodes | A, B |
-| `link` | URL or file path reference | `regex` | Skip | Reference edges | A, B, C, D, E |
-| `legend` | Page legend/symbol key | `heuristic` | Skip | Legend nodes | A, B |
-| `note` | Page 1 annotation block | `heuristic` | Skip | Annotation nodes | A, B |
-
-**Element Expectations by Document Type (Thresholds)**:
-
-| Doc Type | Expected Elements | Threshold | Cover Type |
-|:-------- |:----------------- |:--------: |:----------:|
-| `CAD` | cover_page, revision_table, section, image, link | 4 | A |
-| `DWG` | cover_page, revision_table, section, image, link | 4 | A |
-| `PI-PID` | cover_page, revision_table, section, image, link | 4 | B |
-| `SPC` | (none) | 0 | C |
-| `DS` | cover_page, section, table | 2 | E |
-| `MAN` | cover_page, section | 2 | D |
-| `OM` | cover_page, section | 2 | D |
-| `RPT` | cover_page, section, table | 2 | E |
-
-The `threshold` value is the minimum number of expected element types that must be detected for the structural completeness sub-score to reach a passing tier. Cover types (A–E) are preserved for backward compatibility with `StructureDetector` classification logic.
-
-**Alignment**:
-- `structure_detector.py` (T1.32) detects elements and stores in `document_elements` table via `DocumentRegistry.store_elements()`.
-- Structural completeness scoring (health scorer dimension 3) uses `element_expectations` keyed by document type.
-- Asset tag detection (`asset_tags`) is a best-effort regex from cover page / title block (T1.99.162).
-
----
-
 ## B5. Function Reference
 
-### B5.1 `DocumentRegistry.__init__(logger, db_path=None)`
+### B5.1 `DocumentRegistry.__init__(logger, db_path=None, pre_generated_ddl=None)`
 
 Initialises the registry. Implements **Automatic Schema Migration**:
 
 1. **`_init_db()`** — Creates `documents` and `document_elements` tables using DDL auto-generated from `eks_doc_base_schema.json` via `SchemaToDDL`. Creates schema indexes (`idx_doc_business_key`, etc.).
 2. **`_migrate_schema()`** — Checks for missing columns vs. schema definitions and executes `ALTER TABLE ADD COLUMN` to upgrade existing databases without data loss. Also runs NOT NULL constraint diagnostics on project-metadata columns (which should be nullable; reports schema drift if NOT NULL is misapplied).
-3. **`_migrate_ids_to_uuid()` (I186)** — One-time migration: converts existing business-key-derived ids (e.g. `DWG-001-A`) to pure UUID v4 format. Steps: (a) add temporary `_old_id` column with current values, (b) generate new UUID for each non-UUID row, (c) update FK references in `document_elements` table, (d) drop temporary column. Idempotent — skips if all ids are already UUID format (36 chars with hyphens).
+3. **`_ensure_schema_version()`** (I225) — Creates `_eks_schema_meta` table on first run and stores a hash of the current DDL. On subsequent runs, compares stored hash against current DDL to detect schema drift. Idempotent.
+4. **`_migrate_ids_to_uuid()`** (I186) — One-time migration: converts existing business-key-derived ids to pure UUID v4 format. Idempotent — skips if all ids are already UUID format (36 chars with hyphens).
+
+**`pre_generated_ddl`** parameter (I225): when provided by bootstrap P7, schema re-loading from disk is skipped and the pre-generated DDL is used directly. Keys: `documents_ddl`, `elements_ddl`, `indexes`, `definitions`.
 
 ### B5.2 `DocumentRegistry.register_document(metadata) → str`
 
@@ -788,8 +965,8 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
 
 2. **Filename Parsing** (`FilenameParser`, Appendix I):
    - Schema-driven segment parsing using patterns from `eks_doc_config.json` → `filename_patterns`.
-   - Extracts up to 7 fields: `project_number`, `area`, `document_type`, `discipline`, `sequence_number`, `document_number`, `revision`.
-   - Supports per-project patterns (e.g. `131101` for TWRP delimited format: `{project}-{area}-{type}-{disc}-{seq}_rev{rev}.ext`).
+   - Auto-detects project code per filename via `_detect_pattern()` (I255 T1.157) — no `project_code` constructor parameter. Extracts up to 7 fields: `project_number`, `area`, `document_type`, `discipline`, `sequence_number`, `document_number`, `revision`.
+   - Supports per-project patterns (e.g. `131101` for TWRP delimited format: `{project}-{area}-{type}-{disc}-{seq}_rev{rev}.ext`). Project code auto-detected per filename — not passed as constructor argument (I255).
 
 3. **File Property Extraction** (`FilePropertyExtractor`, Appendix J):
    - **OS-level**: `file_size`, `file_hash` (MD5), `file_created_at`, `file_modified_at` via `Path.stat()`.
@@ -797,10 +974,10 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
      - PDF: `author`→`created_by`, `title`→`embedded_title`, `page_count`, `creator`→`embedded_creator_app`, `producer`→`embedded_producer`, etc.
      - DOCX: `author`→`created_by`, `title`→`embedded_title`, `revision`→`embedded_revision_number`, `last_modified_by`→`embedded_last_modified_by`, etc.
      - XLSX: `author`→`created_by`, `sheet_count`→`embedded_sheet_count`, `last_modified_by`→`embedded_last_modified_by`, etc.
-     - DGN/DWG: OS-only (stub parsers, no embedded metadata extraction yet).
+     - DGN/DWG: OS-only extraction (`format_category=native`, stub parsers). `format_category` from `file_type_registry` determines extraction mode — native formats support embedded metadata; PDF prints are flattened (I279 T1.215).
 
 4. **Structure Detection** (`StructureDetector`):
-   - Analyses parsed PDF text from page 1 to detect 8 element types: `cover_page`, `revision_table`, `section`, `table`, `image`, `link`, `legend`, `note`.
+   - Analyses parsed PDF text from page 1 to detect 8 element types: `cover_page`, `revision_table`, `section`, `table`, `image`, `link`, `legend`, `note`. Classifies cover type (A-E) from `document_templates[template_id].cover_type` SSOT (I279). Cover type `C` (no-cover templates: SPC/SP/CL/BQ) skips cover-page detection and `cover_page_element`-based columns entirely (I278).
    - Classifies cover type (A–E) based on detected element combinations.
    - Best-effort `asset_tags` regex detection from title block (`COVER_PAGE_PATTERNS["asset_tags"]`).
    - Results persisted to `document_elements` table via `registry.store_elements()`.
@@ -813,7 +990,7 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
 6. **Pipeline Export** (`--export csv|xlsx|both`):
    - Schema-driven column subsets defined in `eks_doc_base_schema.json` → `export_artifact_def` (I193).
    - Three artifacts: `discovery_inventory` (all `x_export` fields minus extraction), `extraction_results` (all `x_export` fields), `review_flags` (extraction-quality triage subset + `flag_reason`).
-   - Columns resolved at runtime from `x_export` boolean flags on each property — no hardcoded column lists.
+   - Columns resolved at runtime from `x_export` boolean flags on each schema property — no hardcoded column lists. Additionally scoped by `applies_to_document_types` (concept filter) and `native_only` (format_category filter) from `column_processing` entries (I275 T1.203).
 
 ### Phase 3 — Knowledge Graph Ingestion (🔷 PLANNED)
 
@@ -848,15 +1025,15 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
 
 2. **Parser Plug-ins** — PDF, DOCX, XLSX parsers extract embedded metadata (`created_by`, `embedded_title`, `embedded_subject`, `embedded_created_date`, `embedded_modified_date`, `embedded_creator_app`, `embedded_producer`, `embedded_keywords`, `embedded_sheet_count`, `embedded_revision_number`, `page_count`) + OS-level file properties (`file_size`, `file_hash`, `file_created_at`, `file_modified_at`) via `FilePropertyExtractor` (Appendix J). DWG/DGN parsers are stubs (OS-only extraction).
 
-3. **Filename Parsing** — Schema-driven `FilenameParser` (Appendix I) extracts `project_number`, `area`, `document_type`, `discipline` from delimited filenames (e.g. `131101-XXX-DWG-PI-0001_A.pdf`). Handles revision suffix stripping, segment validation against `document_type_registry`, and fallback resolution for unrecognised patterns.
+3. **Filename Parsing** — Schema-driven `FilenameParser` (Appendix I) auto-detects project code per filename via `_detect_pattern()` (I255) — no constructor `project_code` parameter. Extracts `project_number`, `area`, `document_type`, `discipline` from delimited filenames (e.g. `131101-XXX-DWG-PI-0001_A.pdf`). Handles revision suffix stripping, segment validation against the five-section SSOT carrier (I279/I282), and fallback resolution for unrecognised patterns.
 
-4. **Structure Detection** — `StructureDetector` analyses page 1 of each PDF to detect 8 element types (cover_page, revision_table, section, table, image, link, legend, note), classifies cover type (A–E), and performs best-effort `asset_tags` regex detection from the title block. Results are persisted to the `document_elements` table via `registry.store_elements()` for downstream health scoring and Phase 2/3 knowledge graph population.
+4. **Structure Detection** — `StructureDetector` analyses page 1 of each PDF to detect 8 element types (cover_page, revision_table, section, table, image, link, legend, note), classifies cover type (A-E) from `document_templates[template_id].cover_type` SSOT (I279), and performs best-effort `asset_tags` regex detection from the title block. Cover type `C` (no-cover templates: SPC/SP/CL/BQ) skips cover-page detection and `cover_page_element`-based columns entirely (I278). Results persisted to `document_elements` table via `registry.store_elements()`.
 
-5. **Health Scoring** — `HealthScorer` computes a 6-dimensional composite score per document (completeness 20% + extraction_confidence 20% + structural_completeness 20% + source_quality 15% + xref_quality 15% + consistency 10%). Structual completeness dimension uses `element_expectations` thresholds from B3.4. Score tiers map to pipeline actions (auto_register → manual_entry).
+5. **Health Scoring** — `HealthScorer` computes a 6-dimensional composite score per document (completeness 20% + extraction_confidence 20% + structural_completeness 20% + source_quality 15% + xref_quality 15% + consistency 10%). Structural completeness dimension uses `element_expectations` thresholds from B3.4. Score tiers map to pipeline actions (auto_register → manual_entry).
 
 6. **Revision Control** — Three-tier I185 check in `FileScanner.register_placeholders()`: key lookup → hash match (skip duplicate) → hash mismatch (register new revision with supersedes chain). Each registration uses UUID v4 `id` (I186). Supersedes chain auto-links `supersedes`/`superseded_by` FK pairs.
 
-7. **Pipeline Export** — I193 schema-driven export produces 3 artifacts (`discovery_inventory`, `extraction_results`, `review_flags`) in CSV/XLSX/Both formats. Column subsets are resolved at runtime from `x_export` flags on each schema property — no hardcoded column lists. Outputs written to `eks/output/`.
+7. **Pipeline Export** — I193 schema-driven export produces 3 artifacts (`discovery_inventory`, `extraction_results`, `review_flags`) in CSV/XLSX/Both formats. Column subsets resolved at runtime from `x_export` flags on each schema property — no hardcoded column lists. Additionally scoped by `applies_to_document_types` and `native_only` flags in `column_processing` (I275 T1.203). Outputs written to `eks/output/`.
 
 8. **Test Verification** — Registry CRUD, I185 three-tier dedup, UUID migration (I186), filename parsing (Appendix I), file property extraction (Appendix J), structure detection, element persistence, health scoring, and schema-driven export all passing.
 
@@ -891,3 +1068,4 @@ The Phase 1 pipeline performs automated extraction through six subsystems operat
 2. [Phase 1 Foundation Workplan](phase_1_foundation_workplan.md) — T1.21, T1.22
 3. [Phase 3 Knowledge Graph Workplan](phase_3_knowledge_graph_workplan.md) — T3.21 (Extraction)
 4. [Phase 5 UI Integration Workplan](phase_5_ui_integration_workplan.md) — T5.18 (Verification UI)
+5. [Appendix B Alignment Fix Workplan](appendix_b_alignment_fix_workplan.md) — v2.1.0 alignment changes

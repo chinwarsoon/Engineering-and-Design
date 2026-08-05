@@ -1,9 +1,9 @@
 {
   "$schema": "https://eks.engineering/schemas/eks_ontology_setup_schema.json",
   "$id": "https://eks.engineering/configs/eks_ontology_config.json",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "title": "EKS ISO 15926-Aligned Dynamic Ontology",
-  "description": "Dynamic ontology configuration for EKS classes, inheritance, tag type mapping, aliases, and relationships. Expanded with Document hierarchy and lifecycle relationships.",
+  "description": "Dynamic ontology configuration for EKS classes, inheritance, tag type mapping, aliases, and relationships. Expanded with Document hierarchy and lifecycle relationships. v1.7.0 (I282 T1.226): DataSheet renamed to Datasheet and promoted to a top-level Document subclass (D1 — Datasheet separate from Specification); added Calculation, Register, Procedure Document subclasses per Appendix C §C4.",
   "classes": [
     { 
       "name": "ISO15926_Entity", 
@@ -111,11 +111,14 @@
     { "name": "Drawing", "label": "Engineering Drawing", "subClassOf": "Document", "document_type_mapping": "DWG" },
     { "name": "PID_Drawing", "label": "P&ID Drawing", "subClassOf": "Drawing", "document_type_mapping": "PI-PID" },
     { "name": "Specification", "label": "Technical Specification", "subClassOf": "Document", "document_type_mapping": "SPC" },
-    { "name": "DataSheet", "label": "Equipment Data Sheet", "subClassOf": "Specification", "document_type_mapping": "DS" },
+    { "name": "Datasheet", "label": "Equipment Data Sheet", "subClassOf": "Document", "document_type_mapping": "DS" },
+    { "name": "Calculation", "label": "Engineering Calculation", "subClassOf": "Document" },
     { "name": "Manual", "label": "Vendor O&M Manual", "subClassOf": "Document", "document_type_mapping": "MAN" },
     { "name": "OpsManual", "label": "Operation Manual", "subClassOf": "Manual", "document_type_mapping": "OM" },
-    { "name": "CAD_Drawing", "label": "AutoCAD Drawing", "subClassOf": "Drawing", "document_type_mapping": "CAD" },
-    { "name": "Report", "label": "Technical Report", "subClassOf": "Document", "document_type_mapping": "RPT" }
+    { "name": "Register", "label": "Engineering Register", "subClassOf": "Document" },
+    { "name": "Report", "label": "Technical Report", "subClassOf": "Document", "document_type_mapping": "RPT" },
+    { "name": "Procedure", "label": "Operating Procedure", "subClassOf": "Document" },
+    { "name": "CAD_Drawing", "label": "AutoCAD Drawing", "subClassOf": "Drawing", "document_type_mapping": "CAD" }
   ],
   "relationships": [
     { "name": "SUBCLASS_OF", "inverse": "SUPERCLASS_OF", "transitive": true, "description": "Establishes class hierarchy." },

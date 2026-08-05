@@ -1,9 +1,9 @@
 {
     "$schema": "https://eks.engineering/schemas/eks_doc_setup_schema.json",
     "$id": "https://eks.engineering/configs/eks_doc_config_default.json",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "title": "EKS Document Configuration",
-    "description": "Document schema config v1.9.0 (I279 T1.213-T1.216): removed committed document_type_registry and element_expectations — now derived at runtime from the three-section eks_document_type_schema.json v2.0.0 carrier; added document_type_schema_ref; added format_category to file_type_registry; added native parsing profiles (technip_dwg/technip_dgn/technip_xlsx — that satisfies GAP-N4). v1.8.0: added parsing_profiles section (technip_pdf, technip_docx) — parser profiles with capability fields per T1.195 V2. v1.7.0: moved revision_validation and filename_patterns to Project Definition (I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.6.0: added column_processing object (DCC-aligned key-as-name pattern) with 42 column entries — Phase A (9): file_path, file_type, document_number, project_number, area, document_type, discipline, sequence_number, revision. Phase B (33): project_title, document_title, file_size, file_created_at, file_modified_at, file_hash, 9 embedded_* fields, page_count, created_by, checked_by, approved_by, originator_company, asset_tags, references_documents, language, vendor_name, total_sheets, lifecycle_stage, revision_description, revision_date, project_phase, contract_package, issued_date, responsible_engineer (I264, T1.184). v1.5.0: added DOCX embedded_revision_number mapping (T1.99.144) + references_documents ontology trigger (T1.99.145). v1.4.0: populated file_property_patterns with OS config + 5 file-type mappings (pdf/docx/xlsx/dgn/dwg) per Appendix J (T1.99.130). v1.3.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.112).",
+    "description": "Document schema config v1.9.0 (I279 T1.213-T1.216): removed committed document_type_registry and element_expectations — now derived at runtime from the three-section eks_document_type_schema.json v2.0.0 carrier; added document_type_schema_ref; added format_category to file_type_registry; added native parsing profiles (technip_dwg/technip_dgn/technip_xlsx — that satisfies GAP-N4). v1.8.0: added parsing_profiles section (technip_pdf, technip_docx) — parser profiles with capability fields per T1.195 V2. v1.7.0: moved revision_validation and filename_patterns to Project Definition (I265 T1.191). Added filename_profiles as reusable profile-keyed section (T1.191). v1.6.0: added column_processing object (DCC-aligned key-as-name pattern) with 42 column entries — Phase A (9): file_path, file_type, document_number, project_number, area, document_type, discipline, sequence_number, revision. Phase B (33): project_title, document_title, file_size, file_created_at, file_modified_at, file_hash, 9 embedded_* fields, page_count, created_by, checked_by, approved_by, originator_company, asset_tags, references_documents, language, vendor_name, total_sheets, lifecycle_stage, revision_description, revision_date, project_phase, contract_package, issued_date, responsible_engineer (I264, T1.184). v1.5.0: added DOCX embedded_revision_number mapping (T1.99.144) + references_documents ontology trigger (T1.99.145). v1.4.0: populated file_property_patterns with OS config + 5 file-type mappings (pdf/docx/xlsx/dgn/dwg) per Appendix J (T1.99.130). v1.3.0: added filename_patterns + file_property_patterns per Appendix I (T1.99.112). v1.10.0 (I281 T1.224): REMOVED parsing_profiles section — migrated to eks_processing_config.json#/extraction_profiles (one-time migration, Q1). Core processing config is the sole profile values SSOT.",
     "ontology_triggers": {
         "document_type": "IS_A",
         "document_number": "SUPERSEDES",
@@ -92,53 +92,6 @@
             "output": { "document_number_source": "rejoin_segments", "fallback_doc_number": "full_stem", "fallback_revision": "00", "preservation_mode": "overwrite_existing" },
             "error_subcodes": {},
             "processing_phase": "P0"
-        }
-    },
-    "parsing_profiles": {
-        "technip_pdf": {
-            "profile_id": "technip_pdf",
-            "parser_class": "eks.engine.parsers.pdf_parser.PDFParser",
-            "description": "TWRP PDF document parser (cover page + metadata extraction)",
-            "supported_extensions": ["pdf"],
-            "supported_document_profiles": ["twrp_standard"],
-            "requires_ocr": false,
-            "extraction_methods": ["parser_metadata", "cover_page_element"]
-        },
-        "technip_docx": {
-            "profile_id": "technip_docx",
-            "parser_class": "eks.engine.parsers.docx_parser.DOCXParser",
-            "description": "TWRP Word document parser (embedded metadata extraction)",
-            "supported_extensions": ["docx"],
-            "supported_document_profiles": ["twrp_standard"],
-            "requires_ocr": false,
-            "extraction_methods": ["parser_metadata"]
-        },
-        "technip_dwg": {
-            "profile_id": "technip_dwg",
-            "parser_class": "eks.engine.parsers.dwg_parser.DWGParserStub",
-            "description": "TWRP native DWG drawing reader (I279 T1.215 — GAP-N4)",
-            "supported_extensions": ["dwg"],
-            "supported_document_profiles": ["twrp_standard"],
-            "requires_ocr": false,
-            "extraction_methods": ["parser_metadata"]
-        },
-        "technip_dgn": {
-            "profile_id": "technip_dgn",
-            "parser_class": "eks.engine.parsers.dgn_parser.DGNParserStub",
-            "description": "TWRP native DGN drawing reader (I279 T1.215 — GAP-N4)",
-            "supported_extensions": ["dgn"],
-            "supported_document_profiles": ["twrp_standard"],
-            "requires_ocr": false,
-            "extraction_methods": ["parser_metadata"]
-        },
-        "technip_xlsx": {
-            "profile_id": "technip_xlsx",
-            "parser_class": "eks.engine.parsers.xlsx_parser.XLSXParser",
-            "description": "TWRP native XLSX workbook reader (I279 T1.215 — GAP-N4)",
-            "supported_extensions": ["xlsx"],
-            "supported_document_profiles": ["twrp_standard"],
-            "requires_ocr": false,
-            "extraction_methods": ["parser_metadata"]
         }
     },
     "file_property_patterns": {
@@ -236,7 +189,7 @@
         "references_documents": {"column_type": "json_column", "is_calculated": false, "processing_phase": "B", "description": "Array of document IDs this document references, from content parser."},
         "language": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "ISO 639-1 language code of document content. Default: en."},
         "vendor_name": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Equipment vendor name for vendor-supplied documents."},
-        "total_sheets": {"column_type": "numeric_column", "is_calculated": true, "calculation": {"type": "priority_chain", "sources": [{"source": "parser_metadata", "field": "total_sheets"}, {"source": "parser_metadata", "field": "page_count"}], "fallback": "leave_null"}, "processing_phase": "B", "applies_to_document_types": ["DRAWING"], "description": "Total sheets in multi-sheet drawing set. I275 scoped to DRAWING concept (datasheets store per-row count, not total_sheets). Defaults to page_count when not explicit."},
+        "total_sheets": {"column_type": "numeric_column", "is_calculated": true, "calculation": {"type": "priority_chain", "sources": [{"source": "parser_metadata", "field": "total_sheets"}, {"source": "parser_metadata", "field": "page_count"}], "fallback": "leave_null"}, "processing_phase": "B", "applies_to_document_types": ["Drawing"], "description": "Total sheets in multi-sheet drawing set. I275 scoped to Drawing class (datasheets store per-row count, not total_sheets). Defaults to page_count when not explicit."},
         "lifecycle_stage": {"column_type": "code_column", "is_calculated": false, "processing_phase": "B", "schema_ref": "lifecycle_stage_code", "validation": [{"type": "enum_reference", "reference": "lifecycle_stage_code", "field": "code"}], "description": "Document lifecycle stage from cover page or parser metadata."},
         "revision_description": {"column_type": "text_column", "is_calculated": false, "processing_phase": "B", "description": "Description of changes in this revision from revision table element."},
         "revision_date": {"column_type": "date_column", "is_calculated": false, "processing_phase": "B", "description": "Date of this revision from revision table or parser metadata."},
